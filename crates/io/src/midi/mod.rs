@@ -33,8 +33,8 @@ pub fn parse_midi(data: &[u8]) -> Result<Score, Error> {
             match &event.kind {
                 TrackEventKind::Meta(MetaMessage::Tempo(t)) => {
                     let us = t.as_int() as u64;
-                    if us > 0 {
-                        tempo_bpm = ((60_000_000u64 / us) as u16).clamp(1, 999);
+                    if let Some(quotient) = 60_000_000u64.checked_div(us) {
+                        tempo_bpm = (quotient as u16).clamp(1, 999);
                     }
                 }
                 TrackEventKind::Meta(MetaMessage::TimeSignature(n, d, _, _)) => {
@@ -192,13 +192,12 @@ fn quantize_to_notes(raw: Vec<RawNote>, ppq: u64) -> Vec<Note> {
     // Group same-tick notes into chords
     let mut groups: Vec<(u64, u64, Vec<u8>)> = Vec::new();
     for rn in raw {
-        if let Some(last) = groups.last_mut() {
-            if last.0 == rn.start {
+        if let Some(last) = groups.last_mut()
+            && last.0 == rn.start {
                 last.1 = last.1.max(rn.end);
                 last.2.push(rn.midi);
                 continue;
             }
-        }
         groups.push((rn.start, rn.end, vec![rn.midi]));
     }
 

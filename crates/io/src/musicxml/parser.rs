@@ -274,12 +274,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                 let tag = std::str::from_utf8(e.name().as_ref()).unwrap_or("").to_string();
                 match tag.as_str() {
                     "print" => {
-                        if let Some(pi) = part_index {
-                            if let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
+                        if let Some(pi) = part_index
+                            && let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
                                 if attr_is_yes(e, b"new-system") { m.system_break = true; }
                                 if attr_is_yes(e, b"new-page")   { m.page_break   = true; }
                             }
-                        }
                     }
                     "rest"  if in_note => note_rest = true,
                     "dot"   if in_note => note_dot  = true,
@@ -321,14 +320,13 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "part-group" => {
                         let pg_type = attr_str(e, b"type").unwrap_or_default();
                         let pg_num = attr_str(e, b"number").unwrap_or_else(|| "1".to_string());
-                        if pg_type == "stop" {
-                            if let Some((first_part, symbol, barlines_connect)) = open_groups.remove(&pg_num) {
+                        if pg_type == "stop"
+                            && let Some((first_part, symbol, barlines_connect)) = open_groups.remove(&pg_num) {
                                 let last_part = part_list_part_count.saturating_sub(1);
                                 if last_part >= first_part {
                                     score.part_groups.push(PartGroup { first_part, last_part, symbol, barlines_connect });
                                 }
                             }
-                        }
                     }
                     "wavy-line" if in_notations => {
                         match attr_str(e, b"type").as_deref() {
@@ -344,13 +342,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 pending_hairpin_start = Some(HairpinKind::Decrescendo);
                             }
                             Some("stop") => {
-                                if let Some(pi) = part_index {
-                                    if let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
-                                        if let Some(n) = m.voices[0].last_mut() {
+                                if let Some(pi) = part_index
+                                    && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
+                                        && let Some(n) = m.voices[0].last_mut() {
                                             n.hairpin_end = true;
                                         }
-                                    }
-                                }
                             }
                             _ => {}
                         }
@@ -372,13 +368,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 );
                             }
                             "stop" => {
-                                if let Some(pi) = part_index {
-                                    if let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
-                                        if let Some(n) = m.voices[0].last_mut() {
+                                if let Some(pi) = part_index
+                                    && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
+                                        && let Some(n) = m.voices[0].last_mut() {
                                             n.ottava_end = true;
                                         }
-                                    }
-                                }
                             }
                             _ => {}
                         }
@@ -387,13 +381,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         match attr_str(e, b"type").as_deref() {
                             Some("start") => pending_pedal_start = true,
                             Some("stop") => {
-                                if let Some(pi) = part_index {
-                                    if let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
-                                        if let Some(n) = m.voices[0].last_mut() {
+                                if let Some(pi) = part_index
+                                    && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
+                                        && let Some(n) = m.voices[0].last_mut() {
                                             n.pedal_end = true;
                                         }
-                                    }
-                                }
                             }
                             _ => {}
                         }
@@ -408,11 +400,10 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             "stop" | "discontinue" => "end",
                             _ => "mid",
                         };
-                        if let Some(pi) = part_index {
-                            if let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
+                        if let Some(pi) = part_index
+                            && let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
                                 m.volta = Some(VoltaBracket { number: ending_num, kind: kind.to_string() });
                             }
-                        }
                     }
                     "segno" if in_direction_type => pending_navigation = Some("Segno".to_string()),
                     "coda"  if in_direction_type => pending_navigation = Some("Coda".to_string()),
@@ -430,15 +421,14 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     }
                     "repeat" if in_barline => {
                         let dir = attr_str(e, b"direction").unwrap_or_default();
-                        if let Some(pi) = part_index {
-                            if let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
+                        if let Some(pi) = part_index
+                            && let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
                                 match dir.as_str() {
                                     "forward"  => m.barline_left  = Barline::RepeatStart,
                                     "backward" => m.barline_right = Barline::RepeatEnd,
                                     _ => {}
                                 }
                             }
-                        }
                     }
                     _ => {}
                 }
@@ -481,14 +471,13 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 part_group_symbol.clone(),
                                 part_group_barlines,
                             ));
-                        } else if part_group_type == "stop" {
-                            if let Some((first_part, symbol, barlines_connect)) = open_groups.remove(&part_group_number) {
+                        } else if part_group_type == "stop"
+                            && let Some((first_part, symbol, barlines_connect)) = open_groups.remove(&part_group_number) {
                                 let last_part = part_list_part_count.saturating_sub(1);
                                 if last_part >= first_part {
                                     score.part_groups.push(PartGroup { first_part, last_part, symbol, barlines_connect });
                                 }
                             }
-                        }
                         in_part_group = false;
                     }
                     "midi-channel" if in_midi_instrument => {
@@ -532,25 +521,21 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "barline" => in_barline = false,
                     "direction-type" => in_direction_type = false,
                     "direction" => {
-                        if let Some(pi) = part_index {
-                            if let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
+                        if let Some(pi) = part_index
+                            && let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
                                 if let Some(nav) = pending_navigation.take() {
                                     if m.navigation.is_none() { m.navigation = Some(nav); }
                                 } else if pending_sound_tempo.is_some() {
-                                    if let Some(text) = pending_tempo_text.take() {
-                                        if m.tempo_text.is_none() { m.tempo_text = Some(text); }
-                                    }
-                                } else if let Some(text) = pending_expression_text.take() {
-                                    if m.expression_text.is_none() { m.expression_text = Some(text); }
-                                }
-                                if let Some(reh) = pending_rehearsal.take() {
-                                    if m.rehearsal.is_none() { m.rehearsal = Some(reh); }
-                                }
+                                    if let Some(text) = pending_tempo_text.take()
+                                        && m.tempo_text.is_none() { m.tempo_text = Some(text); }
+                                } else if let Some(text) = pending_expression_text.take()
+                                    && m.expression_text.is_none() { m.expression_text = Some(text); }
+                                if let Some(reh) = pending_rehearsal.take()
+                                    && m.rehearsal.is_none() { m.rehearsal = Some(reh); }
                                 if let Some(bpm) = pending_sound_tempo.take() {
                                     m.tempo = Some(bpm);
                                 }
                             }
-                        }
                         pending_sound_tempo = None;
                         pending_tempo_text = None;
                         pending_expression_text = None;
@@ -608,11 +593,10 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     }
                     "transpose" => { in_transpose = false; }
                     "chromatic" if in_transpose => {
-                        if let Ok(v) = current_text.trim().parse::<i8>() {
-                            if let Some(pi) = part_index {
+                        if let Ok(v) = current_text.trim().parse::<i8>()
+                            && let Some(pi) = part_index {
                                 score.parts[pi].staves[0].transpose_semitones = v;
                             }
-                        }
                     }
                     "step" if in_pitch => {
                         note_step = match current_text.as_str() {
@@ -632,13 +616,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "multiple-rest" if in_multiple_rest => {
                         in_multiple_rest = false;
                         let count: u8 = current_text.parse().unwrap_or(1);
-                        if count >= 2 {
-                            if let Some(pi) = part_index {
-                                if let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
+                        if count >= 2
+                            && let Some(pi) = part_index
+                                && let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
                                     m.multi_rest_count = Some(count);
                                 }
-                            }
-                        }
                     }
                     "syllabic" if in_lyric => lyric_syllabic = current_text.trim().to_string(),
                     "text"     if in_lyric => lyric_text     = current_text.trim().to_string(),
@@ -688,8 +670,8 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         });
                     }
                     "measure" => {
-                        if let Some(pi) = part_index {
-                            if let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
+                        if let Some(pi) = part_index
+                            && let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
                                 let total_beats = current_time.total_beats();
                                 let voice = &mut m.voices[0];
                                 let mut used: f64 = voice.iter().map(|n| n.beats()).sum();
@@ -700,11 +682,10 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                     voice.push(rest);
                                 }
                             }
-                        }
                     }
                     "note" => {
-                        if let Some(pi) = part_index {
-                            if let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
+                        if let Some(pi) = part_index
+                            && let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
                                 let dur = parse_duration_type(&note_type);
                                 let dot_count = u8::from(note_dot);
                                 let note = if note_rest {
@@ -721,8 +702,8 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                     n
                                 };
                                 if note_chord && !m.voices[0].is_empty() {
-                                    if let Some(last) = m.voices[0].last_mut() {
-                                        if !last.is_rest && !note.is_rest {
+                                    if let Some(last) = m.voices[0].last_mut()
+                                        && !last.is_rest && !note.is_rest {
                                             if let Some(p) = note.pitches.first() {
                                                 last.pitches.push(p.clone());
                                             }
@@ -733,7 +714,6 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                             if let Some(gt) = pending_guitar_technique.take() { last.guitar_technique = Some(gt); }
                                             if let Some(up) = note_stem_up { last.stem_up = Some(up); }
                                         }
-                                    }
                                 } else {
                                     if m.voices[0].len() >= MAX_NOTES_PER_VOICE {
                                         return Err(Error::Xml("too many notes in voice".into()));
@@ -783,7 +763,6 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                     m.voices[0].push(note);
                                 }
                             }
-                        }
                         in_note = false;
                     }
                     _ => {}

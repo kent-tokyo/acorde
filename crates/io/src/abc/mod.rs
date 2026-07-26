@@ -188,23 +188,21 @@ fn parse_body_line(
         }
 
         // Inline field [M:…] [L:…]
-        if ch == '[' && i + 1 < chars.len() && chars[i + 1] != '"' {
-            if let Some(rel) = chars[i..].iter().position(|&c| c == ']') {
+        if ch == '[' && i + 1 < chars.len() && chars[i + 1] != '"'
+            && let Some(rel) = chars[i..].iter().position(|&c| c == ']') {
                 let end = i + rel;
                 let field: String = chars[i + 1..end].iter().collect();
                 if let Some(colon) = field.find(':') {
                     let fval = field[colon + 1..].trim();
-                    if &field[..colon] == "L" {
-                        if let Some(d) = fval.split('/').nth(1) {
+                    if &field[..colon] == "L"
+                        && let Some(d) = fval.split('/').nth(1) {
                             *unit_den = d.parse().unwrap_or(*unit_den);
                         }
-                    }
                     i = end + 1;
                     continue;
                 }
                 // No colon — not an inline field; fall through to chord handler
             }
-        }
 
         // Chord bracket [CEG]
         if ch == '[' {

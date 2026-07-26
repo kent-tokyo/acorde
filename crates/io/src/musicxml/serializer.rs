@@ -125,14 +125,13 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     ));
                     xml.push_str("        </transpose>\n");
                 }
-                if let Some(count) = measure.multi_rest_count {
-                    if count >= 2 {
+                if let Some(count) = measure.multi_rest_count
+                    && count >= 2 {
                         xml.push_str("        <measure-style>\n");
                         xml.push_str(&format!("          <multiple-rest>{}</multiple-rest>\n", count));
                         xml.push_str("        </measure-style>\n");
                         skip_until = i + count as usize;
                     }
-                }
                 xml.push_str("      </attributes>\n");
                 xml.push_str("      <direction placement=\"above\">\n");
                 xml.push_str("        <direction-type>\n");
@@ -143,8 +142,8 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 xml.push_str("        </direction-type>\n");
                 xml.push_str(&format!("        <sound tempo=\"{}\"/>\n", score.settings.tempo_bpm));
                 xml.push_str("      </direction>\n");
-            } else if let Some(count) = measure.multi_rest_count {
-                if count >= 2 {
+            } else if let Some(count) = measure.multi_rest_count
+                && count >= 2 {
                     xml.push_str("      <attributes>\n");
                     xml.push_str("        <measure-style>\n");
                     xml.push_str(&format!("          <multiple-rest>{}</multiple-rest>\n", count));
@@ -152,11 +151,10 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     xml.push_str("      </attributes>\n");
                     skip_until = i + count as usize;
                 }
-            }
 
             // Per-measure tempo change (measures after the first)
-            if i > 0 {
-                if let Some(bpm) = measure.tempo {
+            if i > 0
+                && let Some(bpm) = measure.tempo {
                     xml.push_str("      <direction placement=\"above\">\n");
                     xml.push_str("        <direction-type>\n");
                     xml.push_str(&format!(
@@ -167,7 +165,6 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     xml.push_str(&format!("        <sound tempo=\"{}\"/>\n", bpm));
                     xml.push_str("      </direction>\n");
                 }
-            }
 
             // Navigation mark
             if let Some(nav) = &measure.navigation {
@@ -228,13 +225,12 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     Barline::Double => xml.push_str("        <bar-style>light-light</bar-style>\n"),
                     _ => {}
                 }
-                if let Some(v) = &measure.volta {
-                    if v.kind == "end" || v.kind == "begin_end" {
+                if let Some(v) = &measure.volta
+                    && (v.kind == "end" || v.kind == "begin_end") {
                         xml.push_str(&format!(
                             "        <ending number=\"{}\" type=\"stop\"/>\n", v.number
                         ));
                     }
-                }
                 xml.push_str("      </barline>\n");
             }
 

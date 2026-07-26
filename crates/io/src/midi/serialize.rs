@@ -98,8 +98,8 @@ fn build_meta_track<'a>(score: &Score, seq: &[usize]) -> Vec<TrackEvent<'a>> {
         let mut prev_event_tick: u64 = 0;
 
         for &idx in seq {
-            if cursor_tick > 0 {
-                if let Some(bpm) = first_staff.measures.get(idx).and_then(|m| m.tempo) {
+            if cursor_tick > 0
+                && let Some(bpm) = first_staff.measures.get(idx).and_then(|m| m.tempo) {
                     let us = 60_000_000u32 / bpm.max(1) as u32;
                     events.push(TrackEvent {
                         delta: clamp_delta(cursor_tick - prev_event_tick),
@@ -107,7 +107,6 @@ fn build_meta_track<'a>(score: &Score, seq: &[usize]) -> Vec<TrackEvent<'a>> {
                     });
                     prev_event_tick = cursor_tick;
                 }
-            }
             cursor_tick += ticks_per_measure;
         }
     }

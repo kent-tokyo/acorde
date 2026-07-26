@@ -68,11 +68,10 @@ fn find_score_entry(archive: &mut ZipArchive<Cursor<&[u8]>>) -> Result<String, E
         .collect();
 
     for name in names {
-        if let Ok(xml) = read_entry(archive, &name) {
-            if xml.contains("score-partwise") || xml.contains("score-timewise") {
+        if let Ok(xml) = read_entry(archive, &name)
+            && (xml.contains("score-partwise") || xml.contains("score-timewise")) {
                 return Ok(xml);
             }
-        }
     }
     Err(Error::Zip("no MusicXML score entry found in archive".into()))
 }

@@ -141,47 +141,42 @@ fn resolve_spans(score: &Score) -> Vec<SpanMark> {
                         if let Some(kind) = note.hairpin_start {
                             open_hairpin = Some((addr.clone(), kind));
                         }
-                        if note.hairpin_end {
-                            if let Some((start, kind)) = open_hairpin.take() {
+                        if note.hairpin_end
+                            && let Some((start, kind)) = open_hairpin.take() {
                                 spans.push(SpanMark::Hairpin { kind, start, end: addr.clone() });
                             }
-                        }
 
                         if let Some(kind) = note.ottava_start {
                             open_ottava = Some((addr.clone(), kind));
                         }
-                        if note.ottava_end {
-                            if let Some((start, kind)) = open_ottava.take() {
+                        if note.ottava_end
+                            && let Some((start, kind)) = open_ottava.take() {
                                 spans.push(SpanMark::Ottava { kind, start, end: addr.clone() });
                             }
-                        }
 
                         if note.pedal_start {
                             open_pedal = Some(addr.clone());
                         }
-                        if note.pedal_end {
-                            if let Some(start) = open_pedal.take() {
+                        if note.pedal_end
+                            && let Some(start) = open_pedal.take() {
                                 spans.push(SpanMark::Pedal { start, end: addr.clone() });
                             }
-                        }
 
                         if note.slur_start {
                             open_slur = Some(addr.clone());
                         }
-                        if note.slur_end {
-                            if let Some(start) = open_slur.take() {
+                        if note.slur_end
+                            && let Some(start) = open_slur.take() {
                                 spans.push(SpanMark::Slur { start, end: addr.clone() });
                             }
-                        }
 
                         if note.trill_line_start {
                             open_trill_line = Some(addr.clone());
                         }
-                        if note.trill_line_end {
-                            if let Some(start) = open_trill_line.take() {
+                        if note.trill_line_end
+                            && let Some(start) = open_trill_line.take() {
                                 spans.push(SpanMark::TrillLine { start, end: addr.clone() });
                             }
-                        }
                     }
                 }
             }
@@ -253,8 +248,8 @@ fn collect_tuplet_groups(score: &Score) -> Vec<TupletGroup> {
                     let mut current_info: Option<TupletInfo> = None;
 
                     let flush = |indices: &mut Vec<usize>, info: &mut Option<TupletInfo>, groups: &mut Vec<TupletGroup>| {
-                        if indices.len() >= 2 {
-                            if let Some(ti) = info.take() {
+                        if indices.len() >= 2
+                            && let Some(ti) = info.take() {
                                 groups.push(TupletGroup {
                                     part: pi, staff: si, measure: mi, voice: vi,
                                     note_indices: std::mem::take(indices),
@@ -263,7 +258,6 @@ fn collect_tuplet_groups(score: &Score) -> Vec<TupletGroup> {
                                 });
                                 return;
                             }
-                        }
                         indices.clear();
                         info.take();
                     };
@@ -319,8 +313,8 @@ fn collect_courtesy_accidentals(score: &Score) -> Vec<CourtesyAccidental> {
             let mut current_fifths = base_fifths;
 
             for (mi, measure) in staff.measures.iter().enumerate() {
-                if measure.key_sig.is_some() {
-                    current_fifths = measure.key_sig.as_ref().unwrap().fifths;
+                if let Some(key_sig) = measure.key_sig.as_ref() {
+                    current_fifths = key_sig.fifths;
                     prev_alters.clear();
                 }
 
