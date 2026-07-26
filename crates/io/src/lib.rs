@@ -1,3 +1,7 @@
+//! MusicXML, MIDI, ABC notation, and MuseScore (.mscz/.mscx) parsers and serializer for
+//! [`acorde-core`](https://docs.rs/acorde-core) [`Score`](https://docs.rs/acorde-core/latest/acorde_core/struct.Score.html)
+//! values. Feature-gated per format; accepts `&str`/`&[u8]`, never touches the filesystem.
+
 mod error;
 #[cfg(feature = "musicxml")]
 pub mod musicxml;

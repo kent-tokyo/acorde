@@ -8,6 +8,9 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 description = "Platform-agnostic music score model and command engine"
+readme = "README.md"
+keywords = ["music", "notation", "score", "sheet-music"]
+categories = ["multimedia::audio"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

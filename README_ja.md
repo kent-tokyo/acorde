@@ -2,8 +2,11 @@
 
 > Rust および WebAssembly 向けのプラットフォーム非依存楽譜ライブラリ
 
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
-![Rust](https://img.shields.io/badge/Rust-1.77%2B-orange)
+[![crates.io](https://img.shields.io/crates/v/acorde.svg)](https://crates.io/crates/acorde)
+[![docs.rs](https://img.shields.io/docsrs/acorde)](https://docs.rs/acorde)
+[![CI](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml/badge.svg)](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml)
+![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)
+![Rust](https://img.shields.io/badge/Rust-1.85%2B-orange)
 ![Status](https://img.shields.io/badge/Status-Stable-green)
 
 ---

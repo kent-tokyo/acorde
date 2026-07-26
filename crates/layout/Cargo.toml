@@ -8,6 +8,9 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 description = "Logical, pixel-free score layout engine for acorde-core"
+readme = "README.md"
+keywords = ["music", "notation", "layout", "sheet-music"]
+categories = ["multimedia::audio"]
 
 [dependencies]
 acorde-core = { path = "../core", version = "0.1.0" }

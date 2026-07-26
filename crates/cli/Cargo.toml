@@ -7,6 +7,9 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 description = "Command-line score format converter built on acorde"
+readme = "README.md"
+keywords = ["music", "musicxml", "midi", "cli"]
+categories = ["command-line-utilities", "multimedia::audio"]
 
 [[bin]]
 name = "acorde"

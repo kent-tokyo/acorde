@@ -8,6 +8,9 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 description = "Platform-agnostic music score library — umbrella crate re-exporting acorde-core, acorde-io, acorde-layout"
+readme = "README.md"
+keywords = ["music", "musicxml", "midi", "notation"]
+categories = ["multimedia::audio"]
 
 [features]
 default = ["musicxml", "midi"]

@@ -1,3 +1,7 @@
+//! Logical, pixel-free score layout engine for [`acorde-core`](https://docs.rs/acorde-core)
+//! scores — computes row breaks, multi-rest collapsing, beam groups, tuplet groups, courtesy
+//! accidentals, and span (hairpin/ottava/pedal/slur) resolution for score renderers (e.g. VexFlow).
+
 mod engine;
 
 pub use engine::compute_layout;

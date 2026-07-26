@@ -8,6 +8,9 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 description = "MusicXML / MIDI / ABC / MSCZ parsers and serializer for acorde-core"
+readme = "README.md"
+keywords = ["musicxml", "midi", "abc-notation", "music", "parser"]
+categories = ["parser-implementations", "multimedia::encoding"]
 
 [features]
 default = ["musicxml", "midi"]

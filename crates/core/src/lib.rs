@@ -1,3 +1,7 @@
+//! Platform-agnostic music score data model and command engine (undo/redo), with zero I/O
+//! and zero rendering. Pairs with [`acorde-io`](https://docs.rs/acorde-io) for MusicXML/MIDI/ABC
+//! parsing and [`acorde-layout`](https://docs.rs/acorde-layout) for logical score layout.
+
 pub mod model;
 
 pub use model::arrange::{analyze_for_accordion, arrange_for_accordion, AccordionAnalysis, ArrangeResult, PartCandidate};
