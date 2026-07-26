@@ -1,0 +1,18 @@
+[package]
+name = "acorde-cli"
+version.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Command-line score format converter built on acorde"
+
+[[bin]]
+name = "acorde"
+path = "src/main.rs"
+
+[dependencies]
+acorde-core = { path = "../core", version = "0.1.0" }
+acorde-io   = { path = "../io", version = "0.1.0", features = ["mscz"] }
+clap = { version = "4", features = ["derive"] }

@@ -1,0 +1,16 @@
+[package]
+name = "acorde-core"
+version.workspace = true
+edition.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/acorde-core"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Platform-agnostic music score model and command engine"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "js"] }
+thiserror = "2"
