@@ -209,6 +209,11 @@ acorde/
 
 ## クレート
 
+### `acorde`
+
+アンブレラクレート — これ単体を依存に追加すれば `acorde-core` / `acorde-io` / `acorde-layout` を
+`acorde::core` / `acorde::io` / `acorde::layout` として利用できます。
+
 ### `acorde-core`
 
 スコアデータモデルとコマンドエンジン。I/O なし、レイアウトなし。
@@ -384,7 +389,21 @@ acorde extract  --part 0 input.musicxml violin.musicxml
 
 ## はじめかた
 
-`Cargo.toml` に `acorde-core` を追加：
+手軽に使うなら、アンブレラクレート `acorde` を追加してください — `acorde-core` / `acorde-io` /
+`acorde-layout` をそれぞれ `acorde::core` / `acorde::io` / `acorde::layout` として再エクスポートします：
+
+```toml
+[dependencies]
+acorde = "0.1"
+
+# ABC 記譜サポート（オプトイン）
+acorde = { version = "0.1", features = ["abc"] }
+
+# MuseScore .mscz/.mscx サポート（オプトイン）
+acorde = { version = "0.1", features = ["mscz"] }
+```
+
+もしくは各クレートを個別に追加：
 
 ```toml
 [dependencies]

@@ -211,6 +211,11 @@ acorde/
 
 ## Crates
 
+### `acorde`
+
+Umbrella crate — depend on this alone to get `acorde-core`, `acorde-io`, and `acorde-layout`
+re-exported as `acorde::core`, `acorde::io`, `acorde::layout`.
+
 ### `acorde-core`
 
 Score data model and command engine. Zero I/O, zero layout.
@@ -405,7 +410,21 @@ acorde extract  --part 0 input.musicxml violin.musicxml
 
 ## Getting Started
 
-Add `acorde-core` to your `Cargo.toml`:
+For convenience, add the `acorde` umbrella crate — it re-exports `acorde-core`, `acorde-io`,
+and `acorde-layout` under `acorde::core`, `acorde::io`, `acorde::layout`:
+
+```toml
+[dependencies]
+acorde = "0.1"
+
+# ABC Notation support (opt-in)
+acorde = { version = "0.1", features = ["abc"] }
+
+# MuseScore .mscz/.mscx support (opt-in)
+acorde = { version = "0.1", features = ["mscz"] }
+```
+
+Or depend on the individual crates directly:
 
 ```toml
 [dependencies]

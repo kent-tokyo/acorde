@@ -1,0 +1,22 @@
+[package]
+name = "acorde"
+version.workspace = true
+edition.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/acorde"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Platform-agnostic music score library — umbrella crate re-exporting acorde-core, acorde-io, acorde-layout"
+
+[features]
+default = ["musicxml", "midi"]
+musicxml = ["acorde-io/musicxml"]
+midi = ["acorde-io/midi"]
+abc = ["acorde-io/abc"]
+mscz = ["acorde-io/mscz"]
+
+[dependencies]
+acorde-core   = { path = "../core", version = "0.1.0" }
+acorde-io     = { path = "../io", version = "0.1.0", default-features = false }
+acorde-layout = { path = "../layout", version = "0.1.0" }

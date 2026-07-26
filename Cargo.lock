@@ -3,6 +3,15 @@
 version = 4
 
 [[package]]
+name = "acorde"
+version = "0.1.0"
+dependencies = [
+ "acorde-core",
+ "acorde-io",
+ "acorde-layout",
+]
+
+[[package]]
 name = "acorde-cli"
 version = "0.1.0"
 dependencies = [
