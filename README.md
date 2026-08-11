@@ -56,7 +56,12 @@ flowchart LR
 
   subgraph Layout["acorde-layout"]
     CL["compute_layout"]
-    LR(["LayoutResult\n(vis_slots · rows · spans\nbeam_groups · tuplet_groups)"])
+    LR(["LayoutResult\n(vis_slots · rows · spans\nbeam_groups · tuplet_groups\naccidentals · courtesy_accidentals)"])
+  end
+
+  subgraph Renderer["acorde-render-svg"]
+    RS["render_svg\nrender_svg_with_layout"]
+    SVG(["SVG string\n(stable data-* hooks)"])
   end
 
   subgraph Output["Output formats"]
@@ -74,6 +79,8 @@ flowchart LR
   Score --> PE
   Score --> TX
   Score --> CL --> LR
+  LR --> RS --> SVG
+  Score --> RS
 
   Score --> OXL
   Score --> OMD
@@ -204,6 +211,7 @@ acorde/
     core/                 # Score model + ScoreEngine (no I/O, no layout)
     io/                   # MusicXML / MIDI / ABC parsers & serializers
     layout/               # Logical layout engine
+    render-svg/           # Pure-Rust/WASM SVG score renderer
     wasm/                 # wasm-bindgen bindings
     cli/                  # Format-conversion CLI
   tests/
@@ -360,7 +368,66 @@ let result = compute_layout(&score, &config);
 // result.concert_key_overrides — per-staff key sig for transposing instruments in concert pitch
 // result.beam_groups         — note index groups for beam rendering
 // result.tuplet_groups       — note index groups with actual/normal note counts for tuplets
+// result.accidentals         — mandatory (non-courtesy) accidentals: first alteration in a measure
 // result.courtesy_accidentals — accidentals that must be shown as a courtesy to the player
+```
+
+`accidentals` vs `courtesy_accidentals`: when both exist for the same note/pitch, the
+mandatory mark (`accidentals`) wins — draw it plain; only draw the courtesy mark
+(parenthesized) when no mandatory mark exists at that address. Accidentals never carry
+across a barline, so a repeated alteration in a new measure is mandatory, not courtesy.
+
+### `acorde-render-svg`
+
+Pure-Rust/WASM SVG score renderer. No browser/DOM dependency — the same `render_svg` call
+produces identical output natively and under `wasm32-unknown-unknown`. Consumes
+`LayoutResult` rather than re-deriving it: row breaks, beam/tuplet grouping, and
+accidental logic all stay in `acorde-layout`; this crate only turns already-decided
+content into `x, y` coordinates and glyph strings.
+
+```rust
+use acorde_core::Score;
+use acorde_render_svg::{render_svg, SvgRenderOptions};
+
+let score = Score::default();
+let options = SvgRenderOptions {
+    width: 900.0,
+    staff_size: 24.0,
+    measures_per_system: 4,
+    interactive: true, // emit data-acorde-kind / data-part / data-staff / data-measure / data-voice / data-note / data-note-addr
+};
+let svg = render_svg(&score, &options)?; // Result<String, RenderError>
+```
+
+Or reuse an already-computed layout: `render_svg_with_layout(&score, &layout_result, &options)`.
+
+Phase 1 scope: 5-line staves, treble/bass/alto/tenor clefs, grand-staff systems, key/time
+signatures, whole/half/quarter/eighth notes (+ dotted) and matching rests, natural / sharp /
+flat / double-sharp / double-flat accidentals, ledger lines, barlines (normal / double /
+final / dashed / dotted / repeat), and two-voice-per-staff rendering (voice 0 stems up,
+voice 1 down, unless `Note.stem_up` overrides) — enough to render an SATB grand-staff
+chorale correctly. `RenderError` is returned (never silently dropped) for a percussion
+clef or an accidental beyond double-sharp/double-flat. Beams, tuplets, ties/slurs,
+lyrics engraving, and Roman-numeral/chord-analysis text are out of scope for this crate by
+design — `acorde-render-svg` never re-implements music theory or takes a dependency on any
+downstream consumer (e.g. it has no knowledge of, or dependency on, mokuren).
+
+**Glyph & font policy.** Every glyph (clefs, noteheads, accidentals, rests, digits) is an
+original hand-authored SVG path or primitive, generated from parametric math (arcs sampled
+with `sin`/`cos`, straight segments) — not traced from any existing font or typeface. This
+avoids three things the renderer must not do: vendor a font of unclear license into the
+repo, silently depend on whatever font happens to be installed on the user's system (which
+would make native SVG output render differently across machines), and depend on a SMuFL
+font subset (a reasonable Phase-2 option, but unnecessary complexity for the small,
+fixed glyph set Phase 1 needs). Because everything is original geometry owned by this
+crate, it is covered by the same MIT OR Apache-2.0 dual license as the rest of acorde — no
+separate font license to track. Coordinates are formatted to a fixed 2 decimal places
+specifically so the `sin`/`cos`-derived curves stay byte-identical across platforms (ULP-level
+floating-point differences never surface at that precision), which is what makes the
+determinism tests in `crates/render-svg/tests/determinism.rs` meaningful.
+
+```bash
+cargo run -p acorde-render-svg --example render_satb > /tmp/satb.svg
 ```
 
 ### `acorde-wasm`
@@ -387,6 +454,7 @@ Exposes: `parse_musicxml` · `parse_mxl` · `serialize_musicxml` · `parse_midi`
 `clef_middle_line_midi` · `suggested_stem_up(pitches_json, clef_json)` ·
 `compute_beams(notes_json, time_sig_json)` · `command_key_from_json` ·
 `detect_chord(pitches_json)` · `roman_numeral(chord_json, key_json)` · `best_fit_scale(pitches_json)` ·
+`render_score_svg(score_json, options_json)` — thin wrapper over `acorde_render_svg::render_svg` ·
 `ScoreEngine` JS class:
   `apply(cmd_json)` → `ChangeHint` JSON · `undo()` / `redo()` → `ChangeHint` JSON ·
   `apply_batch(cmds_json)` · `apply_batch_labeled(cmds_json, label)` ·
@@ -446,6 +514,12 @@ acorde-io = { version = "0.1", features = ["abc"] }
 acorde-io = { version = "0.1", features = ["mscz"] }
 ```
 
+For SVG rendering (not re-exported by the `acorde` umbrella crate — add it directly):
+
+```toml
+acorde-render-svg = "0.1"
+```
+
 ---
 
 ## Building
@@ -474,10 +548,11 @@ wasm-pack test crates/wasm --headless --chrome
 
 | Rule | Applies to |
 |------|-----------|
-| No async runtime (`tokio`) | core · io · layout |
-| No `std::fs` | core · io · layout |
-| No pixel values, CSS, or renderer-specific types | all crates |
-| `core` must not depend on `io` or `layout` | core |
+| No async runtime (`tokio`) | core · io · layout · render-svg |
+| No `std::fs` | core · io · layout · render-svg |
+| No pixel values, CSS, or renderer-specific types | core · io · layout (render-svg is the renderer — pixels are its job, but no browser/DOM types) |
+| `core` must not depend on `io` or `layout`; `layout` must not depend on `render-svg` | core · layout |
+| No vendored fonts, no system-font dependency | render-svg |
 | No `panic!` / `unwrap` in public paths | all crates |
 
 ---

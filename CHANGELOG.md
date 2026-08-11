@@ -12,6 +12,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+#### Phase 17 — acorde-render-svg: SVG score renderer
+- New crate `crates/render-svg` (`acorde-render-svg`) — pure-Rust/WASM SVG renderer. Dependency direction `acorde-core → acorde-layout → acorde-render-svg`; no reverse dependency, no browser/DOM dependency, no `acorde` umbrella re-export (kept out of the published dependency graph for now)
+- `render_svg(score: &Score, options: &SvgRenderOptions) -> Result<String, RenderError>` — computes layout internally and renders
+- `render_svg_with_layout(score, layout: &LayoutResult, options) -> Result<String, RenderError>` — renders from an already-computed `LayoutResult`
+- `SvgRenderOptions { width, staff_size, measures_per_system, interactive }` — all fields have defaults, `#[serde(default)]` for partial-JSON deserialization
+- `RenderError { EmptyScore, UnsupportedClef, UnsupportedAccidental { alter } }` — system-boundary validation; percussion clef and `|alter| > 2` are rejected, never silently dropped or approximated
+- Supports: 5-line staves, treble/bass/alto/tenor clefs, grand-staff (multi-staff) systems, system breaks, key signatures (major/minor, any fifths), time signatures (any numerator/denominator, rendered as original 7-segment-style digit glyphs — no font), whole/half/quarter/eighth notes + dotted variants, matching rests, natural/sharp/flat/double-sharp/double-flat accidentals, ledger lines (derived purely from `Step`+octave, never from MIDI number), barlines (normal/double/final/dashed/dotted/repeat), two-voice-per-staff rendering (voice 0 stems up / voice 1 down unless `Note.stem_up` overrides)
+- All glyphs (clefs, noteheads, accidentals, rests, digits) are original hand-authored SVG paths generated from parametric math — no vendored font, no system-font dependency; see `crates/render-svg/README.md` for the rationale
+- Stable `data-acorde-kind` / `data-part` / `data-staff` / `data-measure` / `data-voice` / `data-note` / `data-note-addr` attributes on every note/rest/measure group when `interactive: true` — positional addressing only, no embedded UUIDs, deterministic across re-renders of a structurally-identical score
+- `crates/wasm` — `render_score_svg(score_json, options_json) -> Result<String, JsValue>` — thin wrapper calling the identical native `render_svg` code path
+- `examples/render_satb.rs` in `crates/render-svg` — runnable SATB chorale demo (`cargo run -p acorde-render-svg --example render_satb`)
+- `crates/layout` — `AccidentalMark { part, staff, measure, voice, note_index, pitch_index, alter }` + `LayoutResult.accidentals: Vec<AccidentalMark>` **[non-breaking, `#[serde(default)]`]** — mandatory (non-courtesy) accidentals: the first chromatic alteration of a step+octave within a measure, scoped per staff across all voices, reset every barline. Fills a real gap found while building the renderer: `courtesy_accidentals` only covered cross-measure reminders, not the far more common in-measure case. Renderers should prefer a mandatory mark over a courtesy mark at the same address (plain accidental wins over parenthesized)
+- 38 new tests in `acorde-render-svg` (unit + structural SVG + determinism + one small golden fixture) and 9 new tests in `acorde-layout` for `AccidentalMark`; `cargo test --all` all green, `cargo clippy --all -- -D warnings` clean, `wasm-pack build crates/wasm --target web` green
+
 #### Phase 16 — WASM: major function expansion
 - `crates/wasm` — `serialize_midi_region(score_json, start, end)` — per-region MIDI export
 - `crates/wasm` — `to_playback_events_ex(score_json, options_json)` — full `PlaybackOptions` variant

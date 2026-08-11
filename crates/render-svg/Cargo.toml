@@ -1,0 +1,21 @@
+[package]
+name = "acorde-render-svg"
+version.workspace = true
+edition.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/acorde-render-svg"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Pure-Rust/WASM SVG score renderer for acorde-core scores, driven by acorde-layout"
+readme = "README.md"
+keywords = ["music", "notation", "svg", "sheet-music", "wasm"]
+categories = ["multimedia::audio", "rendering"]
+
+[dependencies]
+acorde-core = { path = "../core", version = "0.1.0" }
+acorde-layout = { path = "../layout", version = "0.1.0" }
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+quick-xml = "0.37"

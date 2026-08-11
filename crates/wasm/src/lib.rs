@@ -174,6 +174,22 @@ pub fn compute_layout_ex(score_json: &str, config_json: &str) -> Result<String, 
     serde_json::to_string(&result).map_err(|e| js_err(format!("layout serialization failed: {e}")))
 }
 
+// ── SVG rendering ────────────────────────────────────────────────────────────
+
+/// Render a score (JSON string) to an SVG string.
+///
+/// `options_json` is a (partial) [`acorde_render_svg::SvgRenderOptions`] JSON object, e.g.
+/// `{"width":900,"staff_size":24,"measures_per_system":4,"interactive":true}` — every field
+/// has a default, so `"{}"` renders with defaults. This calls the exact same
+/// `acorde_render_svg::render_svg` used natively — no browser/DOM-specific code path.
+#[wasm_bindgen]
+pub fn render_score_svg(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_render_svg::SvgRenderOptions = serde_json::from_str(options_json)
+        .map_err(|e| js_err(format!("invalid options JSON: {e}")))?;
+    acorde_render_svg::render_svg(&score, &options).map_err(js_err)
+}
+
 // ── GM lookup ─────────────────────────────────────────────────────────────────
 
 /// Return the General MIDI Level 1 program name for a 0-based program number.

@@ -50,12 +50,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "acorde-render-svg"
+version = "0.1.1"
+dependencies = [
+ "acorde-core",
+ "acorde-layout",
+ "quick-xml",
+ "serde",
+]
+
+[[package]]
 name = "acorde-wasm"
 version = "0.1.1"
 dependencies = [
  "acorde-core",
  "acorde-io",
  "acorde-layout",
+ "acorde-render-svg",
  "getrandom",
  "serde_json",
  "wasm-bindgen",
