@@ -395,7 +395,7 @@ fn musicxml_notehead_diamond_roundtrip() {
 
 #[test]
 fn musicxml_notehead_normal_not_emitted() {
-    use acorde_core::{Score, Note, Pitch, Step, Duration};
+    use acorde_core::Score;
     let score = Score::new("NH", 120, 4, 4, 0, 1);
     let xml = serialize_musicxml(&score).expect("serialize failed");
     assert!(!xml.contains("<notehead>"), "normal notehead not emitted");
@@ -479,7 +479,7 @@ fn score_patch_identical_scores_produces_empty_patch() {
 
 #[test]
 fn apply_patch_out_of_bounds_returns_err() {
-    use acorde_core::{Score, ScorePatch, apply_patch, Note, Pitch, Step, Duration};
+    use acorde_core::{Score, ScorePatch, apply_patch};
     let score = Score::new("P", 120, 4, 4, 0, 1);
     let patches = vec![ScorePatch::RemoveNote {
         part: 99, staff: 0, measure: 0, voice: 0, note_index: 0,
