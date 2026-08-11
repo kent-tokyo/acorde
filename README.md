@@ -447,6 +447,16 @@ Sample output (`tests/fixtures/simple.musicxml`, regenerate with the command abo
 
 ![Rendered with acorde](docs/assets/sample-score.svg)
 
+**Visual regression** (`tests/visual_regression.rs`) uses two complementary, dependency-free
+layers instead of pixel-diffing (no chromedriver, no CI system packages): small golden SVG
+fixtures per notation category (`tests/golden/vr_*.svg`, byte-exact, regenerate deliberately
+with `UPDATE_GOLDEN=1 cargo test -p acorde-render-svg --test visual_regression`) plus geometry
+relationship assertions that hold independently of the renderer's internals — e.g. "C5 sits
+exactly one diatonic step above B4," "a stem is always exactly 3 staff-spaces long," "voice 0
+stems up and voice 1 stems down." Golden files alone can't catch a bug that is *consistently*
+wrong (the diff finds nothing to complain about); the geometry assertions check correctness,
+not just stability.
+
 ### `acorde-wasm`
 
 wasm-bindgen bindings. Build with `wasm-pack build`.

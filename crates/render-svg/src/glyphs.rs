@@ -113,11 +113,11 @@ pub(crate) fn notehead(cx: f32, cy: f32, space: f32, filled: bool) -> String {
     let rx = f(0.62 * space * 0.5);
     let ry = f(0.48 * space * 0.5);
     if filled {
-        format!(r#"<ellipse cx="{x}" cy="{y}" rx="{rx}" ry="{ry}" fill="black"/>"#, x = f(cx), y = f(cy))
+        format!(r#"<ellipse class="acorde-notehead" cx="{x}" cy="{y}" rx="{rx}" ry="{ry}" fill="black"/>"#, x = f(cx), y = f(cy))
     } else {
         let sw = f(0.16 * space * 0.5);
         format!(
-            r#"<ellipse cx="{x}" cy="{y}" rx="{rx}" ry="{ry}" fill="none" stroke="black" stroke-width="{sw}"/>"#,
+            r#"<ellipse class="acorde-notehead" cx="{x}" cy="{y}" rx="{rx}" ry="{ry}" fill="none" stroke="black" stroke-width="{sw}"/>"#,
             x = f(cx), y = f(cy)
         )
     }
@@ -133,7 +133,7 @@ pub(crate) fn stem(cx: f32, cy: f32, space: f32, up: bool) -> (String, f32) {
     let tip_y = if up { cy - len } else { cy + len };
     let sw = f(0.11 * space);
     let svg = format!(
-        r#"<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="black" stroke-width="{sw}"/>"#,
+        r#"<line class="acorde-stem" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="black" stroke-width="{sw}"/>"#,
         x1 = f(x), y1 = f(cy), x2 = f(x), y2 = f(tip_y)
     );
     (svg, tip_y)

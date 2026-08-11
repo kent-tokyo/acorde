@@ -119,3 +119,145 @@ pub fn satb_dotted_and_rest() -> Score {
         vec![quarter(Step::C, 3), quarter(Step::C, 3), quarter(Step::C, 3), quarter(Step::C, 3)],
     )
 }
+
+// ── single-staff visual-regression fixtures ──────────────────────────────────────
+//
+// Smaller, single-concern fixtures (one staff, C major, 4/4 unless noted) for the
+// visual-regression suite (`tests/visual_regression.rs`). Each isolates one notation
+// category so a golden-file diff or a geometry assertion failure points at one cause.
+
+/// Build a single-part, single-staff score with up to 2 voices in one measure.
+pub fn single_staff_score(clef: Clef, fifths: i8, num: u8, den: u8, voice0: Vec<Note>, voice1: Vec<Note>) -> Score {
+    let mut score = Score::default();
+    score.settings.time_signature = TimeSignature { numerator: num, denominator: den };
+    score.settings.key_signature = KeySignature { fifths, mode: "major".to_string() };
+    let mut part = Part::new("T", "T");
+    let mut staff = Staff::new(clef);
+    let mut m = Measure::empty(num, den);
+    m.number = 1;
+    m.voices[0] = voice0;
+    m.voices[1] = voice1;
+    staff.measures.push(m);
+    part.staves.push(staff);
+    score.parts = vec![part];
+    score
+}
+
+/// Quarter + eighth notes (with flags), one voice, C major 4/4.
+pub fn vr_quarter_eighth_notes() -> Score {
+    single_staff_score(
+        Clef::Treble, 0, 4, 4,
+        vec![
+            quarter(Step::C, 5),
+            note(Step::D, 5, Duration::Eighth),
+            note(Step::E, 5, Duration::Eighth),
+            quarter(Step::F, 5),
+            quarter(Step::G, 5),
+        ],
+        vec![],
+    )
+}
+
+/// All 5 supported accidentals in one measure: sharp, natural (cancelling the preceding
+/// sharp — a plain alter=0 note alone never draws a natural sign, so this is the only way
+/// to actually exercise the glyph), flat, double-sharp, double-flat.
+pub fn vr_accidentals() -> Score {
+    single_staff_score(
+        Clef::Treble, 0, 6, 4,
+        vec![
+            altered(Step::F, 4, Duration::Quarter, 1),
+            note(Step::F, 4, Duration::Quarter), // natural, cancels the F# above
+            altered(Step::B, 4, Duration::Quarter, -1),
+            note(Step::C, 5, Duration::Quarter),
+            altered(Step::D, 5, Duration::Quarter, 2),
+            altered(Step::E, 5, Duration::Quarter, -2),
+        ],
+        vec![],
+    )
+}
+
+/// A single 3-pitch chord (one Note, multiple Pitches) — shared stem, 3 noteheads.
+pub fn vr_chord() -> Score {
+    let mut chord = quarter(Step::C, 5);
+    chord.pitches.push(Pitch::new(Step::E, 5));
+    chord.pitches.push(Pitch::new(Step::G, 5));
+    single_staff_score(Clef::Treble, 0, 4, 4, vec![chord, quarter(Step::C, 5), quarter(Step::C, 5), quarter(Step::C, 5)], vec![])
+}
+
+/// One rest of each required duration: half, quarter, quarter, eighth, eighth
+/// (7 beats — a whole rest would fill an entire measure alone, so it gets its own fixture).
+pub fn vr_rests() -> Score {
+    single_staff_score(
+        Clef::Treble, 0, 6, 4,
+        vec![
+            Note::rest(Duration::Half),
+            Note::rest(Duration::Quarter),
+            Note::rest(Duration::Quarter),
+            Note::rest(Duration::Eighth),
+            Note::rest(Duration::Eighth),
+        ],
+        vec![],
+    )
+}
+
+/// A whole rest alone (fills a full 4/4 measure).
+pub fn vr_whole_rest() -> Score {
+    single_staff_score(Clef::Treble, 0, 4, 4, vec![Note::rest(Duration::Whole)], vec![])
+}
+
+/// 3 measures of quarter notes — exercises barline placement and measure spacing.
+pub fn vr_multi_measure() -> Score {
+    let mut score = Score::default();
+    score.settings.time_signature = TimeSignature { numerator: 4, denominator: 4 };
+    score.settings.key_signature = KeySignature { fifths: 0, mode: "major".to_string() };
+    let mut part = Part::new("T", "T");
+    let mut staff = Staff::new(Clef::Treble);
+    for i in 0..3 {
+        let mut m = Measure::empty(4, 4);
+        m.number = i + 1;
+        m.voices[0] = vec![quarter(Step::C, 5), quarter(Step::D, 5), quarter(Step::E, 5), quarter(Step::F, 5)];
+        staff.measures.push(m);
+    }
+    part.staves.push(staff);
+    score.parts = vec![part];
+    score
+}
+
+/// Two simultaneous voices on one staff — voice 0 must stem up, voice 1 must stem down.
+pub fn vr_stem_directions() -> Score {
+    single_staff_score(
+        Clef::Treble, 0, 4, 4,
+        vec![quarter(Step::C, 5), quarter(Step::C, 5), quarter(Step::C, 5), quarter(Step::C, 5)],
+        vec![quarter(Step::E, 4), quarter(Step::E, 4), quarter(Step::E, 4), quarter(Step::E, 4)],
+    )
+}
+
+// ── SVG probing helpers (dependency-free attribute extraction) ──────────────────
+
+/// Extract every occurrence of `class="{class}"` element's numeric attributes, in document
+/// order. Only matches elements whose class is exactly `class` (not a prefix of a longer
+/// class name), and only elements that are fully self-closed on one line (true for every
+/// element this renderer emits).
+pub fn extract_elements<'a>(svg: &'a str, class: &str) -> Vec<&'a str> {
+    let class_needle = format!(r#"class="{class}""#);
+    let mut out = Vec::new();
+    let mut rest = svg;
+    while let Some(idx) = rest.find(&class_needle) {
+        let before = &rest[..idx];
+        let tag_start = before.rfind('<').expect("class attribute must be inside a tag");
+        let tag_end = rest[idx..].find("/>").map(|e| idx + e + 2)
+            .unwrap_or_else(|| rest[idx..].find('>').map(|e| idx + e + 1).unwrap());
+        out.push(&rest[tag_start..tag_end]);
+        rest = &rest[tag_end..];
+    }
+    out
+}
+
+/// Parse a numeric attribute (e.g. `cx`, `y1`) out of a single element string like
+/// `<ellipse class="acorde-notehead" cx="1.00" cy="2.00" .../>`.
+pub fn attr_f32(element: &str, attr: &str) -> f32 {
+    let needle = format!(r#"{attr}=""#);
+    let start = element.find(&needle).unwrap_or_else(|| panic!("attribute {attr} not found in {element}")) + needle.len();
+    let end = element[start..].find('"').unwrap() + start;
+    element[start..end].parse().unwrap_or_else(|_| panic!("attribute {attr} not numeric in {element}"))
+}
