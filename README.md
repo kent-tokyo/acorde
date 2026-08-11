@@ -430,6 +430,23 @@ determinism tests in `crates/render-svg/tests/determinism.rs` meaningful.
 cargo run -p acorde-render-svg --example render_satb > /tmp/satb.svg
 ```
 
+**Full MusicXML -> SVG pipeline**, using `acorde-io` (dev-dependency, examples/tests only —
+`acorde-render-svg` itself stays I/O-free):
+
+```bash
+cargo run -p acorde-render-svg --example render_musicxml > /tmp/score.svg
+cargo run -p acorde-render-svg --example render_musicxml -- path/to/file.musicxml > /tmp/score.svg
+open /tmp/score.svg  # any SVG-capable viewer / browser
+```
+
+```text
+MusicXML --[acorde-io]--> Score --[acorde-layout]--> LayoutResult --[acorde-render-svg]--> SVG
+```
+
+Sample output (`tests/fixtures/simple.musicxml`, regenerate with the command above):
+
+![Rendered with acorde](docs/assets/sample-score.svg)
+
 ### `acorde-wasm`
 
 wasm-bindgen bindings. Build with `wasm-pack build`.

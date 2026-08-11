@@ -54,6 +54,7 @@ name = "acorde-render-svg"
 version = "0.1.1"
 dependencies = [
  "acorde-core",
+ "acorde-io",
  "acorde-layout",
  "quick-xml",
  "serde",

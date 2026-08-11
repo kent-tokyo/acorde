@@ -7,6 +7,7 @@ Place screenshot images here for the README files.
 | File | Used in | Description |
 |------|---------|-------------|
 | `screenshot.png` | README.md / README_ja.md | Score editor screenshot (e.g. MusicLav) |
+| `sample-score.svg` | README.md | Deterministic `acorde-render-svg` output for `tests/fixtures/simple.musicxml`. Regenerate with `cargo run -p acorde-render-svg --example render_musicxml > docs/assets/sample-score.svg` — output is deterministic, so a regenerated file with no logic changes produces an identical diff. |
 
 ## How to wire up
 
