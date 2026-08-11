@@ -407,10 +407,25 @@ flat / double-sharp / double-flat accidentals, ledger lines, barlines (normal / 
 final / dashed / dotted / repeat), and two-voice-per-staff rendering (voice 0 stems up,
 voice 1 down, unless `Note.stem_up` overrides) — enough to render an SATB grand-staff
 chorale correctly. `RenderError` is returned (never silently dropped) for a percussion
-clef or an accidental beyond double-sharp/double-flat. Beams, tuplets, ties/slurs,
-lyrics engraving, and Roman-numeral/chord-analysis text are out of scope for this crate by
-design — `acorde-render-svg` never re-implements music theory or takes a dependency on any
-downstream consumer (e.g. it has no knowledge of, or dependency on, mokuren).
+clef or an accidental beyond double-sharp/double-flat.
+
+Phase 2A added beam engraving, consuming `LayoutResult.beam_groups` as the source of
+truth — the renderer never re-infers which notes are beamed together, only their pixel
+geometry. A naive first-note-to-last-note beam line can produce absurdly long or short
+interior stems, so the slope is clamped to a shallow angle and the whole beam shifts to
+guarantee a minimum stem length for every note (`crates/render-svg/src/beams.rs` has the
+full algorithm writeup). Secondary beams (16th notes and, by the same mechanism, 32nd/64th)
+span only the contiguous run of notes that need them, with a short hook stub for an
+isolated note. Beamed notes never draw individual flags — the beam replaces them.
+
+Tuplets, ties/slurs, lyrics engraving, and Roman-numeral/chord-analysis text are out of
+scope for this crate by design — `acorde-render-svg` never re-implements music theory or
+takes a dependency on any downstream consumer (e.g. it has no knowledge of, or dependency
+on, mokuren).
+
+```bash
+cargo run -p acorde-render-svg --example render_beams > /tmp/beams.svg
+```
 
 **Glyph & font policy.** Every glyph (clefs, noteheads, accidentals, rests, digits) is an
 original hand-authored SVG path or primitive, generated from parametric math (arcs sampled

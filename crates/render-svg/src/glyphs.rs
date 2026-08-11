@@ -124,19 +124,24 @@ pub(crate) fn notehead(cx: f32, cy: f32, space: f32, filled: bool) -> String {
 }
 
 pub(crate) const NOTEHEAD_RX_U: f32 = 0.31; // half of 0.62u, matches `notehead()`
+pub(crate) const DEFAULT_STEM_LEN_U: f32 = 3.0;
 
-/// Stem from the notehead edge. Returns `(svg, tip_y)`.
+/// Stem of the default fixed length (unbeamed notes). Returns `(svg, tip_y)`.
 pub(crate) fn stem(cx: f32, cy: f32, space: f32, up: bool) -> (String, f32) {
+    let tip_y = if up { cy - DEFAULT_STEM_LEN_U * space } else { cy + DEFAULT_STEM_LEN_U * space };
+    (stem_to(cx, cy, tip_y, space, up), tip_y)
+}
+
+/// Stem from the notehead to an explicit `tip_y` (beamed notes: the tip follows the beam
+/// line, not the default fixed length).
+pub(crate) fn stem_to(cx: f32, cy: f32, tip_y: f32, space: f32, up: bool) -> String {
     let x_off = NOTEHEAD_RX_U * space * 0.92;
-    let len = 3.0 * space;
     let x = if up { cx + x_off } else { cx - x_off };
-    let tip_y = if up { cy - len } else { cy + len };
     let sw = f(0.11 * space);
-    let svg = format!(
+    format!(
         r#"<line class="acorde-stem" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="black" stroke-width="{sw}"/>"#,
         x1 = f(x), y1 = f(cy), x2 = f(x), y2 = f(tip_y)
-    );
-    (svg, tip_y)
+    )
 }
 
 /// Eighth-note flag at the stem tip: a small filled wedge curling toward the notehead side.
@@ -168,6 +173,21 @@ pub(crate) fn barline(x: f32, top_y: f32, bottom_y: f32, space: f32, thick: bool
     format!(
         r#"<line class="acorde-barline" x1="{x}" y1="{y1}" x2="{x}" y2="{y2}" stroke="black" stroke-width="{sw}"/>"#,
         x = f(x), y1 = f(top_y), y2 = f(bottom_y)
+    )
+}
+
+// ── beams ────────────────────────────────────────────────────────────────────────
+
+/// One beam segment (one beam level, spanning `(x1,y1)` to `(x2,y2)`), drawn as a filled
+/// parallelogram of constant *vertical* thickness — not a true perpendicular offset, but
+/// beam slopes are always shallow enough (see `beams::MAX_BEAM_RISE_U`) that the visual
+/// difference is negligible, and this avoids trigonometry for a purely cosmetic gain.
+pub(crate) fn beam_segment(x1: f32, y1: f32, x2: f32, y2: f32, thickness: f32) -> String {
+    let ht = thickness / 2.0;
+    format!(
+        r#"<polygon class="acorde-beam" points="{x1},{y1a} {x2},{y2a} {x2},{y2b} {x1},{y1b}" fill="black"/>"#,
+        x1 = f(x1), x2 = f(x2),
+        y1a = f(y1 - ht), y2a = f(y2 - ht), y2b = f(y2 + ht), y1b = f(y1 + ht),
     )
 }
 

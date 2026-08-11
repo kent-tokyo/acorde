@@ -7,7 +7,7 @@
 #![allow(dead_code)]
 
 use acorde_core::{
-    Clef, Duration, KeySignature, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature,
+    compute_beams, Clef, Duration, KeySignature, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature,
 };
 
 fn note(step: Step, octave: i8, dur: Duration) -> Note {
@@ -230,6 +230,54 @@ pub fn vr_stem_directions() -> Score {
         vec![quarter(Step::C, 5), quarter(Step::C, 5), quarter(Step::C, 5), quarter(Step::C, 5)],
         vec![quarter(Step::E, 4), quarter(Step::E, 4), quarter(Step::E, 4), quarter(Step::E, 4)],
     )
+}
+
+/// Assign `BeamState` (via `acorde_core::compute_beams`) to a set of notes for the given
+/// time signature, matching what a real `acorde-core` -> `acorde-layout` pipeline would do —
+/// this crate's tests never invent beam grouping themselves.
+fn beamed(mut notes: Vec<Note>, num: u8, den: u8) -> Vec<Note> {
+    let ts = TimeSignature { numerator: num, denominator: den };
+    let states = compute_beams(&notes, &ts);
+    for (n, s) in notes.iter_mut().zip(states) {
+        n.beam = s;
+    }
+    notes
+}
+
+/// 4 same-pitch eighth notes in 4/4 — two flat, 2-note beams (one per quarter-note beat).
+pub fn vr_beam_flat() -> Score {
+    let notes = beamed(vec![note(Step::C, 5, Duration::Eighth); 4], 4, 4);
+    single_staff_score(Clef::Treble, 0, 4, 4, notes, vec![])
+}
+
+/// 4 ascending eighth notes spanning more than an octave — exercises slope clamping (a
+/// naive first-to-last line would produce a wildly steep beam and absurd stem lengths).
+pub fn vr_beam_sloped() -> Score {
+    let notes = beamed(
+        vec![
+            note(Step::C, 4, Duration::Eighth),
+            note(Step::D, 5, Duration::Eighth),
+            note(Step::E, 4, Duration::Eighth),
+            note(Step::F, 5, Duration::Eighth),
+        ],
+        4, 4,
+    );
+    single_staff_score(Clef::Treble, 0, 4, 4, notes, vec![])
+}
+
+/// Eighth, sixteenth, sixteenth, eighth — a secondary (16th-level) beam spans only the
+/// contiguous 16th-note pair, not the full group.
+pub fn vr_beam_mixed_durations() -> Score {
+    let notes = beamed(
+        vec![
+            note(Step::C, 5, Duration::Eighth),
+            note(Step::D, 5, Duration::Sixteenth),
+            note(Step::E, 5, Duration::Sixteenth),
+            note(Step::F, 5, Duration::Eighth),
+        ],
+        4, 4,
+    );
+    single_staff_score(Clef::Treble, 0, 4, 4, notes, vec![])
 }
 
 // ── SVG probing helpers (dependency-free attribute extraction) ──────────────────

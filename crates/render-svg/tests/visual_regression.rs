@@ -13,7 +13,7 @@
 //!    verified independently of the renderer's internals, so a regression in the position
 //!    formula fails a *meaningful* assertion, not just a string diff.
 //!
-//! Fixtures for beams, tuplets, ties/slurs, and lyrics are intentionally not included yet —
+//! Fixtures for tuplets, ties/slurs, and lyrics are intentionally not included yet —
 //! acorde-render-svg doesn't render any of those yet (tracked as follow-up phases). Add
 //! their golden fixtures alongside the feature that renders them, not before.
 
@@ -83,6 +83,24 @@ fn golden_multi_measure() {
 fn golden_stem_directions() {
     let svg = render_svg(&common::vr_stem_directions(), &opts()).unwrap();
     assert_matches_golden(&svg, "golden/vr_stem_directions.svg");
+}
+
+#[test]
+fn golden_beam_flat() {
+    let svg = render_svg(&common::vr_beam_flat(), &opts()).unwrap();
+    assert_matches_golden(&svg, "golden/vr_beam_flat.svg");
+}
+
+#[test]
+fn golden_beam_sloped() {
+    let svg = render_svg(&common::vr_beam_sloped(), &opts()).unwrap();
+    assert_matches_golden(&svg, "golden/vr_beam_sloped.svg");
+}
+
+#[test]
+fn golden_beam_mixed_durations() {
+    let svg = render_svg(&common::vr_beam_mixed_durations(), &opts()).unwrap();
+    assert_matches_golden(&svg, "golden/vr_beam_mixed_durations.svg");
 }
 
 // ── geometry relationship assertions ─────────────────────────────────────────────
@@ -208,4 +226,76 @@ fn multi_measure_barlines_are_strictly_between_measures() {
     assert!(barline_xs[0] > note_xs[3] && barline_xs[0] < note_xs[4]);
     assert!(barline_xs[1] > note_xs[7] && barline_xs[1] < note_xs[8]);
     assert!(barline_xs[2] > note_xs[11]);
+}
+
+// ── beam geometry ─────────────────────────────────────────────────────────────────
+
+#[test]
+fn beamed_eighth_notes_get_no_individual_flags() {
+    // A beam replaces flags entirely — an eighth note that is part of a beam group must
+    // never also draw its own flag wedge.
+    let svg = render_svg(&common::vr_beam_flat(), &opts()).unwrap();
+    assert!(!svg.contains(r#"fill="black" stroke="none""#), "beamed notes must not draw individual flags");
+    assert!(svg.contains("acorde-beam"), "expected at least one beam segment");
+}
+
+#[test]
+fn flat_pitch_beam_group_is_horizontal() {
+    // Same-pitch notes: the beam's start and end y must be identical (no artificial slope).
+    let svg = render_svg(&common::vr_beam_flat(), &opts()).unwrap();
+    let beams = common::extract_elements(&svg, "acorde-beam");
+    assert!(!beams.is_empty());
+    for beam in &beams {
+        // polygon points="x1,y1 x2,y2 x2,y3 x1,y4" — top-left and top-right y must match.
+        let points = beam.split("points=\"").nth(1).unwrap().split('"').next().unwrap();
+        let coords: Vec<Vec<f32>> = points.split(' ')
+            .map(|pair| pair.split(',').map(|v| v.parse().unwrap()).collect())
+            .collect();
+        assert!((coords[0][1] - coords[1][1]).abs() < 0.01, "flat-pitch beam must be horizontal");
+    }
+}
+
+#[test]
+fn sloped_beam_does_not_produce_extreme_stem_lengths() {
+    // Regression guard for the exact failure mode called out in the spec: a naive
+    // first-note-to-last-note line must not blow up interior stem lengths. With slope
+    // clamped to 1 staff-space of rise, no stem in this ascending-run fixture should exceed
+    // roughly 2x the default stem length.
+    let svg = render_svg(&common::vr_beam_sloped(), &opts()).unwrap();
+    let stems = common::extract_elements(&svg, "acorde-stem");
+    assert!(!stems.is_empty());
+    let staff_size = opts().staff_size;
+    for stem in &stems {
+        let len = (common::attr_f32(stem, "y1") - common::attr_f32(stem, "y2")).abs();
+        assert!(len <= 6.0 * staff_size,
+            "stem length {len} is more than double the default — beam slope is not being clamped");
+    }
+}
+
+#[test]
+fn beam_never_crosses_a_notehead() {
+    // The minimum-clearance guarantee: for every beamed note, the beam's y at that note's x
+    // must be strictly on the stem side of the notehead (never between the notehead and the
+    // beam by less than a hair, i.e. the stem must have positive, sane length).
+    for score in [common::vr_beam_flat(), common::vr_beam_sloped(), common::vr_beam_mixed_durations()] {
+        let svg = render_svg(&score, &opts()).unwrap();
+        let noteheads = common::extract_elements(&svg, "acorde-notehead");
+        let stems = common::extract_elements(&svg, "acorde-stem");
+        assert_eq!(noteheads.len(), stems.len());
+        for (nh, stem) in noteheads.iter().zip(&stems) {
+            let note_y = common::attr_f32(nh, "cy");
+            let tip_y = common::attr_f32(stem, "y2");
+            let len = (note_y - tip_y).abs();
+            assert!(len > 0.5, "stem must have positive length (beam must not sit on the notehead)");
+        }
+    }
+}
+
+#[test]
+fn sixteenth_run_gets_a_second_beam_level() {
+    // vr_beam_mixed_durations has exactly one contiguous 16th-note pair -> exactly one
+    // secondary-level segment in addition to the primary beam.
+    let svg = render_svg(&common::vr_beam_mixed_durations(), &opts()).unwrap();
+    let beams = common::extract_elements(&svg, "acorde-beam");
+    assert_eq!(beams.len(), 2, "expected 1 primary + 1 secondary (16th-level) beam segment");
 }

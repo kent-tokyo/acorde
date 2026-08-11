@@ -9,6 +9,7 @@ use std::fmt::Write as _;
 use acorde_core::{Barline, Clef, Duration, Note, Score, TimeSignature};
 use acorde_layout::LayoutResult;
 
+use crate::beams;
 use crate::geometry;
 use crate::glyphs::{self, f};
 use crate::{RenderError, SvgRenderOptions};
@@ -119,7 +120,7 @@ pub(crate) fn build_svg(score: &Score, layout: &LayoutResult, options: &SvgRende
                 let bottom_y = staff_y[si_idx] + STAFF_HEIGHT_U * space;
                 let clef = &staff_states[si_idx].clef;
                 render_measure(
-                    &mut body, score, pi, si, measure_idx, clef, mx, bottom_y, mwidth, space,
+                    &mut body, score, layout, pi, si, measure_idx, clef, mx, bottom_y, mwidth, space,
                     options.interactive, &mandatory, &courtesy,
                 )?;
             }
@@ -336,6 +337,7 @@ fn write_repeat_dots(body: &mut String, x: f32, top_y: f32, bottom_y: f32, space
 fn render_measure(
     body: &mut String,
     score: &Score,
+    layout: &LayoutResult,
     part: usize,
     staff: usize,
     measure_idx: usize,
@@ -372,19 +374,66 @@ fn render_measure(
             continue;
         }
         let up = active_voices <= 1 || voice_idx == 0;
+
+        // x position for every note, computed up front — beam planning needs the full
+        // voice's layout before any individual note is drawn.
+        let mut xs = Vec::with_capacity(notes.len());
         let mut beat_pos = 0.0f64;
-        for (note_idx, note) in notes.iter().enumerate() {
-            let note_x = content_x0 + (content_w * (beat_pos / total_beats) as f32);
-            render_note(
-                body, note, part, staff, measure_idx, voice_idx, note_idx, clef, clef_bottom,
-                note_x, bottom_y, space, up, interactive, mandatory, courtesy,
-            )?;
+        for note in notes {
+            xs.push(content_x0 + (content_w * (beat_pos / total_beats) as f32));
             beat_pos += note.beats();
         }
+
+        // Beam plan: acorde-layout's beam_groups is the source of truth for *which* notes
+        // are beamed together — this renderer never re-infers grouping, only geometry.
+        let mut beam_tips: HashMap<usize, f32> = HashMap::new();
+        let mut beam_svg = String::new();
+        for group in layout.beam_groups.iter().filter(|g| {
+            g.part == part && g.staff == staff && g.measure == measure_idx && g.voice == voice_idx
+        }) {
+            if group.note_indices.len() < 2 {
+                continue; // a lone "beamed" note has nothing to connect to
+            }
+            let group_stem_up = notes[group.note_indices[0]].stem_up.unwrap_or(up);
+            let durations: Vec<Duration> = group.note_indices.iter().map(|&i| notes[i].duration.clone()).collect();
+            let group_xs: Vec<f32> = group.note_indices.iter().map(|&i| xs[i]).collect();
+            let attach_ys: Vec<f32> = group.note_indices.iter()
+                .map(|&i| note_attach_y(&notes[i], clef_bottom, group_stem_up, bottom_y, space))
+                .collect();
+            let plan = beams::plan_beam_group(&durations, &group_xs, &attach_ys, group_stem_up, space);
+            for (local_i, tip) in plan.tips {
+                beam_tips.insert(group.note_indices[local_i], tip);
+            }
+            beam_svg.push_str(&plan.svg);
+        }
+
+        for (note_idx, note) in notes.iter().enumerate() {
+            render_note(
+                body, note, part, staff, measure_idx, voice_idx, note_idx, clef, clef_bottom,
+                xs[note_idx], bottom_y, space, up, beam_tips.get(&note_idx).copied(),
+                interactive, mandatory, courtesy,
+            )?;
+        }
+        body.push_str(&beam_svg);
     }
 
     body.push_str("</g>");
     Ok(())
+}
+
+/// The y-coordinate of a note's stem-side notehead (for chords: whichever pitch is
+/// "outermost" in the stem direction — the same pitch `render_pitched_note` attaches the
+/// stem to). Used for beam planning, which needs this before any note is actually drawn.
+fn note_attach_y(note: &Note, clef_bottom: i32, stem_up: bool, staff_bottom_y: f32, space: f32) -> f32 {
+    let positions: Vec<i32> = note.pitches.iter()
+        .map(|p| geometry::staff_position(&p.step, p.octave, clef_bottom))
+        .collect();
+    let outer = if stem_up {
+        positions.iter().copied().min().unwrap_or(0)
+    } else {
+        positions.iter().copied().max().unwrap_or(0)
+    };
+    staff_bottom_y + geometry::position_y(outer, space)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -402,6 +451,7 @@ fn render_note(
     staff_bottom_y: f32,
     space: f32,
     voice_stem_up: bool,
+    beam_tip: Option<f32>,
     interactive: bool,
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
@@ -425,7 +475,7 @@ fn render_note(
         let stem_up = note.stem_up.unwrap_or(voice_stem_up);
         render_pitched_note(
             body, note, part, staff, measure_idx, voice_idx, note_idx, clef, clef_bottom,
-            x, staff_bottom_y, space, stem_up, mandatory, courtesy,
+            x, staff_bottom_y, space, stem_up, beam_tip, mandatory, courtesy,
         )?;
     }
 
@@ -465,6 +515,7 @@ fn render_pitched_note(
     staff_bottom_y: f32,
     space: f32,
     stem_up: bool,
+    beam_tip: Option<f32>,
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
 ) -> Result<(), RenderError> {
@@ -526,20 +577,26 @@ fn render_pitched_note(
         body.push_str(&glyphs::notehead(x, y, space, filled));
     }
 
-    // Stem + flags (shared across a chord).
+    // Stem + flags (shared across a chord). A beamed note's stem follows the beam line
+    // instead of the default fixed length, and never gets individual flags — the beam
+    // replaces them.
     if has_stem {
         let notehead_y = if stem_up {
             staff_bottom_y + geometry::position_y(min_pos, space)
         } else {
             staff_bottom_y + geometry::position_y(max_pos, space)
         };
-        let (stem_svg, tip_y) = glyphs::stem(x, notehead_y, space, stem_up);
-        body.push_str(&stem_svg);
-        for i in 0..flag_count {
-            let fy = tip_y + if stem_up { i as f32 * 0.35 * space } else { -(i as f32) * 0.35 * space };
-            let x_off = 0.31 * space * 0.92;
-            let stem_x = if stem_up { x + x_off } else { x - x_off };
-            body.push_str(&glyphs::flag(stem_x, fy, space, stem_up));
+        if let Some(tip_y) = beam_tip {
+            body.push_str(&glyphs::stem_to(x, notehead_y, tip_y, space, stem_up));
+        } else {
+            let (stem_svg, tip_y) = glyphs::stem(x, notehead_y, space, stem_up);
+            body.push_str(&stem_svg);
+            for i in 0..flag_count {
+                let fy = tip_y + if stem_up { i as f32 * 0.35 * space } else { -(i as f32) * 0.35 * space };
+                let x_off = 0.31 * space * 0.92;
+                let stem_x = if stem_up { x + x_off } else { x - x_off };
+                body.push_str(&glyphs::flag(stem_x, fy, space, stem_up));
+            }
         }
     }
 

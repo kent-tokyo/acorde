@@ -25,6 +25,7 @@
 //! assert!(svg.starts_with("<svg"));
 //! ```
 
+mod beams;
 mod geometry;
 mod glyphs;
 mod render;
