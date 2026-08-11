@@ -7,7 +7,7 @@
 #![allow(dead_code)]
 
 use acorde_core::{
-    compute_beams, Clef, Duration, KeySignature, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature,
+    compute_beams, Clef, Duration, KeySignature, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature, TupletInfo,
 };
 
 fn note(step: Step, octave: i8, dur: Duration) -> Note {
@@ -277,6 +277,45 @@ pub fn vr_beam_mixed_durations() -> Score {
         ],
         4, 4,
     );
+    single_staff_score(Clef::Treble, 0, 4, 4, notes, vec![])
+}
+
+fn tuplet(mut notes: Vec<Note>, actual_notes: u8, normal_notes: u8) -> Vec<Note> {
+    for n in &mut notes {
+        n.tuplet = Some(TupletInfo { actual_notes, normal_notes });
+    }
+    notes
+}
+
+/// Unbeamed quarter-note triplet (3 in the time of 2) — a full bracket + "3".
+pub fn vr_tuplet_triplet_unbeamed() -> Score {
+    let notes = tuplet(vec![quarter(Step::C, 5), quarter(Step::D, 5), quarter(Step::E, 5)], 3, 2);
+    single_staff_score(Clef::Treble, 0, 4, 4, notes, vec![])
+}
+
+/// Beamed eighth-note triplet — number only, no bracket line (the beam already groups them).
+pub fn vr_tuplet_triplet_beamed() -> Score {
+    let notes = vec![
+        note(Step::C, 5, Duration::Eighth),
+        note(Step::D, 5, Duration::Eighth),
+        note(Step::E, 5, Duration::Eighth),
+    ];
+    // Tuplet info must be set *before* compute_beams — Note::beats() scales by
+    // actual_notes/normal_notes, and compute_beams groups by beat boundaries using that
+    // scaled duration. Three plain (non-tuplet) eighth notes span 1.5 beats and cross a beat
+    // boundary, splitting the beam 2+1; as a 3:2 triplet they span exactly 1 beat and stay
+    // in one group, which is the whole point of this fixture.
+    let mut notes = tuplet(notes, 3, 2);
+    let states = compute_beams(&notes, &TimeSignature { numerator: 4, denominator: 4 });
+    for (n, s) in notes.iter_mut().zip(states) {
+        n.beam = s;
+    }
+    single_staff_score(Clef::Treble, 0, 4, 4, notes, vec![])
+}
+
+/// Triplet containing a rest — the bracket must still span across it.
+pub fn vr_tuplet_with_rest() -> Score {
+    let notes = tuplet(vec![quarter(Step::C, 5), Note::rest(Duration::Quarter), quarter(Step::E, 5)], 3, 2);
     single_staff_score(Clef::Treble, 0, 4, 4, notes, vec![])
 }
 

@@ -418,13 +418,23 @@ full algorithm writeup). Secondary beams (16th notes and, by the same mechanism,
 span only the contiguous run of notes that need them, with a short hook stub for an
 isolated note. Beamed notes never draw individual flags — the beam replaces them.
 
-Tuplets, ties/slurs, lyrics engraving, and Roman-numeral/chord-analysis text are out of
-scope for this crate by design — `acorde-render-svg` never re-implements music theory or
-takes a dependency on any downstream consumer (e.g. it has no knowledge of, or dependency
-on, mokuren).
+Phase 2A also added tuplet engraving, consuming `LayoutResult.tuplet_groups` — again, only
+the ratio (`actual_notes`/`normal_notes`) and grouping already decided by `acorde-layout`,
+never re-derived. A fully-beamed tuplet (every note in the group already connected by one
+beam) draws just the number, since the beam already provides the visual grouping; otherwise
+a bracket is drawn with a gap for the number, correctly spanning across a rest inside the
+tuplet. The bracket sits on the stem side (above for stem-up, below for stem-down),
+generalizing to any ratio (triplets, quintuplets, septuplets, …) through one code path with
+no per-ratio special-casing. Nested tuplets are out of scope for Phase 2A.
+
+Ties/slurs, lyrics engraving, and Roman-numeral/chord-analysis text are out of scope for
+this crate by design — `acorde-render-svg` never re-implements music theory or takes a
+dependency on any downstream consumer (e.g. it has no knowledge of, or dependency on,
+mokuren).
 
 ```bash
 cargo run -p acorde-render-svg --example render_beams > /tmp/beams.svg
+cargo run -p acorde-render-svg --example render_tuplets > /tmp/tuplets.svg
 ```
 
 **Glyph & font policy.** Every glyph (clefs, noteheads, accidentals, rests, digits) is an

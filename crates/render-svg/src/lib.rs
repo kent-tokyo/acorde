@@ -29,6 +29,7 @@ mod beams;
 mod geometry;
 mod glyphs;
 mod render;
+mod tuplets;
 
 use acorde_core::Score;
 use acorde_layout::{compute_layout, LayoutConfig, LayoutResult};

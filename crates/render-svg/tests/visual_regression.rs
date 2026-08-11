@@ -13,8 +13,8 @@
 //!    verified independently of the renderer's internals, so a regression in the position
 //!    formula fails a *meaningful* assertion, not just a string diff.
 //!
-//! Fixtures for tuplets, ties/slurs, and lyrics are intentionally not included yet —
-//! acorde-render-svg doesn't render any of those yet (tracked as follow-up phases). Add
+//! Fixtures for ties/slurs and lyrics are intentionally not included yet —
+//! acorde-render-svg doesn't render either yet (tracked as follow-up phases). Add
 //! their golden fixtures alongside the feature that renders them, not before.
 
 mod common;
@@ -101,6 +101,24 @@ fn golden_beam_sloped() {
 fn golden_beam_mixed_durations() {
     let svg = render_svg(&common::vr_beam_mixed_durations(), &opts()).unwrap();
     assert_matches_golden(&svg, "golden/vr_beam_mixed_durations.svg");
+}
+
+#[test]
+fn golden_tuplet_triplet_unbeamed() {
+    let svg = render_svg(&common::vr_tuplet_triplet_unbeamed(), &opts()).unwrap();
+    assert_matches_golden(&svg, "golden/vr_tuplet_triplet_unbeamed.svg");
+}
+
+#[test]
+fn golden_tuplet_triplet_beamed() {
+    let svg = render_svg(&common::vr_tuplet_triplet_beamed(), &opts()).unwrap();
+    assert_matches_golden(&svg, "golden/vr_tuplet_triplet_beamed.svg");
+}
+
+#[test]
+fn golden_tuplet_with_rest() {
+    let svg = render_svg(&common::vr_tuplet_with_rest(), &opts()).unwrap();
+    assert_matches_golden(&svg, "golden/vr_tuplet_with_rest.svg");
 }
 
 // ── geometry relationship assertions ─────────────────────────────────────────────
@@ -298,4 +316,86 @@ fn sixteenth_run_gets_a_second_beam_level() {
     let svg = render_svg(&common::vr_beam_mixed_durations(), &opts()).unwrap();
     let beams = common::extract_elements(&svg, "acorde-beam");
     assert_eq!(beams.len(), 2, "expected 1 primary + 1 secondary (16th-level) beam segment");
+}
+
+// ── tuplet geometry ──────────────────────────────────────────────────────────────
+
+#[test]
+fn unbeamed_tuplet_draws_a_bracket_and_a_number() {
+    let svg = render_svg(&common::vr_tuplet_triplet_unbeamed(), &opts()).unwrap();
+    assert!(!common::extract_elements(&svg, "acorde-tuplet-bracket").is_empty());
+    assert!(!common::extract_elements(&svg, "acorde-tuplet-number").is_empty());
+}
+
+#[test]
+fn beamed_tuplet_draws_only_a_number_no_bracket() {
+    let svg = render_svg(&common::vr_tuplet_triplet_beamed(), &opts()).unwrap();
+    assert!(common::extract_elements(&svg, "acorde-tuplet-bracket").is_empty(),
+        "a fully-beamed tuplet must not also draw a redundant bracket line");
+    assert!(!common::extract_elements(&svg, "acorde-tuplet-number").is_empty());
+    assert!(!common::extract_elements(&svg, "acorde-beam").is_empty());
+}
+
+#[test]
+fn tuplet_bracket_spans_first_to_last_note_including_a_rest() {
+    let svg = render_svg(&common::vr_tuplet_with_rest(), &opts()).unwrap();
+    let noteheads = common::extract_elements(&svg, "acorde-notehead");
+    let brackets = common::extract_elements(&svg, "acorde-tuplet-bracket");
+    assert_eq!(noteheads.len(), 2); // the rest in the middle has no notehead
+    assert!(!brackets.is_empty());
+
+    let first_note_x = common::attr_f32(noteheads[0], "cx");
+    let last_note_x = common::attr_f32(noteheads[1], "cx");
+    let bracket_xs: Vec<f32> = brackets.iter()
+        .flat_map(|b| [common::attr_f32(b, "x1"), common::attr_f32(b, "x2")])
+        .collect();
+    let bracket_min_x = bracket_xs.iter().cloned().fold(f32::INFINITY, f32::min);
+    let bracket_max_x = bracket_xs.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+    // The bracket must reach at least from the first note to the last note — spanning over
+    // the rest in between, not stopping short at it.
+    assert!(bracket_min_x <= first_note_x + 0.5, "bracket must start at or before the first note");
+    assert!(bracket_max_x >= last_note_x - 0.5, "bracket must end at or after the last note");
+}
+
+#[test]
+fn tuplet_number_shows_actual_notes_count() {
+    // vr_tuplet_triplet_unbeamed is a 3:2 triplet -> the digit "3" is drawn (a single-digit
+    // 7-segment glyph, i.e. exactly one digit() call worth of segments: at most 7 <line>s).
+    let svg = render_svg(&common::vr_tuplet_triplet_unbeamed(), &opts()).unwrap();
+    let number_group = svg.split(r#"<g class="acorde-tuplet-number">"#).nth(1).unwrap().split("</g>").next().unwrap();
+    let segment_count = number_group.matches("<line").count();
+    assert!((1..=7).contains(&segment_count), "expected a single digit's worth of segments, got {segment_count}");
+}
+
+#[test]
+fn stem_down_tuplet_bracket_sits_below_the_notes() {
+    use acorde_core::{Clef, Duration, KeySignature, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature, TupletInfo};
+    let mut score = Score::default();
+    score.settings.time_signature = TimeSignature { numerator: 4, denominator: 4 };
+    score.settings.key_signature = KeySignature { fifths: 0, mode: "major".to_string() };
+    let mut part = Part::new("T", "T");
+    let mut staff = Staff::new(Clef::Treble);
+    let mut m = Measure::empty(4, 4);
+    m.number = 1;
+    let mut notes: Vec<Note> = [Step::B, Step::A, Step::G].iter()
+        .map(|s| Note::new(Pitch::new(s.clone(), 5), Duration::Quarter))
+        .collect();
+    for n in &mut notes {
+        n.stem_up = Some(false);
+        n.tuplet = Some(TupletInfo { actual_notes: 3, normal_notes: 2 });
+    }
+    m.voices[0] = notes;
+    staff.measures.push(m);
+    part.staves.push(staff);
+    score.parts = vec![part];
+
+    let svg = render_svg(&score, &opts()).unwrap();
+    let noteheads = common::extract_elements(&svg, "acorde-notehead");
+    let brackets = common::extract_elements(&svg, "acorde-tuplet-bracket");
+    assert!(!brackets.is_empty());
+    let max_note_y = noteheads.iter().map(|e| common::attr_f32(e, "cy")).fold(f32::NEG_INFINITY, f32::max);
+    let min_bracket_y = brackets.iter()
+        .flat_map(|b| [common::attr_f32(b, "y1"), common::attr_f32(b, "y2")])
+        .fold(f32::INFINITY, f32::min);
+    assert!(min_bracket_y > max_note_y, "a stem-down tuplet's bracket must sit below every notehead");
 }

@@ -382,6 +382,47 @@ pub(crate) fn digit(d: u8, ox: f32, oy: f32, space: f32) -> String {
 /// Width (u) a single digit occupies, including trailing gap.
 pub(crate) const DIGIT_WIDTH_U: f32 = 0.75;
 
+// ── tuplets ──────────────────────────────────────────────────────────────────────
+
+/// One bracket segment of a tuplet bracket (a hook or a horizontal run).
+pub(crate) fn tuplet_line(x1: f32, y1: f32, x2: f32, y2: f32, space: f32) -> String {
+    let sw = f(0.09 * space);
+    format!(
+        r#"<line class="acorde-tuplet-bracket" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="black" stroke-width="{sw}"/>"#,
+        x1 = f(x1), y1 = f(y1), x2 = f(x2), y2 = f(y2)
+    )
+}
+
+/// Tuplet ratio number (just `actual_notes` — e.g. "3" for a triplet — matching standard
+/// notation practice; the full N:M ratio is implied by context and not printed), centered
+/// horizontally on `cx` and vertically on `cy`. Reuses the same 7-segment `digit()` glyphs
+/// as the time signature, at a smaller scale.
+pub(crate) fn tuplet_number(n: u8, cx: f32, cy: f32, space: f32) -> String {
+    let digit_space = 0.65 * space;
+    let digits: Vec<u8> = if n == 0 {
+        vec![0]
+    } else {
+        let mut d = Vec::new();
+        let mut v = n;
+        while v > 0 {
+            d.push(v % 10);
+            v /= 10;
+        }
+        d.reverse();
+        d
+    };
+    let total_w = digits.len() as f32 * DIGIT_WIDTH_U * digit_space;
+    let mut ox = cx - total_w / 2.0;
+    let oy = cy - 0.75 * digit_space;
+    let mut out = String::from(r#"<g class="acorde-tuplet-number">"#);
+    for d in digits {
+        out.push_str(&digit(d, ox, oy, digit_space));
+        ox += DIGIT_WIDTH_U * digit_space;
+    }
+    out.push_str("</g>");
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

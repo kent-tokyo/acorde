@@ -12,12 +12,17 @@ use acorde_layout::LayoutResult;
 use crate::beams;
 use crate::geometry;
 use crate::glyphs::{self, f};
+use crate::tuplets;
 use crate::{RenderError, SvgRenderOptions};
 
 const LEFT_MARGIN_U: f32 = 1.0;
 const RIGHT_MARGIN_U: f32 = 1.0;
-const TOP_MARGIN_U: f32 = 3.0;
-const BOTTOM_MARGIN_U: f32 = 2.0;
+// Generous enough for a couple of ledger lines above/below the topmost/bottommost staff of
+// the score plus a default stem plus an unbeamed tuplet bracket and number stacked beyond
+// that (roughly: 2 ledger lines = 2 spaces, + 3-space stem, + ~2.5 spaces of tuplet bracket/
+// number) — a static budget, not a dynamic per-row content-extent measurement, per Phase 2A scope.
+const TOP_MARGIN_U: f32 = 8.0;
+const BOTTOM_MARGIN_U: f32 = 7.0;
 const STAFF_GAP_U: f32 = 10.0; // gap between consecutive staves within one system (room for ledger lines both directions)
 const SYSTEM_GAP_U: f32 = 9.0; // extra gap between the last staff of a system and the next
 const STAFF_HEIGHT_U: f32 = 4.0; // top line to bottom line
@@ -415,6 +420,36 @@ fn render_measure(
             )?;
         }
         body.push_str(&beam_svg);
+
+        // Tuplet plan: acorde-layout's tuplet_groups is the source of truth for grouping and
+        // for the actual:normal ratio — this renderer only turns that into a bracket/number.
+        for group in layout.tuplet_groups.iter().filter(|g| {
+            g.part == part && g.staff == staff && g.measure == measure_idx && g.voice == voice_idx
+        }) {
+            if group.note_indices.len() < 2 {
+                continue;
+            }
+            let group_stem_up = group.note_indices.iter()
+                .find_map(|&i| (!notes[i].is_rest).then(|| notes[i].stem_up.unwrap_or(up)))
+                .unwrap_or(up);
+            let beamed_fully = group.note_indices.iter()
+                .all(|&i| !notes[i].is_rest && beam_tips.contains_key(&i));
+            let dir = if group_stem_up { -1.0 } else { 1.0 };
+            let group_xs: Vec<f32> = group.note_indices.iter().map(|&i| xs[i]).collect();
+            let ref_ys: Vec<f32> = group.note_indices.iter().map(|&i| {
+                if notes[i].is_rest {
+                    bottom_y - 2.0 * space
+                } else {
+                    let notehead_y = note_attach_y(&notes[i], clef_bottom, group_stem_up, bottom_y, space);
+                    match beam_tips.get(&i) {
+                        Some(&tip) => tip,
+                        None => notehead_y + dir * glyphs::DEFAULT_STEM_LEN_U * space,
+                    }
+                }
+            }).collect();
+            let plan = tuplets::plan_tuplet(&group_xs, &ref_ys, group.actual_notes, group_stem_up, beamed_fully, space);
+            body.push_str(&plan.svg);
+        }
     }
 
     body.push_str("</g>");
