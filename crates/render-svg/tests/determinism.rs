@@ -94,3 +94,24 @@ fn coordinates_use_fixed_two_decimal_precision() {
         }
     }
 }
+
+#[test]
+fn output_never_contains_a_newline() {
+    // Regression guard for a real CI failure: a multi-line raw string literal in glyph source
+    // (e.g. `r#"<g ...>\n<line .../>\n</g>"#`) embeds *that source file's own* line-ending
+    // bytes into the compiled string. Checked out with CRLF (the default on Windows runners),
+    // those glyphs render with embedded \r\n on Windows but plain \n on Linux/macOS — silently
+    // breaking both determinism-across-platforms and every golden-file comparison. Keeping the
+    // entire SVG output on one line, with zero embedded newlines anywhere, makes that whole bug
+    // class impossible: there is no line-ending to diverge.
+    for score in [
+        common::satb_major(),
+        common::satb_minor(),
+        common::satb_secondary_dominant(),
+        common::satb_dotted_and_rest(),
+    ] {
+        let svg = render_svg(&score, &opts()).unwrap();
+        assert!(!svg.contains('\n'), "SVG output must never contain a newline");
+        assert!(!svg.contains('\r'), "SVG output must never contain a carriage return");
+    }
+}

@@ -223,12 +223,10 @@ fn sharp(cx: f32, cy: f32, space: f32) -> String {
     let y_top = cy - 0.75 * space;
     let y_bot = cy + 0.75 * space;
     format!(
-        r#"<g class="acorde-accidental acorde-sharp">
-<line x1="{x1}" y1="{yt}" x2="{x1}" y2="{yb}" stroke="black" stroke-width="{swv}"/>
-<line x1="{x2}" y1="{yt}" x2="{x2}" y2="{yb}" stroke="black" stroke-width="{swv}"/>
-<line x1="{hx1}" y1="{hy1}" x2="{hx2}" y2="{hy1a}" stroke="black" stroke-width="{swh}"/>
-<line x1="{hx1}" y1="{hy2}" x2="{hx2}" y2="{hy2a}" stroke="black" stroke-width="{swh}"/>
-</g>"#,
+        // Single-line literal: a multi-line raw string here would embed this *source file's*
+        // own line-ending bytes into the compiled string, making output diverge between
+        // LF-checkout and CRLF-checkout platforms (see beams::tests and CI history).
+        r#"<g class="acorde-accidental acorde-sharp"><line x1="{x1}" y1="{yt}" x2="{x1}" y2="{yb}" stroke="black" stroke-width="{swv}"/><line x1="{x2}" y1="{yt}" x2="{x2}" y2="{yb}" stroke="black" stroke-width="{swv}"/><line x1="{hx1}" y1="{hy1}" x2="{hx2}" y2="{hy1a}" stroke="black" stroke-width="{swh}"/><line x1="{hx1}" y1="{hy2}" x2="{hx2}" y2="{hy2a}" stroke="black" stroke-width="{swh}"/></g>"#,
         x1 = f(x1), x2 = f(x2), yt = f(y_top), yb = f(y_bot), swv = sw_v, swh = sw_h,
         hx1 = f(cx - 0.3 * space), hx2 = f(cx + 0.3 * space),
         hy1 = f(cy - 0.32 * space), hy1a = f(cy - 0.42 * space),
@@ -244,10 +242,7 @@ fn flat(cx: f32, cy: f32, space: f32) -> String {
     let bowl = arc_points(0.0, 0.15, 0.32, 0.35, -90.0, 110.0, 16);
     let bowl_d = path_from_segments(&[bowl], x, cy, space);
     format!(
-        r#"<g class="acorde-accidental acorde-flat">
-<line x1="{x}" y1="{yt}" x2="{x}" y2="{yb}" stroke="black" stroke-width="{sw}"/>
-<path d="{bowl_d}" fill="none" stroke="black" stroke-width="{sw}" stroke-linecap="round"/>
-</g>"#,
+        r#"<g class="acorde-accidental acorde-flat"><line x1="{x}" y1="{yt}" x2="{x}" y2="{yb}" stroke="black" stroke-width="{sw}"/><path d="{bowl_d}" fill="none" stroke="black" stroke-width="{sw}" stroke-linecap="round"/></g>"#,
         x = f(x), yt = f(y_top), yb = f(y_bot), sw = sw,
     )
 }
@@ -258,12 +253,7 @@ fn natural(cx: f32, cy: f32, space: f32) -> String {
     let x1 = cx - 0.18 * space;
     let x2 = cx + 0.18 * space;
     format!(
-        r#"<g class="acorde-accidental acorde-natural">
-<line x1="{x1}" y1="{y1t}" x2="{x1}" y2="{y1b}" stroke="black" stroke-width="{swv}"/>
-<line x1="{x2}" y1="{y2t}" x2="{x2}" y2="{y2b}" stroke="black" stroke-width="{swv}"/>
-<line x1="{x1}" y1="{hy1}" x2="{x2}" y2="{hy1b}" stroke="black" stroke-width="{swh}"/>
-<line x1="{x1}" y1="{hy2}" x2="{x2}" y2="{hy2b}" stroke="black" stroke-width="{swh}"/>
-</g>"#,
+        r#"<g class="acorde-accidental acorde-natural"><line x1="{x1}" y1="{y1t}" x2="{x1}" y2="{y1b}" stroke="black" stroke-width="{swv}"/><line x1="{x2}" y1="{y2t}" x2="{x2}" y2="{y2b}" stroke="black" stroke-width="{swv}"/><line x1="{x1}" y1="{hy1}" x2="{x2}" y2="{hy1b}" stroke="black" stroke-width="{swh}"/><line x1="{x1}" y1="{hy2}" x2="{x2}" y2="{hy2b}" stroke="black" stroke-width="{swh}"/></g>"#,
         x1 = f(x1), x2 = f(x2),
         y1t = f(cy - 0.3 * space), y1b = f(cy + 0.85 * space),
         y2t = f(cy - 0.85 * space), y2b = f(cy + 0.3 * space),
@@ -277,10 +267,7 @@ fn double_sharp(cx: f32, cy: f32, space: f32) -> String {
     let sw = f(0.16 * space);
     let r = 0.3 * space;
     format!(
-        r#"<g class="acorde-accidental acorde-double-sharp">
-<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="black" stroke-width="{sw}" stroke-linecap="round"/>
-<line x1="{x2}" y1="{y1}" x2="{x1}" y2="{y2}" stroke="black" stroke-width="{sw}" stroke-linecap="round"/>
-</g>"#,
+        r#"<g class="acorde-accidental acorde-double-sharp"><line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="black" stroke-width="{sw}" stroke-linecap="round"/><line x1="{x2}" y1="{y1}" x2="{x1}" y2="{y2}" stroke="black" stroke-width="{sw}" stroke-linecap="round"/></g>"#,
         x1 = f(cx - r), x2 = f(cx + r), y1 = f(cy - r), y2 = f(cy + r), sw = sw,
     )
 }
