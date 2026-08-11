@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use acorde_core::{BeamState, HairpinKind, NoteAddr, OttavaKind, Score, Step, TupletInfo};
-use crate::{BeamGroup, ConcertKeyOverride, CourtesyAccidental, LayoutConfig, LayoutResult, RowLayout, SpanMark, TupletGroup};
+use crate::{AccidentalMark, BeamGroup, ConcertKeyOverride, CourtesyAccidental, LayoutConfig, LayoutResult, RowLayout, SpanMark, TupletGroup};
 
 /// Shift `fifths` (circle-of-fifths key index) by `semitones` semitones.
 ///
@@ -41,8 +41,9 @@ pub fn compute_layout(score: &Score, config: &LayoutConfig) -> LayoutResult {
     let beam_groups = collect_beam_groups(score);
     let tuplet_groups = collect_tuplet_groups(score);
     let courtesy_accidentals = collect_courtesy_accidentals(score);
+    let accidentals = collect_accidental_marks(score);
 
-    LayoutResult { vis_slots, rows, spans, concert_key_overrides, beam_groups, tuplet_groups, courtesy_accidentals }
+    LayoutResult { vis_slots, rows, spans, concert_key_overrides, beam_groups, tuplet_groups, courtesy_accidentals, accidentals }
 }
 
 // ── vis_slots ─────────────────────────────────────────────────────────────────
@@ -345,6 +346,55 @@ fn collect_courtesy_accidentals(score: &Score) -> Vec<CourtesyAccidental> {
                                     (step_idx(&pitch.step), pitch.octave),
                                     pitch.alter,
                                 );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    result
+}
+
+// ── mandatory accidentals ────────────────────────────────────────────────────
+
+/// Collect mandatory (non-courtesy) accidental marks.
+///
+/// State is scoped per `(part, staff)` and reset every measure to the key signature's
+/// implied alteration — accidentals never carry across a barline. Within a measure, all
+/// voices on the staff share one accidental context (mirrors [`collect_courtesy_accidentals`]'s
+/// voice-major scan order). Tied continuations (`tie_end`) never need a fresh accidental.
+fn collect_accidental_marks(score: &Score) -> Vec<AccidentalMark> {
+    let mut result = Vec::new();
+    let base_fifths = score.settings.key_signature.fifths;
+
+    for (pi, part) in score.parts.iter().enumerate() {
+        for (si, staff) in part.staves.iter().enumerate() {
+            let mut current_fifths = base_fifths;
+
+            for (mi, measure) in staff.measures.iter().enumerate() {
+                if let Some(key_sig) = measure.key_sig.as_ref() {
+                    current_fifths = key_sig.fifths;
+                }
+
+                // Active alteration per (step, octave), established within this measure only.
+                let mut active: HashMap<(u8, i8), i8> = HashMap::new();
+
+                for vi in 0..4usize {
+                    for (ni, note) in measure.voices[vi].iter().enumerate() {
+                        for (pitch_idx, pitch) in note.pitches.iter().enumerate() {
+                            let key = (step_idx(&pitch.step), pitch.octave);
+                            let baseline = active.get(&key).copied()
+                                .unwrap_or_else(|| key_alter(current_fifths, &pitch.step));
+                            if pitch.alter != baseline {
+                                if !note.tie_end {
+                                    result.push(AccidentalMark {
+                                        part: pi, staff: si, measure: mi, voice: vi,
+                                        note_index: ni, pitch_index: pitch_idx,
+                                        alter: pitch.alter,
+                                    });
+                                }
+                                active.insert(key, pitch.alter);
                             }
                         }
                     }
@@ -751,5 +801,124 @@ mod tests {
         let result = compute_layout(&score, &LayoutConfig::default());
         // key change clears prev_alters before phase 1 → no courtesy for measure 1
         assert!(result.courtesy_accidentals.is_empty());
+    }
+
+    // ── AccidentalMark ────────────────────────────────────────────────────────
+
+    #[test]
+    fn accidental_none_for_clean_score() {
+        let score = Score::default();
+        let result = compute_layout(&score, &LayoutConfig::default());
+        assert!(result.accidentals.is_empty());
+    }
+
+    #[test]
+    fn accidental_first_chromatic_note_in_measure() {
+        // C major, single F# in measure 0 → one mandatory accidental (sharp).
+        use acorde_core::{Duration, Note, Pitch, Step};
+        let mut score = score_with_measures(1);
+        let mut fsharp = Note::new(Pitch::new(Step::F, 4), Duration::Quarter);
+        fsharp.pitches[0].alter = 1;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![fsharp];
+
+        let result = compute_layout(&score, &LayoutConfig::default());
+        assert_eq!(result.accidentals.len(), 1);
+        assert_eq!(result.accidentals[0].alter, 1);
+        assert_eq!(result.accidentals[0].measure, 0);
+    }
+
+    #[test]
+    fn accidental_repeat_same_alter_in_measure_not_marked_again() {
+        // Two F#s in the same measure: only the first needs an accidental.
+        use acorde_core::{Duration, Note, Pitch, Step};
+        let mut score = score_with_measures(1);
+        let mut f1 = Note::new(Pitch::new(Step::F, 4), Duration::Quarter);
+        f1.pitches[0].alter = 1;
+        let mut f2 = Note::new(Pitch::new(Step::F, 4), Duration::Quarter);
+        f2.pitches[0].alter = 1;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![f1, f2];
+
+        let result = compute_layout(&score, &LayoutConfig::default());
+        assert_eq!(result.accidentals.len(), 1);
+    }
+
+    #[test]
+    fn accidental_reverts_to_natural_within_same_measure() {
+        // F# then F natural, same measure: the natural needs its own mark too.
+        use acorde_core::{Duration, Note, Pitch, Step};
+        let mut score = score_with_measures(1);
+        let mut f1 = Note::new(Pitch::new(Step::F, 4), Duration::Quarter);
+        f1.pitches[0].alter = 1;
+        let f2 = Note::new(Pitch::new(Step::F, 4), Duration::Quarter); // alter=0
+        score.parts[0].staves[0].measures[0].voices[0] = vec![f1, f2];
+
+        let result = compute_layout(&score, &LayoutConfig::default());
+        assert_eq!(result.accidentals.len(), 2);
+        assert_eq!(result.accidentals[0].alter, 1);
+        assert_eq!(result.accidentals[1].alter, 0);
+    }
+
+    #[test]
+    fn accidental_does_not_carry_across_barline() {
+        // F# in measure 0; measure 1's F# needs its own mark (accidentals reset per measure).
+        // This is the case that would otherwise double up with a CourtesyAccidental —
+        // callers must prefer `accidentals` over `courtesy_accidentals` when both exist.
+        use acorde_core::{Duration, Note, Pitch, Step};
+        let mut score = score_with_measures(2);
+        let mut f1 = Note::new(Pitch::new(Step::F, 4), Duration::Quarter);
+        f1.pitches[0].alter = 1;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![f1];
+        let mut f2 = Note::new(Pitch::new(Step::F, 4), Duration::Quarter);
+        f2.pitches[0].alter = 1;
+        score.parts[0].staves[0].measures[1].voices[0] = vec![f2];
+
+        let result = compute_layout(&score, &LayoutConfig::default());
+        assert_eq!(result.accidentals.len(), 2);
+        assert!(result.accidentals.iter().any(|a| a.measure == 1));
+        // The same address also produced a courtesy mark — renderer precedence resolves it.
+        assert_eq!(result.courtesy_accidentals.len(), 1);
+        assert_eq!(result.courtesy_accidentals[0].measure, 1);
+    }
+
+    #[test]
+    fn accidental_tied_note_excluded() {
+        use acorde_core::{Duration, Note, Pitch, Step};
+        let mut score = score_with_measures(1);
+        let mut tied = Note::new(Pitch::new(Step::F, 4), Duration::Quarter);
+        tied.pitches[0].alter = 1;
+        tied.tie_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![tied];
+
+        let result = compute_layout(&score, &LayoutConfig::default());
+        assert!(result.accidentals.is_empty());
+    }
+
+    #[test]
+    fn accidental_shared_across_voices_on_same_staff() {
+        // Voice 0 introduces F#; voice 1's F# later in the same measure shares the context.
+        use acorde_core::{Duration, Note, Pitch, Step};
+        let mut score = score_with_measures(1);
+        let mut f_v0 = Note::new(Pitch::new(Step::F, 4), Duration::Quarter);
+        f_v0.pitches[0].alter = 1;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![f_v0];
+        let mut f_v1 = Note::new(Pitch::new(Step::F, 4), Duration::Quarter);
+        f_v1.pitches[0].alter = 1;
+        score.parts[0].staves[0].measures[0].voices[1] = vec![f_v1];
+
+        let result = compute_layout(&score, &LayoutConfig::default());
+        assert_eq!(result.accidentals.len(), 1);
+    }
+
+    #[test]
+    fn accidental_double_sharp_marked() {
+        use acorde_core::{Duration, Note, Pitch, Step};
+        let mut score = score_with_measures(1);
+        let mut n = Note::new(Pitch::new(Step::F, 4), Duration::Quarter);
+        n.pitches[0].alter = 2;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![n];
+
+        let result = compute_layout(&score, &LayoutConfig::default());
+        assert_eq!(result.accidentals.len(), 1);
+        assert_eq!(result.accidentals[0].alter, 2);
     }
 }

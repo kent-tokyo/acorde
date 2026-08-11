@@ -114,6 +114,30 @@ pub struct CourtesyAccidental {
     pub alter: i8,
 }
 
+/// A mandatory (non-courtesy) accidental that must be drawn beside a notehead.
+///
+/// Emitted the first time, within a measure, that a pitch (step + octave, scoped across
+/// all voices of a staff — accidentals do not carry across barlines) differs from the
+/// alteration established by the key signature or by an earlier note of the same
+/// step+octave earlier in the same measure. This is standard music engraving, not a
+/// rendering choice, so it is computed here rather than in a renderer.
+///
+/// When both an [`AccidentalMark`] and a [`CourtesyAccidental`] exist for the same
+/// `(part, staff, measure, voice, note_index, pitch_index)`, the mandatory mark takes
+/// precedence: renderers should draw it plain and suppress the courtesy parentheses.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccidentalMark {
+    pub part: usize,
+    pub staff: usize,
+    pub measure: usize,
+    pub voice: usize,
+    pub note_index: usize,
+    /// Index within `note.pitches` (0 for single-pitch notes, ≥1 for chords).
+    pub pitch_index: usize,
+    /// Accidental to display: 0 = natural, 1 = sharp, -1 = flat, 2 = double-sharp, -2 = double-flat.
+    pub alter: i8,
+}
+
 /// The result of a layout pass.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LayoutResult {
@@ -165,4 +189,11 @@ pub struct LayoutResult {
     /// no longer applies. Ordered by (part, staff, measure, voice, note_index, pitch_index).
     #[serde(default)]
     pub courtesy_accidentals: Vec<CourtesyAccidental>,
+
+    /// Mandatory (non-courtesy) accidentals across all parts, staves, measures, and voices.
+    ///
+    /// Emitted for the first chromatic alteration of a step+octave within a measure.
+    /// See [`AccidentalMark`] for the precedence rule against `courtesy_accidentals`.
+    #[serde(default)]
+    pub accidentals: Vec<AccidentalMark>,
 }
