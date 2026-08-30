@@ -21,7 +21,7 @@ abc = []
 mscz = ["dep:quick-xml", "dep:zip"]
 
 [dependencies]
-acorde-core = { path = "../core", version = "0.6.0" }
+acorde-core = { path = "../core", version = "0.7.0" }
 thiserror = "2"
 
 quick-xml = { version = "0.37", optional = true }

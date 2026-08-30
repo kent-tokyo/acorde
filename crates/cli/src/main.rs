@@ -182,6 +182,41 @@ fn cmd_validate(input: &Path) -> Result<(), String> {
     } else {
         for e in &report.errors {
             match e {
+                acorde_core::ValidationError::EmptyScore => {
+                    eprintln!("score has no parts")
+                }
+                acorde_core::ValidationError::PartWithoutStaves { part } => {
+                    eprintln!("part {} has no staves", part + 1)
+                }
+                acorde_core::ValidationError::StaffWithoutMeasures { part, staff } => {
+                    eprintln!("part {} staff {} has no measures", part + 1, staff + 1)
+                }
+                acorde_core::ValidationError::MeasureCountMismatch {
+                    part,
+                    staff,
+                    expected,
+                    found,
+                } => eprintln!(
+                    "part {} staff {}: expected {} measures, found {}",
+                    part + 1,
+                    staff + 1,
+                    expected,
+                    found
+                ),
+                acorde_core::ValidationError::InvalidTimeSignature {
+                    part,
+                    staff,
+                    measure,
+                    numerator,
+                    denominator,
+                } => eprintln!(
+                    "part {} staff {} measure {}: invalid time signature {}/{}",
+                    part + 1,
+                    staff + 1,
+                    measure + 1,
+                    numerator,
+                    denominator
+                ),
                 acorde_core::ValidationError::BeatCount {
                     part,
                     staff,

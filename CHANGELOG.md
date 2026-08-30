@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-30
+
+### Validation hardening
+
+- Expanded `validate` with structural diagnostics for empty scores, parts without staves,
+  staves without measures, mismatched staff measure counts, and invalid time signatures.
+- Exposed the same diagnostics through the CLI and `validate_score` WASM JSON report.
+- Added the v0.7 migration guide; existing valid scores and JSON schemas remain compatible.
+
 ## [0.6.0] - 2026-08-30
 
 ### MusicXML correctness

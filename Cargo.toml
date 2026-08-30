@@ -3,7 +3,7 @@ members = ["crates/core", "crates/io", "crates/layout", "crates/render-svg", "cr
 resolver = "2"
 
 [workspace.package]
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 rust-version = "1.87"
 homepage = "https://github.com/kent-tokyo/acorde"

@@ -6,6 +6,27 @@ use std::collections::HashMap;
 /// A structural error found by [`validate`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ValidationError {
+    /// The score has no parts to validate.
+    EmptyScore,
+    /// A part has no staves.
+    PartWithoutStaves { part: usize },
+    /// A staff has no measures.
+    StaffWithoutMeasures { part: usize, staff: usize },
+    /// Staves in one part do not cover the same number of measures.
+    MeasureCountMismatch {
+        part: usize,
+        staff: usize,
+        expected: usize,
+        found: usize,
+    },
+    /// A time signature has an unsupported numerator or denominator.
+    InvalidTimeSignature {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        numerator: u8,
+        denominator: u8,
+    },
     /// Beat-count mismatch: the notes in a voice don't fill the time signature.
     BeatCount {
         part: usize,
@@ -74,18 +95,55 @@ pub fn validate(score: &Score) -> ValidationReport {
 
     let mut rehearsal_counts: HashMap<String, usize> = HashMap::new();
 
+    if score.parts.is_empty() {
+        errors.push(ValidationError::EmptyScore);
+    }
+
     for (pi, part) in score.parts.iter().enumerate() {
         let range = instrument_range(part.midi_program);
         let is_percussion = part.midi_channel == 9;
         let mut part_has_notes = false;
 
+        if part.staves.is_empty() {
+            errors.push(ValidationError::PartWithoutStaves { part: pi });
+            continue;
+        }
+
+        let expected_measure_count = part.staves[0].measures.len();
+
         for (si, staff) in part.staves.iter().enumerate() {
+            if staff.measures.is_empty() {
+                errors.push(ValidationError::StaffWithoutMeasures {
+                    part: pi,
+                    staff: si,
+                });
+                continue;
+            }
+            if staff.measures.len() != expected_measure_count {
+                errors.push(ValidationError::MeasureCountMismatch {
+                    part: pi,
+                    staff: si,
+                    expected: expected_measure_count,
+                    found: staff.measures.len(),
+                });
+            }
+
             let mut current_ts = score.settings.time_signature.clone();
             let mut volta_numbers_seen: Vec<u8> = Vec::new();
 
             for (mi, measure) in staff.measures.iter().enumerate() {
                 if let Some(ts) = &measure.time_sig {
                     current_ts = ts.clone();
+                }
+                if !valid_time_signature(&current_ts) {
+                    errors.push(ValidationError::InvalidTimeSignature {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        numerator: current_ts.numerator,
+                        denominator: current_ts.denominator,
+                    });
+                    continue;
                 }
                 if measure.multi_rest_count.is_some() {
                     continue;
@@ -177,6 +235,10 @@ pub fn validate(score: &Score) -> ValidationReport {
     ValidationReport { errors, warnings }
 }
 
+fn valid_time_signature(time: &super::notation::TimeSignature) -> bool {
+    time.numerator > 0 && matches!(time.denominator, 1 | 2 | 4 | 8 | 16 | 32 | 64)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -190,6 +252,78 @@ mod tests {
     fn validate_clean_score_returns_empty_errors() {
         let score = Score::new("T", 120, 4, 4, 0, 1);
         assert!(validate(&score).errors.is_empty());
+    }
+
+    #[test]
+    fn validate_empty_score_returns_structural_error() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        score.parts.clear();
+        let report = validate(&score);
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|error| matches!(error, ValidationError::EmptyScore))
+        );
+    }
+
+    #[test]
+    fn validate_detects_missing_staves_and_measures() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        score.parts[0].staves.clear();
+        let report = validate(&score);
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|error| matches!(error, ValidationError::PartWithoutStaves { part: 0 }))
+        );
+
+        score.parts[0].staves.push(crate::model::score::Staff::new(
+            crate::model::notation::Clef::Treble,
+        ));
+        let report = validate(&score);
+        assert!(report.errors.iter().any(|error| matches!(
+            error,
+            ValidationError::StaffWithoutMeasures { part: 0, staff: 0 }
+        )));
+    }
+
+    #[test]
+    fn validate_detects_staff_measure_count_mismatch() {
+        let mut score = Score::template(crate::model::score::ScoreTemplate::Piano);
+        score.parts[0].staves[1].measures.pop();
+        let report = validate(&score);
+        assert!(report.errors.iter().any(|error| matches!(
+            error,
+            ValidationError::MeasureCountMismatch {
+                part: 0,
+                staff: 1,
+                expected: 4,
+                found: 3
+            }
+        )));
+    }
+
+    #[test]
+    fn validate_detects_invalid_time_signature() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].time_sig =
+            Some(crate::model::notation::TimeSignature {
+                numerator: 0,
+                denominator: 3,
+            });
+        let report = validate(&score);
+        assert!(report.errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidTimeSignature {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                numerator: 0,
+                denominator: 3
+            }
+        )));
     }
 
     #[test]
