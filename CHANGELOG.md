@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-08-31
+
+### Interchange report contract
+
+- Added `schema_version` to import and export reports so CLI, WASM, and library consumers can
+  safely identify the serialized report shape.
+- Legacy report JSON without `schema_version` defaults to the current schema version.
+
 ## [0.14.0] - 2026-08-31
 
 ### Interchange report contract

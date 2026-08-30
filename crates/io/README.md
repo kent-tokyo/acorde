@@ -17,6 +17,9 @@ the filesystem.
 Each supported format also exposes `*_with_report` wrappers returning `ImportReport` or
 `ExportReport<T>`. Reports carry structured diagnostics with severity, source location, preserved
 value, and loss reason fields; an empty diagnostic list means no loss was detected by that API.
+Serialized reports include `schema_version` (currently `1`); report readers should check this
+field before relying on future diagnostic fields. Reports written by older versions default to
+the current schema version when deserialized.
 
 ~~~rust
 use acorde_io::{parse_musicxml, serialize_musicxml};

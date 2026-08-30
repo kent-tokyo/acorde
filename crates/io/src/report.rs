@@ -1,6 +1,13 @@
 use acorde_core::Score;
 use serde::{Deserialize, Serialize};
 
+/// Version of the serialized import/export report contract.
+pub const REPORT_SCHEMA_VERSION: u32 = 1;
+
+fn default_report_schema_version() -> u32 {
+    REPORT_SCHEMA_VERSION
+}
+
 /// Severity of an interchange diagnostic.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DiagnosticSeverity {
@@ -37,6 +44,9 @@ impl Diagnostic {
 /// Result of importing a notation document, including conversion diagnostics.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportReport {
+    /// Version of the serialized report shape.
+    #[serde(default = "default_report_schema_version")]
+    pub schema_version: u32,
     /// Stable lowercase format identifier for the source document.
     #[serde(default)]
     pub format: String,
@@ -48,6 +58,7 @@ pub struct ImportReport {
 impl ImportReport {
     pub fn new(score: Score) -> Self {
         Self {
+            schema_version: REPORT_SCHEMA_VERSION,
             format: "unknown".to_string(),
             score,
             diagnostics: Vec::new(),
@@ -65,6 +76,9 @@ impl ImportReport {
 /// Result of exporting a notation document, including conversion diagnostics.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExportReport<T> {
+    /// Version of the serialized report shape.
+    #[serde(default = "default_report_schema_version")]
+    pub schema_version: u32,
     /// Stable lowercase format identifier for the output document.
     #[serde(default)]
     pub format: String,
@@ -76,6 +90,7 @@ pub struct ExportReport<T> {
 impl<T> ExportReport<T> {
     pub fn new(output: T) -> Self {
         Self {
+            schema_version: REPORT_SCHEMA_VERSION,
             format: "unknown".to_string(),
             output,
             diagnostics: Vec::new(),
@@ -106,10 +121,20 @@ mod tests {
     #[test]
     fn reports_default_to_no_loss() {
         let report = ImportReport::new(Score::default());
+        assert_eq!(report.schema_version, REPORT_SCHEMA_VERSION);
         assert_eq!(report.format, "unknown");
         assert!(report.diagnostics.is_empty());
         let output = ExportReport::new("output");
+        assert_eq!(output.schema_version, REPORT_SCHEMA_VERSION);
         assert_eq!(output.format, "unknown");
         assert!(output.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn legacy_export_report_defaults_to_current_schema() {
+        let restored: ExportReport<String> =
+            serde_json::from_str(r#"{"format":"musicxml","output":"output","diagnostics":[]}"#)
+                .expect("legacy report parses");
+        assert_eq!(restored.schema_version, REPORT_SCHEMA_VERSION);
     }
 }

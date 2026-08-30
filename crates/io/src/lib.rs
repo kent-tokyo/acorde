@@ -16,7 +16,9 @@ pub mod musicxml;
 mod report;
 
 pub use error::Error;
-pub use report::{Diagnostic, DiagnosticSeverity, ExportReport, ImportReport};
+pub use report::{
+    Diagnostic, DiagnosticSeverity, ExportReport, ImportReport, REPORT_SCHEMA_VERSION,
+};
 
 #[cfg(feature = "musicxml")]
 pub use musicxml::{parse_musicxml, parse_mxl, serialize_musicxml};
