@@ -17,6 +17,6 @@ name = "acorde"
 path = "src/main.rs"
 
 [dependencies]
-acorde-core = { path = "../core", version = "0.5.0" }
-acorde-io   = { path = "../io", version = "0.5.0", features = ["mscz"] }
+acorde-core = { path = "../core", version = "0.6.0" }
+acorde-io   = { path = "../io", version = "0.6.0", features = ["mscz"] }
 clap = { version = "4", features = ["derive"] }

@@ -402,32 +402,32 @@ acorde extract  --part 0 input.musicxml violin.musicxml
 
 ```toml
 [dependencies]
-acorde = "0.5"
+acorde = "0.6"
 
 # ABC 記譜サポート（オプトイン）
-acorde = { version = "0.5", features = ["abc"] }
+acorde = { version = "0.6", features = ["abc"] }
 
 # MuseScore .mscz/.mscx サポート（オプトイン）
-acorde = { version = "0.5", features = ["mscz"] }
+acorde = { version = "0.6", features = ["mscz"] }
 ```
 
 もしくは各クレートを個別に追加：
 
 ```toml
 [dependencies]
-acorde-core = "0.5"
+acorde-core = "0.6"
 ```
 
 I/O サポートが必要な場合：
 
 ```toml
-acorde-io = "0.5"
+acorde-io = "0.6"
 
 # ABC 記譜サポート（オプトイン）
-acorde-io = { version = "0.5", features = ["abc"] }
+acorde-io = { version = "0.6", features = ["abc"] }
 
 # MuseScore .mscz/.mscx サポート（オプトイン）
-acorde-io = { version = "0.5", features = ["mscz"] }
+acorde-io = { version = "0.6", features = ["mscz"] }
 ```
 
 ---

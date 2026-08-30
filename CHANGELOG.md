@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-30
+
+### MusicXML correctness
+
+- Fixed first-measure `attributes` capture so non-default clefs, keys, and time signatures are
+  preserved on the measure itself.
+- Added a regression test covering the first measure of a multi-part score.
+
 ## [0.5.0] - 2026-08-30
 
 ### Production release hardening

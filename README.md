@@ -554,38 +554,38 @@ and `acorde-layout` under `acorde::core`, `acorde::io`, `acorde::layout`:
 
 ```toml
 [dependencies]
-acorde = "0.5"
+acorde = "0.6"
 
 # ABC Notation support (opt-in)
-acorde = { version = "0.5", features = ["abc"] }
+acorde = { version = "0.6", features = ["abc"] }
 
 # MuseScore .mscz/.mscx support (opt-in)
-acorde = { version = "0.5", features = ["mscz"] }
+acorde = { version = "0.6", features = ["mscz"] }
 ```
 
 Or depend on the individual crates directly:
 
 ```toml
 [dependencies]
-acorde-core = "0.5"
+acorde-core = "0.6"
 ```
 
 For I/O support:
 
 ```toml
-acorde-io = "0.5"
+acorde-io = "0.6"
 
 # ABC Notation support (opt-in)
-acorde-io = { version = "0.5", features = ["abc"] }
+acorde-io = { version = "0.6", features = ["abc"] }
 
 # MuseScore .mscz/.mscx support (opt-in)
-acorde-io = { version = "0.5", features = ["mscz"] }
+acorde-io = { version = "0.6", features = ["mscz"] }
 ```
 
 For SVG rendering (not re-exported by the `acorde` umbrella crate — add it directly):
 
 ```toml
-acorde-render-svg = "0.5"
+acorde-render-svg = "0.6"
 ```
 
 ---

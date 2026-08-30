@@ -635,6 +635,18 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         pending_navigation = None;
                         in_direction = false;
                     }
+                    "attributes" => {
+                        // The measure is created before its child attributes are parsed. Apply
+                        // the completed state here so the first measure is not stuck with the
+                        // defaults (and later per-measure changes remain addressable).
+                        if let Some(pi) = part_index
+                            && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
+                        {
+                            m.time_sig = Some(current_time.clone());
+                            m.key_sig = Some(current_key.clone());
+                            m.clef = Some(current_clef.clone());
+                        }
+                    }
                     "words" if in_direction_type => {
                         let text = current_text.trim().to_string();
                         if !text.is_empty() {

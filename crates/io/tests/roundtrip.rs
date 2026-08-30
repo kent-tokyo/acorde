@@ -1,4 +1,4 @@
-use acorde_core::{Duration, Step};
+use acorde_core::{Clef, Duration, Step};
 /// Integration tests: parse a fixture, serialize, re-parse, and verify
 /// that key musical properties are preserved across the round-trip.
 use acorde_io::{parse_musicxml, serialize_musicxml};
@@ -95,6 +95,19 @@ fn multipart_musicxml_parses() {
 
     // Cello: dotted half note
     let cello_notes = notes_in(&score, 1, 0);
+    let cello_measure = &score.parts[1].staves[0].measures[0];
+    assert_eq!(cello_measure.clef, Some(Clef::Bass));
+    assert_eq!(
+        cello_measure.key_sig.as_ref().map(|key| key.fifths),
+        Some(2)
+    );
+    assert_eq!(
+        cello_measure
+            .time_sig
+            .as_ref()
+            .map(|time| (time.numerator, time.denominator)),
+        Some((3, 4))
+    );
     let pitched: Vec<_> = cello_notes.iter().filter(|n| !n.is_rest).collect();
     assert_eq!(pitched.len(), 1);
     assert_eq!(pitched[0].duration, Duration::Half);
