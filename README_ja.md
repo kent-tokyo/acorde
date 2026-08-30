@@ -6,7 +6,7 @@
 [![docs.rs](https://img.shields.io/docsrs/acorde)](https://docs.rs/acorde)
 [![CI](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml/badge.svg)](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml)
 ![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)
-![Rust](https://img.shields.io/badge/Rust-1.85%2B-orange)
+![Rust](https://img.shields.io/badge/Rust-1.87%2B-orange)
 ![Status](https://img.shields.io/badge/Status-Stable-green)
 
 ---
@@ -402,32 +402,32 @@ acorde extract  --part 0 input.musicxml violin.musicxml
 
 ```toml
 [dependencies]
-acorde = "0.2"
+acorde = "0.3"
 
 # ABC 記譜サポート（オプトイン）
-acorde = { version = "0.2", features = ["abc"] }
+acorde = { version = "0.3", features = ["abc"] }
 
 # MuseScore .mscz/.mscx サポート（オプトイン）
-acorde = { version = "0.2", features = ["mscz"] }
+acorde = { version = "0.3", features = ["mscz"] }
 ```
 
 もしくは各クレートを個別に追加：
 
 ```toml
 [dependencies]
-acorde-core = "0.2"
+acorde-core = "0.3"
 ```
 
 I/O サポートが必要な場合：
 
 ```toml
-acorde-io = "0.2"
+acorde-io = "0.3"
 
 # ABC 記譜サポート（オプトイン）
-acorde-io = { version = "0.2", features = ["abc"] }
+acorde-io = { version = "0.3", features = ["abc"] }
 
 # MuseScore .mscz/.mscx サポート（オプトイン）
-acorde-io = { version = "0.2", features = ["mscz"] }
+acorde-io = { version = "0.3", features = ["mscz"] }
 ```
 
 ---

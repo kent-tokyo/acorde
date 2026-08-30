@@ -1,6 +1,9 @@
-use std::collections::HashMap;
+use crate::{
+    AccidentalMark, BeamGroup, ConcertKeyOverride, CourtesyAccidental, LayoutConfig, LayoutResult,
+    RowLayout, SpanMark, TupletGroup,
+};
 use acorde_core::{BeamState, HairpinKind, NoteAddr, OttavaKind, Score, Step, TupletInfo};
-use crate::{AccidentalMark, BeamGroup, ConcertKeyOverride, CourtesyAccidental, LayoutConfig, LayoutResult, RowLayout, SpanMark, TupletGroup};
+use std::collections::HashMap;
 
 /// Shift `fifths` (circle-of-fifths key index) by `semitones` semitones.
 ///
@@ -43,13 +46,24 @@ pub fn compute_layout(score: &Score, config: &LayoutConfig) -> LayoutResult {
     let courtesy_accidentals = collect_courtesy_accidentals(score);
     let accidentals = collect_accidental_marks(score);
 
-    LayoutResult { vis_slots, rows, spans, concert_key_overrides, beam_groups, tuplet_groups, courtesy_accidentals, accidentals }
+    LayoutResult {
+        vis_slots,
+        rows,
+        spans,
+        concert_key_overrides,
+        beam_groups,
+        tuplet_groups,
+        courtesy_accidentals,
+        accidentals,
+    }
 }
 
 // ── vis_slots ─────────────────────────────────────────────────────────────────
 
 fn build_vis_slots(score: &Score) -> Vec<usize> {
-    let measure_count = score.parts.first()
+    let measure_count = score
+        .parts
+        .first()
         .and_then(|p| p.staves.first())
         .map(|s| s.measures.len())
         .unwrap_or(0);
@@ -65,7 +79,9 @@ fn build_vis_slots(score: &Score) -> Vec<usize> {
 }
 
 fn multi_rest_count(score: &Score, measure_index: usize) -> usize {
-    score.parts.iter()
+    score
+        .parts
+        .iter()
         .flat_map(|p| p.staves.iter())
         .filter_map(|s| s.measures.get(measure_index))
         .filter_map(|m| m.multi_rest_count)
@@ -77,7 +93,9 @@ fn multi_rest_count(score: &Score, measure_index: usize) -> usize {
 // ── rows ──────────────────────────────────────────────────────────────────────
 
 fn force_break_after(score: &Score, phys: usize) -> bool {
-    score.parts.iter()
+    score
+        .parts
+        .iter()
         .flat_map(|p| p.staves.iter())
         .filter_map(|s| s.measures.get(phys))
         .any(|m| m.system_break || m.page_break)
@@ -90,7 +108,9 @@ fn build_rows(
     first_row_limit: Option<usize>,
 ) -> Vec<RowLayout> {
     if vis_slots.is_empty() {
-        return vec![RowLayout { measure_indices: Vec::new() }];
+        return vec![RowLayout {
+            measure_indices: Vec::new(),
+        }];
     }
 
     let mut rows: Vec<RowLayout> = Vec::new();
@@ -105,18 +125,24 @@ fn build_rows(
                 per_row
             };
             if current.len() == limit {
-                rows.push(RowLayout { measure_indices: std::mem::take(&mut current) });
+                rows.push(RowLayout {
+                    measure_indices: std::mem::take(&mut current),
+                });
             }
             current.push(phys);
             if force_break_after(score, phys) {
-                rows.push(RowLayout { measure_indices: std::mem::take(&mut current) });
+                rows.push(RowLayout {
+                    measure_indices: std::mem::take(&mut current),
+                });
             }
         }
         last_phys = phys;
     }
 
     if !current.is_empty() {
-        rows.push(RowLayout { measure_indices: current });
+        rows.push(RowLayout {
+            measure_indices: current,
+        });
     }
     rows
 }
@@ -129,55 +155,83 @@ fn resolve_spans(score: &Score) -> Vec<SpanMark> {
     for (pi, part) in score.parts.iter().enumerate() {
         for (si, staff) in part.staves.iter().enumerate() {
             for voice in 0..4usize {
-                let mut open_hairpin:    Option<(NoteAddr, HairpinKind)> = None;
-                let mut open_ottava:     Option<(NoteAddr, OttavaKind)>  = None;
-                let mut open_pedal:      Option<NoteAddr>                 = None;
-                let mut open_slur:       Option<NoteAddr>                 = None;
-                let mut open_trill_line: Option<NoteAddr>                 = None;
+                let mut open_hairpin: Option<(NoteAddr, HairpinKind)> = None;
+                let mut open_ottava: Option<(NoteAddr, OttavaKind)> = None;
+                let mut open_pedal: Option<NoteAddr> = None;
+                let mut open_slur: Option<NoteAddr> = None;
+                let mut open_trill_line: Option<NoteAddr> = None;
 
                 for (mi, measure) in staff.measures.iter().enumerate() {
                     for (ni, note) in measure.voices[voice].iter().enumerate() {
-                        let addr = NoteAddr { part: pi, staff: si, measure: mi, voice, note: ni };
+                        let addr = NoteAddr {
+                            part: pi,
+                            staff: si,
+                            measure: mi,
+                            voice,
+                            note: ni,
+                        };
 
                         if let Some(kind) = note.hairpin_start {
                             open_hairpin = Some((addr.clone(), kind));
                         }
                         if note.hairpin_end
-                            && let Some((start, kind)) = open_hairpin.take() {
-                                spans.push(SpanMark::Hairpin { kind, start, end: addr.clone() });
-                            }
+                            && let Some((start, kind)) = open_hairpin.take()
+                        {
+                            spans.push(SpanMark::Hairpin {
+                                kind,
+                                start,
+                                end: addr.clone(),
+                            });
+                        }
 
                         if let Some(kind) = note.ottava_start {
                             open_ottava = Some((addr.clone(), kind));
                         }
                         if note.ottava_end
-                            && let Some((start, kind)) = open_ottava.take() {
-                                spans.push(SpanMark::Ottava { kind, start, end: addr.clone() });
-                            }
+                            && let Some((start, kind)) = open_ottava.take()
+                        {
+                            spans.push(SpanMark::Ottava {
+                                kind,
+                                start,
+                                end: addr.clone(),
+                            });
+                        }
 
                         if note.pedal_start {
                             open_pedal = Some(addr.clone());
                         }
                         if note.pedal_end
-                            && let Some(start) = open_pedal.take() {
-                                spans.push(SpanMark::Pedal { start, end: addr.clone() });
-                            }
+                            && let Some(start) = open_pedal.take()
+                        {
+                            spans.push(SpanMark::Pedal {
+                                start,
+                                end: addr.clone(),
+                            });
+                        }
 
                         if note.slur_start {
                             open_slur = Some(addr.clone());
                         }
                         if note.slur_end
-                            && let Some(start) = open_slur.take() {
-                                spans.push(SpanMark::Slur { start, end: addr.clone() });
-                            }
+                            && let Some(start) = open_slur.take()
+                        {
+                            spans.push(SpanMark::Slur {
+                                start,
+                                end: addr.clone(),
+                            });
+                        }
 
                         if note.trill_line_start {
                             open_trill_line = Some(addr.clone());
                         }
                         if note.trill_line_end
-                            && let Some(start) = open_trill_line.take() {
-                                spans.push(SpanMark::TrillLine { start, end: addr.clone() });
-                            }
+                            && let Some(start) = open_trill_line.take()
+                        {
+                            spans.push(SpanMark::TrillLine {
+                                start,
+                                end: addr.clone(),
+                            });
+                        }
                     }
                 }
             }
@@ -204,7 +258,10 @@ fn collect_beam_groups(score: &Score) -> Vec<BeamGroup> {
                             }
                             BeamState::BeginEnd => {
                                 groups.push(BeamGroup {
-                                    part: pi, staff: si, measure: mi, voice: vi,
+                                    part: pi,
+                                    staff: si,
+                                    measure: mi,
+                                    voice: vi,
                                     note_indices: vec![ni],
                                 });
                             }
@@ -219,7 +276,10 @@ fn collect_beam_groups(score: &Score) -> Vec<BeamGroup> {
                                 if let Some(mut g) = current.take() {
                                     g.push(ni);
                                     groups.push(BeamGroup {
-                                        part: pi, staff: si, measure: mi, voice: vi,
+                                        part: pi,
+                                        staff: si,
+                                        measure: mi,
+                                        voice: vi,
                                         note_indices: g,
                                     });
                                 }
@@ -248,17 +308,23 @@ fn collect_tuplet_groups(score: &Score) -> Vec<TupletGroup> {
                     let mut current_indices: Vec<usize> = Vec::new();
                     let mut current_info: Option<TupletInfo> = None;
 
-                    let flush = |indices: &mut Vec<usize>, info: &mut Option<TupletInfo>, groups: &mut Vec<TupletGroup>| {
+                    let flush = |indices: &mut Vec<usize>,
+                                 info: &mut Option<TupletInfo>,
+                                 groups: &mut Vec<TupletGroup>| {
                         if indices.len() >= 2
-                            && let Some(ti) = info.take() {
-                                groups.push(TupletGroup {
-                                    part: pi, staff: si, measure: mi, voice: vi,
-                                    note_indices: std::mem::take(indices),
-                                    actual_notes: ti.actual_notes,
-                                    normal_notes: ti.normal_notes,
-                                });
-                                return;
-                            }
+                            && let Some(ti) = info.take()
+                        {
+                            groups.push(TupletGroup {
+                                part: pi,
+                                staff: si,
+                                measure: mi,
+                                voice: vi,
+                                note_indices: std::mem::take(indices),
+                                actual_notes: ti.actual_notes,
+                                normal_notes: ti.normal_notes,
+                            });
+                            return;
+                        }
                         indices.clear();
                         info.take();
                     };
@@ -266,8 +332,10 @@ fn collect_tuplet_groups(score: &Score) -> Vec<TupletGroup> {
                     for (ni, note) in voice.iter().enumerate() {
                         match &note.tuplet {
                             Some(ti) => {
-                                let same_group = current_info.as_ref()
-                                    .is_some_and(|prev| prev.actual_notes == ti.actual_notes && prev.normal_notes == ti.normal_notes);
+                                let same_group = current_info.as_ref().is_some_and(|prev| {
+                                    prev.actual_notes == ti.actual_notes
+                                        && prev.normal_notes == ti.normal_notes
+                                });
                                 if !same_group {
                                     flush(&mut current_indices, &mut current_info, &mut groups);
                                     current_info = Some(ti.clone());
@@ -289,18 +357,43 @@ fn collect_tuplet_groups(score: &Score) -> Vec<TupletGroup> {
 
 fn step_idx(step: &Step) -> u8 {
     match step {
-        Step::C => 0, Step::D => 1, Step::E => 2, Step::F => 3,
-        Step::G => 4, Step::A => 5, Step::B => 6,
+        Step::C => 0,
+        Step::D => 1,
+        Step::E => 2,
+        Step::F => 3,
+        Step::G => 4,
+        Step::A => 5,
+        Step::B => 6,
     }
 }
 
 /// Accidental implied by a key signature for a given step: 0, 1, or -1.
 fn key_alter(fifths: i8, step: &Step) -> i8 {
-    const SHARPS: [Step; 7] = [Step::F, Step::C, Step::G, Step::D, Step::A, Step::E, Step::B];
-    const FLATS:  [Step; 7] = [Step::B, Step::E, Step::A, Step::D, Step::G, Step::C, Step::F];
-    if fifths > 0 && SHARPS[..fifths as usize].contains(step) { 1 }
-    else if fifths < 0 && FLATS[..(-fifths) as usize].contains(step) { -1 }
-    else { 0 }
+    const SHARPS: [Step; 7] = [
+        Step::F,
+        Step::C,
+        Step::G,
+        Step::D,
+        Step::A,
+        Step::E,
+        Step::B,
+    ];
+    const FLATS: [Step; 7] = [
+        Step::B,
+        Step::E,
+        Step::A,
+        Step::D,
+        Step::G,
+        Step::C,
+        Step::F,
+    ];
+    if fifths > 0 && SHARPS[..fifths as usize].contains(step) {
+        1
+    } else if fifths < 0 && FLATS[..(-fifths) as usize].contains(step) {
+        -1
+    } else {
+        0
+    }
 }
 
 fn collect_courtesy_accidentals(score: &Score) -> Vec<CourtesyAccidental> {
@@ -322,13 +415,19 @@ fn collect_courtesy_accidentals(score: &Score) -> Vec<CourtesyAccidental> {
                 // Phase 1: check this measure's notes against prev_alters.
                 for vi in 0..4usize {
                     for (ni, note) in measure.voices[vi].iter().enumerate() {
-                        if note.tie_end { continue; }
+                        if note.tie_end {
+                            continue;
+                        }
                         for (pitch_idx, pitch) in note.pitches.iter().enumerate() {
                             let key = (step_idx(&pitch.step), pitch.octave);
                             if prev_alters.contains_key(&key) {
                                 result.push(CourtesyAccidental {
-                                    part: pi, staff: si, measure: mi, voice: vi,
-                                    note_index: ni, pitch_index: pitch_idx,
+                                    part: pi,
+                                    staff: si,
+                                    measure: mi,
+                                    voice: vi,
+                                    note_index: ni,
+                                    pitch_index: pitch_idx,
                                     alter: pitch.alter,
                                 });
                             }
@@ -342,10 +441,8 @@ fn collect_courtesy_accidentals(score: &Score) -> Vec<CourtesyAccidental> {
                     for note in measure.voices[vi].iter() {
                         for pitch in note.pitches.iter() {
                             if pitch.alter != key_alter(current_fifths, &pitch.step) {
-                                prev_alters.insert(
-                                    (step_idx(&pitch.step), pitch.octave),
-                                    pitch.alter,
-                                );
+                                prev_alters
+                                    .insert((step_idx(&pitch.step), pitch.octave), pitch.alter);
                             }
                         }
                     }
@@ -384,13 +481,19 @@ fn collect_accidental_marks(score: &Score) -> Vec<AccidentalMark> {
                     for (ni, note) in measure.voices[vi].iter().enumerate() {
                         for (pitch_idx, pitch) in note.pitches.iter().enumerate() {
                             let key = (step_idx(&pitch.step), pitch.octave);
-                            let baseline = active.get(&key).copied()
+                            let baseline = active
+                                .get(&key)
+                                .copied()
                                 .unwrap_or_else(|| key_alter(current_fifths, &pitch.step));
                             if pitch.alter != baseline {
                                 if !note.tie_end {
                                     result.push(AccidentalMark {
-                                        part: pi, staff: si, measure: mi, voice: vi,
-                                        note_index: ni, pitch_index: pitch_idx,
+                                        part: pi,
+                                        staff: si,
+                                        measure: mi,
+                                        voice: vi,
+                                        note_index: ni,
+                                        pitch_index: pitch_idx,
                                         alter: pitch.alter,
                                     });
                                 }
@@ -441,7 +544,14 @@ mod tests {
         let mut score = score_with_measures(1);
         score.parts[0].staves[0].measures[0].multi_rest_count = Some(4);
 
-        let result = compute_layout(&score, &LayoutConfig { measures_per_row: 8, concert_pitch: false, first_row_measures: None });
+        let result = compute_layout(
+            &score,
+            &LayoutConfig {
+                measures_per_row: 8,
+                concert_pitch: false,
+                first_row_measures: None,
+            },
+        );
         assert_eq!(result.vis_slots.len(), 4);
         assert!(result.vis_slots.iter().all(|&v| v == 0));
     }
@@ -449,7 +559,14 @@ mod tests {
     #[test]
     fn measures_split_into_rows() {
         let score = score_with_measures(6);
-        let result = compute_layout(&score, &LayoutConfig { measures_per_row: 4, concert_pitch: false, first_row_measures: None });
+        let result = compute_layout(
+            &score,
+            &LayoutConfig {
+                measures_per_row: 4,
+                concert_pitch: false,
+                first_row_measures: None,
+            },
+        );
         assert_eq!(result.rows.len(), 2);
         assert_eq!(result.rows[0].measure_indices, vec![0, 1, 2, 3]);
         assert_eq!(result.rows[1].measure_indices, vec![4, 5]);
@@ -458,7 +575,14 @@ mod tests {
     #[test]
     fn single_measure_single_row() {
         let score = score_with_measures(1);
-        let result = compute_layout(&score, &LayoutConfig { measures_per_row: 4, concert_pitch: false, first_row_measures: None });
+        let result = compute_layout(
+            &score,
+            &LayoutConfig {
+                measures_per_row: 4,
+                concert_pitch: false,
+                first_row_measures: None,
+            },
+        );
         assert_eq!(result.rows.len(), 1);
         assert_eq!(result.rows[0].measure_indices, vec![0]);
     }
@@ -466,7 +590,14 @@ mod tests {
     #[test]
     fn exactly_full_rows() {
         let score = score_with_measures(8);
-        let result = compute_layout(&score, &LayoutConfig { measures_per_row: 4, concert_pitch: false, first_row_measures: None });
+        let result = compute_layout(
+            &score,
+            &LayoutConfig {
+                measures_per_row: 4,
+                concert_pitch: false,
+                first_row_measures: None,
+            },
+        );
         assert_eq!(result.rows.len(), 2);
         assert_eq!(result.rows[0].measure_indices.len(), 4);
         assert_eq!(result.rows[1].measure_indices.len(), 4);
@@ -478,7 +609,14 @@ mod tests {
         // Concert key = Bb major (fifths=-2)
         let mut score = score_with_measures(1);
         score.parts[0].staves[0].transpose_semitones = -2;
-        let result = compute_layout(&score, &LayoutConfig { measures_per_row: 4, concert_pitch: true, first_row_measures: None });
+        let result = compute_layout(
+            &score,
+            &LayoutConfig {
+                measures_per_row: 4,
+                concert_pitch: true,
+                first_row_measures: None,
+            },
+        );
         assert_eq!(result.concert_key_overrides.len(), 1);
         assert_eq!(result.concert_key_overrides[0].part_index, 0);
         assert_eq!(result.concert_key_overrides[0].staff_index, 0);
@@ -489,7 +627,14 @@ mod tests {
     fn concert_pitch_false_no_override() {
         let mut score = score_with_measures(1);
         score.parts[0].staves[0].transpose_semitones = -2;
-        let result = compute_layout(&score, &LayoutConfig { measures_per_row: 4, concert_pitch: false, first_row_measures: None });
+        let result = compute_layout(
+            &score,
+            &LayoutConfig {
+                measures_per_row: 4,
+                concert_pitch: false,
+                first_row_measures: None,
+            },
+        );
         assert!(result.concert_key_overrides.is_empty());
     }
 
@@ -497,7 +642,14 @@ mod tests {
     fn concert_pitch_zero_transpose_no_override() {
         // transpose_semitones=0 means concert pitch equals written pitch; no override needed.
         let score = score_with_measures(1);
-        let result = compute_layout(&score, &LayoutConfig { measures_per_row: 4, concert_pitch: true, first_row_measures: None });
+        let result = compute_layout(
+            &score,
+            &LayoutConfig {
+                measures_per_row: 4,
+                concert_pitch: true,
+                first_row_measures: None,
+            },
+        );
         assert!(result.concert_key_overrides.is_empty());
     }
 
@@ -519,7 +671,14 @@ mod tests {
         // 3 measures; measure[1] has system_break → rows: [0,1] and [2]
         let mut score = score_with_measures(3);
         score.parts[0].staves[0].measures[1].system_break = true;
-        let result = compute_layout(&score, &LayoutConfig { measures_per_row: 4, concert_pitch: false, first_row_measures: None });
+        let result = compute_layout(
+            &score,
+            &LayoutConfig {
+                measures_per_row: 4,
+                concert_pitch: false,
+                first_row_measures: None,
+            },
+        );
         assert_eq!(result.rows.len(), 2);
         assert_eq!(result.rows[0].measure_indices, vec![0, 1]);
         assert_eq!(result.rows[1].measure_indices, vec![2]);
@@ -529,7 +688,14 @@ mod tests {
     fn page_break_splits_row() {
         let mut score = score_with_measures(3);
         score.parts[0].staves[0].measures[0].page_break = true;
-        let result = compute_layout(&score, &LayoutConfig { measures_per_row: 4, concert_pitch: false, first_row_measures: None });
+        let result = compute_layout(
+            &score,
+            &LayoutConfig {
+                measures_per_row: 4,
+                concert_pitch: false,
+                first_row_measures: None,
+            },
+        );
         assert_eq!(result.rows.len(), 2);
         assert_eq!(result.rows[0].measure_indices, vec![0]);
         assert_eq!(result.rows[1].measure_indices, vec![1, 2]);
@@ -540,7 +706,14 @@ mod tests {
         // per_row=4 but system_break after measure[1] → row ends early
         let mut score = score_with_measures(5);
         score.parts[0].staves[0].measures[1].system_break = true;
-        let result = compute_layout(&score, &LayoutConfig { measures_per_row: 4, concert_pitch: false, first_row_measures: None });
+        let result = compute_layout(
+            &score,
+            &LayoutConfig {
+                measures_per_row: 4,
+                concert_pitch: false,
+                first_row_measures: None,
+            },
+        );
         assert_eq!(result.rows.len(), 2);
         assert_eq!(result.rows[0].measure_indices, vec![0, 1]);
         assert_eq!(result.rows[1].measure_indices, vec![2, 3, 4]);
@@ -549,7 +722,14 @@ mod tests {
     #[test]
     fn no_break_unchanged() {
         let score = score_with_measures(3);
-        let result = compute_layout(&score, &LayoutConfig { measures_per_row: 4, concert_pitch: false, first_row_measures: None });
+        let result = compute_layout(
+            &score,
+            &LayoutConfig {
+                measures_per_row: 4,
+                concert_pitch: false,
+                first_row_measures: None,
+            },
+        );
         assert_eq!(result.rows.len(), 1);
         assert_eq!(result.rows[0].measure_indices, vec![0, 1, 2]);
     }
@@ -560,11 +740,14 @@ mod tests {
     fn first_row_measures_limits_first_row() {
         // 5 measures, per_row=4, first_row_measures=2 → row[0]=2, row[1]=3
         let score = score_with_measures(5);
-        let result = compute_layout(&score, &LayoutConfig {
-            measures_per_row: 4,
-            concert_pitch: false,
-            first_row_measures: Some(2),
-        });
+        let result = compute_layout(
+            &score,
+            &LayoutConfig {
+                measures_per_row: 4,
+                concert_pitch: false,
+                first_row_measures: Some(2),
+            },
+        );
         assert_eq!(result.rows.len(), 2);
         assert_eq!(result.rows[0].measure_indices, vec![0, 1]);
         assert_eq!(result.rows[1].measure_indices, vec![2, 3, 4]);
@@ -574,7 +757,14 @@ mod tests {
     fn first_row_measures_none_unchanged() {
         // first_row_measures=None → same as using per_row for all rows
         let score = score_with_measures(5);
-        let without = compute_layout(&score, &LayoutConfig { measures_per_row: 4, concert_pitch: false, first_row_measures: None });
+        let without = compute_layout(
+            &score,
+            &LayoutConfig {
+                measures_per_row: 4,
+                concert_pitch: false,
+                first_row_measures: None,
+            },
+        );
         let with_none = compute_layout(&score, &LayoutConfig::default());
         assert_eq!(without.rows.len(), with_none.rows.len());
         for (a, b) in without.rows.iter().zip(with_none.rows.iter()) {
@@ -632,14 +822,19 @@ mod tests {
     #[test]
     fn tuplet_groups_triplet_collected() {
         use acorde_core::{Duration, Note, Pitch, Step, TupletInfo};
-        let ti = TupletInfo { actual_notes: 3, normal_notes: 2 };
+        let ti = TupletInfo {
+            actual_notes: 3,
+            normal_notes: 2,
+        };
         let mut score = score_with_measures(1);
-        let notes: Vec<Note> = (0..3).map(|i| {
-            let step = [Step::C, Step::D, Step::E][i].clone();
-            let mut n = Note::new(Pitch::new(step, 4), Duration::Quarter);
-            n.tuplet = Some(ti.clone());
-            n
-        }).collect();
+        let notes: Vec<Note> = (0..3)
+            .map(|i| {
+                let step = [Step::C, Step::D, Step::E][i].clone();
+                let mut n = Note::new(Pitch::new(step, 4), Duration::Quarter);
+                n.tuplet = Some(ti.clone());
+                n
+            })
+            .collect();
         score.parts[0].staves[0].measures[0].voices[0] = notes;
 
         let result = compute_layout(&score, &LayoutConfig::default());
@@ -656,7 +851,10 @@ mod tests {
         use acorde_core::{Duration, Note, Pitch, Step, TupletInfo};
         let mut score = score_with_measures(1);
         let mut n = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
-        n.tuplet = Some(TupletInfo { actual_notes: 3, normal_notes: 2 });
+        n.tuplet = Some(TupletInfo {
+            actual_notes: 3,
+            normal_notes: 2,
+        });
         score.parts[0].staves[0].measures[0].voices[0] = vec![n];
 
         let result = compute_layout(&score, &LayoutConfig::default());
@@ -696,7 +894,10 @@ mod tests {
         score.parts[0].staves[0].measures[0].voices[0] = vec![n1, n2];
 
         let result = compute_layout(&score, &LayoutConfig::default());
-        let slur = result.spans.iter().find(|s| matches!(s, SpanMark::Slur { .. }));
+        let slur = result
+            .spans
+            .iter()
+            .find(|s| matches!(s, SpanMark::Slur { .. }));
         assert!(slur.is_some(), "expected a Slur span");
         if let Some(SpanMark::Slur { start, end }) = slur {
             assert_eq!(start.note, 0);
@@ -791,8 +992,10 @@ mod tests {
         score.parts[0].staves[0].measures[0].voices[0] = vec![fsharp];
 
         // Set key signature on measure 1 to G major (1 sharp = F#)
-        score.parts[0].staves[0].measures[1].key_sig =
-            Some(KeySignature { fifths: 1, mode: "major".to_string() });
+        score.parts[0].staves[0].measures[1].key_sig = Some(KeySignature {
+            fifths: 1,
+            mode: "major".to_string(),
+        });
         // F# is now implied by the key — alter=1 == key_alter(1, F) → not in prev_alters
         let mut fsharp2 = Note::new(Pitch::new(Step::F, 4), Duration::Quarter);
         fsharp2.pitches[0].alter = 1;

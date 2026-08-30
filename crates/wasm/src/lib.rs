@@ -1,5 +1,5 @@
-use wasm_bindgen::prelude::*;
 use acorde_core::{Command, Score};
+use wasm_bindgen::prelude::*;
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -74,7 +74,9 @@ pub fn serialize_midi(score_json: &str) -> Result<Vec<u8>, JsValue> {
 /// The MIDI file starts at tick 0 regardless of the region offset.
 #[wasm_bindgen]
 pub fn serialize_midi_region(
-    score_json: &str, start_measure: usize, end_measure: usize,
+    score_json: &str,
+    start_measure: usize,
+    end_measure: usize,
 ) -> Result<Vec<u8>, JsValue> {
     let score = score_from_json(score_json)?;
     acorde_io::serialize_midi_region(&score, (start_measure, end_measure)).map_err(js_err)
@@ -96,7 +98,11 @@ pub fn serialize_midi_region(
 )]
 #[allow(deprecated)]
 #[wasm_bindgen]
-pub fn to_playback_events(score_json: &str, bpm: u16, muted_parts_json: &str) -> Result<String, JsValue> {
+pub fn to_playback_events(
+    score_json: &str,
+    bpm: u16,
+    muted_parts_json: &str,
+) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
     let muted_parts: Vec<usize> = serde_json::from_str(muted_parts_json)
         .map_err(|e| js_err(format!("invalid muted_parts JSON: {e}")))?;
@@ -140,8 +146,7 @@ pub fn compute_playback_position(
     let options: acorde_core::PlaybackOptions = serde_json::from_str(options_json)
         .map_err(|e| js_err(format!("invalid options JSON: {e}")))?;
     let pos = acorde_core::compute_playback_position(&score, &options, elapsed_secs);
-    serde_json::to_string(&pos)
-        .map_err(|e| js_err(format!("position serialization failed: {e}")))
+    serde_json::to_string(&pos).map_err(|e| js_err(format!("position serialization failed: {e}")))
 }
 
 // ── Layout ────────────────────────────────────────────────────────────────────
@@ -153,10 +158,22 @@ pub fn compute_playback_position(
 #[deprecated(since = "0.2.0", note = "use compute_layout_ex instead")]
 #[allow(deprecated)]
 #[wasm_bindgen]
-pub fn compute_layout(score_json: &str, measures_per_row: usize, concert_pitch: bool) -> Result<String, JsValue> {
+pub fn compute_layout(
+    score_json: &str,
+    measures_per_row: usize,
+    concert_pitch: bool,
+) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
-    let per_row = if measures_per_row == 0 { 4 } else { measures_per_row };
-    let config = acorde_layout::LayoutConfig { measures_per_row: per_row, concert_pitch, first_row_measures: None };
+    let per_row = if measures_per_row == 0 {
+        4
+    } else {
+        measures_per_row
+    };
+    let config = acorde_layout::LayoutConfig {
+        measures_per_row: per_row,
+        concert_pitch,
+        first_row_measures: None,
+    };
     let result = acorde_layout::compute_layout(&score, &config);
     serde_json::to_string(&result).map_err(|e| js_err(format!("layout serialization failed: {e}")))
 }
@@ -233,8 +250,10 @@ pub fn render_score_metadata(
         .map_err(|e| js_err(format!("invalid layout JSON: {e}")))?;
     let options: acorde_render_svg::SvgRenderOptions = serde_json::from_str(options_json)
         .map_err(|e| js_err(format!("invalid options JSON: {e}")))?;
-    let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &options).map_err(js_err)?;
-    serde_json::to_string(&metadata).map_err(|e| js_err(format!("metadata serialization failed: {e}")))
+    let metadata =
+        acorde_render_svg::render_svg_metadata(&score, &layout, &options).map_err(js_err)?;
+    serde_json::to_string(&metadata)
+        .map_err(|e| js_err(format!("metadata serialization failed: {e}")))
 }
 
 // ── GM lookup ─────────────────────────────────────────────────────────────────
@@ -291,7 +310,8 @@ pub fn transpose_score(score_json: &str, semitones: i8) -> Result<String, JsValu
 #[wasm_bindgen]
 pub fn extract_part(score_json: &str, part_index: usize) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
-    let extracted = score.extract_part(part_index)
+    let extracted = score
+        .extract_part(part_index)
         .ok_or_else(|| js_err(format!("part index {part_index} out of range")))?;
     score_to_json(&extracted)
 }
@@ -310,8 +330,7 @@ pub fn diff_scores(score_a_json: &str, score_b_json: &str) -> Result<String, JsV
     let a = score_from_json(score_a_json)?;
     let b = score_from_json(score_b_json)?;
     let changes = acorde_core::diff(&a, &b);
-    serde_json::to_string(&changes)
-        .map_err(|e| js_err(format!("diff serialization failed: {e}")))
+    serde_json::to_string(&changes).map_err(|e| js_err(format!("diff serialization failed: {e}")))
 }
 
 /// Compute statistics for a score (JSON string).
@@ -349,9 +368,16 @@ pub fn analyze_for_accordion(score_json: &str) -> Result<String, JsValue> {
 /// onto the treble staff, or `-1` for the automatic mean-pitch ranking
 /// from [`analyze_for_accordion`].
 #[wasm_bindgen]
-pub fn arrange_for_accordion(score_json: &str, right_hand_part_index: i32) -> Result<String, JsValue> {
+pub fn arrange_for_accordion(
+    score_json: &str,
+    right_hand_part_index: i32,
+) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
-    let override_index = if right_hand_part_index < 0 { None } else { Some(right_hand_part_index as usize) };
+    let override_index = if right_hand_part_index < 0 {
+        None
+    } else {
+        Some(right_hand_part_index as usize)
+    };
     let result = acorde_core::arrange_for_accordion(&score, override_index)
         .map_err(|e| js_err(format!("arrangement failed: {e}")))?;
     serde_json::to_string(&result)
@@ -375,7 +401,10 @@ pub fn score_duration_secs_region(
     end_measure: usize,
 ) -> Result<f64, JsValue> {
     let score = score_from_json(score_json)?;
-    Ok(acorde_core::score_duration_secs_region(&score, (start_measure, end_measure)))
+    Ok(acorde_core::score_duration_secs_region(
+        &score,
+        (start_measure, end_measure),
+    ))
 }
 
 /// Respell all pitches in a score (no undo). Returns the modified score as a JSON string.
@@ -412,8 +441,13 @@ pub fn measure_beats_remaining(
 ) -> Result<f64, JsValue> {
     let score = score_from_json(score_json)?;
     acorde_core::measure_beats_remaining(
-        &score, part_index, staff_index, measure_index, voice_index,
-    ).map_err(js_err)
+        &score,
+        part_index,
+        staff_index,
+        measure_index,
+        voice_index,
+    )
+    .map_err(js_err)
 }
 
 /// Convert a MIDI note number (0–127) to a `Pitch` JSON object.
@@ -422,8 +456,7 @@ pub fn measure_beats_remaining(
 #[wasm_bindgen]
 pub fn pitch_from_midi(midi: u8, prefer_flat: bool) -> Result<String, JsValue> {
     let pitch = acorde_core::Pitch::from_midi(midi, prefer_flat);
-    serde_json::to_string(&pitch)
-        .map_err(|e| js_err(format!("pitch serialization failed: {e}")))
+    serde_json::to_string(&pitch).map_err(|e| js_err(format!("pitch serialization failed: {e}")))
 }
 
 /// Parse scientific pitch notation (`"C4"`, `"F#5"`, `"Bb3"`) into a `Pitch` JSON object.
@@ -431,10 +464,10 @@ pub fn pitch_from_midi(midi: u8, prefer_flat: bool) -> Result<String, JsValue> {
 /// Returns an error if the string cannot be parsed.
 #[wasm_bindgen]
 pub fn pitch_from_str(s: &str) -> Result<String, JsValue> {
-    let pitch: acorde_core::Pitch = s.parse()
+    let pitch: acorde_core::Pitch = s
+        .parse()
         .map_err(|_| js_err(format!("invalid pitch string: {s}")))?;
-    serde_json::to_string(&pitch)
-        .map_err(|e| js_err(format!("pitch serialization failed: {e}")))
+    serde_json::to_string(&pitch).map_err(|e| js_err(format!("pitch serialization failed: {e}")))
 }
 
 // ── Theory ────────────────────────────────────────────────────────────────────
@@ -450,8 +483,7 @@ pub fn interval_between(pitch1_json: &str, pitch2_json: &str) -> Result<String, 
     let b: acorde_core::Pitch = serde_json::from_str(pitch2_json)
         .map_err(|e| js_err(format!("invalid pitch2 JSON: {e}")))?;
     let iv = acorde_core::Interval::between(&a, &b);
-    serde_json::to_string(&iv)
-        .map_err(|e| js_err(format!("interval serialization failed: {e}")))
+    serde_json::to_string(&iv).map_err(|e| js_err(format!("interval serialization failed: {e}")))
 }
 
 /// Return the accidental alter (`-1`, `0`, or `+1`) for a diatonic step in a key signature.
@@ -459,29 +491,33 @@ pub fn interval_between(pitch1_json: &str, pitch2_json: &str) -> Result<String, 
 /// `step_char`: single letter `"C"`, `"D"`, `"E"`, `"F"`, `"G"`, `"A"`, or `"B"` (case-insensitive).
 #[wasm_bindgen]
 pub fn key_alter_for_step(key_json: &str, step_char: &str) -> Result<i8, JsValue> {
-    let key: acorde_core::KeySignature = serde_json::from_str(key_json)
-        .map_err(|e| js_err(format!("invalid key JSON: {e}")))?;
+    let key: acorde_core::KeySignature =
+        serde_json::from_str(key_json).map_err(|e| js_err(format!("invalid key JSON: {e}")))?;
     let step = acorde_core::Step::from_char(
-        step_char.chars().next().ok_or_else(|| js_err("empty step_char"))?
-    ).ok_or_else(|| js_err(format!("invalid step character: {step_char}")))?;
+        step_char
+            .chars()
+            .next()
+            .ok_or_else(|| js_err("empty step_char"))?,
+    )
+    .ok_or_else(|| js_err(format!("invalid step character: {step_char}")))?;
     Ok(key.alter_for_step(&step))
 }
 
 /// True if `pitch` is diatonic to the given key signature (octave-independent).
 #[wasm_bindgen]
 pub fn key_contains_pitch(key_json: &str, pitch_json: &str) -> Result<bool, JsValue> {
-    let key: acorde_core::KeySignature = serde_json::from_str(key_json)
-        .map_err(|e| js_err(format!("invalid key JSON: {e}")))?;
-    let pitch: acorde_core::Pitch = serde_json::from_str(pitch_json)
-        .map_err(|e| js_err(format!("invalid pitch JSON: {e}")))?;
+    let key: acorde_core::KeySignature =
+        serde_json::from_str(key_json).map_err(|e| js_err(format!("invalid key JSON: {e}")))?;
+    let pitch: acorde_core::Pitch =
+        serde_json::from_str(pitch_json).map_err(|e| js_err(format!("invalid pitch JSON: {e}")))?;
     Ok(key.contains_pitch(&pitch))
 }
 
 /// Human-readable key name: `"C major"`, `"G major"`, `"F# minor"`, `"Bb major"` etc.
 #[wasm_bindgen]
 pub fn key_display_name(key_json: &str) -> Result<String, JsValue> {
-    let key: acorde_core::KeySignature = serde_json::from_str(key_json)
-        .map_err(|e| js_err(format!("invalid key JSON: {e}")))?;
+    let key: acorde_core::KeySignature =
+        serde_json::from_str(key_json).map_err(|e| js_err(format!("invalid key JSON: {e}")))?;
     Ok(key.display_name())
 }
 
@@ -495,8 +531,7 @@ pub fn detect_chord(pitches_json: &str) -> Result<String, JsValue> {
     let pitches: Vec<acorde_core::Pitch> = serde_json::from_str(pitches_json)
         .map_err(|e| js_err(format!("invalid pitches JSON: {e}")))?;
     let result = acorde_core::detect_chord(&pitches);
-    serde_json::to_string(&result)
-        .map_err(|e| js_err(format!("chord serialization failed: {e}")))
+    serde_json::to_string(&result).map_err(|e| js_err(format!("chord serialization failed: {e}")))
 }
 
 /// Return the Roman numeral analysis of a chord in the context of a key.
@@ -507,13 +542,12 @@ pub fn detect_chord(pitches_json: &str) -> Result<String, JsValue> {
 /// falls outside the key's scale.
 #[wasm_bindgen]
 pub fn roman_numeral(chord_json: &str, key_json: &str) -> Result<String, JsValue> {
-    let chord: acorde_core::ChordSymbol = serde_json::from_str(chord_json)
-        .map_err(|e| js_err(format!("invalid chord JSON: {e}")))?;
-    let key: acorde_core::KeySignature = serde_json::from_str(key_json)
-        .map_err(|e| js_err(format!("invalid key JSON: {e}")))?;
+    let chord: acorde_core::ChordSymbol =
+        serde_json::from_str(chord_json).map_err(|e| js_err(format!("invalid chord JSON: {e}")))?;
+    let key: acorde_core::KeySignature =
+        serde_json::from_str(key_json).map_err(|e| js_err(format!("invalid key JSON: {e}")))?;
     let result = acorde_core::roman_numeral(&chord, &key);
-    serde_json::to_string(&result)
-        .map_err(|e| js_err(format!("serialization failed: {e}")))
+    serde_json::to_string(&result).map_err(|e| js_err(format!("serialization failed: {e}")))
 }
 
 /// Find the scale that best fits a set of pitches.
@@ -526,8 +560,7 @@ pub fn best_fit_scale(pitches_json: &str) -> Result<String, JsValue> {
     let pitches: Vec<acorde_core::Pitch> = serde_json::from_str(pitches_json)
         .map_err(|e| js_err(format!("invalid pitches JSON: {e}")))?;
     let result = acorde_core::Scale::best_fit(&pitches);
-    serde_json::to_string(&result)
-        .map_err(|e| js_err(format!("serialization failed: {e}")))
+    serde_json::to_string(&result).map_err(|e| js_err(format!("serialization failed: {e}")))
 }
 
 /// MIDI note number of the middle staff line for a `Clef` JSON value.
@@ -536,8 +569,8 @@ pub fn best_fit_scale(pitches_json: &str) -> Result<String, JsValue> {
 /// Tenor=57 (A3), Percussion=71.
 #[wasm_bindgen]
 pub fn clef_middle_line_midi(clef_json: &str) -> Result<u8, JsValue> {
-    let clef: acorde_core::Clef = serde_json::from_str(clef_json)
-        .map_err(|e| js_err(format!("invalid clef JSON: {e}")))?;
+    let clef: acorde_core::Clef =
+        serde_json::from_str(clef_json).map_err(|e| js_err(format!("invalid clef JSON: {e}")))?;
     Ok(clef.middle_line_midi())
 }
 
@@ -552,8 +585,8 @@ pub fn clef_middle_line_midi(clef_json: &str) -> Result<u8, JsValue> {
 pub fn suggested_stem_up(pitches_json: &str, clef_json: &str) -> Result<bool, JsValue> {
     let pitches: Vec<acorde_core::Pitch> = serde_json::from_str(pitches_json)
         .map_err(|e| js_err(format!("invalid pitches JSON: {e}")))?;
-    let clef: acorde_core::Clef = serde_json::from_str(clef_json)
-        .map_err(|e| js_err(format!("invalid clef JSON: {e}")))?;
+    let clef: acorde_core::Clef =
+        serde_json::from_str(clef_json).map_err(|e| js_err(format!("invalid clef JSON: {e}")))?;
     Ok(acorde_core::suggested_stem_up(&pitches, &clef))
 }
 
@@ -566,13 +599,12 @@ pub fn suggested_stem_up(pitches_json: &str, clef_json: &str) -> Result<bool, Js
 /// `time_sig_json`: JSON-encoded `TimeSignature`.
 #[wasm_bindgen]
 pub fn compute_beams(notes_json: &str, time_sig_json: &str) -> Result<String, JsValue> {
-    let notes: Vec<acorde_core::Note> = serde_json::from_str(notes_json)
-        .map_err(|e| js_err(format!("invalid notes JSON: {e}")))?;
+    let notes: Vec<acorde_core::Note> =
+        serde_json::from_str(notes_json).map_err(|e| js_err(format!("invalid notes JSON: {e}")))?;
     let time_sig: acorde_core::TimeSignature = serde_json::from_str(time_sig_json)
         .map_err(|e| js_err(format!("invalid time_sig JSON: {e}")))?;
     let states = acorde_core::compute_beams(&notes, &time_sig);
-    serde_json::to_string(&states)
-        .map_err(|e| js_err(format!("beam serialization failed: {e}")))
+    serde_json::to_string(&states).map_err(|e| js_err(format!("beam serialization failed: {e}")))
 }
 
 /// Return the stable i18n key for a JSON-encoded `Command`.
@@ -581,8 +613,8 @@ pub fn compute_beams(notes_json: &str, time_sig_json: &str) -> Result<String, Js
 /// Use this to look up translations without hard-coding English labels.
 #[wasm_bindgen]
 pub fn command_key_from_json(cmd_json: &str) -> Result<String, JsValue> {
-    let cmd: acorde_core::Command = serde_json::from_str(cmd_json)
-        .map_err(|e| js_err(format!("invalid command JSON: {e}")))?;
+    let cmd: acorde_core::Command =
+        serde_json::from_str(cmd_json).map_err(|e| js_err(format!("invalid command JSON: {e}")))?;
     Ok(acorde_core::command_key(&cmd))
 }
 
@@ -607,7 +639,9 @@ impl ScoreEngine {
     /// Create a new engine with a default score.
     #[wasm_bindgen(constructor)]
     pub fn new() -> ScoreEngine {
-        ScoreEngine { inner: acorde_core::ScoreEngine::new() }
+        ScoreEngine {
+            inner: acorde_core::ScoreEngine::new(),
+        }
     }
 
     /// Return the current score as a JSON string.
@@ -654,7 +688,10 @@ impl ScoreEngine {
     pub fn apply_batch_labeled(&mut self, cmds_json: &str, label: &str) -> Result<String, JsValue> {
         let cmds: Vec<Command> = serde_json::from_str(cmds_json)
             .map_err(|e| js_err(format!("invalid commands JSON: {e}")))?;
-        let hint = self.inner.batch_apply_labeled(cmds, label).map_err(js_err)?;
+        let hint = self
+            .inner
+            .batch_apply_labeled(cmds, label)
+            .map_err(js_err)?;
         serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
     }
 
@@ -673,7 +710,8 @@ impl ScoreEngine {
         measure_index: usize,
         voice_index: usize,
     ) -> Result<(), JsValue> {
-        self.inner.copy_voice(part_index, staff_index, measure_index, voice_index)
+        self.inner
+            .copy_voice(part_index, staff_index, measure_index, voice_index)
             .map_err(js_err)
     }
 
@@ -685,7 +723,9 @@ impl ScoreEngine {
         measure_index: usize,
         voice_index: usize,
     ) -> Result<String, JsValue> {
-        let hint = self.inner.paste_voice(part_index, staff_index, measure_index, voice_index)
+        let hint = self
+            .inner
+            .paste_voice(part_index, staff_index, measure_index, voice_index)
             .map_err(js_err)?;
         serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
     }
@@ -735,16 +775,15 @@ impl ScoreEngine {
     /// The result can be stored and later restored with [`restore_history`].
     pub fn export_history(&self) -> Result<String, JsValue> {
         let h = self.inner.export_history();
-        serde_json::to_string(&h)
-            .map_err(|e| js_err(format!("history serialization failed: {e}")))
+        serde_json::to_string(&h).map_err(|e| js_err(format!("history serialization failed: {e}")))
     }
 
     /// Restore an engine from a previously exported history JSON string.
     ///
     /// Replays all commands against the initial score. Returns an error if replay fails.
     pub fn restore_history(&mut self, json: &str) -> Result<(), JsValue> {
-        let history: acorde_core::EngineHistory = serde_json::from_str(json)
-            .map_err(|e| js_err(format!("invalid history JSON: {e}")))?;
+        let history: acorde_core::EngineHistory =
+            serde_json::from_str(json).map_err(|e| js_err(format!("invalid history JSON: {e}")))?;
         let restored = acorde_core::ScoreEngine::from_history(history).map_err(js_err)?;
         self.inner = restored;
         Ok(())
@@ -767,11 +806,11 @@ impl ScoreEngine {
     /// `clef`: `"Treble"` / `"Bass"` / `"Alto"` / `"Tenor"` / `"Percussion"`.
     pub fn add_staff(&mut self, part_index: usize, clef: &str) -> Result<String, JsValue> {
         let clef = match clef {
-            "Bass"       => acorde_core::Clef::Bass,
-            "Alto"       => acorde_core::Clef::Alto,
-            "Tenor"      => acorde_core::Clef::Tenor,
+            "Bass" => acorde_core::Clef::Bass,
+            "Alto" => acorde_core::Clef::Alto,
+            "Tenor" => acorde_core::Clef::Tenor,
             "Percussion" => acorde_core::Clef::Percussion,
-            _            => acorde_core::Clef::Treble,
+            _ => acorde_core::Clef::Treble,
         };
         let hint = self.inner.add_staff(part_index, clef).map_err(js_err)?;
         serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
@@ -779,8 +818,15 @@ impl ScoreEngine {
 
     /// Delete a staff from a part. Fails if it is the last remaining staff.
     /// Returns a [`ChangeHint`] JSON string.
-    pub fn delete_staff(&mut self, part_index: usize, staff_index: usize) -> Result<String, JsValue> {
-        let hint = self.inner.delete_staff(part_index, staff_index).map_err(js_err)?;
+    pub fn delete_staff(
+        &mut self,
+        part_index: usize,
+        staff_index: usize,
+    ) -> Result<String, JsValue> {
+        let hint = self
+            .inner
+            .delete_staff(part_index, staff_index)
+            .map_err(js_err)?;
         serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
     }
 
@@ -828,7 +874,11 @@ impl ScoreEngine {
     ///
     /// `addr_json`: JSON-encoded `NoteAddr`.
     /// `direction_json`: `"true"` (up) | `"false"` (down) | `"null"` (clear).
-    pub fn set_arpeggio(&mut self, addr_json: &str, direction_json: &str) -> Result<String, JsValue> {
+    pub fn set_arpeggio(
+        &mut self,
+        addr_json: &str,
+        direction_json: &str,
+    ) -> Result<String, JsValue> {
         let addr: acorde_core::NoteAddr = serde_json::from_str(addr_json)
             .map_err(|e| js_err(format!("invalid NoteAddr: {e}")))?;
         let direction: Option<bool> = serde_json::from_str(direction_json)
@@ -840,7 +890,11 @@ impl ScoreEngine {
     /// Toggle a trill line span between two notes.
     ///
     /// `start_json` / `end_json`: JSON-encoded `NoteAddr`.
-    pub fn toggle_trill_line(&mut self, start_json: &str, end_json: &str) -> Result<String, JsValue> {
+    pub fn toggle_trill_line(
+        &mut self,
+        start_json: &str,
+        end_json: &str,
+    ) -> Result<String, JsValue> {
         let start: acorde_core::NoteAddr = serde_json::from_str(start_json)
             .map_err(|e| js_err(format!("invalid start NoteAddr: {e}")))?;
         let end: acorde_core::NoteAddr = serde_json::from_str(end_json)
@@ -864,7 +918,11 @@ impl ScoreEngine {
     ///
     /// `addr_json`: JSON-encoded `NoteAddr`.
     /// `note_head_json`: JSON-encoded `NoteHead` (e.g. `"\"Diamond\""`, `"\"Normal\""`).
-    pub fn set_note_head(&mut self, addr_json: &str, note_head_json: &str) -> Result<String, JsValue> {
+    pub fn set_note_head(
+        &mut self,
+        addr_json: &str,
+        note_head_json: &str,
+    ) -> Result<String, JsValue> {
         let addr: acorde_core::NoteAddr = serde_json::from_str(addr_json)
             .map_err(|e| js_err(format!("invalid NoteAddr: {e}")))?;
         let note_head: acorde_core::NoteHead = serde_json::from_str(note_head_json)
@@ -886,8 +944,8 @@ impl ScoreEngine {
     ///
     /// `end_json`: JSON-encoded `NoteAddr`. Returns an error if `begin_slur` was not called first.
     pub fn end_slur(&mut self, end_json: &str) -> Result<String, JsValue> {
-        let end: acorde_core::NoteAddr = serde_json::from_str(end_json)
-            .map_err(|e| js_err(format!("invalid NoteAddr: {e}")))?;
+        let end: acorde_core::NoteAddr =
+            serde_json::from_str(end_json).map_err(|e| js_err(format!("invalid NoteAddr: {e}")))?;
         let hint = self.inner.end_slur(end).map_err(js_err)?;
         serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
     }

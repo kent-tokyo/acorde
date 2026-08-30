@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-30
+
+### Production browser hardening
+
+- Added reviewed Playwright screenshot baselines for Chromium, Firefox, and WebKit.
+- Added a visual-regression policy and v0.3 migration guide.
+- Made the browser screenshot contract enforceable in CI with a bounded pixel-diff budget.
+- Kept the manual crates.io workflow aligned with the complete workspace release.
+
 ## [0.2.0] - 2026-08-30
 
 This release consolidates the v0.2 notation pipeline: expanded score editing and theory APIs,

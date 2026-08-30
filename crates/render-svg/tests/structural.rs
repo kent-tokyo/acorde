@@ -4,17 +4,22 @@
 
 mod common;
 
-use acorde_render_svg::{render_svg, SvgRenderOptions};
+use acorde_render_svg::{SvgRenderOptions, render_svg};
 
 fn opts() -> SvgRenderOptions {
-    SvgRenderOptions { width: 700.0, staff_size: 24.0, measures_per_system: 4, interactive: true }
+    SvgRenderOptions {
+        width: 700.0,
+        staff_size: 24.0,
+        measures_per_system: 4,
+        interactive: true,
+    }
 }
 
 /// Well-formedness check: every opened tag closes, via quick-xml's reader (it errors on
 /// malformed XML). Cheaper than diffing full text against a golden file.
 fn assert_well_formed_xml(svg: &str) {
-    use quick_xml::events::Event;
     use quick_xml::Reader;
+    use quick_xml::events::Event;
     let mut reader = Reader::from_str(svg);
     loop {
         match reader.read_event() {
@@ -40,7 +45,11 @@ fn large_score_and_many_staves_render_without_panicking() {
     let mut score = Score::new("large score", 120, 4, 4, 0, 32);
     let mut extra_staves = Vec::new();
     for index in 0..15 {
-        let mut staff = Staff::new(if index % 2 == 0 { Clef::Treble } else { Clef::Bass });
+        let mut staff = Staff::new(if index % 2 == 0 {
+            Clef::Treble
+        } else {
+            Clef::Bass
+        });
         staff.measures = score.parts[0].staves[0].measures.clone();
         for measure in &mut staff.measures {
             measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
@@ -51,7 +60,10 @@ fn large_score_and_many_staves_render_without_panicking() {
 
     let svg = render_svg(&score, &opts()).expect("large score should render");
     assert!(svg.starts_with("<svg"));
-    assert_eq!(svg.matches(r#"data-acorde-kind="measure""#).count(), 16 * 32);
+    assert_eq!(
+        svg.matches(r#"data-acorde-kind="measure""#).count(),
+        16 * 32
+    );
 }
 
 #[test]
@@ -96,7 +108,10 @@ fn rest_present_in_dotted_and_rest_fixture() {
     assert_eq!(svg.matches(r#"data-acorde-kind="rest""#).count(), 1);
     // Soprano: dotted-quarter, eighth, dotted-quarter, eighth = 4 notes.
     // Alto: dotted-half + rest = 1 note + 1 rest. Tenor/Bass: 4 quarters each.
-    assert_eq!(svg.matches(r#"data-acorde-kind="note""#).count(), 4 + 1 + 4 + 4);
+    assert_eq!(
+        svg.matches(r#"data-acorde-kind="note""#).count(),
+        4 + 1 + 4 + 4
+    );
 }
 
 #[test]
@@ -209,9 +224,20 @@ fn note_annotations_are_rendered_and_xml_escaped() {
     );
     let note = &mut score.parts[0].staves[0].measures[0].voices[0][0];
     note.dynamic = Some(Dynamic::Mf);
-    note.chord_symbol = Some(ChordSymbol { root: "C".into(), kind: "major".into(), bass: Some("G".into()) });
-    note.lyric = Some(Lyric { text: "A&B<".into(), syllabic: "single".into() });
-    note.articulations = vec![Articulation::Staccato, Articulation::Accent, Articulation::Tenuto];
+    note.chord_symbol = Some(ChordSymbol {
+        root: "C".into(),
+        kind: "major".into(),
+        bass: Some("G".into()),
+    });
+    note.lyric = Some(Lyric {
+        text: "A&B<".into(),
+        syllabic: "single".into(),
+    });
+    note.articulations = vec![
+        Articulation::Staccato,
+        Articulation::Accent,
+        Articulation::Tenuto,
+    ];
 
     let svg = render_svg(&score, &opts()).unwrap();
     assert!(svg.contains("class=\"acorde-dynamic\""));
@@ -243,9 +269,7 @@ fn short_rests_custom_noteheads_and_small_notes_are_rendered() {
     notes[6].grace_slash = true;
     notes[6].is_cue = true;
 
-    let score = common::single_staff_score(
-        acorde_core::Clef::Treble, 0, 4, 4, notes, vec![],
-    );
+    let score = common::single_staff_score(acorde_core::Clef::Treble, 0, 4, 4, notes, vec![]);
     let svg = render_svg(&score, &opts()).unwrap();
     assert!(svg.contains("acorde-rest-flag"));
     assert!(svg.contains("acorde-notehead-diamond"));
@@ -276,7 +300,7 @@ fn part_group_connectors_and_first_system_labels_are_rendered() {
 
 #[test]
 fn precomputed_row_and_metadata_contracts_are_stable() {
-    use acorde_layout::{compute_layout, LayoutConfig};
+    use acorde_layout::{LayoutConfig, compute_layout};
     let score = common::satb_major();
     let layout = compute_layout(&score, &LayoutConfig::default());
     let row = acorde_render_svg::render_svg_row(&score, &layout, 0, &opts()).unwrap();
@@ -284,18 +308,28 @@ fn precomputed_row_and_metadata_contracts_are_stable() {
     assert!(row.starts_with("<svg"));
     assert_eq!(metadata.width, opts().width);
     assert_eq!(metadata.address_bounds.len(), 16);
-    assert_eq!((metadata.address_bounds[0].part, metadata.address_bounds[0].staff, metadata.address_bounds[0].measure), (0, 0, 0));
+    assert_eq!(
+        (
+            metadata.address_bounds[0].part,
+            metadata.address_bounds[0].staff,
+            metadata.address_bounds[0].measure
+        ),
+        (0, 0, 0)
+    );
     assert!(acorde_render_svg::render_svg_row(&score, &layout, 99, &opts()).is_err());
 }
 
 #[test]
 fn malformed_precomputed_layout_returns_error_instead_of_panicking() {
-    use acorde_layout::{compute_layout, LayoutConfig};
+    use acorde_layout::{LayoutConfig, compute_layout};
     let score = common::satb_major();
     let mut layout = compute_layout(&score, &LayoutConfig::default());
     layout.rows[0].measure_indices[0] = 999;
     let err = acorde_render_svg::render_svg_with_layout(&score, &layout, &opts()).unwrap_err();
-    assert!(matches!(err, acorde_render_svg::RenderError::InvalidLayout { .. }));
+    assert!(matches!(
+        err,
+        acorde_render_svg::RenderError::InvalidLayout { .. }
+    ));
 }
 
 #[test]
@@ -303,29 +337,49 @@ fn invalid_render_dimensions_return_errors() {
     let score = common::satb_major();
     let mut options = opts();
     options.width = 0.0;
-    assert!(matches!(render_svg(&score, &options), Err(acorde_render_svg::RenderError::InvalidOptions { .. })));
+    assert!(matches!(
+        render_svg(&score, &options),
+        Err(acorde_render_svg::RenderError::InvalidOptions { .. })
+    ));
     options = opts();
     options.staff_size = -1.0;
-    assert!(matches!(render_svg(&score, &options), Err(acorde_render_svg::RenderError::InvalidOptions { .. })));
+    assert!(matches!(
+        render_svg(&score, &options),
+        Err(acorde_render_svg::RenderError::InvalidOptions { .. })
+    ));
 }
 
 #[test]
 fn extreme_ledger_content_expands_vertical_margin() {
     use acorde_core::{Duration, Note, Pitch, Step};
     let normal = common::single_staff_score(
-        acorde_core::Clef::Treble, 0, 4, 4,
-        vec![Note::new(Pitch::new(Step::C, 5), Duration::Whole)], vec![],
+        acorde_core::Clef::Treble,
+        0,
+        4,
+        4,
+        vec![Note::new(Pitch::new(Step::C, 5), Duration::Whole)],
+        vec![],
     );
     let extreme = common::single_staff_score(
-        acorde_core::Clef::Treble, 0, 4, 4,
-        vec![Note::new(Pitch::new(Step::C, 8), Duration::Whole)], vec![],
+        acorde_core::Clef::Treble,
+        0,
+        4,
+        4,
+        vec![Note::new(Pitch::new(Step::C, 8), Duration::Whole)],
+        vec![],
     );
     let normal_meta = acorde_render_svg::render_svg_metadata(
-        &normal, &acorde_layout::compute_layout(&normal, &Default::default()), &opts(),
-    ).unwrap();
+        &normal,
+        &acorde_layout::compute_layout(&normal, &Default::default()),
+        &opts(),
+    )
+    .unwrap();
     let extreme_meta = acorde_render_svg::render_svg_metadata(
-        &extreme, &acorde_layout::compute_layout(&extreme, &Default::default()), &opts(),
-    ).unwrap();
+        &extreme,
+        &acorde_layout::compute_layout(&extreme, &Default::default()),
+        &opts(),
+    )
+    .unwrap();
     assert!(extreme_meta.height > normal_meta.height);
 }
 
@@ -349,11 +403,19 @@ fn time_signature_drawn_once_per_staff_on_first_row() {
 
 #[test]
 fn accidentals_cover_all_required_kinds() {
-    use acorde_core::{Clef, Duration, KeySignature, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature};
+    use acorde_core::{
+        Clef, Duration, KeySignature, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature,
+    };
 
     let mut score = Score::default();
-    score.settings.time_signature = TimeSignature { numerator: 4, denominator: 4 };
-    score.settings.key_signature = KeySignature { fifths: 0, mode: "major".to_string() };
+    score.settings.time_signature = TimeSignature {
+        numerator: 4,
+        denominator: 4,
+    };
+    score.settings.key_signature = KeySignature {
+        fifths: 0,
+        mode: "major".to_string(),
+    };
     let mut part = Part::new("T", "T");
     let mut staff = Staff::new(Clef::Treble);
     let mut m = Measure::empty(4, 4);
@@ -381,10 +443,18 @@ fn accidentals_cover_all_required_kinds() {
 
 #[test]
 fn triple_sharp_is_rejected_not_silently_dropped() {
-    use acorde_core::{Clef, Duration, KeySignature, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature};
+    use acorde_core::{
+        Clef, Duration, KeySignature, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature,
+    };
     let mut score = Score::default();
-    score.settings.time_signature = TimeSignature { numerator: 4, denominator: 4 };
-    score.settings.key_signature = KeySignature { fifths: 0, mode: "major".to_string() };
+    score.settings.time_signature = TimeSignature {
+        numerator: 4,
+        denominator: 4,
+    };
+    score.settings.key_signature = KeySignature {
+        fifths: 0,
+        mode: "major".to_string(),
+    };
     let mut part = Part::new("T", "T");
     let mut staff = Staff::new(Clef::Treble);
     let mut m = Measure::empty(4, 4);
@@ -397,7 +467,10 @@ fn triple_sharp_is_rejected_not_silently_dropped() {
     score.parts = vec![part];
 
     let err = render_svg(&score, &opts()).unwrap_err();
-    assert_eq!(err, acorde_render_svg::RenderError::UnsupportedAccidental { alter: 3 });
+    assert_eq!(
+        err,
+        acorde_render_svg::RenderError::UnsupportedAccidental { alter: 3 }
+    );
 }
 
 #[test]
@@ -415,7 +488,10 @@ fn percussion_clef_is_rejected_not_silently_treble() {
 #[test]
 fn empty_score_is_rejected() {
     use acorde_core::Score;
-    let score = Score { parts: vec![], ..Score::default() };
+    let score = Score {
+        parts: vec![],
+        ..Score::default()
+    };
     let err = render_svg(&score, &opts()).unwrap_err();
     assert_eq!(err, acorde_render_svg::RenderError::EmptyScore);
 }
@@ -430,6 +506,14 @@ fn multi_voice_two_voices_get_opposite_stem_directions() {
     // larger y2) exist among treble-staff notes by checking two distinct patterns exist.
     // (Numeric assertion done more precisely in geometry unit tests; here we just confirm
     // the measure renders two distinct voices without error.)
-    assert_eq!(svg.matches(r#"data-staff="0" data-measure="0" data-voice="0""#).count(), 4);
-    assert_eq!(svg.matches(r#"data-staff="0" data-measure="0" data-voice="1""#).count(), 4);
+    assert_eq!(
+        svg.matches(r#"data-staff="0" data-measure="0" data-voice="0""#)
+            .count(),
+        4
+    );
+    assert_eq!(
+        svg.matches(r#"data-staff="0" data-measure="0" data-voice="1""#)
+            .count(),
+        4
+    );
 }

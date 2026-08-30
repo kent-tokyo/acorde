@@ -16,13 +16,13 @@ impl Duration {
     /// Exact fraction relative to a whole note = 1.
     pub fn as_fraction(&self) -> (u32, u32) {
         match self {
-            Duration::Whole        => (1, 1),
-            Duration::Half         => (1, 2),
-            Duration::Quarter      => (1, 4),
-            Duration::Eighth       => (1, 8),
-            Duration::Sixteenth    => (1, 16),
+            Duration::Whole => (1, 1),
+            Duration::Half => (1, 2),
+            Duration::Quarter => (1, 4),
+            Duration::Eighth => (1, 8),
+            Duration::Sixteenth => (1, 16),
             Duration::ThirtySecond => (1, 32),
-            Duration::SixtyFourth  => (1, 64),
+            Duration::SixtyFourth => (1, 64),
         }
     }
 
@@ -42,13 +42,13 @@ impl Duration {
     /// MusicXML `<type>` string.
     pub fn to_musicxml_type(&self) -> &'static str {
         match self {
-            Duration::Whole        => "whole",
-            Duration::Half         => "half",
-            Duration::Quarter      => "quarter",
-            Duration::Eighth       => "eighth",
-            Duration::Sixteenth    => "16th",
+            Duration::Whole => "whole",
+            Duration::Half => "half",
+            Duration::Quarter => "quarter",
+            Duration::Eighth => "eighth",
+            Duration::Sixteenth => "16th",
             Duration::ThirtySecond => "32nd",
-            Duration::SixtyFourth  => "64th",
+            Duration::SixtyFourth => "64th",
         }
     }
 

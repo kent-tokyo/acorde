@@ -18,19 +18,28 @@
 //! (first-measure `<attributes>` are captured before being parsed, not a renderer bug), out
 //! of scope for acorde-render-svg. See the project's tracked issues.
 
-use acorde_render_svg::{render_svg, SvgRenderOptions};
+use acorde_render_svg::{SvgRenderOptions, render_svg};
 
-const DEFAULT_FIXTURE: &str =
-    concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/fixtures/simple.musicxml");
+const DEFAULT_FIXTURE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../tests/fixtures/simple.musicxml"
+);
 
 fn main() {
-    let path = std::env::args().nth(1).unwrap_or_else(|| DEFAULT_FIXTURE.to_string());
-    let xml = std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("failed to read '{path}': {e}"));
+    let path = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| DEFAULT_FIXTURE.to_string());
+    let xml =
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("failed to read '{path}': {e}"));
     let score = acorde_io::parse_musicxml(&xml)
         .unwrap_or_else(|e| panic!("failed to parse '{path}' as MusicXML: {e}"));
 
-    let options = SvgRenderOptions { width: 900.0, staff_size: 24.0, measures_per_system: 4, interactive: true };
+    let options = SvgRenderOptions {
+        width: 900.0,
+        staff_size: 24.0,
+        measures_per_system: 4,
+        interactive: true,
+    };
     let svg = render_svg(&score, &options).expect("render_svg failed");
     println!("{svg}");
 }

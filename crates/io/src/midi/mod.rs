@@ -1,13 +1,9 @@
 mod serialize;
 pub use serialize::{serialize_midi, serialize_midi_region};
 
-use midly::{MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
-use acorde_core::{
-    Clef, TimeSignature,
-    Pitch, Step,
-    Duration, Measure, Note, Part, Score, Staff,
-};
 use crate::Error;
+use acorde_core::{Clef, Duration, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature};
+use midly::{MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
 
 const MAX_MEASURES: usize = 10_000;
 const MAX_PARTS: usize = 32;
@@ -20,7 +16,7 @@ pub fn parse_midi(data: &[u8]) -> Result<Score, Error> {
 
     let ppq = match smf.header.timing {
         Timing::Metrical(tpq) => tpq.as_int() as u64,
-        Timing::Timecode(..)  => 480,
+        Timing::Timecode(..) => 480,
     };
 
     let mut tempo_bpm = 120u16;
@@ -49,19 +45,25 @@ pub fn parse_midi(data: &[u8]) -> Result<Score, Error> {
         }
     }
 
-    let ts = TimeSignature { numerator, denominator };
+    let ts = TimeSignature {
+        numerator,
+        denominator,
+    };
     let beats_per_measure = ts.total_beats();
 
     type TrackData = (String, Vec<Note>, Option<(u8, u8)>);
     let mut parts_data: Vec<TrackData> = Vec::new();
     for (ti, track) in smf.tracks.iter().enumerate() {
-        if parts_data.len() >= MAX_PARTS { break; }
+        if parts_data.len() >= MAX_PARTS {
+            break;
+        }
         let raw = collect_raw_notes(track);
-        if raw.is_empty() { continue; }
+        if raw.is_empty() {
+            continue;
+        }
         let program_info = extract_program(track);
         let notes = quantize_to_notes(raw, ppq);
-        let name = track_name(track)
-            .unwrap_or_else(|| format!("Track {}", ti + 1));
+        let name = track_name(track).unwrap_or_else(|| format!("Track {}", ti + 1));
         parts_data.push((name, notes, program_info));
     }
 
@@ -96,7 +98,11 @@ pub fn parse_midi(data: &[u8]) -> Result<Score, Error> {
 
 // ── raw note collection ───────────────────────────────────────────────────────
 
-struct RawNote { start: u64, end: u64, midi: u8 }
+struct RawNote {
+    start: u64,
+    end: u64,
+    midi: u8,
+}
 
 fn collect_raw_notes(track: &[midly::TrackEvent]) -> Vec<RawNote> {
     let mut result: Vec<RawNote> = Vec::new();
@@ -112,7 +118,11 @@ fn collect_raw_notes(track: &[midly::TrackEvent]) -> Vec<RawNote> {
                 }
                 MidiMessage::NoteOn { key, .. } | MidiMessage::NoteOff { key, .. } => {
                     if let Some(start) = on.remove(&key.as_int()) {
-                        result.push(RawNote { start, end: abs.max(start + 1), midi: key.as_int() });
+                        result.push(RawNote {
+                            start,
+                            end: abs.max(start + 1),
+                            midi: key.as_int(),
+                        });
                     }
                 }
                 _ => {}
@@ -120,7 +130,11 @@ fn collect_raw_notes(track: &[midly::TrackEvent]) -> Vec<RawNote> {
         }
     }
     for (midi, start) in on {
-        result.push(RawNote { start, end: abs.max(start + 1), midi });
+        result.push(RawNote {
+            start,
+            end: abs.max(start + 1),
+            midi,
+        });
     }
     result.sort_by_key(|n| (n.start, n.midi));
     result
@@ -131,7 +145,8 @@ fn extract_program(track: &[midly::TrackEvent]) -> Option<(u8, u8)> {
         if let TrackEventKind::Midi {
             channel,
             message: MidiMessage::ProgramChange { program },
-        } = &event.kind {
+        } = &event.kind
+        {
             return Some((channel.as_int(), program.as_int()));
         }
     }
@@ -142,7 +157,9 @@ fn track_name(track: &[midly::TrackEvent]) -> Option<String> {
     for event in track {
         if let TrackEventKind::Meta(MetaMessage::TrackName(name)) = &event.kind {
             let s = String::from_utf8_lossy(name).to_string();
-            if !s.is_empty() { return Some(s); }
+            if !s.is_empty() {
+                return Some(s);
+            }
         }
     }
     None
@@ -152,52 +169,79 @@ fn track_name(track: &[midly::TrackEvent]) -> Option<String> {
 
 fn midi_to_pitch(midi: u8) -> Pitch {
     let (step, alter) = match midi % 12 {
-        0  => (Step::C, 0i8),
-        1  => (Step::C, 1),
-        2  => (Step::D, 0),
-        3  => (Step::D, 1),
-        4  => (Step::E, 0),
-        5  => (Step::F, 0),
-        6  => (Step::F, 1),
-        7  => (Step::G, 0),
-        8  => (Step::G, 1),
-        9  => (Step::A, 0),
+        0 => (Step::C, 0i8),
+        1 => (Step::C, 1),
+        2 => (Step::D, 0),
+        3 => (Step::D, 1),
+        4 => (Step::E, 0),
+        5 => (Step::F, 0),
+        6 => (Step::F, 1),
+        7 => (Step::G, 0),
+        8 => (Step::G, 1),
+        9 => (Step::A, 0),
         10 => (Step::A, 1),
         11 => (Step::B, 0),
-        _  => (Step::C, 0),
+        _ => (Step::C, 0),
     };
     let octave = (midi as i16 / 12 - 1) as i8;
     Pitch::with_alter(step, octave, alter)
 }
 
 fn quantize_duration(beats: f64) -> (Duration, u8) {
-    if beats >= 3.5      { return (Duration::Whole,        0); }
-    if beats >= 2.5      { return (Duration::Half,         1); }
-    if beats >= 1.75     { return (Duration::Half,         0); }
-    if beats >= 1.25     { return (Duration::Quarter,      1); }
-    if beats >= 0.875    { return (Duration::Quarter,      0); }
-    if beats >= 0.625    { return (Duration::Eighth,       1); }
-    if beats >= 0.4375   { return (Duration::Eighth,       0); }
-    if beats >= 0.3125   { return (Duration::Sixteenth,    1); }
-    if beats >= 0.21875  { return (Duration::Sixteenth,    0); }
-    if beats >= 0.15625  { return (Duration::ThirtySecond, 1); }
-    if beats >= 0.109375 { return (Duration::ThirtySecond, 0); }
-    if beats >= 0.078125 { return (Duration::SixtyFourth,  1); }
+    if beats >= 3.5 {
+        return (Duration::Whole, 0);
+    }
+    if beats >= 2.5 {
+        return (Duration::Half, 1);
+    }
+    if beats >= 1.75 {
+        return (Duration::Half, 0);
+    }
+    if beats >= 1.25 {
+        return (Duration::Quarter, 1);
+    }
+    if beats >= 0.875 {
+        return (Duration::Quarter, 0);
+    }
+    if beats >= 0.625 {
+        return (Duration::Eighth, 1);
+    }
+    if beats >= 0.4375 {
+        return (Duration::Eighth, 0);
+    }
+    if beats >= 0.3125 {
+        return (Duration::Sixteenth, 1);
+    }
+    if beats >= 0.21875 {
+        return (Duration::Sixteenth, 0);
+    }
+    if beats >= 0.15625 {
+        return (Duration::ThirtySecond, 1);
+    }
+    if beats >= 0.109375 {
+        return (Duration::ThirtySecond, 0);
+    }
+    if beats >= 0.078125 {
+        return (Duration::SixtyFourth, 1);
+    }
     (Duration::SixtyFourth, 0)
 }
 
 fn quantize_to_notes(raw: Vec<RawNote>, ppq: u64) -> Vec<Note> {
-    if raw.is_empty() { return Vec::new(); }
+    if raw.is_empty() {
+        return Vec::new();
+    }
 
     // Group same-tick notes into chords
     let mut groups: Vec<(u64, u64, Vec<u8>)> = Vec::new();
     for rn in raw {
         if let Some(last) = groups.last_mut()
-            && last.0 == rn.start {
-                last.1 = last.1.max(rn.end);
-                last.2.push(rn.midi);
-                continue;
-            }
+            && last.0 == rn.start
+        {
+            last.1 = last.1.max(rn.end);
+            last.2.push(rn.midi);
+            continue;
+        }
         groups.push((rn.start, rn.end, vec![rn.midi]));
     }
 
@@ -227,7 +271,9 @@ fn fill_rests(notes: &mut Vec<Note>, mut gap_beats: f64) {
     while gap_beats > 0.001 {
         let dur = Duration::whole_filling_beats(gap_beats);
         let b = dur.beats(0);
-        if b < 0.001 { break; }
+        if b < 0.001 {
+            break;
+        }
         gap_beats -= b;
         notes.push(Note::rest(dur));
     }
@@ -235,7 +281,12 @@ fn fill_rests(notes: &mut Vec<Note>, mut gap_beats: f64) {
 
 // ── measure building ──────────────────────────────────────────────────────────
 
-fn build_measures(notes: Vec<Note>, numerator: u8, denominator: u8, beats_per_measure: f64) -> Vec<Measure> {
+fn build_measures(
+    notes: Vec<Note>,
+    numerator: u8,
+    denominator: u8,
+    beats_per_measure: f64,
+) -> Vec<Measure> {
     let mut measures: Vec<Measure> = Vec::new();
     let mut bucket: Vec<Note> = Vec::new();
     let mut used = 0.0f64;
@@ -243,15 +294,35 @@ fn build_measures(notes: Vec<Note>, numerator: u8, denominator: u8, beats_per_me
 
     for note in notes {
         let nb = note.beats();
-        if nb < 0.001 { continue; }
+        if nb < 0.001 {
+            continue;
+        }
         if used + nb > beats_per_measure + 0.001 {
-            flush(&mut measures, &mut bucket, &mut used, &mut measure_num, numerator, denominator, beats_per_measure);
-            if measures.len() >= MAX_MEASURES { break; }
+            flush(
+                &mut measures,
+                &mut bucket,
+                &mut used,
+                &mut measure_num,
+                numerator,
+                denominator,
+                beats_per_measure,
+            );
+            if measures.len() >= MAX_MEASURES {
+                break;
+            }
         }
         used += nb;
         bucket.push(note);
     }
-    flush(&mut measures, &mut bucket, &mut used, &mut measure_num, numerator, denominator, beats_per_measure);
+    flush(
+        &mut measures,
+        &mut bucket,
+        &mut used,
+        &mut measure_num,
+        numerator,
+        denominator,
+        beats_per_measure,
+    );
 
     if measures.is_empty() {
         let mut m = Measure::empty(numerator, denominator);

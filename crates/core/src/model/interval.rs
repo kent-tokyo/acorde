@@ -22,17 +22,25 @@ pub struct Interval {
 impl Interval {
     /// Interval from pitch `a` to pitch `b` (positive = ascending).
     pub fn between(a: &Pitch, b: &Pitch) -> Self {
-        Self { semitones: b.to_midi() - a.to_midi() }
+        Self {
+            semitones: b.to_midi() - a.to_midi(),
+        }
     }
 
     /// Raw signed semitone count.
-    pub fn semitones(&self) -> i16 { self.semitones }
+    pub fn semitones(&self) -> i16 {
+        self.semitones
+    }
 
     /// Absolute (unsigned) semitone distance.
-    pub fn abs_semitones(&self) -> u16 { self.semitones.unsigned_abs() }
+    pub fn abs_semitones(&self) -> u16 {
+        self.semitones.unsigned_abs()
+    }
 
     /// True when `b` was higher than `a` in [`Interval::between`].
-    pub fn is_ascending(&self) -> bool { self.semitones > 0 }
+    pub fn is_ascending(&self) -> bool {
+        self.semitones > 0
+    }
 
     /// Interval number within an octave (1 = unison, 2 = second … 8 = octave).
     ///
@@ -47,19 +55,19 @@ impl Interval {
     /// The tritone (6 semitones) is treated as Augmented (A4).
     pub fn quality(&self) -> IntervalQuality {
         match (self.semitones.unsigned_abs() as usize) % 12 {
-            0  => IntervalQuality::Perfect,
-            1  => IntervalQuality::Minor,
-            2  => IntervalQuality::Major,
-            3  => IntervalQuality::Minor,
-            4  => IntervalQuality::Major,
-            5  => IntervalQuality::Perfect,
-            6  => IntervalQuality::Augmented,
-            7  => IntervalQuality::Perfect,
-            8  => IntervalQuality::Minor,
-            9  => IntervalQuality::Major,
+            0 => IntervalQuality::Perfect,
+            1 => IntervalQuality::Minor,
+            2 => IntervalQuality::Major,
+            3 => IntervalQuality::Minor,
+            4 => IntervalQuality::Major,
+            5 => IntervalQuality::Perfect,
+            6 => IntervalQuality::Augmented,
+            7 => IntervalQuality::Perfect,
+            8 => IntervalQuality::Minor,
+            9 => IntervalQuality::Major,
             10 => IntervalQuality::Minor,
             11 => IntervalQuality::Major,
-            _  => IntervalQuality::Perfect,
+            _ => IntervalQuality::Perfect,
         }
     }
 
@@ -69,13 +77,17 @@ impl Interval {
     pub fn display(&self) -> String {
         let abs = self.semitones.unsigned_abs() as usize;
         let q = match self.quality() {
-            IntervalQuality::Perfect    => "P",
-            IntervalQuality::Major      => "M",
-            IntervalQuality::Minor      => "m",
-            IntervalQuality::Augmented  => "A",
+            IntervalQuality::Perfect => "P",
+            IntervalQuality::Major => "M",
+            IntervalQuality::Minor => "m",
+            IntervalQuality::Augmented => "A",
             IntervalQuality::Diminished => "d",
         };
-        let n = if abs.is_multiple_of(12) && abs >= 12 { 8 } else { self.simple_number() };
+        let n = if abs.is_multiple_of(12) && abs >= 12 {
+            8
+        } else {
+            self.simple_number()
+        };
         format!("{}{}", q, n)
     }
 }

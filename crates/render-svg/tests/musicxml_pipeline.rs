@@ -3,14 +3,21 @@
 //! Exercises the exact path `examples/render_musicxml.rs` demonstrates, as a durable
 //! regression test rather than something only verified by manually running the example.
 
-use acorde_render_svg::{render_svg, SvgRenderOptions};
+use acorde_render_svg::{SvgRenderOptions, render_svg};
 
 fn opts() -> SvgRenderOptions {
-    SvgRenderOptions { width: 900.0, staff_size: 24.0, measures_per_system: 4, interactive: true }
+    SvgRenderOptions {
+        width: 900.0,
+        staff_size: 24.0,
+        measures_per_system: 4,
+        interactive: true,
+    }
 }
 
-const SIMPLE_FIXTURE: &str =
-    concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/fixtures/simple.musicxml");
+const SIMPLE_FIXTURE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../tests/fixtures/simple.musicxml"
+);
 
 #[test]
 fn simple_musicxml_renders_to_well_formed_svg() {

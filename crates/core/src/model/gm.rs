@@ -218,15 +218,24 @@ static GM_DRUM_NAMES: [&str; 47] = [
 /// Based on standard orchestral/band instrument ranges. Piano (0) covers 21–108 (A0–C8).
 /// Returns `(0, 127)` for programs without a well-defined acoustic range (e.g. sound effects).
 pub fn instrument_range(midi_program: u8) -> (u8, u8) {
-    GM_RANGES.get(midi_program as usize).copied().unwrap_or((0, 127))
+    GM_RANGES
+        .get(midi_program as usize)
+        .copied()
+        .unwrap_or((0, 127))
 }
 
 // Practical playing ranges per GM program (min_midi, max_midi).
 // Programs 120–127 (sound effects) use (0, 127) — no meaningful pitch restriction.
 static GM_RANGES: [(u8, u8); 128] = [
     // Piano (0–7): 21(A0)–108(C8) for grands; uprights similar
-    (21, 108), (21, 108), (21, 108), (21, 108),
-    (21, 108), (21, 108), (21, 108), (21, 108),
+    (21, 108),
+    (21, 108),
+    (21, 108),
+    (21, 108),
+    (21, 108),
+    (21, 108),
+    (21, 108),
+    (21, 108),
     // Chromatic Percussion (8–15)
     (60, 108), // Celesta: C4–C8
     (52, 96),  // Glockenspiel: E3–C7
@@ -237,14 +246,32 @@ static GM_RANGES: [(u8, u8); 128] = [
     (36, 77),  // Tubular Bells: C2–F5
     (36, 84),  // Dulcimer
     // Organ (16–23)
-    (24, 108), (24, 108), (24, 108), (24, 108),
-    (24, 108), (24, 108), (24, 108), (24, 108),
+    (24, 108),
+    (24, 108),
+    (24, 108),
+    (24, 108),
+    (24, 108),
+    (24, 108),
+    (24, 108),
+    (24, 108),
     // Guitar (24–31)
-    (40, 88), (40, 88), (40, 88), (40, 88),
-    (40, 88), (40, 88), (40, 88), (40, 88),
+    (40, 88),
+    (40, 88),
+    (40, 88),
+    (40, 88),
+    (40, 88),
+    (40, 88),
+    (40, 88),
+    (40, 88),
     // Bass (32–39): low instruments
-    (28, 67), (28, 67), (28, 67), (28, 67),
-    (28, 67), (28, 67), (28, 67), (28, 67),
+    (28, 67),
+    (28, 67),
+    (28, 67),
+    (28, 67),
+    (28, 67),
+    (28, 67),
+    (28, 67),
+    (28, 67),
     // Strings (40–47)
     (55, 103), // Violin: G3–B7
     (48, 91),  // Viola: C3–G6
@@ -255,53 +282,95 @@ static GM_RANGES: [(u8, u8); 128] = [
     (21, 108), // Orchestral Harp
     (36, 84),  // Timpani: C2–C6
     // Ensemble (48–55)
-    (21, 108), (21, 108), (21, 108), (21, 108),
-    (21, 108), (21, 108), (21, 108), (21, 108),
+    (21, 108),
+    (21, 108),
+    (21, 108),
+    (21, 108),
+    (21, 108),
+    (21, 108),
+    (21, 108),
+    (21, 108),
     // Brass (56–63)
-    (52, 82),  // Trumpet: E3–Bb5
-    (36, 67),  // Trombone: Bb1–G4
-    (28, 67),  // Tuba: Bb0–G4
-    (52, 82),  // Muted Trumpet
-    (43, 79),  // French Horn: G2–G5
-    (52, 82),  // Brass Section
-    (52, 82),  // Synth Brass 1
-    (52, 82),  // Synth Brass 2
+    (52, 82), // Trumpet: E3–Bb5
+    (36, 67), // Trombone: Bb1–G4
+    (28, 67), // Tuba: Bb0–G4
+    (52, 82), // Muted Trumpet
+    (43, 79), // French Horn: G2–G5
+    (52, 82), // Brass Section
+    (52, 82), // Synth Brass 1
+    (52, 82), // Synth Brass 2
     // Reed (64–71)
-    (56, 89),  // Soprano Sax: Ab3–E6
-    (44, 80),  // Alto Sax: Bb2–E5  (concert pitch)
-    (38, 75),  // Tenor Sax: Ab1–Bb4
-    (32, 68),  // Baritone Sax: Bb0–Eb4
-    (45, 84),  // Oboe: A2–C6
-    (36, 77),  // English Horn: B1–F5
-    (34, 77),  // Bassoon: Bb1–Bb5
-    (52, 96),  // Clarinet: E3–C7 (written, concert = -2)
+    (56, 89), // Soprano Sax: Ab3–E6
+    (44, 80), // Alto Sax: Bb2–E5  (concert pitch)
+    (38, 75), // Tenor Sax: Ab1–Bb4
+    (32, 68), // Baritone Sax: Bb0–Eb4
+    (45, 84), // Oboe: A2–C6
+    (36, 77), // English Horn: B1–F5
+    (34, 77), // Bassoon: Bb1–Bb5
+    (52, 96), // Clarinet: E3–C7 (written, concert = -2)
     // Pipe (72–79)
-    (60, 96),  // Piccolo: C4–C7
-    (60, 96),  // Flute: C4–C7
-    (55, 91),  // Recorder
-    (55, 89),  // Pan Flute
-    (48, 84),  // Blown Bottle
-    (48, 84),  // Shakuhachi
-    (48, 84),  // Whistle
-    (48, 84),  // Ocarina
+    (60, 96), // Piccolo: C4–C7
+    (60, 96), // Flute: C4–C7
+    (55, 91), // Recorder
+    (55, 89), // Pan Flute
+    (48, 84), // Blown Bottle
+    (48, 84), // Shakuhachi
+    (48, 84), // Whistle
+    (48, 84), // Ocarina
     // Synth Lead (80–87): wide range
-    (0, 127), (0, 127), (0, 127), (0, 127),
-    (0, 127), (0, 127), (0, 127), (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
     // Synth Pad (88–95)
-    (0, 127), (0, 127), (0, 127), (0, 127),
-    (0, 127), (0, 127), (0, 127), (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
     // Synth Effects (96–103)
-    (0, 127), (0, 127), (0, 127), (0, 127),
-    (0, 127), (0, 127), (0, 127), (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
     // Ethnic (104–111)
-    (0, 127), (0, 127), (0, 127), (0, 127),
-    (0, 127), (0, 127), (0, 127), (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
     // Percussive (112–119)
-    (0, 127), (0, 127), (0, 127), (0, 127),
-    (0, 127), (0, 127), (0, 127), (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
     // Sound Effects (120–127)
-    (0, 127), (0, 127), (0, 127), (0, 127),
-    (0, 127), (0, 127), (0, 127), (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
+    (0, 127),
 ];
 
 #[cfg(test)]

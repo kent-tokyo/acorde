@@ -53,14 +53,22 @@ pub(crate) fn position_y(position: i32, staff_size: f32) -> f32 {
 pub(crate) fn ledger_positions(position: i32) -> Vec<i32> {
     let mut out = Vec::new();
     if position <= -2 {
-        let top = if position % 2 == 0 { position } else { position + 1 };
+        let top = if position % 2 == 0 {
+            position
+        } else {
+            position + 1
+        };
         let mut p = -2;
         while p >= top {
             out.push(p);
             p -= 2;
         }
     } else if position >= 10 {
-        let bottom = if position % 2 == 0 { position } else { position - 1 };
+        let bottom = if position % 2 == 0 {
+            position
+        } else {
+            position - 1
+        };
         let mut p = 10;
         while p <= bottom {
             out.push(p);
@@ -156,7 +164,10 @@ mod tests {
 
     #[test]
     fn percussion_clef_is_unsupported() {
-        assert!(matches!(clef_bottom_line(&Clef::Percussion), Err(RenderError::UnsupportedClef)));
+        assert!(matches!(
+            clef_bottom_line(&Clef::Percussion),
+            Err(RenderError::UnsupportedClef)
+        ));
     }
 
     #[test]

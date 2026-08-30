@@ -19,7 +19,15 @@ pub(crate) fn f(v: f32) -> String {
     format!("{v:.2}")
 }
 
-fn arc_points(cx: f32, cy: f32, rx: f32, ry: f32, start_deg: f32, end_deg: f32, steps: u32) -> Vec<(f32, f32)> {
+fn arc_points(
+    cx: f32,
+    cy: f32,
+    rx: f32,
+    ry: f32,
+    start_deg: f32,
+    end_deg: f32,
+    steps: u32,
+) -> Vec<(f32, f32)> {
     let mut pts = Vec::with_capacity(steps as usize + 1);
     for i in 0..=steps {
         let t = i as f32 / steps as f32;
@@ -69,7 +77,15 @@ pub(crate) fn clef_bass(ox: f32, oy: f32, space: f32) -> String {
     let cy = -2.9;
     let hook = arc_points(cx, cy, 0.62, 1.55, -100.0, 95.0, 50);
     let tail_end = *hook.last().unwrap();
-    let tail_flick = arc_points(tail_end.0 - 0.35, tail_end.1 - 0.35, 0.35, 0.35, 30.0, -180.0, 16);
+    let tail_flick = arc_points(
+        tail_end.0 - 0.35,
+        tail_end.1 - 0.35,
+        0.35,
+        0.35,
+        30.0,
+        -180.0,
+        16,
+    );
     let d = path_from_segments(&[hook, tail_flick], ox, oy, space);
     let dot1 = dot_at(cx + 0.95, -3.5, ox, oy, space);
     let dot2 = dot_at(cx + 0.95, -2.5, ox, oy, space);
@@ -95,7 +111,10 @@ pub(crate) fn clef_c(ox: f32, oy: f32, space: f32, mid_position_u: f32) -> Strin
     let sw = f(0.15 * space);
     format!(
         r#"<g class="acorde-clef acorde-clef-c"><path d="{d}" fill="none" stroke="black" stroke-width="{sw}" stroke-linecap="round" stroke-linejoin="round"/><line x1="{bx1}" y1="{ty}" x2="{bx1}" y2="{by}" stroke="black" stroke-width="{sw}"/><line x1="{bx2}" y1="{ty}" x2="{bx2}" y2="{by}" stroke="black" stroke-width="{sw2}"/></g>"#,
-        bx1 = f(bar1_x), bx2 = f(bar2_x), ty = f(top_y), by = f(bottom_y),
+        bx1 = f(bar1_x),
+        bx2 = f(bar2_x),
+        ty = f(top_y),
+        by = f(bottom_y),
         sw2 = f(0.28 * space),
     )
 }
@@ -103,7 +122,9 @@ pub(crate) fn clef_c(ox: f32, oy: f32, space: f32, mid_position_u: f32) -> Strin
 fn dot_at(cx: f32, cy: f32, ox: f32, oy: f32, space: f32) -> String {
     format!(
         r#"<circle cx="{x}" cy="{y}" r="{r}" fill="black"/>"#,
-        x = f(ox + cx * space), y = f(oy + cy * space), r = f(0.13 * space)
+        x = f(ox + cx * space),
+        y = f(oy + cy * space),
+        r = f(0.13 * space)
     )
 }
 
@@ -115,39 +136,100 @@ pub(crate) fn notehead(cx: f32, cy: f32, space: f32, filled: bool) -> String {
     let rx = f(0.62 * space * 0.5);
     let ry = f(0.48 * space * 0.5);
     if filled {
-        format!(r#"<ellipse class="acorde-notehead" cx="{x}" cy="{y}" rx="{rx}" ry="{ry}" fill="black"/>"#, x = f(cx), y = f(cy))
+        format!(
+            r#"<ellipse class="acorde-notehead" cx="{x}" cy="{y}" rx="{rx}" ry="{ry}" fill="black"/>"#,
+            x = f(cx),
+            y = f(cy)
+        )
     } else {
         let sw = f(0.16 * space * 0.5);
         format!(
             r#"<ellipse class="acorde-notehead" cx="{x}" cy="{y}" rx="{rx}" ry="{ry}" fill="none" stroke="black" stroke-width="{sw}"/>"#,
-            x = f(cx), y = f(cy)
+            x = f(cx),
+            y = f(cy)
         )
     }
 }
 
 /// Render the model-selected notehead without relying on a notation font.
-pub(crate) fn notehead_shape(head: &NoteHead, cx: f32, cy: f32, space: f32, filled: bool) -> String {
+pub(crate) fn notehead_shape(
+    head: &NoteHead,
+    cx: f32,
+    cy: f32,
+    space: f32,
+    filled: bool,
+) -> String {
     match head {
         NoteHead::Normal => notehead(cx, cy, space, filled),
         NoteHead::Diamond => {
             let w = 0.38 * space;
             let h = 0.52 * space;
-            let points = format!("{},{} {},{} {},{} {},{}", f(cx), f(cy - h), f(cx + w), f(cy), f(cx), f(cy + h), f(cx - w), f(cy));
+            let points = format!(
+                "{},{} {},{} {},{} {},{}",
+                f(cx),
+                f(cy - h),
+                f(cx + w),
+                f(cy),
+                f(cx),
+                f(cy + h),
+                f(cx - w),
+                f(cy)
+            );
             let fill = if filled { "black" } else { "none" };
-            format!(r#"<polygon class="acorde-notehead acorde-notehead-diamond" points="{points}" fill="{fill}" stroke="black" stroke-width="{}"/>"#, f(0.12 * space))
+            format!(
+                r#"<polygon class="acorde-notehead acorde-notehead-diamond" points="{points}" fill="{fill}" stroke="black" stroke-width="{}"/>"#,
+                f(0.12 * space)
+            )
         }
         NoteHead::Triangle => {
-            let points = format!("{},{} {},{} {},{}", f(cx), f(cy - 0.55 * space), f(cx + 0.42 * space), f(cy + 0.35 * space), f(cx - 0.42 * space), f(cy + 0.35 * space));
+            let points = format!(
+                "{},{} {},{} {},{}",
+                f(cx),
+                f(cy - 0.55 * space),
+                f(cx + 0.42 * space),
+                f(cy + 0.35 * space),
+                f(cx - 0.42 * space),
+                f(cy + 0.35 * space)
+            );
             let fill = if filled { "black" } else { "none" };
-            format!(r#"<polygon class="acorde-notehead acorde-notehead-triangle" points="{points}" fill="{fill}" stroke="black" stroke-width="{}"/>"#, f(0.12 * space))
+            format!(
+                r#"<polygon class="acorde-notehead acorde-notehead-triangle" points="{points}" fill="{fill}" stroke="black" stroke-width="{}"/>"#,
+                f(0.12 * space)
+            )
         }
         NoteHead::X | NoteHead::Cross => {
-            let r = if matches!(head, NoteHead::X) { 0.34 } else { 0.42 } * space;
+            let r = if matches!(head, NoteHead::X) {
+                0.34
+            } else {
+                0.42
+            } * space;
             let sw = f(0.16 * space);
-            format!(r#"<g class="acorde-notehead acorde-notehead-{}" stroke="black" stroke-width="{sw}" stroke-linecap="round"><line x1="{}" y1="{}" x2="{}" y2="{}"/><line x1="{}" y1="{}" x2="{}" y2="{}"/></g>"#, if matches!(head, NoteHead::X) { "x" } else { "cross" }, f(cx-r), f(cy-r), f(cx+r), f(cy+r), f(cx-r), f(cy+r), f(cx+r), f(cy-r))
+            format!(
+                r#"<g class="acorde-notehead acorde-notehead-{}" stroke="black" stroke-width="{sw}" stroke-linecap="round"><line x1="{}" y1="{}" x2="{}" y2="{}"/><line x1="{}" y1="{}" x2="{}" y2="{}"/></g>"#,
+                if matches!(head, NoteHead::X) {
+                    "x"
+                } else {
+                    "cross"
+                },
+                f(cx - r),
+                f(cy - r),
+                f(cx + r),
+                f(cy + r),
+                f(cx - r),
+                f(cy + r),
+                f(cx + r),
+                f(cy - r)
+            )
         }
         NoteHead::Slash => {
-            format!(r#"<line class="acorde-notehead acorde-notehead-slash" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}" stroke-linecap="round"/>"#, f(cx - 0.42 * space), f(cy + 0.42 * space), f(cx + 0.42 * space), f(cy - 0.42 * space), f(0.22 * space))
+            format!(
+                r#"<line class="acorde-notehead acorde-notehead-slash" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}" stroke-linecap="round"/>"#,
+                f(cx - 0.42 * space),
+                f(cy + 0.42 * space),
+                f(cx + 0.42 * space),
+                f(cy - 0.42 * space),
+                f(0.22 * space)
+            )
         }
     }
 }
@@ -157,7 +239,11 @@ pub(crate) const DEFAULT_STEM_LEN_U: f32 = 3.0;
 
 /// Stem of the default fixed length (unbeamed notes). Returns `(svg, tip_y)`.
 pub(crate) fn stem(cx: f32, cy: f32, space: f32, up: bool) -> (String, f32) {
-    let tip_y = if up { cy - DEFAULT_STEM_LEN_U * space } else { cy + DEFAULT_STEM_LEN_U * space };
+    let tip_y = if up {
+        cy - DEFAULT_STEM_LEN_U * space
+    } else {
+        cy + DEFAULT_STEM_LEN_U * space
+    };
     (stem_to(cx, cy, tip_y, space, up), tip_y)
 }
 
@@ -169,7 +255,10 @@ pub(crate) fn stem_to(cx: f32, cy: f32, tip_y: f32, space: f32, up: bool) -> Str
     let sw = f(0.11 * space);
     format!(
         r#"<line class="acorde-stem" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="black" stroke-width="{sw}"/>"#,
-        x1 = f(x), y1 = f(cy), x2 = f(x), y2 = f(tip_y)
+        x1 = f(x),
+        y1 = f(cy),
+        x2 = f(x),
+        y2 = f(tip_y)
     )
 }
 
@@ -178,10 +267,14 @@ pub(crate) fn flag(stem_x: f32, tip_y: f32, space: f32, up: bool) -> String {
     let s = if up { 1.0 } else { -1.0 };
     let d = format!(
         "M {ox},{oy} Q {cx1},{cy1} {ex},{ey} Q {cx2},{cy2} {ox},{oy} Z",
-        ox = f(stem_x), oy = f(tip_y),
-        cx1 = f(stem_x + 0.65 * space), cy1 = f(tip_y + 0.35 * space * s),
-        ex = f(stem_x + 0.12 * space), ey = f(tip_y + 1.05 * space * s),
-        cx2 = f(stem_x - 0.05 * space), cy2 = f(tip_y + 0.55 * space * s),
+        ox = f(stem_x),
+        oy = f(tip_y),
+        cx1 = f(stem_x + 0.65 * space),
+        cy1 = f(tip_y + 0.35 * space * s),
+        ex = f(stem_x + 0.12 * space),
+        ey = f(tip_y + 1.05 * space * s),
+        cx2 = f(stem_x - 0.05 * space),
+        cy2 = f(tip_y + 0.55 * space * s),
     );
     format!(r#"<path d="{d}" fill="black" stroke="none"/>"#)
 }
@@ -193,7 +286,9 @@ pub(crate) fn ledger_line(cx: f32, y: f32, space: f32) -> String {
     let sw = f(0.1 * space);
     format!(
         r#"<line class="acorde-ledger" x1="{x1}" y1="{y}" x2="{x2}" y2="{y}" stroke="black" stroke-width="{sw}"/>"#,
-        x1 = f(cx - half_w), x2 = f(cx + half_w), y = f(y)
+        x1 = f(cx - half_w),
+        x2 = f(cx + half_w),
+        y = f(y)
     )
 }
 
@@ -201,7 +296,9 @@ pub(crate) fn barline(x: f32, top_y: f32, bottom_y: f32, space: f32, thick: bool
     let sw = f(if thick { 0.3 * space } else { 0.09 * space });
     format!(
         r#"<line class="acorde-barline" x1="{x}" y1="{y1}" x2="{x}" y2="{y2}" stroke="black" stroke-width="{sw}"/>"#,
-        x = f(x), y1 = f(top_y), y2 = f(bottom_y)
+        x = f(x),
+        y1 = f(top_y),
+        y2 = f(bottom_y)
     )
 }
 
@@ -215,8 +312,12 @@ pub(crate) fn beam_segment(x1: f32, y1: f32, x2: f32, y2: f32, thickness: f32) -
     let ht = thickness / 2.0;
     format!(
         r#"<polygon class="acorde-beam" points="{x1},{y1a} {x2},{y2a} {x2},{y2b} {x1},{y1b}" fill="black"/>"#,
-        x1 = f(x1), x2 = f(x2),
-        y1a = f(y1 - ht), y2a = f(y2 - ht), y2b = f(y2 + ht), y1b = f(y1 + ht),
+        x1 = f(x1),
+        x2 = f(x2),
+        y1a = f(y1 - ht),
+        y2a = f(y2 - ht),
+        y2b = f(y2 + ht),
+        y1b = f(y1 + ht),
     )
 }
 
@@ -256,10 +357,18 @@ fn sharp(cx: f32, cy: f32, space: f32) -> String {
         // own line-ending bytes into the compiled string, making output diverge between
         // LF-checkout and CRLF-checkout platforms (see beams::tests and CI history).
         r#"<g class="acorde-accidental acorde-sharp"><line x1="{x1}" y1="{yt}" x2="{x1}" y2="{yb}" stroke="black" stroke-width="{swv}"/><line x1="{x2}" y1="{yt}" x2="{x2}" y2="{yb}" stroke="black" stroke-width="{swv}"/><line x1="{hx1}" y1="{hy1}" x2="{hx2}" y2="{hy1a}" stroke="black" stroke-width="{swh}"/><line x1="{hx1}" y1="{hy2}" x2="{hx2}" y2="{hy2a}" stroke="black" stroke-width="{swh}"/></g>"#,
-        x1 = f(x1), x2 = f(x2), yt = f(y_top), yb = f(y_bot), swv = sw_v, swh = sw_h,
-        hx1 = f(cx - 0.3 * space), hx2 = f(cx + 0.3 * space),
-        hy1 = f(cy - 0.32 * space), hy1a = f(cy - 0.42 * space),
-        hy2 = f(cy + 0.42 * space), hy2a = f(cy + 0.32 * space),
+        x1 = f(x1),
+        x2 = f(x2),
+        yt = f(y_top),
+        yb = f(y_bot),
+        swv = sw_v,
+        swh = sw_h,
+        hx1 = f(cx - 0.3 * space),
+        hx2 = f(cx + 0.3 * space),
+        hy1 = f(cy - 0.32 * space),
+        hy1a = f(cy - 0.42 * space),
+        hy2 = f(cy + 0.42 * space),
+        hy2a = f(cy + 0.32 * space),
     )
 }
 
@@ -272,7 +381,10 @@ fn flat(cx: f32, cy: f32, space: f32) -> String {
     let bowl_d = path_from_segments(&[bowl], x, cy, space);
     format!(
         r#"<g class="acorde-accidental acorde-flat"><line x1="{x}" y1="{yt}" x2="{x}" y2="{yb}" stroke="black" stroke-width="{sw}"/><path d="{bowl_d}" fill="none" stroke="black" stroke-width="{sw}" stroke-linecap="round"/></g>"#,
-        x = f(x), yt = f(y_top), yb = f(y_bot), sw = sw,
+        x = f(x),
+        yt = f(y_top),
+        yb = f(y_bot),
+        sw = sw,
     )
 }
 
@@ -283,12 +395,18 @@ fn natural(cx: f32, cy: f32, space: f32) -> String {
     let x2 = cx + 0.18 * space;
     format!(
         r#"<g class="acorde-accidental acorde-natural"><line x1="{x1}" y1="{y1t}" x2="{x1}" y2="{y1b}" stroke="black" stroke-width="{swv}"/><line x1="{x2}" y1="{y2t}" x2="{x2}" y2="{y2b}" stroke="black" stroke-width="{swv}"/><line x1="{x1}" y1="{hy1}" x2="{x2}" y2="{hy1b}" stroke="black" stroke-width="{swh}"/><line x1="{x1}" y1="{hy2}" x2="{x2}" y2="{hy2b}" stroke="black" stroke-width="{swh}"/></g>"#,
-        x1 = f(x1), x2 = f(x2),
-        y1t = f(cy - 0.3 * space), y1b = f(cy + 0.85 * space),
-        y2t = f(cy - 0.85 * space), y2b = f(cy + 0.3 * space),
-        hy1 = f(cy - 0.34 * space), hy1b = f(cy - 0.5 * space),
-        hy2 = f(cy + 0.5 * space), hy2b = f(cy + 0.34 * space),
-        swv = sw_v, swh = sw_h,
+        x1 = f(x1),
+        x2 = f(x2),
+        y1t = f(cy - 0.3 * space),
+        y1b = f(cy + 0.85 * space),
+        y2t = f(cy - 0.85 * space),
+        y2b = f(cy + 0.3 * space),
+        hy1 = f(cy - 0.34 * space),
+        hy1b = f(cy - 0.5 * space),
+        hy2 = f(cy + 0.5 * space),
+        hy2b = f(cy + 0.34 * space),
+        swv = sw_v,
+        swh = sw_h,
     )
 }
 
@@ -297,7 +415,11 @@ fn double_sharp(cx: f32, cy: f32, space: f32) -> String {
     let r = 0.3 * space;
     format!(
         r#"<g class="acorde-accidental acorde-double-sharp"><line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="black" stroke-width="{sw}" stroke-linecap="round"/><line x1="{x2}" y1="{y1}" x2="{x1}" y2="{y2}" stroke="black" stroke-width="{sw}" stroke-linecap="round"/></g>"#,
-        x1 = f(cx - r), x2 = f(cx + r), y1 = f(cy - r), y2 = f(cy + r), sw = sw,
+        x1 = f(cx - r),
+        x2 = f(cx + r),
+        y1 = f(cy - r),
+        y2 = f(cy + r),
+        sw = sw,
     )
 }
 
@@ -328,14 +450,22 @@ fn rest_block(cx: f32, line_y: f32, space: f32, hangs_below: bool) -> String {
     let y = if hangs_below { line_y } else { line_y - h };
     format!(
         r#"<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="black"/>"#,
-        x = f(cx - w / 2.0), y = f(y), w = f(w), h = f(h)
+        x = f(cx - w / 2.0),
+        y = f(y),
+        w = f(w),
+        h = f(h)
     )
 }
 
 pub(crate) fn rest_quarter(cx: f32, staff_mid_y: f32, space: f32) -> String {
     // Simplified serpentine "squiggle", centered on the staff middle.
     let pts: Vec<(f32, f32)> = vec![
-        (0.15, -1.1), (-0.15, -0.55), (0.2, -0.05), (-0.2, 0.55), (0.05, 0.75), (-0.15, 1.1),
+        (0.15, -1.1),
+        (-0.15, -0.55),
+        (0.2, -0.05),
+        (-0.2, 0.55),
+        (0.05, 0.75),
+        (-0.15, 1.1),
     ];
     let d = path_from_segments(&[pts], cx, staff_mid_y, space);
     let sw = f(0.16 * space);
@@ -347,13 +477,17 @@ pub(crate) fn rest_quarter(cx: f32, staff_mid_y: f32, space: f32) -> String {
 pub(crate) fn rest_eighth(cx: f32, staff_mid_y: f32, space: f32) -> String {
     let stroke = format!(
         r#"<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="black" stroke-width="{sw}" stroke-linecap="round"/>"#,
-        x1 = f(cx + 0.32 * space), y1 = f(staff_mid_y - 0.75 * space),
-        x2 = f(cx - 0.28 * space), y2 = f(staff_mid_y + 0.75 * space),
+        x1 = f(cx + 0.32 * space),
+        y1 = f(staff_mid_y - 0.75 * space),
+        x2 = f(cx - 0.28 * space),
+        y2 = f(staff_mid_y + 0.75 * space),
         sw = f(0.13 * space),
     );
     let head = format!(
         r#"<circle cx="{x}" cy="{y}" r="{r}" fill="black"/>"#,
-        x = f(cx + 0.32 * space), y = f(staff_mid_y - 0.6 * space), r = f(0.2 * space)
+        x = f(cx + 0.32 * space),
+        y = f(staff_mid_y - 0.6 * space),
+        r = f(0.2 * space)
     );
     format!("{stroke}{head}")
 }
@@ -364,14 +498,29 @@ pub(crate) fn rest_short(cx: f32, staff_mid_y: f32, space: f32, flags: usize) ->
     let mut out = rest_eighth(cx, staff_mid_y, space);
     for i in 1..flags {
         let y = staff_mid_y - (0.6 - i as f32 * 0.34) * space;
-        let _ = write!(out, r#"<path class="acorde-rest-flag" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}" stroke-linecap="round"/>"#, f(cx + 0.32 * space), f(y), f(cx + 0.72 * space), f(y + 0.18 * space), f(cx + 0.16 * space), f(y + 0.55 * space), f(0.13 * space));
+        let _ = write!(
+            out,
+            r#"<path class="acorde-rest-flag" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}" stroke-linecap="round"/>"#,
+            f(cx + 0.32 * space),
+            f(y),
+            f(cx + 0.72 * space),
+            f(y + 0.18 * space),
+            f(cx + 0.16 * space),
+            f(y + 0.55 * space),
+            f(0.13 * space)
+        );
     }
     out
 }
 
 /// Augmentation dot.
 pub(crate) fn augmentation_dot(cx: f32, cy: f32, space: f32) -> String {
-    format!(r#"<circle cx="{x}" cy="{y}" r="{r}" fill="black"/>"#, x = f(cx), y = f(cy), r = f(0.11 * space))
+    format!(
+        r#"<circle cx="{x}" cy="{y}" r="{r}" fill="black"/>"#,
+        x = f(cx),
+        y = f(cy),
+        r = f(0.11 * space)
+    )
 }
 
 // ── digits (for time signatures) ────────────────────────────────────────────────
@@ -379,7 +528,7 @@ pub(crate) fn augmentation_dot(cx: f32, cy: f32, space: f32) -> String {
 /// Segments lit for each digit, in 7-segment order: a,b,c,d,e,f,g
 /// (a=top, b=top-right, c=bottom-right, d=bottom, e=bottom-left, f=top-left, g=middle).
 const DIGIT_SEGMENTS: [[bool; 7]; 10] = [
-    [true, true, true, true, true, true, false],    // 0
+    [true, true, true, true, true, true, false],     // 0
     [false, true, true, false, false, false, false], // 1
     [true, true, false, true, true, false, true],    // 2
     [true, true, true, true, false, false, true],    // 3
@@ -387,8 +536,8 @@ const DIGIT_SEGMENTS: [[bool; 7]; 10] = [
     [true, false, true, true, false, true, true],    // 5
     [true, false, true, true, true, true, true],     // 6
     [true, true, true, false, false, false, false],  // 7
-    [true, true, true, true, true, true, true],       // 8
-    [true, true, true, true, false, true, true],      // 9
+    [true, true, true, true, true, true, true],      // 8
+    [true, true, true, true, false, true, true],     // 9
 ];
 
 /// Digit glyph in a `0.6u` × `1.6u` box (7-segment style — plain vector geometry, no font).
@@ -405,7 +554,10 @@ pub(crate) fn digit(d: u8, ox: f32, oy: f32, space: f32) -> String {
             let _ = write!(
                 out,
                 r#"<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="black" stroke-width="{sw}" stroke-linecap="square"/>"#,
-                x1 = f(ox + x1), y1 = f(oy + y1), x2 = f(ox + x2), y2 = f(oy + y2)
+                x1 = f(ox + x1),
+                y1 = f(oy + y1),
+                x2 = f(ox + x2),
+                y2 = f(oy + y2)
             );
         }
     };
@@ -429,7 +581,10 @@ pub(crate) fn tuplet_line(x1: f32, y1: f32, x2: f32, y2: f32, space: f32) -> Str
     let sw = f(0.09 * space);
     format!(
         r#"<line class="acorde-tuplet-bracket" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="black" stroke-width="{sw}"/>"#,
-        x1 = f(x1), y1 = f(y1), x2 = f(x2), y2 = f(y2)
+        x1 = f(x1),
+        y1 = f(y1),
+        x2 = f(x2),
+        y2 = f(y2)
     )
 }
 
@@ -481,7 +636,10 @@ mod tests {
     #[test]
     fn digit_glyphs_nonempty_for_all_digits() {
         for d in 0..=9u8 {
-            assert!(!digit(d, 0.0, 0.0, 20.0).is_empty(), "digit {d} produced no segments");
+            assert!(
+                !digit(d, 0.0, 0.0, 20.0).is_empty(),
+                "digit {d} produced no segments"
+            );
         }
     }
 

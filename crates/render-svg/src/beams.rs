@@ -57,7 +57,13 @@ pub(crate) struct BeamPlan {
 /// `durations`/`xs`/`attach_ys` are parallel arrays, one entry per note in the group (already
 /// sliced to just this group by the caller — this module has no notion of a "voice").
 /// `attach_ys` is each note's stem-side notehead y (already resolved for chords).
-pub(crate) fn plan_beam_group(durations: &[Duration], xs: &[f32], attach_ys: &[f32], stem_up: bool, space: f32) -> BeamPlan {
+pub(crate) fn plan_beam_group(
+    durations: &[Duration],
+    xs: &[f32],
+    attach_ys: &[f32],
+    stem_up: bool,
+    space: f32,
+) -> BeamPlan {
     let n = durations.len();
     debug_assert_eq!(xs.len(), n);
     debug_assert_eq!(attach_ys.len(), n);
@@ -68,7 +74,11 @@ pub(crate) fn plan_beam_group(durations: &[Duration], xs: &[f32], attach_ys: &[f
     let raw_rise = natural(n - 1) - natural(0);
     let clamped_rise = raw_rise.clamp(-MAX_BEAM_RISE_U * space, MAX_BEAM_RISE_U * space);
     let dx = xs[n - 1] - xs[0];
-    let slope = if dx.abs() > 1e-6 { clamped_rise / dx } else { 0.0 };
+    let slope = if dx.abs() > 1e-6 {
+        clamped_rise / dx
+    } else {
+        0.0
+    };
     let base_y = |x: f32| natural(0) + slope * (x - xs[0]);
 
     // Clearance: shift the whole beam away from noteheads if any stem would be too short.
@@ -88,7 +98,13 @@ pub(crate) fn plan_beam_group(durations: &[Duration], xs: &[f32], attach_ys: &[f
     }
 
     // Primary beam (level 0) always spans the full group.
-    svg.push_str(&glyphs::beam_segment(xs[0], beam_y(xs[0]), xs[n - 1], beam_y(xs[n - 1]), BEAM_THICKNESS_U * space));
+    svg.push_str(&glyphs::beam_segment(
+        xs[0],
+        beam_y(xs[0]),
+        xs[n - 1],
+        beam_y(xs[n - 1]),
+        BEAM_THICKNESS_U * space,
+    ));
 
     // Secondary+ beams: contiguous runs (or single-note hooks) at each extra level.
     let max_level = durations.iter().map(beam_level).max().unwrap_or(1);
@@ -112,9 +128,21 @@ pub(crate) fn plan_beam_group(durations: &[Duration], xs: &[f32], attach_ys: &[f
                 let hook_dir = if run_start > 0 { -1.0 } else { 1.0 };
                 let x0 = xs[run_start];
                 let x1 = x0 + hook_dir * HOOK_LEN_U * space;
-                svg.push_str(&glyphs::beam_segment(x0, level_y(x0), x1, level_y(x1), BEAM_THICKNESS_U * space));
+                svg.push_str(&glyphs::beam_segment(
+                    x0,
+                    level_y(x0),
+                    x1,
+                    level_y(x1),
+                    BEAM_THICKNESS_U * space,
+                ));
             } else {
-                svg.push_str(&glyphs::beam_segment(xs[run_start], level_y(xs[run_start]), xs[run_end], level_y(xs[run_end]), BEAM_THICKNESS_U * space));
+                svg.push_str(&glyphs::beam_segment(
+                    xs[run_start],
+                    level_y(xs[run_start]),
+                    xs[run_end],
+                    level_y(xs[run_end]),
+                    BEAM_THICKNESS_U * space,
+                ));
             }
         }
     }
@@ -149,8 +177,11 @@ mod tests {
         let plan = plan_beam_group(&durations, &xs, &attach_ys, true, space);
         let tip0 = plan.tips[&0];
         let tip1 = plan.tips[&1];
-        assert!((tip0 - tip1).abs() <= MAX_BEAM_RISE_U * space + 0.01,
-            "beam rise must be clamped to {MAX_BEAM_RISE_U} staff-spaces, got {}", (tip0 - tip1).abs());
+        assert!(
+            (tip0 - tip1).abs() <= MAX_BEAM_RISE_U * space + 0.01,
+            "beam rise must be clamped to {MAX_BEAM_RISE_U} staff-spaces, got {}",
+            (tip0 - tip1).abs()
+        );
     }
 
     #[test]
@@ -162,12 +193,18 @@ mod tests {
         let space = 20.0;
         // Middle note very close (in the stem-up direction, i.e. numerically just below)
         // the other two notes' natural stem tips.
-        let attach_ys = vec![100.0, 100.0 - glyphs::DEFAULT_STEM_LEN_U * space + 5.0, 100.0];
+        let attach_ys = vec![
+            100.0,
+            100.0 - glyphs::DEFAULT_STEM_LEN_U * space + 5.0,
+            100.0,
+        ];
         let plan = plan_beam_group(&durations, &xs, &attach_ys, true, space);
         for (i, &attach_y) in attach_ys.iter().enumerate() {
             let stem_len = (plan.tips[&i] - attach_y).abs();
-            assert!(stem_len >= MIN_STEM_LEN_U * space - 0.01,
-                "note {i} stem length {stem_len} is below the {MIN_STEM_LEN_U}-space minimum");
+            assert!(
+                stem_len >= MIN_STEM_LEN_U * space - 0.01,
+                "note {i} stem length {stem_len} is below the {MIN_STEM_LEN_U}-space minimum"
+            );
         }
     }
 
@@ -198,7 +235,10 @@ mod tests {
         let attach_ys = vec![100.0, 100.0];
         let plan = plan_beam_group(&durations, &xs, &attach_ys, false, 20.0);
         for &tip in plan.tips.values() {
-            assert!(tip > 100.0, "stem-down beam tips must be below (larger y than) the notehead");
+            assert!(
+                tip > 100.0,
+                "stem-down beam tips must be below (larger y than) the notehead"
+            );
         }
     }
 }

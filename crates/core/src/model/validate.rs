@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
 use super::gm::instrument_range;
 use super::score::Score;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// A structural error found by [`validate`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -100,7 +100,10 @@ pub fn validate(score: &Score) -> ValidationReport {
                 // Volta overlap detection
                 if let Some(ref volta) = measure.volta {
                     if volta_numbers_seen.contains(&volta.number) {
-                        warnings.push(ValidationWarning::OverlappingVolta { part: pi, staff: si });
+                        warnings.push(ValidationWarning::OverlappingVolta {
+                            part: pi,
+                            staff: si,
+                        });
                     } else {
                         volta_numbers_seen.push(volta.number);
                     }
@@ -127,8 +130,11 @@ pub fn validate(score: &Score) -> ValidationReport {
                         });
                     } else if total < expected - 0.02 && non_rest_count > 0 {
                         warnings.push(ValidationWarning::IncompleteBar {
-                            part: pi, staff: si, measure: mi,
-                            expected_beats: expected, actual_beats: total,
+                            part: pi,
+                            staff: si,
+                            measure: mi,
+                            expected_beats: expected,
+                            actual_beats: total,
                         });
                     }
 
@@ -193,7 +199,14 @@ mod tests {
             .push(Note::new(Pitch::new(Step::C, 4), Duration::Quarter));
         let report = validate(&score);
         assert!(!report.errors.is_empty());
-        assert!(matches!(report.errors[0], ValidationError::BeatCount { measure: 0, voice: 0, .. }));
+        assert!(matches!(
+            report.errors[0],
+            ValidationError::BeatCount {
+                measure: 0,
+                voice: 0,
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -212,7 +225,9 @@ mod tests {
         score.parts[0].staves[0].measures[0].voices[0] =
             vec![Note::new(Pitch::new(Step::C, 9), Duration::Whole)];
         let report = validate(&score);
-        assert!(report.errors.iter().any(|e| matches!(e, ValidationError::OutOfRange { pitch_midi, .. } if *pitch_midi == 120)));
+        assert!(report.errors.iter().any(
+            |e| matches!(e, ValidationError::OutOfRange { pitch_midi, .. } if *pitch_midi == 120)
+        ));
     }
 
     #[test]
@@ -224,7 +239,12 @@ mod tests {
         score.parts[0].staves[0].measures[0].voices[0] =
             vec![Note::new(Pitch::new(Step::C, 9), Duration::Whole)];
         let report = validate(&score);
-        assert!(!report.errors.iter().any(|e| matches!(e, ValidationError::OutOfRange { .. })));
+        assert!(
+            !report
+                .errors
+                .iter()
+                .any(|e| matches!(e, ValidationError::OutOfRange { .. }))
+        );
     }
 
     #[test]
@@ -234,14 +254,24 @@ mod tests {
         score.parts[0].midi_program = 0;
         score.parts[0].staves[0].measures[0].voices[0] =
             vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
-        assert!(!validate(&score).errors.iter().any(|e| matches!(e, ValidationError::OutOfRange { .. })));
+        assert!(
+            !validate(&score)
+                .errors
+                .iter()
+                .any(|e| matches!(e, ValidationError::OutOfRange { .. }))
+        );
     }
 
     #[test]
     fn validate_empty_part_warning() {
         let score = Score::new("T", 120, 4, 4, 0, 1);
         let report = validate(&score);
-        assert!(report.warnings.iter().any(|w| matches!(w, ValidationWarning::EmptyPart { part: 0 })));
+        assert!(
+            report
+                .warnings
+                .iter()
+                .any(|w| matches!(w, ValidationWarning::EmptyPart { part: 0 }))
+        );
     }
 
     #[test]
@@ -251,6 +281,8 @@ mod tests {
         score.parts[0].staves[0].measures[0].rehearsal = Some("A".to_string());
         score.parts[0].staves[0].measures[1].rehearsal = Some("A".to_string());
         let report = validate(&score);
-        assert!(report.warnings.iter().any(|w| matches!(w, ValidationWarning::DuplicateRehearsalMark { mark } if mark == "A")));
+        assert!(report.warnings.iter().any(
+            |w| matches!(w, ValidationWarning::DuplicateRehearsalMark { mark } if mark == "A")
+        ));
     }
 }

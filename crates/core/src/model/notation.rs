@@ -14,20 +14,20 @@ pub enum Clef {
 impl Clef {
     pub fn to_musicxml_sign(&self) -> &'static str {
         match self {
-            Clef::Treble     => "G",
-            Clef::Bass       => "F",
-            Clef::Alto       => "C",
-            Clef::Tenor      => "C",
+            Clef::Treble => "G",
+            Clef::Bass => "F",
+            Clef::Alto => "C",
+            Clef::Tenor => "C",
             Clef::Percussion => "percussion",
         }
     }
 
     pub fn musicxml_line(&self) -> u8 {
         match self {
-            Clef::Treble     => 2,
-            Clef::Bass       => 4,
-            Clef::Alto       => 3,
-            Clef::Tenor      => 4,
+            Clef::Treble => 2,
+            Clef::Bass => 4,
+            Clef::Alto => 3,
+            Clef::Tenor => 4,
             Clef::Percussion => 2,
         }
     }
@@ -35,10 +35,10 @@ impl Clef {
     /// MIDI note number of the middle staff line (used for stem direction heuristics).
     pub fn middle_line_midi(&self) -> u8 {
         match self {
-            Clef::Treble     => 71, // B4
-            Clef::Bass       => 50, // D3
-            Clef::Alto       => 60, // C4
-            Clef::Tenor      => 57, // A3
+            Clef::Treble => 71,     // B4
+            Clef::Bass => 50,       // D3
+            Clef::Alto => 60,       // C4
+            Clef::Tenor => 57,      // A3
             Clef::Percussion => 71, // B4 (same as Treble)
         }
     }
@@ -54,24 +54,51 @@ pub struct KeySignature {
 
 impl Default for KeySignature {
     fn default() -> Self {
-        Self { fifths: 0, mode: "major".to_string() }
+        Self {
+            fifths: 0,
+            mode: "major".to_string(),
+        }
     }
 }
 
 impl KeySignature {
     // Order of sharps added one by one as fifths increases: F C G D A E B
-    const SHARP_ORDER: [Step; 7] = [Step::F, Step::C, Step::G, Step::D, Step::A, Step::E, Step::B];
+    const SHARP_ORDER: [Step; 7] = [
+        Step::F,
+        Step::C,
+        Step::G,
+        Step::D,
+        Step::A,
+        Step::E,
+        Step::B,
+    ];
     // Order of flats: B E A D G C F
-    const FLAT_ORDER: [Step; 7]  = [Step::B, Step::E, Step::A, Step::D, Step::G, Step::C, Step::F];
+    const FLAT_ORDER: [Step; 7] = [
+        Step::B,
+        Step::E,
+        Step::A,
+        Step::D,
+        Step::G,
+        Step::C,
+        Step::F,
+    ];
 
     /// Accidental alter (`-1`, `0`, or `+1`) applied to `step` in this key signature.
     pub fn alter_for_step(&self, step: &Step) -> i8 {
         if self.fifths > 0 {
             let count = self.fifths.min(7) as usize;
-            if Self::SHARP_ORDER[..count].contains(step) { 1 } else { 0 }
+            if Self::SHARP_ORDER[..count].contains(step) {
+                1
+            } else {
+                0
+            }
         } else if self.fifths < 0 {
             let count = (-self.fifths).min(7) as usize;
-            if Self::FLAT_ORDER[..count].contains(step) { -1 } else { 0 }
+            if Self::FLAT_ORDER[..count].contains(step) {
+                -1
+            } else {
+                0
+            }
         } else {
             0
         }
@@ -101,7 +128,11 @@ impl KeySignature {
     /// Human-readable key name: `"C major"`, `"G major"`, `"F# minor"`, `"Bb major"` etc.
     pub fn display_name(&self) -> String {
         let (step, alter) = self.tonic();
-        let acc = match alter { 1 => "#", -1 => "b", _ => "" };
+        let acc = match alter {
+            1 => "#",
+            -1 => "b",
+            _ => "",
+        };
         format!("{}{} {}", step.to_char(), acc, self.mode)
     }
 
@@ -115,15 +146,15 @@ impl KeySignature {
             (Step::A, -1), // -4: Ab
             (Step::E, -1), // -3: Eb
             (Step::B, -1), // -2: Bb
-            (Step::F,  0), // -1: F
-            (Step::C,  0), //  0: C
-            (Step::G,  0), // +1: G
-            (Step::D,  0), // +2: D
-            (Step::A,  0), // +3: A
-            (Step::E,  0), // +4: E
-            (Step::B,  0), // +5: B
-            (Step::F,  1), // +6: F#
-            (Step::C,  1), // +7: C#
+            (Step::F, 0),  // -1: F
+            (Step::C, 0),  //  0: C
+            (Step::G, 0),  // +1: G
+            (Step::D, 0),  // +2: D
+            (Step::A, 0),  // +3: A
+            (Step::E, 0),  // +4: E
+            (Step::B, 0),  // +5: B
+            (Step::F, 1),  // +6: F#
+            (Step::C, 1),  // +7: C#
         ];
         let idx = (fifths.clamp(-7, 7) + 7) as usize;
         TONICS[idx].clone()
@@ -138,7 +169,10 @@ pub struct TimeSignature {
 
 impl Default for TimeSignature {
     fn default() -> Self {
-        Self { numerator: 4, denominator: 4 }
+        Self {
+            numerator: 4,
+            denominator: 4,
+        }
     }
 }
 
@@ -158,46 +192,58 @@ impl TimeSignature {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Dynamic {
-    Pppp, Ppp, Pp, P, Mp, Mf, F, Ff, Fff, Ffff,
-    Sfz, Rfz, Fz, Sf,
+    Pppp,
+    Ppp,
+    Pp,
+    P,
+    Mp,
+    Mf,
+    F,
+    Ff,
+    Fff,
+    Ffff,
+    Sfz,
+    Rfz,
+    Fz,
+    Sf,
 }
 
 impl Dynamic {
     pub fn to_musicxml_str(&self) -> &'static str {
         match self {
             Dynamic::Pppp => "pppp",
-            Dynamic::Ppp  => "ppp",
-            Dynamic::Pp   => "pp",
-            Dynamic::P    => "p",
-            Dynamic::Mp   => "mp",
-            Dynamic::Mf   => "mf",
-            Dynamic::F    => "f",
-            Dynamic::Ff   => "ff",
-            Dynamic::Fff  => "fff",
+            Dynamic::Ppp => "ppp",
+            Dynamic::Pp => "pp",
+            Dynamic::P => "p",
+            Dynamic::Mp => "mp",
+            Dynamic::Mf => "mf",
+            Dynamic::F => "f",
+            Dynamic::Ff => "ff",
+            Dynamic::Fff => "fff",
             Dynamic::Ffff => "ffff",
-            Dynamic::Sfz  => "sfz",
-            Dynamic::Rfz  => "rfz",
-            Dynamic::Fz   => "fz",
-            Dynamic::Sf   => "sf",
+            Dynamic::Sfz => "sfz",
+            Dynamic::Rfz => "rfz",
+            Dynamic::Fz => "fz",
+            Dynamic::Sf => "sf",
         }
     }
 
     pub fn to_velocity(&self) -> u8 {
         match self {
             Dynamic::Pppp => 16,
-            Dynamic::Ppp  => 24,
-            Dynamic::Pp   => 36,
-            Dynamic::P    => 48,
-            Dynamic::Mp   => 60,
-            Dynamic::Mf   => 72,
-            Dynamic::F    => 84,
-            Dynamic::Ff   => 96,
-            Dynamic::Fff  => 108,
+            Dynamic::Ppp => 24,
+            Dynamic::Pp => 36,
+            Dynamic::P => 48,
+            Dynamic::Mp => 60,
+            Dynamic::Mf => 72,
+            Dynamic::F => 84,
+            Dynamic::Ff => 96,
+            Dynamic::Fff => 108,
             Dynamic::Ffff => 120,
-            Dynamic::Sfz  => 112,
-            Dynamic::Rfz  => 104,
-            Dynamic::Fz   => 100,
-            Dynamic::Sf   => 96,
+            Dynamic::Sfz => 112,
+            Dynamic::Rfz => 104,
+            Dynamic::Fz => 100,
+            Dynamic::Sf => 96,
         }
     }
 }
@@ -294,7 +340,7 @@ impl OttavaKind {
 
     pub fn musicxml_size(&self) -> u8 {
         match self {
-            OttavaKind::Va8 | OttavaKind::Vb8   => 8,
+            OttavaKind::Va8 | OttavaKind::Vb8 => 8,
             OttavaKind::Ma15 | OttavaKind::Mb15 => 15,
         }
     }
@@ -336,19 +382,19 @@ impl ChordSymbol {
     pub fn display_text(&self) -> String {
         let kind_str = match self.kind.as_str() {
             "major" | "" => "",
-            "minor"            => "m",
-            "dominant"         => "7",
-            "major-seventh"    => "maj7",
-            "minor-seventh"    => "m7",
-            "diminished"       => "dim",
+            "minor" => "m",
+            "dominant" => "7",
+            "major-seventh" => "maj7",
+            "minor-seventh" => "m7",
+            "diminished" => "dim",
             "diminished-seventh" => "dim7",
-            "augmented"        => "aug",
+            "augmented" => "aug",
             "suspended-second" => "sus2",
             "suspended-fourth" => "sus4",
-            "half-diminished"  => "m7b5",
-            "major-sixth"      => "6",
-            "minor-sixth"      => "m6",
-            other              => other,
+            "half-diminished" => "m7b5",
+            "major-sixth" => "6",
+            "minor-sixth" => "m6",
+            other => other,
         };
         let bass_str = match &self.bass {
             Some(b) => format!("/{}", b),
@@ -364,29 +410,49 @@ mod tests {
 
     #[test]
     fn key_alter_c_major_all_natural() {
-        let key = KeySignature { fifths: 0, mode: "major".into() };
-        for step in [Step::C, Step::D, Step::E, Step::F, Step::G, Step::A, Step::B] {
+        let key = KeySignature {
+            fifths: 0,
+            mode: "major".into(),
+        };
+        for step in [
+            Step::C,
+            Step::D,
+            Step::E,
+            Step::F,
+            Step::G,
+            Step::A,
+            Step::B,
+        ] {
             assert_eq!(key.alter_for_step(&step), 0, "step {:?}", step);
         }
     }
 
     #[test]
     fn key_alter_g_major_fsharp() {
-        let key = KeySignature { fifths: 1, mode: "major".into() };
+        let key = KeySignature {
+            fifths: 1,
+            mode: "major".into(),
+        };
         assert_eq!(key.alter_for_step(&Step::F), 1);
         assert_eq!(key.alter_for_step(&Step::G), 0);
     }
 
     #[test]
     fn key_alter_f_major_bflat() {
-        let key = KeySignature { fifths: -1, mode: "major".into() };
+        let key = KeySignature {
+            fifths: -1,
+            mode: "major".into(),
+        };
         assert_eq!(key.alter_for_step(&Step::B), -1);
         assert_eq!(key.alter_for_step(&Step::C), 0);
     }
 
     #[test]
     fn key_alter_bb_major() {
-        let key = KeySignature { fifths: -2, mode: "major".into() };
+        let key = KeySignature {
+            fifths: -2,
+            mode: "major".into(),
+        };
         assert_eq!(key.alter_for_step(&Step::B), -1);
         assert_eq!(key.alter_for_step(&Step::E), -1);
         assert_eq!(key.alter_for_step(&Step::A), 0);
@@ -394,7 +460,10 @@ mod tests {
 
     #[test]
     fn key_contains_pitch_g_major() {
-        let key = KeySignature { fifths: 1, mode: "major".into() };
+        let key = KeySignature {
+            fifths: 1,
+            mode: "major".into(),
+        };
         // In-key: G, A, B, C, D, E, F# (alter=1)
         assert!(key.contains_pitch(&Pitch::new(Step::G, 4)));
         assert!(key.contains_pitch(&Pitch::new(Step::D, 4)));
@@ -405,25 +474,37 @@ mod tests {
 
     #[test]
     fn key_display_name_c_major() {
-        let key = KeySignature { fifths: 0, mode: "major".into() };
+        let key = KeySignature {
+            fifths: 0,
+            mode: "major".into(),
+        };
         assert_eq!(key.display_name(), "C major");
     }
 
     #[test]
     fn key_display_name_bb_major() {
-        let key = KeySignature { fifths: -2, mode: "major".into() };
+        let key = KeySignature {
+            fifths: -2,
+            mode: "major".into(),
+        };
         assert_eq!(key.display_name(), "Bb major");
     }
 
     #[test]
     fn key_display_name_fsharp_minor() {
-        let key = KeySignature { fifths: 3, mode: "minor".into() };
+        let key = KeySignature {
+            fifths: 3,
+            mode: "minor".into(),
+        };
         assert_eq!(key.display_name(), "F# minor");
     }
 
     #[test]
     fn key_tonic_d_major() {
-        let key = KeySignature { fifths: 2, mode: "major".into() };
+        let key = KeySignature {
+            fifths: 2,
+            mode: "major".into(),
+        };
         let (step, alter) = key.tonic();
         assert_eq!(step, Step::D);
         assert_eq!(alter, 0);
@@ -432,7 +513,10 @@ mod tests {
     #[test]
     fn key_tonic_a_minor() {
         // A minor = relative minor of C major (fifths=0)
-        let key = KeySignature { fifths: 0, mode: "minor".into() };
+        let key = KeySignature {
+            fifths: 0,
+            mode: "minor".into(),
+        };
         let (step, alter) = key.tonic();
         assert_eq!(step, Step::A);
         assert_eq!(alter, 0);
@@ -440,25 +524,39 @@ mod tests {
 
     #[test]
     fn chord_display_major() {
-        let c = ChordSymbol { root: "C".into(), kind: "major".into(), bass: None };
+        let c = ChordSymbol {
+            root: "C".into(),
+            kind: "major".into(),
+            bass: None,
+        };
         assert_eq!(c.display_text(), "C");
     }
 
     #[test]
     fn chord_display_minor_seventh_slash() {
-        let c = ChordSymbol { root: "D".into(), kind: "minor-seventh".into(), bass: Some("F".into()) };
+        let c = ChordSymbol {
+            root: "D".into(),
+            kind: "minor-seventh".into(),
+            bass: Some("F".into()),
+        };
         assert_eq!(c.display_text(), "Dm7/F");
     }
 
     #[test]
     fn time_sig_total_beats_three_four() {
-        let ts = TimeSignature { numerator: 3, denominator: 4 };
+        let ts = TimeSignature {
+            numerator: 3,
+            denominator: 4,
+        };
         assert!((ts.total_beats() - 3.0).abs() < 1e-9);
     }
 
     #[test]
     fn time_sig_total_beats_six_eight() {
-        let ts = TimeSignature { numerator: 6, denominator: 8 };
+        let ts = TimeSignature {
+            numerator: 6,
+            denominator: 8,
+        };
         assert!((ts.total_beats() - 3.0).abs() < 1e-9);
     }
 

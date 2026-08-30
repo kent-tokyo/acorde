@@ -7,7 +7,8 @@
 #![allow(dead_code)]
 
 use acorde_core::{
-    compute_beams, Clef, Duration, KeySignature, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature, TupletInfo,
+    Clef, Duration, KeySignature, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature,
+    TupletInfo, compute_beams,
 };
 
 fn note(step: Step, octave: i8, dur: Duration) -> Note {
@@ -36,8 +37,14 @@ fn satb_score(
     bass: Vec<Note>,
 ) -> Score {
     let mut score = Score::default();
-    score.settings.time_signature = TimeSignature { numerator: 4, denominator: 4 };
-    score.settings.key_signature = KeySignature { fifths, mode: mode.to_string() };
+    score.settings.time_signature = TimeSignature {
+        numerator: 4,
+        denominator: 4,
+    };
+    score.settings.key_signature = KeySignature {
+        fifths,
+        mode: mode.to_string(),
+    };
 
     let mut part = Part::new("Chorale", "Ch.");
 
@@ -64,11 +71,32 @@ fn satb_score(
 /// C major, I - ii6 - V7 - I, quarter notes throughout. No accidentals.
 pub fn satb_major() -> Score {
     satb_score(
-        0, "major",
-        vec![quarter(Step::C, 5), quarter(Step::D, 5), quarter(Step::B, 4), quarter(Step::C, 5)],
-        vec![quarter(Step::G, 4), quarter(Step::F, 4), quarter(Step::G, 4), quarter(Step::E, 4)],
-        vec![quarter(Step::E, 4), quarter(Step::D, 4), quarter(Step::D, 4), quarter(Step::C, 4)],
-        vec![quarter(Step::C, 3), quarter(Step::G, 2), quarter(Step::G, 2), quarter(Step::C, 3)],
+        0,
+        "major",
+        vec![
+            quarter(Step::C, 5),
+            quarter(Step::D, 5),
+            quarter(Step::B, 4),
+            quarter(Step::C, 5),
+        ],
+        vec![
+            quarter(Step::G, 4),
+            quarter(Step::F, 4),
+            quarter(Step::G, 4),
+            quarter(Step::E, 4),
+        ],
+        vec![
+            quarter(Step::E, 4),
+            quarter(Step::D, 4),
+            quarter(Step::D, 4),
+            quarter(Step::C, 4),
+        ],
+        vec![
+            quarter(Step::C, 3),
+            quarter(Step::G, 2),
+            quarter(Step::G, 2),
+            quarter(Step::C, 3),
+        ],
     )
 }
 
@@ -77,11 +105,32 @@ pub fn satb_major() -> Score {
 /// accidental beyond what the key signature implies.
 pub fn satb_minor() -> Score {
     satb_score(
-        1, "minor",
-        vec![quarter(Step::E, 5), quarter(Step::E, 5), altered(Step::D, 5, Duration::Quarter, 1), quarter(Step::E, 5)],
-        vec![quarter(Step::B, 4), quarter(Step::A, 4), quarter(Step::B, 4), quarter(Step::B, 4)],
-        vec![quarter(Step::G, 4), quarter(Step::A, 4), quarter(Step::F, 4), quarter(Step::G, 4)],
-        vec![quarter(Step::E, 3), quarter(Step::A, 2), quarter(Step::B, 2), quarter(Step::E, 3)],
+        1,
+        "minor",
+        vec![
+            quarter(Step::E, 5),
+            quarter(Step::E, 5),
+            altered(Step::D, 5, Duration::Quarter, 1),
+            quarter(Step::E, 5),
+        ],
+        vec![
+            quarter(Step::B, 4),
+            quarter(Step::A, 4),
+            quarter(Step::B, 4),
+            quarter(Step::B, 4),
+        ],
+        vec![
+            quarter(Step::G, 4),
+            quarter(Step::A, 4),
+            quarter(Step::F, 4),
+            quarter(Step::G, 4),
+        ],
+        vec![
+            quarter(Step::E, 3),
+            quarter(Step::A, 2),
+            quarter(Step::B, 2),
+            quarter(Step::E, 3),
+        ],
     )
 }
 
@@ -89,11 +138,32 @@ pub fn satb_minor() -> Score {
 /// exercises a chromatic accidental (F#) that is not implied by the key signature.
 pub fn satb_secondary_dominant() -> Score {
     satb_score(
-        0, "major",
-        vec![altered(Step::F, 5, Duration::Quarter, 1), quarter(Step::G, 5), quarter(Step::D, 5), quarter(Step::D, 5)],
-        vec![quarter(Step::D, 5), quarter(Step::D, 5), quarter(Step::B, 4), quarter(Step::B, 4)],
-        vec![quarter(Step::A, 4), quarter(Step::G, 4), quarter(Step::G, 4), quarter(Step::G, 4)],
-        vec![quarter(Step::D, 3), quarter(Step::G, 2), quarter(Step::G, 2), quarter(Step::G, 2)],
+        0,
+        "major",
+        vec![
+            altered(Step::F, 5, Duration::Quarter, 1),
+            quarter(Step::G, 5),
+            quarter(Step::D, 5),
+            quarter(Step::D, 5),
+        ],
+        vec![
+            quarter(Step::D, 5),
+            quarter(Step::D, 5),
+            quarter(Step::B, 4),
+            quarter(Step::B, 4),
+        ],
+        vec![
+            quarter(Step::A, 4),
+            quarter(Step::G, 4),
+            quarter(Step::G, 4),
+            quarter(Step::G, 4),
+        ],
+        vec![
+            quarter(Step::D, 3),
+            quarter(Step::G, 2),
+            quarter(Step::G, 2),
+            quarter(Step::G, 2),
+        ],
     )
 }
 
@@ -112,11 +182,22 @@ pub fn satb_dotted_and_rest() -> Score {
     let rest = Note::rest(Duration::Quarter);
 
     satb_score(
-        0, "major",
+        0,
+        "major",
         vec![dq1, e1, dq2, e2],
         vec![dotted_half, rest],
-        vec![quarter(Step::C, 4), quarter(Step::C, 4), quarter(Step::C, 4), quarter(Step::C, 4)],
-        vec![quarter(Step::C, 3), quarter(Step::C, 3), quarter(Step::C, 3), quarter(Step::C, 3)],
+        vec![
+            quarter(Step::C, 4),
+            quarter(Step::C, 4),
+            quarter(Step::C, 4),
+            quarter(Step::C, 4),
+        ],
+        vec![
+            quarter(Step::C, 3),
+            quarter(Step::C, 3),
+            quarter(Step::C, 3),
+            quarter(Step::C, 3),
+        ],
     )
 }
 
@@ -127,10 +208,23 @@ pub fn satb_dotted_and_rest() -> Score {
 // category so a golden-file diff or a geometry assertion failure points at one cause.
 
 /// Build a single-part, single-staff score with up to 2 voices in one measure.
-pub fn single_staff_score(clef: Clef, fifths: i8, num: u8, den: u8, voice0: Vec<Note>, voice1: Vec<Note>) -> Score {
+pub fn single_staff_score(
+    clef: Clef,
+    fifths: i8,
+    num: u8,
+    den: u8,
+    voice0: Vec<Note>,
+    voice1: Vec<Note>,
+) -> Score {
     let mut score = Score::default();
-    score.settings.time_signature = TimeSignature { numerator: num, denominator: den };
-    score.settings.key_signature = KeySignature { fifths, mode: "major".to_string() };
+    score.settings.time_signature = TimeSignature {
+        numerator: num,
+        denominator: den,
+    };
+    score.settings.key_signature = KeySignature {
+        fifths,
+        mode: "major".to_string(),
+    };
     let mut part = Part::new("T", "T");
     let mut staff = Staff::new(clef);
     let mut m = Measure::empty(num, den);
@@ -146,7 +240,10 @@ pub fn single_staff_score(clef: Clef, fifths: i8, num: u8, den: u8, voice0: Vec<
 /// Quarter + eighth notes (with flags), one voice, C major 4/4.
 pub fn vr_quarter_eighth_notes() -> Score {
     single_staff_score(
-        Clef::Treble, 0, 4, 4,
+        Clef::Treble,
+        0,
+        4,
+        4,
         vec![
             quarter(Step::C, 5),
             note(Step::D, 5, Duration::Eighth),
@@ -163,7 +260,10 @@ pub fn vr_quarter_eighth_notes() -> Score {
 /// to actually exercise the glyph), flat, double-sharp, double-flat.
 pub fn vr_accidentals() -> Score {
     single_staff_score(
-        Clef::Treble, 0, 6, 4,
+        Clef::Treble,
+        0,
+        6,
+        4,
         vec![
             altered(Step::F, 4, Duration::Quarter, 1),
             note(Step::F, 4, Duration::Quarter), // natural, cancels the F# above
@@ -181,14 +281,29 @@ pub fn vr_chord() -> Score {
     let mut chord = quarter(Step::C, 5);
     chord.pitches.push(Pitch::new(Step::E, 5));
     chord.pitches.push(Pitch::new(Step::G, 5));
-    single_staff_score(Clef::Treble, 0, 4, 4, vec![chord, quarter(Step::C, 5), quarter(Step::C, 5), quarter(Step::C, 5)], vec![])
+    single_staff_score(
+        Clef::Treble,
+        0,
+        4,
+        4,
+        vec![
+            chord,
+            quarter(Step::C, 5),
+            quarter(Step::C, 5),
+            quarter(Step::C, 5),
+        ],
+        vec![],
+    )
 }
 
 /// One rest of each required duration: half, quarter, quarter, eighth, eighth
 /// (7 beats — a whole rest would fill an entire measure alone, so it gets its own fixture).
 pub fn vr_rests() -> Score {
     single_staff_score(
-        Clef::Treble, 0, 6, 4,
+        Clef::Treble,
+        0,
+        6,
+        4,
         vec![
             Note::rest(Duration::Half),
             Note::rest(Duration::Quarter),
@@ -202,20 +317,38 @@ pub fn vr_rests() -> Score {
 
 /// A whole rest alone (fills a full 4/4 measure).
 pub fn vr_whole_rest() -> Score {
-    single_staff_score(Clef::Treble, 0, 4, 4, vec![Note::rest(Duration::Whole)], vec![])
+    single_staff_score(
+        Clef::Treble,
+        0,
+        4,
+        4,
+        vec![Note::rest(Duration::Whole)],
+        vec![],
+    )
 }
 
 /// 3 measures of quarter notes — exercises barline placement and measure spacing.
 pub fn vr_multi_measure() -> Score {
     let mut score = Score::default();
-    score.settings.time_signature = TimeSignature { numerator: 4, denominator: 4 };
-    score.settings.key_signature = KeySignature { fifths: 0, mode: "major".to_string() };
+    score.settings.time_signature = TimeSignature {
+        numerator: 4,
+        denominator: 4,
+    };
+    score.settings.key_signature = KeySignature {
+        fifths: 0,
+        mode: "major".to_string(),
+    };
     let mut part = Part::new("T", "T");
     let mut staff = Staff::new(Clef::Treble);
     for i in 0..3 {
         let mut m = Measure::empty(4, 4);
         m.number = i + 1;
-        m.voices[0] = vec![quarter(Step::C, 5), quarter(Step::D, 5), quarter(Step::E, 5), quarter(Step::F, 5)];
+        m.voices[0] = vec![
+            quarter(Step::C, 5),
+            quarter(Step::D, 5),
+            quarter(Step::E, 5),
+            quarter(Step::F, 5),
+        ];
         staff.measures.push(m);
     }
     part.staves.push(staff);
@@ -226,9 +359,22 @@ pub fn vr_multi_measure() -> Score {
 /// Two simultaneous voices on one staff — voice 0 must stem up, voice 1 must stem down.
 pub fn vr_stem_directions() -> Score {
     single_staff_score(
-        Clef::Treble, 0, 4, 4,
-        vec![quarter(Step::C, 5), quarter(Step::C, 5), quarter(Step::C, 5), quarter(Step::C, 5)],
-        vec![quarter(Step::E, 4), quarter(Step::E, 4), quarter(Step::E, 4), quarter(Step::E, 4)],
+        Clef::Treble,
+        0,
+        4,
+        4,
+        vec![
+            quarter(Step::C, 5),
+            quarter(Step::C, 5),
+            quarter(Step::C, 5),
+            quarter(Step::C, 5),
+        ],
+        vec![
+            quarter(Step::E, 4),
+            quarter(Step::E, 4),
+            quarter(Step::E, 4),
+            quarter(Step::E, 4),
+        ],
     )
 }
 
@@ -236,7 +382,10 @@ pub fn vr_stem_directions() -> Score {
 /// time signature, matching what a real `acorde-core` -> `acorde-layout` pipeline would do —
 /// this crate's tests never invent beam grouping themselves.
 fn beamed(mut notes: Vec<Note>, num: u8, den: u8) -> Vec<Note> {
-    let ts = TimeSignature { numerator: num, denominator: den };
+    let ts = TimeSignature {
+        numerator: num,
+        denominator: den,
+    };
     let states = compute_beams(&notes, &ts);
     for (n, s) in notes.iter_mut().zip(states) {
         n.beam = s;
@@ -260,7 +409,8 @@ pub fn vr_beam_sloped() -> Score {
             note(Step::E, 4, Duration::Eighth),
             note(Step::F, 5, Duration::Eighth),
         ],
-        4, 4,
+        4,
+        4,
     );
     single_staff_score(Clef::Treble, 0, 4, 4, notes, vec![])
 }
@@ -275,21 +425,33 @@ pub fn vr_beam_mixed_durations() -> Score {
             note(Step::E, 5, Duration::Sixteenth),
             note(Step::F, 5, Duration::Eighth),
         ],
-        4, 4,
+        4,
+        4,
     );
     single_staff_score(Clef::Treble, 0, 4, 4, notes, vec![])
 }
 
 fn tuplet(mut notes: Vec<Note>, actual_notes: u8, normal_notes: u8) -> Vec<Note> {
     for n in &mut notes {
-        n.tuplet = Some(TupletInfo { actual_notes, normal_notes });
+        n.tuplet = Some(TupletInfo {
+            actual_notes,
+            normal_notes,
+        });
     }
     notes
 }
 
 /// Unbeamed quarter-note triplet (3 in the time of 2) — a full bracket + "3".
 pub fn vr_tuplet_triplet_unbeamed() -> Score {
-    let notes = tuplet(vec![quarter(Step::C, 5), quarter(Step::D, 5), quarter(Step::E, 5)], 3, 2);
+    let notes = tuplet(
+        vec![
+            quarter(Step::C, 5),
+            quarter(Step::D, 5),
+            quarter(Step::E, 5),
+        ],
+        3,
+        2,
+    );
     single_staff_score(Clef::Treble, 0, 4, 4, notes, vec![])
 }
 
@@ -306,7 +468,13 @@ pub fn vr_tuplet_triplet_beamed() -> Score {
     // boundary, splitting the beam 2+1; as a 3:2 triplet they span exactly 1 beat and stay
     // in one group, which is the whole point of this fixture.
     let mut notes = tuplet(notes, 3, 2);
-    let states = compute_beams(&notes, &TimeSignature { numerator: 4, denominator: 4 });
+    let states = compute_beams(
+        &notes,
+        &TimeSignature {
+            numerator: 4,
+            denominator: 4,
+        },
+    );
     for (n, s) in notes.iter_mut().zip(states) {
         n.beam = s;
     }
@@ -315,7 +483,15 @@ pub fn vr_tuplet_triplet_beamed() -> Score {
 
 /// Triplet containing a rest — the bracket must still span across it.
 pub fn vr_tuplet_with_rest() -> Score {
-    let notes = tuplet(vec![quarter(Step::C, 5), Note::rest(Duration::Quarter), quarter(Step::E, 5)], 3, 2);
+    let notes = tuplet(
+        vec![
+            quarter(Step::C, 5),
+            Note::rest(Duration::Quarter),
+            quarter(Step::E, 5),
+        ],
+        3,
+        2,
+    );
     single_staff_score(Clef::Treble, 0, 4, 4, notes, vec![])
 }
 
@@ -331,8 +507,12 @@ pub fn extract_elements<'a>(svg: &'a str, class: &str) -> Vec<&'a str> {
     let mut rest = svg;
     while let Some(idx) = rest.find(&class_needle) {
         let before = &rest[..idx];
-        let tag_start = before.rfind('<').expect("class attribute must be inside a tag");
-        let tag_end = rest[idx..].find("/>").map(|e| idx + e + 2)
+        let tag_start = before
+            .rfind('<')
+            .expect("class attribute must be inside a tag");
+        let tag_end = rest[idx..]
+            .find("/>")
+            .map(|e| idx + e + 2)
             .unwrap_or_else(|| rest[idx..].find('>').map(|e| idx + e + 1).unwrap());
         out.push(&rest[tag_start..tag_end]);
         rest = &rest[tag_end..];
@@ -344,7 +524,12 @@ pub fn extract_elements<'a>(svg: &'a str, class: &str) -> Vec<&'a str> {
 /// `<ellipse class="acorde-notehead" cx="1.00" cy="2.00" .../>`.
 pub fn attr_f32(element: &str, attr: &str) -> f32 {
     let needle = format!(r#"{attr}=""#);
-    let start = element.find(&needle).unwrap_or_else(|| panic!("attribute {attr} not found in {element}")) + needle.len();
+    let start = element
+        .find(&needle)
+        .unwrap_or_else(|| panic!("attribute {attr} not found in {element}"))
+        + needle.len();
     let end = element[start..].find('"').unwrap() + start;
-    element[start..end].parse().unwrap_or_else(|_| panic!("attribute {attr} not numeric in {element}"))
+    element[start..end]
+        .parse()
+        .unwrap_or_else(|_| panic!("attribute {attr} not numeric in {element}"))
 }

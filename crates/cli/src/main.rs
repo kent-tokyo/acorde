@@ -1,9 +1,12 @@
-use std::path::{Path, PathBuf};
-use clap::{Parser, Subcommand};
 use acorde_core::Score;
+use clap::{Parser, Subcommand};
+use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
-#[command(name = "score", about = "Music score format conversion and inspection tool")]
+#[command(
+    name = "score",
+    about = "Music score format conversion and inspection tool"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -43,10 +46,14 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
     let result = match &cli.command {
-        Commands::Convert { input, output }          => cmd_convert(input, output),
-        Commands::Info    { input }                  => cmd_info(input),
-        Commands::Validate { input }                 => cmd_validate(input),
-        Commands::Extract { input, output, part }    => cmd_extract(input, output, *part),
+        Commands::Convert { input, output } => cmd_convert(input, output),
+        Commands::Info { input } => cmd_info(input),
+        Commands::Validate { input } => cmd_validate(input),
+        Commands::Extract {
+            input,
+            output,
+            part,
+        } => cmd_extract(input, output, *part),
     };
     if let Err(e) = result {
         eprintln!("error: {e}");
@@ -57,12 +64,12 @@ fn main() {
 // ── parse ─────────────────────────────────────────────────────────────────────
 
 fn parse_score(path: &Path) -> Result<Score, String> {
-    let ext = path.extension()
+    let ext = path
+        .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_ascii_lowercase();
-    let data = std::fs::read(path)
-        .map_err(|e| format!("cannot read '{}': {e}", path.display()))?;
+    let data = std::fs::read(path).map_err(|e| format!("cannot read '{}': {e}", path.display()))?;
 
     match ext.as_str() {
         "xml" | "musicxml" => {
@@ -85,7 +92,8 @@ fn parse_score(path: &Path) -> Result<Score, String> {
 // ── convert ───────────────────────────────────────────────────────────────────
 
 fn write_score(score: &Score, output: &Path) -> Result<(), String> {
-    let ext = output.extension()
+    let ext = output
+        .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_ascii_lowercase();
@@ -121,7 +129,10 @@ fn cmd_info(input: &Path) -> Result<(), String> {
     println!("title:    {}", score.metadata.title);
     println!("parts:    {}", stats.part_count);
     println!("measures: {}", stats.measure_count);
-    println!("notes:    {} (rests: {})", stats.note_count, stats.rest_count);
+    println!(
+        "notes:    {} (rests: {})",
+        stats.note_count, stats.rest_count
+    );
     println!("tempo:    {} BPM", score.settings.tempo_bpm);
     println!("time:     {}/{}", ts.numerator, ts.denominator);
     println!("duration: {:.1}s (estimate)", stats.estimated_duration_secs);
@@ -138,17 +149,31 @@ fn cmd_validate(input: &Path) -> Result<(), String> {
     let report = acorde_core::validate(&score);
     for w in &report.warnings {
         match w {
-            acorde_core::ValidationWarning::IncompleteBar { part, staff, measure, expected_beats, actual_beats } =>
-                eprintln!(
-                    "warning: part {} staff {} measure {}: incomplete bar ({:.2}/{:.2} beats)",
-                    part + 1, staff + 1, measure + 1, actual_beats, expected_beats
-                ),
-            acorde_core::ValidationWarning::OverlappingVolta { part, staff } =>
-                eprintln!("warning: part {} staff {}: overlapping volta brackets", part + 1, staff + 1),
-            acorde_core::ValidationWarning::EmptyPart { part } =>
-                eprintln!("warning: part {} has no notes", part + 1),
-            acorde_core::ValidationWarning::DuplicateRehearsalMark { mark } =>
-                eprintln!("warning: rehearsal mark '{}' appears more than once", mark),
+            acorde_core::ValidationWarning::IncompleteBar {
+                part,
+                staff,
+                measure,
+                expected_beats,
+                actual_beats,
+            } => eprintln!(
+                "warning: part {} staff {} measure {}: incomplete bar ({:.2}/{:.2} beats)",
+                part + 1,
+                staff + 1,
+                measure + 1,
+                actual_beats,
+                expected_beats
+            ),
+            acorde_core::ValidationWarning::OverlappingVolta { part, staff } => eprintln!(
+                "warning: part {} staff {}: overlapping volta brackets",
+                part + 1,
+                staff + 1
+            ),
+            acorde_core::ValidationWarning::EmptyPart { part } => {
+                eprintln!("warning: part {} has no notes", part + 1)
+            }
+            acorde_core::ValidationWarning::DuplicateRehearsalMark { mark } => {
+                eprintln!("warning: rehearsal mark '{}' appears more than once", mark)
+            }
         }
     }
     if report.errors.is_empty() {
@@ -157,17 +182,39 @@ fn cmd_validate(input: &Path) -> Result<(), String> {
     } else {
         for e in &report.errors {
             match e {
-                acorde_core::ValidationError::BeatCount { part, staff, measure, voice, expected_beats, found_beats } =>
-                    eprintln!(
-                        "part {} staff {} measure {} voice {}: expected {:.2} beats, found {:.2}",
-                        part + 1, staff + 1, measure + 1, voice + 1, expected_beats, found_beats
-                    ),
-                acorde_core::ValidationError::OutOfRange { part_index, staff_index, measure_index, note_index, pitch_midi, instrument_range } =>
-                    eprintln!(
-                        "part {} staff {} measure {} note {}: pitch MIDI {} out of instrument range {}–{}",
-                        part_index + 1, staff_index + 1, measure_index + 1, note_index + 1,
-                        pitch_midi, instrument_range.0, instrument_range.1
-                    ),
+                acorde_core::ValidationError::BeatCount {
+                    part,
+                    staff,
+                    measure,
+                    voice,
+                    expected_beats,
+                    found_beats,
+                } => eprintln!(
+                    "part {} staff {} measure {} voice {}: expected {:.2} beats, found {:.2}",
+                    part + 1,
+                    staff + 1,
+                    measure + 1,
+                    voice + 1,
+                    expected_beats,
+                    found_beats
+                ),
+                acorde_core::ValidationError::OutOfRange {
+                    part_index,
+                    staff_index,
+                    measure_index,
+                    note_index,
+                    pitch_midi,
+                    instrument_range,
+                } => eprintln!(
+                    "part {} staff {} measure {} note {}: pitch MIDI {} out of instrument range {}–{}",
+                    part_index + 1,
+                    staff_index + 1,
+                    measure_index + 1,
+                    note_index + 1,
+                    pitch_midi,
+                    instrument_range.0,
+                    instrument_range.1
+                ),
             }
         }
         std::process::exit(1);
@@ -178,11 +225,13 @@ fn cmd_validate(input: &Path) -> Result<(), String> {
 
 fn cmd_extract(input: &Path, output: &Path, part_index: usize) -> Result<(), String> {
     let score = parse_score(input)?;
-    let extracted = score.extract_part(part_index)
-        .ok_or_else(|| format!(
+    let extracted = score.extract_part(part_index).ok_or_else(|| {
+        format!(
             "part index {} out of range (score has {} part(s))",
-            part_index, score.parts.len()
-        ))?;
+            part_index,
+            score.parts.len()
+        )
+    })?;
     write_score(&extracted, output)?;
     println!("extracted part {} to '{}'", part_index, output.display());
     Ok(())

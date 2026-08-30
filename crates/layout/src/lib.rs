@@ -4,8 +4,8 @@
 
 mod engine;
 
-pub use engine::compute_layout;
 pub use acorde_core::NoteAddr;
+pub use engine::compute_layout;
 
 use acorde_core::{HairpinKind, OttavaKind};
 use serde::{Deserialize, Serialize};
@@ -28,18 +28,39 @@ pub struct LayoutConfig {
 
 impl Default for LayoutConfig {
     fn default() -> Self {
-        Self { measures_per_row: 4, concert_pitch: false, first_row_measures: None }
+        Self {
+            measures_per_row: 4,
+            concert_pitch: false,
+            first_row_measures: None,
+        }
     }
 }
 
 /// A resolved span between two note addresses.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SpanMark {
-    Hairpin { kind: HairpinKind, start: NoteAddr, end: NoteAddr },
-    Ottava  { kind: OttavaKind,  start: NoteAddr, end: NoteAddr },
-    Pedal   {                    start: NoteAddr, end: NoteAddr },
-    Slur      {                    start: NoteAddr, end: NoteAddr },
-    TrillLine {                    start: NoteAddr, end: NoteAddr },
+    Hairpin {
+        kind: HairpinKind,
+        start: NoteAddr,
+        end: NoteAddr,
+    },
+    Ottava {
+        kind: OttavaKind,
+        start: NoteAddr,
+        end: NoteAddr,
+    },
+    Pedal {
+        start: NoteAddr,
+        end: NoteAddr,
+    },
+    Slur {
+        start: NoteAddr,
+        end: NoteAddr,
+    },
+    TrillLine {
+        start: NoteAddr,
+        end: NoteAddr,
+    },
 }
 
 /// One horizontal row (system) of measures.

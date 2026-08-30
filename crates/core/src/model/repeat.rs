@@ -14,7 +14,9 @@ use super::score::Score;
 /// Limitations: single-level repeats; during a D.C./D.S. return pass, all
 /// barline repeats and voltas are ignored (safe linear fallback).
 pub fn measure_sequence(score: &Score) -> Vec<usize> {
-    let measures = match score.parts.first()
+    let measures = match score
+        .parts
+        .first()
         .and_then(|p| p.staves.first())
         .map(|s| &s.measures)
     {
@@ -26,11 +28,11 @@ pub fn measure_sequence(score: &Score) -> Vec<usize> {
 
     // Pre-scan: locate Fine, Segno, and Coda markers.
     let mut segno_idx: Option<usize> = None;
-    let mut coda_idx:  Option<usize> = None;
+    let mut coda_idx: Option<usize> = None;
     for (j, m) in measures.iter().enumerate() {
         match m.navigation.as_deref() {
             Some("Segno") => segno_idx = Some(j),
-            Some("Coda")  => coda_idx  = Some(j),
+            Some("Coda") => coda_idx = Some(j),
             _ => {}
         }
     }
@@ -41,8 +43,8 @@ pub fn measure_sequence(score: &Score) -> Vec<usize> {
     let mut volta_pass: u8 = 1;
     // Navigation-pass state (D.C./D.S. return).
     let mut in_nav_pass = false;
-    let mut nav_fine    = false; // stop at Fine
-    let mut nav_coda    = false; // jump to Coda at ToCoda
+    let mut nav_fine = false; // stop at Fine
+    let mut nav_coda = false; // jump to Coda at ToCoda
 
     while i < n {
         let m = &measures[i];
@@ -91,18 +93,18 @@ pub fn measure_sequence(score: &Score) -> Vec<usize> {
         } else {
             // Check for D.C./D.S. marks.
             let jump: Option<(usize, bool, bool)> = match m.navigation.as_deref() {
-                Some("DaCapo")         => Some((0, false, false)),
-                Some("DaCapoAlFine")   => Some((0, true,  false)),
-                Some("DaCapoAlCoda")   => Some((0, false, true)),
-                Some("DalSegno")       => segno_idx.map(|s| (s, false, false)),
-                Some("DalSegnoAlFine") => segno_idx.map(|s| (s, true,  false)),
+                Some("DaCapo") => Some((0, false, false)),
+                Some("DaCapoAlFine") => Some((0, true, false)),
+                Some("DaCapoAlCoda") => Some((0, false, true)),
+                Some("DalSegno") => segno_idx.map(|s| (s, false, false)),
+                Some("DalSegnoAlFine") => segno_idx.map(|s| (s, true, false)),
                 Some("DalSegnoAlCoda") => segno_idx.map(|s| (s, false, true)),
                 _ => None,
             };
             if let Some((target, fine, coda)) = jump {
                 in_nav_pass = true;
-                nav_fine    = fine;
-                nav_coda    = coda;
+                nav_fine = fine;
+                nav_coda = coda;
                 i = target;
                 continue;
             }
@@ -139,8 +141,8 @@ pub fn measure_sequence(score: &Score) -> Vec<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::score::{Measure, Score, VoltaBracket};
     use crate::model::notation::Barline;
+    use crate::model::score::{Measure, Score, VoltaBracket};
 
     fn score_with_measures(measures: Vec<Measure>) -> Score {
         let mut score = Score::new("T", 120, 4, 4, 0, 0);
@@ -185,10 +187,16 @@ mod tests {
         m0.barline_left = Barline::RepeatStart;
         let m1 = plain(2);
         let mut m2 = plain(3);
-        m2.volta = Some(VoltaBracket { number: 1, kind: "begin_end".into() });
+        m2.volta = Some(VoltaBracket {
+            number: 1,
+            kind: "begin_end".into(),
+        });
         m2.barline_right = Barline::RepeatEnd;
         let mut m3 = plain(4);
-        m3.volta = Some(VoltaBracket { number: 2, kind: "begin_end".into() });
+        m3.volta = Some(VoltaBracket {
+            number: 2,
+            kind: "begin_end".into(),
+        });
 
         let score = score_with_measures(vec![m0, m1, m2, m3]);
         assert_eq!(measure_sequence(&score), vec![0, 1, 2, 0, 1, 3]);
@@ -200,10 +208,16 @@ mod tests {
         m0.barline_left = Barline::RepeatStart;
         let m1 = plain(2);
         let mut m2 = plain(3);
-        m2.volta = Some(VoltaBracket { number: 1, kind: "begin_end".into() });
+        m2.volta = Some(VoltaBracket {
+            number: 1,
+            kind: "begin_end".into(),
+        });
         m2.barline_right = Barline::RepeatEnd;
         let mut m3 = plain(4);
-        m3.volta = Some(VoltaBracket { number: 2, kind: "begin_end".into() });
+        m3.volta = Some(VoltaBracket {
+            number: 2,
+            kind: "begin_end".into(),
+        });
         let m4 = plain(5);
 
         let score = score_with_measures(vec![m0, m1, m2, m3, m4]);
@@ -219,9 +233,7 @@ mod tests {
     fn da_capo_jumps_to_start() {
         // [A][B][C D.C.] → A B C A B C ...
         // The second D.C. encounter is ignored (in_nav_pass=true) so we play A B C straight.
-        let score = score_with_measures(vec![
-            plain(1), plain(2), with_nav(3, "DaCapo"),
-        ]);
+        let score = score_with_measures(vec![plain(1), plain(2), with_nav(3, "DaCapo")]);
         // Pass: 0,1,2 → D.C. → in_nav_pass, jump to 0 → 0,1,2 → i=3 → done
         assert_eq!(measure_sequence(&score), vec![0, 1, 2, 0, 1, 2]);
     }
@@ -231,9 +243,7 @@ mod tests {
         // [A Fine][B][C D.C.alFine] → A B C A (stop at Fine=0)
         let mut m0 = plain(1);
         m0.navigation = Some("Fine".into());
-        let score = score_with_measures(vec![
-            m0, plain(2), with_nav(3, "DaCapoAlFine"),
-        ]);
+        let score = score_with_measures(vec![m0, plain(2), with_nav(3, "DaCapoAlFine")]);
         // Pass: 0,1,2 → D.C.alFine → jump to 0 → push 0 → Fine found → break
         assert_eq!(measure_sequence(&score), vec![0, 1, 2, 0]);
     }
@@ -250,7 +260,13 @@ mod tests {
         let mut m5 = plain(6);
         m5.navigation = Some("Coda".into());
         let score = score_with_measures(vec![
-            plain(1), m1, plain(3), m3, with_nav(5, "DalSegnoAlCoda"), m5, plain(7),
+            plain(1),
+            m1,
+            plain(3),
+            m3,
+            with_nav(5, "DalSegnoAlCoda"),
+            m5,
+            plain(7),
         ]);
         assert_eq!(measure_sequence(&score), vec![0, 1, 2, 3, 4, 1, 2, 3, 5, 6]);
     }

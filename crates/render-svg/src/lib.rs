@@ -32,7 +32,7 @@ mod render;
 mod tuplets;
 
 use acorde_core::Score;
-use acorde_layout::{compute_layout, LayoutConfig, LayoutResult};
+use acorde_layout::{LayoutConfig, LayoutResult, compute_layout};
 use serde::{Deserialize, Serialize};
 
 /// Options controlling SVG output. All fields have defaults — safe to deserialize from
@@ -78,7 +78,12 @@ pub struct AddressBounds {
 
 impl Default for SvgRenderOptions {
     fn default() -> Self {
-        Self { width: 900.0, staff_size: 24.0, measures_per_system: 4, interactive: true }
+        Self {
+            width: 900.0,
+            staff_size: 24.0,
+            measures_per_system: 4,
+            interactive: true,
+        }
     }
 }
 
@@ -110,9 +115,15 @@ impl std::fmt::Display for RenderError {
             RenderError::InvalidRow { row } => write!(f, "layout row {row} does not exist"),
             RenderError::InvalidLayout { reason } => write!(f, "invalid layout: {reason}"),
             RenderError::InvalidOptions { reason } => write!(f, "invalid render options: {reason}"),
-            RenderError::UnsupportedClef => write!(f, "unsupported clef (percussion has no staff-position mapping)"),
+            RenderError::UnsupportedClef => write!(
+                f,
+                "unsupported clef (percussion has no staff-position mapping)"
+            ),
             RenderError::UnsupportedAccidental { alter } => {
-                write!(f, "unsupported accidental alter={alter} (supported range is -2..=2)")
+                write!(
+                    f,
+                    "unsupported accidental alter={alter} (supported range is -2..=2)"
+                )
             }
         }
     }
@@ -156,7 +167,13 @@ pub fn render_svg_row(
     options: &SvgRenderOptions,
 ) -> Result<String, RenderError> {
     let mut subset = layout.clone();
-    subset.rows = vec![layout.rows.get(row).cloned().ok_or(RenderError::InvalidRow { row })?];
+    subset.rows = vec![
+        layout
+            .rows
+            .get(row)
+            .cloned()
+            .ok_or(RenderError::InvalidRow { row })?,
+    ];
     render_svg_with_layout(score, &subset, options)
 }
 

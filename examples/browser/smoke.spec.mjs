@@ -13,5 +13,12 @@ test("browser contract renders and exposes selectable notes", async ({ page }) =
   const box = await svg.boundingBox();
   expect(box?.width).toBeGreaterThan(0);
   expect(box?.height).toBeGreaterThan(0);
+  await expect(page).toHaveScreenshot("score.png", {
+    fullPage: true,
+    animations: "disabled",
+    caret: "hide",
+    maxDiffPixelRatio: 0.01,
+    threshold: 0.2,
+  });
   await page.screenshot({ path: test.info().outputPath(`${test.info().project.name}.png`), fullPage: true });
 });

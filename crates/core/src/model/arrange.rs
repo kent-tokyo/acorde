@@ -62,8 +62,14 @@ fn mean_pitch(part: &Part) -> Option<f64> {
         .flat_map(|v| v.iter())
         .filter(|n| !n.is_rest && !n.is_grace)
         .flat_map(|n| n.pitches.iter())
-        .fold((0i64, 0i64), |(sum, count), p| (sum + p.to_midi() as i64, count + 1));
-    if count == 0 { None } else { Some(sum as f64 / count as f64) }
+        .fold((0i64, 0i64), |(sum, count), p| {
+            (sum + p.to_midi() as i64, count + 1)
+        });
+    if count == 0 {
+        None
+    } else {
+        Some(sum as f64 / count as f64)
+    }
 }
 
 /// Rank non-percussion, non-silent parts by mean pitch (descending). The top
@@ -74,11 +80,25 @@ pub fn analyze_for_accordion(score: &Score) -> AccordionAnalysis {
         .iter()
         .enumerate()
         .filter(|(_, p)| !is_percussion_part(p))
-        .filter_map(|(i, p)| mean_pitch(p).map(|mp| PartCandidate { part_index: i, name: p.name.clone(), mean_pitch: mp }))
+        .filter_map(|(i, p)| {
+            mean_pitch(p).map(|mp| PartCandidate {
+                part_index: i,
+                name: p.name.clone(),
+                mean_pitch: mp,
+            })
+        })
         .collect();
-    candidates.sort_by(|a, b| b.mean_pitch.partial_cmp(&a.mean_pitch).unwrap_or(std::cmp::Ordering::Equal));
-    let ambiguous = candidates.len() >= 2 && (candidates[0].mean_pitch - candidates[1].mean_pitch).abs() < 3.0;
-    AccordionAnalysis { candidates, ambiguous }
+    candidates.sort_by(|a, b| {
+        b.mean_pitch
+            .partial_cmp(&a.mean_pitch)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    let ambiguous =
+        candidates.len() >= 2 && (candidates[0].mean_pitch - candidates[1].mean_pitch).abs() < 3.0;
+    AccordionAnalysis {
+        candidates,
+        ambiguous,
+    }
 }
 
 struct SourceEvent {
@@ -87,13 +107,21 @@ struct SourceEvent {
     pitches: Vec<Pitch>,
 }
 
-fn events_from_parts(score: &Score, part_indices: &[usize], measure_idx: usize) -> Vec<SourceEvent> {
+fn events_from_parts(
+    score: &Score,
+    part_indices: &[usize],
+    measure_idx: usize,
+) -> Vec<SourceEvent> {
     let mut events = Vec::new();
     for &pi in part_indices {
         let part = &score.parts[pi];
         for staff in &part.staves {
-            let Some(measure) = staff.measures.get(measure_idx) else { continue };
-            if measure.multi_rest_count.is_some() { continue }
+            let Some(measure) = staff.measures.get(measure_idx) else {
+                continue;
+            };
+            if measure.multi_rest_count.is_some() {
+                continue;
+            }
             for voice in &measure.voices {
                 let mut onset = 0.0f64;
                 for note in voice {
@@ -103,11 +131,16 @@ fn events_from_parts(score: &Score, part_indices: &[usize], measure_idx: usize) 
                             .pitches
                             .iter()
                             .map(|p| {
-                                let midi = (p.to_midi() + staff.transpose_semitones as i16).clamp(0, 127) as u8;
+                                let midi = (p.to_midi() + staff.transpose_semitones as i16)
+                                    .clamp(0, 127) as u8;
                                 Pitch::from_midi(midi, false)
                             })
                             .collect();
-                        events.push(SourceEvent { onset_ticks: (onset * GRID).round() as i64, beats: b, pitches });
+                        events.push(SourceEvent {
+                            onset_ticks: (onset * GRID).round() as i64,
+                            beats: b,
+                            pitches,
+                        });
                     }
                     onset += b;
                 }
@@ -120,12 +153,21 @@ fn events_from_parts(score: &Score, part_indices: &[usize], measure_idx: usize) 
 /// Same walk as [`events_from_parts`] but for a single part, splitting each
 /// note's pitches at [`SPLIT_MIDI`] instead of by which part they came from.
 /// Used only when there is no second candidate part to merge in as the bass.
-fn events_from_pitch_split(score: &Score, part_index: usize, measure_idx: usize, high: bool) -> Vec<SourceEvent> {
+fn events_from_pitch_split(
+    score: &Score,
+    part_index: usize,
+    measure_idx: usize,
+    high: bool,
+) -> Vec<SourceEvent> {
     let part = &score.parts[part_index];
     let mut events = Vec::new();
     for staff in &part.staves {
-        let Some(measure) = staff.measures.get(measure_idx) else { continue };
-        if measure.multi_rest_count.is_some() { continue }
+        let Some(measure) = staff.measures.get(measure_idx) else {
+            continue;
+        };
+        if measure.multi_rest_count.is_some() {
+            continue;
+        }
         for voice in &measure.voices {
             let mut onset = 0.0f64;
             for note in voice {
@@ -135,13 +177,26 @@ fn events_from_pitch_split(score: &Score, part_index: usize, measure_idx: usize,
                         .pitches
                         .iter()
                         .filter_map(|p| {
-                            let midi = (p.to_midi() + staff.transpose_semitones as i16).clamp(0, 127) as u8;
-                            let keep = if high { midi >= SPLIT_MIDI } else { midi < SPLIT_MIDI };
-                            if keep { Some(Pitch::from_midi(midi, false)) } else { None }
+                            let midi = (p.to_midi() + staff.transpose_semitones as i16)
+                                .clamp(0, 127) as u8;
+                            let keep = if high {
+                                midi >= SPLIT_MIDI
+                            } else {
+                                midi < SPLIT_MIDI
+                            };
+                            if keep {
+                                Some(Pitch::from_midi(midi, false))
+                            } else {
+                                None
+                            }
                         })
                         .collect();
                     if !pitches.is_empty() {
-                        events.push(SourceEvent { onset_ticks: (onset * GRID).round() as i64, beats: b, pitches });
+                        events.push(SourceEvent {
+                            onset_ticks: (onset * GRID).round() as i64,
+                            beats: b,
+                            pitches,
+                        });
                     }
                 }
                 onset += b;
@@ -163,11 +218,20 @@ fn fill_rests(notes: &mut Vec<Note>, mut remaining: f64) {
 /// Bucket-merge precomputed `events_per_measure` onto a single staff, one
 /// measure at a time, gap-filling with rests via [`Duration::whole_filling_beats`]
 /// (the same greedy decomposition [`Measure::empty`] uses).
-fn assemble_staff(clef: Clef, template_per_measure: Vec<Option<Measure>>, events_per_measure: Vec<Vec<SourceEvent>>, default_ts: super::notation::TimeSignature) -> Staff {
+fn assemble_staff(
+    clef: Clef,
+    template_per_measure: Vec<Option<Measure>>,
+    events_per_measure: Vec<Vec<SourceEvent>>,
+    default_ts: super::notation::TimeSignature,
+) -> Staff {
     let mut current_ts = default_ts;
     let mut measures = Vec::with_capacity(template_per_measure.len());
 
-    for (mi, (template, events)) in template_per_measure.into_iter().zip(events_per_measure).enumerate() {
+    for (mi, (template, events)) in template_per_measure
+        .into_iter()
+        .zip(events_per_measure)
+        .enumerate()
+    {
         if let Some(ts) = template.as_ref().and_then(|m| m.time_sig.as_ref()) {
             current_ts = ts.clone();
         }
@@ -183,13 +247,18 @@ fn assemble_staff(clef: Clef, template_per_measure: Vec<Option<Measure>>, events
         let mut cursor = 0.0f64;
         for (idx, &key) in keys.iter().enumerate() {
             let onset = key as f64 / GRID;
-            if onset < cursor - 1.0 / GRID { continue } // swallowed by a longer preceding event
+            if onset < cursor - 1.0 / GRID {
+                continue;
+            } // swallowed by a longer preceding event
             if onset > cursor {
                 fill_rests(&mut voice0, onset - cursor);
                 cursor = onset;
             }
 
-            let next_onset = keys.get(idx + 1).map(|&k| k as f64 / GRID).unwrap_or(total_beats);
+            let next_onset = keys
+                .get(idx + 1)
+                .map(|&k| k as f64 / GRID)
+                .unwrap_or(total_beats);
             let group = &buckets[&key];
             let shortest = group.iter().map(|e| e.beats).fold(f64::MAX, f64::min);
             let cap = (next_onset - onset).max(1.0 / GRID);
@@ -206,7 +275,9 @@ fn assemble_staff(clef: Clef, template_per_measure: Vec<Option<Measure>>, events
                     }
                 }
             }
-            if pitches.is_empty() { continue }
+            if pitches.is_empty() {
+                continue;
+            }
 
             let dur = Duration::whole_filling_beats(sounding);
             let emitted = dur.beats(0);
@@ -227,17 +298,30 @@ fn assemble_staff(clef: Clef, template_per_measure: Vec<Option<Measure>>, events
         measure.time_sig = template.as_ref().and_then(|m| m.time_sig.clone());
         measure.key_sig = template.as_ref().and_then(|m| m.key_sig.clone());
         measure.tempo = template.as_ref().and_then(|m| m.tempo);
-        measure.barline_left = template.as_ref().map(|m| m.barline_left.clone()).unwrap_or(Barline::Normal);
-        measure.barline_right = template.as_ref().map(|m| m.barline_right.clone()).unwrap_or(Barline::Normal);
+        measure.barline_left = template
+            .as_ref()
+            .map(|m| m.barline_left.clone())
+            .unwrap_or(Barline::Normal);
+        measure.barline_right = template
+            .as_ref()
+            .map(|m| m.barline_right.clone())
+            .unwrap_or(Barline::Normal);
         measure.voices[0] = voice0;
         measures.push(measure);
     }
 
-    Staff { clef, measures, transpose_semitones: 0 }
+    Staff {
+        clef,
+        measures,
+        transpose_semitones: 0,
+    }
 }
 
 fn template_measure_for_parts(score: &Score, part_indices: &[usize], mi: usize) -> Option<Measure> {
-    part_indices.iter().filter_map(|&pi| score.parts[pi].staves.first()).find_map(|s| s.measures.get(mi).cloned())
+    part_indices
+        .iter()
+        .filter_map(|&pi| score.parts[pi].staves.first())
+        .find_map(|s| s.measures.get(mi).cloned())
 }
 
 /// Octave-shift `score` (expected to be the freshly-merged, single-part
@@ -247,7 +331,9 @@ fn template_measure_for_parts(score: &Score, part_indices: &[usize], mi: usize) 
 fn octave_fit(score: &Score) -> (Score, i8) {
     let (lo, hi) = instrument_range(ACCORDION_PROGRAM);
     let target_mid = (lo as f64 + hi as f64) / 2.0;
-    let Some(mp) = score.parts.first().and_then(mean_pitch) else { return (score.clone(), 0) };
+    let Some(mp) = score.parts.first().and_then(mean_pitch) else {
+        return (score.clone(), 0);
+    };
 
     let shift = [-24i8, -12, 0, 12, 24]
         .into_iter()
@@ -258,7 +344,11 @@ fn octave_fit(score: &Score) -> (Score, i8) {
         })
         .unwrap_or(0);
 
-    if shift == 0 { (score.clone(), 0) } else { (super::score::transpose(score, shift), shift) }
+    if shift == 0 {
+        (score.clone(), 0)
+    } else {
+        (super::score::transpose(score, shift), shift)
+    }
 }
 
 /// Arrange `score` for accordion: merge onto two staves (treble = right
@@ -268,10 +358,15 @@ fn octave_fit(score: &Score) -> (Score, i8) {
 /// `right_hand_part_index` overrides the automatic mean-pitch ranking from
 /// [`analyze_for_accordion`] — pass `None` to use the default (highest mean
 /// pitch). Percussion parts are always excluded from both staves.
-pub fn arrange_for_accordion(score: &Score, right_hand_part_index: Option<usize>) -> Result<ArrangeResult, Error> {
+pub fn arrange_for_accordion(
+    score: &Score,
+    right_hand_part_index: Option<usize>,
+) -> Result<ArrangeResult, Error> {
     let analysis = analyze_for_accordion(score);
     if analysis.candidates.is_empty() {
-        return Err(Error::InvalidCommand("no pitched, non-percussion part to arrange".to_string()));
+        return Err(Error::InvalidCommand(
+            "no pitched, non-percussion part to arrange".to_string(),
+        ));
     }
 
     let treble_index = match right_hand_part_index {
@@ -283,38 +378,79 @@ pub fn arrange_for_accordion(score: &Score, right_hand_part_index: Option<usize>
         }
         None => analysis.candidates[0].part_index,
     };
-    let bass_indices: Vec<usize> = analysis.candidates.iter().map(|c| c.part_index).filter(|&i| i != treble_index).collect();
+    let bass_indices: Vec<usize> = analysis
+        .candidates
+        .iter()
+        .map(|c| c.part_index)
+        .filter(|&i| i != treble_index)
+        .collect();
 
     let mut notes = Vec::new();
     let measure_count = analysis
         .candidates
         .iter()
-        .map(|c| score.parts[c.part_index].staves.iter().map(|s| s.measures.len()).max().unwrap_or(0))
+        .map(|c| {
+            score.parts[c.part_index]
+                .staves
+                .iter()
+                .map(|s| s.measures.len())
+                .max()
+                .unwrap_or(0)
+        })
         .max()
         .unwrap_or(0);
     let default_ts = score.settings.time_signature.clone();
 
     let (treble_staff, bass_staff) = if !bass_indices.is_empty() {
-        let treble_template: Vec<Option<Measure>> = (0..measure_count).map(|mi| template_measure_for_parts(score, &[treble_index], mi)).collect();
-        let treble_events: Vec<Vec<SourceEvent>> = (0..measure_count).map(|mi| events_from_parts(score, &[treble_index], mi)).collect();
-        let bass_template: Vec<Option<Measure>> = (0..measure_count).map(|mi| template_measure_for_parts(score, &bass_indices, mi)).collect();
-        let bass_events: Vec<Vec<SourceEvent>> = (0..measure_count).map(|mi| events_from_parts(score, &bass_indices, mi)).collect();
+        let treble_template: Vec<Option<Measure>> = (0..measure_count)
+            .map(|mi| template_measure_for_parts(score, &[treble_index], mi))
+            .collect();
+        let treble_events: Vec<Vec<SourceEvent>> = (0..measure_count)
+            .map(|mi| events_from_parts(score, &[treble_index], mi))
+            .collect();
+        let bass_template: Vec<Option<Measure>> = (0..measure_count)
+            .map(|mi| template_measure_for_parts(score, &bass_indices, mi))
+            .collect();
+        let bass_events: Vec<Vec<SourceEvent>> = (0..measure_count)
+            .map(|mi| events_from_parts(score, &bass_indices, mi))
+            .collect();
         notes.push(format!(
             "右手(高音部): {} / 左手(低音部): {}パートを統合",
-            analysis.candidates.iter().find(|c| c.part_index == treble_index).map(|c| c.name.as_str()).unwrap_or(""),
+            analysis
+                .candidates
+                .iter()
+                .find(|c| c.part_index == treble_index)
+                .map(|c| c.name.as_str())
+                .unwrap_or(""),
             bass_indices.len()
         ));
         (
-            assemble_staff(Clef::Treble, treble_template, treble_events, default_ts.clone()),
+            assemble_staff(
+                Clef::Treble,
+                treble_template,
+                treble_events,
+                default_ts.clone(),
+            ),
             assemble_staff(Clef::Bass, bass_template, bass_events, default_ts),
         )
     } else {
-        let template: Vec<Option<Measure>> = (0..measure_count).map(|mi| template_measure_for_parts(score, &[treble_index], mi)).collect();
-        let treble_events: Vec<Vec<SourceEvent>> = (0..measure_count).map(|mi| events_from_pitch_split(score, treble_index, mi, true)).collect();
-        let bass_events: Vec<Vec<SourceEvent>> = (0..measure_count).map(|mi| events_from_pitch_split(score, treble_index, mi, false)).collect();
+        let template: Vec<Option<Measure>> = (0..measure_count)
+            .map(|mi| template_measure_for_parts(score, &[treble_index], mi))
+            .collect();
+        let treble_events: Vec<Vec<SourceEvent>> = (0..measure_count)
+            .map(|mi| events_from_pitch_split(score, treble_index, mi, true))
+            .collect();
+        let bass_events: Vec<Vec<SourceEvent>> = (0..measure_count)
+            .map(|mi| events_from_pitch_split(score, treble_index, mi, false))
+            .collect();
         notes.push("単一パートのため中央ハ(MIDI 60)を基準に上下2段へ分割".to_string());
         (
-            assemble_staff(Clef::Treble, template.clone(), treble_events, default_ts.clone()),
+            assemble_staff(
+                Clef::Treble,
+                template.clone(),
+                treble_events,
+                default_ts.clone(),
+            ),
             assemble_staff(Clef::Bass, template, bass_events, default_ts),
         )
     };
@@ -335,7 +471,10 @@ pub fn arrange_for_accordion(score: &Score, right_hand_part_index: Option<usize>
     let (fitted, shift) = octave_fit(&merged);
     merged = fitted;
     if shift != 0 {
-        notes.push(format!("アコーディオンの実用音域に合わせて{}オクターブ移調", shift / 12));
+        notes.push(format!(
+            "アコーディオンの実用音域に合わせて{}オクターブ移調",
+            shift / 12
+        ));
     }
 
     super::score::respell_score_to_key(&mut merged);
@@ -344,7 +483,10 @@ pub fn arrange_for_accordion(score: &Score, right_hand_part_index: Option<usize>
         notes.push("上位2パートの平均音高が僅差のため、右手パートの選択が曖昧です".to_string());
     }
 
-    Ok(ArrangeResult { score: merged, notes })
+    Ok(ArrangeResult {
+        score: merged,
+        notes,
+    })
 }
 
 #[cfg(test)]
@@ -461,20 +603,28 @@ mod tests {
         // whole note) across the two source parts — exercises the onset
         // bucketing + gap-fill path most likely to leave a measure underfull.
         let mut score = Score::new("T", 120, 4, 4, 0, 2);
-        score.parts[0].staves[0].measures[0].voices[0] =
-            vec![note(Step::C, 3, Duration::Half), note(Step::E, 3, Duration::Half)];
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            note(Step::C, 3, Duration::Half),
+            note(Step::E, 3, Duration::Half),
+        ];
         score.parts[0].staves[0].measures[1].voices[0] = vec![note(Step::G, 3, Duration::Whole)];
 
         let mut melody = score.parts[0].clone();
         melody.staves[0].measures[0].voices[0] = vec![
-            note(Step::C, 5, Duration::Quarter), note(Step::D, 5, Duration::Quarter),
-            note(Step::E, 5, Duration::Quarter), note(Step::F, 5, Duration::Quarter),
+            note(Step::C, 5, Duration::Quarter),
+            note(Step::D, 5, Duration::Quarter),
+            note(Step::E, 5, Duration::Quarter),
+            note(Step::F, 5, Duration::Quarter),
         ];
         melody.staves[0].measures[1].voices[0] = vec![note(Step::G, 5, Duration::Whole)];
         score.parts.push(melody);
 
         let result = arrange_for_accordion(&score, None).unwrap();
         let report = validate(&result.score);
-        assert!(report.errors.is_empty(), "expected no beat-count errors, got {:?}", report.errors);
+        assert!(
+            report.errors.is_empty(),
+            "expected no beat-count errors, got {:?}",
+            report.errors
+        );
     }
 }

@@ -7,16 +7,15 @@ The reusable renderer has no browser or DOM dependency. The WASM package is buil
 |---|---|---|
 | Native Rust renderer | `cargo test --all`, deterministic SVG goldens | supported |
 | WASM package | `wasm-pack build crates/wasm --target web` | supported |
-| Chromium / Chrome | Playwright browser-contract smoke | verified locally |
-| Firefox | Playwright browser-contract smoke | verified locally |
-| WebKit | Playwright browser-contract smoke | verified locally |
+| Chromium / Chrome | Playwright browser-contract smoke + reviewed screenshot baseline | verified |
+| Firefox | Playwright browser-contract smoke + reviewed screenshot baseline | verified |
+| WebKit | Playwright browser-contract smoke + reviewed screenshot baseline | verified |
 
 The Chromium smoke page also exercises host-owned keyboard selection and hover state through the
-stable `data-note-addr` hooks. The CI matrix captures Chromium, Firefox, and WebKit screenshots
-as review artifacts. A reviewed pixel-diff baseline is still deferred until browser images are
-pinned; SVG structural and deterministic tests remain the cross-platform assertion in the
-meantime. The local verification used Playwright 1.55.0 with Chromium 140, Firefox 141, and
-WebKit 26.
+stable `data-note-addr` hooks. The CI matrix compares Chromium, Firefox, and WebKit against the
+checked-in baselines under `examples/browser/smoke.spec.mjs-snapshots/`. Baselines are reviewed
+artifacts, not a substitute for the native SVG structural tests. The local verification used
+Playwright 1.55.0 with Chromium 140, Firefox 141, and WebKit 26.
 
 The legacy `wasm-pack test --headless --chrome` path uses a separately downloaded WebDriver.
 The CI job pins `wasm-pack` 0.15.0, installs the current Chrome, and has an explicit timeout so

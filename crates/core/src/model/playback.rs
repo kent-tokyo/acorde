@@ -1,16 +1,30 @@
-use serde::{Deserialize, Serialize};
 use super::duration::Duration;
 use super::notation::Articulation;
 use super::repeat::measure_sequence;
 use super::score::Score;
+use serde::{Deserialize, Serialize};
 
-fn default_fermata_multiplier() -> f64 { 1.5 }
-fn default_swing_unit() -> Duration { Duration::Eighth }
-fn default_metronome_channel()   -> u8 { 9  }
-fn default_accent_pitch()        -> u8 { 76 }
-fn default_beat_pitch()          -> u8 { 77 }
-fn default_accent_velocity()     -> u8 { 100 }
-fn default_beat_velocity()       -> u8 { 70  }
+fn default_fermata_multiplier() -> f64 {
+    1.5
+}
+fn default_swing_unit() -> Duration {
+    Duration::Eighth
+}
+fn default_metronome_channel() -> u8 {
+    9
+}
+fn default_accent_pitch() -> u8 {
+    76
+}
+fn default_beat_pitch() -> u8 {
+    77
+}
+fn default_accent_velocity() -> u8 {
+    100
+}
+fn default_beat_velocity() -> u8 {
+    70
+}
 
 /// Click-track injected into [`to_playback_events`] output.
 ///
@@ -37,7 +51,13 @@ pub struct MetronomeConfig {
 
 impl Default for MetronomeConfig {
     fn default() -> Self {
-        Self { channel: 9, accent_pitch: 76, beat_pitch: 77, accent_velocity: 100, beat_velocity: 70 }
+        Self {
+            channel: 9,
+            accent_pitch: 76,
+            beat_pitch: 77,
+            accent_velocity: 100,
+            beat_velocity: 70,
+        }
     }
 }
 
@@ -120,10 +140,16 @@ pub struct PlaybackEvent {
 /// Repeat sections and volta brackets are expanded using [`measure_sequence`].
 /// Events are sorted by `time_beats`.
 pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<PlaybackEvent> {
-    let bpm = options.bpm_override.unwrap_or(score.settings.tempo_bpm).max(1) as f64;
+    let bpm = options
+        .bpm_override
+        .unwrap_or(score.settings.tempo_bpm)
+        .max(1) as f64;
     let full_seq = measure_sequence(score);
     let seq: Vec<usize> = if let Some((lo, hi)) = options.loop_region {
-        full_seq.into_iter().filter(|&idx| idx >= lo && idx <= hi).collect()
+        full_seq
+            .into_iter()
+            .filter(|&idx| idx >= lo && idx <= hi)
+            .collect()
     } else {
         full_seq
     };
@@ -158,15 +184,23 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                                     && note.duration == options.swing_unit =>
                             {
                                 let pair = note.beats() * 2.0;
-                                let d = if swing_first { ratio * pair } else { (1.0 - ratio) * pair };
+                                let d = if swing_first {
+                                    ratio * pair
+                                } else {
+                                    (1.0 - ratio) * pair
+                                };
                                 swing_first = !swing_first;
                                 d
                             }
-                            Some(_) => { swing_first = true; note.beats() }
+                            Some(_) => {
+                                swing_first = true;
+                                note.beats()
+                            }
                             None => note.beats(),
                         };
                         if !note.is_rest {
-                            let mut velocity = note.dynamic
+                            let mut velocity = note
+                                .dynamic
                                 .as_ref()
                                 .map(|d| d.to_velocity())
                                 .unwrap_or(64u8);
@@ -186,10 +220,13 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                                 }
                             }
                             let pedal = note.pedal_start;
-                            let transpose = if part.midi_channel == 9 { 0i8 } else { staff.transpose_semitones };
+                            let transpose = if part.midi_channel == 9 {
+                                0i8
+                            } else {
+                                staff.transpose_semitones
+                            };
                             for pitch in &note.pitches {
-                                let midi = (pitch.to_midi() + transpose as i16)
-                                    .clamp(0, 127) as u8;
+                                let midi = (pitch.to_midi() + transpose as i16).clamp(0, 127) as u8;
                                 events.push(PlaybackEvent {
                                     time_beats,
                                     time_secs: time_secs_cursor,
@@ -217,9 +254,11 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
         let mut cursor_beats = 0.0f64;
         let mut metro_bpm = bpm;
         for &idx in &seq {
-            let first_staff = score.parts.first()
-                .and_then(|p| p.staves.first());
-            if let Some(t) = first_staff.and_then(|s| s.measures.get(idx)).and_then(|m| m.tempo) {
+            let first_staff = score.parts.first().and_then(|p| p.staves.first());
+            if let Some(t) = first_staff
+                .and_then(|s| s.measures.get(idx))
+                .and_then(|m| m.tempo)
+            {
                 metro_bpm = t.max(1) as f64;
             }
             let ts = first_staff
@@ -233,11 +272,19 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                 let beat_offset_secs = b as f64 * beat_unit / metro_bpm * 60.0;
                 events.push(PlaybackEvent {
                     time_beats: cursor_beats + b as f64 * beat_unit,
-                    time_secs:  cursor_secs + beat_offset_secs,
-                    pitch_midi: if is_accent { metro.accent_pitch } else { metro.beat_pitch },
-                    velocity:   if is_accent { metro.accent_velocity } else { metro.beat_velocity },
+                    time_secs: cursor_secs + beat_offset_secs,
+                    pitch_midi: if is_accent {
+                        metro.accent_pitch
+                    } else {
+                        metro.beat_pitch
+                    },
+                    velocity: if is_accent {
+                        metro.accent_velocity
+                    } else {
+                        metro.beat_velocity
+                    },
                     duration_beats: beat_unit * 0.1,
-                    duration_secs:  beat_unit * 0.1 / metro_bpm * 60.0,
+                    duration_secs: beat_unit * 0.1 / metro_bpm * 60.0,
                     pedal: false,
                     part_index: usize::MAX,
                     channel: metro.channel,
@@ -245,13 +292,15 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                 });
             }
             let measure_beats = ts.total_beats();
-            cursor_secs   += measure_beats / metro_bpm * 60.0;
-            cursor_beats  += measure_beats;
+            cursor_secs += measure_beats / metro_bpm * 60.0;
+            cursor_beats += measure_beats;
         }
     }
 
     events.sort_by(|a, b| {
-        a.time_beats.partial_cmp(&b.time_beats).unwrap_or(std::cmp::Ordering::Equal)
+        a.time_beats
+            .partial_cmp(&b.time_beats)
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
     events
 }
@@ -268,18 +317,24 @@ pub struct PlaybackPosition {
 }
 
 struct MeasureSegment {
-    measure_idx:   usize,
-    start_secs:    f64,
+    measure_idx: usize,
+    start_secs: f64,
     duration_secs: f64,
-    beats:         f64,
-    bpm:           f64,
+    beats: f64,
+    bpm: f64,
 }
 
 fn build_measure_segments(score: &Score, options: &PlaybackOptions) -> Vec<MeasureSegment> {
-    let init_bpm = options.bpm_override.unwrap_or(score.settings.tempo_bpm).max(1) as f64;
+    let init_bpm = options
+        .bpm_override
+        .unwrap_or(score.settings.tempo_bpm)
+        .max(1) as f64;
     let full_seq = measure_sequence(score);
     let seq: Vec<usize> = if let Some((lo, hi)) = options.loop_region {
-        full_seq.into_iter().filter(|&i| i >= lo && i <= hi).collect()
+        full_seq
+            .into_iter()
+            .filter(|&i| i >= lo && i <= hi)
+            .collect()
     } else {
         full_seq
     };
@@ -289,7 +344,9 @@ fn build_measure_segments(score: &Score, options: &PlaybackOptions) -> Vec<Measu
     let mut current_bpm = init_bpm;
 
     for idx in seq {
-        let first_measure = score.parts.first()
+        let first_measure = score
+            .parts
+            .first()
             .and_then(|p| p.staves.first())
             .and_then(|s| s.measures.get(idx));
         if let Some(t) = first_measure.and_then(|m| m.tempo) {
@@ -323,13 +380,17 @@ pub fn compute_playback_position(
     options: &PlaybackOptions,
     elapsed_secs: f64,
 ) -> Option<PlaybackPosition> {
-    if elapsed_secs < 0.0 { return None; }
+    if elapsed_secs < 0.0 {
+        return None;
+    }
     let segments = build_measure_segments(score, options);
     for seg in &segments {
         if elapsed_secs < seg.start_secs + seg.duration_secs + 1e-9 {
-            let beat = ((elapsed_secs - seg.start_secs) * seg.bpm / 60.0)
-                .clamp(0.0, seg.beats);
-            return Some(PlaybackPosition { measure_index: seg.measure_idx, beat });
+            let beat = ((elapsed_secs - seg.start_secs) * seg.bpm / 60.0).clamp(0.0, seg.beats);
+            return Some(PlaybackPosition {
+                measure_index: seg.measure_idx,
+                beat,
+            });
         }
     }
     None
@@ -339,13 +400,16 @@ pub fn compute_playback_position(
 mod tests {
     use super::*;
     use crate::model::{
-        pitch::{Pitch, Step},
         duration::Duration,
+        pitch::{Pitch, Step},
         score::{Note, Score},
     };
 
     fn opts(bpm: Option<u16>) -> PlaybackOptions {
-        PlaybackOptions { bpm_override: bpm, ..Default::default() }
+        PlaybackOptions {
+            bpm_override: bpm,
+            ..Default::default()
+        }
     }
 
     #[test]
@@ -454,7 +518,8 @@ mod tests {
     fn staccato_halves_duration_beats() {
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
-        note.articulations.push(crate::model::notation::Articulation::Staccato);
+        note.articulations
+            .push(crate::model::notation::Articulation::Staccato);
         score.parts[0].staves[0].measures[0].voices[0] = vec![note];
         let events = to_playback_events(&score, &opts(None));
         assert_eq!(events.len(), 1);
@@ -465,7 +530,8 @@ mod tests {
     fn staccatissimo_also_halves_duration() {
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
-        note.articulations.push(crate::model::notation::Articulation::Staccatissimo);
+        note.articulations
+            .push(crate::model::notation::Articulation::Staccatissimo);
         score.parts[0].staves[0].measures[0].voices[0] = vec![note];
         let events = to_playback_events(&score, &opts(None));
         assert!((events[0].duration_beats - 0.5).abs() < 1e-9);
@@ -475,7 +541,8 @@ mod tests {
     fn staccato_does_not_shift_next_note_time() {
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         let mut n1 = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
-        n1.articulations.push(crate::model::notation::Articulation::Staccato);
+        n1.articulations
+            .push(crate::model::notation::Articulation::Staccato);
         let n2 = Note::new(Pitch::new(Step::D, 4), Duration::Quarter);
         score.parts[0].staves[0].measures[0].voices[0] = vec![n1, n2];
         let events = to_playback_events(&score, &opts(None));
@@ -487,7 +554,8 @@ mod tests {
     fn accent_boosts_velocity_clamped() {
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
-        note.articulations.push(crate::model::notation::Articulation::Accent);
+        note.articulations
+            .push(crate::model::notation::Articulation::Accent);
         score.parts[0].staves[0].measures[0].voices[0] = vec![note];
         let events = to_playback_events(&score, &opts(None));
         assert_eq!(events[0].velocity, 84);
@@ -498,7 +566,8 @@ mod tests {
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
         note.dynamic = Some(crate::model::notation::Dynamic::Ffff);
-        note.articulations.push(crate::model::notation::Articulation::Accent);
+        note.articulations
+            .push(crate::model::notation::Articulation::Accent);
         score.parts[0].staves[0].measures[0].voices[0] = vec![note];
         let events = to_playback_events(&score, &opts(None));
         assert_eq!(events[0].velocity, 127);
@@ -508,7 +577,8 @@ mod tests {
     fn tenuto_keeps_full_duration() {
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
-        note.articulations.push(crate::model::notation::Articulation::Tenuto);
+        note.articulations
+            .push(crate::model::notation::Articulation::Tenuto);
         score.parts[0].staves[0].measures[0].voices[0] = vec![note];
         let events = to_playback_events(&score, &opts(None));
         assert!((events[0].duration_beats - 1.0).abs() < 1e-9);
@@ -554,7 +624,10 @@ mod tests {
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].voices[0] =
             vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
-        let options = PlaybackOptions { muted_parts: vec![0], ..Default::default() };
+        let options = PlaybackOptions {
+            muted_parts: vec![0],
+            ..Default::default()
+        };
         assert!(to_playback_events(&score, &options).is_empty());
     }
 
@@ -577,7 +650,10 @@ mod tests {
             score.parts[0].staves[0].measures[mi].voices[0] =
                 vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
         }
-        let options = PlaybackOptions { loop_region: Some((1, 2)), ..Default::default() };
+        let options = PlaybackOptions {
+            loop_region: Some((1, 2)),
+            ..Default::default()
+        };
         let events = to_playback_events(&score, &options);
         assert_eq!(events.len(), 2);
         // First event in the region should start at beat 0 (region-relative)
@@ -601,9 +677,13 @@ mod tests {
     fn fermata_multiplier_extends_duration() {
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
-        note.articulations.push(crate::model::notation::Articulation::Fermata);
+        note.articulations
+            .push(crate::model::notation::Articulation::Fermata);
         score.parts[0].staves[0].measures[0].voices[0] = vec![note];
-        let options = PlaybackOptions { fermata_multiplier: 2.0, ..Default::default() };
+        let options = PlaybackOptions {
+            fermata_multiplier: 2.0,
+            ..Default::default()
+        };
         let events = to_playback_events(&score, &options);
         assert_eq!(events.len(), 1);
         assert!((events[0].duration_beats - 2.0).abs() < 1e-9);
@@ -613,7 +693,8 @@ mod tests {
     fn fermata_default_multiplier_is_1_5() {
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
-        note.articulations.push(crate::model::notation::Articulation::Fermata);
+        note.articulations
+            .push(crate::model::notation::Articulation::Fermata);
         score.parts[0].staves[0].measures[0].voices[0] = vec![note];
         let events = to_playback_events(&score, &PlaybackOptions::default());
         assert_eq!(events.len(), 1);
@@ -625,7 +706,10 @@ mod tests {
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].voices[0] =
             vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
-        let options = PlaybackOptions { fermata_multiplier: 3.0, ..Default::default() };
+        let options = PlaybackOptions {
+            fermata_multiplier: 3.0,
+            ..Default::default()
+        };
         let events = to_playback_events(&score, &options);
         assert!((events[0].duration_beats - 1.0).abs() < 1e-9);
     }
@@ -640,15 +724,27 @@ mod tests {
             Note::new(Pitch::new(Step::C, 4), Duration::Eighth),
             Note::new(Pitch::new(Step::D, 4), Duration::Eighth),
         ];
-        let options = PlaybackOptions { swing: Some(0.67), ..Default::default() };
+        let options = PlaybackOptions {
+            swing: Some(0.67),
+            ..Default::default()
+        };
         let events = to_playback_events(&score, &options);
         // events are sorted by time_beats; C comes first (time_beats=0), D second
         let e_c = events.iter().find(|e| e.pitch_midi == 60).unwrap();
         let e_d = events.iter().find(|e| e.pitch_midi == 62).unwrap();
-        assert!((e_c.duration_beats - 0.67).abs() < 1e-9, "first eighth should be 0.67");
-        assert!((e_d.duration_beats - 0.33).abs() < 1e-9, "second eighth should be 0.33");
+        assert!(
+            (e_c.duration_beats - 0.67).abs() < 1e-9,
+            "first eighth should be 0.67"
+        );
+        assert!(
+            (e_d.duration_beats - 0.33).abs() < 1e-9,
+            "second eighth should be 0.33"
+        );
         // D starts at 0.67, not 0.5
-        assert!((e_d.time_beats - 0.67).abs() < 1e-9, "second note start should be at 0.67");
+        assert!(
+            (e_d.time_beats - 0.67).abs() < 1e-9,
+            "second note start should be at 0.67"
+        );
     }
 
     #[test]
@@ -656,9 +752,15 @@ mod tests {
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].voices[0] =
             vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
-        let options = PlaybackOptions { swing: Some(0.67), ..Default::default() };
+        let options = PlaybackOptions {
+            swing: Some(0.67),
+            ..Default::default()
+        };
         let events = to_playback_events(&score, &options);
-        assert!((events[0].duration_beats - 1.0).abs() < 1e-9, "quarter note unaffected");
+        assert!(
+            (events[0].duration_beats - 1.0).abs() < 1e-9,
+            "quarter note unaffected"
+        );
     }
 
     #[test]
@@ -666,9 +768,15 @@ mod tests {
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].voices[0] =
             vec![Note::new(Pitch::new(Step::C, 4), Duration::Eighth)];
-        let options = PlaybackOptions { swing: None, ..Default::default() };
+        let options = PlaybackOptions {
+            swing: None,
+            ..Default::default()
+        };
         let events = to_playback_events(&score, &options);
-        assert!((events[0].duration_beats - 0.5).abs() < 1e-9, "no swing = straight eighth");
+        assert!(
+            (events[0].duration_beats - 0.5).abs() < 1e-9,
+            "no swing = straight eighth"
+        );
     }
 
     #[test]
@@ -701,21 +809,32 @@ mod tests {
         let events = to_playback_events(&score, &options);
         let e_c = events.iter().find(|e| e.pitch_midi == 60).unwrap();
         let e_d = events.iter().find(|e| e.pitch_midi == 62).unwrap();
-        assert!((e_c.duration_beats - 0.335).abs() < 1e-9, "first 16th should be 0.335");
-        assert!((e_d.duration_beats - 0.165).abs() < 1e-9, "second 16th should be 0.165");
+        assert!(
+            (e_c.duration_beats - 0.335).abs() < 1e-9,
+            "first 16th should be 0.335"
+        );
+        assert!(
+            (e_d.duration_beats - 0.165).abs() < 1e-9,
+            "second 16th should be 0.165"
+        );
     }
 
     #[test]
     fn swing_resets_per_measure() {
         // 2 measures each with 2 eighth notes; each measure's first eighth should be "long"
         let mut score = Score::new("T", 120, 4, 4, 0, 2);
-        let pair = || vec![
-            Note::new(Pitch::new(Step::C, 4), Duration::Eighth),
-            Note::new(Pitch::new(Step::D, 4), Duration::Eighth),
-        ];
+        let pair = || {
+            vec![
+                Note::new(Pitch::new(Step::C, 4), Duration::Eighth),
+                Note::new(Pitch::new(Step::D, 4), Duration::Eighth),
+            ]
+        };
         score.parts[0].staves[0].measures[0].voices[0] = pair();
         score.parts[0].staves[0].measures[1].voices[0] = pair();
-        let options = PlaybackOptions { swing: Some(0.67), ..Default::default() };
+        let options = PlaybackOptions {
+            swing: Some(0.67),
+            ..Default::default()
+        };
         let events = to_playback_events(&score, &options);
         // Four events sorted by time: m0-C, m0-D, m1-C, m1-D
         let durations: Vec<f64> = events.iter().map(|e| e.duration_beats).collect();
@@ -724,7 +843,10 @@ mod tests {
         // m0 second (short)
         assert!((durations[1] - 0.33).abs() < 1e-9, "m0 second note short");
         // m1 first (long again — reset)
-        assert!((durations[2] - 0.67).abs() < 1e-9, "m1 first note long (reset)");
+        assert!(
+            (durations[2] - 0.67).abs() < 1e-9,
+            "m1 first note long (reset)"
+        );
         // m1 second (short)
         assert!((durations[3] - 0.33).abs() < 1e-9, "m1 second note short");
     }
@@ -745,7 +867,11 @@ mod tests {
         let score = Score::new("T", 120, 4, 4, 0, 4);
         let pos = compute_playback_position(&score, &PlaybackOptions::default(), 0.5).unwrap();
         assert_eq!(pos.measure_index, 0);
-        assert!((pos.beat - 1.0).abs() < 1e-9, "expected beat 1.0, got {}", pos.beat);
+        assert!(
+            (pos.beat - 1.0).abs() < 1e-9,
+            "expected beat 1.0, got {}",
+            pos.beat
+        );
     }
 
     #[test]
@@ -763,14 +889,21 @@ mod tests {
         score.parts[0].staves[0].measures[1].tempo = Some(60);
         let pos = compute_playback_position(&score, &PlaybackOptions::default(), 2.5).unwrap();
         assert_eq!(pos.measure_index, 1);
-        assert!((pos.beat - 0.5).abs() < 1e-9, "expected beat 0.5, got {}", pos.beat);
+        assert!(
+            (pos.beat - 0.5).abs() < 1e-9,
+            "expected beat 0.5, got {}",
+            pos.beat
+        );
     }
 
     #[test]
     fn playback_position_loop_region_starts_at_zero() {
         // loop_region=[1,2] → elapsed=0 should map to measure 1, beat 0
         let score = Score::new("T", 120, 4, 4, 0, 4);
-        let options = PlaybackOptions { loop_region: Some((1, 2)), ..Default::default() };
+        let options = PlaybackOptions {
+            loop_region: Some((1, 2)),
+            ..Default::default()
+        };
         let pos = compute_playback_position(&score, &options, 0.0).unwrap();
         assert_eq!(pos.measure_index, 1);
         assert!(pos.beat.abs() < 1e-9);
@@ -795,25 +928,31 @@ mod tests {
     fn metronome_accent_is_first_beat() {
         let score = Score::new("T", 120, 4, 4, 0, 1);
         let metro = MetronomeConfig::default();
-        let options = PlaybackOptions { metronome: Some(metro.clone()), ..Default::default() };
+        let options = PlaybackOptions {
+            metronome: Some(metro.clone()),
+            ..Default::default()
+        };
         let events = to_playback_events(&score, &options);
         let mut metro_events: Vec<_> = events.iter().filter(|e| e.is_metronome).collect();
         metro_events.sort_by(|a, b| a.time_beats.partial_cmp(&b.time_beats).unwrap());
         assert_eq!(metro_events[0].pitch_midi, metro.accent_pitch);
-        assert_eq!(metro_events[0].velocity,   metro.accent_velocity);
+        assert_eq!(metro_events[0].velocity, metro.accent_velocity);
     }
 
     #[test]
     fn metronome_regular_beat_pitch() {
         let score = Score::new("T", 120, 4, 4, 0, 1);
         let metro = MetronomeConfig::default();
-        let options = PlaybackOptions { metronome: Some(metro.clone()), ..Default::default() };
+        let options = PlaybackOptions {
+            metronome: Some(metro.clone()),
+            ..Default::default()
+        };
         let events = to_playback_events(&score, &options);
         let mut metro_events: Vec<_> = events.iter().filter(|e| e.is_metronome).collect();
         metro_events.sort_by(|a, b| a.time_beats.partial_cmp(&b.time_beats).unwrap());
         for ev in &metro_events[1..] {
             assert_eq!(ev.pitch_midi, metro.beat_pitch);
-            assert_eq!(ev.velocity,   metro.beat_velocity);
+            assert_eq!(ev.velocity, metro.beat_velocity);
         }
     }
 

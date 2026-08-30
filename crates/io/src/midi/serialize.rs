@@ -1,9 +1,9 @@
+use crate::Error;
+use acorde_core::{Score, TupletInfo};
 use midly::{
     Format, Header, MetaMessage, MidiMessage, Smf, Timing, TrackEvent, TrackEventKind,
     num::{u4, u7, u15, u24, u28},
 };
-use acorde_core::{Score, TupletInfo};
-use crate::Error;
 
 const PPQ: u32 = 480;
 
@@ -24,21 +24,25 @@ pub fn serialize_midi(score: &Score) -> Result<Vec<u8>, Error> {
 pub fn serialize_midi_region(score: &Score, region: (usize, usize)) -> Result<Vec<u8>, Error> {
     let (start, end) = region;
     if start > end {
-        return Err(Error::Midi(format!("invalid region: start={start} > end={end}")));
+        return Err(Error::Midi(format!(
+            "invalid region: start={start} > end={end}"
+        )));
     }
     let full_seq = acorde_core::measure_sequence(score);
-    let seq: Vec<usize> = full_seq.into_iter().filter(|&m| m >= start && m <= end).collect();
+    let seq: Vec<usize> = full_seq
+        .into_iter()
+        .filter(|&m| m >= start && m <= end)
+        .collect();
     if seq.is_empty() {
-        return Err(Error::Midi(format!("region [{start}, {end}] contains no measures")));
+        return Err(Error::Midi(format!(
+            "region [{start}, {end}] contains no measures"
+        )));
     }
     serialize_midi_impl(score, &seq)
 }
 
 fn serialize_midi_impl(score: &Score, seq: &[usize]) -> Result<Vec<u8>, Error> {
-    let header = Header::new(
-        Format::Parallel,
-        Timing::Metrical(u15::from(PPQ as u16)),
-    );
+    let header = Header::new(Format::Parallel, Timing::Metrical(u15::from(PPQ as u16)));
     let mut smf = Smf::new(header);
 
     smf.tracks.push(build_meta_track(score, seq));
@@ -47,7 +51,8 @@ fn serialize_midi_impl(score: &Score, seq: &[usize]) -> Result<Vec<u8>, Error> {
     }
 
     let mut bytes = Vec::new();
-    smf.write_std(&mut bytes).map_err(|e| Error::Midi(e.to_string()))?;
+    smf.write_std(&mut bytes)
+        .map_err(|e| Error::Midi(e.to_string()))?;
     Ok(bytes)
 }
 
@@ -70,7 +75,11 @@ fn build_meta_track<'a>(score: &Score, seq: &[usize]) -> Vec<TrackEvent<'a>> {
     // If measure 0 carries a tempo override, use it as the initial tempo so we
     // don't emit two conflicting Tempo events at tick 0.
     let initial_bpm = first_staff_opt
-        .and_then(|s| seq.first().and_then(|&i| s.measures.get(i)).and_then(|m| m.tempo))
+        .and_then(|s| {
+            seq.first()
+                .and_then(|&i| s.measures.get(i))
+                .and_then(|m| m.tempo)
+        })
         .map(|b| b.max(1) as u32)
         .unwrap_or_else(|| score.settings.tempo_bpm.max(1) as u32);
     let us_per_beat = 60_000_000u32 / initial_bpm;
@@ -82,12 +91,7 @@ fn build_meta_track<'a>(score: &Score, seq: &[usize]) -> Vec<TrackEvent<'a>> {
         },
         TrackEvent {
             delta: u28::from(0u32),
-            kind: TrackEventKind::Meta(MetaMessage::TimeSignature(
-                ts.numerator,
-                den_log2,
-                24,
-                8,
-            )),
+            kind: TrackEventKind::Meta(MetaMessage::TimeSignature(ts.numerator, den_log2, 24, 8)),
         },
     ];
 
@@ -99,14 +103,15 @@ fn build_meta_track<'a>(score: &Score, seq: &[usize]) -> Vec<TrackEvent<'a>> {
 
         for &idx in seq {
             if cursor_tick > 0
-                && let Some(bpm) = first_staff.measures.get(idx).and_then(|m| m.tempo) {
-                    let us = 60_000_000u32 / bpm.max(1) as u32;
-                    events.push(TrackEvent {
-                        delta: clamp_delta(cursor_tick - prev_event_tick),
-                        kind: TrackEventKind::Meta(MetaMessage::Tempo(u24::from(us))),
-                    });
-                    prev_event_tick = cursor_tick;
-                }
+                && let Some(bpm) = first_staff.measures.get(idx).and_then(|m| m.tempo)
+            {
+                let us = 60_000_000u32 / bpm.max(1) as u32;
+                events.push(TrackEvent {
+                    delta: clamp_delta(cursor_tick - prev_event_tick),
+                    kind: TrackEventKind::Meta(MetaMessage::Tempo(u24::from(us))),
+                });
+                prev_event_tick = cursor_tick;
+            }
             cursor_tick += ticks_per_measure;
         }
     }
@@ -160,17 +165,21 @@ fn build_part_track(part: &acorde_core::Part, seq: &[usize]) -> Vec<TrackEvent<'
                     Some(m) => m,
                     None => continue,
                 };
-                let transpose = if part.midi_channel == 9 { 0i8 } else { staff.transpose_semitones };
+                let transpose = if part.midi_channel == 9 {
+                    0i8
+                } else {
+                    staff.transpose_semitones
+                };
                 for note in &measure.voices[voice_idx] {
                     let ticks = note_ticks(&note.duration, note.dot_count, note.tuplet.as_ref());
                     if !note.is_rest && !note.is_grace {
-                        let vel = note.dynamic
+                        let vel = note
+                            .dynamic
                             .as_ref()
                             .map(|d| d.to_velocity())
                             .unwrap_or(64u8);
                         for pitch in &note.pitches {
-                            let midi = (pitch.to_midi() + transpose as i16)
-                                .clamp(0, 127) as u8;
+                            let midi = (pitch.to_midi() + transpose as i16).clamp(0, 127) as u8;
                             events.push(TimedEvent {
                                 abs_tick: cursor,
                                 sort_key: 1,
@@ -207,7 +216,10 @@ fn build_part_track(part: &acorde_core::Part, seq: &[usize]) -> Vec<TrackEvent<'
     for ev in events {
         track.push(TrackEvent {
             delta: clamp_delta(ev.abs_tick - prev),
-            kind: TrackEventKind::Midi { channel: ev.channel, message: ev.message },
+            kind: TrackEventKind::Midi {
+                channel: ev.channel,
+                message: ev.message,
+            },
         });
         prev = ev.abs_tick;
     }
@@ -238,7 +250,9 @@ mod tests {
         let bytes = serialize_midi(&score).unwrap();
         let score2 = acorde_io_parse_midi(&bytes);
         let notes: Vec<_> = score2.parts[0].staves[0].measures[0].voices[0]
-            .iter().filter(|n| !n.is_rest).collect();
+            .iter()
+            .filter(|n| !n.is_rest)
+            .collect();
         assert!(!notes.is_empty());
         assert_eq!(notes[0].pitches[0].step, Step::C);
     }
@@ -365,8 +379,14 @@ mod tests {
             vec![Note::new(Pitch::new(Step::E, 4), Duration::Quarter)];
         let bytes = serialize_midi_region(&score, (0, 0)).unwrap();
         // 0x90 = NoteOn ch0; check for C4 (midi=60) present and E4 (midi=64) absent
-        assert!(bytes.windows(2).any(|w| w[0] == 0x90 && w[1] == 60), "C4 should be present");
-        assert!(!bytes.windows(2).any(|w| w[0] == 0x90 && w[1] == 64), "E4 should be absent");
+        assert!(
+            bytes.windows(2).any(|w| w[0] == 0x90 && w[1] == 60),
+            "C4 should be present"
+        );
+        assert!(
+            !bytes.windows(2).any(|w| w[0] == 0x90 && w[1] == 64),
+            "E4 should be absent"
+        );
     }
 
     #[test]

@@ -1,14 +1,14 @@
-use serde::{Deserialize, Serialize};
 use super::change_hint::{ChangeHint, ChangeScope};
 use super::commands::{
-    command_hint, Command, CommandStack, PasteRangeCmd, PasteVoiceCmd,
-    RespellScoreCmd, SetArpeggioCmd, SetCueCmd, SetNoteHeadCmd, SetPartGroupCmd, SetStemCmd, SetTupletCmd, ToggleSlurCmd, ToggleTrillLineCmd, AddStaffCmd, DeleteStaffCmd,
-    RespellScoreToKeyCmd,
+    AddStaffCmd, Command, CommandStack, DeleteStaffCmd, PasteRangeCmd, PasteVoiceCmd,
+    RespellScoreCmd, RespellScoreToKeyCmd, SetArpeggioCmd, SetCueCmd, SetNoteHeadCmd,
+    SetPartGroupCmd, SetStemCmd, SetTupletCmd, ToggleSlurCmd, ToggleTrillLineCmd, command_hint,
 };
-use super::score::PartGroup;
 use super::notation::{Clef, NoteHead, TupletInfo};
+use super::score::PartGroup;
 use super::score::{Note, NoteAddr, Score};
 use crate::Error;
+use serde::{Deserialize, Serialize};
 
 /// Serialisable snapshot of a [`ScoreEngine`]'s command history for crash recovery or replay.
 ///
@@ -57,7 +57,15 @@ impl ScoreEngine {
             }
         }
         let initial_score = score.clone();
-        Self { score, commands: CommandStack::new(200), version: 0, clipboard: None, range_clipboard: None, initial_score, pending_slur_start: None }
+        Self {
+            score,
+            commands: CommandStack::new(200),
+            version: 0,
+            clipboard: None,
+            range_clipboard: None,
+            initial_score,
+            pending_slur_start: None,
+        }
     }
 
     pub fn apply(&mut self, cmd: Command) -> Result<ChangeHint, Error> {
@@ -82,10 +90,16 @@ impl ScoreEngine {
     /// Apply multiple commands as a single undo entry.
     pub fn batch_apply(&mut self, cmds: Vec<Command>) -> Result<ChangeHint, Error> {
         if cmds.is_empty() {
-            return Ok(ChangeHint { scope: ChangeScope::Global, layout_dirty: false, playback_dirty: false });
+            return Ok(ChangeHint {
+                scope: ChangeScope::Global,
+                layout_dirty: false,
+                playback_dirty: false,
+            });
         }
         let mut hint = command_hint(&cmds[0]);
-        for cmd in cmds.iter().skip(1) { hint = hint.merge(command_hint(cmd)); }
+        for cmd in cmds.iter().skip(1) {
+            hint = hint.merge(command_hint(cmd));
+        }
         self.commands.batch_execute(cmds, &mut self.score)?;
         self.version += 1;
         Ok(hint)
@@ -94,13 +108,24 @@ impl ScoreEngine {
     /// Apply a batch of commands as a single undo entry with an explicit label.
     ///
     /// The `label` appears as the [`command_key`] in undo/redo UI (e.g. `"ApplyAI"`).
-    pub fn batch_apply_labeled(&mut self, cmds: Vec<Command>, label: &str) -> Result<ChangeHint, Error> {
+    pub fn batch_apply_labeled(
+        &mut self,
+        cmds: Vec<Command>,
+        label: &str,
+    ) -> Result<ChangeHint, Error> {
         if cmds.is_empty() {
-            return Ok(ChangeHint { scope: ChangeScope::Global, layout_dirty: false, playback_dirty: false });
+            return Ok(ChangeHint {
+                scope: ChangeScope::Global,
+                layout_dirty: false,
+                playback_dirty: false,
+            });
         }
         let mut hint = command_hint(&cmds[0]);
-        for cmd in cmds.iter().skip(1) { hint = hint.merge(command_hint(cmd)); }
-        self.commands.batch_execute_labeled(cmds, label.to_string(), &mut self.score)?;
+        for cmd in cmds.iter().skip(1) {
+            hint = hint.merge(command_hint(cmd));
+        }
+        self.commands
+            .batch_execute_labeled(cmds, label.to_string(), &mut self.score)?;
         self.version += 1;
         Ok(hint)
     }
@@ -163,11 +188,20 @@ impl ScoreEngine {
         measure_index: usize,
         voice_index: usize,
     ) -> Result<(), Error> {
-        let voice = self.score.parts
-            .get(part_index).ok_or(Error::PartNotFound(part_index))?
-            .staves.get(staff_index).ok_or(Error::StaffNotFound(staff_index))?
-            .measures.get(measure_index).ok_or(Error::MeasureNotFound(measure_index))?
-            .voices.get(voice_index).ok_or(Error::VoiceOutOfRange(voice_index))?;
+        let voice = self
+            .score
+            .parts
+            .get(part_index)
+            .ok_or(Error::PartNotFound(part_index))?
+            .staves
+            .get(staff_index)
+            .ok_or(Error::StaffNotFound(staff_index))?
+            .measures
+            .get(measure_index)
+            .ok_or(Error::MeasureNotFound(measure_index))?
+            .voices
+            .get(voice_index)
+            .ok_or(Error::VoiceOutOfRange(voice_index))?;
         self.clipboard = Some(voice.clone());
         Ok(())
     }
@@ -200,17 +234,27 @@ impl ScoreEngine {
             ));
         }
         let from = start.measure.min(end.measure);
-        let to   = start.measure.max(end.measure);
-        let staff = self.score.parts
-            .get(start.part).ok_or(Error::PartNotFound(start.part))?
-            .staves.get(start.staff).ok_or(Error::StaffNotFound(start.staff))?;
-        if start.voice >= 4 { return Err(Error::VoiceOutOfRange(start.voice)); }
+        let to = start.measure.max(end.measure);
+        let staff = self
+            .score
+            .parts
+            .get(start.part)
+            .ok_or(Error::PartNotFound(start.part))?
+            .staves
+            .get(start.staff)
+            .ok_or(Error::StaffNotFound(start.staff))?;
+        if start.voice >= 4 {
+            return Err(Error::VoiceOutOfRange(start.voice));
+        }
         let mut measures = Vec::new();
         for mi in from..=to {
             let m = staff.measures.get(mi).ok_or(Error::MeasureNotFound(mi))?;
             measures.push(m.voices[start.voice].clone());
         }
-        self.range_clipboard = Some(RangeClipboard { voice: start.voice, measures });
+        self.range_clipboard = Some(RangeClipboard {
+            voice: start.voice,
+            measures,
+        });
         Ok(())
     }
 
@@ -239,8 +283,15 @@ impl ScoreEngine {
     }
 
     /// Remove a staff from a part (undo-able). Fails if it is the last remaining staff.
-    pub fn delete_staff(&mut self, part_index: usize, staff_index: usize) -> Result<ChangeHint, Error> {
-        self.apply(Command::DeleteStaff(DeleteStaffCmd { part_index, staff_index }))
+    pub fn delete_staff(
+        &mut self,
+        part_index: usize,
+        staff_index: usize,
+    ) -> Result<ChangeHint, Error> {
+        self.apply(Command::DeleteStaff(DeleteStaffCmd {
+            part_index,
+            staff_index,
+        }))
     }
 
     /// Set or clear the stem direction on an existing note (undo-able).
@@ -248,35 +299,43 @@ impl ScoreEngine {
     /// `stem_up`: `None` = auto, `Some(true)` = up, `Some(false)` = down.
     pub fn set_stem(&mut self, addr: NoteAddr, stem_up: Option<bool>) -> Result<ChangeHint, Error> {
         self.apply(Command::SetStem(SetStemCmd {
-            part_index:    addr.part,
-            staff_index:   addr.staff,
+            part_index: addr.part,
+            staff_index: addr.staff,
             measure_index: addr.measure,
-            voice_index:   addr.voice,
-            note_index:    addr.note,
+            voice_index: addr.voice,
+            note_index: addr.note,
             stem_up,
         }))
     }
 
     /// Set or clear the arpeggio direction on an existing note (undo-able).
-    pub fn set_arpeggio(&mut self, addr: NoteAddr, direction: Option<bool>) -> Result<ChangeHint, Error> {
+    pub fn set_arpeggio(
+        &mut self,
+        addr: NoteAddr,
+        direction: Option<bool>,
+    ) -> Result<ChangeHint, Error> {
         self.apply(Command::SetArpeggio(SetArpeggioCmd {
-            part_index:    addr.part,
-            staff_index:   addr.staff,
+            part_index: addr.part,
+            staff_index: addr.staff,
             measure_index: addr.measure,
-            voice_index:   addr.voice,
-            note_index:    addr.note,
+            voice_index: addr.voice,
+            note_index: addr.note,
             direction,
         }))
     }
 
     /// Set the note head shape on an existing note (undo-able).
-    pub fn set_note_head(&mut self, addr: NoteAddr, note_head: NoteHead) -> Result<ChangeHint, Error> {
+    pub fn set_note_head(
+        &mut self,
+        addr: NoteAddr,
+        note_head: NoteHead,
+    ) -> Result<ChangeHint, Error> {
         self.apply(Command::SetNoteHead(SetNoteHeadCmd {
-            part_index:    addr.part,
-            staff_index:   addr.staff,
+            part_index: addr.part,
+            staff_index: addr.staff,
             measure_index: addr.measure,
-            voice:         addr.voice,
-            note_index:    addr.note,
+            voice: addr.voice,
+            note_index: addr.note,
             note_head,
         }))
     }
@@ -287,24 +346,32 @@ impl ScoreEngine {
     }
 
     /// Toggle a trill line span between two notes (undo-able).
-    pub fn toggle_trill_line(&mut self, start: NoteAddr, end: NoteAddr) -> Result<ChangeHint, Error> {
+    pub fn toggle_trill_line(
+        &mut self,
+        start: NoteAddr,
+        end: NoteAddr,
+    ) -> Result<ChangeHint, Error> {
         self.apply(Command::ToggleTrillLine(ToggleTrillLineCmd { start, end }))
     }
 
     /// Set or clear the cue flag on a note (undo-able). Cue notes have zero beats.
     pub fn set_cue(&mut self, addr: NoteAddr, is_cue: bool) -> Result<ChangeHint, Error> {
         self.apply(Command::SetCue(SetCueCmd {
-            part_index:    addr.part,
-            staff_index:   addr.staff,
+            part_index: addr.part,
+            staff_index: addr.staff,
             measure_index: addr.measure,
-            voice:         addr.voice,
-            note_index:    addr.note,
+            voice: addr.voice,
+            note_index: addr.note,
             is_cue,
         }))
     }
 
     /// Set or clear the tuplet on an existing note (undo-able).
-    pub fn set_tuplet(&mut self, addr: NoteAddr, tuplet: Option<TupletInfo>) -> Result<ChangeHint, Error> {
+    pub fn set_tuplet(
+        &mut self,
+        addr: NoteAddr,
+        tuplet: Option<TupletInfo>,
+    ) -> Result<ChangeHint, Error> {
         self.apply(Command::SetTuplet(SetTupletCmd {
             part_index: addr.part,
             staff_index: addr.staff,
@@ -329,11 +396,21 @@ impl ScoreEngine {
     ///
     /// Returns an error if `start` does not point to a valid note.
     pub fn begin_slur(&mut self, start: NoteAddr) -> Result<(), Error> {
-        self.score.parts.get(start.part).ok_or(Error::PartNotFound(start.part))?
-            .staves.get(start.staff).ok_or(Error::StaffNotFound(start.staff))?
-            .measures.get(start.measure).ok_or(Error::MeasureNotFound(start.measure))?
-            .voices.get(start.voice).ok_or(Error::VoiceOutOfRange(start.voice))?
-            .get(start.note).ok_or(Error::NoteNotFound(start.note))?;
+        self.score
+            .parts
+            .get(start.part)
+            .ok_or(Error::PartNotFound(start.part))?
+            .staves
+            .get(start.staff)
+            .ok_or(Error::StaffNotFound(start.staff))?
+            .measures
+            .get(start.measure)
+            .ok_or(Error::MeasureNotFound(start.measure))?
+            .voices
+            .get(start.voice)
+            .ok_or(Error::VoiceOutOfRange(start.voice))?
+            .get(start.note)
+            .ok_or(Error::NoteNotFound(start.note))?;
         self.pending_slur_start = Some(start);
         Ok(())
     }
@@ -342,7 +419,9 @@ impl ScoreEngine {
     ///
     /// Returns `Error::InvalidCommand` if `begin_slur` has not been called.
     pub fn end_slur(&mut self, end: NoteAddr) -> Result<ChangeHint, Error> {
-        let start = self.pending_slur_start.take()
+        let start = self
+            .pending_slur_start
+            .take()
             .ok_or_else(|| Error::InvalidCommand("no slur in progress".to_string()))?;
         self.apply(Command::ToggleSlur(ToggleSlurCmd { start, end }))
     }
@@ -351,7 +430,7 @@ impl ScoreEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::commands::{SetTempoCmd, NewScoreCmd};
+    use crate::model::commands::{NewScoreCmd, SetTempoCmd};
 
     #[test]
     fn new_engine_has_default_score() {
@@ -363,14 +442,18 @@ mod tests {
     #[test]
     fn apply_increments_version() {
         let mut engine = ScoreEngine::new();
-        engine.apply(Command::SetTempo(SetTempoCmd { bpm: 140 })).unwrap();
+        engine
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 140 }))
+            .unwrap();
         assert_eq!(engine.version, 1);
     }
 
     #[test]
     fn undo_redo_cycle() {
         let mut engine = ScoreEngine::new();
-        engine.apply(Command::SetTempo(SetTempoCmd { bpm: 140 })).unwrap();
+        engine
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 140 }))
+            .unwrap();
         let after_apply = engine.version;
         engine.undo().unwrap();
         assert_eq!(engine.score.settings.tempo_bpm, 120);
@@ -382,7 +465,9 @@ mod tests {
     #[test]
     fn replace_score_clears_history() {
         let mut engine = ScoreEngine::new();
-        engine.apply(Command::SetTempo(SetTempoCmd { bpm: 140 })).unwrap();
+        engine
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 140 }))
+            .unwrap();
         let new_score = Score::new("New", 90, 3, 4, 2, 8);
         engine.replace_score(new_score);
         assert!(engine.undo().is_err());
@@ -391,9 +476,9 @@ mod tests {
 
     #[test]
     fn copy_paste_voice_copies_notes() {
-        use crate::model::score::Note;
-        use crate::model::pitch::{Pitch, Step};
         use crate::model::duration::Duration;
+        use crate::model::pitch::{Pitch, Step};
+        use crate::model::score::Note;
         let mut engine = ScoreEngine::new();
         engine.score.parts[0].staves[0].measures[0].voices[0] =
             vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
@@ -406,9 +491,9 @@ mod tests {
 
     #[test]
     fn paste_voice_undo_restores_original() {
-        use crate::model::score::Note;
-        use crate::model::pitch::{Pitch, Step};
         use crate::model::duration::Duration;
+        use crate::model::pitch::{Pitch, Step};
+        use crate::model::score::Note;
         let mut engine = ScoreEngine::new();
         engine.score.parts[0].staves[0].measures[0].voices[0] =
             vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
@@ -428,7 +513,9 @@ mod tests {
     fn change_hint_set_tempo_is_global() {
         use crate::model::change_hint::ChangeScope;
         let mut engine = ScoreEngine::new();
-        let hint = engine.apply(Command::SetTempo(SetTempoCmd { bpm: 100 })).unwrap();
+        let hint = engine
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 100 }))
+            .unwrap();
         assert_eq!(hint.scope, ChangeScope::Global);
         assert!(!hint.layout_dirty);
         assert!(hint.playback_dirty);
@@ -438,16 +525,33 @@ mod tests {
     fn change_hint_add_note_is_measure_scope() {
         use crate::model::change_hint::ChangeScope;
         use crate::model::commands::AddNoteCmd;
-        use crate::model::pitch::Step;
         use crate::model::duration::Duration;
         use crate::model::pitch::Pitch;
+        use crate::model::pitch::Step;
         let mut engine = ScoreEngine::new();
-        let hint = engine.apply(Command::AddNote(AddNoteCmd {
-            part_index: 0, staff_index: 0, measure_index: 0, voice: 0,
-            position: 0, pitch: Some(Pitch::new(Step::C, 4)),
-            duration: Duration::Quarter, dot_count: 0, is_rest: false, tuplet: None,
-        })).unwrap();
-        assert_eq!(hint.scope, ChangeScope::Measures { part: 0, staff: 0, start: 0, end: 1 });
+        let hint = engine
+            .apply(Command::AddNote(AddNoteCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                position: 0,
+                pitch: Some(Pitch::new(Step::C, 4)),
+                duration: Duration::Quarter,
+                dot_count: 0,
+                is_rest: false,
+                tuplet: None,
+            }))
+            .unwrap();
+        assert_eq!(
+            hint.scope,
+            ChangeScope::Measures {
+                part: 0,
+                staff: 0,
+                start: 0,
+                end: 1
+            }
+        );
         assert!(!hint.layout_dirty);
         assert!(hint.playback_dirty);
     }
@@ -457,9 +561,13 @@ mod tests {
         use crate::model::change_hint::ChangeScope;
         use crate::model::commands::SetPartNameCmd;
         let mut engine = ScoreEngine::new();
-        let hint = engine.apply(Command::SetPartName(SetPartNameCmd {
-            part_index: 0, name: "Violin".into(), short_name: "Vln.".into(),
-        })).unwrap();
+        let hint = engine
+            .apply(Command::SetPartName(SetPartNameCmd {
+                part_index: 0,
+                name: "Violin".into(),
+                short_name: "Vln.".into(),
+            }))
+            .unwrap();
         assert_eq!(hint.scope, ChangeScope::Part(0));
         assert!(!hint.layout_dirty);
         assert!(!hint.playback_dirty);
@@ -469,7 +577,9 @@ mod tests {
     fn undo_returns_change_hint() {
         use crate::model::change_hint::ChangeScope;
         let mut engine = ScoreEngine::new();
-        engine.apply(Command::SetTempo(SetTempoCmd { bpm: 160 })).unwrap();
+        engine
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 160 }))
+            .unwrap();
         let hint = engine.undo().unwrap();
         assert_eq!(hint.scope, ChangeScope::Global);
         assert!(hint.playback_dirty);
@@ -479,7 +589,9 @@ mod tests {
     fn redo_returns_change_hint() {
         use crate::model::change_hint::ChangeScope;
         let mut engine = ScoreEngine::new();
-        engine.apply(Command::SetTempo(SetTempoCmd { bpm: 160 })).unwrap();
+        engine
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 160 }))
+            .unwrap();
         engine.undo().unwrap();
         let hint = engine.redo().unwrap();
         assert_eq!(hint.scope, ChangeScope::Global);
@@ -490,10 +602,12 @@ mod tests {
     fn batch_apply_two_commands_single_undo() {
         let mut engine = ScoreEngine::new();
         let original = engine.score.settings.tempo_bpm;
-        engine.batch_apply(vec![
-            Command::SetTempo(SetTempoCmd { bpm: 160 }),
-            Command::SetTempo(SetTempoCmd { bpm: 180 }),
-        ]).unwrap();
+        engine
+            .batch_apply(vec![
+                Command::SetTempo(SetTempoCmd { bpm: 160 }),
+                Command::SetTempo(SetTempoCmd { bpm: 180 }),
+            ])
+            .unwrap();
         assert_eq!(engine.score.settings.tempo_bpm, 180);
         engine.undo().unwrap();
         assert_eq!(engine.score.settings.tempo_bpm, original);
@@ -514,17 +628,26 @@ mod tests {
     fn batch_apply_hint_merges_scopes() {
         use crate::model::change_hint::ChangeScope;
         use crate::model::commands::{AddNoteCmd, SetTempoCmd};
-        use crate::model::pitch::{Pitch, Step};
         use crate::model::duration::Duration;
+        use crate::model::pitch::{Pitch, Step};
         let mut engine = ScoreEngine::new();
-        let hint = engine.batch_apply(vec![
-            Command::SetTempo(SetTempoCmd { bpm: 140 }),
-            Command::AddNote(AddNoteCmd {
-                part_index: 0, staff_index: 0, measure_index: 0, voice: 0,
-                position: 0, pitch: Some(Pitch::new(Step::C, 4)),
-                duration: Duration::Quarter, dot_count: 0, is_rest: false, tuplet: None,
-            }),
-        ]).unwrap();
+        let hint = engine
+            .batch_apply(vec![
+                Command::SetTempo(SetTempoCmd { bpm: 140 }),
+                Command::AddNote(AddNoteCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    voice: 0,
+                    position: 0,
+                    pitch: Some(Pitch::new(Step::C, 4)),
+                    duration: Duration::Quarter,
+                    dot_count: 0,
+                    is_rest: false,
+                    tuplet: None,
+                }),
+            ])
+            .unwrap();
         // SetTempo = Global; merged with Measures = Global
         assert_eq!(hint.scope, ChangeScope::Global);
         assert!(hint.playback_dirty);
@@ -540,7 +663,9 @@ mod tests {
     #[test]
     fn undo_label_after_command() {
         let mut engine = ScoreEngine::new();
-        engine.apply(Command::SetTempo(SetTempoCmd { bpm: 140 })).unwrap();
+        engine
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 140 }))
+            .unwrap();
         assert_eq!(engine.undo_label(), Some("Set Tempo".to_string()));
         assert!(engine.redo_label().is_none());
     }
@@ -548,7 +673,9 @@ mod tests {
     #[test]
     fn redo_label_after_undo() {
         let mut engine = ScoreEngine::new();
-        engine.apply(Command::SetTempo(SetTempoCmd { bpm: 140 })).unwrap();
+        engine
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 140 }))
+            .unwrap();
         engine.undo().unwrap();
         assert!(engine.undo_label().is_none());
         assert_eq!(engine.redo_label(), Some("Set Tempo".to_string()));
@@ -556,22 +683,42 @@ mod tests {
 
     #[test]
     fn copy_range_paste_range_roundtrip() {
-        use crate::model::score::{Note, NoteAddr};
-        use crate::model::pitch::{Pitch, Step};
         use crate::model::duration::Duration;
+        use crate::model::pitch::{Pitch, Step};
+        use crate::model::score::{Note, NoteAddr};
         let mut engine = ScoreEngine::new();
         // Put a note in measure 0
         engine.score.parts[0].staves[0].measures[0].voices[0] =
             vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
         // Need measure 1: add one
-        use crate::model::commands::{AddMeasureCmd};
-        engine.apply(Command::AddMeasure(AddMeasureCmd { after_index: 0 })).unwrap();
+        use crate::model::commands::AddMeasureCmd;
+        engine
+            .apply(Command::AddMeasure(AddMeasureCmd { after_index: 0 }))
+            .unwrap();
 
-        let start = NoteAddr { part: 0, staff: 0, measure: 0, voice: 0, note: 0 };
-        let end   = NoteAddr { part: 0, staff: 0, measure: 0, voice: 0, note: 0 };
+        let start = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
+        let end = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
         engine.copy_range(start, end).unwrap();
 
-        let target = NoteAddr { part: 0, staff: 0, measure: 1, voice: 0, note: 0 };
+        let target = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 1,
+            voice: 0,
+            note: 0,
+        };
         engine.paste_range(target).unwrap();
 
         let pasted = &engine.score.parts[0].staves[0].measures[1].voices[0];
@@ -581,19 +728,33 @@ mod tests {
 
     #[test]
     fn paste_range_is_undoable() {
-        use crate::model::score::{Note, NoteAddr};
-        use crate::model::pitch::{Pitch, Step};
-        use crate::model::duration::Duration;
         use crate::model::commands::AddMeasureCmd;
+        use crate::model::duration::Duration;
+        use crate::model::pitch::{Pitch, Step};
+        use crate::model::score::{Note, NoteAddr};
         let mut engine = ScoreEngine::new();
         engine.score.parts[0].staves[0].measures[0].voices[0] =
             vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
-        engine.apply(Command::AddMeasure(AddMeasureCmd { after_index: 0 })).unwrap();
+        engine
+            .apply(Command::AddMeasure(AddMeasureCmd { after_index: 0 }))
+            .unwrap();
 
-        let start = NoteAddr { part: 0, staff: 0, measure: 0, voice: 0, note: 0 };
+        let start = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
         let end = start.clone();
         engine.copy_range(start, end).unwrap();
-        let target = NoteAddr { part: 0, staff: 0, measure: 1, voice: 0, note: 0 };
+        let target = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 1,
+            voice: 0,
+            note: 0,
+        };
         engine.paste_range(target).unwrap();
 
         // Undo should restore measure 1 to its pre-paste state
@@ -608,8 +769,20 @@ mod tests {
         // Can't call copy_range mutably here since we need &mut, so test via a new engine
         let mut e = ScoreEngine::new();
         use crate::model::score::NoteAddr;
-        let start = NoteAddr { part: 0, staff: 0, measure: 0, voice: 0, note: 0 };
-        let end   = NoteAddr { part: 1, staff: 0, measure: 0, voice: 0, note: 0 };
+        let start = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
+        let end = NoteAddr {
+            part: 1,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
         assert!(e.copy_range(start, end).is_err());
         let _ = engine; // suppress unused warning
     }
@@ -617,8 +790,12 @@ mod tests {
     #[test]
     fn export_history_roundtrip() {
         let mut engine = ScoreEngine::new();
-        engine.apply(Command::SetTempo(SetTempoCmd { bpm: 160 })).unwrap();
-        engine.apply(Command::SetTempo(SetTempoCmd { bpm: 180 })).unwrap();
+        engine
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 160 }))
+            .unwrap();
+        engine
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 180 }))
+            .unwrap();
         let history = engine.export_history();
         assert_eq!(history.commands.len(), 2);
         let restored = ScoreEngine::from_history(history).unwrap();
@@ -639,7 +816,9 @@ mod tests {
         let mut engine = ScoreEngine::new();
         let s = Score::new("Custom", 90, 3, 4, 2, 4);
         engine.replace_score(s);
-        engine.apply(Command::SetTempo(SetTempoCmd { bpm: 60 })).unwrap();
+        engine
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 60 }))
+            .unwrap();
         let history = engine.export_history();
         assert_eq!(history.initial_score.settings.tempo_bpm, 90);
         assert_eq!(history.commands.len(), 1);
@@ -650,16 +829,18 @@ mod tests {
     #[test]
     fn new_score_command_replaces_score() {
         let mut engine = ScoreEngine::new();
-        engine.apply(Command::NewScore(NewScoreCmd {
-            title: "Sonata".into(),
-            composer: "Bach".into(),
-            tempo_bpm: 80,
-            time_numerator: 3,
-            time_denominator: 4,
-            key_fifths: -1,
-            measure_count: 12,
-            template: None,
-        })).unwrap();
+        engine
+            .apply(Command::NewScore(NewScoreCmd {
+                title: "Sonata".into(),
+                composer: "Bach".into(),
+                tempo_bpm: 80,
+                time_numerator: 3,
+                time_denominator: 4,
+                key_fifths: -1,
+                measure_count: 12,
+                template: None,
+            }))
+            .unwrap();
         assert_eq!(engine.score.metadata.title, "Sonata");
         assert_eq!(engine.score.measure_count(), 12);
     }
@@ -667,18 +848,31 @@ mod tests {
     #[test]
     fn respell_score_to_key_uses_key_signature() {
         use crate::model::commands::{AddNoteCmd, RespellScoreToKeyCmd};
-        use crate::model::pitch::Step;
         use crate::model::notation::KeySignature;
+        use crate::model::pitch::Step;
         let mut engine = ScoreEngine::new();
         // Set Bb major (2 flats, fifths = -2) → prefer_flat = true
-        engine.score.settings.key_signature = KeySignature { fifths: -2, mode: "major".to_string() };
-        engine.apply(Command::AddNote(AddNoteCmd {
-            part_index: 0, staff_index: 0, measure_index: 0, voice: 0, position: 0,
-            pitch: Some(crate::model::pitch::Pitch::with_alter(Step::C, 4, 1)), // C#4
-            duration: crate::model::duration::Duration::Quarter,
-            dot_count: 0, is_rest: false, tuplet: None,
-        })).unwrap();
-        engine.apply(Command::RespellScoreToKey(RespellScoreToKeyCmd {})).unwrap();
+        engine.score.settings.key_signature = KeySignature {
+            fifths: -2,
+            mode: "major".to_string(),
+        };
+        engine
+            .apply(Command::AddNote(AddNoteCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                position: 0,
+                pitch: Some(crate::model::pitch::Pitch::with_alter(Step::C, 4, 1)), // C#4
+                duration: crate::model::duration::Duration::Quarter,
+                dot_count: 0,
+                is_rest: false,
+                tuplet: None,
+            }))
+            .unwrap();
+        engine
+            .apply(Command::RespellScoreToKey(RespellScoreToKeyCmd {}))
+            .unwrap();
         let pitch = &engine.score.parts[0].staves[0].measures[0].voices[0][0].pitches[0];
         assert_eq!(pitch.step, Step::D);
         assert_eq!(pitch.alter, -1); // Db4
@@ -687,21 +881,51 @@ mod tests {
     #[test]
     fn begin_end_slur_creates_slur() {
         use crate::model::commands::AddNoteCmd;
-        use crate::model::pitch::{Pitch, Step};
         use crate::model::duration::Duration;
+        use crate::model::pitch::{Pitch, Step};
         let mut engine = ScoreEngine::new();
-        engine.apply(Command::AddNote(AddNoteCmd {
-            part_index: 0, staff_index: 0, measure_index: 0, voice: 0, position: 0,
-            pitch: Some(Pitch::new(Step::C, 4)), duration: Duration::Quarter,
-            dot_count: 0, is_rest: false, tuplet: None,
-        })).unwrap();
-        engine.apply(Command::AddNote(AddNoteCmd {
-            part_index: 0, staff_index: 0, measure_index: 0, voice: 0, position: 1,
-            pitch: Some(Pitch::new(Step::D, 4)), duration: Duration::Quarter,
-            dot_count: 0, is_rest: false, tuplet: None,
-        })).unwrap();
-        let start = NoteAddr { part: 0, staff: 0, measure: 0, voice: 0, note: 0 };
-        let end   = NoteAddr { part: 0, staff: 0, measure: 0, voice: 0, note: 1 };
+        engine
+            .apply(Command::AddNote(AddNoteCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                position: 0,
+                pitch: Some(Pitch::new(Step::C, 4)),
+                duration: Duration::Quarter,
+                dot_count: 0,
+                is_rest: false,
+                tuplet: None,
+            }))
+            .unwrap();
+        engine
+            .apply(Command::AddNote(AddNoteCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                position: 1,
+                pitch: Some(Pitch::new(Step::D, 4)),
+                duration: Duration::Quarter,
+                dot_count: 0,
+                is_rest: false,
+                tuplet: None,
+            }))
+            .unwrap();
+        let start = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
+        let end = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 1,
+        };
         engine.begin_slur(start).unwrap();
         engine.end_slur(end).unwrap();
         assert!(engine.score.parts[0].staves[0].measures[0].voices[0][0].slur_start);
@@ -711,7 +935,13 @@ mod tests {
     #[test]
     fn end_slur_without_begin_returns_error() {
         let mut engine = ScoreEngine::new();
-        let end = NoteAddr { part: 0, staff: 0, measure: 0, voice: 0, note: 0 };
+        let end = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
         let result = engine.end_slur(end);
         assert!(result.is_err());
     }
@@ -721,58 +951,124 @@ mod tests {
     #[test]
     fn set_stem_sets_and_clears() {
         use crate::model::commands::AddNoteCmd;
-        use crate::model::pitch::{Pitch, Step};
         use crate::model::duration::Duration;
+        use crate::model::pitch::{Pitch, Step};
         let mut engine = ScoreEngine::new();
-        engine.apply(Command::AddNote(AddNoteCmd {
-            part_index: 0, staff_index: 0, measure_index: 0, voice: 0, position: 0,
-            pitch: Some(Pitch::new(Step::C, 4)), duration: Duration::Quarter,
-            dot_count: 0, is_rest: false, tuplet: None,
-        })).unwrap();
-        let addr = NoteAddr { part: 0, staff: 0, measure: 0, voice: 0, note: 0 };
+        engine
+            .apply(Command::AddNote(AddNoteCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                position: 0,
+                pitch: Some(Pitch::new(Step::C, 4)),
+                duration: Duration::Quarter,
+                dot_count: 0,
+                is_rest: false,
+                tuplet: None,
+            }))
+            .unwrap();
+        let addr = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
         engine.set_stem(addr.clone(), Some(true)).unwrap();
-        assert_eq!(engine.score.parts[0].staves[0].measures[0].voices[0][0].stem_up, Some(true));
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].voices[0][0].stem_up,
+            Some(true)
+        );
         engine.set_stem(addr.clone(), Some(false)).unwrap();
-        assert_eq!(engine.score.parts[0].staves[0].measures[0].voices[0][0].stem_up, Some(false));
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].voices[0][0].stem_up,
+            Some(false)
+        );
         engine.set_stem(addr, None).unwrap();
-        assert_eq!(engine.score.parts[0].staves[0].measures[0].voices[0][0].stem_up, None);
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].voices[0][0].stem_up,
+            None
+        );
     }
 
     #[test]
     fn set_stem_is_undoable() {
         use crate::model::commands::AddNoteCmd;
-        use crate::model::pitch::{Pitch, Step};
         use crate::model::duration::Duration;
+        use crate::model::pitch::{Pitch, Step};
         let mut engine = ScoreEngine::new();
-        engine.apply(Command::AddNote(AddNoteCmd {
-            part_index: 0, staff_index: 0, measure_index: 0, voice: 0, position: 0,
-            pitch: Some(Pitch::new(Step::C, 4)), duration: Duration::Quarter,
-            dot_count: 0, is_rest: false, tuplet: None,
-        })).unwrap();
-        let addr = NoteAddr { part: 0, staff: 0, measure: 0, voice: 0, note: 0 };
+        engine
+            .apply(Command::AddNote(AddNoteCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                position: 0,
+                pitch: Some(Pitch::new(Step::C, 4)),
+                duration: Duration::Quarter,
+                dot_count: 0,
+                is_rest: false,
+                tuplet: None,
+            }))
+            .unwrap();
+        let addr = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
         engine.set_stem(addr, Some(true)).unwrap();
         engine.undo().unwrap();
-        assert_eq!(engine.score.parts[0].staves[0].measures[0].voices[0][0].stem_up, None);
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].voices[0][0].stem_up,
+            None
+        );
     }
 
     #[test]
     fn set_arpeggio_is_undoable() {
         use crate::model::commands::AddNoteCmd;
-        use crate::model::pitch::{Pitch, Step};
         use crate::model::duration::Duration;
+        use crate::model::pitch::{Pitch, Step};
         let mut engine = ScoreEngine::new();
-        engine.apply(Command::AddNote(AddNoteCmd {
-            part_index: 0, staff_index: 0, measure_index: 0, voice: 0, position: 0,
-            pitch: Some(Pitch::new(Step::C, 4)), duration: Duration::Quarter,
-            dot_count: 0, is_rest: false, tuplet: None,
-        })).unwrap();
-        let addr = NoteAddr { part: 0, staff: 0, measure: 0, voice: 0, note: 0 };
+        engine
+            .apply(Command::AddNote(AddNoteCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                position: 0,
+                pitch: Some(Pitch::new(Step::C, 4)),
+                duration: Duration::Quarter,
+                dot_count: 0,
+                is_rest: false,
+                tuplet: None,
+            }))
+            .unwrap();
+        let addr = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
         engine.set_arpeggio(addr.clone(), Some(true)).unwrap();
-        assert_eq!(engine.score.parts[0].staves[0].measures[0].voices[0][0].arpeggiate, Some(true));
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].voices[0][0].arpeggiate,
+            Some(true)
+        );
         engine.undo().unwrap();
-        assert_eq!(engine.score.parts[0].staves[0].measures[0].voices[0][0].arpeggiate, None);
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].voices[0][0].arpeggiate,
+            None
+        );
         engine.redo().unwrap();
-        assert_eq!(engine.score.parts[0].staves[0].measures[0].voices[0][0].arpeggiate, Some(true));
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].voices[0][0].arpeggiate,
+            Some(true)
+        );
     }
 
     // ── command_key ───────────────────────────────────────────────────────────
@@ -780,7 +1076,9 @@ mod tests {
     #[test]
     fn undo_key_returns_key_string() {
         let mut engine = ScoreEngine::new();
-        engine.apply(Command::SetTempo(SetTempoCmd { bpm: 140 })).unwrap();
+        engine
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 140 }))
+            .unwrap();
         assert_eq!(engine.undo_key(), Some("SetTempo".to_string()));
         assert!(engine.redo_key().is_none());
     }
@@ -788,7 +1086,9 @@ mod tests {
     #[test]
     fn redo_key_after_undo() {
         let mut engine = ScoreEngine::new();
-        engine.apply(Command::SetTempo(SetTempoCmd { bpm: 140 })).unwrap();
+        engine
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 140 }))
+            .unwrap();
         engine.undo().unwrap();
         assert!(engine.undo_key().is_none());
         assert_eq!(engine.redo_key(), Some("SetTempo".to_string()));
@@ -799,10 +1099,9 @@ mod tests {
     #[test]
     fn batch_apply_labeled_sets_undo_key() {
         let mut engine = ScoreEngine::new();
-        engine.batch_apply_labeled(
-            vec![Command::SetTempo(SetTempoCmd { bpm: 140 })],
-            "ApplyAI",
-        ).unwrap();
+        engine
+            .batch_apply_labeled(vec![Command::SetTempo(SetTempoCmd { bpm: 140 })], "ApplyAI")
+            .unwrap();
         assert_eq!(engine.undo_key(), Some("ApplyAI".to_string()));
     }
 

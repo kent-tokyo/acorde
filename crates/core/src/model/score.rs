@@ -1,14 +1,14 @@
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use crate::Error;
 use super::{
     duration::Duration,
     notation::{
-        Articulation, Barline, BeamState, ChordSymbol, Clef, Dynamic, GuitarTechnique,
-        HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind, TimeSignature, TupletInfo,
+        Articulation, Barline, BeamState, ChordSymbol, Clef, Dynamic, GuitarTechnique, HairpinKind,
+        KeySignature, Lyric, NoteHead, OttavaKind, TimeSignature, TupletInfo,
     },
     pitch::Pitch,
 };
+use crate::Error;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScoreMetadata {
@@ -129,8 +129,14 @@ impl Score {
         let mut score = Score::default();
         score.metadata.title = title.to_string();
         score.settings.tempo_bpm = tempo_bpm;
-        score.settings.time_signature = TimeSignature { numerator, denominator };
-        score.settings.key_signature = KeySignature { fifths, mode: "major".to_string() };
+        score.settings.time_signature = TimeSignature {
+            numerator,
+            denominator,
+        };
+        score.settings.key_signature = KeySignature {
+            fifths,
+            mode: "major".to_string(),
+        };
 
         score.parts[0].staves[0].measures.clear();
         for i in 0..measure_count {
@@ -147,11 +153,13 @@ impl Score {
     /// Use [`NewScoreCmd`](crate::model::commands::NewScoreCmd) to override those after creation.
     pub fn template(kind: ScoreTemplate) -> Self {
         fn measures(num: u8, den: u8, count: u32) -> Vec<Measure> {
-            (0..count).map(|i| {
-                let mut m = Measure::empty(num, den);
-                m.number = i + 1;
-                m
-            }).collect()
+            (0..count)
+                .map(|i| {
+                    let mut m = Measure::empty(num, den);
+                    m.number = i + 1;
+                    m
+                })
+                .collect()
         }
         fn part(name: &str, short: &str, clef: Clef, program: u8) -> Part {
             let mut p = Part::new(name, short);
@@ -187,31 +195,46 @@ impl Score {
                 score.parts.push(p);
             }
             ScoreTemplate::StringQuartet => {
-                score.parts.push(part("Violin I",  "Vn. I",  Clef::Treble, 40));
-                score.parts.push(part("Violin II", "Vn. II", Clef::Treble, 40));
-                score.parts.push(part("Viola",     "Va.",    Clef::Alto,   41));
-                score.parts.push(part("Cello",     "Vc.",    Clef::Bass,   42));
+                score
+                    .parts
+                    .push(part("Violin I", "Vn. I", Clef::Treble, 40));
+                score
+                    .parts
+                    .push(part("Violin II", "Vn. II", Clef::Treble, 40));
+                score.parts.push(part("Viola", "Va.", Clef::Alto, 41));
+                score.parts.push(part("Cello", "Vc.", Clef::Bass, 42));
             }
             ScoreTemplate::StringOrchestra => {
-                score.parts.push(part("Violin I",    "Vn. I",  Clef::Treble, 40));
-                score.parts.push(part("Violin II",   "Vn. II", Clef::Treble, 40));
-                score.parts.push(part("Viola",       "Va.",    Clef::Alto,   41));
-                score.parts.push(part("Cello",       "Vc.",    Clef::Bass,   42));
-                score.parts.push(part("Contrabass",  "Cb.",    Clef::Bass,   43));
+                score
+                    .parts
+                    .push(part("Violin I", "Vn. I", Clef::Treble, 40));
+                score
+                    .parts
+                    .push(part("Violin II", "Vn. II", Clef::Treble, 40));
+                score.parts.push(part("Viola", "Va.", Clef::Alto, 41));
+                score.parts.push(part("Cello", "Vc.", Clef::Bass, 42));
+                score.parts.push(part("Contrabass", "Cb.", Clef::Bass, 43));
             }
             ScoreTemplate::BrassQuintet => {
-                score.parts.push(part("Trumpet I",    "Tpt. I",  Clef::Treble, 56));
-                score.parts.push(part("Trumpet II",   "Tpt. II", Clef::Treble, 56));
-                score.parts.push(part("French Horn",  "Hn.",     Clef::Treble, 60));
-                score.parts.push(part("Trombone",     "Tbn.",    Clef::Bass,   57));
-                score.parts.push(part("Tuba",         "Tba.",    Clef::Bass,   58));
+                score
+                    .parts
+                    .push(part("Trumpet I", "Tpt. I", Clef::Treble, 56));
+                score
+                    .parts
+                    .push(part("Trumpet II", "Tpt. II", Clef::Treble, 56));
+                score
+                    .parts
+                    .push(part("French Horn", "Hn.", Clef::Treble, 60));
+                score.parts.push(part("Trombone", "Tbn.", Clef::Bass, 57));
+                score.parts.push(part("Tuba", "Tba.", Clef::Bass, 58));
             }
         }
         score
     }
 
     pub fn measure_count(&self) -> usize {
-        self.parts.first()
+        self.parts
+            .first()
             .and_then(|p| p.staves.first())
             .map(|s| s.measures.len())
             .unwrap_or(0)
@@ -224,7 +247,9 @@ impl Score {
 
         // Beat accumulation via measure_sequence so repeats are counted correctly.
         let seq = measure_sequence(self);
-        let total_beats: f64 = self.parts.first()
+        let total_beats: f64 = self
+            .parts
+            .first()
             .and_then(|p| p.staves.first())
             .map(|s| {
                 seq.iter()
@@ -242,7 +267,11 @@ impl Score {
                 for measure in &staff.measures {
                     for voice in &measure.voices {
                         for note in voice {
-                            if note.is_rest { rest_count += 1; } else { note_count += 1; }
+                            if note.is_rest {
+                                rest_count += 1;
+                            } else {
+                                note_count += 1;
+                            }
                         }
                     }
                 }
@@ -250,9 +279,19 @@ impl Score {
         }
 
         let bpm = self.settings.tempo_bpm as f64;
-        let estimated_duration_secs = if bpm > 0.0 { total_beats / bpm * 60.0 } else { 0.0 };
+        let estimated_duration_secs = if bpm > 0.0 {
+            total_beats / bpm * 60.0
+        } else {
+            0.0
+        };
 
-        ScoreStats { measure_count, note_count, rest_count, part_count, estimated_duration_secs }
+        ScoreStats {
+            measure_count,
+            note_count,
+            rest_count,
+            part_count,
+            estimated_duration_secs,
+        }
     }
 
     /// Return a new `Score` containing only the given part.
@@ -273,9 +312,9 @@ impl Score {
     /// Shorter scores are padded with empty measures to match the longer one.
     /// Metadata and settings are taken from `self`.
     pub fn merge(&self, other: &Score) -> Score {
-        let self_count  = self.measure_count();
+        let self_count = self.measure_count();
         let other_count = other.measure_count();
-        let max_count   = self_count.max(other_count);
+        let max_count = self_count.max(other_count);
         let ts = self.settings.time_signature.clone();
 
         let pad = |mut part: Part, from: usize| -> Part {
@@ -289,7 +328,10 @@ impl Score {
             part
         };
 
-        let mut parts: Vec<Part> = self.parts.iter().cloned()
+        let mut parts: Vec<Part> = self
+            .parts
+            .iter()
+            .cloned()
             .map(|p| pad(p, self_count))
             .collect();
         for p in &other.parts {
@@ -328,10 +370,15 @@ use super::repeat::measure_sequence;
 /// Key signatures (global and per-measure) are updated accordingly.
 /// If `semitones == 0` the score is cloned unchanged.
 pub fn transpose(score: &Score, semitones: i8) -> Score {
-    if semitones == 0 { return score.clone(); }
+    if semitones == 0 {
+        return score.clone();
+    }
     let mut out = score.clone();
-    out.settings.key_signature.fifths =
-        transpose_fifths(score.settings.key_signature.fifths, &score.settings.key_signature.mode, semitones);
+    out.settings.key_signature.fifths = transpose_fifths(
+        score.settings.key_signature.fifths,
+        &score.settings.key_signature.mode,
+        semitones,
+    );
     for part in &mut out.parts {
         for staff in &mut part.staves {
             for measure in &mut staff.measures {
@@ -357,23 +404,35 @@ fn transpose_pitch(pitch: &Pitch, semitones: i8) -> Pitch {
     let oct = (new_midi / 12) as i8 - 1;
     let (step, alter): (Step, i8) = if semitones >= 0 {
         match pc {
-            0  => (Step::C,  0),  1  => (Step::C,  1),
-            2  => (Step::D,  0),  3  => (Step::D,  1),
-            4  => (Step::E,  0),  5  => (Step::F,  0),
-            6  => (Step::F,  1),  7  => (Step::G,  0),
-            8  => (Step::G,  1),  9  => (Step::A,  0),
-            10 => (Step::A,  1), 11 => (Step::B,  0),
-            _  => (Step::C,  0),
+            0 => (Step::C, 0),
+            1 => (Step::C, 1),
+            2 => (Step::D, 0),
+            3 => (Step::D, 1),
+            4 => (Step::E, 0),
+            5 => (Step::F, 0),
+            6 => (Step::F, 1),
+            7 => (Step::G, 0),
+            8 => (Step::G, 1),
+            9 => (Step::A, 0),
+            10 => (Step::A, 1),
+            11 => (Step::B, 0),
+            _ => (Step::C, 0),
         }
     } else {
         match pc {
-            0  => (Step::C,  0),  1  => (Step::D, -1),
-            2  => (Step::D,  0),  3  => (Step::E, -1),
-            4  => (Step::E,  0),  5  => (Step::F,  0),
-            6  => (Step::G, -1),  7  => (Step::G,  0),
-            8  => (Step::A, -1),  9  => (Step::A,  0),
-            10 => (Step::B, -1), 11 => (Step::B,  0),
-            _  => (Step::C,  0),
+            0 => (Step::C, 0),
+            1 => (Step::D, -1),
+            2 => (Step::D, 0),
+            3 => (Step::E, -1),
+            4 => (Step::E, 0),
+            5 => (Step::F, 0),
+            6 => (Step::G, -1),
+            7 => (Step::G, 0),
+            8 => (Step::A, -1),
+            9 => (Step::A, 0),
+            10 => (Step::B, -1),
+            11 => (Step::B, 0),
+            _ => (Step::C, 0),
         }
     };
     Pitch::with_alter(step, oct, alter)
@@ -440,7 +499,11 @@ pub struct Staff {
 
 impl Staff {
     pub fn new(clef: Clef) -> Self {
-        Self { clef, measures: Vec::new(), transpose_semitones: 0 }
+        Self {
+            clef,
+            measures: Vec::new(),
+            transpose_semitones: 0,
+        }
     }
 }
 
@@ -489,7 +552,11 @@ pub struct Measure {
 
 impl Measure {
     pub fn empty(numerator: u8, denominator: u8) -> Self {
-        let total_beats = TimeSignature { numerator, denominator }.total_beats();
+        let total_beats = TimeSignature {
+            numerator,
+            denominator,
+        }
+        .total_beats();
         let mut voice0: Vec<Note> = Vec::new();
         let mut remaining = total_beats;
         while remaining > 1e-9 {
@@ -669,7 +736,9 @@ impl Note {
     }
 
     pub fn beats(&self) -> f64 {
-        if self.is_grace || self.is_cue { return 0.0; }
+        if self.is_grace || self.is_cue {
+            return 0.0;
+        }
         let base = self.duration.beats(self.dot_count);
         if let Some(ref t) = self.tuplet {
             base * (t.normal_notes as f64) / (t.actual_notes as f64)
@@ -682,13 +751,21 @@ impl Note {
 impl Duration {
     /// Returns the largest single duration that fills the given number of beats.
     pub fn whole_filling_beats(beats: f64) -> Duration {
-        if beats >= 4.0      { Duration::Whole }
-        else if beats >= 2.0 { Duration::Half }
-        else if beats >= 1.0 { Duration::Quarter }
-        else if beats >= 0.5 { Duration::Eighth }
-        else if beats >= 0.25 { Duration::Sixteenth }
-        else if beats >= 0.125 { Duration::ThirtySecond }
-        else                 { Duration::SixtyFourth }
+        if beats >= 4.0 {
+            Duration::Whole
+        } else if beats >= 2.0 {
+            Duration::Half
+        } else if beats >= 1.0 {
+            Duration::Quarter
+        } else if beats >= 0.5 {
+            Duration::Eighth
+        } else if beats >= 0.25 {
+            Duration::Sixteenth
+        } else if beats >= 0.125 {
+            Duration::ThirtySecond
+        } else {
+            Duration::SixtyFourth
+        }
     }
 }
 
@@ -709,19 +786,80 @@ pub struct NoteAddr {
 /// A single change between two [`Score`] values as reported by [`diff`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ScoreChange {
-    MetadataChanged { field: String, old: String, new: String },
-    TempoChanged { old: u16, new: u16 },
-    KeySignatureChanged { old: KeySignature, new: KeySignature },
-    PartAdded { part_index: usize },
-    PartRemoved { part_index: usize, name: String },
-    NoteAdded   { part: usize, staff: usize, measure: usize, voice: usize, note_index: usize },
-    NoteRemoved { part: usize, staff: usize, measure: usize, voice: usize, note: Box<Note> },
-    NoteModified { part: usize, staff: usize, measure: usize, voice: usize, note_index: usize, old: Box<Note>, new: Box<Note> },
-    TimeSigChanged { part: usize, staff: usize, measure: usize, old: Option<TimeSignature>, new: Option<TimeSignature> },
-    MeasureTempoChanged { part: usize, staff: usize, measure: usize, old: Option<u16>, new: Option<u16> },
-    BarlineChanged { part: usize, staff: usize, measure: usize },
-    RehearsalMarkChanged { part: usize, staff: usize, measure: usize, old: Option<String>, new: Option<String> },
-    VoltaChanged { part: usize, staff: usize, measure: usize },
+    MetadataChanged {
+        field: String,
+        old: String,
+        new: String,
+    },
+    TempoChanged {
+        old: u16,
+        new: u16,
+    },
+    KeySignatureChanged {
+        old: KeySignature,
+        new: KeySignature,
+    },
+    PartAdded {
+        part_index: usize,
+    },
+    PartRemoved {
+        part_index: usize,
+        name: String,
+    },
+    NoteAdded {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        voice: usize,
+        note_index: usize,
+    },
+    NoteRemoved {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        voice: usize,
+        note: Box<Note>,
+    },
+    NoteModified {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        voice: usize,
+        note_index: usize,
+        old: Box<Note>,
+        new: Box<Note>,
+    },
+    TimeSigChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old: Option<TimeSignature>,
+        new: Option<TimeSignature>,
+    },
+    MeasureTempoChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old: Option<u16>,
+        new: Option<u16>,
+    },
+    BarlineChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+    },
+    RehearsalMarkChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old: Option<String>,
+        new: Option<String>,
+    },
+    VoltaChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+    },
 }
 
 /// Compare two scores and return a list of differences.
@@ -751,7 +889,10 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
     meta!(movement_title, "movement_title");
 
     if a.settings.tempo_bpm != b.settings.tempo_bpm {
-        changes.push(ScoreChange::TempoChanged { old: a.settings.tempo_bpm, new: b.settings.tempo_bpm });
+        changes.push(ScoreChange::TempoChanged {
+            old: a.settings.tempo_bpm,
+            new: b.settings.tempo_bpm,
+        });
     }
     if a.settings.key_signature != b.settings.key_signature {
         changes.push(ScoreChange::KeySignatureChanged {
@@ -763,7 +904,10 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
     let a_len = a.parts.len();
     let b_len = b.parts.len();
     for i in b_len..a_len {
-        changes.push(ScoreChange::PartRemoved { part_index: i, name: a.parts[i].name.clone() });
+        changes.push(ScoreChange::PartRemoved {
+            part_index: i,
+            name: a.parts[i].name.clone(),
+        });
     }
     for i in a_len..b_len {
         changes.push(ScoreChange::PartAdded { part_index: i });
@@ -784,45 +928,75 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                     for (ni, (a_note, b_note)) in av.iter().zip(bv.iter()).enumerate() {
                         if !note_content_eq(a_note, b_note) {
                             changes.push(ScoreChange::NoteModified {
-                                part: pi, staff: si, measure: mi, voice: vi, note_index: ni,
-                                old: Box::new(a_note.clone()), new: Box::new(b_note.clone()),
+                                part: pi,
+                                staff: si,
+                                measure: mi,
+                                voice: vi,
+                                note_index: ni,
+                                old: Box::new(a_note.clone()),
+                                new: Box::new(b_note.clone()),
                             });
                         }
                     }
                     for note in av.iter().skip(bv.len()) {
                         changes.push(ScoreChange::NoteRemoved {
-                            part: pi, staff: si, measure: mi, voice: vi, note: Box::new(note.clone()),
+                            part: pi,
+                            staff: si,
+                            measure: mi,
+                            voice: vi,
+                            note: Box::new(note.clone()),
                         });
                     }
                     for ni in av.len()..bv.len() {
                         changes.push(ScoreChange::NoteAdded {
-                            part: pi, staff: si, measure: mi, voice: vi, note_index: ni,
+                            part: pi,
+                            staff: si,
+                            measure: mi,
+                            voice: vi,
+                            note_index: ni,
                         });
                     }
                 }
                 if am.time_sig != bm.time_sig {
                     changes.push(ScoreChange::TimeSigChanged {
-                        part: pi, staff: si, measure: mi,
-                        old: am.time_sig.clone(), new: bm.time_sig.clone(),
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.time_sig.clone(),
+                        new: bm.time_sig.clone(),
                     });
                 }
                 if am.tempo != bm.tempo {
                     changes.push(ScoreChange::MeasureTempoChanged {
-                        part: pi, staff: si, measure: mi,
-                        old: am.tempo, new: bm.tempo,
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.tempo,
+                        new: bm.tempo,
                     });
                 }
                 if am.barline_left != bm.barline_left || am.barline_right != bm.barline_right {
-                    changes.push(ScoreChange::BarlineChanged { part: pi, staff: si, measure: mi });
+                    changes.push(ScoreChange::BarlineChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                    });
                 }
                 if am.rehearsal != bm.rehearsal {
                     changes.push(ScoreChange::RehearsalMarkChanged {
-                        part: pi, staff: si, measure: mi,
-                        old: am.rehearsal.clone(), new: bm.rehearsal.clone(),
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.rehearsal.clone(),
+                        new: bm.rehearsal.clone(),
                     });
                 }
                 if am.volta != bm.volta {
-                    changes.push(ScoreChange::VoltaChanged { part: pi, staff: si, measure: mi });
+                    changes.push(ScoreChange::VoltaChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                    });
                 }
             }
         }
@@ -839,15 +1013,49 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
 /// [`Score`] without needing the original score. Use [`apply_patch`] to apply a list.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ScorePatch {
-    SetMetadata { field: String, value: String },
-    SetTempo { value: u16 },
-    SetKeySignature { part: usize, staff: usize, measure: usize, value: KeySignature },
+    SetMetadata {
+        field: String,
+        value: String,
+    },
+    SetTempo {
+        value: u16,
+    },
+    SetKeySignature {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        value: KeySignature,
+    },
     /// Insert `note` at `note_index` in the given voice (existing notes shift right).
-    AddNote { part: usize, staff: usize, measure: usize, voice: usize, note: Box<Note> },
-    RemoveNote { part: usize, staff: usize, measure: usize, voice: usize, note_index: usize },
+    AddNote {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        voice: usize,
+        note: Box<Note>,
+    },
+    RemoveNote {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        voice: usize,
+        note_index: usize,
+    },
     /// Replace the note at `note_index` with `note`.
-    ReplaceNote { part: usize, staff: usize, measure: usize, voice: usize, note_index: usize, note: Box<Note> },
-    SetMeasureTempo { part: usize, staff: usize, measure: usize, value: Option<u16> },
+    ReplaceNote {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        voice: usize,
+        note_index: usize,
+        note: Box<Note>,
+    },
+    SetMeasureTempo {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        value: Option<u16>,
+    },
 }
 
 /// Compare two scores and return a list of [`ScorePatch`] operations.
@@ -875,7 +1083,9 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
     meta!(movement_title, "movement_title");
 
     if a.settings.tempo_bpm != b.settings.tempo_bpm {
-        patches.push(ScorePatch::SetTempo { value: b.settings.tempo_bpm });
+        patches.push(ScorePatch::SetTempo {
+            value: b.settings.tempo_bpm,
+        });
     }
 
     for pi in 0..a.parts.len().min(b.parts.len()) {
@@ -892,12 +1102,18 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                     && let Some(ref ks) = bm.key_sig
                 {
                     patches.push(ScorePatch::SetKeySignature {
-                        part: pi, staff: si, measure: mi, value: ks.clone(),
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: ks.clone(),
                     });
                 }
                 if am.tempo != bm.tempo {
                     patches.push(ScorePatch::SetMeasureTempo {
-                        part: pi, staff: si, measure: mi, value: bm.tempo,
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: bm.tempo,
                     });
                 }
 
@@ -907,21 +1123,32 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                     for (ni, (a_note, b_note)) in av.iter().zip(bv.iter()).enumerate() {
                         if !note_content_eq(a_note, b_note) {
                             patches.push(ScorePatch::ReplaceNote {
-                                part: pi, staff: si, measure: mi, voice: vi,
-                                note_index: ni, note: Box::new(b_note.clone()),
+                                part: pi,
+                                staff: si,
+                                measure: mi,
+                                voice: vi,
+                                note_index: ni,
+                                note: Box::new(b_note.clone()),
                             });
                         }
                     }
                     // Notes in `a` beyond `b` — remove in reverse order to preserve indices.
                     for ni in (bv.len()..av.len()).rev() {
                         patches.push(ScorePatch::RemoveNote {
-                            part: pi, staff: si, measure: mi, voice: vi, note_index: ni,
+                            part: pi,
+                            staff: si,
+                            measure: mi,
+                            voice: vi,
+                            note_index: ni,
                         });
                     }
                     // Notes in `b` beyond `a` — append.
                     for note in bv.iter().skip(av.len()) {
                         patches.push(ScorePatch::AddNote {
-                            part: pi, staff: si, measure: mi, voice: vi,
+                            part: pi,
+                            staff: si,
+                            measure: mi,
+                            voice: vi,
                             note: Box::new(note.clone()),
                         });
                     }
@@ -941,74 +1168,130 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
     let mut s = score.clone();
     for patch in patches {
         match patch {
-            ScorePatch::SetMetadata { field, value } => {
-                match field.as_str() {
-                    "title"          => s.metadata.title          = value.clone(),
-                    "composer"       => s.metadata.composer       = value.clone(),
-                    "lyricist"       => s.metadata.lyricist       = value.clone(),
-                    "copyright"      => s.metadata.copyright      = value.clone(),
-                    "work_number"    => s.metadata.work_number    = value.clone(),
-                    "movement_title" => s.metadata.movement_title = value.clone(),
-                    other => return Err(Error::InvalidPatch(format!("unknown metadata field: {other}"))),
+            ScorePatch::SetMetadata { field, value } => match field.as_str() {
+                "title" => s.metadata.title = value.clone(),
+                "composer" => s.metadata.composer = value.clone(),
+                "lyricist" => s.metadata.lyricist = value.clone(),
+                "copyright" => s.metadata.copyright = value.clone(),
+                "work_number" => s.metadata.work_number = value.clone(),
+                "movement_title" => s.metadata.movement_title = value.clone(),
+                other => {
+                    return Err(Error::InvalidPatch(format!(
+                        "unknown metadata field: {other}"
+                    )));
                 }
-            }
+            },
             ScorePatch::SetTempo { value } => {
                 s.settings.tempo_bpm = *value;
             }
-            ScorePatch::SetKeySignature { part, staff, measure, value } => {
-                s.parts.get_mut(*part)
+            ScorePatch::SetKeySignature {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
                     .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
-                    .staves.get_mut(*staff)
+                    .staves
+                    .get_mut(*staff)
                     .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
-                    .measures.get_mut(*measure)
+                    .measures
+                    .get_mut(*measure)
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
                     .key_sig = Some(value.clone());
             }
-            ScorePatch::AddNote { part, staff, measure, voice, note } => {
-                let v = s.parts.get_mut(*part)
+            ScorePatch::AddNote {
+                part,
+                staff,
+                measure,
+                voice,
+                note,
+            } => {
+                let v = s
+                    .parts
+                    .get_mut(*part)
                     .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
-                    .staves.get_mut(*staff)
+                    .staves
+                    .get_mut(*staff)
                     .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
-                    .measures.get_mut(*measure)
+                    .measures
+                    .get_mut(*measure)
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
-                    .voices.get_mut(*voice)
+                    .voices
+                    .get_mut(*voice)
                     .ok_or_else(|| Error::InvalidPatch(format!("voice {voice} out of range")))?;
                 v.push(*note.clone());
             }
-            ScorePatch::RemoveNote { part, staff, measure, voice, note_index } => {
-                let v = s.parts.get_mut(*part)
+            ScorePatch::RemoveNote {
+                part,
+                staff,
+                measure,
+                voice,
+                note_index,
+            } => {
+                let v = s
+                    .parts
+                    .get_mut(*part)
                     .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
-                    .staves.get_mut(*staff)
+                    .staves
+                    .get_mut(*staff)
                     .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
-                    .measures.get_mut(*measure)
+                    .measures
+                    .get_mut(*measure)
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
-                    .voices.get_mut(*voice)
+                    .voices
+                    .get_mut(*voice)
                     .ok_or_else(|| Error::InvalidPatch(format!("voice {voice} out of range")))?;
                 if *note_index >= v.len() {
-                    return Err(Error::InvalidPatch(format!("note_index {note_index} out of range")));
+                    return Err(Error::InvalidPatch(format!(
+                        "note_index {note_index} out of range"
+                    )));
                 }
                 v.remove(*note_index);
             }
-            ScorePatch::ReplaceNote { part, staff, measure, voice, note_index, note } => {
-                let v = s.parts.get_mut(*part)
+            ScorePatch::ReplaceNote {
+                part,
+                staff,
+                measure,
+                voice,
+                note_index,
+                note,
+            } => {
+                let v = s
+                    .parts
+                    .get_mut(*part)
                     .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
-                    .staves.get_mut(*staff)
+                    .staves
+                    .get_mut(*staff)
                     .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
-                    .measures.get_mut(*measure)
+                    .measures
+                    .get_mut(*measure)
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
-                    .voices.get_mut(*voice)
+                    .voices
+                    .get_mut(*voice)
                     .ok_or_else(|| Error::InvalidPatch(format!("voice {voice} out of range")))?;
                 if *note_index >= v.len() {
-                    return Err(Error::InvalidPatch(format!("note_index {note_index} out of range")));
+                    return Err(Error::InvalidPatch(format!(
+                        "note_index {note_index} out of range"
+                    )));
                 }
                 v[*note_index] = *note.clone();
             }
-            ScorePatch::SetMeasureTempo { part, staff, measure, value } => {
-                s.parts.get_mut(*part)
+            ScorePatch::SetMeasureTempo {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
                     .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
-                    .staves.get_mut(*staff)
+                    .staves
+                    .get_mut(*staff)
                     .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
-                    .measures.get_mut(*measure)
+                    .measures
+                    .get_mut(*measure)
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
                     .tempo = *value;
             }
@@ -1049,15 +1332,21 @@ pub fn respell_score_to_key(score: &mut Score) {
 /// Uses `measure_sequence` for correct repeat handling. Lighter than generating
 /// full playback events — suitable for progress bars and UI display.
 pub fn score_duration_secs(score: &Score) -> f64 {
-    if score.settings.tempo_bpm == 0 { return 0.0; }
+    if score.settings.tempo_bpm == 0 {
+        return 0.0;
+    }
     let seq = measure_sequence(score);
     let mut total_secs = 0.0f64;
     let mut current_bpm = score.settings.tempo_bpm as f64;
     if let Some(staff) = score.parts.first().and_then(|p| p.staves.first()) {
         for &idx in &seq {
             if let Some(m) = staff.measures.get(idx) {
-                if let Some(b) = m.tempo { current_bpm = b as f64; }
-                if current_bpm == 0.0 { continue; }
+                if let Some(b) = m.tempo {
+                    current_bpm = b as f64;
+                }
+                if current_bpm == 0.0 {
+                    continue;
+                }
                 let beats: f64 = m.voices[0].iter().map(|n| n.beats()).sum();
                 total_secs += beats / current_bpm * 60.0;
             }
@@ -1071,7 +1360,9 @@ pub fn score_duration_secs(score: &Score) -> f64 {
 /// `region` is `(start_measure, end_measure)`, both 0-based. Measures outside the range
 /// are excluded. Uses `measure_sequence` for correct repeat handling.
 pub fn score_duration_secs_region(score: &Score, region: (usize, usize)) -> f64 {
-    if score.settings.tempo_bpm == 0 { return 0.0; }
+    if score.settings.tempo_bpm == 0 {
+        return 0.0;
+    }
     let seq: Vec<usize> = measure_sequence(score)
         .into_iter()
         .filter(|&idx| idx >= region.0 && idx <= region.1)
@@ -1081,8 +1372,12 @@ pub fn score_duration_secs_region(score: &Score, region: (usize, usize)) -> f64 
     if let Some(staff) = score.parts.first().and_then(|p| p.staves.first()) {
         for &idx in &seq {
             if let Some(m) = staff.measures.get(idx) {
-                if let Some(b) = m.tempo { current_bpm = b as f64; }
-                if current_bpm == 0.0 { continue; }
+                if let Some(b) = m.tempo {
+                    current_bpm = b as f64;
+                }
+                if current_bpm == 0.0 {
+                    continue;
+                }
                 let beats: f64 = m.voices[0].iter().map(|n| n.beats()).sum();
                 total_secs += beats / current_bpm * 60.0;
             }
@@ -1102,15 +1397,26 @@ pub fn measure_beats_remaining(
     measure_index: usize,
     voice_index: usize,
 ) -> Result<f64, Error> {
-    let part = score.parts.get(part_index)
+    let part = score
+        .parts
+        .get(part_index)
         .ok_or(Error::PartNotFound(part_index))?;
-    let staff = part.staves.get(staff_index)
+    let staff = part
+        .staves
+        .get(staff_index)
         .ok_or(Error::StaffNotFound(staff_index))?;
-    let measure = staff.measures.get(measure_index)
+    let measure = staff
+        .measures
+        .get(measure_index)
         .ok_or(Error::MeasureNotFound(measure_index))?;
-    let voice = measure.voices.get(voice_index)
+    let voice = measure
+        .voices
+        .get(voice_index)
         .ok_or(Error::VoiceOutOfRange(voice_index))?;
-    let ts = measure.time_sig.as_ref().unwrap_or(&score.settings.time_signature);
+    let ts = measure
+        .time_sig
+        .as_ref()
+        .unwrap_or(&score.settings.time_signature);
     let used: f64 = voice.iter().map(|n| n.beats()).sum();
     Ok((ts.total_beats() - used).max(0.0))
 }
@@ -1121,7 +1427,9 @@ pub fn measure_beats_remaining(
 /// middle line, the stem points up; at or above, it points down.
 /// For empty pitch lists (rests), returns `true` by convention.
 pub fn suggested_stem_up(pitches: &[Pitch], clef: &Clef) -> bool {
-    if pitches.is_empty() { return true; }
+    if pitches.is_empty() {
+        return true;
+    }
     let avg = pitches.iter().map(|p| p.to_midi() as f64).sum::<f64>() / pitches.len() as f64;
     avg < clef.middle_line_midi() as f64
 }
@@ -1144,10 +1452,14 @@ pub fn compute_beams(notes: &[Note], time_sig: &TimeSignature) -> Vec<BeamState>
     let mut result = vec![BeamState::None; n];
 
     let is_beamable = |note: &Note| -> bool {
-        !note.is_rest && matches!(
-            note.duration,
-            Duration::Eighth | Duration::Sixteenth | Duration::ThirtySecond | Duration::SixtyFourth
-        )
+        !note.is_rest
+            && matches!(
+                note.duration,
+                Duration::Eighth
+                    | Duration::Sixteenth
+                    | Duration::ThirtySecond
+                    | Duration::SixtyFourth
+            )
     };
 
     // Compute beat start positions
@@ -1163,18 +1475,23 @@ pub fn compute_beams(notes: &[Note], time_sig: &TimeSignature) -> Vec<BeamState>
 
     let mut i = 0;
     while i < n {
-        if !is_beamable(&notes[i]) { i += 1; continue; }
+        if !is_beamable(&notes[i]) {
+            i += 1;
+            continue;
+        }
         let g = group_id(i);
         // Find the run of beamable notes in the same beat group
         let mut j = i;
-        while j < n && is_beamable(&notes[j]) && group_id(j) == g { j += 1; }
+        while j < n && is_beamable(&notes[j]) && group_id(j) == g {
+            j += 1;
+        }
         let run = j - i;
         if run == 1 {
             result[i] = BeamState::None;
         } else {
             result[i] = BeamState::Begin;
-            result[i+1..j-1].fill(BeamState::Continue);
-            result[j-1] = BeamState::End;
+            result[i + 1..j - 1].fill(BeamState::Continue);
+            result[j - 1] = BeamState::End;
         }
         i = j;
     }
@@ -1511,8 +1828,8 @@ mod tests {
     fn score_template_string_quartet_has_four_parts() {
         let score = Score::template(ScoreTemplate::StringQuartet);
         assert_eq!(score.parts.len(), 4);
-        assert_eq!(score.parts[2].staves[0].clef, Clef::Alto);  // Viola
-        assert_eq!(score.parts[3].staves[0].clef, Clef::Bass);  // Cello
+        assert_eq!(score.parts[2].staves[0].clef, Clef::Alto); // Viola
+        assert_eq!(score.parts[3].staves[0].clef, Clef::Bass); // Cello
         assert_eq!(score.parts[0].midi_program, 40);
         assert_eq!(score.parts[3].midi_program, 42);
     }
@@ -1575,7 +1892,10 @@ mod tests {
         b.settings.tempo_bpm = 90;
         let changes = diff(&a, &b);
         assert_eq!(changes.len(), 1);
-        assert!(matches!(changes[0], ScoreChange::TempoChanged { old: 120, new: 90 }));
+        assert!(matches!(
+            changes[0],
+            ScoreChange::TempoChanged { old: 120, new: 90 }
+        ));
     }
 
     #[test]
@@ -1584,7 +1904,11 @@ mod tests {
         let mut b = a.clone();
         b.metadata.title = "New Title".to_string();
         let changes = diff(&a, &b);
-        assert!(changes.iter().any(|c| matches!(c, ScoreChange::MetadataChanged { field, .. } if field == "title")));
+        assert!(
+            changes.iter().any(
+                |c| matches!(c, ScoreChange::MetadataChanged { field, .. } if field == "title")
+            )
+        );
     }
 
     #[test]
@@ -1596,7 +1920,11 @@ mod tests {
         b.parts[0].staves[0].measures[0].voices[0][0] =
             Note::new(Pitch::new(Step::D, 4), Duration::Quarter);
         let changes = diff(&a, &b);
-        assert!(changes.iter().any(|c| matches!(c, ScoreChange::NoteModified { .. })));
+        assert!(
+            changes
+                .iter()
+                .any(|c| matches!(c, ScoreChange::NoteModified { .. }))
+        );
     }
 
     #[test]
@@ -1607,7 +1935,11 @@ mod tests {
         p.staves.push(Staff::new(Clef::Treble));
         b.parts.push(p);
         let changes = diff(&a, &b);
-        assert!(changes.iter().any(|c| matches!(c, ScoreChange::PartAdded { part_index: 1 })));
+        assert!(
+            changes
+                .iter()
+                .any(|c| matches!(c, ScoreChange::PartAdded { part_index: 1 }))
+        );
     }
 
     #[test]
@@ -1616,9 +1948,15 @@ mod tests {
         let mut b = a.clone();
         b.parts[0].staves[0].measures[1].tempo = Some(60);
         let changes = diff(&a, &b);
-        assert!(changes.iter().any(|c| matches!(c, ScoreChange::MeasureTempoChanged {
-            measure: 1, old: None, new: Some(60), ..
-        })));
+        assert!(changes.iter().any(|c| matches!(
+            c,
+            ScoreChange::MeasureTempoChanged {
+                measure: 1,
+                old: None,
+                new: Some(60),
+                ..
+            }
+        )));
     }
 
     #[test]
@@ -1628,7 +1966,11 @@ mod tests {
         let mut b = a.clone();
         b.parts[0].staves[0].measures[0].barline_left = Barline::RepeatStart;
         let changes = diff(&a, &b);
-        assert!(changes.iter().any(|c| matches!(c, ScoreChange::BarlineChanged { measure: 0, .. })));
+        assert!(
+            changes
+                .iter()
+                .any(|c| matches!(c, ScoreChange::BarlineChanged { measure: 0, .. }))
+        );
     }
 
     #[test]
@@ -1637,7 +1979,11 @@ mod tests {
         let mut b = a.clone();
         b.parts[0].staves[0].measures[0].rehearsal = Some("A".to_string());
         let changes = diff(&a, &b);
-        assert!(changes.iter().any(|c| matches!(c, ScoreChange::RehearsalMarkChanged { measure: 0, .. })));
+        assert!(
+            changes
+                .iter()
+                .any(|c| matches!(c, ScoreChange::RehearsalMarkChanged { measure: 0, .. }))
+        );
     }
 
     #[test]
@@ -1645,9 +1991,16 @@ mod tests {
         use super::VoltaBracket;
         let a = Score::new("T", 120, 4, 4, 0, 2);
         let mut b = a.clone();
-        b.parts[0].staves[0].measures[0].volta = Some(VoltaBracket { number: 1, kind: "begin_end".into() });
+        b.parts[0].staves[0].measures[0].volta = Some(VoltaBracket {
+            number: 1,
+            kind: "begin_end".into(),
+        });
         let changes = diff(&a, &b);
-        assert!(changes.iter().any(|c| matches!(c, ScoreChange::VoltaChanged { measure: 0, .. })));
+        assert!(
+            changes
+                .iter()
+                .any(|c| matches!(c, ScoreChange::VoltaChanged { measure: 0, .. }))
+        );
     }
 
     #[test]
@@ -1656,7 +2009,11 @@ mod tests {
         let mut b = a.clone();
         b.settings.key_signature.fifths = 2; // C major → D major
         let changes = diff(&a, &b);
-        assert!(changes.iter().any(|c| matches!(c, ScoreChange::KeySignatureChanged { .. })));
+        assert!(
+            changes
+                .iter()
+                .any(|c| matches!(c, ScoreChange::KeySignatureChanged { .. }))
+        );
     }
 
     #[test]
@@ -1692,26 +2049,32 @@ mod tests {
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].voices[0].clear();
         let rem = measure_beats_remaining(&score, 0, 0, 0, 0).unwrap();
-        assert!((rem - 4.0).abs() < 1e-9, "expected 4.0 remaining, got {rem}");
+        assert!(
+            (rem - 4.0).abs() < 1e-9,
+            "expected 4.0 remaining, got {rem}"
+        );
     }
 
     #[test]
     fn measure_beats_remaining_half_full_returns_half() {
-        use crate::model::pitch::Step;
         use super::measure_beats_remaining;
+        use crate::model::pitch::Step;
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].voices[0] = vec![
             Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
             Note::new(Pitch::new(Step::D, 4), Duration::Quarter),
         ];
         let rem = measure_beats_remaining(&score, 0, 0, 0, 0).unwrap();
-        assert!((rem - 2.0).abs() < 1e-9, "expected 2.0 remaining, got {rem}");
+        assert!(
+            (rem - 2.0).abs() < 1e-9,
+            "expected 2.0 remaining, got {rem}"
+        );
     }
 
     #[test]
     fn measure_beats_remaining_full_voice_returns_zero() {
-        use crate::model::pitch::Step;
         use super::measure_beats_remaining;
+        use crate::model::pitch::Step;
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].voices[0] =
             vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
@@ -1721,12 +2084,15 @@ mod tests {
 
     #[test]
     fn measure_beats_remaining_tuplet_accounting() {
-        use crate::model::pitch::Step;
-        use crate::model::notation::TupletInfo;
         use super::measure_beats_remaining;
+        use crate::model::notation::TupletInfo;
+        use crate::model::pitch::Step;
         // 3 quarter-note triplets each take 2/3 of a beat → total 2.0 beats used → 2.0 remaining
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
-        let tuplet = TupletInfo { actual_notes: 3, normal_notes: 2 };
+        let tuplet = TupletInfo {
+            actual_notes: 3,
+            normal_notes: 2,
+        };
         let mk = |step| {
             let mut n = Note::new(Pitch::new(step, 4), Duration::Quarter);
             n.tuplet = Some(tuplet.clone());
@@ -1735,7 +2101,10 @@ mod tests {
         score.parts[0].staves[0].measures[0].voices[0] =
             vec![mk(Step::C), mk(Step::D), mk(Step::E)];
         let rem = measure_beats_remaining(&score, 0, 0, 0, 0).unwrap();
-        assert!((rem - 2.0).abs() < 1e-9, "expected 2.0 remaining (triplets used 2.0), got {rem}");
+        assert!(
+            (rem - 2.0).abs() < 1e-9,
+            "expected 2.0 remaining (triplets used 2.0), got {rem}"
+        );
     }
 
     #[test]
@@ -1814,17 +2183,31 @@ mod tests {
         assert!(suggested_stem_up(&[], &Clef::Treble));
     }
 
-    fn eighth(pitch: Pitch) -> Note { Note::new(pitch, Duration::Eighth) }
-    fn quarter(pitch: Pitch) -> Note { Note::new(pitch, Duration::Quarter) }
-    fn rest_eighth() -> Note { Note::rest(Duration::Eighth) }
+    fn eighth(pitch: Pitch) -> Note {
+        Note::new(pitch, Duration::Eighth)
+    }
+    fn quarter(pitch: Pitch) -> Note {
+        Note::new(pitch, Duration::Quarter)
+    }
+    fn rest_eighth() -> Note {
+        Note::rest(Duration::Eighth)
+    }
 
     #[test]
     fn compute_beams_4_4_four_eighths() {
         use crate::model::notation::{Clef, TimeSignature};
         let _ = Clef::Treble; // suppress unused import warning
-        let ts = TimeSignature { numerator: 4, denominator: 4 };
+        let ts = TimeSignature {
+            numerator: 4,
+            denominator: 4,
+        };
         let c4 = Pitch::new(Step::C, 4);
-        let notes = vec![eighth(c4.clone()), eighth(c4.clone()), eighth(c4.clone()), eighth(c4.clone())];
+        let notes = vec![
+            eighth(c4.clone()),
+            eighth(c4.clone()),
+            eighth(c4.clone()),
+            eighth(c4.clone()),
+        ];
         let beams = compute_beams(&notes, &ts);
         // 4 eighths in 4/4: beat size=1.0, two groups of 2 each
         assert_eq!(beams[0], BeamState::Begin);
@@ -1836,7 +2219,10 @@ mod tests {
     #[test]
     fn compute_beams_4_4_all_eighth_one_group() {
         use crate::model::notation::TimeSignature;
-        let ts = TimeSignature { numerator: 4, denominator: 4 };
+        let ts = TimeSignature {
+            numerator: 4,
+            denominator: 4,
+        };
         let c4 = Pitch::new(Step::C, 4);
         // 2 eighths in a beat → group of 2
         let notes = vec![eighth(c4.clone()), eighth(c4.clone())];
@@ -1848,7 +2234,10 @@ mod tests {
     #[test]
     fn compute_beams_quarter_not_beamed() {
         use crate::model::notation::TimeSignature;
-        let ts = TimeSignature { numerator: 4, denominator: 4 };
+        let ts = TimeSignature {
+            numerator: 4,
+            denominator: 4,
+        };
         let c4 = Pitch::new(Step::C, 4);
         let notes = vec![quarter(c4.clone()), quarter(c4.clone())];
         let beams = compute_beams(&notes, &ts);
@@ -1859,7 +2248,10 @@ mod tests {
     #[test]
     fn compute_beams_rest_breaks_beam() {
         use crate::model::notation::TimeSignature;
-        let ts = TimeSignature { numerator: 4, denominator: 4 };
+        let ts = TimeSignature {
+            numerator: 4,
+            denominator: 4,
+        };
         let c4 = Pitch::new(Step::C, 4);
         let notes = vec![eighth(c4.clone()), rest_eighth(), eighth(c4.clone())];
         let beams = compute_beams(&notes, &ts);
@@ -1872,7 +2264,10 @@ mod tests {
     #[test]
     fn compute_beams_6_8_compound() {
         use crate::model::notation::TimeSignature;
-        let ts = TimeSignature { numerator: 6, denominator: 8 };
+        let ts = TimeSignature {
+            numerator: 6,
+            denominator: 8,
+        };
         let c4 = Pitch::new(Step::C, 4);
         // 6 eighths in 6/8 compound → two groups of 3 (beam size=1.5 beats)
         let notes: Vec<Note> = (0..6).map(|_| eighth(c4.clone())).collect();
@@ -1888,7 +2283,10 @@ mod tests {
     #[test]
     fn compute_beams_single_eighth() {
         use crate::model::notation::TimeSignature;
-        let ts = TimeSignature { numerator: 4, denominator: 4 };
+        let ts = TimeSignature {
+            numerator: 4,
+            denominator: 4,
+        };
         let c4 = Pitch::new(Step::C, 4);
         let notes = vec![eighth(c4.clone())];
         let beams = compute_beams(&notes, &ts);

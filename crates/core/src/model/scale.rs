@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-use super::pitch::Pitch;
 use super::notation::KeySignature;
+use super::pitch::Pitch;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ScaleKind {
@@ -25,21 +25,21 @@ impl ScaleKind {
     /// Semitone intervals from root to each degree (not including the octave).
     pub fn intervals(&self) -> &'static [u8] {
         match self {
-            ScaleKind::Major           => &[0, 2, 4, 5, 7, 9, 11],
-            ScaleKind::NaturalMinor    => &[0, 2, 3, 5, 7, 8, 10],
-            ScaleKind::HarmonicMinor   => &[0, 2, 3, 5, 7, 8, 11],
-            ScaleKind::MelodicMinor    => &[0, 2, 3, 5, 7, 9, 11],
-            ScaleKind::Dorian          => &[0, 2, 3, 5, 7, 9, 10],
-            ScaleKind::Phrygian        => &[0, 1, 3, 5, 7, 8, 10],
-            ScaleKind::Lydian          => &[0, 2, 4, 6, 7, 9, 11],
-            ScaleKind::Mixolydian      => &[0, 2, 4, 5, 7, 9, 10],
-            ScaleKind::Aeolian         => &[0, 2, 3, 5, 7, 8, 10],
-            ScaleKind::Locrian         => &[0, 1, 3, 5, 6, 8, 10],
+            ScaleKind::Major => &[0, 2, 4, 5, 7, 9, 11],
+            ScaleKind::NaturalMinor => &[0, 2, 3, 5, 7, 8, 10],
+            ScaleKind::HarmonicMinor => &[0, 2, 3, 5, 7, 8, 11],
+            ScaleKind::MelodicMinor => &[0, 2, 3, 5, 7, 9, 11],
+            ScaleKind::Dorian => &[0, 2, 3, 5, 7, 9, 10],
+            ScaleKind::Phrygian => &[0, 1, 3, 5, 7, 8, 10],
+            ScaleKind::Lydian => &[0, 2, 4, 6, 7, 9, 11],
+            ScaleKind::Mixolydian => &[0, 2, 4, 5, 7, 9, 10],
+            ScaleKind::Aeolian => &[0, 2, 3, 5, 7, 8, 10],
+            ScaleKind::Locrian => &[0, 1, 3, 5, 6, 8, 10],
             ScaleKind::MajorPentatonic => &[0, 2, 4, 7, 9],
             ScaleKind::MinorPentatonic => &[0, 3, 5, 7, 10],
-            ScaleKind::Blues           => &[0, 3, 5, 6, 7, 10],
-            ScaleKind::WholeTone       => &[0, 2, 4, 6, 8, 10],
-            ScaleKind::Chromatic       => &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+            ScaleKind::Blues => &[0, 3, 5, 6, 7, 10],
+            ScaleKind::WholeTone => &[0, 2, 4, 6, 8, 10],
+            ScaleKind::Chromatic => &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
         }
     }
 }
@@ -59,17 +59,25 @@ impl Scale {
     pub fn from_key(key: &KeySignature) -> Self {
         let (step, alter) = key.tonic();
         let root = Pitch::with_alter(step, 4, alter);
-        let kind = if key.mode == "minor" { ScaleKind::NaturalMinor } else { ScaleKind::Major };
+        let kind = if key.mode == "minor" {
+            ScaleKind::NaturalMinor
+        } else {
+            ScaleKind::Major
+        };
         Self { root, kind }
     }
 
     /// All pitches of this scale in ascending order (root octave preserved).
     pub fn pitches(&self) -> Vec<Pitch> {
         let root_midi = self.root.to_midi() as i32;
-        self.kind.intervals().iter().map(|&interval| {
-            let midi = (root_midi + interval as i32).clamp(0, 127) as u8;
-            Pitch::from_midi(midi, self.root.alter < 0)
-        }).collect()
+        self.kind
+            .intervals()
+            .iter()
+            .map(|&interval| {
+                let midi = (root_midi + interval as i32).clamp(0, 127) as u8;
+                Pitch::from_midi(midi, self.root.alter < 0)
+            })
+            .collect()
     }
 
     /// True if `pitch` is a member of this scale (octave-independent, by pitch class).
@@ -85,7 +93,11 @@ impl Scale {
         let root_class = self.root.to_midi() % 12;
         let pitch_class = pitch.to_midi() % 12;
         let interval = (pitch_class as i32 - root_class as i32).rem_euclid(12) as u8;
-        self.kind.intervals().iter().position(|&i| i == interval).map(|pos| pos + 1)
+        self.kind
+            .intervals()
+            .iter()
+            .position(|&i| i == interval)
+            .map(|pos| pos + 1)
     }
 
     /// Transpose this scale by `semitones`.
@@ -135,9 +147,7 @@ impl Scale {
                 let scale = Scale::new(root.clone(), kind.clone());
                 let covered = pitches.iter().filter(|p| scale.contains(p)).count();
                 let degrees = kind.intervals().len();
-                if covered > best_covered
-                    || (covered == best_covered && degrees > best_degrees)
-                {
+                if covered > best_covered || (covered == best_covered && degrees > best_degrees) {
                     best_covered = covered;
                     best_degrees = degrees;
                     best_scale = Some(scale);
@@ -151,12 +161,18 @@ impl Scale {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::pitch::Step;
+    use super::*;
 
-    fn c4() -> Pitch { Pitch::new(Step::C, 4) }
-    fn d4() -> Pitch { Pitch::new(Step::D, 4) }
-    fn g4() -> Pitch { Pitch::new(Step::G, 4) }
+    fn c4() -> Pitch {
+        Pitch::new(Step::C, 4)
+    }
+    fn d4() -> Pitch {
+        Pitch::new(Step::D, 4)
+    }
+    fn g4() -> Pitch {
+        Pitch::new(Step::G, 4)
+    }
 
     #[test]
     fn c_major_pitches() {
@@ -218,7 +234,10 @@ mod tests {
 
     #[test]
     fn from_key_g_major() {
-        let key = KeySignature { fifths: 1, mode: "major".to_string() };
+        let key = KeySignature {
+            fifths: 1,
+            mode: "major".to_string(),
+        };
         let scale = Scale::from_key(&key);
         assert_eq!(scale.root.step, Step::G);
         assert_eq!(scale.kind, ScaleKind::Major);
@@ -226,7 +245,10 @@ mod tests {
 
     #[test]
     fn from_key_a_minor() {
-        let key = KeySignature { fifths: 0, mode: "minor".to_string() };
+        let key = KeySignature {
+            fifths: 0,
+            mode: "minor".to_string(),
+        };
         let scale = Scale::from_key(&key);
         assert_eq!(scale.root.step, Step::A);
         assert_eq!(scale.kind, ScaleKind::NaturalMinor);
@@ -235,8 +257,12 @@ mod tests {
     #[test]
     fn best_fit_c_major() {
         let pitches = [
-            Pitch::new(Step::C, 4), Pitch::new(Step::D, 4), Pitch::new(Step::E, 4),
-            Pitch::new(Step::F, 4), Pitch::new(Step::G, 4), Pitch::new(Step::A, 4),
+            Pitch::new(Step::C, 4),
+            Pitch::new(Step::D, 4),
+            Pitch::new(Step::E, 4),
+            Pitch::new(Step::F, 4),
+            Pitch::new(Step::G, 4),
+            Pitch::new(Step::A, 4),
             Pitch::new(Step::B, 4),
         ];
         let scale = Scale::best_fit(&pitches).unwrap();

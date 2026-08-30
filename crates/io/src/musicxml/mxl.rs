@@ -1,18 +1,18 @@
+use crate::Error;
+use acorde_core::Score;
 use std::io::{Cursor, Read};
 use zip::ZipArchive;
-use acorde_core::Score;
-use crate::Error;
 
-const MAX_MXL_COMPRESSED: usize   = 32 * 1024 * 1024; // 32 MB
-const MAX_MXL_DECOMPRESSED: u64   = 32 * 1024 * 1024; // 32 MB (zip-bomb guard)
+const MAX_MXL_COMPRESSED: usize = 32 * 1024 * 1024; // 32 MB
+const MAX_MXL_DECOMPRESSED: u64 = 32 * 1024 * 1024; // 32 MB (zip-bomb guard)
 
 pub fn parse_mxl(data: &[u8]) -> Result<Score, Error> {
     if data.len() > MAX_MXL_COMPRESSED {
         return Err(Error::TooLarge(data.len()));
     }
     let cursor = Cursor::new(data);
-    let mut archive = ZipArchive::new(cursor)
-        .map_err(|e| Error::Zip(format!("invalid MXL zip: {e}")))?;
+    let mut archive =
+        ZipArchive::new(cursor).map_err(|e| Error::Zip(format!("invalid MXL zip: {e}")))?;
 
     let xml = if let Some(path) = read_container_rootfile(&mut archive) {
         validate_zip_path(&path)?;
@@ -25,7 +25,11 @@ pub fn parse_mxl(data: &[u8]) -> Result<Score, Error> {
 }
 
 fn validate_zip_path(path: &str) -> Result<(), Error> {
-    if path.starts_with('/') || path.starts_with("..") || path.contains("/../") || path.ends_with("/..") {
+    if path.starts_with('/')
+        || path.starts_with("..")
+        || path.contains("/../")
+        || path.ends_with("/..")
+    {
         return Err(Error::Zip(format!("invalid entry path: '{path}'")));
     }
     Ok(())
@@ -46,7 +50,8 @@ fn read_entry(archive: &mut ZipArchive<Cursor<&[u8]>>, name: &str) -> Result<Str
         .by_name(name)
         .map_err(|_| Error::Zip(format!("entry '{name}' not found")))?;
     let mut buf = String::new();
-    entry.take(MAX_MXL_DECOMPRESSED)
+    entry
+        .take(MAX_MXL_DECOMPRESSED)
         .read_to_string(&mut buf)
         .map_err(|e| Error::Zip(format!("failed to read '{name}': {e}")))?;
     Ok(buf)
@@ -69,11 +74,14 @@ fn find_score_entry(archive: &mut ZipArchive<Cursor<&[u8]>>) -> Result<String, E
 
     for name in names {
         if let Ok(xml) = read_entry(archive, &name)
-            && (xml.contains("score-partwise") || xml.contains("score-timewise")) {
-                return Ok(xml);
-            }
+            && (xml.contains("score-partwise") || xml.contains("score-timewise"))
+        {
+            return Ok(xml);
+        }
     }
-    Err(Error::Zip("no MusicXML score entry found in archive".into()))
+    Err(Error::Zip(
+        "no MusicXML score entry found in archive".into(),
+    ))
 }
 
 #[cfg(test)]

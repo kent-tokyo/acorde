@@ -1,3 +1,4 @@
+use crate::Error;
 /// Parse ABC notation (.abc) into a Score.
 ///
 /// Supports a useful subset of ABC notation:
@@ -13,11 +14,8 @@
 ///
 /// Reference: <https://abcnotation.com/wiki/abc:standard:v2.1>
 use acorde_core::{
-    Clef, KeySignature, TimeSignature,
-    Pitch, Step,
-    Duration, Measure, Note, Part, Score, Staff,
+    Clef, Duration, KeySignature, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature,
 };
-use crate::Error;
 
 const MAX_LINES: usize = 10_000;
 const MAX_NOTES: usize = 100_000;
@@ -36,7 +34,10 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
 
     let mut in_header = true;
     let mut unit_den: u32 = 8;
-    let mut time = TimeSignature { numerator: 4, denominator: 4 };
+    let mut time = TimeSignature {
+        numerator: 4,
+        denominator: 4,
+    };
     let mut current_measure_number = 0u32;
     let mut note_count = 0usize;
 
@@ -45,9 +46,15 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
             return Err(Error::Abc(format!("input exceeds {MAX_LINES} lines")));
         }
 
-        let line = if let Some(p) = raw_line.find('%') { &raw_line[..p] } else { raw_line };
+        let line = if let Some(p) = raw_line.find('%') {
+            &raw_line[..p]
+        } else {
+            raw_line
+        };
         let line = line.trim_end();
-        if line.is_empty() { continue; }
+        if line.is_empty() {
+            continue;
+        }
 
         // Header field: "X:1", "T:Title", etc.
         if line.len() >= 2 && line.as_bytes().get(1) == Some(&b':') {
@@ -66,10 +73,15 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
                         score.metadata.title = value.to_string();
                     }
                 }
-                "C" => { score.metadata.composer = value.to_string(); }
+                "C" => {
+                    score.metadata.composer = value.to_string();
+                }
                 "M" => {
                     let (num, den) = parse_meter(value);
-                    time = TimeSignature { numerator: num, denominator: den };
+                    time = TimeSignature {
+                        numerator: num,
+                        denominator: den,
+                    };
                     score.settings.time_signature = time.clone();
                 }
                 "L" => {
@@ -95,15 +107,21 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
 
         if !in_header {
             parse_body_line(
-                line, &mut score, &mut unit_den, &time,
-                &mut current_measure_number, &mut note_count,
+                line,
+                &mut score,
+                &mut unit_den,
+                &time,
+                &mut current_measure_number,
+                &mut note_count,
             )?;
         }
     }
 
     // Pad last measure
     let beats = time.total_beats();
-    if let Some(m) = score.parts.first_mut()
+    if let Some(m) = score
+        .parts
+        .first_mut()
         .and_then(|p| p.staves.first_mut())
         .and_then(|s| s.measures.last_mut())
     {
@@ -112,18 +130,20 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
 
     // Renumber and annotate first measure
     let key = score.settings.key_signature.clone();
-    let ts  = time.clone();
+    let ts = time.clone();
     if let Some(staff) = score.parts.first_mut().and_then(|p| p.staves.first_mut()) {
         for (i, m) in staff.measures.iter_mut().enumerate() {
             m.number = i as u32 + 1;
             if i == 0 {
                 m.time_sig = Some(ts.clone());
-                m.key_sig  = Some(key.clone());
+                m.key_sig = Some(key.clone());
             }
         }
     }
 
-    let measure_count = score.parts.first()
+    let measure_count = score
+        .parts
+        .first()
         .and_then(|p| p.staves.first())
         .map(|s| s.measures.len())
         .unwrap_or(0);
@@ -145,9 +165,7 @@ fn parse_body_line(
     current_measure_number: &mut u32,
     note_count: &mut usize,
 ) -> Result<(), Error> {
-    let staff = match score.parts.first_mut()
-        .and_then(|p| p.staves.first_mut())
-    {
+    let staff = match score.parts.first_mut().and_then(|p| p.staves.first_mut()) {
         Some(s) => s,
         None => return Ok(()),
     };
@@ -168,7 +186,9 @@ fn parse_body_line(
     while i < chars.len() {
         let ch = chars[i];
 
-        if ch == '%' { break; }
+        if ch == '%' {
+            break;
+        }
 
         // Bar line
         if ch == '|' {
@@ -176,7 +196,9 @@ fn parse_body_line(
                 pad_voice(&mut m.voices[0], time.total_beats());
             }
             i += 1;
-            while i < chars.len() && (chars[i] == '|' || chars[i] == ':') { i += 1; }
+            while i < chars.len() && (chars[i] == '|' || chars[i] == ':') {
+                i += 1;
+            }
             if i < chars.len() && chars[i] != ']' {
                 let mut m = Measure::empty(time.numerator, time.denominator);
                 *current_measure_number += 1;
@@ -188,21 +210,25 @@ fn parse_body_line(
         }
 
         // Inline field [M:…] [L:…]
-        if ch == '[' && i + 1 < chars.len() && chars[i + 1] != '"'
-            && let Some(rel) = chars[i..].iter().position(|&c| c == ']') {
-                let end = i + rel;
-                let field: String = chars[i + 1..end].iter().collect();
-                if let Some(colon) = field.find(':') {
-                    let fval = field[colon + 1..].trim();
-                    if &field[..colon] == "L"
-                        && let Some(d) = fval.split('/').nth(1) {
-                            *unit_den = d.parse().unwrap_or(*unit_den);
-                        }
-                    i = end + 1;
-                    continue;
+        if ch == '['
+            && i + 1 < chars.len()
+            && chars[i + 1] != '"'
+            && let Some(rel) = chars[i..].iter().position(|&c| c == ']')
+        {
+            let end = i + rel;
+            let field: String = chars[i + 1..end].iter().collect();
+            if let Some(colon) = field.find(':') {
+                let fval = field[colon + 1..].trim();
+                if &field[..colon] == "L"
+                    && let Some(d) = fval.split('/').nth(1)
+                {
+                    *unit_den = d.parse().unwrap_or(*unit_den);
                 }
-                // No colon — not an inline field; fall through to chord handler
+                i = end + 1;
+                continue;
             }
+            // No colon — not an inline field; fall through to chord handler
+        }
 
         // Chord bracket [CEG]
         if ch == '[' {
@@ -211,21 +237,40 @@ fn parse_body_line(
             let mut last_alter = 0i8;
             while i < chars.len() && chars[i] != ']' {
                 match chars[i] {
-                    '^' => { last_alter =  1; i += 1; }
-                    '_' => { last_alter = -1; i += 1; }
-                    '=' => { last_alter =  0; i += 1; }
+                    '^' => {
+                        last_alter = 1;
+                        i += 1;
+                    }
+                    '_' => {
+                        last_alter = -1;
+                        i += 1;
+                    }
+                    '=' => {
+                        last_alter = 0;
+                        i += 1;
+                    }
                     c if "ABCDEFGabcdefg".contains(c) => {
                         let (step, mut oct) = abc_note_char(c);
                         i += 1;
-                        while i < chars.len() && chars[i] == ',' { oct -= 1; i += 1; }
-                        while i < chars.len() && chars[i] == '\'' { oct += 1; i += 1; }
+                        while i < chars.len() && chars[i] == ',' {
+                            oct -= 1;
+                            i += 1;
+                        }
+                        while i < chars.len() && chars[i] == '\'' {
+                            oct += 1;
+                            i += 1;
+                        }
                         chord.push((step, oct, last_alter));
                         last_alter = 0;
                     }
-                    _ => { i += 1; }
+                    _ => {
+                        i += 1;
+                    }
                 }
             }
-            if i < chars.len() { i += 1; } // skip ']'
+            if i < chars.len() {
+                i += 1;
+            } // skip ']'
             let (cn, cd, ni) = parse_duration_suffix(&chars, i);
             i = ni;
             if let Some((fs, fo, fa)) = chord.first() {
@@ -272,17 +317,32 @@ fn parse_body_line(
 
         // Accidental prefix
         let mut alter = 0i8;
-        if ch == '^' { alter =  1; i += 1; }
-        else if ch == '_' { alter = -1; i += 1; }
-        else if ch == '=' { alter =  0; i += 1; }
+        if ch == '^' {
+            alter = 1;
+            i += 1;
+        } else if ch == '_' {
+            alter = -1;
+            i += 1;
+        } else if ch == '=' {
+            alter = 0;
+            i += 1;
+        }
 
-        if i >= chars.len() { break; }
+        if i >= chars.len() {
+            break;
+        }
         let nc = chars[i];
         if "ABCDEFGabcdefg".contains(nc) {
             let (step, mut octave) = abc_note_char(nc);
             i += 1;
-            while i < chars.len() && chars[i] == ',' { octave -= 1; i += 1; }
-            while i < chars.len() && chars[i] == '\'' { octave += 1; i += 1; }
+            while i < chars.len() && chars[i] == ',' {
+                octave -= 1;
+                i += 1;
+            }
+            while i < chars.len() && chars[i] == '\'' {
+                octave += 1;
+                i += 1;
+            }
             let (n, d, ni) = parse_duration_suffix(&chars, i);
             i = ni;
             *note_count += 1;
@@ -309,20 +369,32 @@ fn parse_body_line(
 fn abc_note_char(c: char) -> (Step, i8) {
     let octave = if c.is_uppercase() { 4 } else { 5 };
     let step = match c.to_ascii_uppercase() {
-        'C' => Step::C, 'D' => Step::D, 'E' => Step::E, 'F' => Step::F,
-        'G' => Step::G, 'A' => Step::A, 'B' => Step::B, _   => Step::C,
+        'C' => Step::C,
+        'D' => Step::D,
+        'E' => Step::E,
+        'F' => Step::F,
+        'G' => Step::G,
+        'A' => Step::A,
+        'B' => Step::B,
+        _ => Step::C,
     };
     (step, octave)
 }
 
 fn parse_meter(m: &str) -> (u8, u8) {
     match m.trim() {
-        "C"       => (4, 4),
+        "C" => (4, 4),
         "C|" | "c|" => (2, 2),
         _ => {
             let mut parts = m.splitn(2, '/');
-            let num = parts.next().and_then(|s| s.trim().parse().ok()).unwrap_or(4);
-            let den = parts.next().and_then(|s| s.trim().parse().ok()).unwrap_or(4);
+            let num = parts
+                .next()
+                .and_then(|s| s.trim().parse().ok())
+                .unwrap_or(4);
+            let den = parts
+                .next()
+                .and_then(|s| s.trim().parse().ok())
+                .unwrap_or(4);
             (num, den)
         }
     }
@@ -343,18 +415,40 @@ fn parse_key(k: &str) -> (i8, String) {
     let note = note_part.trim();
     let fifths: i8 = if mode == "minor" {
         match note {
-            "A"  =>  0, "E"  =>  1, "B"  =>  2,
-            "F#" =>  3, "C#" =>  4, "G#" =>  5, "D#" =>  6, "A#" =>  7,
-            "D"  => -1, "G"  => -2, "C"  => -3, "F"  => -4,
-            "Bb" => -5, "Eb" => -6, "Ab" => -7,
+            "A" => 0,
+            "E" => 1,
+            "B" => 2,
+            "F#" => 3,
+            "C#" => 4,
+            "G#" => 5,
+            "D#" => 6,
+            "A#" => 7,
+            "D" => -1,
+            "G" => -2,
+            "C" => -3,
+            "F" => -4,
+            "Bb" => -5,
+            "Eb" => -6,
+            "Ab" => -7,
             _ => 0,
         }
     } else {
         match note {
-            "Cb" => -7, "Gb" => -6, "Db" => -5, "Ab" => -4,
-            "Eb" => -3, "Bb" => -2, "F"  => -1, "C"  =>  0,
-            "G"  =>  1, "D"  =>  2, "A"  =>  3, "E"  =>  4,
-            "B"  =>  5, "F#" =>  6, "C#" =>  7,
+            "Cb" => -7,
+            "Gb" => -6,
+            "Db" => -5,
+            "Ab" => -4,
+            "Eb" => -3,
+            "Bb" => -2,
+            "F" => -1,
+            "C" => 0,
+            "G" => 1,
+            "D" => 2,
+            "A" => 3,
+            "E" => 4,
+            "B" => 5,
+            "F#" => 6,
+            "C#" => 7,
             _ => 0,
         }
     };
@@ -368,14 +462,14 @@ fn unit_to_duration(unit_den: u32, num: u32, den: u32) -> Duration {
     let beats_den = den.saturating_mul(unit_den);
     let g = gcd(beats_num, beats_den);
     match (beats_num / g, beats_den / g) {
-        (4, 1)           => Duration::Whole,
-        (3, 1) | (2, 1)  => Duration::Half,      // dotted half or half
-        (3, 2) | (1, 1)  => Duration::Quarter,   // dotted quarter or quarter
-        (3, 4) | (1, 2)  => Duration::Eighth,    // dotted eighth or eighth
-        (3, 8) | (1, 4)  => Duration::Sixteenth, // dotted sixteenth or sixteenth
-        (3, 16)| (1, 8)  => Duration::ThirtySecond,
-        (1, 16)          => Duration::SixtyFourth,
-        _                => Duration::Quarter,
+        (4, 1) => Duration::Whole,
+        (3, 1) | (2, 1) => Duration::Half, // dotted half or half
+        (3, 2) | (1, 1) => Duration::Quarter, // dotted quarter or quarter
+        (3, 4) | (1, 2) => Duration::Eighth, // dotted eighth or eighth
+        (3, 8) | (1, 4) => Duration::Sixteenth, // dotted sixteenth or sixteenth
+        (3, 16) | (1, 8) => Duration::ThirtySecond,
+        (1, 16) => Duration::SixtyFourth,
+        _ => Duration::Quarter,
     }
 }
 
@@ -383,11 +477,18 @@ fn is_dotted(unit_den: u32, num: u32, den: u32) -> bool {
     let beats_num = num.saturating_mul(4);
     let beats_den = den.saturating_mul(unit_den);
     let g = gcd(beats_num, beats_den);
-    matches!((beats_num / g, beats_den / g), (3, 1) | (3, 2) | (3, 4) | (3, 8) | (3, 16))
+    matches!(
+        (beats_num / g, beats_den / g),
+        (3, 1) | (3, 2) | (3, 4) | (3, 8) | (3, 16)
+    )
 }
 
 fn gcd(mut a: u32, mut b: u32) -> u32 {
-    while b != 0 { let t = b; b = a % b; a = t; }
+    while b != 0 {
+        let t = b;
+        b = a % b;
+        a = t;
+    }
     a
 }
 
@@ -396,14 +497,20 @@ fn parse_duration_suffix(chars: &[char], mut i: usize) -> (u32, u32, usize) {
     let mut den = 1u32;
     if i < chars.len() && chars[i].is_ascii_digit() {
         let mut s = String::new();
-        while i < chars.len() && chars[i].is_ascii_digit() { s.push(chars[i]); i += 1; }
+        while i < chars.len() && chars[i].is_ascii_digit() {
+            s.push(chars[i]);
+            i += 1;
+        }
         num = s.parse().unwrap_or(1);
     }
     if i < chars.len() && chars[i] == '/' {
         i += 1;
         if i < chars.len() && chars[i].is_ascii_digit() {
             let mut s = String::new();
-            while i < chars.len() && chars[i].is_ascii_digit() { s.push(chars[i]); i += 1; }
+            while i < chars.len() && chars[i].is_ascii_digit() {
+                s.push(chars[i]);
+                i += 1;
+            }
             den = s.parse().unwrap_or(2);
         } else {
             den = 2;
@@ -475,29 +582,64 @@ pub fn serialize_abc(score: &Score) -> Result<String, Error> {
 fn fifths_to_abc_key(fifths: i8, mode: &str) -> String {
     let key = if mode == "minor" {
         match fifths {
-            0 => "A", 1 => "E", 2 => "B",
-            3 => "F#", 4 => "C#", 5 => "G#", 6 => "D#", 7 => "A#",
-            -1 => "D", -2 => "G", -3 => "C", -4 => "F",
-            -5 => "Bb", -6 => "Eb", _ => "Ab",
+            0 => "A",
+            1 => "E",
+            2 => "B",
+            3 => "F#",
+            4 => "C#",
+            5 => "G#",
+            6 => "D#",
+            7 => "A#",
+            -1 => "D",
+            -2 => "G",
+            -3 => "C",
+            -4 => "F",
+            -5 => "Bb",
+            -6 => "Eb",
+            _ => "Ab",
         }
     } else {
         match fifths {
-            -7 => "Cb", -6 => "Gb", -5 => "Db", -4 => "Ab",
-            -3 => "Eb", -2 => "Bb", -1 => "F", 0 => "C",
-            1 => "G", 2 => "D", 3 => "A", 4 => "E",
-            5 => "B", 6 => "F#", _ => "C#",
+            -7 => "Cb",
+            -6 => "Gb",
+            -5 => "Db",
+            -4 => "Ab",
+            -3 => "Eb",
+            -2 => "Bb",
+            -1 => "F",
+            0 => "C",
+            1 => "G",
+            2 => "D",
+            3 => "A",
+            4 => "E",
+            5 => "B",
+            6 => "F#",
+            _ => "C#",
         }
     };
-    if mode == "minor" { format!("{}m", key) } else { key.to_string() }
+    if mode == "minor" {
+        format!("{}m", key)
+    } else {
+        key.to_string()
+    }
 }
 
 fn pitch_to_abc(pitch: &Pitch) -> String {
     use acorde_core::Step;
     let base = match pitch.step {
-        Step::C => 'C', Step::D => 'D', Step::E => 'E', Step::F => 'F',
-        Step::G => 'G', Step::A => 'A', Step::B => 'B',
+        Step::C => 'C',
+        Step::D => 'D',
+        Step::E => 'E',
+        Step::F => 'F',
+        Step::G => 'G',
+        Step::A => 'A',
+        Step::B => 'B',
     };
-    let acc = match pitch.alter { 1 => "^", -1 => "_", _ => "" };
+    let acc = match pitch.alter {
+        1 => "^",
+        -1 => "_",
+        _ => "",
+    };
     if pitch.octave >= 5 {
         let lower = base.to_ascii_lowercase();
         let ticks = "'".repeat((pitch.octave - 5).max(0) as usize);
@@ -511,13 +653,13 @@ fn pitch_to_abc(pitch: &Pitch) -> String {
 fn duration_to_abc_suffix(dur: Duration, dot_count: u8) -> String {
     // Duration relative to L:1/4 expressed as (numerator, denominator).
     let (base_num, base_den): (u32, u32) = match dur {
-        Duration::Whole        => (4, 1),
-        Duration::Half         => (2, 1),
-        Duration::Quarter      => (1, 1),
-        Duration::Eighth       => (1, 2),
-        Duration::Sixteenth    => (1, 4),
+        Duration::Whole => (4, 1),
+        Duration::Half => (2, 1),
+        Duration::Quarter => (1, 1),
+        Duration::Eighth => (1, 2),
+        Duration::Sixteenth => (1, 4),
         Duration::ThirtySecond => (1, 8),
-        Duration::SixtyFourth  => (1, 16),
+        Duration::SixtyFourth => (1, 16),
     };
     let (dot_num, dot_den): (u32, u32) = match dot_count {
         1 => (3, 2),
@@ -543,12 +685,16 @@ fn note_to_abc(note: &Note) -> String {
         format!("{}{}", pitch_to_abc(&note.pitches[0]), suf)
     } else {
         let mut chord = String::from("[");
-        for p in &note.pitches { chord.push_str(&pitch_to_abc(p)); }
+        for p in &note.pitches {
+            chord.push_str(&pitch_to_abc(p));
+        }
         chord.push(']');
         chord.push_str(&suf);
         chord
     };
-    if note.tie_start { s.push('-'); }
+    if note.tie_start {
+        s.push('-');
+    }
     s.push(' ');
     s
 }
@@ -637,9 +783,9 @@ C D E F | G A B c |";
         let score = parse_abc(abc).unwrap();
         let voice = &score.parts[0].staves[0].measures[0].voices[0];
         let pitched: Vec<_> = voice.iter().filter(|n| !n.is_rest).collect();
-        assert_eq!(pitched[0].pitches[0].alter,  1); // ^C
+        assert_eq!(pitched[0].pitches[0].alter, 1); // ^C
         assert_eq!(pitched[1].pitches[0].alter, -1); // _E
-        assert_eq!(pitched[2].pitches[0].alter,  0); // =G
+        assert_eq!(pitched[2].pitches[0].alter, 0); // =G
     }
 
     #[test]
@@ -691,7 +837,9 @@ C D E F | G A B c |";
         assert_eq!(score.settings.time_signature.numerator, 3);
         assert_eq!(score.parts[0].staves[0].measures.len(), 2);
         let beats: f64 = score.parts[0].staves[0].measures[0].voices[0]
-            .iter().map(|n| n.beats()).sum();
+            .iter()
+            .map(|n| n.beats())
+            .sum();
         assert!((beats - 3.0).abs() < 0.01);
     }
 
@@ -711,7 +859,7 @@ C D E F | G A B c |";
 
     #[test]
     fn abc_serialize_cde_quarter_notes() {
-        use acorde_core::{Score, Note, Pitch, Step, Duration};
+        use acorde_core::{Duration, Note, Pitch, Score, Step};
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].voices[0] = vec![
             Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
@@ -726,7 +874,7 @@ C D E F | G A B c |";
 
     #[test]
     fn abc_serialize_half_note() {
-        use acorde_core::{Score, Note, Pitch, Step, Duration};
+        use acorde_core::{Duration, Note, Pitch, Score, Step};
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].voices[0] =
             vec![Note::new(Pitch::new(Step::G, 4), Duration::Half)];
@@ -736,7 +884,7 @@ C D E F | G A B c |";
 
     #[test]
     fn abc_serialize_dotted_half() {
-        use acorde_core::{Score, Note, Pitch, Step, Duration};
+        use acorde_core::{Duration, Note, Pitch, Score, Step};
         let mut score = Score::new("T", 120, 3, 4, 0, 1);
         let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Half);
         note.dot_count = 1;
@@ -747,17 +895,16 @@ C D E F | G A B c |";
 
     #[test]
     fn abc_serialize_rest() {
-        use acorde_core::{Score, Note, Duration};
+        use acorde_core::{Duration, Note, Score};
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
-        score.parts[0].staves[0].measures[0].voices[0] =
-            vec![Note::rest(Duration::Quarter)];
+        score.parts[0].staves[0].measures[0].voices[0] = vec![Note::rest(Duration::Quarter)];
         let abc = serialize_abc(&score).unwrap();
         assert!(abc.contains("z "), "Quarter rest should be 'z'");
     }
 
     #[test]
     fn abc_serialize_chord() {
-        use acorde_core::{Score, Note, Pitch, Step, Duration};
+        use acorde_core::{Duration, Note, Pitch, Score, Step};
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
         note.pitches.push(Pitch::new(Step::E, 4));
@@ -776,7 +923,7 @@ C D E F | G A B c |";
 
     #[test]
     fn abc_multipart_emits_voice_tags() {
-        use acorde_core::{Score, Part, Staff, Clef, Measure};
+        use acorde_core::{Clef, Measure, Part, Score, Staff};
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         let mut p2 = Part::new("Bass", "B.");
         let mut staff = Staff::new(Clef::Bass);
@@ -792,7 +939,7 @@ C D E F | G A B c |";
 
     #[test]
     fn abc_roundtrip_pitches() {
-        use acorde_core::{Score, Note, Pitch, Step, Duration};
+        use acorde_core::{Duration, Note, Pitch, Score, Step};
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].voices[0] = vec![
             Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
@@ -802,7 +949,9 @@ C D E F | G A B c |";
         let abc = serialize_abc(&score).unwrap();
         let score2 = parse_abc(&abc).unwrap();
         let notes: Vec<_> = score2.parts[0].staves[0].measures[0].voices[0]
-            .iter().filter(|n| !n.is_rest).collect();
+            .iter()
+            .filter(|n| !n.is_rest)
+            .collect();
         assert_eq!(notes.len(), 3);
         assert_eq!(notes[0].pitches[0].step, Step::C);
         assert_eq!(notes[0].pitches[0].octave, 4);

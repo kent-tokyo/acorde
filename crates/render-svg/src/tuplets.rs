@@ -22,9 +22,20 @@ pub(crate) struct TupletPlan {
 /// group by the caller). `ref_ys` is each note's "far" reference point — the stem tip (or
 /// beam-adjusted tip) for a pitched note, or an approximate vertical center for a rest —
 /// i.e. however far the bracket must clear on the `stem_up` side.
-pub(crate) fn plan_tuplet(xs: &[f32], ref_ys: &[f32], actual_notes: u8, stem_up: bool, beamed_fully: bool, space: f32) -> TupletPlan {
+pub(crate) fn plan_tuplet(
+    xs: &[f32],
+    ref_ys: &[f32],
+    actual_notes: u8,
+    stem_up: bool,
+    beamed_fully: bool,
+    space: f32,
+) -> TupletPlan {
     let dir = if stem_up { -1.0 } else { 1.0 };
-    let extreme = ref_ys.iter().copied().fold(ref_ys[0], |acc, y| if stem_up { acc.min(y) } else { acc.max(y) });
+    let extreme =
+        ref_ys.iter().copied().fold(
+            ref_ys[0],
+            |acc, y| if stem_up { acc.min(y) } else { acc.max(y) },
+        );
     let bracket_y = extreme + dir * BRACKET_CLEARANCE_U * space;
 
     let x_first = xs[0];
@@ -35,21 +46,41 @@ pub(crate) fn plan_tuplet(xs: &[f32], ref_ys: &[f32], actual_notes: u8, stem_up:
 
     if !beamed_fully {
         let hook_end_y = bracket_y - dir * HOOK_LEN_U * space;
-        svg.push_str(&glyphs::tuplet_line(x_first, hook_end_y, x_first, bracket_y, space));
-        svg.push_str(&glyphs::tuplet_line(x_last, hook_end_y, x_last, bracket_y, space));
+        svg.push_str(&glyphs::tuplet_line(
+            x_first, hook_end_y, x_first, bracket_y, space,
+        ));
+        svg.push_str(&glyphs::tuplet_line(
+            x_last, hook_end_y, x_last, bracket_y, space,
+        ));
         let gap = NUMBER_HALF_GAP_U * space;
         if x_mid - gap > x_first {
-            svg.push_str(&glyphs::tuplet_line(x_first, bracket_y, x_mid - gap, bracket_y, space));
+            svg.push_str(&glyphs::tuplet_line(
+                x_first,
+                bracket_y,
+                x_mid - gap,
+                bracket_y,
+                space,
+            ));
         }
         if x_mid + gap < x_last {
-            svg.push_str(&glyphs::tuplet_line(x_mid + gap, bracket_y, x_last, bracket_y, space));
+            svg.push_str(&glyphs::tuplet_line(
+                x_mid + gap,
+                bracket_y,
+                x_last,
+                bracket_y,
+                space,
+            ));
         }
     }
 
     // The number's vertical center sits on the bracket line itself (the gap cut into the
     // bracket above is centered the same way), or — when there's no bracket line at all
     // (beamed case) — offset just clear of the beam on the stem side.
-    let number_y = if beamed_fully { bracket_y + dir * NUMBER_HEIGHT_U * 0.5 * space } else { bracket_y };
+    let number_y = if beamed_fully {
+        bracket_y + dir * NUMBER_HEIGHT_U * 0.5 * space
+    } else {
+        bracket_y
+    };
     svg.push_str(&glyphs::tuplet_number(actual_notes, x_mid, number_y, space));
 
     TupletPlan { svg }

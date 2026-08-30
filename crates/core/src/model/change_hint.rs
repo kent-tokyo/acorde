@@ -8,7 +8,12 @@ pub enum ChangeScope {
     /// Only a specific part changed (by part index).
     Part(usize),
     /// One or more measures in a specific part+staff changed.
-    Measures { part: usize, staff: usize, start: usize, end: usize },
+    Measures {
+        part: usize,
+        staff: usize,
+        start: usize,
+        end: usize,
+    },
 }
 
 /// Lightweight hint returned by [`crate::ScoreEngine::apply`].
@@ -42,11 +47,24 @@ fn merge_scope(a: ChangeScope, b: ChangeScope) -> ChangeScope {
         (ChangeScope::Part(pa), ChangeScope::Part(pb)) if pa == pb => ChangeScope::Part(pa),
         (ChangeScope::Part(_), ChangeScope::Part(_)) => ChangeScope::Global,
         (
-            ChangeScope::Measures { part: pa, staff: sa, start: s1, end: e1 },
-            ChangeScope::Measures { part: pb, staff: sb, start: s2, end: e2 },
-        ) if pa == pb && sa == sb => {
-            ChangeScope::Measures { part: pa, staff: sa, start: s1.min(s2), end: e1.max(e2) }
-        }
+            ChangeScope::Measures {
+                part: pa,
+                staff: sa,
+                start: s1,
+                end: e1,
+            },
+            ChangeScope::Measures {
+                part: pb,
+                staff: sb,
+                start: s2,
+                end: e2,
+            },
+        ) if pa == pb && sa == sb => ChangeScope::Measures {
+            part: pa,
+            staff: sa,
+            start: s1.min(s2),
+            end: e1.max(e2),
+        },
         _ => ChangeScope::Global,
     }
 }
@@ -56,7 +74,11 @@ mod tests {
     use super::*;
 
     fn hint(scope: ChangeScope, layout: bool, playback: bool) -> ChangeHint {
-        ChangeHint { scope, layout_dirty: layout, playback_dirty: playback }
+        ChangeHint {
+            scope,
+            layout_dirty: layout,
+            playback_dirty: playback,
+        }
     }
 
     #[test]
@@ -87,16 +109,60 @@ mod tests {
 
     #[test]
     fn merge_measures_same_staff_extends_range() {
-        let a = hint(ChangeScope::Measures { part: 0, staff: 0, start: 2, end: 4 }, false, true);
-        let b = hint(ChangeScope::Measures { part: 0, staff: 0, start: 1, end: 3 }, false, true);
+        let a = hint(
+            ChangeScope::Measures {
+                part: 0,
+                staff: 0,
+                start: 2,
+                end: 4,
+            },
+            false,
+            true,
+        );
+        let b = hint(
+            ChangeScope::Measures {
+                part: 0,
+                staff: 0,
+                start: 1,
+                end: 3,
+            },
+            false,
+            true,
+        );
         let m = a.merge(b);
-        assert_eq!(m.scope, ChangeScope::Measures { part: 0, staff: 0, start: 1, end: 4 });
+        assert_eq!(
+            m.scope,
+            ChangeScope::Measures {
+                part: 0,
+                staff: 0,
+                start: 1,
+                end: 4
+            }
+        );
     }
 
     #[test]
     fn merge_measures_different_staff_becomes_global() {
-        let a = hint(ChangeScope::Measures { part: 0, staff: 0, start: 0, end: 1 }, false, true);
-        let b = hint(ChangeScope::Measures { part: 0, staff: 1, start: 0, end: 1 }, false, true);
+        let a = hint(
+            ChangeScope::Measures {
+                part: 0,
+                staff: 0,
+                start: 0,
+                end: 1,
+            },
+            false,
+            true,
+        );
+        let b = hint(
+            ChangeScope::Measures {
+                part: 0,
+                staff: 1,
+                start: 0,
+                end: 1,
+            },
+            false,
+            true,
+        );
         let m = a.merge(b);
         assert_eq!(m.scope, ChangeScope::Global);
     }

@@ -2,15 +2,15 @@
 //! [`acorde-core`](https://docs.rs/acorde-core) [`Score`](https://docs.rs/acorde-core/latest/acorde_core/struct.Score.html)
 //! values. Feature-gated per format; accepts `&str`/`&[u8]`, never touches the filesystem.
 
-mod error;
-#[cfg(feature = "musicxml")]
-pub mod musicxml;
-#[cfg(feature = "midi")]
-pub mod midi;
 #[cfg(feature = "abc")]
 pub mod abc;
+mod error;
+#[cfg(feature = "midi")]
+pub mod midi;
 #[cfg(feature = "mscz")]
 pub mod mscz;
+#[cfg(feature = "musicxml")]
+pub mod musicxml;
 
 pub use error::Error;
 

@@ -1,13 +1,11 @@
-use std::collections::HashMap;
+use crate::Error;
+use acorde_core::{
+    Barline, Clef, Duration, Dynamic, KeySignature, Lyric, Measure, Note, Part, Pitch, Score,
+    Staff, Step, TimeSignature, VoltaBracket,
+};
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
-use acorde_core::{
-    Barline, Clef, Dynamic, KeySignature, Lyric, TimeSignature, VoltaBracket,
-    Pitch, Step,
-    Measure, Note, Part, Score, Staff,
-    Duration,
-};
-use crate::Error;
+use std::collections::HashMap;
 
 const MAX_ELEMENTS: usize = 500_000;
 
@@ -30,8 +28,7 @@ pub fn parse_mscz(data: &[u8]) -> Result<Score, Error> {
         return Err(Error::Zip("data too short to be a ZIP file".into()));
     }
     let cursor = std::io::Cursor::new(data);
-    let mut archive = zip::ZipArchive::new(cursor)
-        .map_err(|e| Error::Zip(e.to_string()))?;
+    let mut archive = zip::ZipArchive::new(cursor).map_err(|e| Error::Zip(e.to_string()))?;
     let mscx = extract_mscx(&mut archive)?;
     parse_mscx(&mscx)
 }
@@ -110,7 +107,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut chord_voice: usize = 0;
     let mut chord_pitches: Vec<Pitch> = Vec::new();
     let mut chord_tie_start = false;
-    let mut chord_slur_start = false;  // Feature L
+    let mut chord_slur_start = false; // Feature L
 
     // Note state (inside Chord)
     let mut in_note_elem = false;
@@ -171,8 +168,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         cur_part_channel = 0;
                         cur_part_staff_ids.clear();
                     }
-                    "Instrument" if in_part => { in_instrument = true; }
-                    "Channel" if in_instrument => { in_channel = true; }
+                    "Instrument" if in_part => {
+                        in_instrument = true;
+                    }
+                    "Channel" if in_instrument => {
+                        in_channel = true;
+                    }
                     "Staff" if !in_part && current_staff_id.is_none() => {
                         let id = attr_usize(e, b"id").unwrap_or(1);
                         current_staff_id = Some(id);
@@ -207,12 +208,18 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         in_clef_elem = true;
                         clef_type_str.clear();
                     }
-                    "Tempo" if in_measure => { in_tempo_elem = true; }
+                    "Tempo" if in_measure => {
+                        in_tempo_elem = true;
+                    }
                     "Chord" if in_measure && !in_chord && !in_rest_elem => {
                         in_chord = true;
                         chord_duration = None;
                         chord_dots = 0;
-                        chord_voice = if in_measure_voice_wrapper { measure_voice_index } else { 0 };
+                        chord_voice = if in_measure_voice_wrapper {
+                            measure_voice_index
+                        } else {
+                            0
+                        };
                         chord_pitches.clear();
                         chord_tie_start = false;
                         chord_slur_start = false;
@@ -221,7 +228,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         in_rest_elem = true;
                         chord_duration = None;
                         chord_dots = 0;
-                        chord_voice = if in_measure_voice_wrapper { measure_voice_index } else { 0 };
+                        chord_voice = if in_measure_voice_wrapper {
+                            measure_voice_index
+                        } else {
+                            0
+                        };
                     }
                     "Note" if in_chord && !in_note_elem => {
                         in_note_elem = true;
@@ -234,7 +245,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         spanner_is_tie = attr_str(e, b"type").as_deref() == Some("Tie");
                         spanner_has_next = false;
                     }
-                    "next" if in_spanner => { spanner_has_next = true; }
+                    "next" if in_spanner => {
+                        spanner_has_next = true;
+                    }
                     // Feature M: MuseScore 4.x voice wrapper container at Measure level
                     "voice" if in_measure && !in_chord && !in_rest_elem => {
                         in_measure_voice_wrapper = true;
@@ -247,7 +260,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             volta_has_next = false;
                         }
                     }
-                    "next" if in_volta_spanner => { volta_has_next = true; }
+                    "next" if in_volta_spanner => {
+                        volta_has_next = true;
+                    }
                     // Feature L: Slur Spanner at Chord level
                     "Spanner" if in_chord && !in_note_elem => {
                         if attr_str(e, b"type").as_deref() == Some("Slur") {
@@ -255,9 +270,13 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             chord_slur_has_next = false;
                         }
                     }
-                    "next" if in_chord_slur_spanner => { chord_slur_has_next = true; }
+                    "next" if in_chord_slur_spanner => {
+                        chord_slur_has_next = true;
+                    }
                     // Feature K: Dynamic at Measure level
-                    "Dynamic" if in_measure && !in_chord => { in_dynamic_elem = true; }
+                    "Dynamic" if in_measure && !in_chord => {
+                        in_dynamic_elem = true;
+                    }
                     // Feature K: Lyrics inside Chord
                     "Lyrics" if in_chord => {
                         in_lyrics_elem = true;
@@ -286,9 +305,15 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
 
                     // Part
-                    "trackName" if in_part => { cur_part_name = t.to_string(); }
-                    "Instrument" if in_part => { in_instrument = false; }
-                    "Channel" if in_instrument => { in_channel = false; }
+                    "trackName" if in_part => {
+                        cur_part_name = t.to_string();
+                    }
+                    "Instrument" if in_part => {
+                        in_instrument = false;
+                    }
+                    "Channel" if in_instrument => {
+                        in_channel = false;
+                    }
                     "Part" if in_part => {
                         parts_meta.push(PartMeta {
                             name: cur_part_name.clone(),
@@ -341,18 +366,34 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "accidental" if in_keysig => {
                         keysig_accidental = t.parse().unwrap_or(0);
                     }
-                    "mode" if in_keysig => { keysig_mode = t.to_string(); }
+                    "mode" if in_keysig => {
+                        keysig_mode = t.to_string();
+                    }
                     "KeySig" if in_keysig => {
-                        let mode = if keysig_mode.is_empty() { "major" } else { keysig_mode.as_str() };
-                        cur_key = Some(KeySignature { fifths: keysig_accidental, mode: mode.to_string() });
+                        let mode = if keysig_mode.is_empty() {
+                            "major"
+                        } else {
+                            keysig_mode.as_str()
+                        };
+                        cur_key = Some(KeySignature {
+                            fifths: keysig_accidental,
+                            mode: mode.to_string(),
+                        });
                         in_keysig = false;
                     }
 
                     // TimeSig
-                    "sigN" if in_timesig => { timesig_n = t.parse().unwrap_or(4); }
-                    "sigD" if in_timesig => { timesig_d = t.parse().unwrap_or(4); }
+                    "sigN" if in_timesig => {
+                        timesig_n = t.parse().unwrap_or(4);
+                    }
+                    "sigD" if in_timesig => {
+                        timesig_d = t.parse().unwrap_or(4);
+                    }
                     "TimeSig" if in_timesig => {
-                        cur_time = Some(TimeSignature { numerator: timesig_n, denominator: timesig_d });
+                        cur_time = Some(TimeSignature {
+                            numerator: timesig_n,
+                            denominator: timesig_d,
+                        });
                         in_timesig = false;
                     }
 
@@ -370,7 +411,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         let qps: f64 = t.parse().unwrap_or(2.0);
                         cur_tempo = Some((qps * 60.0).round() as u16);
                     }
-                    "Tempo" if in_tempo_elem => { in_tempo_elem = false; }
+                    "Tempo" if in_tempo_elem => {
+                        in_tempo_elem = false;
+                    }
 
                     // Chord content
                     "durationType" if in_chord || in_rest_elem => {
@@ -391,8 +434,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
 
                     // Note fields
-                    "pitch" if in_note_elem => { note_midi = t.parse().unwrap_or(60); }
-                    "tpc" if in_note_elem => { note_tpc = t.parse().unwrap_or(14); }
+                    "pitch" if in_note_elem => {
+                        note_midi = t.parse().unwrap_or(60);
+                    }
+                    "tpc" if in_note_elem => {
+                        note_tpc = t.parse().unwrap_or(14);
+                    }
 
                     // Note-level Spanner/Tie
                     "next" if in_spanner => {}
@@ -406,7 +453,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
 
                     // Feature L: Chord-level Slur Spanner
                     "Spanner" if in_chord_slur_spanner => {
-                        if chord_slur_has_next { chord_slur_start = true; }
+                        if chord_slur_has_next {
+                            chord_slur_start = true;
+                        }
                         in_chord_slur_spanner = false;
                     }
 
@@ -417,7 +466,10 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "Spanner" if in_volta_spanner => {
                         let number = parse_volta_number(&volta_text);
                         let kind = if volta_has_next { "begin" } else { "begin_end" };
-                        cur_volta = Some(VoltaBracket { number, kind: kind.to_string() });
+                        cur_volta = Some(VoltaBracket {
+                            number,
+                            kind: kind.to_string(),
+                        });
                         in_volta_spanner = false;
                     }
 
@@ -430,12 +482,20 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "subtype" if in_dynamic_elem => {
                         pending_dynamic = parse_dynamic_str(t);
                     }
-                    "Dynamic" if in_dynamic_elem => { in_dynamic_elem = false; }
+                    "Dynamic" if in_dynamic_elem => {
+                        in_dynamic_elem = false;
+                    }
 
                     // Feature K: Lyrics
-                    "text" if in_lyrics_elem => { lyrics_text = t.to_string(); }
-                    "syllabic" if in_lyrics_elem => { lyrics_syllabic = t.to_string(); }
-                    "Lyrics" if in_lyrics_elem => { in_lyrics_elem = false; }
+                    "text" if in_lyrics_elem => {
+                        lyrics_text = t.to_string();
+                    }
+                    "syllabic" if in_lyrics_elem => {
+                        lyrics_syllabic = t.to_string();
+                    }
+                    "Lyrics" if in_lyrics_elem => {
+                        in_lyrics_elem = false;
+                    }
 
                     // Note close
                     "Note" if in_note_elem => {
@@ -524,7 +584,14 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
         return Err(Error::Xml("empty document".into()));
     }
 
-    assemble_score(base_score, &score_title, &score_composer, parts_meta, staff_measures, staff_clefs)
+    assemble_score(
+        base_score,
+        &score_title,
+        &score_composer,
+        parts_meta,
+        staff_measures,
+        staff_clefs,
+    )
 }
 
 // ── Assembly ──────────────────────────────────────────────────────────────────
@@ -539,21 +606,28 @@ fn assemble_score(
 ) -> Result<Score, Error> {
     // Replace the default Score parts with the parsed content.
     score.parts.clear();
-    if !title.is_empty() { score.metadata.title = title.to_string(); }
-    if !composer.is_empty() { score.metadata.composer = composer.to_string(); }
+    if !title.is_empty() {
+        score.metadata.title = title.to_string();
+    }
+    if !composer.is_empty() {
+        score.metadata.composer = composer.to_string();
+    }
 
     let build_staves = |ids: &[usize],
                         staff_measures: &mut HashMap<usize, Vec<Measure>>,
-                        staff_clefs: &HashMap<usize, Clef>| -> Vec<Staff> {
-        ids.iter().map(|&sid| {
-            let clef = staff_clefs.get(&sid).cloned().unwrap_or(Clef::Treble);
-            let mut s = Staff::new(clef);
-            s.measures = staff_measures.remove(&sid).unwrap_or_default();
-            for (i, m) in s.measures.iter_mut().enumerate() {
-                m.number = (i + 1) as u32;
-            }
-            s
-        }).collect()
+                        staff_clefs: &HashMap<usize, Clef>|
+     -> Vec<Staff> {
+        ids.iter()
+            .map(|&sid| {
+                let clef = staff_clefs.get(&sid).cloned().unwrap_or(Clef::Treble);
+                let mut s = Staff::new(clef);
+                s.measures = staff_measures.remove(&sid).unwrap_or_default();
+                for (i, m) in s.measures.iter_mut().enumerate() {
+                    m.number = (i + 1) as u32;
+                }
+                s
+            })
+            .collect()
     };
 
     if parts_meta.is_empty() {
@@ -603,28 +677,38 @@ fn assemble_score(
 /// TPC circle-of-fifths encoding:
 /// - 6=Fb … 12=Bb (flats), 13=F … 19=B (naturals), 20=F# … 26=B# (sharps)
 fn tpc_midi_to_pitch(tpc: i32, midi: i32) -> Pitch {
-    const STEPS: [Step; 7] = [Step::F, Step::C, Step::G, Step::D, Step::A, Step::E, Step::B];
+    const STEPS: [Step; 7] = [
+        Step::F,
+        Step::C,
+        Step::G,
+        Step::D,
+        Step::A,
+        Step::E,
+        Step::B,
+    ];
     let step_idx = (tpc - 13).rem_euclid(7) as usize;
     let step = STEPS[step_idx.min(6)].clone();
     let alter = (tpc - 13).div_euclid(7) as i8;
     let raw_oct = (midi / 12 - 1) as i8;
     for &oct in &[raw_oct, raw_oct - 1, raw_oct + 1] {
         let p = Pitch::with_alter(step.clone(), oct, alter);
-        if p.to_midi() as i32 == midi { return p; }
+        if p.to_midi() as i32 == midi {
+            return p;
+        }
     }
     Pitch::with_alter(step, raw_oct, alter)
 }
 
 fn mscz_duration_type(s: &str) -> Duration {
     match s {
-        "whole"   => Duration::Whole,
-        "half"    => Duration::Half,
+        "whole" => Duration::Whole,
+        "half" => Duration::Half,
         "quarter" => Duration::Quarter,
-        "eighth"  => Duration::Eighth,
-        "16th"    => Duration::Sixteenth,
-        "32nd"    => Duration::ThirtySecond,
+        "eighth" => Duration::Eighth,
+        "16th" => Duration::Sixteenth,
+        "32nd" => Duration::ThirtySecond,
         "measure" => Duration::Whole,
-        _         => Duration::Quarter,
+        _ => Duration::Quarter,
     }
 }
 
@@ -632,30 +716,30 @@ fn mscz_clef_type(s: &str) -> Clef {
     match s {
         "G" | "G8vb" | "G15ma" | "G8va" => Clef::Treble,
         "F" | "F8vb" | "F15mb" | "F8va" => Clef::Bass,
-        "C"                               => Clef::Alto,
-        "TAB" | "TAB4"                    => Clef::Treble, // best approximation
-        "PERC" | "PERC2"                  => Clef::Percussion,
-        _                                 => Clef::Treble,
+        "C" => Clef::Alto,
+        "TAB" | "TAB4" => Clef::Treble, // best approximation
+        "PERC" | "PERC2" => Clef::Percussion,
+        _ => Clef::Treble,
     }
 }
 
 fn parse_dynamic_str(s: &str) -> Option<Dynamic> {
     match s {
         "pppp" => Some(Dynamic::Pppp),
-        "ppp"  => Some(Dynamic::Ppp),
-        "pp"   => Some(Dynamic::Pp),
-        "p"    => Some(Dynamic::P),
-        "mp"   => Some(Dynamic::Mp),
-        "mf"   => Some(Dynamic::Mf),
-        "f"    => Some(Dynamic::F),
-        "ff"   => Some(Dynamic::Ff),
-        "fff"  => Some(Dynamic::Fff),
+        "ppp" => Some(Dynamic::Ppp),
+        "pp" => Some(Dynamic::Pp),
+        "p" => Some(Dynamic::P),
+        "mp" => Some(Dynamic::Mp),
+        "mf" => Some(Dynamic::Mf),
+        "f" => Some(Dynamic::F),
+        "ff" => Some(Dynamic::Ff),
+        "fff" => Some(Dynamic::Fff),
         "ffff" => Some(Dynamic::Ffff),
-        "sfz"  => Some(Dynamic::Sfz),
-        "rfz"  => Some(Dynamic::Rfz),
-        "fz"   => Some(Dynamic::Fz),
-        "sf"   => Some(Dynamic::Sf),
-        _      => None,
+        "sfz" => Some(Dynamic::Sfz),
+        "rfz" => Some(Dynamic::Rfz),
+        "fz" => Some(Dynamic::Fz),
+        "sf" => Some(Dynamic::Sf),
+        _ => None,
     }
 }
 
@@ -672,7 +756,8 @@ fn local_name_str(bytes: &[u8]) -> String {
 }
 
 fn attr_str(e: &quick_xml::events::BytesStart<'_>, key: &[u8]) -> Option<String> {
-    e.attributes().filter_map(|a| a.ok())
+    e.attributes()
+        .filter_map(|a| a.ok())
         .find(|a| a.key.local_name().as_ref() == key)
         .and_then(|a| String::from_utf8(a.value.to_vec()).ok())
 }
@@ -696,7 +781,10 @@ fn extract_mscx<R: std::io::Read + std::io::Seek>(
         }
         if name.ends_with(".mscx") {
             if file.size() > MAX_MSCX_SIZE {
-                return Err(Error::Zip(format!("mscx entry too large ({} bytes)", file.size())));
+                return Err(Error::Zip(format!(
+                    "mscx entry too large ({} bytes)",
+                    file.size()
+                )));
             }
             let mut content = String::new();
             file.take(MAX_MSCX_SIZE)
@@ -754,7 +842,8 @@ mod tests {
 
     #[test]
     fn parse_mscx_single_note_c4() {
-        let xml = simple_mscx(r#"
+        let xml = simple_mscx(
+            r#"
       <Measure number="1">
         <KeySig><accidental>0</accidental></KeySig>
         <TimeSig><sigN>4</sigN><sigD>4</sigD></TimeSig>
@@ -763,7 +852,8 @@ mod tests {
           <durationType>quarter</durationType>
           <Note><pitch>60</pitch><tpc>14</tpc></Note>
         </Chord>
-      </Measure>"#);
+      </Measure>"#,
+        );
         let score = parse_mscx(&xml).unwrap();
         assert_eq!(score.parts.len(), 1);
         let notes = &score.parts[0].staves[0].measures[0].voices[0];
@@ -808,10 +898,12 @@ mod tests {
 
     #[test]
     fn parse_mscx_rest() {
-        let xml = simple_mscx(r#"
+        let xml = simple_mscx(
+            r#"
       <Measure number="1">
         <Rest><durationType>quarter</durationType></Rest>
-      </Measure>"#);
+      </Measure>"#,
+        );
         let score = parse_mscx(&xml).unwrap();
         let notes = &score.parts[0].staves[0].measures[0].voices[0];
         assert_eq!(notes.len(), 1);
@@ -821,14 +913,16 @@ mod tests {
 
     #[test]
     fn parse_mscx_dotted_note() {
-        let xml = simple_mscx(r#"
+        let xml = simple_mscx(
+            r#"
       <Measure number="1">
         <Chord>
           <durationType>quarter</durationType>
           <dots>1</dots>
           <Note><pitch>60</pitch><tpc>14</tpc></Note>
         </Chord>
-      </Measure>"#);
+      </Measure>"#,
+        );
         let score = parse_mscx(&xml).unwrap();
         let notes = &score.parts[0].staves[0].measures[0].voices[0];
         assert_eq!(notes[0].dot_count, 1);
@@ -836,32 +930,43 @@ mod tests {
 
     #[test]
     fn parse_mscx_key_signature() {
-        let xml = simple_mscx(r#"
+        let xml = simple_mscx(
+            r#"
       <Measure number="1">
         <KeySig><accidental>2</accidental></KeySig>
         <Rest><durationType>whole</durationType></Rest>
-      </Measure>"#);
+      </Measure>"#,
+        );
         let score = parse_mscx(&xml).unwrap();
-        let ks = score.parts[0].staves[0].measures[0].key_sig.as_ref().unwrap();
+        let ks = score.parts[0].staves[0].measures[0]
+            .key_sig
+            .as_ref()
+            .unwrap();
         assert_eq!(ks.fifths, 2);
     }
 
     #[test]
     fn parse_mscx_time_signature() {
-        let xml = simple_mscx(r#"
+        let xml = simple_mscx(
+            r#"
       <Measure number="1">
         <TimeSig><sigN>3</sigN><sigD>4</sigD></TimeSig>
         <Rest><durationType>whole</durationType></Rest>
-      </Measure>"#);
+      </Measure>"#,
+        );
         let score = parse_mscx(&xml).unwrap();
-        let ts = score.parts[0].staves[0].measures[0].time_sig.as_ref().unwrap();
+        let ts = score.parts[0].staves[0].measures[0]
+            .time_sig
+            .as_ref()
+            .unwrap();
         assert_eq!(ts.numerator, 3);
         assert_eq!(ts.denominator, 4);
     }
 
     #[test]
     fn parse_mscx_two_measures() {
-        let xml = simple_mscx(r#"
+        let xml = simple_mscx(
+            r#"
       <Measure number="1">
         <Chord>
           <durationType>quarter</durationType>
@@ -870,21 +975,24 @@ mod tests {
       </Measure>
       <Measure number="2">
         <Rest><durationType>quarter</durationType></Rest>
-      </Measure>"#);
+      </Measure>"#,
+        );
         let score = parse_mscx(&xml).unwrap();
         assert_eq!(score.parts[0].staves[0].measures.len(), 2);
     }
 
     #[test]
     fn parse_mscx_voice_2() {
-        let xml = simple_mscx(r#"
+        let xml = simple_mscx(
+            r#"
       <Measure number="1">
         <Chord>
           <voice>2</voice>
           <durationType>quarter</durationType>
           <Note><pitch>64</pitch><tpc>18</tpc></Note>
         </Chord>
-      </Measure>"#);
+      </Measure>"#,
+        );
         let score = parse_mscx(&xml).unwrap();
         let m = &score.parts[0].staves[0].measures[0];
         assert!(m.voices[0].is_empty());
@@ -893,14 +1001,16 @@ mod tests {
 
     #[test]
     fn parse_mscx_tempo() {
-        let xml = simple_mscx(r#"
+        let xml = simple_mscx(
+            r#"
       <Measure number="1">
         <Tempo>
           <tempo>2</tempo>
           <text>&#x266a; = 120</text>
         </Tempo>
         <Rest><durationType>whole</durationType></Rest>
-      </Measure>"#);
+      </Measure>"#,
+        );
         let score = parse_mscx(&xml).unwrap();
         assert_eq!(score.settings.tempo_bpm, 120);
     }
@@ -908,14 +1018,16 @@ mod tests {
     #[test]
     fn parse_mscx_chord_multiple_pitches() {
         // A Chord element with two Note children → one acorde Note with two pitches
-        let xml = simple_mscx(r#"
+        let xml = simple_mscx(
+            r#"
       <Measure number="1">
         <Chord>
           <durationType>quarter</durationType>
           <Note><pitch>60</pitch><tpc>14</tpc></Note>
           <Note><pitch>64</pitch><tpc>18</tpc></Note>
         </Chord>
-      </Measure>"#);
+      </Measure>"#,
+        );
         let score = parse_mscx(&xml).unwrap();
         let notes = &score.parts[0].staves[0].measures[0].voices[0];
         assert_eq!(notes.len(), 1);
@@ -926,11 +1038,13 @@ mod tests {
 
     #[test]
     fn parse_mscx_repeat_start() {
-        let xml = simple_mscx(r#"
+        let xml = simple_mscx(
+            r#"
       <Measure number="1">
         <startRepeat/>
         <Rest><durationType>whole</durationType></Rest>
-      </Measure>"#);
+      </Measure>"#,
+        );
         let score = parse_mscx(&xml).unwrap();
         let m = &score.parts[0].staves[0].measures[0];
         assert_eq!(m.barline_left, Barline::RepeatStart);
@@ -939,11 +1053,13 @@ mod tests {
 
     #[test]
     fn parse_mscx_repeat_end() {
-        let xml = simple_mscx(r#"
+        let xml = simple_mscx(
+            r#"
       <Measure number="1">
         <endRepeat>2</endRepeat>
         <Rest><durationType>whole</durationType></Rest>
-      </Measure>"#);
+      </Measure>"#,
+        );
         let score = parse_mscx(&xml).unwrap();
         let m = &score.parts[0].staves[0].measures[0];
         assert_eq!(m.barline_right, Barline::RepeatEnd);
@@ -952,7 +1068,8 @@ mod tests {
 
     #[test]
     fn parse_mscx_volta() {
-        let xml = simple_mscx(r#"
+        let xml = simple_mscx(
+            r#"
       <Measure number="1">
         <Spanner type="Volta">
           <Volta>
@@ -961,7 +1078,8 @@ mod tests {
           </Volta>
         </Spanner>
         <Rest><durationType>whole</durationType></Rest>
-      </Measure>"#);
+      </Measure>"#,
+        );
         let score = parse_mscx(&xml).unwrap();
         let m = &score.parts[0].staves[0].measures[0];
         let volta = m.volta.as_ref().unwrap();
@@ -973,14 +1091,16 @@ mod tests {
 
     #[test]
     fn parse_mscx_dynamic() {
-        let xml = simple_mscx(r#"
+        let xml = simple_mscx(
+            r#"
       <Measure number="1">
         <Dynamic><subtype>p</subtype><velocity>49</velocity></Dynamic>
         <Chord>
           <durationType>quarter</durationType>
           <Note><pitch>60</pitch><tpc>14</tpc></Note>
         </Chord>
-      </Measure>"#);
+      </Measure>"#,
+        );
         let score = parse_mscx(&xml).unwrap();
         let notes = &score.parts[0].staves[0].measures[0].voices[0];
         assert_eq!(notes[0].dynamic, Some(Dynamic::P));
@@ -988,7 +1108,8 @@ mod tests {
 
     #[test]
     fn parse_mscx_lyric() {
-        let xml = simple_mscx(r#"
+        let xml = simple_mscx(
+            r#"
       <Measure number="1">
         <Chord>
           <durationType>quarter</durationType>
@@ -998,7 +1119,8 @@ mod tests {
           </Lyrics>
           <Note><pitch>60</pitch><tpc>14</tpc></Note>
         </Chord>
-      </Measure>"#);
+      </Measure>"#,
+        );
         let score = parse_mscx(&xml).unwrap();
         let notes = &score.parts[0].staves[0].measures[0].voices[0];
         let lyric = notes[0].lyric.as_ref().unwrap();
@@ -1010,7 +1132,8 @@ mod tests {
 
     #[test]
     fn parse_mscx_slur_start() {
-        let xml = simple_mscx(r#"
+        let xml = simple_mscx(
+            r#"
       <Measure number="1">
         <Chord>
           <durationType>quarter</durationType>
@@ -1020,7 +1143,8 @@ mod tests {
           </Spanner>
           <Note><pitch>60</pitch><tpc>14</tpc></Note>
         </Chord>
-      </Measure>"#);
+      </Measure>"#,
+        );
         let score = parse_mscx(&xml).unwrap();
         let notes = &score.parts[0].staves[0].measures[0].voices[0];
         assert!(notes[0].slur_start);
@@ -1030,7 +1154,8 @@ mod tests {
 
     #[test]
     fn parse_mscx_4x_voice_wrapper() {
-        let xml = simple_mscx(r#"
+        let xml = simple_mscx(
+            r#"
       <Measure number="1">
         <voice>
           <Chord>
@@ -1044,7 +1169,8 @@ mod tests {
             <Note><pitch>64</pitch><tpc>18</tpc></Note>
           </Chord>
         </voice>
-      </Measure>"#);
+      </Measure>"#,
+        );
         let score = parse_mscx(&xml).unwrap();
         let m = &score.parts[0].staves[0].measures[0];
         assert_eq!(m.voices[0].len(), 1, "voice 0 should have 1 note");

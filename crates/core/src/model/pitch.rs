@@ -2,7 +2,13 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Step {
-    C, D, E, F, G, A, B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    A,
+    B,
 }
 
 impl Step {
@@ -53,11 +59,19 @@ pub struct Pitch {
 
 impl Pitch {
     pub fn new(step: Step, octave: i8) -> Self {
-        Self { step, octave, alter: 0 }
+        Self {
+            step,
+            octave,
+            alter: 0,
+        }
     }
 
     pub fn with_alter(step: Step, octave: i8, alter: i8) -> Self {
-        Self { step, octave, alter }
+        Self {
+            step,
+            octave,
+            alter,
+        }
     }
 
     /// MIDI note number (middle C = 60 = C4).
@@ -76,19 +90,35 @@ impl Pitch {
         let pc = midi % 12;
         let (step, alter): (Step, i8) = if prefer_flat {
             match pc {
-                0  => (Step::C,  0), 1  => (Step::D, -1), 2  => (Step::D,  0),
-                3  => (Step::E, -1), 4  => (Step::E,  0), 5  => (Step::F,  0),
-                6  => (Step::G, -1), 7  => (Step::G,  0), 8  => (Step::A, -1),
-                9  => (Step::A,  0), 10 => (Step::B, -1), 11 => (Step::B,  0),
-                _  => (Step::C,  0),
+                0 => (Step::C, 0),
+                1 => (Step::D, -1),
+                2 => (Step::D, 0),
+                3 => (Step::E, -1),
+                4 => (Step::E, 0),
+                5 => (Step::F, 0),
+                6 => (Step::G, -1),
+                7 => (Step::G, 0),
+                8 => (Step::A, -1),
+                9 => (Step::A, 0),
+                10 => (Step::B, -1),
+                11 => (Step::B, 0),
+                _ => (Step::C, 0),
             }
         } else {
             match pc {
-                0  => (Step::C,  0), 1  => (Step::C,  1), 2  => (Step::D,  0),
-                3  => (Step::D,  1), 4  => (Step::E,  0), 5  => (Step::F,  0),
-                6  => (Step::F,  1), 7  => (Step::G,  0), 8  => (Step::G,  1),
-                9  => (Step::A,  0), 10 => (Step::A,  1), 11 => (Step::B,  0),
-                _  => (Step::C,  0),
+                0 => (Step::C, 0),
+                1 => (Step::C, 1),
+                2 => (Step::D, 0),
+                3 => (Step::D, 1),
+                4 => (Step::E, 0),
+                5 => (Step::F, 0),
+                6 => (Step::F, 1),
+                7 => (Step::G, 0),
+                8 => (Step::G, 1),
+                9 => (Step::A, 0),
+                10 => (Step::A, 1),
+                11 => (Step::B, 0),
+                _ => (Step::C, 0),
             }
         };
         let step_semitone = step.to_semitone() as i16 + alter as i16;
@@ -118,7 +148,6 @@ impl Pitch {
     pub fn respell(&self, prefer_flat: bool) -> Pitch {
         Pitch::from_midi(self.to_midi().clamp(0, 127) as u8, prefer_flat)
     }
-
 }
 
 impl std::str::FromStr for Pitch {
@@ -133,8 +162,14 @@ impl std::str::FromStr for Pitch {
         let mut alter: i8 = 0;
         loop {
             match chars.peek() {
-                Some('#') => { alter += 1; chars.next(); }
-                Some('b') => { alter -= 1; chars.next(); }
+                Some('#') => {
+                    alter += 1;
+                    chars.next();
+                }
+                Some('b') => {
+                    alter -= 1;
+                    chars.next();
+                }
                 _ => break,
             }
         }
@@ -172,7 +207,7 @@ mod tests {
     #[test]
     fn respell_natural_unchanged() {
         let p = Pitch::new(Step::C, 4);
-        assert_eq!(p.respell(true),  Pitch::new(Step::C, 4));
+        assert_eq!(p.respell(true), Pitch::new(Step::C, 4));
         assert_eq!(p.respell(false), Pitch::new(Step::C, 4));
     }
 
@@ -253,8 +288,12 @@ mod tests {
         for midi in 21u8..=108 {
             for prefer_flat in [false, true] {
                 let p = Pitch::from_midi(midi, prefer_flat);
-                assert_eq!(p.to_midi() as u8, midi,
-                    "from_midi({midi},{prefer_flat}) roundtrip failed: {:?}", p);
+                assert_eq!(
+                    p.to_midi() as u8,
+                    midi,
+                    "from_midi({midi},{prefer_flat}) roundtrip failed: {:?}",
+                    p
+                );
             }
         }
     }
@@ -301,10 +340,16 @@ mod tests {
             for prefer_flat in [false, true] {
                 let p = Pitch::from_midi(midi, prefer_flat);
                 let name = p.to_scientific_name();
-                let parsed: Pitch = name.parse()
+                let parsed: Pitch = name
+                    .parse()
                     .unwrap_or_else(|_| panic!("parse failed for {:?}", name));
-                assert_eq!(parsed.to_midi() as u8, midi,
-                    "roundtrip failed for {:?} (midi {})", name, midi);
+                assert_eq!(
+                    parsed.to_midi() as u8,
+                    midi,
+                    "roundtrip failed for {:?} (midi {})",
+                    name,
+                    midi
+                );
             }
         }
     }
