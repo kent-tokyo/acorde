@@ -13,7 +13,7 @@ test("browser contract renders and exposes selectable notes", async ({ page }) =
   const box = await svg.boundingBox();
   expect(box?.width).toBeGreaterThan(0);
   expect(box?.height).toBeGreaterThan(0);
-  await expect(page).toHaveScreenshot("score.png", {
+  await expect(page.locator("#score svg")).toHaveScreenshot("score.png", {
     fullPage: true,
     animations: "disabled",
     caret: "hide",

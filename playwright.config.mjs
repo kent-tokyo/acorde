@@ -1,5 +1,6 @@
 export default {
   testDir: "./examples/browser",
+  snapshotPathTemplate: "{testDir}/smoke.spec.mjs-snapshots/{arg}-{projectName}{ext}",
   timeout: 30_000,
   use: {
     baseURL: "http://127.0.0.1:8000",

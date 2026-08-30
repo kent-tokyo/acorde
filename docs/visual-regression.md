@@ -2,7 +2,8 @@
 
 The browser fixture has checked-in Playwright screenshot baselines for Chromium, Firefox, and
 WebKit. The test still checks the stable SVG hooks and dimensions separately; the screenshots
-cover the final browser rasterization and accessibility presentation.
+cover the final SVG rasterization without OS-specific HTML fonts. The snapshot path intentionally
+omits the OS suffix so the same browser baseline is checked on all CI runners.
 
 Run the review suite with:
 
