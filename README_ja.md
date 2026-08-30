@@ -362,6 +362,7 @@ wasm-pack build crates/wasm --target bundler
 `compute_layout(score_json, measures_per_row, concert_pitch)` · `compute_layout_ex` ·
 `gm_program_name(n)` · `gm_drum_name(n)` ·
 `validate_score` · `transpose_score` · `extract_part` · `merge_scores` · `diff_scores` ·
+`score_patch` · `apply_score_patch` ·
 `score_statistics` · `score_duration_secs` · `score_duration_secs_region` ·
 `respell_score` · `respell_score_to_key` · `measure_beats_remaining` ·
 `pitch_from_midi` · `pitch_from_str` · `interval_between` ·
@@ -402,32 +403,32 @@ acorde extract  --part 0 input.musicxml violin.musicxml
 
 ```toml
 [dependencies]
-acorde = "0.7"
+acorde = "0.8"
 
 # ABC 記譜サポート（オプトイン）
-acorde = { version = "0.7", features = ["abc"] }
+acorde = { version = "0.8", features = ["abc"] }
 
 # MuseScore .mscz/.mscx サポート（オプトイン）
-acorde = { version = "0.7", features = ["mscz"] }
+acorde = { version = "0.8", features = ["mscz"] }
 ```
 
 もしくは各クレートを個別に追加：
 
 ```toml
 [dependencies]
-acorde-core = "0.7"
+acorde-core = "0.8"
 ```
 
 I/O サポートが必要な場合：
 
 ```toml
-acorde-io = "0.7"
+acorde-io = "0.8"
 
 # ABC 記譜サポート（オプトイン）
-acorde-io = { version = "0.7", features = ["abc"] }
+acorde-io = { version = "0.8", features = ["abc"] }
 
 # MuseScore .mscz/.mscx サポート（オプトイン）
-acorde-io = { version = "0.7", features = ["mscz"] }
+acorde-io = { version = "0.8", features = ["mscz"] }
 ```
 
 ---

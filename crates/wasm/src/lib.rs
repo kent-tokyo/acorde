@@ -333,6 +333,27 @@ pub fn diff_scores(score_a_json: &str, score_b_json: &str) -> Result<String, JsV
     serde_json::to_string(&changes).map_err(|e| js_err(format!("diff serialization failed: {e}")))
 }
 
+/// Compute portable patch operations between two scores. The returned JSON array can be stored,
+/// transmitted, and applied later with [`apply_score_patch`].
+#[wasm_bindgen]
+pub fn score_patch(score_a_json: &str, score_b_json: &str) -> Result<String, JsValue> {
+    let a = score_from_json(score_a_json)?;
+    let b = score_from_json(score_b_json)?;
+    let patches = acorde_core::score_patch(&a, &b);
+    serde_json::to_string(&patches).map_err(|e| js_err(format!("patch serialization failed: {e}")))
+}
+
+/// Apply a JSON array produced by [`score_patch`] to a score and return the patched score JSON.
+/// The input score is never modified.
+#[wasm_bindgen]
+pub fn apply_score_patch(score_json: &str, patches_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let patches: Vec<acorde_core::ScorePatch> = serde_json::from_str(patches_json)
+        .map_err(|e| js_err(format!("invalid score patch JSON: {e}")))?;
+    let patched = acorde_core::apply_patch(&score, &patches).map_err(js_err)?;
+    score_to_json(&patched)
+}
+
 /// Compute statistics for a score (JSON string).
 ///
 /// Returns a `ScoreStats` JSON object with fields:
@@ -985,6 +1006,20 @@ mod tests {
         engine.apply(&cmd_json).unwrap();
         assert_eq!(engine.get_version(), v0 + 1);
     }
+
+    #[test]
+    fn score_patch_json_roundtrip_applies_changes() {
+        let mut before = Score::new("Before", 120, 4, 4, 0, 1);
+        let mut after = before.clone();
+        after.metadata.title = "After".to_string();
+        after.settings.tempo_bpm = 96;
+        let patches = acorde_core::score_patch(&before, &after);
+        let json = serde_json::to_string(&patches).unwrap();
+        let decoded: Vec<acorde_core::ScorePatch> = serde_json::from_str(&json).unwrap();
+        before = acorde_core::apply_patch(&before, &decoded).unwrap();
+        assert_eq!(before.metadata.title, "After");
+        assert_eq!(before.settings.tempo_bpm, 96);
+    }
 }
 
 // WASM integration tests — run with `wasm-pack test --headless --chrome`
@@ -1026,5 +1061,17 @@ mod wasm_tests {
         assert!(render_score_svg_with_layout("{}", &layout_json, "{}").is_err());
         assert!(render_score_svg_row(&score_json, &layout_json, 99, "{}").is_err());
         assert!(render_score_metadata(&score_json, "not-json", "{}").is_err());
+    }
+
+    #[wasm_bindgen_test]
+    fn browser_score_patch_roundtrips() {
+        let before = serde_json::to_string(&Score::default()).unwrap();
+        let mut after_score = Score::default();
+        after_score.metadata.title = "Patched".to_string();
+        let after = serde_json::to_string(&after_score).unwrap();
+        let patches = score_patch(&before, &after).unwrap();
+        let patched = apply_score_patch(&before, &patches).unwrap();
+        assert!(patched.contains("Patched"));
+        assert!(apply_score_patch(&before, "not-json").is_err());
     }
 }

@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-30
+
+### Portable score patches
+
+- Exposed `score_patch` and `apply_score_patch` through WebAssembly so browser hosts can compute,
+  persist, transmit, and apply deterministic score deltas without reimplementing score traversal.
+- Added native and browser contract tests for patch JSON round-trips and malformed input handling.
+- Added the v0.8 migration guide; the Score JSON schema is unchanged.
+
 ## [0.7.0] - 2026-08-30
 
 ### Validation hardening

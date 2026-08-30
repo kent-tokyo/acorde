@@ -505,6 +505,7 @@ Exposes: `parse_musicxml` · `parse_mxl` · `serialize_musicxml` · `parse_midi`
 `compute_layout(score_json, measures_per_row, concert_pitch)` · `compute_layout_ex(score_json, config_json)` ·
 `gm_program_name(n)` · `gm_drum_name(n)` ·
 `validate_score` · `transpose_score` · `extract_part` · `merge_scores` · `diff_scores` ·
+`score_patch` · `apply_score_patch` ·
 `score_statistics` · `score_duration_secs` · `score_duration_secs_region` ·
 `respell_score(score_json, prefer_flat)` · `respell_score_to_key` ·
 `measure_beats_remaining` · `pitch_from_midi(midi, prefer_flat)` · `pitch_from_str` ·
@@ -554,38 +555,38 @@ and `acorde-layout` under `acorde::core`, `acorde::io`, `acorde::layout`:
 
 ```toml
 [dependencies]
-acorde = "0.7"
+acorde = "0.8"
 
 # ABC Notation support (opt-in)
-acorde = { version = "0.7", features = ["abc"] }
+acorde = { version = "0.8", features = ["abc"] }
 
 # MuseScore .mscz/.mscx support (opt-in)
-acorde = { version = "0.7", features = ["mscz"] }
+acorde = { version = "0.8", features = ["mscz"] }
 ```
 
 Or depend on the individual crates directly:
 
 ```toml
 [dependencies]
-acorde-core = "0.7"
+acorde-core = "0.8"
 ```
 
 For I/O support:
 
 ```toml
-acorde-io = "0.7"
+acorde-io = "0.8"
 
 # ABC Notation support (opt-in)
-acorde-io = { version = "0.7", features = ["abc"] }
+acorde-io = { version = "0.8", features = ["abc"] }
 
 # MuseScore .mscz/.mscx support (opt-in)
-acorde-io = { version = "0.7", features = ["mscz"] }
+acorde-io = { version = "0.8", features = ["mscz"] }
 ```
 
 For SVG rendering (not re-exported by the `acorde` umbrella crate — add it directly):
 
 ```toml
-acorde-render-svg = "0.7"
+acorde-render-svg = "0.8"
 ```
 
 ---
