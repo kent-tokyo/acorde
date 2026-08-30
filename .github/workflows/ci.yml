@@ -43,6 +43,13 @@ jobs:
       - name: wasm-pack build
         run: wasm-pack build crates/wasm --target web
 
+      - name: Check WASM artifact budget
+        shell: bash
+        run: |
+          size=$(stat -c%s crates/wasm/pkg/acorde_wasm_bg.wasm)
+          echo "WASM bytes: $size"
+          test "$size" -le 2097152
+
   renderer-benchmark:
     name: Renderer performance budget
     runs-on: ubuntu-latest
@@ -100,3 +107,31 @@ jobs:
         with:
           name: acorde-browser-${{ matrix.browser }}
           path: test-results/**/${{ matrix.browser }}.png
+
+  browser-hidpi:
+    name: Browser smoke (Chromium HiDPI)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --version 0.15.0 --locked
+      - name: Build WASM package
+        run: wasm-pack build crates/wasm --target web
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start fixture server
+        run: python3 -m http.server 8000 > /tmp/acorde-browser-server.log 2>&1 &
+      - name: Run HiDPI browser smoke test
+        run: npx playwright test examples/browser/smoke.spec.mjs --project=chromium-hidpi
+      - name: Upload HiDPI screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acorde-browser-chromium-hidpi
+          path: test-results/**/chromium-hidpi.png

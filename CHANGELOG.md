@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-30
+
+### Production release hardening
+
+- Added reviewed Chromium HiDPI (device scale factor 2) visual regression coverage.
+- Added a CI WASM artifact size budget and release verification gate.
+- Added the v0.5 migration notes; renderer and WASM JSON contracts remain compatible with v0.4.
+
 ## [0.4.0] - 2026-08-30
 
 ### Browser contract and accessibility
