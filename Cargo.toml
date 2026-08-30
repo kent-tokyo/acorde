@@ -1,9 +1,9 @@
 [workspace]
-members = ["crates/core", "crates/io", "crates/layout", "crates/render-svg", "crates/cli", "crates/wasm", "crates/acorde"]
+members = ["crates/core", "crates/io", "crates/layout", "crates/render-svg", "crates/cli", "crates/wasm", "crates/acorde", "crates/analysis"]
 resolver = "2"
 
 [workspace.package]
-version = "0.15.0"
+version = "0.16.0"
 edition = "2024"
 rust-version = "1.87"
 homepage = "https://github.com/kent-tokyo/acorde"

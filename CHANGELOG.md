@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-08-31
+
+### Explainable music analysis
+
+- Added the optional `acorde-analysis` crate with deterministic chord-template labels.
+- Analysis results include stable `NoteAddr` evidence, a rule identifier, confidence, and an
+  optional Roman numeral in the active key; unmatched pitch collections remain unlabeled.
+
 ## [0.15.0] - 2026-08-31
 
 ### Interchange report contract

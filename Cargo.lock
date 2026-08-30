@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "acorde"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "acorde-core",
  "acorde-io",
@@ -12,8 +12,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "acorde-analysis"
+version = "0.16.0"
+dependencies = [
+ "acorde-core",
+ "serde",
+]
+
+[[package]]
 name = "acorde-cli"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "acorde-core",
  "acorde-io",
@@ -23,7 +31,7 @@ dependencies = [
 
 [[package]]
 name = "acorde-core"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -33,7 +41,7 @@ dependencies = [
 
 [[package]]
 name = "acorde-io"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "acorde-core",
  "midly",
@@ -46,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "acorde-layout"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "acorde-core",
  "serde",
@@ -54,7 +62,7 @@ dependencies = [
 
 [[package]]
 name = "acorde-render-svg"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "acorde-core",
  "acorde-io",
@@ -65,7 +73,7 @@ dependencies = [
 
 [[package]]
 name = "acorde-wasm"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "acorde-core",
  "acorde-io",
