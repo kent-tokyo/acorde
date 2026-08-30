@@ -16,5 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Publish workspace
-        run: cargo publish --workspace --locked
+      - name: Publish remaining crates
+        run: |
+          cargo publish -p acorde-render-svg --locked
+          cargo publish -p acorde-wasm --locked
