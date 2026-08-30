@@ -24,6 +24,13 @@ pub fn parse_musicxml(xml: &str) -> Result<String, JsValue> {
     score_to_json(&score)
 }
 
+/// Parse MusicXML and return an [`acorde_io::ImportReport`] JSON string.
+#[wasm_bindgen]
+pub fn parse_musicxml_report(xml: &str) -> Result<String, JsValue> {
+    let report = acorde_io::parse_musicxml_with_report(xml).map_err(js_err)?;
+    serde_json::to_string(&report).map_err(|e| js_err(format!("report serialization failed: {e}")))
+}
+
 /// Parse a compressed MXL file (byte array) and return the score as a JSON string.
 #[wasm_bindgen]
 pub fn parse_mxl(data: &[u8]) -> Result<String, JsValue> {
@@ -36,6 +43,45 @@ pub fn parse_mxl(data: &[u8]) -> Result<String, JsValue> {
 pub fn serialize_musicxml(score_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
     acorde_io::serialize_musicxml(&score).map_err(js_err)
+}
+
+/// Serialize a score to MusicXML and return an [`acorde_io::ExportReport`] JSON string.
+#[wasm_bindgen]
+pub fn serialize_musicxml_report(score_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let report = acorde_io::serialize_musicxml_with_report(&score).map_err(js_err)?;
+    serde_json::to_string(&report).map_err(|e| js_err(format!("report serialization failed: {e}")))
+}
+
+// ── MEI ──────────────────────────────────────────────────────────────────────
+
+/// Parse the documented MEI subset and return the score as a JSON string.
+#[wasm_bindgen]
+pub fn parse_mei(xml: &str) -> Result<String, JsValue> {
+    let score = acorde_io::parse_mei(xml).map_err(js_err)?;
+    score_to_json(&score)
+}
+
+/// Parse the documented MEI subset and return an ImportReport JSON string.
+#[wasm_bindgen]
+pub fn parse_mei_report(xml: &str) -> Result<String, JsValue> {
+    let report = acorde_io::parse_mei_with_report(xml).map_err(js_err)?;
+    serde_json::to_string(&report).map_err(|e| js_err(format!("report serialization failed: {e}")))
+}
+
+/// Serialize a score to the documented MEI subset.
+#[wasm_bindgen]
+pub fn serialize_mei(score_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    acorde_io::serialize_mei(&score).map_err(js_err)
+}
+
+/// Serialize a score to MEI and return an ExportReport JSON string.
+#[wasm_bindgen]
+pub fn serialize_mei_report(score_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let report = acorde_io::serialize_mei_with_report(&score).map_err(js_err)?;
+    serde_json::to_string(&report).map_err(|e| js_err(format!("report serialization failed: {e}")))
 }
 
 // ── MIDI ──────────────────────────────────────────────────────────────────────

@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-08-31
+
+### Browser interchange diagnostics
+
+- Exposed MusicXML and MEI import/export reports through WASM JSON APIs.
+- Added WASM import/export for the documented MEI subset.
+
 ## [0.11.0] - 2026-08-31
 
 ### MEI interoperability
