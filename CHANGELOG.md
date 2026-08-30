@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-08-31
+
+### Interchange diagnostics
+
+- Added typed `ImportReport` and `ExportReport` foundations with structured diagnostics for
+  source location, severity, preserved values, and loss reasons.
+- Added report-returning wrappers for MusicXML, MIDI, ABC, and MuseScore interchange APIs.
+
 ## [0.9.2] - 2026-08-31
 
 ### Interchange coverage
