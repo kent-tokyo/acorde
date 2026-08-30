@@ -1024,7 +1024,32 @@ pub enum ScorePatch {
         part: usize,
         staff: usize,
         measure: usize,
-        value: KeySignature,
+        value: Option<KeySignature>,
+    },
+    SetTimeSignature {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        value: Option<TimeSignature>,
+    },
+    SetBarlines {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        left: Barline,
+        right: Barline,
+    },
+    SetRehearsal {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        value: Option<String>,
+    },
+    SetVolta {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        value: Option<VoltaBracket>,
     },
     /// Insert `note` at `note_index` in the given voice (existing notes shift right).
     AddNote {
@@ -1032,6 +1057,9 @@ pub enum ScorePatch {
         staff: usize,
         measure: usize,
         voice: usize,
+        /// Position for insertion. `usize::MAX` is the legacy append sentinel.
+        #[serde(default = "legacy_append_index")]
+        note_index: usize,
         note: Box<Note>,
     },
     RemoveNote {
@@ -1056,6 +1084,68 @@ pub enum ScorePatch {
         measure: usize,
         value: Option<u16>,
     },
+    /// Replace the complete score when a change cannot be represented safely by
+    /// positional operations (for example, a part or measure was added).
+    ReplaceScore {
+        score: Box<Score>,
+    },
+}
+
+fn legacy_append_index() -> usize {
+    usize::MAX
+}
+
+/// Return whether positional patches would lose score data. The patch format deliberately
+/// keeps the common editing operations small; fields without a dedicated operation use the
+/// complete-score fallback so an interchange round-trip never silently drops notation.
+fn patch_requires_replace(a: &Score, b: &Score) -> bool {
+    if a.settings.time_signature != b.settings.time_signature
+        || a.settings.key_signature != b.settings.key_signature
+        || a.parts.len() != b.parts.len()
+        || a.part_groups.len() != b.part_groups.len()
+    {
+        return true;
+    }
+    if a.part_groups.iter().zip(&b.part_groups).any(|(x, y)| {
+        x.first_part != y.first_part
+            || x.last_part != y.last_part
+            || x.symbol != y.symbol
+            || x.barlines_connect != y.barlines_connect
+    }) {
+        return true;
+    }
+    for (ap, bp) in a.parts.iter().zip(&b.parts) {
+        if ap.name != bp.name
+            || ap.short_name != bp.short_name
+            || ap.midi_channel != bp.midi_channel
+            || ap.midi_program != bp.midi_program
+            || ap.staves.len() != bp.staves.len()
+        {
+            return true;
+        }
+        for (as_, bs) in ap.staves.iter().zip(&bp.staves) {
+            if as_.clef != bs.clef
+                || as_.transpose_semitones != bs.transpose_semitones
+                || as_.measures.len() != bs.measures.len()
+            {
+                return true;
+            }
+            for (am, bm) in as_.measures.iter().zip(&bs.measures) {
+                if am.number != bm.number
+                    || am.clef != bm.clef
+                    || am.tempo_text != bm.tempo_text
+                    || am.navigation != bm.navigation
+                    || am.expression_text != bm.expression_text
+                    || am.multi_rest_count != bm.multi_rest_count
+                    || am.system_break != bm.system_break
+                    || am.page_break != bm.page_break
+                {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
 
 /// Compare two scores and return a list of [`ScorePatch`] operations.
@@ -1064,6 +1154,12 @@ pub enum ScorePatch {
 /// equivalent to `b` (same parts, staves, measures, and note content).
 pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
     let mut patches: Vec<ScorePatch> = Vec::new();
+
+    if patch_requires_replace(a, b) {
+        return vec![ScorePatch::ReplaceScore {
+            score: Box::new(b.clone()),
+        }];
+    }
 
     macro_rules! meta {
         ($field:ident, $name:literal) => {
@@ -1098,14 +1194,45 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                 let am = &a_staff.measures[mi];
                 let bm = &b_staff.measures[mi];
 
-                if am.key_sig != bm.key_sig
-                    && let Some(ref ks) = bm.key_sig
-                {
+                if am.key_sig != bm.key_sig {
                     patches.push(ScorePatch::SetKeySignature {
                         part: pi,
                         staff: si,
                         measure: mi,
-                        value: ks.clone(),
+                        value: bm.key_sig.clone(),
+                    });
+                }
+                if am.time_sig != bm.time_sig {
+                    patches.push(ScorePatch::SetTimeSignature {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: bm.time_sig.clone(),
+                    });
+                }
+                if am.barline_left != bm.barline_left || am.barline_right != bm.barline_right {
+                    patches.push(ScorePatch::SetBarlines {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        left: bm.barline_left.clone(),
+                        right: bm.barline_right.clone(),
+                    });
+                }
+                if am.rehearsal != bm.rehearsal {
+                    patches.push(ScorePatch::SetRehearsal {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: bm.rehearsal.clone(),
+                    });
+                }
+                if am.volta != bm.volta {
+                    patches.push(ScorePatch::SetVolta {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: bm.volta.clone(),
                     });
                 }
                 if am.tempo != bm.tempo {
@@ -1143,12 +1270,13 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                         });
                     }
                     // Notes in `b` beyond `a` — append.
-                    for note in bv.iter().skip(av.len()) {
+                    for (offset, note) in bv.iter().skip(av.len()).enumerate() {
                         patches.push(ScorePatch::AddNote {
                             part: pi,
                             staff: si,
                             measure: mi,
                             voice: vi,
+                            note_index: av.len() + offset,
                             note: Box::new(note.clone()),
                         });
                     }
@@ -1168,6 +1296,9 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
     let mut s = score.clone();
     for patch in patches {
         match patch {
+            ScorePatch::ReplaceScore { score } => {
+                s = (**score).clone();
+            }
             ScorePatch::SetMetadata { field, value } => match field.as_str() {
                 "title" => s.metadata.title = value.clone(),
                 "composer" => s.metadata.composer = value.clone(),
@@ -1199,13 +1330,87 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                     .measures
                     .get_mut(*measure)
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
-                    .key_sig = Some(value.clone());
+                    .key_sig = value.clone();
+            }
+            ScorePatch::SetTimeSignature {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .time_sig = value.clone();
+            }
+            ScorePatch::SetBarlines {
+                part,
+                staff,
+                measure,
+                left,
+                right,
+            } => {
+                let m = s
+                    .parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| {
+                        Error::InvalidPatch(format!("measure {measure} out of range"))
+                    })?;
+                m.barline_left = left.clone();
+                m.barline_right = right.clone();
+            }
+            ScorePatch::SetRehearsal {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .rehearsal = value.clone();
+            }
+            ScorePatch::SetVolta {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .volta = value.clone();
             }
             ScorePatch::AddNote {
                 part,
                 staff,
                 measure,
                 voice,
+                note_index,
                 note,
             } => {
                 let v = s
@@ -1221,7 +1426,17 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                     .voices
                     .get_mut(*voice)
                     .ok_or_else(|| Error::InvalidPatch(format!("voice {voice} out of range")))?;
-                v.push(*note.clone());
+                let insert_at = if *note_index == usize::MAX {
+                    v.len()
+                } else {
+                    *note_index
+                };
+                if insert_at > v.len() {
+                    return Err(Error::InvalidPatch(format!(
+                        "note_index {note_index} out of range"
+                    )));
+                }
+                v.insert(insert_at, *note.clone());
             }
             ScorePatch::RemoveNote {
                 part,
@@ -1883,6 +2098,80 @@ mod tests {
     fn diff_identical_scores_is_empty() {
         let s = Score::new("T", 120, 4, 4, 0, 2);
         assert!(diff(&s, &s).is_empty());
+    }
+
+    #[test]
+    fn score_patch_covers_measure_semantics_and_note_insert_index() {
+        let a = Score::new("T", 120, 4, 4, 0, 1);
+        let mut b = a.clone();
+        let measure = &mut b.parts[0].staves[0].measures[0];
+        measure.key_sig = Some(KeySignature {
+            fifths: -2,
+            mode: "major".to_string(),
+        });
+        measure.time_sig = Some(TimeSignature {
+            numerator: 3,
+            denominator: 4,
+        });
+        measure.barline_left = Barline::RepeatStart;
+        measure.barline_right = Barline::RepeatEnd;
+        measure.rehearsal = Some("A".to_string());
+        measure.volta = Some(VoltaBracket {
+            number: 1,
+            kind: "begin_end".to_string(),
+        });
+        measure.voices[0].insert(0, Note::new(Pitch::new(Step::C, 4), Duration::Quarter));
+        let expected = b.parts[0].staves[0].measures[0].clone();
+
+        let patches = score_patch(&a, &b);
+        assert!(
+            patches
+                .iter()
+                .any(|p| matches!(p, ScorePatch::SetTimeSignature { .. }))
+        );
+        assert!(
+            patches
+                .iter()
+                .any(|p| matches!(p, ScorePatch::SetBarlines { .. }))
+        );
+        assert!(
+            patches
+                .iter()
+                .any(|p| matches!(p, ScorePatch::SetRehearsal { .. }))
+        );
+        assert!(
+            patches
+                .iter()
+                .any(|p| matches!(p, ScorePatch::SetVolta { .. }))
+        );
+        let result = apply_patch(&a, &patches).expect("patch application failed");
+        let result_measure = &result.parts[0].staves[0].measures[0];
+        assert_eq!(result_measure.key_sig, expected.key_sig);
+        assert_eq!(result_measure.time_sig, expected.time_sig);
+        assert_eq!(result_measure.barline_left, expected.barline_left);
+        assert_eq!(result_measure.barline_right, expected.barline_right);
+        assert_eq!(result_measure.rehearsal, expected.rehearsal);
+        assert_eq!(result_measure.volta, expected.volta);
+        assert_eq!(result_measure.voices[0].len(), expected.voices[0].len());
+    }
+
+    #[test]
+    fn score_patch_replaces_when_structure_or_uncovered_fields_change() {
+        let a = Score::new("T", 120, 4, 4, 0, 1);
+        let mut b = a.clone();
+        b.parts[0].name = "Piano".to_string();
+        b.parts[0].staves[0].measures[0].expression_text = Some("dolce".to_string());
+        let patches = score_patch(&a, &b);
+        assert!(matches!(
+            patches.as_slice(),
+            [ScorePatch::ReplaceScore { .. }]
+        ));
+        let result = apply_patch(&a, &patches).expect("replacement failed");
+        assert_eq!(result.parts[0].name, "Piano");
+        assert_eq!(
+            result.parts[0].staves[0].measures[0].expression_text,
+            Some("dolce".to_string())
+        );
     }
 
     #[test]

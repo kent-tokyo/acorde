@@ -10,6 +10,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-30
+
+### Complete score patches
+
+- Extended `ScorePatch` with measure time-signature, barline, rehearsal-mark, and volta updates,
+  including clearing optional values.
+- Added indexed note insertion so patches preserve note order when inserting into a voice.
+- Added a deterministic `ReplaceScore` fallback for structural or otherwise uncovered score changes;
+  patch application no longer silently drops parts, staves, or notation attributes.
+- Added native coverage tests and the v0.9 migration guide; the Score JSON schema is unchanged.
+
 ## [0.8.0] - 2026-08-30
 
 ### Portable score patches
