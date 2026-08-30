@@ -1,4 +1,5 @@
 use acorde_core::Score;
+use acorde_io::ImportReport;
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
 
@@ -31,6 +32,11 @@ enum Commands {
         /// Input file (.musicxml, .mxl, .mid, .midi)
         input: PathBuf,
     },
+    /// Print a structured import report as JSON
+    Report {
+        /// Input file (.musicxml, .mxl, .mid, .abc, .mscz, .mscx, .mei)
+        input: PathBuf,
+    },
     /// Extract a single part from a score
     Extract {
         /// Input file (.musicxml, .mxl, .mid, .midi)
@@ -49,6 +55,7 @@ fn main() {
         Commands::Convert { input, output } => cmd_convert(input, output),
         Commands::Info { input } => cmd_info(input),
         Commands::Validate { input } => cmd_validate(input),
+        Commands::Report { input } => cmd_report(input),
         Commands::Extract {
             input,
             output,
@@ -87,6 +94,45 @@ fn parse_score(path: &Path) -> Result<Score, String> {
         }
         other => Err(format!("unsupported input format: '.{other}'")),
     }
+}
+
+fn parse_report(path: &Path) -> Result<ImportReport, String> {
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let data = std::fs::read(path).map_err(|e| format!("cannot read '{}': {e}", path.display()))?;
+    match ext.as_str() {
+        "xml" | "musicxml" => {
+            let text = String::from_utf8(data).map_err(|e| format!("invalid UTF-8: {e}"))?;
+            acorde_io::parse_musicxml_with_report(&text).map_err(|e| e.to_string())
+        }
+        "mxl" => acorde_io::parse_mxl_with_report(&data).map_err(|e| e.to_string()),
+        "mid" | "midi" => acorde_io::parse_midi_with_report(&data).map_err(|e| e.to_string()),
+        "abc" => {
+            let text = String::from_utf8(data).map_err(|e| format!("invalid UTF-8: {e}"))?;
+            acorde_io::parse_abc_with_report(&text).map_err(|e| e.to_string())
+        }
+        "mei" => {
+            let text = String::from_utf8(data).map_err(|e| format!("invalid UTF-8: {e}"))?;
+            acorde_io::parse_mei_with_report(&text).map_err(|e| e.to_string())
+        }
+        "mscz" => acorde_io::parse_mscz_with_report(&data).map_err(|e| e.to_string()),
+        "mscx" => {
+            let text = String::from_utf8(data).map_err(|e| format!("invalid UTF-8: {e}"))?;
+            acorde_io::parse_mscx_with_report(&text).map_err(|e| e.to_string())
+        }
+        other => Err(format!("unsupported input format: '.{other}'")),
+    }
+}
+
+fn cmd_report(input: &Path) -> Result<(), String> {
+    let report = parse_report(input)?;
+    let json = serde_json::to_string_pretty(&report)
+        .map_err(|e| format!("report serialization failed: {e}"))?;
+    println!("{json}");
+    Ok(())
 }
 
 // ── convert ───────────────────────────────────────────────────────────────────

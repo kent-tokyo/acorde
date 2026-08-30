@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-08-31
+
+### CLI interchange diagnostics
+
+- Added `acorde report <input>` to emit structured import reports as JSON for all supported input
+  formats, including the documented MEI subset.
+
 ## [0.12.0] - 2026-08-31
 
 ### Browser interchange diagnostics
