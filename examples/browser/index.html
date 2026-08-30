@@ -5,13 +5,25 @@
   <h1>acorde WASM browser contract fixture</h1>
   <p id="status">Loading…</p>
   <button id="play" type="button" disabled>Play selected note</button>
-  <section id="score" aria-label="Rendered score"></section>
+  <section id="score" aria-label="Rendered score" aria-describedby="score-description"></section>
+  <p id="score-description" class="visually-hidden"></p>
   <pre id="metadata"></pre>
 </main>
 <style>
   [data-note-addr] { cursor: pointer; }
   [data-note-addr].selected { outline: 2px solid #2563eb; }
   #play { margin-bottom: 1rem; }
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 </style>
 <script type="module">
   import init, {
@@ -38,7 +50,8 @@
     const svg = render_score_svg_with_layout(score, layout, options);
     const row = render_score_svg_row(score, layout, 0, options);
     const metadata = JSON.parse(render_score_metadata(score, layout, options));
-    if (!svg.startsWith("<svg") || !row.startsWith("<svg") || metadata.address_bounds.length !== 4) {
+    if (!svg.startsWith("<svg") || !row.startsWith("<svg") || metadata.contract_version !== 1 ||
+        metadata.address_bounds.length !== 4 || !metadata.accessible_text) {
       throw new Error("contract output failed validation");
     }
     document.querySelector("#score").innerHTML = row;
@@ -74,6 +87,7 @@
       oscillator.stop(audio.currentTime + 0.35);
       oscillator.addEventListener("ended", () => audio.close());
     });
+    document.querySelector("#score-description").textContent = metadata.accessible_text;
     document.querySelector("#metadata").textContent = JSON.stringify(metadata, null, 2);
     document.querySelector("#status").textContent = `PASS: parse → layout → full/row render → metadata (${notes.length} selectable notes)`;
   } catch (error) {

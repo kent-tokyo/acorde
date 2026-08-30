@@ -1020,6 +1020,8 @@ mod wasm_tests {
         let row = render_score_svg_row(&score_json, &layout_json, 0, "{}").unwrap();
         assert!(row.starts_with("<svg"));
         let metadata = render_score_metadata(&score_json, &layout_json, "{}").unwrap();
+        assert!(metadata.contains("contract_version"));
+        assert!(metadata.contains("accessible_text"));
         assert!(metadata.contains("address_bounds"));
         assert!(render_score_svg_with_layout("{}", &layout_json, "{}").is_err());
         assert!(render_score_svg_row(&score_json, &layout_json, 99, "{}").is_err());

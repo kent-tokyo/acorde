@@ -35,6 +35,9 @@ use acorde_core::Score;
 use acorde_layout::{LayoutConfig, LayoutResult, compute_layout};
 use serde::{Deserialize, Serialize};
 
+/// Version of the browser-facing [`RenderMetadata`] contract.
+pub const SVG_CONTRACT_VERSION: u32 = 1;
+
 /// Options controlling SVG output. All fields have defaults — safe to deserialize from
 /// partial JSON (e.g. `"{}"` from a WASM caller that only wants defaults).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,8 +59,16 @@ pub struct SvgRenderOptions {
 /// Lightweight browser-facing metadata for a rendered score.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RenderMetadata {
+    /// Version of the metadata contract, for forward-compatible browser hosts.
+    pub contract_version: u32,
     pub width: f32,
     pub height: f32,
+    pub part_count: usize,
+    pub staff_count: usize,
+    pub measure_count: usize,
+    pub note_count: usize,
+    /// Human-readable fallback text for hosts that cannot expose the SVG semantics.
+    pub accessible_text: String,
     pub address_bounds: Vec<AddressBounds>,
 }
 

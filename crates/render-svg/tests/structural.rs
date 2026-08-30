@@ -305,6 +305,12 @@ fn precomputed_row_and_metadata_contracts_are_stable() {
     let layout = compute_layout(&score, &LayoutConfig::default());
     let row = acorde_render_svg::render_svg_row(&score, &layout, 0, &opts()).unwrap();
     let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts()).unwrap();
+    assert_eq!(metadata.contract_version, 1);
+    assert_eq!(metadata.part_count, 1);
+    assert_eq!(metadata.staff_count, 2);
+    assert_eq!(metadata.measure_count, 1);
+    assert_eq!(metadata.note_count, 16);
+    assert!(metadata.accessible_text.contains("parts"));
     assert!(row.starts_with("<svg"));
     assert_eq!(metadata.width, opts().width);
     assert_eq!(metadata.address_bounds.len(), 16);

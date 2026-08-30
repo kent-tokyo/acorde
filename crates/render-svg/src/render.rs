@@ -13,7 +13,7 @@ use crate::beams;
 use crate::geometry;
 use crate::glyphs::{self, f};
 use crate::tuplets;
-use crate::{AddressBounds, RenderError, RenderMetadata, SvgRenderOptions};
+use crate::{AddressBounds, RenderError, RenderMetadata, SVG_CONTRACT_VERSION, SvgRenderOptions};
 
 const LEFT_MARGIN_U: f32 = 1.0;
 const RIGHT_MARGIN_U: f32 = 1.0;
@@ -309,11 +309,31 @@ pub(crate) fn build_svg_with_metadata(
         )
         .collect();
     address_bounds.sort_by_key(|b| (b.part, b.staff, b.measure, b.voice, b.note));
+    let measure_count = staff_refs
+        .iter()
+        .map(|&(part, staff)| score.parts[part].staves[staff].measures.len())
+        .max()
+        .unwrap_or(0);
+    let note_count = address_bounds.len();
+    let accessible_text = format!(
+        "{}; {} parts, {} staves, {} measures, {} note events",
+        score.metadata.title,
+        score.parts.len(),
+        staff_refs.len(),
+        measure_count,
+        note_count
+    );
     Ok((
         svg,
         RenderMetadata {
+            contract_version: SVG_CONTRACT_VERSION,
             width: options.width,
             height: total_height,
+            part_count: score.parts.len(),
+            staff_count: staff_refs.len(),
+            measure_count,
+            note_count,
+            accessible_text,
             address_bounds,
         },
     ))

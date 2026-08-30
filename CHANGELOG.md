@@ -10,6 +10,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-30
+
+### Browser contract and accessibility
+
+- Added versioned `RenderMetadata` with score counts and `accessible_text` for accessible
+  fallbacks when SVG semantics are unavailable.
+- Added a browser fixture fallback connected with `aria-describedby`, plus structural and browser
+  contract assertions for the metadata version.
+- Added the v0.4 migration guide and completed Phase 5 visual-regression/browser hardening.
+
 ## [0.3.0] - 2026-08-30
 
 ### Production browser hardening

@@ -17,9 +17,12 @@ async runtime is involved.
   score using that layout.
 - `render_score_svg_row(score_json, layout_json, row, options_json)` renders one zero-based
   system, which is the unit a virtualized viewport can cache.
-- `render_score_metadata(score_json, layout_json, options_json)` returns `{ width, height,
-  address_bounds }`. Each bound contains `part`, `staff`, `measure`, `voice`, and `note`, so a
-  host can map hit testing and playback highlighting back to `NoteAddr` without parsing SVG.
+- `render_score_metadata(score_json, layout_json, options_json)` returns a versioned metadata
+  object with `contract_version`, `width`, `height`, `part_count`, `staff_count`, `measure_count`,
+  `note_count`, `accessible_text`, and `address_bounds`. Each bound contains `part`, `staff`,
+  `measure`, `voice`, and `note`, so a host can map hit testing and playback highlighting back to
+  `NoteAddr` without parsing SVG. Use `accessible_text` as the text alternative when the host
+  cannot expose SVG semantics; check `contract_version` before consuming newer fields.
 
 `SvgRenderOptions` defaults are `width: 900`, `staff_size: 24`, `measures_per_system: 4`, and
 `interactive: true`. Interactive SVG groups carry `data-note-addr="part:staff:measure:voice:note"`.

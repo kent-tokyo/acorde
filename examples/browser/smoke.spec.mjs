@@ -20,5 +20,7 @@ test("browser contract renders and exposes selectable notes", async ({ page }) =
     maxDiffPixelRatio: 0.01,
     threshold: 0.2,
   });
+  await expect(page.locator("#score")).toHaveAttribute("aria-describedby", "score-description");
+  await expect(page.locator("#score-description")).not.toHaveText("");
   await page.screenshot({ path: test.info().outputPath(`${test.info().project.name}.png`), fullPage: true });
 });
