@@ -1,1 +1,18 @@
-../../README.md
+# acorde-cli
+
+Command-line conversion and inspection tool for acorde.
+
+~~~bash
+cargo install acorde-cli
+
+acorde convert input.mid output.musicxml
+acorde info input.musicxml
+acorde validate input.musicxml
+acorde extract --part 0 input.musicxml part.musicxml
+~~~
+
+Input supports .musicxml, .mxl, .mid/.midi, .mscz, and .mscx. Conversion output is MusicXML or
+MIDI. info prints title, counts, tempo, time signature, and duration estimate; validate exits
+with status 1 when structural errors are found.
+
+[Repository](https://github.com/kent-tokyo/acorde)

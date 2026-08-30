@@ -172,6 +172,15 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                     if let Some(b) = measure.tempo {
                         current_bpm = b.max(1) as f64;
                     }
+                    let measure_beats = measure
+                        .time_sig
+                        .as_ref()
+                        .unwrap_or(&score.settings.time_signature)
+                        .total_beats();
+                    let measure_start_beats = time_beats;
+                    let measure_start_secs = time_secs_cursor;
+                    let mut local_beats = 0.0f64;
+                    let mut local_secs = 0.0f64;
                     let mut swing_first = true;
                     for note in &measure.voices[voice_idx] {
                         if note.is_grace {
@@ -228,8 +237,8 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                             for pitch in &note.pitches {
                                 let midi = (pitch.to_midi() + transpose as i16).clamp(0, 127) as u8;
                                 events.push(PlaybackEvent {
-                                    time_beats,
-                                    time_secs: time_secs_cursor,
+                                    time_beats: measure_start_beats + local_beats,
+                                    time_secs: measure_start_secs + local_secs,
                                     pitch_midi: midi,
                                     velocity,
                                     duration_beats: sounding_dur,
@@ -241,9 +250,14 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                                 });
                             }
                         }
-                        time_beats += dur;
-                        time_secs_cursor += dur / current_bpm * 60.0;
+                        local_beats += dur;
+                        local_secs += dur / current_bpm * 60.0;
                     }
+                    // A voice may omit rests, but the next measure still starts
+                    // at the notated bar boundary. This also keeps sparse voices
+                    // aligned with compute_playback_position and other voices.
+                    time_beats = measure_start_beats + measure_beats;
+                    time_secs_cursor = measure_start_secs + measure_beats / current_bpm * 60.0;
                 }
             }
         }
@@ -467,6 +481,20 @@ mod tests {
         assert_eq!(events.len(), 2);
         assert!((events[0].time_beats).abs() < 1e-9);
         assert!((events[1].time_beats - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn sparse_voice_keeps_measure_boundaries() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 2);
+        let note = || Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        score.parts[0].staves[0].measures[0].voices[1] = vec![note()];
+        score.parts[0].staves[0].measures[1].voices[1] = vec![note()];
+
+        let events = to_playback_events(&score, &opts(None));
+        assert_eq!(events.len(), 2);
+        assert!((events[0].time_beats).abs() < 1e-9);
+        assert!((events[1].time_beats - 4.0).abs() < 1e-9);
+        assert!((events[1].time_secs - 2.0).abs() < 1e-9);
     }
 
     #[test]

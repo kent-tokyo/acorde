@@ -10,6 +10,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-08-31
+
+### Playback and documentation
+
+- Fixed playback timing for sparse voices so events remain aligned to notated measure boundaries.
+- Refreshed the public README set to document the v0.9 workspace, crate responsibilities, and
+  supported APIs without exposing internal development material.
+
+### Documentation
+
+- Rewrote the root and crate README files to match the v0.9.0 workspace, public APIs, feature
+  flags, CLI commands, and the fact that `acorde-render-svg` is not re-exported by `acorde`.
+- Kept development instructions and roadmap material out of the public documentation set.
+
 ## [0.9.0] - 2026-08-30
 
 ### Complete score patches
