@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-08-31
+
+### MEI interoperability
+
+- Added an explicit, documented MEI subset boundary for importing and exporting the canonical
+  `Score` model.
+- Added round-trip coverage for MEI title, measures, notes, rests, accidentals, dots, and basic
+  power-of-two durations.
+
 ## [0.10.0] - 2026-08-31
 
 ### Interchange diagnostics

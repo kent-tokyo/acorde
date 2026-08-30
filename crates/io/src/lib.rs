@@ -5,6 +5,8 @@
 #[cfg(feature = "abc")]
 pub mod abc;
 mod error;
+#[cfg(feature = "mei")]
+pub mod mei;
 #[cfg(feature = "midi")]
 pub mod midi;
 #[cfg(feature = "mscz")]
@@ -27,6 +29,21 @@ pub fn parse_musicxml_with_report(xml: &str) -> Result<ImportReport, Error> {
 #[cfg(feature = "musicxml")]
 pub fn parse_mxl_with_report(data: &[u8]) -> Result<ImportReport, Error> {
     Ok(ImportReport::new(parse_mxl(data)?))
+}
+
+#[cfg(feature = "mei")]
+pub use mei::{parse_mei, serialize_mei};
+
+#[cfg(feature = "mei")]
+pub fn parse_mei_with_report(text: &str) -> Result<ImportReport, Error> {
+    Ok(ImportReport::new(parse_mei(text)?))
+}
+
+#[cfg(feature = "mei")]
+pub fn serialize_mei_with_report(
+    score: &acorde_core::Score,
+) -> Result<ExportReport<String>, Error> {
+    Ok(ExportReport::new(serialize_mei(score)?))
 }
 
 #[cfg(feature = "musicxml")]

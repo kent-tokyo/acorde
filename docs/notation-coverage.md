@@ -1,27 +1,27 @@
 # Notation coverage matrix
 
-This matrix is versioned with the library. It describes the v0.9.x capability slices and is
+This matrix is versioned with the library. It describes the v0.11.x capability slices and is
 intended to make information loss explicit while Phase 6 interchange diagnostics are developed.
 
 Legend: **yes** means the value is represented and covered by tests; **partial** means the common
 subset is supported; **no** means the format is not supported by that path. “Preserved” refers to
 the `Score` model; rendering and export can have narrower format-specific coverage.
 
-| Feature slice | MusicXML import | MIDI import | ABC import | MSCZ/MSCX import | JSON | Preserved / rendered / exported |
-|---|---:|---:|---:|---:|---:|---|
-| Parts, staves, measures, voices | yes | partial | partial | partial | yes | yes / yes / yes |
-| Pitch, rests, chords, duration | yes | partial | partial | partial | yes | yes / yes / yes |
-| Tempo and time signature | yes | partial | yes | yes | yes | yes / yes / yes |
-| Key signature and clef | yes | no | yes | yes | yes | yes / yes / MusicXML |
-| Barlines, repeats, navigation | partial | partial | partial | partial | yes | partial / partial / partial |
-| Dynamics and articulations | yes | no | partial | partial | yes | yes / yes / MusicXML |
-| Lyrics and expression text | partial | no | no | partial | yes | partial / partial / MusicXML |
-| Ties, slurs, tuplets, grace/cue notes | yes | partial | partial | partial | yes | partial / partial / MusicXML |
-| Hairpins, pedal, ottava, trill | yes | no | no | partial | yes | partial / yes / MusicXML |
-| Volta brackets and part groups | yes | no | partial | partial | yes | yes / yes / MusicXML |
-| MIDI channel, program, transposition | yes | yes | no | partial | yes | yes / no / MIDI |
-| Percussion | partial | partial | no | partial | yes | partial / partial / MIDI |
-| Tablature and microtonal accidentals | no | no | no | no | no | unsupported / no / no |
+| Feature slice | MusicXML import | MIDI import | ABC import | MSCZ/MSCX import | MEI subset | JSON | Preserved / rendered / exported |
+|---|---:|---:|---:|---:|---:|---:|---|
+| Parts, staves, measures, voices | yes | partial | partial | partial | partial | yes | yes / yes / yes |
+| Pitch, rests, chords, duration | yes | partial | partial | partial | partial | yes | yes / yes / yes |
+| Tempo and time signature | yes | partial | yes | yes | no | yes | yes / yes / yes |
+| Key signature and clef | yes | no | yes | yes | no | yes | yes / yes / MusicXML |
+| Barlines, repeats, navigation | partial | partial | partial | partial | no | yes | partial / partial / partial |
+| Dynamics and articulations | yes | no | partial | partial | no | yes | yes / yes / MusicXML |
+| Lyrics and expression text | partial | no | no | partial | no | yes | partial / partial / MusicXML |
+| Ties, slurs, tuplets, grace/cue notes | yes | partial | partial | partial | no | yes | partial / partial / MusicXML |
+| Hairpins, pedal, ottava, trill | yes | no | no | partial | no | yes | partial / yes / MusicXML |
+| Volta brackets and part groups | yes | no | partial | partial | no | yes | yes / yes / MusicXML |
+| MIDI channel, program, transposition | yes | yes | no | partial | no | yes | yes / no / MIDI |
+| Percussion | partial | partial | no | partial | no | yes | partial / partial / MIDI |
+| Tablature and microtonal accidentals | no | no | no | no | no | no | unsupported / no / no |
 
 ## Reading the matrix
 
@@ -35,6 +35,8 @@ the `Score` model; rendering and export can have narrower format-specific covera
 
 ## Versioning and evidence
 
-The matrix applies to v0.9.x. Each `yes` slice must have a fixture or focused round-trip test in
+The matrix applies to v0.11.x. Each `yes` slice must have a fixture or focused round-trip test in
 the repository. Known losses are tracked here until `ImportReport` and `ExportReport` expose source
-location, severity, preserved value, and loss reason through the native, CLI, and WASM APIs.
+location, severity, preserved value, and loss reason through the native, CLI, and WASM APIs. The
+MEI boundary currently supports one part, one staff/layer per measure, title, notes, rests,
+accidentals, dots, and power-of-two durations; other MEI data is intentionally outside the subset.

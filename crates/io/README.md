@@ -8,6 +8,7 @@ Default features are musicxml and midi. Optional features:
 |---|---|
 | abc | parse_abc and serialize_abc |
 | mscz | parse_mscz and parse_mscx |
+| mei | parse_mei and serialize_mei for the documented subset |
 
 The default API includes parse_musicxml, parse_mxl, serialize_musicxml, parse_midi,
 serialize_midi, and serialize_midi_region. Parsers accept strings or byte slices and never touch

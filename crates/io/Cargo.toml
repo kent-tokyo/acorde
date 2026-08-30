@@ -19,9 +19,10 @@ musicxml = ["dep:quick-xml", "dep:zip"]
 midi = ["dep:midly"]
 abc = []
 mscz = ["dep:quick-xml", "dep:zip"]
+mei = ["dep:quick-xml"]
 
 [dependencies]
-acorde-core = { path = "../core", version = "0.10.0" }
+acorde-core = { path = "../core", version = "0.11.0" }
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 

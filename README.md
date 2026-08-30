@@ -1,6 +1,6 @@
 # acorde
 
-Platform-agnostic music score library for Rust and WebAssembly (v0.10.0).
+Platform-agnostic music score library for Rust and WebAssembly (v0.11.0).
 
 acorde provides a serializable score model, undoable commands, format I/O, logical layout,
 deterministic SVG rendering, playback events, and WASM bindings. Core libraries are synchronous,
@@ -36,14 +36,14 @@ conversion diagnostics.
 
 ```toml
 [dependencies]
-acorde = "0.10"
-acorde-render-svg = "0.10"
+acorde = "0.11"
+acorde-render-svg = "0.11"
 ```
 
 Optional I/O features are disabled by default in `acorde` and `acorde-io`:
 
 ```toml
-acorde = { version = "0.10", features = ["abc", "mscz"] }
+acorde = { version = "0.11", features = ["abc", "mscz", "mei"] }
 ```
 
 ```rust
@@ -60,7 +60,8 @@ let score: &Score = engine.score();
 
 `acorde-io` exposes `parse_musicxml`, `parse_mxl`, `serialize_musicxml`, `parse_midi`,
 `serialize_midi`, and `serialize_midi_region` with the default `musicxml` and `midi` features.
-The `abc` feature adds ABC parse/serialize; `mscz` adds MuseScore `.mscz`/`.mscx` parsing.
+The `abc` feature adds ABC parse/serialize; `mscz` adds MuseScore `.mscz`/`.mscx` parsing; `mei`
+adds the documented MEI subset import/export boundary.
 Parsers accept memory buffers and return typed errors. They do not read files.
 
 ## SVG and browser API
