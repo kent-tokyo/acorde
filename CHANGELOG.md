@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-08-31
+
+### Interchange coverage
+
+- Added the versioned notation coverage matrix for MusicXML, MIDI, ABC, MSCZ/MSCX, and JSON.
+- Documented preservation, rendering, export scope, and known partial or unsupported slices as
+  the baseline for future import/export diagnostics.
+
 ## [0.9.1] - 2026-08-31
 
 ### Playback and documentation
