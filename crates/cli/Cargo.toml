@@ -2,6 +2,7 @@
 name = "acorde-cli"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 homepage.workspace = true
 license.workspace = true
 authors.workspace = true
@@ -16,6 +17,6 @@ name = "acorde"
 path = "src/main.rs"
 
 [dependencies]
-acorde-core = { path = "../core", version = "0.1.0" }
-acorde-io   = { path = "../io", version = "0.1.0", features = ["mscz"] }
+acorde-core = { path = "../core", version = "0.2.0" }
+acorde-io   = { path = "../io", version = "0.2.0", features = ["mscz"] }
 clap = { version = "4", features = ["derive"] }

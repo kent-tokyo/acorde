@@ -1,0 +1,83 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>acorde WASM browser contract fixture</title>
+<main>
+  <h1>acorde WASM browser contract fixture</h1>
+  <p id="status">Loading…</p>
+  <button id="play" type="button" disabled>Play selected note</button>
+  <section id="score" aria-label="Rendered score"></section>
+  <pre id="metadata"></pre>
+</main>
+<style>
+  [data-note-addr] { cursor: pointer; }
+  [data-note-addr].selected { outline: 2px solid #2563eb; }
+  #play { margin-bottom: 1rem; }
+</style>
+<script type="module">
+  import init, {
+    parse_musicxml,
+    compute_layout_ex,
+    render_score_svg_with_layout,
+    render_score_svg_row,
+    render_score_metadata,
+  } from "../../crates/wasm/pkg/acorde_wasm.js";
+
+  const fixture = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="3.1"><part-list><score-part id="P1"><part-name>Fixture</part-name></score-part></part-list>
+<part id="P1"><measure number="1"><attributes><divisions>1</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>
+<note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note>
+<note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note>
+<note><pitch><step>E</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note>
+<note><pitch><step>F</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>`;
+
+  try {
+    await init();
+    const score = parse_musicxml(fixture);
+    const layout = compute_layout_ex(score, JSON.stringify({ measures_per_row: 4 }));
+    const options = JSON.stringify({ width: 700, staff_size: 24, measures_per_system: 4, interactive: true });
+    const svg = render_score_svg_with_layout(score, layout, options);
+    const row = render_score_svg_row(score, layout, 0, options);
+    const metadata = JSON.parse(render_score_metadata(score, layout, options));
+    if (!svg.startsWith("<svg") || !row.startsWith("<svg") || metadata.address_bounds.length !== 4) {
+      throw new Error("contract output failed validation");
+    }
+    document.querySelector("#score").innerHTML = row;
+    const notes = document.querySelectorAll("#score [data-note-addr]");
+    let selectedNote = null;
+    const select = (element) => {
+      selectedNote = element;
+      notes.forEach((note) => note.classList.toggle("selected", note === element));
+      document.querySelector("#play").disabled = false;
+      document.querySelector("#status").textContent = `PASS: selected ${element.dataset.noteAddr}`;
+    };
+    notes.forEach((note) => {
+      note.setAttribute("tabindex", "0");
+      note.setAttribute("role", "button");
+      note.addEventListener("click", () => select(note));
+      note.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(note); }
+      });
+      note.addEventListener("mouseenter", () => note.setAttribute("data-hover", "true"));
+      note.addEventListener("mouseleave", () => note.removeAttribute("data-hover"));
+    });
+    document.querySelector("#play").addEventListener("click", () => {
+      if (!selectedNote) return;
+      const noteIndex = [...notes].indexOf(selectedNote);
+      const audio = new AudioContext();
+      const oscillator = audio.createOscillator();
+      const gain = audio.createGain();
+      oscillator.frequency.value = 523.25 * Math.pow(2, noteIndex / 12);
+      gain.gain.setValueAtTime(0.12, audio.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.35);
+      oscillator.connect(gain).connect(audio.destination);
+      oscillator.start();
+      oscillator.stop(audio.currentTime + 0.35);
+      oscillator.addEventListener("ended", () => audio.close());
+    });
+    document.querySelector("#metadata").textContent = JSON.stringify(metadata, null, 2);
+    document.querySelector("#status").textContent = `PASS: parse → layout → full/row render → metadata (${notes.length} selectable notes)`;
+  } catch (error) {
+    document.querySelector("#status").textContent = `FAIL: ${error}`;
+    throw error;
+  }
+</script>

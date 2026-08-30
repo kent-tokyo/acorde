@@ -145,6 +145,12 @@ fn fuzz_garbage_returns_err() {
 }
 
 #[test]
+fn fuzz_64_mib_garbage_returns_err() {
+    let garbage = "x".repeat(64 * 1024 * 1024);
+    assert!(parse_musicxml(&garbage).is_err());
+}
+
+#[test]
 fn fuzz_doctype_injection_rejected() {
     let evil = r#"<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><score-partwise/>"#;
     assert!(parse_musicxml(evil).is_err());

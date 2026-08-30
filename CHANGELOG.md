@@ -10,7 +10,42 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-30
+
+This release consolidates the v0.2 notation pipeline: expanded score editing and theory APIs,
+MusicXML/MIDI/ABC/MuseScore I/O, renderer-facing layout data, deterministic SVG rendering, and
+the corresponding WebAssembly bindings and CLI support. See the entries below for the detailed
+feature history.
+
 ### Added
+
+#### Phase 2 initial slice — span engraving
+- `acorde-render-svg` renders local ties and layout-resolved hairpin, slur, pedal, ottava, and
+  trill-line spans as deterministic SVG geometry, including cross-system continuation segments.
+- Cross-measure ties are split at system boundaries and retain stable SVG classes for host-side
+  interaction.
+- Note-attached dynamics, chord symbols, lyrics (including XML escaping and syllable hyphens),
+  and common staccato/accent/tenuto articulations are emitted with stable SVG classes.
+- Sixteenth-, thirty-second-, and sixty-fourth-note rests, custom noteheads, grace/cue-note
+  scaling, and optional part-group connector/label hooks are also emitted by the SVG renderer.
+- Added browser-facing WASM entry points for precomputed-layout rendering, single-system
+  rendering, and deterministic SVG dimension/NoteAddr-bound metadata.
+- Added semantic interactive hooks for staff groups, spans, and span endpoint addresses; SVG
+  output now includes accessible `role="img"`, `<title>`, and `<desc>` metadata.
+- Invalid precomputed layout indices now return `InvalidLayout` instead of reaching renderer
+  indexing paths and panicking.
+- Added structural coverage for local and cross-system span mark families.
+- Added malformed-input guards covering empty input and 64 MiB garbage, plus a CI Chrome
+  browser-contract job; the browser example demonstrates keyboard selection and host-owned
+  hover state.
+- Added large-score, many-staff, and pathological-voice renderer soak guards, together with a
+  reproducible release-profile layout/render benchmark.
+- Verified the browser contract smoke fixture on Chromium, Firefox, and WebKit; CI stores the
+  rendered screenshots as review artifacts.
+- Pinned CI to `wasm-pack 0.15.0`; the WASM browser contract now passes with a Chrome-matched
+  WebDriver in the release verification environment.
+- Added enforced release-profile benchmark budgets for layout latency, render latency, and SVG
+  size on the representative 32-measure / 128-note case.
 
 #### Phase 17 — acorde-render-svg: SVG score renderer
 - New crate `crates/render-svg` (`acorde-render-svg`) — pure-Rust/WASM SVG renderer. Dependency direction `acorde-core → acorde-layout → acorde-render-svg`; no reverse dependency, no browser/DOM dependency, no `acorde` umbrella re-export (kept out of the published dependency graph for now)

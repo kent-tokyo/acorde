@@ -12,6 +12,8 @@ tasks/
 # ── wasm-pack output ──────────────────────────────────────────────────────────
 pkg/
 wasm-pack.log
+test-results/
+playwright-report/
 
 # ── IDE / editor ──────────────────────────────────────────────────────────────
 .idea/

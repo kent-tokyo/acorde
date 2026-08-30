@@ -190,6 +190,53 @@ pub fn render_score_svg(score_json: &str, options_json: &str) -> Result<String, 
     acorde_render_svg::render_svg(&score, &options).map_err(js_err)
 }
 
+/// Render a score using a layout computed by [`compute_layout_ex`].
+#[wasm_bindgen]
+pub fn render_score_svg_with_layout(
+    score_json: &str,
+    layout_json: &str,
+    options_json: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let layout: acorde_layout::LayoutResult = serde_json::from_str(layout_json)
+        .map_err(|e| js_err(format!("invalid layout JSON: {e}")))?;
+    let options: acorde_render_svg::SvgRenderOptions = serde_json::from_str(options_json)
+        .map_err(|e| js_err(format!("invalid options JSON: {e}")))?;
+    acorde_render_svg::render_svg_with_layout(&score, &layout, &options).map_err(js_err)
+}
+
+/// Render one system row from a precomputed layout. `row` is zero-based.
+#[wasm_bindgen]
+pub fn render_score_svg_row(
+    score_json: &str,
+    layout_json: &str,
+    row: usize,
+    options_json: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let layout: acorde_layout::LayoutResult = serde_json::from_str(layout_json)
+        .map_err(|e| js_err(format!("invalid layout JSON: {e}")))?;
+    let options: acorde_render_svg::SvgRenderOptions = serde_json::from_str(options_json)
+        .map_err(|e| js_err(format!("invalid options JSON: {e}")))?;
+    acorde_render_svg::render_svg_row(&score, &layout, row, &options).map_err(js_err)
+}
+
+/// Return deterministic SVG dimensions and NoteAddr-keyed hit-test bounds.
+#[wasm_bindgen]
+pub fn render_score_metadata(
+    score_json: &str,
+    layout_json: &str,
+    options_json: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let layout: acorde_layout::LayoutResult = serde_json::from_str(layout_json)
+        .map_err(|e| js_err(format!("invalid layout JSON: {e}")))?;
+    let options: acorde_render_svg::SvgRenderOptions = serde_json::from_str(options_json)
+        .map_err(|e| js_err(format!("invalid options JSON: {e}")))?;
+    let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &options).map_err(js_err)?;
+    serde_json::to_string(&metadata).map_err(|e| js_err(format!("metadata serialization failed: {e}")))
+}
+
 // ── GM lookup ─────────────────────────────────────────────────────────────────
 
 /// Return the General MIDI Level 1 program name for a 0-based program number.
@@ -888,6 +935,8 @@ mod wasm_tests {
     use super::*;
     use wasm_bindgen_test::wasm_bindgen_test;
 
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
     #[wasm_bindgen_test]
     fn parse_musicxml_empty_returns_err() {
         assert!(parse_musicxml("").is_err());
@@ -902,5 +951,20 @@ mod wasm_tests {
     fn engine_undo_empty_returns_err() {
         let mut engine = ScoreEngine::new();
         assert!(engine.undo().is_err());
+    }
+
+    #[wasm_bindgen_test]
+    fn browser_render_contract_roundtrips_and_rejects_bad_json() {
+        let score_json = serde_json::to_string(&Score::default()).unwrap();
+        let layout_json = compute_layout_ex(&score_json, r#"{"measures_per_row":4}"#).unwrap();
+        let svg = render_score_svg_with_layout(&score_json, &layout_json, "{}").unwrap();
+        assert!(svg.starts_with("<svg"));
+        let row = render_score_svg_row(&score_json, &layout_json, 0, "{}").unwrap();
+        assert!(row.starts_with("<svg"));
+        let metadata = render_score_metadata(&score_json, &layout_json, "{}").unwrap();
+        assert!(metadata.contains("address_bounds"));
+        assert!(render_score_svg_with_layout("{}", &layout_json, "{}").is_err());
+        assert!(render_score_svg_row(&score_json, &layout_json, 99, "{}").is_err());
+        assert!(render_score_metadata(&score_json, "not-json", "{}").is_err());
     }
 }

@@ -11,6 +11,8 @@
 
 use std::fmt::Write as _;
 
+use acorde_core::NoteHead;
+
 /// Format a coordinate/length with fixed precision — keeps `sin`/`cos`-derived glyph
 /// geometry stable across platforms (ULP-level differences vanish at 2 decimals).
 pub(crate) fn f(v: f32) -> String {
@@ -120,6 +122,33 @@ pub(crate) fn notehead(cx: f32, cy: f32, space: f32, filled: bool) -> String {
             r#"<ellipse class="acorde-notehead" cx="{x}" cy="{y}" rx="{rx}" ry="{ry}" fill="none" stroke="black" stroke-width="{sw}"/>"#,
             x = f(cx), y = f(cy)
         )
+    }
+}
+
+/// Render the model-selected notehead without relying on a notation font.
+pub(crate) fn notehead_shape(head: &NoteHead, cx: f32, cy: f32, space: f32, filled: bool) -> String {
+    match head {
+        NoteHead::Normal => notehead(cx, cy, space, filled),
+        NoteHead::Diamond => {
+            let w = 0.38 * space;
+            let h = 0.52 * space;
+            let points = format!("{},{} {},{} {},{} {},{}", f(cx), f(cy - h), f(cx + w), f(cy), f(cx), f(cy + h), f(cx - w), f(cy));
+            let fill = if filled { "black" } else { "none" };
+            format!(r#"<polygon class="acorde-notehead acorde-notehead-diamond" points="{points}" fill="{fill}" stroke="black" stroke-width="{}"/>"#, f(0.12 * space))
+        }
+        NoteHead::Triangle => {
+            let points = format!("{},{} {},{} {},{}", f(cx), f(cy - 0.55 * space), f(cx + 0.42 * space), f(cy + 0.35 * space), f(cx - 0.42 * space), f(cy + 0.35 * space));
+            let fill = if filled { "black" } else { "none" };
+            format!(r#"<polygon class="acorde-notehead acorde-notehead-triangle" points="{points}" fill="{fill}" stroke="black" stroke-width="{}"/>"#, f(0.12 * space))
+        }
+        NoteHead::X | NoteHead::Cross => {
+            let r = if matches!(head, NoteHead::X) { 0.34 } else { 0.42 } * space;
+            let sw = f(0.16 * space);
+            format!(r#"<g class="acorde-notehead acorde-notehead-{}" stroke="black" stroke-width="{sw}" stroke-linecap="round"><line x1="{}" y1="{}" x2="{}" y2="{}"/><line x1="{}" y1="{}" x2="{}" y2="{}"/></g>"#, if matches!(head, NoteHead::X) { "x" } else { "cross" }, f(cx-r), f(cy-r), f(cx+r), f(cy+r), f(cx-r), f(cy+r), f(cx+r), f(cy-r))
+        }
+        NoteHead::Slash => {
+            format!(r#"<line class="acorde-notehead acorde-notehead-slash" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}" stroke-linecap="round"/>"#, f(cx - 0.42 * space), f(cy + 0.42 * space), f(cx + 0.42 * space), f(cy - 0.42 * space), f(0.22 * space))
+        }
     }
 }
 
@@ -327,6 +356,17 @@ pub(crate) fn rest_eighth(cx: f32, staff_mid_y: f32, space: f32) -> String {
         x = f(cx + 0.32 * space), y = f(staff_mid_y - 0.6 * space), r = f(0.2 * space)
     );
     format!("{stroke}{head}")
+}
+
+/// Add the extra flags needed by shorter rests. The base eighth-rest mark is kept as the
+/// anchor so the output remains compact and deterministic.
+pub(crate) fn rest_short(cx: f32, staff_mid_y: f32, space: f32, flags: usize) -> String {
+    let mut out = rest_eighth(cx, staff_mid_y, space);
+    for i in 1..flags {
+        let y = staff_mid_y - (0.6 - i as f32 * 0.34) * space;
+        let _ = write!(out, r#"<path class="acorde-rest-flag" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}" stroke-linecap="round"/>"#, f(cx + 0.32 * space), f(y), f(cx + 0.72 * space), f(y + 0.18 * space), f(cx + 0.16 * space), f(y + 0.55 * space), f(0.13 * space));
+    }
+    out
 }
 
 /// Augmentation dot.

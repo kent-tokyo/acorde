@@ -24,6 +24,10 @@ fn single_note_score() -> Score {
 fn single_note_matches_golden_svg() {
     let options = SvgRenderOptions { width: 200.0, staff_size: 20.0, measures_per_system: 1, interactive: false };
     let svg = render_svg(&single_note_score(), &options).unwrap();
+    if std::env::var("UPDATE_GOLDEN").is_ok() {
+        std::fs::write(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/golden/single_note.svg"), &svg).unwrap();
+        return;
+    }
     let golden = include_str!("golden/single_note.svg");
     assert_eq!(svg.trim_end(), golden.trim_end(),
         "SVG output for the single-note golden fixture changed — if intentional, update tests/golden/single_note.svg");

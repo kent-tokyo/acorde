@@ -1,7 +1,7 @@
 //! Minimal visual-regression foundation.
 //!
-//! Two complementary layers, per the design constraints (no chromedriver/system packages,
-//! no pixel-diffing, pure Rust):
+//! Two complementary native layers (golden SVG fixtures plus geometry assertions). Cross-browser
+//! rendering smoke coverage lives in `examples/browser/smoke.spec.mjs`.
 //!
 //! 1. **Golden SVG fixtures** (`tests/golden/vr_*.svg`) — small, single-concern, byte-exact
 //!    snapshots. These catch *any* change to the rendered output, deliberate or not, and
@@ -13,9 +13,9 @@
 //!    verified independently of the renderer's internals, so a regression in the position
 //!    formula fails a *meaningful* assertion, not just a string diff.
 //!
-//! Fixtures for ties/slurs and lyrics are intentionally not included yet —
-//! acorde-render-svg doesn't render either yet (tracked as follow-up phases). Add
-//! their golden fixtures alongside the feature that renders them, not before.
+//! Span and annotation fixtures are covered by structural tests; the golden set focuses on
+//! stable core geometry and is regenerated deliberately when the SVG accessibility contract
+//! changes.
 
 mod common;
 

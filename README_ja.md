@@ -368,10 +368,15 @@ wasm-pack build crates/wasm --target bundler
 `key_alter_for_step` · `key_contains_pitch` · `key_display_name` ·
 `clef_middle_line_midi` · `suggested_stem_up` · `compute_beams` · `command_key_from_json` ·
 `detect_chord` · `roman_numeral` · `best_fit_scale` ·
+`render_score_svg` · `render_score_svg_with_layout` · `render_score_svg_row` · `render_score_metadata` ·
 `ScoreEngine`（JS クラス；`apply()` / `undo()` / `redo()` は `ChangeHint` JSON を返す）:
   `apply_batch` · `apply_batch_labeled` · `copy_voice` / `paste_voice` · `copy_range` / `paste_range` ·
   `get_undo_label` / `get_redo_label` · `get_undo_key` / `get_redo_key` ·
   `export_history` / `restore_history`
+
+ブラウザ描画契約は [`docs/browser-rendering.md`](docs/browser-rendering.md)、対応環境は
+[`docs/browser-support.md`](docs/browser-support.md)、性能確認は
+[`docs/performance.md`](docs/performance.md) を参照してください。
 
 ### `acorde-cli`
 
@@ -397,39 +402,39 @@ acorde extract  --part 0 input.musicxml violin.musicxml
 
 ```toml
 [dependencies]
-acorde = "0.1"
+acorde = "0.2"
 
 # ABC 記譜サポート（オプトイン）
-acorde = { version = "0.1", features = ["abc"] }
+acorde = { version = "0.2", features = ["abc"] }
 
 # MuseScore .mscz/.mscx サポート（オプトイン）
-acorde = { version = "0.1", features = ["mscz"] }
+acorde = { version = "0.2", features = ["mscz"] }
 ```
 
 もしくは各クレートを個別に追加：
 
 ```toml
 [dependencies]
-acorde-core = "0.1"
+acorde-core = "0.2"
 ```
 
 I/O サポートが必要な場合：
 
 ```toml
-acorde-io = "0.1"
+acorde-io = "0.2"
 
 # ABC 記譜サポート（オプトイン）
-acorde-io = { version = "0.1", features = ["abc"] }
+acorde-io = { version = "0.2", features = ["abc"] }
 
 # MuseScore .mscz/.mscx サポート（オプトイン）
-acorde-io = { version = "0.1", features = ["mscz"] }
+acorde-io = { version = "0.2", features = ["mscz"] }
 ```
 
 ---
 
 ## ビルド
 
-**前提条件：** Rust 1.77+
+**前提条件：** Rust 1.87+
 
 ```bash
 git clone https://github.com/kent-tokyo/acorde.git

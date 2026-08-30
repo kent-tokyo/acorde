@@ -2,6 +2,7 @@
 name = "acorde-layout"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 homepage.workspace = true
 documentation = "https://docs.rs/acorde-layout"
 license.workspace = true
@@ -13,5 +14,5 @@ keywords = ["music", "notation", "layout", "sheet-music"]
 categories = ["multimedia::audio"]
 
 [dependencies]
-acorde-core = { path = "../core", version = "0.1.0" }
+acorde-core = { path = "../core", version = "0.2.0" }
 serde = { version = "1", features = ["derive"] }

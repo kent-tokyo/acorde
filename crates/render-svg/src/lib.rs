@@ -53,6 +53,29 @@ pub struct SvgRenderOptions {
     pub interactive: bool,
 }
 
+/// Lightweight browser-facing metadata for a rendered score.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RenderMetadata {
+    pub width: f32,
+    pub height: f32,
+    pub address_bounds: Vec<AddressBounds>,
+}
+
+/// Approximate interactive bounds for one stable [`acorde_core::NoteAddr`]. The box is
+/// centered on the note's anchor and is intended for hit testing/highlighting, not engraving.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AddressBounds {
+    pub part: usize,
+    pub staff: usize,
+    pub measure: usize,
+    pub voice: usize,
+    pub note: usize,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
 impl Default for SvgRenderOptions {
     fn default() -> Self {
         Self { width: 900.0, staff_size: 24.0, measures_per_system: 4, interactive: true }
@@ -68,6 +91,12 @@ impl Default for SvgRenderOptions {
 pub enum RenderError {
     /// The score has no staves to render (no parts, or no parts with staves).
     EmptyScore,
+    /// A requested system row does not exist in the supplied layout.
+    InvalidRow { row: usize },
+    /// The score and precomputed layout do not have compatible indices.
+    InvalidLayout { reason: String },
+    /// Rendering dimensions or system settings are not finite and positive.
+    InvalidOptions { reason: String },
     /// A staff uses a clef this renderer has no staff-position mapping for (percussion).
     UnsupportedClef,
     /// A pitch's `alter` is outside the supported range (`-2..=2`: double-flat..double-sharp).
@@ -78,6 +107,9 @@ impl std::fmt::Display for RenderError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RenderError::EmptyScore => write!(f, "score has no staves to render"),
+            RenderError::InvalidRow { row } => write!(f, "layout row {row} does not exist"),
+            RenderError::InvalidLayout { reason } => write!(f, "invalid layout: {reason}"),
+            RenderError::InvalidOptions { reason } => write!(f, "invalid render options: {reason}"),
             RenderError::UnsupportedClef => write!(f, "unsupported clef (percussion has no staff-position mapping)"),
             RenderError::UnsupportedAccidental { alter } => {
                 write!(f, "unsupported accidental alter={alter} (supported range is -2..=2)")
@@ -113,4 +145,26 @@ pub fn render_svg_with_layout(
     options: &SvgRenderOptions,
 ) -> Result<String, RenderError> {
     render::build_svg(score, layout, options)
+}
+
+/// Render one system row from a precomputed layout. The returned SVG contains only that row
+/// and uses the same deterministic renderer as full-score output.
+pub fn render_svg_row(
+    score: &Score,
+    layout: &LayoutResult,
+    row: usize,
+    options: &SvgRenderOptions,
+) -> Result<String, RenderError> {
+    let mut subset = layout.clone();
+    subset.rows = vec![layout.rows.get(row).cloned().ok_or(RenderError::InvalidRow { row })?];
+    render_svg_with_layout(score, &subset, options)
+}
+
+/// Return SVG dimensions and approximate hit-test bounds keyed by stable score addresses.
+pub fn render_svg_metadata(
+    score: &Score,
+    layout: &LayoutResult,
+    options: &SvgRenderOptions,
+) -> Result<RenderMetadata, RenderError> {
+    render::build_svg_with_metadata(score, layout, options).map(|(_, metadata)| metadata)
 }

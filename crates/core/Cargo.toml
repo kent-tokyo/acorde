@@ -2,6 +2,7 @@
 name = "acorde-core"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 homepage.workspace = true
 documentation = "https://docs.rs/acorde-core"
 license.workspace = true

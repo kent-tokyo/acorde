@@ -427,10 +427,13 @@ tuplet. The bracket sits on the stem side (above for stem-up, below for stem-dow
 generalizing to any ratio (triplets, quintuplets, septuplets, …) through one code path with
 no per-ratio special-casing. Nested tuplets are out of scope for Phase 2A.
 
-Ties/slurs, lyrics engraving, and Roman-numeral/chord-analysis text are out of scope for
-this crate by design — `acorde-render-svg` never re-implements music theory or takes a
-dependency on any downstream consumer (e.g. it has no knowledge of, or dependency on,
-mokuren).
+Ties/slurs and the span marks already resolved by `acorde-layout` (including hairpins, pedal,
+ottava, and trill lines) are rendered as SVG geometry, including continuation segments across
+systems. Note-attached lyrics, dynamics, common articulations, chord symbols, custom noteheads,
+short rests, grace/cue notes, and optional part-group connectors are emitted with semantic SVG
+classes. Interactive output also exposes stable staff/span endpoint hooks and accessible SVG
+`title`/`desc` metadata. The renderer never re-implements music theory or takes a dependency on
+any downstream consumer (e.g. it has no knowledge of, or dependency on, mokuren).
 
 ```bash
 cargo run -p acorde-render-svg --example render_beams > /tmp/beams.svg
@@ -450,6 +453,11 @@ separate font license to track. Coordinates are formatted to a fixed 2 decimal p
 specifically so the `sin`/`cos`-derived curves stay byte-identical across platforms (ULP-level
 floating-point differences never surface at that precision), which is what makes the
 determinism tests in `crates/render-svg/tests/determinism.rs` meaningful.
+
+Variable-length textual annotations (lyrics, chord symbols, dynamics, and performance labels)
+are emitted as semantic SVG `<text>` elements so hosts can select their own typography. The
+notation glyphs themselves remain font-independent; hosts that require fully font-independent
+annotation output can replace these text nodes using the stable `acorde-*` classes.
 
 ```bash
 cargo run -p acorde-render-svg --example render_satb > /tmp/satb.svg
@@ -472,14 +480,13 @@ Sample output (`tests/fixtures/simple.musicxml`, regenerate with the command abo
 
 ![Rendered with acorde](docs/assets/sample-score.svg)
 
-**Visual regression** (`tests/visual_regression.rs`) uses two complementary, dependency-free
-layers instead of pixel-diffing (no chromedriver, no CI system packages): small golden SVG
-fixtures per notation category (`tests/golden/vr_*.svg`, byte-exact, regenerate deliberately
-with `UPDATE_GOLDEN=1 cargo test -p acorde-render-svg --test visual_regression`) plus geometry
-relationship assertions that hold independently of the renderer's internals — e.g. "C5 sits
-exactly one diatonic step above B4," "a stem is always exactly 3 staff-spaces long," "voice 0
-stems up and voice 1 stems down." Golden files alone can't catch a bug that is *consistently*
-wrong (the diff finds nothing to complain about); the geometry assertions check correctness,
+**Visual regression** (`tests/visual_regression.rs`) uses two complementary native layers:
+small golden SVG fixtures per notation category (`tests/golden/vr_*.svg`, byte-exact,
+regenerate deliberately with `UPDATE_GOLDEN=1 cargo test -p acorde-render-svg --test
+visual_regression`) plus geometry relationship assertions that hold independently of the
+renderer internals. The browser fixture adds Chromium/Firefox/WebKit smoke screenshots as CI
+review artifacts; see [`docs/browser-support.md`](docs/browser-support.md). Golden files alone
+cannot catch a bug that is *consistently* wrong, so the geometry assertions check correctness,
 not just stability.
 
 ### `acorde-wasm`
@@ -507,6 +514,15 @@ Exposes: `parse_musicxml` · `parse_mxl` · `serialize_musicxml` · `parse_midi`
 `compute_beams(notes_json, time_sig_json)` · `command_key_from_json` ·
 `detect_chord(pitches_json)` · `roman_numeral(chord_json, key_json)` · `best_fit_scale(pitches_json)` ·
 `render_score_svg(score_json, options_json)` — thin wrapper over `acorde_render_svg::render_svg` ·
+`render_score_svg_with_layout(score_json, layout_json, options_json)` — render from a precomputed
+layout · `render_score_svg_row(score_json, layout_json, row, options_json)` — render one system ·
+`render_score_metadata(score_json, layout_json, options_json)` — dimensions and NoteAddr hit-test
+bounds ·
+
+The browser-facing call sequence and incremental `ChangeHint` contract are documented in
+[`docs/browser-rendering.md`](docs/browser-rendering.md).
+The current verification matrix is documented in [`docs/browser-support.md`](docs/browser-support.md).
+The reproducible renderer benchmark is documented in [`docs/performance.md`](docs/performance.md).
 `ScoreEngine` JS class:
   `apply(cmd_json)` → `ChangeHint` JSON · `undo()` / `redo()` → `ChangeHint` JSON ·
   `apply_batch(cmds_json)` · `apply_batch_labeled(cmds_json, label)` ·
@@ -538,45 +554,45 @@ and `acorde-layout` under `acorde::core`, `acorde::io`, `acorde::layout`:
 
 ```toml
 [dependencies]
-acorde = "0.1"
+acorde = "0.2"
 
 # ABC Notation support (opt-in)
-acorde = { version = "0.1", features = ["abc"] }
+acorde = { version = "0.2", features = ["abc"] }
 
 # MuseScore .mscz/.mscx support (opt-in)
-acorde = { version = "0.1", features = ["mscz"] }
+acorde = { version = "0.2", features = ["mscz"] }
 ```
 
 Or depend on the individual crates directly:
 
 ```toml
 [dependencies]
-acorde-core = "0.1"
+acorde-core = "0.2"
 ```
 
 For I/O support:
 
 ```toml
-acorde-io = "0.1"
+acorde-io = "0.2"
 
 # ABC Notation support (opt-in)
-acorde-io = { version = "0.1", features = ["abc"] }
+acorde-io = { version = "0.2", features = ["abc"] }
 
 # MuseScore .mscz/.mscx support (opt-in)
-acorde-io = { version = "0.1", features = ["mscz"] }
+acorde-io = { version = "0.2", features = ["mscz"] }
 ```
 
 For SVG rendering (not re-exported by the `acorde` umbrella crate — add it directly):
 
 ```toml
-acorde-render-svg = "0.1"
+acorde-render-svg = "0.2"
 ```
 
 ---
 
 ## Building
 
-**Prerequisites:** Rust 1.77+
+**Prerequisites:** Rust 1.87+
 
 ```bash
 git clone https://github.com/kent-tokyo/acorde.git
@@ -612,7 +628,7 @@ wasm-pack test crates/wasm --headless --chrome
 ## Testing
 
 ```bash
-cargo test --all                           # unit + integration tests (467 tests)
+cargo test --all                           # unit + integration tests
 cargo test -p acorde-io --features abc   # ABC parser + serializer tests
 cargo test -p acorde-io --features mscz  # MSCZ parser tests (69 unit + 28 roundtrip)
 ```

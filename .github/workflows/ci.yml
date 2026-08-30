@@ -38,7 +38,65 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        run: cargo install wasm-pack --version 0.15.0 --locked
 
       - name: wasm-pack build
         run: wasm-pack build crates/wasm --target web
+
+  renderer-benchmark:
+    name: Renderer performance budget
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Enforce benchmark budget
+        run: cargo run --release -p acorde-render-svg --example benchmark
+
+  wasm-browser:
+    name: WASM browser contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: browser-actions/setup-chrome@v1
+      - uses: Swatinem/rust-cache@v2
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --version 0.15.0 --locked
+      - name: wasm browser tests
+        run: timeout 5m wasm-pack test --headless --chrome crates/wasm
+
+  browser-matrix:
+    name: Browser smoke (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --version 0.15.0 --locked
+      - name: Build WASM package
+        run: wasm-pack build crates/wasm --target web
+      - name: Install Playwright and browsers
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Start fixture server
+        run: python3 -m http.server 8000 > /tmp/acorde-browser-server.log 2>&1 &
+      - name: Run browser contract smoke test
+        run: npx playwright test examples/browser/smoke.spec.mjs --project=${{ matrix.browser }}
+      - name: Upload rendered screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acorde-browser-${{ matrix.browser }}
+          path: test-results/**/${{ matrix.browser }}.png
