@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-08-31
+
+### Interchange report contract
+
+- Added an explicit lowercase format identifier to import and export reports, including legacy
+  deserialization defaults for report JSON.
+- Report wrappers now identify MusicXML, MXL, MIDI, ABC, MEI, MSCX, and MSCZ outputs.
+
 ## [0.13.0] - 2026-08-31
 
 ### CLI interchange diagnostics

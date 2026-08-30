@@ -37,6 +37,9 @@ impl Diagnostic {
 /// Result of importing a notation document, including conversion diagnostics.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportReport {
+    /// Stable lowercase format identifier for the source document.
+    #[serde(default)]
+    pub format: String,
     pub score: Score,
     #[serde(default)]
     pub diagnostics: Vec<Diagnostic>,
@@ -45,8 +48,16 @@ pub struct ImportReport {
 impl ImportReport {
     pub fn new(score: Score) -> Self {
         Self {
+            format: "unknown".to_string(),
             score,
             diagnostics: Vec::new(),
+        }
+    }
+
+    pub fn for_format(score: Score, format: impl Into<String>) -> Self {
+        Self {
+            format: format.into(),
+            ..Self::new(score)
         }
     }
 }
@@ -54,6 +65,9 @@ impl ImportReport {
 /// Result of exporting a notation document, including conversion diagnostics.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExportReport<T> {
+    /// Stable lowercase format identifier for the output document.
+    #[serde(default)]
+    pub format: String,
     pub output: T,
     #[serde(default)]
     pub diagnostics: Vec<Diagnostic>,
@@ -62,8 +76,16 @@ pub struct ExportReport<T> {
 impl<T> ExportReport<T> {
     pub fn new(output: T) -> Self {
         Self {
+            format: "unknown".to_string(),
             output,
             diagnostics: Vec::new(),
+        }
+    }
+
+    pub fn for_format(output: T, format: impl Into<String>) -> Self {
+        Self {
+            format: format.into(),
+            ..Self::new(output)
         }
     }
 }
@@ -84,8 +106,10 @@ mod tests {
     #[test]
     fn reports_default_to_no_loss() {
         let report = ImportReport::new(Score::default());
+        assert_eq!(report.format, "unknown");
         assert!(report.diagnostics.is_empty());
         let output = ExportReport::new("output");
+        assert_eq!(output.format, "unknown");
         assert!(output.diagnostics.is_empty());
     }
 }
