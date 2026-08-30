@@ -5,8 +5,9 @@ The crate has no I/O, renderer, or host dependencies.
 
 The first capability slice labels chord-shaped pitch collections in each score voice. Every label
 contains stable `NoteAddr` evidence, a rule identifier, confidence, and an optional Roman numeral
-in the active key. A missing label is intentional: the analyzer does not invent a chord when the
-existing templates do not provide an unambiguous match.
+in the active key. The result also includes adjacent melodic intervals. A missing chord label is
+intentional: the analyzer does not invent a chord when the existing templates do not provide an
+unambiguous match.
 
 ```rust
 use acorde_analysis::analyze_chords;

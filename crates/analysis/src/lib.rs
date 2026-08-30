@@ -4,7 +4,7 @@ use acorde_core::{ChordSymbol, NoteAddr, Score, detect_chord, roman_numeral};
 use serde::{Deserialize, Serialize};
 
 /// Version of the serialized analysis result contract.
-pub const ANALYSIS_SCHEMA_VERSION: u32 = 1;
+pub const ANALYSIS_SCHEMA_VERSION: u32 = 2;
 
 /// A chord label with source evidence and the rule that produced it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -23,6 +23,18 @@ pub struct ChordLabel {
 pub struct AnalysisResult {
     pub schema_version: u32,
     pub chords: Vec<ChordLabel>,
+    pub intervals: Vec<IntervalObservation>,
+}
+
+/// A consecutive melodic interval with addresses for both source notes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IntervalObservation {
+    pub from: NoteAddr,
+    pub to: NoteAddr,
+    pub semitones: u8,
+    pub diatonic_steps: i8,
+    pub rule_id: String,
+    pub evidence: Vec<NoteAddr>,
 }
 
 /// Analyze every voice that contains at least two pitched notes in a measure.
@@ -76,10 +88,77 @@ pub fn analyze_chords(score: &Score) -> AnalysisResult {
             }
         }
     }
+    let intervals = analyze_intervals(score);
     AnalysisResult {
         schema_version: ANALYSIS_SCHEMA_VERSION,
         chords,
+        intervals,
     }
+}
+
+/// Analyze adjacent pitched notes in every voice without inferring missing events.
+pub fn analyze_intervals(score: &Score) -> Vec<IntervalObservation> {
+    let mut observations = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    let notes: Vec<_> = voice
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(note_index, note)| {
+                            if note.is_rest {
+                                None
+                            } else {
+                                note.pitches.first().map(|pitch| (note_index, pitch))
+                            }
+                        })
+                        .collect();
+                    for pair in notes.windows(2) {
+                        let (from_index, from) = pair[0];
+                        let (to_index, to) = pair[1];
+                        let from_addr = NoteAddr {
+                            part: part_index,
+                            staff: staff_index,
+                            measure: measure_index,
+                            voice: voice_index,
+                            note: from_index,
+                        };
+                        let to_addr = NoteAddr {
+                            part: part_index,
+                            staff: staff_index,
+                            measure: measure_index,
+                            voice: voice_index,
+                            note: to_index,
+                        };
+                        observations.push(IntervalObservation {
+                            from: from_addr.clone(),
+                            to: to_addr.clone(),
+                            semitones: (to.to_midi() - from.to_midi()).unsigned_abs() as u8,
+                            diatonic_steps: diatonic_distance(from, to),
+                            rule_id: "adjacent-melodic-interval".to_string(),
+                            evidence: vec![from_addr, to_addr],
+                        });
+                    }
+                }
+            }
+        }
+    }
+    observations
+}
+
+fn diatonic_distance(from: &acorde_core::Pitch, to: &acorde_core::Pitch) -> i8 {
+    let step_index = |step: &acorde_core::Step| match step {
+        acorde_core::Step::C => 0i16,
+        acorde_core::Step::D => 1,
+        acorde_core::Step::E => 2,
+        acorde_core::Step::F => 3,
+        acorde_core::Step::G => 4,
+        acorde_core::Step::A => 5,
+        acorde_core::Step::B => 6,
+    };
+    (i16::from(to.octave) * 7 + step_index(&to.step)
+        - (i16::from(from.octave) * 7 + step_index(&from.step))) as i8
 }
 
 /// Return the stable chord spelling as a compact human-readable label.
@@ -119,10 +198,25 @@ mod tests {
         let result = analyze_chords(&score);
         assert_eq!(result.schema_version, ANALYSIS_SCHEMA_VERSION);
         assert_eq!(result.chords.len(), 1);
+        assert_eq!(result.intervals.len(), 2);
         assert_eq!(result.chords[0].address.note, 0);
         assert_eq!(result.chords[0].evidence.len(), 3);
         assert_eq!(result.chords[0].roman_numeral.as_deref(), Some("I"));
         assert_eq!(chord_name(&result.chords[0].chord), "C");
+    }
+
+    #[test]
+    fn interval_observation_preserves_direction_and_evidence() {
+        let mut score = Score::default();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        voice.push(Note::new(Pitch::new(Step::C, 4), Duration::Quarter));
+        voice.push(Note::new(Pitch::new(Step::G, 4), Duration::Quarter));
+        let intervals = analyze_intervals(&score);
+        assert_eq!(intervals.len(), 1);
+        assert_eq!(intervals[0].semitones, 7);
+        assert_eq!(intervals[0].diatonic_steps, 4);
+        assert_eq!(intervals[0].evidence.len(), 2);
     }
 
     #[test]

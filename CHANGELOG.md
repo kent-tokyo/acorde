@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-08-31
+
+### Explainable music analysis
+
+- Added deterministic adjacent melodic interval observations to `acorde-analysis`.
+- Interval results preserve source addresses, semitone and diatonic distances, rule IDs, and
+  evidence addresses, with analysis schema version `2`.
+
 ## [0.16.0] - 2026-08-31
 
 ### Explainable music analysis
