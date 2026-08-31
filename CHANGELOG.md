@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.49.0] - 2026-08-31
+
+### MEI attribute loss diagnostics
+
+- Added warnings for MEI `meter.count` and `meter.unit` attributes that are not represented by
+  the current canonical score model.
+- Preserved source attribute values and locations in import reports.
+
 ## [0.48.0] - 2026-08-31
 
 ### MEI staff and layer diagnostics

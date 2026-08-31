@@ -54,6 +54,10 @@ const UNSUPPORTED_ELEMENTS: &[&str] = &[
     "tie",
     "tuplet",
 ];
+const UNSUPPORTED_ATTRIBUTES: &[(&str, &str, &str)] = &[
+    ("measure", "meter.count", "meter-count"),
+    ("measure", "meter.unit", "meter-unit"),
+];
 
 fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
     let mut reader = Reader::from_str(text);
@@ -69,6 +73,7 @@ fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
                     push_loss_diagnostic(&mut diagnostics, &path, &name, &mut truncated);
                 }
                 push_flattening_diagnostic(&mut diagnostics, &path, &name, &event, &mut truncated);
+                push_attribute_diagnostics(&mut diagnostics, &path, &name, &event, &mut truncated);
             }
             Ok(Event::Empty(event)) => {
                 let name = String::from_utf8_lossy(event.name().as_ref()).into_owned();
@@ -80,6 +85,13 @@ fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
                 let mut element_path = path.clone();
                 element_path.push(name.clone());
                 push_flattening_diagnostic(
+                    &mut diagnostics,
+                    &element_path,
+                    &name,
+                    &event,
+                    &mut truncated,
+                );
+                push_attribute_diagnostics(
                     &mut diagnostics,
                     &element_path,
                     &name,
@@ -157,6 +169,34 @@ fn push_flattening_diagnostic(
         diagnostics.push(diagnostic);
     } else if !*truncated {
         push_truncation_diagnostic(diagnostics, path, truncated);
+    }
+}
+
+fn push_attribute_diagnostics(
+    diagnostics: &mut Vec<Diagnostic>,
+    path: &[String],
+    element: &str,
+    event: &BytesStart<'_>,
+    truncated: &mut bool,
+) {
+    for &(expected_element, attribute, label) in UNSUPPORTED_ATTRIBUTES {
+        if expected_element != element {
+            continue;
+        }
+        let Some(value) = attr(event, attribute.as_bytes()) else {
+            continue;
+        };
+        if diagnostics.len() < MAX_MEI_DIAGNOSTICS {
+            let mut diagnostic = Diagnostic::warning(
+                format!("mei.unsupported-attribute.{element}.{label}"),
+                format!("MEI attribute '{attribute}' is not represented by the canonical model"),
+            );
+            diagnostic.source_location = Some(format!("/{}@{attribute}", path.join("/")));
+            diagnostic.preserved_value = Some(value);
+            diagnostics.push(diagnostic);
+        } else if !*truncated {
+            push_truncation_diagnostic(diagnostics, path, truncated);
+        }
     }
 }
 
@@ -417,5 +457,25 @@ mod tests {
         assert_eq!(report.diagnostics[0].preserved_value.as_deref(), Some("2"));
         assert_eq!(report.diagnostics[1].code, "mei.flattened-layer");
         assert_eq!(report.diagnostics[1].preserved_value.as_deref(), Some("3"));
+    }
+
+    #[test]
+    fn report_marks_unsupported_meter_attributes() {
+        let xml = FIXTURE.replace(
+            "<measure n=\"7\">",
+            "<measure n=\"7\" meter.count=\"6\" meter.unit=\"8\">",
+        );
+        let report = parse_mei_with_report(&xml).expect("MEI report parses");
+        assert_eq!(report.diagnostics.len(), 2);
+        assert_eq!(
+            report.diagnostics[0].code,
+            "mei.unsupported-attribute.measure.meter-count"
+        );
+        assert_eq!(report.diagnostics[0].preserved_value.as_deref(), Some("6"));
+        assert_eq!(
+            report.diagnostics[0].source_location.as_deref(),
+            Some("/mei/music/body/mdiv/score/section/measure@meter.count")
+        );
+        assert_eq!(report.diagnostics[1].preserved_value.as_deref(), Some("8"));
     }
 }
