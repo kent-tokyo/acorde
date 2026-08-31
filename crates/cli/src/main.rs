@@ -64,6 +64,16 @@ enum Commands {
         #[arg(short, long)]
         part: usize,
     },
+    /// Transpose every pitched note and key signature by semitones
+    Transpose {
+        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx)
+        input: PathBuf,
+        /// Output file (.musicxml, .mid, .midi)
+        output: PathBuf,
+        /// Semitones to shift (negative values transpose down)
+        #[arg(short, long)]
+        semitones: i8,
+    },
 }
 
 fn main() {
@@ -84,6 +94,11 @@ fn main() {
             output,
             part,
         } => cmd_extract(input, output, *part),
+        Commands::Transpose {
+            input,
+            output,
+            semitones,
+        } => cmd_transpose(input, output, *semitones),
     };
     if let Err(e) = result {
         eprintln!("error: {e}");
@@ -486,5 +501,17 @@ fn cmd_extract(input: &Path, output: &Path, part_index: usize) -> Result<(), Str
     })?;
     write_score(&extracted, output)?;
     println!("extracted part {} to '{}'", part_index, output.display());
+    Ok(())
+}
+
+fn cmd_transpose(input: &Path, output: &Path, semitones: i8) -> Result<(), String> {
+    let score = parse_score(input)?;
+    let transposed = acorde_core::transpose(&score, semitones);
+    write_score(&transposed, output)?;
+    println!(
+        "transposed {} semitone(s) to '{}'",
+        semitones,
+        output.display()
+    );
     Ok(())
 }

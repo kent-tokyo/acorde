@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.72.0] - 2026-08-31
+
+### Headless transpose automation
+
+- Added `acorde transpose --semitones` to expose the existing typed core transposition operation
+  through the filesystem-owning CLI boundary, preserving the reusable crates' separation.
+
 ## [0.71.0] - 2026-08-31
 
 ### Deterministic render annotation extension points
