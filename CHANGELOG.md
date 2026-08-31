@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-08-31
+
+### Local benchmark CLI
+
+- Added `acorde benchmark` for running a local JSON manifest of score files against the analysis
+  benchmark suite and emitting machine-readable aggregate and failure reports.
+
 ## [0.25.0] - 2026-08-31
 
 ### Analysis benchmark suites

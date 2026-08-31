@@ -10,6 +10,7 @@ acorde info input.musicxml
 acorde validate input.musicxml
 acorde report input.mei
 acorde analyze input.musicxml
+acorde benchmark benchmarks/analysis.json
 acorde extract --part 0 input.musicxml part.musicxml
 ~~~
 
@@ -18,5 +19,11 @@ MusicXML or MIDI. info prints title, counts, tempo, time signature, and duration
 exits with status 1 when structural errors are found. report emits the parsed score and structured
 import diagnostics as JSON.
 analyze emits deterministic chord, melodic-interval, and key-estimate results as JSON.
+benchmark reads a local JSON manifest and emits the deterministic suite report. Paths are relative
+to the manifest file. A manifest case has `name`, `input`, and optional `expected` category counts:
+
+~~~json
+{"cases":[{"name":"sample","input":"../tests/fixtures/simple.musicxml","expected":{"chords":0}}]}
+~~~
 
 [Repository](https://github.com/kent-tokyo/acorde)

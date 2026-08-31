@@ -1,6 +1,7 @@
 use acorde_core::Score;
 use acorde_io::ImportReport;
 use clap::{Parser, Subcommand};
+use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
@@ -42,6 +43,11 @@ enum Commands {
         /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx)
         input: PathBuf,
     },
+    /// Run a local analysis benchmark manifest and print its JSON report
+    Benchmark {
+        /// Manifest JSON containing benchmark cases and expected category counts
+        manifest: PathBuf,
+    },
     /// Extract a single part from a score
     Extract {
         /// Input file (.musicxml, .mxl, .mid, .midi)
@@ -62,6 +68,7 @@ fn main() {
         Commands::Validate { input } => cmd_validate(input),
         Commands::Report { input } => cmd_report(input),
         Commands::Analyze { input } => cmd_analyze(input),
+        Commands::Benchmark { manifest } => cmd_benchmark(manifest),
         Commands::Extract {
             input,
             output,
@@ -156,6 +163,46 @@ fn cmd_analyze(input: &Path) -> Result<(), String> {
     let analysis = acorde_analysis::analyze_score(&score);
     let json = serde_json::to_string_pretty(&analysis)
         .map_err(|e| format!("analysis serialization failed: {e}"))?;
+    println!("{json}");
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+struct BenchmarkManifest {
+    cases: Vec<BenchmarkManifestCase>,
+}
+
+#[derive(Debug, Deserialize)]
+struct BenchmarkManifestCase {
+    name: String,
+    input: PathBuf,
+    #[serde(default)]
+    expected: acorde_analysis::BenchmarkExpectation,
+}
+
+fn cmd_benchmark(manifest: &Path) -> Result<(), String> {
+    let text = std::fs::read_to_string(manifest)
+        .map_err(|e| format!("cannot read '{}': {e}", manifest.display()))?;
+    let manifest_data: BenchmarkManifest = serde_json::from_str(&text)
+        .map_err(|e| format!("invalid benchmark manifest '{}': {e}", manifest.display()))?;
+    let base_dir = manifest.parent().unwrap_or_else(|| Path::new("."));
+    let mut scores = Vec::with_capacity(manifest_data.cases.len());
+    for case in &manifest_data.cases {
+        scores.push(parse_score(&base_dir.join(&case.input))?);
+    }
+    let cases: Vec<_> = manifest_data
+        .cases
+        .iter()
+        .zip(scores.iter())
+        .map(|(case, score)| acorde_analysis::BenchmarkCase {
+            name: &case.name,
+            score,
+            expected: case.expected,
+        })
+        .collect();
+    let report = acorde_analysis::run_benchmark_suite(&cases);
+    let json = serde_json::to_string_pretty(&report)
+        .map_err(|e| format!("benchmark serialization failed: {e}"))?;
     println!("{json}");
     Ok(())
 }
