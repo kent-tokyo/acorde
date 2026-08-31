@@ -81,6 +81,13 @@ enum Commands {
         /// Canonical output file (.musicxml, .mid, .midi)
         output: PathBuf,
     },
+    /// Export a score and print machine-readable conversion diagnostics
+    ExportReport {
+        /// Input score file
+        input: PathBuf,
+        /// Output file (.musicxml, .mid, .midi)
+        output: PathBuf,
+    },
 }
 
 fn main() {
@@ -107,6 +114,7 @@ fn main() {
             semitones,
         } => cmd_transpose(input, output, *semitones),
         Commands::Normalize { input, output } => cmd_normalize(input, output),
+        Commands::ExportReport { input, output } => cmd_export_report(input, output),
     };
     if let Err(e) = result {
         eprintln!("error: {e}");
@@ -535,5 +543,74 @@ fn cmd_normalize(input: &Path, output: &Path) -> Result<(), String> {
     }
     write_score(&score, output)?;
     println!("normalized '{}' to '{}'", input.display(), output.display());
+    Ok(())
+}
+
+#[derive(Debug, Serialize)]
+struct ExportReportSummary {
+    schema_version: u32,
+    format: String,
+    output_path: String,
+    byte_count: usize,
+    warning_count: usize,
+    error_count: usize,
+    loss_count: usize,
+    diagnostics: Vec<acorde_io::Diagnostic>,
+}
+
+fn cmd_export_report(input: &Path, output: &Path) -> Result<(), String> {
+    let score = parse_score(input)?;
+    let ext = output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let (format, bytes, diagnostics, schema_version) = match ext.as_str() {
+        "xml" | "musicxml" => {
+            let report =
+                acorde_io::serialize_musicxml_with_report(&score).map_err(|e| e.to_string())?;
+            (
+                report.format,
+                report.output.into_bytes(),
+                report.diagnostics,
+                report.schema_version,
+            )
+        }
+        "mid" | "midi" => {
+            let report =
+                acorde_io::serialize_midi_with_report(&score).map_err(|e| e.to_string())?;
+            (
+                report.format,
+                report.output,
+                report.diagnostics,
+                report.schema_version,
+            )
+        }
+        other => return Err(format!("unsupported output format: '.{other}'")),
+    };
+    let byte_count = bytes.len();
+    std::fs::write(output, bytes)
+        .map_err(|e| format!("cannot write '{}': {e}", output.display()))?;
+    let summary = ExportReportSummary {
+        schema_version,
+        format,
+        output_path: output.display().to_string(),
+        warning_count: diagnostics
+            .iter()
+            .filter(|d| d.severity == acorde_io::DiagnosticSeverity::Warning)
+            .count(),
+        error_count: diagnostics
+            .iter()
+            .filter(|d| d.severity == acorde_io::DiagnosticSeverity::Error)
+            .count(),
+        loss_count: diagnostics.iter().filter(|d| d.is_loss()).count(),
+        diagnostics,
+        byte_count,
+    };
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&summary)
+            .map_err(|e| format!("report serialization failed: {e}"))?
+    );
     Ok(())
 }

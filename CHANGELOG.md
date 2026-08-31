@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.74.0] - 2026-08-31
+
+### Headless export compatibility reports
+
+- Added `acorde export-report` to export MusicXML or MIDI while emitting deterministic,
+  machine-readable format, size, and loss-diagnostic metadata.
+
 ## [0.73.0] - 2026-08-31
 
 ### Headless normalization automation
