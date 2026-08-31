@@ -100,7 +100,8 @@
       });
       document.querySelector("#score-description").textContent = metadata.accessible_text;
       document.querySelector("#metadata").textContent = JSON.stringify(metadata, null, 2);
-      document.querySelector("#source").value = nextScore;
+      // Keep the editable host surface in MusicXML, never the internal score JSON.
+      document.querySelector("#source").value = serialize_musicxml(nextScore);
       document.querySelector("#apply").disabled = false;
       document.querySelector("#analyze").disabled = false;
       document.querySelector("#export").disabled = false;
@@ -151,6 +152,7 @@
       oscillator.connect(gain).connect(audio.destination); oscillator.start();
       oscillator.stop(audio.currentTime + 0.35); oscillator.addEventListener("ended", () => audio.close());
     });
+    document.querySelector("#source").value = fixture;
     render(score);
   } catch (error) {
     document.querySelector("#status").textContent = `FAIL: ${error}`;

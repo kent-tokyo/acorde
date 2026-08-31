@@ -14,6 +14,9 @@ stable `address_bounds` coverage. It also provides an offline reference workflow
 local MusicXML file, editing and applying the source, undoing/redoing edits, running analysis,
 selecting and playing notes, and exporting MusicXML. It is intentionally framework-free so it can
 also serve as a smoke test for future browser integrations.
+The editor always exposes canonical MusicXML, while the WASM score JSON remains an internal
+transport representation; applying an edit and undoing or redoing it therefore preserves the
+document boundary.
 
 After loading, each `data-note-addr` group is made keyboard-focusable by the host fixture. Click
 or focus a note and press Enter/Space to exercise address-based selection; hover state is kept in

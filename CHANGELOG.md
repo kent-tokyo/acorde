@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.43.0] - 2026-08-31
+
+### Browser document boundary
+
+- Kept the reference editor on canonical MusicXML instead of exposing internal score JSON.
+- Added browser workflow coverage for edit, undo, and redo round trips.
+
 ## [0.42.0] - 2026-08-31
 
 ### Offline browser workflow
