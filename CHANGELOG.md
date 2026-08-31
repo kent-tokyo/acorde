@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.79.0] - 2026-08-31
+
+### Archive declared-size hardening
+
+- Added MXL and MSCZ total declared uncompressed-size checks before archive entry extraction,
+  reducing decompression-bomb exposure across multiple archive entries.
+
 ## [0.78.0] - 2026-08-31
 
 ### Parser event and line-length hardening

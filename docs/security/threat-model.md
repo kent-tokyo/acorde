@@ -25,7 +25,8 @@ silently raise limits based on input data.
 |---|---:|---|
 | Single uncompressed input | 64 MiB | enforced for MusicXML, MIDI, ABC, MEI, and MSCZ/MSCX |
 | Archive entries | 1,024 | enforced for MSCZ |
-| Decompressed archive member | 64 MiB | enforced for MSCZ |
+| MXL total uncompressed size | 32 MiB | enforced before MXL extraction |
+| MSCZ total uncompressed size | 64 MiB | enforced before MSCZ extraction |
 | XML elements | 500,000 | enforced for MusicXML/MEI/MSCX paths where applicable |
 | MIDI events | 500,000 | enforced before MIDI score construction |
 | ABC logical line | 1 MiB | enforced before ABC token scanning |

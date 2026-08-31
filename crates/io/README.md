@@ -25,6 +25,8 @@ Parser and archive trust-boundary rules are documented in the [security contract
 Non-archive parser inputs use a 64 MiB baseline rejection limit; callers should enforce tighter
 budgets when their host resource envelope requires it.
 MIDI decoding also caps events at 500,000, and ABC token scanning caps each logical line at 1 MiB.
+MXL and MSCZ archives also reject a total declared uncompressed size above the archive budget
+before selecting or reading an entry.
 
 ~~~rust
 use acorde_io::{parse_musicxml, serialize_musicxml};

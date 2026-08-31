@@ -17,6 +17,17 @@ pub fn parse_mxl(data: &[u8]) -> Result<Score, Error> {
     if archive.len() > MAX_MXL_ENTRIES {
         return Err(Error::Zip("too many MXL archive entries".into()));
     }
+    let total_uncompressed = (0..archive.len()).try_fold(0_u64, |total, index| {
+        let entry = archive
+            .by_index(index)
+            .map_err(|e| Error::Zip(format!("failed to inspect MXL entry: {e}")))?;
+        total
+            .checked_add(entry.size())
+            .ok_or(Error::TooLarge(usize::MAX))
+    })?;
+    if total_uncompressed > MAX_MXL_DECOMPRESSED {
+        return Err(Error::TooLarge(total_uncompressed as usize));
+    }
 
     let xml = if let Some(path) = read_container_rootfile(&mut archive) {
         validate_zip_path(&path)?;

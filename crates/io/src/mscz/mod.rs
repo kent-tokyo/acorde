@@ -37,6 +37,17 @@ pub fn parse_mscz(data: &[u8]) -> Result<Score, Error> {
     if archive.len() > MAX_MSCZ_ENTRIES {
         return Err(Error::Zip("too many MSCZ archive entries".into()));
     }
+    let total_uncompressed = (0..archive.len()).try_fold(0_u64, |total, index| {
+        let entry = archive
+            .by_index(index)
+            .map_err(|e| Error::Zip(format!("failed to inspect MSCZ entry: {e}")))?;
+        total
+            .checked_add(entry.size())
+            .ok_or(Error::TooLarge(usize::MAX))
+    })?;
+    if total_uncompressed > MAX_MSCX_SIZE {
+        return Err(Error::TooLarge(total_uncompressed as usize));
+    }
     let mscx = extract_mscx(&mut archive)?;
     parse_mscx(&mscx)
 }
