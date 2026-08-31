@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.60.0] - 2026-08-31
+
+### Browser analysis cache contract
+
+- Exposed the schema-versioned analysis cache key through `AcordeWorkspace` and its Worker
+  request boundary, allowing host-level caches to share the same score identity as WASM.
+
 ## [0.59.0] - 2026-08-31
 
 ### Browser analysis cache identity

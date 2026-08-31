@@ -137,6 +137,7 @@ export type WorkspaceRequest =
   | { id: string; type: "render-row-svg"; rowIndex: number }
   | { id: string; type: "metadata" }
   | { id: string; type: "analysis" }
+  | { id: string; type: "analysis-cache-key" }
   | { id: string; type: "export-musicxml" }
   | { id: string; type: "export-musicxml-report" }
   | { id: string; type: "playback-events"; options?: Record<string, unknown> }
@@ -392,6 +393,16 @@ export class AcordeWorkspace {
     return analysis;
   }
 
+  /** Return the schema-versioned score identity used for analysis caching. */
+  analysisCacheKey(): string {
+    this.assertLoaded();
+    try {
+      return this.wasm.analysis_cache_key(this.scoreJson);
+    } catch (cause) {
+      throw this.toWorkspaceError("analysis", cause);
+    }
+  }
+
   /** Serialize the loaded score for an offline MusicXML export. */
   exportMusicXml(): string {
     this.assertLoaded();
@@ -589,6 +600,8 @@ export function handleWorkspaceRequest(
         return { id: request.id, ok: true, value: workspace.metadata() };
       case "analysis":
         return { id: request.id, ok: true, value: workspace.analyze() };
+      case "analysis-cache-key":
+        return { id: request.id, ok: true, value: workspace.analysisCacheKey() };
       case "export-musicxml":
         return { id: request.id, ok: true, value: workspace.exportMusicXml() };
       case "export-musicxml-report":

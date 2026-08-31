@@ -30,6 +30,8 @@ metadata, and analysis transport consistent while `SelectionStore` synchronizes 
 addresses across notation and analysis views. Results are cached by the WASM-provided analysis
 cache key plus layout or render configuration, so repeated view updates and equivalent revisions do
 not rerun WASM analysis or rendering.
+`analysisCacheKey()` and the `analysis-cache-key` Worker request expose the same schema-versioned
+score identity to a host-level or persistent cache without duplicating hashing logic in JavaScript.
 `renderRowSvg(rowIndex)` exposes the same contract one logical row at a time, which lets a host
 virtualize long scores without moving row/index arithmetic into the UI.
 Parse, layout, render, metadata, and analysis failures are raised as `AcordeWorkspaceError` with
