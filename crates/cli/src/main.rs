@@ -1,7 +1,7 @@
 use acorde_core::Score;
 use acorde_io::ImportReport;
 use clap::{Parser, Subcommand};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
@@ -175,6 +175,10 @@ fn cmd_analyze(input: &Path) -> Result<(), String> {
 
 #[derive(Debug, Deserialize)]
 struct BenchmarkManifest {
+    schema_version: u32,
+    corpus_id: String,
+    corpus_version: String,
+    license: String,
     cases: Vec<BenchmarkManifestCase>,
 }
 
@@ -182,8 +186,32 @@ struct BenchmarkManifest {
 struct BenchmarkManifestCase {
     name: String,
     input: PathBuf,
+    coverage: Vec<String>,
+    provenance: String,
     #[serde(default)]
     expected: acorde_analysis::BenchmarkExpectation,
+}
+
+#[derive(Debug, Serialize)]
+struct BenchmarkCorpusMetadata {
+    schema_version: u32,
+    corpus_id: String,
+    corpus_version: String,
+    license: String,
+    cases: Vec<BenchmarkCorpusCaseMetadata>,
+}
+
+#[derive(Debug, Serialize)]
+struct BenchmarkCorpusCaseMetadata {
+    name: String,
+    coverage: Vec<String>,
+    provenance: String,
+}
+
+#[derive(Debug, Serialize)]
+struct BenchmarkOutput {
+    corpus: BenchmarkCorpusMetadata,
+    report: acorde_analysis::BenchmarkSuiteReport,
 }
 
 fn cmd_benchmark(manifest: &Path, fail_on_mismatch: bool) -> Result<(), String> {
@@ -207,13 +235,33 @@ fn cmd_benchmark(manifest: &Path, fail_on_mismatch: bool) -> Result<(), String> 
         })
         .collect();
     let report = acorde_analysis::run_benchmark_suite(&cases);
-    let json = serde_json::to_string_pretty(&report)
+    drop(cases);
+    let output = BenchmarkOutput {
+        corpus: BenchmarkCorpusMetadata {
+            schema_version: manifest_data.schema_version,
+            corpus_id: manifest_data.corpus_id,
+            corpus_version: manifest_data.corpus_version,
+            license: manifest_data.license,
+            cases: manifest_data
+                .cases
+                .into_iter()
+                .map(|case| BenchmarkCorpusCaseMetadata {
+                    name: case.name,
+                    coverage: case.coverage,
+                    provenance: case.provenance,
+                })
+                .collect(),
+        },
+        report,
+    };
+    let failed_case_count = output.report.failed_case_count;
+    let json = serde_json::to_string_pretty(&output)
         .map_err(|e| format!("benchmark serialization failed: {e}"))?;
     println!("{json}");
-    if fail_on_mismatch && report.failed_case_count > 0 {
+    if fail_on_mismatch && failed_case_count > 0 {
         return Err(format!(
             "benchmark failed: {} of {} case(s) contain mismatches",
-            report.failed_case_count, report.case_count
+            failed_case_count, output.report.case_count
         ));
     }
     Ok(())

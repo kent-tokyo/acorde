@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.67.0] - 2026-08-31
+
+### Benchmark provenance output
+
+- Extended the local benchmark command to emit corpus identity, license, coverage, and provenance
+  metadata alongside its deterministic analysis report.
+
 ## [0.66.0] - 2026-08-31
 
 ### Versioned analysis benchmark corpus
