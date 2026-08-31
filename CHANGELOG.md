@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-08-31
+
+### Browser workspace caches
+
+- Added revision- and configuration-keyed adapter caches for layout, SVG, metadata, and analysis
+  results.
+- Exposed the workspace revision in snapshots for host-side invalidation and synchronization.
+
 ## [0.28.0] - 2026-08-31
 
 ### Browser workspace adapter

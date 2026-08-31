@@ -22,6 +22,7 @@ export interface SelectionStore {
 }
 
 export interface WorkspaceSnapshot {
+  revision: number;
   scoreJson: string;
   layoutJson: string;
   metadata: Record<string, unknown>;
@@ -49,6 +50,11 @@ export class AcordeWorkspace {
   readonly selection: SelectionStore;
   private scoreJson = "";
   private layoutJson = "";
+  private revisionNumber = 0;
+  private readonly layoutCache = new Map<string, string>();
+  private readonly renderCache = new Map<string, string>();
+  private readonly metadataCache = new Map<string, Record<string, unknown>>();
+  private readonly analysisCache = new Map<string, Record<string, unknown>>();
 
   constructor(
     private readonly wasm: WasmBindings,
@@ -60,38 +66,61 @@ export class AcordeWorkspace {
 
   loadMusicXml(xml: string): void {
     this.scoreJson = this.wasm.parse_musicxml(xml);
-    this.layoutJson = this.wasm.compute_layout_ex(
+    this.layoutCache.clear();
+    this.renderCache.clear();
+    this.metadataCache.clear();
+    this.analysisCache.clear();
+    this.revisionNumber += 1;
+    const layoutOptionsJson = JSON.stringify(this.options.layout ?? {});
+    const layoutKey = `${this.revisionNumber}:${layoutOptionsJson}`;
+    this.layoutJson = this.layoutCache.get(layoutKey) ?? this.wasm.compute_layout_ex(
       this.scoreJson,
-      JSON.stringify(this.options.layout ?? {}),
+      layoutOptionsJson,
     );
+    this.layoutCache.set(layoutKey, this.layoutJson);
     this.selection.set(null);
+  }
+
+  get revision(): number {
+    return this.revisionNumber;
   }
 
   renderSvg(): string {
     this.assertLoaded();
-    return this.wasm.render_score_svg_with_layout(
-      this.scoreJson,
-      this.layoutJson,
-      JSON.stringify(this.options.render ?? {}),
-    );
+    const optionsJson = JSON.stringify(this.options.render ?? {});
+    const key = `${this.revisionNumber}:${this.layoutJson}:${optionsJson}`;
+    const cached = this.renderCache.get(key);
+    if (cached !== undefined) return cached;
+    const svg = this.wasm.render_score_svg_with_layout(this.scoreJson, this.layoutJson, optionsJson);
+    this.renderCache.set(key, svg);
+    return svg;
   }
 
   metadata(): Record<string, unknown> {
     this.assertLoaded();
-    return JSON.parse(this.wasm.render_score_metadata(
-      this.scoreJson,
-      this.layoutJson,
-      JSON.stringify(this.options.render ?? {}),
+    const optionsJson = JSON.stringify(this.options.render ?? {});
+    const key = `${this.revisionNumber}:${this.layoutJson}:${optionsJson}`;
+    const cached = this.metadataCache.get(key);
+    if (cached !== undefined) return cached;
+    const metadata = JSON.parse(this.wasm.render_score_metadata(
+      this.scoreJson, this.layoutJson, optionsJson,
     )) as Record<string, unknown>;
+    this.metadataCache.set(key, metadata);
+    return metadata;
   }
 
   analyze(): Record<string, unknown> {
     this.assertLoaded();
-    return JSON.parse(this.wasm.analyze_score(this.scoreJson)) as Record<string, unknown>;
+    const cached = this.analysisCache.get(String(this.revisionNumber));
+    if (cached !== undefined) return cached;
+    const analysis = JSON.parse(this.wasm.analyze_score(this.scoreJson)) as Record<string, unknown>;
+    this.analysisCache.set(String(this.revisionNumber), analysis);
+    return analysis;
   }
 
   snapshot(): WorkspaceSnapshot {
     return {
+      revision: this.revisionNumber,
       scoreJson: this.scoreJson,
       layoutJson: this.layoutJson,
       metadata: this.metadata(),

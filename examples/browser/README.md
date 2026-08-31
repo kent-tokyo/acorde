@@ -22,4 +22,5 @@ selection/highlighting/playback belong to the browser host rather than the state
 `acorde-adapter.ts` is a dependency-free, framework-neutral starting point for a browser
 workspace. Inject the generated WASM module into `AcordeWorkspace`; it keeps score, layout,
 metadata, and analysis transport consistent while `SelectionStore` synchronizes stable note
-addresses across notation and analysis views.
+addresses across notation and analysis views. Results are cached by score revision plus layout or
+render configuration, so repeated view updates do not rerun WASM analysis or rendering.
