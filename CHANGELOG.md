@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.45.0] - 2026-08-31
+
+### Security contract and CI gates
+
+- Added a repository security contract covering trust boundaries, resource limits, browser
+  integration, reporting, and release verification.
+- Added cargo-deny license/source policy and CI advisory, license, and source checks.
+
 ## [0.44.0] - 2026-08-31
 
 ### Parser and dependency hardening

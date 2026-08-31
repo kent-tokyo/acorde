@@ -10,6 +10,21 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
+  security:
+    name: Dependency security and license checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit and cargo-deny
+        run: |
+          cargo install cargo-audit --locked
+          cargo install cargo-deny --locked
+      - name: Audit advisories
+        run: cargo audit
+      - name: Check advisories, licenses, and sources
+        run: cargo deny check advisories licenses sources
+
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
