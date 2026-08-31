@@ -75,6 +75,8 @@ export class AcordeWorkspace {
   private readonly renderCache = new Map<string, string>();
   private readonly metadataCache = new Map<string, Record<string, unknown>>();
   private readonly analysisCache = new Map<string, Record<string, unknown>>();
+  private readonly undoStack: string[] = [];
+  private readonly redoStack: string[] = [];
 
   constructor(
     private readonly wasm: WasmBindings,
@@ -98,16 +100,55 @@ export class AcordeWorkspace {
     } catch (cause) {
       throw this.toWorkspaceError("layout", cause);
     }
-    this.layoutCache.clear();
-    this.renderCache.clear();
-    this.metadataCache.clear();
-    this.analysisCache.clear();
-    this.revisionNumber += 1;
-    const layoutKey = `${this.revisionNumber}:${layoutOptionsJson}`;
-    this.scoreJson = nextScore;
-    this.layoutJson = nextLayout;
-    this.layoutCache.set(layoutKey, this.layoutJson);
+    this.undoStack.length = 0;
+    this.redoStack.length = 0;
+    this.installScore(nextScore, nextLayout, layoutOptionsJson);
     this.selection.set(null);
+  }
+
+  /** Replace the current score with an already serialized score and record it for undo. */
+  replaceScoreJson(nextScoreJson: string): void {
+    const layoutOptionsJson = JSON.stringify(this.options.layout ?? {});
+    let nextLayout: string;
+    try {
+      nextLayout = this.wasm.compute_layout_ex(nextScoreJson, layoutOptionsJson);
+    } catch (cause) {
+      throw this.toWorkspaceError("layout", cause);
+    }
+    if (this.scoreJson) this.undoStack.push(this.scoreJson);
+    this.redoStack.length = 0;
+    this.installScore(nextScoreJson, nextLayout, layoutOptionsJson);
+    this.selection.set(null);
+  }
+
+  canUndo(): boolean {
+    return this.undoStack.length > 0;
+  }
+
+  canRedo(): boolean {
+    return this.redoStack.length > 0;
+  }
+
+  undo(): boolean {
+    const previous = this.undoStack[this.undoStack.length - 1];
+    if (previous === undefined) return false;
+    const restored = this.prepareScore(previous);
+    this.undoStack.pop();
+    this.redoStack.push(this.scoreJson);
+    this.installScore(restored.scoreJson, restored.layoutJson, restored.layoutOptionsJson);
+    this.selection.set(null);
+    return true;
+  }
+
+  redo(): boolean {
+    const next = this.redoStack[this.redoStack.length - 1];
+    if (next === undefined) return false;
+    const restored = this.prepareScore(next);
+    this.redoStack.pop();
+    this.undoStack.push(this.scoreJson);
+    this.installScore(restored.scoreJson, restored.layoutJson, restored.layoutOptionsJson);
+    this.selection.set(null);
+    return true;
   }
 
   get revision(): number {
@@ -195,6 +236,34 @@ export class AcordeWorkspace {
     if (!this.scoreJson || !this.layoutJson) {
       throw new Error("A score must be loaded before rendering or analysis");
     }
+  }
+
+  private prepareScore(scoreJson: string): {
+    scoreJson: string;
+    layoutJson: string;
+    layoutOptionsJson: string;
+  } {
+    const layoutOptionsJson = JSON.stringify(this.options.layout ?? {});
+    try {
+      return {
+        scoreJson,
+        layoutJson: this.wasm.compute_layout_ex(scoreJson, layoutOptionsJson),
+        layoutOptionsJson,
+      };
+    } catch (cause) {
+      throw this.toWorkspaceError("layout", cause);
+    }
+  }
+
+  private installScore(scoreJson: string, layoutJson: string, layoutOptionsJson: string): void {
+    this.layoutCache.clear();
+    this.renderCache.clear();
+    this.metadataCache.clear();
+    this.analysisCache.clear();
+    this.revisionNumber += 1;
+    this.scoreJson = scoreJson;
+    this.layoutJson = layoutJson;
+    this.layoutCache.set(`${this.revisionNumber}:${layoutOptionsJson}`, layoutJson);
   }
 
   private toWorkspaceError(operation: WorkspaceOperation, cause: unknown): AcordeWorkspaceError {

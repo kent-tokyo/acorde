@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-08-31
+
+### Browser workspace edit history
+
+- Added score JSON replacement with transactional layout preparation and undo/redo history to the
+  browser adapter.
+- Added `canUndo` and `canRedo` state queries for host controls.
+
 ## [0.31.0] - 2026-08-31
 
 ### Browser workspace diagnostics

@@ -28,4 +28,5 @@ render configuration, so repeated view updates do not rerun WASM analysis or ren
 virtualize long scores without moving row/index arithmetic into the UI.
 Parse, layout, render, metadata, and analysis failures are raised as `AcordeWorkspaceError` with
 a typed operation field, allowing a host to show an actionable diagnostic without matching error
-message text.
+message text. `replaceScoreJson`, `undo`, and `redo` provide a small host-facing edit history;
+failed layout preparation leaves the current score unchanged.
