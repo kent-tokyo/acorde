@@ -2,7 +2,14 @@
 
 export type NoteAddress = string;
 
-export type WorkspaceOperation = "parse" | "layout" | "render" | "metadata" | "analysis";
+export type WorkspaceOperation =
+  | "parse"
+  | "layout"
+  | "render"
+  | "metadata"
+  | "analysis"
+  | "serialize"
+  | "playback";
 
 /** Structured, host-facing error for showing a repair hint without parsing strings. */
 export class AcordeWorkspaceError extends Error {
@@ -18,6 +25,8 @@ export class AcordeWorkspaceError extends Error {
 
 export interface WasmBindings {
   parse_musicxml(xml: string): string;
+  parse_midi(data: Uint8Array): string;
+  serialize_musicxml(scoreJson: string): string;
   compute_layout_ex(scoreJson: string, configJson: string): string;
   render_score_svg_with_layout(scoreJson: string, layoutJson: string, optionsJson: string): string;
   render_score_svg_row(
@@ -28,6 +37,9 @@ export interface WasmBindings {
   ): string;
   render_score_metadata(scoreJson: string, layoutJson: string, optionsJson: string): string;
   analyze_score(scoreJson: string): string;
+  to_playback_events_ex(scoreJson: string, optionsJson: string): string;
+  compute_playback_position(scoreJson: string, optionsJson: string, elapsedSecs: number): string;
+  score_duration_secs(scoreJson: string): number;
 }
 
 export interface ScoreWorkspaceOptions {
@@ -103,6 +115,21 @@ export class AcordeWorkspace {
     this.undoStack.length = 0;
     this.redoStack.length = 0;
     this.installScore(nextScore, nextLayout, layoutOptionsJson);
+    this.selection.set(null);
+  }
+
+  /** Load MIDI bytes and replace the current document transactionally. */
+  loadMidi(data: Uint8Array): void {
+    let nextScore: string;
+    try {
+      nextScore = this.wasm.parse_midi(data);
+    } catch (cause) {
+      throw this.toWorkspaceError("parse", cause);
+    }
+    const prepared = this.prepareScore(nextScore);
+    this.undoStack.length = 0;
+    this.redoStack.length = 0;
+    this.installScore(prepared.scoreJson, prepared.layoutJson, prepared.layoutOptionsJson);
     this.selection.set(null);
   }
 
@@ -220,6 +247,56 @@ export class AcordeWorkspace {
     }
     this.analysisCache.set(String(this.revisionNumber), analysis);
     return analysis;
+  }
+
+  /** Serialize the loaded score for an offline MusicXML export. */
+  exportMusicXml(): string {
+    this.assertLoaded();
+    try {
+      return this.wasm.serialize_musicxml(this.scoreJson);
+    } catch (cause) {
+      throw this.toWorkspaceError("serialize", cause);
+    }
+  }
+
+  /** Produce host-independent playback events for the loaded score. */
+  playbackEvents(options: Record<string, unknown> = {}): Record<string, unknown>[] {
+    this.assertLoaded();
+    try {
+      return JSON.parse(this.wasm.to_playback_events_ex(
+        this.scoreJson,
+        JSON.stringify(options),
+      )) as Record<string, unknown>[];
+    } catch (cause) {
+      throw this.toWorkspaceError("playback", cause);
+    }
+  }
+
+  /** Resolve the playback cursor at an elapsed time in seconds. */
+  playbackPosition(
+    elapsedSecs: number,
+    options: Record<string, unknown> = {},
+  ): Record<string, unknown> | null {
+    this.assertLoaded();
+    try {
+      return JSON.parse(this.wasm.compute_playback_position(
+        this.scoreJson,
+        JSON.stringify(options),
+        elapsedSecs,
+      )) as Record<string, unknown> | null;
+    } catch (cause) {
+      throw this.toWorkspaceError("playback", cause);
+    }
+  }
+
+  /** Return the score duration used to schedule host playback. */
+  durationSeconds(): number {
+    this.assertLoaded();
+    try {
+      return this.wasm.score_duration_secs(this.scoreJson);
+    } catch (cause) {
+      throw this.toWorkspaceError("playback", cause);
+    }
   }
 
   snapshot(): WorkspaceSnapshot {

@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-08-31
+
+### Browser playback and export
+
+- Added MIDI loading, MusicXML export, playback-event generation, playback-position lookup,
+  and duration access to the browser adapter.
+
 ## [0.32.0] - 2026-08-31
 
 ### Browser workspace edit history

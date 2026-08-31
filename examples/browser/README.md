@@ -30,3 +30,7 @@ Parse, layout, render, metadata, and analysis failures are raised as `AcordeWork
 a typed operation field, allowing a host to show an actionable diagnostic without matching error
 message text. `replaceScoreJson`, `undo`, and `redo` provide a small host-facing edit history;
 failed layout preparation leaves the current score unchanged.
+`loadMidi` adds binary MIDI loading with the same transactional replacement behavior, while
+`exportMusicXml` provides offline MusicXML export. `playbackEvents`, `playbackPosition`, and
+`durationSeconds` expose deterministic scheduling data to a host audio backend without coupling
+the adapter to Web Audio or another playback framework.
