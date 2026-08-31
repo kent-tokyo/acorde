@@ -1,6 +1,6 @@
 # acorde
 
-Platform-agnostic music score library for Rust and WebAssembly (v0.72.0).
+Platform-agnostic music score library for Rust and WebAssembly (v0.73.0).
 
 acorde provides a serializable score model, undoable commands, format I/O, logical layout,
 deterministic SVG rendering, playback events, and WASM bindings. Core libraries are synchronous,
@@ -84,6 +84,7 @@ acorde info input.musicxml
 acorde validate input.musicxml
 acorde extract --part 0 input.musicxml part.musicxml
 acorde transpose --semitones 2 input.musicxml transposed.musicxml
+acorde normalize input.musicxml normalized.musicxml
 ```
 
 The CLI supports `.musicxml`, `.mxl`, `.mid`/`.midi`, `.mscz`, and `.mscx` input. Conversion

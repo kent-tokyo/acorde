@@ -74,6 +74,13 @@ enum Commands {
         #[arg(short, long)]
         semitones: i8,
     },
+    /// Parse, structurally validate, and rewrite a score in canonical output form
+    Normalize {
+        /// Input score file
+        input: PathBuf,
+        /// Canonical output file (.musicxml, .mid, .midi)
+        output: PathBuf,
+    },
 }
 
 fn main() {
@@ -99,6 +106,7 @@ fn main() {
             output,
             semitones,
         } => cmd_transpose(input, output, *semitones),
+        Commands::Normalize { input, output } => cmd_normalize(input, output),
     };
     if let Err(e) = result {
         eprintln!("error: {e}");
@@ -513,5 +521,19 @@ fn cmd_transpose(input: &Path, output: &Path, semitones: i8) -> Result<(), Strin
         semitones,
         output.display()
     );
+    Ok(())
+}
+
+fn cmd_normalize(input: &Path, output: &Path) -> Result<(), String> {
+    let score = parse_score(input)?;
+    let validation = acorde_core::validate(&score);
+    if !validation.errors.is_empty() {
+        return Err(format!(
+            "cannot normalize structurally invalid score: {} error(s)",
+            validation.errors.len()
+        ));
+    }
+    write_score(&score, output)?;
+    println!("normalized '{}' to '{}'", input.display(), output.display());
     Ok(())
 }

@@ -1,6 +1,6 @@
 # Notation coverage matrix
 
-This matrix is versioned with the library. It describes the v0.72.x capability slices and is
+This matrix is versioned with the library. It describes the v0.73.x capability slices and is
 intended to make information loss explicit. MEI import reports now identify supported-subset
 losses for known unsupported elements; other partial-format losses remain documented here until
 their parser-specific diagnostics are implemented.
@@ -37,7 +37,7 @@ the `Score` model; rendering and export can have narrower format-specific covera
 
 ## Versioning and evidence
 
-The matrix applies to v0.72.x. Each `yes` slice must have a fixture or focused round-trip test in
+The matrix applies to v0.73.x. Each `yes` slice must have a fixture or focused round-trip test in
 the repository. Known losses are tracked here until `ImportReport` and `ExportReport` expose source
 location, severity, preserved value, and loss reason through the native, CLI, and WASM APIs. The
 MEI boundary currently supports one part, one staff/layer per measure, title, notes, rests,

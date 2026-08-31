@@ -13,6 +13,7 @@ acorde analyze input.musicxml
 acorde benchmark benchmarks/analysis.json --fail-on-mismatch
 acorde extract --part 0 input.musicxml part.musicxml
 acorde transpose --semitones 2 input.musicxml transposed.musicxml
+acorde normalize input.musicxml normalized.musicxml
 ~~~
 
 Input supports .musicxml, .mxl, .mid/.midi, .abc, .mei, .mscz, and .mscx. Conversion output is

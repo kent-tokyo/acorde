@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.73.0] - 2026-08-31
+
+### Headless normalization automation
+
+- Added `acorde normalize` to parse, structurally validate, and canonically rewrite a score
+  through the CLI boundary before exporting it as MusicXML or MIDI.
+
 ## [0.72.0] - 2026-08-31
 
 ### Headless transpose automation
