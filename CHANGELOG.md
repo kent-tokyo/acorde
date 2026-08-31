@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.58.0] - 2026-08-31
+
+### WASM analysis cache key
+
+- Added a WASM `analysis_cache_key` export for cache invalidation without serializing a full
+  analysis result.
+- Added a native helper that computes the current schema-versioned key without running analysis.
+
 ## [0.57.0] - 2026-08-31
 
 ### Analysis score consistency
@@ -37,6 +45,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Added a deterministic score fingerprint to `AnalysisResult` for cache keys and reproducibility
   checks.
+- Excluded generated score identifiers from the fingerprint so equivalent newly constructed
+  scores produce the same key.
 - Bumped the analysis result schema with backwards-compatible deserialization defaults.
 
 ## [0.53.0] - 2026-08-31

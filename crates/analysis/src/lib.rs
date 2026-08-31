@@ -23,7 +23,7 @@ pub struct ChordLabel {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AnalysisResult {
     pub schema_version: u32,
-    /// Deterministic fingerprint of the canonical input score JSON.
+    /// Deterministic fingerprint of the canonical input score content.
     #[serde(default)]
     pub score_fingerprint: String,
     pub chords: Vec<ChordLabel>,
@@ -327,9 +327,37 @@ pub fn analyze_score(score: &Score) -> AnalysisResult {
 
 /// Return a deterministic, non-cryptographic fingerprint for a canonical score.
 pub fn score_fingerprint(score: &Score) -> String {
-    let bytes = serde_json::to_vec(score).unwrap_or_default();
+    let mut value = serde_json::to_value(score).unwrap_or_default();
+    remove_generated_ids(&mut value);
+    let bytes = serde_json::to_vec(&value).unwrap_or_default();
     let hash = fnv1a64(&bytes);
     format!("fnv1a64-{hash:016x}")
+}
+
+fn remove_generated_ids(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(object) => {
+            object.remove("id");
+            for child in object.values_mut() {
+                remove_generated_ids(child);
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for child in values {
+                remove_generated_ids(child);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Return the current schema-versioned cache key without running the analysis passes.
+pub fn analysis_cache_key(score: &Score) -> String {
+    format!(
+        "analysis-v{}-{}",
+        ANALYSIS_SCHEMA_VERSION,
+        score_fingerprint(score)
+    )
 }
 
 fn fnv1a64(bytes: &[u8]) -> u64 {
@@ -1083,6 +1111,7 @@ mod tests {
     fn cache_key_includes_schema_and_score_identity() {
         let result = analyze_score(&Score::default());
         assert!(result.cache_key().starts_with("analysis-v7-fnv1a64-"));
+        assert_eq!(result.cache_key(), analysis_cache_key(&Score::default()));
         let mut changed = result.clone();
         changed.schema_version = 8;
         assert_ne!(result.cache_key(), changed.cache_key());

@@ -426,6 +426,13 @@ pub fn analyze_score(score_json: &str) -> Result<String, JsValue> {
         .map_err(|e| js_err(format!("analysis serialization failed: {e}")))
 }
 
+/// Return the schema-versioned analysis cache key for a score JSON string.
+#[wasm_bindgen]
+pub fn analysis_cache_key(score_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    Ok(acorde_analysis::analysis_cache_key(&score))
+}
+
 // ── Accordion arrangement ─────────────────────────────────────────────────────
 
 /// Rank a score's non-percussion parts by mean pitch for accordion arrangement.
