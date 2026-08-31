@@ -169,6 +169,29 @@ pub struct AnalysisCounts {
     pub phrase_boundaries: usize,
 }
 
+/// An analysis category that can be compared in a benchmark report.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum BenchmarkCategory {
+    Chords,
+    Intervals,
+    KeyEstimates,
+    CadenceCandidates,
+    VoiceLeading,
+    SatbDiagnostics,
+    Motifs,
+    PhraseBoundaries,
+}
+
+/// A category-level benchmark mismatch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BenchmarkFailure {
+    pub category: BenchmarkCategory,
+    pub expected: usize,
+    pub predicted: usize,
+    pub missing: usize,
+    pub excess: usize,
+}
+
 /// One benchmark fixture and its hand-verified expectation.
 #[derive(Debug, Clone)]
 pub struct BenchmarkCase<'a> {
@@ -186,6 +209,7 @@ pub struct BenchmarkCaseReport {
     pub precision_percent: u8,
     pub recall_percent: u8,
     pub explanation_completeness_percent: u8,
+    pub failures: Vec<BenchmarkFailure>,
 }
 
 /// A consecutive melodic interval with addresses for both source notes.
@@ -371,6 +395,54 @@ pub fn benchmark_case(case: &BenchmarkCase<'_>) -> BenchmarkCaseReport {
     }
     .total();
     let predicted_total = predicted.total();
+    let failures = [
+        (BenchmarkCategory::Chords, expected.chords, predicted.chords),
+        (
+            BenchmarkCategory::Intervals,
+            expected.intervals,
+            predicted.intervals,
+        ),
+        (
+            BenchmarkCategory::KeyEstimates,
+            expected.key_estimates,
+            predicted.key_estimates,
+        ),
+        (
+            BenchmarkCategory::CadenceCandidates,
+            expected.cadence_candidates,
+            predicted.cadence_candidates,
+        ),
+        (
+            BenchmarkCategory::VoiceLeading,
+            expected.voice_leading,
+            predicted.voice_leading,
+        ),
+        (
+            BenchmarkCategory::SatbDiagnostics,
+            expected.satb_diagnostics,
+            predicted.satb_diagnostics,
+        ),
+        (BenchmarkCategory::Motifs, expected.motifs, predicted.motifs),
+        (
+            BenchmarkCategory::PhraseBoundaries,
+            expected.phrase_boundaries,
+            predicted.phrase_boundaries,
+        ),
+    ]
+    .into_iter()
+    .filter_map(|(category, expected, predicted)| {
+        if expected == predicted {
+            return None;
+        }
+        Some(BenchmarkFailure {
+            category,
+            expected,
+            predicted,
+            missing: expected.saturating_sub(predicted),
+            excess: predicted.saturating_sub(expected),
+        })
+    })
+    .collect();
     BenchmarkCaseReport {
         name: case.name.to_string(),
         predicted,
@@ -378,6 +450,7 @@ pub fn benchmark_case(case: &BenchmarkCase<'_>) -> BenchmarkCaseReport {
         precision_percent: percentage(matched, predicted_total),
         recall_percent: percentage(matched, expected_total),
         explanation_completeness_percent: percentage(predicted.explained(&result), predicted_total),
+        failures,
     }
 }
 
@@ -1070,5 +1143,30 @@ mod tests {
         assert_eq!(reports[0].precision_percent, 100);
         assert_eq!(reports[0].recall_percent, 100);
         assert_eq!(reports[0].explanation_completeness_percent, 100);
+        assert!(reports[0].failures.is_empty());
+    }
+
+    #[test]
+    fn benchmark_reports_category_level_failure_details() {
+        let score = Score::default();
+        let cases = [BenchmarkCase {
+            name: "under-annotated-score",
+            score: &score,
+            expected: BenchmarkExpectation {
+                phrase_boundaries: 5,
+                ..BenchmarkExpectation::default()
+            },
+        }];
+        let reports = run_benchmark(&cases);
+        assert_eq!(
+            reports[0].failures,
+            vec![BenchmarkFailure {
+                category: BenchmarkCategory::PhraseBoundaries,
+                expected: 5,
+                predicted: 4,
+                missing: 1,
+                excess: 0,
+            }]
+        );
     }
 }

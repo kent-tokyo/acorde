@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-08-31
+
+### Analysis benchmark failure reports
+
+- Added typed category-level benchmark failures with expected, predicted, missing, and excess
+  counts, so benchmark reports identify the analysis categories requiring review.
+
 ## [0.23.0] - 2026-08-31
 
 ### Analysis benchmark contract

@@ -24,6 +24,7 @@ assert!(result.chords.is_empty());
 lazy iterator for host-side streaming. Both use the same deterministic result contract.
 
 Offline benchmark consumers can use `BenchmarkCase` and `run_benchmark` with hand-verified
-category counts. The report includes predicted counts, precision, recall, and explanation
-completeness; latency should be measured by the host benchmark runner and is intentionally not
-embedded in the deterministic analysis result.
+category counts. The report includes predicted counts, precision, recall, explanation
+completeness, and category-level `BenchmarkFailure` records with missing or excess predictions.
+Latency should be measured by the host benchmark runner and is intentionally not embedded in the
+deterministic analysis result.
