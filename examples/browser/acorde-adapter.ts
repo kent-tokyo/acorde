@@ -93,11 +93,22 @@ export interface WorkspaceSnapshot {
   analysis: Record<string, unknown>;
 }
 
+/** Encode score JSON for a Worker structured-clone boundary without a string copy. */
+export function encodeScoreJson(scoreJson: string): Uint8Array {
+  return new TextEncoder().encode(scoreJson);
+}
+
+/** Decode score JSON received through a Worker structured-clone boundary. */
+export function decodeScoreJson(data: Uint8Array): string {
+  return new TextDecoder("utf-8", { fatal: true }).decode(data);
+}
+
 export type WorkspaceRequest =
   | { id: string; type: "load-musicxml"; xml: string }
   | { id: string; type: "load-musicxml-report"; xml: string }
   | { id: string; type: "load-midi"; data: Uint8Array }
   | { id: string; type: "replace-score"; scoreJson: string }
+  | { id: string; type: "replace-score-bytes"; data: Uint8Array }
   | { id: string; type: "undo" }
   | { id: string; type: "redo" }
   | { id: string; type: "snapshot" }
@@ -221,6 +232,21 @@ export class AcordeWorkspace {
     this.redoStack.length = 0;
     this.installScore(nextScoreJson, nextLayout, layoutOptionsJson);
     this.selection.set(null);
+  }
+
+  /** Replace the current score from UTF-8 score JSON received via structured clone. */
+  replaceScoreJsonBytes(data: Uint8Array): void {
+    try {
+      this.replaceScoreJson(decodeScoreJson(data));
+    } catch (cause) {
+      throw this.toWorkspaceError("parse", cause);
+    }
+  }
+
+  /** Return the current score JSON as UTF-8 bytes for compact Worker transport. */
+  scoreJsonBytes(): Uint8Array {
+    this.assertLoaded();
+    return encodeScoreJson(this.scoreJson);
   }
 
   canUndo(): boolean {
@@ -487,6 +513,9 @@ export function handleWorkspaceRequest(
         return { id: request.id, ok: true, value: workspace.snapshot() };
       case "replace-score":
         workspace.replaceScoreJson(request.scoreJson);
+        return { id: request.id, ok: true, value: workspace.snapshot() };
+      case "replace-score-bytes":
+        workspace.replaceScoreJsonBytes(request.data);
         return { id: request.id, ok: true, value: workspace.snapshot() };
       case "undo":
         return { id: request.id, ok: true, value: workspace.undo() };

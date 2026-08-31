@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-08-31
+
+### Compact browser score transport
+
+- Added UTF-8 score JSON encode/decode helpers and byte-based workspace replacement for Worker
+  structured-clone transport.
+- Added a byte-oriented score request while preserving the existing string-based API.
+
 ## [0.38.0] - 2026-08-31
 
 ### Worker-friendly browser workspace protocol

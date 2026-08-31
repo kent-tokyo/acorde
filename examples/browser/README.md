@@ -46,3 +46,6 @@ state available to persistence and view synchronization code.
 `WorkspaceRequest` and `handleWorkspaceRequest` provide a serializable message boundary for
 Worker hosts; the same handler returns correlated success or structured error responses for load,
 edit, render, analysis, playback, and export operations.
+`encodeScoreJson`, `decodeScoreJson`, `scoreJsonBytes`, and the `replace-score-bytes` request use
+UTF-8 `Uint8Array` transport, preserving the string API while allowing Worker structured-clone
+messages to avoid carrying an additional JavaScript string representation.
