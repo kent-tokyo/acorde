@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 pub enum Command {
     AddNote(AddNoteCmd),
     AddPitch(AddPitchCmd),
+    SetDuration(SetDurationCmd),
     DeleteNote(DeleteNoteCmd),
     AddMeasure(AddMeasureCmd),
     DeleteMeasure(DeleteMeasureCmd),
@@ -93,6 +94,18 @@ pub struct AddPitchCmd {
     pub voice: usize,
     pub note_index: usize,
     pub pitch: Pitch,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetDurationCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub voice: usize,
+    pub note_index: usize,
+    pub duration: Duration,
+    #[serde(default)]
+    pub dot_count: u8,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -758,6 +771,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         // Measure scope
         Command::AddNote(c) => hint!(meas!(c), false, true),
         Command::AddPitch(c) => hint!(meas!(c), false, true),
+        Command::SetDuration(c) => hint!(meas!(c), false, true),
         Command::DeleteNote(c) => hint!(meas!(c), false, true),
         Command::PasteVoice(c) => hint!(meas!(c), false, true),
         Command::PasteRange(c) => hint!(
@@ -821,6 +835,7 @@ pub fn command_label(cmd: &Command) -> String {
     match cmd {
         Command::AddNote(_) => "Add Note".to_string(),
         Command::AddPitch(_) => "Add Pitch".to_string(),
+        Command::SetDuration(_) => "Set Duration".to_string(),
         Command::DeleteNote(_) => "Delete Note".to_string(),
         Command::AddMeasure(_) => "Add Measure".to_string(),
         Command::DeleteMeasure(_) => "Delete Measure".to_string(),
@@ -902,6 +917,7 @@ pub fn command_key(cmd: &Command) -> String {
     match cmd {
         Command::AddNote(_) => "AddNote".to_string(),
         Command::AddPitch(_) => "AddPitch".to_string(),
+        Command::SetDuration(_) => "SetDuration".to_string(),
         Command::DeleteNote(_) => "DeleteNote".to_string(),
         Command::AddMeasure(_) => "AddMeasure".to_string(),
         Command::DeleteMeasure(_) => "DeleteMeasure".to_string(),
@@ -960,6 +976,7 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
     match cmd {
         Command::AddNote(c) => apply_add_note(c, score),
         Command::AddPitch(c) => apply_add_pitch(c, score),
+        Command::SetDuration(c) => apply_set_duration(c, score),
         Command::DeleteNote(c) => apply_delete_note(c, score),
         Command::AddMeasure(c) => apply_add_measure(c, score),
         Command::DeleteMeasure(c) => apply_delete_measure(c, score),
@@ -1374,6 +1391,30 @@ fn apply_add_pitch(cmd: &AddPitchCmd, score: &mut Score) -> Result<(), Error> {
     {
         note.pitches.push(cmd.pitch.clone());
     }
+    Ok(())
+}
+
+fn apply_set_duration(cmd: &SetDurationCmd, score: &mut Score) -> Result<(), Error> {
+    let ts_beats = score.settings.time_signature.total_beats();
+    let voice = score
+        .parts
+        .get_mut(cmd.part_index)
+        .ok_or(Error::PartNotFound(cmd.part_index))?
+        .staves
+        .get_mut(cmd.staff_index)
+        .ok_or(Error::StaffNotFound(cmd.staff_index))?
+        .measures
+        .get_mut(cmd.measure_index)
+        .ok_or(Error::MeasureNotFound(cmd.measure_index))?
+        .voices
+        .get_mut(cmd.voice)
+        .ok_or(Error::VoiceOutOfRange(cmd.voice))?;
+    let note = voice
+        .get_mut(cmd.note_index)
+        .ok_or(Error::NoteNotFound(cmd.note_index))?;
+    note.duration = cmd.duration.clone();
+    note.dot_count = cmd.dot_count;
+    trim_voice_to_measure(voice, ts_beats);
     Ok(())
 }
 
@@ -1970,6 +2011,44 @@ mod tests {
         let first = &score.parts[0].staves[0].measures[0].voices[0][0];
         assert!(!first.is_rest);
         assert_eq!(first.pitches[0].step, Step::C);
+    }
+
+    #[test]
+    fn set_duration_updates_note_and_preserves_measure_capacity() {
+        let mut score = default_engine_score();
+        apply_command(
+            &Command::AddNote(AddNoteCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                position: 0,
+                pitch: Some(Pitch::new(Step::C, 4)),
+                duration: Duration::Quarter,
+                dot_count: 0,
+                is_rest: false,
+                tuplet: None,
+            }),
+            &mut score,
+        )
+        .unwrap();
+        apply_command(
+            &Command::SetDuration(SetDurationCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                note_index: 0,
+                duration: Duration::Half,
+                dot_count: 1,
+            }),
+            &mut score,
+        )
+        .unwrap();
+        let voice = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(voice[0].duration, Duration::Half);
+        assert_eq!(voice[0].dot_count, 1);
+        assert!((voice.iter().map(|note| note.beats()).sum::<f64>() - 4.0).abs() < 1e-9);
     }
 
     #[test]

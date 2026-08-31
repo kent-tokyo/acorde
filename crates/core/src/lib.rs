@@ -13,12 +13,12 @@ pub use model::commands::{
     BatchCmd, Command, CommandStack, DeleteMeasureCmd, DeleteNoteCmd, DeletePartCmd,
     DeleteStaffCmd, NewScoreCmd, PasteRangeCmd, PasteVoiceCmd, RespellScoreCmd,
     RespellScoreToKeyCmd, SetArpeggioCmd, SetBarlineCmd, SetChordSymbolCmd, SetClefCmd, SetCueCmd,
-    SetDynamicCmd, SetExpressionTextCmd, SetFingeringCmd, SetGraceCmd, SetGuitarTechniqueCmd,
-    SetKeySignatureCmd, SetLyricCmd, SetMetadataCmd, SetMidiInstrumentCmd, SetMultiRestCmd,
-    SetNavigationMarkCmd, SetNoteHeadCmd, SetOttavaCmd, SetPageBreakCmd, SetPartGroupCmd,
-    SetPartNameCmd, SetRehearsalMarkCmd, SetStemCmd, SetStringNumberCmd, SetSystemBreakCmd,
-    SetTechniqueTextCmd, SetTempoAtMeasureCmd, SetTempoCmd, SetTimeSignatureCmd, SetTransposeCmd,
-    SetTupletCmd, SetVoltaCmd, ToggleArticulationCmd, ToggleSlurCmd, ToggleTieCmd,
+    SetDurationCmd, SetDynamicCmd, SetExpressionTextCmd, SetFingeringCmd, SetGraceCmd,
+    SetGuitarTechniqueCmd, SetKeySignatureCmd, SetLyricCmd, SetMetadataCmd, SetMidiInstrumentCmd,
+    SetMultiRestCmd, SetNavigationMarkCmd, SetNoteHeadCmd, SetOttavaCmd, SetPageBreakCmd,
+    SetPartGroupCmd, SetPartNameCmd, SetRehearsalMarkCmd, SetStemCmd, SetStringNumberCmd,
+    SetSystemBreakCmd, SetTechniqueTextCmd, SetTempoAtMeasureCmd, SetTempoCmd, SetTimeSignatureCmd,
+    SetTransposeCmd, SetTupletCmd, SetVoltaCmd, ToggleArticulationCmd, ToggleSlurCmd, ToggleTieCmd,
     ToggleTrillLineCmd, command_key, command_label,
 };
 pub use model::duration::Duration;

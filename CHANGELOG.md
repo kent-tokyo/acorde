@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.64.0] - 2026-08-31
+
+### Note duration editing
+
+- Completed the `SetDuration` score command with a public `ScoreEngine::set_duration` helper,
+  including dotted durations and measure-capacity preservation.
+
 ## [0.63.0] - 2026-08-31
 
 ### Browser snapshot restoration
