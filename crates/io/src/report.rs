@@ -49,6 +49,10 @@ impl Diagnostic {
             loss_reason: Some(loss_reason.into()),
         }
     }
+
+    pub fn is_loss(&self) -> bool {
+        self.loss_reason.is_some()
+    }
 }
 
 /// Result of importing a notation document, including conversion diagnostics.
@@ -81,6 +85,27 @@ impl ImportReport {
             ..Self::new(score)
         }
     }
+
+    pub fn warning_count(&self) -> usize {
+        self.diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Warning)
+            .count()
+    }
+
+    pub fn error_count(&self) -> usize {
+        self.diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
+            .count()
+    }
+
+    pub fn loss_count(&self) -> usize {
+        self.diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.is_loss())
+            .count()
+    }
 }
 
 /// Result of exporting a notation document, including conversion diagnostics.
@@ -112,6 +137,27 @@ impl<T> ExportReport<T> {
             format: format.into(),
             ..Self::new(output)
         }
+    }
+
+    pub fn warning_count(&self) -> usize {
+        self.diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Warning)
+            .count()
+    }
+
+    pub fn error_count(&self) -> usize {
+        self.diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
+            .count()
+    }
+
+    pub fn loss_count(&self) -> usize {
+        self.diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.is_loss())
+            .count()
     }
 }
 
@@ -146,5 +192,24 @@ mod tests {
             serde_json::from_str(r#"{"format":"musicxml","output":"output","diagnostics":[]}"#)
                 .expect("legacy report parses");
         assert_eq!(restored.schema_version, REPORT_SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn report_counts_classify_diagnostics() {
+        let mut report = ImportReport::new(Score::default());
+        report.diagnostics.push(Diagnostic::info("kept", "value"));
+        report
+            .diagnostics
+            .push(Diagnostic::warning("lost", "not represented"));
+        assert_eq!(report.warning_count(), 1);
+        assert_eq!(report.error_count(), 0);
+        assert_eq!(report.loss_count(), 1);
+
+        let mut export = ExportReport::new("output");
+        export
+            .diagnostics
+            .push(Diagnostic::warning("lost", "not represented"));
+        assert_eq!(export.warning_count(), 1);
+        assert_eq!(export.loss_count(), 1);
     }
 }

@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.53.0] - 2026-08-31
+
+### Interchange report aggregation
+
+- Added stable warning, error, and loss counters to `ImportReport` and `ExportReport`.
+- Added `Diagnostic::is_loss()` for host-side filtering without matching serialized fields.
+
 ## [0.52.0] - 2026-08-31
 
 ### MEI score definition attribute diagnostics
