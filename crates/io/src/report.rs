@@ -39,6 +39,16 @@ impl Diagnostic {
             loss_reason: None,
         }
     }
+
+    pub fn warning(code: impl Into<String>, loss_reason: impl Into<String>) -> Self {
+        Self {
+            code: code.into(),
+            severity: DiagnosticSeverity::Warning,
+            source_location: None,
+            preserved_value: None,
+            loss_reason: Some(loss_reason.into()),
+        }
+    }
 }
 
 /// Result of importing a notation document, including conversion diagnostics.

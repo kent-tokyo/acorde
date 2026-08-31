@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.46.0] - 2026-08-31
+
+### MEI loss diagnostics
+
+- Added parser-backed MEI import diagnostics for known unsupported notation elements.
+- Updated the versioned notation coverage matrix for the v0.46.x interchange boundary.
+
 ## [0.45.0] - 2026-08-31
 
 ### Security contract and CI gates

@@ -38,7 +38,7 @@ pub use mei::{parse_mei, serialize_mei};
 
 #[cfg(feature = "mei")]
 pub fn parse_mei_with_report(text: &str) -> Result<ImportReport, Error> {
-    Ok(ImportReport::for_format(parse_mei(text)?, "mei"))
+    mei::parse_mei_with_report(text)
 }
 
 #[cfg(feature = "mei")]

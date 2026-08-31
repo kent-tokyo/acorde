@@ -4,7 +4,7 @@
 //! and layer per measure, pitched notes, rests, accidentals, and power-of-two durations. Other
 //! MEI content is not represented by the canonical `Score` and is therefore outside this API.
 
-use crate::Error;
+use crate::{Diagnostic, Error, ImportReport};
 use acorde_core::{Duration, Measure, Note, Part, Pitch, Score, Staff, Step};
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
@@ -36,6 +36,45 @@ fn duration(value: Option<&str>) -> Option<Duration> {
 
 fn step(value: &str) -> Option<Step> {
     value.chars().next().and_then(Step::from_char)
+}
+
+const UNSUPPORTED_ELEMENTS: &[&str] = &[
+    "artic",
+    "beam",
+    "chord",
+    "dynam",
+    "figuredBass",
+    "harm",
+    "mRest",
+    "multiRest",
+    "ornam",
+    "slur",
+    "tempo",
+    "tie",
+    "tuplet",
+];
+
+fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
+    let mut reader = Reader::from_str(text);
+    let mut diagnostics = Vec::new();
+    loop {
+        match reader.read_event() {
+            Ok(Event::Start(event)) | Ok(Event::Empty(event)) => {
+                let name = String::from_utf8_lossy(event.name().as_ref()).into_owned();
+                if UNSUPPORTED_ELEMENTS.contains(&name.as_str()) {
+                    let mut diagnostic = Diagnostic::warning(
+                        format!("mei.unsupported-element.{name}"),
+                        format!("MEI element '{name}' is outside acorde's supported subset"),
+                    );
+                    diagnostic.source_location = Some(format!("/{name}"));
+                    diagnostics.push(diagnostic);
+                }
+            }
+            Ok(Event::Eof) | Err(_) => break,
+            _ => {}
+        }
+    }
+    diagnostics
 }
 
 /// Parse the supported MEI subset into the canonical score model.
@@ -152,6 +191,17 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     Ok(score)
 }
 
+/// Parse MEI and report elements that are intentionally outside the supported subset.
+pub fn parse_mei_with_report(text: &str) -> Result<ImportReport, Error> {
+    let score = parse_mei(text)?;
+    Ok(ImportReport {
+        schema_version: crate::REPORT_SCHEMA_VERSION,
+        format: "mei".to_string(),
+        score,
+        diagnostics: loss_diagnostics(text),
+    })
+}
+
 fn escape(value: &str) -> String {
     value
         .replace('&', "&amp;")
@@ -233,5 +283,24 @@ mod tests {
         let restored = parse_mei(&xml).expect("serialized MEI parses");
         assert_eq!(restored.metadata.title, score.metadata.title);
         assert_eq!(restored.parts[0].staves[0].measures[0].voices[0].len(), 2);
+    }
+
+    #[test]
+    fn report_marks_unsupported_elements() {
+        let xml = FIXTURE.replace("<note pname=\"c\"", "<dynam>f</dynam><note pname=\"c\"");
+        let report = parse_mei_with_report(&xml).expect("MEI report parses");
+        assert_eq!(report.format, "mei");
+        assert_eq!(report.diagnostics.len(), 1);
+        assert_eq!(report.diagnostics[0].code, "mei.unsupported-element.dynam");
+        assert_eq!(
+            report.diagnostics[0].severity,
+            crate::DiagnosticSeverity::Warning
+        );
+        assert!(
+            report.diagnostics[0]
+                .loss_reason
+                .as_deref()
+                .is_some_and(|reason| reason.contains("outside"))
+        );
     }
 }
