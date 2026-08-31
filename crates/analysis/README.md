@@ -6,7 +6,8 @@ The crate has no I/O, renderer, or host dependencies.
 The capability slice labels chord-shaped pitch collections, records adjacent melodic intervals,
 and estimates major/minor keys from diatonic pitch coverage. It also reports explicit cadence
 transitions and aligned voice-leading observations, including parallel-perfect flags. Every
-result contains stable `NoteAddr` evidence and a rule identifier. Key estimation returns all tied
+result contains stable `NoteAddr` evidence and a rule identifier. SATB diagnostics classify voice
+crossing, wide spacing, and parallel-perfect motion with typed severity. Key estimation returns all tied
 best candidates, so relative-major/minor ambiguity is preserved instead of inventing a single key.
 
 ```rust

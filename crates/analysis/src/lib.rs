@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Version of the serialized analysis result contract.
-pub const ANALYSIS_SCHEMA_VERSION: u32 = 4;
+pub const ANALYSIS_SCHEMA_VERSION: u32 = 5;
 
 /// A chord label with source evidence and the rule that produced it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -31,6 +31,8 @@ pub struct AnalysisResult {
     pub cadence_candidates: Vec<CadenceCandidate>,
     #[serde(default)]
     pub voice_leading: Vec<VoiceLeadingObservation>,
+    #[serde(default)]
+    pub satb_diagnostics: Vec<SatbDiagnostic>,
 }
 
 /// A deterministic key candidate ranked by diatonic pitch coverage.
@@ -75,6 +77,33 @@ pub struct VoiceLeadingObservation {
     pub confidence: u8,
     pub rule_id: String,
     pub evidence: Vec<NoteAddr>,
+}
+
+/// A typed SATB constraint finding with source addresses for UI selection.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SatbDiagnostic {
+    pub upper: NoteAddr,
+    pub lower: NoteAddr,
+    pub kind: SatbDiagnosticKind,
+    pub severity: SatbSeverity,
+    pub confidence: u8,
+    pub rule_id: String,
+    pub evidence: Vec<NoteAddr>,
+}
+
+/// SATB constraint families reported by the deterministic pass.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SatbDiagnosticKind {
+    VoiceCrossing,
+    WideSpacing,
+    ParallelPerfect,
+}
+
+/// User-facing seriousness of a SATB diagnostic.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SatbSeverity {
+    Error,
+    Warning,
 }
 
 /// A consecutive melodic interval with addresses for both source notes.
@@ -143,6 +172,7 @@ pub fn analyze_score(score: &Score) -> AnalysisResult {
     let key_estimates = estimate_keys(score);
     let cadence_candidates = analyze_cadences(&chords);
     let voice_leading = analyze_voice_leading(score);
+    let satb_diagnostics = analyze_satb_with_voice_leading(score, &voice_leading);
     AnalysisResult {
         schema_version: ANALYSIS_SCHEMA_VERSION,
         chords,
@@ -150,6 +180,101 @@ pub fn analyze_score(score: &Score) -> AnalysisResult {
         key_estimates,
         cadence_candidates,
         voice_leading,
+        satb_diagnostics,
+    }
+}
+
+/// Analyze SATB constraints using the same aligned voice events as voice-leading analysis.
+pub fn analyze_satb(score: &Score) -> Vec<SatbDiagnostic> {
+    let voice_leading = analyze_voice_leading(score);
+    analyze_satb_with_voice_leading(score, &voice_leading)
+}
+
+fn analyze_satb_with_voice_leading(
+    score: &Score,
+    voice_leading: &[VoiceLeadingObservation],
+) -> Vec<SatbDiagnostic> {
+    let mut diagnostics = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                for (upper_index, upper_voice) in measure.voices.iter().enumerate() {
+                    let Some(lower_voice) = measure.voices.get(upper_index + 1) else {
+                        continue;
+                    };
+                    for note_index in 0..upper_voice.len().min(lower_voice.len()) {
+                        let Some(upper) = upper_voice[note_index].pitches.first() else {
+                            continue;
+                        };
+                        let Some(lower) = lower_voice[note_index].pitches.first() else {
+                            continue;
+                        };
+                        let upper_addr = NoteAddr {
+                            part: part_index,
+                            staff: staff_index,
+                            measure: measure_index,
+                            voice: upper_index,
+                            note: note_index,
+                        };
+                        let lower_addr = NoteAddr {
+                            part: part_index,
+                            staff: staff_index,
+                            measure: measure_index,
+                            voice: upper_index + 1,
+                            note: note_index,
+                        };
+                        let distance = upper.to_midi() - lower.to_midi();
+                        if distance < 0 {
+                            diagnostics.push(satb_diagnostic(
+                                upper_addr.clone(),
+                                lower_addr.clone(),
+                                SatbDiagnosticKind::VoiceCrossing,
+                                SatbSeverity::Error,
+                                "satb-voice-crossing",
+                            ));
+                        } else if distance > 24 {
+                            diagnostics.push(satb_diagnostic(
+                                upper_addr.clone(),
+                                lower_addr.clone(),
+                                SatbDiagnosticKind::WideSpacing,
+                                SatbSeverity::Warning,
+                                "satb-wide-spacing",
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for observation in voice_leading {
+        if observation.parallel_perfect {
+            diagnostics.push(satb_diagnostic(
+                observation.upper.clone(),
+                observation.lower.clone(),
+                SatbDiagnosticKind::ParallelPerfect,
+                SatbSeverity::Warning,
+                "satb-parallel-perfect",
+            ));
+        }
+    }
+    diagnostics
+}
+
+fn satb_diagnostic(
+    upper: NoteAddr,
+    lower: NoteAddr,
+    kind: SatbDiagnosticKind,
+    severity: SatbSeverity,
+    rule_id: &str,
+) -> SatbDiagnostic {
+    SatbDiagnostic {
+        evidence: vec![upper.clone(), lower.clone()],
+        upper,
+        lower,
+        kind,
+        severity,
+        confidence: 100,
+        rule_id: rule_id.to_string(),
     }
 }
 
@@ -559,5 +684,23 @@ mod tests {
         assert_eq!(observations.len(), 1);
         assert!(observations[0].parallel_perfect);
         assert_eq!(observations[0].evidence.len(), 2);
+        let diagnostics = analyze_satb(&score);
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].kind, SatbDiagnosticKind::ParallelPerfect);
+        assert_eq!(diagnostics[0].severity, SatbSeverity::Warning);
+    }
+
+    #[test]
+    fn reports_voice_crossing_as_error() {
+        let mut score = Score::default();
+        let measure = &mut score.parts[0].staves[0].measures[0];
+        measure.voices[0].clear();
+        measure.voices[1].clear();
+        measure.voices[0].push(Note::new(Pitch::new(Step::C, 3), Duration::Quarter));
+        measure.voices[1].push(Note::new(Pitch::new(Step::C, 4), Duration::Quarter));
+        let diagnostics = analyze_satb(&score);
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].kind, SatbDiagnosticKind::VoiceCrossing);
+        assert_eq!(diagnostics[0].severity, SatbSeverity::Error);
     }
 }

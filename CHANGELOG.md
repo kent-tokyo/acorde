@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-08-31
+
+### Explainable SATB diagnostics
+
+- Added typed SATB diagnostics for voice crossing, wide spacing, and parallel perfect intervals.
+- Diagnostics include severity, confidence, stable note addresses, evidence, and rule IDs for
+  browser-side inspection and selection.
+- The analysis result schema is now version `5`; the new diagnostic field defaults to empty.
+
 ## [0.20.0] - 2026-08-31
 
 ### Explainable harmony analysis
