@@ -1,0 +1,32 @@
+{
+  "cases": [
+    {
+      "name": "simple-musicxml",
+      "input": "../tests/fixtures/simple.musicxml",
+      "expected": {
+        "chords": 0,
+        "intervals": 3,
+        "key_estimates": 4,
+        "cadence_candidates": 0,
+        "voice_leading": 0,
+        "satb_diagnostics": 0,
+        "motifs": 0,
+        "phrase_boundaries": 1
+      }
+    },
+    {
+      "name": "multipart-musicxml",
+      "input": "../tests/fixtures/multipart.musicxml",
+      "expected": {
+        "chords": 0,
+        "intervals": 2,
+        "key_estimates": 4,
+        "cadence_candidates": 0,
+        "voice_leading": 0,
+        "satb_diagnostics": 0,
+        "motifs": 0,
+        "phrase_boundaries": 0
+      }
+    }
+  ]
+}

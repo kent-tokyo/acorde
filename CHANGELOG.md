@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.66.0] - 2026-08-31
+
+### Versioned analysis benchmark corpus
+
+- Added a checked-in synthetic MusicXML benchmark corpus manifest with provenance, license, and
+  hand-verified analysis category expectations for the local CLI benchmark command.
+
 ## [0.65.0] - 2026-08-31
 
 ### WASM duration editing
