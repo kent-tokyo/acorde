@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.63.0] - 2026-08-31
+
+### Browser snapshot restoration
+
+- Added validated `restoreSnapshot()` and the `restore-snapshot` Worker request; persisted scores
+  are reparsed into a fresh layout and stable selection addresses are restored.
+
 ## [0.62.0] - 2026-08-31
 
 ### Versioned browser snapshots

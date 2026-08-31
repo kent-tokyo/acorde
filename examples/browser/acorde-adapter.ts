@@ -138,6 +138,7 @@ export type WorkspaceRequest =
   | { id: string; type: "select-address"; address: NoteAddress | null }
   | { id: string; type: "selection-state" }
   | { id: string; type: "snapshot" }
+  | { id: string; type: "restore-snapshot"; snapshot: WorkspaceSnapshot }
   | { id: string; type: "render-svg" }
   | { id: string; type: "render-row-svg"; rowIndex: number }
   | { id: string; type: "metadata" }
@@ -514,6 +515,19 @@ export class AcordeWorkspace {
     };
   }
 
+  /** Restore a persisted snapshot after validating its browser contract version. */
+  restoreSnapshot(snapshot: WorkspaceSnapshot): void {
+    if (snapshot.schemaVersion !== WORKSPACE_SNAPSHOT_SCHEMA_VERSION) {
+      throw new AcordeWorkspaceError(
+        "parse",
+        `unsupported workspace snapshot schema ${snapshot.schemaVersion}`,
+      );
+    }
+    const prepared = this.prepareScore(snapshot.scoreJson);
+    this.installScore(prepared.scoreJson, prepared.layoutJson, prepared.layoutOptionsJson);
+    this.selection.set(snapshot.selectedAddress);
+  }
+
   private assertLoaded(): void {
     if (!this.scoreJson || !this.layoutJson) {
       throw new Error("A score must be loaded before rendering or analysis");
@@ -603,6 +617,9 @@ export function handleWorkspaceRequest(
       case "selection-state":
         return { id: request.id, ok: true, value: workspace.selectionState() };
       case "snapshot":
+        return { id: request.id, ok: true, value: workspace.snapshot() };
+      case "restore-snapshot":
+        workspace.restoreSnapshot(request.snapshot);
         return { id: request.id, ok: true, value: workspace.snapshot() };
       case "render-svg":
         return { id: request.id, ok: true, value: workspace.renderSvg() };

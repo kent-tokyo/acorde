@@ -36,6 +36,8 @@ score identity to a host-level or persistent cache without duplicating hashing l
 that persist or synchronize snapshots as one unit.
 Snapshots include `schemaVersion` (currently `1`) so persisted Worker/UI state can reject or migrate
 future contract changes explicitly.
+`restoreSnapshot(snapshot)` and the `restore-snapshot` Worker request validate that version, rebuild
+layout from the persisted score, and restore the stable selection address.
 `renderRowSvg(rowIndex)` exposes the same contract one logical row at a time, which lets a host
 virtualize long scores without moving row/index arithmetic into the UI.
 Parse, layout, render, metadata, and analysis failures are raised as `AcordeWorkspaceError` with
