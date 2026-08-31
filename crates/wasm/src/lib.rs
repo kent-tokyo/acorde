@@ -958,6 +958,27 @@ impl ScoreEngine {
         serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
     }
 
+    /// Set the duration and dot count on a note (undo-able). Returns a [`ChangeHint`] JSON string.
+    ///
+    /// `addr_json`: JSON-encoded `NoteAddr`.
+    /// `duration_json`: JSON-encoded `Duration` such as `"Quarter"`.
+    pub fn set_duration(
+        &mut self,
+        addr_json: &str,
+        duration_json: &str,
+        dot_count: u8,
+    ) -> Result<String, JsValue> {
+        let addr: acorde_core::NoteAddr = serde_json::from_str(addr_json)
+            .map_err(|e| js_err(format!("invalid NoteAddr: {e}")))?;
+        let duration: acorde_core::Duration = serde_json::from_str(duration_json)
+            .map_err(|e| js_err(format!("invalid duration: {e}")))?;
+        let hint = self
+            .inner
+            .set_duration(addr, duration, dot_count)
+            .map_err(js_err)?;
+        serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
+    }
+
     /// Set or clear the arpeggio direction on a note (undo-able). Returns a [`ChangeHint`] JSON string.
     ///
     /// `addr_json`: JSON-encoded `NoteAddr`.

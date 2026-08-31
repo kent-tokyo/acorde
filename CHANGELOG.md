@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.65.0] - 2026-08-31
+
+### WASM duration editing
+
+- Exposed `ScoreEngine.set_duration` for browser hosts, accepting JSON note addresses and duration
+  values while returning the standard undoable `ChangeHint` contract.
+
 ## [0.64.0] - 2026-08-31
 
 ### Note duration editing
