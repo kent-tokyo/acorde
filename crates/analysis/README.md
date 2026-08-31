@@ -3,11 +3,10 @@
 Deterministic, explainable analysis primitives for [`acorde-core`](https://docs.rs/acorde-core).
 The crate has no I/O, renderer, or host dependencies.
 
-The first capability slice labels chord-shaped pitch collections in each score voice. Every label
-contains stable `NoteAddr` evidence, a rule identifier, confidence, and an optional Roman numeral
-in the active key. The result also includes adjacent melodic intervals. A missing chord label is
-intentional: the analyzer does not invent a chord when the existing templates do not provide an
-unambiguous match.
+The capability slice labels chord-shaped pitch collections, records adjacent melodic intervals,
+and estimates major/minor keys from diatonic pitch coverage. Every result contains stable
+`NoteAddr` evidence and a rule identifier. Key estimation returns all tied best candidates, so
+relative-major/minor ambiguity is preserved instead of inventing a single key.
 
 ```rust
 use acorde_analysis::analyze_chords;

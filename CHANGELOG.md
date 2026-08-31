@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-08-31
+
+### Explainable music analysis
+
+- Added deterministic major/minor key estimation to `acorde-analysis`.
+- Key results expose pitch coverage, confidence, rule IDs, and source evidence, while returning
+  all tied best candidates to preserve tonal ambiguity. The analysis schema is now version `3`.
+
 ## [0.17.1] - 2026-08-31
 
 ### Release metadata

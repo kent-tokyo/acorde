@@ -1,10 +1,10 @@
 //! Deterministic, explainable music analysis over [`acorde_core::Score`].
 
-use acorde_core::{ChordSymbol, NoteAddr, Score, detect_chord, roman_numeral};
+use acorde_core::{ChordSymbol, KeySignature, NoteAddr, Score, detect_chord, roman_numeral};
 use serde::{Deserialize, Serialize};
 
 /// Version of the serialized analysis result contract.
-pub const ANALYSIS_SCHEMA_VERSION: u32 = 2;
+pub const ANALYSIS_SCHEMA_VERSION: u32 = 3;
 
 /// A chord label with source evidence and the rule that produced it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -24,6 +24,19 @@ pub struct AnalysisResult {
     pub schema_version: u32,
     pub chords: Vec<ChordLabel>,
     pub intervals: Vec<IntervalObservation>,
+    #[serde(default)]
+    pub key_estimates: Vec<KeyEstimate>,
+}
+
+/// A deterministic key candidate ranked by diatonic pitch coverage.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct KeyEstimate {
+    pub key: KeySignature,
+    pub covered_pitches: usize,
+    pub total_pitches: usize,
+    pub confidence: u8,
+    pub rule_id: String,
+    pub evidence: Vec<NoteAddr>,
 }
 
 /// A consecutive melodic interval with addresses for both source notes.
@@ -89,11 +102,80 @@ pub fn analyze_chords(score: &Score) -> AnalysisResult {
         }
     }
     let intervals = analyze_intervals(score);
+    let key_estimates = estimate_keys(score);
     AnalysisResult {
         schema_version: ANALYSIS_SCHEMA_VERSION,
         chords,
         intervals,
+        key_estimates,
     }
+}
+
+/// Estimate major/minor keys from pitch coverage, preserving tied candidates.
+pub fn estimate_keys(score: &Score) -> Vec<KeyEstimate> {
+    let mut pitches = Vec::new();
+    let mut evidence = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    for (note_index, note) in voice.iter().enumerate() {
+                        if note.is_rest {
+                            continue;
+                        }
+                        pitches.extend(note.pitches.iter());
+                        if !note.pitches.is_empty() {
+                            evidence.push(NoteAddr {
+                                part: part_index,
+                                staff: staff_index,
+                                measure: measure_index,
+                                voice: voice_index,
+                                note: note_index,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if pitches.is_empty() {
+        return Vec::new();
+    }
+    let total_pitches = pitches.len();
+    let mut candidates = Vec::with_capacity(30);
+    for fifths in -7..=7 {
+        for mode in ["major", "minor"] {
+            let key = KeySignature {
+                fifths,
+                mode: mode.to_string(),
+            };
+            let covered = pitches
+                .iter()
+                .filter(|pitch| key.contains_pitch(pitch))
+                .count();
+            candidates.push((key, covered));
+        }
+    }
+    candidates.sort_by(|(left_key, left_score), (right_key, right_score)| {
+        right_score
+            .cmp(left_score)
+            .then_with(|| left_key.fifths.abs().cmp(&right_key.fifths.abs()))
+            .then_with(|| left_key.fifths.cmp(&right_key.fifths))
+            .then_with(|| left_key.mode.cmp(&right_key.mode))
+    });
+    let best = candidates[0].1;
+    candidates
+        .into_iter()
+        .take_while(|(_, covered)| *covered == best)
+        .map(|(key, covered_pitches)| KeyEstimate {
+            key,
+            covered_pitches,
+            total_pitches,
+            confidence: ((covered_pitches * 100) / total_pitches) as u8,
+            rule_id: "diatonic-pitch-coverage".to_string(),
+            evidence: evidence.clone(),
+        })
+        .collect()
 }
 
 /// Analyze adjacent pitched notes in every voice without inferring missing events.
@@ -199,6 +281,7 @@ mod tests {
         assert_eq!(result.schema_version, ANALYSIS_SCHEMA_VERSION);
         assert_eq!(result.chords.len(), 1);
         assert_eq!(result.intervals.len(), 2);
+        assert!(!result.key_estimates.is_empty());
         assert_eq!(result.chords[0].address.note, 0);
         assert_eq!(result.chords[0].evidence.len(), 3);
         assert_eq!(result.chords[0].roman_numeral.as_deref(), Some("I"));
@@ -228,5 +311,40 @@ mod tests {
             voice.push(Note::new(Pitch::new(step, 4), Duration::Quarter));
         }
         assert!(analyze_chords(&score).chords.is_empty());
+    }
+
+    #[test]
+    fn preserves_relative_major_minor_key_ambiguity() {
+        let mut score = Score::default();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        for step in [
+            Step::C,
+            Step::D,
+            Step::E,
+            Step::F,
+            Step::G,
+            Step::A,
+            Step::B,
+        ] {
+            voice.push(Note::new(Pitch::new(step, 4), Duration::Quarter));
+        }
+        let estimates = estimate_keys(&score);
+        assert!(
+            estimates
+                .iter()
+                .any(|estimate| estimate.key.display_name() == "C major")
+        );
+        assert!(
+            estimates
+                .iter()
+                .any(|estimate| estimate.key.display_name() == "A minor")
+        );
+        assert!(estimates.iter().all(|estimate| estimate.confidence == 100));
+    }
+
+    #[test]
+    fn returns_no_key_for_empty_score() {
+        assert!(estimate_keys(&Score::default()).is_empty());
     }
 }
