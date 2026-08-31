@@ -66,6 +66,11 @@ export interface ExportReport {
   diagnostics: InterchangeDiagnostic[];
 }
 
+export interface PlaybackEvent {
+  address: NoteAddress | null;
+  [key: string]: unknown;
+}
+
 export interface ScoreWorkspaceOptions {
   layout?: Record<string, unknown>;
   render?: Record<string, unknown>;
@@ -310,16 +315,21 @@ export class AcordeWorkspace {
   }
 
   /** Produce host-independent playback events for the loaded score. */
-  playbackEvents(options: Record<string, unknown> = {}): Record<string, unknown>[] {
+  playbackEvents(options: Record<string, unknown> = {}): PlaybackEvent[] {
     this.assertLoaded();
     try {
       return JSON.parse(this.wasm.to_playback_events_ex(
         this.scoreJson,
         JSON.stringify(options),
-      )) as Record<string, unknown>[];
+      )) as PlaybackEvent[];
     } catch (cause) {
       throw this.toWorkspaceError("playback", cause);
     }
+  }
+
+  /** Synchronize notation selection with a sounding event from the host audio scheduler. */
+  selectPlaybackEvent(event: Pick<PlaybackEvent, "address">): void {
+    this.selection.set(event.address);
   }
 
   /** Resolve the playback cursor at an elapsed time in seconds. */

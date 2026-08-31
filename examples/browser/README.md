@@ -37,3 +37,6 @@ the adapter to Web Audio or another playback framework.
 `loadMusicXmlWithReport` and `exportMusicXmlWithReport` additionally return structured
 interchange diagnostics, including preserved values and loss reasons when the format adapter
 has such information, so hosts can present repair guidance without parsing error strings.
+Each sounding playback event carries the stable source address used by `data-note-addr`, and
+`selectPlaybackEvent` sends that address through the shared `SelectionStore` for notation and
+analysis highlighting.

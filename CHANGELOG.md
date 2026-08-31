@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-08-31
+
+### Playback selection synchronization
+
+- Added stable source note addresses to sounding playback events, with `None` reserved for
+  metronome events and chord pitches sharing their source note address.
+- Added browser adapter support for forwarding playback-event selection through `SelectionStore`.
+
 ## [0.35.0] - 2026-08-31
 
 ### Multi-scale renderer budgets
