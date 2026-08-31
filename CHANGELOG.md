@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-08-31
+
+### Worker selection synchronization
+
+- Added Worker requests for updating and reading the shared stable note selection.
+- Added a lightweight selection-state response with the current score revision.
+
 ## [0.40.0] - 2026-08-31
 
 ### Worker history synchronization

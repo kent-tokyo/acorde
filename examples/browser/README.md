@@ -52,3 +52,6 @@ messages to avoid carrying an additional JavaScript string representation.
 The `undo` and `redo` requests return `{ changed, snapshot, history }`, and `history-state`
 provides the revision and undo/redo availability without requiring a full render or analysis
 round trip.
+`select-address` updates the shared `SelectionStore` from a Worker host and returns the current
+revision plus selected address; `selection-state` reads the same lightweight state without
+rendering or analysis.

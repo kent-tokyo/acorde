@@ -99,6 +99,11 @@ export interface WorkspaceHistoryState {
   canRedo: boolean;
 }
 
+export interface WorkspaceSelectionState {
+  revision: number;
+  selectedAddress: NoteAddress | null;
+}
+
 export interface WorkspaceMutationResult {
   changed: boolean;
   snapshot: WorkspaceSnapshot | null;
@@ -124,6 +129,8 @@ export type WorkspaceRequest =
   | { id: string; type: "undo" }
   | { id: string; type: "redo" }
   | { id: string; type: "history-state" }
+  | { id: string; type: "select-address"; address: NoteAddress | null }
+  | { id: string; type: "selection-state" }
   | { id: string; type: "snapshot" }
   | { id: string; type: "render-svg" }
   | { id: string; type: "render-row-svg"; rowIndex: number }
@@ -275,6 +282,13 @@ export class AcordeWorkspace {
       revision: this.revisionNumber,
       canUndo: this.canUndo(),
       canRedo: this.canRedo(),
+    };
+  }
+
+  selectionState(): WorkspaceSelectionState {
+    return {
+      revision: this.revisionNumber,
+      selectedAddress: this.selection.get(),
     };
   }
 
@@ -553,6 +567,11 @@ export function handleWorkspaceRequest(
       }
       case "history-state":
         return { id: request.id, ok: true, value: workspace.historyState() };
+      case "select-address":
+        workspace.selection.set(request.address);
+        return { id: request.id, ok: true, value: workspace.selectionState() };
+      case "selection-state":
+        return { id: request.id, ok: true, value: workspace.selectionState() };
       case "snapshot":
         return { id: request.id, ok: true, value: workspace.snapshot() };
       case "render-svg":
