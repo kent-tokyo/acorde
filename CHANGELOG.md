@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.80.0] - 2026-08-31
+
+### Archive entry policy hardening
+
+- MXL and MSCZ now reject duplicate entry names and normalized traversal-style paths before
+  extraction, closing archive-name ambiguity and path-policy gaps.
+
 ## [0.79.0] - 2026-08-31
 
 ### Archive declared-size hardening

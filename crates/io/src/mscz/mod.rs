@@ -6,6 +6,7 @@ use acorde_core::{
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 const MAX_ELEMENTS: usize = 500_000;
 const MAX_MSCZ_COMPRESSED: usize = 64 * 1024 * 1024;
@@ -37,10 +38,16 @@ pub fn parse_mscz(data: &[u8]) -> Result<Score, Error> {
     if archive.len() > MAX_MSCZ_ENTRIES {
         return Err(Error::Zip("too many MSCZ archive entries".into()));
     }
+    let mut entry_names = HashSet::new();
     let total_uncompressed = (0..archive.len()).try_fold(0_u64, |total, index| {
         let entry = archive
             .by_index(index)
             .map_err(|e| Error::Zip(format!("failed to inspect MSCZ entry: {e}")))?;
+        let name = entry.name().to_string();
+        validate_archive_entry_path(&name)?;
+        if !entry_names.insert(name.clone()) {
+            return Err(Error::Zip(format!("duplicate MSCZ entry: '{name}'")));
+        }
         total
             .checked_add(entry.size())
             .ok_or(Error::TooLarge(usize::MAX))
@@ -795,6 +802,14 @@ fn attr_usize(e: &quick_xml::events::BytesStart<'_>, key: &[u8]) -> Option<usize
 
 const MAX_MSCX_SIZE: u64 = 64 * 1024 * 1024; // 64 MiB
 
+fn validate_archive_entry_path(path: &str) -> Result<(), Error> {
+    let normalized = path.replace('\\', "/");
+    if normalized.starts_with('/') || normalized.split('/').any(|part| part == "..") {
+        return Err(Error::Zip(format!("invalid archive entry path: '{path}'")));
+    }
+    Ok(())
+}
+
 fn extract_mscx<R: std::io::Read + std::io::Seek>(
     archive: &mut zip::ZipArchive<R>,
 ) -> Result<String, Error> {
@@ -802,10 +817,7 @@ fn extract_mscx<R: std::io::Read + std::io::Seek>(
     for i in 0..archive.len() {
         let file = archive.by_index(i).map_err(|e| Error::Zip(e.to_string()))?;
         let name = file.name().to_owned();
-        // Guard against path traversal in ZIP entry names.
-        if name.contains("..") || std::path::Path::new(&name).is_absolute() {
-            continue;
-        }
+        validate_archive_entry_path(&name)?;
         if name.ends_with(".mscx") {
             if file.size() > MAX_MSCX_SIZE {
                 return Err(Error::Zip(format!(
@@ -1207,5 +1219,13 @@ mod tests {
         assert_eq!(m.voices[1].len(), 1, "voice 1 should have 1 note");
         assert_eq!(m.voices[0][0].pitches[0].step, Step::C);
         assert_eq!(m.voices[1][0].pitches[0].step, Step::E);
+    }
+
+    #[test]
+    fn archive_paths_reject_traversal_and_backslashes() {
+        assert!(validate_archive_entry_path("../score.mscx").is_err());
+        assert!(validate_archive_entry_path(r"folder\..\score.mscx").is_err());
+        assert!(validate_archive_entry_path("/absolute/score.mscx").is_err());
+        assert!(validate_archive_entry_path("score.mscx").is_ok());
     }
 }

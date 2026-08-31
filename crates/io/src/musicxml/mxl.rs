@@ -1,5 +1,6 @@
 use crate::Error;
 use acorde_core::Score;
+use std::collections::HashSet;
 use std::io::{Cursor, Read};
 use zip::ZipArchive;
 
@@ -17,10 +18,16 @@ pub fn parse_mxl(data: &[u8]) -> Result<Score, Error> {
     if archive.len() > MAX_MXL_ENTRIES {
         return Err(Error::Zip("too many MXL archive entries".into()));
     }
+    let mut entry_names = HashSet::new();
     let total_uncompressed = (0..archive.len()).try_fold(0_u64, |total, index| {
         let entry = archive
             .by_index(index)
             .map_err(|e| Error::Zip(format!("failed to inspect MXL entry: {e}")))?;
+        let name = entry.name().to_string();
+        validate_zip_path(&name)?;
+        if !entry_names.insert(name.clone()) {
+            return Err(Error::Zip(format!("duplicate MXL entry: '{name}'")));
+        }
         total
             .checked_add(entry.size())
             .ok_or(Error::TooLarge(usize::MAX))
@@ -40,11 +47,8 @@ pub fn parse_mxl(data: &[u8]) -> Result<Score, Error> {
 }
 
 fn validate_zip_path(path: &str) -> Result<(), Error> {
-    if path.starts_with('/')
-        || path.starts_with("..")
-        || path.contains("/../")
-        || path.ends_with("/..")
-    {
+    let normalized = path.replace('\\', "/");
+    if normalized.starts_with('/') || normalized.split('/').any(|part| part == "..") {
         return Err(Error::Zip(format!("invalid entry path: '{path}'")));
     }
     Ok(())
@@ -129,5 +133,13 @@ mod tests {
     #[test]
     fn garbage_bytes_returns_err() {
         assert!(parse_mxl(b"not a zip file at all!!!").is_err());
+    }
+
+    #[test]
+    fn archive_paths_reject_traversal_and_backslashes() {
+        assert!(validate_zip_path("../score.xml").is_err());
+        assert!(validate_zip_path(r"folder\..\score.xml").is_err());
+        assert!(validate_zip_path("/absolute/score.xml").is_err());
+        assert!(validate_zip_path("scores/score.xml").is_ok());
     }
 }
