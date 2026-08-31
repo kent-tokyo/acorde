@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "release": "0.75.x",
+  "policy": {
+    "claims_require_fixture_or_focused_test": true,
+    "external_publication_verified": false,
+    "benchmark_latency_is_host_measured": true
+  },
+  "capabilities": {
+    "score_model": "yes",
+    "musicxml_import": "yes",
+    "musicxml_export": "yes",
+    "midi_import": "partial",
+    "midi_export": "yes",
+    "abc_import": "partial",
+    "mei_supported_subset": "partial",
+    "mscz_import": "partial",
+    "logical_layout": "yes",
+    "deterministic_svg": "yes",
+    "wasm_bindings": "yes",
+    "analysis_primitives": "yes",
+    "analysis_extension_points": "yes",
+    "render_annotation_extension_points": "yes",
+    "headless_validate": "yes",
+    "headless_normalize": "yes",
+    "headless_transpose": "yes",
+    "headless_extract_part": "yes",
+    "headless_export_report": "yes",
+    "print_pagination": "planned",
+    "percussion_and_tablature": "partial"
+  },
+  "known_gaps": [
+    "Tablature and microtonal accidentals are unsupported.",
+    "Print pagination and PDF generation remain planned host-bound work.",
+    "Browser E2E and cross-browser visual measurements are not implied by native tests."
+  ],
+  "evidence": {
+    "coverage_matrix": "docs/notation-coverage.md",
+    "analysis_corpus": "benchmarks/analysis.json",
+    "security_checks": [
+      "cargo test --all",
+      "cargo clippy --all -- -D warnings",
+      "cargo deny check advisories licenses sources --disable-fetch",
+      "cargo audit --no-fetch"
+    ]
+  }
+}
