@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.71.0] - 2026-08-31
+
+### Deterministic render annotation extension points
+
+- Added `RenderAnnotation` and `render_svg_with_annotations` for host-defined, XML-escaped SVG
+  text marks with validated IDs, deterministic ordering, and no domain logic in the renderer.
+
 ## [0.70.0] - 2026-08-31
 
 ### Deterministic analysis extension points

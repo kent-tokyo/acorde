@@ -14,12 +14,12 @@ keywords = ["music", "notation", "svg", "sheet-music", "wasm"]
 categories = ["multimedia::audio", "rendering"]
 
 [dependencies]
-acorde-core = { path = "../core", version = "0.70.0" }
-acorde-layout = { path = "../layout", version = "0.70.0" }
+acorde-core = { path = "../core", version = "0.71.0" }
+acorde-layout = { path = "../layout", version = "0.71.0" }
 serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 quick-xml = "0.41"
 # musicxml dev-dep for the render_musicxml example/tests only — never part of the published
 # library's dependency graph (acorde-render-svg itself stays I/O-free).
-acorde-io = { path = "../io", version = "0.70.0" }
+acorde-io = { path = "../io", version = "0.71.0" }

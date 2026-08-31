@@ -2,7 +2,9 @@
 
 Pure-Rust/WASM SVG renderer driven by acorde-core and acorde-layout.
 
-The crate provides render_svg, render_svg_with_layout, render_svg_row, and render_svg_metadata.
+The crate provides render_svg, render_svg_with_layout, render_svg_row, render_svg_metadata, and
+render_svg_with_annotations. Host-defined `RenderAnnotation` providers can add safe text marks
+using viewport coordinates; provider and mark IDs are validated and serialized deterministically.
 Output is deterministic and may include stable data-note-addr hooks for host-side selection and
 hit testing. The renderer has no browser/DOM dependency and uses font-independent SVG geometry
 for notation glyphs.
