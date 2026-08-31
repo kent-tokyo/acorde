@@ -2,6 +2,20 @@
 
 export type NoteAddress = string;
 
+export type WorkspaceOperation = "parse" | "layout" | "render" | "metadata" | "analysis";
+
+/** Structured, host-facing error for showing a repair hint without parsing strings. */
+export class AcordeWorkspaceError extends Error {
+  constructor(
+    readonly operation: WorkspaceOperation,
+    message: string,
+    readonly cause?: unknown,
+  ) {
+    super(`${operation} failed: ${message}`);
+    this.name = "AcordeWorkspaceError";
+  }
+}
+
 export interface WasmBindings {
   parse_musicxml(xml: string): string;
   compute_layout_ex(scoreJson: string, configJson: string): string;
@@ -71,18 +85,27 @@ export class AcordeWorkspace {
   }
 
   loadMusicXml(xml: string): void {
-    this.scoreJson = this.wasm.parse_musicxml(xml);
+    let nextScore: string;
+    let nextLayout: string;
+    try {
+      nextScore = this.wasm.parse_musicxml(xml);
+    } catch (cause) {
+      throw this.toWorkspaceError("parse", cause);
+    }
+    const layoutOptionsJson = JSON.stringify(this.options.layout ?? {});
+    try {
+      nextLayout = this.wasm.compute_layout_ex(nextScore, layoutOptionsJson);
+    } catch (cause) {
+      throw this.toWorkspaceError("layout", cause);
+    }
     this.layoutCache.clear();
     this.renderCache.clear();
     this.metadataCache.clear();
     this.analysisCache.clear();
     this.revisionNumber += 1;
-    const layoutOptionsJson = JSON.stringify(this.options.layout ?? {});
     const layoutKey = `${this.revisionNumber}:${layoutOptionsJson}`;
-    this.layoutJson = this.layoutCache.get(layoutKey) ?? this.wasm.compute_layout_ex(
-      this.scoreJson,
-      layoutOptionsJson,
-    );
+    this.scoreJson = nextScore;
+    this.layoutJson = nextLayout;
     this.layoutCache.set(layoutKey, this.layoutJson);
     this.selection.set(null);
   }
@@ -97,7 +120,12 @@ export class AcordeWorkspace {
     const key = `${this.revisionNumber}:${this.layoutJson}:${optionsJson}`;
     const cached = this.renderCache.get(key);
     if (cached !== undefined) return cached;
-    const svg = this.wasm.render_score_svg_with_layout(this.scoreJson, this.layoutJson, optionsJson);
+    let svg: string;
+    try {
+      svg = this.wasm.render_score_svg_with_layout(this.scoreJson, this.layoutJson, optionsJson);
+    } catch (cause) {
+      throw this.toWorkspaceError("render", cause);
+    }
     this.renderCache.set(key, svg);
     return svg;
   }
@@ -109,9 +137,14 @@ export class AcordeWorkspace {
     const key = `${this.revisionNumber}:${this.layoutJson}:${rowIndex}:${optionsJson}`;
     const cached = this.renderCache.get(key);
     if (cached !== undefined) return cached;
-    const svg = this.wasm.render_score_svg_row(
-      this.scoreJson, this.layoutJson, rowIndex, optionsJson,
-    );
+    let svg: string;
+    try {
+      svg = this.wasm.render_score_svg_row(
+        this.scoreJson, this.layoutJson, rowIndex, optionsJson,
+      );
+    } catch (cause) {
+      throw this.toWorkspaceError("render", cause);
+    }
     this.renderCache.set(key, svg);
     return svg;
   }
@@ -122,9 +155,14 @@ export class AcordeWorkspace {
     const key = `${this.revisionNumber}:${this.layoutJson}:${optionsJson}`;
     const cached = this.metadataCache.get(key);
     if (cached !== undefined) return cached;
-    const metadata = JSON.parse(this.wasm.render_score_metadata(
-      this.scoreJson, this.layoutJson, optionsJson,
-    )) as Record<string, unknown>;
+    let metadata: Record<string, unknown>;
+    try {
+      metadata = JSON.parse(this.wasm.render_score_metadata(
+        this.scoreJson, this.layoutJson, optionsJson,
+      )) as Record<string, unknown>;
+    } catch (cause) {
+      throw this.toWorkspaceError("metadata", cause);
+    }
     this.metadataCache.set(key, metadata);
     return metadata;
   }
@@ -133,7 +171,12 @@ export class AcordeWorkspace {
     this.assertLoaded();
     const cached = this.analysisCache.get(String(this.revisionNumber));
     if (cached !== undefined) return cached;
-    const analysis = JSON.parse(this.wasm.analyze_score(this.scoreJson)) as Record<string, unknown>;
+    let analysis: Record<string, unknown>;
+    try {
+      analysis = JSON.parse(this.wasm.analyze_score(this.scoreJson)) as Record<string, unknown>;
+    } catch (cause) {
+      throw this.toWorkspaceError("analysis", cause);
+    }
     this.analysisCache.set(String(this.revisionNumber), analysis);
     return analysis;
   }
@@ -152,5 +195,11 @@ export class AcordeWorkspace {
     if (!this.scoreJson || !this.layoutJson) {
       throw new Error("A score must be loaded before rendering or analysis");
     }
+  }
+
+  private toWorkspaceError(operation: WorkspaceOperation, cause: unknown): AcordeWorkspaceError {
+    if (cause instanceof AcordeWorkspaceError) return cause;
+    const message = cause instanceof Error ? cause.message : String(cause);
+    return new AcordeWorkspaceError(operation, message, cause);
   }
 }

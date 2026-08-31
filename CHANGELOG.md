@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-08-31
+
+### Browser workspace diagnostics
+
+- Added typed `AcordeWorkspaceError` operation labels for parse, layout, render, metadata, and
+  analysis failures.
+- Made failed loads transactional so an invalid replacement does not discard the current score.
+
 ## [0.30.0] - 2026-08-31
 
 ### Virtualized browser rows

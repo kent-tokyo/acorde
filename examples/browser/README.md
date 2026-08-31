@@ -26,3 +26,6 @@ addresses across notation and analysis views. Results are cached by score revisi
 render configuration, so repeated view updates do not rerun WASM analysis or rendering.
 `renderRowSvg(rowIndex)` exposes the same contract one logical row at a time, which lets a host
 virtualize long scores without moving row/index arithmetic into the UI.
+Parse, layout, render, metadata, and analysis failures are raised as `AcordeWorkspaceError` with
+a typed operation field, allowing a host to show an actionable diagnostic without matching error
+message text.
