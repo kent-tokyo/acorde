@@ -4,9 +4,10 @@ Deterministic, explainable analysis primitives for [`acorde-core`](https://docs.
 The crate has no I/O, renderer, or host dependencies.
 
 The capability slice labels chord-shaped pitch collections, records adjacent melodic intervals,
-and estimates major/minor keys from diatonic pitch coverage. Every result contains stable
-`NoteAddr` evidence and a rule identifier. Key estimation returns all tied best candidates, so
-relative-major/minor ambiguity is preserved instead of inventing a single key.
+and estimates major/minor keys from diatonic pitch coverage. It also reports explicit cadence
+transitions and aligned voice-leading observations, including parallel-perfect flags. Every
+result contains stable `NoteAddr` evidence and a rule identifier. Key estimation returns all tied
+best candidates, so relative-major/minor ambiguity is preserved instead of inventing a single key.
 
 ```rust
 use acorde_analysis::analyze_score;

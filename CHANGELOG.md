@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-08-31
+
+### Explainable harmony analysis
+
+- Added typed cadence candidates for authentic, plagal, deceptive, and half-cadence transitions.
+- Added aligned voice-leading observations with explicit parallel-perfect detection and evidence.
+- The analysis result schema is now version `4`; new fields default to empty for older JSON.
+
 ## [0.19.0] - 2026-08-31
 
 ### Explainable analysis delivery

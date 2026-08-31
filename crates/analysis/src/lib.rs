@@ -2,9 +2,10 @@
 
 use acorde_core::{ChordSymbol, KeySignature, NoteAddr, Score, detect_chord, roman_numeral};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Version of the serialized analysis result contract.
-pub const ANALYSIS_SCHEMA_VERSION: u32 = 3;
+pub const ANALYSIS_SCHEMA_VERSION: u32 = 4;
 
 /// A chord label with source evidence and the rule that produced it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -26,6 +27,10 @@ pub struct AnalysisResult {
     pub intervals: Vec<IntervalObservation>,
     #[serde(default)]
     pub key_estimates: Vec<KeyEstimate>,
+    #[serde(default)]
+    pub cadence_candidates: Vec<CadenceCandidate>,
+    #[serde(default)]
+    pub voice_leading: Vec<VoiceLeadingObservation>,
 }
 
 /// A deterministic key candidate ranked by diatonic pitch coverage.
@@ -34,6 +39,39 @@ pub struct KeyEstimate {
     pub key: KeySignature,
     pub covered_pitches: usize,
     pub total_pitches: usize,
+    pub confidence: u8,
+    pub rule_id: String,
+    pub evidence: Vec<NoteAddr>,
+}
+
+/// A cadence transition inferred only from adjacent, explicitly labeled chords.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CadenceCandidate {
+    pub from: NoteAddr,
+    pub to: NoteAddr,
+    pub kind: CadenceKind,
+    pub confidence: u8,
+    pub rule_id: String,
+    pub evidence: Vec<NoteAddr>,
+}
+
+/// Supported cadence transition families.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CadenceKind {
+    Authentic,
+    Plagal,
+    Deceptive,
+    Half,
+}
+
+/// Voice-leading observation for two adjacent voices at an aligned event.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VoiceLeadingObservation {
+    pub upper: NoteAddr,
+    pub lower: NoteAddr,
+    pub upper_motion: i16,
+    pub lower_motion: i16,
+    pub parallel_perfect: bool,
     pub confidence: u8,
     pub rule_id: String,
     pub evidence: Vec<NoteAddr>,
@@ -103,12 +141,125 @@ pub fn analyze_score(score: &Score) -> AnalysisResult {
     }
     let intervals = analyze_intervals(score);
     let key_estimates = estimate_keys(score);
+    let cadence_candidates = analyze_cadences(&chords);
+    let voice_leading = analyze_voice_leading(score);
     AnalysisResult {
         schema_version: ANALYSIS_SCHEMA_VERSION,
         chords,
         intervals,
         key_estimates,
+        cadence_candidates,
+        voice_leading,
     }
+}
+
+/// Find explicit cadence transitions in the order they occur within each voice.
+pub fn analyze_cadences(chords: &[ChordLabel]) -> Vec<CadenceCandidate> {
+    let mut candidates = Vec::new();
+    let mut previous: HashMap<(usize, usize, usize), &ChordLabel> = HashMap::new();
+    for chord in chords {
+        let key = (chord.address.part, chord.address.staff, chord.address.voice);
+        let Some(previous_chord) = previous.insert(key, chord) else {
+            continue;
+        };
+        let Some(from_roman) = previous_chord.roman_numeral.as_deref() else {
+            continue;
+        };
+        let Some(to_roman) = chord.roman_numeral.as_deref() else {
+            continue;
+        };
+        let from_figure = roman_figure(from_roman);
+        let to_figure = roman_figure(to_roman);
+        let kind = match (from_figure, to_figure) {
+            ("V" | "V7", "I") => CadenceKind::Authentic,
+            ("IV", "I") => CadenceKind::Plagal,
+            ("V" | "V7", "vi") => CadenceKind::Deceptive,
+            (_, "V" | "V7") => CadenceKind::Half,
+            _ => continue,
+        };
+        let evidence = vec![previous_chord.address.clone(), chord.address.clone()];
+        candidates.push(CadenceCandidate {
+            from: previous_chord.address.clone(),
+            to: chord.address.clone(),
+            kind,
+            confidence: 100,
+            rule_id: "roman-numeral-cadence-transition".to_string(),
+            evidence,
+        });
+    }
+    candidates
+}
+
+fn roman_figure(roman: &str) -> &str {
+    roman.find('/').map_or(roman, |index| &roman[..index])
+}
+
+/// Check aligned notes in adjacent voices for motion and parallel perfect intervals.
+pub fn analyze_voice_leading(score: &Score) -> Vec<VoiceLeadingObservation> {
+    let mut observations = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                for (upper_index, upper_voice) in measure.voices.iter().enumerate() {
+                    let Some(lower_voice) = measure.voices.get(upper_index + 1) else {
+                        continue;
+                    };
+                    let count = upper_voice.len().min(lower_voice.len());
+                    for note_index in 0..count {
+                        let Some(upper) = upper_voice[note_index].pitches.first() else {
+                            continue;
+                        };
+                        let Some(lower) = lower_voice[note_index].pitches.first() else {
+                            continue;
+                        };
+                        let next_upper = upper_voice[note_index + 1..]
+                            .iter()
+                            .find_map(|note| note.pitches.first());
+                        let next_lower = lower_voice[note_index + 1..]
+                            .iter()
+                            .find_map(|note| note.pitches.first());
+                        let (Some(next_upper), Some(next_lower)) = (next_upper, next_lower) else {
+                            continue;
+                        };
+                        let upper_addr = NoteAddr {
+                            part: part_index,
+                            staff: staff_index,
+                            measure: measure_index,
+                            voice: upper_index,
+                            note: note_index,
+                        };
+                        let lower_addr = NoteAddr {
+                            part: part_index,
+                            staff: staff_index,
+                            measure: measure_index,
+                            voice: upper_index + 1,
+                            note: note_index,
+                        };
+                        let upper_next_midi = next_upper.to_midi();
+                        let lower_next_midi = next_lower.to_midi();
+                        let upper_motion = upper_next_midi - upper.to_midi();
+                        let lower_motion = lower_next_midi - lower.to_midi();
+                        let initial = (upper.to_midi() - lower.to_midi()).unsigned_abs() % 12;
+                        let next = (upper_next_midi - lower_next_midi).unsigned_abs() % 12;
+                        observations.push(VoiceLeadingObservation {
+                            upper: upper_addr.clone(),
+                            lower: lower_addr.clone(),
+                            upper_motion,
+                            lower_motion,
+                            parallel_perfect: matches!(initial, 0 | 7)
+                                && initial == next
+                                && upper_motion != 0
+                                && upper_motion.signum() == lower_motion.signum(),
+                            confidence: 100,
+                            rule_id: "aligned-adjacent-voice-leading".to_string(),
+                            evidence: vec![upper_addr, lower_addr],
+                        });
+                    }
+                }
+            }
+        }
+    }
+    observations
 }
 
 /// Backwards-compatible name for the complete score analysis pass.
@@ -373,5 +524,40 @@ mod tests {
         let streamed: Vec<_> = analyze_stream(scores.clone()).collect();
         assert_eq!(batch, streamed);
         assert_eq!(batch.len(), scores.len());
+    }
+
+    #[test]
+    fn detects_authentic_cadence_from_adjacent_measures() {
+        let mut score = Score::default();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        for (step, octave) in [(Step::G, 3), (Step::B, 3), (Step::D, 4)] {
+            voice.push(Note::new(Pitch::new(step, octave), Duration::Quarter));
+        }
+        let voice = &mut score.parts[0].staves[0].measures[1].voices[0];
+        voice.clear();
+        for step in [Step::C, Step::E, Step::G] {
+            voice.push(Note::new(Pitch::new(step, 4), Duration::Quarter));
+        }
+        let result = analyze_score(&score);
+        assert_eq!(result.cadence_candidates.len(), 1);
+        assert_eq!(result.cadence_candidates[0].kind, CadenceKind::Authentic);
+        assert_eq!(result.cadence_candidates[0].evidence.len(), 2);
+    }
+
+    #[test]
+    fn flags_parallel_octaves_between_aligned_voices() {
+        let mut score = Score::default();
+        let measure = &mut score.parts[0].staves[0].measures[0];
+        measure.voices[0].clear();
+        measure.voices[1].clear();
+        for (upper, lower) in [(Step::C, Step::C), (Step::D, Step::D)] {
+            measure.voices[0].push(Note::new(Pitch::new(upper, 4), Duration::Quarter));
+            measure.voices[1].push(Note::new(Pitch::new(lower, 3), Duration::Quarter));
+        }
+        let observations = analyze_voice_leading(&score);
+        assert_eq!(observations.len(), 1);
+        assert!(observations[0].parallel_perfect);
+        assert_eq!(observations[0].evidence.len(), 2);
     }
 }
