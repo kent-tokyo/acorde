@@ -37,3 +37,5 @@ includes corpus metadata; each case has `name`,
 ~~~
 
 [Repository](https://github.com/kent-tokyo/acorde)
+
+CLI input and output boundary rules are documented in the [security contract](../../docs/security/threat-model.md).

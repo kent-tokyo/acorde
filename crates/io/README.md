@@ -21,6 +21,8 @@ Serialized reports include `schema_version` (currently `1`); report readers shou
 field before relying on future diagnostic fields. Reports written by older versions default to
 the current schema version when deserialized.
 
+Parser and archive trust-boundary rules are documented in the [security contract](../../docs/security/threat-model.md).
+
 ~~~rust
 use acorde_io::{parse_musicxml, serialize_musicxml};
 

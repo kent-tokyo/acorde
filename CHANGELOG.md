@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.76.0] - 2026-08-31
+
+### Security contract and threat model
+
+- Added the S0 threat model, resource-limit ownership table, error/disclosure contract, and
+  per-crate security documentation links without overstating unfinished parser hardening.
+
 ## [0.75.0] - 2026-08-31
 
 ### Versioned public scorecard

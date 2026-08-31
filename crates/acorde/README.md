@@ -13,3 +13,5 @@ acorde-render-svg = "0.9"
 ~~~
 
 [API documentation](https://docs.rs/acorde) · [Repository](https://github.com/kent-tokyo/acorde)
+
+Umbrella-crate dependency and feature-boundary rules are documented in the [security contract](../../docs/security/threat-model.md).

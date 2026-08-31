@@ -33,3 +33,5 @@ intentionally not embedded in the deterministic analysis result.
 Applications can register deterministic extensions with `AnalysisPass` and execute them through
 `run_analysis_passes`. Pass IDs are validated and sorted before execution, so results do not depend
 on registration order; empty or duplicate IDs return `AnalysisPassError`.
+
+Analysis resource-budget ownership is documented in the [security contract](../../docs/security/threat-model.md).

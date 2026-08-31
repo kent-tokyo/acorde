@@ -20,3 +20,5 @@ Unsupported clefs, accidentals, rows, layouts, and invalid options return Render
 being silently dropped. See the [browser contract](https://github.com/kent-tokyo/acorde/blob/main/docs/browser-rendering.md).
 
 [API documentation](https://docs.rs/acorde-render-svg) · [Repository](https://github.com/kent-tokyo/acorde)
+
+SVG output and annotation trust-boundary rules are documented in the [security contract](../../docs/security/threat-model.md).
