@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.70.0] - 2026-08-31
+
+### Deterministic analysis extension points
+
+- Added `AnalysisPass` and `run_analysis_passes` for external deterministic analysis, with stable
+  ID ordering and typed validation for empty or duplicate IDs.
+
 ## [0.69.0] - 2026-08-31
 
 ### Benchmark fingerprint verification

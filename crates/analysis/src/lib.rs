@@ -3,6 +3,7 @@
 use acorde_core::{ChordSymbol, KeySignature, NoteAddr, Score, detect_chord, roman_numeral};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
+use thiserror::Error;
 
 /// Version of the serialized analysis result contract.
 pub const ANALYSIS_SCHEMA_VERSION: u32 = 7;
@@ -55,6 +56,57 @@ impl AnalysisResult {
     pub fn matches_score(&self, score: &Score) -> bool {
         self.score_fingerprint == score_fingerprint(score)
     }
+}
+
+/// A host- or application-provided deterministic analysis extension.
+pub trait AnalysisPass {
+    /// Stable identifier used for ordering and persisted result lookup.
+    fn id(&self) -> &str;
+
+    /// Run the pass over a score and return its JSON payload.
+    fn run(&self, score: &Score) -> serde_json::Value;
+}
+
+/// Validation failures for a registered analysis pass set.
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum AnalysisPassError {
+    #[error("analysis pass ID must not be empty")]
+    EmptyId,
+    #[error("duplicate analysis pass ID: {0}")]
+    DuplicateId(String),
+}
+
+/// Result of one registered extension pass.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AnalysisPassResult {
+    pub pass_id: String,
+    pub output: serde_json::Value,
+}
+
+/// Run extension passes in stable ID order after validating their identifiers.
+pub fn run_analysis_passes(
+    score: &Score,
+    passes: &[&dyn AnalysisPass],
+) -> Result<Vec<AnalysisPassResult>, AnalysisPassError> {
+    let mut ordered: Vec<&dyn AnalysisPass> = passes.to_vec();
+    for pass in &ordered {
+        if pass.id().is_empty() {
+            return Err(AnalysisPassError::EmptyId);
+        }
+    }
+    ordered.sort_by(|left, right| left.id().cmp(right.id()));
+    for pair in ordered.windows(2) {
+        if pair[0].id() == pair[1].id() {
+            return Err(AnalysisPassError::DuplicateId(pair[0].id().to_string()));
+        }
+    }
+    Ok(ordered
+        .into_iter()
+        .map(|pass| AnalysisPassResult {
+            pass_id: pass.id().to_string(),
+            output: pass.run(score),
+        })
+        .collect())
 }
 
 /// A deterministic key candidate ranked by diatonic pitch coverage.
@@ -1351,5 +1403,49 @@ mod tests {
         assert_eq!(suite.precision_percent, 100);
         assert_eq!(suite.recall_percent, 90);
         assert_eq!(suite.explanation_completeness_percent, 100);
+    }
+
+    struct TestPass(&'static str);
+
+    impl AnalysisPass for TestPass {
+        fn id(&self) -> &str {
+            self.0
+        }
+
+        fn run(&self, _score: &Score) -> serde_json::Value {
+            serde_json::json!({ "pass": self.0 })
+        }
+    }
+
+    #[test]
+    fn extension_passes_run_in_stable_id_order() {
+        let score = Score::default();
+        let beta = TestPass("beta");
+        let alpha = TestPass("alpha");
+        let results = run_analysis_passes(&score, &[&beta, &alpha]).unwrap();
+        assert_eq!(
+            results
+                .iter()
+                .map(|result| result.pass_id.as_str())
+                .collect::<Vec<_>>(),
+            ["alpha", "beta"]
+        );
+        assert_eq!(results[0].output["pass"], "alpha");
+    }
+
+    #[test]
+    fn extension_passes_reject_empty_and_duplicate_ids() {
+        let score = Score::default();
+        let empty = TestPass("");
+        assert_eq!(
+            run_analysis_passes(&score, &[&empty]),
+            Err(AnalysisPassError::EmptyId)
+        );
+        let first = TestPass("same");
+        let second = TestPass("same");
+        assert_eq!(
+            run_analysis_passes(&score, &[&first, &second]),
+            Err(AnalysisPassError::DuplicateId("same".to_string()))
+        );
     }
 }

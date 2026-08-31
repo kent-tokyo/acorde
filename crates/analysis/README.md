@@ -29,3 +29,7 @@ completeness, and category-level `BenchmarkFailure` records with missing or exce
 `run_benchmark_suite` additionally aggregates case status and metrics; an empty suite is reported
 as zero for each aggregate metric. Latency should be measured by the host benchmark runner and is
 intentionally not embedded in the deterministic analysis result.
+
+Applications can register deterministic extensions with `AnalysisPass` and execute them through
+`run_analysis_passes`. Pass IDs are validated and sorted before execution, so results do not depend
+on registration order; empty or duplicate IDs return `AnalysisPassError`.
