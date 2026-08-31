@@ -1,4 +1,4 @@
-use crate::{Error, MAX_INPUT_BYTES};
+use crate::{Error, MAX_ABC_LINE_BYTES, MAX_INPUT_BYTES};
 /// Parse ABC notation (.abc) into a Score.
 ///
 /// Supports a useful subset of ABC notation:
@@ -55,6 +55,11 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
             raw_line
         };
         let line = line.trim_end();
+        if line.len() > MAX_ABC_LINE_BYTES {
+            return Err(Error::Abc(format!(
+                "line exceeds {MAX_ABC_LINE_BYTES} bytes"
+            )));
+        }
         if line.is_empty() {
             continue;
         }

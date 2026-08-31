@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.78.0] - 2026-08-31
+
+### Parser event and line-length hardening
+
+- Added a 500,000-event MIDI guard and a 1 MiB ABC logical-line guard before expensive score
+  construction or token scanning, with adversarial regression coverage and S0 documentation.
+
 ## [0.77.0] - 2026-08-31
 
 ### Parser input-size hardening

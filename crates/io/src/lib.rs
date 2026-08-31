@@ -17,6 +17,10 @@ mod report;
 
 /// Baseline limit for uncompressed non-archive parser inputs.
 pub(crate) const MAX_INPUT_BYTES: usize = 64 * 1024 * 1024;
+/// Baseline limit for one logical ABC line, preventing pathological token scans.
+pub(crate) const MAX_ABC_LINE_BYTES: usize = 1024 * 1024;
+/// Baseline limit for decoded MIDI events before score construction.
+pub(crate) const MAX_MIDI_EVENTS: usize = 500_000;
 
 pub use error::Error;
 pub use report::{
@@ -34,6 +38,16 @@ mod security_tests {
         assert!(matches!(
             super::midi::parse_midi(&data),
             Err(Error::TooLarge(size)) if size == super::MAX_INPUT_BYTES + 1
+        ));
+    }
+
+    #[cfg(feature = "abc")]
+    #[test]
+    fn abc_rejects_pathological_line_length() {
+        let text = format!("X:1\n{}", "x".repeat(super::MAX_ABC_LINE_BYTES + 1));
+        assert!(matches!(
+            super::abc::parse_abc(&text),
+            Err(Error::Abc(message)) if message.contains("line exceeds")
         ));
     }
 

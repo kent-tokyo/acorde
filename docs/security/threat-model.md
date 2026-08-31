@@ -27,6 +27,8 @@ silently raise limits based on input data.
 | Archive entries | 1,024 | enforced for MSCZ |
 | Decompressed archive member | 64 MiB | enforced for MSCZ |
 | XML elements | 500,000 | enforced for MusicXML/MEI/MSCX paths where applicable |
+| MIDI events | 500,000 | enforced before MIDI score construction |
+| ABC logical line | 1 MiB | enforced before ABC token scanning |
 | Score parts/staves/measures/voices | caller budget | model/layout validation boundary |
 | Command history | 200 entries by default | enforced by `CommandStack` |
 | SVG dimensions/options | finite positive values | enforced by renderer |
