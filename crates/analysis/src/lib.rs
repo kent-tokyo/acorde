@@ -50,6 +50,11 @@ impl AnalysisResult {
             self.schema_version, self.score_fingerprint
         )
     }
+
+    /// Check whether this result was produced from the supplied score.
+    pub fn matches_score(&self, score: &Score) -> bool {
+        self.score_fingerprint == score_fingerprint(score)
+    }
 }
 
 /// A deterministic key candidate ranked by diatonic pitch coverage.
@@ -1081,6 +1086,16 @@ mod tests {
         let mut changed = result.clone();
         changed.schema_version = 8;
         assert_ne!(result.cache_key(), changed.cache_key());
+    }
+
+    #[test]
+    fn analysis_result_rejects_a_different_score() {
+        let score = Score::default();
+        let result = analyze_score(&score);
+        assert!(result.matches_score(&score));
+        let mut changed = score.clone();
+        changed.metadata.title = "Changed".to_string();
+        assert!(!result.matches_score(&changed));
     }
 
     #[test]

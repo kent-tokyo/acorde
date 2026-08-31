@@ -10,6 +10,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.57.0] - 2026-08-31
+
+### Analysis score consistency
+
+- Added `AnalysisResult::matches_score()` to reject stale analysis results after score changes.
+
 ## [0.56.0] - 2026-08-31
 
 ### Versioned analysis cache keys
