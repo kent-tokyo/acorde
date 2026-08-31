@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.61.0] - 2026-08-31
+
+### Browser snapshot cache identity
+
+- Added `WorkspaceSnapshot.analysisCacheKey` so snapshot persistence and Worker synchronization
+  can retain the same schema-versioned analysis identity as the result payload.
+
 ## [0.60.0] - 2026-08-31
 
 ### Browser analysis cache contract

@@ -32,6 +32,8 @@ cache key plus layout or render configuration, so repeated view updates and equi
 not rerun WASM analysis or rendering.
 `analysisCacheKey()` and the `analysis-cache-key` Worker request expose the same schema-versioned
 score identity to a host-level or persistent cache without duplicating hashing logic in JavaScript.
+`WorkspaceSnapshot.analysisCacheKey` carries that identity alongside the analysis result for hosts
+that persist or synchronize snapshots as one unit.
 `renderRowSvg(rowIndex)` exposes the same contract one logical row at a time, which lets a host
 virtualize long scores without moving row/index arithmetic into the UI.
 Parse, layout, render, metadata, and analysis failures are raised as `AcordeWorkspaceError` with

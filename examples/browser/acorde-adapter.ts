@@ -92,6 +92,7 @@ export interface WorkspaceSnapshot {
   selectedAddress: NoteAddress | null;
   metadata: Record<string, unknown>;
   analysis: Record<string, unknown>;
+  analysisCacheKey: string;
 }
 
 export interface WorkspaceHistoryState {
@@ -179,6 +180,7 @@ export class AcordeWorkspace {
   private readonly renderCache = new Map<string, string>();
   private readonly metadataCache = new Map<string, Record<string, unknown>>();
   private readonly analysisCache = new Map<string, Record<string, unknown>>();
+  private currentAnalysisCacheKey: string | null = null;
   private readonly undoStack: string[] = [];
   private readonly redoStack: string[] = [];
 
@@ -381,6 +383,7 @@ export class AcordeWorkspace {
     } catch (cause) {
       throw this.toWorkspaceError("analysis", cause);
     }
+    this.currentAnalysisCacheKey = cacheKey;
     const cached = this.analysisCache.get(cacheKey);
     if (cached !== undefined) return cached;
     let analysis: Record<string, unknown>;
@@ -396,8 +399,10 @@ export class AcordeWorkspace {
   /** Return the schema-versioned score identity used for analysis caching. */
   analysisCacheKey(): string {
     this.assertLoaded();
+    if (this.currentAnalysisCacheKey !== null) return this.currentAnalysisCacheKey;
     try {
-      return this.wasm.analysis_cache_key(this.scoreJson);
+      this.currentAnalysisCacheKey = this.wasm.analysis_cache_key(this.scoreJson);
+      return this.currentAnalysisCacheKey;
     } catch (cause) {
       throw this.toWorkspaceError("analysis", cause);
     }
@@ -500,6 +505,7 @@ export class AcordeWorkspace {
       selectedAddress: this.selection.get(),
       metadata: this.metadata(),
       analysis: this.analyze(),
+      analysisCacheKey: this.analysisCacheKey(),
     };
   }
 
@@ -531,6 +537,7 @@ export class AcordeWorkspace {
     this.renderCache.clear();
     this.metadataCache.clear();
     this.analysisCache.clear();
+    this.currentAnalysisCacheKey = null;
     this.revisionNumber += 1;
     this.scoreJson = scoreJson;
     this.layoutJson = layoutJson;
