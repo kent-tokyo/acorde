@@ -23,10 +23,10 @@ silently raise limits based on input data.
 
 | Resource | Baseline | Enforcement status |
 |---|---:|---|
-| Single uncompressed input | 64 MiB | enforced for MSCZ/MSCX; parser-wide work remains |
+| Single uncompressed input | 64 MiB | enforced for MusicXML, MIDI, ABC, MEI, and MSCZ/MSCX |
 | Archive entries | 1,024 | enforced for MSCZ |
 | Decompressed archive member | 64 MiB | enforced for MSCZ |
-| XML elements | 500,000 | enforced for MSCX; parser-wide work remains |
+| XML elements | 500,000 | enforced for MusicXML/MEI/MSCX paths where applicable |
 | Score parts/staves/measures/voices | caller budget | model/layout validation boundary |
 | Command history | 200 entries by default | enforced by `CommandStack` |
 | SVG dimensions/options | finite positive values | enforced by renderer |

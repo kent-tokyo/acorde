@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.77.0] - 2026-08-31
+
+### Parser input-size hardening
+
+- Added the 64 MiB baseline input guard to MIDI and ABC parsers, with regression tests for
+  oversize inputs and synchronized S0 enforcement documentation.
+
 ## [0.76.0] - 2026-08-31
 
 ### Security contract and threat model

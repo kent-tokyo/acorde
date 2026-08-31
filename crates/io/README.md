@@ -22,6 +22,8 @@ field before relying on future diagnostic fields. Reports written by older versi
 the current schema version when deserialized.
 
 Parser and archive trust-boundary rules are documented in the [security contract](../../docs/security/threat-model.md).
+Non-archive parser inputs use a 64 MiB baseline rejection limit; callers should enforce tighter
+budgets when their host resource envelope requires it.
 
 ~~~rust
 use acorde_io::{parse_musicxml, serialize_musicxml};

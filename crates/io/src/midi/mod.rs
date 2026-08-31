@@ -1,7 +1,7 @@
 mod serialize;
 pub use serialize::{serialize_midi, serialize_midi_region};
 
-use crate::Error;
+use crate::{Error, MAX_INPUT_BYTES};
 use acorde_core::{Clef, Duration, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature};
 use midly::{MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
 
@@ -9,6 +9,9 @@ const MAX_MEASURES: usize = 10_000;
 const MAX_PARTS: usize = 32;
 
 pub fn parse_midi(data: &[u8]) -> Result<Score, Error> {
+    if data.len() > MAX_INPUT_BYTES {
+        return Err(Error::TooLarge(data.len()));
+    }
     if data.is_empty() {
         return Err(Error::Empty);
     }

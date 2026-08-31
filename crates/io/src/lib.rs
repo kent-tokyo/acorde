@@ -15,10 +15,38 @@ pub mod mscz;
 pub mod musicxml;
 mod report;
 
+/// Baseline limit for uncompressed non-archive parser inputs.
+pub(crate) const MAX_INPUT_BYTES: usize = 64 * 1024 * 1024;
+
 pub use error::Error;
 pub use report::{
     Diagnostic, DiagnosticSeverity, ExportReport, ImportReport, REPORT_SCHEMA_VERSION,
 };
+
+#[cfg(test)]
+mod security_tests {
+    use super::Error;
+
+    #[cfg(feature = "midi")]
+    #[test]
+    fn midi_rejects_input_over_baseline_limit() {
+        let data = vec![0_u8; super::MAX_INPUT_BYTES + 1];
+        assert!(matches!(
+            super::midi::parse_midi(&data),
+            Err(Error::TooLarge(size)) if size == super::MAX_INPUT_BYTES + 1
+        ));
+    }
+
+    #[cfg(feature = "abc")]
+    #[test]
+    fn abc_rejects_input_over_baseline_limit() {
+        let text = "x".repeat(super::MAX_INPUT_BYTES + 1);
+        assert!(matches!(
+            super::abc::parse_abc(&text),
+            Err(Error::TooLarge(size)) if size == super::MAX_INPUT_BYTES + 1
+        ));
+    }
+}
 
 #[cfg(feature = "musicxml")]
 pub use musicxml::{parse_musicxml, parse_mxl, serialize_musicxml};
