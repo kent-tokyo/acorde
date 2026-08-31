@@ -10,8 +10,10 @@ python3 -m http.server 8000
 
 The page verifies `parse_musicxml` → `compute_layout_ex` →
 `render_score_svg_with_layout` / `render_score_svg_row` / `render_score_metadata`, including
-stable `address_bounds` coverage. It is intentionally framework-free so it can also serve as a
-smoke test for future browser integrations.
+stable `address_bounds` coverage. It also provides an offline reference workflow for loading a
+local MusicXML file, editing and applying the source, undoing/redoing edits, running analysis,
+selecting and playing notes, and exporting MusicXML. It is intentionally framework-free so it can
+also serve as a smoke test for future browser integrations.
 
 After loading, each `data-note-addr` group is made keyboard-focusable by the host fixture. Click
 or focus a note and press Enter/Space to exercise address-based selection; hover state is kept in

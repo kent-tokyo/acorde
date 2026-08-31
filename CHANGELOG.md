@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.42.0] - 2026-08-31
+
+### Offline browser workflow
+
+- Expanded the dependency-free browser reference app with local MusicXML load, source editing,
+  undo/redo, analysis, note playback, and MusicXML export controls.
+- Extended the browser smoke contract to exercise the analysis action and workflow controls.
+
 ## [0.41.0] - 2026-08-31
 
 ### Worker selection synchronization

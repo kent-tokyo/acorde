@@ -4,6 +4,11 @@ test("browser contract renders and exposes selectable notes", async ({ page }) =
   await page.goto("http://127.0.0.1:8000/examples/browser/");
   const status = page.locator("#status");
   await expect(status).toHaveText(/PASS:/);
+  await expect(page.locator("#apply")).toBeEnabled();
+  await expect(page.locator("#analyze")).toBeEnabled();
+  await expect(page.locator("#export")).toBeEnabled();
+  await page.getByRole("button", { name: "Analyze" }).click();
+  await expect(page.locator("#analysis")).not.toHaveText("");
   await expect(page.locator("[data-note-addr]")).toHaveCount(4);
   await page.locator("[data-note-addr]").first().focus();
   await page.keyboard.press("Enter");
