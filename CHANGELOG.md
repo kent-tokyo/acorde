@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-08-31
+
+### Multi-scale renderer budgets
+
+- Expanded the reproducible renderer benchmark to small, medium, and large score cases with
+  per-case layout latency, render latency, and SVG-size budgets.
+
 ## [0.34.0] - 2026-08-31
 
 ### Browser interchange diagnostics

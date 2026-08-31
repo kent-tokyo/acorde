@@ -11,11 +11,30 @@ use acorde_layout::{LayoutConfig, compute_layout};
 use acorde_render_svg::{SvgRenderOptions, render_svg_with_layout};
 
 fn main() {
-    const LAYOUT_BUDGET_US: u128 = 50_000;
-    const RENDER_BUDGET_US: u128 = 100_000;
-    const SVG_BUDGET_BYTES: usize = 2_000_000;
+    let cases = [
+        ("small", 8, 25_000, 50_000, 600_000),
+        ("medium", 32, 50_000, 100_000, 2_000_000),
+        ("large", 128, 200_000, 400_000, 8_000_000),
+    ];
+    for (name, measures, layout_budget_us, render_budget_us, svg_budget_bytes) in cases {
+        run_case(
+            name,
+            measures,
+            layout_budget_us,
+            render_budget_us,
+            svg_budget_bytes,
+        );
+    }
+}
 
-    let mut score = Score::new("renderer benchmark", 120, 4, 4, 0, 32);
+fn run_case(
+    name: &str,
+    measure_count: u32,
+    layout_budget_us: u128,
+    render_budget_us: u128,
+    svg_budget_bytes: usize,
+) {
+    let mut score = Score::new("renderer benchmark", 120, 4, 4, 0, measure_count);
     let pitches = [Step::C, Step::D, Step::E, Step::F];
     let notes = score.measure_count() * pitches.len();
     for measure in &mut score.parts[0].staves[0].measures {
@@ -33,31 +52,27 @@ fn main() {
             ..Default::default()
         },
     );
-    let layout_elapsed = layout_start.elapsed();
+    let layout_us = layout_start.elapsed().as_micros();
     let render_start = Instant::now();
     let svg = render_svg_with_layout(&score, &layout, &SvgRenderOptions::default())
         .expect("benchmark score should render");
-    let render_elapsed = render_start.elapsed();
+    let render_us = render_start.elapsed().as_micros();
 
-    let layout_us = layout_elapsed.as_micros();
-    let render_us = render_elapsed.as_micros();
     println!(
-        "parts={} measures={} notes={}",
+        "case={} parts={} measures={} notes={} layout_us={} render_us={} svg_bytes={}",
+        name,
         score.parts.len(),
         score.measure_count(),
-        notes
-    );
-    println!(
-        "layout_us={} render_us={} svg_bytes={}",
+        notes,
         layout_us,
         render_us,
         svg.len()
     );
-    if layout_us > LAYOUT_BUDGET_US || render_us > RENDER_BUDGET_US || svg.len() > SVG_BUDGET_BYTES
+    if layout_us > layout_budget_us || render_us > render_budget_us || svg.len() > svg_budget_bytes
     {
         eprintln!(
-            "performance budget exceeded: layout <= {}us, render <= {}us, SVG <= {} bytes",
-            LAYOUT_BUDGET_US, RENDER_BUDGET_US, SVG_BUDGET_BYTES
+            "performance budget exceeded for {}: layout <= {}us, render <= {}us, SVG <= {} bytes",
+            name, layout_budget_us, render_budget_us, svg_budget_bytes
         );
         std::process::exit(1);
     }
