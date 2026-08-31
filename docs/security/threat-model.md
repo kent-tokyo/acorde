@@ -36,6 +36,7 @@ silently raise limits based on input data.
 | SVG dimensions/options | finite positive values | enforced by renderer |
 | SVG annotations | 10,000 marks; 16 KiB UTF-8 text per mark | enforced by renderer |
 | SVG output size and analysis/render CPU | host budget | host-owned measurement and cancellation |
+| WASM score/layout/options JSON | 16 MiB / 32 MiB / 64 KiB | enforced by bindings |
 
 ## Error and disclosure contract
 

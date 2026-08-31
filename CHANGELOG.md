@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.82.0] - 2026-08-31
+
+### WASM JSON boundary hardening
+
+- Added binding-side input limits for score JSON (16 MiB), precomputed layout JSON (32 MiB),
+  and playback/render/layout options (64 KiB), returning errors before deserialization.
+
 ## [0.81.0] - 2026-08-31
 
 ### SVG annotation output hardening

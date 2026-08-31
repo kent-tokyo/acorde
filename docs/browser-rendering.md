@@ -6,7 +6,8 @@ The browser integration keeps the same pipeline as native callers:
 parse_musicxml(xml) -> score JSON -> compute_layout_ex(score, config) -> render_score_svg_with_layout
 ```
 
-All JSON arguments are bounded by the host before crossing the WASM boundary. An invalid score,
+The WASM boundary enforces 16 MiB for score JSON, 32 MiB for precomputed layout JSON, and 64 KiB
+for layout/playback/render options JSON. Other small JSON arguments are bounded at 256 KiB. An invalid score,
 layout, options object, or row index returns a rejected `Result`/`JsValue`; no filesystem or
 async runtime is involved.
 

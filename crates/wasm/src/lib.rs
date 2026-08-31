@@ -1,14 +1,34 @@
 use acorde_core::{Command, Score};
+use serde::de::DeserializeOwned;
 use wasm_bindgen::prelude::*;
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+
+const MAX_SCORE_JSON_BYTES: usize = 16 * 1024 * 1024;
+const MAX_LAYOUT_JSON_BYTES: usize = 32 * 1024 * 1024;
+const MAX_OPTIONS_JSON_BYTES: usize = 64 * 1024;
+const MAX_SMALL_JSON_BYTES: usize = 256 * 1024;
 
 fn js_err(msg: impl std::fmt::Display) -> JsValue {
     JsValue::from_str(&msg.to_string())
 }
 
+fn parse_json<T: DeserializeOwned>(
+    json: &str,
+    label: &str,
+    max_bytes: usize,
+) -> Result<T, JsValue> {
+    if json.len() > max_bytes {
+        return Err(js_err(format!(
+            "{label} JSON exceeds limit: {} bytes",
+            json.len()
+        )));
+    }
+    serde_json::from_str(json).map_err(|e| js_err(format!("invalid {label} JSON: {e}")))
+}
+
 fn score_from_json(json: &str) -> Result<Score, JsValue> {
-    serde_json::from_str(json).map_err(|e| js_err(format!("invalid score JSON: {e}")))
+    parse_json(json, "score", MAX_SCORE_JSON_BYTES)
 }
 
 fn score_to_json(score: &Score) -> Result<String, JsValue> {
@@ -150,8 +170,8 @@ pub fn to_playback_events(
     muted_parts_json: &str,
 ) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
-    let muted_parts: Vec<usize> = serde_json::from_str(muted_parts_json)
-        .map_err(|e| js_err(format!("invalid muted_parts JSON: {e}")))?;
+    let muted_parts: Vec<usize> =
+        parse_json(muted_parts_json, "muted_parts", MAX_SMALL_JSON_BYTES)?;
     let options = acorde_core::PlaybackOptions {
         bpm_override: if bpm == 0 { None } else { Some(bpm) },
         muted_parts,
@@ -171,8 +191,8 @@ pub fn to_playback_events(
 #[wasm_bindgen]
 pub fn to_playback_events_ex(score_json: &str, options_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
-    let options: acorde_core::PlaybackOptions = serde_json::from_str(options_json)
-        .map_err(|e| js_err(format!("invalid options JSON: {e}")))?;
+    let options: acorde_core::PlaybackOptions =
+        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
     let events = acorde_core::to_playback_events(&score, &options);
     serde_json::to_string(&events)
         .map_err(|e| js_err(format!("playback serialization failed: {e}")))
@@ -189,8 +209,8 @@ pub fn compute_playback_position(
     elapsed_secs: f64,
 ) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
-    let options: acorde_core::PlaybackOptions = serde_json::from_str(options_json)
-        .map_err(|e| js_err(format!("invalid options JSON: {e}")))?;
+    let options: acorde_core::PlaybackOptions =
+        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
     let pos = acorde_core::compute_playback_position(&score, &options, elapsed_secs);
     serde_json::to_string(&pos).map_err(|e| js_err(format!("position serialization failed: {e}")))
 }
@@ -231,8 +251,8 @@ pub fn compute_layout(
 #[wasm_bindgen]
 pub fn compute_layout_ex(score_json: &str, config_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
-    let config: acorde_layout::LayoutConfig = serde_json::from_str(config_json)
-        .map_err(|e| js_err(format!("invalid config JSON: {e}")))?;
+    let config: acorde_layout::LayoutConfig =
+        parse_json(config_json, "config", MAX_OPTIONS_JSON_BYTES)?;
     let result = acorde_layout::compute_layout(&score, &config);
     serde_json::to_string(&result).map_err(|e| js_err(format!("layout serialization failed: {e}")))
 }
@@ -248,8 +268,8 @@ pub fn compute_layout_ex(score_json: &str, config_json: &str) -> Result<String, 
 #[wasm_bindgen]
 pub fn render_score_svg(score_json: &str, options_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
-    let options: acorde_render_svg::SvgRenderOptions = serde_json::from_str(options_json)
-        .map_err(|e| js_err(format!("invalid options JSON: {e}")))?;
+    let options: acorde_render_svg::SvgRenderOptions =
+        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
     acorde_render_svg::render_svg(&score, &options).map_err(js_err)
 }
 
@@ -261,10 +281,10 @@ pub fn render_score_svg_with_layout(
     options_json: &str,
 ) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
-    let layout: acorde_layout::LayoutResult = serde_json::from_str(layout_json)
-        .map_err(|e| js_err(format!("invalid layout JSON: {e}")))?;
-    let options: acorde_render_svg::SvgRenderOptions = serde_json::from_str(options_json)
-        .map_err(|e| js_err(format!("invalid options JSON: {e}")))?;
+    let layout: acorde_layout::LayoutResult =
+        parse_json(layout_json, "layout", MAX_LAYOUT_JSON_BYTES)?;
+    let options: acorde_render_svg::SvgRenderOptions =
+        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
     acorde_render_svg::render_svg_with_layout(&score, &layout, &options).map_err(js_err)
 }
 
@@ -277,10 +297,10 @@ pub fn render_score_svg_row(
     options_json: &str,
 ) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
-    let layout: acorde_layout::LayoutResult = serde_json::from_str(layout_json)
-        .map_err(|e| js_err(format!("invalid layout JSON: {e}")))?;
-    let options: acorde_render_svg::SvgRenderOptions = serde_json::from_str(options_json)
-        .map_err(|e| js_err(format!("invalid options JSON: {e}")))?;
+    let layout: acorde_layout::LayoutResult =
+        parse_json(layout_json, "layout", MAX_LAYOUT_JSON_BYTES)?;
+    let options: acorde_render_svg::SvgRenderOptions =
+        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
     acorde_render_svg::render_svg_row(&score, &layout, row, &options).map_err(js_err)
 }
 
@@ -292,10 +312,10 @@ pub fn render_score_metadata(
     options_json: &str,
 ) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
-    let layout: acorde_layout::LayoutResult = serde_json::from_str(layout_json)
-        .map_err(|e| js_err(format!("invalid layout JSON: {e}")))?;
-    let options: acorde_render_svg::SvgRenderOptions = serde_json::from_str(options_json)
-        .map_err(|e| js_err(format!("invalid options JSON: {e}")))?;
+    let layout: acorde_layout::LayoutResult =
+        parse_json(layout_json, "layout", MAX_LAYOUT_JSON_BYTES)?;
+    let options: acorde_render_svg::SvgRenderOptions =
+        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
     let metadata =
         acorde_render_svg::render_svg_metadata(&score, &layout, &options).map_err(js_err)?;
     serde_json::to_string(&metadata)
@@ -1161,5 +1181,15 @@ mod wasm_tests {
         let patched = apply_score_patch(&before, &patches).unwrap();
         assert!(patched.contains("Patched"));
         assert!(apply_score_patch(&before, "not-json").is_err());
+    }
+
+    #[wasm_bindgen_test]
+    fn browser_json_limits_reject_oversized_inputs() {
+        let oversized_score = "{".to_string() + &"x".repeat(MAX_SCORE_JSON_BYTES);
+        assert!(render_score_svg(&oversized_score, "{}").is_err());
+
+        let oversized_options = "{".to_string() + &"x".repeat(MAX_OPTIONS_JSON_BYTES);
+        let score_json = serde_json::to_string(&Score::default()).unwrap();
+        assert!(render_score_svg(&score_json, &oversized_options).is_err());
     }
 }
