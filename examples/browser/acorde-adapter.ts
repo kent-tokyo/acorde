@@ -93,6 +93,33 @@ export interface WorkspaceSnapshot {
   analysis: Record<string, unknown>;
 }
 
+export type WorkspaceRequest =
+  | { id: string; type: "load-musicxml"; xml: string }
+  | { id: string; type: "load-musicxml-report"; xml: string }
+  | { id: string; type: "load-midi"; data: Uint8Array }
+  | { id: string; type: "replace-score"; scoreJson: string }
+  | { id: string; type: "undo" }
+  | { id: string; type: "redo" }
+  | { id: string; type: "snapshot" }
+  | { id: string; type: "render-svg" }
+  | { id: string; type: "render-row-svg"; rowIndex: number }
+  | { id: string; type: "metadata" }
+  | { id: string; type: "analysis" }
+  | { id: string; type: "export-musicxml" }
+  | { id: string; type: "export-musicxml-report" }
+  | { id: string; type: "playback-events"; options?: Record<string, unknown> }
+  | { id: string; type: "playback-position"; elapsedSecs: number; options?: Record<string, unknown> }
+  | { id: string; type: "select-playback-at"; elapsedSecs: number; options?: Record<string, unknown> }
+  | { id: string; type: "duration-seconds" };
+
+export type WorkspaceResponse =
+  | { id: string; ok: true; value: unknown }
+  | {
+    id: string;
+    ok: false;
+    error: { operation?: WorkspaceOperation; message: string };
+  };
+
 export function createSelectionStore(initial: NoteAddress | null = null): SelectionStore {
   let current = initial;
   const listeners = new Set<(address: NoteAddress | null) => void>();
@@ -435,5 +462,85 @@ export class AcordeWorkspace {
     if (cause instanceof AcordeWorkspaceError) return cause;
     const message = cause instanceof Error ? cause.message : String(cause);
     return new AcordeWorkspaceError(operation, message, cause);
+  }
+}
+
+/**
+ * Handle one serializable workspace message. A host can call this from a Worker
+ * `onmessage` handler and post the returned response back to the UI thread.
+ */
+export function handleWorkspaceRequest(
+  workspace: AcordeWorkspace,
+  request: WorkspaceRequest,
+): WorkspaceResponse {
+  try {
+    switch (request.type) {
+      case "load-musicxml":
+        workspace.loadMusicXml(request.xml);
+        return { id: request.id, ok: true, value: workspace.snapshot() };
+      case "load-musicxml-report": {
+        const report = workspace.loadMusicXmlWithReport(request.xml);
+        return { id: request.id, ok: true, value: { report, snapshot: workspace.snapshot() } };
+      }
+      case "load-midi":
+        workspace.loadMidi(request.data);
+        return { id: request.id, ok: true, value: workspace.snapshot() };
+      case "replace-score":
+        workspace.replaceScoreJson(request.scoreJson);
+        return { id: request.id, ok: true, value: workspace.snapshot() };
+      case "undo":
+        return { id: request.id, ok: true, value: workspace.undo() };
+      case "redo":
+        return { id: request.id, ok: true, value: workspace.redo() };
+      case "snapshot":
+        return { id: request.id, ok: true, value: workspace.snapshot() };
+      case "render-svg":
+        return { id: request.id, ok: true, value: workspace.renderSvg() };
+      case "render-row-svg":
+        return { id: request.id, ok: true, value: workspace.renderRowSvg(request.rowIndex) };
+      case "metadata":
+        return { id: request.id, ok: true, value: workspace.metadata() };
+      case "analysis":
+        return { id: request.id, ok: true, value: workspace.analyze() };
+      case "export-musicxml":
+        return { id: request.id, ok: true, value: workspace.exportMusicXml() };
+      case "export-musicxml-report":
+        return { id: request.id, ok: true, value: workspace.exportMusicXmlWithReport() };
+      case "playback-events":
+        return { id: request.id, ok: true, value: workspace.playbackEvents(request.options) };
+      case "playback-position":
+        return {
+          id: request.id,
+          ok: true,
+          value: workspace.playbackPosition(request.elapsedSecs, request.options),
+        };
+      case "select-playback-at":
+        return {
+          id: request.id,
+          ok: true,
+          value: workspace.selectPlaybackAt(request.elapsedSecs, request.options),
+        };
+      case "duration-seconds":
+        return { id: request.id, ok: true, value: workspace.durationSeconds() };
+      default:
+        return {
+          id: request.id,
+          ok: false,
+          error: { message: "unsupported workspace request" },
+        };
+    }
+  } catch (cause) {
+    if (cause instanceof AcordeWorkspaceError) {
+      return {
+        id: request.id,
+        ok: false,
+        error: { operation: cause.operation, message: cause.message },
+      };
+    }
+    return {
+      id: request.id,
+      ok: false,
+      error: { message: cause instanceof Error ? cause.message : String(cause) },
+    };
   }
 }

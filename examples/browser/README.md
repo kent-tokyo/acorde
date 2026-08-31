@@ -43,3 +43,6 @@ analysis highlighting.
 `playbackEventAt` resolves the active sounding event at a host clock time, and `selectPlaybackAt`
 combines that lookup with selection updates; `WorkspaceSnapshot.selectedAddress` makes the same
 state available to persistence and view synchronization code.
+`WorkspaceRequest` and `handleWorkspaceRequest` provide a serializable message boundary for
+Worker hosts; the same handler returns correlated success or structured error responses for load,
+edit, render, analysis, playback, and export operations.

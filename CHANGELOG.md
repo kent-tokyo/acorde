@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-08-31
+
+### Worker-friendly browser workspace protocol
+
+- Added a framework-neutral workspace request/response boundary suitable for Worker message
+  handlers, covering loading, editing, rendering, analysis, playback, and export.
+- Preserved correlated request IDs and structured workspace errors across the message boundary.
+
 ## [0.37.0] - 2026-08-31
 
 ### Playback cursor synchronization
