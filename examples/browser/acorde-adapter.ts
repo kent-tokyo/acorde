@@ -2,6 +2,9 @@
 
 export type NoteAddress = string;
 
+/** Version of the serialized browser workspace snapshot contract. */
+export const WORKSPACE_SNAPSHOT_SCHEMA_VERSION = 1;
+
 export type WorkspaceOperation =
   | "parse"
   | "layout"
@@ -86,6 +89,7 @@ export interface SelectionStore {
 }
 
 export interface WorkspaceSnapshot {
+  schemaVersion: number;
   revision: number;
   scoreJson: string;
   layoutJson: string;
@@ -499,6 +503,7 @@ export class AcordeWorkspace {
 
   snapshot(): WorkspaceSnapshot {
     return {
+      schemaVersion: WORKSPACE_SNAPSHOT_SCHEMA_VERSION,
       revision: this.revisionNumber,
       scoreJson: this.scoreJson,
       layoutJson: this.layoutJson,

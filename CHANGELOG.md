@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.62.0] - 2026-08-31
+
+### Versioned browser snapshots
+
+- Added `WorkspaceSnapshot.schemaVersion` and `WORKSPACE_SNAPSHOT_SCHEMA_VERSION` so persisted
+  browser workspace state can explicitly detect future contract changes.
+
 ## [0.61.0] - 2026-08-31
 
 ### Browser snapshot cache identity

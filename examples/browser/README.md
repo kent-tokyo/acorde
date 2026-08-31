@@ -34,6 +34,8 @@ not rerun WASM analysis or rendering.
 score identity to a host-level or persistent cache without duplicating hashing logic in JavaScript.
 `WorkspaceSnapshot.analysisCacheKey` carries that identity alongside the analysis result for hosts
 that persist or synchronize snapshots as one unit.
+Snapshots include `schemaVersion` (currently `1`) so persisted Worker/UI state can reject or migrate
+future contract changes explicitly.
 `renderRowSvg(rowIndex)` exposes the same contract one logical row at a time, which lets a host
 virtualize long scores without moving row/index arithmetic into the UI.
 Parse, layout, render, metadata, and analysis failures are raised as `AcordeWorkspaceError` with
