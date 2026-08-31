@@ -39,6 +39,7 @@ export interface WasmBindings {
   ): string;
   render_score_metadata(scoreJson: string, layoutJson: string, optionsJson: string): string;
   analyze_score(scoreJson: string): string;
+  analysis_cache_key(scoreJson: string): string;
   to_playback_events_ex(scoreJson: string, optionsJson: string): string;
   compute_playback_position(scoreJson: string, optionsJson: string, elapsedSecs: number): string;
   score_duration_secs(scoreJson: string): number;
@@ -373,7 +374,13 @@ export class AcordeWorkspace {
 
   analyze(): Record<string, unknown> {
     this.assertLoaded();
-    const cached = this.analysisCache.get(String(this.revisionNumber));
+    let cacheKey: string;
+    try {
+      cacheKey = this.wasm.analysis_cache_key(this.scoreJson);
+    } catch (cause) {
+      throw this.toWorkspaceError("analysis", cause);
+    }
+    const cached = this.analysisCache.get(cacheKey);
     if (cached !== undefined) return cached;
     let analysis: Record<string, unknown>;
     try {
@@ -381,7 +388,7 @@ export class AcordeWorkspace {
     } catch (cause) {
       throw this.toWorkspaceError("analysis", cause);
     }
-    this.analysisCache.set(String(this.revisionNumber), analysis);
+    this.analysisCache.set(cacheKey, analysis);
     return analysis;
   }
 
