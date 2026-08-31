@@ -83,6 +83,7 @@ acorde convert input.mid output.musicxml
 acorde info input.musicxml
 acorde validate input.musicxml
 acorde extract --part 0 input.musicxml part.musicxml
+acorde transpose --semitones 2 input.musicxml transposed.musicxml
 ```
 
 The CLI supports `.musicxml`, `.mxl`, `.mid`/`.midi`, `.mscz`, and `.mscx` input. Conversion
