@@ -34,3 +34,6 @@ failed layout preparation leaves the current score unchanged.
 `exportMusicXml` provides offline MusicXML export. `playbackEvents`, `playbackPosition`, and
 `durationSeconds` expose deterministic scheduling data to a host audio backend without coupling
 the adapter to Web Audio or another playback framework.
+`loadMusicXmlWithReport` and `exportMusicXmlWithReport` additionally return structured
+interchange diagnostics, including preserved values and loss reasons when the format adapter
+has such information, so hosts can present repair guidance without parsing error strings.

@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-08-31
+
+### Browser interchange diagnostics
+
+- Exposed structured MusicXML import and export reports through the browser workspace adapter,
+  including source-grounded diagnostic fields for host-provided repair and loss reporting.
+
 ## [0.33.0] - 2026-08-31
 
 ### Browser playback and export

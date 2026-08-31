@@ -25,8 +25,10 @@ export class AcordeWorkspaceError extends Error {
 
 export interface WasmBindings {
   parse_musicxml(xml: string): string;
+  parse_musicxml_report(xml: string): string;
   parse_midi(data: Uint8Array): string;
   serialize_musicxml(scoreJson: string): string;
+  serialize_musicxml_report(scoreJson: string): string;
   compute_layout_ex(scoreJson: string, configJson: string): string;
   render_score_svg_with_layout(scoreJson: string, layoutJson: string, optionsJson: string): string;
   render_score_svg_row(
@@ -40,6 +42,28 @@ export interface WasmBindings {
   to_playback_events_ex(scoreJson: string, optionsJson: string): string;
   compute_playback_position(scoreJson: string, optionsJson: string, elapsedSecs: number): string;
   score_duration_secs(scoreJson: string): number;
+}
+
+export interface InterchangeDiagnostic {
+  code: string;
+  severity: string;
+  source_location?: string;
+  preserved_value?: string;
+  loss_reason?: string;
+}
+
+export interface ImportReport {
+  schema_version: number;
+  format: string;
+  score: Record<string, unknown>;
+  diagnostics: InterchangeDiagnostic[];
+}
+
+export interface ExportReport {
+  schema_version: number;
+  format: string;
+  output: string;
+  diagnostics: InterchangeDiagnostic[];
 }
 
 export interface ScoreWorkspaceOptions {
@@ -116,6 +140,22 @@ export class AcordeWorkspace {
     this.redoStack.length = 0;
     this.installScore(nextScore, nextLayout, layoutOptionsJson);
     this.selection.set(null);
+  }
+
+  /** Load MusicXML and return structured import diagnostics to the host. */
+  loadMusicXmlWithReport(xml: string): ImportReport {
+    let report: ImportReport;
+    try {
+      report = JSON.parse(this.wasm.parse_musicxml_report(xml)) as ImportReport;
+    } catch (cause) {
+      throw this.toWorkspaceError("parse", cause);
+    }
+    const prepared = this.prepareScore(JSON.stringify(report.score));
+    this.undoStack.length = 0;
+    this.redoStack.length = 0;
+    this.installScore(prepared.scoreJson, prepared.layoutJson, prepared.layoutOptionsJson);
+    this.selection.set(null);
+    return report;
   }
 
   /** Load MIDI bytes and replace the current document transactionally. */
@@ -254,6 +294,16 @@ export class AcordeWorkspace {
     this.assertLoaded();
     try {
       return this.wasm.serialize_musicxml(this.scoreJson);
+    } catch (cause) {
+      throw this.toWorkspaceError("serialize", cause);
+    }
+  }
+
+  /** Serialize MusicXML and return structured export diagnostics to the host. */
+  exportMusicXmlWithReport(): ExportReport {
+    this.assertLoaded();
+    try {
+      return JSON.parse(this.wasm.serialize_musicxml_report(this.scoreJson)) as ExportReport;
     } catch (cause) {
       throw this.toWorkspaceError("serialize", cause);
     }
