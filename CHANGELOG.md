@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.48.0] - 2026-08-31
+
+### MEI staff and layer diagnostics
+
+- Added loss diagnostics when non-primary MEI staff or layer numbers are flattened into the
+  canonical single-staff/single-layer score model.
+- Preserved the source `n` value in diagnostics for host-side repair guidance.
+
 ## [0.47.0] - 2026-08-31
 
 ### Bounded MEI loss diagnostics

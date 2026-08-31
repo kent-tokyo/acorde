@@ -68,6 +68,7 @@ fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
                 if UNSUPPORTED_ELEMENTS.contains(&name.as_str()) {
                     push_loss_diagnostic(&mut diagnostics, &path, &name, &mut truncated);
                 }
+                push_flattening_diagnostic(&mut diagnostics, &path, &name, &event, &mut truncated);
             }
             Ok(Event::Empty(event)) => {
                 let name = String::from_utf8_lossy(event.name().as_ref()).into_owned();
@@ -76,6 +77,15 @@ fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
                     element_path.push(name.clone());
                     push_loss_diagnostic(&mut diagnostics, &element_path, &name, &mut truncated);
                 }
+                let mut element_path = path.clone();
+                element_path.push(name.clone());
+                push_flattening_diagnostic(
+                    &mut diagnostics,
+                    &element_path,
+                    &name,
+                    &event,
+                    &mut truncated,
+                );
             }
             Ok(Event::End(_)) => {
                 path.pop();
@@ -101,13 +111,52 @@ fn push_loss_diagnostic(
         diagnostic.source_location = Some(format!("/{}", path.join("/")));
         diagnostics.push(diagnostic);
     } else if !*truncated {
+        push_truncation_diagnostic(diagnostics, path, truncated);
+    }
+}
+
+fn push_truncation_diagnostic(
+    diagnostics: &mut Vec<Diagnostic>,
+    path: &[String],
+    truncated: &mut bool,
+) {
+    let mut diagnostic = Diagnostic::warning(
+        "mei.unsupported-elements.truncated",
+        "MEI unsupported-element diagnostics exceeded the reporting limit",
+    );
+    diagnostic.source_location = Some(format!("/{}", path.join("/")));
+    diagnostics.push(diagnostic);
+    *truncated = true;
+}
+
+fn push_flattening_diagnostic(
+    diagnostics: &mut Vec<Diagnostic>,
+    path: &[String],
+    name: &str,
+    event: &BytesStart<'_>,
+    truncated: &mut bool,
+) {
+    let expected = match name {
+        "staff" => "1",
+        "layer" => "1",
+        _ => return,
+    };
+    let Some(value) = attr(event, b"n") else {
+        return;
+    };
+    if value == expected {
+        return;
+    }
+    if diagnostics.len() < MAX_MEI_DIAGNOSTICS {
         let mut diagnostic = Diagnostic::warning(
-            "mei.unsupported-elements.truncated",
-            "MEI unsupported-element diagnostics exceeded the reporting limit",
+            format!("mei.flattened-{name}"),
+            format!("MEI {name} '{value}' is flattened into the canonical {name} 1"),
         );
         diagnostic.source_location = Some(format!("/{}", path.join("/")));
+        diagnostic.preserved_value = Some(value);
         diagnostics.push(diagnostic);
-        *truncated = true;
+    } else if !*truncated {
+        push_truncation_diagnostic(diagnostics, path, truncated);
     }
 }
 
@@ -355,5 +404,18 @@ mod tests {
                 .map(|diagnostic| diagnostic.code.as_str()),
             Some("mei.unsupported-elements.truncated")
         );
+    }
+
+    #[test]
+    fn report_marks_flattened_staff_and_layer_numbers() {
+        let xml = FIXTURE
+            .replace("<staff n=\"1\">", "<staff n=\"2\">")
+            .replace("<layer n=\"1\">", "<layer n=\"3\">");
+        let report = parse_mei_with_report(&xml).expect("MEI report parses");
+        assert_eq!(report.diagnostics.len(), 2);
+        assert_eq!(report.diagnostics[0].code, "mei.flattened-staff");
+        assert_eq!(report.diagnostics[0].preserved_value.as_deref(), Some("2"));
+        assert_eq!(report.diagnostics[1].code, "mei.flattened-layer");
+        assert_eq!(report.diagnostics[1].preserved_value.as_deref(), Some("3"));
     }
 }
