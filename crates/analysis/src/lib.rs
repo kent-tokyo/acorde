@@ -212,6 +212,18 @@ pub struct BenchmarkCaseReport {
     pub failures: Vec<BenchmarkFailure>,
 }
 
+/// Aggregate results for a deterministic benchmark suite.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BenchmarkSuiteReport {
+    pub cases: Vec<BenchmarkCaseReport>,
+    pub case_count: usize,
+    pub passed_case_count: usize,
+    pub failed_case_count: usize,
+    pub precision_percent: u8,
+    pub recall_percent: u8,
+    pub explanation_completeness_percent: u8,
+}
+
 /// A consecutive melodic interval with addresses for both source notes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct IntervalObservation {
@@ -457,6 +469,46 @@ pub fn benchmark_case(case: &BenchmarkCase<'_>) -> BenchmarkCaseReport {
 /// Run benchmark cases in input order; no filesystem or network access is used.
 pub fn run_benchmark(cases: &[BenchmarkCase<'_>]) -> Vec<BenchmarkCaseReport> {
     cases.iter().map(benchmark_case).collect()
+}
+
+/// Run a benchmark suite and aggregate its case-level metrics.
+pub fn run_benchmark_suite(cases: &[BenchmarkCase<'_>]) -> BenchmarkSuiteReport {
+    let reports = run_benchmark(cases);
+    let case_count = reports.len();
+    let passed_case_count = reports
+        .iter()
+        .filter(|report| report.failures.is_empty())
+        .count();
+    let failed_case_count = case_count.saturating_sub(passed_case_count);
+    let precision_total: usize = reports
+        .iter()
+        .map(|report| usize::from(report.precision_percent))
+        .sum();
+    let recall_total: usize = reports
+        .iter()
+        .map(|report| usize::from(report.recall_percent))
+        .sum();
+    let explanation_total: usize = reports
+        .iter()
+        .map(|report| usize::from(report.explanation_completeness_percent))
+        .sum();
+    let metric_denominator = case_count.saturating_mul(100);
+    let aggregate_metric = |total: usize| {
+        if case_count == 0 {
+            0
+        } else {
+            percentage(total, metric_denominator)
+        }
+    };
+    BenchmarkSuiteReport {
+        cases: reports,
+        case_count,
+        passed_case_count,
+        failed_case_count,
+        precision_percent: aggregate_metric(precision_total),
+        recall_percent: aggregate_metric(recall_total),
+        explanation_completeness_percent: aggregate_metric(explanation_total),
+    }
 }
 
 fn percentage(numerator: usize, denominator: usize) -> u8 {
@@ -1168,5 +1220,36 @@ mod tests {
                 excess: 0,
             }]
         );
+    }
+
+    #[test]
+    fn benchmark_suite_aggregates_case_status_and_metrics() {
+        let score = Score::default();
+        let cases = [
+            BenchmarkCase {
+                name: "passing",
+                score: &score,
+                expected: BenchmarkExpectation {
+                    phrase_boundaries: 4,
+                    ..BenchmarkExpectation::default()
+                },
+            },
+            BenchmarkCase {
+                name: "failing",
+                score: &score,
+                expected: BenchmarkExpectation {
+                    phrase_boundaries: 5,
+                    ..BenchmarkExpectation::default()
+                },
+            },
+        ];
+        let suite = run_benchmark_suite(&cases);
+        assert_eq!(suite.case_count, 2);
+        assert_eq!(suite.passed_case_count, 1);
+        assert_eq!(suite.failed_case_count, 1);
+        assert_eq!(suite.cases.len(), 2);
+        assert_eq!(suite.precision_percent, 100);
+        assert_eq!(suite.recall_percent, 90);
+        assert_eq!(suite.explanation_completeness_percent, 100);
     }
 }

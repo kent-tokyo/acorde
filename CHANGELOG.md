@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-08-31
+
+### Analysis benchmark suites
+
+- Added deterministic suite-level aggregation for case status, precision, recall, and explanation
+  completeness while preserving each case's failure details.
+
 ## [0.24.0] - 2026-08-31
 
 ### Analysis benchmark failure reports
