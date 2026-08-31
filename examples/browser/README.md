@@ -24,3 +24,5 @@ workspace. Inject the generated WASM module into `AcordeWorkspace`; it keeps sco
 metadata, and analysis transport consistent while `SelectionStore` synchronizes stable note
 addresses across notation and analysis views. Results are cached by score revision plus layout or
 render configuration, so repeated view updates do not rerun WASM analysis or rendering.
+`renderRowSvg(rowIndex)` exposes the same contract one logical row at a time, which lets a host
+virtualize long scores without moving row/index arithmetic into the UI.

@@ -6,6 +6,12 @@ export interface WasmBindings {
   parse_musicxml(xml: string): string;
   compute_layout_ex(scoreJson: string, configJson: string): string;
   render_score_svg_with_layout(scoreJson: string, layoutJson: string, optionsJson: string): string;
+  render_score_svg_row(
+    scoreJson: string,
+    layoutJson: string,
+    rowIndex: number,
+    optionsJson: string,
+  ): string;
   render_score_metadata(scoreJson: string, layoutJson: string, optionsJson: string): string;
   analyze_score(scoreJson: string): string;
 }
@@ -92,6 +98,20 @@ export class AcordeWorkspace {
     const cached = this.renderCache.get(key);
     if (cached !== undefined) return cached;
     const svg = this.wasm.render_score_svg_with_layout(this.scoreJson, this.layoutJson, optionsJson);
+    this.renderCache.set(key, svg);
+    return svg;
+  }
+
+  /** Render one logical row, allowing a host to virtualize long scores. */
+  renderRowSvg(rowIndex: number): string {
+    this.assertLoaded();
+    const optionsJson = JSON.stringify(this.options.render ?? {});
+    const key = `${this.revisionNumber}:${this.layoutJson}:${rowIndex}:${optionsJson}`;
+    const cached = this.renderCache.get(key);
+    if (cached !== undefined) return cached;
+    const svg = this.wasm.render_score_svg_row(
+      this.scoreJson, this.layoutJson, rowIndex, optionsJson,
+    );
     this.renderCache.set(key, svg);
     return svg;
   }
