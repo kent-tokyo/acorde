@@ -9,9 +9,12 @@ and estimates major/minor keys from diatonic pitch coverage. Every result contai
 relative-major/minor ambiguity is preserved instead of inventing a single key.
 
 ```rust
-use acorde_analysis::analyze_chords;
+use acorde_analysis::analyze_score;
 use acorde_core::Score;
 
-let result = analyze_chords(&Score::default());
+let result = analyze_score(&Score::default());
 assert!(result.chords.is_empty());
 ```
+
+`analyze_batch` preserves input order for finite collections, while `analyze_stream` returns a
+lazy iterator for host-side streaming. Both use the same deterministic result contract.

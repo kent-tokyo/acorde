@@ -37,6 +37,11 @@ enum Commands {
         /// Input file (.musicxml, .mxl, .mid, .abc, .mscz, .mscx, .mei)
         input: PathBuf,
     },
+    /// Analyze chords, melodic intervals, and key candidates as JSON
+    Analyze {
+        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx)
+        input: PathBuf,
+    },
     /// Extract a single part from a score
     Extract {
         /// Input file (.musicxml, .mxl, .mid, .midi)
@@ -56,6 +61,7 @@ fn main() {
         Commands::Info { input } => cmd_info(input),
         Commands::Validate { input } => cmd_validate(input),
         Commands::Report { input } => cmd_report(input),
+        Commands::Analyze { input } => cmd_analyze(input),
         Commands::Extract {
             input,
             output,
@@ -86,6 +92,16 @@ fn parse_score(path: &Path) -> Result<Score, String> {
         }
         "mxl" => acorde_io::parse_mxl(&data).map_err(|e| e.to_string()),
         "mid" | "midi" => acorde_io::parse_midi(&data).map_err(|e| e.to_string()),
+        "abc" => {
+            let text = String::from_utf8(data)
+                .map_err(|e| format!("invalid UTF-8 in '{}': {e}", path.display()))?;
+            acorde_io::parse_abc(&text).map_err(|e| e.to_string())
+        }
+        "mei" => {
+            let text = String::from_utf8(data)
+                .map_err(|e| format!("invalid UTF-8 in '{}': {e}", path.display()))?;
+            acorde_io::parse_mei(&text).map_err(|e| e.to_string())
+        }
         "mscz" => acorde_io::parse_mscz(&data).map_err(|e| e.to_string()),
         "mscx" => {
             let xml = String::from_utf8(data)
@@ -131,6 +147,15 @@ fn cmd_report(input: &Path) -> Result<(), String> {
     let report = parse_report(input)?;
     let json = serde_json::to_string_pretty(&report)
         .map_err(|e| format!("report serialization failed: {e}"))?;
+    println!("{json}");
+    Ok(())
+}
+
+fn cmd_analyze(input: &Path) -> Result<(), String> {
+    let score = parse_score(input)?;
+    let analysis = acorde_analysis::analyze_score(&score);
+    let json = serde_json::to_string_pretty(&analysis)
+        .map_err(|e| format!("analysis serialization failed: {e}"))?;
     println!("{json}");
     Ok(())
 }

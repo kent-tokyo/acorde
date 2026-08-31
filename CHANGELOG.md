@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-08-31
+
+### Explainable analysis delivery
+
+- Added the `acorde analyze` CLI command and the WASM `analyze_score` entry point.
+- Added finite-batch and lazy streaming analysis APIs while keeping the result contract
+  deterministic and host-independent.
+
 ## [0.18.0] - 2026-08-31
 
 ### Explainable music analysis

@@ -412,6 +412,20 @@ pub fn score_statistics(score_json: &str) -> Result<String, JsValue> {
         .map_err(|e| js_err(format!("statistics serialization failed: {e}")))
 }
 
+// ── Explainable analysis ─────────────────────────────────────────────────────
+
+/// Analyze chord labels, adjacent melodic intervals, and major/minor key candidates.
+///
+/// Every result includes stable `NoteAddr` evidence and a rule identifier. Key estimation
+/// preserves all tied best candidates rather than inventing a single answer.
+#[wasm_bindgen]
+pub fn analyze_score(score_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let analysis = acorde_analysis::analyze_score(&score);
+    serde_json::to_string(&analysis)
+        .map_err(|e| js_err(format!("analysis serialization failed: {e}")))
+}
+
 // ── Accordion arrangement ─────────────────────────────────────────────────────
 
 /// Rank a score's non-percussion parts by mean pitch for accordion arrangement.

@@ -51,7 +51,7 @@ pub struct IntervalObservation {
 }
 
 /// Analyze every voice that contains at least two pitched notes in a measure.
-pub fn analyze_chords(score: &Score) -> AnalysisResult {
+pub fn analyze_score(score: &Score) -> AnalysisResult {
     let mut chords = Vec::new();
     for (part_index, part) in score.parts.iter().enumerate() {
         for (staff_index, staff) in part.staves.iter().enumerate() {
@@ -109,6 +109,24 @@ pub fn analyze_chords(score: &Score) -> AnalysisResult {
         intervals,
         key_estimates,
     }
+}
+
+/// Backwards-compatible name for the complete score analysis pass.
+pub fn analyze_chords(score: &Score) -> AnalysisResult {
+    analyze_score(score)
+}
+
+/// Analyze a finite batch in input order.
+pub fn analyze_batch(scores: &[Score]) -> Vec<AnalysisResult> {
+    scores.iter().map(analyze_score).collect()
+}
+
+/// Analyze scores lazily, one result per input score.
+pub fn analyze_stream<I>(scores: I) -> impl Iterator<Item = AnalysisResult>
+where
+    I: IntoIterator<Item = Score>,
+{
+    scores.into_iter().map(|score| analyze_score(&score))
 }
 
 /// Estimate major/minor keys from pitch coverage, preserving tied candidates.
@@ -346,5 +364,14 @@ mod tests {
     #[test]
     fn returns_no_key_for_empty_score() {
         assert!(estimate_keys(&Score::default()).is_empty());
+    }
+
+    #[test]
+    fn batch_and_stream_preserve_score_order() {
+        let scores = vec![Score::default(), Score::default()];
+        let batch = analyze_batch(&scores);
+        let streamed: Vec<_> = analyze_stream(scores.clone()).collect();
+        assert_eq!(batch, streamed);
+        assert_eq!(batch.len(), scores.len());
     }
 }
