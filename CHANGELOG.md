@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.56.0] - 2026-08-31
+
+### Versioned analysis cache keys
+
+- Added `AnalysisResult::cache_key()` combining the analysis schema and deterministic score
+  fingerprint.
+- Prevented cache reuse across analysis-result schema revisions.
+
 ## [0.55.0] - 2026-08-31
 
 ### Analysis fingerprint correction

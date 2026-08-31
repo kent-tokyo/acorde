@@ -42,6 +42,16 @@ pub struct AnalysisResult {
     pub phrase_boundaries: Vec<PhraseBoundary>,
 }
 
+impl AnalysisResult {
+    /// Return a cache key that invalidates when either the input or result schema changes.
+    pub fn cache_key(&self) -> String {
+        format!(
+            "analysis-v{}-{}",
+            self.schema_version, self.score_fingerprint
+        )
+    }
+}
+
 /// A deterministic key candidate ranked by diatonic pitch coverage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct KeyEstimate {
@@ -1062,6 +1072,15 @@ mod tests {
     #[test]
     fn fingerprint_uses_fnv1a_byte_order() {
         assert_eq!(fnv1a64(b"hello"), 0xa430d84680aabd0b);
+    }
+
+    #[test]
+    fn cache_key_includes_schema_and_score_identity() {
+        let result = analyze_score(&Score::default());
+        assert!(result.cache_key().starts_with("analysis-v7-fnv1a64-"));
+        let mut changed = result.clone();
+        changed.schema_version = 8;
+        assert_ne!(result.cache_key(), changed.cache_key());
     }
 
     #[test]
