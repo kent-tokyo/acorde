@@ -22,6 +22,6 @@ mscz = ["acorde-io/mscz"]
 mei = ["acorde-io/mei"]
 
 [dependencies]
-acorde-core   = { path = "../core", version = "0.36.0" }
-acorde-io     = { path = "../io", version = "0.36.0", default-features = false }
-acorde-layout = { path = "../layout", version = "0.36.0" }
+acorde-core   = { path = "../core", version = "0.37.0" }
+acorde-io     = { path = "../io", version = "0.37.0", default-features = false }
+acorde-layout = { path = "../layout", version = "0.37.0" }

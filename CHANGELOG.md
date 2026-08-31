@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.37.0] - 2026-08-31
+
+### Playback cursor synchronization
+
+- Added browser adapter helpers to resolve and select the active sounding event at a playback
+  time, while ignoring metronome events.
+- Included the current stable selection address in `WorkspaceSnapshot`.
+
 ## [0.36.0] - 2026-08-31
 
 ### Playback selection synchronization

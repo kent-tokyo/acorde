@@ -40,3 +40,6 @@ has such information, so hosts can present repair guidance without parsing error
 Each sounding playback event carries the stable source address used by `data-note-addr`, and
 `selectPlaybackEvent` sends that address through the shared `SelectionStore` for notation and
 analysis highlighting.
+`playbackEventAt` resolves the active sounding event at a host clock time, and `selectPlaybackAt`
+combines that lookup with selection updates; `WorkspaceSnapshot.selectedAddress` makes the same
+state available to persistence and view synchronization code.

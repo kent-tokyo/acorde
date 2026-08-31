@@ -68,6 +68,8 @@ export interface ExportReport {
 
 export interface PlaybackEvent {
   address: NoteAddress | null;
+  time_secs: number;
+  duration_secs: number;
   [key: string]: unknown;
 }
 
@@ -86,6 +88,7 @@ export interface WorkspaceSnapshot {
   revision: number;
   scoreJson: string;
   layoutJson: string;
+  selectedAddress: NoteAddress | null;
   metadata: Record<string, unknown>;
   analysis: Record<string, unknown>;
 }
@@ -332,6 +335,30 @@ export class AcordeWorkspace {
     this.selection.set(event.address);
   }
 
+  /** Find the sounding event at an elapsed time, ignoring metronome events. */
+  playbackEventAt(
+    elapsedSecs: number,
+    options: Record<string, unknown> = {},
+  ): PlaybackEvent | null {
+    if (!Number.isFinite(elapsedSecs) || elapsedSecs < 0) return null;
+    const active = this.playbackEvents(options).filter((event) =>
+      event.address !== null
+      && event.time_secs <= elapsedSecs
+      && elapsedSecs < event.time_secs + event.duration_secs,
+    );
+    return active[active.length - 1] ?? null;
+  }
+
+  /** Select the sounding event at an elapsed time and return it for host cursor updates. */
+  selectPlaybackAt(
+    elapsedSecs: number,
+    options: Record<string, unknown> = {},
+  ): PlaybackEvent | null {
+    const event = this.playbackEventAt(elapsedSecs, options);
+    this.selectPlaybackEvent(event ?? { address: null });
+    return event;
+  }
+
   /** Resolve the playback cursor at an elapsed time in seconds. */
   playbackPosition(
     elapsedSecs: number,
@@ -364,6 +391,7 @@ export class AcordeWorkspace {
       revision: this.revisionNumber,
       scoreJson: this.scoreJson,
       layoutJson: this.layoutJson,
+      selectedAddress: this.selection.get(),
       metadata: this.metadata(),
       analysis: this.analyze(),
     };
