@@ -9,6 +9,11 @@ use acorde_core::{Duration, Measure, Note, Part, Pitch, Score, Staff, Step};
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
 
+const MAX_MEI_BYTES: usize = 64 * 1024 * 1024;
+const MAX_MEI_ELEMENTS: usize = 500_000;
+const MAX_MEI_MEASURES: usize = 10_000;
+const MAX_MEI_NOTES: usize = 100_000;
+
 fn attr(e: &BytesStart<'_>, key: &[u8]) -> Option<String> {
     e.attributes()
         .filter_map(|value| value.ok())
@@ -38,6 +43,9 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     if text.trim().is_empty() {
         return Err(Error::Empty);
     }
+    if text.len() > MAX_MEI_BYTES {
+        return Err(Error::TooLarge(text.len()));
+    }
     let mut reader = Reader::from_str(text);
     reader.config_mut().trim_text(true);
     let mut score = Score::default();
@@ -49,59 +57,78 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut title = String::new();
     let mut in_title = false;
     let mut note_count = 0usize;
+    let mut element_count = 0usize;
     let mut buf = Vec::new();
     loop {
         match reader.read_event_into(&mut buf) {
-            Ok(Event::Start(event)) | Ok(Event::Empty(event)) => match event.name().as_ref() {
-                b"title" => in_title = true,
-                b"measure" => {
-                    let n = attr(&event, b"n")
-                        .and_then(|value| value.parse::<u32>().ok())
-                        .unwrap_or((score.parts[0].staves[0].measures.len() + 1) as u32);
-                    let mut measure = Measure::empty(4, 4);
-                    measure.number = n;
-                    measure.voices[0].clear();
-                    score.parts[0].staves[0].measures.push(measure);
-                    current_measure = Some(score.parts[0].staves[0].measures.len() - 1);
+            Ok(Event::Start(event)) | Ok(Event::Empty(event)) => {
+                element_count += 1;
+                if element_count > MAX_MEI_ELEMENTS {
+                    return Err(Error::Xml("MEI document has too many elements".into()));
                 }
-                b"note" | b"rest" => {
-                    let Some(measure_index) = current_measure else {
-                        return Err(Error::Xml("MEI note is outside a measure".into()));
-                    };
-                    let dur = duration(attr(&event, b"dur").as_deref())
-                        .ok_or_else(|| Error::Xml("MEI note has unsupported duration".into()))?;
-                    let dots = attr(&event, b"dots")
-                        .and_then(|value| value.parse::<u8>().ok())
-                        .unwrap_or(0);
-                    let is_rest = event.name().as_ref() == b"rest";
-                    let mut note = if is_rest {
-                        Note::rest(dur)
-                    } else {
-                        let pitch_step = attr(&event, b"pname")
-                            .as_deref()
-                            .and_then(step)
-                            .ok_or_else(|| Error::Xml("MEI note is missing pname".into()))?;
-                        let octave = attr(&event, b"oct")
-                            .and_then(|value| value.parse::<i8>().ok())
-                            .ok_or_else(|| Error::Xml("MEI note is missing oct".into()))?;
-                        let alter = match attr(&event, b"accid").as_deref() {
-                            Some("s") => 1,
-                            Some("f") => -1,
-                            Some("ss") => 2,
-                            Some("ff") => -2,
-                            Some("n") | None => 0,
-                            Some(value) => {
-                                return Err(Error::Xml(format!("unsupported MEI accid '{value}'")));
-                            }
+                match event.name().as_ref() {
+                    b"title" => in_title = true,
+                    b"measure" => {
+                        if score.parts[0].staves[0].measures.len() >= MAX_MEI_MEASURES {
+                            return Err(Error::Xml("MEI document has too many measures".into()));
+                        }
+                        let n = attr(&event, b"n")
+                            .and_then(|value| value.parse::<u32>().ok())
+                            .unwrap_or((score.parts[0].staves[0].measures.len() + 1) as u32);
+                        let mut measure = Measure::empty(4, 4);
+                        measure.number = n;
+                        measure.voices[0].clear();
+                        score.parts[0].staves[0].measures.push(measure);
+                        current_measure = Some(score.parts[0].staves[0].measures.len() - 1);
+                    }
+                    b"note" | b"rest" => {
+                        if note_count >= MAX_MEI_NOTES {
+                            return Err(Error::Xml("MEI document has too many notes".into()));
+                        }
+                        let Some(measure_index) = current_measure else {
+                            return Err(Error::Xml("MEI note is outside a measure".into()));
                         };
-                        Note::new(Pitch::with_alter(pitch_step, octave, alter), dur)
-                    };
-                    note.dot_count = dots;
-                    score.parts[0].staves[0].measures[measure_index].voices[0].push(note);
-                    note_count += 1;
+                        let dur = duration(attr(&event, b"dur").as_deref()).ok_or_else(|| {
+                            Error::Xml("MEI note has unsupported duration".into())
+                        })?;
+                        let dots = attr(&event, b"dots")
+                            .and_then(|value| value.parse::<u8>().ok())
+                            .unwrap_or(0);
+                        let is_rest = event.name().as_ref() == b"rest";
+                        let mut note = if is_rest {
+                            Note::rest(dur)
+                        } else {
+                            let pitch_step = attr(&event, b"pname")
+                                .as_deref()
+                                .and_then(step)
+                                .ok_or_else(|| Error::Xml("MEI note is missing pname".into()))?;
+                            let octave = attr(&event, b"oct")
+                                .and_then(|value| value.parse::<i8>().ok())
+                                .ok_or_else(|| Error::Xml("MEI note is missing oct".into()))?;
+                            let alter = match attr(&event, b"accid").as_deref() {
+                                Some("s") => 1,
+                                Some("f") => -1,
+                                Some("ss") => 2,
+                                Some("ff") => -2,
+                                Some("n") | None => 0,
+                                Some(value) => {
+                                    return Err(Error::Xml(format!(
+                                        "unsupported MEI accid '{value}'"
+                                    )));
+                                }
+                            };
+                            Note::new(Pitch::with_alter(pitch_step, octave, alter), dur)
+                        };
+                        note.dot_count = dots;
+                        score.parts[0].staves[0].measures[measure_index].voices[0].push(note);
+                        note_count += 1;
+                    }
+                    _ => {}
                 }
-                _ => {}
-            },
+            }
+            Ok(Event::DocType(_)) => {
+                return Err(Error::Xml("DOCTYPE declarations are not allowed".into()));
+            }
             Ok(Event::Text(event)) if in_title => {
                 title.push_str(&String::from_utf8_lossy(event.as_ref()));
             }

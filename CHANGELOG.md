@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-08-31
+
+### Parser and dependency hardening
+
+- Updated `quick-xml` to 0.41 and `crossbeam-epoch` to 0.9.20 to address known advisories.
+- Added bounded MusicXML, MEI, MSCX, MXL, and MSCZ input and archive entry handling.
+- Rejected DOCTYPE events across XML parser boundaries and made oversized archive reads fail
+  instead of silently truncating input.
+
 ## [0.43.0] - 2026-08-31
 
 ### Browser document boundary

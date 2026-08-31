@@ -9,6 +9,7 @@ use quick_xml::reader::Reader;
 use std::collections::HashMap;
 
 const MAX_ELEMENTS: usize = 500_000;
+const MAX_MUSICXML_BYTES: usize = 64 * 1024 * 1024;
 const MAX_PARTS: usize = 64;
 const MAX_MEASURES: usize = 10_000;
 const MAX_NOTES_PER_VOICE: usize = 50_000;
@@ -37,13 +38,9 @@ fn attr_present(e: &BytesStart<'_>, key: &[u8]) -> bool {
 }
 
 pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
-    let prefix = xml.get(..2048.min(xml.len())).unwrap_or(xml);
-    if prefix.contains("<!DOCTYPE") || prefix.contains("<!ENTITY") {
-        return Err(Error::Xml(
-            "DOCTYPE/ENTITY declarations are not allowed".into(),
-        ));
+    if xml.len() > MAX_MUSICXML_BYTES {
+        return Err(Error::TooLarge(xml.len()));
     }
-
     let mut reader = Reader::from_str(xml);
     reader.config_mut().trim_text(true);
 
@@ -491,7 +488,12 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
             }
 
             Ok(Event::Text(ref e)) => {
-                current_text = e.unescape().unwrap_or_default().to_string();
+                current_text = match e.decode() {
+                    Ok(text) => quick_xml::escape::unescape(&text)
+                        .map(|text| text.into_owned())
+                        .unwrap_or_default(),
+                    Err(_) => String::new(),
+                };
             }
 
             Ok(Event::End(ref e)) => {
@@ -934,6 +936,9 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
             }
             Ok(Event::Eof) => break,
             Err(e) => return Err(Error::Xml(format!("{e}"))),
+            Ok(Event::DocType(_)) => {
+                return Err(Error::Xml("DOCTYPE declarations are not allowed".into()));
+            }
             _ => {}
         }
         buf.clear();
