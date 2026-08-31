@@ -49,7 +49,9 @@ const UNSUPPORTED_ELEMENTS: &[&str] = &[
     "mRest",
     "multiRest",
     "ornam",
+    "scoreDef",
     "slur",
+    "staffDef",
     "tempo",
     "tie",
     "tuplet",
@@ -477,5 +479,23 @@ mod tests {
             Some("/mei/music/body/mdiv/score/section/measure@meter.count")
         );
         assert_eq!(report.diagnostics[1].preserved_value.as_deref(), Some("8"));
+    }
+
+    #[test]
+    fn report_marks_unsupported_score_definitions() {
+        let xml = FIXTURE.replace(
+            "<music>",
+            "<music><scoreDef meter.count=\"3\" meter.unit=\"4\"><staffDef n=\"1\"/></scoreDef>",
+        );
+        let report = parse_mei_with_report(&xml).expect("MEI report parses");
+        assert_eq!(report.diagnostics.len(), 2);
+        assert_eq!(
+            report.diagnostics[0].code,
+            "mei.unsupported-element.scoreDef"
+        );
+        assert_eq!(
+            report.diagnostics[1].code,
+            "mei.unsupported-element.staffDef"
+        );
     }
 }

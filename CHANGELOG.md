@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.50.0] - 2026-08-31
+
+### MEI score definition diagnostics
+
+- Added explicit loss diagnostics for unsupported MEI `scoreDef` and `staffDef` elements.
+- Prevented score-definition fallback from being mistaken for lossless MEI import.
+
 ## [0.49.0] - 2026-08-31
 
 ### MEI attribute loss diagnostics
