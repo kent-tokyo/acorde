@@ -173,7 +173,7 @@ fn cmd_analyze(input: &Path) -> Result<(), String> {
     Ok(())
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct BenchmarkManifest {
     schema_version: u32,
     corpus_id: String,
@@ -182,7 +182,7 @@ struct BenchmarkManifest {
     cases: Vec<BenchmarkManifestCase>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct BenchmarkManifestCase {
     name: String,
     input: PathBuf,
@@ -198,6 +198,7 @@ struct BenchmarkCorpusMetadata {
     corpus_id: String,
     corpus_version: String,
     license: String,
+    fingerprint: String,
     cases: Vec<BenchmarkCorpusCaseMetadata>,
 }
 
@@ -220,6 +221,7 @@ fn cmd_benchmark(manifest: &Path, fail_on_mismatch: bool) -> Result<(), String> 
     let manifest_data: BenchmarkManifest = serde_json::from_str(&text)
         .map_err(|e| format!("invalid benchmark manifest '{}': {e}", manifest.display()))?;
     let base_dir = manifest.parent().unwrap_or_else(|| Path::new("."));
+    let fingerprint = benchmark_fingerprint(&manifest_data, base_dir)?;
     let mut scores = Vec::with_capacity(manifest_data.cases.len());
     for case in &manifest_data.cases {
         scores.push(parse_score(&base_dir.join(&case.input))?);
@@ -242,6 +244,7 @@ fn cmd_benchmark(manifest: &Path, fail_on_mismatch: bool) -> Result<(), String> 
             corpus_id: manifest_data.corpus_id,
             corpus_version: manifest_data.corpus_version,
             license: manifest_data.license,
+            fingerprint,
             cases: manifest_data
                 .cases
                 .into_iter()
@@ -265,6 +268,26 @@ fn cmd_benchmark(manifest: &Path, fail_on_mismatch: bool) -> Result<(), String> 
         ));
     }
     Ok(())
+}
+
+fn benchmark_fingerprint(manifest: &BenchmarkManifest, base_dir: &Path) -> Result<String, String> {
+    let manifest_bytes = serde_json::to_vec(manifest)
+        .map_err(|e| format!("benchmark manifest serialization failed: {e}"))?;
+    let mut hash = 0xcbf29ce484222325_u64;
+    for byte in manifest_bytes {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    for case in &manifest.cases {
+        let input_path = base_dir.join(&case.input);
+        let bytes = std::fs::read(&input_path)
+            .map_err(|e| format!("cannot read '{}': {e}", input_path.display()))?;
+        for byte in bytes {
+            hash ^= u64::from(byte);
+            hash = hash.wrapping_mul(0x100000001b3);
+        }
+    }
+    Ok(format!("fnv1a64-{hash:016x}"))
 }
 
 // ── convert ───────────────────────────────────────────────────────────────────

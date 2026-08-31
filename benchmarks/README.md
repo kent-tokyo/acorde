@@ -16,5 +16,6 @@ The fixture paths, expected category counts, and manifest format are versioned w
 cargo run --offline -p acorde-cli -- benchmark benchmarks/analysis.json --fail-on-mismatch
 ```
 
-The command emits corpus metadata together with the deterministic JSON report. Runtime latency is
-intentionally measured by the host runner and is not part of the expected analysis annotations.
+The command emits corpus metadata, including a deterministic fingerprint of the manifest and input
+bytes, together with the analysis report. Runtime latency is intentionally measured by the host
+runner and is not part of the expected analysis annotations.

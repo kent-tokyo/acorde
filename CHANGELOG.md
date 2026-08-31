@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.68.0] - 2026-08-31
+
+### Benchmark corpus fingerprint
+
+- Added a deterministic FNV-1a fingerprint of each benchmark manifest and its referenced fixture
+  bytes to the CLI corpus metadata, making fixture drift visible in saved reports.
+
 ## [0.67.0] - 2026-08-31
 
 ### Benchmark provenance output
