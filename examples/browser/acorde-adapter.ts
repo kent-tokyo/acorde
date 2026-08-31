@@ -93,6 +93,18 @@ export interface WorkspaceSnapshot {
   analysis: Record<string, unknown>;
 }
 
+export interface WorkspaceHistoryState {
+  revision: number;
+  canUndo: boolean;
+  canRedo: boolean;
+}
+
+export interface WorkspaceMutationResult {
+  changed: boolean;
+  snapshot: WorkspaceSnapshot | null;
+  history: WorkspaceHistoryState;
+}
+
 /** Encode score JSON for a Worker structured-clone boundary without a string copy. */
 export function encodeScoreJson(scoreJson: string): Uint8Array {
   return new TextEncoder().encode(scoreJson);
@@ -111,6 +123,7 @@ export type WorkspaceRequest =
   | { id: string; type: "replace-score-bytes"; data: Uint8Array }
   | { id: string; type: "undo" }
   | { id: string; type: "redo" }
+  | { id: string; type: "history-state" }
   | { id: string; type: "snapshot" }
   | { id: string; type: "render-svg" }
   | { id: string; type: "render-row-svg"; rowIndex: number }
@@ -255,6 +268,14 @@ export class AcordeWorkspace {
 
   canRedo(): boolean {
     return this.redoStack.length > 0;
+  }
+
+  historyState(): WorkspaceHistoryState {
+    return {
+      revision: this.revisionNumber,
+      canUndo: this.canUndo(),
+      canRedo: this.canRedo(),
+    };
   }
 
   undo(): boolean {
@@ -518,9 +539,20 @@ export function handleWorkspaceRequest(
         workspace.replaceScoreJsonBytes(request.data);
         return { id: request.id, ok: true, value: workspace.snapshot() };
       case "undo":
-        return { id: request.id, ok: true, value: workspace.undo() };
-      case "redo":
-        return { id: request.id, ok: true, value: workspace.redo() };
+      case "redo": {
+        const changed = request.type === "undo" ? workspace.undo() : workspace.redo();
+        return {
+          id: request.id,
+          ok: true,
+          value: {
+            changed,
+            snapshot: changed ? workspace.snapshot() : null,
+            history: workspace.historyState(),
+          } as WorkspaceMutationResult,
+        };
+      }
+      case "history-state":
+        return { id: request.id, ok: true, value: workspace.historyState() };
       case "snapshot":
         return { id: request.id, ok: true, value: workspace.snapshot() };
       case "render-svg":

@@ -49,3 +49,6 @@ edit, render, analysis, playback, and export operations.
 `encodeScoreJson`, `decodeScoreJson`, `scoreJsonBytes`, and the `replace-score-bytes` request use
 UTF-8 `Uint8Array` transport, preserving the string API while allowing Worker structured-clone
 messages to avoid carrying an additional JavaScript string representation.
+The `undo` and `redo` requests return `{ changed, snapshot, history }`, and `history-state`
+provides the revision and undo/redo availability without requiring a full render or analysis
+round trip.

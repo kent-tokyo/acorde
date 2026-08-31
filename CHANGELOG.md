@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-08-31
+
+### Worker history synchronization
+
+- Made Worker undo/redo responses include the changed flag, updated snapshot, and history state.
+- Added a lightweight history-state request for UI controls that only need revision and
+  undo/redo availability.
+
 ## [0.39.0] - 2026-08-31
 
 ### Compact browser score transport
