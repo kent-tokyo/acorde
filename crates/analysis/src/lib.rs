@@ -143,6 +143,51 @@ pub enum PhraseBoundaryReason {
     RestTermination,
 }
 
+/// Hand-verified expected counts for one analysis benchmark fixture.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct BenchmarkExpectation {
+    pub chords: usize,
+    pub intervals: usize,
+    pub key_estimates: usize,
+    pub cadence_candidates: usize,
+    pub voice_leading: usize,
+    pub satb_diagnostics: usize,
+    pub motifs: usize,
+    pub phrase_boundaries: usize,
+}
+
+/// Predicted category counts used by the benchmark report.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct AnalysisCounts {
+    pub chords: usize,
+    pub intervals: usize,
+    pub key_estimates: usize,
+    pub cadence_candidates: usize,
+    pub voice_leading: usize,
+    pub satb_diagnostics: usize,
+    pub motifs: usize,
+    pub phrase_boundaries: usize,
+}
+
+/// One benchmark fixture and its hand-verified expectation.
+#[derive(Debug, Clone)]
+pub struct BenchmarkCase<'a> {
+    pub name: &'a str,
+    pub score: &'a Score,
+    pub expected: BenchmarkExpectation,
+}
+
+/// Precision, recall, and explanation-completeness for one benchmark case.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BenchmarkCaseReport {
+    pub name: String,
+    pub predicted: AnalysisCounts,
+    pub expected: BenchmarkExpectation,
+    pub precision_percent: u8,
+    pub recall_percent: u8,
+    pub explanation_completeness_percent: u8,
+}
+
 /// A consecutive melodic interval with addresses for both source notes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct IntervalObservation {
@@ -222,6 +267,129 @@ pub fn analyze_score(score: &Score) -> AnalysisResult {
         satb_diagnostics,
         motifs,
         phrase_boundaries,
+    }
+}
+
+impl AnalysisCounts {
+    fn from_result(result: &AnalysisResult) -> Self {
+        Self {
+            chords: result.chords.len(),
+            intervals: result.intervals.len(),
+            key_estimates: result.key_estimates.len(),
+            cadence_candidates: result.cadence_candidates.len(),
+            voice_leading: result.voice_leading.len(),
+            satb_diagnostics: result.satb_diagnostics.len(),
+            motifs: result.motifs.len(),
+            phrase_boundaries: result.phrase_boundaries.len(),
+        }
+    }
+
+    fn total(self) -> usize {
+        self.chords
+            + self.intervals
+            + self.key_estimates
+            + self.cadence_candidates
+            + self.voice_leading
+            + self.satb_diagnostics
+            + self.motifs
+            + self.phrase_boundaries
+    }
+
+    fn explained(self, result: &AnalysisResult) -> usize {
+        result
+            .chords
+            .iter()
+            .filter(|item| !item.evidence.is_empty())
+            .count()
+            + result
+                .intervals
+                .iter()
+                .filter(|item| !item.evidence.is_empty())
+                .count()
+            + result
+                .key_estimates
+                .iter()
+                .filter(|item| !item.evidence.is_empty())
+                .count()
+            + result
+                .cadence_candidates
+                .iter()
+                .filter(|item| !item.evidence.is_empty())
+                .count()
+            + result
+                .voice_leading
+                .iter()
+                .filter(|item| !item.evidence.is_empty())
+                .count()
+            + result
+                .satb_diagnostics
+                .iter()
+                .filter(|item| !item.evidence.is_empty())
+                .count()
+            + result
+                .motifs
+                .iter()
+                .map(|item| {
+                    item.occurrences
+                        .iter()
+                        .filter(|occurrence| !occurrence.evidence.is_empty())
+                        .count()
+                })
+                .sum::<usize>()
+            + result
+                .phrase_boundaries
+                .iter()
+                .filter(|item| !item.evidence.is_empty())
+                .count()
+    }
+}
+
+/// Run one offline benchmark case using count-based hand-verified annotations.
+pub fn benchmark_case(case: &BenchmarkCase<'_>) -> BenchmarkCaseReport {
+    let result = analyze_score(case.score);
+    let predicted = AnalysisCounts::from_result(&result);
+    let expected = case.expected;
+    let matched = predicted.chords.min(expected.chords)
+        + predicted.intervals.min(expected.intervals)
+        + predicted.key_estimates.min(expected.key_estimates)
+        + predicted
+            .cadence_candidates
+            .min(expected.cadence_candidates)
+        + predicted.voice_leading.min(expected.voice_leading)
+        + predicted.satb_diagnostics.min(expected.satb_diagnostics)
+        + predicted.motifs.min(expected.motifs)
+        + predicted.phrase_boundaries.min(expected.phrase_boundaries);
+    let expected_total = AnalysisCounts {
+        chords: expected.chords,
+        intervals: expected.intervals,
+        key_estimates: expected.key_estimates,
+        cadence_candidates: expected.cadence_candidates,
+        voice_leading: expected.voice_leading,
+        satb_diagnostics: expected.satb_diagnostics,
+        motifs: expected.motifs,
+        phrase_boundaries: expected.phrase_boundaries,
+    }
+    .total();
+    let predicted_total = predicted.total();
+    BenchmarkCaseReport {
+        name: case.name.to_string(),
+        predicted,
+        expected,
+        precision_percent: percentage(matched, predicted_total),
+        recall_percent: percentage(matched, expected_total),
+        explanation_completeness_percent: percentage(predicted.explained(&result), predicted_total),
+    }
+}
+
+/// Run benchmark cases in input order; no filesystem or network access is used.
+pub fn run_benchmark(cases: &[BenchmarkCase<'_>]) -> Vec<BenchmarkCaseReport> {
+    cases.iter().map(benchmark_case).collect()
+}
+
+fn percentage(numerator: usize, denominator: usize) -> u8 {
+    match numerator.saturating_mul(100).checked_div(denominator) {
+        Some(value) => value.min(100) as u8,
+        None => 100,
     }
 }
 
@@ -884,5 +1052,23 @@ mod tests {
                 && boundary.address.measure == 0
                 && boundary.address.note == 1
         }));
+    }
+
+    #[test]
+    fn benchmark_reports_perfect_scores_for_hand_verified_empty_fixture() {
+        let score = Score::default();
+        let cases = [BenchmarkCase {
+            name: "empty-score",
+            score: &score,
+            expected: BenchmarkExpectation {
+                phrase_boundaries: 4,
+                ..BenchmarkExpectation::default()
+            },
+        }];
+        let reports = run_benchmark(&cases);
+        assert_eq!(reports.len(), 1);
+        assert_eq!(reports[0].precision_percent, 100);
+        assert_eq!(reports[0].recall_percent, 100);
+        assert_eq!(reports[0].explanation_completeness_percent, 100);
     }
 }
