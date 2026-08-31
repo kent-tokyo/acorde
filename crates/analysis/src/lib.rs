@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 
 /// Version of the serialized analysis result contract.
-pub const ANALYSIS_SCHEMA_VERSION: u32 = 6;
+pub const ANALYSIS_SCHEMA_VERSION: u32 = 7;
 
 /// A chord label with source evidence and the rule that produced it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -23,6 +23,9 @@ pub struct ChordLabel {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AnalysisResult {
     pub schema_version: u32,
+    /// Deterministic fingerprint of the canonical input score JSON.
+    #[serde(default)]
+    pub score_fingerprint: String,
     pub chords: Vec<ChordLabel>,
     pub intervals: Vec<IntervalObservation>,
     #[serde(default)]
@@ -295,6 +298,7 @@ pub fn analyze_score(score: &Score) -> AnalysisResult {
     let phrase_boundaries = analyze_phrase_boundaries(score);
     AnalysisResult {
         schema_version: ANALYSIS_SCHEMA_VERSION,
+        score_fingerprint: score_fingerprint(score),
         chords,
         intervals,
         key_estimates,
@@ -304,6 +308,15 @@ pub fn analyze_score(score: &Score) -> AnalysisResult {
         motifs,
         phrase_boundaries,
     }
+}
+
+/// Return a deterministic, non-cryptographic fingerprint for a canonical score.
+pub fn score_fingerprint(score: &Score) -> String {
+    let bytes = serde_json::to_vec(score).unwrap_or_default();
+    let hash = bytes.iter().fold(0xcbf29ce484222325u64, |hash, byte| {
+        hash.wrapping_mul(0x100000001b3) ^ u64::from(*byte)
+    });
+    format!("fnv1a64-{hash:016x}")
 }
 
 impl AnalysisCounts {
@@ -1025,6 +1038,21 @@ mod tests {
         assert_eq!(result.chords[0].evidence.len(), 3);
         assert_eq!(result.chords[0].roman_numeral.as_deref(), Some("I"));
         assert_eq!(chord_name(&result.chords[0].chord), "C");
+    }
+
+    #[test]
+    fn analysis_has_stable_score_fingerprint() {
+        let score = Score::default();
+        let repeated = analyze_score(&score);
+        assert_eq!(repeated.score_fingerprint, score_fingerprint(&score));
+        assert_eq!(
+            repeated.score_fingerprint,
+            analyze_score(&score).score_fingerprint
+        );
+
+        let mut changed = score.clone();
+        changed.metadata.title = "Changed".to_string();
+        assert_ne!(repeated.score_fingerprint, score_fingerprint(&changed));
     }
 
     #[test]

@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.54.0] - 2026-08-31
+
+### Deterministic analysis identity
+
+- Added a deterministic score fingerprint to `AnalysisResult` for cache keys and reproducibility
+  checks.
+- Bumped the analysis result schema with backwards-compatible deserialization defaults.
+
 ## [0.53.0] - 2026-08-31
 
 ### Interchange report aggregation
