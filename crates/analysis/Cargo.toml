@@ -14,5 +14,5 @@ keywords = ["music", "analysis", "chords", "notation"]
 categories = ["multimedia::audio"]
 
 [dependencies]
-acorde-core = { path = "../core", version = "0.26.0" }
+acorde-core = { path = "../core", version = "0.27.0" }
 serde = { version = "1", features = ["derive"] }

@@ -10,7 +10,7 @@ acorde info input.musicxml
 acorde validate input.musicxml
 acorde report input.mei
 acorde analyze input.musicxml
-acorde benchmark benchmarks/analysis.json
+acorde benchmark benchmarks/analysis.json --fail-on-mismatch
 acorde extract --part 0 input.musicxml part.musicxml
 ~~~
 
@@ -20,7 +20,8 @@ exits with status 1 when structural errors are found. report emits the parsed sc
 import diagnostics as JSON.
 analyze emits deterministic chord, melodic-interval, and key-estimate results as JSON.
 benchmark reads a local JSON manifest and emits the deterministic suite report. Paths are relative
-to the manifest file. A manifest case has `name`, `input`, and optional `expected` category counts:
+to the manifest file. `--fail-on-mismatch` makes the command exit with status 1 when any case has a
+category mismatch. A manifest case has `name`, `input`, and optional `expected` category counts:
 
 ~~~json
 {"cases":[{"name":"sample","input":"../tests/fixtures/simple.musicxml","expected":{"chords":0}}]}

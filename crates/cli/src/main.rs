@@ -47,6 +47,9 @@ enum Commands {
     Benchmark {
         /// Manifest JSON containing benchmark cases and expected category counts
         manifest: PathBuf,
+        /// Exit with status 1 when any benchmark case has a category mismatch
+        #[arg(long)]
+        fail_on_mismatch: bool,
     },
     /// Extract a single part from a score
     Extract {
@@ -68,7 +71,10 @@ fn main() {
         Commands::Validate { input } => cmd_validate(input),
         Commands::Report { input } => cmd_report(input),
         Commands::Analyze { input } => cmd_analyze(input),
-        Commands::Benchmark { manifest } => cmd_benchmark(manifest),
+        Commands::Benchmark {
+            manifest,
+            fail_on_mismatch,
+        } => cmd_benchmark(manifest, *fail_on_mismatch),
         Commands::Extract {
             input,
             output,
@@ -180,7 +186,7 @@ struct BenchmarkManifestCase {
     expected: acorde_analysis::BenchmarkExpectation,
 }
 
-fn cmd_benchmark(manifest: &Path) -> Result<(), String> {
+fn cmd_benchmark(manifest: &Path, fail_on_mismatch: bool) -> Result<(), String> {
     let text = std::fs::read_to_string(manifest)
         .map_err(|e| format!("cannot read '{}': {e}", manifest.display()))?;
     let manifest_data: BenchmarkManifest = serde_json::from_str(&text)
@@ -204,6 +210,12 @@ fn cmd_benchmark(manifest: &Path) -> Result<(), String> {
     let json = serde_json::to_string_pretty(&report)
         .map_err(|e| format!("benchmark serialization failed: {e}"))?;
     println!("{json}");
+    if fail_on_mismatch && report.failed_case_count > 0 {
+        return Err(format!(
+            "benchmark failed: {} of {} case(s) contain mismatches",
+            report.failed_case_count, report.case_count
+        ));
+    }
     Ok(())
 }
 
