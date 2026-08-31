@@ -18,3 +18,8 @@ or focus a note and press Enter/Space to exercise address-based selection; hover
 the host as `data-hover`. The Play button uses a small Web Audio oscillator for the selected note,
 showing that playback also remains a host concern. This deliberately demonstrates that
 selection/highlighting/playback belong to the browser host rather than the stateless Rust renderer.
+
+`acorde-adapter.ts` is a dependency-free, framework-neutral starting point for a browser
+workspace. Inject the generated WASM module into `AcordeWorkspace`; it keeps score, layout,
+metadata, and analysis transport consistent while `SelectionStore` synchronizes stable note
+addresses across notation and analysis views.

@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-08-31
+
+### Browser workspace adapter
+
+- Added a dependency-free TypeScript adapter for the WASM parse, layout, render, metadata, and
+  analysis pipeline.
+- Added stable-address selection state synchronization for browser hosts.
+
 ## [0.27.0] - 2026-08-31
 
 ### Benchmark quality gate
