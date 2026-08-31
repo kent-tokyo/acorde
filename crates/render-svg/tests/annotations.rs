@@ -92,3 +92,55 @@ fn duplicate_provider_ids_are_rejected() {
         acorde_render_svg::RenderError::Annotation(RenderAnnotationError::DuplicateProviderId(_))
     ));
 }
+
+#[test]
+fn oversized_annotation_text_is_rejected() {
+    let score = score();
+    let layout = compute_layout(&score, &LayoutConfig::default());
+    let provider = Provider {
+        name: "large",
+        marks: vec![SvgAnnotation {
+            id: "large-mark".into(),
+            x: 10.0,
+            y: 20.0,
+            text: "x".repeat(16 * 1024 + 1),
+        }],
+    };
+    let providers: [&dyn RenderAnnotation; 1] = [&provider];
+    let error =
+        render_svg_with_annotations(&score, &layout, &SvgRenderOptions::default(), &providers)
+            .unwrap_err();
+    assert!(matches!(
+        error,
+        acorde_render_svg::RenderError::Annotation(
+            RenderAnnotationError::AnnotationTextTooLarge { .. }
+        )
+    ));
+}
+
+#[test]
+fn excessive_annotation_count_is_rejected() {
+    let score = score();
+    let layout = compute_layout(&score, &LayoutConfig::default());
+    let provider = Provider {
+        name: "many",
+        marks: (0..10_001)
+            .map(|index| SvgAnnotation {
+                id: format!("mark-{index}"),
+                x: 10.0,
+                y: 20.0,
+                text: "mark".into(),
+            })
+            .collect(),
+    };
+    let providers: [&dyn RenderAnnotation; 1] = [&provider];
+    let error =
+        render_svg_with_annotations(&score, &layout, &SvgRenderOptions::default(), &providers)
+            .unwrap_err();
+    assert!(matches!(
+        error,
+        acorde_render_svg::RenderError::Annotation(RenderAnnotationError::TooManyAnnotations {
+            count: 10_001
+        })
+    ));
+}

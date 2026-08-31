@@ -362,7 +362,12 @@ pub(crate) fn collect_annotations(
                 provider_id.into(),
             ));
         }
-        annotations.extend(provider.annotate(score, layout, metadata));
+        let marks = provider.annotate(score, layout, metadata);
+        let count = annotations.len().saturating_add(marks.len());
+        if count > crate::MAX_RENDER_ANNOTATIONS {
+            return Err(RenderAnnotationError::TooManyAnnotations { count });
+        }
+        annotations.extend(marks);
     }
     annotations.sort_by(|a, b| a.id.cmp(&b.id));
     let mut ids = std::collections::BTreeSet::new();
@@ -378,6 +383,12 @@ pub(crate) fn collect_annotations(
         if !annotation.x.is_finite() || !annotation.y.is_finite() {
             return Err(RenderAnnotationError::NonFiniteCoordinate {
                 id: annotation.id.clone(),
+            });
+        }
+        if annotation.text.len() > crate::MAX_ANNOTATION_TEXT_BYTES {
+            return Err(RenderAnnotationError::AnnotationTextTooLarge {
+                id: annotation.id.clone(),
+                size: annotation.text.len(),
             });
         }
     }

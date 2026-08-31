@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.81.0] - 2026-08-31
+
+### SVG annotation output hardening
+
+- Bound host-provided SVG annotations to 10,000 marks and 16 KiB of UTF-8 text per mark, with
+  typed errors and regression coverage for oversized output.
+
 ## [0.80.0] - 2026-08-31
 
 ### Archive entry policy hardening

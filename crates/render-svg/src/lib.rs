@@ -39,6 +39,9 @@ use std::fmt;
 /// Version of the browser-facing [`RenderMetadata`] contract.
 pub const SVG_CONTRACT_VERSION: u32 = 1;
 
+const MAX_RENDER_ANNOTATIONS: usize = 10_000;
+const MAX_ANNOTATION_TEXT_BYTES: usize = 16 * 1024;
+
 /// Options controlling SVG output. All fields have defaults — safe to deserialize from
 /// partial JSON (e.g. `"{}"` from a WASM caller that only wants defaults).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -123,6 +126,8 @@ pub enum RenderAnnotationError {
     EmptyAnnotationId,
     DuplicateAnnotationId(String),
     NonFiniteCoordinate { id: String },
+    TooManyAnnotations { count: usize },
+    AnnotationTextTooLarge { id: String, size: usize },
 }
 
 impl fmt::Display for RenderAnnotationError {
@@ -136,6 +141,12 @@ impl fmt::Display for RenderAnnotationError {
             Self::DuplicateAnnotationId(id) => write!(f, "duplicate render annotation: {id}"),
             Self::NonFiniteCoordinate { id } => {
                 write!(f, "render annotation {id} has a non-finite coordinate")
+            }
+            Self::TooManyAnnotations { count } => {
+                write!(f, "render annotation count exceeds limit: {count}")
+            }
+            Self::AnnotationTextTooLarge { id, size } => {
+                write!(f, "render annotation {id} text exceeds limit: {size} bytes")
             }
         }
     }

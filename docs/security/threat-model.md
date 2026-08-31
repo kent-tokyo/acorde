@@ -34,6 +34,7 @@ silently raise limits based on input data.
 | Score parts/staves/measures/voices | caller budget | model/layout validation boundary |
 | Command history | 200 entries by default | enforced by `CommandStack` |
 | SVG dimensions/options | finite positive values | enforced by renderer |
+| SVG annotations | 10,000 marks; 16 KiB UTF-8 text per mark | enforced by renderer |
 | SVG output size and analysis/render CPU | host budget | host-owned measurement and cancellation |
 
 ## Error and disclosure contract
