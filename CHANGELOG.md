@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.47.0] - 2026-08-31
+
+### Bounded MEI loss diagnostics
+
+- Added hierarchical source paths to MEI unsupported-element diagnostics.
+- Bounded repeated MEI loss diagnostics to keep reports predictable for large inputs.
+
 ## [0.46.0] - 2026-08-31
 
 ### MEI loss diagnostics

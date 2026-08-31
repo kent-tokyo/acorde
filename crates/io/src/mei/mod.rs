@@ -13,6 +13,7 @@ const MAX_MEI_BYTES: usize = 64 * 1024 * 1024;
 const MAX_MEI_ELEMENTS: usize = 500_000;
 const MAX_MEI_MEASURES: usize = 10_000;
 const MAX_MEI_NOTES: usize = 100_000;
+const MAX_MEI_DIAGNOSTICS: usize = 1_024;
 
 fn attr(e: &BytesStart<'_>, key: &[u8]) -> Option<String> {
     e.attributes()
@@ -57,24 +58,57 @@ const UNSUPPORTED_ELEMENTS: &[&str] = &[
 fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
     let mut reader = Reader::from_str(text);
     let mut diagnostics = Vec::new();
+    let mut path = Vec::new();
+    let mut truncated = false;
     loop {
         match reader.read_event() {
-            Ok(Event::Start(event)) | Ok(Event::Empty(event)) => {
+            Ok(Event::Start(event)) => {
+                let name = String::from_utf8_lossy(event.name().as_ref()).into_owned();
+                path.push(name.clone());
+                if UNSUPPORTED_ELEMENTS.contains(&name.as_str()) {
+                    push_loss_diagnostic(&mut diagnostics, &path, &name, &mut truncated);
+                }
+            }
+            Ok(Event::Empty(event)) => {
                 let name = String::from_utf8_lossy(event.name().as_ref()).into_owned();
                 if UNSUPPORTED_ELEMENTS.contains(&name.as_str()) {
-                    let mut diagnostic = Diagnostic::warning(
-                        format!("mei.unsupported-element.{name}"),
-                        format!("MEI element '{name}' is outside acorde's supported subset"),
-                    );
-                    diagnostic.source_location = Some(format!("/{name}"));
-                    diagnostics.push(diagnostic);
+                    let mut element_path = path.clone();
+                    element_path.push(name.clone());
+                    push_loss_diagnostic(&mut diagnostics, &element_path, &name, &mut truncated);
                 }
+            }
+            Ok(Event::End(_)) => {
+                path.pop();
             }
             Ok(Event::Eof) | Err(_) => break,
             _ => {}
         }
     }
     diagnostics
+}
+
+fn push_loss_diagnostic(
+    diagnostics: &mut Vec<Diagnostic>,
+    path: &[String],
+    name: &str,
+    truncated: &mut bool,
+) {
+    if diagnostics.len() < MAX_MEI_DIAGNOSTICS {
+        let mut diagnostic = Diagnostic::warning(
+            format!("mei.unsupported-element.{name}"),
+            format!("MEI element '{name}' is outside acorde's supported subset"),
+        );
+        diagnostic.source_location = Some(format!("/{}", path.join("/")));
+        diagnostics.push(diagnostic);
+    } else if !*truncated {
+        let mut diagnostic = Diagnostic::warning(
+            "mei.unsupported-elements.truncated",
+            "MEI unsupported-element diagnostics exceeded the reporting limit",
+        );
+        diagnostic.source_location = Some(format!("/{}", path.join("/")));
+        diagnostics.push(diagnostic);
+        *truncated = true;
+    }
 }
 
 /// Parse the supported MEI subset into the canonical score model.
@@ -293,6 +327,10 @@ mod tests {
         assert_eq!(report.diagnostics.len(), 1);
         assert_eq!(report.diagnostics[0].code, "mei.unsupported-element.dynam");
         assert_eq!(
+            report.diagnostics[0].source_location.as_deref(),
+            Some("/mei/music/body/mdiv/score/section/measure/staff/layer/dynam")
+        );
+        assert_eq!(
             report.diagnostics[0].severity,
             crate::DiagnosticSeverity::Warning
         );
@@ -301,6 +339,21 @@ mod tests {
                 .loss_reason
                 .as_deref()
                 .is_some_and(|reason| reason.contains("outside"))
+        );
+    }
+
+    #[test]
+    fn report_bounds_repeated_loss_diagnostics() {
+        let repeated = "<dynam>f</dynam>".repeat(MAX_MEI_DIAGNOSTICS + 8);
+        let xml = FIXTURE.replace("<note pname=\"c\"", &format!("{repeated}<note pname=\"c\""));
+        let report = parse_mei_with_report(&xml).expect("MEI report parses");
+        assert_eq!(report.diagnostics.len(), MAX_MEI_DIAGNOSTICS + 1);
+        assert_eq!(
+            report
+                .diagnostics
+                .last()
+                .map(|diagnostic| diagnostic.code.as_str()),
+            Some("mei.unsupported-elements.truncated")
         );
     }
 }
