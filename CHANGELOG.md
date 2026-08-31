@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.51.0] - 2026-08-31
+
+### MEI score definition attribute diagnostics
+
+- Added source-valued diagnostics for unsupported MEI score-definition attributes, including
+  meter, key signature, and clef settings.
+
 ## [0.50.0] - 2026-08-31
 
 ### MEI score definition diagnostics

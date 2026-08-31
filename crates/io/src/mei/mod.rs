@@ -59,6 +59,11 @@ const UNSUPPORTED_ELEMENTS: &[&str] = &[
 const UNSUPPORTED_ATTRIBUTES: &[(&str, &str, &str)] = &[
     ("measure", "meter.count", "meter-count"),
     ("measure", "meter.unit", "meter-unit"),
+    ("scoreDef", "meter.count", "meter-count"),
+    ("scoreDef", "meter.unit", "meter-unit"),
+    ("scoreDef", "key.sig", "key-signature"),
+    ("staffDef", "clef.shape", "clef-shape"),
+    ("staffDef", "clef.line", "clef-line"),
 ];
 
 fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
@@ -488,14 +493,39 @@ mod tests {
             "<music><scoreDef meter.count=\"3\" meter.unit=\"4\"><staffDef n=\"1\"/></scoreDef>",
         );
         let report = parse_mei_with_report(&xml).expect("MEI report parses");
-        assert_eq!(report.diagnostics.len(), 2);
+        assert_eq!(report.diagnostics.len(), 4);
         assert_eq!(
             report.diagnostics[0].code,
             "mei.unsupported-element.scoreDef"
         );
         assert_eq!(
-            report.diagnostics[1].code,
+            report.diagnostics[3].code,
             "mei.unsupported-element.staffDef"
         );
+    }
+
+    #[test]
+    fn report_preserves_score_definition_attributes() {
+        let xml = FIXTURE.replace(
+            "<music>",
+            "<music><scoreDef meter.count=\"3\" meter.unit=\"4\" key.sig=\"2s\"><staffDef n=\"1\" clef.shape=\"G\" clef.line=\"2\"/></scoreDef>",
+        );
+        let report = parse_mei_with_report(&xml).expect("MEI report parses");
+        assert_eq!(report.diagnostics.len(), 7);
+        assert_eq!(
+            report.diagnostics[1].code,
+            "mei.unsupported-attribute.scoreDef.meter-count"
+        );
+        assert_eq!(report.diagnostics[1].preserved_value.as_deref(), Some("3"));
+        assert_eq!(
+            report.diagnostics[3].code,
+            "mei.unsupported-attribute.scoreDef.key-signature"
+        );
+        assert_eq!(report.diagnostics[3].preserved_value.as_deref(), Some("2s"));
+        assert_eq!(
+            report.diagnostics[5].code,
+            "mei.unsupported-attribute.staffDef.clef-shape"
+        );
+        assert_eq!(report.diagnostics[6].preserved_value.as_deref(), Some("2"));
     }
 }
