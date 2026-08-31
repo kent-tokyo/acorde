@@ -14,6 +14,8 @@ The fixture paths, expected category counts, and manifest format are versioned w
 
 ```bash
 cargo run --offline -p acorde-cli -- benchmark benchmarks/analysis.json --fail-on-mismatch
+cargo run --offline -p acorde-cli -- benchmark benchmarks/analysis.json \
+  --fail-on-mismatch --expected-fingerprint fnv1a64-b3b4b222fa7349e8
 ```
 
 The command emits corpus metadata, including a deterministic fingerprint of the manifest and input

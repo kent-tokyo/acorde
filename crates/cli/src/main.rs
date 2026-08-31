@@ -50,6 +50,9 @@ enum Commands {
         /// Exit with status 1 when any benchmark case has a category mismatch
         #[arg(long)]
         fail_on_mismatch: bool,
+        /// Expected corpus fingerprint; exits 1 when manifest or fixture bytes drift
+        #[arg(long)]
+        expected_fingerprint: Option<String>,
     },
     /// Extract a single part from a score
     Extract {
@@ -74,7 +77,8 @@ fn main() {
         Commands::Benchmark {
             manifest,
             fail_on_mismatch,
-        } => cmd_benchmark(manifest, *fail_on_mismatch),
+            expected_fingerprint,
+        } => cmd_benchmark(manifest, *fail_on_mismatch, expected_fingerprint.as_deref()),
         Commands::Extract {
             input,
             output,
@@ -215,7 +219,11 @@ struct BenchmarkOutput {
     report: acorde_analysis::BenchmarkSuiteReport,
 }
 
-fn cmd_benchmark(manifest: &Path, fail_on_mismatch: bool) -> Result<(), String> {
+fn cmd_benchmark(
+    manifest: &Path,
+    fail_on_mismatch: bool,
+    expected_fingerprint: Option<&str>,
+) -> Result<(), String> {
     let text = std::fs::read_to_string(manifest)
         .map_err(|e| format!("cannot read '{}': {e}", manifest.display()))?;
     let manifest_data: BenchmarkManifest = serde_json::from_str(&text)
@@ -257,6 +265,14 @@ fn cmd_benchmark(manifest: &Path, fail_on_mismatch: bool) -> Result<(), String> 
         },
         report,
     };
+    if let Some(expected) = expected_fingerprint
+        && expected != output.corpus.fingerprint
+    {
+        return Err(format!(
+            "benchmark fingerprint mismatch: expected '{expected}', found '{}'",
+            output.corpus.fingerprint
+        ));
+    }
     let failed_case_count = output.report.failed_case_count;
     let json = serde_json::to_string_pretty(&output)
         .map_err(|e| format!("benchmark serialization failed: {e}"))?;

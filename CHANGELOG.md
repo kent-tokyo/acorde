@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.69.0] - 2026-08-31
+
+### Benchmark fingerprint verification
+
+- Added `--expected-fingerprint` to the local benchmark CLI so CI or offline scripts can reject
+  manifest and fixture drift before accepting analysis results.
+
 ## [0.68.0] - 2026-08-31
 
 ### Benchmark corpus fingerprint

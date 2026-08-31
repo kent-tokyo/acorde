@@ -22,7 +22,9 @@ analyze emits deterministic chord, melodic-interval, and key-estimate results as
 benchmark reads a local JSON manifest and emits corpus metadata, including a content fingerprint,
 plus the deterministic suite report.
 Paths are relative to the manifest file. `--fail-on-mismatch` makes the command exit with status 1
-when any case has a category mismatch. A manifest includes corpus metadata; each case has `name`,
+when any case has a category mismatch. `--expected-fingerprint` makes the command exit with status
+1 when the manifest or referenced fixture bytes differ from a recorded fingerprint. A manifest
+includes corpus metadata; each case has `name`,
 `input`, `coverage`, `provenance`, and expected category counts:
 
 ~~~json
