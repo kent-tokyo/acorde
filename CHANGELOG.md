@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-08-31
+
+### Explainable phrase analysis
+
+- Added deterministic repeated three-note interval motif detection with source spans.
+- Added conservative phrase-boundary results for measures ending in explicit rests.
+- The analysis result schema is now version `6`; new fields default to empty for older JSON.
+
 ## [0.21.0] - 2026-08-31
 
 ### Explainable SATB diagnostics

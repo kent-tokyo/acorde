@@ -9,6 +9,8 @@ transitions and aligned voice-leading observations, including parallel-perfect f
 result contains stable `NoteAddr` evidence and a rule identifier. SATB diagnostics classify voice
 crossing, wide spacing, and parallel-perfect motion with typed severity. Key estimation returns all tied
 best candidates, so relative-major/minor ambiguity is preserved instead of inventing a single key.
+Repeated three-note interval motifs and explicit rest-terminated phrase boundaries are also
+reported with source spans.
 
 ```rust
 use acorde_analysis::analyze_score;

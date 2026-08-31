@@ -22,7 +22,7 @@ mscz = ["dep:quick-xml", "dep:zip"]
 mei = ["dep:quick-xml"]
 
 [dependencies]
-acorde-core = { path = "../core", version = "0.21.0" }
+acorde-core = { path = "../core", version = "0.22.0" }
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 

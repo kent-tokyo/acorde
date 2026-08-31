@@ -2,7 +2,7 @@
 
 use acorde_core::{ChordSymbol, KeySignature, NoteAddr, Score, detect_chord, roman_numeral};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 /// Version of the serialized analysis result contract.
 pub const ANALYSIS_SCHEMA_VERSION: u32 = 5;
@@ -33,6 +33,10 @@ pub struct AnalysisResult {
     pub voice_leading: Vec<VoiceLeadingObservation>,
     #[serde(default)]
     pub satb_diagnostics: Vec<SatbDiagnostic>,
+    #[serde(default)]
+    pub motifs: Vec<MotifPattern>,
+    #[serde(default)]
+    pub phrase_boundaries: Vec<PhraseBoundary>,
 }
 
 /// A deterministic key candidate ranked by diatonic pitch coverage.
@@ -106,6 +110,39 @@ pub enum SatbSeverity {
     Warning,
 }
 
+/// A repeated melodic interval pattern with all matching source occurrences.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MotifPattern {
+    pub signature: Vec<i8>,
+    pub occurrences: Vec<MotifOccurrence>,
+    pub confidence: u8,
+    pub rule_id: String,
+}
+
+/// One source span matching a motif pattern.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MotifOccurrence {
+    pub start: NoteAddr,
+    pub end: NoteAddr,
+    pub evidence: Vec<NoteAddr>,
+}
+
+/// A phrase boundary supported by an explicit rest at the end of a measure.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PhraseBoundary {
+    pub address: NoteAddr,
+    pub reason: PhraseBoundaryReason,
+    pub confidence: u8,
+    pub rule_id: String,
+    pub evidence: Vec<NoteAddr>,
+}
+
+/// Evidence categories for phrase boundaries.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PhraseBoundaryReason {
+    RestTermination,
+}
+
 /// A consecutive melodic interval with addresses for both source notes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct IntervalObservation {
@@ -173,6 +210,8 @@ pub fn analyze_score(score: &Score) -> AnalysisResult {
     let cadence_candidates = analyze_cadences(&chords);
     let voice_leading = analyze_voice_leading(score);
     let satb_diagnostics = analyze_satb_with_voice_leading(score, &voice_leading);
+    let motifs = analyze_motifs(score);
+    let phrase_boundaries = analyze_phrase_boundaries(score);
     AnalysisResult {
         schema_version: ANALYSIS_SCHEMA_VERSION,
         chords,
@@ -181,6 +220,8 @@ pub fn analyze_score(score: &Score) -> AnalysisResult {
         cadence_candidates,
         voice_leading,
         satb_diagnostics,
+        motifs,
+        phrase_boundaries,
     }
 }
 
@@ -276,6 +317,117 @@ fn satb_diagnostic(
         confidence: 100,
         rule_id: rule_id.to_string(),
     }
+}
+
+/// Find repeated three-note melodic interval patterns, resetting at rests.
+pub fn analyze_motifs(score: &Score) -> Vec<MotifPattern> {
+    let mut groups: BTreeMap<(usize, usize, usize, Vec<i8>), Vec<MotifOccurrence>> =
+        BTreeMap::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            let Some(first_measure) = staff.measures.first() else {
+                continue;
+            };
+            for (voice_index, _) in first_measure.voices.iter().enumerate() {
+                let mut segment = Vec::new();
+                let mut segments = Vec::new();
+                for (measure_index, measure) in staff.measures.iter().enumerate() {
+                    for (note_index, note) in measure.voices[voice_index].iter().enumerate() {
+                        let Some(pitch) = note.pitches.first() else {
+                            if segment.len() >= 3 {
+                                segments.push(std::mem::take(&mut segment));
+                            } else {
+                                segment.clear();
+                            }
+                            continue;
+                        };
+                        if note.is_rest {
+                            if segment.len() >= 3 {
+                                segments.push(std::mem::take(&mut segment));
+                            } else {
+                                segment.clear();
+                            }
+                            continue;
+                        }
+                        segment.push((
+                            NoteAddr {
+                                part: part_index,
+                                staff: staff_index,
+                                measure: measure_index,
+                                voice: voice_index,
+                                note: note_index,
+                            },
+                            pitch.to_midi(),
+                        ));
+                    }
+                }
+                if segment.len() >= 3 {
+                    segments.push(segment);
+                }
+                for segment in segments {
+                    for window in segment.windows(3) {
+                        let signature = vec![
+                            (window[1].1 - window[0].1) as i8,
+                            (window[2].1 - window[1].1) as i8,
+                        ];
+                        let occurrence = MotifOccurrence {
+                            start: window[0].0.clone(),
+                            end: window[2].0.clone(),
+                            evidence: window.iter().map(|(address, _)| address.clone()).collect(),
+                        };
+                        groups
+                            .entry((part_index, staff_index, voice_index, signature))
+                            .or_default()
+                            .push(occurrence);
+                    }
+                }
+            }
+        }
+    }
+    groups
+        .into_iter()
+        .filter(|(_, occurrences)| occurrences.len() >= 2)
+        .map(|((_, _, _, signature), occurrences)| MotifPattern {
+            signature,
+            occurrences,
+            confidence: 100,
+            rule_id: "repeated-three-note-interval-pattern".to_string(),
+        })
+        .collect()
+}
+
+/// Report measure-ending rests as explicit, conservative phrase boundaries.
+pub fn analyze_phrase_boundaries(score: &Score) -> Vec<PhraseBoundary> {
+    let mut boundaries = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    let Some((note_index, note)) = voice.iter().enumerate().next_back() else {
+                        continue;
+                    };
+                    if !note.is_rest {
+                        continue;
+                    }
+                    let address = NoteAddr {
+                        part: part_index,
+                        staff: staff_index,
+                        measure: measure_index,
+                        voice: voice_index,
+                        note: note_index,
+                    };
+                    boundaries.push(PhraseBoundary {
+                        address: address.clone(),
+                        reason: PhraseBoundaryReason::RestTermination,
+                        confidence: 100,
+                        rule_id: "measure-ending-rest".to_string(),
+                        evidence: vec![address],
+                    });
+                }
+            }
+        }
+    }
+    boundaries
 }
 
 /// Find explicit cadence transitions in the order they occur within each voice.
@@ -702,5 +854,35 @@ mod tests {
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].kind, SatbDiagnosticKind::VoiceCrossing);
         assert_eq!(diagnostics[0].severity, SatbSeverity::Error);
+    }
+
+    #[test]
+    fn finds_repeated_melodic_motif_with_source_spans() {
+        let mut score = Score::default();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        for step in [Step::C, Step::D, Step::E, Step::G, Step::A, Step::B] {
+            voice.push(Note::new(Pitch::new(step, 4), Duration::Quarter));
+        }
+        let motifs = analyze_motifs(&score);
+        assert_eq!(motifs.len(), 1);
+        assert_eq!(motifs[0].signature, vec![2, 2]);
+        assert_eq!(motifs[0].occurrences.len(), 2);
+        assert_eq!(motifs[0].occurrences[0].evidence.len(), 3);
+    }
+
+    #[test]
+    fn reports_measure_ending_rest_as_phrase_boundary() {
+        let mut score = Score::default();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        voice.push(Note::new(Pitch::new(Step::C, 4), Duration::Quarter));
+        voice.push(Note::rest(Duration::Quarter));
+        let boundaries = analyze_phrase_boundaries(&score);
+        assert!(boundaries.iter().any(|boundary| {
+            boundary.reason == PhraseBoundaryReason::RestTermination
+                && boundary.address.measure == 0
+                && boundary.address.note == 1
+        }));
     }
 }
