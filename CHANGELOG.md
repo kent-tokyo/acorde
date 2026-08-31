@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.55.0] - 2026-08-31
+
+### Analysis fingerprint correction
+
+- Corrected the deterministic score fingerprint to use the documented FNV-1a byte order.
+- Added regression coverage ensuring changed score content produces a different fingerprint.
+
 ## [0.54.0] - 2026-08-31
 
 ### Deterministic analysis identity

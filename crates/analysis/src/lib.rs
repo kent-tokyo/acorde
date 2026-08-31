@@ -313,10 +313,14 @@ pub fn analyze_score(score: &Score) -> AnalysisResult {
 /// Return a deterministic, non-cryptographic fingerprint for a canonical score.
 pub fn score_fingerprint(score: &Score) -> String {
     let bytes = serde_json::to_vec(score).unwrap_or_default();
-    let hash = bytes.iter().fold(0xcbf29ce484222325u64, |hash, byte| {
-        hash.wrapping_mul(0x100000001b3) ^ u64::from(*byte)
-    });
+    let hash = fnv1a64(&bytes);
     format!("fnv1a64-{hash:016x}")
+}
+
+fn fnv1a64(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf29ce484222325u64, |hash, byte| {
+        (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3)
+    })
 }
 
 impl AnalysisCounts {
@@ -1053,6 +1057,11 @@ mod tests {
         let mut changed = score.clone();
         changed.metadata.title = "Changed".to_string();
         assert_ne!(repeated.score_fingerprint, score_fingerprint(&changed));
+    }
+
+    #[test]
+    fn fingerprint_uses_fnv1a_byte_order() {
+        assert_eq!(fnv1a64(b"hello"), 0xa430d84680aabd0b);
     }
 
     #[test]
