@@ -77,6 +77,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut note_dot = false;
     let mut note_rest = false;
     let mut note_chord = false;
+    let mut note_voice = 1u8;
     let mut note_is_grace = false;
     let mut note_grace_slash = false;
     let mut note_is_cue = false;
@@ -206,6 +207,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         in_note = true;
                         note_rest = false;
                         note_chord = false;
+                        note_voice = 1;
                         note_dot = false;
                         note_alter = 0;
                         _note_duration_ticks = 0;
@@ -747,6 +749,9 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "duration" if in_note => {
                         _note_duration_ticks = current_text.parse().unwrap_or(480);
                     }
+                    "voice" if in_note => {
+                        note_voice = current_text.parse().unwrap_or(1);
+                    }
                     "type" if in_note => note_type = current_text.clone(),
                     "tremolo" if pending_tremolo => {
                         let n: u8 = current_text.trim().parse().unwrap_or(1);
@@ -803,13 +808,17 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
                         {
                             let total_beats = current_time.total_beats();
-                            let voice = &mut m.voices[0];
-                            let mut used: f64 = voice.iter().map(|n| n.beats()).sum();
-                            while total_beats - used > 1e-9 {
-                                let remaining = total_beats - used;
-                                let rest = Note::rest(Duration::whole_filling_beats(remaining));
-                                used += rest.beats();
-                                voice.push(rest);
+                            for voice in &mut m.voices {
+                                if voice.is_empty() {
+                                    continue;
+                                }
+                                let mut used: f64 = voice.iter().map(|n| n.beats()).sum();
+                                while total_beats - used > 1e-9 {
+                                    let remaining = total_beats - used;
+                                    let rest = Note::rest(Duration::whole_filling_beats(remaining));
+                                    used += rest.beats();
+                                    voice.push(rest);
+                                }
                             }
                         }
                     }
@@ -817,6 +826,14 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         if let Some(pi) = part_index
                             && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
                         {
+                            let voice_index = note_voice.saturating_sub(1) as usize;
+                            if voice_index >= m.voices.len() {
+                                return Err(Error::Xml(format!(
+                                    "voice number must be between 1 and {}",
+                                    m.voices.len()
+                                )));
+                            }
+                            let voice = &mut m.voices[voice_index];
                             let dur = parse_duration_type(&note_type);
                             let dot_count = u8::from(note_dot);
                             let note = if note_rest {
@@ -833,8 +850,8 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 n.is_cue = note_is_cue;
                                 n
                             };
-                            if note_chord && !m.voices[0].is_empty() {
-                                if let Some(last) = m.voices[0].last_mut()
+                            if note_chord && !voice.is_empty() {
+                                if let Some(last) = voice.last_mut()
                                     && !last.is_rest
                                     && !note.is_rest
                                 {
@@ -861,7 +878,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                     }
                                 }
                             } else {
-                                if m.voices[0].len() >= MAX_NOTES_PER_VOICE {
+                                if voice.len() >= MAX_NOTES_PER_VOICE {
                                     return Err(Error::Xml("too many notes in voice".into()));
                                 }
                                 let mut note = note;
@@ -926,7 +943,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                     lyric_text.clear();
                                     lyric_syllabic = "single".to_string();
                                 }
-                                m.voices[0].push(note);
+                                voice.push(note);
                             }
                         }
                         in_note = false;

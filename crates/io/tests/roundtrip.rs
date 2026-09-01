@@ -8,6 +8,7 @@ use acorde_io::{parse_musicxml, serialize_musicxml};
 //   crates/io/tests/roundtrip.rs  →  ../../.. → workspace root → tests/fixtures/
 static SIMPLE_XML: &str = include_str!("../../../tests/fixtures/simple.musicxml");
 static MULTIPART_XML: &str = include_str!("../../../tests/fixtures/multipart.musicxml");
+static MULTIVOICE_XML: &str = include_str!("../../../tests/fixtures/multivoice.musicxml");
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,57 @@ fn simple_musicxml_roundtrip_preserves_structure() {
             }
         }
     }
+}
+
+#[test]
+fn multivoice_musicxml_preserves_voice_structure_and_playback_addresses() {
+    let score1 = parse_musicxml(MULTIVOICE_XML).expect("multi-voice parse failed");
+    let measure = &score1.parts[0].staves[0].measures[0];
+    assert_eq!(measure.voices[0].len(), 4);
+    assert_eq!(measure.voices[1].len(), 2);
+    assert!(measure.voices[2].is_empty());
+    assert_eq!(measure.voices[0][0].pitches[0].step, Step::C);
+    assert_eq!(measure.voices[1][0].pitches[0].step, Step::C);
+
+    let xml2 = serialize_musicxml(&score1).expect("multi-voice serialize failed");
+    assert!(xml2.contains("<backup>"));
+    let score2 = parse_musicxml(&xml2).expect("multi-voice reparse failed");
+    let measure2 = &score2.parts[0].staves[0].measures[0];
+    for voice_index in 0..4 {
+        let left = &measure.voices[voice_index];
+        let right = &measure2.voices[voice_index];
+        assert_eq!(
+            left.len(),
+            right.len(),
+            "voice {voice_index} length mismatch"
+        );
+        for (left_note, right_note) in left.iter().zip(right) {
+            assert_eq!(left_note.is_rest, right_note.is_rest);
+            assert_eq!(left_note.duration, right_note.duration);
+            assert_eq!(left_note.dot_count, right_note.dot_count);
+            if !left_note.is_rest {
+                assert_eq!(left_note.pitches, right_note.pitches);
+            }
+        }
+    }
+
+    let events = acorde_core::to_playback_events(
+        &score2,
+        &acorde_core::PlaybackOptions {
+            metronome: None,
+            ..Default::default()
+        },
+    );
+    assert!(
+        events
+            .iter()
+            .any(|event| event.address.as_deref() == Some("0:0:0:0:0"))
+    );
+    assert!(
+        events
+            .iter()
+            .any(|event| event.address.as_deref() == Some("0:0:0:1:0"))
+    );
 }
 
 // ── multipart.musicxml ────────────────────────────────────────────────────────

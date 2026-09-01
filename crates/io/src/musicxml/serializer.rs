@@ -1,7 +1,7 @@
 use crate::Error;
 use acorde_core::{
     Articulation, Barline, GuitarTechnique, HairpinKind, Note, NoteHead, PartGroup,
-    PartGroupSymbol, Score,
+    PartGroupSymbol, Score, TimeSignature,
 };
 
 const DIVISIONS: u32 = 480;
@@ -276,9 +276,25 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 xml.push_str("      </direction>\n");
             }
 
-            // Notes (voice 0)
-            for note in &measure.voices[0] {
-                serialize_note(&mut xml, note);
+            // Emit each populated voice in stable model order. MusicXML advances one shared
+            // measure cursor, so return to the measure start before every subsequent voice.
+            let mut emitted_voice = false;
+            for (voice_index, voice) in measure.voices.iter().enumerate() {
+                if voice.is_empty() {
+                    continue;
+                }
+                if emitted_voice {
+                    xml.push_str("      <backup>\n");
+                    xml.push_str(&format!(
+                        "        <duration>{}</duration>\n",
+                        measure_duration_ticks(measure, &score.settings.time_signature)
+                    ));
+                    xml.push_str("      </backup>\n");
+                }
+                for note in voice {
+                    serialize_note(&mut xml, note, voice_index + 1);
+                }
+                emitted_voice = true;
             }
 
             // Right barline
@@ -318,7 +334,7 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
     Ok(xml)
 }
 
-fn serialize_note(xml: &mut String, note: &Note) {
+fn serialize_note(xml: &mut String, note: &Note, voice_number: usize) {
     // Pedal start
     if note.pedal_start {
         xml.push_str("      <direction placement=\"below\">\n");
@@ -407,7 +423,7 @@ fn serialize_note(xml: &mut String, note: &Note) {
         xml.push_str("      <note>\n");
         xml.push_str("        <rest/>\n");
         xml.push_str(&format!("        <duration>{}</duration>\n", dur_ticks));
-        xml.push_str("        <voice>1</voice>\n");
+        xml.push_str(&format!("        <voice>{voice_number}</voice>\n"));
         xml.push_str(&format!(
             "        <type>{}</type>\n",
             note.duration.to_musicxml_type()
@@ -447,7 +463,7 @@ fn serialize_note(xml: &mut String, note: &Note) {
         if note.tie_start {
             xml.push_str("        <tie type=\"start\"/>\n");
         }
-        xml.push_str("        <voice>1</voice>\n");
+        xml.push_str(&format!("        <voice>{voice_number}</voice>\n"));
         xml.push_str(&format!(
             "        <type>{}</type>\n",
             note.duration.to_musicxml_type()
@@ -502,7 +518,7 @@ fn serialize_note(xml: &mut String, note: &Note) {
             xml.push_str(&format!("          <octave>{}</octave>\n", extra.octave));
             xml.push_str("        </pitch>\n");
             xml.push_str(&format!("        <duration>{}</duration>\n", dur_ticks));
-            xml.push_str("        <voice>1</voice>\n");
+            xml.push_str(&format!("        <voice>{voice_number}</voice>\n"));
             xml.push_str(&format!(
                 "        <type>{}</type>\n",
                 note.duration.to_musicxml_type()
@@ -537,6 +553,11 @@ fn serialize_note(xml: &mut String, note: &Note) {
         xml.push_str("        </direction-type>\n");
         xml.push_str("      </direction>\n");
     }
+}
+
+fn measure_duration_ticks(measure: &acorde_core::Measure, fallback: &TimeSignature) -> u32 {
+    let time = measure.time_sig.as_ref().unwrap_or(fallback);
+    (time.total_beats() * DIVISIONS as f64).round() as u32
 }
 
 fn serialize_notations(xml: &mut String, note: &Note) {

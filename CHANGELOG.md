@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### MusicXML multi-voice parsing
+
+- Preserve MusicXML voice numbers 1–4 through parsing and serialization, including measure
+  cursor resets between voices and stable playback note addresses.
+
 ## [0.82.0] - 2026-08-31
 
 ### WASM JSON boundary hardening

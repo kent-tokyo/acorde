@@ -14,6 +14,9 @@ The default API includes parse_musicxml, parse_mxl, serialize_musicxml, parse_mi
 serialize_midi, and serialize_midi_region. Parsers accept strings or byte slices and never touch
 the filesystem.
 
+MusicXML notes are mapped from voice numbers 1–4 to the corresponding `Measure.voices` entries;
+serialization emits the same voice numbers and `<backup>` boundaries for round-trip fidelity.
+
 Each supported format also exposes `*_with_report` wrappers returning `ImportReport` or
 `ExportReport<T>`. Reports carry structured diagnostics with severity, source location, preserved
 value, and loss reason fields; an empty diagnostic list means no loss was detected by that API.
