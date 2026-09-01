@@ -39,14 +39,15 @@ conversion diagnostics.
 
 ```toml
 [dependencies]
-acorde = "0.18"
-acorde-render-svg = "0.18"
+acorde = "0.82"
+acorde-render-svg = "0.82"
 ```
 
-Optional I/O features are disabled by default in `acorde` and `acorde-io`:
+The default I/O features are `musicxml` and `midi`; enable the optional `abc`, `mscz`, or `mei`
+features when needed:
 
 ```toml
-acorde = { version = "0.11", features = ["abc", "mscz", "mei"] }
+acorde = { version = "0.82", features = ["abc", "mscz", "mei"] }
 ```
 
 ```rust
