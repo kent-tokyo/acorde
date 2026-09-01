@@ -37,6 +37,7 @@ acorde = { version = "1.0.1", features = ["abc", "mscz", "mei"] }
 `acorde-io` の既定 feature は `musicxml` と `midi` です。`abc` は ABC の読み書き、
 `mscz` は `.mscz`/`.mscx` の読み込み、`mei` は文書化されたMEIサブセットの入出力を追加します。パーサーはメモリ上の入力を受け取り、
 ファイルは読みません。
+MusicXMLのvoice番号1〜4は`Measure.voices`に保持され、MusicXMLの往復変換でも維持されます。
 
 ## CLI
 

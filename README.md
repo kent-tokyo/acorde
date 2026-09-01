@@ -67,6 +67,7 @@ let score: &Score = engine.score();
 The `abc` feature adds ABC parse/serialize; `mscz` adds MuseScore `.mscz`/`.mscx` parsing; `mei`
 adds the documented MEI subset import/export boundary.
 Parsers accept memory buffers and return typed errors. They do not read files.
+MusicXML voice numbers 1–4 are preserved in `Measure.voices` and through MusicXML round-trips.
 
 ## SVG and browser API
 
