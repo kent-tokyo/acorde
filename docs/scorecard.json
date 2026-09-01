@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "release": "0.82.x",
+  "release": "1.0.x",
   "policy": {
     "claims_require_fixture_or_focused_test": true,
     "external_publication_verified": false,
