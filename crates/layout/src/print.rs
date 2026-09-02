@@ -39,6 +39,22 @@ pub enum PageNumbering {
     OneBased,
 }
 
+/// Color intent for a print-capable host.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum PrintColorPolicy {
+    #[default]
+    Monochrome,
+    Preserve,
+}
+
+/// Whether a host should expose crop marks at the configured bleed boundary.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum CropMarkPolicy {
+    #[default]
+    None,
+    BleedEdges,
+}
+
 /// Host-neutral inputs for deterministic page and system layout.
 ///
 /// This contract describes physical page geometry only. It intentionally does not select
@@ -68,6 +84,10 @@ pub struct PrintConfig {
     /// page height and `system_height_mm`.
     pub systems_per_page: Option<usize>,
     pub page_numbering: PageNumbering,
+    #[serde(default)]
+    pub color_policy: PrintColorPolicy,
+    #[serde(default)]
+    pub crop_mark_policy: CropMarkPolicy,
 }
 
 impl Default for PrintConfig {
@@ -92,6 +112,8 @@ impl Default for PrintConfig {
             measures_per_system: 4,
             systems_per_page: None,
             page_numbering: PageNumbering::OneBased,
+            color_policy: PrintColorPolicy::Monochrome,
+            crop_mark_policy: CropMarkPolicy::None,
         }
     }
 }
@@ -138,6 +160,10 @@ pub struct PageLayout {
     pub address: PageAddress,
     pub page_index: usize,
     pub page_number: Option<usize>,
+    #[serde(default)]
+    pub color_policy: PrintColorPolicy,
+    #[serde(default)]
+    pub crop_mark_policy: CropMarkPolicy,
     pub width_mm: f32,
     pub height_mm: f32,
     pub content_width_mm: f32,
@@ -308,6 +334,8 @@ pub fn compute_print_layout(
                     PageNumbering::None => None,
                     PageNumbering::OneBased => Some(page_index + 1),
                 },
+                color_policy: config.color_policy,
+                crop_mark_policy: config.crop_mark_policy,
                 width_mm,
                 height_mm,
                 content_width_mm,
@@ -330,6 +358,8 @@ pub fn compute_print_layout(
                 PageNumbering::None => None,
                 PageNumbering::OneBased => Some(page_index + 1),
             },
+            color_policy: config.color_policy,
+            crop_mark_policy: config.crop_mark_policy,
             width_mm,
             height_mm,
             content_width_mm,
@@ -344,7 +374,7 @@ pub fn compute_print_layout(
     }
 
     Ok(PrintLayoutResult {
-        contract_version: 5,
+        contract_version: 6,
         pages,
     })
 }
@@ -451,7 +481,7 @@ mod tests {
         )
         .expect("valid print config");
         let page = &result.pages[0];
-        assert_eq!(result.contract_version, 5);
+        assert_eq!(result.contract_version, 6);
         assert_eq!(page.bleed_left_mm, 3.0);
         assert_eq!(page.content_width_mm, 210.0 - 14.0 - 14.0 - 8.0 - 6.0);
         assert_eq!(page.content_height_mm, 297.0 - 16.0 - 16.0 - 5.0 - 7.0);
@@ -521,5 +551,23 @@ mod tests {
                 .iter()
                 .all(|page| page.page_number.is_none())
         );
+    }
+
+    #[test]
+    fn print_color_and_crop_policies_are_exposed_per_page() {
+        let score = score_with_measures(1);
+        let result = compute_print_layout(
+            &score,
+            &PrintConfig {
+                color_policy: PrintColorPolicy::Preserve,
+                crop_mark_policy: CropMarkPolicy::BleedEdges,
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid print config");
+        let page = &result.pages[0];
+        assert_eq!(result.contract_version, 6);
+        assert_eq!(page.color_policy, PrintColorPolicy::Preserve);
+        assert_eq!(page.crop_mark_policy, CropMarkPolicy::BleedEdges);
     }
 }
