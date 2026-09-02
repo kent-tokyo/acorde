@@ -380,6 +380,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             rehearsal: None,
                             navigation: None,
                             expression_text: None,
+                            texts: Vec::new(),
                             multi_rest_count: None,
                             system_break: false,
                             page_break: false,

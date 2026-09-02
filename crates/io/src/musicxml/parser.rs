@@ -2,7 +2,7 @@ use crate::Error;
 use acorde_core::{
     Articulation, Barline, ChordSymbol, Clef, Duration, GuitarTechnique, HairpinKind, KeySignature,
     Lyric, Measure, Note, NoteHead, OttavaKind, Part, PartGroup, PartGroupSymbol, Pitch, Score,
-    Staff, Step, TimeSignature, VoltaBracket,
+    Staff, Step, StyledText, TextStyle, TimeSignature, VoltaBracket,
 };
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
@@ -57,6 +57,8 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut in_note = false;
     let mut note_slur_start = false;
     let mut note_slur_end = false;
+    let mut note_glissando_start = false;
+    let mut note_glissando_end = false;
     let mut in_notations = false;
     let mut in_artic_block = false;
     let mut in_ornament_block = false;
@@ -78,6 +80,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut note_rest = false;
     let mut note_chord = false;
     let mut note_voice = 1u8;
+    let mut note_staff = 1usize;
     let mut note_is_grace = false;
     let mut note_grace_slash = false;
     let mut note_is_cue = false;
@@ -195,6 +198,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "articulations" if in_notations => in_artic_block = true,
                     "ornaments" if in_notations => in_ornament_block = true,
                     "technical" if in_notations => in_technical_block = true,
+                    "glissando" if in_notations => {
+                        if attr_str(e, b"type").as_deref() == Some("start") {
+                            note_glissando_start = true;
+                        }
+                    }
                     "tremolo" if in_ornament_block => {
                         pending_tremolo = true;
                     }
@@ -208,6 +216,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         note_rest = false;
                         note_chord = false;
                         note_voice = 1;
+                        note_staff = 1;
                         note_dot = false;
                         note_alter = 0;
                         _note_duration_ticks = 0;
@@ -219,6 +228,8 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         note_type = "quarter".to_string();
                         note_slur_start = false;
                         note_slur_end = false;
+                        note_glissando_start = false;
+                        note_glissando_end = false;
                         pending_articulations.clear();
                         pending_tremolo = false;
                         note_arpeggiate = None;
@@ -372,6 +383,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "wavy-line" if in_notations => match attr_str(e, b"type").as_deref() {
                         Some("start") => note_trill_line_start = true,
                         Some("stop") => note_trill_line_end = true,
+                        _ => {}
+                    },
+                    "glissando" if in_notations => match attr_str(e, b"type").as_deref() {
+                        Some("start") => note_glissando_start = true,
+                        Some("stop") => note_glissando_end = true,
                         _ => {}
                     },
                     "wedge" => match attr_str(e, b"type").as_deref() {
@@ -616,17 +632,29 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 if let Some(text) = pending_tempo_text.take()
                                     && m.tempo_text.is_none()
                                 {
-                                    m.tempo_text = Some(text);
+                                    m.tempo_text = Some(text.clone());
+                                    m.texts.push(StyledText {
+                                        style: TextStyle::Generic,
+                                        text,
+                                    });
                                 }
                             } else if let Some(text) = pending_expression_text.take()
                                 && m.expression_text.is_none()
                             {
-                                m.expression_text = Some(text);
+                                m.expression_text = Some(text.clone());
+                                m.texts.push(StyledText {
+                                    style: TextStyle::Expression,
+                                    text,
+                                });
                             }
                             if let Some(reh) = pending_rehearsal.take()
                                 && m.rehearsal.is_none()
                             {
-                                m.rehearsal = Some(reh);
+                                m.rehearsal = Some(reh.clone());
+                                m.texts.push(StyledText {
+                                    style: TextStyle::RehearsalMark,
+                                    text: reh,
+                                });
                             }
                             if let Some(bpm) = pending_sound_tempo.take() {
                                 m.tempo = Some(bpm);
@@ -751,6 +779,9 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     }
                     "voice" if in_note => {
                         note_voice = current_text.parse().unwrap_or(1);
+                    }
+                    "staff" if in_note => {
+                        note_staff = current_text.parse().unwrap_or(1);
                     }
                     "type" if in_note => note_type = current_text.clone(),
                     "tremolo" if pending_tremolo => {
@@ -901,6 +932,8 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 if note_slur_end {
                                     note.slur_end = true;
                                 }
+                                note.glissando_start = note_glissando_start;
+                                note.glissando_end = note_glissando_end;
                                 if let Some(arp) = note_arpeggiate.take() {
                                     note.arpeggiate = Some(arp);
                                 }
@@ -921,6 +954,12 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 }
                                 if let Some(up) = note_stem_up {
                                     note.stem_up = Some(up);
+                                }
+                                if note_staff > 1 {
+                                    note.cross_staff = Some(acorde_core::CrossStaff {
+                                        target_staff: note_staff - 1,
+                                        target_voice: None,
+                                    });
                                 }
                                 if note_trill_line_start {
                                     note.trill_line_start = true;

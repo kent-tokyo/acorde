@@ -367,6 +367,33 @@ pub struct Lyric {
     pub syllabic: String,
 }
 
+/// A typed score text annotation. The text itself is kept separate from its
+/// presentation role so consumers do not need to infer semantics from prose.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StyledText {
+    pub style: TextStyle,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TextStyle {
+    Expression,
+    Technique,
+    Lyrics,
+    ChordSymbol,
+    RehearsalMark,
+    Generic,
+}
+
+/// Cross-staff placement metadata. The note remains in its source staff, so
+/// its stable playback address continues to identify the original note.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CrossStaff {
+    pub target_staff: usize,
+    #[serde(default)]
+    pub target_voice: Option<usize>,
+}
+
 /// Structured chord symbol attached to a note.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ChordSymbol {

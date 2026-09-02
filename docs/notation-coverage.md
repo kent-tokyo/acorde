@@ -20,6 +20,8 @@ the `Score` model; rendering and export can have narrower format-specific covera
 | Lyrics and expression text | partial | no | no | partial | no | yes | partial / partial / MusicXML |
 | Ties, slurs, tuplets, grace/cue notes | yes | partial | partial | partial | no | yes | partial / partial / MusicXML |
 | Hairpins, pedal, ottava, trill | yes | no | no | partial | no | yes | partial / yes / MusicXML |
+| Glissando spanners and cross-staff placement | yes (standard start/stop and `<staff>`) | no | no | no | no | yes | yes / yes / MusicXML |
+| Typed expression, technique, lyric, chord, rehearsal, generic text | partial | no | no | partial | no | yes | partial / partial / MusicXML |
 | Volta brackets and part groups | yes | no | partial | partial | no | yes | yes / yes / MusicXML |
 | MIDI channel, program, transposition | yes | yes | no | partial | no | yes | yes / no / MIDI |
 | Percussion | partial | partial | no | partial | no | yes | partial / partial / MIDI |
@@ -34,6 +36,12 @@ the `Score` model; rendering and export can have narrower format-specific covera
   described in `AGENTS.md`.
 - “Exported” names the canonical format path currently implemented, not a promise that every
   imported feature can be reconstructed byte-for-byte.
+- Glissando supports MusicXML `<glissando type="start|stop">`; unsupported custom glissando
+  variants are not inferred. Cross-staff notes retain their source note address and record the
+  target staff; a target outside the part is rejected by the command engine.
+- `TextStyle` is the typed JSON model for expression, technique, lyrics, chord symbols, rehearsal
+  marks, and generic text. Only measure-level direction text currently has MusicXML emission;
+  other style-specific placement remains provider/render-layer work.
 
 ## Versioning and evidence
 

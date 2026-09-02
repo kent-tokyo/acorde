@@ -485,7 +485,8 @@ fn validate_inputs(
             | SpanMark::Ottava { start, end, .. }
             | SpanMark::Pedal { start, end }
             | SpanMark::Slur { start, end }
-            | SpanMark::TrillLine { start, end } => (start, end),
+            | SpanMark::TrillLine { start, end }
+            | SpanMark::Glissando { start, end } => (start, end),
         };
         if !valid_note(
             start.part,
@@ -1136,7 +1137,8 @@ fn render_all_spans(
             | SpanMark::Ottava { start, end, .. }
             | SpanMark::Pedal { start, end }
             | SpanMark::Slur { start, end }
-            | SpanMark::TrillLine { start, end } => (start, end),
+            | SpanMark::TrillLine { start, end }
+            | SpanMark::Glissando { start, end } => (start, end),
         };
         let (Some(&(x1, y1, up1, row1)), Some(&(x2, y2, up2, row2))) = (
             points.get(&(
@@ -1156,6 +1158,7 @@ fn render_all_spans(
             SpanMark::Pedal { .. } => "pedal",
             SpanMark::Slur { .. } => "slur",
             SpanMark::TrillLine { .. } => "trill-line",
+            SpanMark::Glissando { .. } => "glissando",
         };
         if interactive {
             let _ = write!(
@@ -1206,7 +1209,7 @@ fn render_all_spans(
                     f(0.08 * space)
                 );
             }
-            SpanMark::Slur { .. } | SpanMark::TrillLine { .. } => {
+            SpanMark::Slur { .. } | SpanMark::TrillLine { .. } | SpanMark::Glissando { .. } => {
                 let y = if up1 || up2 {
                     y1.min(y2) - 1.0 * space
                 } else {
@@ -1222,6 +1225,8 @@ fn render_all_spans(
                     r#"<path class="{}" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
                     if matches!(span, SpanMark::Slur { .. }) {
                         "acorde-slur"
+                    } else if matches!(span, SpanMark::Glissando { .. }) {
+                        "acorde-glissando"
                     } else {
                         "acorde-trill-line"
                     },
@@ -1411,6 +1416,9 @@ fn render_span_segment(
         SpanMark::Slur { .. } => render_curve(body, "acorde-slur", x1, y1, x2, y1, up, space),
         SpanMark::TrillLine { .. } => {
             render_curve(body, "acorde-trill-line", x1, y1, x2, y1, up, space)
+        }
+        SpanMark::Glissando { .. } => {
+            render_curve(body, "acorde-glissando", x1, y1, x2, y1, up, space)
         }
         SpanMark::Pedal { .. } => {
             let y = y1 + 2.0 * space;
