@@ -10,6 +10,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-09-02
+
+### Composer integration boundaries
+
+- Added the optional `acorde-soundfont` crate and `acorde::soundfont` feature for bounded SF2/SF3
+  metadata validation, bank/program lookup, path-independent asset identity, and provider-neutral
+  playback lifecycle actions. Sample decoding and synthesis remain application-owned.
+- Added glissando start/stop spans and cross-staff placement metadata while preserving source note
+  addresses for playback and rejecting invalid cross-staff command targets.
+- Added typed `TextStyle`/`StyledText` values and documented the supported MusicXML subset and
+  explicit partial boundaries.
+
+### Compatibility
+
+- New score fields use serde defaults; existing score JSON and `PlaybackEvent` addresses remain
+  backward compatible.
+
 ## [1.0.1] - 2026-09-02
 
 ### MusicXML multi-voice parsing
