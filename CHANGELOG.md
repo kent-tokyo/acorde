@@ -10,6 +10,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- Extended `acorde-soundfont` with a provider-neutral sample-region and voice contract, bounded
+  decoded-PCM validation, deterministic zone selection, velocity/tuning/envelope parameters, and
+  provider-owned sample-cache behavior. Codec decoding and sample assets remain optional.
 - Added a host-neutral `acorde-layout` print contract: physical paper geometry, deterministic
   page/system placement, and preservation of explicit page breaks without PDF or OS coupling.
 - Added stable page/system addresses and typed break reasons to the print-layout result for host

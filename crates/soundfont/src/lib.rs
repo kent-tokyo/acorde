@@ -11,11 +11,108 @@ pub const PLAYBACK_CONTRACT_VERSION: u16 = 1;
 pub const MAX_ASSET_BYTES: usize = 64 * 1024 * 1024;
 pub const MAX_PRESETS: usize = 16_384;
 pub const MAX_POLYPHONY: usize = 256;
+pub const MAX_DECODED_FRAMES: usize = 16_000_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SoundFontFormat {
     Sf2,
     Sf3,
+}
+
+/// Compression handled by a provider. Decoding remains outside this crate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SampleCompression {
+    Pcm16,
+    Vorbis,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SampleLoop {
+    pub start_frame: u32,
+    pub end_frame: u32,
+}
+
+/// A provider-neutral SF2/SF3 sample region selected by key and velocity.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SampleRegion {
+    pub sample_id: u64,
+    pub key_min: u8,
+    pub key_max: u8,
+    pub velocity_min: u8,
+    pub velocity_max: u8,
+    pub root_key: u8,
+    pub fine_tune_cents: i16,
+    pub attenuation_db: f32,
+    pub sample_rate: u32,
+    pub compression: SampleCompression,
+    pub loop_points: Option<SampleLoop>,
+    pub attack_secs: f32,
+    pub decay_secs: f32,
+    pub sustain_level: f32,
+    pub release_secs: f32,
+}
+
+impl SampleRegion {
+    pub fn contains(&self, key: u8, velocity: u8) -> bool {
+        key >= self.key_min
+            && key <= self.key_max
+            && velocity >= self.velocity_min
+            && velocity <= self.velocity_max
+    }
+}
+
+/// Selects a region deterministically: narrower key/velocity zones win, then sample ID.
+pub fn select_sample_region(
+    regions: &[SampleRegion],
+    key: u8,
+    velocity: u8,
+) -> Option<&SampleRegion> {
+    regions
+        .iter()
+        .filter(|region| region.contains(key, velocity))
+        .min_by_key(|region| {
+            (
+                u16::from(region.key_max.saturating_sub(region.key_min)),
+                u16::from(region.velocity_max.saturating_sub(region.velocity_min)),
+                region.sample_id,
+            )
+        })
+}
+
+/// Converts MIDI velocity to a deterministic linear gain with a configurable exponent.
+pub fn velocity_gain(velocity: u8, exponent: f32) -> Result<f32, Error> {
+    if velocity == 0 || !exponent.is_finite() || exponent <= 0.0 {
+        return Err(Error::InvalidConfig);
+    }
+    Ok((f32::from(velocity) / 127.0).powf(exponent))
+}
+
+/// Validated PCM returned by a separately licensed decoder.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecodedSample {
+    pub sample_rate: u32,
+    pub channels: u8,
+    pub pcm_i16: Vec<i16>,
+}
+
+impl DecodedSample {
+    pub fn new(sample_rate: u32, channels: u8, pcm_i16: Vec<i16>) -> Result<Self, Error> {
+        if sample_rate == 0 || channels == 0 || channels > 2 || pcm_i16.is_empty() {
+            return Err(Error::InvalidSample);
+        }
+        let frames = pcm_i16.len() / usize::from(channels);
+        if frames == 0
+            || frames > MAX_DECODED_FRAMES
+            || !pcm_i16.len().is_multiple_of(usize::from(channels))
+        {
+            return Err(Error::SampleTooLarge(frames));
+        }
+        Ok(Self {
+            sample_rate,
+            channels,
+            pcm_i16,
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,6 +158,10 @@ pub enum Error {
     InvalidConfig,
     #[error("playback event has invalid timing or velocity")]
     InvalidEvent,
+    #[error("sample parameters are invalid")]
+    InvalidSample,
+    #[error("decoded sample is too large ({0} frames)")]
+    SampleTooLarge(usize),
 }
 
 /// Load only the bounded, path-independent metadata needed by a renderer.
@@ -179,6 +280,116 @@ pub struct PlaybackConfig {
     pub max_polyphony: usize,
     pub voice_stealing: VoiceStealing,
     pub max_cached_samples: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SampleVoiceParameters {
+    pub playback_rate_ratio: f32,
+    pub gain: f32,
+    pub loop_points: Option<SampleLoop>,
+    pub attack_secs: f32,
+    pub decay_secs: f32,
+    pub sustain_level: f32,
+    pub release_secs: f32,
+}
+
+#[derive(Debug, Clone)]
+pub enum SampleAction {
+    Start {
+        voice_id: u64,
+        sample_id: u64,
+        event: PlaybackEvent,
+        parameters: SampleVoiceParameters,
+    },
+    Stop {
+        voice_id: u64,
+        release_secs: f32,
+    },
+}
+
+/// Build a deterministic provider action for one `PlaybackEvent` and selected region.
+pub fn schedule_sample_note_on(
+    voice_id: u64,
+    event: PlaybackEvent,
+    region: &SampleRegion,
+    velocity_exponent: f32,
+) -> Result<SampleAction, Error> {
+    if !region.contains(event.pitch_midi, event.velocity)
+        || region.sample_rate == 0
+        || !region.attenuation_db.is_finite()
+        || !region.attack_secs.is_finite()
+        || !region.decay_secs.is_finite()
+        || !region.sustain_level.is_finite()
+        || !region.release_secs.is_finite()
+        || region.attack_secs < 0.0
+        || region.decay_secs < 0.0
+        || region.release_secs < 0.0
+        || !(0.0..=1.0).contains(&region.sustain_level)
+    {
+        return Err(Error::InvalidSample);
+    }
+    let gain = velocity_gain(event.velocity, velocity_exponent)?
+        * 10.0_f32.powf(-region.attenuation_db / 20.0);
+    let semitones = f32::from(event.pitch_midi) - f32::from(region.root_key)
+        + f32::from(region.fine_tune_cents) / 100.0;
+    let playback_rate_ratio = 2.0_f32.powf(semitones / 12.0);
+    Ok(SampleAction::Start {
+        voice_id,
+        sample_id: region.sample_id,
+        event,
+        parameters: SampleVoiceParameters {
+            playback_rate_ratio,
+            gain,
+            loop_points: region.loop_points,
+            attack_secs: region.attack_secs,
+            decay_secs: region.decay_secs,
+            sustain_level: region.sustain_level,
+            release_secs: region.release_secs,
+        },
+    })
+}
+
+/// Small deterministic FIFO sample cache. The provider owns decoded sample memory.
+#[derive(Debug, Clone)]
+pub struct SampleCache {
+    capacity: usize,
+    ids: Vec<u64>,
+}
+
+impl SampleCache {
+    pub fn new(capacity: usize) -> Result<Self, Error> {
+        if capacity == 0 {
+            return Err(Error::InvalidConfig);
+        }
+        Ok(Self {
+            capacity,
+            ids: Vec::new(),
+        })
+    }
+
+    pub fn touch(&mut self, sample_id: u64) {
+        self.ids.retain(|id| *id != sample_id);
+        if self.ids.len() >= self.capacity {
+            self.ids.remove(0);
+        }
+        self.ids.push(sample_id);
+    }
+
+    pub fn contains(&self, sample_id: u64) -> bool {
+        self.ids.contains(&sample_id)
+    }
+
+    pub fn len(&self) -> usize {
+        self.ids.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.ids.is_empty()
+    }
+
+    pub fn clear(&mut self) {
+        self.ids.clear();
+    }
 }
 
 impl Default for PlaybackConfig {
@@ -351,6 +562,69 @@ mod tests {
             channel: 0,
             is_metronome: false,
         }
+    }
+
+    fn region(sample_id: u64, key_min: u8, key_max: u8) -> SampleRegion {
+        SampleRegion {
+            sample_id,
+            key_min,
+            key_max,
+            velocity_min: 1,
+            velocity_max: 127,
+            root_key: 60,
+            fine_tune_cents: 0,
+            attenuation_db: 0.0,
+            sample_rate: 44_100,
+            compression: SampleCompression::Pcm16,
+            loop_points: Some(SampleLoop {
+                start_frame: 10,
+                end_frame: 100,
+            }),
+            attack_secs: 0.01,
+            decay_secs: 0.2,
+            sustain_level: 0.8,
+            release_secs: 0.3,
+        }
+    }
+
+    #[test]
+    fn region_selection_prefers_narrowest_matching_zone() {
+        let regions = [region(20, 0, 127), region(10, 60, 60)];
+        assert_eq!(
+            select_sample_region(&regions, 60, 100).map(|r| r.sample_id),
+            Some(10)
+        );
+        assert_eq!(
+            select_sample_region(&regions, 61, 100).map(|r| r.sample_id),
+            Some(20)
+        );
+    }
+
+    #[test]
+    fn sample_schedule_contains_tuning_gain_and_envelope() {
+        let action = schedule_sample_note_on(7, event("n", 127), &region(3, 0, 127), 1.0)
+            .expect("sample action");
+        assert!(matches!(action, SampleAction::Start {
+            voice_id: 7,
+            sample_id: 3,
+            parameters: SampleVoiceParameters { gain, playback_rate_ratio, .. },
+            ..
+        } if (gain - 1.0).abs() < f32::EPSILON && (playback_rate_ratio - 1.0).abs() < f32::EPSILON));
+    }
+
+    #[test]
+    fn decoded_sample_and_cache_are_bounded() {
+        assert_eq!(
+            DecodedSample::new(44_100, 2, vec![]),
+            Err(Error::InvalidSample)
+        );
+        let mut cache = SampleCache::new(2).expect("cache");
+        cache.touch(1);
+        cache.touch(2);
+        cache.touch(3);
+        assert!(!cache.contains(1));
+        assert!(cache.contains(2));
+        assert_eq!(cache.len(), 2);
     }
     fn sf(ogg: bool) -> Vec<u8> {
         let mut p = vec![0u8; 38 * 2];
