@@ -1,6 +1,6 @@
 # acorde
 
-Platform-agnostic music score library for Rust and WebAssembly (v1.0.2).
+Platform-agnostic music score library for Rust and WebAssembly (v1.0.3).
 
 acorde provides a serializable score model, undoable commands, format I/O, logical layout,
 deterministic SVG rendering, playback events, and WASM bindings. Core libraries are synchronous,
@@ -48,15 +48,15 @@ conversion diagnostics.
 
 ```toml
 [dependencies]
-acorde = "1.0.2"
-acorde-render-svg = "1.0.2"
+acorde = "1.0.3"
+acorde-render-svg = "1.0.3"
 ```
 
 The default I/O features are `musicxml` and `midi`; enable the optional `abc`, `mscz`, or `mei`
 features when needed:
 
 ```toml
-acorde = { version = "1.0.2", features = ["abc", "mscz", "mei"] }
+acorde = { version = "1.0.3", features = ["abc", "mscz", "mei"] }
 ```
 
 ```rust

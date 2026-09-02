@@ -8,7 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
+## [1.0.3] - 2026-09-02
 
 - Extended `acorde-soundfont` with a provider-neutral sample-region and voice contract, bounded
   decoded-PCM validation, deterministic zone selection, velocity/tuning/envelope parameters, and
@@ -20,6 +20,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Expanded notation interchange with fractional-pitch cents, MusicXML tablature staff metadata
   and string/fret positions, ABC `^/`/`_/` quarter accidentals, and MEI `qs`/`qf` accidentals.
 - Documented the remaining MIDI pitch-bend and format-specific tablature boundaries explicitly.
+
+## [Unreleased]
 
 ## [1.0.2] - 2026-09-02
 
