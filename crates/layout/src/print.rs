@@ -54,6 +54,8 @@ pub struct PrintConfig {
     pub safe_bottom_mm: f32,
     pub safe_left_mm: f32,
     pub system_height_mm: f32,
+    /// Content scale factor. `1.0` preserves the configured system height.
+    pub scale: f32,
     pub measures_per_system: usize,
     /// Override the number of systems per page. When omitted it is derived from the usable
     /// page height and `system_height_mm`.
@@ -78,6 +80,7 @@ impl Default for PrintConfig {
             safe_bottom_mm: 0.0,
             safe_left_mm: 0.0,
             system_height_mm: 24.0,
+            scale: 1.0,
             measures_per_system: 4,
             systems_per_page: None,
         }
@@ -152,6 +155,8 @@ pub enum PrintLayoutError {
     InvalidMargins,
     #[error("system height must be finite and greater than zero")]
     InvalidSystemHeight,
+    #[error("print scale must be finite and greater than zero")]
+    InvalidScale,
     #[error("margins leave no usable page area")]
     NoUsablePageArea,
 }
@@ -192,6 +197,13 @@ pub fn compute_print_layout(
     if !config.system_height_mm.is_finite() || config.system_height_mm <= 0.0 {
         return Err(PrintLayoutError::InvalidSystemHeight);
     }
+    if !config.scale.is_finite() || config.scale <= 0.0 {
+        return Err(PrintLayoutError::InvalidScale);
+    }
+    let scaled_system_height_mm = config.system_height_mm * config.scale;
+    if !scaled_system_height_mm.is_finite() || scaled_system_height_mm <= 0.0 {
+        return Err(PrintLayoutError::InvalidScale);
+    }
 
     let content_width_mm = width_mm
         - config.margin_left_mm
@@ -210,7 +222,7 @@ pub fn compute_print_layout(
     let systems_per_page = config
         .systems_per_page
         .unwrap_or_else(|| {
-            (content_height_mm / config.system_height_mm)
+            (content_height_mm / scaled_system_height_mm)
                 .floor()
                 .max(1.0) as usize
         })
@@ -264,8 +276,8 @@ pub fn compute_print_layout(
             measure_indices: row.measure_indices.clone(),
             top_mm: config.margin_top_mm
                 + config.safe_top_mm
-                + page_systems.len() as f32 * config.system_height_mm,
-            height_mm: config.system_height_mm,
+                + page_systems.len() as f32 * scaled_system_height_mm,
+            height_mm: scaled_system_height_mm,
             break_reason,
         };
         page_systems.push(system);
@@ -314,7 +326,7 @@ pub fn compute_print_layout(
     }
 
     Ok(PrintLayoutResult {
-        contract_version: 3,
+        contract_version: 4,
         pages,
     })
 }
@@ -421,10 +433,42 @@ mod tests {
         )
         .expect("valid print config");
         let page = &result.pages[0];
-        assert_eq!(result.contract_version, 3);
+        assert_eq!(result.contract_version, 4);
         assert_eq!(page.bleed_left_mm, 3.0);
         assert_eq!(page.content_width_mm, 210.0 - 14.0 - 14.0 - 8.0 - 6.0);
         assert_eq!(page.content_height_mm, 297.0 - 16.0 - 16.0 - 5.0 - 7.0);
         assert_eq!(page.systems[0].top_mm, 21.0);
+    }
+
+    #[test]
+    fn scale_changes_system_height_and_page_capacity() {
+        let score = score_with_measures(10);
+        let result = compute_print_layout(
+            &score,
+            &PrintConfig {
+                scale: 2.0,
+                measures_per_system: 1,
+                systems_per_page: None,
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid print config");
+        assert_eq!(result.pages[0].systems[0].height_mm, 48.0);
+        assert_eq!(result.pages[0].systems[1].top_mm, 64.0);
+        assert_eq!(result.pages.len(), 2);
+    }
+
+    #[test]
+    fn rejects_non_positive_scale() {
+        let score = score_with_measures(1);
+        let error = compute_print_layout(
+            &score,
+            &PrintConfig {
+                scale: 0.0,
+                ..PrintConfig::default()
+            },
+        )
+        .expect_err("invalid scale");
+        assert_eq!(error, PrintLayoutError::InvalidScale);
     }
 }

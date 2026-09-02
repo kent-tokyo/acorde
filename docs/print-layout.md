@@ -8,14 +8,15 @@ print-capable host:
 Score → PrintConfig → PrintLayoutResult (pages/systems in mm) → SVG/PDF/print host
 ```
 
-`PrintConfig` defines paper size, orientation, margins, bleed/safe areas, system height, and
-measures per system. Safe-area values reduce the usable content rectangle; bleed values are
-carried as explicit page metadata for a host exporter.
+`PrintConfig` defines paper size, orientation, margins, bleed/safe areas, system height, scale,
+and measures per system. Scale applies to system content geometry while paper dimensions remain
+the selected physical page size. Safe-area values reduce the usable content rectangle; bleed
+values are carried as explicit page metadata for a host exporter.
 `PrintLayoutResult` records page dimensions, stable page/system addresses, physical measure
 indices, and typed break reasons (`MeasureCapacity`, `ExplicitSystemBreak`,
 `ExplicitPageBreak`, `PageCapacity`, or `EndOfScore`). Layout honors existing `system_break` and
 `page_break` decisions and produces stable output for the same score and configuration. Its
-`contract_version` is `3` for this address/diagnostic and bleed/safe-area shape.
+`contract_version` is `4` for this address/diagnostic, bleed/safe-area, and scale shape.
 
 This API deliberately does not select or embed fonts, draw glyphs, generate PDF, open files,
 invoke OS printer APIs, or provide a preview UI. Those responsibilities belong to

@@ -9,8 +9,9 @@ does not render pixels and has no browser or filesystem dependency.
 `compute_print_layout(&Score, &PrintConfig)` adds a host-neutral page/system plan. Dimensions
 are physical millimetres, and explicit `Measure::page_break` decisions are preserved. The
 result contains page dimensions, stable page/system addresses, physical measure indices, typed
-break reasons, and explicit bleed metadata. Safe areas constrain the content rectangle, but the
-crate does not choose fonts, emit PDF, access printers, or perform filesystem I/O.
+break reasons, explicit bleed metadata, and scaled system geometry. Safe areas constrain the
+content rectangle, but the crate does not choose fonts, emit PDF, access printers, or perform
+filesystem I/O.
 
 ~~~rust
 use acorde_core::Score;
