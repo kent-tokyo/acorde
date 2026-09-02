@@ -45,6 +45,14 @@ pub struct PrintConfig {
     pub margin_right_mm: f32,
     pub margin_bottom_mm: f32,
     pub margin_left_mm: f32,
+    pub bleed_top_mm: f32,
+    pub bleed_right_mm: f32,
+    pub bleed_bottom_mm: f32,
+    pub bleed_left_mm: f32,
+    pub safe_top_mm: f32,
+    pub safe_right_mm: f32,
+    pub safe_bottom_mm: f32,
+    pub safe_left_mm: f32,
     pub system_height_mm: f32,
     pub measures_per_system: usize,
     /// Override the number of systems per page. When omitted it is derived from the usable
@@ -61,6 +69,14 @@ impl Default for PrintConfig {
             margin_right_mm: 14.0,
             margin_bottom_mm: 16.0,
             margin_left_mm: 14.0,
+            bleed_top_mm: 0.0,
+            bleed_right_mm: 0.0,
+            bleed_bottom_mm: 0.0,
+            bleed_left_mm: 0.0,
+            safe_top_mm: 0.0,
+            safe_right_mm: 0.0,
+            safe_bottom_mm: 0.0,
+            safe_left_mm: 0.0,
             system_height_mm: 24.0,
             measures_per_system: 4,
             systems_per_page: None,
@@ -113,6 +129,10 @@ pub struct PageLayout {
     pub height_mm: f32,
     pub content_width_mm: f32,
     pub content_height_mm: f32,
+    pub bleed_top_mm: f32,
+    pub bleed_right_mm: f32,
+    pub bleed_bottom_mm: f32,
+    pub bleed_left_mm: f32,
     pub systems: Vec<SystemLayout>,
     pub break_reason: BreakReason,
 }
@@ -154,6 +174,14 @@ pub fn compute_print_layout(
         config.margin_right_mm,
         config.margin_bottom_mm,
         config.margin_left_mm,
+        config.bleed_top_mm,
+        config.bleed_right_mm,
+        config.bleed_bottom_mm,
+        config.bleed_left_mm,
+        config.safe_top_mm,
+        config.safe_right_mm,
+        config.safe_bottom_mm,
+        config.safe_left_mm,
     ];
     if margins
         .iter()
@@ -165,8 +193,16 @@ pub fn compute_print_layout(
         return Err(PrintLayoutError::InvalidSystemHeight);
     }
 
-    let content_width_mm = width_mm - config.margin_left_mm - config.margin_right_mm;
-    let content_height_mm = height_mm - config.margin_top_mm - config.margin_bottom_mm;
+    let content_width_mm = width_mm
+        - config.margin_left_mm
+        - config.margin_right_mm
+        - config.safe_left_mm
+        - config.safe_right_mm;
+    let content_height_mm = height_mm
+        - config.margin_top_mm
+        - config.margin_bottom_mm
+        - config.safe_top_mm
+        - config.safe_bottom_mm;
     if content_width_mm <= 0.0 || content_height_mm <= 0.0 {
         return Err(PrintLayoutError::NoUsablePageArea);
     }
@@ -226,7 +262,9 @@ pub fn compute_print_layout(
             system_index,
             page_index,
             measure_indices: row.measure_indices.clone(),
-            top_mm: config.margin_top_mm + page_systems.len() as f32 * config.system_height_mm,
+            top_mm: config.margin_top_mm
+                + config.safe_top_mm
+                + page_systems.len() as f32 * config.system_height_mm,
             height_mm: config.system_height_mm,
             break_reason,
         };
@@ -248,6 +286,10 @@ pub fn compute_print_layout(
                 height_mm,
                 content_width_mm,
                 content_height_mm,
+                bleed_top_mm: config.bleed_top_mm,
+                bleed_right_mm: config.bleed_right_mm,
+                bleed_bottom_mm: config.bleed_bottom_mm,
+                bleed_left_mm: config.bleed_left_mm,
                 systems: std::mem::take(&mut page_systems),
                 break_reason: page_break_reason,
             });
@@ -262,13 +304,17 @@ pub fn compute_print_layout(
             height_mm,
             content_width_mm,
             content_height_mm,
+            bleed_top_mm: config.bleed_top_mm,
+            bleed_right_mm: config.bleed_right_mm,
+            bleed_bottom_mm: config.bleed_bottom_mm,
+            bleed_left_mm: config.bleed_left_mm,
             systems: page_systems,
             break_reason: BreakReason::EndOfScore,
         });
     }
 
     Ok(PrintLayoutResult {
-        contract_version: 2,
+        contract_version: 3,
         pages,
     })
 }
@@ -354,5 +400,31 @@ mod tests {
         )
         .expect_err("invalid page area");
         assert_eq!(error, PrintLayoutError::NoUsablePageArea);
+    }
+
+    #[test]
+    fn safe_area_reduces_content_and_bleed_is_exposed() {
+        let score = score_with_measures(1);
+        let result = compute_print_layout(
+            &score,
+            &PrintConfig {
+                bleed_top_mm: 3.0,
+                bleed_right_mm: 3.0,
+                bleed_bottom_mm: 3.0,
+                bleed_left_mm: 3.0,
+                safe_top_mm: 5.0,
+                safe_right_mm: 6.0,
+                safe_bottom_mm: 7.0,
+                safe_left_mm: 8.0,
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid print config");
+        let page = &result.pages[0];
+        assert_eq!(result.contract_version, 3);
+        assert_eq!(page.bleed_left_mm, 3.0);
+        assert_eq!(page.content_width_mm, 210.0 - 14.0 - 14.0 - 8.0 - 6.0);
+        assert_eq!(page.content_height_mm, 297.0 - 16.0 - 16.0 - 5.0 - 7.0);
+        assert_eq!(page.systems[0].top_mm, 21.0);
     }
 }
