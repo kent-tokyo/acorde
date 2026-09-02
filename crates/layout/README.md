@@ -10,7 +10,17 @@ does not render pixels and has no browser or filesystem dependency.
 are physical millimetres, and explicit `Measure::page_break` decisions are preserved. The
 result contains page dimensions, stable page/system addresses, physical measure indices, typed
 break reasons, explicit bleed metadata, scaled system geometry, configurable page numbering, and
-host-facing color/crop-mark/glyph-resource policies.
+host-facing color/crop-mark/glyph-resource policies. Hosts can also pass
+`PrintConfig::keep_together` ranges to keep contiguous physical measures in one system, and
+`first_system_measures` to reserve a shorter first system for pickup/title material;
+`final_page_policy` can balance automatically paginated systems across pages;
+`pickup_policy` can opt in to isolating a non-empty partial first measure;
+each system also exposes physical `measure_spans`, including the hidden extent of multirest
+slots;
+cross-system spans are exposed as per-system `span_segments` with explicit start/end ownership;
+repeat barlines, volta endings, navigation marks, and rehearsal labels are exposed as
+per-system `measure_marks` without changing playback order;
+invalid, over-capacity, or explicit-break-conflicting ranges return typed errors.
 Safe areas constrain the content rectangle, but the crate does not choose fonts, emit PDF, access
 printers, or perform filesystem I/O.
 

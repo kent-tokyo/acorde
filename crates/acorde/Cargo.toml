@@ -23,7 +23,7 @@ mei = ["acorde-io/mei"]
 soundfont = ["dep:acorde-soundfont"]
 
 [dependencies]
-acorde-core   = { path = "../core", version = "1.0.5" }
-acorde-io     = { path = "../io", version = "1.0.5", default-features = false }
-acorde-layout = { path = "../layout", version = "1.0.5" }
-acorde-soundfont = { path = "../soundfont", version = "1.0.5", optional = true }
+acorde-core   = { path = "../core", version = "1.0.6" }
+acorde-io     = { path = "../io", version = "1.0.6", default-features = false }
+acorde-layout = { path = "../layout", version = "1.0.6" }
+acorde-soundfont = { path = "../soundfont", version = "1.0.6", optional = true }

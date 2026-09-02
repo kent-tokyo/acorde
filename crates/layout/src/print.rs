@@ -1,5 +1,5 @@
-use crate::{LayoutConfig, compute_layout};
-use acorde_core::Score;
+use crate::{LayoutConfig, SpanMark, compute_layout};
+use acorde_core::{Barline, Score};
 use serde::{Deserialize, Serialize};
 
 /// A paper size expressed in physical millimetres.
@@ -39,6 +39,26 @@ pub enum PageNumbering {
     OneBased,
 }
 
+/// Policy for distributing systems when automatic pagination would leave a one-system final page.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum FinalPagePolicy {
+    /// Preserve the configured page capacity, even when the final page is short.
+    #[default]
+    AllowSingleSystem,
+    /// Redistribute automatically paginated systems as evenly as possible across pages.
+    Balance,
+}
+
+/// Policy for reserving the first system for a partial pickup measure.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum PickupPolicy {
+    /// Do not infer pickup measures from score content.
+    #[default]
+    Preserve,
+    /// Detect a non-empty first measure shorter than its time signature and isolate it.
+    DetectFirstMeasure,
+}
+
 /// Color intent for a print-capable host.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum PrintColorPolicy {
@@ -63,6 +83,17 @@ pub enum GlyphResourcePolicy {
     BuiltInVector,
     /// Resolve a host-owned resource identified by this stable application key.
     HostProvided(String),
+}
+
+/// A contiguous range of physical measures that must remain in one printed system.
+///
+/// Both endpoints are zero-based and inclusive. This is intentionally a layout request,
+/// not a score-model mutation, so hosts can apply publication presets without changing the
+/// editable score.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct KeepTogetherRange {
+    pub first_measure: usize,
+    pub last_measure: usize,
 }
 
 /// Host-neutral inputs for deterministic page and system layout.
@@ -90,16 +121,26 @@ pub struct PrintConfig {
     /// Content scale factor. `1.0` preserves the configured system height.
     pub scale: f32,
     pub measures_per_system: usize,
+    /// Optional measure capacity for the first system, useful for pickup/title systems.
+    #[serde(default)]
+    pub first_system_measures: Option<usize>,
+    #[serde(default)]
+    pub pickup_policy: PickupPolicy,
     /// Override the number of systems per page. When omitted it is derived from the usable
     /// page height and `system_height_mm`.
     pub systems_per_page: Option<usize>,
     pub page_numbering: PageNumbering,
+    #[serde(default)]
+    pub final_page_policy: FinalPagePolicy,
     #[serde(default)]
     pub color_policy: PrintColorPolicy,
     #[serde(default)]
     pub crop_mark_policy: CropMarkPolicy,
     #[serde(default)]
     pub glyph_resources: GlyphResourcePolicy,
+    /// Physical measure ranges that must not be split across systems.
+    #[serde(default)]
+    pub keep_together: Vec<KeepTogetherRange>,
 }
 
 impl Default for PrintConfig {
@@ -122,11 +163,15 @@ impl Default for PrintConfig {
             system_height_mm: 24.0,
             scale: 1.0,
             measures_per_system: 4,
+            first_system_measures: None,
+            pickup_policy: PickupPolicy::Preserve,
             systems_per_page: None,
             page_numbering: PageNumbering::OneBased,
+            final_page_policy: FinalPagePolicy::AllowSingleSystem,
             color_policy: PrintColorPolicy::Monochrome,
             crop_mark_policy: CropMarkPolicy::None,
             glyph_resources: GlyphResourcePolicy::BuiltInVector,
+            keep_together: Vec::new(),
         }
     }
 }
@@ -138,6 +183,15 @@ pub struct SystemLayout {
     pub system_index: usize,
     pub page_index: usize,
     pub measure_indices: Vec<usize>,
+    /// Physical intervals represented by the system, including multi-rest spans.
+    #[serde(default)]
+    pub measure_spans: Vec<MeasureSpan>,
+    /// Span segments touching this system, with start/end ownership for host continuation marks.
+    #[serde(default)]
+    pub span_segments: Vec<SpanSegment>,
+    /// Repeat, ending, navigation, and rehearsal marks belonging to this system.
+    #[serde(default)]
+    pub measure_marks: Vec<MeasureMark>,
     pub top_mm: f32,
     pub height_mm: f32,
     pub break_reason: BreakReason,
@@ -155,6 +209,36 @@ pub struct SystemAddress {
     pub system_index: usize,
     pub page_index: usize,
     pub index_on_page: usize,
+}
+
+/// Physical measure interval represented by one visual measure slot.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MeasureSpan {
+    pub first_measure: usize,
+    pub last_measure: usize,
+}
+
+/// A span's intersection with one printed system.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SpanSegment {
+    pub span_index: usize,
+    pub starts_here: bool,
+    pub ends_here: bool,
+}
+
+/// Host-neutral notation marks attached to one physical measure in a print system.
+///
+/// This is presentation metadata only: playback order remains the responsibility of
+/// [`acorde_core::measure_sequence`].
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MeasureMark {
+    pub measure_index: usize,
+    pub repeat_start: bool,
+    pub repeat_end: bool,
+    pub volta_number: Option<u8>,
+    pub volta_kind: Option<String>,
+    pub navigation: Option<String>,
+    pub rehearsal: Option<String>,
 }
 
 /// Explains why a system or page ended at its final measure.
@@ -210,6 +294,228 @@ pub enum PrintLayoutError {
     InvalidScale,
     #[error("margins leave no usable page area")]
     NoUsablePageArea,
+    #[error("keep-together range is outside the score or reversed")]
+    InvalidKeepTogetherRange,
+    #[error("keep-together range exceeds the measures-per-system capacity")]
+    KeepTogetherExceedsSystemCapacity,
+    #[error("keep-together range conflicts with an explicit system or page break")]
+    KeepTogetherConflictsWithExplicitBreak,
+}
+
+fn apply_keep_together(
+    score: &Score,
+    mut rows: Vec<crate::RowLayout>,
+    ranges: &[KeepTogetherRange],
+    capacity: usize,
+) -> Result<Vec<crate::RowLayout>, PrintLayoutError> {
+    let measure_count = score
+        .parts
+        .first()
+        .and_then(|part| part.staves.first())
+        .map(|staff| staff.measures.len())
+        .unwrap_or(0);
+    for range in ranges {
+        let length = range
+            .last_measure
+            .checked_sub(range.first_measure)
+            .and_then(|length| length.checked_add(1));
+        if range.first_measure > range.last_measure || range.last_measure >= measure_count {
+            return Err(PrintLayoutError::InvalidKeepTogetherRange);
+        }
+        if length.is_none_or(|length| length > capacity) {
+            return Err(PrintLayoutError::KeepTogetherExceedsSystemCapacity);
+        }
+        for measure_index in range.first_measure..range.last_measure {
+            let has_break = score
+                .parts
+                .iter()
+                .flat_map(|part| part.staves.iter())
+                .filter_map(|staff| staff.measures.get(measure_index))
+                .any(|measure| measure.system_break || measure.page_break);
+            if has_break {
+                return Err(PrintLayoutError::KeepTogetherConflictsWithExplicitBreak);
+            }
+        }
+
+        let first_row = rows
+            .iter()
+            .position(|row| row.measure_indices.contains(&range.first_measure));
+        let last_row = rows
+            .iter()
+            .position(|row| row.measure_indices.contains(&range.last_measure));
+        let (Some(first_row), Some(last_row)) = (first_row, last_row) else {
+            return Err(PrintLayoutError::InvalidKeepTogetherRange);
+        };
+
+        if first_row != last_row {
+            let merged: Vec<usize> = rows[first_row..=last_row]
+                .iter()
+                .flat_map(|row| row.measure_indices.iter().copied())
+                .collect();
+            if merged.len() > capacity {
+                return Err(PrintLayoutError::KeepTogetherExceedsSystemCapacity);
+            }
+            rows.splice(
+                first_row..=last_row,
+                [crate::RowLayout {
+                    measure_indices: merged,
+                }],
+            );
+        }
+
+        let row_index = rows
+            .iter()
+            .position(|row| row.measure_indices.contains(&range.first_measure))
+            .ok_or(PrintLayoutError::InvalidKeepTogetherRange)?;
+        let row = rows.remove(row_index);
+        let start = row
+            .measure_indices
+            .iter()
+            .position(|&index| index == range.first_measure)
+            .ok_or(PrintLayoutError::InvalidKeepTogetherRange)?;
+        let end = row
+            .measure_indices
+            .iter()
+            .position(|&index| index == range.last_measure)
+            .ok_or(PrintLayoutError::InvalidKeepTogetherRange)?;
+        let mut replacement = Vec::new();
+        if start > 0 {
+            replacement.push(crate::RowLayout {
+                measure_indices: row.measure_indices[..start].to_vec(),
+            });
+        }
+        replacement.push(crate::RowLayout {
+            measure_indices: row.measure_indices[start..=end].to_vec(),
+        });
+        if end + 1 < row.measure_indices.len() {
+            replacement.push(crate::RowLayout {
+                measure_indices: row.measure_indices[end + 1..].to_vec(),
+            });
+        }
+        rows.splice(row_index..row_index, replacement);
+    }
+    Ok(rows)
+}
+
+fn has_first_measure_pickup(score: &Score) -> bool {
+    let Some(staff) = score.parts.first().and_then(|part| part.staves.first()) else {
+        return false;
+    };
+    let Some(measure) = staff.measures.first() else {
+        return false;
+    };
+    let expected = measure
+        .time_sig
+        .as_ref()
+        .unwrap_or(&score.settings.time_signature)
+        .total_beats();
+    let actual = measure
+        .voices
+        .iter()
+        .map(|voice| voice.iter().map(|note| note.beats()).sum::<f64>())
+        .fold(0.0, f64::max);
+    actual > 1e-9 && actual + 1e-9 < expected
+}
+
+fn measure_spans(score: &Score, measure_indices: &[usize]) -> Vec<MeasureSpan> {
+    let measure_count = score
+        .parts
+        .first()
+        .and_then(|part| part.staves.first())
+        .map(|staff| staff.measures.len())
+        .unwrap_or(0);
+    measure_indices
+        .iter()
+        .filter_map(|&first_measure| {
+            if first_measure >= measure_count {
+                return None;
+            }
+            let count = score
+                .parts
+                .iter()
+                .flat_map(|part| part.staves.iter())
+                .filter_map(|staff| staff.measures.get(first_measure))
+                .filter_map(|measure| measure.multi_rest_count)
+                .map(usize::from)
+                .max()
+                .unwrap_or(1)
+                .max(1);
+            Some(MeasureSpan {
+                first_measure,
+                last_measure: first_measure
+                    .saturating_add(count.saturating_sub(1))
+                    .min(measure_count.saturating_sub(1)),
+            })
+        })
+        .collect()
+}
+
+fn span_bounds(span: &SpanMark) -> (usize, usize) {
+    match span {
+        SpanMark::Hairpin { start, end, .. }
+        | SpanMark::Ottava { start, end, .. }
+        | SpanMark::Pedal { start, end }
+        | SpanMark::Slur { start, end }
+        | SpanMark::TrillLine { start, end }
+        | SpanMark::Glissando { start, end } => (
+            start.measure.min(end.measure),
+            start.measure.max(end.measure),
+        ),
+    }
+}
+
+fn span_segments(spans: &[SpanMark], measure_indices: &[usize]) -> Vec<SpanSegment> {
+    let (Some(&first_measure), Some(&last_measure)) =
+        (measure_indices.first(), measure_indices.last())
+    else {
+        return Vec::new();
+    };
+    spans
+        .iter()
+        .enumerate()
+        .filter_map(|(span_index, span)| {
+            let (start_measure, end_measure) = span_bounds(span);
+            (start_measure <= last_measure && end_measure >= first_measure).then_some(SpanSegment {
+                span_index,
+                starts_here: (first_measure..=last_measure).contains(&start_measure),
+                ends_here: (first_measure..=last_measure).contains(&end_measure),
+            })
+        })
+        .collect()
+}
+
+fn measure_marks(score: &Score, measure_indices: &[usize]) -> Vec<MeasureMark> {
+    let Some(staff) = score.parts.first().and_then(|part| part.staves.first()) else {
+        return Vec::new();
+    };
+    measure_indices
+        .iter()
+        .filter_map(|&measure_index| {
+            let measure = staff.measures.get(measure_index)?;
+            let repeat_start = matches!(
+                measure.barline_left,
+                Barline::RepeatStart | Barline::RepeatBoth
+            );
+            let repeat_end = matches!(
+                measure.barline_right,
+                Barline::RepeatEnd | Barline::RepeatBoth
+            );
+            let has_mark = repeat_start
+                || repeat_end
+                || measure.volta.is_some()
+                || measure.navigation.is_some()
+                || measure.rehearsal.is_some();
+            has_mark.then(|| MeasureMark {
+                measure_index,
+                repeat_start,
+                repeat_end,
+                volta_number: measure.volta.as_ref().map(|volta| volta.number),
+                volta_kind: measure.volta.as_ref().map(|volta| volta.kind.clone()),
+                navigation: measure.navigation.clone(),
+                rehearsal: measure.rehearsal.clone(),
+            })
+        })
+        .collect()
 }
 
 /// Compute physical page and system placement without rendering or host integration.
@@ -282,14 +588,51 @@ pub fn compute_print_layout(
         score,
         &LayoutConfig {
             measures_per_row: config.measures_per_system.max(1),
+            first_row_measures: config.first_system_measures.or_else(|| {
+                (matches!(config.pickup_policy, PickupPolicy::DetectFirstMeasure)
+                    && has_first_measure_pickup(score))
+                .then_some(1)
+            }),
             ..LayoutConfig::default()
         },
     );
 
+    let rows = apply_keep_together(
+        score,
+        layout.rows,
+        &config.keep_together,
+        config.measures_per_system.max(1),
+    )?;
+
+    let has_explicit_page_break = rows.iter().any(|row| {
+        row.measure_indices.last().is_some_and(|&measure_index| {
+            score
+                .parts
+                .iter()
+                .flat_map(|part| part.staves.iter())
+                .filter_map(|staff| staff.measures.get(measure_index))
+                .any(|measure| measure.page_break)
+        })
+    });
+    let page_capacities = if matches!(config.final_page_policy, FinalPagePolicy::Balance)
+        && !has_explicit_page_break
+        && systems_per_page > 1
+        && rows.len() > systems_per_page
+    {
+        let page_count = rows.len().div_ceil(systems_per_page);
+        let base = rows.len() / page_count;
+        let remainder = rows.len() % page_count;
+        (0..page_count)
+            .map(|index| base + usize::from(index < remainder))
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+
     let mut pages = Vec::new();
     let mut page_systems = Vec::new();
     let mut page_index = 0;
-    for (system_index, row) in layout.rows.iter().enumerate() {
+    for (system_index, row) in rows.iter().enumerate() {
         let explicit_page_break = row.measure_indices.last().is_some_and(|&measure_index| {
             score
                 .parts
@@ -306,7 +649,7 @@ pub fn compute_print_layout(
                 .filter_map(|staff| staff.measures.get(measure_index))
                 .any(|measure| measure.system_break)
         });
-        let is_last_system = system_index + 1 == layout.rows.len();
+        let is_last_system = system_index + 1 == rows.len();
         let break_reason = if explicit_page_break {
             BreakReason::ExplicitPageBreak
         } else if explicit_system_break {
@@ -325,6 +668,9 @@ pub fn compute_print_layout(
             system_index,
             page_index,
             measure_indices: row.measure_indices.clone(),
+            measure_spans: measure_spans(score, &row.measure_indices),
+            span_segments: span_segments(&layout.spans, &row.measure_indices),
+            measure_marks: measure_marks(score, &row.measure_indices),
             top_mm: config.margin_top_mm
                 + config.safe_top_mm
                 + page_systems.len() as f32 * scaled_system_height_mm,
@@ -333,7 +679,11 @@ pub fn compute_print_layout(
         };
         page_systems.push(system);
 
-        let page_is_full = page_systems.len() >= systems_per_page;
+        let page_capacity = page_capacities
+            .get(page_index)
+            .copied()
+            .unwrap_or(systems_per_page);
+        let page_is_full = page_systems.len() >= page_capacity;
         if page_is_full || explicit_page_break {
             let page_break_reason = if explicit_page_break {
                 BreakReason::ExplicitPageBreak
@@ -391,7 +741,7 @@ pub fn compute_print_layout(
     }
 
     Ok(PrintLayoutResult {
-        contract_version: 7,
+        contract_version: 13,
         pages,
     })
 }
@@ -399,7 +749,7 @@ pub fn compute_print_layout(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acorde_core::{Clef, Measure, Part, Score, Staff};
+    use acorde_core::{Clef, Duration, Measure, Note, Part, Pitch, Score, Staff, Step};
 
     fn score_with_measures(count: usize) -> Score {
         let mut score = Score::default();
@@ -466,6 +816,249 @@ mod tests {
     }
 
     #[test]
+    fn keep_together_range_is_not_split_across_systems() {
+        let score = score_with_measures(5);
+        let result = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 3,
+                systems_per_page: Some(8),
+                keep_together: vec![KeepTogetherRange {
+                    first_measure: 1,
+                    last_measure: 2,
+                }],
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid keep-together range");
+        assert_eq!(result.pages[0].systems[0].measure_indices, vec![0]);
+        assert_eq!(result.pages[0].systems[1].measure_indices, vec![1, 2]);
+        assert_eq!(result.pages[0].systems[2].measure_indices, vec![3, 4]);
+    }
+
+    #[test]
+    fn first_system_measure_capacity_is_preserved_in_print_layout() {
+        let score = score_with_measures(5);
+        let result = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 3,
+                first_system_measures: Some(1),
+                systems_per_page: Some(8),
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid first-system capacity");
+        assert_eq!(result.pages[0].systems[0].measure_indices, vec![0]);
+        assert_eq!(result.pages[0].systems[1].measure_indices, vec![1, 2, 3]);
+        assert_eq!(result.pages[0].systems[2].measure_indices, vec![4]);
+    }
+
+    #[test]
+    fn pickup_policy_isolates_a_partial_first_measure() {
+        let mut score = score_with_measures(4);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![acorde_core::Note::rest(acorde_core::Duration::Quarter)];
+        let result = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 3,
+                pickup_policy: PickupPolicy::DetectFirstMeasure,
+                systems_per_page: Some(8),
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid pickup policy");
+        assert_eq!(result.pages[0].systems[0].measure_indices, vec![0]);
+        assert_eq!(result.pages[0].systems[1].measure_indices, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn system_exposes_physical_span_for_multi_rest_slot() {
+        let mut score = score_with_measures(6);
+        score.parts[0].staves[0].measures[1].multi_rest_count = Some(3);
+        let result = compute_print_layout(&score, &PrintConfig::default())
+            .expect("valid multi-rest print layout");
+        assert_eq!(
+            result.pages[0].systems[0].measure_spans[1],
+            MeasureSpan {
+                first_measure: 1,
+                last_measure: 3,
+            }
+        );
+    }
+
+    #[test]
+    fn system_exposes_cross_system_span_segments() {
+        let mut score = score_with_measures(4);
+        let mut start = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        start.slur_start = true;
+        let mut end = Note::new(Pitch::new(Step::D, 4), Duration::Quarter);
+        end.slur_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![start];
+        score.parts[0].staves[0].measures[3].voices[0] = vec![end];
+        let result = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 2,
+                systems_per_page: Some(8),
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid cross-system span layout");
+        assert_eq!(
+            result.pages[0].systems[0].span_segments,
+            vec![SpanSegment {
+                span_index: 0,
+                starts_here: true,
+                ends_here: false,
+            }]
+        );
+        assert_eq!(
+            result.pages[0].systems[1].span_segments,
+            vec![SpanSegment {
+                span_index: 0,
+                starts_here: false,
+                ends_here: true,
+            }]
+        );
+    }
+
+    #[test]
+    fn system_exposes_repeat_volta_navigation_and_rehearsal_marks() {
+        let mut score = score_with_measures(4);
+        let measures = &mut score.parts[0].staves[0].measures;
+        measures[0].barline_right = Barline::RepeatEnd;
+        measures[1].barline_left = Barline::RepeatStart;
+        measures[2].volta = Some(acorde_core::VoltaBracket {
+            number: 1,
+            kind: "begin".to_string(),
+        });
+        measures[2].navigation = Some("ToCoda".to_string());
+        measures[2].rehearsal = Some("B".to_string());
+        let result = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 2,
+                systems_per_page: Some(8),
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid measure mark layout");
+        assert_eq!(
+            result.pages[0].systems[0].measure_marks,
+            vec![
+                MeasureMark {
+                    measure_index: 0,
+                    repeat_start: false,
+                    repeat_end: true,
+                    volta_number: None,
+                    volta_kind: None,
+                    navigation: None,
+                    rehearsal: None,
+                },
+                MeasureMark {
+                    measure_index: 1,
+                    repeat_start: true,
+                    repeat_end: false,
+                    volta_number: None,
+                    volta_kind: None,
+                    navigation: None,
+                    rehearsal: None,
+                },
+            ]
+        );
+        assert_eq!(
+            result.pages[0].systems[1].measure_marks,
+            vec![MeasureMark {
+                measure_index: 2,
+                repeat_start: false,
+                repeat_end: false,
+                volta_number: Some(1),
+                volta_kind: Some("begin".to_string()),
+                navigation: Some("ToCoda".to_string()),
+                rehearsal: Some("B".to_string()),
+            }]
+        );
+    }
+
+    #[test]
+    fn balance_policy_avoids_single_system_final_page() {
+        let score = score_with_measures(5);
+        let result = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 1,
+                systems_per_page: Some(4),
+                final_page_policy: FinalPagePolicy::Balance,
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid balanced print config");
+        assert_eq!(result.pages.len(), 2);
+        assert_eq!(result.pages[0].systems.len(), 3);
+        assert_eq!(result.pages[1].systems.len(), 2);
+    }
+
+    #[test]
+    fn balance_policy_preserves_explicit_page_breaks() {
+        let mut score = score_with_measures(5);
+        score.parts[0].staves[0].measures[1].page_break = true;
+        let result = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 1,
+                systems_per_page: Some(4),
+                final_page_policy: FinalPagePolicy::Balance,
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid explicit-break print config");
+        assert_eq!(result.pages[0].systems.len(), 2);
+        assert_eq!(result.pages[1].systems.len(), 3);
+    }
+
+    #[test]
+    fn keep_together_rejects_ranges_larger_than_system_capacity() {
+        let score = score_with_measures(4);
+        let error = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 2,
+                keep_together: vec![KeepTogetherRange {
+                    first_measure: 0,
+                    last_measure: 2,
+                }],
+                ..PrintConfig::default()
+            },
+        )
+        .expect_err("range must fit in one system");
+        assert_eq!(error, PrintLayoutError::KeepTogetherExceedsSystemCapacity);
+    }
+
+    #[test]
+    fn keep_together_rejects_explicit_break_inside_range() {
+        let mut score = score_with_measures(4);
+        score.parts[0].staves[0].measures[1].system_break = true;
+        let error = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 3,
+                keep_together: vec![KeepTogetherRange {
+                    first_measure: 0,
+                    last_measure: 2,
+                }],
+                ..PrintConfig::default()
+            },
+        )
+        .expect_err("explicit break must win");
+        assert_eq!(
+            error,
+            PrintLayoutError::KeepTogetherConflictsWithExplicitBreak
+        );
+    }
+
+    #[test]
     fn rejects_margins_that_leave_no_page_area() {
         let score = score_with_measures(1);
         let error = compute_print_layout(
@@ -498,7 +1091,7 @@ mod tests {
         )
         .expect("valid print config");
         let page = &result.pages[0];
-        assert_eq!(result.contract_version, 7);
+        assert_eq!(result.contract_version, 13);
         assert_eq!(page.bleed_left_mm, 3.0);
         assert_eq!(page.content_width_mm, 210.0 - 14.0 - 14.0 - 8.0 - 6.0);
         assert_eq!(page.content_height_mm, 297.0 - 16.0 - 16.0 - 5.0 - 7.0);
@@ -583,7 +1176,7 @@ mod tests {
         )
         .expect("valid print config");
         let page = &result.pages[0];
-        assert_eq!(result.contract_version, 7);
+        assert_eq!(result.contract_version, 13);
         assert_eq!(page.color_policy, PrintColorPolicy::Preserve);
         assert_eq!(page.crop_mark_policy, CropMarkPolicy::BleedEdges);
     }

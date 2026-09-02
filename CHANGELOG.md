@@ -8,6 +8,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.6] - 2026-09-03
+
+- Added host-neutral `SystemLayout::measure_marks` metadata for repeat barlines, volta endings,
+  navigation marks, and rehearsal labels.
+- Added host-neutral `PrintConfig::keep_together` ranges for deterministic system pagination;
+  invalid, over-capacity, and explicit-break-conflicting ranges return typed errors.
+- Added an optional first-system measure capacity for pickup/title layout policies.
+- Added an opt-in final-page balancing policy that preserves explicit page breaks.
+- Added opt-in detection of a partial first measure for pickup-system pagination.
+- Added physical measure-span metadata for visual multirest slots.
+- Added per-system cross-system span segment metadata with explicit start/end ownership.
+- Bumped the print-layout contract metadata to version `13` for the pagination options.
+
 ## [1.0.5] - 2026-09-02
 
 - Added typed `SampleDecoder`/`SampleRenderer` integration traits so licensed SoundFont providers
