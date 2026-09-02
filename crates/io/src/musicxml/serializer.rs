@@ -172,6 +172,14 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     clef.musicxml_line()
                 ));
                 xml.push_str("        </clef>\n");
+                if let Some(tab) = &staff.tablature {
+                    xml.push_str("        <staff-details>\n");
+                    xml.push_str(&format!(
+                        "          <staff-lines>{}</staff-lines>\n",
+                        tab.lines
+                    ));
+                    xml.push_str("        </staff-details>\n");
+                }
                 if staff.transpose_semitones != 0 {
                     xml.push_str("        <transpose>\n");
                     xml.push_str(&format!(
@@ -468,8 +476,9 @@ fn serialize_note(xml: &mut String, note: &Note, voice_number: usize) {
             "          <step>{}</step>\n",
             pitch.step.to_char()
         ));
-        if pitch.alter != 0 {
-            xml.push_str(&format!("          <alter>{}</alter>\n", pitch.alter));
+        if pitch.alter != 0 || pitch.microtone_cents != 0 {
+            let alter = pitch.alter as f32 + pitch.microtone_cents as f32 / 100.0;
+            xml.push_str(&format!("          <alter>{alter}</alter>\n"));
         }
         xml.push_str(&format!("          <octave>{}</octave>\n", pitch.octave));
         xml.push_str("        </pitch>\n");
@@ -537,8 +546,9 @@ fn serialize_note(xml: &mut String, note: &Note, voice_number: usize) {
                 "          <step>{}</step>\n",
                 extra.step.to_char()
             ));
-            if extra.alter != 0 {
-                xml.push_str(&format!("          <alter>{}</alter>\n", extra.alter));
+            if extra.alter != 0 || extra.microtone_cents != 0 {
+                let alter = extra.alter as f32 + extra.microtone_cents as f32 / 100.0;
+                xml.push_str(&format!("          <alter>{alter}</alter>\n"));
             }
             xml.push_str(&format!("          <octave>{}</octave>\n", extra.octave));
             xml.push_str("        </pitch>\n");
@@ -594,6 +604,7 @@ fn serialize_notations(xml: &mut String, note: &Note) {
     let has_arp = note.arpeggiate.is_some();
     let has_technical = note.fingering.is_some()
         || note.string_number.is_some()
+        || note.tab_position.is_some()
         || note.technique_text.is_some()
         || note.guitar_technique.is_some();
     if !has_tie
@@ -727,6 +738,12 @@ fn serialize_notations(xml: &mut String, note: &Note) {
         }
         if let Some(s) = note.string_number {
             xml.push_str(&format!("            <string>{}</string>\n", s));
+        }
+        if let Some(tab) = &note.tab_position {
+            if note.string_number.is_none() {
+                xml.push_str(&format!("            <string>{}</string>\n", tab.string));
+            }
+            xml.push_str(&format!("            <fret>{}</fret>\n", tab.fret));
         }
         if let Some(ref t) = note.technique_text {
             xml.push_str(&format!(
@@ -897,8 +914,9 @@ mod tests {
     #[test]
     fn glissando_cross_staff_roundtrip() {
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
-        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        let mut note = Note::new(Pitch::with_microtone(Step::C, 4, 0, 50), Duration::Quarter);
         note.glissando_start = true;
+        note.tab_position = Some(acorde_core::TabPosition { string: 2, fret: 3 });
         note.cross_staff = Some(acorde_core::CrossStaff {
             target_staff: 1,
             target_voice: Some(0),
@@ -917,5 +935,7 @@ mod tests {
             parsed_note.cross_staff.as_ref().map(|c| c.target_staff),
             Some(1)
         );
+        assert_eq!(parsed_note.pitches[0].microtone_cents, 50);
+        assert_eq!(parsed_note.tab_position.as_ref().map(|p| p.fret), Some(3));
     }
 }

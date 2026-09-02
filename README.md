@@ -74,6 +74,8 @@ The `abc` feature adds ABC parse/serialize; `mscz` adds MuseScore `.mscz`/`.mscx
 adds the documented MEI subset import/export boundary.
 Parsers accept memory buffers and return typed errors. They do not read files.
 MusicXML voice numbers 1–4 are preserved in `Measure.voices` and through MusicXML round-trips.
+Tablature string/fret positions and fractional MusicXML alterations are preserved in the score
+model; common ABC (`^/`, `_/`) and MEI (`qs`, `qf`) quarter-accidental subsets are also supported.
 
 ## SVG and browser API
 

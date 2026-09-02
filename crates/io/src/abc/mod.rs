@@ -325,12 +325,21 @@ fn parse_body_line(
 
         // Accidental prefix
         let mut alter = 0i8;
+        let mut microtone_accidental = false;
         if ch == '^' {
             alter = 1;
             i += 1;
+            if i < chars.len() && chars[i] == '/' {
+                microtone_accidental = true;
+                i += 1;
+            }
         } else if ch == '_' {
             alter = -1;
             i += 1;
+            if i < chars.len() && chars[i] == '/' {
+                microtone_accidental = true;
+                i += 1;
+            }
         } else if ch == '=' {
             alter = 0;
             i += 1;
@@ -359,7 +368,11 @@ fn parse_body_line(
             }
             let dur = unit_to_duration(*unit_den, n, d);
             let dot = u8::from(is_dotted(*unit_den, n, d));
-            let mut note = Note::new(Pitch::with_alter(step, octave, alter), dur);
+            let microtone = if microtone_accidental { alter * 50 } else { 0 };
+            let mut note = Note::new(
+                Pitch::with_microtone(step, octave, alter, microtone.into()),
+                dur,
+            );
             note.dot_count = dot;
             if let Some(m) = staff.measures.last_mut() {
                 m.voices[0].push(note);
@@ -643,9 +656,11 @@ fn pitch_to_abc(pitch: &Pitch) -> String {
         Step::A => 'A',
         Step::B => 'B',
     };
-    let acc = match pitch.alter {
-        1 => "^",
-        -1 => "_",
+    let acc = match (pitch.alter, pitch.microtone_cents) {
+        (1, 50) => "^/",
+        (-1, -50) => "_/",
+        (1, _) => "^",
+        (-1, _) => "_",
         _ => "",
     };
     if pitch.octave >= 5 {
@@ -794,6 +809,18 @@ C D E F | G A B c |";
         assert_eq!(pitched[0].pitches[0].alter, 1); // ^C
         assert_eq!(pitched[1].pitches[0].alter, -1); // _E
         assert_eq!(pitched[2].pitches[0].alter, 0); // =G
+    }
+
+    #[test]
+    fn quarter_accidentals_round_trip_in_common_subset() {
+        let abc = "X:1\nT:T\nM:4/4\nL:1/4\nK:C\n^/C _/D E F|\n";
+        let score = parse_abc(abc).unwrap();
+        let voice = &score.parts[0].staves[0].measures[0].voices[0];
+        let pitched: Vec<_> = voice.iter().filter(|n| !n.is_rest).collect();
+        assert_eq!(pitched[0].pitches[0].microtone_cents, 50);
+        assert_eq!(pitched[1].pitches[0].microtone_cents, -50);
+        let serialized = serialize_abc(&score).unwrap();
+        assert!(serialized.contains("^/C") && serialized.contains("_/D"));
     }
 
     #[test]

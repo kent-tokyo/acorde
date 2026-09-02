@@ -39,6 +39,8 @@ acorde = { version = "1.0.2", features = ["abc", "mscz", "mei"] }
 `mscz` は `.mscz`/`.mscx` の読み込み、`mei` は文書化されたMEIサブセットの入出力を追加します。パーサーはメモリ上の入力を受け取り、
 ファイルは読みません。
 MusicXMLのvoice番号1〜4は`Measure.voices`に保持され、MusicXMLの往復変換でも維持されます。
+タブ譜の弦番号/フレットとMusicXMLの微分音（小数`alter`）を保持できます。ABCの`^/`/`_/`、
+MEIの`qs`/`qf`による一般的な四分音臨時記号にも対応します。
 glissandoとcross-staff配置もMusicXMLとの往復変換で保持されます。SoundFontはサンプルデコードを
 内包せず、ライセンスを管理するアプリケーション側rendererとの境界として提供します。
 

@@ -274,19 +274,24 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             let octave = attr(&event, b"oct")
                                 .and_then(|value| value.parse::<i8>().ok())
                                 .ok_or_else(|| Error::Xml("MEI note is missing oct".into()))?;
-                            let alter = match attr(&event, b"accid").as_deref() {
-                                Some("s") => 1,
-                                Some("f") => -1,
-                                Some("ss") => 2,
-                                Some("ff") => -2,
-                                Some("n") | None => 0,
+                            let (alter, microtone_cents) = match attr(&event, b"accid").as_deref() {
+                                Some("s") => (1, 0),
+                                Some("f") => (-1, 0),
+                                Some("ss") => (2, 0),
+                                Some("ff") => (-2, 0),
+                                Some("n") | None => (0, 0),
+                                Some("qs") => (0, 50),
+                                Some("qf") => (0, -50),
                                 Some(value) => {
                                     return Err(Error::Xml(format!(
                                         "unsupported MEI accid '{value}'"
                                     )));
                                 }
                             };
-                            Note::new(Pitch::with_alter(pitch_step, octave, alter), dur)
+                            Note::new(
+                                Pitch::with_microtone(pitch_step, octave, alter, microtone_cents),
+                                dur,
+                            )
                         };
                         note.dot_count = dots;
                         score.parts[0].staves[0].measures[measure_index].voices[0].push(note);
@@ -364,11 +369,13 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
                     pitch.step.to_char().to_ascii_lowercase(),
                     pitch.octave
                 ));
-                let accid = match pitch.alter {
-                    1 => Some("s"),
-                    -1 => Some("f"),
-                    2 => Some("ss"),
-                    -2 => Some("ff"),
+                let accid = match (pitch.alter, pitch.microtone_cents) {
+                    (0, 50) => Some("qs"),
+                    (0, -50) => Some("qf"),
+                    (1, _) => Some("s"),
+                    (-1, _) => Some("f"),
+                    (2, _) => Some("ss"),
+                    (-2, _) => Some("ff"),
                     _ => None,
                 };
                 if let Some(accid) = accid {
@@ -413,6 +420,18 @@ mod tests {
         let restored = parse_mei(&xml).expect("serialized MEI parses");
         assert_eq!(restored.metadata.title, score.metadata.title);
         assert_eq!(restored.parts[0].staves[0].measures[0].voices[0].len(), 2);
+    }
+
+    #[test]
+    fn quarter_accidentals_round_trip() {
+        let xml = FIXTURE.replace("accid=\"s\"", "accid=\"qs\"");
+        let score = parse_mei(&xml).expect("MEI quarter-tone parses");
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].pitches[0].microtone_cents,
+            50
+        );
+        let serialized = serialize_mei(&score).expect("MEI quarter-tone serializes");
+        assert!(serialized.contains("accid=\"qs\""));
     }
 
     #[test]

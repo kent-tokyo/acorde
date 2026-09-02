@@ -10,6 +10,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- Expanded notation interchange with fractional-pitch cents, MusicXML tablature staff metadata
+  and string/fret positions, ABC `^/`/`_/` quarter accidentals, and MEI `qs`/`qf` accidentals.
+- Documented the remaining MIDI pitch-bend and format-specific tablature boundaries explicitly.
+
 ## [1.0.2] - 2026-09-02
 
 ### Composer integration boundaries

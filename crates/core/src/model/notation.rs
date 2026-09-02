@@ -394,6 +394,23 @@ pub struct CrossStaff {
     pub target_voice: Option<usize>,
 }
 
+/// A tablature string/fret position attached to a pitched note.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TabPosition {
+    /// One-based string number, matching MusicXML `<string>`.
+    pub string: u8,
+    pub fret: u8,
+}
+
+/// Tablature staff metadata. Tuning MIDI values are ordered by string number.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TablatureConfig {
+    pub lines: u8,
+    pub tuning_midi: Vec<i16>,
+    #[serde(default)]
+    pub capo: u8,
+}
+
 /// Structured chord symbol attached to a note.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ChordSymbol {

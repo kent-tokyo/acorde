@@ -65,6 +65,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut in_technical_block = false;
     let mut pending_fingering: Option<u8> = None;
     let mut pending_string_number: Option<u8> = None;
+    let mut pending_fret: Option<u8> = None;
     let mut pending_technique_text: Option<String> = None;
     let mut pending_articulations: Vec<Articulation> = Vec::new();
     let mut pending_tremolo = false;
@@ -74,6 +75,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut note_step = Step::C;
     let mut note_octave = 4i8;
     let mut note_alter = 0i8;
+    let mut note_microtone_cents = 0i16;
     let mut _note_duration_ticks = 0u32;
     let mut note_type = "quarter".to_string();
     let mut note_dot = false;
@@ -104,6 +106,8 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut lyric_text = String::new();
     let mut lyric_syllabic = String::new();
     let mut in_measure_style = false;
+    let mut in_staff_details = false;
+    let mut staff_lines: Option<u8> = None;
     let mut in_multiple_rest = false;
     let mut in_barline = false;
     let mut barline_location = String::new();
@@ -193,6 +197,10 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "direction" => in_direction = true,
                     "direction-type" => in_direction_type = true,
                     "measure-style" => in_measure_style = true,
+                    "staff-details" => {
+                        in_staff_details = true;
+                        staff_lines = None;
+                    }
                     "multiple-rest" if in_measure_style => in_multiple_rest = true,
                     "notations" if in_note => in_notations = true,
                     "articulations" if in_notations => in_artic_block = true,
@@ -219,6 +227,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         note_staff = 1;
                         note_dot = false;
                         note_alter = 0;
+                        note_microtone_cents = 0;
                         _note_duration_ticks = 0;
                         note_is_grace = false;
                         note_grace_slash = false;
@@ -235,6 +244,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         note_arpeggiate = None;
                         pending_fingering = None;
                         pending_string_number = None;
+                        pending_fret = None;
                         pending_technique_text = None;
                         pending_guitar_technique = None;
                         note_stem_up = None;
@@ -757,7 +767,12 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         note_octave = current_text.parse().unwrap_or(4);
                     }
                     "alter" if in_pitch => {
-                        note_alter = current_text.parse::<f32>().unwrap_or(0.0).round() as i8;
+                        let value = current_text.parse::<f32>().unwrap_or(0.0);
+                        note_alter = value.trunc().clamp(-127.0, 127.0) as i8;
+                        note_microtone_cents = ((value - note_alter as f32) * 100.0)
+                            .round()
+                            .clamp(-99.0, 99.0)
+                            as i16;
                     }
                     "pitch" => in_pitch = false,
                     "measure-style" => in_measure_style = false,
@@ -769,6 +784,23 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
                         {
                             m.multi_rest_count = Some(count);
+                        }
+                    }
+                    "staff-lines" if in_staff_details => {
+                        staff_lines = current_text.trim().parse().ok();
+                    }
+                    "staff-details" => {
+                        in_staff_details = false;
+                        if let Some(lines) = staff_lines
+                            && (1..=64).contains(&lines)
+                            && let Some(pi) = part_index
+                        {
+                            score.parts[pi].staves[0].tablature =
+                                Some(acorde_core::TablatureConfig {
+                                    lines,
+                                    tuning_midi: Vec::new(),
+                                    capo: 0,
+                                });
                         }
                     }
                     "syllabic" if in_lyric => lyric_syllabic = current_text.trim().to_string(),
@@ -798,6 +830,9 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     }
                     "string" if in_technical_block => {
                         pending_string_number = current_text.trim().parse().ok();
+                    }
+                    "fret" if in_technical_block => {
+                        pending_fret = current_text.trim().parse().ok();
                     }
                     "other-technical" if in_technical_block => {
                         let t = current_text.trim().to_string();
@@ -872,8 +907,12 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 n.dot_count = dot_count;
                                 n
                             } else {
-                                let pitch =
-                                    Pitch::with_alter(note_step.clone(), note_octave, note_alter);
+                                let pitch = Pitch::with_microtone(
+                                    note_step.clone(),
+                                    note_octave,
+                                    note_alter,
+                                    note_microtone_cents,
+                                );
                                 let mut n = Note::new(pitch, dur);
                                 n.dot_count = dot_count;
                                 n.is_grace = note_is_grace;
@@ -892,8 +931,15 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                     if let Some(f) = pending_fingering.take() {
                                         last.fingering = Some(f);
                                     }
-                                    if let Some(s) = pending_string_number.take() {
+                                    let tab_string = pending_string_number.take();
+                                    if let Some(s) = tab_string {
                                         last.string_number = Some(s);
+                                    }
+                                    if let (Some(string), Some(fret)) =
+                                        (tab_string, pending_fret.take())
+                                    {
+                                        last.tab_position =
+                                            Some(acorde_core::TabPosition { string, fret });
                                     }
                                     if let Some(t) = pending_technique_text.take() {
                                         last.technique_text = Some(t);
@@ -942,6 +988,12 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 }
                                 if let Some(s) = pending_string_number.take() {
                                     note.string_number = Some(s);
+                                }
+                                if let (Some(string), Some(fret)) =
+                                    (note.string_number, pending_fret.take())
+                                {
+                                    note.tab_position =
+                                        Some(acorde_core::TabPosition { string, fret });
                                 }
                                 if let Some(t) = pending_technique_text.take() {
                                     note.technique_text = Some(t);

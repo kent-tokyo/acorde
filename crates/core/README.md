@@ -5,6 +5,8 @@ Score data model and command engine for Rust and WebAssembly.
 This crate has no I/O, filesystem, renderer, or async-runtime dependency. It provides Score, Part,
 Staff, Measure, Note, notation types, ScoreEngine, serializable Command values, undo/redo,
 validation, playback-event generation, score diff/patch, transposition, and music-theory helpers.
+Pitches preserve fractional cents, while notes and staves can carry tablature string/fret and
+tuning metadata with serde defaults for older score JSON.
 
 ~~~rust
 use acorde_core::{Command, ScoreEngine, SetTempoCmd};
