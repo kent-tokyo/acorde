@@ -12,7 +12,7 @@ UI-free, and do not access the filesystem.
 |---|---|
 | `acorde-core` | Score model, commands, validation, playback, and music-theory helpers |
 | `acorde-io` | MusicXML/MXL and MIDI I/O; optional ABC and MuseScore MSCZ/MSCX I/O |
-| `acorde-layout` | Pixel-free rows, spans, beams, tuplets, and accidental marks |
+| `acorde-layout` | Pixel-free rows, spans, beams, tuplets, accidental marks, and logical print pages |
 | `acorde-render-svg` | Pure Rust/WASM SVG renderer; depends on core and layout |
 | `acorde-wasm` | JavaScript bindings for I/O, editing, layout, and SVG |
 | `acorde-cli` | File-based conversion and inspection commands |
@@ -30,6 +30,8 @@ rendering.
 
 See the [notation coverage matrix](docs/notation-coverage.md) for the supported interchange
 slices and known information-loss boundaries.
+The host-neutral print page contract is described in [print-layout.md](docs/print-layout.md);
+PDF conversion, font resolution, printer access, and preview UI remain host responsibilities.
 The current conservative capability inventory is tracked in the [scorecard](docs/scorecard.md).
 Security boundaries and resource-limit ownership are documented in the [security contract](docs/security/threat-model.md).
 
