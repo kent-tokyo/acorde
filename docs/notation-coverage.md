@@ -25,9 +25,14 @@ the `Score` model; rendering and export can have narrower format-specific covera
 | Volta brackets and part groups | yes | no | partial | partial | no | yes | yes / yes / MusicXML |
 | MIDI channel, program, transposition | yes | yes | no | partial | no | yes | yes / no / MIDI |
 | Percussion | partial | partial | no | partial | no | yes | partial / partial / MIDI |
-| Tablature and microtonal accidentals | no | no | no | no | no | no | unsupported / no / no |
+| Tablature positions and staff metadata | partial (staff-lines, string/fret) | no | no | no | no | yes | partial / partial / MusicXML |
+| Microtonal accidentals | partial (fractional `<alter>`) | no | partial (quarter accidental subset) | partial | partial (`qs`/`qf`) | yes | partial / partial / format-specific |
 
 ## Reading the matrix
+
+Tablature currently preserves MusicXML `staff-details/staff-lines` and note `technical/string`
+plus `fret`. Microtones use `Pitch::microtone_cents`; ABC supports `^/` and `_/`, and MEI supports
+`qs` and `qf`. MIDI pitch-bend and vendor-specific accidental spellings remain partial.
 
 - A `partial` import must not be interpreted as lossless interchange. Until diagnostic reports are
   available, callers should validate the resulting `Score` and retain the source document.

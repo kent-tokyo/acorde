@@ -1,6 +1,6 @@
 # acorde
 
-Platform-agnostic music score library for Rust and WebAssembly (v1.0.2).
+Platform-agnostic music score library for Rust and WebAssembly (v1.0.5).
 
 acorde provides a serializable score model, undoable commands, format I/O, logical layout,
 deterministic SVG rendering, playback events, and WASM bindings. Core libraries are synchronous,
@@ -12,7 +12,7 @@ UI-free, and do not access the filesystem.
 |---|---|
 | `acorde-core` | Score model, commands, validation, playback, and music-theory helpers |
 | `acorde-io` | MusicXML/MXL and MIDI I/O; optional ABC and MuseScore MSCZ/MSCX I/O |
-| `acorde-layout` | Pixel-free rows, spans, beams, tuplets, and accidental marks |
+| `acorde-layout` | Pixel-free rows, spans, beams, tuplets, accidental marks, and logical print pages |
 | `acorde-render-svg` | Pure Rust/WASM SVG renderer; depends on core and layout |
 | `acorde-wasm` | JavaScript bindings for I/O, editing, layout, and SVG |
 | `acorde-cli` | File-based conversion and inspection commands |
@@ -30,13 +30,17 @@ rendering.
 
 See the [notation coverage matrix](docs/notation-coverage.md) for the supported interchange
 slices and known information-loss boundaries.
+The host-neutral print page contract is described in [print-layout.md](docs/print-layout.md);
+PDF conversion, font resolution, printer access, and preview UI remain host responsibilities.
 The current conservative capability inventory is tracked in the [scorecard](docs/scorecard.md).
 Security boundaries and resource-limit ownership are documented in the [security contract](docs/security/threat-model.md).
 
 The optional `soundfont` feature exposes `acorde::soundfont`, a bounded SF2/SF3
 metadata and provider-neutral note lifecycle boundary. It consumes unchanged
 `PlaybackEvent` values; sample decoding, synthesis, and licensed asset ownership
-remain with the application renderer.
+remain with the application renderer. The boundary also carries sample regions, deterministic
+zone selection, voice parameters, and bounded decoded-PCM validation. `SampleDecoder` and
+`SampleRenderer` provide the typed provider/host integration point.
 
 Interchange APIs also provide typed `ImportReport` and `ExportReport` wrappers for structured
 conversion diagnostics.
@@ -45,15 +49,15 @@ conversion diagnostics.
 
 ```toml
 [dependencies]
-acorde = "1.0.2"
-acorde-render-svg = "1.0.2"
+acorde = "1.0.5"
+acorde-render-svg = "1.0.5"
 ```
 
 The default I/O features are `musicxml` and `midi`; enable the optional `abc`, `mscz`, or `mei`
 features when needed:
 
 ```toml
-acorde = { version = "1.0.2", features = ["abc", "mscz", "mei"] }
+acorde = { version = "1.0.5", features = ["abc", "mscz", "mei"] }
 ```
 
 ```rust
@@ -74,6 +78,8 @@ The `abc` feature adds ABC parse/serialize; `mscz` adds MuseScore `.mscz`/`.mscx
 adds the documented MEI subset import/export boundary.
 Parsers accept memory buffers and return typed errors. They do not read files.
 MusicXML voice numbers 1–4 are preserved in `Measure.voices` and through MusicXML round-trips.
+Tablature string/fret positions and fractional MusicXML alterations are preserved in the score
+model; common ABC (`^/`, `_/`) and MEI (`qs`, `qf`) quarter-accidental subsets are also supported.
 
 ## SVG and browser API
 

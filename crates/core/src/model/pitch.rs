@@ -55,6 +55,9 @@ pub struct Pitch {
     pub step: Step,
     pub octave: i8,
     pub alter: i8,
+    /// Additional cents beyond the integer semitone alteration.
+    #[serde(default)]
+    pub microtone_cents: i16,
 }
 
 impl Pitch {
@@ -63,6 +66,7 @@ impl Pitch {
             step,
             octave,
             alter: 0,
+            microtone_cents: 0,
         }
     }
 
@@ -71,14 +75,22 @@ impl Pitch {
             step,
             octave,
             alter,
+            microtone_cents: 0,
         }
+    }
+
+    pub fn with_microtone(step: Step, octave: i8, alter: i8, microtone_cents: i16) -> Self {
+        let mut pitch = Self::with_alter(step, octave, alter);
+        pitch.microtone_cents = microtone_cents.clamp(-99, 99);
+        pitch
     }
 
     /// MIDI note number (middle C = 60 = C4).
     pub fn to_midi(&self) -> i16 {
         let semitone = self.step.to_semitone() as i16;
         let base = (self.octave as i16 + 1) * 12;
-        base + semitone + self.alter as i16
+        (base as f32 + semitone as f32 + self.alter as f32 + self.microtone_cents as f32 / 100.0)
+            .round() as i16
     }
 
     /// Convert a MIDI note number (0–127) to a `Pitch`.
@@ -146,7 +158,9 @@ impl Pitch {
     /// Natural pitches and edge cases (E#→F, B#→C, Cb→B, Fb→E) are always resolved to the
     /// simplest diatonic form regardless of the flag.
     pub fn respell(&self, prefer_flat: bool) -> Pitch {
-        Pitch::from_midi(self.to_midi().clamp(0, 127) as u8, prefer_flat)
+        let mut pitch = Pitch::from_midi(self.to_midi().clamp(0, 127) as u8, prefer_flat);
+        pitch.microtone_cents = self.microtone_cents;
+        pitch
     }
 }
 

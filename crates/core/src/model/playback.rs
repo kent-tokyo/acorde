@@ -905,6 +905,23 @@ mod tests {
         assert!((durations[3] - 0.33).abs() < 1e-9, "m1 second note short");
     }
 
+    #[test]
+    fn multi_voice_events_preserve_source_voice_addresses() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        score.parts[0].staves[0].measures[0].voices[1] =
+            vec![Note::new(Pitch::new(Step::E, 4), Duration::Quarter)];
+
+        let events = to_playback_events(&score, &PlaybackOptions::default());
+        let addresses: Vec<&str> = events
+            .iter()
+            .filter_map(|event| event.address.as_deref())
+            .collect();
+        assert!(addresses.contains(&"0:0:0:0:0"));
+        assert!(addresses.contains(&"0:0:0:1:0"));
+    }
+
     // ── compute_playback_position ─────────────────────────────────────────────
 
     #[test]

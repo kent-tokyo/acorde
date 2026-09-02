@@ -314,6 +314,7 @@ fn assemble_staff(
         clef,
         measures,
         transpose_semitones: 0,
+        tablature: None,
     }
 }
 

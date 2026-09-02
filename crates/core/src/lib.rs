@@ -29,8 +29,8 @@ pub use model::harmony::{detect_chord, roman_numeral};
 pub use model::interval::{Interval, IntervalQuality};
 pub use model::notation::{
     Articulation, Barline, BeamState, ChordSymbol, Clef, CrossStaff, Dynamic, GuitarTechnique,
-    HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind, StyledText, TextStyle, TimeSignature,
-    TupletInfo,
+    HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind, StyledText, TabPosition,
+    TablatureConfig, TextStyle, TimeSignature, TupletInfo,
 };
 pub use model::pitch::{Pitch, Step};
 pub use model::playback::{

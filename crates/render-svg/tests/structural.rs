@@ -480,6 +480,17 @@ fn triple_sharp_is_rejected_not_silently_dropped() {
 }
 
 #[test]
+fn glyph_coverage_is_explicit_and_stable() {
+    let coverage = acorde_render_svg::glyph_coverage();
+    assert_eq!(coverage.contract_version, 1);
+    assert_eq!(coverage.resource_id, "acorde-vector-glyphs-v1");
+    assert!(coverage.vector_glyphs);
+    assert_eq!(coverage.accidental_min, -2);
+    assert_eq!(coverage.accidental_max, 2);
+    assert!(coverage.supported_clefs.iter().any(|clef| clef == "treble"));
+}
+
+#[test]
 fn percussion_clef_is_rejected_not_silently_treble() {
     use acorde_core::{Clef, Part, Score, Staff};
     let mut score = Score::default();

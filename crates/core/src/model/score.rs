@@ -2,8 +2,8 @@ use super::{
     duration::Duration,
     notation::{
         Articulation, Barline, BeamState, ChordSymbol, Clef, CrossStaff, Dynamic, GuitarTechnique,
-        HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind, StyledText, TimeSignature,
-        TupletInfo,
+        HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind, StyledText, TablatureConfig,
+        TimeSignature, TupletInfo,
     },
     pitch::Pitch,
 };
@@ -443,7 +443,7 @@ fn transpose_pitch(pitch: &Pitch, semitones: i8) -> Pitch {
             _ => (Step::C, 0),
         }
     };
-    Pitch::with_alter(step, oct, alter)
+    Pitch::with_microtone(step, oct, alter, pitch.microtone_cents)
 }
 
 /// Shift a key signature's fifths value by `semitones`.
@@ -503,6 +503,8 @@ pub struct Staff {
     /// -2 = Bb instrument (clarinet, trumpet), -9 = Eb instrument (alto sax), etc.
     #[serde(default)]
     pub transpose_semitones: i8,
+    #[serde(default)]
+    pub tablature: Option<TablatureConfig>,
 }
 
 impl Staff {
@@ -511,6 +513,7 @@ impl Staff {
             clef,
             measures: Vec::new(),
             transpose_semitones: 0,
+            tablature: None,
         }
     }
 }
@@ -606,6 +609,8 @@ pub struct Note {
     pub is_rest: bool,
     /// Single note: one pitch. Chord: multiple pitches (same duration).
     pub pitches: Vec<Pitch>,
+    #[serde(default)]
+    pub tab_position: Option<super::notation::TabPosition>,
     pub duration: Duration,
     pub dot_count: u8,
     pub tie_start: bool,
@@ -681,6 +686,7 @@ impl Note {
             id: Uuid::new_v4().to_string(),
             is_rest: false,
             pitches: vec![pitch],
+            tab_position: None,
             duration,
             dot_count: 0,
             tie_start: false,
@@ -722,6 +728,7 @@ impl Note {
             id: Uuid::new_v4().to_string(),
             is_rest: true,
             pitches: Vec::new(),
+            tab_position: None,
             duration,
             dot_count: 0,
             tie_start: false,

@@ -38,6 +38,10 @@ use std::fmt;
 
 /// Version of the browser-facing [`RenderMetadata`] contract.
 pub const SVG_CONTRACT_VERSION: u32 = 1;
+/// Version of the built-in glyph coverage contract.
+pub const GLYPH_COVERAGE_CONTRACT_VERSION: u32 = 1;
+/// Stable identifier for the renderer's font-independent vector glyph set.
+pub const BUILTIN_GLYPH_RESOURCE_ID: &str = "acorde-vector-glyphs-v1";
 
 const MAX_RENDER_ANNOTATIONS: usize = 10_000;
 const MAX_ANNOTATION_TEXT_BYTES: usize = 16 * 1024;
@@ -74,6 +78,37 @@ pub struct RenderMetadata {
     /// Human-readable fallback text for hosts that cannot expose the SVG semantics.
     pub accessible_text: String,
     pub address_bounds: Vec<AddressBounds>,
+}
+
+/// Explicit coverage information for the renderer's built-in glyph resource.
+///
+/// Hosts can use this before rendering or selecting a print resource. Unsupported
+/// notation still returns a typed [`RenderError`] during rendering.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GlyphCoverage {
+    pub contract_version: u32,
+    pub resource_id: String,
+    pub vector_glyphs: bool,
+    pub supported_clefs: Vec<String>,
+    pub accidental_min: i8,
+    pub accidental_max: i8,
+}
+
+/// Describe the deterministic, font-independent glyphs shipped by this renderer.
+pub fn glyph_coverage() -> GlyphCoverage {
+    GlyphCoverage {
+        contract_version: GLYPH_COVERAGE_CONTRACT_VERSION,
+        resource_id: BUILTIN_GLYPH_RESOURCE_ID.to_owned(),
+        vector_glyphs: true,
+        supported_clefs: vec![
+            "treble".to_owned(),
+            "bass".to_owned(),
+            "alto".to_owned(),
+            "tenor".to_owned(),
+        ],
+        accidental_min: -2,
+        accidental_max: 2,
+    }
 }
 
 /// Approximate interactive bounds for one stable [`acorde_core::NoteAddr`]. The box is

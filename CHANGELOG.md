@@ -8,7 +8,37 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
+## [1.0.5] - 2026-09-02
+
+- Added typed `SampleDecoder`/`SampleRenderer` integration traits so licensed SoundFont providers
+  can supply PCM and host-owned audio rendering without adding codec dependencies to acorde.
+- Added regression coverage proving multi-voice playback addresses retain the source voice.
+- Added host-neutral print color and crop-mark policies to the logical page contract.
+- Added a host-neutral glyph-resource policy with stable host resource keys; resource loading and
+  font metrics remain outside the reusable layout crate.
+- Added SVG glyph coverage metadata and explicit typed fallback errors for unsupported clefs and
+  accidentals.
+
+## [1.0.4] - 2026-09-02
+
+- Added a physical print scale to `PrintConfig`; scaled system geometry now participates in
+  deterministic page capacity without changing the selected paper dimensions.
+- Extended the host-neutral print contract with physical bleed and safe-area configuration and
+  page metadata.
+- Added configurable page-number metadata to the host-neutral print layout contract.
+
+## [1.0.3] - 2026-09-02
+
+- Extended `acorde-soundfont` with a provider-neutral sample-region and voice contract, bounded
+  decoded-PCM validation, deterministic zone selection, velocity/tuning/envelope parameters, and
+  provider-owned sample-cache behavior. Codec decoding and sample assets remain optional.
+- Added a host-neutral `acorde-layout` print contract: physical paper geometry, deterministic
+  page/system placement, and preservation of explicit page breaks without PDF or OS coupling.
+- Added stable page/system addresses and typed break reasons to the print-layout result for host
+  navigation and “why did this break?” explanations.
+- Expanded notation interchange with fractional-pitch cents, MusicXML tablature staff metadata
+  and string/fret positions, ABC `^/`/`_/` quarter accidentals, and MEI `qs`/`qf` accidentals.
+- Documented the remaining MIDI pitch-bend and format-specific tablature boundaries explicitly.
 
 ## [1.0.2] - 2026-09-02
 
