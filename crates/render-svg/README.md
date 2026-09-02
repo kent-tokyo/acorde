@@ -8,8 +8,10 @@ using viewport coordinates; provider and mark IDs are validated and serialized d
 The renderer accepts at most 10,000 marks and 16 KiB of UTF-8 text per mark; excess input returns
 a typed error before SVG emission.
 Output is deterministic and may include stable data-note-addr hooks for host-side selection and
-hit testing. The renderer has no browser/DOM dependency and uses font-independent SVG geometry
-for notation glyphs.
+hit testing. `glyph_coverage()` reports the built-in resource ID, supported clefs, and accidental
+range before rendering; unsupported clefs/accidentals return `RenderError` rather than a blank
+fallback. The renderer has no browser/DOM dependency and uses font-independent SVG geometry for
+notation glyphs.
 
 ~~~rust
 use acorde_core::Score;

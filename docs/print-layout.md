@@ -20,6 +20,9 @@ indices, and typed break reasons (`MeasureCapacity`, `ExplicitSystemBreak`,
 `contract_version` is `7` for this address/diagnostic, bleed/safe-area, scale, page-numbering,
 color, crop-mark, and glyph-resource shape. `GlyphResourcePolicy::HostProvided` is only a stable
 resource key; resource lookup, font loading, and glyph metrics remain host/provider work.
+The SVG renderer exposes `glyph_coverage()` for its built-in vector resource and rejects notation
+outside the reported clef/accidental coverage with a typed error; it never silently emits a blank
+critical glyph.
 
 This API deliberately does not select or embed fonts, draw glyphs, generate PDF, open files,
 invoke OS printer APIs, or provide a preview UI. Those responsibilities belong to

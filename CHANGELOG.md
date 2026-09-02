@@ -16,6 +16,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added host-neutral print color and crop-mark policies to the logical page contract.
 - Added a host-neutral glyph-resource policy with stable host resource keys; resource loading and
   font metrics remain outside the reusable layout crate.
+- Added SVG glyph coverage metadata and explicit typed fallback errors for unsupported clefs and
+  accidentals.
 
 ## [1.0.4] - 2026-09-02
 
