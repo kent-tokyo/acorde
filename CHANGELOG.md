@@ -10,6 +10,486 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-02
+
+### MusicXML multi-voice parsing
+
+- Preserve MusicXML voice numbers 1–4 through parsing and serialization, including measure
+  cursor resets between voices and stable playback note addresses.
+
+## [0.82.0] - 2026-08-31
+
+### WASM JSON boundary hardening
+
+- Added binding-side input limits for score JSON (16 MiB), precomputed layout JSON (32 MiB),
+  and playback/render/layout options (64 KiB), returning errors before deserialization.
+
+## [0.81.0] - 2026-08-31
+
+### SVG annotation output hardening
+
+- Bound host-provided SVG annotations to 10,000 marks and 16 KiB of UTF-8 text per mark, with
+  typed errors and regression coverage for oversized output.
+
+## [0.80.0] - 2026-08-31
+
+### Archive entry policy hardening
+
+- MXL and MSCZ now reject duplicate entry names and normalized traversal-style paths before
+  extraction, closing archive-name ambiguity and path-policy gaps.
+
+## [0.79.0] - 2026-08-31
+
+### Archive declared-size hardening
+
+- Added MXL and MSCZ total declared uncompressed-size checks before archive entry extraction,
+  reducing decompression-bomb exposure across multiple archive entries.
+
+## [0.78.0] - 2026-08-31
+
+### Parser event and line-length hardening
+
+- Added a 500,000-event MIDI guard and a 1 MiB ABC logical-line guard before expensive score
+  construction or token scanning, with adversarial regression coverage and S0 documentation.
+
+## [0.77.0] - 2026-08-31
+
+### Parser input-size hardening
+
+- Added the 64 MiB baseline input guard to MIDI and ABC parsers, with regression tests for
+  oversize inputs and synchronized S0 enforcement documentation.
+
+## [0.76.0] - 2026-08-31
+
+### Security contract and threat model
+
+- Added the S0 threat model, resource-limit ownership table, error/disclosure contract, and
+  per-crate security documentation links without overstating unfinished parser hardening.
+
+## [0.75.0] - 2026-08-31
+
+### Versioned public scorecard
+
+- Added a machine-readable capability scorecard with explicit known gaps, evidence references,
+  and security-gate policy aligned with the notation coverage matrix.
+
+## [0.74.0] - 2026-08-31
+
+### Headless export compatibility reports
+
+- Added `acorde export-report` to export MusicXML or MIDI while emitting deterministic,
+  machine-readable format, size, and loss-diagnostic metadata.
+
+## [0.73.0] - 2026-08-31
+
+### Headless normalization automation
+
+- Added `acorde normalize` to parse, structurally validate, and canonically rewrite a score
+  through the CLI boundary before exporting it as MusicXML or MIDI.
+
+## [0.72.0] - 2026-08-31
+
+### Headless transpose automation
+
+- Added `acorde transpose --semitones` to expose the existing typed core transposition operation
+  through the filesystem-owning CLI boundary, preserving the reusable crates' separation.
+
+## [0.71.0] - 2026-08-31
+
+### Deterministic render annotation extension points
+
+- Added `RenderAnnotation` and `render_svg_with_annotations` for host-defined, XML-escaped SVG
+  text marks with validated IDs, deterministic ordering, and no domain logic in the renderer.
+
+## [0.70.0] - 2026-08-31
+
+### Deterministic analysis extension points
+
+- Added `AnalysisPass` and `run_analysis_passes` for external deterministic analysis, with stable
+  ID ordering and typed validation for empty or duplicate IDs.
+
+## [0.69.0] - 2026-08-31
+
+### Benchmark fingerprint verification
+
+- Added `--expected-fingerprint` to the local benchmark CLI so CI or offline scripts can reject
+  manifest and fixture drift before accepting analysis results.
+
+## [0.68.0] - 2026-08-31
+
+### Benchmark corpus fingerprint
+
+- Added a deterministic FNV-1a fingerprint of each benchmark manifest and its referenced fixture
+  bytes to the CLI corpus metadata, making fixture drift visible in saved reports.
+
+## [0.67.0] - 2026-08-31
+
+### Benchmark provenance output
+
+- Extended the local benchmark command to emit corpus identity, license, coverage, and provenance
+  metadata alongside its deterministic analysis report.
+
+## [0.66.0] - 2026-08-31
+
+### Versioned analysis benchmark corpus
+
+- Added a checked-in synthetic MusicXML benchmark corpus manifest with provenance, license, and
+  hand-verified analysis category expectations for the local CLI benchmark command.
+
+## [0.65.0] - 2026-08-31
+
+### WASM duration editing
+
+- Exposed `ScoreEngine.set_duration` for browser hosts, accepting JSON note addresses and duration
+  values while returning the standard undoable `ChangeHint` contract.
+
+## [0.64.0] - 2026-08-31
+
+### Note duration editing
+
+- Completed the `SetDuration` score command with a public `ScoreEngine::set_duration` helper,
+  including dotted durations and measure-capacity preservation.
+
+## [0.63.0] - 2026-08-31
+
+### Browser snapshot restoration
+
+- Added validated `restoreSnapshot()` and the `restore-snapshot` Worker request; persisted scores
+  are reparsed into a fresh layout and stable selection addresses are restored.
+
+## [0.62.0] - 2026-08-31
+
+### Versioned browser snapshots
+
+- Added `WorkspaceSnapshot.schemaVersion` and `WORKSPACE_SNAPSHOT_SCHEMA_VERSION` so persisted
+  browser workspace state can explicitly detect future contract changes.
+
+## [0.61.0] - 2026-08-31
+
+### Browser snapshot cache identity
+
+- Added `WorkspaceSnapshot.analysisCacheKey` so snapshot persistence and Worker synchronization
+  can retain the same schema-versioned analysis identity as the result payload.
+
+## [0.60.0] - 2026-08-31
+
+### Browser analysis cache contract
+
+- Exposed the schema-versioned analysis cache key through `AcordeWorkspace` and its Worker
+  request boundary, allowing host-level caches to share the same score identity as WASM.
+
+## [0.59.0] - 2026-08-31
+
+### Browser analysis cache identity
+
+- Updated the browser workspace adapter to use the WASM-provided, schema-versioned analysis cache
+  key, allowing equivalent score revisions to reuse analysis results safely.
+
+## [0.58.0] - 2026-08-31
+
+### WASM analysis cache key
+
+- Added a WASM `analysis_cache_key` export for cache invalidation without serializing a full
+  analysis result.
+- Added a native helper that computes the current schema-versioned key without running analysis.
+
+## [0.57.0] - 2026-08-31
+
+### Analysis score consistency
+
+- Added `AnalysisResult::matches_score()` to reject stale analysis results after score changes.
+
+## [0.56.0] - 2026-08-31
+
+### Versioned analysis cache keys
+
+- Added `AnalysisResult::cache_key()` combining the analysis schema and deterministic score
+  fingerprint.
+- Prevented cache reuse across analysis-result schema revisions.
+
+## [0.55.0] - 2026-08-31
+
+### Analysis fingerprint correction
+
+- Corrected the deterministic score fingerprint to use the documented FNV-1a byte order.
+- Added regression coverage ensuring changed score content produces a different fingerprint.
+
+## [0.54.0] - 2026-08-31
+
+### Deterministic analysis identity
+
+- Added a deterministic score fingerprint to `AnalysisResult` for cache keys and reproducibility
+  checks.
+- Excluded generated score identifiers from the fingerprint so equivalent newly constructed
+  scores produce the same key.
+- Bumped the analysis result schema with backwards-compatible deserialization defaults.
+
+## [0.53.0] - 2026-08-31
+
+### Interchange report aggregation
+
+- Added stable warning, error, and loss counters to `ImportReport` and `ExportReport`.
+- Added `Diagnostic::is_loss()` for host-side filtering without matching serialized fields.
+
+## [0.52.0] - 2026-08-31
+
+### MEI score definition attribute diagnostics
+
+- Added source-valued diagnostics for unsupported MEI score-definition attributes, including
+  meter, key signature, and clef settings.
+
+## [0.51.0] - 2026-08-31
+
+### MEI score definition attribute diagnostics
+
+- Added source-valued diagnostics for unsupported MEI score-definition attributes, including
+  meter, key signature, and clef settings.
+
+## [0.50.0] - 2026-08-31
+
+### MEI score definition diagnostics
+
+- Added explicit loss diagnostics for unsupported MEI `scoreDef` and `staffDef` elements.
+- Prevented score-definition fallback from being mistaken for lossless MEI import.
+
+## [0.49.0] - 2026-08-31
+
+### MEI attribute loss diagnostics
+
+- Added warnings for MEI `meter.count` and `meter.unit` attributes that are not represented by
+  the current canonical score model.
+- Preserved source attribute values and locations in import reports.
+
+## [0.48.0] - 2026-08-31
+
+### MEI staff and layer diagnostics
+
+- Added loss diagnostics when non-primary MEI staff or layer numbers are flattened into the
+  canonical single-staff/single-layer score model.
+- Preserved the source `n` value in diagnostics for host-side repair guidance.
+
+## [0.47.0] - 2026-08-31
+
+### Bounded MEI loss diagnostics
+
+- Added hierarchical source paths to MEI unsupported-element diagnostics.
+- Bounded repeated MEI loss diagnostics to keep reports predictable for large inputs.
+
+## [0.46.0] - 2026-08-31
+
+### MEI loss diagnostics
+
+- Added parser-backed MEI import diagnostics for known unsupported notation elements.
+- Updated the versioned notation coverage matrix for the v0.46.x interchange boundary.
+
+## [0.45.0] - 2026-08-31
+
+### Security contract and CI gates
+
+- Added a repository security contract covering trust boundaries, resource limits, browser
+  integration, reporting, and release verification.
+- Added cargo-deny license/source policy and CI advisory, license, and source checks.
+
+## [0.44.0] - 2026-08-31
+
+### Parser and dependency hardening
+
+- Updated `quick-xml` to 0.41 and `crossbeam-epoch` to 0.9.20 to address known advisories.
+- Added bounded MusicXML, MEI, MSCX, MXL, and MSCZ input and archive entry handling.
+- Rejected DOCTYPE events across XML parser boundaries and made oversized archive reads fail
+  instead of silently truncating input.
+
+## [0.43.0] - 2026-08-31
+
+### Browser document boundary
+
+- Kept the reference editor on canonical MusicXML instead of exposing internal score JSON.
+- Added browser workflow coverage for edit, undo, and redo round trips.
+
+## [0.42.0] - 2026-08-31
+
+### Offline browser workflow
+
+- Expanded the dependency-free browser reference app with local MusicXML load, source editing,
+  undo/redo, analysis, note playback, and MusicXML export controls.
+- Extended the browser smoke contract to exercise the analysis action and workflow controls.
+
+## [0.41.0] - 2026-08-31
+
+### Worker selection synchronization
+
+- Added Worker requests for updating and reading the shared stable note selection.
+- Added a lightweight selection-state response with the current score revision.
+
+## [0.40.0] - 2026-08-31
+
+### Worker history synchronization
+
+- Made Worker undo/redo responses include the changed flag, updated snapshot, and history state.
+- Added a lightweight history-state request for UI controls that only need revision and
+  undo/redo availability.
+
+## [0.39.0] - 2026-08-31
+
+### Compact browser score transport
+
+- Added UTF-8 score JSON encode/decode helpers and byte-based workspace replacement for Worker
+  structured-clone transport.
+- Added a byte-oriented score request while preserving the existing string-based API.
+
+## [0.38.0] - 2026-08-31
+
+### Worker-friendly browser workspace protocol
+
+- Added a framework-neutral workspace request/response boundary suitable for Worker message
+  handlers, covering loading, editing, rendering, analysis, playback, and export.
+- Preserved correlated request IDs and structured workspace errors across the message boundary.
+
+## [0.37.0] - 2026-08-31
+
+### Playback cursor synchronization
+
+- Added browser adapter helpers to resolve and select the active sounding event at a playback
+  time, while ignoring metronome events.
+- Included the current stable selection address in `WorkspaceSnapshot`.
+
+## [0.36.0] - 2026-08-31
+
+### Playback selection synchronization
+
+- Added stable source note addresses to sounding playback events, with `None` reserved for
+  metronome events and chord pitches sharing their source note address.
+- Added browser adapter support for forwarding playback-event selection through `SelectionStore`.
+
+## [0.35.0] - 2026-08-31
+
+### Multi-scale renderer budgets
+
+- Expanded the reproducible renderer benchmark to small, medium, and large score cases with
+  per-case layout latency, render latency, and SVG-size budgets.
+
+## [0.34.0] - 2026-08-31
+
+### Browser interchange diagnostics
+
+- Exposed structured MusicXML import and export reports through the browser workspace adapter,
+  including source-grounded diagnostic fields for host-provided repair and loss reporting.
+
+## [0.33.0] - 2026-08-31
+
+### Browser playback and export
+
+- Added MIDI loading, MusicXML export, playback-event generation, playback-position lookup,
+  and duration access to the browser adapter.
+
+## [0.32.0] - 2026-08-31
+
+### Browser workspace edit history
+
+- Added score JSON replacement with transactional layout preparation and undo/redo history to the
+  browser adapter.
+- Added `canUndo` and `canRedo` state queries for host controls.
+
+## [0.31.0] - 2026-08-31
+
+### Browser workspace diagnostics
+
+- Added typed `AcordeWorkspaceError` operation labels for parse, layout, render, metadata, and
+  analysis failures.
+- Made failed loads transactional so an invalid replacement does not discard the current score.
+
+## [0.30.0] - 2026-08-31
+
+### Virtualized browser rows
+
+- Added row-level SVG rendering to the browser adapter with revision/configuration-keyed caching
+  for virtualized long-score hosts.
+
+## [0.29.0] - 2026-08-31
+
+### Browser workspace caches
+
+- Added revision- and configuration-keyed adapter caches for layout, SVG, metadata, and analysis
+  results.
+- Exposed the workspace revision in snapshots for host-side invalidation and synchronization.
+
+## [0.28.0] - 2026-08-31
+
+### Browser workspace adapter
+
+- Added a dependency-free TypeScript adapter for the WASM parse, layout, render, metadata, and
+  analysis pipeline.
+- Added stable-address selection state synchronization for browser hosts.
+
+## [0.27.0] - 2026-08-31
+
+### Benchmark quality gate
+
+- Added `acorde benchmark --fail-on-mismatch` for using category-level benchmark mismatches as a
+  local or CI exit-status gate while preserving the JSON report.
+
+## [0.26.0] - 2026-08-31
+
+### Local benchmark CLI
+
+- Added `acorde benchmark` for running a local JSON manifest of score files against the analysis
+  benchmark suite and emitting machine-readable aggregate and failure reports.
+
+## [0.25.0] - 2026-08-31
+
+### Analysis benchmark suites
+
+- Added deterministic suite-level aggregation for case status, precision, recall, and explanation
+  completeness while preserving each case's failure details.
+
+## [0.24.0] - 2026-08-31
+
+### Analysis benchmark failure reports
+
+- Added typed category-level benchmark failures with expected, predicted, missing, and excess
+  counts, so benchmark reports identify the analysis categories requiring review.
+
+## [0.23.0] - 2026-08-31
+
+### Analysis benchmark contract
+
+- Added offline benchmark cases with hand-verified category expectations.
+- Added deterministic predicted counts plus precision, recall, and explanation-completeness
+  percentages for comparing analysis fixtures without filesystem or network access.
+
+## [0.22.0] - 2026-08-31
+
+### Explainable phrase analysis
+
+- Added deterministic repeated three-note interval motif detection with source spans.
+- Added conservative phrase-boundary results for measures ending in explicit rests.
+- The analysis result schema is now version `6`; new fields default to empty for older JSON.
+
+## [0.21.0] - 2026-08-31
+
+### Explainable SATB diagnostics
+
+- Added typed SATB diagnostics for voice crossing, wide spacing, and parallel perfect intervals.
+- Diagnostics include severity, confidence, stable note addresses, evidence, and rule IDs for
+  browser-side inspection and selection.
+- The analysis result schema is now version `5`; the new diagnostic field defaults to empty.
+
+## [0.20.0] - 2026-08-31
+
+### Explainable harmony analysis
+
+- Added typed cadence candidates for authentic, plagal, deceptive, and half-cadence transitions.
+- Added aligned voice-leading observations with explicit parallel-perfect detection and evidence.
+- The analysis result schema is now version `4`; new fields default to empty for older JSON.
+
+## [0.19.0] - 2026-08-31
+
+### Explainable analysis delivery
+
+- Added the `acorde analyze` CLI command and the WASM `analyze_score` entry point.
+- Added finite-batch and lazy streaming analysis APIs while keeping the result contract
+  deterministic and host-independent.
+
 ## [0.18.0] - 2026-08-31
 
 ### Explainable music analysis

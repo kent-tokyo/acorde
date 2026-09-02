@@ -1,7 +1,7 @@
 mod serialize;
 pub use serialize::{serialize_midi, serialize_midi_region};
 
-use crate::Error;
+use crate::{Error, MAX_INPUT_BYTES, MAX_MIDI_EVENTS};
 use acorde_core::{Clef, Duration, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature};
 use midly::{MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
 
@@ -9,10 +9,19 @@ const MAX_MEASURES: usize = 10_000;
 const MAX_PARTS: usize = 32;
 
 pub fn parse_midi(data: &[u8]) -> Result<Score, Error> {
+    if data.len() > MAX_INPUT_BYTES {
+        return Err(Error::TooLarge(data.len()));
+    }
     if data.is_empty() {
         return Err(Error::Empty);
     }
     let smf = Smf::parse(data).map_err(|e| Error::Midi(format!("{e}")))?;
+    let event_count = smf.tracks.iter().map(Vec::len).sum::<usize>();
+    if event_count > MAX_MIDI_EVENTS {
+        return Err(Error::Midi(format!(
+            "input exceeds {MAX_MIDI_EVENTS} MIDI events"
+        )));
+    }
 
     let ppq = match smf.header.timing {
         Timing::Metrical(tpq) => tpq.as_int() as u64,

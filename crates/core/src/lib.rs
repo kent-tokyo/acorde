@@ -12,14 +12,15 @@ pub use model::commands::{
     AddHairpinCmd, AddMeasureCmd, AddNoteCmd, AddPartCmd, AddPedalCmd, AddPitchCmd, AddStaffCmd,
     BatchCmd, Command, CommandStack, DeleteMeasureCmd, DeleteNoteCmd, DeletePartCmd,
     DeleteStaffCmd, NewScoreCmd, PasteRangeCmd, PasteVoiceCmd, RespellScoreCmd,
-    RespellScoreToKeyCmd, SetArpeggioCmd, SetBarlineCmd, SetChordSymbolCmd, SetClefCmd, SetCueCmd,
-    SetDynamicCmd, SetExpressionTextCmd, SetFingeringCmd, SetGraceCmd, SetGuitarTechniqueCmd,
-    SetKeySignatureCmd, SetLyricCmd, SetMetadataCmd, SetMidiInstrumentCmd, SetMultiRestCmd,
-    SetNavigationMarkCmd, SetNoteHeadCmd, SetOttavaCmd, SetPageBreakCmd, SetPartGroupCmd,
-    SetPartNameCmd, SetRehearsalMarkCmd, SetStemCmd, SetStringNumberCmd, SetSystemBreakCmd,
-    SetTechniqueTextCmd, SetTempoAtMeasureCmd, SetTempoCmd, SetTimeSignatureCmd, SetTransposeCmd,
-    SetTupletCmd, SetVoltaCmd, ToggleArticulationCmd, ToggleSlurCmd, ToggleTieCmd,
-    ToggleTrillLineCmd, command_key, command_label,
+    RespellScoreToKeyCmd, SetArpeggioCmd, SetBarlineCmd, SetChordSymbolCmd, SetClefCmd,
+    SetCrossStaffCmd, SetCueCmd, SetDurationCmd, SetDynamicCmd, SetExpressionTextCmd,
+    SetFingeringCmd, SetGlissandoCmd, SetGraceCmd, SetGuitarTechniqueCmd, SetKeySignatureCmd,
+    SetLyricCmd, SetMetadataCmd, SetMidiInstrumentCmd, SetMultiRestCmd, SetNavigationMarkCmd,
+    SetNoteHeadCmd, SetOttavaCmd, SetPageBreakCmd, SetPartGroupCmd, SetPartNameCmd,
+    SetRehearsalMarkCmd, SetStemCmd, SetStringNumberCmd, SetSystemBreakCmd, SetTechniqueTextCmd,
+    SetTempoAtMeasureCmd, SetTempoCmd, SetTimeSignatureCmd, SetTransposeCmd, SetTupletCmd,
+    SetVoltaCmd, ToggleArticulationCmd, ToggleSlurCmd, ToggleTieCmd, ToggleTrillLineCmd,
+    command_key, command_label,
 };
 pub use model::duration::Duration;
 pub use model::engine::{EngineHistory, ScoreEngine};
@@ -27,8 +28,9 @@ pub use model::gm::{drum_name, program_name};
 pub use model::harmony::{detect_chord, roman_numeral};
 pub use model::interval::{Interval, IntervalQuality};
 pub use model::notation::{
-    Articulation, Barline, BeamState, ChordSymbol, Clef, Dynamic, GuitarTechnique, HairpinKind,
-    KeySignature, Lyric, NoteHead, OttavaKind, TimeSignature, TupletInfo,
+    Articulation, Barline, BeamState, ChordSymbol, Clef, CrossStaff, Dynamic, GuitarTechnique,
+    HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind, StyledText, TextStyle, TimeSignature,
+    TupletInfo,
 };
 pub use model::pitch::{Pitch, Step};
 pub use model::playback::{

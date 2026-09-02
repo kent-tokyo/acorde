@@ -13,7 +13,10 @@ use crate::beams;
 use crate::geometry;
 use crate::glyphs::{self, f};
 use crate::tuplets;
-use crate::{AddressBounds, RenderError, RenderMetadata, SVG_CONTRACT_VERSION, SvgRenderOptions};
+use crate::{
+    AddressBounds, RenderAnnotation, RenderAnnotationError, RenderError, RenderMetadata,
+    SVG_CONTRACT_VERSION, SvgAnnotation, SvgRenderOptions,
+};
 
 const LEFT_MARGIN_U: f32 = 1.0;
 const RIGHT_MARGIN_U: f32 = 1.0;
@@ -339,6 +342,59 @@ pub(crate) fn build_svg_with_metadata(
     ))
 }
 
+pub(crate) fn collect_annotations(
+    score: &Score,
+    layout: &LayoutResult,
+    metadata: &RenderMetadata,
+    providers: &[&dyn RenderAnnotation],
+) -> Result<Vec<SvgAnnotation>, RenderAnnotationError> {
+    let mut ordered = providers.to_vec();
+    ordered.sort_by_key(|provider| provider.id());
+    let mut provider_ids = std::collections::BTreeSet::new();
+    let mut annotations = Vec::new();
+    for provider in ordered {
+        let provider_id = provider.id();
+        if provider_id.is_empty() {
+            return Err(RenderAnnotationError::EmptyProviderId);
+        }
+        if !provider_ids.insert(provider_id) {
+            return Err(RenderAnnotationError::DuplicateProviderId(
+                provider_id.into(),
+            ));
+        }
+        let marks = provider.annotate(score, layout, metadata);
+        let count = annotations.len().saturating_add(marks.len());
+        if count > crate::MAX_RENDER_ANNOTATIONS {
+            return Err(RenderAnnotationError::TooManyAnnotations { count });
+        }
+        annotations.extend(marks);
+    }
+    annotations.sort_by(|a, b| a.id.cmp(&b.id));
+    let mut ids = std::collections::BTreeSet::new();
+    for annotation in &annotations {
+        if annotation.id.is_empty() {
+            return Err(RenderAnnotationError::EmptyAnnotationId);
+        }
+        if !ids.insert(annotation.id.clone()) {
+            return Err(RenderAnnotationError::DuplicateAnnotationId(
+                annotation.id.clone(),
+            ));
+        }
+        if !annotation.x.is_finite() || !annotation.y.is_finite() {
+            return Err(RenderAnnotationError::NonFiniteCoordinate {
+                id: annotation.id.clone(),
+            });
+        }
+        if annotation.text.len() > crate::MAX_ANNOTATION_TEXT_BYTES {
+            return Err(RenderAnnotationError::AnnotationTextTooLarge {
+                id: annotation.id.clone(),
+                size: annotation.text.len(),
+            });
+        }
+    }
+    Ok(annotations)
+}
+
 fn validate_inputs(
     score: &Score,
     layout: &LayoutResult,
@@ -429,7 +485,8 @@ fn validate_inputs(
             | SpanMark::Ottava { start, end, .. }
             | SpanMark::Pedal { start, end }
             | SpanMark::Slur { start, end }
-            | SpanMark::TrillLine { start, end } => (start, end),
+            | SpanMark::TrillLine { start, end }
+            | SpanMark::Glissando { start, end } => (start, end),
         };
         if !valid_note(
             start.part,
@@ -1080,7 +1137,8 @@ fn render_all_spans(
             | SpanMark::Ottava { start, end, .. }
             | SpanMark::Pedal { start, end }
             | SpanMark::Slur { start, end }
-            | SpanMark::TrillLine { start, end } => (start, end),
+            | SpanMark::TrillLine { start, end }
+            | SpanMark::Glissando { start, end } => (start, end),
         };
         let (Some(&(x1, y1, up1, row1)), Some(&(x2, y2, up2, row2))) = (
             points.get(&(
@@ -1100,6 +1158,7 @@ fn render_all_spans(
             SpanMark::Pedal { .. } => "pedal",
             SpanMark::Slur { .. } => "slur",
             SpanMark::TrillLine { .. } => "trill-line",
+            SpanMark::Glissando { .. } => "glissando",
         };
         if interactive {
             let _ = write!(
@@ -1150,7 +1209,7 @@ fn render_all_spans(
                     f(0.08 * space)
                 );
             }
-            SpanMark::Slur { .. } | SpanMark::TrillLine { .. } => {
+            SpanMark::Slur { .. } | SpanMark::TrillLine { .. } | SpanMark::Glissando { .. } => {
                 let y = if up1 || up2 {
                     y1.min(y2) - 1.0 * space
                 } else {
@@ -1166,6 +1225,8 @@ fn render_all_spans(
                     r#"<path class="{}" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
                     if matches!(span, SpanMark::Slur { .. }) {
                         "acorde-slur"
+                    } else if matches!(span, SpanMark::Glissando { .. }) {
+                        "acorde-glissando"
                     } else {
                         "acorde-trill-line"
                     },
@@ -1355,6 +1416,9 @@ fn render_span_segment(
         SpanMark::Slur { .. } => render_curve(body, "acorde-slur", x1, y1, x2, y1, up, space),
         SpanMark::TrillLine { .. } => {
             render_curve(body, "acorde-trill-line", x1, y1, x2, y1, up, space)
+        }
+        SpanMark::Glissando { .. } => {
+            render_curve(body, "acorde-glissando", x1, y1, x2, y1, up, space)
         }
         SpanMark::Pedal { .. } => {
             let y = y1 + 2.0 * space;
@@ -1688,7 +1752,7 @@ fn write_annotation_text(
     );
 }
 
-fn escape_xml(value: &str) -> String {
+pub(crate) fn escape_xml(value: &str) -> String {
     value
         .chars()
         .map(|c| match c {

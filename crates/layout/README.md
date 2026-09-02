@@ -17,4 +17,6 @@ let layout = compute_layout(&score, &LayoutConfig::default());
 LayoutConfig supports measures_per_row, first_row_measures, and concert_pitch. Consumers such as
 SVG or Canvas renderers own pixel coordinates.
 
+Layout input and resource-limit rules are documented in the [security contract](../../docs/security/threat-model.md).
+
 [API documentation](https://docs.rs/acorde-layout) · [Repository](https://github.com/kent-tokyo/acorde)

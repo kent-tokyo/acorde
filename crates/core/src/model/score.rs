@@ -1,8 +1,9 @@
 use super::{
     duration::Duration,
     notation::{
-        Articulation, Barline, BeamState, ChordSymbol, Clef, Dynamic, GuitarTechnique, HairpinKind,
-        KeySignature, Lyric, NoteHead, OttavaKind, TimeSignature, TupletInfo,
+        Articulation, Barline, BeamState, ChordSymbol, Clef, CrossStaff, Dynamic, GuitarTechnique,
+        HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind, StyledText, TimeSignature,
+        TupletInfo,
     },
     pitch::Pitch,
 };
@@ -82,6 +83,9 @@ pub struct Score {
     pub parts: Vec<Part>,
     #[serde(default)]
     pub part_groups: Vec<PartGroup>,
+    /// Typed score-level text annotations retained independently of legacy text fields.
+    #[serde(default)]
+    pub texts: Vec<StyledText>,
 }
 
 impl Default for Score {
@@ -98,6 +102,7 @@ impl Default for Score {
             settings: ScoreSettings::default(),
             parts: vec![part],
             part_groups: Vec::new(),
+            texts: Vec::new(),
         }
     }
 }
@@ -177,6 +182,7 @@ impl Score {
             settings: ScoreSettings::default(),
             parts: Vec::new(),
             part_groups: Vec::new(),
+            texts: Vec::new(),
         };
 
         match kind {
@@ -305,6 +311,7 @@ impl Score {
             settings: self.settings.clone(),
             parts: vec![part],
             part_groups: Vec::new(),
+            texts: self.texts.clone(),
         })
     }
 
@@ -345,6 +352,7 @@ impl Score {
             settings: self.settings.clone(),
             parts,
             part_groups: Vec::new(),
+            texts: self.texts.clone(),
         }
     }
 }
@@ -537,6 +545,8 @@ pub struct Measure {
     /// Expression / performance text ("dolce", "espressivo", "con fuoco", etc.).
     #[serde(default)]
     pub expression_text: Option<String>,
+    #[serde(default)]
+    pub texts: Vec<StyledText>,
     /// When ≥ 2, this measure is displayed as a multi-measure rest spanning N measures.
     #[serde(default)]
     pub multi_rest_count: Option<u8>,
@@ -577,6 +587,7 @@ impl Measure {
             rehearsal: None,
             navigation: None,
             expression_text: None,
+            texts: Vec::new(),
             multi_rest_count: None,
             system_break: false,
             page_break: false,
@@ -636,6 +647,12 @@ pub struct Note {
     /// Technique/style instruction attached to this note ("pizz.", "arco", "con sord.", etc.).
     #[serde(default)]
     pub technique_text: Option<String>,
+    #[serde(default)]
+    pub glissando_start: bool,
+    #[serde(default)]
+    pub glissando_end: bool,
+    #[serde(default)]
+    pub cross_staff: Option<CrossStaff>,
     /// Left-hand fingering number (0 = open / thumb, 1–5 = fingers).
     #[serde(default)]
     pub fingering: Option<u8>,
@@ -687,6 +704,9 @@ impl Note {
             slur_end: false,
             arpeggiate: None,
             technique_text: None,
+            glissando_start: false,
+            glissando_end: false,
+            cross_staff: None,
             fingering: None,
             string_number: None,
             note_head: NoteHead::Normal,
@@ -725,6 +745,9 @@ impl Note {
             slur_end: false,
             arpeggiate: None,
             technique_text: None,
+            glissando_start: false,
+            glissando_end: false,
+            cross_staff: None,
             fingering: None,
             string_number: None,
             note_head: NoteHead::Normal,

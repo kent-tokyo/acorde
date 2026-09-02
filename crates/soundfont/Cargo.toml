@@ -1,20 +1,19 @@
 [package]
-name = "acorde-analysis"
+name = "acorde-soundfont"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 homepage.workspace = true
-documentation = "https://docs.rs/acorde-analysis"
+documentation = "https://docs.rs/acorde-soundfont"
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-description = "Deterministic, explainable music analysis for acorde scores"
+description = "Bounded, provider-neutral SoundFont playback boundary for acorde"
 readme = "README.md"
-keywords = ["music", "analysis", "chords", "notation"]
+keywords = ["music", "soundfont", "sf2", "sf3", "playback"]
 categories = ["multimedia::audio"]
 
 [dependencies]
 acorde-core = { path = "../core", version = "1.0.1" }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
 thiserror = "2"
+

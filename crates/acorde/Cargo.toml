@@ -20,8 +20,10 @@ midi = ["acorde-io/midi"]
 abc = ["acorde-io/abc"]
 mscz = ["acorde-io/mscz"]
 mei = ["acorde-io/mei"]
+soundfont = ["dep:acorde-soundfont"]
 
 [dependencies]
-acorde-core   = { path = "../core", version = "0.18.0" }
-acorde-io     = { path = "../io", version = "0.18.0", default-features = false }
-acorde-layout = { path = "../layout", version = "0.18.0" }
+acorde-core   = { path = "../core", version = "1.0.1" }
+acorde-io     = { path = "../io", version = "1.0.1", default-features = false }
+acorde-layout = { path = "../layout", version = "1.0.1" }
+acorde-soundfont = { path = "../soundfont", version = "1.0.1", optional = true }

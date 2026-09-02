@@ -61,6 +61,10 @@ pub enum SpanMark {
         start: NoteAddr,
         end: NoteAddr,
     },
+    Glissando {
+        start: NoteAddr,
+        end: NoteAddr,
+    },
 }
 
 /// One horizontal row (system) of measures.

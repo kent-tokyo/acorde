@@ -17,4 +17,6 @@ engine.undo()?;
 The current Score JSON schema version is 1. Add acorde-io for format conversion and acorde-layout
 for renderer-independent layout.
 
+Security invariants and resource-limit ownership are documented in the [security contract](../../docs/security/threat-model.md).
+
 [API documentation](https://docs.rs/acorde-core) · [Repository](https://github.com/kent-tokyo/acorde)

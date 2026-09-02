@@ -34,9 +34,13 @@ mod tuplets;
 use acorde_core::Score;
 use acorde_layout::{LayoutConfig, LayoutResult, compute_layout};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 /// Version of the browser-facing [`RenderMetadata`] contract.
 pub const SVG_CONTRACT_VERSION: u32 = 1;
+
+const MAX_RENDER_ANNOTATIONS: usize = 10_000;
+const MAX_ANNOTATION_TEXT_BYTES: usize = 16 * 1024;
 
 /// Options controlling SVG output. All fields have defaults — safe to deserialize from
 /// partial JSON (e.g. `"{}"` from a WASM caller that only wants defaults).
@@ -87,6 +91,69 @@ pub struct AddressBounds {
     pub height: f32,
 }
 
+/// A host-provided, non-semantic annotation to place on top of rendered SVG.
+///
+/// Coordinates are in the SVG viewport's pixel coordinate system. The renderer does not
+/// interpret `id` or `text`; this keeps domain-specific analysis outside `acorde-render-svg`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SvgAnnotation {
+    /// Stable identifier within one rendered score.
+    pub id: String,
+    pub x: f32,
+    pub y: f32,
+    pub text: String,
+}
+
+/// Extension point for deterministic, host-defined SVG annotations.
+pub trait RenderAnnotation {
+    /// Stable provider identifier. Providers are executed in lexicographic ID order.
+    fn id(&self) -> &str;
+
+    /// Return annotations using the already-computed score, layout, and render metadata.
+    fn annotate(
+        &self,
+        score: &Score,
+        layout: &LayoutResult,
+        metadata: &RenderMetadata,
+    ) -> Vec<SvgAnnotation>;
+}
+
+/// Errors returned while validating host-provided render annotations.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RenderAnnotationError {
+    EmptyProviderId,
+    DuplicateProviderId(String),
+    EmptyAnnotationId,
+    DuplicateAnnotationId(String),
+    NonFiniteCoordinate { id: String },
+    TooManyAnnotations { count: usize },
+    AnnotationTextTooLarge { id: String, size: usize },
+}
+
+impl fmt::Display for RenderAnnotationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::EmptyProviderId => write!(f, "render annotation provider id is empty"),
+            Self::DuplicateProviderId(id) => {
+                write!(f, "duplicate render annotation provider: {id}")
+            }
+            Self::EmptyAnnotationId => write!(f, "render annotation id is empty"),
+            Self::DuplicateAnnotationId(id) => write!(f, "duplicate render annotation: {id}"),
+            Self::NonFiniteCoordinate { id } => {
+                write!(f, "render annotation {id} has a non-finite coordinate")
+            }
+            Self::TooManyAnnotations { count } => {
+                write!(f, "render annotation count exceeds limit: {count}")
+            }
+            Self::AnnotationTextTooLarge { id, size } => {
+                write!(f, "render annotation {id} text exceeds limit: {size} bytes")
+            }
+        }
+    }
+}
+
+impl std::error::Error for RenderAnnotationError {}
+
 impl Default for SvgRenderOptions {
     fn default() -> Self {
         Self {
@@ -117,6 +184,8 @@ pub enum RenderError {
     UnsupportedClef,
     /// A pitch's `alter` is outside the supported range (`-2..=2`: double-flat..double-sharp).
     UnsupportedAccidental { alter: i8 },
+    /// Host-provided annotation validation failed.
+    Annotation(RenderAnnotationError),
 }
 
 impl std::fmt::Display for RenderError {
@@ -136,6 +205,7 @@ impl std::fmt::Display for RenderError {
                     "unsupported accidental alter={alter} (supported range is -2..=2)"
                 )
             }
+            RenderError::Annotation(error) => write!(f, "invalid render annotation: {error}"),
         }
     }
 }
@@ -167,6 +237,45 @@ pub fn render_svg_with_layout(
     options: &SvgRenderOptions,
 ) -> Result<String, RenderError> {
     render::build_svg(score, layout, options)
+}
+
+/// Render a score and append deterministic, host-provided annotations.
+///
+/// Annotation providers are sorted by [`RenderAnnotation::id`]. The returned marks are sorted by
+/// their stable annotation IDs and serialized with XML escaping; arbitrary SVG fragments are not
+/// accepted. An empty provider list has the same output as [`render_svg_with_layout`].
+pub fn render_svg_with_annotations(
+    score: &Score,
+    layout: &LayoutResult,
+    options: &SvgRenderOptions,
+    providers: &[&dyn RenderAnnotation],
+) -> Result<String, RenderError> {
+    let (mut svg, metadata) = render::build_svg_with_metadata(score, layout, options)?;
+    let annotations = render::collect_annotations(score, layout, &metadata, providers)
+        .map_err(RenderError::Annotation)?;
+    if annotations.is_empty() {
+        return Ok(svg);
+    }
+    let body = annotations
+        .iter()
+        .map(|annotation| {
+            format!(
+                r#"<text class="acorde-render-annotation" data-acorde-kind="render-annotation" data-acorde-annotation-id="{}" x="{}" y="{}">{}</text>"#,
+                render::escape_xml(&annotation.id),
+                annotation.x,
+                annotation.y,
+                render::escape_xml(&annotation.text),
+            )
+        })
+        .collect::<String>();
+    let marker = "</g></svg>";
+    let insertion = svg
+        .rfind(marker)
+        .ok_or_else(|| RenderError::InvalidLayout {
+            reason: "renderer output has no score root".into(),
+        })?;
+    svg.insert_str(insertion, &body);
+    Ok(svg)
 }
 
 /// Render one system row from a precomputed layout. The returned SVG contains only that row

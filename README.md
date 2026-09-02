@@ -1,6 +1,6 @@
 # acorde
 
-Platform-agnostic music score library for Rust and WebAssembly (v0.18.0).
+Platform-agnostic music score library for Rust and WebAssembly (v1.0.1).
 
 acorde provides a serializable score model, undoable commands, format I/O, logical layout,
 deterministic SVG rendering, playback events, and WASM bindings. Core libraries are synchronous,
@@ -16,7 +16,7 @@ UI-free, and do not access the filesystem.
 | `acorde-render-svg` | Pure Rust/WASM SVG renderer; depends on core and layout |
 | `acorde-wasm` | JavaScript bindings for I/O, editing, layout, and SVG |
 | `acorde-cli` | File-based conversion and inspection commands |
-| `acorde-analysis` | Deterministic, explainable chord, interval, and key analysis |
+| `acorde-analysis` | Deterministic, explainable harmony and SATB analysis |
 | `acorde` | Umbrella crate re-exporting core, io, and layout |
 
 ```text
@@ -29,6 +29,13 @@ rendering.
 
 See the [notation coverage matrix](docs/notation-coverage.md) for the supported interchange
 slices and known information-loss boundaries.
+The current conservative capability inventory is tracked in the [scorecard](docs/scorecard.md).
+Security boundaries and resource-limit ownership are documented in the [security contract](docs/security/threat-model.md).
+
+The optional `soundfont` feature exposes `acorde::soundfont`, a bounded SF2/SF3
+metadata and provider-neutral note lifecycle boundary. It consumes unchanged
+`PlaybackEvent` values; sample decoding, synthesis, and licensed asset ownership
+remain with the application renderer.
 
 Interchange APIs also provide typed `ImportReport` and `ExportReport` wrappers for structured
 conversion diagnostics.
@@ -37,14 +44,15 @@ conversion diagnostics.
 
 ```toml
 [dependencies]
-acorde = "0.18"
-acorde-render-svg = "0.18"
+acorde = "1.0.1"
+acorde-render-svg = "1.0.1"
 ```
 
-Optional I/O features are disabled by default in `acorde` and `acorde-io`:
+The default I/O features are `musicxml` and `midi`; enable the optional `abc`, `mscz`, or `mei`
+features when needed:
 
 ```toml
-acorde = { version = "0.11", features = ["abc", "mscz", "mei"] }
+acorde = { version = "1.0.1", features = ["abc", "mscz", "mei"] }
 ```
 
 ```rust
@@ -64,6 +72,7 @@ let score: &Score = engine.score();
 The `abc` feature adds ABC parse/serialize; `mscz` adds MuseScore `.mscz`/`.mscx` parsing; `mei`
 adds the documented MEI subset import/export boundary.
 Parsers accept memory buffers and return typed errors. They do not read files.
+MusicXML voice numbers 1–4 are preserved in `Measure.voices` and through MusicXML round-trips.
 
 ## SVG and browser API
 
@@ -71,8 +80,9 @@ Parsers accept memory buffers and return typed errors. They do not read files.
 `render_svg_metadata`. It emits deterministic SVG with optional `data-note-addr` hooks and
 returns errors for unsupported clefs, accidentals, layouts, rows, or render options.
 
-The WASM package exposes the same pipeline plus `ScoreEngine`, score diff/patch, validation,
-playback, and theory helpers. See [the browser contract](docs/browser-rendering.md) and the
+Playback events include stable source note addresses for synchronizing audio cursors with
+notation selection. The WASM package exposes the same pipeline plus `ScoreEngine`, score diff/patch, validation,
+playback, theory helpers, and explainable score analysis through `analyze_score`. See [the browser contract](docs/browser-rendering.md) and the
 [browser fixture](examples/browser/README.md).
 
 ## CLI
@@ -82,6 +92,9 @@ acorde convert input.mid output.musicxml
 acorde info input.musicxml
 acorde validate input.musicxml
 acorde extract --part 0 input.musicxml part.musicxml
+acorde transpose --semitones 2 input.musicxml transposed.musicxml
+acorde normalize input.musicxml normalized.musicxml
+acorde export-report input.musicxml exported.musicxml
 ```
 
 The CLI supports `.musicxml`, `.mxl`, `.mid`/`.midi`, `.mscz`, and `.mscx` input. Conversion

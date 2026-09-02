@@ -1,10 +1,12 @@
 use crate::Error;
 use acorde_core::Score;
+use std::collections::HashSet;
 use std::io::{Cursor, Read};
 use zip::ZipArchive;
 
 const MAX_MXL_COMPRESSED: usize = 32 * 1024 * 1024; // 32 MB
 const MAX_MXL_DECOMPRESSED: u64 = 32 * 1024 * 1024; // 32 MB (zip-bomb guard)
+const MAX_MXL_ENTRIES: usize = 1024;
 
 pub fn parse_mxl(data: &[u8]) -> Result<Score, Error> {
     if data.len() > MAX_MXL_COMPRESSED {
@@ -13,6 +15,26 @@ pub fn parse_mxl(data: &[u8]) -> Result<Score, Error> {
     let cursor = Cursor::new(data);
     let mut archive =
         ZipArchive::new(cursor).map_err(|e| Error::Zip(format!("invalid MXL zip: {e}")))?;
+    if archive.len() > MAX_MXL_ENTRIES {
+        return Err(Error::Zip("too many MXL archive entries".into()));
+    }
+    let mut entry_names = HashSet::new();
+    let total_uncompressed = (0..archive.len()).try_fold(0_u64, |total, index| {
+        let entry = archive
+            .by_index(index)
+            .map_err(|e| Error::Zip(format!("failed to inspect MXL entry: {e}")))?;
+        let name = entry.name().to_string();
+        validate_zip_path(&name)?;
+        if !entry_names.insert(name.clone()) {
+            return Err(Error::Zip(format!("duplicate MXL entry: '{name}'")));
+        }
+        total
+            .checked_add(entry.size())
+            .ok_or(Error::TooLarge(usize::MAX))
+    })?;
+    if total_uncompressed > MAX_MXL_DECOMPRESSED {
+        return Err(Error::TooLarge(total_uncompressed as usize));
+    }
 
     let xml = if let Some(path) = read_container_rootfile(&mut archive) {
         validate_zip_path(&path)?;
@@ -25,20 +47,26 @@ pub fn parse_mxl(data: &[u8]) -> Result<Score, Error> {
 }
 
 fn validate_zip_path(path: &str) -> Result<(), Error> {
-    if path.starts_with('/')
-        || path.starts_with("..")
-        || path.contains("/../")
-        || path.ends_with("/..")
-    {
+    let normalized = path.replace('\\', "/");
+    if normalized.starts_with('/') || normalized.split('/').any(|part| part == "..") {
         return Err(Error::Zip(format!("invalid entry path: '{path}'")));
     }
     Ok(())
 }
 
 fn read_container_rootfile(archive: &mut ZipArchive<Cursor<&[u8]>>) -> Option<String> {
-    let mut entry = archive.by_name("META-INF/container.xml").ok()?;
+    let entry = archive.by_name("META-INF/container.xml").ok()?;
+    if entry.size() > MAX_MXL_DECOMPRESSED {
+        return None;
+    }
     let mut buf = String::new();
-    entry.read_to_string(&mut buf).ok()?;
+    entry
+        .take(MAX_MXL_DECOMPRESSED + 1)
+        .read_to_string(&mut buf)
+        .ok()?;
+    if buf.len() as u64 > MAX_MXL_DECOMPRESSED {
+        return None;
+    }
     let tag = "rootfile full-path=\"";
     let start = buf.find(tag)? + tag.len();
     let end = buf[start..].find('"')? + start;
@@ -49,11 +77,20 @@ fn read_entry(archive: &mut ZipArchive<Cursor<&[u8]>>, name: &str) -> Result<Str
     let entry = archive
         .by_name(name)
         .map_err(|_| Error::Zip(format!("entry '{name}' not found")))?;
+    if entry.size() > MAX_MXL_DECOMPRESSED {
+        return Err(Error::Zip(format!(
+            "entry '{name}' too large ({} bytes)",
+            entry.size()
+        )));
+    }
     let mut buf = String::new();
     entry
-        .take(MAX_MXL_DECOMPRESSED)
+        .take(MAX_MXL_DECOMPRESSED + 1)
         .read_to_string(&mut buf)
         .map_err(|e| Error::Zip(format!("failed to read '{name}': {e}")))?;
+    if buf.len() as u64 > MAX_MXL_DECOMPRESSED {
+        return Err(Error::TooLarge(buf.len()));
+    }
     Ok(buf)
 }
 
@@ -96,5 +133,13 @@ mod tests {
     #[test]
     fn garbage_bytes_returns_err() {
         assert!(parse_mxl(b"not a zip file at all!!!").is_err());
+    }
+
+    #[test]
+    fn archive_paths_reject_traversal_and_backslashes() {
+        assert!(validate_zip_path("../score.xml").is_err());
+        assert!(validate_zip_path(r"folder\..\score.xml").is_err());
+        assert!(validate_zip_path("/absolute/score.xml").is_err());
+        assert!(validate_zip_path("scores/score.xml").is_ok());
     }
 }

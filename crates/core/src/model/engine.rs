@@ -1,9 +1,11 @@
 use super::change_hint::{ChangeHint, ChangeScope};
 use super::commands::{
     AddStaffCmd, Command, CommandStack, DeleteStaffCmd, PasteRangeCmd, PasteVoiceCmd,
-    RespellScoreCmd, RespellScoreToKeyCmd, SetArpeggioCmd, SetCueCmd, SetNoteHeadCmd,
-    SetPartGroupCmd, SetStemCmd, SetTupletCmd, ToggleSlurCmd, ToggleTrillLineCmd, command_hint,
+    RespellScoreCmd, RespellScoreToKeyCmd, SetArpeggioCmd, SetCueCmd, SetDurationCmd,
+    SetNoteHeadCmd, SetPartGroupCmd, SetStemCmd, SetTupletCmd, ToggleSlurCmd, ToggleTrillLineCmd,
+    command_hint,
 };
+use super::duration::Duration;
 use super::notation::{Clef, NoteHead, TupletInfo};
 use super::score::PartGroup;
 use super::score::{Note, NoteAddr, Score};
@@ -305,6 +307,24 @@ impl ScoreEngine {
             voice_index: addr.voice,
             note_index: addr.note,
             stem_up,
+        }))
+    }
+
+    /// Set the duration and dot count on an existing note (undo-able).
+    pub fn set_duration(
+        &mut self,
+        addr: NoteAddr,
+        duration: Duration,
+        dot_count: u8,
+    ) -> Result<ChangeHint, Error> {
+        self.apply(Command::SetDuration(SetDurationCmd {
+            part_index: addr.part,
+            staff_index: addr.staff,
+            measure_index: addr.measure,
+            voice: addr.voice,
+            note_index: addr.note,
+            duration,
+            dot_count,
         }))
     }
 

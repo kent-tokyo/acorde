@@ -1,6 +1,7 @@
 use acorde_core::Score;
 use acorde_io::ImportReport;
 use clap::{Parser, Subcommand};
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
@@ -37,6 +38,22 @@ enum Commands {
         /// Input file (.musicxml, .mxl, .mid, .abc, .mscz, .mscx, .mei)
         input: PathBuf,
     },
+    /// Analyze chords, melodic intervals, and key candidates as JSON
+    Analyze {
+        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx)
+        input: PathBuf,
+    },
+    /// Run a local analysis benchmark manifest and print its JSON report
+    Benchmark {
+        /// Manifest JSON containing benchmark cases and expected category counts
+        manifest: PathBuf,
+        /// Exit with status 1 when any benchmark case has a category mismatch
+        #[arg(long)]
+        fail_on_mismatch: bool,
+        /// Expected corpus fingerprint; exits 1 when manifest or fixture bytes drift
+        #[arg(long)]
+        expected_fingerprint: Option<String>,
+    },
     /// Extract a single part from a score
     Extract {
         /// Input file (.musicxml, .mxl, .mid, .midi)
@@ -47,6 +64,30 @@ enum Commands {
         #[arg(short, long)]
         part: usize,
     },
+    /// Transpose every pitched note and key signature by semitones
+    Transpose {
+        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx)
+        input: PathBuf,
+        /// Output file (.musicxml, .mid, .midi)
+        output: PathBuf,
+        /// Semitones to shift (negative values transpose down)
+        #[arg(short, long)]
+        semitones: i8,
+    },
+    /// Parse, structurally validate, and rewrite a score in canonical output form
+    Normalize {
+        /// Input score file
+        input: PathBuf,
+        /// Canonical output file (.musicxml, .mid, .midi)
+        output: PathBuf,
+    },
+    /// Export a score and print machine-readable conversion diagnostics
+    ExportReport {
+        /// Input score file
+        input: PathBuf,
+        /// Output file (.musicxml, .mid, .midi)
+        output: PathBuf,
+    },
 }
 
 fn main() {
@@ -56,11 +97,24 @@ fn main() {
         Commands::Info { input } => cmd_info(input),
         Commands::Validate { input } => cmd_validate(input),
         Commands::Report { input } => cmd_report(input),
+        Commands::Analyze { input } => cmd_analyze(input),
+        Commands::Benchmark {
+            manifest,
+            fail_on_mismatch,
+            expected_fingerprint,
+        } => cmd_benchmark(manifest, *fail_on_mismatch, expected_fingerprint.as_deref()),
         Commands::Extract {
             input,
             output,
             part,
         } => cmd_extract(input, output, *part),
+        Commands::Transpose {
+            input,
+            output,
+            semitones,
+        } => cmd_transpose(input, output, *semitones),
+        Commands::Normalize { input, output } => cmd_normalize(input, output),
+        Commands::ExportReport { input, output } => cmd_export_report(input, output),
     };
     if let Err(e) = result {
         eprintln!("error: {e}");
@@ -86,6 +140,16 @@ fn parse_score(path: &Path) -> Result<Score, String> {
         }
         "mxl" => acorde_io::parse_mxl(&data).map_err(|e| e.to_string()),
         "mid" | "midi" => acorde_io::parse_midi(&data).map_err(|e| e.to_string()),
+        "abc" => {
+            let text = String::from_utf8(data)
+                .map_err(|e| format!("invalid UTF-8 in '{}': {e}", path.display()))?;
+            acorde_io::parse_abc(&text).map_err(|e| e.to_string())
+        }
+        "mei" => {
+            let text = String::from_utf8(data)
+                .map_err(|e| format!("invalid UTF-8 in '{}': {e}", path.display()))?;
+            acorde_io::parse_mei(&text).map_err(|e| e.to_string())
+        }
         "mscz" => acorde_io::parse_mscz(&data).map_err(|e| e.to_string()),
         "mscx" => {
             let xml = String::from_utf8(data)
@@ -133,6 +197,144 @@ fn cmd_report(input: &Path) -> Result<(), String> {
         .map_err(|e| format!("report serialization failed: {e}"))?;
     println!("{json}");
     Ok(())
+}
+
+fn cmd_analyze(input: &Path) -> Result<(), String> {
+    let score = parse_score(input)?;
+    let analysis = acorde_analysis::analyze_score(&score);
+    let json = serde_json::to_string_pretty(&analysis)
+        .map_err(|e| format!("analysis serialization failed: {e}"))?;
+    println!("{json}");
+    Ok(())
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct BenchmarkManifest {
+    schema_version: u32,
+    corpus_id: String,
+    corpus_version: String,
+    license: String,
+    cases: Vec<BenchmarkManifestCase>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct BenchmarkManifestCase {
+    name: String,
+    input: PathBuf,
+    coverage: Vec<String>,
+    provenance: String,
+    #[serde(default)]
+    expected: acorde_analysis::BenchmarkExpectation,
+}
+
+#[derive(Debug, Serialize)]
+struct BenchmarkCorpusMetadata {
+    schema_version: u32,
+    corpus_id: String,
+    corpus_version: String,
+    license: String,
+    fingerprint: String,
+    cases: Vec<BenchmarkCorpusCaseMetadata>,
+}
+
+#[derive(Debug, Serialize)]
+struct BenchmarkCorpusCaseMetadata {
+    name: String,
+    coverage: Vec<String>,
+    provenance: String,
+}
+
+#[derive(Debug, Serialize)]
+struct BenchmarkOutput {
+    corpus: BenchmarkCorpusMetadata,
+    report: acorde_analysis::BenchmarkSuiteReport,
+}
+
+fn cmd_benchmark(
+    manifest: &Path,
+    fail_on_mismatch: bool,
+    expected_fingerprint: Option<&str>,
+) -> Result<(), String> {
+    let text = std::fs::read_to_string(manifest)
+        .map_err(|e| format!("cannot read '{}': {e}", manifest.display()))?;
+    let manifest_data: BenchmarkManifest = serde_json::from_str(&text)
+        .map_err(|e| format!("invalid benchmark manifest '{}': {e}", manifest.display()))?;
+    let base_dir = manifest.parent().unwrap_or_else(|| Path::new("."));
+    let fingerprint = benchmark_fingerprint(&manifest_data, base_dir)?;
+    let mut scores = Vec::with_capacity(manifest_data.cases.len());
+    for case in &manifest_data.cases {
+        scores.push(parse_score(&base_dir.join(&case.input))?);
+    }
+    let cases: Vec<_> = manifest_data
+        .cases
+        .iter()
+        .zip(scores.iter())
+        .map(|(case, score)| acorde_analysis::BenchmarkCase {
+            name: &case.name,
+            score,
+            expected: case.expected,
+        })
+        .collect();
+    let report = acorde_analysis::run_benchmark_suite(&cases);
+    drop(cases);
+    let output = BenchmarkOutput {
+        corpus: BenchmarkCorpusMetadata {
+            schema_version: manifest_data.schema_version,
+            corpus_id: manifest_data.corpus_id,
+            corpus_version: manifest_data.corpus_version,
+            license: manifest_data.license,
+            fingerprint,
+            cases: manifest_data
+                .cases
+                .into_iter()
+                .map(|case| BenchmarkCorpusCaseMetadata {
+                    name: case.name,
+                    coverage: case.coverage,
+                    provenance: case.provenance,
+                })
+                .collect(),
+        },
+        report,
+    };
+    if let Some(expected) = expected_fingerprint
+        && expected != output.corpus.fingerprint
+    {
+        return Err(format!(
+            "benchmark fingerprint mismatch: expected '{expected}', found '{}'",
+            output.corpus.fingerprint
+        ));
+    }
+    let failed_case_count = output.report.failed_case_count;
+    let json = serde_json::to_string_pretty(&output)
+        .map_err(|e| format!("benchmark serialization failed: {e}"))?;
+    println!("{json}");
+    if fail_on_mismatch && failed_case_count > 0 {
+        return Err(format!(
+            "benchmark failed: {} of {} case(s) contain mismatches",
+            failed_case_count, output.report.case_count
+        ));
+    }
+    Ok(())
+}
+
+fn benchmark_fingerprint(manifest: &BenchmarkManifest, base_dir: &Path) -> Result<String, String> {
+    let manifest_bytes = serde_json::to_vec(manifest)
+        .map_err(|e| format!("benchmark manifest serialization failed: {e}"))?;
+    let mut hash = 0xcbf29ce484222325_u64;
+    for byte in manifest_bytes {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    for case in &manifest.cases {
+        let input_path = base_dir.join(&case.input);
+        let bytes = std::fs::read(&input_path)
+            .map_err(|e| format!("cannot read '{}': {e}", input_path.display()))?;
+        for byte in bytes {
+            hash ^= u64::from(byte);
+            hash = hash.wrapping_mul(0x100000001b3);
+        }
+    }
+    Ok(format!("fnv1a64-{hash:016x}"))
 }
 
 // ── convert ───────────────────────────────────────────────────────────────────
@@ -315,5 +517,100 @@ fn cmd_extract(input: &Path, output: &Path, part_index: usize) -> Result<(), Str
     })?;
     write_score(&extracted, output)?;
     println!("extracted part {} to '{}'", part_index, output.display());
+    Ok(())
+}
+
+fn cmd_transpose(input: &Path, output: &Path, semitones: i8) -> Result<(), String> {
+    let score = parse_score(input)?;
+    let transposed = acorde_core::transpose(&score, semitones);
+    write_score(&transposed, output)?;
+    println!(
+        "transposed {} semitone(s) to '{}'",
+        semitones,
+        output.display()
+    );
+    Ok(())
+}
+
+fn cmd_normalize(input: &Path, output: &Path) -> Result<(), String> {
+    let score = parse_score(input)?;
+    let validation = acorde_core::validate(&score);
+    if !validation.errors.is_empty() {
+        return Err(format!(
+            "cannot normalize structurally invalid score: {} error(s)",
+            validation.errors.len()
+        ));
+    }
+    write_score(&score, output)?;
+    println!("normalized '{}' to '{}'", input.display(), output.display());
+    Ok(())
+}
+
+#[derive(Debug, Serialize)]
+struct ExportReportSummary {
+    schema_version: u32,
+    format: String,
+    output_path: String,
+    byte_count: usize,
+    warning_count: usize,
+    error_count: usize,
+    loss_count: usize,
+    diagnostics: Vec<acorde_io::Diagnostic>,
+}
+
+fn cmd_export_report(input: &Path, output: &Path) -> Result<(), String> {
+    let score = parse_score(input)?;
+    let ext = output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let (format, bytes, diagnostics, schema_version) = match ext.as_str() {
+        "xml" | "musicxml" => {
+            let report =
+                acorde_io::serialize_musicxml_with_report(&score).map_err(|e| e.to_string())?;
+            (
+                report.format,
+                report.output.into_bytes(),
+                report.diagnostics,
+                report.schema_version,
+            )
+        }
+        "mid" | "midi" => {
+            let report =
+                acorde_io::serialize_midi_with_report(&score).map_err(|e| e.to_string())?;
+            (
+                report.format,
+                report.output,
+                report.diagnostics,
+                report.schema_version,
+            )
+        }
+        other => return Err(format!("unsupported output format: '.{other}'")),
+    };
+    let byte_count = bytes.len();
+    std::fs::write(output, bytes)
+        .map_err(|e| format!("cannot write '{}': {e}", output.display()))?;
+    let summary = ExportReportSummary {
+        schema_version,
+        format,
+        output_path: output.display().to_string(),
+        warning_count: diagnostics
+            .iter()
+            .filter(|d| d.severity == acorde_io::DiagnosticSeverity::Warning)
+            .count(),
+        error_count: diagnostics
+            .iter()
+            .filter(|d| d.severity == acorde_io::DiagnosticSeverity::Error)
+            .count(),
+        loss_count: diagnostics.iter().filter(|d| d.is_loss()).count(),
+        diagnostics,
+        byte_count,
+    };
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&summary)
+            .map_err(|e| format!("report serialization failed: {e}"))?
+    );
     Ok(())
 }

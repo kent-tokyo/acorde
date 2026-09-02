@@ -110,6 +110,10 @@ impl Default for PlaybackOptions {
 /// Grace notes and rests are excluded. Chords are expanded to one event per pitch.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlaybackEvent {
+    /// Stable source note address (`part:staff:measure:voice:note`), or `None` for metronome events.
+    /// Chord pitches share the address of their source note.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub address: Option<String>,
     /// Absolute beat position from the start of the score.
     pub time_beats: f64,
     /// Absolute time in seconds from the start of the score.
@@ -159,7 +163,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
         if options.muted_parts.contains(&part_index) {
             continue;
         }
-        for staff in &part.staves {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
             for voice_idx in 0..4usize {
                 let mut time_beats = 0.0f64;
                 let mut time_secs_cursor = 0.0f64;
@@ -182,7 +186,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                     let mut local_beats = 0.0f64;
                     let mut local_secs = 0.0f64;
                     let mut swing_first = true;
-                    for note in &measure.voices[voice_idx] {
+                    for (note_index, note) in measure.voices[voice_idx].iter().enumerate() {
                         if note.is_grace {
                             continue;
                         }
@@ -237,6 +241,9 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                             for pitch in &note.pitches {
                                 let midi = (pitch.to_midi() + transpose as i16).clamp(0, 127) as u8;
                                 events.push(PlaybackEvent {
+                                    address: Some(format!(
+                                        "{part_index}:{staff_index}:{idx}:{voice_idx}:{note_index}"
+                                    )),
                                     time_beats: measure_start_beats + local_beats,
                                     time_secs: measure_start_secs + local_secs,
                                     pitch_midi: midi,
@@ -285,6 +292,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                 let is_accent = b == 0;
                 let beat_offset_secs = b as f64 * beat_unit / metro_bpm * 60.0;
                 events.push(PlaybackEvent {
+                    address: None,
                     time_beats: cursor_beats + b as f64 * beat_unit,
                     time_secs: cursor_secs + beat_offset_secs,
                     pitch_midi: if is_accent {
@@ -439,6 +447,7 @@ mod tests {
             vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
         let events = to_playback_events(&score, &opts(None));
         assert_eq!(events.len(), 1);
+        assert_eq!(events[0].address.as_deref(), Some("0:0:0:0:0"));
         assert!((events[0].time_beats).abs() < 1e-9);
         assert_eq!(events[0].pitch_midi, 60);
         assert_eq!(events[0].velocity, 64);
@@ -455,6 +464,11 @@ mod tests {
         score.parts[0].staves[0].measures[0].voices[0] = vec![note];
         let events = to_playback_events(&score, &opts(None));
         assert_eq!(events.len(), 3);
+        assert!(
+            events
+                .iter()
+                .all(|event| event.address.as_deref() == Some("0:0:0:0:0"))
+        );
         assert!(events.iter().all(|e| e.time_beats.abs() < 1e-9));
     }
 
@@ -468,6 +482,18 @@ mod tests {
         let events = to_playback_events(&score, &opts(None));
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].pitch_midi, 60);
+    }
+
+    #[test]
+    fn metronome_events_have_no_source_address() {
+        let score = Score::new("T", 120, 4, 4, 0, 1);
+        let options = PlaybackOptions {
+            metronome: Some(MetronomeConfig::default()),
+            ..Default::default()
+        };
+        let events = to_playback_events(&score, &options);
+        assert!(!events.is_empty());
+        assert!(events.iter().all(|event| event.address.is_none()));
     }
 
     #[test]

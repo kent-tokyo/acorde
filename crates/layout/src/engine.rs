@@ -160,6 +160,7 @@ fn resolve_spans(score: &Score) -> Vec<SpanMark> {
                 let mut open_pedal: Option<NoteAddr> = None;
                 let mut open_slur: Option<NoteAddr> = None;
                 let mut open_trill_line: Option<NoteAddr> = None;
+                let mut open_glissando: Option<NoteAddr> = None;
 
                 for (mi, measure) in staff.measures.iter().enumerate() {
                     for (ni, note) in measure.voices[voice].iter().enumerate() {
@@ -228,6 +229,18 @@ fn resolve_spans(score: &Score) -> Vec<SpanMark> {
                             && let Some(start) = open_trill_line.take()
                         {
                             spans.push(SpanMark::TrillLine {
+                                start,
+                                end: addr.clone(),
+                            });
+                        }
+
+                        if note.glissando_start {
+                            open_glissando = Some(addr.clone());
+                        }
+                        if note.glissando_end
+                            && let Some(start) = open_glissando.take()
+                        {
+                            spans.push(SpanMark::Glissando {
                                 start,
                                 end: addr.clone(),
                             });

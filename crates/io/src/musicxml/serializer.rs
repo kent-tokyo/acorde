@@ -1,7 +1,7 @@
 use crate::Error;
 use acorde_core::{
     Articulation, Barline, GuitarTechnique, HairpinKind, Note, NoteHead, PartGroup,
-    PartGroupSymbol, Score,
+    PartGroupSymbol, Score, TextStyle, TimeSignature,
 };
 
 const DIVISIONS: u32 = 480;
@@ -276,9 +276,38 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 xml.push_str("      </direction>\n");
             }
 
-            // Notes (voice 0)
-            for note in &measure.voices[0] {
-                serialize_note(&mut xml, note);
+            for styled in &measure.texts {
+                let already_emitted = matches!(styled.style, TextStyle::Expression)
+                    && measure.expression_text.as_deref() == Some(styled.text.as_str())
+                    || matches!(styled.style, TextStyle::RehearsalMark)
+                        && measure.rehearsal.as_deref() == Some(styled.text.as_str());
+                if already_emitted {
+                    continue;
+                }
+                xml.push_str("      <direction placement=\"above\"><direction-type><words>");
+                xml.push_str(&escape_xml(&styled.text));
+                xml.push_str("</words></direction-type></direction>\n");
+            }
+
+            // Emit each populated voice in stable model order. MusicXML advances one shared
+            // measure cursor, so return to the measure start before every subsequent voice.
+            let mut emitted_voice = false;
+            for (voice_index, voice) in measure.voices.iter().enumerate() {
+                if voice.is_empty() {
+                    continue;
+                }
+                if emitted_voice {
+                    xml.push_str("      <backup>\n");
+                    xml.push_str(&format!(
+                        "        <duration>{}</duration>\n",
+                        measure_duration_ticks(measure, &score.settings.time_signature)
+                    ));
+                    xml.push_str("      </backup>\n");
+                }
+                for note in voice {
+                    serialize_note(&mut xml, note, voice_index + 1);
+                }
+                emitted_voice = true;
             }
 
             // Right barline
@@ -318,7 +347,7 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
     Ok(xml)
 }
 
-fn serialize_note(xml: &mut String, note: &Note) {
+fn serialize_note(xml: &mut String, note: &Note, voice_number: usize) {
     // Pedal start
     if note.pedal_start {
         xml.push_str("      <direction placement=\"below\">\n");
@@ -407,7 +436,13 @@ fn serialize_note(xml: &mut String, note: &Note) {
         xml.push_str("      <note>\n");
         xml.push_str("        <rest/>\n");
         xml.push_str(&format!("        <duration>{}</duration>\n", dur_ticks));
-        xml.push_str("        <voice>1</voice>\n");
+        xml.push_str(&format!("        <voice>{voice_number}</voice>\n"));
+        if let Some(cross) = &note.cross_staff {
+            xml.push_str(&format!(
+                "        <staff>{}</staff>\n",
+                cross.target_staff + 1
+            ));
+        }
         xml.push_str(&format!(
             "        <type>{}</type>\n",
             note.duration.to_musicxml_type()
@@ -447,7 +482,13 @@ fn serialize_note(xml: &mut String, note: &Note) {
         if note.tie_start {
             xml.push_str("        <tie type=\"start\"/>\n");
         }
-        xml.push_str("        <voice>1</voice>\n");
+        xml.push_str(&format!("        <voice>{voice_number}</voice>\n"));
+        if let Some(cross) = &note.cross_staff {
+            xml.push_str(&format!(
+                "        <staff>{}</staff>\n",
+                cross.target_staff + 1
+            ));
+        }
         xml.push_str(&format!(
             "        <type>{}</type>\n",
             note.duration.to_musicxml_type()
@@ -502,7 +543,7 @@ fn serialize_note(xml: &mut String, note: &Note) {
             xml.push_str(&format!("          <octave>{}</octave>\n", extra.octave));
             xml.push_str("        </pitch>\n");
             xml.push_str(&format!("        <duration>{}</duration>\n", dur_ticks));
-            xml.push_str("        <voice>1</voice>\n");
+            xml.push_str(&format!("        <voice>{voice_number}</voice>\n"));
             xml.push_str(&format!(
                 "        <type>{}</type>\n",
                 note.duration.to_musicxml_type()
@@ -539,8 +580,14 @@ fn serialize_note(xml: &mut String, note: &Note) {
     }
 }
 
+fn measure_duration_ticks(measure: &acorde_core::Measure, fallback: &TimeSignature) -> u32 {
+    let time = measure.time_sig.as_ref().unwrap_or(fallback);
+    (time.total_beats() * DIVISIONS as f64).round() as u32
+}
+
 fn serialize_notations(xml: &mut String, note: &Note) {
     let has_tie = note.tie_start || note.tie_end;
+    let has_glissando = note.glissando_start || note.glissando_end;
     let has_slur = note.slur_start || note.slur_end;
     let has_trill_line = note.trill_line_start || note.trill_line_end;
     let has_artic = !note.articulations.is_empty();
@@ -549,7 +596,14 @@ fn serialize_notations(xml: &mut String, note: &Note) {
         || note.string_number.is_some()
         || note.technique_text.is_some()
         || note.guitar_technique.is_some();
-    if !has_tie && !has_slur && !has_trill_line && !has_artic && !has_arp && !has_technical {
+    if !has_tie
+        && !has_glissando
+        && !has_slur
+        && !has_trill_line
+        && !has_artic
+        && !has_arp
+        && !has_technical
+    {
         return;
     }
 
@@ -565,6 +619,12 @@ fn serialize_notations(xml: &mut String, note: &Note) {
     }
     if note.slur_start {
         xml.push_str("          <slur number=\"1\" type=\"start\"/>\n");
+    }
+    if note.glissando_end {
+        xml.push_str("          <glissando number=\"1\" type=\"stop\"/>\n");
+    }
+    if note.glissando_start {
+        xml.push_str("          <glissando number=\"1\" type=\"start\">gliss.</glissando>\n");
     }
     if note.trill_line_end {
         xml.push_str("          <wavy-line number=\"1\" type=\"stop\"/>\n");
@@ -832,5 +892,30 @@ mod tests {
         let score = score_with_note(vec![], Some(false));
         let xml = serialize_musicxml(&score).unwrap();
         assert!(xml.contains("<arpeggiate direction=\"down\"/>"));
+    }
+
+    #[test]
+    fn glissando_cross_staff_roundtrip() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        note.glissando_start = true;
+        note.cross_staff = Some(acorde_core::CrossStaff {
+            target_staff: 1,
+            target_voice: Some(0),
+        });
+        score.parts[0]
+            .staves
+            .push(acorde_core::Staff::new(acorde_core::Clef::Bass));
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let xml = serialize_musicxml(&score).unwrap();
+        assert!(xml.contains("<staff>2</staff>"));
+        assert!(xml.contains("<glissando number=\"1\" type=\"start\">"));
+        let parsed = crate::musicxml::parser::parse_musicxml(&xml).unwrap();
+        let parsed_note = &parsed.parts[0].staves[0].measures[0].voices[0][0];
+        assert!(parsed_note.glissando_start);
+        assert_eq!(
+            parsed_note.cross_staff.as_ref().map(|c| c.target_staff),
+            Some(1)
+        );
     }
 }

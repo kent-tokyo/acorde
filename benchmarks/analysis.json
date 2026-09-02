@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "corpus_id": "acorde-synthetic-analysis",
+  "corpus_version": "2026-08-31",
+  "license": "MIT OR Apache-2.0",
+  "cases": [
+    {
+      "name": "simple-musicxml",
+      "input": "../tests/fixtures/simple.musicxml",
+      "coverage": ["musicxml", "intervals", "key-estimation", "phrases"],
+      "provenance": "synthetic repository fixture; authored for acorde analysis regression",
+      "expected": {
+        "chords": 0,
+        "intervals": 3,
+        "key_estimates": 4,
+        "cadence_candidates": 0,
+        "voice_leading": 0,
+        "satb_diagnostics": 0,
+        "motifs": 0,
+        "phrase_boundaries": 1
+      }
+    },
+    {
+      "name": "multipart-musicxml",
+      "input": "../tests/fixtures/multipart.musicxml",
+      "coverage": ["musicxml", "multi-part", "intervals", "key-estimation"],
+      "provenance": "synthetic repository fixture; authored for acorde analysis regression",
+      "expected": {
+        "chords": 0,
+        "intervals": 2,
+        "key_estimates": 4,
+        "cadence_candidates": 0,
+        "voice_leading": 0,
+        "satb_diagnostics": 0,
+        "motifs": 0,
+        "phrase_boundaries": 0
+      }
+    }
+  ]
+}

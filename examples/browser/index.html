@@ -4,15 +4,28 @@
 <main>
   <h1>acorde WASM browser contract fixture</h1>
   <p id="status">Loading…</p>
+  <p>
+    <input id="file" type="file" accept=".musicxml,.xml" aria-label="Load MusicXML">
+    <button id="apply" type="button" disabled>Apply edited MusicXML</button>
+    <button id="undo" type="button" disabled>Undo</button>
+    <button id="redo" type="button" disabled>Redo</button>
+    <button id="analyze" type="button" disabled>Analyze</button>
+    <button id="export" type="button" disabled>Export MusicXML</button>
+  </p>
   <button id="play" type="button" disabled>Play selected note</button>
   <section id="score" aria-label="Rendered score" aria-describedby="score-description"></section>
   <p id="score-description" class="visually-hidden"></p>
+  <label for="source">MusicXML source (editable)</label>
+  <textarea id="source" rows="8" cols="90" spellcheck="false"></textarea>
+  <pre id="analysis" aria-live="polite"></pre>
   <pre id="metadata"></pre>
 </main>
 <style>
   [data-note-addr] { cursor: pointer; }
   [data-note-addr].selected { outline: 2px solid #2563eb; }
   #play { margin-bottom: 1rem; }
+  #source { display: block; max-width: 100%; margin: 0.5rem 0 1rem; font: 0.8rem monospace; }
+  #analysis { max-height: 16rem; overflow: auto; }
   .visually-hidden {
     position: absolute;
     width: 1px;
@@ -32,6 +45,8 @@
     render_score_svg_with_layout,
     render_score_svg_row,
     render_score_metadata,
+    analyze_score,
+    serialize_musicxml,
   } from "../../crates/wasm/pkg/acorde_wasm.js";
 
   const fixture = `<?xml version="1.0" encoding="UTF-8"?>
@@ -44,52 +59,101 @@
 
   try {
     await init();
-    const score = parse_musicxml(fixture);
-    const layout = compute_layout_ex(score, JSON.stringify({ measures_per_row: 4 }));
+    let score = parse_musicxml(fixture);
+    let undoStack = [];
+    let redoStack = [];
     const options = JSON.stringify({ width: 700, staff_size: 24, measures_per_system: 4, interactive: true });
-    const svg = render_score_svg_with_layout(score, layout, options);
-    const row = render_score_svg_row(score, layout, 0, options);
-    const metadata = JSON.parse(render_score_metadata(score, layout, options));
-    if (!svg.startsWith("<svg") || !row.startsWith("<svg") || metadata.contract_version !== 1 ||
-        metadata.address_bounds.length !== 4 || !metadata.accessible_text) {
-      throw new Error("contract output failed validation");
-    }
-    document.querySelector("#score").innerHTML = row;
-    const notes = document.querySelectorAll("#score [data-note-addr]");
-    let selectedNote = null;
-    const select = (element) => {
-      selectedNote = element;
-      notes.forEach((note) => note.classList.toggle("selected", note === element));
-      document.querySelector("#play").disabled = false;
-      document.querySelector("#status").textContent = `PASS: selected ${element.dataset.noteAddr}`;
+    let selectedAddress = null;
+    const updateHistoryControls = () => {
+      document.querySelector("#undo").disabled = undoStack.length === 0;
+      document.querySelector("#redo").disabled = redoStack.length === 0;
     };
-    notes.forEach((note) => {
-      note.setAttribute("tabindex", "0");
-      note.setAttribute("role", "button");
-      note.addEventListener("click", () => select(note));
-      note.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(note); }
+    const render = (nextScore) => {
+      const layout = compute_layout_ex(nextScore, JSON.stringify({ measures_per_row: 4 }));
+      const svg = render_score_svg_with_layout(nextScore, layout, options);
+      const row = render_score_svg_row(nextScore, layout, 0, options);
+      const metadata = JSON.parse(render_score_metadata(nextScore, layout, options));
+      if (!svg.startsWith("<svg") || !row.startsWith("<svg") || metadata.contract_version !== 1 ||
+          metadata.address_bounds.length !== 4 || !metadata.accessible_text) {
+        throw new Error("contract output failed validation");
+      }
+      document.querySelector("#score").innerHTML = row;
+      const notes = document.querySelectorAll("#score [data-note-addr]");
+      let selectedNote = null;
+      const select = (element) => {
+        selectedNote = element;
+        selectedAddress = element.dataset.noteAddr;
+        notes.forEach((note) => note.classList.toggle("selected", note === element));
+        document.querySelector("#play").disabled = false;
+        document.querySelector("#status").textContent = `PASS: selected ${selectedAddress}`;
+      };
+      notes.forEach((note) => {
+        note.setAttribute("tabindex", "0");
+        note.setAttribute("role", "button");
+        note.addEventListener("click", () => select(note));
+        note.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(note); }
+        });
+        note.addEventListener("mouseenter", () => note.setAttribute("data-hover", "true"));
+        note.addEventListener("mouseleave", () => note.removeAttribute("data-hover"));
+        if (note.dataset.noteAddr === selectedAddress) select(note);
       });
-      note.addEventListener("mouseenter", () => note.setAttribute("data-hover", "true"));
-      note.addEventListener("mouseleave", () => note.removeAttribute("data-hover"));
+      document.querySelector("#score-description").textContent = metadata.accessible_text;
+      document.querySelector("#metadata").textContent = JSON.stringify(metadata, null, 2);
+      // Keep the editable host surface in MusicXML, never the internal score JSON.
+      document.querySelector("#source").value = serialize_musicxml(nextScore);
+      document.querySelector("#apply").disabled = false;
+      document.querySelector("#analyze").disabled = false;
+      document.querySelector("#export").disabled = false;
+      updateHistoryControls();
+      document.querySelector("#status").textContent = `PASS: offline workflow ready (${notes.length} selectable notes)`;
+    };
+    const replaceScore = (nextScore, recordHistory = true) => {
+      if (recordHistory) undoStack.push(score);
+      score = nextScore;
+      if (recordHistory) redoStack = [];
+      render(score);
+    };
+    document.querySelector("#apply").addEventListener("click", () => {
+      try { replaceScore(parse_musicxml(document.querySelector("#source").value)); }
+      catch (error) { document.querySelector("#status").textContent = `FAIL: ${error}`; }
+    });
+    document.querySelector("#undo").addEventListener("click", () => {
+      const previous = undoStack.pop();
+      if (previous === undefined) return;
+      redoStack.push(score); score = previous; render(score);
+    });
+    document.querySelector("#redo").addEventListener("click", () => {
+      const next = redoStack.pop();
+      if (next === undefined) return;
+      undoStack.push(score); score = next; render(score);
+    });
+    document.querySelector("#analyze").addEventListener("click", () => {
+      document.querySelector("#analysis").textContent = JSON.stringify(JSON.parse(analyze_score(score)), null, 2);
+    });
+    document.querySelector("#export").addEventListener("click", () => {
+      const blob = new Blob([serialize_musicxml(score)], { type: "application/xml" });
+      const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
+      link.download = "acorde-export.musicxml"; link.click(); URL.revokeObjectURL(link.href);
+    });
+    document.querySelector("#file").addEventListener("change", async (event) => {
+      const file = event.target.files[0]; if (!file) return;
+      try { replaceScore(parse_musicxml(await file.text())); }
+      catch (error) { document.querySelector("#status").textContent = `FAIL: ${error}`; }
     });
     document.querySelector("#play").addEventListener("click", () => {
-      if (!selectedNote) return;
-      const noteIndex = [...notes].indexOf(selectedNote);
-      const audio = new AudioContext();
-      const oscillator = audio.createOscillator();
-      const gain = audio.createGain();
-      oscillator.frequency.value = 523.25 * Math.pow(2, noteIndex / 12);
+      if (!selectedAddress) return;
+      const noteIndex = [...document.querySelectorAll("#score [data-note-addr]")]
+        .findIndex((note) => note.dataset.noteAddr === selectedAddress);
+      const audio = new AudioContext(); const oscillator = audio.createOscillator();
+      const gain = audio.createGain(); oscillator.frequency.value = 523.25 * Math.pow(2, noteIndex / 12);
       gain.gain.setValueAtTime(0.12, audio.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.35);
-      oscillator.connect(gain).connect(audio.destination);
-      oscillator.start();
-      oscillator.stop(audio.currentTime + 0.35);
-      oscillator.addEventListener("ended", () => audio.close());
+      oscillator.connect(gain).connect(audio.destination); oscillator.start();
+      oscillator.stop(audio.currentTime + 0.35); oscillator.addEventListener("ended", () => audio.close());
     });
-    document.querySelector("#score-description").textContent = metadata.accessible_text;
-    document.querySelector("#metadata").textContent = JSON.stringify(metadata, null, 2);
-    document.querySelector("#status").textContent = `PASS: parse → layout → full/row render → metadata (${notes.length} selectable notes)`;
+    document.querySelector("#source").value = fixture;
+    render(score);
   } catch (error) {
     document.querySelector("#status").textContent = `FAIL: ${error}`;
     throw error;

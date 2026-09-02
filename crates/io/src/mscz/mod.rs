@@ -6,8 +6,11 @@ use acorde_core::{
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 const MAX_ELEMENTS: usize = 500_000;
+const MAX_MSCZ_COMPRESSED: usize = 64 * 1024 * 1024;
+const MAX_MSCZ_ENTRIES: usize = 1024;
 
 struct PartMeta {
     name: String,
@@ -27,14 +30,40 @@ pub fn parse_mscz(data: &[u8]) -> Result<Score, Error> {
     if data.len() < 4 {
         return Err(Error::Zip("data too short to be a ZIP file".into()));
     }
+    if data.len() > MAX_MSCZ_COMPRESSED {
+        return Err(Error::TooLarge(data.len()));
+    }
     let cursor = std::io::Cursor::new(data);
     let mut archive = zip::ZipArchive::new(cursor).map_err(|e| Error::Zip(e.to_string()))?;
+    if archive.len() > MAX_MSCZ_ENTRIES {
+        return Err(Error::Zip("too many MSCZ archive entries".into()));
+    }
+    let mut entry_names = HashSet::new();
+    let total_uncompressed = (0..archive.len()).try_fold(0_u64, |total, index| {
+        let entry = archive
+            .by_index(index)
+            .map_err(|e| Error::Zip(format!("failed to inspect MSCZ entry: {e}")))?;
+        let name = entry.name().to_string();
+        validate_archive_entry_path(&name)?;
+        if !entry_names.insert(name.clone()) {
+            return Err(Error::Zip(format!("duplicate MSCZ entry: '{name}'")));
+        }
+        total
+            .checked_add(entry.size())
+            .ok_or(Error::TooLarge(usize::MAX))
+    })?;
+    if total_uncompressed > MAX_MSCX_SIZE {
+        return Err(Error::TooLarge(total_uncompressed as usize));
+    }
     let mscx = extract_mscx(&mut archive)?;
     parse_mscx(&mscx)
 }
 
 /// Parse a MuseScore 3.x/.4.x .mscx XML string into a Score.
 pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
+    if xml.len() > MAX_MSCX_SIZE as usize {
+        return Err(Error::TooLarge(xml.len()));
+    }
     let mut reader = Reader::from_str(xml);
     reader.config_mut().trim_text(true);
 
@@ -146,6 +175,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Eof) => break,
             Err(e) => return Err(Error::Xml(e.to_string())),
+            Ok(Event::DocType(_)) => {
+                return Err(Error::Xml("DOCTYPE declarations are not allowed".into()));
+            }
 
             // ── Start events ──────────────────────────────────────────────────
             Ok(Event::Start(ref e)) => {
@@ -348,6 +380,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             rehearsal: None,
                             navigation: None,
                             expression_text: None,
+                            texts: Vec::new(),
                             multi_rest_count: None,
                             system_break: false,
                             page_break: false,
@@ -571,7 +604,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
 
             // ── Text events ───────────────────────────────────────────────────
             Ok(Event::Text(ref e)) => {
-                if let Ok(t) = e.unescape() {
+                if let Ok(t) = e.decode()
+                    && let Ok(t) = quick_xml::escape::unescape(&t)
+                {
                     text.push_str(&t);
                 }
             }
@@ -768,6 +803,14 @@ fn attr_usize(e: &quick_xml::events::BytesStart<'_>, key: &[u8]) -> Option<usize
 
 const MAX_MSCX_SIZE: u64 = 64 * 1024 * 1024; // 64 MiB
 
+fn validate_archive_entry_path(path: &str) -> Result<(), Error> {
+    let normalized = path.replace('\\', "/");
+    if normalized.starts_with('/') || normalized.split('/').any(|part| part == "..") {
+        return Err(Error::Zip(format!("invalid archive entry path: '{path}'")));
+    }
+    Ok(())
+}
+
 fn extract_mscx<R: std::io::Read + std::io::Seek>(
     archive: &mut zip::ZipArchive<R>,
 ) -> Result<String, Error> {
@@ -775,10 +818,7 @@ fn extract_mscx<R: std::io::Read + std::io::Seek>(
     for i in 0..archive.len() {
         let file = archive.by_index(i).map_err(|e| Error::Zip(e.to_string()))?;
         let name = file.name().to_owned();
-        // Guard against path traversal in ZIP entry names.
-        if name.contains("..") || std::path::Path::new(&name).is_absolute() {
-            continue;
-        }
+        validate_archive_entry_path(&name)?;
         if name.ends_with(".mscx") {
             if file.size() > MAX_MSCX_SIZE {
                 return Err(Error::Zip(format!(
@@ -787,9 +827,12 @@ fn extract_mscx<R: std::io::Read + std::io::Seek>(
                 )));
             }
             let mut content = String::new();
-            file.take(MAX_MSCX_SIZE)
+            file.take(MAX_MSCX_SIZE + 1)
                 .read_to_string(&mut content)
                 .map_err(|e| Error::Zip(e.to_string()))?;
+            if content.len() as u64 > MAX_MSCX_SIZE {
+                return Err(Error::TooLarge(content.len()));
+            }
             return Ok(content);
         }
     }
@@ -1177,5 +1220,13 @@ mod tests {
         assert_eq!(m.voices[1].len(), 1, "voice 1 should have 1 note");
         assert_eq!(m.voices[0][0].pitches[0].step, Step::C);
         assert_eq!(m.voices[1][0].pitches[0].step, Step::E);
+    }
+
+    #[test]
+    fn archive_paths_reject_traversal_and_backslashes() {
+        assert!(validate_archive_entry_path("../score.mscx").is_err());
+        assert!(validate_archive_entry_path(r"folder\..\score.mscx").is_err());
+        assert!(validate_archive_entry_path("/absolute/score.mscx").is_err());
+        assert!(validate_archive_entry_path("score.mscx").is_ok());
     }
 }
