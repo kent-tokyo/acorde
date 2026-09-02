@@ -6,12 +6,13 @@ It re-exports acorde-core, acorde-io, and acorde-layout as acorde::core, acorde:
 acorde::layout. Its default I/O features are musicxml and midi; enable abc, mscz, or mei when needed.
 The optional `soundfont` feature re-exports `acorde-soundfont` as `acorde::soundfont`; it provides
 bounded SF2/SF3 metadata and provider-neutral playback lifecycle actions without bundling samples.
+Enable `soundfont-sf3-vorbis` to opt into the separately licensed Vorbis decoder feature.
 acorde-render-svg is intentionally not re-exported and must be added directly.
 
 ~~~toml
 [dependencies]
-acorde = "1.0.6"
-acorde-render-svg = "1.0.6"
+acorde = "1.0.7"
+acorde-render-svg = "1.0.7"
 ~~~
 
 [API documentation](https://docs.rs/acorde) · [Repository](https://github.com/kent-tokyo/acorde)

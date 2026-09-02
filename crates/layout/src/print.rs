@@ -52,8 +52,10 @@ pub enum FinalPagePolicy {
 /// Policy for reserving the first system for a partial pickup measure.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum PickupPolicy {
-    /// Do not infer pickup measures from score content.
+    /// Detect a non-empty partial first measure automatically (the default).
     #[default]
+    Auto,
+    /// Do not infer pickup measures from score content.
     Preserve,
     /// Detect a non-empty first measure shorter than its time signature and isolate it.
     DetectFirstMeasure,
@@ -164,7 +166,7 @@ impl Default for PrintConfig {
             scale: 1.0,
             measures_per_system: 4,
             first_system_measures: None,
-            pickup_policy: PickupPolicy::Preserve,
+            pickup_policy: PickupPolicy::Auto,
             systems_per_page: None,
             page_numbering: PageNumbering::OneBased,
             final_page_policy: FinalPagePolicy::AllowSingleSystem,
@@ -226,6 +228,14 @@ pub struct SpanSegment {
     pub ends_here: bool,
 }
 
+/// A cross-system span's intersection with one printed page.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PageSpanSegment {
+    pub span_index: usize,
+    pub starts_here: bool,
+    pub ends_here: bool,
+}
+
 /// Host-neutral notation marks attached to one physical measure in a print system.
 ///
 /// This is presentation metadata only: playback order remains the responsibility of
@@ -272,6 +282,12 @@ pub struct PageLayout {
     pub bleed_bottom_mm: f32,
     pub bleed_left_mm: f32,
     pub systems: Vec<SystemLayout>,
+    /// Span intersections on this page, aggregated from its systems.
+    #[serde(default)]
+    pub span_segments: Vec<PageSpanSegment>,
+    /// Repeat and navigation marks on this page, in physical measure order.
+    #[serde(default)]
+    pub measure_marks: Vec<MeasureMark>,
     pub break_reason: BreakReason,
 }
 
@@ -518,6 +534,34 @@ fn measure_marks(score: &Score, measure_indices: &[usize]) -> Vec<MeasureMark> {
         .collect()
 }
 
+fn page_span_segments(systems: &[SystemLayout]) -> Vec<PageSpanSegment> {
+    let mut segments = Vec::new();
+    for system in systems {
+        for segment in &system.span_segments {
+            if let Some(existing) = segments
+                .iter_mut()
+                .find(|existing: &&mut PageSpanSegment| existing.span_index == segment.span_index)
+            {
+                existing.ends_here |= segment.ends_here;
+            } else {
+                segments.push(PageSpanSegment {
+                    span_index: segment.span_index,
+                    starts_here: segment.starts_here,
+                    ends_here: segment.ends_here,
+                });
+            }
+        }
+    }
+    segments
+}
+
+fn page_measure_marks(systems: &[SystemLayout]) -> Vec<MeasureMark> {
+    systems
+        .iter()
+        .flat_map(|system| system.measure_marks.iter().cloned())
+        .collect()
+}
+
 /// Compute physical page and system placement without rendering or host integration.
 pub fn compute_print_layout(
     score: &Score,
@@ -589,8 +633,10 @@ pub fn compute_print_layout(
         &LayoutConfig {
             measures_per_row: config.measures_per_system.max(1),
             first_row_measures: config.first_system_measures.or_else(|| {
-                (matches!(config.pickup_policy, PickupPolicy::DetectFirstMeasure)
-                    && has_first_measure_pickup(score))
+                (matches!(
+                    config.pickup_policy,
+                    PickupPolicy::Auto | PickupPolicy::DetectFirstMeasure
+                ) && has_first_measure_pickup(score))
                 .then_some(1)
             }),
             ..LayoutConfig::default()
@@ -710,6 +756,8 @@ pub fn compute_print_layout(
                 bleed_right_mm: config.bleed_right_mm,
                 bleed_bottom_mm: config.bleed_bottom_mm,
                 bleed_left_mm: config.bleed_left_mm,
+                span_segments: page_span_segments(&page_systems),
+                measure_marks: page_measure_marks(&page_systems),
                 systems: std::mem::take(&mut page_systems),
                 break_reason: page_break_reason,
             });
@@ -735,13 +783,15 @@ pub fn compute_print_layout(
             bleed_right_mm: config.bleed_right_mm,
             bleed_bottom_mm: config.bleed_bottom_mm,
             bleed_left_mm: config.bleed_left_mm,
+            span_segments: page_span_segments(&page_systems),
+            measure_marks: page_measure_marks(&page_systems),
             systems: page_systems,
             break_reason: BreakReason::EndOfScore,
         });
     }
 
     Ok(PrintLayoutResult {
-        contract_version: 13,
+        contract_version: 14,
         pages,
     })
 }
@@ -874,6 +924,24 @@ mod tests {
     }
 
     #[test]
+    fn pickup_policy_auto_isolates_a_partial_first_measure_by_default() {
+        let mut score = score_with_measures(4);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![acorde_core::Note::rest(acorde_core::Duration::Quarter)];
+        let result = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 3,
+                systems_per_page: Some(8),
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid automatic pickup policy");
+        assert_eq!(result.pages[0].systems[0].measure_indices, vec![0]);
+        assert_eq!(result.pages[0].systems[1].measure_indices, vec![1, 2, 3]);
+    }
+
+    #[test]
     fn system_exposes_physical_span_for_multi_rest_slot() {
         let mut score = score_with_measures(6);
         score.parts[0].staves[0].measures[1].multi_rest_count = Some(3);
@@ -881,6 +949,37 @@ mod tests {
             .expect("valid multi-rest print layout");
         assert_eq!(
             result.pages[0].systems[0].measure_spans[1],
+            MeasureSpan {
+                first_measure: 1,
+                last_measure: 3,
+            }
+        );
+    }
+
+    #[test]
+    fn multirest_width_drives_system_breaking_without_splitting() {
+        let mut score = score_with_measures(5);
+        score.parts[0].staves[0].measures[1].multi_rest_count = Some(3);
+        let result = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 2,
+                pickup_policy: PickupPolicy::Preserve,
+                systems_per_page: Some(8),
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid multi-rest pagination");
+        assert_eq!(
+            result.pages[0]
+                .systems
+                .iter()
+                .map(|system| system.measure_indices.clone())
+                .collect::<Vec<_>>(),
+            vec![vec![0], vec![1], vec![2, 3], vec![4]]
+        );
+        assert_eq!(
+            result.pages[0].systems[1].measure_spans[0],
             MeasureSpan {
                 first_measure: 1,
                 last_measure: 3,
@@ -901,6 +1000,7 @@ mod tests {
             &score,
             &PrintConfig {
                 measures_per_system: 2,
+                pickup_policy: PickupPolicy::Preserve,
                 systems_per_page: Some(8),
                 ..PrintConfig::default()
             },
@@ -978,6 +1078,43 @@ mod tests {
                 volta_kind: Some("begin".to_string()),
                 navigation: Some("ToCoda".to_string()),
                 rehearsal: Some("B".to_string()),
+            }]
+        );
+    }
+
+    #[test]
+    fn page_aggregates_cross_system_span_ownership() {
+        let mut score = score_with_measures(4);
+        let mut start = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        start.slur_start = true;
+        let mut end = Note::new(Pitch::new(Step::D, 4), Duration::Quarter);
+        end.slur_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![start];
+        score.parts[0].staves[0].measures[3].voices[0] = vec![end];
+        let result = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 2,
+                pickup_policy: PickupPolicy::Preserve,
+                systems_per_page: Some(1),
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid page span layout");
+        assert_eq!(
+            result.pages[0].span_segments,
+            vec![PageSpanSegment {
+                span_index: 0,
+                starts_here: true,
+                ends_here: false,
+            }]
+        );
+        assert_eq!(
+            result.pages[1].span_segments,
+            vec![PageSpanSegment {
+                span_index: 0,
+                starts_here: false,
+                ends_here: true,
             }]
         );
     }
@@ -1091,7 +1228,7 @@ mod tests {
         )
         .expect("valid print config");
         let page = &result.pages[0];
-        assert_eq!(result.contract_version, 13);
+        assert_eq!(result.contract_version, 14);
         assert_eq!(page.bleed_left_mm, 3.0);
         assert_eq!(page.content_width_mm, 210.0 - 14.0 - 14.0 - 8.0 - 6.0);
         assert_eq!(page.content_height_mm, 297.0 - 16.0 - 16.0 - 5.0 - 7.0);
@@ -1176,7 +1313,7 @@ mod tests {
         )
         .expect("valid print config");
         let page = &result.pages[0];
-        assert_eq!(result.contract_version, 13);
+        assert_eq!(result.contract_version, 14);
         assert_eq!(page.color_policy, PrintColorPolicy::Preserve);
         assert_eq!(page.crop_mark_policy, CropMarkPolicy::BleedEdges);
     }

@@ -1,6 +1,6 @@
 # acorde
 
-Rust と WebAssembly 向けのプラットフォーム非依存な楽譜ライブラリ（v1.0.6）です。
+Rust と WebAssembly 向けのプラットフォーム非依存な楽譜ライブラリ（v1.0.7）です。
 
 シリアライズ可能なスコアモデル、Undo/Redo 可能なコマンド、各種フォーマット入出力、
 論理レイアウト、決定的な SVG レンダリング、再生イベント、WASM バインディングを提供します。
@@ -27,14 +27,14 @@ PDF変換、フォント解決、プリンタ接続、印刷プレビューUIは
 
 ```toml
 [dependencies]
-acorde = "1.0.6"
-acorde-render-svg = "1.0.6"
+acorde = "1.0.7"
+acorde-render-svg = "1.0.7"
 ```
 
 ABC と MuseScore 入力を有効にする場合：
 
 ```toml
-acorde = { version = "1.0.6", features = ["abc", "mscz", "mei"] }
+acorde = { version = "1.0.7", features = ["abc", "mscz", "mei"] }
 ```
 
 `acorde-io` の既定 feature は `musicxml` と `midi` です。`abc` は ABC の読み書き、

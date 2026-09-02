@@ -115,6 +115,7 @@ fn build_rows(
 
     let mut rows: Vec<RowLayout> = Vec::new();
     let mut current: Vec<usize> = Vec::new();
+    let mut current_width = 0usize;
     let mut last_phys = usize::MAX;
 
     for &phys in vis_slots {
@@ -124,16 +125,20 @@ fn build_rows(
             } else {
                 per_row
             };
-            if current.len() == limit {
+            let span_width = multi_rest_count(score, phys).max(1);
+            if !current.is_empty() && current_width.saturating_add(span_width) > limit {
                 rows.push(RowLayout {
                     measure_indices: std::mem::take(&mut current),
                 });
+                current_width = 0;
             }
             current.push(phys);
+            current_width = current_width.saturating_add(span_width);
             if force_break_after(score, phys) {
                 rows.push(RowLayout {
                     measure_indices: std::mem::take(&mut current),
                 });
+                current_width = 0;
             }
         }
         last_phys = phys;

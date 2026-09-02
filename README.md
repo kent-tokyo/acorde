@@ -1,6 +1,6 @@
 # acorde
 
-Platform-agnostic music score library for Rust and WebAssembly (v1.0.6).
+Platform-agnostic music score library for Rust and WebAssembly (v1.0.7).
 
 acorde provides a serializable score model, undoable commands, format I/O, logical layout,
 deterministic SVG rendering, playback events, and WASM bindings. Core libraries are synchronous,
@@ -39,8 +39,15 @@ The optional `soundfont` feature exposes `acorde::soundfont`, a bounded SF2/SF3
 metadata and provider-neutral note lifecycle boundary. It consumes unchanged
 `PlaybackEvent` values; sample decoding, synthesis, and licensed asset ownership
 remain with the application renderer. The boundary also carries sample regions, deterministic
-zone selection, voice parameters, and bounded decoded-PCM validation. `SampleDecoder` and
-`SampleRenderer` provide the typed provider/host integration point.
+zone selection, voice parameters, and bounded decoded-PCM validation. `SampleDecoder`,
+`SampleRenderer`, and the versioned `SoundFontProvider` contract provide the typed provider/host
+integration point. Providers advertise codec and synthesis capabilities; unsupported paths are
+rejected explicitly without bundling licensed codec code or sample assets.
+Malformed SoundFont zones are rejected before scheduling with typed diagnostics.
+The soundfont crate includes bounded SF2 PCM16 decoding and deterministic offline sample-action
+rendering; SF3 Vorbis is an opt-in feature requiring a separately licensed decoder.
+For the umbrella crate, enable `soundfont-sf3-vorbis` to forward that feature to the SoundFont
+adapter.
 
 Interchange APIs also provide typed `ImportReport` and `ExportReport` wrappers for structured
 conversion diagnostics.
@@ -49,15 +56,15 @@ conversion diagnostics.
 
 ```toml
 [dependencies]
-acorde = "1.0.6"
-acorde-render-svg = "1.0.6"
+acorde = "1.0.7"
+acorde-render-svg = "1.0.7"
 ```
 
 The default I/O features are `musicxml` and `midi`; enable the optional `abc`, `mscz`, or `mei`
 features when needed:
 
 ```toml
-acorde = { version = "1.0.6", features = ["abc", "mscz", "mei"] }
+acorde = { version = "1.0.7", features = ["abc", "mscz", "mei"] }
 ```
 
 ```rust

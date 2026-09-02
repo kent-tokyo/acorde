@@ -8,10 +8,26 @@
 use acorde_core::PlaybackEvent;
 
 pub const PLAYBACK_CONTRACT_VERSION: u16 = 1;
+/// Version of the provider capability/decoder/renderer adapter contract.
+pub const PROVIDER_CONTRACT_VERSION: u16 = 1;
 pub const MAX_ASSET_BYTES: usize = 64 * 1024 * 1024;
 pub const MAX_PRESETS: usize = 16_384;
 pub const MAX_POLYPHONY: usize = 256;
 pub const MAX_DECODED_FRAMES: usize = 16_000_000;
+
+/// Generator names understood by the provider-neutral zone contract.
+pub const SUPPORTED_GENERATORS: &[&str] = &[
+    "keyRange",
+    "velRange",
+    "overridingRootKey",
+    "fineTune",
+    "initialAttenuation",
+    "sampleModes",
+    "startAddrsOffset",
+    "endAddrsOffset",
+    "startloopAddrsOffset",
+    "endloopAddrsOffset",
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SoundFontFormat {
@@ -24,6 +40,24 @@ pub enum SoundFontFormat {
 pub enum SampleCompression {
     Pcm16,
     Vorbis,
+}
+
+/// Capabilities advertised by a separately licensed SoundFont provider.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProviderCapabilities {
+    pub sf2_pcm16: bool,
+    pub sf3_vorbis: bool,
+    pub synthesis: bool,
+}
+
+impl ProviderCapabilities {
+    pub const fn metadata_only() -> Self {
+        Self {
+            sf2_pcm16: false,
+            sf3_vorbis: false,
+            synthesis: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -58,6 +92,45 @@ impl SampleRegion {
             && key <= self.key_max
             && velocity >= self.velocity_min
             && velocity <= self.velocity_max
+    }
+}
+
+/// Validate the bounded generator values needed to turn one zone into a playable voice.
+pub fn validate_sample_region(region: &SampleRegion) -> Result<(), Error> {
+    if region.key_min > region.key_max {
+        return Err(Error::InvalidZone("key range"));
+    }
+    if region.velocity_min == 0 || region.velocity_min > region.velocity_max {
+        return Err(Error::InvalidZone("velocity range"));
+    }
+    if region.sample_rate == 0
+        || !region.attenuation_db.is_finite()
+        || !region.attack_secs.is_finite()
+        || !region.decay_secs.is_finite()
+        || !region.sustain_level.is_finite()
+        || !region.release_secs.is_finite()
+        || region.attack_secs < 0.0
+        || region.decay_secs < 0.0
+        || region.release_secs < 0.0
+        || !(0.0..=1.0).contains(&region.sustain_level)
+    {
+        return Err(Error::InvalidZone("sample/envelope parameters"));
+    }
+    if let Some(loop_points) = region.loop_points
+        && (loop_points.start_frame >= loop_points.end_frame
+            || loop_points.end_frame as u64 > MAX_DECODED_FRAMES as u64)
+    {
+        return Err(Error::InvalidZone("loop points"));
+    }
+    Ok(())
+}
+
+/// Reject a parsed SoundFont generator that this boundary cannot represent safely.
+pub fn validate_generator_name(name: &str) -> Result<(), Error> {
+    if SUPPORTED_GENERATORS.contains(&name) {
+        Ok(())
+    } else {
+        Err(Error::UnsupportedGenerator(name.to_string()))
     }
 }
 
@@ -115,6 +188,37 @@ pub trait SampleRenderer {
     fn render(&mut self, sample: &DecodedSample, action: &SampleAction) -> Result<(), Self::Error>;
 }
 
+/// Complete adapter contract for an optional, separately licensed provider.
+///
+/// The provider owns SF2/SF3 parsing, codec dependencies, licensed assets, and audio output.
+/// A host can inspect [`Self::capabilities`] before selecting a region and receives the
+/// provider's explicit error for unsupported codec, generator, or license conditions.
+pub trait SoundFontProvider {
+    type Error: std::error::Error + Send + Sync + 'static;
+
+    fn capabilities(&self) -> ProviderCapabilities;
+    fn decode(&self, region: &SampleRegion) -> Result<DecodedSample, Self::Error>;
+    fn render(&mut self, sample: &DecodedSample, action: &SampleAction) -> Result<(), Self::Error>;
+}
+
+/// Validate that a region can be handed to the advertised provider capabilities.
+pub fn validate_provider_capabilities(
+    region: &SampleRegion,
+    capabilities: ProviderCapabilities,
+) -> Result<(), Error> {
+    let supported = match region.compression {
+        SampleCompression::Pcm16 => capabilities.sf2_pcm16,
+        SampleCompression::Vorbis => capabilities.sf3_vorbis,
+    };
+    if !supported {
+        return Err(Error::UnsupportedCompression(region.compression));
+    }
+    if !capabilities.synthesis {
+        return Err(Error::UnsupportedProviderCapability("synthesis"));
+    }
+    Ok(())
+}
+
 impl DecodedSample {
     pub fn new(sample_rate: u32, channels: u8, pcm_i16: Vec<i16>) -> Result<Self, Error> {
         if sample_rate == 0 || channels == 0 || channels > 2 || pcm_i16.is_empty() {
@@ -133,6 +237,179 @@ impl DecodedSample {
             pcm_i16,
         })
     }
+}
+
+/// Decode an interleaved little-endian PCM16 sample from an SF2 `smpl` chunk.
+///
+/// `start_frame..end_frame` is half-open. The SF2 container and sample data are supplied by
+/// the host, so this dependency-free path does not read files or bundle assets.
+pub fn decode_sf2_pcm16(
+    data: &[u8],
+    start_frame: usize,
+    end_frame: usize,
+    sample_rate: u32,
+    channels: u8,
+) -> Result<DecodedSample, Error> {
+    if sample_rate == 0 || !(1..=2).contains(&channels) || start_frame >= end_frame {
+        return Err(Error::InvalidSample);
+    }
+    let bytes = find_riff_chunk(data, b"smpl").ok_or(Error::InvalidHeader)?;
+    let frame_bytes = usize::from(channels) * 2;
+    let start = start_frame
+        .checked_mul(frame_bytes)
+        .ok_or(Error::SampleTooLarge(start_frame))?;
+    let end = end_frame
+        .checked_mul(frame_bytes)
+        .ok_or(Error::SampleTooLarge(end_frame))?;
+    if end > bytes.len() || start >= end {
+        return Err(Error::Truncated);
+    }
+    let pcm = bytes[start..end]
+        .chunks_exact(2)
+        .map(|pair| i16::from_le_bytes([pair[0], pair[1]]))
+        .collect();
+    DecodedSample::new(sample_rate, channels, pcm)
+}
+
+/// Decode an SF3 Vorbis payload when the separately licensed `sf3-vorbis` feature is enabled.
+#[cfg(feature = "sf3-vorbis")]
+pub fn decode_sf3_vorbis(
+    data: &[u8],
+    sample_rate: u32,
+    channels: u8,
+) -> Result<DecodedSample, Error> {
+    use std::io::Cursor;
+    if sample_rate == 0 || !(1..=2).contains(&channels) {
+        return Err(Error::InvalidSample);
+    }
+    let payload = find_ogg_payload(data).ok_or(Error::InvalidHeader)?;
+    let mut reader = lewton::inside_ogg::OggStreamReader::new(Cursor::new(payload))
+        .map_err(|_| Error::Decode("invalid SF3 Vorbis stream".to_string()))?;
+    if reader.ident_hdr.audio_channels != channels
+        || reader.ident_hdr.audio_sample_rate != sample_rate
+    {
+        return Err(Error::InvalidSample);
+    }
+    let mut pcm = Vec::new();
+    while let Some(packet) = reader
+        .read_dec_packet_itl()
+        .map_err(|_| Error::Decode("SF3 Vorbis decode failed".to_string()))?
+    {
+        pcm.extend(packet);
+        if pcm.len() / usize::from(channels) > MAX_DECODED_FRAMES {
+            return Err(Error::SampleTooLarge(MAX_DECODED_FRAMES + 1));
+        }
+    }
+    DecodedSample::new(sample_rate, channels, pcm)
+}
+
+/// SF3 decoding is intentionally unavailable unless a licensed Vorbis provider is selected.
+#[cfg(not(feature = "sf3-vorbis"))]
+pub fn decode_sf3_vorbis(
+    _data: &[u8],
+    _sample_rate: u32,
+    _channels: u8,
+) -> Result<DecodedSample, Error> {
+    Err(Error::UnsupportedCompression(SampleCompression::Vorbis))
+}
+
+fn find_riff_chunk<'a>(data: &'a [u8], wanted: &[u8; 4]) -> Option<&'a [u8]> {
+    if data.len() < 12 || &data[..4] != b"RIFF" {
+        return None;
+    }
+    find_chunk_in_range(&data[12..], wanted)
+}
+
+fn find_chunk_in_range<'a>(mut data: &'a [u8], wanted: &[u8; 4]) -> Option<&'a [u8]> {
+    while data.len() >= 8 {
+        let id = &data[..4];
+        let len = u32::from_le_bytes(data[4..8].try_into().ok()?) as usize;
+        let end = 8usize.checked_add(len)?;
+        if end > data.len() {
+            return None;
+        }
+        let payload = &data[8..end];
+        if id == wanted {
+            return Some(payload);
+        }
+        if id == b"LIST"
+            && payload.len() >= 4
+            && let Some(found) = find_chunk_in_range(&payload[4..], wanted)
+        {
+            return Some(found);
+        }
+        data = &data[end + (len & 1).min(data.len().saturating_sub(end))..];
+    }
+    None
+}
+
+#[cfg(feature = "sf3-vorbis")]
+fn find_ogg_payload(data: &[u8]) -> Option<&[u8]> {
+    data.windows(4)
+        .position(|window| window == b"OggS")
+        .map(|offset| &data[offset..])
+}
+
+/// Render one scheduled sample action into deterministic interleaved PCM16 frames.
+pub fn render_sample_action(
+    sample: &DecodedSample,
+    action: &SampleAction,
+    output_rate: u32,
+) -> Result<Vec<i16>, Error> {
+    if output_rate == 0 {
+        return Err(Error::InvalidConfig);
+    }
+    let SampleAction::Start {
+        sample_id,
+        parameters,
+        event,
+        ..
+    } = action
+    else {
+        return Ok(Vec::new());
+    };
+    if *sample_id == 0 || event.duration_secs < 0.0 || !event.duration_secs.is_finite() {
+        return Err(Error::InvalidEvent);
+    }
+    let channels = usize::from(sample.channels);
+    let frames = (event.duration_secs * f64::from(output_rate)).ceil() as usize;
+    let frames = frames.min(MAX_DECODED_FRAMES);
+    let source_frames = sample.pcm_i16.len() / channels;
+    let ratio = f64::from(sample.sample_rate) * f64::from(parameters.playback_rate_ratio)
+        / f64::from(output_rate);
+    if source_frames == 0 || !ratio.is_finite() || ratio <= 0.0 || !parameters.gain.is_finite() {
+        return Err(Error::InvalidSample);
+    }
+    let mut output = Vec::with_capacity(frames * channels);
+    for frame in 0..frames {
+        let mut source = frame as f64 * ratio;
+        if let Some(loop_points) = parameters.loop_points {
+            let loop_start = usize::try_from(loop_points.start_frame).unwrap_or(usize::MAX);
+            let loop_end = usize::try_from(loop_points.end_frame).unwrap_or(usize::MAX);
+            if loop_start < loop_end && loop_end <= source_frames && source >= loop_end as f64 {
+                source = loop_start as f64
+                    + (source - loop_start as f64).rem_euclid((loop_end - loop_start) as f64);
+            }
+        }
+        let source_frame = (source as usize).min(source_frames - 1);
+        let t = frame as f32 / output_rate as f32;
+        let envelope = if parameters.attack_secs > 0.0 && t < parameters.attack_secs {
+            t / parameters.attack_secs
+        } else if parameters.decay_secs > 0.0 && t < parameters.attack_secs + parameters.decay_secs
+        {
+            1.0 - (1.0 - parameters.sustain_level)
+                * ((t - parameters.attack_secs) / parameters.decay_secs)
+        } else {
+            parameters.sustain_level
+        };
+        for channel in 0..channels {
+            let value = f32::from(sample.pcm_i16[source_frame * channels + channel])
+                * parameters.gain
+                * envelope;
+            output.push(value.clamp(-32768.0, 32767.0).round() as i16);
+        }
+    }
+    Ok(output)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -180,8 +457,18 @@ pub enum Error {
     InvalidEvent,
     #[error("sample parameters are invalid")]
     InvalidSample,
+    #[error("SoundFont zone is invalid: {0}")]
+    InvalidZone(&'static str),
+    #[error("SoundFont generator is unsupported: {0}")]
+    UnsupportedGenerator(String),
     #[error("decoded sample is too large ({0} frames)")]
     SampleTooLarge(usize),
+    #[error("provider does not support sample compression {0:?}")]
+    UnsupportedCompression(SampleCompression),
+    #[error("provider does not support capability: {0}")]
+    UnsupportedProviderCapability(&'static str),
+    #[error("SoundFont decode failed: {0}")]
+    Decode(String),
 }
 
 /// Load only the bounded, path-independent metadata needed by a renderer.
@@ -334,18 +621,8 @@ pub fn schedule_sample_note_on(
     region: &SampleRegion,
     velocity_exponent: f32,
 ) -> Result<SampleAction, Error> {
-    if !region.contains(event.pitch_midi, event.velocity)
-        || region.sample_rate == 0
-        || !region.attenuation_db.is_finite()
-        || !region.attack_secs.is_finite()
-        || !region.decay_secs.is_finite()
-        || !region.sustain_level.is_finite()
-        || !region.release_secs.is_finite()
-        || region.attack_secs < 0.0
-        || region.decay_secs < 0.0
-        || region.release_secs < 0.0
-        || !(0.0..=1.0).contains(&region.sustain_level)
-    {
+    validate_sample_region(region)?;
+    if !region.contains(event.pitch_midi, event.velocity) {
         return Err(Error::InvalidSample);
     }
     let gain = velocity_gain(event.velocity, velocity_exponent)?
@@ -645,6 +922,101 @@ mod tests {
         assert!(!cache.contains(1));
         assert!(cache.contains(2));
         assert_eq!(cache.len(), 2);
+    }
+
+    #[test]
+    fn provider_capabilities_reject_unsupported_paths_explicitly() {
+        let pcm = region(1, 0, 127);
+        assert_eq!(
+            validate_provider_capabilities(&pcm, ProviderCapabilities::metadata_only()),
+            Err(Error::UnsupportedCompression(SampleCompression::Pcm16))
+        );
+
+        let capabilities = ProviderCapabilities {
+            sf2_pcm16: true,
+            sf3_vorbis: false,
+            synthesis: false,
+        };
+        assert_eq!(
+            validate_provider_capabilities(&pcm, capabilities),
+            Err(Error::UnsupportedProviderCapability("synthesis"))
+        );
+
+        let mut vorbis = pcm;
+        vorbis.compression = SampleCompression::Vorbis;
+        assert_eq!(
+            validate_provider_capabilities(
+                &vorbis,
+                ProviderCapabilities {
+                    sf2_pcm16: true,
+                    sf3_vorbis: false,
+                    synthesis: true,
+                }
+            ),
+            Err(Error::UnsupportedCompression(SampleCompression::Vorbis))
+        );
+    }
+
+    #[test]
+    fn malformed_zone_data_is_rejected_with_a_typed_diagnostic() {
+        let mut invalid = region(1, 60, 59);
+        assert_eq!(
+            validate_sample_region(&invalid),
+            Err(Error::InvalidZone("key range"))
+        );
+        invalid = region(1, 0, 127);
+        invalid.loop_points = Some(SampleLoop {
+            start_frame: 20,
+            end_frame: 10,
+        });
+        assert_eq!(
+            validate_sample_region(&invalid),
+            Err(Error::InvalidZone("loop points"))
+        );
+        assert!(validate_generator_name("keyRange").is_ok());
+        assert_eq!(
+            validate_generator_name("unsupportedFilterCutoff"),
+            Err(Error::UnsupportedGenerator(
+                "unsupportedFilterCutoff".to_string()
+            ))
+        );
+    }
+
+    #[test]
+    fn decodes_sf2_pcm_and_renders_a_deterministic_note() {
+        let mut sf2 = b"RIFFxxxxsfbk".to_vec();
+        sf2.extend(b"LIST".as_slice());
+        sf2.extend(20u32.to_le_bytes());
+        sf2.extend(b"sdta".as_slice());
+        sf2.extend(b"smpl".as_slice());
+        sf2.extend(8u32.to_le_bytes());
+        for value in [1000i16, -1000, 2000, -2000] {
+            sf2.extend(value.to_le_bytes());
+        }
+        let sample = decode_sf2_pcm16(&sf2, 1, 3, 2, 1).expect("PCM16 sample");
+        assert_eq!(sample.pcm_i16, vec![-1000, 2000]);
+        let mut playback_region = region(1, 0, 127);
+        playback_region.attack_secs = 0.0;
+        playback_region.sustain_level = 1.0;
+        let action = schedule_sample_note_on(1, event("render", 127), &playback_region, 1.0)
+            .expect("sample action");
+        let rendered = render_sample_action(&sample, &action, 2).expect("rendered sample");
+        assert_eq!(rendered, vec![-1000, 2000]);
+    }
+
+    #[cfg(feature = "sf3-vorbis")]
+    #[test]
+    fn decodes_permitted_synthetic_sf3_vorbis_fixture() {
+        let sample = decode_sf3_vorbis(
+            include_bytes!("../../../tests/fixtures/synthetic.sf3"),
+            8000,
+            2,
+        )
+        .expect("SF3 Vorbis fixture");
+        assert_eq!(sample.sample_rate, 8000);
+        assert_eq!(sample.channels, 2);
+        assert!(!sample.pcm_i16.is_empty());
+        assert!(sample.pcm_i16.iter().any(|value| *value != 0));
     }
     fn sf(ogg: bool) -> Vec<u8> {
         let mut p = vec![0u8; 38 * 2];

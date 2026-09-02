@@ -8,10 +8,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [1.0.6] - 2026-09-03
+## [1.0.7] - 2026-09-03
 
 - Added host-neutral `SystemLayout::measure_marks` metadata for repeat barlines, volta endings,
   navigation marks, and rehearsal labels.
+- Added automatic pickup-measure detection by default, with `PickupPolicy::Preserve` as an
+  explicit opt-out and `DetectFirstMeasure` retained for compatibility.
+- Accounted for the full visual width of multirests during deterministic system breaking without
+  splitting a multirest across systems.
+- Added the versioned `SoundFontProvider` adapter contract, capability negotiation, and typed
+  unsupported-compression/provider-capability errors for separately licensed SF2/SF3 backends.
+- Added bounded SF2 PCM16 decoding and deterministic sample-action rendering; SF3 Vorbis remains
+  an opt-in separately licensed codec feature.
+- Added typed SoundFont zone validation for malformed ranges, loop points, sample parameters, and
+  unsupported generator reporting.
+- Added page-level span ownership metadata for deterministic cross-page continuation rendering and
+  bumped the print-layout contract to version `14`.
+- Added an explicit supported-generator allowlist so parsed zone generators outside the neutral
+  contract fail with `Error::UnsupportedGenerator`.
 - Added host-neutral `PrintConfig::keep_together` ranges for deterministic system pagination;
   invalid, over-capacity, and explicit-break-conflicting ranges return typed errors.
 - Added an optional first-system measure capacity for pickup/title layout policies.

@@ -11,7 +11,7 @@ Score → PrintConfig → PrintLayoutResult (pages/systems in mm) → SVG/PDF/pr
 `PrintConfig` defines paper size, orientation, margins, bleed/safe areas, system height, scale,
 page-numbering, color, crop-mark, and glyph-resource policies, measures per system, and optional
 `keep_together` ranges, an optional `first_system_measures` capacity for pickup/title systems,
-an opt-in `pickup_policy` that detects a partial first measure, and a `final_page_policy` that
+an automatic or explicit `pickup_policy` that detects a partial first measure, and a `final_page_policy` that
 can deterministically balance automatic pagination.
 A keep-together range uses zero-based inclusive physical measure indices
 and is placed in one system when it fits the configured capacity. Invalid ranges, ranges larger
@@ -22,13 +22,17 @@ intent, and glyph-resource policy are carried as explicit page metadata for a ho
 `SystemLayout::measure_spans` records the physical inclusive interval represented by each visual
 measure slot, including the hidden extent of multirests. `SystemLayout::span_segments` identifies
 cross-system span intersections and whether each segment starts or ends on that system.
+Multirests consume their full visual width when systems are broken and are never split between
+systems; a multirest wider than the configured capacity occupies one system by itself.
 `SystemLayout::measure_marks` carries repeat barlines, volta endings, navigation marks, and
 rehearsal labels for each physical measure in the system; playback expansion remains in core.
+`PageLayout::span_segments` aggregates cross-system span ownership at page boundaries, so a host
+can emit continuation marks without reconstructing spans from adjacent systems.
 `PrintLayoutResult` records page
 dimensions, stable page/system addresses, physical measure indices, and typed break reasons (`MeasureCapacity`, `ExplicitSystemBreak`,
 `ExplicitPageBreak`, `PageCapacity`, or `EndOfScore`). Layout honors existing `system_break` and
 `page_break` decisions and produces stable output for the same score and configuration. Its
-`contract_version` is `13` for this address/diagnostic, bleed/safe-area, scale, page-numbering,
+`contract_version` is `14` for this address/diagnostic, bleed/safe-area, scale, page-numbering,
 color, crop-mark, and glyph-resource shape. `GlyphResourcePolicy::HostProvided` is only a stable
 resource key; resource lookup, font loading, and glyph metrics remain host/provider work.
 The SVG renderer exposes `glyph_coverage()` for its built-in vector resource and rejects notation

@@ -14,12 +14,15 @@ host-facing color/crop-mark/glyph-resource policies. Hosts can also pass
 `PrintConfig::keep_together` ranges to keep contiguous physical measures in one system, and
 `first_system_measures` to reserve a shorter first system for pickup/title material;
 `final_page_policy` can balance automatically paginated systems across pages;
-`pickup_policy` can opt in to isolating a non-empty partial first measure;
+`pickup_policy` automatically isolates a non-empty partial first measure by default, or can be
+set to `Preserve` to opt out;
 each system also exposes physical `measure_spans`, including the hidden extent of multirest
 slots;
+multirests consume their full visual width during system breaking and remain unsplit;
 cross-system spans are exposed as per-system `span_segments` with explicit start/end ownership;
 repeat barlines, volta endings, navigation marks, and rehearsal labels are exposed as
 per-system `measure_marks` without changing playback order;
+pages aggregate cross-system span ownership as `PageSpanSegment` values;
 invalid, over-capacity, or explicit-break-conflicting ranges return typed errors.
 Safe areas constrain the content rectangle, but the crate does not choose fonts, emit PDF, access
 printers, or perform filesystem I/O.
