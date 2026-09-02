@@ -61,6 +61,18 @@ pub enum PickupPolicy {
     DetectFirstMeasure,
 }
 
+/// Policy for preserving repeat-ending notation while systems are reflowed.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum NotationBreakPolicy {
+    /// Keep the score's normal automatic system breaks.
+    #[default]
+    Preserve,
+    /// Keep each contiguous volta ending in one system when it fits.
+    KeepVoltaTogether,
+    /// Keep each repeat section on one page when it fits the page capacity.
+    KeepRepeatsTogether,
+}
+
 /// Color intent for a print-capable host.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum PrintColorPolicy {
@@ -128,6 +140,8 @@ pub struct PrintConfig {
     pub first_system_measures: Option<usize>,
     #[serde(default)]
     pub pickup_policy: PickupPolicy,
+    #[serde(default)]
+    pub notation_break_policy: NotationBreakPolicy,
     /// Override the number of systems per page. When omitted it is derived from the usable
     /// page height and `system_height_mm`.
     pub systems_per_page: Option<usize>,
@@ -167,6 +181,7 @@ impl Default for PrintConfig {
             measures_per_system: 4,
             first_system_measures: None,
             pickup_policy: PickupPolicy::Auto,
+            notation_break_policy: NotationBreakPolicy::Preserve,
             systems_per_page: None,
             page_numbering: PageNumbering::OneBased,
             final_page_policy: FinalPagePolicy::AllowSingleSystem,
@@ -291,11 +306,40 @@ pub struct PageLayout {
     pub break_reason: BreakReason,
 }
 
+impl PageLayout {
+    /// Return the inclusive physical measure range represented on this page.
+    pub fn measure_span(&self) -> Option<MeasureSpan> {
+        let mut spans = self
+            .systems
+            .iter()
+            .flat_map(|system| system.measure_spans.iter().copied());
+        let first = spans.next()?;
+        Some(spans.fold(first, |range, span| MeasureSpan {
+            first_measure: range.first_measure.min(span.first_measure),
+            last_measure: range.last_measure.max(span.last_measure),
+        }))
+    }
+
+    /// Whether a span continues into or out of another printed page.
+    pub fn has_span_continuation(&self) -> bool {
+        self.span_segments
+            .iter()
+            .any(|segment| !segment.starts_here || !segment.ends_here)
+    }
+}
+
 /// Deterministic page/system geometry for a score.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PrintLayoutResult {
     pub contract_version: u16,
     pub pages: Vec<PageLayout>,
+}
+
+impl PrintLayoutResult {
+    /// Retrieve one page artifact by its stable address without recomputing layout.
+    pub fn page(&self, address: PageAddress) -> Option<&PageLayout> {
+        self.pages.get(address.page_index)
+    }
 }
 
 #[derive(Debug, thiserror::Error, PartialEq)]
@@ -316,6 +360,8 @@ pub enum PrintLayoutError {
     KeepTogetherExceedsSystemCapacity,
     #[error("keep-together range conflicts with an explicit system or page break")]
     KeepTogetherConflictsWithExplicitBreak,
+    #[error("repeat section exceeds the systems-per-page capacity")]
+    RepeatRangeExceedsPageCapacity,
 }
 
 fn apply_keep_together(
@@ -352,6 +398,38 @@ fn apply_keep_together(
                 return Err(PrintLayoutError::KeepTogetherConflictsWithExplicitBreak);
             }
         }
+
+        // Split at the range boundaries before merging rows. This allows a range that
+        // crosses an existing system boundary to be reflowed without pulling unrelated
+        // measures into the merged system.
+        let mut split_rows = Vec::with_capacity(rows.len() + 2);
+        for row in rows {
+            let mut cuts = vec![0, row.measure_indices.len()];
+            if let Some(position) = row
+                .measure_indices
+                .iter()
+                .position(|&index| index == range.first_measure)
+            {
+                cuts.push(position);
+            }
+            if let Some(position) = row
+                .measure_indices
+                .iter()
+                .position(|&index| index == range.last_measure)
+            {
+                cuts.push(position + 1);
+            }
+            cuts.sort_unstable();
+            cuts.dedup();
+            for window in cuts.windows(2) {
+                if window[0] < window[1] {
+                    split_rows.push(crate::RowLayout {
+                        measure_indices: row.measure_indices[window[0]..window[1]].to_vec(),
+                    });
+                }
+            }
+        }
+        rows = split_rows;
 
         let first_row = rows
             .iter()
@@ -534,6 +612,72 @@ fn measure_marks(score: &Score, measure_indices: &[usize]) -> Vec<MeasureMark> {
         .collect()
 }
 
+fn volta_ranges(score: &Score) -> Vec<KeepTogetherRange> {
+    let Some(staff) = score.parts.first().and_then(|part| part.staves.first()) else {
+        return Vec::new();
+    };
+    let mut ranges = Vec::new();
+    let mut start = None;
+    for (index, measure) in staff.measures.iter().enumerate() {
+        let Some(volta) = measure.volta.as_ref() else {
+            continue;
+        };
+        if matches!(volta.kind.as_str(), "begin" | "begin_end") {
+            start = Some(index);
+        }
+        if matches!(volta.kind.as_str(), "end" | "begin_end")
+            && let Some(first_measure) = start.take()
+        {
+            ranges.push(KeepTogetherRange {
+                first_measure,
+                last_measure: index,
+            });
+        }
+    }
+    ranges
+}
+
+fn repeat_ranges(score: &Score) -> Vec<KeepTogetherRange> {
+    let Some(staff) = score.parts.first().and_then(|part| part.staves.first()) else {
+        return Vec::new();
+    };
+    let mut ranges = Vec::new();
+    let mut start = None;
+    for (index, measure) in staff.measures.iter().enumerate() {
+        if matches!(
+            measure.barline_left,
+            Barline::RepeatStart | Barline::RepeatBoth
+        ) {
+            start = Some(index);
+        }
+        if matches!(
+            measure.barline_right,
+            Barline::RepeatEnd | Barline::RepeatBoth
+        ) {
+            ranges.push(KeepTogetherRange {
+                first_measure: start.take().unwrap_or(0),
+                last_measure: index,
+            });
+        }
+    }
+    ranges
+}
+
+fn repeat_system_ranges(score: &Score, rows: &[crate::RowLayout]) -> Vec<(usize, usize)> {
+    repeat_ranges(score)
+        .into_iter()
+        .filter_map(|range| {
+            let first = rows
+                .iter()
+                .position(|row| row.measure_indices.contains(&range.first_measure))?;
+            let last = rows
+                .iter()
+                .position(|row| row.measure_indices.contains(&range.last_measure))?;
+            Some((first, last))
+        })
+        .collect()
+}
+
 fn page_span_segments(systems: &[SystemLayout]) -> Vec<PageSpanSegment> {
     let mut segments = Vec::new();
     for system in systems {
@@ -643,10 +787,17 @@ pub fn compute_print_layout(
         },
     );
 
+    let mut keep_together = config.keep_together.clone();
+    if matches!(
+        config.notation_break_policy,
+        NotationBreakPolicy::KeepVoltaTogether
+    ) {
+        keep_together.extend(volta_ranges(score));
+    }
     let rows = apply_keep_together(
         score,
         layout.rows,
-        &config.keep_together,
+        &keep_together,
         config.measures_per_system.max(1),
     )?;
 
@@ -660,10 +811,25 @@ pub fn compute_print_layout(
                 .any(|measure| measure.page_break)
         })
     });
+    let repeat_system_ranges = if matches!(
+        config.notation_break_policy,
+        NotationBreakPolicy::KeepRepeatsTogether
+    ) {
+        repeat_system_ranges(score, &rows)
+    } else {
+        Vec::new()
+    };
+    if repeat_system_ranges
+        .iter()
+        .any(|(first, last)| last.saturating_sub(*first).saturating_add(1) > systems_per_page)
+    {
+        return Err(PrintLayoutError::RepeatRangeExceedsPageCapacity);
+    }
     let page_capacities = if matches!(config.final_page_policy, FinalPagePolicy::Balance)
         && !has_explicit_page_break
         && systems_per_page > 1
         && rows.len() > systems_per_page
+        && repeat_system_ranges.is_empty()
     {
         let page_count = rows.len().div_ceil(systems_per_page);
         let base = rows.len() / page_count;
@@ -679,6 +845,35 @@ pub fn compute_print_layout(
     let mut page_systems = Vec::new();
     let mut page_index = 0;
     for (system_index, row) in rows.iter().enumerate() {
+        let repeat_starts_here = repeat_system_ranges
+            .iter()
+            .any(|(first, _)| *first == system_index);
+        if repeat_starts_here && !page_systems.is_empty() {
+            pages.push(PageLayout {
+                address: PageAddress { page_index },
+                page_index,
+                page_number: match config.page_numbering {
+                    PageNumbering::None => None,
+                    PageNumbering::OneBased => Some(page_index + 1),
+                },
+                color_policy: config.color_policy,
+                crop_mark_policy: config.crop_mark_policy,
+                glyph_resources: config.glyph_resources.clone(),
+                width_mm,
+                height_mm,
+                content_width_mm,
+                content_height_mm,
+                bleed_top_mm: config.bleed_top_mm,
+                bleed_right_mm: config.bleed_right_mm,
+                bleed_bottom_mm: config.bleed_bottom_mm,
+                bleed_left_mm: config.bleed_left_mm,
+                span_segments: page_span_segments(&page_systems),
+                measure_marks: page_measure_marks(&page_systems),
+                systems: std::mem::take(&mut page_systems),
+                break_reason: BreakReason::PageCapacity,
+            });
+            page_index += 1;
+        }
         let explicit_page_break = row.measure_indices.last().is_some_and(|&measure_index| {
             score
                 .parts
@@ -791,7 +986,7 @@ pub fn compute_print_layout(
     }
 
     Ok(PrintLayoutResult {
-        contract_version: 14,
+        contract_version: 15,
         pages,
     })
 }
@@ -1120,6 +1315,92 @@ mod tests {
     }
 
     #[test]
+    fn page_artifact_measure_span_borrows_system_spans() {
+        let mut score = score_with_measures(4);
+        let mut start = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        start.slur_start = true;
+        let mut end = Note::new(Pitch::new(Step::D, 4), Duration::Quarter);
+        end.slur_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![start];
+        score.parts[0].staves[0].measures[3].voices[0] = vec![end];
+        let result = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 2,
+                pickup_policy: PickupPolicy::Preserve,
+                systems_per_page: Some(1),
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid page artifact");
+        let first = result
+            .page(PageAddress { page_index: 0 })
+            .expect("first page");
+        assert_eq!(
+            first.measure_span(),
+            Some(MeasureSpan {
+                first_measure: 0,
+                last_measure: 1,
+            })
+        );
+        assert!(first.has_span_continuation());
+        assert!(result.page(PageAddress { page_index: 99 }).is_none());
+    }
+
+    #[test]
+    fn notation_policy_keeps_volta_range_in_one_system() {
+        let mut score = score_with_measures(4);
+        score.parts[0].staves[0].measures[1].volta = Some(acorde_core::VoltaBracket {
+            number: 1,
+            kind: "begin".to_string(),
+        });
+        score.parts[0].staves[0].measures[2].volta = Some(acorde_core::VoltaBracket {
+            number: 1,
+            kind: "end".to_string(),
+        });
+        let result = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 2,
+                systems_per_page: Some(8),
+                notation_break_policy: NotationBreakPolicy::KeepVoltaTogether,
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid volta-preserving layout");
+        assert_eq!(result.pages[0].systems[0].measure_indices, vec![0]);
+        assert_eq!(result.pages[0].systems[1].measure_indices, vec![1, 2]);
+        assert_eq!(result.pages[0].systems[2].measure_indices, vec![3]);
+    }
+
+    #[test]
+    fn notation_policy_keeps_repeat_section_on_one_page() {
+        let mut score = score_with_measures(5);
+        score.parts[0].staves[0].measures[2].barline_left = Barline::RepeatStart;
+        score.parts[0].staves[0].measures[4].barline_right = Barline::RepeatEnd;
+        let result = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 2,
+                systems_per_page: Some(2),
+                notation_break_policy: NotationBreakPolicy::KeepRepeatsTogether,
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid repeat-preserving layout");
+        assert_eq!(result.pages[0].systems.len(), 1);
+        assert_eq!(result.pages[1].systems.len(), 2);
+        assert_eq!(
+            result.pages[1]
+                .systems
+                .iter()
+                .flat_map(|system| system.measure_indices.iter().copied())
+                .collect::<Vec<_>>(),
+            vec![2, 3, 4]
+        );
+    }
+
+    #[test]
     fn balance_policy_avoids_single_system_final_page() {
         let score = score_with_measures(5);
         let result = compute_print_layout(
@@ -1228,7 +1509,7 @@ mod tests {
         )
         .expect("valid print config");
         let page = &result.pages[0];
-        assert_eq!(result.contract_version, 14);
+        assert_eq!(result.contract_version, 15);
         assert_eq!(page.bleed_left_mm, 3.0);
         assert_eq!(page.content_width_mm, 210.0 - 14.0 - 14.0 - 8.0 - 6.0);
         assert_eq!(page.content_height_mm, 297.0 - 16.0 - 16.0 - 5.0 - 7.0);
@@ -1313,7 +1594,7 @@ mod tests {
         )
         .expect("valid print config");
         let page = &result.pages[0];
-        assert_eq!(result.contract_version, 14);
+        assert_eq!(result.contract_version, 15);
         assert_eq!(page.color_policy, PrintColorPolicy::Preserve);
         assert_eq!(page.crop_mark_policy, CropMarkPolicy::BleedEdges);
     }

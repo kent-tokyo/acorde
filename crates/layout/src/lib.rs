@@ -9,9 +9,9 @@ pub use acorde_core::NoteAddr;
 pub use engine::compute_layout;
 pub use print::{
     BreakReason, CropMarkPolicy, FinalPagePolicy, GlyphResourcePolicy, KeepTogetherRange,
-    MeasureMark, PageAddress, PageLayout, PageNumbering, PageOrientation, PageSpanSegment,
-    PaperSize, PickupPolicy, PrintColorPolicy, PrintConfig, PrintLayoutError, PrintLayoutResult,
-    SpanSegment, SystemAddress, SystemLayout, compute_print_layout,
+    MeasureMark, NotationBreakPolicy, PageAddress, PageLayout, PageNumbering, PageOrientation,
+    PageSpanSegment, PaperSize, PickupPolicy, PrintColorPolicy, PrintConfig, PrintLayoutError,
+    PrintLayoutResult, SpanSegment, SystemAddress, SystemLayout, compute_print_layout,
 };
 
 use acorde_core::{HairpinKind, OttavaKind};

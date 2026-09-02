@@ -11,8 +11,8 @@ acorde-render-svg is intentionally not re-exported and must be added directly.
 
 ~~~toml
 [dependencies]
-acorde = "1.0.7"
-acorde-render-svg = "1.0.7"
+acorde = "1.0.8"
+acorde-render-svg = "1.0.8"
 ~~~
 
 [API documentation](https://docs.rs/acorde) · [Repository](https://github.com/kent-tokyo/acorde)

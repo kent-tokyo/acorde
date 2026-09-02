@@ -8,6 +8,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.8] - 2026-09-03
+
+- Added opt-in `NotationBreakPolicy::KeepVoltaTogether` system reflow for contiguous volta
+  endings and bumped the print-layout contract to version `15`.
+- Added opt-in `NotationBreakPolicy::KeepRepeatsTogether` page placement, with typed rejection
+  when a repeat section exceeds the configured systems-per-page capacity.
+- Added stable page-artifact lookup and helpers for physical page measure ranges and span
+  continuation detection.
+- Fixed page measure-span aggregation to borrow system span vectors, preserving clean downstream
+  compilation for consumers of the published layout API.
+
 ## [1.0.7] - 2026-09-03
 
 - Added host-neutral `SystemLayout::measure_marks` metadata for repeat barlines, volta endings,

@@ -14,7 +14,7 @@ keywords = ["music", "soundfont", "sf2", "sf3", "playback"]
 categories = ["multimedia::audio"]
 
 [dependencies]
-acorde-core = { path = "../core", version = "1.0.7" }
+acorde-core = { path = "../core", version = "1.0.8" }
 thiserror = "2"
 lewton = { version = "0.10", optional = true }
 

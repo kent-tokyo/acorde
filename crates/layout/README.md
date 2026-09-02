@@ -23,6 +23,11 @@ cross-system spans are exposed as per-system `span_segments` with explicit start
 repeat barlines, volta endings, navigation marks, and rehearsal labels are exposed as
 per-system `measure_marks` without changing playback order;
 pages aggregate cross-system span ownership as `PageSpanSegment` values;
+`PrintLayoutResult::page` retrieves a stable page artifact without recomputation, with helpers
+for its physical measure range and cross-page span continuation;
+`NotationBreakPolicy::KeepVoltaTogether` can preserve contiguous volta endings during system
+breaking when explicitly enabled; `NotationBreakPolicy::KeepRepeatsTogether` can start repeat
+sections on a fresh page and keep them together when they fit the page capacity;
 invalid, over-capacity, or explicit-break-conflicting ranges return typed errors.
 Safe areas constrain the content rectangle, but the crate does not choose fonts, emit PDF, access
 printers, or perform filesystem I/O.

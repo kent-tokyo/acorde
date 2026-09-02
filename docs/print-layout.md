@@ -26,15 +26,24 @@ Multirests consume their full visual width when systems are broken and are never
 systems; a multirest wider than the configured capacity occupies one system by itself.
 `SystemLayout::measure_marks` carries repeat barlines, volta endings, navigation marks, and
 rehearsal labels for each physical measure in the system; playback expansion remains in core.
+`NotationBreakPolicy::KeepVoltaTogether` is an opt-in system-breaking policy that keeps a
+contiguous volta begin/end range in one system when it fits; the default `Preserve` policy
+does not infer notation-aware breaks. `NotationBreakPolicy::KeepRepeatsTogether` is an opt-in
+page policy that starts a repeat section on a fresh page and keeps it together when it fits the
+configured systems-per-page capacity; repeat sections that exceed that capacity return a typed
+error. It disables final-page balancing so the repeat boundary remains deterministic.
 `PageLayout::span_segments` aggregates cross-system span ownership at page boundaries, so a host
 can emit continuation marks without reconstructing spans from adjacent systems.
 `PrintLayoutResult` records page
 dimensions, stable page/system addresses, physical measure indices, and typed break reasons (`MeasureCapacity`, `ExplicitSystemBreak`,
 `ExplicitPageBreak`, `PageCapacity`, or `EndOfScore`). Layout honors existing `system_break` and
 `page_break` decisions and produces stable output for the same score and configuration. Its
-`contract_version` is `14` for this address/diagnostic, bleed/safe-area, scale, page-numbering,
+`contract_version` is `15` for this address/diagnostic, bleed/safe-area, scale, page-numbering,
 color, crop-mark, and glyph-resource shape. `GlyphResourcePolicy::HostProvided` is only a stable
 resource key; resource lookup, font loading, and glyph metrics remain host/provider work.
+Hosts can retrieve a page artifact with `PrintLayoutResult::page(PageAddress)`, inspect its
+physical range with `PageLayout::measure_span()`, and detect cross-page continuations with
+`PageLayout::has_span_continuation()`.
 The SVG renderer exposes `glyph_coverage()` for its built-in vector resource and rejects notation
 outside the reported clef/accidental coverage with a typed error; it never silently emits a blank
 critical glyph.
