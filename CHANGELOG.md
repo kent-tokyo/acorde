@@ -12,6 +12,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Added a host-neutral `acorde-layout` print contract: physical paper geometry, deterministic
   page/system placement, and preservation of explicit page breaks without PDF or OS coupling.
+- Added stable page/system addresses and typed break reasons to the print-layout result for host
+  navigation and “why did this break?” explanations.
 - Expanded notation interchange with fractional-pitch cents, MusicXML tablature staff metadata
   and string/fret positions, ABC `^/`/`_/` quarter accidentals, and MEI `qs`/`qf` accidentals.
 - Documented the remaining MIDI pitch-bend and format-specific tablature boundaries explicitly.

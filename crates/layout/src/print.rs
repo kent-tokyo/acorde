@@ -71,22 +71,50 @@ impl Default for PrintConfig {
 /// A logical system placed on a page.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SystemLayout {
+    pub address: SystemAddress,
     pub system_index: usize,
     pub page_index: usize,
     pub measure_indices: Vec<usize>,
     pub top_mm: f32,
     pub height_mm: f32,
+    pub break_reason: BreakReason,
+}
+
+/// Stable address of a page within one print-layout result.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PageAddress {
+    pub page_index: usize,
+}
+
+/// Stable address of a system, including global and page-local positions.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SystemAddress {
+    pub system_index: usize,
+    pub page_index: usize,
+    pub index_on_page: usize,
+}
+
+/// Explains why a system or page ended at its final measure.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum BreakReason {
+    MeasureCapacity,
+    ExplicitSystemBreak,
+    ExplicitPageBreak,
+    PageCapacity,
+    EndOfScore,
 }
 
 /// One page in a [`PrintLayoutResult`].
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PageLayout {
+    pub address: PageAddress,
     pub page_index: usize,
     pub width_mm: f32,
     pub height_mm: f32,
     pub content_width_mm: f32,
     pub content_height_mm: f32,
     pub systems: Vec<SystemLayout>,
+    pub break_reason: BreakReason,
 }
 
 /// Deterministic page/system geometry for a score.
@@ -163,16 +191,7 @@ pub fn compute_print_layout(
     let mut page_systems = Vec::new();
     let mut page_index = 0;
     for (system_index, row) in layout.rows.iter().enumerate() {
-        let system = SystemLayout {
-            system_index,
-            page_index,
-            measure_indices: row.measure_indices.clone(),
-            top_mm: config.margin_top_mm + page_systems.len() as f32 * config.system_height_mm,
-            height_mm: config.system_height_mm,
-        };
-        page_systems.push(system);
-
-        let forced_page_break = row.measure_indices.last().is_some_and(|&measure_index| {
+        let explicit_page_break = row.measure_indices.last().is_some_and(|&measure_index| {
             score
                 .parts
                 .iter()
@@ -180,31 +199,76 @@ pub fn compute_print_layout(
                 .filter_map(|staff| staff.measures.get(measure_index))
                 .any(|measure| measure.page_break)
         });
-        if page_systems.len() >= systems_per_page || forced_page_break {
+        let explicit_system_break = row.measure_indices.last().is_some_and(|&measure_index| {
+            score
+                .parts
+                .iter()
+                .flat_map(|part| part.staves.iter())
+                .filter_map(|staff| staff.measures.get(measure_index))
+                .any(|measure| measure.system_break)
+        });
+        let is_last_system = system_index + 1 == layout.rows.len();
+        let break_reason = if explicit_page_break {
+            BreakReason::ExplicitPageBreak
+        } else if explicit_system_break {
+            BreakReason::ExplicitSystemBreak
+        } else if is_last_system {
+            BreakReason::EndOfScore
+        } else {
+            BreakReason::MeasureCapacity
+        };
+        let system = SystemLayout {
+            address: SystemAddress {
+                system_index,
+                page_index,
+                index_on_page: page_systems.len(),
+            },
+            system_index,
+            page_index,
+            measure_indices: row.measure_indices.clone(),
+            top_mm: config.margin_top_mm + page_systems.len() as f32 * config.system_height_mm,
+            height_mm: config.system_height_mm,
+            break_reason,
+        };
+        page_systems.push(system);
+
+        let page_is_full = page_systems.len() >= systems_per_page;
+        if page_is_full || explicit_page_break {
+            let page_break_reason = if explicit_page_break {
+                BreakReason::ExplicitPageBreak
+            } else if is_last_system {
+                BreakReason::EndOfScore
+            } else {
+                BreakReason::PageCapacity
+            };
             pages.push(PageLayout {
+                address: PageAddress { page_index },
                 page_index,
                 width_mm,
                 height_mm,
                 content_width_mm,
                 content_height_mm,
                 systems: std::mem::take(&mut page_systems),
+                break_reason: page_break_reason,
             });
             page_index += 1;
         }
     }
     if !page_systems.is_empty() || pages.is_empty() {
         pages.push(PageLayout {
+            address: PageAddress { page_index },
             page_index,
             width_mm,
             height_mm,
             content_width_mm,
             content_height_mm,
             systems: page_systems,
+            break_reason: BreakReason::EndOfScore,
         });
     }
 
     Ok(PrintLayoutResult {
-        contract_version: 1,
+        contract_version: 2,
         pages,
     })
 }
@@ -247,6 +311,12 @@ mod tests {
         );
         assert_eq!(result.pages[1].systems[0].measure_indices, vec![4]);
         assert_eq!(result.pages[1].systems[0].page_index, 1);
+        assert_eq!(result.pages[1].systems[0].address.index_on_page, 0);
+        assert_eq!(
+            result.pages[1].systems[0].break_reason,
+            BreakReason::EndOfScore
+        );
+        assert_eq!(result.pages[0].break_reason, BreakReason::PageCapacity);
     }
 
     #[test]
@@ -265,6 +335,11 @@ mod tests {
         assert_eq!(result.pages.len(), 2);
         assert_eq!(result.pages[0].systems[0].measure_indices, vec![0]);
         assert_eq!(result.pages[1].systems[0].measure_indices, vec![1, 2]);
+        assert_eq!(result.pages[0].break_reason, BreakReason::ExplicitPageBreak);
+        assert_eq!(
+            result.pages[0].systems[0].break_reason,
+            BreakReason::ExplicitPageBreak
+        );
     }
 
     #[test]
