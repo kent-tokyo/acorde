@@ -8,7 +8,7 @@ mod print;
 pub use acorde_core::NoteAddr;
 pub use engine::compute_layout;
 pub use print::{
-    BreakReason, PageAddress, PageLayout, PageOrientation, PaperSize, PrintConfig,
+    BreakReason, PageAddress, PageLayout, PageNumbering, PageOrientation, PaperSize, PrintConfig,
     PrintLayoutError, PrintLayoutResult, SystemAddress, SystemLayout, compute_print_layout,
 };
 

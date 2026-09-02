@@ -8,6 +8,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+- Added a physical print scale to `PrintConfig`; scaled system geometry now participates in
+  deterministic page capacity without changing the selected paper dimensions.
+- Extended the host-neutral print contract with physical bleed and safe-area configuration and
+  page metadata; the package version remains fixed until the next release decision.
+- Added configurable page-number metadata to the host-neutral print layout contract.
+
 ## [1.0.3] - 2026-09-02
 
 - Extended `acorde-soundfont` with a provider-neutral sample-region and voice contract, bounded
@@ -21,12 +29,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and string/fret positions, ABC `^/`/`_/` quarter accidentals, and MEI `qs`/`qf` accidentals.
 - Documented the remaining MIDI pitch-bend and format-specific tablature boundaries explicitly.
 
-## [Unreleased]
-
-- Added a physical print scale to `PrintConfig`; scaled system geometry now participates in
-  deterministic page capacity without changing the selected paper dimensions.
-- Extended the host-neutral print contract with physical bleed and safe-area configuration and
-  page metadata; the package version remains fixed until the next release decision.
 ## [1.0.2] - 2026-09-02
 
 ### Composer integration boundaries

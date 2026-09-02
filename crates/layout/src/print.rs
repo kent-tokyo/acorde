@@ -32,6 +32,13 @@ pub enum PageOrientation {
     Landscape,
 }
 
+/// Policy for the page number exposed in logical page metadata.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum PageNumbering {
+    None,
+    OneBased,
+}
+
 /// Host-neutral inputs for deterministic page and system layout.
 ///
 /// This contract describes physical page geometry only. It intentionally does not select
@@ -60,6 +67,7 @@ pub struct PrintConfig {
     /// Override the number of systems per page. When omitted it is derived from the usable
     /// page height and `system_height_mm`.
     pub systems_per_page: Option<usize>,
+    pub page_numbering: PageNumbering,
 }
 
 impl Default for PrintConfig {
@@ -83,6 +91,7 @@ impl Default for PrintConfig {
             scale: 1.0,
             measures_per_system: 4,
             systems_per_page: None,
+            page_numbering: PageNumbering::OneBased,
         }
     }
 }
@@ -128,6 +137,7 @@ pub enum BreakReason {
 pub struct PageLayout {
     pub address: PageAddress,
     pub page_index: usize,
+    pub page_number: Option<usize>,
     pub width_mm: f32,
     pub height_mm: f32,
     pub content_width_mm: f32,
@@ -294,6 +304,10 @@ pub fn compute_print_layout(
             pages.push(PageLayout {
                 address: PageAddress { page_index },
                 page_index,
+                page_number: match config.page_numbering {
+                    PageNumbering::None => None,
+                    PageNumbering::OneBased => Some(page_index + 1),
+                },
                 width_mm,
                 height_mm,
                 content_width_mm,
@@ -312,6 +326,10 @@ pub fn compute_print_layout(
         pages.push(PageLayout {
             address: PageAddress { page_index },
             page_index,
+            page_number: match config.page_numbering {
+                PageNumbering::None => None,
+                PageNumbering::OneBased => Some(page_index + 1),
+            },
             width_mm,
             height_mm,
             content_width_mm,
@@ -326,7 +344,7 @@ pub fn compute_print_layout(
     }
 
     Ok(PrintLayoutResult {
-        contract_version: 4,
+        contract_version: 5,
         pages,
     })
 }
@@ -433,7 +451,7 @@ mod tests {
         )
         .expect("valid print config");
         let page = &result.pages[0];
-        assert_eq!(result.contract_version, 4);
+        assert_eq!(result.contract_version, 5);
         assert_eq!(page.bleed_left_mm, 3.0);
         assert_eq!(page.content_width_mm, 210.0 - 14.0 - 14.0 - 8.0 - 6.0);
         assert_eq!(page.content_height_mm, 297.0 - 16.0 - 16.0 - 5.0 - 7.0);
@@ -470,5 +488,38 @@ mod tests {
         )
         .expect_err("invalid scale");
         assert_eq!(error, PrintLayoutError::InvalidScale);
+    }
+
+    #[test]
+    fn page_numbering_is_configurable() {
+        let score = score_with_measures(5);
+        let numbered = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 1,
+                systems_per_page: Some(2),
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid print config");
+        assert_eq!(numbered.pages[0].page_number, Some(1));
+        assert_eq!(numbered.pages[1].page_number, Some(2));
+
+        let unnumbered = compute_print_layout(
+            &score,
+            &PrintConfig {
+                page_numbering: PageNumbering::None,
+                measures_per_system: 1,
+                systems_per_page: Some(2),
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid print config");
+        assert!(
+            unnumbered
+                .pages
+                .iter()
+                .all(|page| page.page_number.is_none())
+        );
     }
 }
