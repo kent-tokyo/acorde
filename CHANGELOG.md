@@ -8,12 +8,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
+## [1.0.4] - 2026-09-02
 
 - Added a physical print scale to `PrintConfig`; scaled system geometry now participates in
   deterministic page capacity without changing the selected paper dimensions.
 - Extended the host-neutral print contract with physical bleed and safe-area configuration and
-  page metadata; the package version remains fixed until the next release decision.
+  page metadata.
 - Added configurable page-number metadata to the host-neutral print layout contract.
 
 ## [1.0.3] - 2026-09-02
