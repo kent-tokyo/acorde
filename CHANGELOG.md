@@ -14,6 +14,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   can supply PCM and host-owned audio rendering without adding codec dependencies to acorde.
 - Added regression coverage proving multi-voice playback addresses retain the source voice.
 - Added host-neutral print color and crop-mark policies to the logical page contract.
+- Added a host-neutral glyph-resource policy with stable host resource keys; resource loading and
+  font metrics remain outside the reusable layout crate.
 
 ## [1.0.4] - 2026-09-02
 

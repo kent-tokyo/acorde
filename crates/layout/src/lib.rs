@@ -8,9 +8,9 @@ mod print;
 pub use acorde_core::NoteAddr;
 pub use engine::compute_layout;
 pub use print::{
-    BreakReason, CropMarkPolicy, PageAddress, PageLayout, PageNumbering, PageOrientation,
-    PaperSize, PrintColorPolicy, PrintConfig, PrintLayoutError, PrintLayoutResult, SystemAddress,
-    SystemLayout, compute_print_layout,
+    BreakReason, CropMarkPolicy, GlyphResourcePolicy, PageAddress, PageLayout, PageNumbering,
+    PageOrientation, PaperSize, PrintColorPolicy, PrintConfig, PrintLayoutError, PrintLayoutResult,
+    SystemAddress, SystemLayout, compute_print_layout,
 };
 
 use acorde_core::{HairpinKind, OttavaKind};

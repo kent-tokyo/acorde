@@ -10,7 +10,7 @@ does not render pixels and has no browser or filesystem dependency.
 are physical millimetres, and explicit `Measure::page_break` decisions are preserved. The
 result contains page dimensions, stable page/system addresses, physical measure indices, typed
 break reasons, explicit bleed metadata, scaled system geometry, configurable page numbering, and
-host-facing color/crop-mark policies.
+host-facing color/crop-mark/glyph-resource policies.
 Safe areas constrain the content rectangle, but the crate does not choose fonts, emit PDF, access
 printers, or perform filesystem I/O.
 

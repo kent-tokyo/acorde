@@ -55,6 +55,16 @@ pub enum CropMarkPolicy {
     BleedEdges,
 }
 
+/// How a host resolves fonts and notation glyph resources for print output.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum GlyphResourcePolicy {
+    /// Use the renderer's deterministic built-in vector glyphs where available.
+    #[default]
+    BuiltInVector,
+    /// Resolve a host-owned resource identified by this stable application key.
+    HostProvided(String),
+}
+
 /// Host-neutral inputs for deterministic page and system layout.
 ///
 /// This contract describes physical page geometry only. It intentionally does not select
@@ -88,6 +98,8 @@ pub struct PrintConfig {
     pub color_policy: PrintColorPolicy,
     #[serde(default)]
     pub crop_mark_policy: CropMarkPolicy,
+    #[serde(default)]
+    pub glyph_resources: GlyphResourcePolicy,
 }
 
 impl Default for PrintConfig {
@@ -114,6 +126,7 @@ impl Default for PrintConfig {
             page_numbering: PageNumbering::OneBased,
             color_policy: PrintColorPolicy::Monochrome,
             crop_mark_policy: CropMarkPolicy::None,
+            glyph_resources: GlyphResourcePolicy::BuiltInVector,
         }
     }
 }
@@ -164,6 +177,8 @@ pub struct PageLayout {
     pub color_policy: PrintColorPolicy,
     #[serde(default)]
     pub crop_mark_policy: CropMarkPolicy,
+    #[serde(default)]
+    pub glyph_resources: GlyphResourcePolicy,
     pub width_mm: f32,
     pub height_mm: f32,
     pub content_width_mm: f32,
@@ -336,6 +351,7 @@ pub fn compute_print_layout(
                 },
                 color_policy: config.color_policy,
                 crop_mark_policy: config.crop_mark_policy,
+                glyph_resources: config.glyph_resources.clone(),
                 width_mm,
                 height_mm,
                 content_width_mm,
@@ -360,6 +376,7 @@ pub fn compute_print_layout(
             },
             color_policy: config.color_policy,
             crop_mark_policy: config.crop_mark_policy,
+            glyph_resources: config.glyph_resources.clone(),
             width_mm,
             height_mm,
             content_width_mm,
@@ -374,7 +391,7 @@ pub fn compute_print_layout(
     }
 
     Ok(PrintLayoutResult {
-        contract_version: 6,
+        contract_version: 7,
         pages,
     })
 }
@@ -481,7 +498,7 @@ mod tests {
         )
         .expect("valid print config");
         let page = &result.pages[0];
-        assert_eq!(result.contract_version, 6);
+        assert_eq!(result.contract_version, 7);
         assert_eq!(page.bleed_left_mm, 3.0);
         assert_eq!(page.content_width_mm, 210.0 - 14.0 - 14.0 - 8.0 - 6.0);
         assert_eq!(page.content_height_mm, 297.0 - 16.0 - 16.0 - 5.0 - 7.0);
@@ -566,8 +583,25 @@ mod tests {
         )
         .expect("valid print config");
         let page = &result.pages[0];
-        assert_eq!(result.contract_version, 6);
+        assert_eq!(result.contract_version, 7);
         assert_eq!(page.color_policy, PrintColorPolicy::Preserve);
         assert_eq!(page.crop_mark_policy, CropMarkPolicy::BleedEdges);
+    }
+
+    #[test]
+    fn glyph_resource_policy_is_exposed_per_page() {
+        let score = score_with_measures(1);
+        let result = compute_print_layout(
+            &score,
+            &PrintConfig {
+                glyph_resources: GlyphResourcePolicy::HostProvided("music-font-v1".into()),
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid print config");
+        assert_eq!(
+            result.pages[0].glyph_resources,
+            GlyphResourcePolicy::HostProvided("music-font-v1".into())
+        );
     }
 }
