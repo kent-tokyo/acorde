@@ -6,9 +6,11 @@ manages provider-neutral note lifecycle actions from `acorde_core::PlaybackEvent
 
 The provider contract also exposes `SampleRegion`, deterministic key/velocity zone selection,
 `SampleVoiceParameters`, `SampleAction`, bounded `DecodedSample` validation, and a FIFO
-`SampleCache`. A separately licensed SF2/SF3 decoder supplies sample regions and PCM; this crate
-does not bundle proprietary assets or a codec. Unsupported compression or generator features must
-be reported by that provider before creating a region.
+`SampleCache`. `SampleDecoder` and `SampleRenderer` provide the stable integration boundary: a
+separately licensed SF2/SF3 decoder supplies sample regions and bounded PCM, and a host-owned
+renderer consumes that PCM with `SampleAction`. This crate does not bundle proprietary assets, a
+codec, an audio device, or a synthesizer. Unsupported compression or generator features must be
+reported by that provider before creating a region.
 
 It does not decode samples or include a synthesizer. Applications provide a
 separately licensed SF2/SF3 renderer, so no external sample assets or vendor

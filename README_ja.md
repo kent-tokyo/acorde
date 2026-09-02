@@ -45,6 +45,7 @@ MusicXMLのvoice番号1〜4は`Measure.voices`に保持され、MusicXMLの往�
 MEIの`qs`/`qf`による一般的な四分音臨時記号にも対応します。
 glissandoとcross-staff配置もMusicXMLとの往復変換で保持されます。SoundFontはサンプルデコードを
 内包せず、ライセンスを管理するアプリケーション側rendererとの境界として提供します。
+`SampleDecoder` と `SampleRenderer` により、codecと音声出力をホスト側へ委譲する型付き接続点も提供します。
 
 ## CLI
 

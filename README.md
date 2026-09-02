@@ -39,7 +39,8 @@ The optional `soundfont` feature exposes `acorde::soundfont`, a bounded SF2/SF3
 metadata and provider-neutral note lifecycle boundary. It consumes unchanged
 `PlaybackEvent` values; sample decoding, synthesis, and licensed asset ownership
 remain with the application renderer. The boundary also carries sample regions, deterministic
-zone selection, voice parameters, and bounded decoded-PCM validation.
+zone selection, voice parameters, and bounded decoded-PCM validation. `SampleDecoder` and
+`SampleRenderer` provide the typed provider/host integration point.
 
 Interchange APIs also provide typed `ImportReport` and `ExportReport` wrappers for structured
 conversion diagnostics.

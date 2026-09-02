@@ -15,6 +15,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Extended the host-neutral print contract with physical bleed and safe-area configuration and
   page metadata.
 - Added configurable page-number metadata to the host-neutral print layout contract.
+- Added typed `SampleDecoder`/`SampleRenderer` integration traits so licensed SoundFont providers
+  can supply PCM and host-owned audio rendering without adding codec dependencies to acorde.
+- Added regression coverage proving multi-voice playback addresses retain the source voice.
 
 ## [1.0.3] - 2026-09-02
 

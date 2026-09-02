@@ -95,6 +95,26 @@ pub struct DecodedSample {
     pub pcm_i16: Vec<i16>,
 }
 
+/// A separately licensed provider that decodes a selected region into PCM.
+///
+/// Implementations own codec dependencies, asset access, and licensing. This
+/// crate only receives the bounded, validated PCM result.
+pub trait SampleDecoder {
+    type Error: std::error::Error + Send + Sync + 'static;
+
+    fn decode(&self, region: &SampleRegion) -> Result<DecodedSample, Self::Error>;
+}
+
+/// A host/provider-owned renderer for validated PCM and scheduled voice actions.
+///
+/// Audio output, device access, and backend-specific state remain outside the
+/// reusable score library while hosts retain a stable integration point.
+pub trait SampleRenderer {
+    type Error: std::error::Error + Send + Sync + 'static;
+
+    fn render(&mut self, sample: &DecodedSample, action: &SampleAction) -> Result<(), Self::Error>;
+}
+
 impl DecodedSample {
     pub fn new(sample_rate: u32, channels: u8, pcm_i16: Vec<i16>) -> Result<Self, Error> {
         if sample_rate == 0 || channels == 0 || channels > 2 || pcm_i16.is_empty() {
