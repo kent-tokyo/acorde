@@ -11,6 +11,10 @@ for layout/playback/render options JSON. Other small JSON arguments are bounded 
 layout, options object, or row index returns a rejected `Result`/`JsValue`; no filesystem or
 async runtime is involved.
 
+For optional SoundFont playback, `acorde-soundfont` validates SF2/SF3 metadata
+and manages note/voice lifecycle actions. Sample decoding and audio output stay
+outside the core/WASM contract and remain application-owned.
+
 ## Stable calls
 
 - `compute_layout_ex(score_json, config_json)` returns the serialized `LayoutResult`.

@@ -32,6 +32,11 @@ slices and known information-loss boundaries.
 The current conservative capability inventory is tracked in the [scorecard](docs/scorecard.md).
 Security boundaries and resource-limit ownership are documented in the [security contract](docs/security/threat-model.md).
 
+The optional `soundfont` feature exposes `acorde::soundfont`, a bounded SF2/SF3
+metadata and provider-neutral note lifecycle boundary. It consumes unchanged
+`PlaybackEvent` values; sample decoding, synthesis, and licensed asset ownership
+remain with the application renderer.
+
 Interchange APIs also provide typed `ImportReport` and `ExportReport` wrappers for structured
 conversion diagnostics.
 

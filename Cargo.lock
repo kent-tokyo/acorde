@@ -9,6 +9,7 @@ dependencies = [
  "acorde-core",
  "acorde-io",
  "acorde-layout",
+ "acorde-soundfont",
 ]
 
 [[package]]
@@ -73,6 +74,14 @@ dependencies = [
  "acorde-layout",
  "quick-xml",
  "serde",
+]
+
+[[package]]
+name = "acorde-soundfont"
+version = "1.0.1"
+dependencies = [
+ "acorde-core",
+ "thiserror",
 ]
 
 [[package]]
