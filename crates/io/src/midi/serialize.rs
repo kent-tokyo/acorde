@@ -157,6 +157,17 @@ fn build_part_track(part: &acorde_core::Part, seq: &[usize]) -> Vec<TrackEvent<'
         },
     });
 
+    for bend in &part.midi_pitch_bends {
+        events.push(TimedEvent {
+            abs_tick: bend.tick,
+            sort_key: 1,
+            channel: u4::from(bend.channel.min(15)),
+            message: MidiMessage::PitchBend {
+                bend: midly::PitchBend::from_int(bend.value),
+            },
+        });
+    }
+
     for staff in &part.staves {
         for voice_idx in 0..4usize {
             let mut cursor: u64 = 0;
@@ -255,6 +266,50 @@ mod tests {
             .collect();
         assert!(!notes.is_empty());
         assert_eq!(notes[0].pitches[0].step, Step::C);
+    }
+
+    #[test]
+    fn pitch_bend_roundtrip_preserves_tick_channel_and_value() {
+        let mut score = Score::new("Bend", 120, 4, 4, 0, 1);
+        score.parts[0].midi_channel = 2;
+        score.parts[0].midi_pitch_bends = vec![acorde_core::MidiPitchBend {
+            tick: 120,
+            channel: 2,
+            value: 2048,
+        }];
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        let bytes = serialize_midi(&score).expect("MIDI serialize failed");
+        let restored = acorde_io_parse_midi(&bytes);
+        assert_eq!(
+            restored.parts[0].midi_pitch_bends,
+            score.parts[0].midi_pitch_bends
+        );
+    }
+
+    #[test]
+    fn pitch_bend_serializer_accepts_signed_14_bit_boundaries() {
+        let mut score = Score::new("Bend bounds", 120, 4, 4, 0, 1);
+        score.parts[0].midi_pitch_bends = vec![
+            acorde_core::MidiPitchBend {
+                tick: 0,
+                channel: 0,
+                value: -8192,
+            },
+            acorde_core::MidiPitchBend {
+                tick: 10,
+                channel: 0,
+                value: 8191,
+            },
+        ];
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        let bytes = serialize_midi(&score).expect("MIDI serialize failed");
+        let restored = acorde_io_parse_midi(&bytes);
+        assert_eq!(
+            restored.parts[0].midi_pitch_bends,
+            score.parts[0].midi_pitch_bends
+        );
     }
 
     // Helper to avoid circular dependency in tests — parse via the parent module.

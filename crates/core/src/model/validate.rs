@@ -45,6 +45,29 @@ pub enum ValidationError {
         pitch_midi: u8,
         instrument_range: (u8, u8),
     },
+    /// Tablature staff metadata is internally inconsistent.
+    InvalidTablature {
+        part: usize,
+        staff: usize,
+        reason: TablatureValidationReason,
+    },
+    /// A note's explicit string is not present on its tablature staff.
+    TabPositionOutOfRange {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        voice: usize,
+        note: usize,
+        string: u8,
+        lines: u8,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum TablatureValidationReason {
+    InvalidLineCount { lines: u8 },
+    TooManyTunings { tuning_count: usize, lines: u8 },
+    TuningOutOfMidiRange { index: usize, midi: i16 },
 }
 
 /// A non-fatal advisory warning found by [`validate`].
@@ -128,6 +151,34 @@ pub fn validate(score: &Score) -> ValidationReport {
                 });
             }
 
+            if let Some(tab) = &staff.tablature {
+                if !(1..=64).contains(&tab.lines) {
+                    errors.push(ValidationError::InvalidTablature {
+                        part: pi,
+                        staff: si,
+                        reason: TablatureValidationReason::InvalidLineCount { lines: tab.lines },
+                    });
+                } else if tab.tuning_midi.len() > usize::from(tab.lines) {
+                    errors.push(ValidationError::InvalidTablature {
+                        part: pi,
+                        staff: si,
+                        reason: TablatureValidationReason::TooManyTunings {
+                            tuning_count: tab.tuning_midi.len(),
+                            lines: tab.lines,
+                        },
+                    });
+                }
+                for (index, &midi) in tab.tuning_midi.iter().enumerate() {
+                    if !(0..=127).contains(&midi) {
+                        errors.push(ValidationError::InvalidTablature {
+                            part: pi,
+                            staff: si,
+                            reason: TablatureValidationReason::TuningOutOfMidiRange { index, midi },
+                        });
+                    }
+                }
+            }
+
             let mut current_ts = score.settings.time_signature.clone();
             let mut volta_numbers_seen: Vec<u8> = Vec::new();
 
@@ -201,6 +252,20 @@ pub fn validate(score: &Score) -> ValidationReport {
                         for (ni, note) in voice.iter().enumerate() {
                             if note.is_rest || note.is_grace {
                                 continue;
+                            }
+                            if let Some(position) = &note.tab_position
+                                && let Some(tab) = &staff.tablature
+                                && (position.string == 0 || position.string > tab.lines)
+                            {
+                                errors.push(ValidationError::TabPositionOutOfRange {
+                                    part: pi,
+                                    staff: si,
+                                    measure: mi,
+                                    voice: vi,
+                                    note: ni,
+                                    string: position.string,
+                                    lines: tab.lines,
+                                });
                             }
                             for pitch in &note.pitches {
                                 let midi = (pitch.to_midi() + transpose as i16).clamp(0, 127) as u8;
@@ -393,6 +458,34 @@ mod tests {
                 .errors
                 .iter()
                 .any(|e| matches!(e, ValidationError::OutOfRange { .. }))
+        );
+    }
+
+    #[test]
+    fn validate_rejects_invalid_tablature_metadata_and_positions() {
+        let mut score = Score::new("Tab", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].tablature = Some(super::super::notation::TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![64, 59, 55, 50, 45, 40, 35],
+            capo: 0,
+        });
+        let mut note = Note::new(Pitch::new(Step::E, 4), Duration::Whole);
+        note.tab_position = Some(super::super::notation::TabPosition { string: 7, fret: 0 });
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+
+        let report = validate(&score);
+        assert!(report.errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidTablature {
+                reason: TablatureValidationReason::TooManyTunings { .. },
+                ..
+            }
+        )));
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|error| matches!(error, ValidationError::TabPositionOutOfRange { .. }))
         );
     }
 

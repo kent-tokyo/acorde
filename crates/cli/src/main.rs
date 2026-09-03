@@ -1,4 +1,4 @@
-use acorde_core::Score;
+use acorde_core::{Command, Score, ScoreEngine, SetTabPositionCmd, TabPosition};
 use acorde_io::ImportReport;
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
@@ -81,6 +81,51 @@ enum Commands {
         /// Canonical output file (.musicxml, .mid, .midi)
         output: PathBuf,
     },
+    /// Set or clear one note's tablature string/fret position
+    TabPosition {
+        /// Input score file
+        input: PathBuf,
+        /// Output score file
+        output: PathBuf,
+        /// Zero-based part index
+        #[arg(long)]
+        part: usize,
+        /// Zero-based staff index
+        #[arg(long, default_value_t = 0)]
+        staff: usize,
+        /// Zero-based measure index
+        #[arg(long)]
+        measure: usize,
+        /// Zero-based voice index
+        #[arg(long, default_value_t = 0)]
+        voice: usize,
+        /// Zero-based note index in the voice
+        #[arg(long)]
+        note: usize,
+        /// One-based string number
+        #[arg(long, conflicts_with = "clear")]
+        string: Option<u8>,
+        /// Fret number (0 = open string)
+        #[arg(long, conflicts_with = "clear")]
+        fret: Option<u8>,
+        /// Clear the explicit tablature position
+        #[arg(long, conflicts_with_all = ["string", "fret"])]
+        clear: bool,
+    },
+    /// Assign and optimize tablature positions for a score
+    AutoTab {
+        /// Input score file
+        input: PathBuf,
+        /// Output score file
+        output: PathBuf,
+    },
+    /// Assign tablature positions and print a deterministic JSON result report
+    AutoTabReport {
+        /// Input score file
+        input: PathBuf,
+        /// Output score file
+        output: PathBuf,
+    },
     /// Export a score and print machine-readable conversion diagnostics
     ExportReport {
         /// Input score file
@@ -114,6 +159,22 @@ fn main() {
             semitones,
         } => cmd_transpose(input, output, *semitones),
         Commands::Normalize { input, output } => cmd_normalize(input, output),
+        Commands::TabPosition {
+            input,
+            output,
+            part,
+            staff,
+            measure,
+            voice,
+            note,
+            string,
+            fret,
+            clear,
+        } => cmd_tab_position(
+            input, output, *part, *staff, *measure, *voice, *note, *string, *fret, *clear,
+        ),
+        Commands::AutoTab { input, output } => cmd_auto_tab(input, output),
+        Commands::AutoTabReport { input, output } => cmd_auto_tab_report(input, output),
         Commands::ExportReport { input, output } => cmd_export_report(input, output),
     };
     if let Err(e) = result {
@@ -498,6 +559,34 @@ fn cmd_validate(input: &Path) -> Result<(), String> {
                     instrument_range.0,
                     instrument_range.1
                 ),
+                acorde_core::ValidationError::InvalidTablature {
+                    part,
+                    staff,
+                    reason,
+                } => eprintln!(
+                    "part {} staff {}: invalid tablature metadata: {:?}",
+                    part + 1,
+                    staff + 1,
+                    reason
+                ),
+                acorde_core::ValidationError::TabPositionOutOfRange {
+                    part,
+                    staff,
+                    measure,
+                    voice,
+                    note,
+                    string,
+                    lines,
+                } => eprintln!(
+                    "part {} staff {} measure {} voice {} note {}: tablature string {} exceeds {} lines",
+                    part + 1,
+                    staff + 1,
+                    measure + 1,
+                    voice + 1,
+                    note + 1,
+                    string,
+                    lines
+                ),
             }
         }
         std::process::exit(1);
@@ -505,6 +594,124 @@ fn cmd_validate(input: &Path) -> Result<(), String> {
 }
 
 // ── extract ───────────────────────────────────────────────────────────────────
+
+#[allow(clippy::too_many_arguments)]
+fn cmd_tab_position(
+    input: &Path,
+    output: &Path,
+    part: usize,
+    staff: usize,
+    measure: usize,
+    voice: usize,
+    note: usize,
+    string: Option<u8>,
+    fret: Option<u8>,
+    clear: bool,
+) -> Result<(), String> {
+    let mut score = parse_score(input)?;
+    let position = if clear {
+        None
+    } else {
+        let string = string.ok_or("--string is required unless --clear is used")?;
+        let fret = fret.ok_or("--fret is required unless --clear is used")?;
+        if string == 0 {
+            return Err("--string is one-based and must be at least 1".to_string());
+        }
+        Some(TabPosition { string, fret })
+    };
+    let command = Command::SetTabPosition(SetTabPositionCmd {
+        part_index: part,
+        staff_index: staff,
+        measure_index: measure,
+        voice,
+        note_index: note,
+        position,
+    });
+    let mut engine = ScoreEngine::new();
+    engine.replace_score(score);
+    engine
+        .apply(command)
+        .map_err(|e| format!("cannot edit score: {e}"))?;
+    score = engine.score;
+    write_score(&score, output)?;
+    println!("updated tablature position in '{}'", output.display());
+    Ok(())
+}
+
+fn cmd_auto_tab(input: &Path, output: &Path) -> Result<(), String> {
+    let mut score = parse_score(input)?;
+    let assigned = acorde_core::optimize_tablature_positions(&mut score);
+    write_score(&score, output)?;
+    println!(
+        "assigned optimized tablature positions for {} note(s) to '{}'",
+        assigned,
+        output.display()
+    );
+    Ok(())
+}
+
+#[derive(Debug, Serialize)]
+struct AutoTabReport {
+    assigned_notes: usize,
+    chord_count: usize,
+    positioned_notes: usize,
+    unpositioned_notes: usize,
+    total_fret: u32,
+    maximum_fret: u8,
+    output: String,
+}
+
+fn cmd_auto_tab_report(input: &Path, output: &Path) -> Result<(), String> {
+    let mut score = parse_score(input)?;
+    let assigned_notes = acorde_core::optimize_tablature_positions(&mut score);
+    let mut report = AutoTabReport {
+        assigned_notes,
+        chord_count: 0,
+        positioned_notes: 0,
+        unpositioned_notes: 0,
+        total_fret: 0,
+        maximum_fret: 0,
+        output: output.display().to_string(),
+    };
+    for part in &score.parts {
+        for staff in &part.staves {
+            if staff.tablature.is_none() {
+                continue;
+            }
+            for measure in &staff.measures {
+                for voice in &measure.voices {
+                    for note in voice {
+                        if note.is_rest || note.pitches.is_empty() {
+                            continue;
+                        }
+                        report.chord_count += if note.pitches.len() > 1 { 1 } else { 0 };
+                        let positions = if !note.tab_positions.is_empty() {
+                            note.tab_positions.as_slice()
+                        } else {
+                            note.tab_position.as_slice()
+                        };
+                        if positions.is_empty() {
+                            report.unpositioned_notes += 1;
+                        } else {
+                            report.positioned_notes += 1;
+                            for position in positions {
+                                report.total_fret += u32::from(position.fret);
+                                report.maximum_fret = report.maximum_fret.max(position.fret);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    write_score(&score, output)?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&report)
+            .map_err(|e| format!("tablature report serialization failed: {e}"))?
+    );
+    Ok(())
+}
 
 fn cmd_extract(input: &Path, output: &Path, part_index: usize) -> Result<(), String> {
     let score = parse_score(input)?;

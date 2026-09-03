@@ -1,6 +1,6 @@
 # acorde
 
-Platform-agnostic music score library for Rust and WebAssembly (v1.0.8).
+Platform-agnostic music score library for Rust and WebAssembly (v1.0.9).
 
 acorde provides a serializable score model, undoable commands, format I/O, logical layout,
 deterministic SVG rendering, playback events, and WASM bindings. Core libraries are synchronous,
@@ -46,25 +46,30 @@ rejected explicitly without bundling licensed codec code or sample assets.
 Malformed SoundFont zones are rejected before scheduling with typed diagnostics.
 The soundfont crate includes bounded SF2 PCM16 decoding and deterministic offline sample-action
 rendering; SF3 Vorbis is an opt-in feature requiring a separately licensed decoder.
+Its `SoundFontPresetZone` mapping API exposes bank/program/key/velocity selection and bounded
+sample frame ranges without requiring Composer to duplicate SoundFont parsing.
 For the umbrella crate, enable `soundfont-sf3-vorbis` to forward that feature to the SoundFont
 adapter.
 
 Interchange APIs also provide typed `ImportReport` and `ExportReport` wrappers for structured
-conversion diagnostics.
+conversion diagnostics. WASM exposes report-returning variants for supported import formats and
+MusicXML, MEI, MIDI, and ABC exports.
+MIDI pitch-bend events retain their tick, channel, and signed 14-bit value through the score
+model and MIDI round-trip.
 
 ## Quick start
 
 ```toml
 [dependencies]
-acorde = "1.0.8"
-acorde-render-svg = "1.0.8"
+acorde = "1.0.9"
+acorde-render-svg = "1.0.9"
 ```
 
 The default I/O features are `musicxml` and `midi`; enable the optional `abc`, `mscz`, or `mei`
 features when needed:
 
 ```toml
-acorde = { version = "1.0.8", features = ["abc", "mscz", "mei"] }
+acorde = { version = "1.0.9", features = ["abc", "mscz", "mei"] }
 ```
 
 ```rust
@@ -105,14 +110,25 @@ playback, theory helpers, and explainable score analysis through `analyze_score`
 acorde convert input.mid output.musicxml
 acorde info input.musicxml
 acorde validate input.musicxml
+acorde validate guitar.musicxml       # includes tablature line/tuning/string checks
 acorde extract --part 0 input.musicxml part.musicxml
 acorde transpose --semitones 2 input.musicxml transposed.musicxml
 acorde normalize input.musicxml normalized.musicxml
 acorde export-report input.musicxml exported.musicxml
+acorde tab-position guitar.musicxml edited.musicxml --part 0 --measure 0 --note 1 --string 2 --fret 3
+acorde auto-tab guitar.musicxml guitar-tabbed.musicxml
+acorde auto-tab-report guitar.musicxml guitar-tabbed.musicxml
 ```
 
 The CLI supports `.musicxml`, `.mxl`, `.mid`/`.midi`, `.mscz`, and `.mscx` input. Conversion
 output is MusicXML or MIDI.
+`validate` performs the same local structural checks for tablature metadata and explicit string
+positions; it does not require a SoundFont or network access.
+`tab-position --clear` removes an explicit position; all indices are zero-based except the
+one-based `--string` value.
+`auto-tab` assigns missing single-note and chord positions while minimizing fret load and
+movement between successive notes.
+`auto-tab-report` additionally prints deterministic assignment and fret-load metrics as JSON.
 
 ## Development
 

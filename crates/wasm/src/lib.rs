@@ -113,11 +113,25 @@ pub fn parse_mscz(data: &[u8]) -> Result<String, JsValue> {
     score_to_json(&score)
 }
 
+/// Parse a MuseScore .mscz archive and return an ImportReport JSON string.
+#[wasm_bindgen]
+pub fn parse_mscz_report(data: &[u8]) -> Result<String, JsValue> {
+    let report = acorde_io::parse_mscz_with_report(data).map_err(js_err)?;
+    serde_json::to_string(&report).map_err(|e| js_err(format!("report serialization failed: {e}")))
+}
+
 /// Parse a MuseScore .mscx XML string and return the score as a JSON string.
 #[wasm_bindgen]
 pub fn parse_mscx(xml: &str) -> Result<String, JsValue> {
     let score = acorde_io::parse_mscx(xml).map_err(js_err)?;
     score_to_json(&score)
+}
+
+/// Parse a MuseScore .mscx XML document and return an ImportReport JSON string.
+#[wasm_bindgen]
+pub fn parse_mscx_report(xml: &str) -> Result<String, JsValue> {
+    let report = acorde_io::parse_mscx_with_report(xml).map_err(js_err)?;
+    serde_json::to_string(&report).map_err(|e| js_err(format!("report serialization failed: {e}")))
 }
 
 /// Parse a MIDI file (byte array) and return the score as a JSON string.
@@ -127,11 +141,26 @@ pub fn parse_midi(data: &[u8]) -> Result<String, JsValue> {
     score_to_json(&score)
 }
 
+/// Parse MIDI and return an ImportReport JSON string.
+#[wasm_bindgen]
+pub fn parse_midi_report(data: &[u8]) -> Result<String, JsValue> {
+    let report = acorde_io::parse_midi_with_report(data).map_err(js_err)?;
+    serde_json::to_string(&report).map_err(|e| js_err(format!("report serialization failed: {e}")))
+}
+
 /// Serialize a score (JSON string) to MIDI bytes (`Uint8Array` in JS).
 #[wasm_bindgen]
 pub fn serialize_midi(score_json: &str) -> Result<Vec<u8>, JsValue> {
     let score = score_from_json(score_json)?;
     acorde_io::serialize_midi(&score).map_err(js_err)
+}
+
+/// Serialize a score to MIDI and return an ExportReport JSON string.
+#[wasm_bindgen]
+pub fn serialize_midi_report(score_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let report = acorde_io::serialize_midi_with_report(&score).map_err(js_err)?;
+    serde_json::to_string(&report).map_err(|e| js_err(format!("report serialization failed: {e}")))
 }
 
 /// Serialize a region of a score to MIDI bytes.
@@ -347,11 +376,26 @@ pub fn parse_abc(text: &str) -> Result<String, JsValue> {
     score_to_json(&score)
 }
 
+/// Parse ABC Notation and return an ImportReport JSON string.
+#[wasm_bindgen]
+pub fn parse_abc_report(text: &str) -> Result<String, JsValue> {
+    let report = acorde_io::parse_abc_with_report(text).map_err(js_err)?;
+    serde_json::to_string(&report).map_err(|e| js_err(format!("report serialization failed: {e}")))
+}
+
 /// Serialize a score (JSON string) to ABC Notation.
 #[wasm_bindgen]
 pub fn serialize_abc(score_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
     acorde_io::serialize_abc(&score).map_err(js_err)
+}
+
+/// Serialize a score to ABC Notation and return an ExportReport JSON string.
+#[wasm_bindgen]
+pub fn serialize_abc_report(score_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let report = acorde_io::serialize_abc_with_report(&score).map_err(js_err)?;
+    serde_json::to_string(&report).map_err(|e| js_err(format!("report serialization failed: {e}")))
 }
 
 // ── Score operations ──────────────────────────────────────────────────────────
@@ -370,6 +414,17 @@ pub fn validate_score(score_json: &str) -> Result<String, JsValue> {
 pub fn transpose_score(score_json: &str, semitones: i8) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
     score_to_json(&acorde_core::transpose(&score, semitones))
+}
+
+/// Assign deterministic string/fret positions to eligible tablature notes.
+///
+/// Existing positions, rests, chords, and notes outside the configured 0–24 fret
+/// range are preserved unchanged. Returns the updated score JSON.
+#[wasm_bindgen]
+pub fn assign_tablature_positions(score_json: &str) -> Result<String, JsValue> {
+    let mut score = score_from_json(score_json)?;
+    acorde_core::assign_tablature_positions(&mut score);
+    score_to_json(&score)
 }
 
 /// Extract a single part (0-based) from a score.
@@ -1113,6 +1168,21 @@ mod tests {
         let cmd_json = serde_json::to_string(&cmd).unwrap();
         engine.apply(&cmd_json).unwrap();
         assert_eq!(engine.get_version(), v0 + 1);
+    }
+
+    #[test]
+    fn tab_position_command_roundtrips_through_json() {
+        let command = acorde_core::Command::SetTabPosition(acorde_core::SetTabPositionCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            note_index: 0,
+            position: Some(acorde_core::TabPosition { string: 2, fret: 3 }),
+        });
+        let json = serde_json::to_string(&command).unwrap();
+        let decoded: acorde_core::Command = serde_json::from_str(&json).unwrap();
+        assert_eq!(acorde_core::command_key(&decoded), "SetTabPosition");
     }
 
     #[test]

@@ -25,14 +25,19 @@ the `Score` model; rendering and export can have narrower format-specific covera
 | Volta brackets and part groups | yes | no | partial | partial | no | yes | yes / yes / MusicXML |
 | MIDI channel, program, transposition | yes | yes | no | partial | no | yes | yes / no / MIDI |
 | Percussion | partial | partial | no | partial | no | yes | partial / partial / MIDI |
-| Tablature positions and staff metadata | partial (staff-lines, string/fret) | no | no | no | no | yes | partial / partial / MusicXML |
+| Tablature positions and staff metadata | partial (staff-lines, tuning, string/fret, chord positions) | no | no | no | no | yes | partial / partial / MusicXML |
 | Microtonal accidentals | partial (fractional `<alter>`) | no | partial (quarter accidental subset) | partial | partial (`qs`/`qf`) | yes | partial / partial / format-specific |
 
 ## Reading the matrix
 
-Tablature currently preserves MusicXML `staff-details/staff-lines` and note `technical/string`
-plus `fret`. Microtones use `Pitch::microtone_cents`; ABC supports `^/` and `_/`, and MEI supports
-`qs` and `qf`. MIDI pitch-bend and vendor-specific accidental spellings remain partial.
+Tablature currently preserves MusicXML `staff-details/staff-lines`, `staff-tuning`, and note
+`technical/string` plus `fret`, including per-pitch positions for chords; the SVG renderer displays
+explicit positions and guitar technique labels. Core automatic string/fret assignment and
+sequence-aware movement optimization are available for configured tablature staves. Alternate
+tunings in non-MusicXML formats and instrument-specific engraving remain partial. Microtones use
+`Pitch::microtone_cents`; ABC
+supports `^/` and `_/`, and MEI supports `qs` and `qf`. MIDI pitch-bend and vendor-specific
+accidental spellings remain partial.
 
 - A `partial` import must not be interpreted as lossless interchange. Until diagnostic reports are
   available, callers should validate the resulting `Score` and retain the source document.
@@ -53,6 +58,8 @@ plus `fret`. Microtones use `Pitch::microtone_cents`; ABC supports `^/` and `_/`
 The matrix applies to v1.0.x. Each `yes` slice must have a fixture or focused round-trip test in
 the repository. Known losses are tracked here until `ImportReport` and `ExportReport` expose source
 location, severity, preserved value, and loss reason through the native, CLI, and WASM APIs. The
+WASM bindings expose report variants for MusicXML, MXL, MEI, MIDI, ABC, MSCZ, and MSCX imports,
+plus MusicXML, MEI, MIDI, and ABC exports. The
 MEI boundary currently supports one part, one staff/layer per measure, title, notes, rests,
 accidentals, dots, and power-of-two durations; known unsupported MEI elements are surfaced as
 warning diagnostics, while other MEI data remains intentionally outside the subset.

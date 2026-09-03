@@ -16,6 +16,8 @@ the filesystem.
 
 MusicXML notes are mapped from voice numbers 1–4 to the corresponding `Measure.voices` entries;
 serialization emits the same voice numbers and `<backup>` boundaries for round-trip fidelity.
+MIDI pitch-bend events are preserved on `Part::midi_pitch_bends` with their absolute PPQ tick,
+source channel, and signed 14-bit value; MIDI export emits them on the preserved channel.
 
 Each supported format also exposes `*_with_report` wrappers returning `ImportReport` or
 `ExportReport<T>`. Reports carry structured diagnostics with severity, source location, preserved

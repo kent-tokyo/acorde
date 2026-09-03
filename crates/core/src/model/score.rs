@@ -2,8 +2,8 @@ use super::{
     duration::Duration,
     notation::{
         Articulation, Barline, BeamState, ChordSymbol, Clef, CrossStaff, Dynamic, GuitarTechnique,
-        HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind, StyledText, TablatureConfig,
-        TimeSignature, TupletInfo,
+        HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind, StyledText, TabPosition,
+        TablatureConfig, TimeSignature, TupletInfo,
     },
     pitch::Pitch,
 };
@@ -374,6 +374,358 @@ pub struct ScoreStats {
 use super::pitch::Step;
 use super::repeat::measure_sequence;
 
+/// Assign deterministic guitar tablature positions to eligible notes and chords.
+///
+/// Existing positions are preserved. For each note, the lowest reachable fret is
+/// selected, breaking ties toward the highest string (the lowest string number). For
+/// chords, strings are unique and the assignment minimizes total fret, then fret
+/// span, then highest fret. This is a bounded deterministic fingering heuristic,
+/// not a claim of instrument-specific playability.
+/// The staff tuning is interpreted as open-string MIDI pitches before capo, and
+/// assignments are limited to frets 0 through 24. Rests, chords, and notes with
+/// no reachable position are left unchanged. Returns the number of notes/chords
+/// assigned.
+pub fn assign_tablature_positions(score: &mut Score) -> usize {
+    const MAX_FRET: i16 = 24;
+    let mut assigned = 0;
+
+    for part in &mut score.parts {
+        for staff in &mut part.staves {
+            let Some(tab) = &staff.tablature else {
+                continue;
+            };
+            let tuning = tab.tuning_midi.clone();
+            let lines = tab.lines as usize;
+            let capo = i16::from(tab.capo);
+
+            for measure in &mut staff.measures {
+                for voice in &mut measure.voices {
+                    for note in voice.iter_mut() {
+                        if note.is_rest
+                            || note.tab_position.is_some()
+                            || !note.tab_positions.is_empty()
+                            || note.pitches.is_empty()
+                        {
+                            continue;
+                        }
+                        let pitches: Vec<i16> = note.pitches.iter().map(Pitch::to_midi).collect();
+                        let Some(positions) =
+                            best_tablature_assignment(&pitches, &tuning, lines, capo, MAX_FRET)
+                        else {
+                            continue;
+                        };
+
+                        note.tab_position = positions.first().cloned();
+                        note.tab_positions = positions;
+                        note.string_number = note.tab_position.as_ref().map(|p| p.string);
+                        assigned += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    assigned
+}
+
+/// Optimize tablature positions across each voice using bounded position movement.
+///
+/// Explicit positions are treated as fixed anchors. Unassigned notes and chords
+/// receive positions that minimize fret load plus movement from the preceding
+/// event; ties are resolved deterministically. Returns the number of notes/chords
+/// newly assigned.
+pub fn optimize_tablature_positions(score: &mut Score) -> usize {
+    const MAX_FRET: i16 = 24;
+    let mut assigned = 0;
+
+    for part in &mut score.parts {
+        for staff in &mut part.staves {
+            let Some(tab) = &staff.tablature else {
+                continue;
+            };
+            let tuning = tab.tuning_midi.clone();
+            let lines = tab.lines as usize;
+            let capo = i16::from(tab.capo);
+            for voice in 0..4 {
+                // Work per measure/voice location so repeated note indices remain distinct.
+                let mut locations = Vec::new();
+                for (measure_index, measure) in staff.measures.iter().enumerate() {
+                    for (note_index, note) in measure.voices[voice].iter().enumerate() {
+                        if !note.is_rest && !note.pitches.is_empty() {
+                            locations.push((measure_index, note_index, note.clone()));
+                        }
+                    }
+                }
+                let candidates: Vec<Vec<Vec<TabPosition>>> = locations
+                    .iter()
+                    .map(|(_, _, note)| {
+                        if let Some(positions) = if !note.tab_positions.is_empty() {
+                            Some(note.tab_positions.clone())
+                        } else {
+                            note.tab_position.clone().map(|position| vec![position])
+                        } {
+                            vec![positions]
+                        } else {
+                            tablature_assignments(
+                                &note.pitches.iter().map(Pitch::to_midi).collect::<Vec<_>>(),
+                                &tuning,
+                                lines,
+                                capo,
+                                MAX_FRET,
+                            )
+                        }
+                    })
+                    .collect();
+                if candidates.iter().any(Vec::is_empty) {
+                    continue;
+                }
+
+                let mut costs: Vec<Vec<(u32, Option<usize>)>> = candidates
+                    .iter()
+                    .map(|events| vec![(u32::MAX, None); events.len()])
+                    .collect();
+                for (candidate_index, candidate) in candidates[0].iter().enumerate() {
+                    costs[0][candidate_index] = (tablature_load(candidate), None);
+                }
+                for event_index in 1..candidates.len() {
+                    for (candidate_index, candidate) in candidates[event_index].iter().enumerate() {
+                        let load = tablature_load(candidate);
+                        for (previous_index, previous) in
+                            candidates[event_index - 1].iter().enumerate()
+                        {
+                            let previous_cost = costs[event_index - 1][previous_index].0;
+                            let cost = previous_cost
+                                .saturating_add(load)
+                                .saturating_add(tablature_movement(previous, candidate));
+                            if cost < costs[event_index][candidate_index].0 {
+                                costs[event_index][candidate_index] = (cost, Some(previous_index));
+                            }
+                        }
+                    }
+                }
+                let mut selected = vec![0; candidates.len()];
+                if let Some((last, _)) = costs.last().and_then(|row| {
+                    row.iter()
+                        .enumerate()
+                        .min_by_key(|(index, (cost, _))| (*cost, *index))
+                }) {
+                    selected[candidates.len() - 1] = last;
+                    for event_index in (1..candidates.len()).rev() {
+                        selected[event_index - 1] =
+                            costs[event_index][selected[event_index]].1.unwrap_or(0);
+                    }
+                }
+
+                for (((measure_index, note_index, original), event_candidates), selected_index) in
+                    locations.into_iter().zip(candidates).zip(selected)
+                {
+                    if original.tab_position.is_none() && original.tab_positions.is_empty() {
+                        let note = &mut staff.measures[measure_index].voices[voice][note_index];
+                        let positions = event_candidates[selected_index].clone();
+                        note.tab_position = positions.first().cloned();
+                        note.tab_positions = positions;
+                        note.string_number = note.tab_position.as_ref().map(|p| p.string);
+                        assigned += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    assigned
+}
+
+fn tablature_load(positions: &[TabPosition]) -> u32 {
+    let sum: u32 = positions
+        .iter()
+        .map(|position| u32::from(position.fret))
+        .sum();
+    let min = positions
+        .iter()
+        .map(|position| position.fret)
+        .min()
+        .unwrap_or(0);
+    let max = positions
+        .iter()
+        .map(|position| position.fret)
+        .max()
+        .unwrap_or(0);
+    let span = max - min;
+    // A four-fret hand position is a practical baseline; wide chords receive
+    // a strong penalty so a higher but compact voicing wins when available.
+    let stretch_penalty = span.saturating_sub(4) as u32 * 12;
+    sum + u32::from(span) * 2 + stretch_penalty
+}
+
+fn tablature_movement(previous: &[TabPosition], current: &[TabPosition]) -> u32 {
+    previous
+        .iter()
+        .zip(current)
+        .map(|(a, b)| u32::from(a.fret.abs_diff(b.fret)) + u32::from(a.string.abs_diff(b.string)))
+        .sum()
+}
+
+fn tablature_assignments(
+    pitches: &[i16],
+    tuning: &[i16],
+    lines: usize,
+    capo: i16,
+    max_fret: i16,
+) -> Vec<Vec<TabPosition>> {
+    #[allow(clippy::too_many_arguments)]
+    fn visit(
+        pitches: &[i16],
+        tuning: &[i16],
+        lines: usize,
+        capo: i16,
+        max_fret: i16,
+        index: usize,
+        used: &mut [bool],
+        current: &mut Vec<TabPosition>,
+        output: &mut Vec<Vec<TabPosition>>,
+    ) {
+        if index == pitches.len() {
+            output.push(current.clone());
+            return;
+        }
+        for (string, open) in tuning.iter().enumerate().take(lines) {
+            if used[string] {
+                continue;
+            }
+            let fret = pitches[index] - *open - capo;
+            if !(0..=max_fret).contains(&fret) {
+                continue;
+            }
+            used[string] = true;
+            current.push(TabPosition {
+                string: (string + 1) as u8,
+                fret: fret as u8,
+            });
+            visit(
+                pitches,
+                tuning,
+                lines,
+                capo,
+                max_fret,
+                index + 1,
+                used,
+                current,
+                output,
+            );
+            current.pop();
+            used[string] = false;
+        }
+    }
+
+    if pitches.is_empty() || pitches.len() > lines {
+        return Vec::new();
+    }
+    let mut output = Vec::new();
+    visit(
+        pitches,
+        tuning,
+        lines,
+        capo,
+        max_fret,
+        0,
+        &mut vec![false; lines],
+        &mut Vec::new(),
+        &mut output,
+    );
+    output
+}
+
+fn best_tablature_assignment(
+    pitches: &[i16],
+    tuning: &[i16],
+    lines: usize,
+    capo: i16,
+    max_fret: i16,
+) -> Option<Vec<TabPosition>> {
+    type Assignment = (i16, i16, i16, Vec<u8>, Vec<TabPosition>);
+
+    #[allow(clippy::too_many_arguments)]
+    fn search(
+        pitches: &[i16],
+        tuning: &[i16],
+        lines: usize,
+        capo: i16,
+        max_fret: i16,
+        index: usize,
+        used: &mut [bool],
+        current: &mut Vec<TabPosition>,
+        best: &mut Option<Assignment>,
+    ) {
+        if index == pitches.len() {
+            let sum: i16 = current.iter().map(|p| i16::from(p.fret)).sum();
+            let min = current.iter().map(|p| p.fret).min().unwrap_or(0);
+            let max = current.iter().map(|p| p.fret).max().unwrap_or(0);
+            let strings: Vec<u8> = current.iter().map(|p| p.string).collect();
+            let candidate = (
+                sum,
+                i16::from(max) - i16::from(min),
+                i16::from(max),
+                strings,
+                current.clone(),
+            );
+            if best.as_ref().is_none_or(|existing| {
+                (candidate.0, candidate.1, candidate.2, &candidate.3)
+                    < (existing.0, existing.1, existing.2, &existing.3)
+            }) {
+                *best = Some(candidate);
+            }
+            return;
+        }
+
+        for (string, open) in tuning.iter().enumerate().take(lines) {
+            if used[string] {
+                continue;
+            }
+            let fret = pitches[index] - *open - capo;
+            if !(0..=max_fret).contains(&fret) {
+                continue;
+            }
+            used[string] = true;
+            current.push(TabPosition {
+                string: (string + 1) as u8,
+                fret: fret as u8,
+            });
+            search(
+                pitches,
+                tuning,
+                lines,
+                capo,
+                max_fret,
+                index + 1,
+                used,
+                current,
+                best,
+            );
+            current.pop();
+            used[string] = false;
+        }
+    }
+
+    if pitches.len() > lines {
+        return None;
+    }
+    let mut used = vec![false; lines];
+    let mut current = Vec::with_capacity(pitches.len());
+    let mut best = None;
+    search(
+        pitches,
+        tuning,
+        lines,
+        capo,
+        max_fret,
+        0,
+        &mut used,
+        &mut current,
+        &mut best,
+    );
+    best.map(|(_, _, _, _, positions)| positions)
+}
+
 /// Return a new `Score` with all pitches shifted by `semitones`.
 /// Key signatures (global and per-measure) are updated accordingly.
 /// If `semitones == 0` the score is cloned unchanged.
@@ -480,6 +832,17 @@ pub struct Part {
     /// General MIDI program number (0–127). Default 0 = Acoustic Grand Piano.
     #[serde(default)]
     pub midi_program: u8,
+    /// MIDI pitch-bend events preserved from interchange input, in PPQ ticks.
+    #[serde(default)]
+    pub midi_pitch_bends: Vec<MidiPitchBend>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MidiPitchBend {
+    pub tick: u64,
+    pub channel: u8,
+    /// Signed 14-bit MIDI bend value in the range -8192..=8191.
+    pub value: i16,
 }
 
 impl Part {
@@ -491,6 +854,7 @@ impl Part {
             staves: Vec::new(),
             midi_channel: 0,
             midi_program: 0,
+            midi_pitch_bends: Vec::new(),
         }
     }
 }
@@ -611,6 +975,10 @@ pub struct Note {
     pub pitches: Vec<Pitch>,
     #[serde(default)]
     pub tab_position: Option<super::notation::TabPosition>,
+    /// One tablature position per pitch; the first entry mirrors `tab_position`.
+    /// This is populated for chords so each pitch can occupy a distinct string.
+    #[serde(default)]
+    pub tab_positions: Vec<super::notation::TabPosition>,
     pub duration: Duration,
     pub dot_count: u8,
     pub tie_start: bool,
@@ -687,6 +1055,7 @@ impl Note {
             is_rest: false,
             pitches: vec![pitch],
             tab_position: None,
+            tab_positions: Vec::new(),
             duration,
             dot_count: 0,
             tie_start: false,
@@ -729,6 +1098,7 @@ impl Note {
             is_rest: true,
             pitches: Vec::new(),
             tab_position: None,
+            tab_positions: Vec::new(),
             duration,
             dot_count: 0,
             tie_start: false,
@@ -1149,6 +1519,7 @@ fn patch_requires_replace(a: &Score, b: &Score) -> bool {
             || ap.short_name != bp.short_name
             || ap.midi_channel != bp.midi_channel
             || ap.midi_program != bp.midi_program
+            || ap.midi_pitch_bends != bp.midi_pitch_bends
             || ap.staves.len() != bp.staves.len()
         {
             return true;
@@ -1768,6 +2139,8 @@ fn note_content_eq(a: &Note, b: &Note) -> bool {
         && a.slur_start == b.slur_start
         && a.slur_end == b.slur_end
         && a.arpeggiate == b.arpeggiate
+        && a.tab_position == b.tab_position
+        && a.tab_positions == b.tab_positions
 }
 
 #[cfg(test)]
@@ -1781,6 +2154,59 @@ mod tests {
         assert_eq!(score.parts.len(), 1);
         assert_eq!(score.parts[0].staves.len(), 1);
         assert_eq!(score.parts[0].staves[0].measures.len(), 4);
+    }
+
+    #[test]
+    fn assign_tablature_positions_is_capo_aware_and_preserves_explicit_positions() {
+        let mut score = Score::new("Guitar", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].tablature = Some(TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![64, 59, 55, 50, 45, 40],
+            capo: 2,
+        });
+        score.parts[0].staves[0].measures[0].voices[0].push(Note::new(
+            Pitch::with_alter(Step::F, 4, 1),
+            Duration::Quarter,
+        ));
+        score.parts[0].staves[0].measures[0].voices[0]
+            .push(Note::new(Pitch::new(Step::G, 3), Duration::Quarter));
+        score.parts[0].staves[0].measures[0].voices[0][2].tab_position =
+            Some(TabPosition { string: 6, fret: 7 });
+
+        assert_eq!(assign_tablature_positions(&mut score), 1);
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(
+            notes[1].tab_position,
+            Some(TabPosition { string: 1, fret: 0 })
+        );
+        assert_eq!(notes[1].string_number, Some(1));
+        assert_eq!(
+            notes[2].tab_position,
+            Some(TabPosition { string: 6, fret: 7 })
+        );
+    }
+
+    #[test]
+    fn assign_tablature_positions_optimizes_chord_strings_and_fret_span() {
+        let mut score = Score::new("Guitar", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].tablature = Some(TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![64, 59, 55, 50, 45, 40],
+            capo: 0,
+        });
+        let mut chord = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+        chord.pitches.push(Pitch::new(Step::G, 4));
+        score.parts[0].staves[0].measures[0].voices[0].push(chord);
+
+        assert_eq!(assign_tablature_positions(&mut score), 1);
+        let positions = &score.parts[0].staves[0].measures[0].voices[0][1].tab_positions;
+        assert_eq!(
+            positions,
+            &vec![
+                TabPosition { string: 2, fret: 5 },
+                TabPosition { string: 1, fret: 3 },
+            ]
+        );
     }
 
     #[test]

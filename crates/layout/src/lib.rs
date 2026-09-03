@@ -8,10 +8,11 @@ mod print;
 pub use acorde_core::NoteAddr;
 pub use engine::compute_layout;
 pub use print::{
-    BreakReason, CropMarkPolicy, FinalPagePolicy, GlyphResourcePolicy, KeepTogetherRange,
-    MeasureMark, NotationBreakPolicy, PageAddress, PageLayout, PageNumbering, PageOrientation,
-    PageSpanSegment, PaperSize, PickupPolicy, PrintColorPolicy, PrintConfig, PrintLayoutError,
-    PrintLayoutResult, SpanSegment, SystemAddress, SystemLayout, compute_print_layout,
+    BreakReason, CropMarkPolicy, FinalPagePolicy, GlyphMetrics, GlyphPlacement,
+    GlyphResourcePolicy, KeepTogetherRange, MeasureMark, NotationBreakPolicy, PageAddress,
+    PageLayout, PageNumbering, PageOrientation, PageSpanSegment, PaperSize, PickupPolicy,
+    PrintColorPolicy, PrintConfig, PrintLayoutError, PrintLayoutResult, SpanSegment, SystemAddress,
+    SystemLayout, compute_print_layout, resolve_glyph_collisions,
 };
 
 use acorde_core::{HairpinKind, OttavaKind};

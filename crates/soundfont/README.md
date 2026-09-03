@@ -12,12 +12,18 @@ separately licensed SF2/SF3 decoder supplies sample regions and bounded PCM, and
 renderer consumes that PCM with `SampleAction`. This crate does not bundle proprietary assets, a
 codec, an audio device, or a synthesizer. Unsupported compression or generator features must be
 reported by that provider before creating a region.
+`SoundFontPresetZone` and `select_preset_zone` provide the shared bank/program/key/velocity
+mapping API; providers can translate SF2 generators or SF3 metadata once and Composer does not
+need to duplicate that parsing. Each mapped region carries bounded half-open sample frame
+offsets, sample rate, loop points, tuning, attenuation, and envelope parameters.
+`schedule_preset_note_on` combines that selection with the validated voice plan in one call.
 
 `PROVIDER_CONTRACT_VERSION` identifies the adapter contract. Providers advertise
 `ProviderCapabilities` and hosts should call `validate_provider_capabilities` before decoding;
-unsupported PCM/Vorbis or synthesis support returns a typed error. The checked-in SF2/SF3 tests
-use synthetic RIFF metadata only; real codec fixtures and assets must be supplied under the
-provider's separate license.
+unsupported PCM/Vorbis or synthesis support returns a typed error. The checked-in regression
+suite includes a CC0 SF2 fixture and the MIT-licensed FluidR3Mono SF3 fixture, with provenance
+and checksums in `tests/fixtures/`; the SF3 test is gated behind `sf3-vorbis`. Production and
+provider-owned assets remain separate.
 
 `validate_sample_region` rejects malformed key/velocity ranges, loop points, sample rates, and
 envelope values before scheduling. Unsupported generator data should be rejected by the provider

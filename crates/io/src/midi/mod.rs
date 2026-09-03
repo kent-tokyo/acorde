@@ -2,7 +2,9 @@ mod serialize;
 pub use serialize::{serialize_midi, serialize_midi_region};
 
 use crate::{Error, MAX_INPUT_BYTES, MAX_MIDI_EVENTS};
-use acorde_core::{Clef, Duration, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature};
+use acorde_core::{
+    Clef, Duration, Measure, MidiPitchBend, Note, Part, Pitch, Score, Staff, Step, TimeSignature,
+};
 use midly::{MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
 
 const MAX_MEASURES: usize = 10_000;
@@ -60,7 +62,7 @@ pub fn parse_midi(data: &[u8]) -> Result<Score, Error> {
     };
     let beats_per_measure = ts.total_beats();
 
-    type TrackData = (String, Vec<Note>, Option<(u8, u8)>);
+    type TrackData = (String, Vec<Note>, Option<(u8, u8)>, Vec<MidiPitchBend>);
     let mut parts_data: Vec<TrackData> = Vec::new();
     for (ti, track) in smf.tracks.iter().enumerate() {
         if parts_data.len() >= MAX_PARTS {
@@ -73,7 +75,7 @@ pub fn parse_midi(data: &[u8]) -> Result<Score, Error> {
         let program_info = extract_program(track);
         let notes = quantize_to_notes(raw, ppq);
         let name = track_name(track).unwrap_or_else(|| format!("Track {}", ti + 1));
-        parts_data.push((name, notes, program_info));
+        parts_data.push((name, notes, program_info, collect_pitch_bends(track)));
     }
 
     if parts_data.is_empty() {
@@ -88,7 +90,7 @@ pub fn parse_midi(data: &[u8]) -> Result<Score, Error> {
     }
     score.parts.clear();
 
-    for (name, notes, program_info) in parts_data {
+    for (name, notes, program_info, pitch_bends) in parts_data {
         let short: String = name.chars().take(4).collect();
         let measures = build_measures(notes, numerator, denominator, beats_per_measure);
         let mut staff = Staff::new(Clef::Treble);
@@ -98,6 +100,7 @@ pub fn parse_midi(data: &[u8]) -> Result<Score, Error> {
             part.midi_channel = channel;
             part.midi_program = program;
         }
+        part.midi_pitch_bends = pitch_bends;
         part.staves.push(staff);
         score.parts.push(part);
     }
@@ -160,6 +163,26 @@ fn extract_program(track: &[midly::TrackEvent]) -> Option<(u8, u8)> {
         }
     }
     None
+}
+
+fn collect_pitch_bends(track: &[midly::TrackEvent]) -> Vec<MidiPitchBend> {
+    let mut tick = 0_u64;
+    let mut bends = Vec::new();
+    for event in track {
+        tick += u64::from(event.delta.as_int());
+        if let TrackEventKind::Midi {
+            channel,
+            message: MidiMessage::PitchBend { bend },
+        } = &event.kind
+        {
+            bends.push(MidiPitchBend {
+                tick,
+                channel: channel.as_int(),
+                value: bend.as_int(),
+            });
+        }
+    }
+    bends
 }
 
 fn track_name(track: &[midly::TrackEvent]) -> Option<String> {

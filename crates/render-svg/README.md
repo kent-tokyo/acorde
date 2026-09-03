@@ -11,7 +11,9 @@ Output is deterministic and may include stable data-note-addr hooks for host-sid
 hit testing. `glyph_coverage()` reports the built-in resource ID, supported clefs, and accidental
 range before rendering; unsupported clefs/accidentals return `RenderError` rather than a blank
 fallback. The renderer has no browser/DOM dependency and uses font-independent SVG geometry for
-notation glyphs.
+notation glyphs. Tablature staffs render their configured line count, explicit string/fret
+positions, and guitar bend/slide/hammer-on/pull-off technique labels; missing positions are shown
+as an explicit `?` marker rather than inferred silently.
 
 ~~~rust
 use acorde_core::Score;

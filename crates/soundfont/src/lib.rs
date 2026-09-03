@@ -70,6 +70,9 @@ pub struct SampleLoop {
 #[derive(Debug, Clone, PartialEq)]
 pub struct SampleRegion {
     pub sample_id: u64,
+    /// Half-open source-frame range in the provider-owned sample payload.
+    pub start_frame: u32,
+    pub end_frame: u32,
     pub key_min: u8,
     pub key_max: u8,
     pub velocity_min: u8,
@@ -102,6 +105,11 @@ pub fn validate_sample_region(region: &SampleRegion) -> Result<(), Error> {
     }
     if region.velocity_min == 0 || region.velocity_min > region.velocity_max {
         return Err(Error::InvalidZone("velocity range"));
+    }
+    if region.start_frame >= region.end_frame
+        || u64::from(region.end_frame) > MAX_DECODED_FRAMES as u64
+    {
+        return Err(Error::InvalidZone("sample frame range"));
     }
     if region.sample_rate == 0
         || !region.attenuation_db.is_finite()
@@ -150,6 +158,74 @@ pub fn select_sample_region(
                 region.sample_id,
             )
         })
+}
+
+/// A provider-neutral mapping from one bank/program preset to a playable sample zone.
+///
+/// SF2 generators or SF3 metadata are interpreted by the provider and materialized here;
+/// consumers can then select zones without reimplementing SoundFont parsing.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SoundFontPresetZone {
+    pub bank: u16,
+    pub program: u16,
+    pub region: SampleRegion,
+}
+
+impl SoundFontPresetZone {
+    pub fn new(bank: u16, program: u16, region: SampleRegion) -> Result<Self, Error> {
+        validate_sample_region(&region)?;
+        Ok(Self {
+            bank,
+            program,
+            region,
+        })
+    }
+
+    pub fn contains(&self, bank: u16, program: u16, key: u8, velocity: u8) -> bool {
+        self.bank == bank && self.program == program && self.region.contains(key, velocity)
+    }
+}
+
+/// Select a preset zone deterministically for a bank/program/key/velocity tuple.
+pub fn select_preset_zone(
+    zones: &[SoundFontPresetZone],
+    bank: u16,
+    program: u16,
+    key: u8,
+    velocity: u8,
+) -> Option<&SoundFontPresetZone> {
+    zones
+        .iter()
+        .filter(|zone| zone.contains(bank, program, key, velocity))
+        .min_by_key(|zone| {
+            (
+                u16::from(zone.region.key_max.saturating_sub(zone.region.key_min)),
+                u16::from(
+                    zone.region
+                        .velocity_max
+                        .saturating_sub(zone.region.velocity_min),
+                ),
+                zone.region.sample_id,
+            )
+        })
+}
+
+/// Select a bank/program/key/velocity zone and build its provider-neutral voice plan.
+///
+/// This is the single mapping entry point intended for Composer and other hosts:
+/// SF2/SF3 providers materialize [`SoundFontPresetZone`] values once, then callers
+/// do not need to duplicate preset or generator selection logic.
+pub fn schedule_preset_note_on(
+    voice_id: u64,
+    event: PlaybackEvent,
+    zones: &[SoundFontPresetZone],
+    bank: u16,
+    program: u16,
+    velocity_exponent: f32,
+) -> Result<SampleAction, Error> {
+    let zone = select_preset_zone(zones, bank, program, event.pitch_midi, event.velocity)
+        .ok_or(Error::InvalidSample)?;
+    schedule_sample_note_on(voice_id, event, &zone.region, velocity_exponent)
 }
 
 /// Converts MIDI velocity to a deterministic linear gain with a configurable exponent.
@@ -345,9 +421,46 @@ fn find_chunk_in_range<'a>(mut data: &'a [u8], wanted: &[u8; 4]) -> Option<&'a [
 
 #[cfg(feature = "sf3-vorbis")]
 fn find_ogg_payload(data: &[u8]) -> Option<&[u8]> {
-    data.windows(4)
-        .position(|window| window == b"OggS")
-        .map(|offset| &data[offset..])
+    let start = data.windows(4).position(|window| window == b"OggS")?;
+    let mut offset = start;
+    let mut serial = None;
+    loop {
+        let header_end = offset.checked_add(27)?;
+        if header_end > data.len() || &data[offset..offset + 4] != b"OggS" {
+            return None;
+        }
+        if data[offset + 4] != 0 {
+            return None;
+        }
+        let page_serial = u32::from_le_bytes(data[offset + 14..offset + 18].try_into().ok()?);
+        let segment_count = usize::from(data[offset + 26]);
+        let lacing_end = header_end.checked_add(segment_count)?;
+        if lacing_end > data.len() {
+            return None;
+        }
+        let payload_len = data[header_end..lacing_end]
+            .iter()
+            .try_fold(0usize, |sum, segment| {
+                sum.checked_add(usize::from(*segment))
+            })?;
+        let page_end = lacing_end.checked_add(payload_len)?;
+        if page_end > data.len() {
+            return None;
+        }
+        if serial.is_none() {
+            serial = Some(page_serial);
+        }
+        if Some(page_serial) != serial {
+            return None;
+        }
+        if data[offset + 5] & 0x04 != 0 {
+            return Some(&data[start..page_end]);
+        }
+        offset = page_end;
+        if &data[offset..].get(..4)? != b"OggS" {
+            return None;
+        }
+    }
 }
 
 /// Render one scheduled sample action into deterministic interleaved PCM16 frames.
@@ -864,6 +977,8 @@ mod tests {
     fn region(sample_id: u64, key_min: u8, key_max: u8) -> SampleRegion {
         SampleRegion {
             sample_id,
+            start_frame: 0,
+            end_frame: 1_000,
             key_min,
             key_max,
             velocity_min: 1,
@@ -898,6 +1013,20 @@ mod tests {
     }
 
     #[test]
+    fn preset_zone_selection_preserves_bank_program_and_bounds() {
+        let zones = vec![
+            SoundFontPresetZone::new(0, 0, region(20, 0, 127)).expect("wide zone"),
+            SoundFontPresetZone::new(0, 0, region(10, 60, 60)).expect("narrow zone"),
+            SoundFontPresetZone::new(1, 0, region(30, 60, 60)).expect("other bank"),
+        ];
+        let selected = select_preset_zone(&zones, 0, 0, 60, 100).expect("matching zone");
+        assert_eq!(selected.region.sample_id, 10);
+        assert_eq!(selected.region.start_frame, 0);
+        assert!(select_preset_zone(&zones, 1, 0, 60, 100).is_some());
+        assert!(select_preset_zone(&zones, 2, 0, 60, 100).is_none());
+    }
+
+    #[test]
     fn sample_schedule_contains_tuning_gain_and_envelope() {
         let action = schedule_sample_note_on(7, event("n", 127), &region(3, 0, 127), 1.0)
             .expect("sample action");
@@ -907,6 +1036,17 @@ mod tests {
             parameters: SampleVoiceParameters { gain, playback_rate_ratio, .. },
             ..
         } if (gain - 1.0).abs() < f32::EPSILON && (playback_rate_ratio - 1.0).abs() < f32::EPSILON));
+    }
+
+    #[test]
+    fn preset_note_plan_selects_bank_program_and_key_velocity_zone() {
+        let zones = vec![
+            SoundFontPresetZone::new(2, 10, region(1, 0, 127)).expect("zone"),
+            SoundFontPresetZone::new(2, 10, region(2, 60, 60)).expect("narrow zone"),
+        ];
+        let action = schedule_preset_note_on(9, event("preset", 100), &zones, 2, 10, 1.0)
+            .expect("preset plan");
+        assert!(matches!(action, SampleAction::Start { sample_id: 2, .. }));
     }
 
     #[test]
@@ -1004,6 +1144,24 @@ mod tests {
         assert_eq!(rendered, vec![-1000, 2000]);
     }
 
+    #[test]
+    fn decodes_real_cc0_sf2_and_renders_non_silent_audio() {
+        let data = include_bytes!("../../../tests/fixtures/UprightPianoKW-small-20190703.sf2");
+        let sample = decode_sf2_pcm16(data, 0, 1024, 44_100, 1).expect("CC0 SF2 fixture");
+        assert_eq!(sample.sample_rate, 44_100);
+        assert_eq!(sample.channels, 1);
+        assert!(sample.pcm_i16.iter().any(|value| *value != 0));
+
+        let mut playback_region = region(42, 0, 127);
+        playback_region.attack_secs = 0.0;
+        playback_region.sustain_level = 1.0;
+        let action = schedule_sample_note_on(42, event("cc0-sf2", 127), &playback_region, 1.0)
+            .expect("SF2 sample action");
+        let rendered = render_sample_action(&sample, &action, 44_100).expect("SF2 render");
+        assert!(!rendered.is_empty());
+        assert!(rendered.iter().any(|value| *value != 0));
+    }
+
     #[cfg(feature = "sf3-vorbis")]
     #[test]
     fn decodes_permitted_synthetic_sf3_vorbis_fixture() {
@@ -1017,6 +1175,25 @@ mod tests {
         assert_eq!(sample.channels, 2);
         assert!(!sample.pcm_i16.is_empty());
         assert!(sample.pcm_i16.iter().any(|value| *value != 0));
+    }
+
+    #[cfg(feature = "sf3-vorbis")]
+    #[test]
+    fn decodes_real_mit_sf3_vorbis_and_renders_non_silent_audio() {
+        let data = include_bytes!("../../../tests/fixtures/FluidR3Mono_GM.sf3");
+        let sample = decode_sf3_vorbis(data, 11_025, 1).expect("MIT SF3 fixture");
+        assert_eq!(sample.sample_rate, 11_025);
+        assert_eq!(sample.channels, 1);
+        assert!(sample.pcm_i16.iter().any(|value| *value != 0));
+
+        let mut playback_region = region(43, 0, 127);
+        playback_region.attack_secs = 0.0;
+        playback_region.sustain_level = 1.0;
+        let action = schedule_sample_note_on(43, event("mit-sf3", 127), &playback_region, 1.0)
+            .expect("SF3 sample action");
+        let rendered = render_sample_action(&sample, &action, 11_025).expect("SF3 render");
+        assert!(!rendered.is_empty());
+        assert!(rendered.iter().any(|value| *value != 0));
     }
     fn sf(ogg: bool) -> Vec<u8> {
         let mut p = vec![0u8; 38 * 2];

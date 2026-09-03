@@ -178,6 +178,19 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                         "          <staff-lines>{}</staff-lines>\n",
                         tab.lines
                     ));
+                    for (index, &midi) in tab.tuning_midi.iter().enumerate() {
+                        if index >= usize::from(tab.lines) {
+                            break;
+                        }
+                        let (step, alter, octave) = midi_to_musicxml_tuning(midi);
+                        xml.push_str(&format!(
+                            "          <staff-tuning line=\"{}\"><tuning-step>{}</tuning-step><tuning-alter>{}</tuning-alter><tuning-octave>{}</tuning-octave></staff-tuning>\n",
+                            index + 1,
+                            step,
+                            alter,
+                            octave
+                        ));
+                    }
                     xml.push_str("        </staff-details>\n");
                 }
                 if staff.transpose_semitones != 0 {
@@ -538,7 +551,7 @@ fn serialize_note(xml: &mut String, note: &Note, voice_number: usize) {
         xml.push_str("      </note>\n");
 
         // Additional chord pitches
-        for extra in note.pitches.iter().skip(1) {
+        for (pitch_idx, extra) in note.pitches.iter().skip(1).enumerate() {
             xml.push_str("      <note>\n");
             xml.push_str("        <chord/>\n");
             xml.push_str("        <pitch>\n");
@@ -558,6 +571,12 @@ fn serialize_note(xml: &mut String, note: &Note, voice_number: usize) {
                 "        <type>{}</type>\n",
                 note.duration.to_musicxml_type()
             ));
+            if let Some(tab) = note.tab_positions.get(pitch_idx + 1) {
+                xml.push_str("        <technical>\n");
+                xml.push_str(&format!("          <string>{}</string>\n", tab.string));
+                xml.push_str(&format!("          <fret>{}</fret>\n", tab.fret));
+                xml.push_str("        </technical>\n");
+            }
             xml.push_str("      </note>\n");
         }
     }
@@ -785,6 +804,27 @@ fn navigation_direction(nav: &str) -> (String, Option<&'static str>) {
         "ToCoda" => ("<words>To Coda</words>".into(), Some("tocoda")),
         other => (format!("<words>{}</words>", escape_xml(other)), None),
     }
+}
+
+fn midi_to_musicxml_tuning(midi: i16) -> (&'static str, i8, i8) {
+    const STEPS: [(&str, i8); 12] = [
+        ("C", 0),
+        ("C", 1),
+        ("D", 0),
+        ("D", 1),
+        ("E", 0),
+        ("F", 0),
+        ("F", 1),
+        ("G", 0),
+        ("G", 1),
+        ("A", 0),
+        ("A", 1),
+        ("B", 0),
+    ];
+    let midi = midi.clamp(0, 127);
+    let octave = (midi / 12 - 1) as i8;
+    let (step, alter) = STEPS[(midi % 12) as usize];
+    (step, alter, octave)
 }
 
 fn split_note_name(name: &str) -> (&str, i8) {

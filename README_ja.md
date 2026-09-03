@@ -1,6 +1,6 @@
 # acorde
 
-Rust と WebAssembly 向けのプラットフォーム非依存な楽譜ライブラリ（v1.0.8）です。
+Rust と WebAssembly 向けのプラットフォーム非依存な楽譜ライブラリ（v1.0.9）です。
 
 シリアライズ可能なスコアモデル、Undo/Redo 可能なコマンド、各種フォーマット入出力、
 論理レイアウト、決定的な SVG レンダリング、再生イベント、WASM バインディングを提供します。
@@ -22,19 +22,21 @@ Rust と WebAssembly 向けのプラットフォーム非依存な楽譜ライ�
 `acorde` は `acorde-render-svg` を再エクスポートしません。SVG が必要な場合は直接依存します。
 印刷向けの中立的なページ配置契約は [print-layout.md](docs/print-layout.md) にまとめています。
 PDF変換、フォント解決、プリンタ接続、印刷プレビューUIはホスト側の責務です。
+SoundFontの`SoundFontPresetZone` APIでは bank/program と key/velocity からサンプル領域を
+選択でき、Composer側でSoundFontのgenerator解析を重複実装する必要がありません。
 
 ## 利用例
 
 ```toml
 [dependencies]
-acorde = "1.0.8"
-acorde-render-svg = "1.0.8"
+acorde = "1.0.9"
+acorde-render-svg = "1.0.9"
 ```
 
 ABC と MuseScore 入力を有効にする場合：
 
 ```toml
-acorde = { version = "1.0.8", features = ["abc", "mscz", "mei"] }
+acorde = { version = "1.0.9", features = ["abc", "mscz", "mei"] }
 ```
 
 `acorde-io` の既定 feature は `musicxml` と `midi` です。`abc` は ABC の読み書き、
@@ -53,11 +55,24 @@ glissandoとcross-staff配置もMusicXMLとの往復変換で保持されます�
 acorde convert input.mid output.musicxml
 acorde info input.musicxml
 acorde validate input.musicxml
+acorde validate guitar.musicxml       # タブ譜の線数・調弦・弦番号も検証
 acorde extract --part 0 input.musicxml part.musicxml
 acorde transpose --semitones 2 input.musicxml transposed.musicxml
 acorde normalize input.musicxml normalized.musicxml
 acorde export-report input.musicxml exported.musicxml
+acorde tab-position guitar.musicxml edited.musicxml --part 0 --measure 0 --note 1 --string 2 --fret 3
+acorde auto-tab guitar.musicxml guitar-tabbed.musicxml
+acorde auto-tab-report guitar.musicxml guitar-tabbed.musicxml
 ```
+
+`validate` はタブ譜の線数、調弦値、明示された弦番号もローカルで検証します。SoundFontや
+ネットワーク接続は必要ありません。
+`tab-position --clear` で明示位置を解除できます。各インデックスは0始まりで、`--string`だけ
+1始まりです。
+`auto-tab` は未指定の単音・コードに対し、フレット負荷と前後のポジション移動を抑える
+運指を自動選択します。
+`auto-tab-report` は割り当て数、未割り当て数、コード数、フレット負荷を決定論的なJSONで
+表示し、最適化済みスコアも出力します。
 
 ## 開発
 

@@ -15,7 +15,14 @@ acorde extract --part 0 input.musicxml part.musicxml
 acorde transpose --semitones 2 input.musicxml transposed.musicxml
 acorde normalize input.musicxml normalized.musicxml
 acorde export-report input.musicxml exported.musicxml
+acorde tab-position guitar.musicxml edited.musicxml --part 0 --measure 0 --note 1 --string 2 --fret 3
+acorde tab-position edited.musicxml cleared.musicxml --part 0 --measure 0 --note 1 --clear
+acorde auto-tab guitar.musicxml guitar-tabbed.musicxml
+acorde auto-tab-report guitar.musicxml guitar-tabbed.musicxml
 ~~~
+
+`auto-tab-report` prints JSON containing assigned/remaining notes, chord count, total and maximum
+fret, while writing the optimized score to the requested output path.
 
 Input supports .musicxml, .mxl, .mid/.midi, .abc, .mei, .mscz, and .mscx. Conversion output is
 MusicXML or MIDI. info prints title, counts, tempo, time signature, and duration estimate; validate
@@ -37,5 +44,17 @@ includes corpus metadata; each case has `name`,
 ~~~
 
 [Repository](https://github.com/kent-tokyo/acorde)
+
+## Tablature validation
+
+`validate` also checks tablature metadata and explicit string/fret positions. This local-only
+check does not require a SoundFont or other external asset:
+
+~~~bash
+acorde validate tests/fixtures/guitar.musicxml
+~~~
+
+An invalid line count, tuning value, or string number exits with status 1 and prints the
+part/staff location.
 
 CLI input and output boundary rules are documented in the [security contract](../../docs/security/threat-model.md).

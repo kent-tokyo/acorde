@@ -108,6 +108,12 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut in_measure_style = false;
     let mut in_staff_details = false;
     let mut staff_lines: Option<u8> = None;
+    let mut in_staff_tuning = false;
+    let mut staff_tuning_line: Option<u8> = None;
+    let mut staff_tuning_step = Step::C;
+    let mut staff_tuning_alter = 0i8;
+    let mut staff_tuning_octave = 4i8;
+    let mut staff_tunings: Vec<(u8, i16)> = Vec::new();
     let mut in_multiple_rest = false;
     let mut in_barline = false;
     let mut barline_location = String::new();
@@ -200,6 +206,14 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "staff-details" => {
                         in_staff_details = true;
                         staff_lines = None;
+                        staff_tunings.clear();
+                    }
+                    "staff-tuning" if in_staff_details => {
+                        in_staff_tuning = true;
+                        staff_tuning_line = attr_str(e, b"line").and_then(|v| v.parse().ok());
+                        staff_tuning_step = Step::C;
+                        staff_tuning_alter = 0;
+                        staff_tuning_octave = 4;
                     }
                     "multiple-rest" if in_measure_style => in_multiple_rest = true,
                     "notations" if in_note => in_notations = true,
@@ -789,6 +803,38 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "staff-lines" if in_staff_details => {
                         staff_lines = current_text.trim().parse().ok();
                     }
+                    "tuning-step" if in_staff_tuning => {
+                        staff_tuning_step = match current_text.trim() {
+                            "C" => Step::C,
+                            "D" => Step::D,
+                            "E" => Step::E,
+                            "F" => Step::F,
+                            "G" => Step::G,
+                            "A" => Step::A,
+                            "B" => Step::B,
+                            _ => Step::C,
+                        };
+                    }
+                    "tuning-octave" if in_staff_tuning => {
+                        staff_tuning_octave = current_text.trim().parse().unwrap_or(4);
+                    }
+                    "tuning-alter" if in_staff_tuning => {
+                        staff_tuning_alter = current_text.trim().parse().unwrap_or(0).clamp(-2, 2);
+                    }
+                    "staff-tuning" if in_staff_tuning => {
+                        in_staff_tuning = false;
+                        if let Some(line) = staff_tuning_line.take()
+                            && (1..=64).contains(&line)
+                        {
+                            let pitch = acorde_core::Pitch::with_alter(
+                                staff_tuning_step.clone(),
+                                staff_tuning_octave,
+                                staff_tuning_alter,
+                            )
+                            .to_midi();
+                            staff_tunings.push((line, pitch));
+                        }
+                    }
                     "staff-details" => {
                         in_staff_details = false;
                         if let Some(lines) = staff_lines
@@ -798,7 +844,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             score.parts[pi].staves[0].tablature =
                                 Some(acorde_core::TablatureConfig {
                                     lines,
-                                    tuning_midi: Vec::new(),
+                                    tuning_midi: staff_tunings
+                                        .iter()
+                                        .filter(|(line, _)| *line <= lines)
+                                        .map(|(_, midi)| *midi)
+                                        .collect(),
                                     capo: 0,
                                 });
                         }
@@ -938,8 +988,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                     if let (Some(string), Some(fret)) =
                                         (tab_string, pending_fret.take())
                                     {
-                                        last.tab_position =
-                                            Some(acorde_core::TabPosition { string, fret });
+                                        let position = acorde_core::TabPosition { string, fret };
+                                        last.tab_positions.push(position.clone());
+                                        if last.tab_position.is_none() {
+                                            last.tab_position = Some(position);
+                                        }
                                     }
                                     if let Some(t) = pending_technique_text.take() {
                                         last.technique_text = Some(t);
@@ -994,6 +1047,8 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 {
                                     note.tab_position =
                                         Some(acorde_core::TabPosition { string, fret });
+                                    note.tab_positions =
+                                        note.tab_position.clone().into_iter().collect();
                                 }
                                 if let Some(t) = pending_technique_text.take() {
                                     note.technique_text = Some(t);

@@ -2,6 +2,75 @@ use crate::{LayoutConfig, SpanMark, compute_layout};
 use acorde_core::{Barline, Score};
 use serde::{Deserialize, Serialize};
 
+/// Font-independent metrics for one print glyph, expressed in millimetres.
+///
+/// Hosts may resolve a resource key to a real font, but layout can use these metrics without
+/// loading fonts or depending on an operating system. `advance_mm` is the cursor advance;
+/// the bounding box is relative to the glyph origin and is used for collision checks.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct GlyphMetrics {
+    pub advance_mm: f32,
+    pub left_mm: f32,
+    pub top_mm: f32,
+    pub width_mm: f32,
+    pub height_mm: f32,
+}
+
+/// A positioned print glyph with a deterministic collision priority.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GlyphPlacement {
+    pub resource_key: String,
+    pub metrics: GlyphMetrics,
+    pub x_mm: f32,
+    pub y_mm: f32,
+    /// Higher-priority glyphs keep their requested position when possible.
+    pub priority: u8,
+}
+
+/// Move lower-priority glyphs vertically until their bounding boxes no longer overlap.
+///
+/// This is intentionally a small, backend-neutral primitive: it does not choose fonts or
+/// draw anything. The stable input order breaks ties, and the return value reports how many
+/// placements were moved so a host can expose a preflight diagnostic.
+pub fn resolve_glyph_collisions(placements: &mut [GlyphPlacement], gap_mm: f32) -> usize {
+    let gap_mm = gap_mm.max(0.0);
+    let mut order: Vec<usize> = (0..placements.len()).collect();
+    order.sort_by_key(|&index| (std::cmp::Reverse(placements[index].priority), index));
+    let mut moved = 0;
+    for position in 0..order.len() {
+        let index = order[position];
+        let (left, right) = horizontal_bounds(&placements[index]);
+        let mut next_y = placements[index].y_mm;
+        for &previous in &order[..position] {
+            let (previous_left, previous_right) = horizontal_bounds(&placements[previous]);
+            if right <= previous_left || previous_right <= left {
+                continue;
+            }
+            let previous_bottom = vertical_bottom(&placements[previous]);
+            let current_top = next_y + placements[index].metrics.top_mm;
+            if current_top < previous_bottom + gap_mm {
+                next_y = previous_bottom + gap_mm - placements[index].metrics.top_mm;
+            }
+        }
+        if (next_y - placements[index].y_mm).abs() > f32::EPSILON {
+            placements[index].y_mm = next_y;
+            moved += 1;
+        }
+    }
+    moved
+}
+
+fn horizontal_bounds(placement: &GlyphPlacement) -> (f32, f32) {
+    (
+        placement.x_mm + placement.metrics.left_mm,
+        placement.x_mm + placement.metrics.left_mm + placement.metrics.width_mm,
+    )
+}
+
+fn vertical_bottom(placement: &GlyphPlacement) -> f32 {
+    placement.y_mm + placement.metrics.top_mm + placement.metrics.height_mm
+}
+
 /// A paper size expressed in physical millimetres.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum PaperSize {
@@ -1614,5 +1683,36 @@ mod tests {
             result.pages[0].glyph_resources,
             GlyphResourcePolicy::HostProvided("music-font-v1".into())
         );
+    }
+
+    #[test]
+    fn glyph_collision_resolution_is_deterministic_and_priority_aware() {
+        let metrics = GlyphMetrics {
+            advance_mm: 4.0,
+            left_mm: -1.0,
+            top_mm: -2.0,
+            width_mm: 2.0,
+            height_mm: 4.0,
+        };
+        let mut placements = vec![
+            GlyphPlacement {
+                resource_key: "high".into(),
+                metrics,
+                x_mm: 10.0,
+                y_mm: 20.0,
+                priority: 10,
+            },
+            GlyphPlacement {
+                resource_key: "low".into(),
+                metrics,
+                x_mm: 10.0,
+                y_mm: 20.0,
+                priority: 1,
+            },
+        ];
+        let moved = resolve_glyph_collisions(&mut placements, 1.0);
+        assert_eq!(moved, 1);
+        assert_eq!(placements[0].y_mm, 20.0);
+        assert_eq!(placements[1].y_mm, 25.0);
     }
 }

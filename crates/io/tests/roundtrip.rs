@@ -1,7 +1,7 @@
 use acorde_core::{Clef, Duration, Step};
 /// Integration tests: parse a fixture, serialize, re-parse, and verify
 /// that key musical properties are preserved across the round-trip.
-use acorde_io::{parse_musicxml, serialize_musicxml};
+use acorde_io::{parse_midi, parse_musicxml, serialize_musicxml};
 
 // Fixtures live at the workspace root under tests/fixtures/.
 // include_str! paths are relative to this source file:
@@ -9,6 +9,8 @@ use acorde_io::{parse_musicxml, serialize_musicxml};
 static SIMPLE_XML: &str = include_str!("../../../tests/fixtures/simple.musicxml");
 static MULTIPART_XML: &str = include_str!("../../../tests/fixtures/multipart.musicxml");
 static MULTIVOICE_XML: &str = include_str!("../../../tests/fixtures/multivoice.musicxml");
+static JUST_PERFECT_FIFTH_MIDI: &[u8] =
+    include_bytes!("../../../tests/fixtures/just_perfect_fifth_on_c.mid");
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -80,6 +82,20 @@ fn simple_musicxml_roundtrip_preserves_structure() {
 }
 
 #[test]
+fn fixture_scores_have_deterministic_json_and_roundtrip_identity() {
+    for fixture in [SIMPLE_XML, MULTIPART_XML, MULTIVOICE_XML] {
+        let score = parse_musicxml(fixture).expect("fixture parses");
+        let first = serde_json::to_string(&score).expect("score serializes");
+        let second = serde_json::to_string(&score).expect("score serializes deterministically");
+        assert_eq!(first, second);
+        let restored: acorde_core::Score =
+            serde_json::from_str(&first).expect("score JSON round-trips");
+        let restored_json = serde_json::to_string(&restored).expect("restored score serializes");
+        assert_eq!(restored_json, first);
+    }
+}
+
+#[test]
 fn multivoice_musicxml_preserves_voice_structure_and_playback_addresses() {
     let score1 = parse_musicxml(MULTIVOICE_XML).expect("multi-voice parse failed");
     let measure = &score1.parts[0].staves[0].measures[0];
@@ -127,6 +143,36 @@ fn multivoice_musicxml_preserves_voice_structure_and_playback_addresses() {
         events
             .iter()
             .any(|event| event.address.as_deref() == Some("0:0:0:1:0"))
+    );
+}
+
+#[test]
+fn public_domain_pitch_bend_fixture_roundtrips_semantically() {
+    let score1 = parse_midi(JUST_PERFECT_FIFTH_MIDI).expect("licensed MIDI fixture parses");
+    assert_eq!(score1.parts.len(), 2);
+    assert_eq!(score1.parts[0].midi_pitch_bends.len(), 1);
+    assert_eq!(score1.parts[0].midi_pitch_bends[0].tick, 0);
+    assert_eq!(score1.parts[0].midi_pitch_bends[0].channel, 0);
+    assert_eq!(score1.parts[0].midi_pitch_bends[0].value, 80);
+    assert_eq!(score1.parts[1].midi_pitch_bends.len(), 1);
+    assert_eq!(score1.parts[1].midi_pitch_bends[0].channel, 1);
+    assert_eq!(score1.parts[1].midi_pitch_bends[0].value, 0);
+
+    let midi2 = acorde_io::serialize_midi(&score1).expect("fixture serializes");
+    let score2 = parse_midi(&midi2).expect("serialized fixture reparses");
+    let bends1: Vec<_> = score1
+        .parts
+        .iter()
+        .flat_map(|part| part.midi_pitch_bends.iter())
+        .collect();
+    let bends2: Vec<_> = score2
+        .parts
+        .iter()
+        .flat_map(|part| part.midi_pitch_bends.iter())
+        .collect();
+    assert_eq!(
+        bends1, bends2,
+        "pitch-bend events changed during round-trip"
     );
 }
 
@@ -465,6 +511,53 @@ fn musicxml_string_number_roundtrip() {
         score2.parts[0].staves[0].measures[0].voices[0][0].string_number,
         Some(2)
     );
+}
+
+#[test]
+fn musicxml_tablature_tuning_and_techniques_roundtrip() {
+    use acorde_core::{
+        Duration, GuitarTechnique, Note, Pitch, Score, Staff, Step, TablatureConfig,
+    };
+    let mut score = Score::new("Tab", 120, 4, 4, 0, 1);
+    let mut staff = Staff::new(acorde_core::Clef::Treble);
+    staff.tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![64, 61, 55, 50, 45, 40],
+        capo: 2,
+    });
+    staff.measures.push(acorde_core::Measure::empty(4, 4));
+    let mut note = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+    note.tab_position = Some(acorde_core::TabPosition { string: 1, fret: 0 });
+    note.guitar_technique = Some(GuitarTechnique::Slide);
+    staff.measures[0].voices[0] = vec![note];
+    score.parts[0].staves = vec![staff];
+
+    let xml = serialize_musicxml(&score).expect("tablature serializes");
+    assert!(xml.contains("<staff-tuning line=\"1\"><tuning-step>E</tuning-step>"));
+    assert!(xml.contains(
+        "<staff-tuning line=\"2\"><tuning-step>C</tuning-step><tuning-alter>1</tuning-alter>"
+    ));
+    assert!(xml.contains("<staff-tuning line=\"6\"><tuning-step>E</tuning-step>"));
+    let restored = parse_musicxml(&xml).expect("tablature reparses");
+    let tab = restored.parts[0].staves[0]
+        .tablature
+        .as_ref()
+        .expect("tab staff");
+    assert_eq!(tab.lines, 6);
+    assert_eq!(tab.tuning_midi, vec![64, 61, 55, 50, 45, 40]);
+    assert_eq!(
+        tab.capo, 0,
+        "capo is intentionally outside MusicXML staff-details"
+    );
+    let restored_note = &restored.parts[0].staves[0].measures[0].voices[0][0];
+    assert_eq!(
+        restored_note
+            .tab_position
+            .as_ref()
+            .map(|p| (p.string, p.fret)),
+        Some((1, 0))
+    );
+    assert_eq!(restored_note.guitar_technique, Some(GuitarTechnique::Slide));
 }
 
 #[test]

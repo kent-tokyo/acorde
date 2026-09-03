@@ -192,6 +192,10 @@ pub(crate) fn build_svg_with_metadata(
                 options.width - RIGHT_MARGIN_U * space,
                 bottom_y,
                 space,
+                score.parts[pi].staves[si]
+                    .tablature
+                    .as_ref()
+                    .map(|tab| tab.lines),
             );
             let state = &staff_states[si_idx];
             let mut hx = LEFT_MARGIN_U * space;
@@ -804,9 +808,17 @@ fn write_number(body: &mut String, n: u8, x: f32, top_y: f32, space: f32) {
 
 // ── staff lines / barlines ───────────────────────────────────────────────────────
 
-fn write_staff_lines(body: &mut String, x1: f32, x2: f32, bottom_y: f32, space: f32) {
+fn write_staff_lines(
+    body: &mut String,
+    x1: f32,
+    x2: f32,
+    bottom_y: f32,
+    space: f32,
+    tab_lines: Option<u8>,
+) {
     body.push_str(r#"<g class="acorde-staff">"#);
-    for line in 0..5 {
+    let line_count = tab_lines.map_or(5, usize::from).clamp(1, 64);
+    for line in 0..line_count {
         let y = bottom_y - line as f32 * space;
         let _ = write!(
             body,
@@ -944,6 +956,7 @@ fn render_measure(
     note_points: &mut HashMap<NoteKey, NotePoint>,
 ) -> Result<(), RenderError> {
     let measure = &score.parts[part].staves[staff].measures[measure_idx];
+    let tablature = score.parts[part].staves[staff].tablature.as_ref();
     let total_beats = measure
         .time_sig
         .as_ref()
@@ -1062,6 +1075,7 @@ fn render_measure(
                 interactive,
                 mandatory,
                 courtesy,
+                tablature,
             )?;
         }
         body.push_str(&beam_svg);
@@ -1529,6 +1543,7 @@ fn render_note(
     interactive: bool,
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
+    tablature: Option<&acorde_core::TablatureConfig>,
 ) -> Result<(), RenderError> {
     let addr = format!("{part}:{staff}:{measure_idx}:{voice_idx}:{note_idx}");
     let kind = if note.is_rest { "rest" } else { "note" };
@@ -1542,6 +1557,8 @@ fn render_note(
     let stem_up = note.stem_up.unwrap_or(voice_stem_up);
     let anchor_y = if note.is_rest {
         staff_bottom_y - 2.0 * space
+    } else if let Some(tab) = tablature {
+        tab_note_y(note, tab, staff_bottom_y, space)
     } else {
         note_attach_y(note, clef_bottom, stem_up, staff_bottom_y, space)
     };
@@ -1576,6 +1593,9 @@ fn render_note(
             staff_bottom_y,
             space,
         );
+    } else if let Some(tab) = tablature {
+        render_tab_note(body, note, tab, x, staff_bottom_y, space);
+        render_note_annotations(body, note, x, anchor_y, stem_up, space);
     } else {
         render_pitched_note(
             body,
@@ -1613,6 +1633,68 @@ fn render_note(
 
     body.push_str("</g>");
     Ok(())
+}
+
+fn tab_note_y(note: &Note, tab: &acorde_core::TablatureConfig, bottom_y: f32, space: f32) -> f32 {
+    let string = note
+        .tab_position
+        .as_ref()
+        .map(|position| position.string)
+        .or(note.string_number)
+        .unwrap_or(1)
+        .clamp(1, tab.lines.max(1));
+    bottom_y - f32::from(tab.lines.saturating_sub(string)) * space
+}
+
+fn render_tab_note(
+    body: &mut String,
+    note: &Note,
+    tab: &acorde_core::TablatureConfig,
+    x: f32,
+    bottom_y: f32,
+    space: f32,
+) {
+    let positions = if !note.tab_positions.is_empty() {
+        note.tab_positions.as_slice()
+    } else {
+        note.tab_position.as_slice()
+    };
+    if positions.is_empty() {
+        let y = tab_note_y(note, tab, bottom_y, space) + 0.38 * space;
+        write_annotation_text(body, "acorde-tab-missing", "?", x, y, space, false);
+    } else {
+        for position in positions {
+            let y = bottom_y - f32::from(tab.lines.saturating_sub(position.string)) * space
+                + 0.38 * space;
+            write_annotation_text(
+                body,
+                "acorde-tab-fret",
+                &position.fret.to_string(),
+                x,
+                y,
+                space,
+                false,
+            );
+        }
+    }
+    let y = tab_note_y(note, tab, bottom_y, space) + 0.38 * space;
+    if let Some(technique) = &note.guitar_technique {
+        let label = match technique {
+            acorde_core::GuitarTechnique::Bend => "bend",
+            acorde_core::GuitarTechnique::Slide => "slide",
+            acorde_core::GuitarTechnique::HammerOn => "h",
+            acorde_core::GuitarTechnique::PullOff => "p",
+        };
+        write_annotation_text(
+            body,
+            "acorde-tab-technique",
+            label,
+            x,
+            y - 1.15 * space,
+            space,
+            true,
+        );
+    }
 }
 
 /// Draw note-attached performance annotations. The semantic values are already part of the

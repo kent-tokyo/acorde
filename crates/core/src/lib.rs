@@ -17,10 +17,10 @@ pub use model::commands::{
     SetFingeringCmd, SetGlissandoCmd, SetGraceCmd, SetGuitarTechniqueCmd, SetKeySignatureCmd,
     SetLyricCmd, SetMetadataCmd, SetMidiInstrumentCmd, SetMultiRestCmd, SetNavigationMarkCmd,
     SetNoteHeadCmd, SetOttavaCmd, SetPageBreakCmd, SetPartGroupCmd, SetPartNameCmd,
-    SetRehearsalMarkCmd, SetStemCmd, SetStringNumberCmd, SetSystemBreakCmd, SetTechniqueTextCmd,
-    SetTempoAtMeasureCmd, SetTempoCmd, SetTimeSignatureCmd, SetTransposeCmd, SetTupletCmd,
-    SetVoltaCmd, ToggleArticulationCmd, ToggleSlurCmd, ToggleTieCmd, ToggleTrillLineCmd,
-    command_key, command_label,
+    SetRehearsalMarkCmd, SetStemCmd, SetStringNumberCmd, SetSystemBreakCmd, SetTabPositionCmd,
+    SetTechniqueTextCmd, SetTempoAtMeasureCmd, SetTempoCmd, SetTimeSignatureCmd, SetTransposeCmd,
+    SetTupletCmd, SetVoltaCmd, ToggleArticulationCmd, ToggleSlurCmd, ToggleTieCmd,
+    ToggleTrillLineCmd, command_key, command_label,
 };
 pub use model::duration::Duration;
 pub use model::engine::{EngineHistory, ScoreEngine};
@@ -40,12 +40,15 @@ pub use model::playback::{
 pub use model::repeat::measure_sequence;
 pub use model::scale::{Scale, ScaleKind};
 pub use model::score::{
-    Measure, Note, NoteAddr, Part, PartGroup, PartGroupSymbol, Score, ScoreChange, ScoreMetadata,
-    ScorePatch, ScoreSettings, ScoreStats, ScoreTemplate, Staff, VoltaBracket, apply_patch,
-    compute_beams, diff, measure_beats_remaining, respell_score, respell_score_to_key,
-    score_duration_secs, score_duration_secs_region, score_patch, suggested_stem_up, transpose,
+    Measure, MidiPitchBend, Note, NoteAddr, Part, PartGroup, PartGroupSymbol, Score, ScoreChange,
+    ScoreMetadata, ScorePatch, ScoreSettings, ScoreStats, ScoreTemplate, Staff, VoltaBracket,
+    apply_patch, assign_tablature_positions, compute_beams, diff, measure_beats_remaining,
+    optimize_tablature_positions, respell_score, respell_score_to_key, score_duration_secs,
+    score_duration_secs_region, score_patch, suggested_stem_up, transpose,
 };
-pub use model::validate::{ValidationError, ValidationReport, ValidationWarning, validate};
+pub use model::validate::{
+    TablatureValidationReason, ValidationError, ValidationReport, ValidationWarning, validate,
+};
 
 /// Current Score JSON schema version produced by this crate.
 pub const SCORE_SCHEMA_VERSION: u32 = 1;

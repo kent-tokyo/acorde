@@ -32,6 +32,10 @@ invalid, over-capacity, or explicit-break-conflicting ranges return typed errors
 Safe areas constrain the content rectangle, but the crate does not choose fonts, emit PDF, access
 printers, or perform filesystem I/O.
 
+Print consumers can use `GlyphMetrics` and `GlyphPlacement` for font-independent millimetre
+geometry. `resolve_glyph_collisions` applies deterministic, priority-aware vertical separation;
+font loading and final typography remain host responsibilities.
+
 ~~~rust
 use acorde_core::Score;
 use acorde_layout::{compute_layout, LayoutConfig};

@@ -8,6 +8,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.9] - 2026-09-03
+
+- Added real permitted SF2/SF3 regression fixtures with provenance, license records, and
+  checksums; verified bounded SF2 PCM16 and opt-in SF3 Vorbis decode plus deterministic rendering.
+- Hardened SF3 Vorbis extraction to stop at the first logical Ogg stream in multi-stream assets.
+- Completed the 1.0.8 roadmap slice for provider-neutral SoundFont preset-zone mapping and
+  sample-to-voice scheduling.
+- Expanded notation, tablature, MIDI pitch-bend, import/export diagnostics, logical print layout,
+  SVG rendering, WASM, and CLI documentation to match the current 1.0.9 API surface.
+
+---
+
 ## [1.0.8] - 2026-09-03
 
 - Added opt-in `NotationBreakPolicy::KeepVoltaTogether` system reflow for contiguous volta
@@ -18,6 +30,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   continuation detection.
 - Fixed page measure-span aggregation to borrow system span vectors, preserving clean downstream
   compilation for consumers of the published layout API.
+- Added provider-neutral `SoundFontPresetZone` mapping with bank/program/key/velocity selection
+  and bounded sample frame ranges for Composer integrations.
+- Added `schedule_preset_note_on` as the single provider-neutral preset-to-voice planning entry
+  point, plus signed 14-bit MIDI pitch-bend boundary regression coverage.
+- Exposed import/export diagnostic report bindings for MIDI, ABC, MSCZ, and MSCX alongside the
+  existing MusicXML and MEI report APIs.
+- Added fixture-based deterministic JSON serialization and semantic identity regression coverage
+  for simple, multipart, and multivoice MusicXML scores.
+- **[schema]** Preserved MIDI pitch-bend events on parts with absolute PPQ ticks, source channels, and signed
+  14-bit values through MIDI import/export.
+- **[schema]** Added serde-defaulted per-pitch tablature positions for chord voicings, plus
+  deterministic sequence-aware position optimization and the `auto-tab` CLI operation.
+- Added permitted CC0 SF2 and MIT FluidR3Mono SF3 fixtures with provenance/checksum records and
+  real bounded decode and non-silent render regression coverage; SF3 coverage is opt-in via
+  `sf3-vorbis`.
 
 ## [1.0.7] - 2026-09-03
 

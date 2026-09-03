@@ -62,6 +62,7 @@ pub enum Command {
     SetTechniqueText(SetTechniqueTextCmd),
     SetFingering(SetFingeringCmd),
     SetStringNumber(SetStringNumberCmd),
+    SetTabPosition(SetTabPositionCmd),
     SetNoteHead(SetNoteHeadCmd),
     SetCue(SetCueCmd),
     SetGuitarTechnique(SetGuitarTechniqueCmd),
@@ -529,6 +530,18 @@ pub struct SetStringNumberCmd {
     pub string_number: Option<u8>,
 }
 
+/// Set (or clear) the tablature string/fret position on a note.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetTabPositionCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub voice: usize,
+    pub note_index: usize,
+    /// `None` clears the explicit tablature position.
+    pub position: Option<super::notation::TabPosition>,
+}
+
 /// Set (or clear) the guitar playing technique on a note (bend, slide, hammer-on, pull-off).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetGuitarTechniqueCmd {
@@ -838,6 +851,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::SetTechniqueText(c) => hint!(meas!(c), false, false),
         Command::SetFingering(c) => hint!(meas!(c), false, false),
         Command::SetStringNumber(c) => hint!(meas!(c), false, false),
+        Command::SetTabPosition(c) => hint!(meas!(c), false, false),
         Command::SetGuitarTechnique(c) => hint!(meas!(c), false, false),
         Command::SetNoteHead(c) => hint!(meas!(c), false, false),
         Command::SetCue(c) => hint!(meas!(c), false, true),
@@ -915,6 +929,7 @@ pub fn command_label(cmd: &Command) -> String {
         Command::SetTechniqueText(_) => "Set Technique Text".to_string(),
         Command::SetFingering(_) => "Set Fingering".to_string(),
         Command::SetStringNumber(_) => "Set String Number".to_string(),
+        Command::SetTabPosition(_) => "Set Tablature Position".to_string(),
         Command::SetGuitarTechnique(_) => "Set Guitar Technique".to_string(),
         Command::SetNoteHead(_) => "Set Note Head".to_string(),
         Command::SetCue(c) => if c.is_cue {
@@ -989,6 +1004,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetTechniqueText(_) => "SetTechniqueText".to_string(),
         Command::SetFingering(_) => "SetFingering".to_string(),
         Command::SetStringNumber(_) => "SetStringNumber".to_string(),
+        Command::SetTabPosition(_) => "SetTabPosition".to_string(),
         Command::SetGuitarTechnique(_) => "SetGuitarTechnique".to_string(),
         Command::SetNoteHead(_) => "SetNoteHead".to_string(),
         Command::SetCue(_) => "SetCue".to_string(),
@@ -1295,6 +1311,20 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
                 c.note_index,
             )?
             .string_number = c.string_number;
+            Ok(())
+        }
+        Command::SetTabPosition(c) => {
+            let note = get_note_mut(
+                score,
+                c.part_index,
+                c.staff_index,
+                c.measure_index,
+                c.voice,
+                c.note_index,
+            )?;
+            note.string_number = c.position.as_ref().map(|position| position.string);
+            note.tab_position = c.position.clone();
+            note.tab_positions = c.position.iter().cloned().collect();
             Ok(())
         }
         Command::SetGuitarTechnique(c) => {

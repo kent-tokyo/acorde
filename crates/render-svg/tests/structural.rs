@@ -491,6 +491,32 @@ fn glyph_coverage_is_explicit_and_stable() {
 }
 
 #[test]
+fn tablature_renders_lines_frets_and_techniques() {
+    use acorde_core::{Duration, GuitarTechnique, Note, Pitch, Staff, Step, TablatureConfig};
+    let mut score = acorde_core::Score::new("Tab", 120, 4, 4, 0, 1);
+    let mut staff = Staff::new(acorde_core::Clef::Treble);
+    staff.tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![64, 59, 55, 50, 45, 40],
+        capo: 0,
+    });
+    staff.measures.push(acorde_core::Measure::empty(4, 4));
+    let mut note = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+    note.tab_position = Some(acorde_core::TabPosition { string: 2, fret: 3 });
+    note.guitar_technique = Some(GuitarTechnique::Bend);
+    staff.measures[0].voices[0] = vec![note];
+    score.parts[0].staves = vec![staff];
+
+    let svg = render_svg(&score, &opts()).expect("tablature renders");
+    assert_eq!(svg.matches("acorde-staff-line").count(), 6);
+    assert!(svg.contains("acorde-tab-fret"));
+    assert!(svg.contains(">3</text>"));
+    assert!(svg.contains("acorde-tab-technique"));
+    assert!(svg.contains(">bend</text>"));
+    assert_well_formed_xml(&svg);
+}
+
+#[test]
 fn percussion_clef_is_rejected_not_silently_treble() {
     use acorde_core::{Clef, Part, Score, Staff};
     let mut score = Score::default();
