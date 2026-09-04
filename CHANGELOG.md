@@ -8,11 +8,112 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+## [1.1.0] - 2026-09-05
+
+- Promoted the completed interchange, tablature, SoundFont boundary, and parser-hardening work
+  from the 1.0.9 development line to the 1.1.0 release.
+- Updated all workspace crate constraints and public README examples to `1.1.0`.
+- Closed Issue #17 after exposing resolved preset-zone metadata for downstream hosts.
+- Closed Issue #18 as `not planned`; beat-aware timing transformation remains outside the supported
+  boundary pending jurisdiction- and claim-specific patent review.
+
+- **[schema]** Added `ChordDegree` and `ChordSymbol.degrees` for MusicXML structured harmony
+  degree value/alter/type semantics; MEI and MSCX compact add/alter/no suffixes use the same
+  boundary; the field uses serde defaults for older Score JSON.
+- **[schema]** Added typed display-level MEI figured-bass text and structured MusicXML
+  `FiguredBassFigure` values on `Measure`, with serde defaults for older Score JSON.
+- MEI simple `<fb><f>` values now retain their order in `Measure.figured_bass` while preserving
+  typed display text; richer MEI figure semantics remain explicitly outside the subset.
+- MEI figured-bass figures now structure common leading `|`, trailing `+`, balanced-parenthesis,
+  and leading-accidental decorations while retaining deterministic display text.
+- **[schema]** Attached MEI `harm@extender` is now retained on `ChordSymbol` with a serde default
+  and deterministic MEI serialization.
+- **[schema]** Attached MEI `harm@deg` is now retained as `ChordSymbol.harmonic_degree`; unattached
+  values receive a source-located diagnostic instead of being conflated with chord extensions.
+- **[schema]** Standard MEI `harm@type` is now retained as serde-defaulted
+  `ChordSymbol.harmony_type` and round-trips through MEI serialization.
+- **[schema]** MEI `harm@chordref` references are now retained as serde-defaulted
+  `ChordSymbol.chord_ref`; the bounded `chordDef`/`chordMember` tab-definition slice is also
+  retained in `Score.chord_definitions`, including bounded `barre` ranges, while richer referenced
+  semantics remain unresolved. Chord members retain IDs, string/course distinction, and bounded
+  quarter-tone pitch spelling.
+- MusicXML and ABC export now emit source-located loss diagnostics for retained MEI chord
+  definitions instead of dropping them silently.
+- MEI duplicate chord-definition/member IDs now receive source-located diagnostics rather than
+  leaving barre and `harm@chordref` reference resolution ambiguous.
+- MEI ID uniqueness diagnostics now also cover note and other ID-bearing elements used by
+  `startid`/`endid` references.
+- MEI local `harm@chordref` fragments now report unresolved `chordDef` references with source
+  paths and preserved values; external URIs remain opaque metadata.
+- Added deterministic non-mutating fingering selection policies for ordered alternate candidates.
+- Added an explicit MusicXML `<unpitched>` percussion loss diagnostic so imported percussion is
+  not presented as pitched-note semantic equivalence; `Note.is_unpitched` and its MusicXML
+  round-trip now preserve the display-versus-sound boundary.
+- Preserved MusicXML note-level `instrument@id` as optional `Note.instrument_id` without guessing
+  a concrete percussion sound.
+- Preserved declared MusicXML `score-instrument` and `midi-unpitched` metadata on Parts without
+  inferring missing sound-catalog entries.
+- MIDI channel 10 notes now retain an explicit unpitched boundary without fabricating instrument IDs.
+- Added canonical percussion-instrument resolution by explicit note ID or declared MIDI display
+  key, leaving unmatched unpitched notes unresolved.
+- Added `Part.staff_groups` for MEI nested staff-group ranges and connector metadata, distinct
+  from inter-part `Score.part_groups`.
+- MusicXML and MSCX multiple fingering values now round-trip as ordered `Note.fingerings`
+  candidates while retaining the first value in legacy `Note.fingering`.
+- MSCX Part-local bracket and barLineSpan metadata now maps to bounded `Part.staff_groups`.
+- Preserved MusicXML figured-bass figure number, alteration, prefix, and suffix values structurally
+  while regenerating deterministic display text.
+- **[schema]** MEI figured-bass `f@extender` is now retained on `FiguredBassFigure` with
+  deterministic MEI re-serialization; MusicXML export reports this MEI-only property as a loss.
+- MEI figured-bass leading sharp, flat, and natural glyphs now map to structured alteration
+  values while unrecognized figure text remains preserved.
+- **[schema]** MSCX `FiguredBassItem/continuationLine` now maps to the same canonical extender
+  flag; unknown figured-bass properties remain source-located diagnostics.
+- ABC export now emits double accidentals deterministically and reports mixed semitone/quarter-tone
+  pitches instead of silently dropping the unsupported component.
+- Deferred Issue #18 beat-aware MIDI quantization pending a jurisdiction- and claim-specific
+  review by qualified patent counsel; raw tick preservation and typed timing diagnostics remain
+  supported.
+- MEI empty `harm` elements, including self-closing forms, now receive source-located loss
+  diagnostics instead of being silently discarded.
+- MSCX empty `harmonyInfo/function` values now remain outside the canonical token field and
+  receive source-located invalid-value diagnostics.
+- The interchange report now declares and machine-checks BUILD/MEASURE/GATE evidence for each
+  Phase 6A–6G gate while keeping the workspace version fixed.
+- MIDI serialization now rejects canonical event values outside their protocol ranges instead of
+  silently clamping channel, controller, program, aftertouch, or pitch-bend data.
+- MIDI serialization now rejects delta times above the SMF 28-bit VLQ limit instead of silently
+  shortening long gaps.
+- Updated the WASM toolchain's `anyhow` dependency to 1.0.104 to remove the previously reported
+  advisory version from the lockfile.
+- Split MusicXML attribute decoding and MIDI channel-range validation into focused internal
+  modules, preserving the existing public APIs and diagnostics.
+- MusicXML reports malformed `divisions`, `duration`, and `voice` values with source paths and
+  preserved input values instead of hiding parser default substitution.
+- Added `Pitch::try_with_microtone` for callers that require rejection rather than clamping of
+  out-of-range microtone cents; the existing constructor remains compatible.
+- Tablature validation now checks all alternate string/fret candidates, not only the legacy primary
+  position, against the staff's declared line count.
+- MSCX malformed note tablature string/fret values now produce source-located diagnostics with
+  their original values instead of being silently discarded.
+- MSCX import reports now diagnose numeric string positions that exceed the owning tablature
+  staff's declared line count.
+- MusicXML import reports now diagnose malformed technical tablature string/fret values with
+  source paths and preserved input values.
+- SVG tablature now sizes multi-position horizontal spacing from fret digit counts, preventing
+  deterministic overlap for two-digit frets without coupling layout to a host font.
+
+---
+
 ## [1.0.9] - 2026-09-03
 
 - Added real permitted SF2/SF3 regression fixtures with provenance, license records, and
   checksums; verified bounded SF2 PCM16 and opt-in SF3 Vorbis decode plus deterministic rendering.
 - Hardened SF3 Vorbis extraction to stop at the first logical Ogg stream in multi-stream assets.
+- Added owned `ResolvedPresetZoneMetadata` snapshots and a resolver for downstream SoundFont
+  hosts, including validated `SampleRegion` reconstruction.
 - Completed the 1.0.8 roadmap slice for provider-neutral SoundFont preset-zone mapping and
   sample-to-voice scheduling.
 - Expanded notation, tablature, MIDI pitch-bend, import/export diagnostics, logical print layout,

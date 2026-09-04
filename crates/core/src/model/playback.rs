@@ -120,6 +120,12 @@ pub struct PlaybackEvent {
     pub time_secs: f64,
     /// MIDI pitch number (0–127).
     pub pitch_midi: u8,
+    /// Exact sounding pitch in hundredths of a MIDI semitone.
+    ///
+    /// `pitch_midi` is retained as a compatibility convenience for integer-MIDI hosts;
+    /// microtonal-capable hosts should use this field.
+    #[serde(default)]
+    pub pitch_midi_cents: i32,
     /// MIDI velocity (1–127). Derived from [`Dynamic`](crate::Dynamic); defaults to 64.
     /// Boosted by +20 for Accent / Marcato articulations (clamped to 127).
     pub velocity: u8,
@@ -247,6 +253,8 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                                     time_beats: measure_start_beats + local_beats,
                                     time_secs: measure_start_secs + local_secs,
                                     pitch_midi: midi,
+                                    pitch_midi_cents: pitch.to_midi_cents()
+                                        + transpose as i32 * 100,
                                     velocity,
                                     duration_beats: sounding_dur,
                                     duration_secs: sounding_dur / current_bpm * 60.0,
@@ -300,6 +308,11 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                     } else {
                         metro.beat_pitch
                     },
+                    pitch_midi_cents: i32::from(if is_accent {
+                        metro.accent_pitch
+                    } else {
+                        metro.beat_pitch
+                    }) * 100,
                     velocity: if is_accent {
                         metro.accent_velocity
                     } else {
@@ -453,6 +466,18 @@ mod tests {
         assert_eq!(events[0].velocity, 64);
         assert!((events[0].duration_beats - 1.0).abs() < 1e-9);
         assert_eq!(events[0].part_index, 0);
+    }
+
+    #[test]
+    fn microtonal_playback_event_keeps_exact_midi_cents() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![Note::new(
+            Pitch::with_microtone(Step::C, 4, 0, 50),
+            Duration::Quarter,
+        )];
+        let events = to_playback_events(&score, &opts(None));
+        assert_eq!(events[0].pitch_midi, 61);
+        assert_eq!(events[0].pitch_midi_cents, 6050);
     }
 
     #[test]

@@ -60,6 +60,22 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
             "      <part-name>{}</part-name>\n",
             escape_xml(&part.name)
         ));
+        for instrument in &part.percussion_instruments {
+            xml.push_str(&format!(
+                "      <score-instrument id=\"{}\">\n",
+                escape_xml(&instrument.id)
+            ));
+            if let Some(name) = &instrument.name {
+                xml.push_str(&format!(
+                    "        <instrument-name>{}</instrument-name>\n",
+                    escape_xml(name)
+                ));
+            }
+            if let Some(key) = instrument.midi_unpitched {
+                xml.push_str(&format!("        <midi-unpitched>{key}</midi-unpitched>\n"));
+            }
+            xml.push_str("      </score-instrument>\n");
+        }
         xml.push_str(&format!(
             "      <midi-instrument id=\"{}-I1\">\n",
             escape_xml(&part.id)
@@ -172,6 +188,22 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     clef.musicxml_line()
                 ));
                 xml.push_str("        </clef>\n");
+                for (staff_number, extra_staff) in part.staves.iter().enumerate().skip(1) {
+                    let has_content = extra_staff
+                        .measures
+                        .iter()
+                        .flat_map(|measure| measure.voices.iter())
+                        .any(|voice| !voice.is_empty());
+                    if !has_content {
+                        continue;
+                    }
+                    xml.push_str(&format!(
+                        "        <clef number=\"{}\">\n          <sign>{}</sign>\n          <line>{}</line>\n        </clef>\n",
+                        staff_number + 1,
+                        extra_staff.clef.to_musicxml_sign(),
+                        extra_staff.clef.musicxml_line()
+                    ));
+                }
                 if let Some(tab) = &staff.tablature {
                     xml.push_str("        <staff-details>\n");
                     xml.push_str(&format!(
@@ -297,12 +329,51 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 xml.push_str("      </direction>\n");
             }
 
+            if !measure.figured_bass.is_empty() {
+                xml.push_str("      <figured-bass>\n");
+                for figure in &measure.figured_bass {
+                    xml.push_str("        <figure>\n");
+                    if let Some(prefix) = &figure.prefix {
+                        xml.push_str(&format!(
+                            "          <prefix>{}</prefix>\n",
+                            escape_xml(prefix)
+                        ));
+                    }
+                    xml.push_str(&format!(
+                        "          <figure-number>{}</figure-number>\n",
+                        escape_xml(&figure.number)
+                    ));
+                    if let Some(alter) = &figure.alter {
+                        xml.push_str(&format!(
+                            "          <figure-alter>{}</figure-alter>\n",
+                            escape_xml(alter)
+                        ));
+                    }
+                    if let Some(suffix) = &figure.suffix {
+                        xml.push_str(&format!(
+                            "          <suffix>{}</suffix>\n",
+                            escape_xml(suffix)
+                        ));
+                    }
+                    xml.push_str("        </figure>\n");
+                }
+                xml.push_str("      </figured-bass>\n");
+            }
+
             for styled in &measure.texts {
                 let already_emitted = matches!(styled.style, TextStyle::Expression)
                     && measure.expression_text.as_deref() == Some(styled.text.as_str())
                     || matches!(styled.style, TextStyle::RehearsalMark)
                         && measure.rehearsal.as_deref() == Some(styled.text.as_str());
                 if already_emitted {
+                    continue;
+                }
+                if styled.style == TextStyle::FiguredBass {
+                    if measure.figured_bass.is_empty() {
+                        xml.push_str("      <figured-bass><figure><figure-number>");
+                        xml.push_str(&escape_xml(&styled.text));
+                        xml.push_str("</figure-number></figure></figured-bass>\n");
+                    }
                     continue;
                 }
                 xml.push_str("      <direction placement=\"above\"><direction-type><words>");
@@ -326,9 +397,42 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     xml.push_str("      </backup>\n");
                 }
                 for note in voice {
-                    serialize_note(&mut xml, note, voice_index + 1);
+                    serialize_note(&mut xml, note, voice_index + 1, 1);
                 }
                 emitted_voice = true;
+            }
+
+            // A part may contain multiple staves (for example, a piano grand
+            // staff). Return to the measure start before each additional staff
+            // and retain its ownership through the per-note MusicXML staff tag.
+            for (staff_index, extra_staff) in part.staves.iter().enumerate().skip(1) {
+                let Some(extra_measure) = extra_staff.measures.get(i) else {
+                    continue;
+                };
+                xml.push_str("      <backup>\n");
+                xml.push_str(&format!(
+                    "        <duration>{}</duration>\n",
+                    measure_duration_ticks(extra_measure, &score.settings.time_signature)
+                ));
+                xml.push_str("      </backup>\n");
+                let mut extra_emitted_voice = false;
+                for (voice_index, voice) in extra_measure.voices.iter().enumerate() {
+                    if voice.is_empty() {
+                        continue;
+                    }
+                    if extra_emitted_voice {
+                        xml.push_str("      <backup>\n");
+                        xml.push_str(&format!(
+                            "        <duration>{}</duration>\n",
+                            measure_duration_ticks(extra_measure, &score.settings.time_signature)
+                        ));
+                        xml.push_str("      </backup>\n");
+                    }
+                    for note in voice {
+                        serialize_note(&mut xml, note, voice_index + 1, staff_index + 1);
+                    }
+                    extra_emitted_voice = true;
+                }
             }
 
             // Right barline
@@ -368,7 +472,7 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
     Ok(xml)
 }
 
-fn serialize_note(xml: &mut String, note: &Note, voice_number: usize) {
+fn serialize_note(xml: &mut String, note: &Note, voice_number: usize, staff_number: usize) {
     // Pedal start
     if note.pedal_start {
         xml.push_str("      <direction placement=\"below\">\n");
@@ -394,7 +498,11 @@ fn serialize_note(xml: &mut String, note: &Note, voice_number: usize) {
     // Chord symbol
     if let Some(cs) = &note.chord_symbol {
         let (root_step, root_alter) = split_note_name(&cs.root);
-        xml.push_str("      <harmony>\n");
+        xml.push_str("      <harmony");
+        if let Some(placement) = &cs.placement {
+            xml.push_str(&format!(" placement=\"{}\"", escape_xml(placement)));
+        }
+        xml.push_str(">\n");
         xml.push_str("        <root>\n");
         xml.push_str(&format!(
             "          <root-step>{}</root-step>\n",
@@ -408,6 +516,12 @@ fn serialize_note(xml: &mut String, note: &Note, voice_number: usize) {
         }
         xml.push_str("        </root>\n");
         xml.push_str(&format!("        <kind>{}</kind>\n", escape_xml(&cs.kind)));
+        if let Some(function) = &cs.harmony_function {
+            xml.push_str(&format!(
+                "        <function>{}</function>\n",
+                escape_xml(function)
+            ));
+        }
         if let Some(bass) = &cs.bass {
             let (bass_step, bass_alter) = split_note_name(bass);
             xml.push_str("        <bass>\n");
@@ -422,6 +536,26 @@ fn serialize_note(xml: &mut String, note: &Note, voice_number: usize) {
                 ));
             }
             xml.push_str("        </bass>\n");
+        }
+        for degree in &cs.degrees {
+            xml.push_str("        <degree>\n");
+            xml.push_str(&format!(
+                "          <degree-value>{}</degree-value>\n",
+                degree.value
+            ));
+            if degree.alter != 0 {
+                xml.push_str(&format!(
+                    "          <degree-alter>{}</degree-alter>\n",
+                    degree.alter
+                ));
+            }
+            if !degree.kind.is_empty() {
+                xml.push_str(&format!(
+                    "          <degree-type>{}</degree-type>\n",
+                    escape_xml(&degree.kind)
+                ));
+            }
+            xml.push_str("        </degree>\n");
         }
         xml.push_str("      </harmony>\n");
     }
@@ -457,12 +591,26 @@ fn serialize_note(xml: &mut String, note: &Note, voice_number: usize) {
         xml.push_str("      <note>\n");
         xml.push_str("        <rest/>\n");
         xml.push_str(&format!("        <duration>{}</duration>\n", dur_ticks));
+        if let Some(tuplet) = &note.tuplet {
+            xml.push_str("        <time-modification>\n");
+            xml.push_str(&format!(
+                "          <actual-notes>{}</actual-notes>\n",
+                tuplet.actual_notes
+            ));
+            xml.push_str(&format!(
+                "          <normal-notes>{}</normal-notes>\n",
+                tuplet.normal_notes
+            ));
+            xml.push_str("        </time-modification>\n");
+        }
         xml.push_str(&format!("        <voice>{voice_number}</voice>\n"));
         if let Some(cross) = &note.cross_staff {
             xml.push_str(&format!(
                 "        <staff>{}</staff>\n",
                 cross.target_staff + 1
             ));
+        } else {
+            xml.push_str(&format!("        <staff>{staff_number}</staff>\n"));
         }
         xml.push_str(&format!(
             "        <type>{}</type>\n",
@@ -484,19 +632,50 @@ fn serialize_note(xml: &mut String, note: &Note, voice_number: usize) {
         if note.is_cue {
             xml.push_str("        <cue/>\n");
         }
-        xml.push_str("        <pitch>\n");
-        xml.push_str(&format!(
-            "          <step>{}</step>\n",
-            pitch.step.to_char()
-        ));
-        if pitch.alter != 0 || pitch.microtone_cents != 0 {
-            let alter = pitch.alter as f32 + pitch.microtone_cents as f32 / 100.0;
-            xml.push_str(&format!("          <alter>{alter}</alter>\n"));
+        if note.is_unpitched {
+            xml.push_str("        <unpitched>\n");
+            xml.push_str(&format!(
+                "          <display-step>{}</display-step>\n",
+                pitch.step.to_char()
+            ));
+            xml.push_str(&format!(
+                "          <display-octave>{}</display-octave>\n",
+                pitch.octave
+            ));
+            xml.push_str("        </unpitched>\n");
+        } else {
+            xml.push_str("        <pitch>\n");
+            xml.push_str(&format!(
+                "          <step>{}</step>\n",
+                pitch.step.to_char()
+            ));
+            if pitch.alter != 0 || pitch.microtone_cents != 0 {
+                let alter = pitch.alter as f32 + pitch.microtone_cents as f32 / 100.0;
+                xml.push_str(&format!("          <alter>{alter}</alter>\n"));
+            }
+            xml.push_str(&format!("          <octave>{}</octave>\n", pitch.octave));
+            xml.push_str("        </pitch>\n");
         }
-        xml.push_str(&format!("          <octave>{}</octave>\n", pitch.octave));
-        xml.push_str("        </pitch>\n");
+        if let Some(instrument_id) = &note.instrument_id {
+            xml.push_str(&format!(
+                "        <instrument id=\"{}\"/>\n",
+                escape_xml(instrument_id)
+            ));
+        }
         if !note.is_grace {
             xml.push_str(&format!("        <duration>{}</duration>\n", dur_ticks));
+            if let Some(tuplet) = &note.tuplet {
+                xml.push_str("        <time-modification>\n");
+                xml.push_str(&format!(
+                    "          <actual-notes>{}</actual-notes>\n",
+                    tuplet.actual_notes
+                ));
+                xml.push_str(&format!(
+                    "          <normal-notes>{}</normal-notes>\n",
+                    tuplet.normal_notes
+                ));
+                xml.push_str("        </time-modification>\n");
+            }
         }
         if note.tie_end {
             xml.push_str("        <tie type=\"stop\"/>\n");
@@ -510,6 +689,8 @@ fn serialize_note(xml: &mut String, note: &Note, voice_number: usize) {
                 "        <staff>{}</staff>\n",
                 cross.target_staff + 1
             ));
+        } else {
+            xml.push_str(&format!("        <staff>{staff_number}</staff>\n"));
         }
         xml.push_str(&format!(
             "        <type>{}</type>\n",
@@ -554,19 +735,39 @@ fn serialize_note(xml: &mut String, note: &Note, voice_number: usize) {
         for (pitch_idx, extra) in note.pitches.iter().skip(1).enumerate() {
             xml.push_str("      <note>\n");
             xml.push_str("        <chord/>\n");
-            xml.push_str("        <pitch>\n");
-            xml.push_str(&format!(
-                "          <step>{}</step>\n",
-                extra.step.to_char()
-            ));
-            if extra.alter != 0 || extra.microtone_cents != 0 {
-                let alter = extra.alter as f32 + extra.microtone_cents as f32 / 100.0;
-                xml.push_str(&format!("          <alter>{alter}</alter>\n"));
+            if note.is_unpitched {
+                xml.push_str("        <unpitched>\n");
+                xml.push_str(&format!(
+                    "          <display-step>{}</display-step>\n",
+                    extra.step.to_char()
+                ));
+                xml.push_str(&format!(
+                    "          <display-octave>{}</display-octave>\n",
+                    extra.octave
+                ));
+                xml.push_str("        </unpitched>\n");
+            } else {
+                xml.push_str("        <pitch>\n");
+                xml.push_str(&format!(
+                    "          <step>{}</step>\n",
+                    extra.step.to_char()
+                ));
+                if extra.alter != 0 || extra.microtone_cents != 0 {
+                    let alter = extra.alter as f32 + extra.microtone_cents as f32 / 100.0;
+                    xml.push_str(&format!("          <alter>{alter}</alter>\n"));
+                }
+                xml.push_str(&format!("          <octave>{}</octave>\n", extra.octave));
+                xml.push_str("        </pitch>\n");
             }
-            xml.push_str(&format!("          <octave>{}</octave>\n", extra.octave));
-            xml.push_str("        </pitch>\n");
+            if let Some(instrument_id) = &note.instrument_id {
+                xml.push_str(&format!(
+                    "        <instrument id=\"{}\"/>\n",
+                    escape_xml(instrument_id)
+                ));
+            }
             xml.push_str(&format!("        <duration>{}</duration>\n", dur_ticks));
             xml.push_str(&format!("        <voice>{voice_number}</voice>\n"));
+            xml.push_str(&format!("        <staff>{staff_number}</staff>\n"));
             xml.push_str(&format!(
                 "        <type>{}</type>\n",
                 note.duration.to_musicxml_type()
@@ -622,6 +823,7 @@ fn serialize_notations(xml: &mut String, note: &Note) {
     let has_artic = !note.articulations.is_empty();
     let has_arp = note.arpeggiate.is_some();
     let has_technical = note.fingering.is_some()
+        || !note.fingerings.is_empty()
         || note.string_number.is_some()
         || note.tab_position.is_some()
         || note.technique_text.is_some()
@@ -752,8 +954,14 @@ fn serialize_notations(xml: &mut String, note: &Note) {
     }
     if has_technical {
         xml.push_str("          <technical>\n");
-        if let Some(f) = note.fingering {
-            xml.push_str(&format!("            <fingering>{}</fingering>\n", f));
+        if note.fingerings.is_empty() {
+            if let Some(f) = note.fingering {
+                xml.push_str(&format!("            <fingering>{}</fingering>\n", f));
+            }
+        } else {
+            for f in &note.fingerings {
+                xml.push_str(&format!("            <fingering>{}</fingering>\n", f));
+            }
         }
         if let Some(s) = note.string_number {
             xml.push_str(&format!("            <string>{}</string>\n", s));
@@ -773,7 +981,13 @@ fn serialize_notations(xml: &mut String, note: &Note) {
         if let Some(ref gt) = note.guitar_technique {
             match gt {
                 GuitarTechnique::Bend => {
-                    xml.push_str("            <bend><bend-alter>0</bend-alter></bend>\n")
+                    let bend_alter = note.guitar_bend_alter_cents.map_or_else(
+                        || "0".to_string(),
+                        |cents| format!("{:.2}", cents as f32 / 100.0),
+                    );
+                    xml.push_str(&format!(
+                        "            <bend><bend-alter>{bend_alter}</bend-alter></bend>\n"
+                    ));
                 }
                 GuitarTechnique::Slide => {
                     xml.push_str("            <slide type=\"start\" number=\"1\"/>\n")
@@ -856,7 +1070,7 @@ fn escape_xml(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    use acorde_core::{Duration, Note, Pitch, Score, Step, TupletInfo};
 
     #[test]
     fn serialize_default_score_produces_xml() {
@@ -882,6 +1096,25 @@ mod tests {
         let xml = serialize_musicxml(&score).unwrap();
         assert!(xml.contains("<step>G</step>"));
         assert!(xml.contains("<octave>4</octave>"));
+    }
+
+    #[test]
+    fn time_modification_tuplet_serializes_and_parses() {
+        let mut score = Score::new("T", 120, 2, 4, 0, 1);
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Eighth);
+        note.tuplet = Some(TupletInfo {
+            actual_notes: 3,
+            normal_notes: 2,
+        });
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let xml = serialize_musicxml(&score).expect("MusicXML tuplet serialize");
+        assert!(xml.contains("<actual-notes>3</actual-notes>"));
+        let restored =
+            super::super::parser::parse_musicxml(&xml).expect("serialized MusicXML tuplet parse");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[0][0].tuplet,
+            score.parts[0].staves[0].measures[0].voices[0][0].tuplet
+        );
     }
 
     fn score_with_note(

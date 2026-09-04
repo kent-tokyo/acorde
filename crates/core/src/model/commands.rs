@@ -1,8 +1,9 @@
 use super::change_hint::{ChangeHint, ChangeScope};
 use super::duration::Duration;
 use super::notation::{
-    Articulation, Barline, ChordSymbol, Clef, CrossStaff, Dynamic, GuitarTechnique, HairpinKind,
-    KeySignature, Lyric, NoteHead, OttavaKind, TimeSignature, TupletInfo,
+    Articulation, Barline, ChordSymbol, Clef, CrossStaff, Dynamic, FiguredBassFigure,
+    GuitarTechnique, HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind, TimeSignature,
+    TupletInfo,
 };
 use super::pitch::Pitch;
 use super::score::{
@@ -36,6 +37,7 @@ pub enum Command {
     SetRehearsalMark(SetRehearsalMarkCmd),
     SetNavigationMark(SetNavigationMarkCmd),
     SetChordSymbol(SetChordSymbolCmd),
+    SetFiguredBass(SetFiguredBassCmd),
     SetGrace(SetGraceCmd),
     SetOttava(SetOttavaCmd),
     SetLyric(SetLyricCmd),
@@ -61,11 +63,15 @@ pub enum Command {
     SetArpeggio(SetArpeggioCmd),
     SetTechniqueText(SetTechniqueTextCmd),
     SetFingering(SetFingeringCmd),
+    SetFingerings(SetFingeringsCmd),
     SetStringNumber(SetStringNumberCmd),
     SetTabPosition(SetTabPositionCmd),
     SetNoteHead(SetNoteHeadCmd),
     SetCue(SetCueCmd),
+    SetUnpitched(SetUnpitchedCmd),
+    SetInstrumentId(SetInstrumentIdCmd),
     SetGuitarTechnique(SetGuitarTechniqueCmd),
+    SetGuitarBendAlter(SetGuitarBendAlterCmd),
     SetExpressionText(SetExpressionTextCmd),
     ToggleTrillLine(ToggleTrillLineCmd),
     SetGlissando(SetGlissandoCmd),
@@ -259,6 +265,13 @@ pub struct SetChordSymbolCmd {
     pub voice: usize,
     pub note_index: usize,
     pub chord: Option<ChordSymbol>,
+}
+
+/// Replace the structured figured-bass figures attached to a measure.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetFiguredBassCmd {
+    pub measure_index: usize,
+    pub figures: Vec<FiguredBassFigure>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -518,6 +531,18 @@ pub struct SetFingeringCmd {
     pub fingering: Option<u8>,
 }
 
+/// Set all ordered fingering candidates on a note. The first value mirrors
+/// the legacy singular `fingering` field; an empty list clears both fields.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetFingeringsCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub voice: usize,
+    pub note_index: usize,
+    pub fingerings: Vec<u8>,
+}
+
 /// Set (or clear) the string number on a note (1 = highest string).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetStringNumberCmd {
@@ -554,6 +579,18 @@ pub struct SetGuitarTechniqueCmd {
     pub technique: Option<GuitarTechnique>,
 }
 
+/// Set (or clear) the MusicXML guitar bend amount in cents on a note.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetGuitarBendAlterCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub voice: usize,
+    pub note_index: usize,
+    /// `None` clears the bend amount.
+    pub alter_cents: Option<i16>,
+}
+
 /// Set (or clear) the expression/performance text on a measure ("dolce", "espressivo", etc.).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetExpressionTextCmd {
@@ -571,6 +608,28 @@ pub struct SetCueCmd {
     pub voice: usize,
     pub note_index: usize,
     pub is_cue: bool,
+}
+
+/// Mark or unmark a note as unpitched while retaining its display placement pitch.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetUnpitchedCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub voice: usize,
+    pub note_index: usize,
+    pub is_unpitched: bool,
+}
+
+/// Set or clear a source instrument identifier attached to a note.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetInstrumentIdCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub voice: usize,
+    pub note_index: usize,
+    pub instrument_id: Option<String>,
 }
 
 /// Set the note head shape on a note.
@@ -829,6 +888,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::SetLyric(c) => hint!(meas!(c), false, true),
         Command::AddPedal(c) => hint!(meas!(c), false, true),
         Command::SetChordSymbol(c) => hint!(meas!(c), false, true),
+        Command::SetFiguredBass(_) => hint!(Global, false, true),
 
         Command::SetSystemBreak(_) | Command::SetPageBreak(_) => hint!(Global, true, false),
 
@@ -850,11 +910,15 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
 
         Command::SetTechniqueText(c) => hint!(meas!(c), false, false),
         Command::SetFingering(c) => hint!(meas!(c), false, false),
+        Command::SetFingerings(c) => hint!(meas!(c), false, false),
         Command::SetStringNumber(c) => hint!(meas!(c), false, false),
         Command::SetTabPosition(c) => hint!(meas!(c), false, false),
         Command::SetGuitarTechnique(c) => hint!(meas!(c), false, false),
+        Command::SetGuitarBendAlter(c) => hint!(meas!(c), false, false),
         Command::SetNoteHead(c) => hint!(meas!(c), false, false),
         Command::SetCue(c) => hint!(meas!(c), false, true),
+        Command::SetUnpitched(c) => hint!(meas!(c), false, true),
+        Command::SetInstrumentId(c) => hint!(meas!(c), false, true),
 
         Command::Batch(c) => {
             let Some(first) = c.commands.first() else {
@@ -893,6 +957,7 @@ pub fn command_label(cmd: &Command) -> String {
         Command::SetRehearsalMark(_) => "Set Rehearsal Mark".to_string(),
         Command::SetNavigationMark(_) => "Set Navigation Mark".to_string(),
         Command::SetChordSymbol(_) => "Set Chord Symbol".to_string(),
+        Command::SetFiguredBass(_) => "Set Figured Bass".to_string(),
         Command::SetGrace(_) => "Set Grace Note".to_string(),
         Command::SetOttava(_) => "Set Ottava".to_string(),
         Command::SetLyric(_) => "Set Lyric".to_string(),
@@ -917,6 +982,13 @@ pub fn command_label(cmd: &Command) -> String {
             "Clear Tuplet"
         }
         .to_string(),
+        Command::SetInstrumentId(_) => "Set Note Instrument".to_string(),
+        Command::SetUnpitched(c) => if c.is_unpitched {
+            "Set Unpitched Note"
+        } else {
+            "Clear Unpitched Note"
+        }
+        .to_string(),
         Command::RespellScore(c) => if c.prefer_flat {
             "Respell Score (flat)"
         } else {
@@ -928,9 +1000,11 @@ pub fn command_label(cmd: &Command) -> String {
         Command::SetArpeggio(_) => "Set Arpeggio".to_string(),
         Command::SetTechniqueText(_) => "Set Technique Text".to_string(),
         Command::SetFingering(_) => "Set Fingering".to_string(),
+        Command::SetFingerings(_) => "Set Fingering Candidates".to_string(),
         Command::SetStringNumber(_) => "Set String Number".to_string(),
         Command::SetTabPosition(_) => "Set Tablature Position".to_string(),
         Command::SetGuitarTechnique(_) => "Set Guitar Technique".to_string(),
+        Command::SetGuitarBendAlter(_) => "Set Guitar Bend Alter".to_string(),
         Command::SetNoteHead(_) => "Set Note Head".to_string(),
         Command::SetCue(c) => if c.is_cue {
             "Set Cue Note"
@@ -978,6 +1052,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetRehearsalMark(_) => "SetRehearsalMark".to_string(),
         Command::SetNavigationMark(_) => "SetNavigationMark".to_string(),
         Command::SetChordSymbol(_) => "SetChordSymbol".to_string(),
+        Command::SetFiguredBass(_) => "SetFiguredBass".to_string(),
         Command::SetGrace(_) => "SetGrace".to_string(),
         Command::SetOttava(_) => "SetOttava".to_string(),
         Command::SetLyric(_) => "SetLyric".to_string(),
@@ -1003,11 +1078,15 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetArpeggio(_) => "SetArpeggio".to_string(),
         Command::SetTechniqueText(_) => "SetTechniqueText".to_string(),
         Command::SetFingering(_) => "SetFingering".to_string(),
+        Command::SetFingerings(_) => "SetFingerings".to_string(),
         Command::SetStringNumber(_) => "SetStringNumber".to_string(),
         Command::SetTabPosition(_) => "SetTabPosition".to_string(),
         Command::SetGuitarTechnique(_) => "SetGuitarTechnique".to_string(),
+        Command::SetGuitarBendAlter(_) => "SetGuitarBendAlter".to_string(),
         Command::SetNoteHead(_) => "SetNoteHead".to_string(),
         Command::SetCue(_) => "SetCue".to_string(),
+        Command::SetUnpitched(_) => "SetUnpitched".to_string(),
+        Command::SetInstrumentId(_) => "SetInstrumentId".to_string(),
         Command::SetExpressionText(_) => "SetExpressionText".to_string(),
         Command::ToggleTrillLine(_) => "ToggleTrillLine".to_string(),
         Command::SetGlissando(_) => "SetGlissando".to_string(),
@@ -1105,6 +1184,16 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
                 c.note_index,
             )?
             .chord_symbol = c.chord.clone();
+            Ok(())
+        }
+        Command::SetFiguredBass(c) => {
+            for part in &mut score.parts {
+                for staff in &mut part.staves {
+                    if let Some(measure) = staff.measures.get_mut(c.measure_index) {
+                        measure.figured_bass = c.figures.clone();
+                    }
+                }
+            }
             Ok(())
         }
         Command::SetGrace(c) => {
@@ -1290,15 +1379,29 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
             Ok(())
         }
         Command::SetFingering(c) => {
-            get_note_mut(
+            let note = get_note_mut(
                 score,
                 c.part_index,
                 c.staff_index,
                 c.measure_index,
                 c.voice,
                 c.note_index,
-            )?
-            .fingering = c.fingering;
+            )?;
+            note.fingering = c.fingering;
+            note.fingerings = c.fingering.into_iter().collect();
+            Ok(())
+        }
+        Command::SetFingerings(c) => {
+            let note = get_note_mut(
+                score,
+                c.part_index,
+                c.staff_index,
+                c.measure_index,
+                c.voice,
+                c.note_index,
+            )?;
+            note.fingerings = c.fingerings.clone();
+            note.fingering = note.fingerings.first().copied();
             Ok(())
         }
         Command::SetStringNumber(c) => {
@@ -1339,6 +1442,18 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
             .guitar_technique = c.technique.clone();
             Ok(())
         }
+        Command::SetGuitarBendAlter(c) => {
+            get_note_mut(
+                score,
+                c.part_index,
+                c.staff_index,
+                c.measure_index,
+                c.voice,
+                c.note_index,
+            )?
+            .guitar_bend_alter_cents = c.alter_cents;
+            Ok(())
+        }
         Command::SetNoteHead(c) => {
             get_note_mut(
                 score,
@@ -1361,6 +1476,30 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
                 c.note_index,
             )?
             .is_cue = c.is_cue;
+            Ok(())
+        }
+        Command::SetUnpitched(c) => {
+            get_note_mut(
+                score,
+                c.part_index,
+                c.staff_index,
+                c.measure_index,
+                c.voice,
+                c.note_index,
+            )?
+            .is_unpitched = c.is_unpitched;
+            Ok(())
+        }
+        Command::SetInstrumentId(c) => {
+            get_note_mut(
+                score,
+                c.part_index,
+                c.staff_index,
+                c.measure_index,
+                c.voice,
+                c.note_index,
+            )?
+            .instrument_id = c.instrument_id.clone();
             Ok(())
         }
         Command::SetExpressionText(c) => {
@@ -2113,6 +2252,104 @@ mod tests {
         let first = &score.parts[0].staves[0].measures[0].voices[0][0];
         assert!(!first.is_rest);
         assert_eq!(first.pitches[0].step, Step::C);
+    }
+
+    #[test]
+    fn set_fingerings_keeps_first_legacy_value_in_sync() {
+        let mut score = default_engine_score();
+        apply_command(
+            &Command::AddNote(AddNoteCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                position: 0,
+                pitch: Some(Pitch::new(Step::C, 4)),
+                duration: Duration::Quarter,
+                dot_count: 0,
+                is_rest: false,
+                tuplet: None,
+            }),
+            &mut score,
+        )
+        .unwrap();
+        apply_command(
+            &Command::SetFingerings(SetFingeringsCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                note_index: 0,
+                fingerings: vec![1, 3, 4],
+            }),
+            &mut score,
+        )
+        .unwrap();
+        let note = &score.parts[0].staves[0].measures[0].voices[0][0];
+        assert_eq!(note.fingerings, vec![1, 3, 4]);
+        assert_eq!(note.fingering, Some(1));
+    }
+
+    #[test]
+    fn set_figured_bass_replaces_measure_figures() {
+        let mut score = default_engine_score();
+        let figures = vec![FiguredBassFigure {
+            number: "6".to_string(),
+            alter: Some("-1".to_string()),
+            prefix: Some("+".to_string()),
+            suffix: None,
+            extender: false,
+        }];
+        apply_command(
+            &Command::SetFiguredBass(SetFiguredBassCmd {
+                measure_index: 0,
+                figures: figures.clone(),
+            }),
+            &mut score,
+        )
+        .unwrap();
+        assert_eq!(score.parts[0].staves[0].measures[0].figured_bass, figures);
+    }
+
+    #[test]
+    fn set_guitar_bend_alter_updates_note_and_can_clear() {
+        let mut score = default_engine_score();
+        apply_command(
+            &Command::AddNote(AddNoteCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                position: 0,
+                pitch: Some(Pitch::new(Step::G, 4)),
+                duration: Duration::Quarter,
+                dot_count: 0,
+                is_rest: false,
+                tuplet: None,
+            }),
+            &mut score,
+        )
+        .unwrap();
+        let location = SetGuitarBendAlterCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            note_index: 0,
+            alter_cents: Some(200),
+        };
+        apply_command(&Command::SetGuitarBendAlter(location.clone()), &mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].guitar_bend_alter_cents,
+            Some(200)
+        );
+        let mut cleared = location;
+        cleared.alter_cents = None;
+        apply_command(&Command::SetGuitarBendAlter(cleared), &mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].guitar_bend_alter_cents,
+            None
+        );
     }
 
     #[test]

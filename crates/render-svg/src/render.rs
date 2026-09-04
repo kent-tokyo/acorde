@@ -1663,21 +1663,55 @@ fn render_tab_note(
         let y = tab_note_y(note, tab, bottom_y, space) + 0.38 * space;
         write_annotation_text(body, "acorde-tab-missing", "?", x, y, space, false);
     } else {
-        for position in positions {
+        // Multiple positions can belong to one chord pitch. Keep their semantic string order,
+        // and allocate width from the rendered digit count so two-digit frets cannot overlap.
+        // These are conservative font-independent metrics; host typography remains separate.
+        let glyph_widths: Vec<f32> = positions
+            .iter()
+            .map(|position| position.fret.to_string().chars().count() as f32 * 0.48 * space)
+            .collect();
+        let gap = 0.22 * space;
+        let total_width =
+            glyph_widths.iter().sum::<f32>() + gap * glyph_widths.len().saturating_sub(1) as f32;
+        let mut cursor = x - total_width / 2.0;
+        for (position, glyph_width) in positions.iter().zip(glyph_widths) {
             let y = bottom_y - f32::from(tab.lines.saturating_sub(position.string)) * space
                 + 0.38 * space;
             write_annotation_text(
                 body,
                 "acorde-tab-fret",
                 &position.fret.to_string(),
-                x,
+                cursor + glyph_width / 2.0,
                 y,
                 space,
                 false,
             );
+            cursor += glyph_width + gap;
         }
     }
     let y = tab_note_y(note, tab, bottom_y, space) + 0.38 * space;
+    let fingerings = if note.fingerings.is_empty() {
+        note.fingering.map(|fingering| fingering.to_string())
+    } else {
+        Some(
+            note.fingerings
+                .iter()
+                .map(u8::to_string)
+                .collect::<Vec<_>>()
+                .join("/"),
+        )
+    };
+    if let Some(fingerings) = fingerings {
+        write_annotation_text(
+            body,
+            "acorde-tab-fingering",
+            &fingerings,
+            x,
+            y - 2.0 * space,
+            space,
+            false,
+        );
+    }
     if let Some(technique) = &note.guitar_technique {
         let label = match technique {
             acorde_core::GuitarTechnique::Bend => "bend",

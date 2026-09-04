@@ -18,6 +18,7 @@ mod report;
 /// Baseline limit for uncompressed non-archive parser inputs.
 pub(crate) const MAX_INPUT_BYTES: usize = 64 * 1024 * 1024;
 /// Baseline limit for one logical ABC line, preventing pathological token scans.
+#[cfg(feature = "abc")]
 pub(crate) const MAX_ABC_LINE_BYTES: usize = 1024 * 1024;
 /// Baseline limit for decoded MIDI events before score construction.
 pub(crate) const MAX_MIDI_EVENTS: usize = 500_000;
@@ -67,7 +68,13 @@ pub use musicxml::{parse_musicxml, parse_mxl, serialize_musicxml};
 
 #[cfg(feature = "musicxml")]
 pub fn parse_musicxml_with_report(xml: &str) -> Result<ImportReport, Error> {
-    Ok(ImportReport::for_format(parse_musicxml(xml)?, "musicxml"))
+    let score = parse_musicxml(xml)?;
+    Ok(ImportReport {
+        schema_version: REPORT_SCHEMA_VERSION,
+        format: "musicxml".to_string(),
+        score,
+        diagnostics: musicxml::loss_diagnostics(xml),
+    })
 }
 
 #[cfg(feature = "musicxml")]
@@ -87,17 +94,24 @@ pub fn parse_mei_with_report(text: &str) -> Result<ImportReport, Error> {
 pub fn serialize_mei_with_report(
     score: &acorde_core::Score,
 ) -> Result<ExportReport<String>, Error> {
-    Ok(ExportReport::for_format(serialize_mei(score)?, "mei"))
+    Ok(ExportReport {
+        schema_version: REPORT_SCHEMA_VERSION,
+        format: "mei".to_string(),
+        output: serialize_mei(score)?,
+        diagnostics: mei::export_loss_diagnostics(score),
+    })
 }
 
 #[cfg(feature = "musicxml")]
 pub fn serialize_musicxml_with_report(
     score: &acorde_core::Score,
 ) -> Result<ExportReport<String>, Error> {
-    Ok(ExportReport::for_format(
-        serialize_musicxml(score)?,
-        "musicxml",
-    ))
+    Ok(ExportReport {
+        schema_version: REPORT_SCHEMA_VERSION,
+        format: "musicxml".to_string(),
+        output: serialize_musicxml(score)?,
+        diagnostics: musicxml::export_loss_diagnostics(score),
+    })
 }
 
 #[cfg(feature = "midi")]
@@ -105,14 +119,26 @@ pub use midi::{parse_midi, serialize_midi, serialize_midi_region};
 
 #[cfg(feature = "midi")]
 pub fn parse_midi_with_report(data: &[u8]) -> Result<ImportReport, Error> {
-    Ok(ImportReport::for_format(parse_midi(data)?, "midi"))
+    let score = parse_midi(data)?;
+    let diagnostics = midi::loss_diagnostics(data)?;
+    Ok(ImportReport {
+        schema_version: REPORT_SCHEMA_VERSION,
+        format: "midi".to_string(),
+        score,
+        diagnostics,
+    })
 }
 
 #[cfg(feature = "midi")]
 pub fn serialize_midi_with_report(
     score: &acorde_core::Score,
 ) -> Result<ExportReport<Vec<u8>>, Error> {
-    Ok(ExportReport::for_format(serialize_midi(score)?, "midi"))
+    Ok(ExportReport {
+        schema_version: REPORT_SCHEMA_VERSION,
+        format: "midi".to_string(),
+        output: serialize_midi(score)?,
+        diagnostics: midi::export_loss_diagnostics(score),
+    })
 }
 
 #[cfg(feature = "abc")]
@@ -120,14 +146,25 @@ pub use abc::{parse_abc, serialize_abc};
 
 #[cfg(feature = "abc")]
 pub fn parse_abc_with_report(text: &str) -> Result<ImportReport, Error> {
-    Ok(ImportReport::for_format(parse_abc(text)?, "abc"))
+    let score = parse_abc(text)?;
+    Ok(ImportReport {
+        schema_version: REPORT_SCHEMA_VERSION,
+        format: "abc".to_string(),
+        score,
+        diagnostics: abc::loss_diagnostics(text),
+    })
 }
 
 #[cfg(feature = "abc")]
 pub fn serialize_abc_with_report(
     score: &acorde_core::Score,
 ) -> Result<ExportReport<String>, Error> {
-    Ok(ExportReport::for_format(serialize_abc(score)?, "abc"))
+    Ok(ExportReport {
+        schema_version: REPORT_SCHEMA_VERSION,
+        format: "abc".to_string(),
+        output: serialize_abc(score)?,
+        diagnostics: abc::export_loss_diagnostics(score),
+    })
 }
 
 #[cfg(feature = "mscz")]
@@ -135,10 +172,26 @@ pub use mscz::{parse_mscx, parse_mscz};
 
 #[cfg(feature = "mscz")]
 pub fn parse_mscx_with_report(text: &str) -> Result<ImportReport, Error> {
-    Ok(ImportReport::for_format(parse_mscx(text)?, "mscx"))
+    let score = parse_mscx(text)?;
+    let mut diagnostics = mscz::loss_diagnostics(text);
+    diagnostics.extend(mscz::tab_position_diagnostics(&score));
+    Ok(ImportReport {
+        schema_version: REPORT_SCHEMA_VERSION,
+        format: "mscx".to_string(),
+        score,
+        diagnostics,
+    })
 }
 
 #[cfg(feature = "mscz")]
 pub fn parse_mscz_with_report(data: &[u8]) -> Result<ImportReport, Error> {
-    Ok(ImportReport::for_format(parse_mscz(data)?, "mscz"))
+    let score = parse_mscz(data)?;
+    let mut diagnostics = mscz::loss_diagnostics_mscz(data)?;
+    diagnostics.extend(mscz::tab_position_diagnostics(&score));
+    Ok(ImportReport {
+        schema_version: REPORT_SCHEMA_VERSION,
+        format: "mscz".to_string(),
+        score,
+        diagnostics,
+    })
 }

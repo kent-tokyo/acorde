@@ -80,9 +80,30 @@ impl Pitch {
     }
 
     pub fn with_microtone(step: Step, octave: i8, alter: i8, microtone_cents: i16) -> Self {
-        let mut pitch = Self::with_alter(step, octave, alter);
-        pitch.microtone_cents = microtone_cents.clamp(-99, 99);
-        pitch
+        Self {
+            step,
+            octave,
+            alter,
+            microtone_cents: microtone_cents.clamp(-99, 99),
+        }
+    }
+
+    /// Construct a pitch without silently changing its microtone component.
+    ///
+    /// Returns `None` when `microtone_cents` is outside the canonical -99..=99
+    /// range. Use [`Pitch::with_microtone`] only when clamping is intentional.
+    pub fn try_with_microtone(
+        step: Step,
+        octave: i8,
+        alter: i8,
+        microtone_cents: i16,
+    ) -> Option<Self> {
+        (-99..=99).contains(&microtone_cents).then_some(Self {
+            step,
+            octave,
+            alter,
+            microtone_cents,
+        })
     }
 
     /// MIDI note number (middle C = 60 = C4).
@@ -91,6 +112,16 @@ impl Pitch {
         let base = (self.octave as i16 + 1) * 12;
         (base as f32 + semitone as f32 + self.alter as f32 + self.microtone_cents as f32 / 100.0)
             .round() as i16
+    }
+
+    /// Exact sounding pitch in hundredths of a MIDI semitone.
+    ///
+    /// Unlike [`Pitch::to_midi`], this preserves fractional alteration and is
+    /// the canonical value for interchange comparisons and pitch-bend adapters.
+    pub fn to_midi_cents(&self) -> i32 {
+        let semitone = self.step.to_semitone() as i32;
+        ((self.octave as i32 + 1) * 12 + semitone + self.alter as i32) * 100
+            + self.microtone_cents as i32
     }
 
     /// Convert a MIDI note number (0–127) to a `Pitch`.
@@ -375,5 +406,36 @@ mod tests {
         assert_eq!(flat.step, Step::G);
         assert_eq!(flat.alter, -1);
         assert_eq!(flat.to_midi(), 66);
+    }
+
+    #[test]
+    fn midi_cents_preserves_microtonal_boundary() {
+        let quarter_sharp = Pitch::with_microtone(Step::C, 4, 0, 50);
+        let quarter_flat = Pitch::with_microtone(Step::C, 4, 0, -50);
+        assert_eq!(quarter_sharp.to_midi_cents(), 6050);
+        assert_eq!(quarter_flat.to_midi_cents(), 5950);
+        assert_eq!(quarter_sharp.to_midi(), 61);
+        assert_eq!(quarter_flat.to_midi(), 60);
+    }
+
+    #[test]
+    fn try_with_microtone_rejects_without_clamping() {
+        assert_eq!(
+            Pitch::try_with_microtone(Step::C, 4, 0, -99)
+                .unwrap()
+                .microtone_cents,
+            -99
+        );
+        assert_eq!(
+            Pitch::try_with_microtone(Step::C, 4, 0, 99)
+                .unwrap()
+                .microtone_cents,
+            99
+        );
+        assert!(Pitch::try_with_microtone(Step::C, 4, 0, 100).is_none());
+        assert_eq!(
+            Pitch::with_microtone(Step::C, 4, 0, 100).microtone_cents,
+            99
+        );
     }
 }

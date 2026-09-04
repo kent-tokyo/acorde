@@ -16,6 +16,9 @@ reported by that provider before creating a region.
 mapping API; providers can translate SF2 generators or SF3 metadata once and Composer does not
 need to duplicate that parsing. Each mapped region carries bounded half-open sample frame
 offsets, sample rate, loop points, tuning, attenuation, and envelope parameters.
+`ResolvedPresetZoneMetadata` and `resolve_preset_zone_metadata` expose an owned snapshot of all
+resolved zone fields for downstream UI, diagnostics, cache keys, and audio setup; hosts can
+reconstruct the validated `SampleRegion` without repeating provider parsing.
 `schedule_preset_note_on` combines that selection with the validated voice plan in one call.
 
 `PROVIDER_CONTRACT_VERSION` identifies the adapter contract. Providers advertise

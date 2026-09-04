@@ -1,4 +1,6 @@
-use acorde_core::{Command, Score, ScoreEngine, SetTabPositionCmd, TabPosition};
+use acorde_core::{
+    Command, FingeringSelectionPolicy, Score, ScoreEngine, SetTabPositionCmd, TabPosition,
+};
 use acorde_io::ImportReport;
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
@@ -126,6 +128,14 @@ enum Commands {
         /// Output score file
         output: PathBuf,
     },
+    /// Report a deterministic selection from alternate fingering candidates
+    FingeringReport {
+        /// Input score file
+        input: PathBuf,
+        /// Selection policy: source-order, lowest, or highest
+        #[arg(long, default_value = "source-order")]
+        policy: String,
+    },
     /// Export a score and print machine-readable conversion diagnostics
     ExportReport {
         /// Input score file
@@ -175,6 +185,7 @@ fn main() {
         ),
         Commands::AutoTab { input, output } => cmd_auto_tab(input, output),
         Commands::AutoTabReport { input, output } => cmd_auto_tab_report(input, output),
+        Commands::FingeringReport { input, policy } => cmd_fingering_report(input, policy),
         Commands::ExportReport { input, output } => cmd_export_report(input, output),
     };
     if let Err(e) = result {
@@ -587,6 +598,24 @@ fn cmd_validate(input: &Path) -> Result<(), String> {
                     string,
                     lines
                 ),
+                acorde_core::ValidationError::MicrotoneOutOfRange {
+                    part,
+                    staff,
+                    measure,
+                    voice,
+                    note,
+                    pitch,
+                    microtone_cents,
+                } => eprintln!(
+                    "part {} staff {} measure {} voice {} note {} pitch {}: microtone cents {} is outside -99..99",
+                    part + 1,
+                    staff + 1,
+                    measure + 1,
+                    voice + 1,
+                    note + 1,
+                    pitch + 1,
+                    microtone_cents
+                ),
             }
         }
         std::process::exit(1);
@@ -709,6 +738,67 @@ fn cmd_auto_tab_report(input: &Path, output: &Path) -> Result<(), String> {
         "{}",
         serde_json::to_string_pretty(&report)
             .map_err(|e| format!("tablature report serialization failed: {e}"))?
+    );
+    Ok(())
+}
+
+#[derive(Debug, Serialize)]
+struct FingeringReportEntry {
+    part: usize,
+    staff: usize,
+    measure: usize,
+    voice: usize,
+    note: usize,
+    candidates: Vec<u8>,
+    selected: Option<u8>,
+}
+
+fn parse_fingering_policy(value: &str) -> Result<FingeringSelectionPolicy, String> {
+    match value {
+        "source-order" | "source" => Ok(FingeringSelectionPolicy::SourceOrder),
+        "lowest" | "lowest-number" => Ok(FingeringSelectionPolicy::LowestNumber),
+        "highest" | "highest-number" => Ok(FingeringSelectionPolicy::HighestNumber),
+        _ => Err(format!(
+            "unknown fingering policy '{value}'; expected source-order, lowest, or highest"
+        )),
+    }
+}
+
+fn cmd_fingering_report(input: &Path, policy: &str) -> Result<(), String> {
+    let score = parse_score(input)?;
+    let policy = parse_fingering_policy(policy)?;
+    let mut entries = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    for (note_index, note) in voice.iter().enumerate() {
+                        let candidates = if note.fingerings.is_empty() {
+                            note.fingering.into_iter().collect()
+                        } else {
+                            note.fingerings.clone()
+                        };
+                        if candidates.is_empty() {
+                            continue;
+                        }
+                        entries.push(FingeringReportEntry {
+                            part: part_index,
+                            staff: staff_index,
+                            measure: measure_index,
+                            voice: voice_index,
+                            note: note_index,
+                            candidates,
+                            selected: note.select_fingering(policy),
+                        });
+                    }
+                }
+            }
+        }
+    }
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&entries)
+            .map_err(|e| format!("fingering report serialization failed: {e}"))?
     );
     Ok(())
 }

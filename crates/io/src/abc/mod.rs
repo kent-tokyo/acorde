@@ -1,4 +1,4 @@
-use crate::{Error, MAX_ABC_LINE_BYTES, MAX_INPUT_BYTES};
+use crate::{Diagnostic, DiagnosticSeverity, Error, MAX_ABC_LINE_BYTES, MAX_INPUT_BYTES};
 /// Parse ABC notation (.abc) into a Score.
 ///
 /// Supports a useful subset of ABC notation:
@@ -19,6 +19,67 @@ use acorde_core::{
 
 const MAX_LINES: usize = 10_000;
 const MAX_NOTES: usize = 100_000;
+const MAX_DIAGNOSTICS: usize = 1_024;
+
+/// Report ABC constructs that are accepted as input but have no canonical model field.
+///
+/// This deliberately reports only constructs that can be identified without guessing at the
+/// body grammar. Unknown headers and standard decoration delimiters are source-located; ordinary
+/// comments remain lossless by definition because they are not score semantics.
+pub fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
+    let mut diagnostics = Vec::new();
+    for (line_index, raw_line) in text.lines().enumerate() {
+        let line_number = line_index + 1;
+        let line = raw_line.split('%').next().unwrap_or_default();
+        if line.len() >= 2 && line.as_bytes().get(1) == Some(&b':') {
+            let field = &line[0..1];
+            if !matches!(field, "X" | "T" | "C" | "M" | "L" | "Q" | "K") {
+                let mut diagnostic = Diagnostic::warning(
+                    "abc.unsupported-header",
+                    format!("ABC header field '{field}' is outside acorde's supported subset"),
+                );
+                diagnostic.severity = DiagnosticSeverity::Warning;
+                diagnostic.source_location = Some(format!("/line/{line_number}/header/{field}"));
+                diagnostic.preserved_value = Some(line[2..].trim().to_string());
+                diagnostics.push(diagnostic);
+            }
+        }
+
+        let chars: Vec<char> = line.chars().collect();
+        let mut index = 0;
+        while index < chars.len() {
+            let delimiter = chars[index];
+            if delimiter != '!' && delimiter != '+' {
+                index += 1;
+                continue;
+            }
+            let Some(end) = chars[index + 1..]
+                .iter()
+                .position(|character| *character == delimiter)
+                .map(|offset| index + offset + 1)
+            else {
+                break;
+            };
+            let value: String = chars[index + 1..end].iter().collect();
+            let mut diagnostic = Diagnostic::warning(
+                "abc.unsupported-decoration",
+                "ABC decoration is not represented by the canonical score model",
+            );
+            diagnostic.source_location =
+                Some(format!("/line/{line_number}/decoration/{}", index + 1));
+            diagnostic.preserved_value = Some(value);
+            diagnostics.push(diagnostic);
+            index = end + 1;
+            if diagnostics.len() >= MAX_DIAGNOSTICS {
+                return diagnostics;
+            }
+        }
+        if diagnostics.len() >= MAX_DIAGNOSTICS {
+            return diagnostics;
+        }
+    }
+    diagnostics
+}
 
 pub fn parse_abc(text: &str) -> Result<Score, Error> {
     if text.len() > MAX_INPUT_BYTES {
@@ -326,17 +387,16 @@ fn parse_body_line(
         // Accidental prefix
         let mut alter = 0i8;
         let mut microtone_accidental = false;
-        if ch == '^' {
-            alter = 1;
-            i += 1;
-            if i < chars.len() && chars[i] == '/' {
-                microtone_accidental = true;
+        if ch == '^' || ch == '_' {
+            let sign = if ch == '^' { 1 } else { -1 };
+            while i < chars.len() && chars[i] == ch {
+                alter = alter.saturating_add(sign);
                 i += 1;
             }
-        } else if ch == '_' {
-            alter = -1;
-            i += 1;
-            if i < chars.len() && chars[i] == '/' {
+            // ABC's slash accidental is a quarter-tone only for a single
+            // sharp/flat. Leave compound slash spellings outside the subset
+            // rather than silently interpreting them as a different pitch.
+            if alter.abs() == 1 && i < chars.len() && chars[i] == '/' {
                 microtone_accidental = true;
                 i += 1;
             }
@@ -368,7 +428,14 @@ fn parse_body_line(
             }
             let dur = unit_to_duration(*unit_den, n, d);
             let dot = u8::from(is_dotted(*unit_den, n, d));
+            // In acorde's declared ABC subset `^/` and `_/` are quarter-sharp
+            // and quarter-flat spellings, not a semitone plus a quarter-tone.
+            // Keep the diatonic alter at zero so they agree with MEI `qs`/`qf`
+            // and MSCX quarter accidental subtypes.
             let microtone = if microtone_accidental { alter * 50 } else { 0 };
+            if microtone_accidental {
+                alter = 0;
+            }
             let mut note = Note::new(
                 Pitch::with_microtone(step, octave, alter, microtone.into()),
                 dur,
@@ -600,6 +667,157 @@ pub fn serialize_abc(score: &Score) -> Result<String, Error> {
     Ok(out)
 }
 
+/// Report canonical score data that the deliberately small ABC exporter cannot emit.
+pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
+    const MAX_DIAGNOSTICS: usize = 1_024;
+    let mut diagnostics = Vec::new();
+    let mut push = |path: String, value: String, reason: &str| {
+        if diagnostics.len() >= MAX_DIAGNOSTICS {
+            return;
+        }
+        let mut diagnostic = Diagnostic::warning("abc.export-unsupported-field", reason);
+        diagnostic.source_location = Some(path);
+        diagnostic.preserved_value = Some(value);
+        diagnostics.push(diagnostic);
+    };
+
+    for (definition_index, definition) in score.chord_definitions.iter().enumerate() {
+        push(
+            format!("/score/chord-definitions/{}", definition_index + 1),
+            definition
+                .id
+                .clone()
+                .or_else(|| definition.label.clone())
+                .unwrap_or_else(|| "present".to_string()),
+            "ABC export does not represent MEI chord definitions",
+        );
+    }
+
+    if score.parts.len() > 1 {
+        push(
+            "/score/parts".to_string(),
+            score.parts.len().to_string(),
+            "ABC export emits part labels but the canonical parser currently imports one part",
+        );
+    }
+    for (part_index, part) in score.parts.iter().enumerate() {
+        if part.staves.len() > 1 {
+            push(
+                format!("/score/part/{}/staves", part_index + 1),
+                part.staves.len().to_string(),
+                "ABC export includes only the first staff of each part",
+            );
+        }
+        let Some(staff) = part.staves.first() else {
+            continue;
+        };
+        if staff.tablature.is_some() {
+            push(
+                format!("/score/part/{}/staff/1/tablature", part_index + 1),
+                "present".to_string(),
+                "ABC exporter has no canonical tablature staff representation",
+            );
+        }
+        for (measure_index, measure) in staff.measures.iter().enumerate() {
+            for (voice_index, voice) in measure.voices.iter().enumerate().skip(1) {
+                if !voice.is_empty() {
+                    push(
+                        format!(
+                            "/score/part/{}/staff/1/measure/{}/voice/{}",
+                            part_index + 1,
+                            measure_index + 1,
+                            voice_index + 1
+                        ),
+                        voice.len().to_string(),
+                        "ABC export emits only voice 1",
+                    );
+                }
+            }
+            for (note_index, note) in measure.voices[0].iter().enumerate() {
+                if let Some(harmony_type) = note
+                    .chord_symbol
+                    .as_ref()
+                    .and_then(|chord| chord.harmony_type.as_ref())
+                {
+                    push(
+                        format!(
+                            "/score/part/{}/staff/1/measure/{}/voice/1/note/{}/chord-symbol/harm@type",
+                            part_index + 1,
+                            measure_index + 1,
+                            note_index + 1
+                        ),
+                        harmony_type.clone(),
+                        "ABC export does not represent MEI harm@type metadata",
+                    );
+                }
+                if let Some(chord_ref) = note
+                    .chord_symbol
+                    .as_ref()
+                    .and_then(|chord| chord.chord_ref.as_ref())
+                {
+                    push(
+                        format!(
+                            "/score/part/{}/staff/1/measure/{}/voice/1/note/{}/chord-symbol/harm@chordref",
+                            part_index + 1,
+                            measure_index + 1,
+                            note_index + 1
+                        ),
+                        chord_ref.clone(),
+                        "ABC export does not represent MEI harm@chordref metadata",
+                    );
+                }
+                if note.tab_position.is_some() || !note.tab_positions.is_empty() {
+                    push(
+                        format!(
+                            "/score/part/{}/staff/1/measure/{}/voice/1/note/{}/tablature",
+                            part_index + 1,
+                            measure_index + 1,
+                            note_index + 1
+                        ),
+                        "position(s) present".to_string(),
+                        "ABC exporter does not emit string/fret tablature positions",
+                    );
+                }
+                if note.guitar_technique.is_some() {
+                    push(
+                        format!(
+                            "/score/part/{}/staff/1/measure/{}/voice/1/note/{}/technique",
+                            part_index + 1,
+                            measure_index + 1,
+                            note_index + 1
+                        ),
+                        "guitar technique present".to_string(),
+                        "ABC exporter does not emit guitar-specific techniques",
+                    );
+                }
+                for (pitch_index, pitch) in note.pitches.iter().enumerate() {
+                    let abc_pitch_supported = matches!(
+                        (pitch.alter, pitch.microtone_cents),
+                        (-2..=2, 0) | (0, 50 | -50)
+                    );
+                    if !abc_pitch_supported {
+                        push(
+                            format!(
+                                "/score/part/{}/staff/1/measure/{}/voice/1/note/{}/pitch/{}",
+                                part_index + 1,
+                                measure_index + 1,
+                                note_index + 1,
+                                pitch_index + 1
+                            ),
+                            format!(
+                                "alter={},microtone_cents={}",
+                                pitch.alter, pitch.microtone_cents
+                            ),
+                            "ABC exporter supports only double-accidental semitones and pure quarter-tone spellings",
+                        );
+                    }
+                }
+            }
+        }
+    }
+    diagnostics
+}
+
 fn fifths_to_abc_key(fifths: i8, mode: &str) -> String {
     let key = if mode == "minor" {
         match fifths {
@@ -657,10 +875,12 @@ fn pitch_to_abc(pitch: &Pitch) -> String {
         Step::B => 'B',
     };
     let acc = match (pitch.alter, pitch.microtone_cents) {
-        (1, 50) => "^/",
-        (-1, -50) => "_/",
+        (0, 50) => "^/",
+        (0, -50) => "_/",
         (1, _) => "^",
         (-1, _) => "_",
+        (2, 0) => "^^",
+        (-2, 0) => "__",
         _ => "",
     };
     if pitch.octave >= 5 {
@@ -744,6 +964,82 @@ C D E F | G A B c |";
     }
 
     #[test]
+    fn loss_report_locates_unsupported_headers_and_decorations() {
+        let abc = "X:1\nT:Report\nZ:metadata\nM:4/4\nK:C\n!trill!C +pizz+ D|\n";
+        let diagnostics = loss_diagnostics(abc);
+        assert_eq!(diagnostics.len(), 3);
+        assert_eq!(diagnostics[0].code, "abc.unsupported-header");
+        assert_eq!(
+            diagnostics[0].source_location.as_deref(),
+            Some("/line/3/header/Z")
+        );
+        assert_eq!(diagnostics[1].code, "abc.unsupported-decoration");
+        assert_eq!(
+            diagnostics[1].source_location.as_deref(),
+            Some("/line/6/decoration/1")
+        );
+        assert_eq!(diagnostics[2].preserved_value.as_deref(), Some("pizz"));
+    }
+
+    #[test]
+    fn export_loss_report_marks_non_abc_subset_fields() {
+        let mut score = Score::new("export", 120, 4, 4, 0, 1);
+        let mut note = Note::new(Pitch::with_microtone(Step::C, 4, 0, 25), Duration::Quarter);
+        note.is_rest = false;
+        score.parts[0].staves[0].measures[0].voices[0].push(note);
+        score.parts[0].staves[0].measures[0].voices[1].push(Note::rest(Duration::Quarter));
+        let diagnostics = export_loss_diagnostics(&score);
+        assert_eq!(diagnostics.len(), 2);
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic
+                .source_location
+                .as_deref()
+                .is_some_and(|path| path.ends_with("/voice/2"))
+        }));
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic
+                .source_location
+                .as_deref()
+                .is_some_and(|path| path.ends_with("/pitch/1"))
+        }));
+    }
+
+    #[test]
+    fn export_loss_report_marks_unsupported_tablature_fields() {
+        let mut score = Score::new("tab export", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].tablature = Some(acorde_core::TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![64, 59, 55, 50, 45, 40],
+            capo: 0,
+        });
+        let mut note = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+        note.tab_position = Some(acorde_core::TabPosition { string: 1, fret: 0 });
+        note.guitar_technique = Some(acorde_core::GuitarTechnique::Slide);
+        score.parts[0].staves[0].measures[0].voices[0].push(note);
+
+        let diagnostics = export_loss_diagnostics(&score);
+        assert_eq!(diagnostics.len(), 3);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.source_location.as_deref()
+                    == Some("/score/part/1/staff/1/tablature"))
+        );
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.source_location.as_deref()
+                    == Some("/score/part/1/staff/1/measure/1/voice/1/note/2/tablature"))
+        );
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.source_location.as_deref()
+                    == Some("/score/part/1/staff/1/measure/1/voice/1/note/2/technique"))
+        );
+    }
+
+    #[test]
     fn no_body_returns_err() {
         // Header only, no K: line to open body
         assert!(parse_abc("X:1\nT:Test\n").is_err());
@@ -821,6 +1117,42 @@ C D E F | G A B c |";
         assert_eq!(pitched[1].pitches[0].microtone_cents, -50);
         let serialized = serialize_abc(&score).unwrap();
         assert!(serialized.contains("^/C") && serialized.contains("_/D"));
+    }
+
+    #[test]
+    fn double_accidentals_round_trip_without_silent_loss() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![Note::new(
+            Pitch::with_microtone(Step::C, 4, 2, 0),
+            Duration::Quarter,
+        )];
+        let abc = serialize_abc(&score).unwrap();
+        assert!(abc.contains("^^C"));
+        let restored = parse_abc(&abc).unwrap();
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[0][0].pitches[0].alter,
+            2
+        );
+        assert!(export_loss_diagnostics(&score).is_empty());
+    }
+
+    #[test]
+    fn mixed_semitone_and_quarter_tone_reports_loss() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![Note::new(
+            Pitch::with_microtone(Step::C, 4, 1, 50),
+            Duration::Quarter,
+        )];
+        let diagnostics = export_loss_diagnostics(&score);
+        assert_eq!(diagnostics.len(), 1);
+        assert!(
+            diagnostics[0]
+                .preserved_value
+                .as_deref()
+                .is_some_and(
+                    |value| value.contains("alter=1") && value.contains("microtone_cents=50")
+                )
+        );
     }
 
     #[test]

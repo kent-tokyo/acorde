@@ -14,12 +14,13 @@ pub use model::commands::{
     DeleteStaffCmd, NewScoreCmd, PasteRangeCmd, PasteVoiceCmd, RespellScoreCmd,
     RespellScoreToKeyCmd, SetArpeggioCmd, SetBarlineCmd, SetChordSymbolCmd, SetClefCmd,
     SetCrossStaffCmd, SetCueCmd, SetDurationCmd, SetDynamicCmd, SetExpressionTextCmd,
-    SetFingeringCmd, SetGlissandoCmd, SetGraceCmd, SetGuitarTechniqueCmd, SetKeySignatureCmd,
+    SetFiguredBassCmd, SetFingeringCmd, SetFingeringsCmd, SetGlissandoCmd, SetGraceCmd,
+    SetGuitarBendAlterCmd, SetGuitarTechniqueCmd, SetInstrumentIdCmd, SetKeySignatureCmd,
     SetLyricCmd, SetMetadataCmd, SetMidiInstrumentCmd, SetMultiRestCmd, SetNavigationMarkCmd,
     SetNoteHeadCmd, SetOttavaCmd, SetPageBreakCmd, SetPartGroupCmd, SetPartNameCmd,
     SetRehearsalMarkCmd, SetStemCmd, SetStringNumberCmd, SetSystemBreakCmd, SetTabPositionCmd,
     SetTechniqueTextCmd, SetTempoAtMeasureCmd, SetTempoCmd, SetTimeSignatureCmd, SetTransposeCmd,
-    SetTupletCmd, SetVoltaCmd, ToggleArticulationCmd, ToggleSlurCmd, ToggleTieCmd,
+    SetTupletCmd, SetUnpitchedCmd, SetVoltaCmd, ToggleArticulationCmd, ToggleSlurCmd, ToggleTieCmd,
     ToggleTrillLineCmd, command_key, command_label,
 };
 pub use model::duration::Duration;
@@ -28,9 +29,10 @@ pub use model::gm::{drum_name, program_name};
 pub use model::harmony::{detect_chord, roman_numeral};
 pub use model::interval::{Interval, IntervalQuality};
 pub use model::notation::{
-    Articulation, Barline, BeamState, ChordSymbol, Clef, CrossStaff, Dynamic, GuitarTechnique,
-    HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind, StyledText, TabPosition,
-    TablatureConfig, TextStyle, TimeSignature, TupletInfo,
+    Articulation, Barline, BeamState, ChordBarre, ChordDefinition, ChordDefinitionMember,
+    ChordDegree, ChordSymbol, Clef, CrossStaff, Dynamic, FiguredBassFigure,
+    FingeringSelectionPolicy, GuitarTechnique, HairpinKind, KeySignature, Lyric, NoteHead,
+    OttavaKind, StyledText, TabPosition, TablatureConfig, TextStyle, TimeSignature, TupletInfo,
 };
 pub use model::pitch::{Pitch, Step};
 pub use model::playback::{
@@ -40,8 +42,9 @@ pub use model::playback::{
 pub use model::repeat::measure_sequence;
 pub use model::scale::{Scale, ScaleKind};
 pub use model::score::{
-    Measure, MidiPitchBend, Note, NoteAddr, Part, PartGroup, PartGroupSymbol, Score, ScoreChange,
-    ScoreMetadata, ScorePatch, ScoreSettings, ScoreStats, ScoreTemplate, Staff, VoltaBracket,
+    Measure, MidiAftertouch, MidiControlChange, MidiPitchBend, MidiProgramChange, Note, NoteAddr,
+    Part, PartGroup, PartGroupSymbol, PercussionInstrument, Score, ScoreChange, ScoreMetadata,
+    ScorePatch, ScoreSettings, ScoreStats, ScoreTemplate, Staff, StaffGroup, VoltaBracket,
     apply_patch, assign_tablature_positions, compute_beams, diff, measure_beats_remaining,
     optimize_tablature_positions, respell_score, respell_score_to_key, score_duration_secs,
     score_duration_secs_region, score_patch, suggested_stem_up, transpose,

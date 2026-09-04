@@ -1,41 +1,23 @@
 use crate::Error;
 use acorde_core::{
-    Articulation, Barline, ChordSymbol, Clef, Duration, GuitarTechnique, HairpinKind, KeySignature,
-    Lyric, Measure, Note, NoteHead, OttavaKind, Part, PartGroup, PartGroupSymbol, Pitch, Score,
-    Staff, Step, StyledText, TextStyle, TimeSignature, VoltaBracket,
+    Articulation, Barline, ChordDegree, ChordSymbol, Clef, Duration, FiguredBassFigure,
+    GuitarTechnique, HairpinKind, KeySignature, Lyric, Measure, Note, NoteHead, OttavaKind, Part,
+    PartGroup, PartGroupSymbol, PercussionInstrument, Pitch, Score, Staff, Step, StyledText,
+    TextStyle, TimeSignature, TupletInfo, VoltaBracket,
 };
-use quick_xml::events::{BytesStart, Event};
+use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use std::collections::HashMap;
+
+use super::attributes::{attr_is_yes, attr_present, attr_str};
 
 const MAX_ELEMENTS: usize = 500_000;
 const MAX_MUSICXML_BYTES: usize = 64 * 1024 * 1024;
 const MAX_PARTS: usize = 64;
 const MAX_MEASURES: usize = 10_000;
+const MAX_STAVES: usize = 32;
 const MAX_NOTES_PER_VOICE: usize = 50_000;
 const MAX_DEPTH: usize = 64;
-
-/// Read a string-valued attribute by name.
-fn attr_str(e: &BytesStart<'_>, key: &[u8]) -> Option<String> {
-    e.attributes()
-        .filter_map(|a| a.ok())
-        .find(|a| a.key.as_ref() == key)
-        .and_then(|a| String::from_utf8(a.value.to_vec()).ok())
-}
-
-/// True if attribute `key` exists with the literal value `"yes"`.
-fn attr_is_yes(e: &BytesStart<'_>, key: &[u8]) -> bool {
-    e.attributes()
-        .filter_map(|a| a.ok())
-        .any(|a| a.key.as_ref() == key && a.value.as_ref() == b"yes")
-}
-
-/// True if attribute `key` is present (value ignored).
-fn attr_present(e: &BytesStart<'_>, key: &[u8]) -> bool {
-    e.attributes()
-        .filter_map(|a| a.ok())
-        .any(|a| a.key.as_ref() == key)
-}
 
 pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     if xml.len() > MAX_MUSICXML_BYTES {
@@ -54,6 +36,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut current_time = TimeSignature::default();
     let mut current_key = KeySignature::default();
     let mut current_clef = Clef::Treble;
+    let mut current_clef_staff_number = 1usize;
     let mut in_note = false;
     let mut note_slur_start = false;
     let mut note_slur_end = false;
@@ -63,7 +46,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut in_artic_block = false;
     let mut in_ornament_block = false;
     let mut in_technical_block = false;
-    let mut pending_fingering: Option<u8> = None;
+    let mut pending_fingerings: Vec<u8> = Vec::new();
     let mut pending_string_number: Option<u8> = None;
     let mut pending_fret: Option<u8> = None;
     let mut pending_technique_text: Option<String> = None;
@@ -80,16 +63,23 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut note_type = "quarter".to_string();
     let mut note_dot = false;
     let mut note_rest = false;
+    let mut in_unpitched = false;
+    let mut note_is_unpitched = false;
+    let mut note_instrument_id: Option<String> = None;
     let mut note_chord = false;
     let mut note_voice = 1u8;
     let mut note_staff = 1usize;
     let mut note_is_grace = false;
     let mut note_grace_slash = false;
     let mut note_is_cue = false;
+    let mut note_tuplet_actual: Option<u8> = None;
+    let mut note_tuplet_normal: Option<u8> = None;
+    let mut in_time_modification = false;
     let mut note_trill_line_start = false;
     let mut note_trill_line_end = false;
     let mut note_stem_up: Option<bool> = None;
     let mut pending_guitar_technique: Option<GuitarTechnique> = None;
+    let mut pending_guitar_bend_alter_cents: Option<i16> = None;
     let mut pending_hairpin_start: Option<HairpinKind> = None;
     let mut in_harmony = false;
     let mut in_harmony_root = false;
@@ -97,9 +87,24 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut harmony_root_step = String::new();
     let mut harmony_root_alter: i8 = 0;
     let mut harmony_kind = String::new();
+    let mut harmony_function: Option<String> = None;
     let mut harmony_bass_step = String::new();
     let mut harmony_bass_alter: i8 = 0;
+    let mut harmony_placement: Option<String> = None;
+    let mut in_harmony_degree = false;
+    let mut harmony_degrees: Vec<ChordDegree> = Vec::new();
+    let mut harmony_degree_value = String::new();
+    let mut harmony_degree_alter = String::new();
+    let mut harmony_degree_type = String::new();
     let mut pending_chord: Option<ChordSymbol> = None;
+    let mut in_figured_bass = false;
+    let mut figured_bass_text = String::new();
+    let mut in_figured_figure = false;
+    let mut figured_figure_number = String::new();
+    let mut figured_figure_alter = String::new();
+    let mut figured_figure_prefix = String::new();
+    let mut figured_figure_suffix = String::new();
+    let mut figured_bass_figures: Vec<FiguredBassFigure> = Vec::new();
     let mut pending_ottava_start: Option<OttavaKind> = None;
     let mut pending_pedal_start = false;
     let mut in_lyric = false;
@@ -131,11 +136,16 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
 
     // Collect <midi-instrument> data from <score-part> declarations.
     let mut part_midi: HashMap<String, (u8, u8)> = HashMap::new();
+    let mut part_percussion: HashMap<String, Vec<PercussionInstrument>> = HashMap::new();
     let mut in_score_part = false;
     let mut score_part_id = String::new();
     let mut pending_midi_channel: u8 = 0;
     let mut pending_midi_program: u8 = 0;
     let mut in_midi_instrument = false;
+    let mut in_score_instrument = false;
+    let mut score_instrument_id = String::new();
+    let mut score_instrument_name: Option<String> = None;
+    let mut score_instrument_key: Option<u8> = None;
     let mut in_transpose = false;
     // <part-group> tracking: map group number → (start_part_index, symbol, barlines_connect)
     let mut open_groups: std::collections::HashMap<String, (usize, PartGroupSymbol, bool)> =
@@ -172,6 +182,23 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         pending_midi_program = 0;
                         part_list_part_count += 1;
                     }
+                    "clef" => {
+                        current_clef_staff_number = attr_str(e, b"number")
+                            .and_then(|value| value.parse().ok())
+                            .filter(|number: &usize| (1..=MAX_STAVES).contains(number))
+                            .unwrap_or(1);
+                        if let Some(pi) = part_index {
+                            while score.parts[pi].staves.len() < current_clef_staff_number {
+                                score.parts[pi].staves.push(Staff::new(Clef::Treble));
+                            }
+                        }
+                    }
+                    "score-instrument" if in_score_part => {
+                        in_score_instrument = true;
+                        score_instrument_id = attr_str(e, b"id").unwrap_or_default();
+                        score_instrument_name = None;
+                        score_instrument_key = None;
+                    }
                     "part-group" => {
                         in_part_group = true;
                         part_group_number =
@@ -188,11 +215,40 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         harmony_root_step.clear();
                         harmony_root_alter = 0;
                         harmony_kind.clear();
+                        harmony_function = None;
                         harmony_bass_step.clear();
                         harmony_bass_alter = 0;
+                        harmony_placement = attr_str(e, b"placement");
+                        harmony_degrees.clear();
+                    }
+                    "figured-bass" => {
+                        in_figured_bass = true;
+                        figured_bass_text.clear();
+                        in_figured_figure = false;
+                        figured_figure_number.clear();
+                        figured_figure_alter.clear();
+                        figured_figure_prefix.clear();
+                        figured_figure_suffix.clear();
+                        figured_bass_figures.clear();
+                    }
+                    "figure" if in_figured_bass => {
+                        in_figured_figure = true;
+                        figured_figure_number.clear();
+                        figured_figure_alter.clear();
+                        figured_figure_prefix.clear();
+                        figured_figure_suffix.clear();
                     }
                     "root" if in_harmony => in_harmony_root = true,
                     "bass" if in_harmony => in_harmony_bass = true,
+                    "degree" if in_harmony => {
+                        in_harmony_degree = true;
+                        harmony_degree_value.clear();
+                        harmony_degree_alter.clear();
+                        harmony_degree_type.clear();
+                    }
+                    "degree-value" if in_harmony_degree => {}
+                    "degree-alter" if in_harmony_degree => {}
+                    "degree-type" if in_harmony_degree => {}
                     "work" => in_work = true,
                     "barline" => {
                         in_barline = true;
@@ -233,6 +289,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         lyric_text.clear();
                         lyric_syllabic = "single".to_string();
                     }
+                    "time-modification" if in_note => {
+                        in_time_modification = true;
+                        note_tuplet_actual = None;
+                        note_tuplet_normal = None;
+                    }
                     "note" => {
                         in_note = true;
                         note_rest = false;
@@ -242,10 +303,18 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         note_dot = false;
                         note_alter = 0;
                         note_microtone_cents = 0;
+                        in_unpitched = false;
+                        note_is_unpitched = false;
+                        note_instrument_id = None;
+                        note_step = Step::C;
+                        note_octave = 4;
                         _note_duration_ticks = 0;
                         note_is_grace = false;
                         note_grace_slash = false;
                         note_is_cue = false;
+                        note_tuplet_actual = None;
+                        note_tuplet_normal = None;
+                        in_time_modification = false;
                         note_trill_line_start = false;
                         note_trill_line_end = false;
                         note_type = "quarter".to_string();
@@ -256,15 +325,23 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         pending_articulations.clear();
                         pending_tremolo = false;
                         note_arpeggiate = None;
-                        pending_fingering = None;
+                        pending_fingerings.clear();
                         pending_string_number = None;
                         pending_fret = None;
                         pending_technique_text = None;
                         pending_guitar_technique = None;
+                        pending_guitar_bend_alter_cents = None;
                         note_stem_up = None;
                         pending_note_head = None;
                     }
                     "pitch" => in_pitch = true,
+                    "instrument" if in_note => {
+                        note_instrument_id = attr_str(e, b"id");
+                    }
+                    "unpitched" if in_note => {
+                        in_unpitched = true;
+                        note_is_unpitched = true;
+                    }
                     "part" => {
                         if score.parts.len() >= MAX_PARTS {
                             return Err(Error::Xml("too many parts".into()));
@@ -275,6 +352,8 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             part.midi_channel = ch;
                             part.midi_program = prog;
                         }
+                        part.percussion_instruments =
+                            part_percussion.remove(&id).unwrap_or_default();
                         part.staves.push(Staff::new(Clef::Treble));
                         score.parts.push(part);
                         part_index = Some(score.parts.len() - 1);
@@ -326,6 +405,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         }
                     }
                     "rest" if in_note => note_rest = true,
+                    "instrument" if in_note => note_instrument_id = attr_str(e, b"id"),
                     "dot" if in_note => note_dot = true,
                     "chord" if in_note => note_chord = true,
                     "slur" if in_note => match attr_str(e, b"type").as_deref() {
@@ -544,6 +624,30 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     .unwrap_or("")
                     .to_string();
                 match tag.as_str() {
+                    "instrument-name" if in_score_instrument => {
+                        let name = current_text.trim();
+                        if !name.is_empty() {
+                            score_instrument_name = Some(name.to_string());
+                        }
+                    }
+                    "midi-unpitched" if in_score_instrument => {
+                        score_instrument_key = current_text.trim().parse::<u8>().ok();
+                    }
+                    "score-instrument" if in_score_instrument => {
+                        if !score_instrument_id.is_empty() {
+                            part_percussion
+                                .entry(score_part_id.clone())
+                                .or_default()
+                                .push(PercussionInstrument {
+                                    id: score_instrument_id.clone(),
+                                    name: score_instrument_name.take(),
+                                    midi_unpitched: score_instrument_key,
+                                });
+                        }
+                        in_score_instrument = false;
+                        score_instrument_id.clear();
+                        score_instrument_key = None;
+                    }
                     "midi-instrument" if in_score_part => {
                         in_midi_instrument = false;
                     }
@@ -608,6 +712,30 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     }
                     "root" if in_harmony => in_harmony_root = false,
                     "bass" if in_harmony => in_harmony_bass = false,
+                    "degree-value" if in_harmony_degree => {
+                        harmony_degree_value = current_text.trim().to_string();
+                    }
+                    "degree-alter" if in_harmony_degree => {
+                        harmony_degree_alter = current_text.trim().to_string();
+                    }
+                    "degree-type" if in_harmony_degree => {
+                        harmony_degree_type = current_text.trim().to_string();
+                    }
+                    "degree" if in_harmony_degree => {
+                        if let Ok(value) = harmony_degree_value.parse::<u8>() {
+                            if value > 0 {
+                                harmony_degrees.push(ChordDegree {
+                                    value,
+                                    alter: harmony_degree_alter
+                                        .parse::<f32>()
+                                        .unwrap_or(0.0)
+                                        .round() as i8,
+                                    kind: harmony_degree_type.clone(),
+                                });
+                            }
+                        }
+                        in_harmony_degree = false;
+                    }
                     "root-step" if in_harmony_root => {
                         harmony_root_step = current_text.trim().to_string();
                     }
@@ -625,6 +753,10 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "kind" if in_harmony => {
                         harmony_kind = current_text.trim().to_string();
                     }
+                    "function" if in_harmony => {
+                        let value = current_text.trim();
+                        harmony_function = (!value.is_empty()).then(|| value.to_string());
+                    }
                     "harmony" => {
                         in_harmony = false;
                         let root = build_note_name(&harmony_root_step, harmony_root_alter);
@@ -638,8 +770,89 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 root,
                                 kind: harmony_kind.clone(),
                                 bass,
+                                placement: harmony_placement.take(),
+                                extender: false,
+                                harmonic_degree: None,
+                                harmony_function: harmony_function.take(),
+                                harmony_type: None,
+                                chord_ref: None,
+                                degrees: std::mem::take(&mut harmony_degrees),
                             });
                         }
+                    }
+                    "figure-number" if in_figured_bass => {
+                        let value = current_text.trim();
+                        if !value.is_empty() {
+                            figured_figure_number = value.to_string();
+                        }
+                    }
+                    "figure-alter" if in_figured_bass => {
+                        figured_figure_alter = current_text.trim().to_string();
+                    }
+                    "prefix" if in_figured_bass => {
+                        figured_figure_prefix = current_text.trim().to_string();
+                    }
+                    "suffix" if in_figured_bass => {
+                        figured_figure_suffix = current_text.trim().to_string();
+                    }
+                    "figure" if in_figured_figure => {
+                        if !figured_figure_number.is_empty() {
+                            if !figured_bass_text.is_empty() {
+                                figured_bass_text.push(' ');
+                            }
+                            figured_bass_text.push_str(&figured_figure_prefix);
+                            figured_bass_text.push_str(match figured_figure_alter.as_str() {
+                                "1" => "#",
+                                "-1" => "b",
+                                "0" => "♮",
+                                "" => "",
+                                other => {
+                                    // Keep an unrecognized alteration visible instead of dropping it.
+                                    // The structured detail remains separately diagnosed.
+                                    other
+                                }
+                            });
+                            figured_bass_text.push_str(&figured_figure_number);
+                            figured_bass_text.push_str(&figured_figure_suffix);
+                            figured_bass_figures.push(FiguredBassFigure {
+                                number: figured_figure_number.clone(),
+                                alter: (!figured_figure_alter.is_empty())
+                                    .then(|| figured_figure_alter.clone()),
+                                prefix: (!figured_figure_prefix.is_empty())
+                                    .then(|| figured_figure_prefix.clone()),
+                                suffix: (!figured_figure_suffix.is_empty())
+                                    .then(|| figured_figure_suffix.clone()),
+                                extender: false,
+                            });
+                        }
+                        in_figured_figure = false;
+                        figured_figure_number.clear();
+                        figured_figure_alter.clear();
+                        figured_figure_prefix.clear();
+                        figured_figure_suffix.clear();
+                    }
+                    "figured-bass" => {
+                        if let Some(pi) = part_index
+                            && let Some(measure) = score.parts[pi].staves[0].measures.last_mut()
+                        {
+                            if !figured_bass_figures.is_empty() {
+                                measure.figured_bass = std::mem::take(&mut figured_bass_figures);
+                            }
+                            if !figured_bass_text.trim().is_empty() {
+                                measure.texts.push(StyledText {
+                                    style: TextStyle::FiguredBass,
+                                    text: figured_bass_text.trim().to_string(),
+                                });
+                            }
+                        }
+                        figured_bass_text.clear();
+                        in_figured_figure = false;
+                        figured_figure_number.clear();
+                        figured_figure_alter.clear();
+                        figured_figure_prefix.clear();
+                        figured_figure_suffix.clear();
+                        figured_bass_figures.clear();
+                        in_figured_bass = false;
                     }
                     "work" => in_work = false,
                     "barline" => in_barline = false,
@@ -754,6 +967,14 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             "percussion" => Clef::Percussion,
                             _ => Clef::Treble,
                         };
+                        if current_clef_staff_number > 1
+                            && let Some(pi) = part_index
+                            && let Some(staff) = score.parts[pi]
+                                .staves
+                                .get_mut(current_clef_staff_number - 1)
+                        {
+                            staff.clef = current_clef.clone();
+                        }
                     }
                     "transpose" => {
                         in_transpose = false;
@@ -789,6 +1010,22 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             as i16;
                     }
                     "pitch" => in_pitch = false,
+                    "display-step" if in_unpitched => {
+                        note_step = match current_text.trim() {
+                            "C" => Step::C,
+                            "D" => Step::D,
+                            "E" => Step::E,
+                            "F" => Step::F,
+                            "G" => Step::G,
+                            "A" => Step::A,
+                            "B" => Step::B,
+                            _ => Step::C,
+                        };
+                    }
+                    "display-octave" if in_unpitched => {
+                        note_octave = current_text.trim().parse().unwrap_or(4);
+                    }
+                    "unpitched" if in_unpitched => in_unpitched = false,
                     "measure-style" => in_measure_style = false,
                     "multiple-rest" if in_multiple_rest => {
                         in_multiple_rest = false;
@@ -859,11 +1096,24 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "duration" if in_note => {
                         _note_duration_ticks = current_text.parse().unwrap_or(480);
                     }
+                    "actual-notes" if in_time_modification => {
+                        note_tuplet_actual = current_text.trim().parse().ok();
+                    }
+                    "normal-notes" if in_time_modification => {
+                        note_tuplet_normal = current_text.trim().parse().ok();
+                    }
+                    "time-modification" if in_time_modification => {
+                        in_time_modification = false;
+                    }
                     "voice" if in_note => {
                         note_voice = current_text.parse().unwrap_or(1);
                     }
                     "staff" if in_note => {
-                        note_staff = current_text.parse().unwrap_or(1);
+                        note_staff = current_text
+                            .parse::<usize>()
+                            .ok()
+                            .filter(|number| (1..=MAX_STAVES).contains(number))
+                            .unwrap_or(1);
                     }
                     "type" if in_note => note_type = current_text.clone(),
                     "tremolo" if pending_tremolo => {
@@ -876,7 +1126,9 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "ornaments" => in_ornament_block = false,
                     "technical" => in_technical_block = false,
                     "fingering" if in_technical_block => {
-                        pending_fingering = current_text.trim().parse().ok();
+                        if let Ok(fingering) = current_text.trim().parse() {
+                            pending_fingerings.push(fingering);
+                        }
                     }
                     "string" if in_technical_block => {
                         pending_string_number = current_text.trim().parse().ok();
@@ -892,6 +1144,12 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     }
                     "bend" if in_technical_block => {
                         pending_guitar_technique = Some(GuitarTechnique::Bend);
+                    }
+                    "bend-alter" if in_technical_block => {
+                        pending_guitar_bend_alter_cents =
+                            current_text.trim().parse::<f32>().ok().map(|value| {
+                                (value * 100.0).round().clamp(-32768.0, 32767.0) as i16
+                            });
                     }
                     "slide" if in_technical_block => {
                         pending_guitar_technique = Some(GuitarTechnique::Slide);
@@ -939,157 +1197,212 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         }
                     }
                     "note" => {
-                        if let Some(pi) = part_index
-                            && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
-                        {
-                            let voice_index = note_voice.saturating_sub(1) as usize;
-                            if voice_index >= m.voices.len() {
-                                return Err(Error::Xml(format!(
-                                    "voice number must be between 1 and {}",
-                                    m.voices.len()
-                                )));
-                            }
-                            let voice = &mut m.voices[voice_index];
-                            let dur = parse_duration_type(&note_type);
-                            let dot_count = u8::from(note_dot);
-                            let note = if note_rest {
-                                let mut n = Note::rest(dur);
-                                n.dot_count = dot_count;
-                                n
+                        if let Some(pi) = part_index {
+                            let requested_staff_index = note_staff.saturating_sub(1);
+                            let route_to_declared_staff = requested_staff_index > 0
+                                && score.parts[pi].staves.len() > requested_staff_index;
+                            let target_staff_index = if route_to_declared_staff {
+                                requested_staff_index
                             } else {
-                                let pitch = Pitch::with_microtone(
-                                    note_step.clone(),
-                                    note_octave,
-                                    note_alter,
-                                    note_microtone_cents,
-                                );
-                                let mut n = Note::new(pitch, dur);
-                                n.dot_count = dot_count;
-                                n.is_grace = note_is_grace;
-                                n.grace_slash = note_grace_slash;
-                                n.is_cue = note_is_cue;
-                                n
+                                0
                             };
-                            if note_chord && !voice.is_empty() {
-                                if let Some(last) = voice.last_mut()
-                                    && !last.is_rest
-                                    && !note.is_rest
-                                {
-                                    if let Some(p) = note.pitches.first() {
-                                        last.pitches.push(p.clone());
-                                    }
-                                    if let Some(f) = pending_fingering.take() {
-                                        last.fingering = Some(f);
-                                    }
-                                    let tab_string = pending_string_number.take();
-                                    if let Some(s) = tab_string {
-                                        last.string_number = Some(s);
-                                    }
-                                    if let (Some(string), Some(fret)) =
-                                        (tab_string, pending_fret.take())
+                            let measure_count = score.parts[pi].staves[0].measures.len();
+                            while score.parts[pi].staves[target_staff_index].measures.len()
+                                < measure_count
+                            {
+                                let mut staff_measure = Measure::empty(
+                                    current_time.numerator,
+                                    current_time.denominator,
+                                );
+                                staff_measure.number = current_measure_number;
+                                staff_measure.voices[0].clear();
+                                score.parts[pi].staves[target_staff_index]
+                                    .measures
+                                    .push(staff_measure);
+                            }
+                            if let Some(m) = score.parts[pi].staves[target_staff_index]
+                                .measures
+                                .last_mut()
+                            {
+                                let voice_index = note_voice.saturating_sub(1) as usize;
+                                if voice_index >= m.voices.len() {
+                                    return Err(Error::Xml(format!(
+                                        "voice number must be between 1 and {}",
+                                        m.voices.len()
+                                    )));
+                                }
+                                let voice = &mut m.voices[voice_index];
+                                let dur = parse_duration_type(&note_type);
+                                let dot_count = u8::from(note_dot);
+                                let note = if note_rest {
+                                    let mut n = Note::rest(dur);
+                                    n.dot_count = dot_count;
+                                    n
+                                } else {
+                                    let pitch = Pitch::with_microtone(
+                                        note_step.clone(),
+                                        note_octave,
+                                        note_alter,
+                                        note_microtone_cents,
+                                    );
+                                    let mut n = Note::new(pitch, dur);
+                                    n.dot_count = dot_count;
+                                    n.is_grace = note_is_grace;
+                                    n.grace_slash = note_grace_slash;
+                                    n.is_cue = note_is_cue;
+                                    n.is_unpitched = note_is_unpitched;
+                                    n.instrument_id = note_instrument_id.clone();
+                                    n
+                                };
+                                if note_chord && !voice.is_empty() {
+                                    if let Some(last) = voice.last_mut()
+                                        && !last.is_rest
+                                        && !note.is_rest
                                     {
-                                        let position = acorde_core::TabPosition { string, fret };
-                                        last.tab_positions.push(position.clone());
-                                        if last.tab_position.is_none() {
-                                            last.tab_position = Some(position);
+                                        if let Some(p) = note.pitches.first() {
+                                            last.pitches.push(p.clone());
+                                        }
+                                        last.is_unpitched |= note_is_unpitched;
+                                        if note_instrument_id.is_some() {
+                                            last.instrument_id = note_instrument_id.clone();
+                                        }
+                                        if !pending_fingerings.is_empty() {
+                                            if last.fingering.is_none() {
+                                                last.fingering =
+                                                    pending_fingerings.first().copied();
+                                            }
+                                            last.fingerings.append(&mut pending_fingerings);
+                                        }
+                                        let tab_string = pending_string_number.take();
+                                        if let Some(s) = tab_string {
+                                            last.string_number = Some(s);
+                                        }
+                                        if let (Some(string), Some(fret)) =
+                                            (tab_string, pending_fret.take())
+                                        {
+                                            let position =
+                                                acorde_core::TabPosition { string, fret };
+                                            last.tab_positions.push(position.clone());
+                                            if last.tab_position.is_none() {
+                                                last.tab_position = Some(position);
+                                            }
+                                        }
+                                        if let Some(t) = pending_technique_text.take() {
+                                            last.technique_text = Some(t);
+                                        }
+                                        if let Some(nh) = pending_note_head.take() {
+                                            last.note_head = nh;
+                                        }
+                                        if let Some(gt) = pending_guitar_technique.take() {
+                                            last.guitar_technique = Some(gt);
+                                        }
+                                        if let Some(cents) = pending_guitar_bend_alter_cents.take()
+                                        {
+                                            last.guitar_bend_alter_cents = Some(cents);
+                                        }
+                                        if let Some(up) = note_stem_up {
+                                            last.stem_up = Some(up);
                                         }
                                     }
+                                } else {
+                                    if voice.len() >= MAX_NOTES_PER_VOICE {
+                                        return Err(Error::Xml("too many notes in voice".into()));
+                                    }
+                                    let mut note = note;
+                                    if let (Some(actual_notes), Some(normal_notes)) =
+                                        (note_tuplet_actual, note_tuplet_normal)
+                                        && actual_notes > 0
+                                        && normal_notes > 0
+                                    {
+                                        note.tuplet = Some(TupletInfo {
+                                            actual_notes,
+                                            normal_notes,
+                                        });
+                                    }
+                                    if let Some(kind) = pending_hairpin_start.take() {
+                                        note.hairpin_start = Some(kind);
+                                    }
+                                    if let Some(cs) = pending_chord.take() {
+                                        note.chord_symbol = Some(cs);
+                                    }
+                                    if let Some(ok) = pending_ottava_start.take() {
+                                        note.ottava_start = Some(ok);
+                                    }
+                                    if pending_pedal_start {
+                                        note.pedal_start = true;
+                                        pending_pedal_start = false;
+                                    }
+                                    if note_slur_start {
+                                        note.slur_start = true;
+                                    }
+                                    if note_slur_end {
+                                        note.slur_end = true;
+                                    }
+                                    note.glissando_start = note_glissando_start;
+                                    note.glissando_end = note_glissando_end;
+                                    if let Some(arp) = note_arpeggiate.take() {
+                                        note.arpeggiate = Some(arp);
+                                    }
+                                    if !pending_fingerings.is_empty() {
+                                        note.fingerings = std::mem::take(&mut pending_fingerings);
+                                        note.fingering = note.fingerings.first().copied();
+                                    }
+                                    if let Some(s) = pending_string_number.take() {
+                                        note.string_number = Some(s);
+                                    }
+                                    if let (Some(string), Some(fret)) =
+                                        (note.string_number, pending_fret.take())
+                                    {
+                                        note.tab_position =
+                                            Some(acorde_core::TabPosition { string, fret });
+                                        note.tab_positions =
+                                            note.tab_position.clone().into_iter().collect();
+                                    }
                                     if let Some(t) = pending_technique_text.take() {
-                                        last.technique_text = Some(t);
+                                        note.technique_text = Some(t);
                                     }
                                     if let Some(nh) = pending_note_head.take() {
-                                        last.note_head = nh;
+                                        note.note_head = nh;
                                     }
                                     if let Some(gt) = pending_guitar_technique.take() {
-                                        last.guitar_technique = Some(gt);
+                                        note.guitar_technique = Some(gt);
+                                    }
+                                    if let Some(cents) = pending_guitar_bend_alter_cents.take() {
+                                        note.guitar_bend_alter_cents = Some(cents);
                                     }
                                     if let Some(up) = note_stem_up {
-                                        last.stem_up = Some(up);
+                                        note.stem_up = Some(up);
                                     }
+                                    if note_trill_line_start {
+                                        note.trill_line_start = true;
+                                    }
+                                    if note_trill_line_end {
+                                        note.trill_line_end = true;
+                                    }
+                                    if note_staff > 1 && !route_to_declared_staff {
+                                        note.cross_staff = Some(acorde_core::CrossStaff {
+                                            target_staff: requested_staff_index,
+                                            target_voice: None,
+                                        });
+                                    }
+                                    if !pending_articulations.is_empty() {
+                                        note.articulations =
+                                            std::mem::take(&mut pending_articulations);
+                                    }
+                                    if !lyric_text.is_empty() {
+                                        note.lyric = Some(Lyric {
+                                            text: lyric_text.clone(),
+                                            syllabic: if lyric_syllabic.is_empty() {
+                                                "single".to_string()
+                                            } else {
+                                                lyric_syllabic.clone()
+                                            },
+                                        });
+                                        lyric_text.clear();
+                                        lyric_syllabic = "single".to_string();
+                                    }
+                                    voice.push(note);
                                 }
-                            } else {
-                                if voice.len() >= MAX_NOTES_PER_VOICE {
-                                    return Err(Error::Xml("too many notes in voice".into()));
-                                }
-                                let mut note = note;
-                                if let Some(kind) = pending_hairpin_start.take() {
-                                    note.hairpin_start = Some(kind);
-                                }
-                                if let Some(cs) = pending_chord.take() {
-                                    note.chord_symbol = Some(cs);
-                                }
-                                if let Some(ok) = pending_ottava_start.take() {
-                                    note.ottava_start = Some(ok);
-                                }
-                                if pending_pedal_start {
-                                    note.pedal_start = true;
-                                    pending_pedal_start = false;
-                                }
-                                if note_slur_start {
-                                    note.slur_start = true;
-                                }
-                                if note_slur_end {
-                                    note.slur_end = true;
-                                }
-                                note.glissando_start = note_glissando_start;
-                                note.glissando_end = note_glissando_end;
-                                if let Some(arp) = note_arpeggiate.take() {
-                                    note.arpeggiate = Some(arp);
-                                }
-                                if let Some(f) = pending_fingering.take() {
-                                    note.fingering = Some(f);
-                                }
-                                if let Some(s) = pending_string_number.take() {
-                                    note.string_number = Some(s);
-                                }
-                                if let (Some(string), Some(fret)) =
-                                    (note.string_number, pending_fret.take())
-                                {
-                                    note.tab_position =
-                                        Some(acorde_core::TabPosition { string, fret });
-                                    note.tab_positions =
-                                        note.tab_position.clone().into_iter().collect();
-                                }
-                                if let Some(t) = pending_technique_text.take() {
-                                    note.technique_text = Some(t);
-                                }
-                                if let Some(nh) = pending_note_head.take() {
-                                    note.note_head = nh;
-                                }
-                                if let Some(gt) = pending_guitar_technique.take() {
-                                    note.guitar_technique = Some(gt);
-                                }
-                                if let Some(up) = note_stem_up {
-                                    note.stem_up = Some(up);
-                                }
-                                if note_staff > 1 {
-                                    note.cross_staff = Some(acorde_core::CrossStaff {
-                                        target_staff: note_staff - 1,
-                                        target_voice: None,
-                                    });
-                                }
-                                if note_trill_line_start {
-                                    note.trill_line_start = true;
-                                }
-                                if note_trill_line_end {
-                                    note.trill_line_end = true;
-                                }
-                                if !pending_articulations.is_empty() {
-                                    note.articulations = std::mem::take(&mut pending_articulations);
-                                }
-                                if !lyric_text.is_empty() {
-                                    note.lyric = Some(Lyric {
-                                        text: lyric_text.clone(),
-                                        syllabic: if lyric_syllabic.is_empty() {
-                                            "single".to_string()
-                                        } else {
-                                            lyric_syllabic.clone()
-                                        },
-                                    });
-                                    lyric_text.clear();
-                                    lyric_syllabic = "single".to_string();
-                                }
-                                voice.push(note);
                             }
                         }
                         in_note = false;
@@ -1206,6 +1519,20 @@ mod tests {
         let notes = &score.parts[0].staves[0].measures[0].voices[0];
         assert!(!notes.is_empty());
         assert!(!notes[0].is_rest);
+    }
+
+    #[test]
+    fn standard_time_modification_preserves_tuplet_ratio() {
+        let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>480</divisions><time><beats>2</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>320</duration><voice>1</voice><type>eighth</type><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification></note></measure></part></score-partwise>"#;
+        let score = parse_musicxml(xml).expect("MusicXML tuplet parses");
+        let note = &score.parts[0].staves[0].measures[0].voices[0][0];
+        assert_eq!(
+            note.tuplet,
+            Some(TupletInfo {
+                actual_notes: 3,
+                normal_notes: 2,
+            })
+        );
     }
 
     #[test]

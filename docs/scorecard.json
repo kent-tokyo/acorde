@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
-  "release": "1.0.x",
+  "release": "1.1.x",
   "policy": {
     "claims_require_fixture_or_focused_test": true,
     "external_publication_verified": false,
+    "phase_6_local_gates_complete": true,
     "benchmark_latency_is_host_measured": true
   },
   "capabilities": {
@@ -26,12 +27,13 @@
     "headless_transpose": "yes",
     "headless_extract_part": "yes",
     "headless_export_report": "yes",
-    "print_pagination": "planned",
+    "print_pagination": "yes",
     "percussion_and_tablature": "partial"
   },
   "known_gaps": [
-    "Tablature and microtonal accidentals are unsupported.",
-    "Print pagination and PDF generation remain planned host-bound work.",
+    "Tablature and microtonal accidentals are supported only in documented subsets; ABC does not emit canonical tablature staff, string/fret, or guitar-technique fields.",
+    "Broad held-out MEI/MSCZ/MIDI corpus comparison and audio-rendering equivalence remain external validation gates.",
+    "Advanced print engraving, PDF generation, and OS printing remain host-bound or planned work.",
     "Browser E2E and cross-browser visual measurements are not implied by native tests."
   ],
   "evidence": {

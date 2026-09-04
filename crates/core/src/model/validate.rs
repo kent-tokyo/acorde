@@ -61,6 +61,16 @@ pub enum ValidationError {
         string: u8,
         lines: u8,
     },
+    /// A pitch's microtonal cents component is outside the canonical -99..99 range.
+    MicrotoneOutOfRange {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        voice: usize,
+        note: usize,
+        pitch: usize,
+        microtone_cents: i16,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -247,25 +257,47 @@ pub fn validate(score: &Score) -> ValidationReport {
                         });
                     }
 
+                    for (ni, note) in voice.iter().enumerate() {
+                        if note.is_rest || note.is_grace {
+                            continue;
+                        }
+                        for (pitch_index, pitch) in note.pitches.iter().enumerate() {
+                            if !(-99..=99).contains(&pitch.microtone_cents) {
+                                errors.push(ValidationError::MicrotoneOutOfRange {
+                                    part: pi,
+                                    staff: si,
+                                    measure: mi,
+                                    voice: vi,
+                                    note: ni,
+                                    pitch: pitch_index,
+                                    microtone_cents: pitch.microtone_cents,
+                                });
+                            }
+                        }
+                    }
+
                     if !is_percussion {
                         let transpose = staff.transpose_semitones;
                         for (ni, note) in voice.iter().enumerate() {
                             if note.is_rest || note.is_grace {
                                 continue;
                             }
-                            if let Some(position) = &note.tab_position
-                                && let Some(tab) = &staff.tablature
-                                && (position.string == 0 || position.string > tab.lines)
-                            {
-                                errors.push(ValidationError::TabPositionOutOfRange {
-                                    part: pi,
-                                    staff: si,
-                                    measure: mi,
-                                    voice: vi,
-                                    note: ni,
-                                    string: position.string,
-                                    lines: tab.lines,
-                                });
+                            if let Some(tab) = &staff.tablature {
+                                let positions =
+                                    note.tab_position.iter().chain(note.tab_positions.iter());
+                                for position in positions {
+                                    if position.string == 0 || position.string > tab.lines {
+                                        errors.push(ValidationError::TabPositionOutOfRange {
+                                            part: pi,
+                                            staff: si,
+                                            measure: mi,
+                                            voice: vi,
+                                            note: ni,
+                                            string: position.string,
+                                            lines: tab.lines,
+                                        });
+                                    }
+                                }
                             }
                             for pitch in &note.pitches {
                                 let midi = (pitch.to_midi() + transpose as i16).clamp(0, 127) as u8;
@@ -462,6 +494,22 @@ mod tests {
     }
 
     #[test]
+    fn validate_rejects_deserialized_microtone_out_of_range() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        note.pitches[0].microtone_cents = 100;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let report = validate(&score);
+        assert!(report.errors.iter().any(|error| matches!(
+            error,
+            ValidationError::MicrotoneOutOfRange {
+                microtone_cents: 100,
+                ..
+            }
+        )));
+    }
+
+    #[test]
     fn validate_rejects_invalid_tablature_metadata_and_positions() {
         let mut score = Score::new("Tab", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].tablature = Some(super::super::notation::TablatureConfig {
@@ -471,6 +519,7 @@ mod tests {
         });
         let mut note = Note::new(Pitch::new(Step::E, 4), Duration::Whole);
         note.tab_position = Some(super::super::notation::TabPosition { string: 7, fret: 0 });
+        note.tab_positions = vec![super::super::notation::TabPosition { string: 8, fret: 3 }];
         score.parts[0].staves[0].measures[0].voices[0] = vec![note];
 
         let report = validate(&score);
@@ -486,6 +535,14 @@ mod tests {
                 .errors
                 .iter()
                 .any(|error| matches!(error, ValidationError::TabPositionOutOfRange { .. }))
+        );
+        assert_eq!(
+            report
+                .errors
+                .iter()
+                .filter(|error| matches!(error, ValidationError::TabPositionOutOfRange { .. }))
+                .count(),
+            2
         );
     }
 

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mei xmlns="http://www.music-encoding.org/ns/mei">
+  <meiHead><fileDesc><titleStmt><title>Interchange subset</title></titleStmt></fileDesc></meiHead>
+  <music><body><mdiv><score>
+    <scoreDef meter.count="4" meter.unit="4" key.sig="0">
+      <staffGrp><staffDef n="1" clef.shape="G" clef.line="2"/></staffGrp>
+    </scoreDef>
+    <section><measure n="1"><harm>Cmaj7</harm><reh>A</reh><dir>D.C. al Fine</dir><staff n="1"><layer n="1">
+      <note pname="c" oct="4" dur="4" accid="qs" tie="i"/>
+      <note pname="d" oct="4" dur="4"/>
+    </layer><layer n="2"><rest dur="2"/></layer></staff></measure></section>
+  </score></mdiv></body></music>
+</mei>

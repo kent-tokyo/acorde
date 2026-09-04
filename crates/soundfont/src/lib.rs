@@ -184,6 +184,90 @@ impl SoundFontPresetZone {
     pub fn contains(&self, bank: u16, program: u16, key: u8, velocity: u8) -> bool {
         self.bank == bank && self.program == program && self.region.contains(key, velocity)
     }
+
+    /// Return an owned snapshot of the resolved zone for downstream hosts.
+    pub fn resolved_metadata(&self) -> ResolvedPresetZoneMetadata {
+        ResolvedPresetZoneMetadata::from_zone(self)
+    }
+}
+
+/// Fully resolved, provider-neutral metadata for one playable preset zone.
+///
+/// Providers interpret SF2 generators or SF3 metadata before constructing a
+/// [`SoundFontPresetZone`]. Downstream hosts can retain this owned snapshot for
+/// UI, diagnostics, cache keys, or audio setup without repeating that parsing.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResolvedPresetZoneMetadata {
+    pub bank: u16,
+    pub program: u16,
+    pub sample_id: u64,
+    pub start_frame: u32,
+    pub end_frame: u32,
+    pub key_min: u8,
+    pub key_max: u8,
+    pub velocity_min: u8,
+    pub velocity_max: u8,
+    pub root_key: u8,
+    pub fine_tune_cents: i16,
+    pub attenuation_db: f32,
+    pub sample_rate: u32,
+    pub compression: SampleCompression,
+    pub loop_points: Option<SampleLoop>,
+    pub attack_secs: f32,
+    pub decay_secs: f32,
+    pub sustain_level: f32,
+    pub release_secs: f32,
+}
+
+impl ResolvedPresetZoneMetadata {
+    fn from_zone(zone: &SoundFontPresetZone) -> Self {
+        let region = &zone.region;
+        Self {
+            bank: zone.bank,
+            program: zone.program,
+            sample_id: region.sample_id,
+            start_frame: region.start_frame,
+            end_frame: region.end_frame,
+            key_min: region.key_min,
+            key_max: region.key_max,
+            velocity_min: region.velocity_min,
+            velocity_max: region.velocity_max,
+            root_key: region.root_key,
+            fine_tune_cents: region.fine_tune_cents,
+            attenuation_db: region.attenuation_db,
+            sample_rate: region.sample_rate,
+            compression: region.compression,
+            loop_points: region.loop_points,
+            attack_secs: region.attack_secs,
+            decay_secs: region.decay_secs,
+            sustain_level: region.sustain_level,
+            release_secs: region.release_secs,
+        }
+    }
+
+    /// Reconstruct the validated provider-neutral region represented by this snapshot.
+    pub fn sample_region(&self) -> Result<SampleRegion, Error> {
+        let region = SampleRegion {
+            sample_id: self.sample_id,
+            start_frame: self.start_frame,
+            end_frame: self.end_frame,
+            key_min: self.key_min,
+            key_max: self.key_max,
+            velocity_min: self.velocity_min,
+            velocity_max: self.velocity_max,
+            root_key: self.root_key,
+            fine_tune_cents: self.fine_tune_cents,
+            attenuation_db: self.attenuation_db,
+            sample_rate: self.sample_rate,
+            compression: self.compression,
+            loop_points: self.loop_points,
+            attack_secs: self.attack_secs,
+            decay_secs: self.decay_secs,
+            sustain_level: self.sustain_level,
+            release_secs: self.release_secs,
+        };
+        validate_sample_region(&region).map(|()| region)
+    }
 }
 
 /// Select a preset zone deterministically for a bank/program/key/velocity tuple.
@@ -208,6 +292,19 @@ pub fn select_preset_zone(
                 zone.region.sample_id,
             )
         })
+}
+
+/// Resolve and return owned metadata for a bank/program/key/velocity request.
+pub fn resolve_preset_zone_metadata(
+    zones: &[SoundFontPresetZone],
+    bank: u16,
+    program: u16,
+    key: u8,
+    velocity: u8,
+) -> Result<ResolvedPresetZoneMetadata, Error> {
+    select_preset_zone(zones, bank, program, key, velocity)
+        .map(SoundFontPresetZone::resolved_metadata)
+        .ok_or(Error::InvalidSample)
 }
 
 /// Select a bank/program/key/velocity zone and build its provider-neutral voice plan.
@@ -964,6 +1061,7 @@ mod tests {
             time_beats: 0.0,
             time_secs: 0.0,
             pitch_midi: 60,
+            pitch_midi_cents: 6000,
             velocity,
             duration_beats: 1.0,
             duration_secs: 1.0,
@@ -1047,6 +1145,50 @@ mod tests {
         let action = schedule_preset_note_on(9, event("preset", 100), &zones, 2, 10, 1.0)
             .expect("preset plan");
         assert!(matches!(action, SampleAction::Start { sample_id: 2, .. }));
+    }
+
+    #[test]
+    fn resolved_zone_metadata_is_owned_and_round_trips_to_region() {
+        let zone = SoundFontPresetZone::new(2, 10, region(7, 48, 72)).expect("zone");
+        let metadata = zone.resolved_metadata();
+        assert_eq!(metadata.bank, 2);
+        assert_eq!(metadata.program, 10);
+        assert_eq!(metadata.sample_id, 7);
+        assert_eq!(metadata.key_min, 48);
+        assert_eq!(metadata.key_max, 72);
+        assert_eq!(
+            metadata.loop_points,
+            Some(SampleLoop {
+                start_frame: 10,
+                end_frame: 100
+            })
+        );
+        assert_eq!(
+            metadata.sample_region().expect("validated region"),
+            zone.region
+        );
+    }
+
+    #[test]
+    fn resolved_zone_metadata_uses_the_same_deterministic_selection() {
+        let zones = vec![
+            SoundFontPresetZone::new(2, 10, region(20, 0, 127)).expect("wide zone"),
+            SoundFontPresetZone::new(2, 10, region(10, 60, 60)).expect("narrow zone"),
+        ];
+        let metadata =
+            resolve_preset_zone_metadata(&zones, 2, 10, 60, 100).expect("resolved metadata");
+        assert_eq!(metadata.sample_id, 10);
+        assert_eq!(
+            metadata
+                .sample_region()
+                .expect("validated region")
+                .sample_id,
+            10
+        );
+        assert_eq!(
+            resolve_preset_zone_metadata(&zones, 3, 10, 60, 100),
+            Err(Error::InvalidSample)
+        );
     }
 
     #[test]

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mei xmlns="http://www.music-encoding.org/ns/mei">
+  <meiHead><fileDesc><titleStmt><title>Harmonic analysis fixture</title></titleStmt></fileDesc></meiHead>
+  <music><body><mdiv><score>
+    <scoreDef meter.count="4" meter.unit="4" key.sig="0">
+      <staffGrp><staffDef n="1" clef.shape="G" clef.line="2"/></staffGrp>
+    </scoreDef>
+    <chordTable><chordDef xml:id="harmonychordA" label="C" type="guitar" tab.pos="3" tab.strings="e2a2d3g3b3e4"><chordMember xml:id="member1" pname="c" oct="4" tab.string="5" tab.fret="3" tab.fing="3"/><chordMember xml:id="member2" pname="d" oct="4" accid.ges="1qs" tab.course="2" tab.fret="2"/><barre startid="#member1" endid="#member2" fret="3"/></chordDef></chordTable>
+    <section><measure n="1">
+      <harm startid="#n1" place="above" extender="true" deg="V7" type="roman" chordref="#harmonychordA">C7</harm>
+      <staff n="1"><layer n="1">
+        <note xml:id="n1" pname="c" oct="4" dur="1"/>
+      </layer></staff>
+    </measure></section>
+  </score></mdiv></body></music>
+</mei>

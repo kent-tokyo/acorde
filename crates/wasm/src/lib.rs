@@ -427,6 +427,44 @@ pub fn assign_tablature_positions(score_json: &str) -> Result<String, JsValue> {
     score_to_json(&score)
 }
 
+/// Select one authored fingering candidate without modifying the score.
+///
+/// `policy` accepts `source-order`, `lowest`, or `highest`. The result is a
+/// JSON number, or `null` when the addressed note has no fingering candidates.
+#[wasm_bindgen]
+pub fn select_fingering(
+    score_json: &str,
+    part: usize,
+    staff: usize,
+    measure: usize,
+    voice: usize,
+    note: usize,
+    policy: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let policy = match policy {
+        "source-order" | "source" => acorde_core::FingeringSelectionPolicy::SourceOrder,
+        "lowest" | "lowest-number" => acorde_core::FingeringSelectionPolicy::LowestNumber,
+        "highest" | "highest-number" => acorde_core::FingeringSelectionPolicy::HighestNumber,
+        _ => {
+            return Err(js_err(
+                "unknown fingering policy; expected source-order, lowest, or highest",
+            ));
+        }
+    };
+    let addressed_note = score
+        .parts
+        .get(part)
+        .and_then(|part_value| part_value.staves.get(staff))
+        .and_then(|staff_value| staff_value.measures.get(measure))
+        .and_then(|measure_value| measure_value.voices.get(voice))
+        .and_then(|voice_value| voice_value.get(note))
+        .ok_or_else(|| js_err("fingering note address is out of range"))?;
+    let selected = addressed_note.select_fingering(policy);
+    serde_json::to_string(&selected)
+        .map_err(|e| js_err(format!("fingering selection serialization failed: {e}")))
+}
+
 /// Extract a single part (0-based) from a score.
 #[wasm_bindgen]
 pub fn extract_part(score_json: &str, part_index: usize) -> Result<String, JsValue> {
@@ -1098,6 +1136,21 @@ impl ScoreEngine {
         serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
     }
 
+    /// Set or clear the unpitched flag while retaining display placement.
+    pub fn set_unpitched(
+        &mut self,
+        addr_json: &str,
+        is_unpitched: bool,
+    ) -> Result<String, JsValue> {
+        let addr: acorde_core::NoteAddr = serde_json::from_str(addr_json)
+            .map_err(|e| js_err(format!("invalid NoteAddr: {e}")))?;
+        let hint = self
+            .inner
+            .set_unpitched(addr, is_unpitched)
+            .map_err(js_err)?;
+        serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
+    }
+
     /// Set the note head shape on a note.
     ///
     /// `addr_json`: JSON-encoded `NoteAddr`.
@@ -1251,6 +1304,32 @@ mod wasm_tests {
         let patched = apply_score_patch(&before, &patches).unwrap();
         assert!(patched.contains("Patched"));
         assert!(apply_score_patch(&before, "not-json").is_err());
+    }
+
+    #[wasm_bindgen_test]
+    fn browser_fingering_selection_is_deterministic() {
+        let mut score = Score::default();
+        score.parts[0].staves[0].measures[0].voices[0].push(acorde_core::Note::new(
+            acorde_core::Pitch::new(acorde_core::Step::C, 4),
+            acorde_core::Duration::Quarter,
+        ));
+        let note = &mut score.parts[0].staves[0].measures[0].voices[0][0];
+        note.fingerings = vec![3, 1, 4];
+        note.fingering = Some(3);
+        let score_json = serde_json::to_string(&score).unwrap();
+        assert_eq!(
+            select_fingering(&score_json, 0, 0, 0, 0, 0, "source-order").unwrap(),
+            "3"
+        );
+        assert_eq!(
+            select_fingering(&score_json, 0, 0, 0, 0, 0, "lowest").unwrap(),
+            "1"
+        );
+        assert_eq!(
+            select_fingering(&score_json, 0, 0, 0, 0, 0, "highest").unwrap(),
+            "4"
+        );
+        assert!(select_fingering(&score_json, 9, 0, 0, 0, 0, "lowest").is_err());
     }
 
     #[wasm_bindgen_test]

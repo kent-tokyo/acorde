@@ -1,3 +1,4 @@
+use super::validation::validate_event_ranges;
 use crate::Error;
 use acorde_core::{Score, TupletInfo};
 use midly::{
@@ -42,12 +43,13 @@ pub fn serialize_midi_region(score: &Score, region: (usize, usize)) -> Result<Ve
 }
 
 fn serialize_midi_impl(score: &Score, seq: &[usize]) -> Result<Vec<u8>, Error> {
+    validate_event_ranges(score)?;
     let header = Header::new(Format::Parallel, Timing::Metrical(u15::from(PPQ as u16)));
     let mut smf = Smf::new(header);
 
-    smf.tracks.push(build_meta_track(score, seq));
+    smf.tracks.push(build_meta_track(score, seq)?);
     for part in &score.parts {
-        smf.tracks.push(build_part_track(part, seq));
+        smf.tracks.push(build_part_track(part, seq)?);
     }
 
     let mut bytes = Vec::new();
@@ -58,13 +60,18 @@ fn serialize_midi_impl(score: &Score, seq: &[usize]) -> Result<Vec<u8>, Error> {
 
 // ── meta track ────────────────────────────────────────────────────────────────
 
-/// Clamp a u64 delta to the MIDI variable-length quantity limit (28 bits = 0x0FFF_FFFF).
+/// Convert a delta to the MIDI variable-length quantity limit (28 bits).
 #[inline]
-fn clamp_delta(delta: u64) -> u28 {
-    u28::from(delta.min(0x0FFF_FFFF) as u32)
+fn checked_delta(delta: u64) -> Result<u28, Error> {
+    const MAX_DELTA: u64 = 0x0FFF_FFFF;
+    u32::try_from(delta)
+        .ok()
+        .filter(|&value| u64::from(value) <= MAX_DELTA)
+        .map(u28::from)
+        .ok_or_else(|| Error::Midi(format!("MIDI delta {delta} exceeds 28-bit limit")))
 }
 
-fn build_meta_track<'a>(score: &Score, seq: &[usize]) -> Vec<TrackEvent<'a>> {
+fn build_meta_track<'a>(score: &Score, seq: &[usize]) -> Result<Vec<TrackEvent<'a>>, Error> {
     let ts = &score.settings.time_signature;
     let den_log2 = (ts.denominator as u32).trailing_zeros() as u8;
     let beats_per_measure = ts.numerator as f64 * 4.0 / ts.denominator as f64;
@@ -103,14 +110,29 @@ fn build_meta_track<'a>(score: &Score, seq: &[usize]) -> Vec<TrackEvent<'a>> {
 
         for &idx in seq {
             if cursor_tick > 0
-                && let Some(bpm) = first_staff.measures.get(idx).and_then(|m| m.tempo)
+                && let Some(measure) = first_staff.measures.get(idx)
             {
-                let us = 60_000_000u32 / bpm.max(1) as u32;
-                events.push(TrackEvent {
-                    delta: clamp_delta(cursor_tick - prev_event_tick),
-                    kind: TrackEventKind::Meta(MetaMessage::Tempo(u24::from(us))),
-                });
-                prev_event_tick = cursor_tick;
+                if let Some(bpm) = measure.tempo {
+                    let us = 60_000_000u32 / bpm.max(1) as u32;
+                    events.push(TrackEvent {
+                        delta: checked_delta(cursor_tick - prev_event_tick)?,
+                        kind: TrackEventKind::Meta(MetaMessage::Tempo(u24::from(us))),
+                    });
+                    prev_event_tick = cursor_tick;
+                }
+                if let Some(time_sig) = &measure.time_sig {
+                    let den_log2 = time_sig.denominator.trailing_zeros() as u8;
+                    events.push(TrackEvent {
+                        delta: checked_delta(cursor_tick - prev_event_tick)?,
+                        kind: TrackEventKind::Meta(MetaMessage::TimeSignature(
+                            time_sig.numerator,
+                            den_log2,
+                            24,
+                            8,
+                        )),
+                    });
+                    prev_event_tick = cursor_tick;
+                }
             }
             cursor_tick += ticks_per_measure;
         }
@@ -120,7 +142,7 @@ fn build_meta_track<'a>(score: &Score, seq: &[usize]) -> Vec<TrackEvent<'a>> {
         delta: u28::from(0u32),
         kind: TrackEventKind::Meta(MetaMessage::EndOfTrack),
     });
-    events
+    Ok(events)
 }
 
 // ── part track ────────────────────────────────────────────────────────────────
@@ -143,19 +165,35 @@ fn note_ticks(duration: &acorde_core::Duration, dot_count: u8, tuplet: Option<&T
     }
 }
 
-fn build_part_track(part: &acorde_core::Part, seq: &[usize]) -> Vec<TrackEvent<'static>> {
+fn build_part_track(
+    part: &acorde_core::Part,
+    seq: &[usize],
+) -> Result<Vec<TrackEvent<'static>>, Error> {
     let channel = u4::from(part.midi_channel.min(15));
     let mut events: Vec<TimedEvent> = Vec::new();
 
-    // Always emit ProgramChange at tick 0 to initialize the channel's timbre.
-    events.push(TimedEvent {
-        abs_tick: 0,
-        sort_key: 0,
-        channel,
-        message: MidiMessage::ProgramChange {
-            program: u7::from(part.midi_program),
-        },
-    });
+    if part.midi_program_changes.is_empty() {
+        // Always emit ProgramChange at tick 0 to initialize the channel's timbre.
+        events.push(TimedEvent {
+            abs_tick: 0,
+            sort_key: 0,
+            channel,
+            message: MidiMessage::ProgramChange {
+                program: u7::from(part.midi_program),
+            },
+        });
+    } else {
+        for program in &part.midi_program_changes {
+            events.push(TimedEvent {
+                abs_tick: program.tick,
+                sort_key: 1,
+                channel: u4::from(program.channel.min(15)),
+                message: MidiMessage::ProgramChange {
+                    program: u7::from(program.program.min(127)),
+                },
+            });
+        }
+    }
 
     for bend in &part.midi_pitch_bends {
         events.push(TimedEvent {
@@ -165,6 +203,36 @@ fn build_part_track(part: &acorde_core::Part, seq: &[usize]) -> Vec<TrackEvent<'
             message: MidiMessage::PitchBend {
                 bend: midly::PitchBend::from_int(bend.value),
             },
+        });
+    }
+
+    for control in &part.midi_control_changes {
+        events.push(TimedEvent {
+            abs_tick: control.tick,
+            sort_key: 1,
+            channel: u4::from(control.channel.min(15)),
+            message: MidiMessage::Controller {
+                controller: u7::from(control.controller.min(127)),
+                value: u7::from(control.value.min(127)),
+            },
+        });
+    }
+
+    for aftertouch in &part.midi_aftertouch {
+        let message = match aftertouch.key {
+            Some(key) => MidiMessage::Aftertouch {
+                key: u7::from(key.min(127)),
+                vel: u7::from(aftertouch.value.min(127)),
+            },
+            None => MidiMessage::ChannelAftertouch {
+                vel: u7::from(aftertouch.value.min(127)),
+            },
+        };
+        events.push(TimedEvent {
+            abs_tick: aftertouch.tick,
+            sort_key: 1,
+            channel: u4::from(aftertouch.channel.min(15)),
+            message,
         });
     }
 
@@ -226,7 +294,7 @@ fn build_part_track(part: &acorde_core::Part, seq: &[usize]) -> Vec<TrackEvent<'
     let mut prev: u64 = 0;
     for ev in events {
         track.push(TrackEvent {
-            delta: clamp_delta(ev.abs_tick - prev),
+            delta: checked_delta(ev.abs_tick - prev)?,
             kind: TrackEventKind::Midi {
                 channel: ev.channel,
                 message: ev.message,
@@ -238,13 +306,19 @@ fn build_part_track(part: &acorde_core::Part, seq: &[usize]) -> Vec<TrackEvent<'
         delta: u28::from(0u32),
         kind: TrackEventKind::Meta(MetaMessage::EndOfTrack),
     });
-    track
+    Ok(track)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use acorde_core::{Duration, Note, Pitch, Score, Step};
+
+    #[test]
+    fn midi_delta_rejects_values_above_vlq_limit() {
+        assert!(checked_delta(0x0FFF_FFFF).is_ok());
+        assert!(checked_delta(0x1000_0000).is_err());
+    }
 
     #[test]
     fn header_magic_bytes() {
@@ -309,6 +383,89 @@ mod tests {
         assert_eq!(
             restored.parts[0].midi_pitch_bends,
             score.parts[0].midi_pitch_bends
+        );
+    }
+
+    #[test]
+    fn pitch_bend_serializer_rejects_out_of_range_canonical_values() {
+        let mut score = Score::new("Invalid bend", 120, 4, 4, 0, 1);
+        score.parts[0].midi_pitch_bends = vec![acorde_core::MidiPitchBend {
+            tick: 0,
+            channel: 0,
+            value: 8192,
+        }];
+        let error = serialize_midi(&score).expect_err("invalid pitch-bend must be rejected");
+        assert!(error.to_string().contains("outside -8192..=8191"));
+    }
+
+    #[test]
+    fn controller_change_roundtrip_preserves_tick_channel_and_value() {
+        let mut score = Score::new("CC", 120, 4, 4, 0, 1);
+        score.parts[0].midi_control_changes = vec![acorde_core::MidiControlChange {
+            tick: 240,
+            channel: 3,
+            controller: 64,
+            value: 127,
+        }];
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        let bytes = serialize_midi(&score).expect("MIDI serialize failed");
+        let restored = acorde_io_parse_midi(&bytes);
+        assert_eq!(
+            restored.parts[0].midi_control_changes,
+            score.parts[0].midi_control_changes
+        );
+    }
+
+    #[test]
+    fn program_change_roundtrip_preserves_multiple_ticks_and_channels() {
+        let mut score = Score::new("Programs", 120, 4, 4, 0, 1);
+        score.parts[0].midi_program_changes = vec![
+            acorde_core::MidiProgramChange {
+                tick: 0,
+                channel: 0,
+                program: 0,
+            },
+            acorde_core::MidiProgramChange {
+                tick: 960,
+                channel: 0,
+                program: 40,
+            },
+        ];
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        let bytes = serialize_midi(&score).expect("MIDI serialize failed");
+        let restored = acorde_io_parse_midi(&bytes);
+        assert_eq!(
+            restored.parts[0].midi_program_changes,
+            score.parts[0].midi_program_changes
+        );
+    }
+
+    #[test]
+    fn aftertouch_roundtrip_preserves_key_and_channel_pressure() {
+        let mut score = Score::new("Aftertouch", 120, 4, 4, 0, 1);
+        score.parts[0].midi_aftertouch = vec![
+            acorde_core::MidiAftertouch {
+                tick: 120,
+                channel: 2,
+                key: Some(60),
+                value: 80,
+            },
+            acorde_core::MidiAftertouch {
+                tick: 240,
+                channel: 2,
+                key: None,
+                value: 40,
+            },
+        ];
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        let bytes = serialize_midi(&score).expect("MIDI serialize failed");
+        let restored = acorde_io_parse_midi(&bytes);
+        assert_eq!(
+            restored.parts[0].midi_aftertouch,
+            score.parts[0].midi_aftertouch
         );
     }
 

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<museScore version="3.02">
+  <Score>
+    <Part>
+      <Staff id="1"/>
+      <trackName>Figured Bass Fixture</trackName>
+    </Part>
+    <Staff id="1">
+      <Measure number="1">
+        <FiguredBass>
+          <FiguredBassItem><digit>6</digit></FiguredBassItem>
+          <FiguredBassItem><digit>4</digit></FiguredBassItem>
+        </FiguredBass>
+        <Chord>
+          <durationType>whole</durationType>
+          <Note><pitch>60</pitch><tpc>14</tpc></Note>
+        </Chord>
+      </Measure>
+    </Staff>
+  </Score>
+</museScore>

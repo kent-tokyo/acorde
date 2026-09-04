@@ -19,10 +19,14 @@ acorde tab-position guitar.musicxml edited.musicxml --part 0 --measure 0 --note 
 acorde tab-position edited.musicxml cleared.musicxml --part 0 --measure 0 --note 1 --clear
 acorde auto-tab guitar.musicxml guitar-tabbed.musicxml
 acorde auto-tab-report guitar.musicxml guitar-tabbed.musicxml
+acorde fingering-report guitar.musicxml --policy source-order
+acorde fingering-report guitar.musicxml --policy lowest
 ~~~
 
 `auto-tab-report` prints JSON containing assigned/remaining notes, chord count, total and maximum
 fret, while writing the optimized score to the requested output path.
+`fingering-report` prints each authored candidate list and the selected value without modifying the
+score. Its deterministic policies are `source-order`, `lowest`, and `highest`.
 
 Input supports .musicxml, .mxl, .mid/.midi, .abc, .mei, .mscz, and .mscx. Conversion output is
 MusicXML or MIDI. info prints title, counts, tempo, time signature, and duration estimate; validate
@@ -54,7 +58,7 @@ check does not require a SoundFont or other external asset:
 acorde validate tests/fixtures/guitar.musicxml
 ~~~
 
-An invalid line count, tuning value, or string number exits with status 1 and prints the
-part/staff location.
+An invalid line count, tuning value, string number, or microtone-cent value exits with status 1
+and prints the part/staff location.
 
 CLI input and output boundary rules are documented in the [security contract](../../docs/security/threat-model.md).

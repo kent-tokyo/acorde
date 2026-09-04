@@ -1,9 +1,9 @@
 use super::{
     duration::Duration,
     notation::{
-        Articulation, Barline, BeamState, ChordSymbol, Clef, CrossStaff, Dynamic, GuitarTechnique,
-        HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind, StyledText, TabPosition,
-        TablatureConfig, TimeSignature, TupletInfo,
+        Articulation, Barline, BeamState, ChordDefinition, ChordSymbol, Clef, CrossStaff, Dynamic,
+        FiguredBassFigure, GuitarTechnique, HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind,
+        StyledText, TabPosition, TablatureConfig, TimeSignature, TupletInfo,
     },
     pitch::Pitch,
 };
@@ -72,6 +72,23 @@ pub struct PartGroup {
     pub barlines_connect: bool,
 }
 
+/// Groups a range of adjacent staves within one part.
+///
+/// This is distinct from [`PartGroup`], which groups separate parts.  The
+/// distinction matters for MEI and MuseScore sources where a piano-like part
+/// can contain several staves and nested staff groups.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StaffGroup {
+    /// Index of the first staff in the group (inclusive).
+    pub first_staff: usize,
+    /// Index of the last staff in the group (inclusive).
+    pub last_staff: usize,
+    pub symbol: PartGroupSymbol,
+    /// Whether barlines are connected across all staves in the group.
+    #[serde(default)]
+    pub barlines_connect: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Score {
     pub id: String,
@@ -86,6 +103,9 @@ pub struct Score {
     /// Typed score-level text annotations retained independently of legacy text fields.
     #[serde(default)]
     pub texts: Vec<StyledText>,
+    /// Reusable chord/tablature definitions imported from interchange formats.
+    #[serde(default)]
+    pub chord_definitions: Vec<ChordDefinition>,
 }
 
 impl Default for Score {
@@ -103,6 +123,7 @@ impl Default for Score {
             parts: vec![part],
             part_groups: Vec::new(),
             texts: Vec::new(),
+            chord_definitions: Vec::new(),
         }
     }
 }
@@ -183,6 +204,7 @@ impl Score {
             parts: Vec::new(),
             part_groups: Vec::new(),
             texts: Vec::new(),
+            chord_definitions: Vec::new(),
         };
 
         match kind {
@@ -312,6 +334,7 @@ impl Score {
             parts: vec![part],
             part_groups: Vec::new(),
             texts: self.texts.clone(),
+            chord_definitions: self.chord_definitions.clone(),
         })
     }
 
@@ -353,6 +376,7 @@ impl Score {
             parts,
             part_groups: Vec::new(),
             texts: self.texts.clone(),
+            chord_definitions: self.chord_definitions.clone(),
         }
     }
 }
@@ -832,9 +856,24 @@ pub struct Part {
     /// General MIDI program number (0–127). Default 0 = Acoustic Grand Piano.
     #[serde(default)]
     pub midi_program: u8,
-    /// MIDI pitch-bend events preserved from interchange input, in PPQ ticks.
+    /// MIDI pitch-bend events preserved from interchange input, in canonical 480 PPQ ticks.
     #[serde(default)]
     pub midi_pitch_bends: Vec<MidiPitchBend>,
+    /// MIDI Control Change events preserved from interchange input, in canonical 480 PPQ ticks.
+    #[serde(default)]
+    pub midi_control_changes: Vec<MidiControlChange>,
+    /// MIDI Program Change events preserved from interchange input, in canonical 480 PPQ ticks.
+    #[serde(default)]
+    pub midi_program_changes: Vec<MidiProgramChange>,
+    /// MIDI key/channel aftertouch events preserved from interchange input, in canonical 480 PPQ ticks.
+    #[serde(default)]
+    pub midi_aftertouch: Vec<MidiAftertouch>,
+    /// MusicXML score-instrument definitions for note-level instrument IDs.
+    #[serde(default)]
+    pub percussion_instruments: Vec<PercussionInstrument>,
+    /// MEI/MuseScore staff-group structure within this part.
+    #[serde(default)]
+    pub staff_groups: Vec<StaffGroup>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -843,6 +882,43 @@ pub struct MidiPitchBend {
     pub channel: u8,
     /// Signed 14-bit MIDI bend value in the range -8192..=8191.
     pub value: i16,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MidiControlChange {
+    pub tick: u64,
+    pub channel: u8,
+    /// MIDI controller number (0–127).
+    pub controller: u8,
+    /// Seven-bit controller value (0–127).
+    pub value: u8,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MidiProgramChange {
+    pub tick: u64,
+    pub channel: u8,
+    /// General MIDI program number (0–127).
+    pub program: u8,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MidiAftertouch {
+    pub tick: u64,
+    pub channel: u8,
+    /// Key number for key pressure, or `None` for channel pressure.
+    pub key: Option<u8>,
+    /// Seven-bit pressure value (0–127).
+    pub value: u8,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PercussionInstrument {
+    pub id: String,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub midi_unpitched: Option<u8>,
 }
 
 impl Part {
@@ -855,7 +931,35 @@ impl Part {
             midi_channel: 0,
             midi_program: 0,
             midi_pitch_bends: Vec::new(),
+            midi_control_changes: Vec::new(),
+            midi_program_changes: Vec::new(),
+            midi_aftertouch: Vec::new(),
+            percussion_instruments: Vec::new(),
+            staff_groups: Vec::new(),
         }
+    }
+
+    /// Resolve the declared percussion instrument for an unpitched note.
+    ///
+    /// An explicit MusicXML `instrument@id` always takes precedence.  When no
+    /// identifier is attached, the retained display-key MIDI value is matched
+    /// against the part's declared `midi_unpitched` entries.  This deliberately
+    /// does not invent a sound identity for an unpitched note with no matching
+    /// declaration.
+    pub fn percussion_instrument_for_note(&self, note: &Note) -> Option<&PercussionInstrument> {
+        if !note.is_unpitched {
+            return None;
+        }
+        if let Some(instrument_id) = note.instrument_id.as_deref() {
+            return self
+                .percussion_instruments
+                .iter()
+                .find(|instrument| instrument.id == instrument_id);
+        }
+        let midi_key = u8::try_from(note.pitches.first()?.to_midi()).ok()?;
+        self.percussion_instruments
+            .iter()
+            .find(|instrument| instrument.midi_unpitched == Some(midi_key))
     }
 }
 
@@ -914,6 +1018,9 @@ pub struct Measure {
     pub expression_text: Option<String>,
     #[serde(default)]
     pub texts: Vec<StyledText>,
+    /// Structured MusicXML figured-bass figures in source order.
+    #[serde(default)]
+    pub figured_bass: Vec<FiguredBassFigure>,
     /// When ≥ 2, this measure is displayed as a multi-measure rest spanning N measures.
     #[serde(default)]
     pub multi_rest_count: Option<u8>,
@@ -955,6 +1062,7 @@ impl Measure {
             navigation: None,
             expression_text: None,
             texts: Vec::new(),
+            figured_bass: Vec::new(),
             multi_rest_count: None,
             system_break: false,
             page_break: false,
@@ -971,6 +1079,12 @@ impl Measure {
 pub struct Note {
     pub id: String,
     pub is_rest: bool,
+    /// MusicXML unpitched note; `pitches` then stores display placement only.
+    #[serde(default)]
+    pub is_unpitched: bool,
+    /// Optional source instrument identifier (for example MusicXML note-level `instrument@id`).
+    #[serde(default)]
+    pub instrument_id: Option<String>,
     /// Single note: one pitch. Chord: multiple pitches (same duration).
     pub pitches: Vec<Pitch>,
     #[serde(default)]
@@ -1029,6 +1143,10 @@ pub struct Note {
     /// Left-hand fingering number (0 = open / thumb, 1–5 = fingers).
     #[serde(default)]
     pub fingering: Option<u8>,
+    /// Alternate left-hand fingering candidates, in source order. The first
+    /// entry mirrors `fingering` when present.
+    #[serde(default)]
+    pub fingerings: Vec<u8>,
     /// String number for plucked/bowed string instruments (1 = highest string).
     #[serde(default)]
     pub string_number: Option<u8>,
@@ -1046,13 +1164,39 @@ pub struct Note {
     /// Guitar-specific playing technique (bend, slide, hammer-on, pull-off).
     #[serde(default)]
     pub guitar_technique: Option<GuitarTechnique>,
+    /// MusicXML bend amount in cents when supplied by the source.
+    #[serde(default)]
+    pub guitar_bend_alter_cents: Option<i16>,
 }
 
 impl Note {
+    /// Select one authored fingering candidate without changing the score.
+    pub fn select_fingering(
+        &self,
+        policy: super::notation::FingeringSelectionPolicy,
+    ) -> Option<u8> {
+        let candidates = if self.fingerings.is_empty() {
+            self.fingering.into_iter().collect::<Vec<_>>()
+        } else {
+            self.fingerings.clone()
+        };
+        match policy {
+            super::notation::FingeringSelectionPolicy::SourceOrder => candidates.first().copied(),
+            super::notation::FingeringSelectionPolicy::LowestNumber => {
+                candidates.iter().copied().min()
+            }
+            super::notation::FingeringSelectionPolicy::HighestNumber => {
+                candidates.iter().copied().max()
+            }
+        }
+    }
+
     pub fn new(pitch: Pitch, duration: Duration) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
             is_rest: false,
+            is_unpitched: false,
+            instrument_id: None,
             pitches: vec![pitch],
             tab_position: None,
             tab_positions: Vec::new(),
@@ -1083,12 +1227,14 @@ impl Note {
             glissando_end: false,
             cross_staff: None,
             fingering: None,
+            fingerings: Vec::new(),
             string_number: None,
             note_head: NoteHead::Normal,
             is_cue: false,
             trill_line_start: false,
             trill_line_end: false,
             guitar_technique: None,
+            guitar_bend_alter_cents: None,
         }
     }
 
@@ -1096,6 +1242,8 @@ impl Note {
         Self {
             id: Uuid::new_v4().to_string(),
             is_rest: true,
+            is_unpitched: false,
+            instrument_id: None,
             pitches: Vec::new(),
             tab_position: None,
             tab_positions: Vec::new(),
@@ -1126,12 +1274,14 @@ impl Note {
             glissando_end: false,
             cross_staff: None,
             fingering: None,
+            fingerings: Vec::new(),
             string_number: None,
             note_head: NoteHead::Normal,
             is_cue: false,
             trill_line_start: false,
             trill_line_end: false,
             guitar_technique: None,
+            guitar_bend_alter_cents: None,
         }
     }
 
@@ -1520,6 +1670,11 @@ fn patch_requires_replace(a: &Score, b: &Score) -> bool {
             || ap.midi_channel != bp.midi_channel
             || ap.midi_program != bp.midi_program
             || ap.midi_pitch_bends != bp.midi_pitch_bends
+            || ap.midi_control_changes != bp.midi_control_changes
+            || ap.midi_program_changes != bp.midi_program_changes
+            || ap.midi_aftertouch != bp.midi_aftertouch
+            || ap.percussion_instruments != bp.percussion_instruments
+            || ap.staff_groups != bp.staff_groups
             || ap.staves.len() != bp.staves.len()
         {
             return true;
@@ -2116,6 +2271,8 @@ pub fn compute_beams(notes: &[Note], time_sig: &TimeSignature) -> Vec<BeamState>
 
 fn note_content_eq(a: &Note, b: &Note) -> bool {
     a.is_rest == b.is_rest
+        && a.is_unpitched == b.is_unpitched
+        && a.instrument_id == b.instrument_id
         && a.pitches == b.pitches
         && a.duration == b.duration
         && a.dot_count == b.dot_count
@@ -2141,12 +2298,35 @@ fn note_content_eq(a: &Note, b: &Note) -> bool {
         && a.arpeggiate == b.arpeggiate
         && a.tab_position == b.tab_position
         && a.tab_positions == b.tab_positions
+        && a.guitar_technique == b.guitar_technique
+        && a.guitar_bend_alter_cents == b.guitar_bend_alter_cents
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::pitch::Step;
+    use crate::model::{notation::FingeringSelectionPolicy, pitch::Step};
+
+    #[test]
+    fn fingering_selection_policy_is_deterministic_and_non_mutating() {
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        note.fingerings = vec![3, 1, 4];
+        note.fingering = Some(3);
+        assert_eq!(
+            note.select_fingering(FingeringSelectionPolicy::SourceOrder),
+            Some(3)
+        );
+        assert_eq!(
+            note.select_fingering(FingeringSelectionPolicy::LowestNumber),
+            Some(1)
+        );
+        assert_eq!(
+            note.select_fingering(FingeringSelectionPolicy::HighestNumber),
+            Some(4)
+        );
+        assert_eq!(note.fingerings, vec![3, 1, 4]);
+        assert_eq!(note.fingering, Some(3));
+    }
 
     #[test]
     fn default_score_has_one_part_four_measures() {
@@ -2473,6 +2653,53 @@ mod tests {
         let json = r#"{"id":"abc","metadata":{"title":"T","composer":"","lyricist":"","copyright":"","work_number":"","movement_title":""},"settings":{"tempo_bpm":120,"time_signature":{"numerator":4,"denominator":4},"key_signature":{"fifths":0,"mode":"major"}},"parts":[]}"#;
         let score: Score = serde_json::from_str(json).unwrap();
         assert_eq!(score.schema_version, 0);
+    }
+
+    #[test]
+    fn note_without_new_percussion_fields_uses_serde_defaults() {
+        let note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        let mut value = serde_json::to_value(note).unwrap();
+        let object = value.as_object_mut().unwrap();
+        object.remove("is_unpitched");
+        object.remove("instrument_id");
+        let restored: Note = serde_json::from_value(value).unwrap();
+        assert!(!restored.is_unpitched);
+        assert_eq!(restored.instrument_id, None);
+    }
+
+    #[test]
+    fn percussion_instrument_resolution_prefers_id_then_display_key() {
+        let mut part = Part::new("Drums", "Dr.");
+        part.percussion_instruments = vec![
+            PercussionInstrument {
+                id: "snare".to_string(),
+                name: Some("Acoustic Snare".to_string()),
+                midi_unpitched: Some(38),
+            },
+            PercussionInstrument {
+                id: "rim".to_string(),
+                name: Some("Side Stick".to_string()),
+                midi_unpitched: Some(37),
+            },
+        ];
+        let mut note = Note::new(Pitch::from_midi(38, false), Duration::Quarter);
+        note.is_unpitched = true;
+        assert_eq!(
+            part.percussion_instrument_for_note(&note)
+                .map(|instrument| instrument.id.as_str()),
+            Some("snare")
+        );
+        note.instrument_id = Some("rim".to_string());
+        assert_eq!(
+            part.percussion_instrument_for_note(&note)
+                .map(|instrument| instrument.id.as_str()),
+            Some("rim")
+        );
+        note.instrument_id = Some("missing".to_string());
+        assert!(part.percussion_instrument_for_note(&note).is_none());
+        note.instrument_id = None;
+        note.is_unpitched = false;
+        assert!(part.percussion_instrument_for_note(&note).is_none());
     }
 
     // ── ScoreTemplate ─────────────────────────────────────────────────────────

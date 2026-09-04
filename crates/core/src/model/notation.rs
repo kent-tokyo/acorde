@@ -277,6 +277,18 @@ pub enum GuitarTechnique {
     PullOff,
 }
 
+/// Deterministic policy for selecting one candidate from an ordered fingering list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum FingeringSelectionPolicy {
+    /// Preserve the source/application's first candidate.
+    #[default]
+    SourceOrder,
+    /// Select the numerically smallest candidate.
+    LowestNumber,
+    /// Select the numerically largest candidate.
+    HighestNumber,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum Barline {
     #[default]
@@ -381,6 +393,7 @@ pub enum TextStyle {
     Technique,
     Lyrics,
     ChordSymbol,
+    FiguredBass,
     RehearsalMark,
     Generic,
 }
@@ -420,6 +433,132 @@ pub struct ChordSymbol {
     pub kind: String,
     /// Slash-chord bass note.
     pub bass: Option<String>,
+    /// Optional vertical placement hint from interchange formats (for example `above`/`below`).
+    #[serde(default)]
+    pub placement: Option<String>,
+    /// Whether the source harmony carries a continuation/extender line.
+    #[serde(default)]
+    pub extender: bool,
+    /// MEI harmonic-analysis scale degree (Humdrum **deg syntax), when supplied.
+    #[serde(default)]
+    pub harmonic_degree: Option<String>,
+    /// MEI harmonic function token (for example `T`, `PD`, or `D`), when supplied.
+    #[serde(default)]
+    pub harmony_function: Option<String>,
+    /// MEI `harm@type` classification token(s), when supplied.
+    #[serde(default)]
+    pub harmony_type: Option<String>,
+    /// MEI `harm@chordref` URI, retained without resolving an external chord definition.
+    #[serde(default)]
+    pub chord_ref: Option<String>,
+    /// Structured chord extensions such as add9, alter5, or omit3.
+    #[serde(default)]
+    pub degrees: Vec<ChordDegree>,
+}
+
+/// A reusable MEI chord/tablature definition referenced by `harm@chordref`.
+///
+/// The fields intentionally retain the source spelling for deprecated MEI tuning
+/// attributes.  Consumers may interpret the member positions without requiring
+/// the canonical score to invent an instrument catalog.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ChordDefinition {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub label: Option<String>,
+    #[serde(default)]
+    pub kind: Option<String>,
+    #[serde(default)]
+    pub fret_position: Option<u32>,
+    #[serde(default)]
+    pub tab_strings: Option<String>,
+    #[serde(default)]
+    pub tab_courses: Option<String>,
+    #[serde(default)]
+    pub members: Vec<ChordDefinitionMember>,
+    #[serde(default)]
+    pub barres: Vec<ChordBarre>,
+}
+
+/// One pitch and/or tablature position in a [`ChordDefinition`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ChordDefinitionMember {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub pitch: Option<Pitch>,
+    #[serde(default)]
+    pub tab_string: Option<u8>,
+    #[serde(default)]
+    pub tab_course: Option<u8>,
+    #[serde(default)]
+    pub tab_fret: Option<u16>,
+    #[serde(default)]
+    pub fingering: Option<u8>,
+}
+
+/// A barre range inside a [`ChordDefinition`] fretboard diagram.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChordBarre {
+    #[serde(default)]
+    pub start_member: Option<String>,
+    #[serde(default)]
+    pub end_member: Option<String>,
+    #[serde(default)]
+    pub fret: Option<u16>,
+    #[serde(default)]
+    pub label: Option<String>,
+    #[serde(default)]
+    pub kind: Option<String>,
+}
+
+/// One structured MusicXML chord degree.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChordDegree {
+    /// Scale degree number (normally 1 through 13).
+    pub value: u8,
+    /// Semitone alteration relative to the diatonic degree.
+    pub alter: i8,
+    /// MusicXML degree type, such as `add`, `alter`, or `subtract`.
+    pub kind: String,
+}
+
+/// One structured figure in a figured-bass annotation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FiguredBassFigure {
+    /// Source figure number, retained as text because MusicXML permits non-numeric figures.
+    pub number: String,
+    /// Raw source alteration value, such as `-1`, `0`, or `1`.
+    #[serde(default)]
+    pub alter: Option<String>,
+    /// Optional source prefix decoration.
+    #[serde(default)]
+    pub prefix: Option<String>,
+    /// Optional source suffix decoration.
+    #[serde(default)]
+    pub suffix: Option<String>,
+    /// Whether MEI marks this figure with a horizontal extender.
+    #[serde(default)]
+    pub extender: bool,
+}
+
+impl ChordDegree {
+    /// Render the degree using the compact chord-label convention.
+    pub fn display_text(&self) -> String {
+        let accidental = match self.alter {
+            -2 => "bb",
+            -1 => "b",
+            1 => "#",
+            2 => "##",
+            _ => "",
+        };
+        match self.kind.as_str() {
+            "subtract" => format!("no{}{}", accidental, self.value),
+            "alter" => format!("{}{}", accidental, self.value),
+            _ => format!("add{}{}", accidental, self.value),
+        }
+    }
 }
 
 impl ChordSymbol {
@@ -444,7 +583,12 @@ impl ChordSymbol {
             Some(b) => format!("/{}", b),
             None => String::new(),
         };
-        format!("{}{}{}", self.root, kind_str, bass_str)
+        let degree_str = self
+            .degrees
+            .iter()
+            .map(ChordDegree::display_text)
+            .collect::<String>();
+        format!("{}{}{}{}", self.root, kind_str, degree_str, bass_str)
     }
 }
 
@@ -572,6 +716,13 @@ mod tests {
             root: "C".into(),
             kind: "major".into(),
             bass: None,
+            placement: None,
+            extender: false,
+            harmonic_degree: None,
+            harmony_function: None,
+            harmony_type: None,
+            chord_ref: None,
+            degrees: Vec::new(),
         };
         assert_eq!(c.display_text(), "C");
     }
@@ -582,8 +733,60 @@ mod tests {
             root: "D".into(),
             kind: "minor-seventh".into(),
             bass: Some("F".into()),
+            placement: None,
+            extender: false,
+            harmonic_degree: None,
+            harmony_function: None,
+            harmony_type: None,
+            chord_ref: None,
+            degrees: Vec::new(),
         };
         assert_eq!(c.display_text(), "Dm7/F");
+    }
+
+    #[test]
+    fn chord_display_structured_degrees() {
+        let c = ChordSymbol {
+            root: "C".into(),
+            kind: "dominant".into(),
+            bass: None,
+            placement: None,
+            extender: false,
+            harmonic_degree: None,
+            harmony_function: None,
+            harmony_type: None,
+            chord_ref: None,
+            degrees: vec![
+                ChordDegree {
+                    value: 9,
+                    alter: 1,
+                    kind: "add".into(),
+                },
+                ChordDegree {
+                    value: 5,
+                    alter: -1,
+                    kind: "alter".into(),
+                },
+                ChordDegree {
+                    value: 3,
+                    alter: 0,
+                    kind: "subtract".into(),
+                },
+            ],
+        };
+        assert_eq!(c.display_text(), "C7add#9b5no3");
+    }
+
+    #[test]
+    fn chord_symbol_legacy_json_defaults_degrees() {
+        let chord: ChordSymbol =
+            serde_json::from_str(r#"{"root":"C","kind":"major","bass":null,"placement":null}"#)
+                .expect("legacy chord symbol JSON deserializes");
+        assert!(chord.degrees.is_empty());
+        assert!(!chord.extender);
+        assert!(chord.harmonic_degree.is_none());
+        assert!(chord.harmony_function.is_none());
+        assert!(chord.harmony_type.is_none());
     }
 
     #[test]

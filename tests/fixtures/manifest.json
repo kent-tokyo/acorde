@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "generated_on": "2026-09-04",
+  "purpose": "Pinned fixture provenance and interchange evidence baseline",
+  "fixtures": [
+    {
+      "path": "simple.musicxml",
+      "format": "musicxml",
+      "license": "self-authored",
+      "sha256": "55c2d8d2546100437460474b8bc685b173493c3696303cbad2eb85254acbfd7d",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
+      "path": "multipart.musicxml",
+      "format": "musicxml",
+      "license": "self-authored",
+      "sha256": "4e5dc67066ecfcb7258e4342f3cdc4a6be62411301030d4009b7d2fb45a8e1b0",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
+      "path": "multivoice.musicxml",
+      "format": "musicxml",
+      "license": "self-authored",
+      "sha256": "db7f65a57f8fbc1ccbb1630d1058fdba1e1e44d4ff8260256c4fe7509e2309b0",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
+      "path": "interchange_subset.mei",
+      "format": "mei",
+      "license": "self-authored",
+      "sha256": "992c79629f7f44af59a43f7169c5829b96d0a3f6802a07f81dec371651d1defe",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
+      "path": "interchange_multistaff.mei",
+      "format": "mei",
+      "license": "self-authored",
+      "sha256": "219d424addc6d27c525d36e1fc2472732b80469a2a06ba813111adda7cecc899",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
+      "path": "interchange_harm_analysis.mei",
+      "format": "mei",
+      "license": "self-authored",
+      "sha256": "f697fbf6e38b47979c5dc8f7eb58c091d26d96c034203f66388ee9ef99ac5643",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
+      "path": "interchange_subset.mscx",
+      "format": "mscx",
+      "license": "self-authored",
+      "sha256": "376e237f99fe706f77abf9f3071c2353a9bfebce1503da71f0014d2d16e5b3f3",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
+      "path": "interchange_figured_bass.mscx",
+      "format": "mscx",
+      "license": "self-authored",
+      "sha256": "27db7a494264e55649a6e19dc2991de4f1a9057fa21aefa995158991df3bc3ef",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
+      "path": "openscore_lieder_aloha_oe.mscx",
+      "format": "mscx",
+      "license": "CC0-1.0",
+      "source_url": "https://github.com/OpenScore/Lieder/blob/6b2dc542ce2e8aa4b78c8ee62103b210efc07015/scores/Liliuokalani,_Queen_of_the_Hawaiian_Islands/_/Aloha_Oe/lc6650166.mscx",
+      "source_revision": "6b2dc542ce2e8aa4b78c8ee62103b210efc07015",
+      "sha256": "f588fc91a36629d6aa079721571ce6e2afb8c8dfafa77935c8198b2d3ec5fd51",
+      "round_trip": "import-only",
+      "expected_losses": []
+    },
+    {
+      "path": "openscore_omr_score_1003.mscz",
+      "format": "mscz",
+      "license": "CC0-1.0",
+      "source_url": "https://huggingface.co/datasets/musegroup/omr_benchmark",
+      "source_revision": "e27f6a8634e80ad0997af8a806c8dc00e45c4a07",
+      "source_path": "mscz/score_file_1003.mscz",
+      "sha256": "77ec1090af66b21a726e29d9e36e119d4a4ef112d25a4f758b5d00e8bd865711",
+      "round_trip": "import-only",
+      "expected_losses": []
+    },
+    {
+      "path": "openscore_omr_score_1033.mscz",
+      "format": "mscz",
+      "license": "CC0-1.0",
+      "source_url": "https://huggingface.co/datasets/musegroup/omr_benchmark",
+      "source_revision": "e27f6a8634e80ad0997af8a806c8dc00e45c4a07",
+      "source_path": "mscz/score_file_1033.mscz",
+      "sha256": "5c863d3b3dd1d055aeb74e3dabe3343090277578c4b9dd14d94c988b8b1a6687",
+      "round_trip": "import-only",
+      "expected_losses": ["MSCX structured Harmony outside the display-label subset"]
+    },
+    {
+      "path": "openscore_omr_score_1003.mscx",
+      "format": "mscx",
+      "license": "CC0-1.0",
+      "source_url": "https://huggingface.co/datasets/musegroup/omr_benchmark",
+      "source_revision": "e27f6a8634e80ad0997af8a806c8dc00e45c4a07",
+      "source_path": "mscz/score_file_1003.mscz::score_file_1027.mscx",
+      "sha256": "bdafa38b24aad38222325af954ab46bcf46910b3aa3f921a3367557a50b5c888",
+      "round_trip": "import-only",
+      "expected_losses": []
+    },
+    {
+      "path": "openscore_omr_score_1033.mscx",
+      "format": "mscx",
+      "license": "CC0-1.0",
+      "source_url": "https://huggingface.co/datasets/musegroup/omr_benchmark",
+      "source_revision": "e27f6a8634e80ad0997af8a806c8dc00e45c4a07",
+      "source_path": "mscz/score_file_1033.mscz::score_file_1057.mscx",
+      "sha256": "fec4503ec7ad98e759c551dececb223a7183ef5fccfd38164eede483f2aef6f6",
+      "round_trip": "import-only",
+      "expected_losses": ["MSCX structured Harmony outside the display-label subset"]
+    },
+    {
+      "path": "openscore_omr_score_1035.mscz",
+      "format": "mscz",
+      "license": "CC0-1.0",
+      "source_url": "https://huggingface.co/datasets/musegroup/omr_benchmark",
+      "source_revision": "e27f6a8634e80ad0997af8a806c8dc00e45c4a07",
+      "source_path": "mscz/score_file_1035.mscz",
+      "sha256": "025ce7fac23a85b2b94beba67cac4005e24b5a93c10c5e78cbc7b7e4a307321f",
+      "round_trip": "import-only",
+      "expected_losses": []
+    },
+    {
+      "path": "openscore_omr_score_1036.mscz",
+      "format": "mscz",
+      "license": "CC0-1.0",
+      "source_url": "https://huggingface.co/datasets/musegroup/omr_benchmark",
+      "source_revision": "e27f6a8634e80ad0997af8a806c8dc00e45c4a07",
+      "source_path": "mscz/score_file_1036.mscz",
+      "sha256": "d8206afe80f76d6aa4d4a31c3158714edd848865aabfbe21a3917d7dbd2e005c",
+      "round_trip": "import-only",
+      "expected_losses": []
+    },
+    {
+      "path": "openscore_omr_score_1016.mscz",
+      "format": "mscz",
+      "license": "CC0-1.0",
+      "source_url": "https://huggingface.co/datasets/musegroup/omr_benchmark",
+      "source_revision": "e27f6a8634e80ad0997af8a806c8dc00e45c4a07",
+      "source_path": "mscz/score_file_1016.mscz",
+      "sha256": "2cbfa80c4a2694b70d1646c214147e184a5baa8f2628bd7dee85b9547d062562",
+      "round_trip": "import-only",
+      "expected_losses": []
+    },
+    {
+      "path": "sample.abc",
+      "format": "abc",
+      "license": "self-authored",
+      "sha256": "787e4b029e3e7d247c3aa6e199570df844272f220a559e5c915bf820c0dd1992",
+      "round_trip": "import-only",
+      "expected_losses": ["unsupported ABC header and decoration extensions"]
+    },
+    {
+      "path": "just_perfect_fifth_on_c.mid",
+      "format": "midi",
+      "license": "public-domain",
+      "sha256": "ff60a251a10c7886d4342a6d37fbe0c85ebdd24571d013cbcddfb37ce4399505",
+      "round_trip": "semantic",
+      "expected_losses": ["MIDI events without a canonical Score field"]
+    },
+    {
+      "path": "4_steps_in_31-et_on_c.mid",
+      "format": "midi",
+      "license": "public-domain",
+      "source_url": "https://commons.wikimedia.org/wiki/File:4_steps_in_31-et_on_C.mid",
+      "sha256": "e7b9cf6410d22075ba08dc9c7226d2095aaa2f8f6d513cbc6d40ae23fee13d96",
+      "round_trip": "semantic",
+      "expected_losses": ["MIDI events without a canonical Score field"]
+    },
+    {
+      "path": "septimal_major_third_on_c.mid",
+      "format": "midi",
+      "license": "public-domain",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Septimal_major_third_on_C.mid",
+      "sha256": "9172f1b27870ea028cb7e7f561d1f2208a3ea99a1b46faa468c4abcc7de8d471",
+      "round_trip": "semantic",
+      "expected_losses": ["MIDI events without a canonical Score field"]
+    },
+    {
+      "path": "UprightPianoKW-small-20190703.sf2",
+      "format": "sf2",
+      "license": "CC0-1.0",
+      "sha256": "cf2a98eb38a32c4954b4b6e2caae4112d62dd8e892eceefdd7942b0e7d01ac2f",
+      "round_trip": "decode-render",
+      "expected_losses": ["SoundFont preset/provider metadata is outside Score interchange"]
+    },
+    {
+      "path": "FluidR3Mono_GM.sf3",
+      "format": "sf3",
+      "license": "MIT",
+      "sha256": "cfcd66d89e8386823400eca64934b14fbea7bf48ba1f00d21189af1262794ec2",
+      "round_trip": "decode-render",
+      "expected_losses": ["SoundFont preset/provider metadata is outside Score interchange"]
+    }
+  ]
+}

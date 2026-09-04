@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "version_policy": "workspace version is 1.1.0",
+  "generated_on": "2026-09-05",
+  "phases": {
+    "6A": { "status": "local-gate-passed", "evidence": ["tests/fixtures/manifest.json", "docs/interchange-evidence.md", "crates/io/tests/roundtrip.rs fixture SHA-256 verification"] },
+    "6B": { "status": "local-gate-passed", "evidence": ["tests/fixtures/interchange_subset.mei", "tests/fixtures/interchange_multistaff.mei", "tests/fixtures/interchange_harm_analysis.mei", "crates/io/src/mei/mod.rs tests", "crates/io/src/mei/mod.rs chord_definition_round_trips_as_structured_tab_data", "crates/io/src/mei/mod.rs duplicate_chord_definition_ids_are_source_diagnosed", "crates/io/src/mei/mod.rs structured_figured_bass_figures_round_trip_in_order", "crates/io/src/mei/mod.rs figured_bass_unsupported_child_is_source_located", "crates/io/src/mei/mod.rs figured_bass_unsupported_attribute_is_source_located", "crates/io/tests/roundtrip.rs mei_simple_figured_bass_display_text_roundtrips", "crates/io/tests/roundtrip.rs musicxml_simple_figured_bass_display_text_roundtrips", "crates/io/tests/roundtrip.rs musicxml_structured_figured_bass_roundtrips_without_loss", "crates/io/tests/roundtrip.rs musicxml_unpitched_note_is_reported_instead_of_claiming_pitch_equivalence", "scoreDef/staffDef clef, measure tempo, plain-text harm chord labels, rehearsal marks, directions/navigation marks, multi-staff/layer content, tuplets, grace notes, and common MEI ornaments round-trip with structured-placement diagnostics", "MEI fb text and ordered <f> values plus MusicXML figured-bass figure number/alter/prefix/suffix round-trip", "bounded MEI chordDef/chordTable/chordMember definitions round-trip in Score.chord_definitions", "MEI duplicate chordDef/chordMember IDs are source-located with preserved repeated values", "unsupported MEI <f> children/attributes and empty values are source-located diagnostics", "richer MEI figured-bass and chord-definition semantics remain explicitly outside the canonical model", "MusicXML unpitched percussion is explicitly source-located as a loss", "explicit MEI import/export boundary with canonical Score ownership", "MEI octave span import/export semantic round-trip", "MEI invalid octave-attribute non-silent-loss diagnostic", "MEI note-addressed pedal span import/export semantic round-trip", "MEI timestamp/release-only pedal diagnostic preserves dir/startid/endid/tstamp/tstamp2 when present", "fixture manifest checksum verification"] },
+    "6C": { "status": "local-gate-passed", "evidence": ["tests/fixtures/interchange_subset.mscx", "tests/fixtures/interchange_figured_bass.mscx", "tests/fixtures/openscore_lieder_aloha_oe.mscx", "tests/fixtures/openscore_omr_score_1003.mscz", "tests/fixtures/openscore_omr_score_1033.mscz", "tests/fixtures/openscore_omr_score_1035.mscz", "tests/fixtures/openscore_omr_score_1036.mscz", "tests/fixtures/openscore_omr_score_1016.mscz", "tests/fixtures/openscore_omr_score_1003.mscx", "tests/fixtures/openscore_omr_score_1033.mscx", "crates/io/src/mscz/mod.rs tests", "crates/io/src/mscz/mod.rs parse_mscx_structured_figured_bass_items_in_order", "crates/io/src/mscz/mod.rs parse_mscx_figured_bass_modifiers_preserves_model_and_display", "crates/io/src/mscz/mod.rs mscx_figured_bass_unmodeled_property_is_source_located", "crates/io/src/mscz/mod.rs mscx_figured_bass_invalid_value_is_source_located", "crates/io/tests/roundtrip.rs mscx_figured_bass_fixture_roundtrips_structured_order", "crates/io/tests/roundtrip.rs external OpenScore MSCX and CC0 MSCZ smoke fixtures", "MSCX Tuplet/endTuplet ratio, grace-note, Arpeggio-direction, Tremolo-speed, structured Harmony root/name, figured-bass digit sequence/modifier projection, source-located native-property and invalid-value diagnostics, and typed Text display-label regressions", "fixture manifest checksum verification", "in-memory MSCZ extraction semantic regression", "five pinned MuseScore 4.6.3 compressed-MSCZ samples parse with zero diagnostics for the declared local Harmony subset", "pinned OpenScore StringQuartets CC0 tree screen (commit 4e3240eb2109a3fd74dbbdca0a1688f5375c2903; representative MuseScore 3.6.2 MSCX)", "corpus-wide held-out comparison remains external"] },
+    "6D": { "status": "local-gate-passed", "evidence": ["tests/fixtures/just_perfect_fifth_on_c.mid", "tests/fixtures/4_steps_in_31-et_on_c.mid", "tests/fixtures/septimal_major_third_on_c.mid", "crates/io/src/midi/mod.rs tests", "crates/io/src/midi/serialize.rs tests", "MIDI note, signed negative/positive bend, Controller Change, multiple Program Change, Aftertouch, and boundary meta-change semantic round-trip comparison", "MIDI export fractional-pitch loss diagnostic test", "fixture manifest checksum verification"] },
+    "6E": { "status": "local-gate-passed", "evidence": ["crates/core/src/model/pitch.rs tests", "crates/core/src/model/validate.rs typed microtone range test", "crates/io/tests/roundtrip.rs", "negative and compound MusicXML fractional alteration regression", "MusicXML lossy fractional alter diagnostics for rounding, clamping, non-finite, and out-of-range values", "MEI export diagnostic for unsupported semitone-plus-microtone combinations"] },
+    "6F": { "status": "local-gate-passed", "evidence": ["tests/fixtures/interchange_subset.mscx", "crates/io/src/mscz/mod.rs tests", "crates/core/src/model/score.rs tests", "crates/io/tests/roundtrip.rs tablature_semantics_match_between_musicxml_and_mscx", "crates/render-svg/tests/structural.rs tablature_multiple_positions_get_deterministic_horizontal_spacing", "MusicXML/MSCX tuning, string/fret, and Slide semantic comparison", "MusicXML bend-alter and non-start guitar-technique detail loss diagnostics", "MusicXML capo export loss diagnostic test"] },
+    "6G": { "status": "local-gate-passed", "evidence": ["crates/io/tests/roundtrip.rs", "tests/fixtures/manifest.json", "cargo test --all --all-features --locked", "cargo clippy --all --all-features --locked -- -D warnings", "wasm-pack test --node crates/wasm (Wasm compilation passed; browser-only tests skipped)", "jq empty on machine-readable reports", "git diff --check", "strict 6A-6G status and external-gate validation", "MusicXML/ABC/MEI/MSCX/MIDI source-located loss diagnostics", "ABC/MEI/MusicXML export score-path loss diagnostics, including ABC tablature staff/position/technique omissions", "MusicXML export reports one source-located loss per canonical MIDI pitch-bend with tick/channel/value preserved", "MusicXML/MEI/MSCX Tuplet semantic projection equivalence", "MEI/MSCX chord-label and expression-text semantic projection equivalence", "MusicXML/MSCX tablature tuning, string/fret, and supported guitar-technique semantic equivalence", "five CC0 MuseScore 4.6.3 MSCZ samples → canonical Score → MusicXML → Score semantic projection equivalence with explicit trailing-rest normalization", "sample_measurements_match_current_parser_output synchronizes machine-readable measurements with all listed MSCZ/MIDI fixtures"] }
+  },
+  "phase_gate_contract": {
+    "6A": { "BUILD": "fixture manifest and provenance contract", "MEASURE": "SHA-256 fixture verification and machine-readable report validation", "GATE": "coverage baseline is checked in and version policy remains fixed" },
+    "6B": { "BUILD": "MEI supported-subset parser/model/export slices", "MEASURE": "MEI fixtures and semantic round-trip/loss diagnostics", "GATE": "source-located loss reporting and explicit richer-harmony boundary" },
+    "6C": { "BUILD": "MSCX/MSCZ structured notation slices", "MEASURE": "MSCX fixtures and compressed-MSCZ semantic projections", "GATE": "deterministic import evidence with held-out corpus declared external" },
+    "6D": { "BUILD": "native MIDI event and pitch-bend preservation", "MEASURE": "permitted pitch-bend fixtures and event semantic round-trips", "GATE": "lossy conversion is diagnosed and broader corpus remains external" },
+    "6E": { "BUILD": "typed microtonal pitch and format-boundary handling", "MEASURE": "fractional-alteration and microtone regression tests", "GATE": "unsupported combinations are source-located rather than coerced" },
+    "6F": { "BUILD": "tablature tuning, positions, techniques, and deterministic SVG spacing", "MEASURE": "MusicXML/MSCX semantic comparison and renderer structural tests", "GATE": "external glyph metrics and permissioned instrument corpus remain explicit" },
+    "6G": { "BUILD": "cross-format projections, loss reports, and release-gate assertions", "MEASURE": "workspace tests, clippy, JSON/fixture checks, and semantic comparisons", "GATE": "all phase statuses, version policy, and external gates are machine-checked" }
+  },
+  "local_updates": [
+    "MEI attached harm labels in the bounded startid text subset now round-trip through canonical ChordSymbol; unresolved IDs, unparseable labels, and timing-only placements remain diagnosed",
+    "MEI simple fb/f values are retained in order as Measure.figured_bass and regenerate typed display text; MusicXML figured-bass structure is retained as Measure.figured_bass and richer MEI semantics remain diagnosed",
+    "MusicXML unpitched percussion notes retain display-step/display-octave placement and Note.is_unpitched through MusicXML round-trip; sound identity resolves only through explicit instrument declarations or retained MIDI display keys, with unmatched notes source-located as unresolved",
+    "MSCX and MusicXML Fingering values map to ordered Note.fingerings with the first value mirrored by Note.fingering; deterministic alternate selection is available and external glyph fidelity remains partial",
+    "MusicXML note-level instrument@id maps to Note.instrument_id and round-trips without guessing a concrete percussion sound",
+    "Note serde defaults and SetUnpitched/SetInstrumentId command JSON round-trips are covered for backwards-compatible score editing",
+    "MusicXML figured-bass figure number/alter/prefix/suffix values round-trip structurally and regenerate deterministic display text",
+    "MusicXML standard figure-alter values flatten to visible accidental markers with diagnostic coverage",
+    "MusicXML declared score-instrument and midi-unpitched metadata round-trips on the owning Part without inferred catalog entries",
+    "MIDI channel 10 notes map to Note.is_unpitched with retained display keys and no invented instrument_id",
+    "canonical percussion resolution prefers note instrument_id, then declared midi_unpitched display key, and leaves unmatched notes unresolved",
+    "nested MEI staffGrp ranges map to Part.staff_groups with connector and bar.thru metadata without becoming inter-part PartGroup entries",
+    "MSCX multiple Fingering elements preserve ordered candidates without a loss diagnostic; first-candidate compatibility, deterministic SVG fingering annotation, and horizontal spacing for multiple fret glyphs remain stable",
+    "MSCX Staff elements without Part ownership are source-located with their IDs instead of being silently dropped",
+    "MuseScore 4.x Parts without Staff IDs retain their declared Staff count; MusicXML export/import preserves all same-part staves with explicit staff tags",
+    "MuseScore Part-local bracket and barLineSpan metadata maps to bounded Part.staff_groups connector ranges",
+      "MSCX harmonyInfo root plus common name subset attaches a canonical ChordSymbol to the following chord in a real MuseScore 4.x fixture; unambiguous compact degree suffixes and common maj/min/min7 quality aliases map to canonical fields; richer harmony fields and unknown Harmony attributes remain source-located diagnostics",
+    "MSCZ → canonical Score → MusicXML → Score projection compares bounded ChordSymbol root/kind/bass/placement/ChordDegree fields in addition to note structure",
+      "MSCX harmonyInfo/base maps to ChordSymbol slash bass with a focused regression; harmonyInfo/function shares the canonical harmony_function field",
+    "MSCX out-of-range Harmony root/base TPC values are source-located and bounded before canonical mapping",
+    "ChordSymbol placement is serde-defaulted; MusicXML and attached MEI harm@place round-trip; MusicXML/MEI/MSCX compact degree values compare semantically as ChordDegree; MSCX placement is included in the bounded Harmony subset",
+    "MusicXML invalid degree values and unsupported degree types are source-located with preserved source values",
+      "MEI harm@extender is retained for note-attached chord labels; attached harm@deg and harm@func are structured and unattached deg remains diagnosed",
+      "MEI harm@type and attached harm@chordref are retained as serde-defaulted canonical metadata with parse/serialize/parse coverage; the bounded chordDef/chordTable/chordMember/barre tab-definition slice is structured and round-tripped, invalid member/barre values are source-located diagnostics, and richer harmony remains source-located with MusicXML/ABC export reporting retained metadata loss including chord definitions",
+      "interchange_harm_analysis.mei provides manifest-pinned semantic round-trip evidence for attached harm@deg, harm@extender, harm@type, and harm@chordref; unattached harmonic-analysis attributes are source-located diagnostics",
+      "MEI harm@func and MusicXML harmony/function share the canonical ChordSymbol.harmony_function field and round-trip without format-specific loss",
+      "harmony_function_semantics_match_between_mei_and_musicxml compares root, kind, and function projections directly",
+      "unattached MEI harm@func is source-located with its preserved value",
+      "empty MusicXML harmony function is source-located as malformed",
+      "empty MEI harm elements are source-located instead of being silently discarded",
+      "empty MSCX harmony function values are source-located and omitted from canonical ChordSymbol",
+      "interchange release-gate test checks all 6A-6G statuses, declared external gates, report version policy, and the fixed workspace version",
+    "Note::select_fingering provides deterministic non-mutating source-order, lowest-number, and highest-number projections",
+    "CLI fingering-report exposes the same three policies as a read-only JSON diagnostic",
+    "MEI chordDef/chordTable/chordMember/barre bounded tab-definition data is retained in Score.chord_definitions, including member IDs, string/course distinction, and bounded quarter-tone pitch values, and round-trips through the manifest-pinned harmonic fixture",
+    "MEI chordDef, chordMember, and barre invalid positions, strings, frets, fingerings, incomplete pitches, unresolved member references, unknown attributes, and orphaned elements receive source-located diagnostics",
+    "MusicXML and ABC export report each retained MEI chord definition as a source-path loss",
+    "MEI duplicate chord-definition/member IDs are source-located with preserved repeated values",
+    "MEI duplicate note and other ID-bearing elements are source-located for ambiguous startid/endid references",
+    "MEI local harm@chordref fragments are checked against chordDef IDs and unresolved references are source-located",
+    "MEI and MusicXML figured-bass values match through a normalized alteration semantic projection",
+    "MIDI serialization rejects out-of-range canonical channel, controller, program, aftertouch, and pitch-bend values",
+    "Tablature validation checks primary and alternate tab_positions against declared staff lines",
+    "MSCX malformed note tablature string/fret values are source-located with preserved values",
+    "MSCX numeric string positions are checked against owning StaffType line counts",
+    "MusicXML malformed technical tablature string/fret values are source-located with preserved values",
+    "SVG tablature multi-position spacing uses deterministic digit-count metrics and a fixed gap"
+  ],
+  "comparison_rules": {
+    "pitch": "compare Pitch.to_midi_cents() and PlaybackEvent.pitch_midi_cents before rounded MIDI note values",
+    "tablature": "compare tuning_midi, capo, string, and fret independently",
+    "losses": "warnings are source-located and are not treated as semantic equality",
+    "midi_smpte": "SMPTE timing is reported before deterministic PPQ normalization",
+    "midi_event_ticks": "Metrical MIDI event ticks are normalized deterministically to canonical 480 PPQ",
+    "midi_meta_boundaries": "Tempo and time-signature changes are preserved at measure boundaries and diagnosed otherwise"
+  },
+  "issue_18_ip_gate": {
+    "status": "deferred-risk-not-low",
+    "scope": "beat/downbeat-aware MIDI timing transformation",
+    "decision": "do-not-implement-without-qualified-counsel",
+    "basis": [
+      "JP7683706B2 is displayed as an active Japanese grant and describes beat-position correction and MIDI quantization workflows",
+      "US5734118A and US7589271B2 are displayed as expired, but expired US records do not establish worldwide clearance",
+      "this is a preliminary risk screen, not an infringement or validity opinion"
+    ],
+    "allowed_boundary": ["raw tick preservation", "provenance", "typed source-located timing diagnostics"]
+  },
+  "sample_measurements": {
+    "mscz_musescore_4_6_3": [
+      {"fixture": "openscore_omr_score_1003.mscz", "source_path": "mscz/score_file_1003.mscz", "diagnostics": 0, "parts": 1, "measures": 8},
+      {"fixture": "openscore_omr_score_1033.mscz", "source_path": "mscz/score_file_1033.mscz", "diagnostics": 0, "parts": 2, "measures": 26},
+      {"fixture": "openscore_omr_score_1035.mscz", "source_path": "mscz/score_file_1035.mscz", "diagnostics": 0, "parts": 1, "measures": 28},
+      {"fixture": "openscore_omr_score_1036.mscz", "source_path": "mscz/score_file_1036.mscz", "diagnostics": 0, "parts": 4, "measures": 90},
+      {"fixture": "openscore_omr_score_1016.mscz", "source_path": "mscz/score_file_1016.mscz", "diagnostics": 0, "parts": 1, "measures": 44}
+    ],
+    "midi_pitch_bend_public_domain": [
+      {"fixture": "just_perfect_fifth_on_c.mid", "diagnostics": 2, "parts": 2, "measures": 4},
+      {"fixture": "4_steps_in_31-et_on_c.mid", "diagnostics": 2, "parts": 2, "measures": 4, "channel_0_bend": -1850},
+      {"fixture": "septimal_major_third_on_c.mid", "diagnostics": 2, "parts": 2, "measures": 4, "channel_0_bend": 1437}
+    ]
+  },
+  "evidence_updates": {
+    "figured_bass": [
+      "MEI f@extender and MSCX FiguredBassItem/continuationLine are retained as the canonical extender flag",
+      "MusicXML export reports MEI-only figured-bass extender values as source-located loss diagnostics",
+      "ABC double accidentals round-trip; mixed semitone/quarter-tone offsets receive export loss diagnostics",
+      "MusicXML bend-alter is preserved as canonical bend cents and round-trips; endpoint-only technique details remain diagnosed",
+      "MEI attached harm@extender is retained on canonical ChordSymbol values and round-trips",
+      "MEI attached harm@deg is retained as ChordSymbol.harmonic_degree; unattached values are diagnosed",
+      "MusicXML lossy fractional alter and MSCX unsupported accidental subtype diagnostics preserve source values at the microtonal boundary",
+      "MEI export diagnoses note pitch combinations outside its supported accidental subset",
+      "MSCX standard accidental subtypes remain silent while unknown microtonal subtypes are source-located"
+    ]
+  },
+  "external_gates": [
+    "broader held-out MuseScore 4.x and compressed MSCZ corpus remains useful for independent evidence; the pinned CC0 MuseScore OMR benchmark pair covers the 4.6.3 compressed-MSCZ smoke gate, while OpenScore Lieder and StringQuartets provide 3.x MSCX references",
+    "the three checked-in public-domain MIDI fixtures provide an independent permitted smoke corpus; a broader held-out MIDI corpus remains useful for independent evidence",
+    "complex MEI/MSCX harmony and vendor-specific notation require a permissioned corpus and an explicit canonical mapping before promotion; MuseScore upstream Issue #20996 records an Harmony/extension case with unresolved value semantics",
+    "permissioned guitar/bass tablature corpus coverage remains external for alternate tunings, authored fingering practice, and unsupported technique variants",
+    "external engraving-application glyph metrics and visual equivalence remain unmeasured",
+    "audio rendering equivalence remains host/backend dependent",
+    "WASM browser-only tests require a functioning ChromeDriver; Node compilation is not browser-test evidence"
+  ]
+}

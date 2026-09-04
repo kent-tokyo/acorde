@@ -70,6 +70,13 @@ pub fn detect_chord(pitches: &[Pitch]) -> Option<ChordSymbol> {
                     root,
                     kind: kind.to_string(),
                     bass,
+                    placement: None,
+                    extender: false,
+                    harmonic_degree: None,
+                    harmony_function: None,
+                    harmony_type: None,
+                    chord_ref: None,
+                    degrees: Vec::new(),
                 });
             }
         }
@@ -278,6 +285,13 @@ mod tests {
             root: "C".to_string(),
             kind: "major".to_string(),
             bass: None,
+            placement: None,
+            extender: false,
+            harmonic_degree: None,
+            harmony_function: None,
+            harmony_type: None,
+            chord_ref: None,
+            degrees: Vec::new(),
         };
         assert_eq!(roman_numeral(&chord, &c_major_key()), Some("I".to_string()));
     }
@@ -288,6 +302,13 @@ mod tests {
             root: "G".to_string(),
             kind: "dominant".to_string(),
             bass: None,
+            placement: None,
+            extender: false,
+            harmonic_degree: None,
+            harmony_function: None,
+            harmony_type: None,
+            chord_ref: None,
+            degrees: Vec::new(),
         };
         assert_eq!(
             roman_numeral(&chord, &c_major_key()),
@@ -301,6 +322,13 @@ mod tests {
             root: "D".to_string(),
             kind: "minor".to_string(),
             bass: None,
+            placement: None,
+            extender: false,
+            harmonic_degree: None,
+            harmony_function: None,
+            harmony_type: None,
+            chord_ref: None,
+            degrees: Vec::new(),
         };
         assert_eq!(
             roman_numeral(&chord, &c_major_key()),
@@ -314,6 +342,13 @@ mod tests {
             root: "B".to_string(),
             kind: "diminished".to_string(),
             bass: None,
+            placement: None,
+            extender: false,
+            harmonic_degree: None,
+            harmony_function: None,
+            harmony_type: None,
+            chord_ref: None,
+            degrees: Vec::new(),
         };
         assert_eq!(
             roman_numeral(&chord, &c_major_key()),
@@ -328,6 +363,13 @@ mod tests {
             root: "F#".to_string(),
             kind: "major".to_string(),
             bass: None,
+            placement: None,
+            extender: false,
+            harmonic_degree: None,
+            harmony_function: None,
+            harmony_type: None,
+            chord_ref: None,
+            degrees: Vec::new(),
         };
         assert!(roman_numeral(&chord, &c_major_key()).is_none());
     }
@@ -339,6 +381,13 @@ mod tests {
             root: "C".to_string(),
             kind: "major".to_string(),
             bass: Some("G".to_string()),
+            placement: None,
+            extender: false,
+            harmonic_degree: None,
+            harmony_function: None,
+            harmony_type: None,
+            chord_ref: None,
+            degrees: Vec::new(),
         };
         assert_eq!(
             roman_numeral(&chord, &c_major_key()),

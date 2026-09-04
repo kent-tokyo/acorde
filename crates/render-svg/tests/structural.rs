@@ -228,6 +228,13 @@ fn note_annotations_are_rendered_and_xml_escaped() {
         root: "C".into(),
         kind: "major".into(),
         bass: Some("G".into()),
+        placement: None,
+        extender: false,
+        harmonic_degree: None,
+        harmony_function: None,
+        harmony_type: None,
+        chord_ref: None,
+        degrees: Vec::new(),
     });
     note.lyric = Some(Lyric {
         text: "A&B<".into(),
@@ -503,6 +510,8 @@ fn tablature_renders_lines_frets_and_techniques() {
     staff.measures.push(acorde_core::Measure::empty(4, 4));
     let mut note = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
     note.tab_position = Some(acorde_core::TabPosition { string: 2, fret: 3 });
+    note.fingerings = vec![1, 3];
+    note.fingering = Some(1);
     note.guitar_technique = Some(GuitarTechnique::Bend);
     staff.measures[0].voices[0] = vec![note];
     score.parts[0].staves = vec![staff];
@@ -511,8 +520,48 @@ fn tablature_renders_lines_frets_and_techniques() {
     assert_eq!(svg.matches("acorde-staff-line").count(), 6);
     assert!(svg.contains("acorde-tab-fret"));
     assert!(svg.contains(">3</text>"));
+    assert!(svg.contains("acorde-tab-fingering"));
+    assert!(svg.contains(">1/3</text>"));
     assert!(svg.contains("acorde-tab-technique"));
     assert!(svg.contains(">bend</text>"));
+    assert_well_formed_xml(&svg);
+}
+
+#[test]
+fn tablature_multiple_positions_get_deterministic_horizontal_spacing() {
+    use acorde_core::{Duration, Note, Pitch, Staff, Step, TabPosition, TablatureConfig};
+    let mut score = acorde_core::Score::new("Tab positions", 120, 4, 4, 0, 1);
+    let mut staff = Staff::new(acorde_core::Clef::Treble);
+    staff.tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![64, 59, 55, 50, 45, 40],
+        capo: 0,
+    });
+    staff.measures.push(acorde_core::Measure::empty(4, 4));
+    let mut note = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+    note.tab_positions = vec![
+        TabPosition {
+            string: 2,
+            fret: 12,
+        },
+        TabPosition { string: 3, fret: 7 },
+    ];
+    staff.measures[0].voices[0] = vec![note];
+    score.parts[0].staves = vec![staff];
+
+    let svg = render_svg(&score, &opts()).expect("tablature renders");
+    let fret_texts: Vec<&str> = svg
+        .split("<text class=\"acorde-tab-fret\"")
+        .skip(1)
+        .map(|fragment| fragment.split("</text>").next().unwrap_or_default())
+        .collect();
+    assert_eq!(fret_texts.len(), 2);
+    assert_ne!(
+        fret_texts[0].split(" x=\"").nth(1),
+        fret_texts[1].split(" x=\"").nth(1)
+    );
+    assert!(svg.contains(">12</text>"));
+    assert!(svg.contains(">7</text>"));
     assert_well_formed_xml(&svg);
 }
 

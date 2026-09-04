@@ -2,8 +2,8 @@ use super::change_hint::{ChangeHint, ChangeScope};
 use super::commands::{
     AddStaffCmd, Command, CommandStack, DeleteStaffCmd, PasteRangeCmd, PasteVoiceCmd,
     RespellScoreCmd, RespellScoreToKeyCmd, SetArpeggioCmd, SetCueCmd, SetDurationCmd,
-    SetNoteHeadCmd, SetPartGroupCmd, SetStemCmd, SetTupletCmd, ToggleSlurCmd, ToggleTrillLineCmd,
-    command_hint,
+    SetInstrumentIdCmd, SetNoteHeadCmd, SetPartGroupCmd, SetStemCmd, SetTupletCmd, SetUnpitchedCmd,
+    ToggleSlurCmd, ToggleTrillLineCmd, command_hint,
 };
 use super::duration::Duration;
 use super::notation::{Clef, NoteHead, TupletInfo};
@@ -386,6 +386,38 @@ impl ScoreEngine {
         }))
     }
 
+    /// Set or clear the unpitched flag while retaining display placement.
+    pub fn set_unpitched(
+        &mut self,
+        addr: NoteAddr,
+        is_unpitched: bool,
+    ) -> Result<ChangeHint, Error> {
+        self.apply(Command::SetUnpitched(SetUnpitchedCmd {
+            part_index: addr.part,
+            staff_index: addr.staff,
+            measure_index: addr.measure,
+            voice: addr.voice,
+            note_index: addr.note,
+            is_unpitched,
+        }))
+    }
+
+    /// Set or clear a source instrument identifier attached to a note.
+    pub fn set_instrument_id(
+        &mut self,
+        addr: NoteAddr,
+        instrument_id: Option<String>,
+    ) -> Result<ChangeHint, Error> {
+        self.apply(Command::SetInstrumentId(SetInstrumentIdCmd {
+            part_index: addr.part,
+            staff_index: addr.staff,
+            measure_index: addr.measure,
+            voice: addr.voice,
+            note_index: addr.note,
+            instrument_id,
+        }))
+    }
+
     /// Set or clear the tuplet on an existing note (undo-able).
     pub fn set_tuplet(
         &mut self,
@@ -521,6 +553,58 @@ mod tests {
         engine.paste_voice(0, 0, 0, 1).unwrap();
         engine.undo().unwrap();
         assert!(engine.score.parts[0].staves[0].measures[0].voices[1].is_empty());
+    }
+
+    #[test]
+    fn unpitched_flag_is_undoable_and_redoable() {
+        let mut engine = ScoreEngine::new();
+        let addr = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
+        engine.set_unpitched(addr.clone(), true).unwrap();
+        assert!(engine.score.parts[0].staves[0].measures[0].voices[0][0].is_unpitched);
+        engine.undo().unwrap();
+        assert!(!engine.score.parts[0].staves[0].measures[0].voices[0][0].is_unpitched);
+        engine.redo().unwrap();
+        assert!(engine.score.parts[0].staves[0].measures[0].voices[0][0].is_unpitched);
+        engine
+            .set_instrument_id(addr, Some("P1-I2".to_string()))
+            .unwrap();
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].voices[0][0]
+                .instrument_id
+                .as_deref(),
+            Some("P1-I2")
+        );
+        for command in [
+            Command::SetUnpitched(super::super::commands::SetUnpitchedCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                note_index: 0,
+                is_unpitched: false,
+            }),
+            Command::SetInstrumentId(super::super::commands::SetInstrumentIdCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                note_index: 0,
+                instrument_id: Some("P1-I2".to_string()),
+            }),
+        ] {
+            let json = serde_json::to_string(&command).unwrap();
+            let restored: Command = serde_json::from_str(&json).unwrap();
+            assert_eq!(
+                super::super::commands::command_key(&restored),
+                super::super::commands::command_key(&command)
+            );
+        }
     }
 
     #[test]

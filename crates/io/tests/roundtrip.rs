@@ -9,8 +9,52 @@ use acorde_io::{parse_midi, parse_musicxml, serialize_musicxml};
 static SIMPLE_XML: &str = include_str!("../../../tests/fixtures/simple.musicxml");
 static MULTIPART_XML: &str = include_str!("../../../tests/fixtures/multipart.musicxml");
 static MULTIVOICE_XML: &str = include_str!("../../../tests/fixtures/multivoice.musicxml");
+static FIXTURE_MANIFEST: &str = include_str!("../../../tests/fixtures/manifest.json");
+static INTERCHANGE_REPORT: &str = include_str!("../../../docs/interchange-report.json");
+static WORKSPACE_MANIFEST: &str = include_str!("../../../Cargo.toml");
+#[cfg(all(feature = "mei", feature = "mscz"))]
+static INTERCHANGE_MEI: &str = include_str!("../../../tests/fixtures/interchange_subset.mei");
+#[cfg(feature = "mei")]
+static INTERCHANGE_MULTISTAFF_MEI: &str =
+    include_str!("../../../tests/fixtures/interchange_multistaff.mei");
+#[cfg(feature = "mei")]
+static INTERCHANGE_HARM_ANALYSIS_MEI: &str =
+    include_str!("../../../tests/fixtures/interchange_harm_analysis.mei");
+#[cfg(all(feature = "mei", feature = "mscz"))]
+static INTERCHANGE_MSCX: &str = include_str!("../../../tests/fixtures/interchange_subset.mscx");
+#[cfg(feature = "mscz")]
+static INTERCHANGE_FIGURED_BASS_MSCX: &str =
+    include_str!("../../../tests/fixtures/interchange_figured_bass.mscx");
+#[cfg(feature = "mscz")]
+static OPENSCORE_LIEDER_MSCX: &str =
+    include_str!("../../../tests/fixtures/openscore_lieder_aloha_oe.mscx");
+#[cfg(feature = "mscz")]
+static OPENSCORE_OMR_MSCZ: &[u8] =
+    include_bytes!("../../../tests/fixtures/openscore_omr_score_1003.mscz");
+#[cfg(feature = "mscz")]
+static OPENSCORE_OMR_MSCZ_SECOND: &[u8] =
+    include_bytes!("../../../tests/fixtures/openscore_omr_score_1033.mscz");
+#[cfg(feature = "mscz")]
+static OPENSCORE_OMR_MSCZ_THIRD: &[u8] =
+    include_bytes!("../../../tests/fixtures/openscore_omr_score_1035.mscz");
+#[cfg(feature = "mscz")]
+static OPENSCORE_OMR_MSCZ_FOURTH: &[u8] =
+    include_bytes!("../../../tests/fixtures/openscore_omr_score_1036.mscz");
+#[cfg(feature = "mscz")]
+static OPENSCORE_OMR_MSCZ_FIFTH: &[u8] =
+    include_bytes!("../../../tests/fixtures/openscore_omr_score_1016.mscz");
+#[cfg(feature = "mscz")]
+static OPENSCORE_OMR_MSCX: &str =
+    include_str!("../../../tests/fixtures/openscore_omr_score_1003.mscx");
+#[cfg(feature = "mscz")]
+static OPENSCORE_OMR_MSCX_SECOND: &str =
+    include_str!("../../../tests/fixtures/openscore_omr_score_1033.mscx");
 static JUST_PERFECT_FIFTH_MIDI: &[u8] =
     include_bytes!("../../../tests/fixtures/just_perfect_fifth_on_c.mid");
+static FOUR_STEPS_31ET_MIDI: &[u8] =
+    include_bytes!("../../../tests/fixtures/4_steps_in_31-et_on_c.mid");
+static SEPTIMAL_MAJOR_THIRD_MIDI: &[u8] =
+    include_bytes!("../../../tests/fixtures/septimal_major_third_on_c.mid");
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -96,6 +140,1108 @@ fn fixture_scores_have_deterministic_json_and_roundtrip_identity() {
 }
 
 #[test]
+fn fixture_manifest_has_pinned_evidence_contract() {
+    let manifest: serde_json::Value =
+        serde_json::from_str(FIXTURE_MANIFEST).expect("fixture manifest is valid JSON");
+    assert_eq!(manifest["schema_version"], 1);
+    let fixtures = manifest["fixtures"]
+        .as_array()
+        .expect("fixture manifest has an array");
+    assert!(fixtures.len() >= 7);
+
+    for fixture in fixtures {
+        let path = fixture["path"].as_str().expect("fixture path");
+        assert!(!path.is_empty());
+        assert!(fixture["format"].as_str().is_some());
+        assert!(fixture["license"].as_str().is_some());
+        let checksum = fixture["sha256"].as_str().expect("fixture checksum");
+        assert_eq!(checksum.len(), 64);
+        assert!(checksum.bytes().all(|byte| byte.is_ascii_hexdigit()));
+        assert!(matches!(
+            fixture["round_trip"].as_str(),
+            Some("semantic") | Some("import-only") | Some("decode-render")
+        ));
+        assert!(fixture["expected_losses"].as_array().is_some());
+    }
+}
+
+#[test]
+fn fixture_manifest_sha256_matches_checked_in_files() {
+    use sha2::{Digest, Sha256};
+
+    let manifest: serde_json::Value =
+        serde_json::from_str(FIXTURE_MANIFEST).expect("fixture manifest is valid JSON");
+    for fixture in manifest["fixtures"].as_array().expect("fixture array") {
+        let path = fixture["path"].as_str().expect("fixture path");
+        let expected = fixture["sha256"].as_str().expect("fixture sha256");
+        let bytes: &[u8] = match path {
+            "simple.musicxml" => include_bytes!("../../../tests/fixtures/simple.musicxml"),
+            "multipart.musicxml" => include_bytes!("../../../tests/fixtures/multipart.musicxml"),
+            "multivoice.musicxml" => include_bytes!("../../../tests/fixtures/multivoice.musicxml"),
+            "interchange_subset.mei" => {
+                include_bytes!("../../../tests/fixtures/interchange_subset.mei")
+            }
+            "interchange_multistaff.mei" => {
+                include_bytes!("../../../tests/fixtures/interchange_multistaff.mei")
+            }
+            "interchange_harm_analysis.mei" => {
+                include_bytes!("../../../tests/fixtures/interchange_harm_analysis.mei")
+            }
+            "interchange_subset.mscx" => {
+                include_bytes!("../../../tests/fixtures/interchange_subset.mscx")
+            }
+            "interchange_figured_bass.mscx" => {
+                include_bytes!("../../../tests/fixtures/interchange_figured_bass.mscx")
+            }
+            "openscore_lieder_aloha_oe.mscx" => {
+                include_bytes!("../../../tests/fixtures/openscore_lieder_aloha_oe.mscx")
+            }
+            "openscore_omr_score_1003.mscz" => {
+                include_bytes!("../../../tests/fixtures/openscore_omr_score_1003.mscz")
+            }
+            "openscore_omr_score_1033.mscz" => {
+                include_bytes!("../../../tests/fixtures/openscore_omr_score_1033.mscz")
+            }
+            "openscore_omr_score_1035.mscz" => {
+                include_bytes!("../../../tests/fixtures/openscore_omr_score_1035.mscz")
+            }
+            "openscore_omr_score_1036.mscz" => {
+                include_bytes!("../../../tests/fixtures/openscore_omr_score_1036.mscz")
+            }
+            "openscore_omr_score_1016.mscz" => {
+                include_bytes!("../../../tests/fixtures/openscore_omr_score_1016.mscz")
+            }
+            "openscore_omr_score_1003.mscx" => {
+                include_bytes!("../../../tests/fixtures/openscore_omr_score_1003.mscx")
+            }
+            "openscore_omr_score_1033.mscx" => {
+                include_bytes!("../../../tests/fixtures/openscore_omr_score_1033.mscx")
+            }
+            "sample.abc" => include_bytes!("../../../tests/fixtures/sample.abc"),
+            "just_perfect_fifth_on_c.mid" => {
+                include_bytes!("../../../tests/fixtures/just_perfect_fifth_on_c.mid")
+            }
+            "4_steps_in_31-et_on_c.mid" => {
+                include_bytes!("../../../tests/fixtures/4_steps_in_31-et_on_c.mid")
+            }
+            "septimal_major_third_on_c.mid" => {
+                include_bytes!("../../../tests/fixtures/septimal_major_third_on_c.mid")
+            }
+            "UprightPianoKW-small-20190703.sf2" => {
+                include_bytes!("../../../tests/fixtures/UprightPianoKW-small-20190703.sf2")
+            }
+            "FluidR3Mono_GM.sf3" => include_bytes!("../../../tests/fixtures/FluidR3Mono_GM.sf3"),
+            other => panic!("manifest fixture has no embedded test mapping: {other}"),
+        };
+        let actual = format!("{:x}", Sha256::digest(bytes));
+        assert_eq!(actual, expected, "fixture checksum mismatch: {path}");
+    }
+}
+
+#[test]
+fn interchange_report_has_machine_checked_phase_evidence() {
+    let report: serde_json::Value =
+        serde_json::from_str(INTERCHANGE_REPORT).expect("interchange report is valid JSON");
+    assert_eq!(report["schema_version"], 1);
+    assert_eq!(report["version_policy"], "workspace version is 1.1.0");
+    assert!(WORKSPACE_MANIFEST.contains("version = \"1.1.0\""));
+    assert_eq!(
+        report["sample_measurements"]["mscz_musescore_4_6_3"]
+            .as_array()
+            .expect("MSCZ sample measurements")
+            .len(),
+        5
+    );
+    assert_eq!(
+        report["sample_measurements"]["midi_pitch_bend_public_domain"]
+            .as_array()
+            .expect("MIDI sample measurements")
+            .len(),
+        3
+    );
+    let phases = report["phases"].as_object().expect("phase map");
+    for phase in ["6A", "6B", "6C", "6D", "6E", "6F", "6G"] {
+        let entry = &phases[phase];
+        assert!(
+            entry["status"].as_str().is_some(),
+            "status missing for {phase}"
+        );
+        assert!(
+            entry["evidence"].as_array().is_some(),
+            "evidence missing for {phase}"
+        );
+        assert_eq!(
+            entry["status"].as_str(),
+            Some("local-gate-passed"),
+            "local release gate status missing for {phase}"
+        );
+        assert!(
+            !entry["evidence"]
+                .as_array()
+                .expect("evidence array")
+                .is_empty(),
+            "empty evidence for {phase}"
+        );
+    }
+    let gate_contract = report["phase_gate_contract"]
+        .as_object()
+        .expect("phase BUILD/MEASURE/GATE contract");
+    for phase in ["6A", "6B", "6C", "6D", "6E", "6F", "6G"] {
+        let contract = gate_contract[phase]
+            .as_object()
+            .unwrap_or_else(|| panic!("missing gate contract for {phase}"));
+        for stage in ["BUILD", "MEASURE", "GATE"] {
+            assert!(
+                contract[stage]
+                    .as_str()
+                    .is_some_and(|text| !text.trim().is_empty()),
+                "missing {stage} contract evidence for {phase}"
+            );
+        }
+    }
+    assert!(report["comparison_rules"]["pitch"].as_str().is_some());
+    let external_gates = report["external_gates"]
+        .as_array()
+        .expect("external gate array");
+    assert!(external_gates.len() >= 6);
+    assert!(
+        external_gates
+            .iter()
+            .all(|gate| { gate.as_str().is_some_and(|text| !text.trim().is_empty()) })
+    );
+    for required in [
+        "held-out",
+        "permissioned guitar/bass tablature",
+        "engraving-application glyph metrics",
+        "audio rendering equivalence",
+        "complex MEI/MSCX harmony",
+    ] {
+        assert!(
+            external_gates
+                .iter()
+                .any(|gate| gate.as_str().is_some_and(|text| text.contains(required))),
+            "missing external gate declaration: {required}"
+        );
+    }
+    assert_eq!(
+        report["issue_18_ip_gate"]["status"].as_str(),
+        Some("deferred-risk-not-low")
+    );
+    let local_updates = report["local_updates"]
+        .as_array()
+        .expect("local update evidence array");
+    for required in [
+        "Note.is_unpitched",
+        "Note.instrument_id",
+        "score-instrument and midi-unpitched",
+        "ordered Note.fingerings",
+        "MusicXML figured-bass figure number/alter",
+        "Part.staff_groups",
+        "canonical percussion resolution",
+        "multiple Fingering",
+        "Part ownership",
+        "Staff count",
+        "bracket and barLineSpan",
+    ] {
+        assert!(
+            local_updates
+                .iter()
+                .any(|entry| entry.as_str().is_some_and(|text| text.contains(required))),
+            "missing local evidence update: {required}"
+        );
+    }
+}
+
+#[cfg(all(feature = "mscz", feature = "musicxml", feature = "midi"))]
+#[test]
+fn sample_measurements_match_current_parser_output() {
+    let report: serde_json::Value =
+        serde_json::from_str(INTERCHANGE_REPORT).expect("interchange report is valid JSON");
+    let mscz_rows = report["sample_measurements"]["mscz_musescore_4_6_3"]
+        .as_array()
+        .expect("MSCZ measurement rows");
+    let mscz_samples = [
+        ("openscore_omr_score_1003.mscz", OPENSCORE_OMR_MSCZ),
+        ("openscore_omr_score_1033.mscz", OPENSCORE_OMR_MSCZ_SECOND),
+        ("openscore_omr_score_1035.mscz", OPENSCORE_OMR_MSCZ_THIRD),
+        ("openscore_omr_score_1036.mscz", OPENSCORE_OMR_MSCZ_FOURTH),
+        ("openscore_omr_score_1016.mscz", OPENSCORE_OMR_MSCZ_FIFTH),
+    ];
+    for (fixture, bytes) in mscz_samples {
+        let parsed = acorde_io::parse_mscz_with_report(bytes).expect("MSCZ parses");
+        let row = mscz_rows
+            .iter()
+            .find(|row| row["fixture"] == fixture)
+            .expect("MSCZ measurement row");
+        assert_eq!(
+            parsed.diagnostics.len(),
+            row["diagnostics"].as_u64().unwrap() as usize
+        );
+        assert_eq!(
+            parsed.score.parts.len(),
+            row["parts"].as_u64().unwrap() as usize
+        );
+        let measures: usize = parsed
+            .score
+            .parts
+            .iter()
+            .flat_map(|part| part.staves.iter())
+            .map(|staff| staff.measures.len())
+            .sum();
+        assert_eq!(measures, row["measures"].as_u64().unwrap() as usize);
+    }
+
+    let midi_rows = report["sample_measurements"]["midi_pitch_bend_public_domain"]
+        .as_array()
+        .expect("MIDI measurement rows");
+    let midi_samples = [
+        ("just_perfect_fifth_on_c.mid", JUST_PERFECT_FIFTH_MIDI, None),
+        (
+            "4_steps_in_31-et_on_c.mid",
+            FOUR_STEPS_31ET_MIDI,
+            Some(-1850),
+        ),
+        (
+            "septimal_major_third_on_c.mid",
+            SEPTIMAL_MAJOR_THIRD_MIDI,
+            Some(1437),
+        ),
+    ];
+    for (fixture, bytes, expected_bend) in midi_samples {
+        let parsed = acorde_io::parse_midi_with_report(bytes).expect("MIDI parses");
+        let row = midi_rows
+            .iter()
+            .find(|row| row["fixture"] == fixture)
+            .expect("MIDI measurement row");
+        assert_eq!(
+            parsed.diagnostics.len(),
+            row["diagnostics"].as_u64().unwrap() as usize
+        );
+        assert_eq!(
+            parsed.score.parts.len(),
+            row["parts"].as_u64().unwrap() as usize
+        );
+        let measures: usize = parsed
+            .score
+            .parts
+            .iter()
+            .flat_map(|part| part.staves.iter())
+            .map(|staff| staff.measures.len())
+            .sum();
+        assert_eq!(measures, row["measures"].as_u64().unwrap() as usize);
+        if let Some(expected_bend) = expected_bend {
+            assert!(
+                parsed
+                    .score
+                    .parts
+                    .iter()
+                    .flat_map(|part| part.midi_pitch_bends.iter())
+                    .any(|bend| bend.channel == 0 && bend.value == expected_bend)
+            );
+        }
+    }
+}
+
+#[test]
+fn musicxml_simple_figured_bass_display_text_roundtrips() {
+    let xml = SIMPLE_XML.replacen(
+        "<note",
+        "<figured-bass><figure><figure-number>6</figure-number></figure></figured-bass><note",
+        1,
+    );
+    let report = acorde_io::parse_musicxml_with_report(&xml).expect("MusicXML report parses");
+    assert!(report.diagnostics.is_empty());
+    let texts = &report.score.parts[0].staves[0].measures[0].texts;
+    assert_eq!(
+        texts,
+        &[acorde_core::StyledText {
+            style: acorde_core::TextStyle::FiguredBass,
+            text: "6".to_string(),
+        }]
+    );
+    let serialized = acorde_io::serialize_musicxml(&report.score).expect("MusicXML serializes");
+    assert!(serialized.contains("<figured-bass>"));
+    assert!(serialized.contains("<figure-number>6</figure-number>"));
+    let restored = acorde_io::parse_musicxml(&serialized).expect("serialized MusicXML parses");
+    assert_eq!(restored.parts[0].staves[0].measures[0].texts, *texts);
+}
+
+#[test]
+fn musicxml_structured_chord_degrees_roundtrip() {
+    let xml = SIMPLE_XML.replacen(
+        "<note",
+        "<harmony placement=\"above\"><root><root-step>C</root-step></root><kind>dominant</kind><degree><degree-value>9</degree-value><degree-alter>1</degree-alter><degree-type>add</degree-type></degree></harmony><note",
+        1,
+    );
+    let report = acorde_io::parse_musicxml_with_report(&xml).expect("MusicXML report parses");
+    assert!(report.diagnostics.is_empty());
+    let chord = report.score.parts[0].staves[0].measures[0].voices[0][0]
+        .chord_symbol
+        .as_ref()
+        .expect("degree harmony attaches to note");
+    assert_eq!(chord.placement.as_deref(), Some("above"));
+    assert_eq!(
+        chord.degrees,
+        vec![acorde_core::ChordDegree {
+            value: 9,
+            alter: 1,
+            kind: "add".to_string(),
+        }]
+    );
+    let serialized = acorde_io::serialize_musicxml(&report.score).expect("MusicXML serializes");
+    let restored = acorde_io::parse_musicxml(&serialized).expect("serialized MusicXML parses");
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].voices[0][0]
+            .chord_symbol
+            .as_ref()
+            .expect("restored harmony")
+            .degrees,
+        chord.degrees
+    );
+}
+
+#[test]
+fn musicxml_invalid_chord_degree_is_source_located() {
+    let xml = SIMPLE_XML.replacen(
+        "<note",
+        "<harmony><root><root-step>C</root-step></root><kind>major</kind><degree><degree-value>0</degree-value><degree-type>unsupported</degree-type></degree></harmony><note",
+        1,
+    );
+    let report = acorde_io::parse_musicxml_with_report(&xml).expect("MusicXML report parses");
+    assert!(report.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "musicxml.invalid-degree-value"
+            && diagnostic
+                .source_location
+                .as_deref()
+                .is_some_and(|path| path.ends_with("/degree"))
+            && diagnostic.preserved_value.as_deref() == Some("0")
+    }));
+    assert!(report.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "musicxml.unsupported-degree-type"
+            && diagnostic.preserved_value.as_deref() == Some("unsupported")
+    }));
+}
+
+#[test]
+fn musicxml_structured_figured_bass_roundtrips_without_loss() {
+    let xml = SIMPLE_XML.replacen(
+        "<note",
+        "<figured-bass><figure><prefix>+</prefix><figure-number>6</figure-number><suffix>b</suffix></figure></figured-bass><note",
+        1,
+    );
+    let report = acorde_io::parse_musicxml_with_report(&xml).expect("MusicXML report parses");
+    assert!(report.diagnostics.is_empty());
+    assert_eq!(
+        report.score.parts[0].staves[0].measures[0].figured_bass,
+        vec![acorde_core::FiguredBassFigure {
+            number: "6".to_string(),
+            alter: None,
+            prefix: Some("+".to_string()),
+            suffix: Some("b".to_string()),
+            extender: false,
+        }]
+    );
+    assert_eq!(
+        report.score.parts[0].staves[0].measures[0].texts[0].text,
+        "+6b"
+    );
+    let serialized =
+        acorde_io::serialize_musicxml(&report.score).expect("structured figure serializes");
+    let restored = acorde_io::parse_musicxml(&serialized).expect("flattened figure reparses");
+    assert_eq!(restored.parts[0].staves[0].measures[0].texts[0].text, "+6b");
+}
+
+#[test]
+fn figured_bass_semantics_match_between_mei_and_musicxml() {
+    let mei = r#"<mei><music><body><mdiv><score><section><measure n="1"><fb><f>#6+</f></fb><staff n="1"><layer n="1"><note pname="c" oct="4" dur="4"/></layer></staff></measure></section></score></mdiv></body></music></mei>"#;
+    let musicxml = SIMPLE_XML.replacen(
+        "</note>",
+        "<figured-bass><figure><prefix>#</prefix><figure-number>6</figure-number><suffix>+</suffix></figure></figured-bass></note>",
+        1,
+    );
+    let mei_score = acorde_io::parse_mei(mei).expect("MEI figured bass parses");
+    let musicxml_score =
+        acorde_io::parse_musicxml(&musicxml).expect("MusicXML figured bass parses");
+    let project = |figure: &acorde_core::FiguredBassFigure| {
+        let alter = figure.alter.clone().or_else(|| {
+            figure.prefix.as_deref().and_then(|prefix| match prefix {
+                "#" | "♯" => Some("1".to_string()),
+                "b" | "♭" => Some("-1".to_string()),
+                "♮" => Some("0".to_string()),
+                _ => None,
+            })
+        });
+        (figure.number.clone(), alter, figure.suffix.clone())
+    };
+    let mei_projection = mei_score.parts[0].staves[0].measures[0]
+        .figured_bass
+        .iter()
+        .map(project)
+        .collect::<Vec<_>>();
+    let musicxml_projection = musicxml_score.parts[0].staves[0].measures[0]
+        .figured_bass
+        .iter()
+        .map(project)
+        .collect::<Vec<_>>();
+    assert_eq!(mei_projection, musicxml_projection);
+}
+
+#[test]
+fn harmony_function_semantics_match_between_mei_and_musicxml() {
+    let mei = r##"<mei><music><body><mdiv><score><section><measure n="1"><harm startid="#n1" deg="V7" func="D" type="roman">C7</harm><staff n="1"><layer n="1"><note xml:id="n1" pname="c" oct="4" dur="4"/></layer></staff></measure></section></score></mdiv></body></music></mei>"##;
+    let musicxml = SIMPLE_XML.replacen(
+        "<note",
+        "<harmony><root><root-step>C</root-step></root><kind>dominant</kind><function>D</function></harmony><note",
+        1,
+    );
+    let mei_chord = acorde_io::parse_mei(mei)
+        .expect("MEI harmony function parses")
+        .parts[0]
+        .staves[0]
+        .measures[0]
+        .voices[0][0]
+        .chord_symbol
+        .clone()
+        .expect("MEI harmony attaches");
+    let musicxml_chord = acorde_io::parse_musicxml(&musicxml)
+        .expect("MusicXML harmony function parses")
+        .parts[0]
+        .staves[0]
+        .measures[0]
+        .voices[0][0]
+        .chord_symbol
+        .clone()
+        .expect("MusicXML harmony attaches");
+    let project = |chord: &acorde_core::ChordSymbol| {
+        (
+            chord.root.clone(),
+            chord.kind.clone(),
+            chord.harmony_function.clone(),
+        )
+    };
+    assert_eq!(project(&mei_chord), project(&musicxml_chord));
+}
+
+#[test]
+fn musicxml_figured_bass_alter_flattens_to_visible_accidental() {
+    let xml = SIMPLE_XML.replacen(
+        "<note",
+        "<figured-bass><figure><figure-number>6</figure-number><figure-alter>-1</figure-alter></figure></figured-bass><note",
+        1,
+    );
+    let report = acorde_io::parse_musicxml_with_report(&xml).expect("MusicXML report parses");
+    assert!(report.diagnostics.is_empty());
+    assert_eq!(
+        report.score.parts[0].staves[0].measures[0].figured_bass[0].alter,
+        Some("-1".to_string())
+    );
+    assert_eq!(
+        report.score.parts[0].staves[0].measures[0].texts[0].text,
+        "b6"
+    );
+    let serialized = acorde_io::serialize_musicxml(&report.score).expect("alter serializes");
+    let restored = acorde_io::parse_musicxml(&serialized).expect("alter reparses");
+    assert_eq!(restored.parts[0].staves[0].measures[0].texts[0].text, "b6");
+}
+
+#[test]
+fn musicxml_empty_figured_bass_is_diagnosed() {
+    let xml = SIMPLE_XML.replacen("<note", "<figured-bass/><note", 1);
+    let report = acorde_io::parse_musicxml_with_report(&xml).expect("MusicXML report parses");
+    assert!(report.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "musicxml.unsupported-detail.figured-bass"
+            && diagnostic
+                .source_location
+                .as_deref()
+                .is_some_and(|path| path.ends_with("/figured-bass"))
+    }));
+}
+
+#[test]
+fn musicxml_unpitched_note_is_reported_instead_of_claiming_pitch_equivalence() {
+    let xml = SIMPLE_XML
+        .replacen(
+            "<part-name>Piano</part-name>",
+            "<part-name>Piano</part-name><score-instrument id=\"P1-I2\"><instrument-name>Snare Drum</instrument-name><midi-unpitched>38</midi-unpitched></score-instrument>",
+            1,
+        )
+        .replacen(
+        "<pitch><step>C</step><octave>4</octave></pitch>",
+        "<unpitched><display-step>C</display-step><display-octave>5</display-octave></unpitched><instrument id=\"P1-I2\"/>",
+        1,
+        );
+    let report = acorde_io::parse_musicxml_with_report(&xml).expect("MusicXML report parses");
+    assert!(report.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "musicxml.unsupported-element.unpitched"
+            && diagnostic
+                .source_location
+                .as_deref()
+                .is_some_and(|path| path.ends_with("/unpitched"))
+    }));
+    assert_eq!(
+        report.score.parts[0].staves[0].measures[0].voices[0][0].pitches[0].to_midi(),
+        72,
+        "unpitched display position is retained until percussion mapping exists"
+    );
+    assert!(report.score.parts[0].staves[0].measures[0].voices[0][0].is_unpitched);
+    assert_eq!(
+        report.score.parts[0].staves[0].measures[0].voices[0][0]
+            .instrument_id
+            .as_deref(),
+        Some("P1-I2")
+    );
+    assert_eq!(
+        report.score.parts[0].percussion_instruments[0].midi_unpitched,
+        Some(38)
+    );
+    let serialized = acorde_io::serialize_musicxml(&report.score).expect("serialize unpitched");
+    assert!(serialized.contains("<unpitched>"));
+    assert!(serialized.contains("<instrument id=\"P1-I2\"/>"));
+    assert!(serialized.contains("<midi-unpitched>38</midi-unpitched>"));
+    let reparsed = acorde_io::parse_musicxml(&serialized).expect("reparse unpitched");
+    let reparsed_note = &reparsed.parts[0].staves[0].measures[0].voices[0][0];
+    assert!(reparsed_note.is_unpitched);
+    assert_eq!(reparsed_note.instrument_id.as_deref(), Some("P1-I2"));
+    assert_eq!(reparsed_note.pitches[0].to_midi(), 72);
+}
+
+#[cfg(feature = "mei")]
+#[test]
+fn mei_import_report_does_not_silently_drop_pedal() {
+    let mei = r##"<mei><music><body><mdiv><score><section><measure n="1"><pedal dir="down" startid="#n1" endid="#n1" tstamp="1" tstamp2="1m+3"/><staff n="1"><layer n="1"><note xml:id="n1" pname="c" oct="4" dur="4"/></layer></staff></measure></section></score></mdiv></body></music></mei>"##;
+    let report = acorde_io::parse_mei_with_report(mei).expect("MEI parses");
+    assert!(report.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "mei.unsupported-detail.pedal"
+            && diagnostic
+                .source_location
+                .as_deref()
+                .is_some_and(|path| path.ends_with("/pedal"))
+            && diagnostic.preserved_value.as_deref().is_some_and(|value| {
+                value.contains("startid=#n1")
+                    && value.contains("endid=#n1")
+                    && value.contains("tstamp=1")
+                    && value.contains("tstamp2=1m+3")
+            })
+    }));
+}
+
+#[cfg(feature = "mei")]
+#[test]
+fn mei_octave_span_roundtrips_through_canonical_model() {
+    let mei = r##"<mei><music><body><mdiv><score><section><measure n="1"><octave startid="#n1" endid="#n2" dis="8" dis.place="above"/><staff n="1"><layer n="1"><note xml:id="n1" pname="c" oct="4" dur="4"/><note xml:id="n2" pname="d" oct="4" dur="4"/></layer></staff></measure></section></score></mdiv></body></music></mei>"##;
+    let report = acorde_io::parse_mei_with_report(mei).expect("MEI octave parses");
+    assert!(report.diagnostics.is_empty());
+    let voice = &report.score.parts[0].staves[0].measures[0].voices[0];
+    assert_eq!(voice[0].ottava_start, Some(acorde_core::OttavaKind::Va8));
+    assert!(voice[1].ottava_end);
+    let serialized = acorde_io::serialize_mei(&report.score).expect("MEI octave serializes");
+    let restored = acorde_io::parse_mei_with_report(&serialized).expect("serialized MEI parses");
+    let restored_voice = &restored.score.parts[0].staves[0].measures[0].voices[0];
+    assert_eq!(
+        restored_voice[0].ottava_start,
+        Some(acorde_core::OttavaKind::Va8)
+    );
+    assert!(restored_voice[1].ottava_end);
+}
+
+#[cfg(feature = "mei")]
+#[test]
+fn mei_pedal_span_roundtrips_through_canonical_model() {
+    let mei = r##"<mei><music><body><mdiv><score><section><measure n="1"><pedal dir="down" startid="#n1" endid="#n2"/><staff n="1"><layer n="1"><note xml:id="n1" pname="c" oct="4" dur="4"/><note xml:id="n2" pname="d" oct="4" dur="4"/></layer></staff></measure></section></score></mdiv></body></music></mei>"##;
+    let report = acorde_io::parse_mei_with_report(mei).expect("MEI pedal parses");
+    assert!(report.diagnostics.is_empty());
+    let voice = &report.score.parts[0].staves[0].measures[0].voices[0];
+    assert!(voice[0].pedal_start);
+    assert!(voice[1].pedal_end);
+    let serialized = acorde_io::serialize_mei(&report.score).expect("MEI pedal serializes");
+    let restored = acorde_io::parse_mei_with_report(&serialized).expect("serialized MEI parses");
+    let restored_voice = &restored.score.parts[0].staves[0].measures[0].voices[0];
+    assert!(restored_voice[0].pedal_start);
+    assert!(restored_voice[1].pedal_end);
+}
+
+#[cfg(feature = "mei")]
+#[test]
+fn mei_simple_figured_bass_display_text_roundtrips() {
+    let mei = r#"<mei><music><body><mdiv><score><section><measure n="1"><fb><f>6</f></fb><staff n="1"><layer n="1"><note pname="c" oct="4" dur="1"/></layer></staff></measure></section></score></mdiv></body></music></mei>"#;
+    let report = acorde_io::parse_mei_with_report(mei).expect("MEI figured bass parses");
+    assert!(report.diagnostics.is_empty());
+    let texts = &report.score.parts[0].staves[0].measures[0].texts;
+    assert_eq!(
+        texts,
+        &[acorde_core::StyledText {
+            style: acorde_core::TextStyle::FiguredBass,
+            text: "6".to_string(),
+        }]
+    );
+    let serialized = acorde_io::serialize_mei(&report.score).expect("MEI serializes");
+    assert!(serialized.contains("<fb><f>6</f></fb>"));
+    let restored = acorde_io::parse_mei(&serialized).expect("serialized MEI reparses");
+    assert_eq!(restored.parts[0].staves[0].measures[0].texts, *texts);
+}
+
+#[cfg(feature = "mei")]
+#[test]
+fn mei_harmonic_analysis_fixture_roundtrips_structured_fields() {
+    let report = acorde_io::parse_mei_with_report(INTERCHANGE_HARM_ANALYSIS_MEI)
+        .expect("MEI harmonic-analysis fixture parses");
+    assert!(report.diagnostics.is_empty());
+    let note = &report.score.parts[0].staves[0].measures[0].voices[0][0];
+    let chord = note.chord_symbol.as_ref().expect("attached harmony");
+    assert_eq!(chord.root, "C");
+    assert_eq!(chord.kind, "dominant");
+    assert!(chord.extender);
+    assert_eq!(chord.harmonic_degree.as_deref(), Some("V7"));
+    assert_eq!(chord.harmony_type.as_deref(), Some("roman"));
+    assert_eq!(chord.chord_ref.as_deref(), Some("#harmonychordA"));
+    assert_eq!(report.score.chord_definitions.len(), 1);
+    assert_eq!(
+        report.score.chord_definitions[0].id.as_deref(),
+        Some("harmonychordA")
+    );
+    assert_eq!(report.score.chord_definitions[0].members.len(), 2);
+    assert_eq!(
+        report.score.chord_definitions[0].members[0].id.as_deref(),
+        Some("member1")
+    );
+    assert_eq!(
+        report.score.chord_definitions[0].members[0].tab_fret,
+        Some(3)
+    );
+    assert_eq!(
+        report.score.chord_definitions[0].members[1]
+            .pitch
+            .as_ref()
+            .map(|pitch| pitch.microtone_cents),
+        Some(25)
+    );
+    assert_eq!(
+        report.score.chord_definitions[0].members[1].tab_course,
+        Some(2)
+    );
+    assert_eq!(report.score.chord_definitions[0].barres.len(), 1);
+    assert_eq!(report.score.chord_definitions[0].barres[0].fret, Some(3));
+    let serialized = acorde_io::serialize_mei(&report.score).expect("MEI fixture serializes");
+    let restored = acorde_io::parse_mei_with_report(&serialized).expect("serialized MEI parses");
+    assert_eq!(
+        restored.score.parts[0].staves[0].measures[0].voices[0][0].chord_symbol,
+        note.chord_symbol
+    );
+    assert_eq!(
+        restored.score.chord_definitions,
+        report.score.chord_definitions
+    );
+}
+
+#[cfg(feature = "mei")]
+#[test]
+fn mei_import_report_marks_unrepresentable_octave_attributes() {
+    let mei = r#"<mei><music><body><mdiv><score><section><measure n="1"><octave tstamp="1" dis="8" dis.place="above"/><staff n="1"><layer n="1"><note pname="c" oct="4" dur="4"/></layer></staff></measure></section></score></mdiv></body></music></mei>"#;
+    let report = acorde_io::parse_mei_with_report(mei).expect("MEI parses");
+    assert!(report.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "mei.unsupported-detail.octave"
+            && diagnostic
+                .source_location
+                .as_deref()
+                .is_some_and(|path| path.ends_with("/octave"))
+    }));
+}
+
+#[test]
+fn musicxml_import_report_preserves_bend_amount_and_reports_other_technique_details() {
+    let xml = SIMPLE_XML.replacen(
+        "</note>",
+        "<notations><technical><bend><bend-alter>2</bend-alter></bend><slide type=\"stop\"/></technical></notations></note>",
+        1,
+    );
+    let report = acorde_io::parse_musicxml_with_report(&xml).expect("MusicXML parses");
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "musicxml.unsupported-detail.bend-alter")
+    );
+    assert_eq!(
+        report.score.parts[0].staves[0].measures[0].voices[0][0].guitar_bend_alter_cents,
+        Some(200)
+    );
+    assert!(report.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "musicxml.unsupported-detail.slide-type"
+            && diagnostic.preserved_value.as_deref() == Some("stop")
+            && diagnostic
+                .source_location
+                .as_deref()
+                .is_some_and(|path| path.ends_with("/slide"))
+    }));
+}
+
+#[test]
+fn musicxml_invalid_tablature_values_are_source_located() {
+    let xml = SIMPLE_XML.replacen(
+        "</note>",
+        "<notations><technical><string>0</string><fret>not-a-fret</fret></technical></notations></note>",
+        1,
+    );
+    let report = acorde_io::parse_musicxml_with_report(&xml).expect("MusicXML parses");
+    let diagnostics = report
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.code == "musicxml.invalid-tablature-position")
+        .collect::<Vec<_>>();
+    assert_eq!(diagnostics.len(), 2);
+    assert!(diagnostics.iter().all(|diagnostic| {
+        diagnostic.source_location.as_deref().is_some_and(|path| {
+            path.ends_with("/technical/string") || path.ends_with("/technical/fret")
+        }) && diagnostic.preserved_value.is_some()
+    }));
+}
+
+#[cfg(all(feature = "mei", feature = "mscz"))]
+#[test]
+fn manifest_interchange_fixtures_parse_without_declared_losses() {
+    let mei = acorde_io::parse_mei_with_report(INTERCHANGE_MEI).expect("MEI fixture parses");
+    assert!(mei.diagnostics.is_empty());
+    assert_eq!(mei.score.parts[0].staves[0].measures[0].voices[1].len(), 1);
+    let mei_measure = &mei.score.parts[0].staves[0].measures[0];
+    assert_eq!(mei_measure.rehearsal.as_deref(), Some("A"));
+    assert_eq!(mei_measure.expression_text, None);
+    assert_eq!(mei_measure.navigation.as_deref(), Some("DaCapoAlFine"));
+    assert_eq!(
+        mei_measure.texts,
+        vec![acorde_core::StyledText {
+            style: acorde_core::TextStyle::ChordSymbol,
+            text: "Cmaj7".to_string(),
+        }]
+    );
+    let mei_serialized = acorde_io::serialize_mei(&mei.score).expect("MEI fixture serializes");
+    assert!(mei_serialized.contains("<harm>Cmaj7</harm>"));
+    assert!(mei_serialized.contains("<dir>D.C. al Fine</dir>"));
+    let mei_restored = acorde_io::parse_mei(&mei_serialized).expect("serialized MEI reparses");
+    let restored_measure = &mei_restored.parts[0].staves[0].measures[0];
+    assert_eq!(restored_measure.texts, mei_measure.texts);
+    assert_eq!(restored_measure.navigation, mei_measure.navigation);
+    let mscx = acorde_io::parse_mscx_with_report(INTERCHANGE_MSCX).expect("MSCX fixture parses");
+    assert!(mscx.diagnostics.is_empty());
+    assert_eq!(
+        mscx.score.parts[0].staves[0]
+            .tablature
+            .as_ref()
+            .map(|tab| tab.lines),
+        Some(6)
+    );
+    let mscx_measure = &mscx.score.parts[0].staves[0].measures[0];
+    assert_eq!(
+        mscx_measure.texts,
+        vec![
+            acorde_core::StyledText {
+                style: acorde_core::TextStyle::ChordSymbol,
+                text: "Cmaj7".to_string(),
+            },
+            acorde_core::StyledText {
+                style: acorde_core::TextStyle::Expression,
+                text: "dolce".to_string(),
+            },
+        ]
+    );
+    assert_eq!(
+        mscx_measure.voices[0][0].guitar_technique,
+        Some(acorde_core::GuitarTechnique::Bend)
+    );
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_figured_bass_fixture_roundtrips_structured_order() {
+    let report = acorde_io::parse_mscx_with_report(INTERCHANGE_FIGURED_BASS_MSCX)
+        .expect("MSCX figured-bass fixture parses");
+    assert!(report.diagnostics.is_empty());
+    let measure = &report.score.parts[0].staves[0].measures[0];
+    assert_eq!(
+        measure
+            .figured_bass
+            .iter()
+            .map(|figure| figure.number.as_str())
+            .collect::<Vec<_>>(),
+        vec!["6", "4"]
+    );
+    assert_eq!(
+        measure.texts,
+        vec![acorde_core::StyledText {
+            style: acorde_core::TextStyle::FiguredBass,
+            text: "6 4".to_string(),
+        }]
+    );
+}
+
+#[test]
+fn musicxml_chord_symbol_placement_roundtrips() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>T</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>480</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><harmony placement="below"><root><root-step>C</root-step></root><kind>dominant</kind><function>V7</function><bass><bass-step>G</bass-step></bass></harmony><note><pitch><step>C</step><octave>4</octave></pitch><duration>1920</duration><voice>1</voice><type>whole</type></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).expect("MusicXML harmony parses");
+    assert_eq!(
+        score.parts[0].staves[0].measures[0].voices[0][0]
+            .chord_symbol
+            .as_ref()
+            .and_then(|chord| chord.placement.as_deref()),
+        Some("below")
+    );
+    assert_eq!(
+        score.parts[0].staves[0].measures[0].voices[0][0]
+            .chord_symbol
+            .as_ref()
+            .and_then(|chord| chord.harmony_function.as_deref()),
+        Some("V7")
+    );
+    let serialized = acorde_io::serialize_musicxml(&score).expect("MusicXML harmony serializes");
+    assert!(serialized.contains("<harmony placement=\"below\">"));
+    assert!(serialized.contains("<function>V7</function>"));
+    let restored = acorde_io::parse_musicxml(&serialized).expect("serialized harmony reparses");
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].voices[0][0]
+            .chord_symbol
+            .as_ref()
+            .and_then(|chord| chord.placement.as_deref()),
+        Some("below")
+    );
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].voices[0][0]
+            .chord_symbol
+            .as_ref()
+            .and_then(|chord| chord.harmony_function.as_deref()),
+        Some("V7")
+    );
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn openscore_lieder_cc0_fixture_parses_as_external_smoke_corpus() {
+    let report = acorde_io::parse_mscx_with_report(OPENSCORE_LIEDER_MSCX)
+        .expect("OpenScore Lieder MSCX fixture parses");
+    assert!(report.diagnostics.is_empty());
+    assert_eq!(report.score.parts.len(), 4);
+    assert_eq!(report.score.parts[0].staves[0].measures.len(), 23);
+    assert_eq!(report.score.metadata.title, "Aloha Oe");
+}
+
+#[cfg(feature = "mei")]
+#[test]
+fn multistaff_mei_fixture_preserves_staff_clef_and_layers() {
+    let report = acorde_io::parse_mei_with_report(INTERCHANGE_MULTISTAFF_MEI)
+        .expect("multi-staff MEI fixture parses");
+    assert!(report.diagnostics.is_empty());
+    assert_eq!(report.score.parts[0].staves.len(), 2);
+    assert_eq!(
+        report.score.parts[0].staves[0].clef,
+        acorde_core::Clef::Treble
+    );
+    assert_eq!(
+        report.score.parts[0].staves[1].clef,
+        acorde_core::Clef::Bass
+    );
+    assert_eq!(
+        report.score.parts[0].staves[0].measures[0].voices[1].len(),
+        1
+    );
+    assert_eq!(
+        report.score.parts[0].staves[1].measures[0].voices[0][0].pitches[0].to_midi_cents(),
+        4800
+    );
+    let serialized = acorde_io::serialize_mei(&report.score).expect("multi-staff MEI serializes");
+    let restored = acorde_io::parse_mei(&serialized).expect("serialized multi-staff MEI parses");
+    assert_eq!(restored.parts[0].staves.len(), 2);
+    assert_eq!(restored.parts[0].staves[1].clef, acorde_core::Clef::Bass);
+}
+
+#[cfg(all(feature = "abc", feature = "mei", feature = "mscz"))]
+#[test]
+fn microtone_semantics_match_across_declared_format_boundaries() {
+    let abc = "X:1\nT:Quarter\nM:4/4\nL:1/4\nK:C\n^/C|\n";
+    let mei = r#"<mei><music><body><mdiv><score><scoreDef><staffGrp><staffDef n="1"/></staffGrp></scoreDef><section><measure n="1"><staff n="1"><layer n="1"><note pname="c" oct="4" dur="4" accid="qs"/></layer></staff></measure></section></score></mdiv></body></music></mei>"#;
+    let mscx = r#"<museScore><Score><Part><Staff id="1"/></Part><Staff id="1"><Measure><Chord><durationType>quarter</durationType><Note><pitch>60</pitch><tpc>14</tpc><Accidental><subtype>quarter-sharp</subtype></Accidental></Note></Chord></Measure></Staff></Score></museScore>"#;
+
+    let abc_pitch = acorde_io::parse_abc(abc).unwrap().parts[0].staves[0].measures[0].voices[0][0]
+        .pitches[0]
+        .to_midi_cents();
+    let mei_pitch = acorde_io::parse_mei(mei).unwrap().parts[0].staves[0].measures[0].voices[0][0]
+        .pitches[0]
+        .to_midi_cents();
+    let mscx_pitch =
+        acorde_io::parse_mscx(mscx).unwrap().parts[0].staves[0].measures[0].voices[0][0].pitches[0]
+            .to_midi_cents();
+    assert_eq!([abc_pitch, mei_pitch, mscx_pitch], [6050, 6050, 6050]);
+}
+
+#[test]
+fn musicxml_fractional_alteration_preserves_exact_model_cents() {
+    let xml = r#"<?xml version="1.0"?><score-partwise version="3.1"><part-list><score-part id="P1"><part-name>T</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><alter>0.25</alter><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#;
+    let score = parse_musicxml(xml).expect("fractional MusicXML parses");
+    let pitch = &score.parts[0].staves[0].measures[0].voices[0][0].pitches[0];
+    assert_eq!(pitch.to_midi_cents(), 6025);
+    let serialized = serialize_musicxml(&score).expect("fractional MusicXML serializes");
+    let restored = parse_musicxml(&serialized).expect("serialized fractional MusicXML parses");
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].voices[0][0].pitches[0].to_midi_cents(),
+        6025
+    );
+}
+
+#[test]
+fn musicxml_negative_and_compound_fractional_alterations_preserve_cents() {
+    let xml = r#"<?xml version="1.0"?><score-partwise version="3.1"><part-list><score-part id="P1"><part-name>T</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><alter>-0.25</alter><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>C</step><alter>1.25</alter><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#;
+    let score = parse_musicxml(xml).expect("boundary MusicXML parses");
+    let voice = &score.parts[0].staves[0].measures[0].voices[0];
+    assert_eq!(
+        voice
+            .iter()
+            .map(|note| note.pitches[0].to_midi_cents())
+            .collect::<Vec<_>>(),
+        vec![5975, 6125]
+    );
+    let serialized = serialize_musicxml(&score).expect("boundary MusicXML serializes");
+    let restored = parse_musicxml(&serialized).expect("serialized boundary MusicXML parses");
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].voices[0]
+            .iter()
+            .map(|note| note.pitches[0].to_midi_cents())
+            .collect::<Vec<_>>(),
+        vec![5975, 6125]
+    );
+}
+
+#[cfg(all(feature = "abc", feature = "mei", feature = "mscz"))]
+#[test]
+fn semantic_projection_matches_across_local_format_boundaries() {
+    fn projection(score: &acorde_core::Score) -> Vec<(i32, acorde_core::Duration, bool, u8)> {
+        score.parts[0].staves[0].measures[0].voices[0]
+            .iter()
+            .map(|note| {
+                (
+                    note.pitches
+                        .first()
+                        .map_or(0, acorde_core::Pitch::to_midi_cents),
+                    note.duration.clone(),
+                    note.is_rest,
+                    note.dot_count,
+                )
+            })
+            .collect()
+    }
+    let abc = acorde_io::parse_abc("X:1\nT:T\nM:2/4\nL:1/4\nK:C\n^/C D|\n").unwrap();
+    let mei = acorde_io::parse_mei(
+        r#"<mei><music><body><mdiv><score><section><measure n="1"><staff n="1"><layer n="1"><note pname="c" oct="4" dur="4" accid="qs"/><note pname="d" oct="4" dur="4"/></layer></staff></measure></section></score></mdiv></body></music></mei>"#,
+    )
+    .unwrap();
+    let mscx = acorde_io::parse_mscx(
+        r#"<museScore><Score><Part><Staff id="1"/></Part><Staff id="1"><Measure><Chord><durationType>quarter</durationType><Note><pitch>60</pitch><tpc>14</tpc><Accidental><subtype>quarter-sharp</subtype></Accidental></Note></Chord><Chord><durationType>quarter</durationType><Note><pitch>62</pitch><tpc>16</tpc></Note></Chord></Measure></Staff></Score></museScore>"#,
+    )
+    .unwrap();
+    let expected = vec![
+        (6050, acorde_core::Duration::Quarter, false, 0),
+        (6200, acorde_core::Duration::Quarter, false, 0),
+    ];
+    assert_eq!(projection(&abc), expected);
+    assert_eq!(projection(&mei), expected);
+    assert_eq!(projection(&mscx), expected);
+}
+
+#[cfg(all(feature = "mei", feature = "mscz"))]
+#[test]
+fn tuplet_semantics_match_across_musicxml_mei_and_mscx() {
+    fn projection(
+        score: &acorde_core::Score,
+    ) -> Vec<(i32, acorde_core::Duration, Option<(u8, u8)>)> {
+        score.parts[0].staves[0].measures[0].voices[0]
+            .iter()
+            .filter(|note| !note.is_rest)
+            .map(|note| {
+                (
+                    note.pitches[0].to_midi_cents(),
+                    note.duration.clone(),
+                    note.tuplet
+                        .as_ref()
+                        .map(|tuplet| (tuplet.actual_notes, tuplet.normal_notes)),
+                )
+            })
+            .collect()
+    }
+    let musicxml = acorde_io::parse_musicxml(
+        r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>T</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>480</divisions><time><beats>2</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>320</duration><voice>1</voice><type>eighth</type><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification></note></measure></part></score-partwise>"#,
+    )
+    .unwrap();
+    let mei = acorde_io::parse_mei(
+        r#"<mei><music><body><mdiv><score><section><measure n="1"><staff n="1"><layer n="1"><tuplet num="3" numbase="2"><note pname="c" oct="4" dur="8"/></tuplet></layer></staff></measure></section></score></mdiv></body></music></mei>"#,
+    )
+    .unwrap();
+    let mscx = acorde_io::parse_mscx(
+        r#"<museScore><Score><Part><Staff id="1"/></Part><Staff id="1"><Measure><Tuplet><normalNotes>2</normalNotes><actualNotes>3</actualNotes><baseNote>eighth</baseNote></Tuplet><Chord><durationType>eighth</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord><endTuplet/></Measure></Staff></Score></museScore>"#,
+    )
+    .unwrap();
+    let expected = vec![(6000, acorde_core::Duration::Eighth, Some((3, 2)))];
+    assert_eq!(projection(&musicxml), expected);
+    assert_eq!(projection(&mei), expected);
+    assert_eq!(projection(&mscx), expected);
+}
+
+#[cfg(all(feature = "mei", feature = "mscz"))]
+#[test]
+fn chord_label_semantics_match_across_mei_and_mscx() {
+    fn labels(score: &acorde_core::Score) -> Vec<(acorde_core::TextStyle, String)> {
+        let measure = &score.parts[0].staves[0].measures[0];
+        let mut labels = measure
+            .texts
+            .iter()
+            .map(|text| (text.style, text.text.clone()))
+            .collect::<Vec<_>>();
+        if let Some(expression) = measure.expression_text.as_deref() {
+            labels.push((acorde_core::TextStyle::Expression, expression.to_string()));
+        }
+        labels
+    }
+    let mei = acorde_io::parse_mei(
+        r#"<mei><music><body><mdiv><score><section><measure n="1"><harm>Cmaj7</harm><dir>dolce</dir><staff n="1"><layer n="1"><rest dur="1"/></layer></staff></measure></section></score></mdiv></body></music></mei>"#,
+    )
+    .unwrap();
+    let mscx = acorde_io::parse_mscx(
+        r#"<museScore><Score><Part><Staff id="1"/></Part><Staff id="1"><Measure><Harmony><name>Cmaj7</name></Harmony><Text><style>Expression</style><text>dolce</text></Text><Rest><durationType>whole</durationType></Rest></Measure></Staff></Score></museScore>"#,
+    )
+    .unwrap();
+    assert_eq!(labels(&mei), labels(&mscx));
+}
+
+#[cfg(all(feature = "mei", feature = "mscz"))]
+#[test]
+fn compact_chord_degree_semantics_match_across_mei_and_mscx() {
+    fn degree_projection(score: &acorde_core::Score) -> Vec<acorde_core::ChordDegree> {
+        score.parts[0].staves[0].measures[0].voices[0]
+            .iter()
+            .find_map(|note| {
+                note.chord_symbol
+                    .as_ref()
+                    .map(|chord| chord.degrees.clone())
+            })
+            .unwrap_or_default()
+    }
+    let mei = acorde_io::parse_mei(
+        r##"<mei><music><body><mdiv><score><section><measure n="1"><harm startid="#n1" place="above">C7add#9b5no3/E</harm><staff n="1"><layer n="1"><note xml:id="n1" pname="c" oct="4" dur="1"/></layer></staff></measure></section></score></mdiv></body></music></mei>"##,
+    )
+    .unwrap();
+    let mscx = acorde_io::parse_mscx(
+        r#"<museScore><Score><Part><Staff id="1"/></Part><Staff id="1"><Measure><Harmony><harmonyInfo><name>7add#9b5no3</name><root>14</root><base>18</base><placement>above</placement></harmonyInfo></Harmony><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord></Measure></Staff></Score></museScore>"#,
+    )
+    .unwrap();
+    let musicxml = acorde_io::parse_musicxml(
+        &SIMPLE_XML
+            .replacen(
+                "<note",
+                "<harmony placement=\"above\"><root><root-step>C</root-step></root><kind>dominant</kind><degree><degree-value>9</degree-value><degree-alter>1</degree-alter><degree-type>add</degree-type></degree><degree><degree-value>5</degree-value><degree-alter>-1</degree-alter><degree-type>alter</degree-type></degree><degree><degree-value>3</degree-value><degree-type>subtract</degree-type></degree></harmony><note",
+                1,
+            ),
+    )
+    .unwrap();
+    assert_eq!(degree_projection(&musicxml), degree_projection(&mei));
+    assert_eq!(degree_projection(&mei), degree_projection(&mscx));
+}
+
+#[test]
 fn multivoice_musicxml_preserves_voice_structure_and_playback_addresses() {
     let score1 = parse_musicxml(MULTIVOICE_XML).expect("multi-voice parse failed");
     let measure = &score1.parts[0].staves[0].measures[0];
@@ -160,6 +1306,44 @@ fn public_domain_pitch_bend_fixture_roundtrips_semantically() {
 
     let midi2 = acorde_io::serialize_midi(&score1).expect("fixture serializes");
     let score2 = parse_midi(&midi2).expect("serialized fixture reparses");
+    let notes1: Vec<_> = score1
+        .parts
+        .iter()
+        .flat_map(|part| part.staves.iter())
+        .flat_map(|staff| staff.measures.iter())
+        .flat_map(|measure| measure.voices[0].iter())
+        .map(|note| {
+            (
+                note.is_rest,
+                note.duration.clone(),
+                note.pitches
+                    .iter()
+                    .map(acorde_core::Pitch::to_midi_cents)
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect();
+    let notes2: Vec<_> = score2
+        .parts
+        .iter()
+        .flat_map(|part| part.staves.iter())
+        .flat_map(|staff| staff.measures.iter())
+        .flat_map(|measure| measure.voices[0].iter())
+        .map(|note| {
+            (
+                note.is_rest,
+                note.duration.clone(),
+                note.pitches
+                    .iter()
+                    .map(acorde_core::Pitch::to_midi_cents)
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        notes1, notes2,
+        "MIDI note event meanings changed during round-trip"
+    );
     let bends1: Vec<_> = score1
         .parts
         .iter()
@@ -174,6 +1358,185 @@ fn public_domain_pitch_bend_fixture_roundtrips_semantically() {
         bends1, bends2,
         "pitch-bend events changed during round-trip"
     );
+}
+
+#[test]
+fn public_domain_pitch_bend_corpus_covers_signed_nonzero_values() {
+    let cases = [
+        (FOUR_STEPS_31ET_MIDI, -1850),
+        (SEPTIMAL_MAJOR_THIRD_MIDI, 1437),
+    ];
+    for (bytes, expected) in cases {
+        let score1 = parse_midi(bytes).expect("public-domain MIDI fixture parses");
+        let bends1: Vec<_> = score1
+            .parts
+            .iter()
+            .flat_map(|part| part.midi_pitch_bends.iter())
+            .filter(|bend| bend.channel == 0)
+            .collect();
+        assert_eq!(bends1.len(), 1);
+        assert_eq!(bends1[0].value, expected);
+
+        let score2 = parse_midi(
+            &acorde_io::serialize_midi(&score1).expect("public-domain fixture serializes"),
+        )
+        .expect("serialized public-domain fixture reparses");
+        let bends2: Vec<_> = score2
+            .parts
+            .iter()
+            .flat_map(|part| part.midi_pitch_bends.iter())
+            .filter(|bend| bend.channel == 0)
+            .collect();
+        assert_eq!(bends1, bends2);
+    }
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn cc0_mscz_fixture_parses_with_zero_diagnostics() {
+    let report =
+        acorde_io::parse_mscz_with_report(OPENSCORE_OMR_MSCZ).expect("CC0 MSCZ fixture parses");
+    assert!(report.diagnostics.is_empty());
+    assert_eq!(report.score.parts.len(), 1);
+    assert_eq!(report.score.parts[0].staves[0].measures.len(), 4);
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn cc0_mscz_musescore_4_pair_parses_with_declared_diagnostics() {
+    for (bytes, expected_diagnostics) in [
+        (OPENSCORE_OMR_MSCZ, 0),
+        (OPENSCORE_OMR_MSCZ_SECOND, 0),
+        (OPENSCORE_OMR_MSCZ_THIRD, 0),
+        (OPENSCORE_OMR_MSCZ_FOURTH, 0),
+        (OPENSCORE_OMR_MSCZ_FIFTH, 0),
+    ] {
+        let report = acorde_io::parse_mscz_with_report(bytes).expect("CC0 MSCZ fixture parses");
+        assert_eq!(report.diagnostics.len(), expected_diagnostics);
+        assert!(
+            report
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code == "mscx.unsupported-element.Harmony")
+        );
+        assert!(!report.score.parts.is_empty());
+        assert!(
+            report
+                .score
+                .parts
+                .iter()
+                .all(|part| part.staves.iter().any(|staff| !staff.measures.is_empty()))
+        );
+    }
+    let structured = acorde_io::parse_mscz(OPENSCORE_OMR_MSCZ_SECOND)
+        .expect("structured MuseScore Harmony fixture parses");
+    let chord_symbol_count = structured
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .flat_map(|staff| &staff.measures)
+        .flat_map(|measure| &measure.voices)
+        .flat_map(|voice| voice.iter())
+        .filter(|note| note.chord_symbol.is_some())
+        .count();
+    assert!(
+        chord_symbol_count >= 10,
+        "real MSCX Harmony roots should attach to canonical notes"
+    );
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn cc0_mscz_pair_extracted_mscx_files_parse_with_same_declared_boundary() {
+    for (xml, expected_diagnostics) in [(OPENSCORE_OMR_MSCX, 0), (OPENSCORE_OMR_MSCX_SECOND, 0)] {
+        let report = acorde_io::parse_mscx_with_report(xml).expect("extracted MSCX parses");
+        assert_eq!(report.diagnostics.len(), expected_diagnostics);
+        assert!(!report.score.parts.is_empty());
+    }
+}
+
+#[cfg(all(feature = "mscz", feature = "musicxml"))]
+#[test]
+fn cc0_mscz_samples_roundtrip_through_musicxml_semantically() {
+    fn projection(
+        score: &acorde_core::Score,
+    ) -> Vec<(
+        usize,
+        usize,
+        usize,
+        usize,
+        bool,
+        u8,
+        Vec<i32>,
+        acorde_core::Duration,
+        Option<(
+            String,
+            String,
+            Option<String>,
+            Option<String>,
+            Vec<(u8, i8, String)>,
+        )>,
+    )> {
+        let mut result = Vec::new();
+        for (part_index, part) in score.parts.iter().enumerate() {
+            for (staff_index, staff) in part.staves.iter().enumerate() {
+                for (measure_index, measure) in staff.measures.iter().enumerate() {
+                    for (voice_index, voice) in measure.voices.iter().enumerate() {
+                        // MusicXML export fills an incomplete final measure with trailing rests.
+                        // Ignore only that canonical completion; preserve internal rests.
+                        let last_non_rest = voice.iter().rposition(|note| !note.is_rest);
+                        for (note_index, note) in voice.iter().enumerate() {
+                            if note.is_rest && last_non_rest.is_some_and(|last| note_index > last) {
+                                continue;
+                            }
+                            result.push((
+                                part_index,
+                                staff_index,
+                                measure_index,
+                                voice_index,
+                                note.is_rest,
+                                note.dot_count,
+                                note.pitches
+                                    .iter()
+                                    .map(acorde_core::Pitch::to_midi_cents)
+                                    .collect(),
+                                note.duration.clone(),
+                                note.chord_symbol.as_ref().map(|chord| {
+                                    (
+                                        chord.root.clone(),
+                                        chord.kind.clone(),
+                                        chord.bass.clone(),
+                                        chord.placement.clone(),
+                                        chord
+                                            .degrees
+                                            .iter()
+                                            .map(|degree| {
+                                                (degree.value, degree.alter, degree.kind.clone())
+                                            })
+                                            .collect(),
+                                    )
+                                }),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        result
+    }
+
+    for bytes in [
+        OPENSCORE_OMR_MSCZ,
+        OPENSCORE_OMR_MSCZ_SECOND,
+        OPENSCORE_OMR_MSCZ_THIRD,
+        OPENSCORE_OMR_MSCZ_FOURTH,
+        OPENSCORE_OMR_MSCZ_FIFTH,
+    ] {
+        let source = acorde_io::parse_mscz(bytes).expect("MSCZ parses");
+        let xml = serialize_musicxml(&source).expect("MSCZ score serializes as MusicXML");
+        let restored = parse_musicxml(&xml).expect("MusicXML reparses");
+        assert_eq!(projection(&source), projection(&restored));
+    }
 }
 
 // ── multipart.musicxml ────────────────────────────────────────────────────────
@@ -498,6 +1861,22 @@ fn musicxml_fingering_roundtrip() {
 }
 
 #[test]
+fn musicxml_multiple_fingering_candidates_roundtrip() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("Fingerings", 120, 4, 4, 0, 1);
+    let mut note = Note::new(Pitch::new(Step::G, 4), Duration::Whole);
+    note.fingerings = vec![1, 3, 4];
+    note.fingering = note.fingerings.first().copied();
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+    let xml = serialize_musicxml(&score).expect("serialize multiple fingerings");
+    assert_eq!(xml.matches("<fingering>").count(), 3);
+    let restored = parse_musicxml(&xml).expect("parse multiple fingerings");
+    let note = &restored.parts[0].staves[0].measures[0].voices[0][0];
+    assert_eq!(note.fingering, Some(1));
+    assert_eq!(note.fingerings, vec![1, 3, 4]);
+}
+
+#[test]
 fn musicxml_string_number_roundtrip() {
     use acorde_core::{Duration, Note, Pitch, Score, Step};
     let mut score = Score::new("String", 120, 4, 4, 0, 1);
@@ -533,6 +1912,16 @@ fn musicxml_tablature_tuning_and_techniques_roundtrip() {
     score.parts[0].staves = vec![staff];
 
     let xml = serialize_musicxml(&score).expect("tablature serializes");
+    let report = acorde_io::serialize_musicxml_with_report(&score).expect("tab export reports");
+    assert_eq!(report.diagnostics.len(), 1);
+    assert_eq!(
+        report.diagnostics[0].code,
+        "musicxml.export-unsupported-capo"
+    );
+    assert_eq!(
+        report.diagnostics[0].source_location.as_deref(),
+        Some("/score/part/1/staff/1/tablature/capo")
+    );
     assert!(xml.contains("<staff-tuning line=\"1\"><tuning-step>E</tuning-step>"));
     assert!(xml.contains(
         "<staff-tuning line=\"2\"><tuning-step>C</tuning-step><tuning-alter>1</tuning-alter>"
@@ -558,6 +1947,180 @@ fn musicxml_tablature_tuning_and_techniques_roundtrip() {
         Some((1, 0))
     );
     assert_eq!(restored_note.guitar_technique, Some(GuitarTechnique::Slide));
+}
+
+#[cfg(all(feature = "midi", feature = "musicxml"))]
+#[test]
+fn musicxml_export_reports_midi_pitch_bend_loss_without_silent_drop() {
+    for bytes in [
+        JUST_PERFECT_FIFTH_MIDI,
+        FOUR_STEPS_31ET_MIDI,
+        SEPTIMAL_MAJOR_THIRD_MIDI,
+    ] {
+        let imported = acorde_io::parse_midi(bytes).expect("MIDI fixture parses");
+        let bend_count: usize = imported
+            .parts
+            .iter()
+            .map(|part| part.midi_pitch_bends.len())
+            .sum();
+        assert!(bend_count > 0);
+
+        let report = acorde_io::serialize_musicxml_with_report(&imported)
+            .expect("MusicXML export reports pitch-bend loss");
+        let bend_diagnostics: Vec<_> = report
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code == "musicxml.export-unsupported-midi-pitch-bend")
+            .collect();
+        assert_eq!(bend_diagnostics.len(), bend_count);
+        assert!(bend_diagnostics.iter().all(|diagnostic| {
+            diagnostic.source_location.is_some()
+                && diagnostic
+                    .preserved_value
+                    .as_deref()
+                    .is_some_and(|value| value.contains("tick=") && value.contains("value="))
+                && diagnostic.loss_reason.is_some()
+        }));
+    }
+}
+
+#[cfg(all(feature = "abc", feature = "musicxml"))]
+#[test]
+fn non_mei_exports_report_harmonic_type_loss() {
+    use acorde_core::{ChordDefinition, ChordSymbol, Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("harmonic type", 120, 4, 4, 0, 1);
+    let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+    note.chord_symbol = Some(ChordSymbol {
+        root: "C".to_string(),
+        kind: "major".to_string(),
+        bass: None,
+        placement: None,
+        extender: false,
+        harmonic_degree: None,
+        harmony_function: None,
+        harmony_type: Some("roman".to_string()),
+        chord_ref: Some("#harmonychordA".to_string()),
+        degrees: Vec::new(),
+    });
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+    score.chord_definitions.push(ChordDefinition {
+        id: Some("harmonychordA".to_string()),
+        label: Some("C".to_string()),
+        kind: Some("guitar".to_string()),
+        fret_position: Some(3),
+        tab_strings: None,
+        tab_courses: None,
+        members: Vec::new(),
+        barres: Vec::new(),
+    });
+
+    let musicxml = acorde_io::serialize_musicxml_with_report(&score).unwrap();
+    let musicxml_loss = musicxml
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == "musicxml.export-unsupported-mei-harmony-type")
+        .expect("MusicXML harmonic type loss is diagnosed");
+    assert_eq!(musicxml_loss.preserved_value.as_deref(), Some("roman"));
+    assert!(
+        musicxml_loss
+            .source_location
+            .as_deref()
+            .is_some_and(|path| path.ends_with("/harm@type"))
+    );
+
+    let abc = acorde_io::serialize_abc_with_report(&score).unwrap();
+    let abc_loss = abc
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.preserved_value.as_deref() == Some("roman"))
+        .expect("ABC harmonic type loss is diagnosed");
+    assert!(
+        abc_loss
+            .source_location
+            .as_deref()
+            .is_some_and(|path| path.ends_with("/harm@type"))
+    );
+    let musicxml_ref_loss = musicxml
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == "musicxml.export-unsupported-mei-chordref")
+        .expect("MusicXML chordref loss is diagnosed");
+    assert_eq!(
+        musicxml_ref_loss.preserved_value.as_deref(),
+        Some("#harmonychordA")
+    );
+    let abc_ref_loss = abc
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.preserved_value.as_deref() == Some("#harmonychordA"))
+        .expect("ABC chordref loss is diagnosed");
+    assert!(
+        abc_ref_loss
+            .source_location
+            .as_deref()
+            .is_some_and(|path| path.ends_with("/harm@chordref"))
+    );
+    let musicxml_definition_loss = musicxml
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == "musicxml.export-unsupported-mei-chord-definition")
+        .expect("MusicXML chord definition loss is diagnosed");
+    assert_eq!(
+        musicxml_definition_loss.preserved_value.as_deref(),
+        Some("harmonychordA")
+    );
+    let abc_definition_loss = abc
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.preserved_value.as_deref() == Some("harmonychordA"))
+        .expect("ABC chord definition loss is diagnosed");
+    assert!(
+        abc_definition_loss
+            .source_location
+            .as_deref()
+            .is_some_and(|path| path.ends_with("/chord-definitions/1"))
+    );
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn tablature_semantics_match_between_musicxml_and_mscx() {
+    use acorde_core::{Duration, GuitarTechnique, Note, Pitch, Score, Step, TablatureConfig};
+
+    let mut score = Score::new("Tab equivalence", 120, 4, 4, 0, 1);
+    let staff = &mut score.parts[0].staves[0];
+    staff.tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![40, 45, 50, 55, 59, 64],
+        capo: 0,
+    });
+    let mut note = Note::new(Pitch::new(Step::G, 2), Duration::Quarter);
+    note.tab_position = Some(acorde_core::TabPosition { string: 1, fret: 3 });
+    note.fingering = Some(2);
+    note.guitar_technique = Some(GuitarTechnique::Slide);
+    staff.measures[0].voices[0] = vec![note];
+    let musicxml = parse_musicxml(&serialize_musicxml(&score).expect("tab XML serializes"))
+        .expect("tab XML parses");
+    let mscx = acorde_io::parse_mscx(
+    r#"<museScore><Score><Part><Staff id="1"/></Part><Staff id="1"><StaffType group="tab"><lines>6</lines><StringData><string>40</string><string>45</string><string>50</string><string>55</string><string>59</string><string>64</string></StringData></StaffType><Measure><Chord><durationType>quarter</durationType><Note><pitch>43</pitch><tpc>8</tpc><string>1</string><fret>3</fret><Fingering>2</Fingering><Slide/></Note></Chord></Measure></Staff></Score></museScore>"#,
+    )
+    .expect("tab MSCX parses");
+
+    let xml_staff = &musicxml.parts[0].staves[0];
+    let mscx_staff = &mscx.parts[0].staves[0];
+    assert_eq!(xml_staff.tablature, mscx_staff.tablature);
+    assert_eq!(
+        xml_staff.measures[0].voices[0][0].tab_position,
+        mscx_staff.measures[0].voices[0][0].tab_position
+    );
+    assert_eq!(
+        xml_staff.measures[0].voices[0][0].guitar_technique,
+        mscx_staff.measures[0].voices[0][0].guitar_technique
+    );
+    assert_eq!(
+        xml_staff.measures[0].voices[0][0].fingering,
+        mscx_staff.measures[0].voices[0][0].fingering
+    );
 }
 
 #[test]
@@ -808,6 +2371,7 @@ fn musicxml_guitar_bend_roundtrip() {
     let mut score = Score::new("Guitar", 120, 4, 4, 0, 1);
     let mut note = Note::new(Pitch::new(Step::G, 4), Duration::Quarter);
     note.guitar_technique = Some(GuitarTechnique::Bend);
+    note.guitar_bend_alter_cents = Some(200);
     score.parts[0].staves[0].measures[0].voices[0] = vec![note];
 
     let xml = serialize_musicxml(&score).expect("serialize");
@@ -817,6 +2381,10 @@ fn musicxml_guitar_bend_roundtrip() {
     assert_eq!(
         score2.parts[0].staves[0].measures[0].voices[0][0].guitar_technique,
         Some(GuitarTechnique::Bend)
+    );
+    assert_eq!(
+        score2.parts[0].staves[0].measures[0].voices[0][0].guitar_bend_alter_cents,
+        Some(200)
     );
 }
 
