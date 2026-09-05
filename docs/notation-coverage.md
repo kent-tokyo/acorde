@@ -1,6 +1,6 @@
 # Notation coverage matrix
 
-This matrix is versioned with the library. It describes the v1.0.x capability slices and is
+This matrix is versioned with the library. It describes the v1.1.x capability slices and is
 intended to make information loss explicit. MEI import reports now identify supported-subset
 losses for known unsupported elements; other partial-format losses remain documented here until
 their parser-specific diagnostics are implemented.
@@ -93,7 +93,7 @@ Core validation rejects deserialized `microtone_cents` values outside -99..99.
 
 ## Versioning and evidence
 
-The matrix applies to v1.0.x. Each `yes` slice must have a fixture or focused round-trip test in
+The matrix applies to v1.1.x. Each `yes` slice must have a fixture or focused round-trip test in
 the repository. The fixture provenance and evidence mode are pinned in
 [`tests/fixtures/manifest.json`](../tests/fixtures/manifest.json); the evaluation rules are in
 [`interchange-evidence.md`](interchange-evidence.md). Known losses are tracked here until `ImportReport` and `ExportReport` expose source
@@ -105,7 +105,9 @@ title,
 score-level and measure-level meter, score-level key signature and clef, notes, rests, accidentals,
 dots, power-of-two durations, tuplets (`num`/`numbase`), grace notes (`@grace`), common dynamics/articulations/ornaments, lyrics, ties, slurs, repeat
 barlines, multi-rests, measure-level chord labels, rehearsal marks, and directions; known unsupported MEI elements are surfaced as warning diagnostics, while
-other MEI data remains intentionally outside the subset.
+other MEI data remains intentionally outside the subset. Malformed MEI measure numbers, meter
+attributes, tempo values, and multi-rest counts are retained as source-located diagnostics when
+the parser must use a canonical fallback.
 The machine-readable phase evidence is recorded in
 [`interchange-report.json`](interchange-report.json); its external corpus gates are not counted
 as local implementation evidence.

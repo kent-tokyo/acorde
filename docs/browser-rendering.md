@@ -24,9 +24,11 @@ outside the core/WASM contract and remain application-owned.
   system, which is the unit a virtualized viewport can cache.
 - `render_score_metadata(score_json, layout_json, options_json)` returns a versioned metadata
   object with `contract_version`, `width`, `height`, `part_count`, `staff_count`, `measure_count`,
-  `note_count`, `accessible_text`, and `address_bounds`. Each bound contains `part`, `staff`,
+  `note_count`, `accessible_text`, `address_bounds`, and `text_annotations`. Each bound contains `part`, `staff`,
   `measure`, `voice`, and `note`, so a host can map hit testing and playback highlighting back to
-  `NoteAddr` without parsing SVG. Use `accessible_text` as the text alternative when the host
+  `NoteAddr` without parsing SVG. Each text annotation contains `part`, `staff`, `measure`,
+  `style`, and `text`, so measure-level styled text remains available to host views. Use
+  `accessible_text` as the text alternative when the host
   cannot expose SVG semantics; check `contract_version` before consuming newer fields.
 
 `SvgRenderOptions` defaults are `width: 900`, `staff_size: 24`, `measures_per_system: 4`, and

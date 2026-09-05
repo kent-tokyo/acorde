@@ -104,6 +104,7 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
     };
     let mut current_measure_number = 0u32;
     let mut note_count = 0usize;
+    let mut current_part_index = 0usize;
 
     for (line_idx, raw_line) in text.lines().enumerate() {
         if line_idx >= MAX_LINES {
@@ -133,6 +134,7 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
                 "X" => {
                     in_header = true;
                     current_measure_number = 0;
+                    current_part_index = 0;
                     if let Some(s) = score.parts.first_mut().and_then(|p| p.staves.first_mut()) {
                         s.measures.clear();
                     }
@@ -169,6 +171,22 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
                     score.settings.key_signature = KeySignature { fifths, mode };
                     in_header = false;
                 }
+                "V" => {
+                    let voice_number = value
+                        .split_whitespace()
+                        .next()
+                        .and_then(|number| number.parse::<usize>().ok())
+                        .filter(|&number| (1..=32).contains(&number))
+                        .ok_or_else(|| Error::Abc(format!("invalid ABC voice: {value}")))?;
+                    current_part_index = voice_number - 1;
+                    current_measure_number = 0;
+                    while score.parts.len() <= current_part_index {
+                        let number = score.parts.len() + 1;
+                        let mut part = Part::new(&format!("Part {number}"), &format!("P{number}"));
+                        part.staves.push(Staff::new(Clef::Treble));
+                        score.parts.push(part);
+                    }
+                }
                 _ => {}
             }
             continue;
@@ -182,40 +200,43 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
                 &time,
                 &mut current_measure_number,
                 &mut note_count,
+                current_part_index,
             )?;
         }
     }
 
     // Pad last measure
     let beats = time.total_beats();
-    if let Some(m) = score
-        .parts
-        .first_mut()
-        .and_then(|p| p.staves.first_mut())
-        .and_then(|s| s.measures.last_mut())
-    {
-        pad_voice(&mut m.voices[0], beats);
+    for part in &mut score.parts {
+        if let Some(m) = part
+            .staves
+            .first_mut()
+            .and_then(|staff| staff.measures.last_mut())
+        {
+            pad_voice(&mut m.voices[0], beats);
+        }
     }
 
     // Renumber and annotate first measure
     let key = score.settings.key_signature.clone();
     let ts = time.clone();
-    if let Some(staff) = score.parts.first_mut().and_then(|p| p.staves.first_mut()) {
-        for (i, m) in staff.measures.iter_mut().enumerate() {
-            m.number = i as u32 + 1;
-            if i == 0 {
-                m.time_sig = Some(ts.clone());
-                m.key_sig = Some(key.clone());
+    for part in &mut score.parts {
+        if let Some(staff) = part.staves.first_mut() {
+            for (i, m) in staff.measures.iter_mut().enumerate() {
+                m.number = i as u32 + 1;
+                if i == 0 {
+                    m.time_sig = Some(ts.clone());
+                    m.key_sig = Some(key.clone());
+                }
             }
         }
     }
 
-    let measure_count = score
+    let measure_count: usize = score
         .parts
-        .first()
-        .and_then(|p| p.staves.first())
-        .map(|s| s.measures.len())
-        .unwrap_or(0);
+        .iter()
+        .map(|part| part.staves.first().map_or(0, |staff| staff.measures.len()))
+        .sum();
 
     if measure_count == 0 {
         return Err(Error::Empty);
@@ -233,8 +254,13 @@ fn parse_body_line(
     time: &TimeSignature,
     current_measure_number: &mut u32,
     note_count: &mut usize,
+    part_index: usize,
 ) -> Result<(), Error> {
-    let staff = match score.parts.first_mut().and_then(|p| p.staves.first_mut()) {
+    let staff = match score
+        .parts
+        .get_mut(part_index)
+        .and_then(|part| part.staves.first_mut())
+    {
         Some(s) => s,
         None => return Ok(()),
     };
@@ -693,13 +719,6 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
         );
     }
 
-    if score.parts.len() > 1 {
-        push(
-            "/score/parts".to_string(),
-            score.parts.len().to_string(),
-            "ABC export emits part labels but the canonical parser currently imports one part",
-        );
-    }
     for (part_index, part) in score.parts.iter().enumerate() {
         if part.staves.len() > 1 {
             push(
@@ -1302,6 +1321,21 @@ C D E F | G A B c |";
         let abc = serialize_abc(&score).unwrap();
         assert!(abc.contains("V:1\n"), "missing V:1");
         assert!(abc.contains("V:2\n"), "missing V:2");
+    }
+
+    #[test]
+    fn abc_voice_tags_preserve_multipart_semantics() {
+        let abc = "X:1\nT:Voices\nM:2/4\nL:1/4\nK:C\nV:1\nC D|\nV:2\nG, A,|\n";
+        let score = parse_abc(abc).expect("multi-voice ABC parses");
+        assert_eq!(score.parts.len(), 2);
+        assert_eq!(score.parts[0].staves[0].measures.len(), 1);
+        assert_eq!(score.parts[1].staves[0].measures.len(), 1);
+        assert_eq!(score.parts[0].staves[0].measures[0].voices[0].len(), 2);
+        assert_eq!(score.parts[1].staves[0].measures[0].voices[0].len(), 2);
+        assert_eq!(
+            score.parts[1].staves[0].measures[0].voices[0][0].pitches[0].octave,
+            3
+        );
     }
 
     #[test]

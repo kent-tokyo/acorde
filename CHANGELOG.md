@@ -10,6 +10,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-09-05
+
+### Added
+
+- Added the undoable `SetMeasureText` command for measure-level `StyledText` entries, including
+  JSON command history, atomic index validation, and undo/redo support.
+- Added typed, position-aware styled-text annotations to SVG render metadata.
+
+### Fixed
+
+- Preserved supported expression and rehearsal-mark styles through MusicXML round-trip.
+- Reported malformed MEI numeric values instead of silently accepting fallback values.
+
 ## [1.1.0] - 2026-09-05
 
 - Promoted the completed interchange, tablature, SoundFont boundary, and parser-hardening work

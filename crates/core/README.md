@@ -28,7 +28,10 @@ value/alter/type data through `ChordSymbol.degrees`. MEI/MusicXML/MSCX harmonic-
 is preserved through the serde-defaulted `ChordSymbol.harmony_function` field.
 `Pitch::try_with_microtone()` rejects cents outside the canonical `-99..=99` range without
 clamping; the legacy `with_microtone()` constructor retains its clamping behavior for
-compatibility.
+compatibility. Measure-level styled text can be edited transactionally with
+`Command::SetMeasureText`: provide an existing `text_index` to replace/remove an entry, or the
+current length to append one. Invalid indexes return an error before mutation, and the operation
+participates in the normal undo/redo and JSON command-history contracts.
 
 ~~~rust
 use acorde_core::{Command, ScoreEngine, SetTempoCmd};

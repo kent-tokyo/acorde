@@ -376,6 +376,14 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     }
                     continue;
                 }
+                if styled.style == TextStyle::RehearsalMark {
+                    xml.push_str(
+                        "      <direction placement=\"above\"><direction-type><rehearsal>",
+                    );
+                    xml.push_str(&escape_xml(&styled.text));
+                    xml.push_str("</rehearsal></direction-type></direction>\n");
+                    continue;
+                }
                 xml.push_str("      <direction placement=\"above\"><direction-type><words>");
                 xml.push_str(&escape_xml(&styled.text));
                 xml.push_str("</words></direction-type></direction>\n");

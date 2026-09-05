@@ -1,7 +1,13 @@
 {
   "schema_version": 1,
-  "version_policy": "workspace version is 1.1.0",
+  "version_policy": "workspace version is 1.1.1",
   "generated_on": "2026-09-05",
+  "phase_7_policy": {
+    "status": "local-slices-available-external-gates-open",
+    "claim_boundary": "Phase 7 is not aggregate-lossless until each declared format slice passes its own evidence gate",
+    "local_evidence": ["typed source-located diagnostics", "checked-in format fixtures", "generated_boundary_corpus_preserves_event_meaning", "generated_boundary_corpus_reports_timing_and_pairing_boundaries", "abc_voice_tags_preserve_multipart_semantics", "mei_invalid_numeric_values_are_source_diagnosed", "cross-format semantic projections"],
+    "open_gates": ["broader held-out MIDI/ABC/MEI/MSCZ corpora", "richer vendor and reference semantics", "canonical MSCX export contract", "host audio/engraving equivalence"]
+  },
   "phases": {
     "6A": { "status": "local-gate-passed", "evidence": ["tests/fixtures/manifest.json", "docs/interchange-evidence.md", "crates/io/tests/roundtrip.rs fixture SHA-256 verification"] },
     "6B": { "status": "local-gate-passed", "evidence": ["tests/fixtures/interchange_subset.mei", "tests/fixtures/interchange_multistaff.mei", "tests/fixtures/interchange_harm_analysis.mei", "crates/io/src/mei/mod.rs tests", "crates/io/src/mei/mod.rs chord_definition_round_trips_as_structured_tab_data", "crates/io/src/mei/mod.rs duplicate_chord_definition_ids_are_source_diagnosed", "crates/io/src/mei/mod.rs structured_figured_bass_figures_round_trip_in_order", "crates/io/src/mei/mod.rs figured_bass_unsupported_child_is_source_located", "crates/io/src/mei/mod.rs figured_bass_unsupported_attribute_is_source_located", "crates/io/tests/roundtrip.rs mei_simple_figured_bass_display_text_roundtrips", "crates/io/tests/roundtrip.rs musicxml_simple_figured_bass_display_text_roundtrips", "crates/io/tests/roundtrip.rs musicxml_structured_figured_bass_roundtrips_without_loss", "crates/io/tests/roundtrip.rs musicxml_unpitched_note_is_reported_instead_of_claiming_pitch_equivalence", "scoreDef/staffDef clef, measure tempo, plain-text harm chord labels, rehearsal marks, directions/navigation marks, multi-staff/layer content, tuplets, grace notes, and common MEI ornaments round-trip with structured-placement diagnostics", "MEI fb text and ordered <f> values plus MusicXML figured-bass figure number/alter/prefix/suffix round-trip", "bounded MEI chordDef/chordTable/chordMember definitions round-trip in Score.chord_definitions", "MEI duplicate chordDef/chordMember IDs are source-located with preserved repeated values", "unsupported MEI <f> children/attributes and empty values are source-located diagnostics", "richer MEI figured-bass and chord-definition semantics remain explicitly outside the canonical model", "MusicXML unpitched percussion is explicitly source-located as a loss", "explicit MEI import/export boundary with canonical Score ownership", "MEI octave span import/export semantic round-trip", "MEI invalid octave-attribute non-silent-loss diagnostic", "MEI note-addressed pedal span import/export semantic round-trip", "MEI timestamp/release-only pedal diagnostic preserves dir/startid/endid/tstamp/tstamp2 when present", "fixture manifest checksum verification"] },
@@ -63,6 +69,7 @@
     "MEI local harm@chordref fragments are checked against chordDef IDs and unresolved references are source-located",
     "MEI and MusicXML figured-bass values match through a normalized alteration semantic projection",
     "MIDI serialization rejects out-of-range canonical channel, controller, program, aftertouch, and pitch-bend values",
+    "MEI malformed measure, meter, tempo, and multi-rest numeric values are source-located with preserved fallback diagnostics",
     "Tablature validation checks primary and alternate tab_positions against declared staff lines",
     "MSCX malformed note tablature string/fret values are source-located with preserved values",
     "MSCX numeric string positions are checked against owning StaffType line counts",

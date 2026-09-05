@@ -15,7 +15,7 @@ use crate::glyphs::{self, f};
 use crate::tuplets;
 use crate::{
     AddressBounds, RenderAnnotation, RenderAnnotationError, RenderError, RenderMetadata,
-    SVG_CONTRACT_VERSION, SvgAnnotation, SvgRenderOptions,
+    SVG_CONTRACT_VERSION, SvgAnnotation, SvgRenderOptions, TextAnnotation,
 };
 
 const LEFT_MARGIN_U: f32 = 1.0;
@@ -322,6 +322,30 @@ pub(crate) fn build_svg_with_metadata(
         .max()
         .unwrap_or(0);
     let note_count = address_bounds.len();
+    let text_annotations =
+        score
+            .parts
+            .iter()
+            .enumerate()
+            .flat_map(|(part_index, part)| {
+                part.staves
+                    .iter()
+                    .enumerate()
+                    .flat_map(move |(staff_index, staff)| {
+                        staff.measures.iter().enumerate().flat_map(
+                            move |(measure_index, measure)| {
+                                measure.texts.iter().map(move |styled| TextAnnotation {
+                                    part: part_index,
+                                    staff: staff_index,
+                                    measure: measure_index,
+                                    style: styled.style,
+                                    text: styled.text.clone(),
+                                })
+                            },
+                        )
+                    })
+            })
+            .collect();
     let accessible_text = format!(
         "{}; {} parts, {} staves, {} measures, {} note events",
         score.metadata.title,
@@ -342,6 +366,7 @@ pub(crate) fn build_svg_with_metadata(
             note_count,
             accessible_text,
             address_bounds,
+            text_annotations,
         },
     ))
 }

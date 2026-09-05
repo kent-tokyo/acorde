@@ -312,7 +312,7 @@ fn precomputed_row_and_metadata_contracts_are_stable() {
     let layout = compute_layout(&score, &LayoutConfig::default());
     let row = acorde_render_svg::render_svg_row(&score, &layout, 0, &opts()).unwrap();
     let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts()).unwrap();
-    assert_eq!(metadata.contract_version, 1);
+    assert_eq!(metadata.contract_version, 2);
     assert_eq!(metadata.part_count, 1);
     assert_eq!(metadata.staff_count, 2);
     assert_eq!(metadata.measure_count, 1);
@@ -330,6 +330,25 @@ fn precomputed_row_and_metadata_contracts_are_stable() {
         (0, 0, 0)
     );
     assert!(acorde_render_svg::render_svg_row(&score, &layout, 99, &opts()).is_err());
+}
+
+#[test]
+fn metadata_exposes_measure_text_style_and_location() {
+    use acorde_core::{StyledText, TextStyle};
+    use acorde_layout::{LayoutConfig, compute_layout};
+    let mut score = common::satb_major();
+    score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        style: TextStyle::Technique,
+        text: "con sordino".to_string(),
+    });
+    let layout = compute_layout(&score, &LayoutConfig::default());
+    let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts()).unwrap();
+    assert_eq!(metadata.text_annotations.len(), 1);
+    assert_eq!(metadata.text_annotations[0].part, 0);
+    assert_eq!(metadata.text_annotations[0].staff, 0);
+    assert_eq!(metadata.text_annotations[0].measure, 0);
+    assert_eq!(metadata.text_annotations[0].style, TextStyle::Technique);
+    assert_eq!(metadata.text_annotations[0].text, "con sordino");
 }
 
 #[test]

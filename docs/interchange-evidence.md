@@ -157,6 +157,11 @@ unbounded accidental-name allocation.
 The local semantic suite also compares the resulting chord-label projection between MEI and MSCX;
 this is display-label equivalence, not structured harmonic analysis equivalence.
 
+The MEI diagnostic boundary also covers numeric fallback values: malformed `measure@n`,
+`meter.count`, `meter.unit`, `tempo@mm`, and `multiRest@num` values are reported with their
+source paths and preserved source strings instead of being silently normalized. This evidence
+does not promote the broader MEI corpus gate or imply support for arbitrary MEI timing semantics.
+
 The next compatibility phases use this baseline in order: MEI subset expansion, MSCZ/MSCX
 structure and notation, MIDI event semantics, microtonal notation/playback separation, tablature
 instrument semantics, and finally cross-format held-out equivalence.

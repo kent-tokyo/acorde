@@ -33,12 +33,13 @@
   "known_gaps": [
     "Tablature and microtonal accidentals are supported only in documented subsets; ABC does not emit canonical tablature staff, string/fret, or guitar-technique fields.",
     "Broad held-out MEI/MSCZ/MIDI corpus comparison and audio-rendering equivalence remain external validation gates.",
+    "Compatibility measurements against music21 and browser notation ecosystems, plus downstream adoption evidence, remain external ecosystem gates.",
     "Advanced print engraving, PDF generation, and OS printing remain host-bound or planned work.",
     "Browser E2E and cross-browser visual measurements are not implied by native tests."
   ],
   "evidence": {
     "coverage_matrix": "docs/notation-coverage.md",
-    "analysis_corpus": "benchmarks/analysis.json",
+    "analysis_corpus": "benchmarks/analysis.json (synthetic local benchmark; independent corpus pending)",
     "security_checks": [
       "cargo test --all",
       "cargo clippy --all -- -D warnings",

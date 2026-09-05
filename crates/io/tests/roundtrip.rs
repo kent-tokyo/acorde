@@ -1,4 +1,4 @@
-use acorde_core::{Clef, Duration, Step};
+use acorde_core::{Clef, Command, Duration, SetMeasureTextCmd, Step, StyledText, TextStyle};
 /// Integration tests: parse a fixture, serialize, re-parse, and verify
 /// that key musical properties are preserved across the round-trip.
 use acorde_io::{parse_midi, parse_musicxml, serialize_musicxml};
@@ -88,6 +88,47 @@ fn simple_musicxml_parses() {
     assert_eq!(notes2[0].pitches[0].step, Step::G);
     assert_eq!(notes2[0].duration, Duration::Half);
     assert!(notes2[1].is_rest);
+}
+
+#[test]
+fn styled_measure_text_command_roundtrips_supported_musicxml_styles() {
+    let mut score = parse_musicxml(SIMPLE_XML).expect("parse fixture");
+    for (text_index, styled) in [
+        StyledText {
+            style: TextStyle::Expression,
+            text: "dolce".to_string(),
+        },
+        StyledText {
+            style: TextStyle::RehearsalMark,
+            text: "A".to_string(),
+        },
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        acorde_core::model::commands::apply_command(
+            &Command::SetMeasureText(SetMeasureTextCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                text_index,
+                text: Some(styled),
+            }),
+            &mut score,
+        )
+        .expect("styled text command applies");
+    }
+    let serialized = serialize_musicxml(&score).expect("serialize styled text");
+    let restored = parse_musicxml(&serialized).expect("reparse styled text");
+    let texts = &restored.parts[0].staves[0].measures[0].texts;
+    assert!(texts.contains(&StyledText {
+        style: TextStyle::Expression,
+        text: "dolce".to_string()
+    }));
+    assert!(texts.contains(&StyledText {
+        style: TextStyle::RehearsalMark,
+        text: "A".to_string()
+    }));
 }
 
 #[test]
@@ -243,8 +284,17 @@ fn interchange_report_has_machine_checked_phase_evidence() {
     let report: serde_json::Value =
         serde_json::from_str(INTERCHANGE_REPORT).expect("interchange report is valid JSON");
     assert_eq!(report["schema_version"], 1);
-    assert_eq!(report["version_policy"], "workspace version is 1.1.0");
-    assert!(WORKSPACE_MANIFEST.contains("version = \"1.1.0\""));
+    assert_eq!(report["version_policy"], "workspace version is 1.1.1");
+    assert!(WORKSPACE_MANIFEST.contains("version = \"1.1.1\""));
+    assert_eq!(
+        report["phase_7_policy"]["status"],
+        "local-slices-available-external-gates-open"
+    );
+    assert!(
+        report["phase_7_policy"]["open_gates"]
+            .as_array()
+            .is_some_and(|gates| gates.len() >= 4)
+    );
     assert_eq!(
         report["sample_measurements"]["mscz_musescore_4_6_3"]
             .as_array()

@@ -2,8 +2,8 @@ use super::change_hint::{ChangeHint, ChangeScope};
 use super::duration::Duration;
 use super::notation::{
     Articulation, Barline, ChordSymbol, Clef, CrossStaff, Dynamic, FiguredBassFigure,
-    GuitarTechnique, HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind, TimeSignature,
-    TupletInfo,
+    GuitarTechnique, HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind, StyledText,
+    TimeSignature, TupletInfo,
 };
 use super::pitch::Pitch;
 use super::score::{
@@ -73,6 +73,7 @@ pub enum Command {
     SetGuitarTechnique(SetGuitarTechniqueCmd),
     SetGuitarBendAlter(SetGuitarBendAlterCmd),
     SetExpressionText(SetExpressionTextCmd),
+    SetMeasureText(SetMeasureTextCmd),
     ToggleTrillLine(ToggleTrillLineCmd),
     SetGlissando(SetGlissandoCmd),
     SetCrossStaff(SetCrossStaffCmd),
@@ -599,6 +600,20 @@ pub struct SetExpressionTextCmd {
     pub text: Option<String>,
 }
 
+/// Insert, replace, or remove one measure-level styled text entry.
+///
+/// `text_index == texts.len()` with `Some(text)` appends an entry. An existing
+/// index with `Some(text)` replaces it; an existing index with `None` removes it.
+/// `None` at the end, or an index beyond the end, is rejected.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetMeasureTextCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub text_index: usize,
+    pub text: Option<StyledText>,
+}
+
 /// Mark or unmark a note as a cue note (cue notes have zero beats).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetCueCmd {
@@ -849,6 +864,16 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         | Command::SetRehearsalMark(_)
         | Command::SetNavigationMark(_)
         | Command::SetExpressionText(_) => hint!(Global, false, false),
+        Command::SetMeasureText(c) => hint!(
+            Measures {
+                part: c.part_index,
+                staff: c.staff_index,
+                start: c.measure_index,
+                end: c.measure_index + 1
+            },
+            false,
+            false
+        ),
 
         Command::SetMultiRest(_) => hint!(Global, true, false),
 
@@ -1013,6 +1038,11 @@ pub fn command_label(cmd: &Command) -> String {
         }
         .to_string(),
         Command::SetExpressionText(_) => "Set Expression Text".to_string(),
+        Command::SetMeasureText(c) => match c.text {
+            Some(_) => "Set Measure Text",
+            None => "Remove Measure Text",
+        }
+        .to_string(),
         Command::ToggleTrillLine(_) => "Toggle Trill Line".to_string(),
         Command::SetGlissando(_) => "Set Glissando".to_string(),
         Command::SetCrossStaff(_) => "Set Cross-Staff Placement".to_string(),
@@ -1088,6 +1118,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetUnpitched(_) => "SetUnpitched".to_string(),
         Command::SetInstrumentId(_) => "SetInstrumentId".to_string(),
         Command::SetExpressionText(_) => "SetExpressionText".to_string(),
+        Command::SetMeasureText(_) => "SetMeasureText".to_string(),
         Command::ToggleTrillLine(_) => "ToggleTrillLine".to_string(),
         Command::SetGlissando(_) => "SetGlissando".to_string(),
         Command::SetCrossStaff(_) => "SetCrossStaff".to_string(),
@@ -1508,6 +1539,7 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
             });
             Ok(())
         }
+        Command::SetMeasureText(c) => apply_set_measure_text(c, score),
         Command::ToggleTrillLine(c) => apply_toggle_trill_line(c, score),
         Command::SetPartGroup(c) => {
             if let Some(group) = &c.group {
@@ -1565,6 +1597,38 @@ fn for_each_measure_at(score: &mut Score, index: usize, mut f: impl FnMut(&mut M
             }
         }
     }
+}
+
+fn apply_set_measure_text(cmd: &SetMeasureTextCmd, score: &mut Score) -> Result<(), Error> {
+    let measure = score
+        .parts
+        .get_mut(cmd.part_index)
+        .ok_or(Error::PartNotFound(cmd.part_index))?
+        .staves
+        .get_mut(cmd.staff_index)
+        .ok_or(Error::StaffNotFound(cmd.staff_index))?
+        .measures
+        .get_mut(cmd.measure_index)
+        .ok_or(Error::MeasureNotFound(cmd.measure_index))?;
+    if cmd.text_index > measure.texts.len()
+        || (cmd.text.is_none() && cmd.text_index == measure.texts.len())
+    {
+        return Err(Error::InvalidCommand(format!(
+            "styled text index {} out of range for {} entries",
+            cmd.text_index,
+            measure.texts.len()
+        )));
+    }
+    if let Some(text) = &cmd.text {
+        if cmd.text_index == measure.texts.len() {
+            measure.texts.push(text.clone());
+        } else {
+            measure.texts[cmd.text_index] = text.clone();
+        }
+    } else {
+        measure.texts.remove(cmd.text_index);
+    }
+    Ok(())
 }
 
 fn apply_add_note(cmd: &AddNoteCmd, score: &mut Score) -> Result<(), Error> {
@@ -2309,6 +2373,96 @@ mod tests {
         )
         .unwrap();
         assert_eq!(score.parts[0].staves[0].measures[0].figured_bass, figures);
+    }
+
+    #[test]
+    fn set_measure_text_supports_append_replace_remove_and_undo_redo() {
+        let mut engine = crate::ScoreEngine::new();
+        let address = SetMeasureTextCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            text_index: 0,
+            text: Some(StyledText {
+                style: crate::TextStyle::Technique,
+                text: "dolce".to_string(),
+            }),
+        };
+        engine.apply(Command::SetMeasureText(address)).unwrap();
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].texts[0],
+            StyledText {
+                style: crate::TextStyle::Technique,
+                text: "dolce".to_string(),
+            }
+        );
+
+        engine
+            .apply(Command::SetMeasureText(SetMeasureTextCmd {
+                text_index: 0,
+                text: Some(StyledText {
+                    style: crate::TextStyle::RehearsalMark,
+                    text: "A".to_string(),
+                }),
+                ..SetMeasureTextCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    text_index: 0,
+                    text: None,
+                }
+            }))
+            .unwrap();
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].texts[0].style,
+            crate::TextStyle::RehearsalMark
+        );
+
+        engine
+            .apply(Command::SetMeasureText(SetMeasureTextCmd {
+                text_index: 0,
+                text: None,
+                ..SetMeasureTextCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    text_index: 0,
+                    text: None,
+                }
+            }))
+            .unwrap();
+        assert!(engine.score.parts[0].staves[0].measures[0].texts.is_empty());
+        engine.undo().unwrap();
+        assert_eq!(engine.score.parts[0].staves[0].measures[0].texts.len(), 1);
+        engine.redo().unwrap();
+        assert!(engine.score.parts[0].staves[0].measures[0].texts.is_empty());
+    }
+
+    #[test]
+    fn set_measure_text_rejects_invalid_index_atomically_and_round_trips_json() {
+        let mut score = default_engine_score();
+        let before = score.clone();
+        let command = Command::SetMeasureText(SetMeasureTextCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            text_index: 2,
+            text: Some(StyledText {
+                style: crate::TextStyle::Expression,
+                text: "espressivo".to_string(),
+            }),
+        });
+        let json = serde_json::to_string(&command).unwrap();
+        let restored: Command = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            serde_json::to_value(&restored).unwrap(),
+            serde_json::to_value(&command).unwrap()
+        );
+        assert!(apply_command(&restored, &mut score).is_err());
+        assert_eq!(
+            serde_json::to_value(&score).unwrap(),
+            serde_json::to_value(&before).unwrap()
+        );
     }
 
     #[test]

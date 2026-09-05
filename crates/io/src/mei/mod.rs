@@ -751,6 +751,7 @@ fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
                 }
                 push_flattening_diagnostic(&mut diagnostics, &path, &name, &event, &mut truncated);
                 push_attribute_diagnostics(&mut diagnostics, &path, &name, &event, &mut truncated);
+                push_value_diagnostics(&mut diagnostics, &path, &name, &event, &mut truncated);
                 if matches!(name.as_str(), "chordDef" | "chordMember") {
                     push_duplicate_chord_id_diagnostic(
                         &mut diagnostics,
@@ -849,6 +850,13 @@ fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
                     &mut truncated,
                 );
                 push_attribute_diagnostics(
+                    &mut diagnostics,
+                    &element_path,
+                    &name,
+                    &event,
+                    &mut truncated,
+                );
+                push_value_diagnostics(
                     &mut diagnostics,
                     &element_path,
                     &name,
@@ -1376,6 +1384,114 @@ fn push_attribute_diagnostics(
         );
     }
     push_unknown_chord_attribute_diagnostics(diagnostics, path, element, event, truncated);
+}
+
+fn push_invalid_value_diagnostic(
+    diagnostics: &mut Vec<Diagnostic>,
+    path: &[String],
+    element: &str,
+    attribute: &str,
+    value: String,
+    reason: &str,
+    truncated: &mut bool,
+) {
+    if diagnostics.len() < MAX_MEI_DIAGNOSTICS {
+        let mut diagnostic = Diagnostic::warning(
+            format!("mei.invalid-value.{element}.{attribute}"),
+            format!("MEI {element}@{attribute} {reason}"),
+        );
+        diagnostic.source_location = Some(format!("/{}/@{attribute}", path.join("/")));
+        diagnostic.preserved_value = Some(value);
+        diagnostics.push(diagnostic);
+    } else if !*truncated {
+        push_truncation_diagnostic(diagnostics, path, truncated);
+    }
+}
+
+fn push_value_diagnostics(
+    diagnostics: &mut Vec<Diagnostic>,
+    path: &[String],
+    element: &str,
+    event: &BytesStart<'_>,
+    truncated: &mut bool,
+) {
+    if element == "measure"
+        && let Some(value) = attr(event, b"n")
+        && value.parse::<u32>().is_err()
+    {
+        push_invalid_value_diagnostic(
+            diagnostics,
+            path,
+            element,
+            "n",
+            value,
+            "is not a positive integer; the canonical measure number uses a fallback",
+            truncated,
+        );
+    }
+    if matches!(element, "scoreDef" | "measure") {
+        if let Some(value) = attr(event, b"meter.count")
+            && (value.parse::<u8>().is_err() || value == "0")
+        {
+            push_invalid_value_diagnostic(
+                diagnostics,
+                path,
+                element,
+                "meter.count",
+                value,
+                "is not a positive integer; the canonical time signature uses a fallback",
+                truncated,
+            );
+        }
+        if let Some(value) = attr(event, b"meter.unit")
+            && (value.parse::<u8>().is_err()
+                || value == "0"
+                || !value
+                    .parse::<u8>()
+                    .is_ok_and(|denominator| denominator.is_power_of_two()))
+        {
+            push_invalid_value_diagnostic(
+                diagnostics,
+                path,
+                element,
+                "meter.unit",
+                value,
+                "is not a positive power-of-two integer; the canonical time signature uses a fallback",
+                truncated,
+            );
+        }
+    }
+    if element == "tempo"
+        && let Some(value) = attr(event, b"mm")
+        && !value
+            .parse::<u16>()
+            .is_ok_and(|tempo| (1..=999).contains(&tempo))
+    {
+        push_invalid_value_diagnostic(
+            diagnostics,
+            path,
+            element,
+            "mm",
+            value,
+            "is outside the supported 1..=999 BPM range; tempo is not imported",
+            truncated,
+        );
+    }
+    if matches!(element, "mRest" | "multiRest")
+        && element == "multiRest"
+        && let Some(value) = attr(event, b"num")
+        && !value.parse::<u8>().is_ok_and(|count| count > 0)
+    {
+        push_invalid_value_diagnostic(
+            diagnostics,
+            path,
+            element,
+            "num",
+            value,
+            "is not a positive integer; the canonical multi-rest count uses one",
+            truncated,
+        );
+    }
 }
 
 /// Parse the supported MEI subset into the canonical score model.
@@ -3806,6 +3922,33 @@ mod tests {
             Some((6, 8))
         );
         assert!(report.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn reports_invalid_measure_meter_and_tempo_values_without_silent_fallback() {
+        let xml = FIXTURE
+            .replace(
+                "<measure n=\"7\">",
+                "<measure n=\"unknown\" meter.count=\"six\" meter.unit=\"3\">",
+            )
+            .replace("<note pname=\"c\"", "<tempo mm=\"0\"/><note pname=\"c\"");
+        let report = parse_mei_with_report(&xml).expect("invalid MEI values remain importable");
+        let codes = report
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code.as_str())
+            .collect::<Vec<_>>();
+        assert!(codes.contains(&"mei.invalid-value.measure.n"));
+        assert!(codes.contains(&"mei.invalid-value.measure.meter.count"));
+        assert!(codes.contains(&"mei.invalid-value.measure.meter.unit"));
+        assert!(codes.contains(&"mei.invalid-value.tempo.mm"));
+        assert!(report.diagnostics.iter().all(|diagnostic| {
+            diagnostic.preserved_value.is_some() && diagnostic.source_location.is_some()
+        }));
+        assert_eq!(
+            report.score.parts[0].staves[0].measures[0].number, 1,
+            "invalid measure numbers use the documented fallback"
+        );
     }
 
     #[test]

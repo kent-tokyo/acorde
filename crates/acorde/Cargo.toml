@@ -24,7 +24,7 @@ soundfont = ["dep:acorde-soundfont"]
 soundfont-sf3-vorbis = ["soundfont", "acorde-soundfont/sf3-vorbis"]
 
 [dependencies]
-acorde-core   = { path = "../core", version = "1.1.0" }
-acorde-io     = { path = "../io", version = "1.1.0", default-features = false }
-acorde-layout = { path = "../layout", version = "1.1.0" }
-acorde-soundfont = { path = "../soundfont", version = "1.1.0", optional = true }
+acorde-core   = { path = "../core", version = "1.1.1" }
+acorde-io     = { path = "../io", version = "1.1.1", default-features = false }
+acorde-layout = { path = "../layout", version = "1.1.1" }
+acorde-soundfont = { path = "../soundfont", version = "1.1.1", optional = true }

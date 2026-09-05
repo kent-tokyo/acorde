@@ -31,13 +31,13 @@ mod glyphs;
 mod render;
 mod tuplets;
 
-use acorde_core::Score;
+use acorde_core::{Score, TextStyle};
 use acorde_layout::{LayoutConfig, LayoutResult, compute_layout};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Version of the browser-facing [`RenderMetadata`] contract.
-pub const SVG_CONTRACT_VERSION: u32 = 1;
+pub const SVG_CONTRACT_VERSION: u32 = 2;
 /// Version of the built-in glyph coverage contract.
 pub const GLYPH_COVERAGE_CONTRACT_VERSION: u32 = 1;
 /// Stable identifier for the renderer's font-independent vector glyph set.
@@ -78,6 +78,19 @@ pub struct RenderMetadata {
     /// Human-readable fallback text for hosts that cannot expose the SVG semantics.
     pub accessible_text: String,
     pub address_bounds: Vec<AddressBounds>,
+    /// Measure-level text with its stable score location and typed presentation role.
+    #[serde(default)]
+    pub text_annotations: Vec<TextAnnotation>,
+}
+
+/// A measure-level styled text entry exposed to browser hosts without SVG parsing.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TextAnnotation {
+    pub part: usize,
+    pub staff: usize,
+    pub measure: usize,
+    pub style: TextStyle,
+    pub text: String,
 }
 
 /// Explicit coverage information for the renderer's built-in glyph resource.

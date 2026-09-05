@@ -782,6 +782,164 @@ fn flush(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use midly::{
+        Format, Header, MetaMessage, MidiMessage, Smf, Timing, TrackEvent, TrackEventKind,
+    };
+
+    fn generated_boundary_corpus_case() -> Vec<u8> {
+        let header = Header::new(
+            Format::Parallel,
+            Timing::Metrical(midly::num::u15::from(480)),
+        );
+        let track = vec![
+            TrackEvent {
+                delta: midly::num::u28::from(0),
+                kind: TrackEventKind::Meta(MetaMessage::TrackName(b"generated-boundaries")),
+            },
+            TrackEvent {
+                delta: midly::num::u28::from(0),
+                kind: TrackEventKind::Meta(MetaMessage::Tempo(midly::num::u24::from(500_000))),
+            },
+            TrackEvent {
+                delta: midly::num::u28::from(0),
+                kind: TrackEventKind::Meta(MetaMessage::TimeSignature(3, 2, 24, 8)),
+            },
+            TrackEvent {
+                delta: midly::num::u28::from(0),
+                kind: TrackEventKind::Midi {
+                    channel: midly::num::u4::from(0),
+                    message: MidiMessage::ProgramChange {
+                        program: midly::num::u7::from(40),
+                    },
+                },
+            },
+            TrackEvent {
+                delta: midly::num::u28::from(0),
+                kind: TrackEventKind::Midi {
+                    channel: midly::num::u4::from(0),
+                    message: MidiMessage::PitchBend {
+                        bend: midly::PitchBend::from_int(-8192),
+                    },
+                },
+            },
+            TrackEvent {
+                delta: midly::num::u28::from(0),
+                kind: TrackEventKind::Midi {
+                    channel: midly::num::u4::from(0),
+                    message: MidiMessage::Controller {
+                        controller: midly::num::u7::from(1),
+                        value: midly::num::u7::from(127),
+                    },
+                },
+            },
+            TrackEvent {
+                delta: midly::num::u28::from(0),
+                kind: TrackEventKind::Midi {
+                    channel: midly::num::u4::from(0),
+                    message: MidiMessage::ChannelAftertouch {
+                        vel: midly::num::u7::from(64),
+                    },
+                },
+            },
+            TrackEvent {
+                delta: midly::num::u28::from(0),
+                kind: TrackEventKind::Midi {
+                    channel: midly::num::u4::from(0),
+                    message: MidiMessage::NoteOn {
+                        key: midly::num::u7::from(60),
+                        vel: midly::num::u7::from(100),
+                    },
+                },
+            },
+            TrackEvent {
+                delta: midly::num::u28::from(120),
+                kind: TrackEventKind::Midi {
+                    channel: midly::num::u4::from(0),
+                    message: MidiMessage::NoteOn {
+                        key: midly::num::u7::from(60),
+                        vel: midly::num::u7::from(80),
+                    },
+                },
+            },
+            TrackEvent {
+                delta: midly::num::u28::from(120),
+                kind: TrackEventKind::Midi {
+                    channel: midly::num::u4::from(0),
+                    message: MidiMessage::NoteOff {
+                        key: midly::num::u7::from(60),
+                        vel: midly::num::u7::from(0),
+                    },
+                },
+            },
+            TrackEvent {
+                delta: midly::num::u28::from(120),
+                kind: TrackEventKind::Midi {
+                    channel: midly::num::u4::from(0),
+                    message: MidiMessage::NoteOff {
+                        key: midly::num::u7::from(60),
+                        vel: midly::num::u7::from(0),
+                    },
+                },
+            },
+            TrackEvent {
+                delta: midly::num::u28::from(0),
+                kind: TrackEventKind::Meta(MetaMessage::EndOfTrack),
+            },
+        ];
+        let mut smf = Smf::new(header);
+        smf.tracks.push(track);
+        let mut bytes = Vec::new();
+        smf.write_std(&mut bytes)
+            .expect("generated MIDI is writable");
+        bytes
+    }
+
+    #[test]
+    fn generated_boundary_corpus_preserves_event_meaning() {
+        let data = generated_boundary_corpus_case();
+        let score = parse_midi(&data).expect("generated MIDI corpus case parses");
+        assert_eq!(score.parts.len(), 1);
+        let part = &score.parts[0];
+        assert_eq!(part.midi_program_changes[0].program, 40);
+        assert_eq!(part.midi_pitch_bends[0].value, -8192);
+        assert_eq!(part.midi_control_changes[0].value, 127);
+        assert_eq!(part.midi_aftertouch[0].value, 64);
+        assert_eq!(part.staves[0].measures[0].voices[0].len(), 3);
+
+        let reparsed = parse_midi(&serialize_midi(&score).expect("generated MIDI serializes"))
+            .expect("serialized generated MIDI reparses");
+        assert_eq!(reparsed.parts[0].midi_pitch_bends, part.midi_pitch_bends);
+        assert_eq!(
+            reparsed.parts[0].midi_control_changes,
+            part.midi_control_changes
+        );
+        assert_eq!(reparsed.parts[0].midi_aftertouch, part.midi_aftertouch);
+    }
+
+    #[test]
+    fn generated_boundary_corpus_reports_timing_and_pairing_boundaries() {
+        let unmatched_note_off = [
+            b'M', b'T', b'h', b'd', 0, 0, 0, 6, 0, 0, 0, 1, 1, 0xE0, b'M', b'T', b'r', b'k', 0, 0,
+            0, 8, 0, 0x80, 60, 0, 0, 0xFF, 0x2F, 0,
+        ];
+        let diagnostics = loss_diagnostics(&unmatched_note_off).expect("MIDI parses");
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "midi.unmatched-note-off")
+        );
+
+        let smpte_timing = [
+            b'M', b'T', b'h', b'd', 0, 0, 0, 6, 0, 0, 0, 1, 0xE7, 40, b'M', b'T', b'r', b'k', 0, 0,
+            0, 8, 0, 0x90, 60, 100, 0, 0x80, 60, 0,
+        ];
+        let diagnostics = loss_diagnostics(&smpte_timing).expect("MIDI parses");
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "midi.unsupported-smpte-timing")
+        );
+    }
 
     #[test]
     fn empty_bytes_returns_empty_err() {

@@ -73,6 +73,9 @@ Same-measure/layer piano pedal spans using
 variants remain source-located loss diagnostics with their source attributes preserved.
 `parse_mei_with_report` reports known unsupported elements and flattened staff/layer numbers
 instead of silently claiming lossless interchange.
+MEI numeric fallbacks for malformed `measure@n`, meter attributes, `tempo@mm`, and multi-rest
+counts are also source-located with their preserved values; callers can distinguish a valid
+canonical default from source data that was not representable.
 
 MusicXML notes are mapped from voice numbers 1–4 to the corresponding `Measure.voices` entries;
 serialization emits the same voice numbers and `<backup>` boundaries for round-trip fidelity.
@@ -86,6 +89,9 @@ Tempo and time-signature changes at canonical measure boundaries are attached to
 off-boundary changes are reported rather than silently shifted.
 The checked-in public-domain fixture verifies note pitch/duration/rest semantics and bend event
 meaning across parse → serialize → parse.
+ABC `V:` fields now select stable numbered parts during import, so the exporter/importer pair
+preserves multiple part streams; multiple staves and richer ABC directives remain diagnosed
+according to the coverage matrix.
 `parse_midi_with_report` preserves Controller Change, Program Change, and Aftertouch events with
 absolute tick/channel data; it reports unsupported SysEx and Escape events with
 their track/event index, tick, and channel where applicable instead of silently claiming full

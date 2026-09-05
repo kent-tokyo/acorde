@@ -16,12 +16,12 @@ pub use model::commands::{
     SetCrossStaffCmd, SetCueCmd, SetDurationCmd, SetDynamicCmd, SetExpressionTextCmd,
     SetFiguredBassCmd, SetFingeringCmd, SetFingeringsCmd, SetGlissandoCmd, SetGraceCmd,
     SetGuitarBendAlterCmd, SetGuitarTechniqueCmd, SetInstrumentIdCmd, SetKeySignatureCmd,
-    SetLyricCmd, SetMetadataCmd, SetMidiInstrumentCmd, SetMultiRestCmd, SetNavigationMarkCmd,
-    SetNoteHeadCmd, SetOttavaCmd, SetPageBreakCmd, SetPartGroupCmd, SetPartNameCmd,
-    SetRehearsalMarkCmd, SetStemCmd, SetStringNumberCmd, SetSystemBreakCmd, SetTabPositionCmd,
-    SetTechniqueTextCmd, SetTempoAtMeasureCmd, SetTempoCmd, SetTimeSignatureCmd, SetTransposeCmd,
-    SetTupletCmd, SetUnpitchedCmd, SetVoltaCmd, ToggleArticulationCmd, ToggleSlurCmd, ToggleTieCmd,
-    ToggleTrillLineCmd, command_key, command_label,
+    SetLyricCmd, SetMeasureTextCmd, SetMetadataCmd, SetMidiInstrumentCmd, SetMultiRestCmd,
+    SetNavigationMarkCmd, SetNoteHeadCmd, SetOttavaCmd, SetPageBreakCmd, SetPartGroupCmd,
+    SetPartNameCmd, SetRehearsalMarkCmd, SetStemCmd, SetStringNumberCmd, SetSystemBreakCmd,
+    SetTabPositionCmd, SetTechniqueTextCmd, SetTempoAtMeasureCmd, SetTempoCmd, SetTimeSignatureCmd,
+    SetTransposeCmd, SetTupletCmd, SetUnpitchedCmd, SetVoltaCmd, ToggleArticulationCmd,
+    ToggleSlurCmd, ToggleTieCmd, ToggleTrillLineCmd, command_key, command_label,
 };
 pub use model::duration::Duration;
 pub use model::engine::{EngineHistory, ScoreEngine};

@@ -16,6 +16,24 @@ Wikimedia Commons pitch-bend fixtures. Their source pages identify the files as 
 describe the authored pitch-bend values; they cover a signed negative and positive nonzero bend.
 Their source URLs and SHA-256 values are pinned in `manifest.json`.
 
+## MIDI corpus policy
+
+The checked-in MIDI set is intentionally a small, legally conservative smoke corpus. New
+reproducible boundary cases should be self-authored or explicitly dedicated to CC0/public domain;
+the manifest must record the source, license, checksum, and expected semantic fields. The target
+boundary matrix includes note pairing and overlaps, multiple tracks/channels, tempo and meter
+changes, controllers, program changes, aftertouch, percussion channel 10, signed pitch-bends at
+`-8192`, `0`, and `8191`, SMPTE timing, long tick gaps, and malformed-event diagnostics. The
+in-memory regression cases `generated_boundary_corpus_preserves_event_meaning` and
+`generated_boundary_corpus_reports_timing_and_pairing_boundaries` exercise these protocol
+boundaries without adding third-party music to the repository.
+
+Large third-party corpora are **not** downloaded during tests and are **not** automatically added
+to this directory. They belong to an external validation run with a separate manifest. In
+particular, a dataset's top-level license does not by itself establish that every contained MIDI
+transcription is redistributable. Only individually reviewed Public Domain/CC0 or otherwise
+permission-cleared files may be promoted into the checked-in fixture corpus.
+
 `UprightPianoKW-small-20190703.sf2` is a real SF2 fixture from the FreePats Upright Piano KW
 sound bank. It is released under the CC0 1.0 public-domain dedication:
 [source and license](https://freepats.zenvoid.org/Piano/acoustic-grand-piano.html). It is used
