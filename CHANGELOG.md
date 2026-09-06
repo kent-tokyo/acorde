@@ -10,7 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
+No unreleased changes.
+
+## [1.1.3] - 2026-09-06
+
+This release consolidates the Phase 10.5 fidelity-hardening work and bounded incremental
+analysis improvements. External interchange compatibility, engraving, PDF, and browser E2E
+claims remain explicitly outside the local release evidence.
 
 - `acorde-render-svg` now exposes a versioned `GlyphCoverage` microtone-marker capability
   contract (`svg-text-cents`, exact signed cents preservation) for host-neutral resource checks.

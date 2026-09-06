@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "release": "1.1.2",
+  "release": "1.1.3",
   "contracts": {
     "svg_render_metadata": 3,
     "print_layout": 24
@@ -41,7 +41,7 @@
     "Compatibility measurements against music21 and browser notation ecosystems, plus downstream adoption evidence, remain external ecosystem gates.",
     "Advanced print engraving, PDF generation, and OS printing remain host-bound or planned work.",
     "Browser E2E and cross-browser visual measurements are not implied by native tests.",
-    "AnalysisCache reuses complete deterministic results by score fingerprint; dependency-aware partial recomputation remains planned."
+    "AnalysisCache reuses complete deterministic results by score fingerprint; dependency-aware partial recomputation is bounded to ChangeHint regions and remains conservative."
   ],
   "evidence": {
     "coverage_matrix": "docs/notation-coverage.md",

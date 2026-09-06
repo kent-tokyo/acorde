@@ -25,7 +25,7 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
-For v1.1.2, use the typed `Command::SetMeasureText` command for undoable measure-level
+For v1.1.3, use the typed `Command::SetMeasureText` command for undoable measure-level
 `StyledText` editing. Check the render metadata `contract_version` before consuming newer fields;
-v1.1.2 exposes position-aware `text_annotations` in SVG metadata. Contract version 3 adds
+v1.1.3 exposes position-aware `text_annotations` in SVG metadata. Contract version 3 adds
 optional placement and source-coordinate offset fields; older consumers can ignore these fields.
