@@ -55,6 +55,8 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
 - `acorde-analysis` now exposes deterministic category-level `AnalysisDiff` results for comparing
   analysis outputs while separating score identity changes from content changes.
 - WASM now exposes `diff_analysis` for the same category-level comparison contract.
+- `AnalysisCache::analyze_after_edit_with_diff` now returns the replacement analysis and its
+  category-level diff in one editor operation; WASM exposes the same response shape.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

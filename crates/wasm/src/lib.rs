@@ -613,6 +613,27 @@ impl AnalysisCache {
             .map_err(|e| js_err(format!("analysis serialization failed: {e}")))
     }
 
+    /// Reclaim a previous snapshot, analyze its replacement, and return changed categories.
+    pub fn analyze_after_edit_with_diff(
+        &mut self,
+        previous_score_json: &str,
+        previous_result_json: &str,
+        current_json: &str,
+    ) -> Result<String, JsValue> {
+        let previous_score = score_from_json(previous_score_json)?;
+        let previous_result: acorde_analysis::AnalysisResult = parse_json(
+            previous_result_json,
+            "previous analysis",
+            MAX_SMALL_JSON_BYTES,
+        )?;
+        let current = score_from_json(current_json)?;
+        let result =
+            self.inner
+                .analyze_after_edit_with_diff(&previous_score, &previous_result, &current);
+        serde_json::to_string(&result)
+            .map_err(|e| js_err(format!("analysis edit serialization failed: {e}")))
+    }
+
     /// Invalidate one score snapshot and return whether it was cached.
     pub fn invalidate(&mut self, score_json: &str) -> Result<bool, JsValue> {
         let score = score_from_json(score_json)?;

@@ -47,6 +47,9 @@ and JSON hit/miss statistics. Cache capacity is caller-owned and zero capacity i
 payloads.
 `diff_analysis(previous_result_json, current_result_json)` reports changed analysis categories
 without requiring the browser host to compare result object graphs itself.
+`AnalysisCache.analyze_after_edit_with_diff(previous_score_json, previous_result_json,
+current_json)` combines replacement analysis with the same category diff, so an editor can update
+its result and decide which views to refresh from one deterministic response.
 
 ## Incremental updates
 

@@ -113,7 +113,8 @@ notation selection. The WASM package exposes the same pipeline plus `ScoreEngine
 playback, theory helpers, deterministic tablature fingering selection, and explainable score analysis through
 `analyze_score`; its `AnalysisCache` class provides bounded repeated analysis and hit/miss stats.
 The WASM `diff_analysis` call identifies changed analysis categories between two result JSON
-payloads.
+payloads, while `AnalysisCache.analyze_after_edit_with_diff` returns the edited result and its
+category diff together for incremental editor updates.
 See [the browser contract](docs/browser-rendering.md) and the
 [browser fixture](examples/browser/README.md).
 

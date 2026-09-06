@@ -65,6 +65,13 @@ pub struct AnalysisDiff {
     pub changed_categories: Vec<AnalysisCategory>,
 }
 
+/// Analysis result and its deterministic diff from a previous result.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AnalysisEditResult {
+    pub analysis: AnalysisResult,
+    pub diff: AnalysisDiff,
+}
+
 impl AnalysisDiff {
     /// Return whether any schema or analysis category changed.
     pub fn is_empty(&self) -> bool {
@@ -574,6 +581,18 @@ impl AnalysisCache {
             self.invalidate(previous);
         }
         self.analyze(current)
+    }
+
+    /// Re-analyze an edited score and return the category-level diff from the previous result.
+    pub fn analyze_after_edit_with_diff(
+        &mut self,
+        previous_score: &Score,
+        previous_result: &AnalysisResult,
+        current: &Score,
+    ) -> AnalysisEditResult {
+        let analysis = self.analyze_after_edit(previous_score, current);
+        let diff = diff_analysis(previous_result, &analysis);
+        AnalysisEditResult { analysis, diff }
     }
 
     /// Insert a previously computed result and evict the oldest entry when the cache is full.
@@ -1466,6 +1485,37 @@ mod tests {
         assert!(result.matches_score(&score));
         assert_eq!(cache.stats(), AnalysisCacheStats { hits: 1, misses: 0 });
         assert_eq!(cache.len(), 1);
+    }
+
+    #[test]
+    fn analysis_cache_edit_with_diff_returns_result_and_changed_categories() {
+        let previous = Score::default();
+        let mut current = previous.clone();
+        let voice = &mut current.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        for step in [Step::C, Step::E, Step::G] {
+            voice.push(Note::new(Pitch::new(step, 4), Duration::Quarter));
+        }
+        let previous_result = analyze_score(&previous);
+        let mut cache = AnalysisCache::with_capacity(2).unwrap();
+        cache.analyze(&previous);
+
+        let edited = cache.analyze_after_edit_with_diff(&previous, &previous_result, &current);
+        assert!(edited.analysis.matches_score(&current));
+        assert_eq!(edited.diff.changed_categories[0], AnalysisCategory::Chords);
+        assert!(
+            edited
+                .diff
+                .changed_categories
+                .contains(&AnalysisCategory::Intervals)
+        );
+        assert!(cache.get(&previous).is_none());
+        assert!(cache.get(&current).is_some());
+
+        cache.reset_stats();
+        let no_op = cache.analyze_after_edit_with_diff(&current, &edited.analysis, &current);
+        assert!(no_op.diff.is_empty());
+        assert_eq!(cache.stats(), AnalysisCacheStats { hits: 1, misses: 0 });
     }
 
     #[test]
