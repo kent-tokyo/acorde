@@ -34,6 +34,8 @@ without disturbing other cached results.
 for host-side measurement windows.
 For an editor replacement flow, `analyze_after_edit(previous, current)` reclaims the previous
 snapshot and returns the analysis for the current score in one operation.
+When both snapshots have the same canonical fingerprint, the helper keeps and reuses the existing
+entry instead of forcing an unnecessary recomputation.
 
 Offline benchmark consumers can use `BenchmarkCase` and `run_benchmark` with hand-verified
 category counts. The report includes predicted counts, precision, recall, explanation

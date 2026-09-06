@@ -506,7 +506,9 @@ impl AnalysisCache {
 
     /// Reclaim a previous editor snapshot and analyze its replacement in one operation.
     pub fn analyze_after_edit(&mut self, previous: &Score, current: &Score) -> AnalysisResult {
-        self.invalidate(previous);
+        if analysis_cache_key(previous) != analysis_cache_key(current) {
+            self.invalidate(previous);
+        }
         self.analyze(current)
     }
 
@@ -1386,6 +1388,19 @@ mod tests {
         assert!(result.matches_score(&current));
         assert!(cache.get(&previous).is_none());
         assert!(cache.get(&current).is_some());
+        assert_eq!(cache.len(), 1);
+    }
+
+    #[test]
+    fn analysis_cache_analyze_after_noop_edit_reuses_existing_result() {
+        let score = Score::default();
+        let mut cache = AnalysisCache::with_capacity(1).unwrap();
+        cache.analyze(&score);
+        cache.reset_stats();
+
+        let result = cache.analyze_after_edit(&score, &score);
+        assert!(result.matches_score(&score));
+        assert_eq!(cache.stats(), AnalysisCacheStats { hits: 1, misses: 0 });
         assert_eq!(cache.len(), 1);
     }
 

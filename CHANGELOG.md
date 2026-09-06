@@ -48,6 +48,7 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
   analysis result or cache-key semantics.
 - `AnalysisCache::analyze_after_edit` now combines previous-snapshot reclamation with replacement
   analysis for editor workflows.
+- No-op editor replacements now reuse an identical cached fingerprint instead of evicting it first.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.
