@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "version_policy": "workspace version is 1.1.2",
-  "generated_on": "2026-09-05",
+  "generated_on": "2026-09-06",
   "phase_7_policy": {
     "status": "local-slices-available-external-gates-open",
     "claim_boundary": "Phase 7 is not aggregate-lossless until each declared format slice passes its own evidence gate",
@@ -27,6 +27,7 @@
     "6G": { "BUILD": "cross-format projections, loss reports, and release-gate assertions", "MEASURE": "workspace tests, clippy, JSON/fixture checks, and semantic comparisons", "GATE": "all phase statuses, version policy, and external gates are machine-checked" }
   },
   "local_updates": [
+    "MIDI export loss reports now source-locate omitted note annotations, grace/cue semantics, and tablature positions; CLI export-report and convert expose ABC and MEI output paths",
     "MEI attached harm labels in the bounded startid text subset now round-trip through canonical ChordSymbol; unresolved IDs, unparseable labels, and timing-only placements remain diagnosed",
     "MEI simple fb/f values are retained in order as Measure.figured_bass and regenerate typed display text; MusicXML figured-bass structure is retained as Measure.figured_bass and richer MEI semantics remain diagnosed",
     "MusicXML unpitched percussion notes retain display-step/display-octave placement and Note.is_unpitched through MusicXML round-trip; sound identity resolves only through explicit instrument declarations or retained MIDI display keys, with unmatched notes source-located as unresolved",

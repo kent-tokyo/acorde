@@ -122,7 +122,8 @@ Invalid MSCX figure digits and modifier values are likewise rejected from the si
 reported with their preserved source value.
 MIDI import/export preserves Controller Change, multiple Program Change, and key/channel
 Aftertouch events with canonical 480-PPQ tick and channel data. Tempo and time-signature changes at canonical measure boundaries are
-preserved as measure metadata; off-boundary changes receive a diagnostic. MIDI export reports fractional pitches that are rounded to note keys; exact cents are not
+preserved as measure metadata; off-boundary changes receive a diagnostic. MIDI export reports fractional pitches that are rounded to note keys, and source-locates
+non-playback note annotations, grace/cue semantics, and tablature positions; exact cents are not
 claimed as audio equivalence unless an explicit pitch-bend stream is present.
 MusicXML export cannot carry the canonical MIDI pitch-bend event stream, so
 `serialize_musicxml_with_report` emits one source-located
@@ -138,9 +139,9 @@ staff-details representation. MEI imports and exports simple note-addressed octa
 `octave @dis`/`@dis.place` and same-measure/layer note-addressed pedal spans using `@dir="down"`, `@startid`, and `@endid`; timestamp and release-only pedal forms remain outside the current subset and retain their source timing attributes in diagnostics. MusicXML preserves `bend-alter` as canonical bend cents; non-start slide,
 hammer-on, or pull-off details remain diagnosed because the current canonical technique model
 stores the technique kind but not its endpoint direction.
-ABC export reports omitted non-primary voices/staves, tablature staff/string/fret/technique
-fields, and unsupported fractional cents rather than claiming that its compact notation is a
-complete Score serialization.
+ABC export reports omitted non-primary voices/staves, note annotations, tablature
+staff/string/fret/technique fields, and unsupported fractional cents rather than claiming that
+its compact notation is a complete Score serialization.
 MSCX simple `Harmony/name` values are preserved as measure-level chord-symbol display labels.
 The bounded `harmonyInfo/root` plus common `name` subset also attaches a canonical `ChordSymbol`
 to the following chord, and `harmonyInfo/base` maps to its slash-chord bass; placement is retained
