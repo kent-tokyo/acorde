@@ -557,6 +557,83 @@ pub fn analysis_cache_key(score_json: &str) -> Result<String, JsValue> {
     Ok(acorde_analysis::analysis_cache_key(&score))
 }
 
+/// JavaScript-visible bounded cache for deterministic score analysis.
+#[wasm_bindgen]
+pub struct AnalysisCache {
+    inner: acorde_analysis::AnalysisCache,
+}
+
+#[wasm_bindgen]
+impl AnalysisCache {
+    /// Create an analysis cache with a fixed maximum number of score results.
+    #[wasm_bindgen(constructor)]
+    pub fn new(capacity: usize) -> Result<AnalysisCache, JsValue> {
+        let inner = acorde_analysis::AnalysisCache::with_capacity(capacity).map_err(js_err)?;
+        Ok(Self { inner })
+    }
+
+    /// Analyze one score JSON string, reusing a matching cached result.
+    pub fn analyze(&mut self, score_json: &str) -> Result<String, JsValue> {
+        let score = score_from_json(score_json)?;
+        let result = self.inner.analyze(&score);
+        serde_json::to_string(&result)
+            .map_err(|e| js_err(format!("analysis serialization failed: {e}")))
+    }
+
+    /// Analyze a JSON array of scores, preserving input order and reusing duplicate results.
+    pub fn analyze_batch(&mut self, scores_json: &str) -> Result<String, JsValue> {
+        let scores: Vec<Score> = parse_json(scores_json, "scores", MAX_SCORE_JSON_BYTES)?;
+        let results = self.inner.analyze_batch(&scores);
+        serde_json::to_string(&results)
+            .map_err(|e| js_err(format!("analysis batch serialization failed: {e}")))
+    }
+
+    /// Reclaim a previous score snapshot and analyze its replacement.
+    pub fn analyze_after_edit(
+        &mut self,
+        previous_json: &str,
+        current_json: &str,
+    ) -> Result<String, JsValue> {
+        let previous = score_from_json(previous_json)?;
+        let current = score_from_json(current_json)?;
+        let result = self.inner.analyze_after_edit(&previous, &current);
+        serde_json::to_string(&result)
+            .map_err(|e| js_err(format!("analysis serialization failed: {e}")))
+    }
+
+    /// Invalidate one score snapshot and return whether it was cached.
+    pub fn invalidate(&mut self, score_json: &str) -> Result<bool, JsValue> {
+        let score = score_from_json(score_json)?;
+        Ok(self.inner.invalidate(&score))
+    }
+
+    /// Return hit/miss counters as JSON.
+    pub fn stats(&self) -> Result<String, JsValue> {
+        serde_json::to_string(&self.inner.stats())
+            .map_err(|e| js_err(format!("analysis cache stats serialization failed: {e}")))
+    }
+
+    /// Reset hit/miss counters without removing cached results.
+    pub fn reset_stats(&mut self) {
+        self.inner.reset_stats();
+    }
+
+    /// Remove all cached results.
+    pub fn clear(&mut self) {
+        self.inner.clear();
+    }
+
+    /// Return the number of cached results.
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// Return whether the cache contains no results.
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+}
+
 // ── Accordion arrangement ─────────────────────────────────────────────────────
 
 /// Rank a score's non-percussion parts by mean pitch for accordion arrangement.
@@ -1314,6 +1391,19 @@ mod wasm_tests {
         let report = render_preflight(&score_json).unwrap();
         assert!(report.contains("UnsupportedClef"));
         assert!(report.contains("/score/part/1/staff/1/clef"));
+    }
+
+    #[wasm_bindgen_test]
+    fn browser_analysis_cache_reuses_results_and_reports_stats() {
+        let score_json = serde_json::to_string(&Score::default()).unwrap();
+        let mut cache = AnalysisCache::new(2).unwrap();
+        let first = cache.analyze(&score_json).unwrap();
+        let second = cache.analyze(&score_json).unwrap();
+        assert_eq!(first, second);
+        assert_eq!(cache.len(), 1);
+        let stats = cache.stats().unwrap();
+        assert!(stats.contains("\"hits\":1"));
+        assert!(stats.contains("\"misses\":1"));
     }
 
     #[wasm_bindgen_test]

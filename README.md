@@ -111,7 +111,8 @@ unsupported clefs, accidentals, layouts, rows, or render options.
 Playback events include stable source note addresses for synchronizing audio cursors with
 notation selection. The WASM package exposes the same pipeline plus `ScoreEngine`, score diff/patch, validation,
 playback, theory helpers, deterministic tablature fingering selection, and explainable score analysis through
-`analyze_score`. See [the browser contract](docs/browser-rendering.md) and the
+`analyze_score`; its `AnalysisCache` class provides bounded repeated analysis and hit/miss stats.
+See [the browser contract](docs/browser-rendering.md) and the
 [browser fixture](examples/browser/README.md).
 
 ## CLI

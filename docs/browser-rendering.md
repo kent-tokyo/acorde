@@ -40,6 +40,10 @@ outside the core/WASM contract and remain application-owned.
 The host owns selection state: it may apply a CSS class or overlay after selecting an address;
 the Rust renderer remains stateless.
 
+For repeated browser analysis, the WASM `AnalysisCache` class mirrors the deterministic Rust cache:
+it supports bounded single-score and batch analysis, editor replacement, explicit invalidation,
+and JSON hit/miss statistics. Cache capacity is caller-owned and zero capacity is rejected.
+
 ## Incremental updates
 
 `ScoreEngine.apply`, `undo`, and `redo` return a serialized `ChangeHint`. Use `scope` to identify
