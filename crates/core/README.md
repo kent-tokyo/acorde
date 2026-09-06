@@ -41,6 +41,8 @@ diagnostic to browser hosts.
 `ScoreEngine::append_history_extension` replays and installs only a safe remote suffix
 transactionally, preserving the incoming command-log shape and rejecting divergent logs without
 mutating the local score.
+`EngineHistory::conflict` reports the first divergent command keys and remaining lengths for
+explainable host-side conflict UI; WASM exposes it as `history_conflict`.
 
 ~~~rust
 use acorde_core::{Command, ScoreEngine, SetTempoCmd};

@@ -3,7 +3,7 @@ use super::commands::{
     AddStaffCmd, Command, CommandStack, DeleteStaffCmd, PasteRangeCmd, PasteVoiceCmd,
     RespellScoreCmd, RespellScoreToKeyCmd, SetArpeggioCmd, SetCueCmd, SetDurationCmd,
     SetInstrumentIdCmd, SetNoteHeadCmd, SetPartGroupCmd, SetStemCmd, SetTupletCmd, SetUnpitchedCmd,
-    ToggleSlurCmd, ToggleTrillLineCmd, command_hint,
+    ToggleSlurCmd, ToggleTrillLineCmd, command_hint, command_key,
 };
 use super::duration::Duration;
 use super::notation::{Clef, NoteHead, TupletInfo};
@@ -34,6 +34,18 @@ pub enum HistoryRelation {
     RightExtends { common_prefix_len: usize },
     Diverged { common_prefix_len: usize },
     BaseMismatch,
+}
+
+/// Explainable details for a divergent pair of command logs.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HistoryConflict {
+    pub common_prefix_len: usize,
+    pub left_command_index: usize,
+    pub right_command_index: usize,
+    pub left_command_key: String,
+    pub right_command_key: String,
+    pub left_remaining_commands: usize,
+    pub right_remaining_commands: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -555,6 +567,25 @@ impl EngineHistory {
             _ => HistoryRelation::Diverged { common_prefix_len },
         }
     }
+
+    /// Return explainable details when the two same-base logs diverge.
+    pub fn conflict(&self, other: &Self) -> Option<HistoryConflict> {
+        let common_prefix_len = match self.compare(other) {
+            HistoryRelation::Diverged { common_prefix_len } => common_prefix_len,
+            _ => return None,
+        };
+        let left = self.commands.get(common_prefix_len)?;
+        let right = other.commands.get(common_prefix_len)?;
+        Some(HistoryConflict {
+            common_prefix_len,
+            left_command_index: common_prefix_len,
+            right_command_index: common_prefix_len,
+            left_command_key: command_key(left),
+            right_command_key: command_key(right),
+            left_remaining_commands: self.commands.len() - common_prefix_len,
+            right_remaining_commands: other.commands.len() - common_prefix_len,
+        })
+    }
 }
 
 fn command_bytes(command: &Command) -> Option<Vec<u8>> {
@@ -1072,6 +1103,42 @@ mod tests {
             left.compare(&other.export_history()),
             HistoryRelation::BaseMismatch
         );
+    }
+
+    #[test]
+    fn history_conflict_reports_branch_commands_and_remaining_lengths() {
+        let base_score = ScoreEngine::new().score.clone();
+        let mut left = ScoreEngine::new();
+        left.replace_score(base_score.clone());
+        left.apply(Command::SetTempo(SetTempoCmd { bpm: 160 }))
+            .unwrap();
+        let mut right = ScoreEngine::new();
+        right.replace_score(base_score);
+        right
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 140 }))
+            .unwrap();
+        right
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 180 }))
+            .unwrap();
+
+        assert_eq!(
+            left.export_history().conflict(&right.export_history()),
+            Some(HistoryConflict {
+                common_prefix_len: 0,
+                left_command_index: 0,
+                right_command_index: 0,
+                left_command_key: "SetTempo".to_owned(),
+                right_command_key: "SetTempo".to_owned(),
+                left_remaining_commands: 1,
+                right_remaining_commands: 2,
+            })
+        );
+    }
+
+    #[test]
+    fn history_conflict_is_empty_for_safe_relationships() {
+        let history = ScoreEngine::new().export_history();
+        assert!(history.conflict(&history).is_none());
     }
 
     #[test]

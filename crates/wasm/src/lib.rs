@@ -1115,6 +1115,16 @@ impl ScoreEngine {
             .map_err(|e| js_err(format!("history comparison serialization failed: {e}")))
     }
 
+    /// Return explainable details when two exported histories diverge.
+    pub fn history_conflict(left_json: &str, right_json: &str) -> Result<String, JsValue> {
+        let left: acorde_core::EngineHistory =
+            parse_json(left_json, "left history", MAX_SCORE_JSON_BYTES)?;
+        let right: acorde_core::EngineHistory =
+            parse_json(right_json, "right history", MAX_SCORE_JSON_BYTES)?;
+        serde_json::to_string(&left.conflict(&right))
+            .map_err(|e| js_err(format!("history conflict serialization failed: {e}")))
+    }
+
     /// Append a remote history when it is a safe extension of the current command log.
     pub fn append_history_extension(&mut self, json: &str) -> Result<usize, JsValue> {
         let history: acorde_core::EngineHistory =
