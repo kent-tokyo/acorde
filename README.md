@@ -115,6 +115,8 @@ playback, theory helpers, deterministic tablature fingering selection, and expla
 The WASM `diff_analysis` call identifies changed analysis categories between two result JSON
 payloads, while `AnalysisCache.analyze_after_edit_with_diff` returns the edited result and its
 category diff together for incremental editor updates.
+`affected_analysis_categories` maps a serialized `ChangeHint` to conservative analysis refresh
+categories for host-side incremental update planning.
 See [the browser contract](docs/browser-rendering.md) and the
 [browser fixture](examples/browser/README.md).
 

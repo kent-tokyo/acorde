@@ -1,6 +1,8 @@
 //! Deterministic, explainable music analysis over [`acorde_core::Score`].
 
-use acorde_core::{ChordSymbol, KeySignature, NoteAddr, Score, detect_chord, roman_numeral};
+use acorde_core::{
+    ChangeHint, ChordSymbol, KeySignature, NoteAddr, Score, detect_chord, roman_numeral,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use thiserror::Error;
@@ -54,6 +56,27 @@ pub enum AnalysisCategory {
     SatbDiagnostics,
     Motifs,
     PhraseBoundaries,
+}
+
+/// Return the complete-analysis categories that a dirty engine hint may affect.
+///
+/// The mapping is intentionally conservative: any layout or playback dirty hint may alter
+/// score content or temporal context, so all categories are returned. A clean hint is known to
+/// affect neither analysis input nor context and returns an empty list.
+pub fn affected_categories_for_change_hint(hint: &ChangeHint) -> Vec<AnalysisCategory> {
+    if !hint.layout_dirty && !hint.playback_dirty {
+        return Vec::new();
+    }
+    vec![
+        AnalysisCategory::Chords,
+        AnalysisCategory::Intervals,
+        AnalysisCategory::KeyEstimates,
+        AnalysisCategory::CadenceCandidates,
+        AnalysisCategory::VoiceLeading,
+        AnalysisCategory::SatbDiagnostics,
+        AnalysisCategory::Motifs,
+        AnalysisCategory::PhraseBoundaries,
+    ]
 }
 
 /// Deterministic category-level diff between two analysis results.
@@ -1578,6 +1601,40 @@ mod tests {
         assert!(
             diff.changed_categories
                 .contains(&AnalysisCategory::Intervals)
+        );
+    }
+
+    #[test]
+    fn affected_categories_are_conservative_and_stable() {
+        let clean = ChangeHint {
+            scope: acorde_core::ChangeScope::Global,
+            layout_dirty: false,
+            playback_dirty: false,
+        };
+        assert!(affected_categories_for_change_hint(&clean).is_empty());
+
+        let dirty = ChangeHint {
+            scope: acorde_core::ChangeScope::Measures {
+                part: 0,
+                staff: 0,
+                start: 1,
+                end: 2,
+            },
+            layout_dirty: false,
+            playback_dirty: true,
+        };
+        assert_eq!(
+            affected_categories_for_change_hint(&dirty),
+            vec![
+                AnalysisCategory::Chords,
+                AnalysisCategory::Intervals,
+                AnalysisCategory::KeyEstimates,
+                AnalysisCategory::CadenceCandidates,
+                AnalysisCategory::VoiceLeading,
+                AnalysisCategory::SatbDiagnostics,
+                AnalysisCategory::Motifs,
+                AnalysisCategory::PhraseBoundaries,
+            ]
         );
     }
 

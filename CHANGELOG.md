@@ -65,6 +65,8 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
   divergent or stale histories are rejected without mutating the local score.
 - `EngineHistory::conflict` now reports the first divergent command keys and remaining lengths;
   WASM exposes the same diagnostic through `history_conflict`.
+- `acorde-analysis` now maps `ChangeHint` values to conservative analysis refresh categories;
+  WASM exposes the planning helper as `affected_analysis_categories`.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

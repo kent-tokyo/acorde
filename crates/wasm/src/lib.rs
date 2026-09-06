@@ -569,6 +569,16 @@ pub fn diff_analysis(previous_json: &str, current_json: &str) -> Result<String, 
         .map_err(|e| js_err(format!("analysis diff serialization failed: {e}")))
 }
 
+/// Return conservative analysis categories affected by a serialized engine change hint.
+#[wasm_bindgen]
+pub fn affected_analysis_categories(change_hint_json: &str) -> Result<String, JsValue> {
+    let hint: acorde_core::ChangeHint =
+        parse_json(change_hint_json, "change hint", MAX_SMALL_JSON_BYTES)?;
+    let categories = acorde_analysis::affected_categories_for_change_hint(&hint);
+    serde_json::to_string(&categories)
+        .map_err(|e| js_err(format!("analysis impact serialization failed: {e}")))
+}
+
 /// JavaScript-visible bounded cache for deterministic score analysis.
 #[wasm_bindgen]
 pub struct AnalysisCache {
