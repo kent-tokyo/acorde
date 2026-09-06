@@ -58,6 +58,8 @@ current_json, change_hint_json)` connects that planner directly to the editor co
 returns the edited analysis with its category diff.
 `analysis_refresh_plan(change_hint_json)` separates local and global dependencies and provides
 one-measure boundary context for host-side scheduling.
+The Rust analysis layer now applies the supplied region to chord-pass traversal and merges the
+refreshed region with preserved outside results.
 
 ## Incremental updates
 

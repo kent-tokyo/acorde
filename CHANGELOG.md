@@ -73,6 +73,8 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
   incremental analysis and category diffs; WASM exposes the combined operation.
 - `analysis_refresh_plan` now separates measure-local and score-global dependencies and exposes
   boundary context; WASM exposes the same planner.
+- Chord analysis now accepts a bounded region for incremental traversal and preserves results
+  outside that region when merging editor updates.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

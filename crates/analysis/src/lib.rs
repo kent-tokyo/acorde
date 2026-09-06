@@ -502,10 +502,23 @@ pub fn analyze_score(score: &Score) -> AnalysisResult {
 }
 
 fn analyze_chords_only(score: &Score) -> Vec<ChordLabel> {
+    analyze_chords_in_region(score, None)
+}
+
+/// Analyze chord labels only inside an optional part/staff measure region.
+pub fn analyze_chords_in_region(score: &Score, region: Option<&AnalysisRegion>) -> Vec<ChordLabel> {
     let mut chords = Vec::new();
     for (part_index, part) in score.parts.iter().enumerate() {
         for (staff_index, staff) in part.staves.iter().enumerate() {
             for (measure_index, measure) in staff.measures.iter().enumerate() {
+                if let Some(region) = region
+                    && (part_index != region.part
+                        || staff_index != region.staff
+                        || measure_index < region.start_measure
+                        || measure_index >= region.end_measure)
+                {
+                    continue;
+                }
                 let key = measure
                     .key_sig
                     .as_ref()
@@ -564,10 +577,21 @@ pub fn analyze_selected_categories(
     previous: &AnalysisResult,
     categories: &[AnalysisCategory],
 ) -> AnalysisResult {
+    analyze_selected_categories_in_region(score, previous, categories, None)
+}
+
+/// Recompute selected categories with an optional bounded region for local passes.
+pub fn analyze_selected_categories_in_region(
+    score: &Score,
+    previous: &AnalysisResult,
+    categories: &[AnalysisCategory],
+    region: Option<&AnalysisRegion>,
+) -> AnalysisResult {
     let selected = |category| categories.contains(&category);
     let chords =
         if selected(AnalysisCategory::Chords) || selected(AnalysisCategory::CadenceCandidates) {
-            analyze_chords_only(score)
+            let refreshed = analyze_chords_in_region(score, region);
+            merge_chord_region(&previous.chords, refreshed, region)
         } else {
             previous.chords.clone()
         };
@@ -620,6 +644,38 @@ pub fn analyze_selected_categories(
         motifs,
         phrase_boundaries,
     }
+}
+
+fn merge_chord_region(
+    previous: &[ChordLabel],
+    refreshed: Vec<ChordLabel>,
+    region: Option<&AnalysisRegion>,
+) -> Vec<ChordLabel> {
+    let Some(region) = region else {
+        return refreshed;
+    };
+    let mut merged: Vec<_> = previous
+        .iter()
+        .filter(|label| !analysis_region_contains(region, &label.address))
+        .cloned()
+        .collect();
+    merged.extend(refreshed);
+    merged.sort_by_key(|label| {
+        (
+            label.address.part,
+            label.address.staff,
+            label.address.measure,
+            label.address.voice,
+            label.address.note,
+        )
+    });
+    merged
+}
+
+fn analysis_region_contains(region: &AnalysisRegion, address: &NoteAddr) -> bool {
+    address.part == region.part
+        && address.staff == region.staff
+        && (region.start_measure..region.end_measure).contains(&address.measure)
 }
 
 /// Return a deterministic, non-cryptographic fingerprint for a canonical score.
@@ -791,6 +847,44 @@ impl AnalysisCache {
         result
     }
 
+    /// Recompute a refresh plan, using its region for local passes, and cache the merged result.
+    pub fn analyze_after_edit_with_plan(
+        &mut self,
+        previous_score: &Score,
+        previous_result: &AnalysisResult,
+        current: &Score,
+        plan: &AnalysisRefreshPlan,
+    ) -> AnalysisEditResult {
+        let categories: Vec<_> = plan
+            .local_categories
+            .iter()
+            .chain(&plan.global_categories)
+            .copied()
+            .collect();
+        let key = analysis_cache_key(current);
+        let analysis = if let Some(result) = self.entries.get(&key) {
+            self.stats.hits = self.stats.hits.saturating_add(1);
+            result.clone()
+        } else {
+            self.stats.misses = self.stats.misses.saturating_add(1);
+            if analysis_cache_key(previous_score) != key {
+                self.invalidate(previous_score);
+            }
+            let result = analyze_selected_categories_in_region(
+                current,
+                previous_result,
+                &categories,
+                plan.region.as_ref(),
+            );
+            self.insert(key, result.clone());
+            result
+        };
+        AnalysisEditResult {
+            diff: diff_analysis(previous_result, &analysis),
+            analysis,
+        }
+    }
+
     /// Apply a change hint, recompute its affected categories, and return the result diff.
     pub fn analyze_after_edit_with_hint(
         &mut self,
@@ -799,11 +893,8 @@ impl AnalysisCache {
         current: &Score,
         hint: &ChangeHint,
     ) -> AnalysisEditResult {
-        let categories = affected_categories_for_change_hint(hint);
-        let analysis =
-            self.analyze_selected_after_edit(previous_score, previous_result, current, &categories);
-        let diff = diff_analysis(previous_result, &analysis);
-        AnalysisEditResult { analysis, diff }
+        let plan = analysis_refresh_plan(hint);
+        self.analyze_after_edit_with_plan(previous_score, previous_result, current, &plan)
     }
 
     /// Insert a previously computed result and evict the oldest entry when the cache is full.
@@ -1894,6 +1985,27 @@ mod tests {
         );
         assert_eq!(plan.context_before, 1);
         assert_eq!(plan.context_after, 1);
+    }
+
+    #[test]
+    fn chord_region_keeps_outside_results_and_refreshes_inside() {
+        let mut score = Score::default();
+        for measure_index in 0..2 {
+            let voice = &mut score.parts[0].staves[0].measures[measure_index].voices[0];
+            voice.clear();
+            for step in [Step::C, Step::E, Step::G] {
+                voice.push(Note::new(Pitch::new(step, 4), Duration::Quarter));
+            }
+        }
+        let region = AnalysisRegion {
+            part: 0,
+            staff: 0,
+            start_measure: 0,
+            end_measure: 1,
+        };
+        let chords = analyze_chords_in_region(&score, Some(&region));
+        assert_eq!(chords.len(), 1);
+        assert_eq!(chords[0].address.measure, 0);
     }
 
     #[test]
