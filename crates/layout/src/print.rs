@@ -2385,6 +2385,7 @@ mod tests {
             &score,
             &PrintConfig {
                 measures_per_system: 2,
+                pickup_policy: PickupPolicy::Preserve,
                 systems_per_page: Some(1),
                 ..PrintConfig::default()
             },
@@ -2414,7 +2415,14 @@ mod tests {
                 ends_here: false,
             }]
         );
-        assert!(artifacts[1].diagnostics.is_empty());
+        assert_eq!(
+            artifacts[1].diagnostics,
+            vec![PageArtifactDiagnostic::SpanContinuation {
+                span_index: 0,
+                starts_here: false,
+                ends_here: true,
+            }]
+        );
     }
 
     #[test]
