@@ -4,7 +4,7 @@
 
 mod common;
 
-use acorde_render_svg::{SvgRenderOptions, render_svg};
+use acorde_render_svg::{RenderPreflightKind, SvgRenderOptions, render_preflight, render_svg};
 
 fn opts() -> SvgRenderOptions {
     SvgRenderOptions {
@@ -13,6 +13,39 @@ fn opts() -> SvgRenderOptions {
         measures_per_system: 4,
         interactive: true,
     }
+}
+
+#[test]
+fn render_preflight_locates_renderer_capability_boundaries() {
+    use acorde_core::{Clef, Duration, Note, NoteHead, Pitch, Score, Step, TablatureConfig};
+
+    let mut score = Score::new("preflight", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].clef = Clef::Percussion;
+    score.parts[0].staves[0].tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![64, 59, 55, 50, 45, 40],
+        capo: 0,
+    });
+    let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+    note.pitches[0].alter = 3;
+    note.note_head = NoteHead::Cross;
+    note.tab_position = Some(acorde_core::TabPosition { string: 7, fret: 0 });
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+
+    let issues = render_preflight(&score);
+    assert!(issues.iter().any(|issue| {
+        issue.kind == RenderPreflightKind::UnsupportedClef
+            && issue.source_location.ends_with("/staff/1/clef")
+    }));
+    assert!(issues.iter().any(|issue| {
+        issue.kind == RenderPreflightKind::UnsupportedAccidental
+            && issue.source_location.ends_with("/note/1/pitch/1")
+            && issue.preserved_value == "3"
+    }));
+    assert!(issues.iter().any(|issue| {
+        issue.kind == RenderPreflightKind::InvalidTabPosition
+            && issue.source_location.ends_with("/note/1/tab-position")
+    }));
 }
 
 /// Well-formedness check: every opened tag closes, via quick-xml's reader (it errors on

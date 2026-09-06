@@ -212,6 +212,83 @@ pub fn glyph_coverage() -> GlyphCoverage {
     }
 }
 
+/// The bounded notation capabilities checked by [`render_preflight`].
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum RenderPreflightKind {
+    UnsupportedClef,
+    UnsupportedAccidental,
+    InvalidTabPosition,
+}
+
+/// A source-located renderer capability warning discovered before SVG emission.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RenderPreflightIssue {
+    pub kind: RenderPreflightKind,
+    pub source_location: String,
+    pub preserved_value: String,
+}
+
+/// Inspect renderer capability boundaries without producing SVG or partially rendering a score.
+pub fn render_preflight(score: &Score) -> Vec<RenderPreflightIssue> {
+    let mut issues = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            let staff_path = format!("/score/part/{}/staff/{}", part_index + 1, staff_index + 1);
+            if matches!(staff.clef, acorde_core::Clef::Percussion) {
+                issues.push(RenderPreflightIssue {
+                    kind: RenderPreflightKind::UnsupportedClef,
+                    source_location: format!("{staff_path}/clef"),
+                    preserved_value: "percussion".to_owned(),
+                });
+            }
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    for (note_index, note) in voice.iter().enumerate() {
+                        let note_path = format!(
+                            "{staff_path}/measure/{}/voice/{}/note/{}",
+                            measure_index + 1,
+                            voice_index + 1,
+                            note_index + 1
+                        );
+                        for (pitch_index, pitch) in note.pitches.iter().enumerate() {
+                            if !(-2..=2).contains(&pitch.alter) {
+                                issues.push(RenderPreflightIssue {
+                                    kind: RenderPreflightKind::UnsupportedAccidental,
+                                    source_location: format!(
+                                        "{note_path}/pitch/{}",
+                                        pitch_index + 1
+                                    ),
+                                    preserved_value: pitch.alter.to_string(),
+                                });
+                            }
+                        }
+                        if let Some(tab) = &staff.tablature {
+                            let positions = if note.tab_positions.is_empty() {
+                                note.tab_position.iter().collect::<Vec<_>>()
+                            } else {
+                                note.tab_positions.iter().collect::<Vec<_>>()
+                            };
+                            for position in positions {
+                                if position.string == 0 || position.string > tab.lines {
+                                    issues.push(RenderPreflightIssue {
+                                        kind: RenderPreflightKind::InvalidTabPosition,
+                                        source_location: format!("{note_path}/tab-position"),
+                                        preserved_value: format!(
+                                            "string={},lines={}",
+                                            position.string, tab.lines
+                                        ),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    issues
+}
+
 /// Approximate interactive bounds for one stable [`acorde_core::NoteAddr`]. The box is
 /// centered on the note's anchor and is intended for hit testing/highlighting, not engraving.
 #[derive(Debug, Clone, Serialize, Deserialize)]

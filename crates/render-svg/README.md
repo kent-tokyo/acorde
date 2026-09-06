@@ -14,6 +14,8 @@ fallback. The renderer has no browser/DOM dependency and uses font-independent S
 notation glyphs. Tablature staffs render their configured line count, explicit string/fret
 positions, and guitar bend/slide/hammer-on/pull-off technique labels; missing positions are shown
 as an explicit `?` marker rather than inferred silently.
+`render_preflight()` reports the renderer's unsupported clef, accidental, and tablature-position
+boundaries with stable score source locations before SVG emission.
 Non-zero `Pitch::microtone_cents` values, including notes on tablature staffs, are rendered as
 explicit deterministic `acorde-microtone` text markers such as `+25c`. The
 `glyph_coverage().microtone_marker` capability reports this as `svg-text-cents` with exact signed
