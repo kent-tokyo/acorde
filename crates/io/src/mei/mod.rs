@@ -2860,6 +2860,48 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
     };
 
     for (part_index, part) in score.parts.iter().enumerate() {
+        let part_path = format!("/score/part/{}", part_index + 1);
+        for (field, present, value) in [
+            (
+                "midi_channel",
+                part.midi_channel != 0,
+                part.midi_channel.to_string(),
+            ),
+            (
+                "midi_program",
+                part.midi_program != 0,
+                part.midi_program.to_string(),
+            ),
+            (
+                "midi_pitch_bends",
+                !part.midi_pitch_bends.is_empty(),
+                part.midi_pitch_bends.len().to_string(),
+            ),
+            (
+                "midi_control_changes",
+                !part.midi_control_changes.is_empty(),
+                part.midi_control_changes.len().to_string(),
+            ),
+            (
+                "midi_program_changes",
+                !part.midi_program_changes.is_empty(),
+                part.midi_program_changes.len().to_string(),
+            ),
+            (
+                "midi_aftertouch",
+                !part.midi_aftertouch.is_empty(),
+                part.midi_aftertouch.len().to_string(),
+            ),
+            (
+                "percussion_instruments",
+                !part.percussion_instruments.is_empty(),
+                part.percussion_instruments.len().to_string(),
+            ),
+        ] {
+            if present {
+                push(&mut diagnostics, format!("{part_path}/{field}"), value);
+            }
+        }
         for (staff_index, staff) in part.staves.iter().enumerate() {
             for (measure_index, measure) in staff.measures.iter().enumerate() {
                 let measure_path = format!(
@@ -3901,6 +3943,13 @@ mod tests {
     #[test]
     fn export_report_marks_unrepresentable_score_fields() {
         let mut score = Score::new("loss", 120, 4, 4, 0, 1);
+        score.parts[0].midi_channel = 2;
+        score.parts[0].midi_program = 40;
+        score.parts[0].midi_pitch_bends = vec![acorde_core::MidiPitchBend {
+            tick: 0,
+            channel: 2,
+            value: 128,
+        }];
         let note = &mut score.parts[0].staves[0].measures[0].voices[0][0];
         note.tab_position = Some(acorde_core::TabPosition { string: 1, fret: 3 });
         note.guitar_technique = Some(acorde_core::GuitarTechnique::Bend);
@@ -3912,6 +3961,15 @@ mod tests {
         assert!(diagnostics.iter().any(|diagnostic| {
             diagnostic.source_location.as_deref()
                 == Some("/score/part/1/staff/1/measure/1/voice/1/note/1/guitar_technique")
+        }));
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.source_location.as_deref() == Some("/score/part/1/midi_channel")
+        }));
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.source_location.as_deref() == Some("/score/part/1/midi_program")
+        }));
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.source_location.as_deref() == Some("/score/part/1/midi_pitch_bends")
         }));
     }
 

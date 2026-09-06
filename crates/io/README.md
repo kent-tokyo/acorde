@@ -135,7 +135,8 @@ ottavas, glissandos, and harmony with source paths.
 
 Each supported format also exposes `*_with_report` wrappers returning `ImportReport` or
 `ExportReport<T>`. The MEI export report identifies score fields outside its canonical subset
-(for example tablature and host-specific playback techniques) instead of silently dropping them.
+(for example tablature, host-specific playback techniques, and retained MIDI part metadata)
+instead of silently dropping them.
 Reports carry structured diagnostics with severity, source location, preserved
 value, and loss reason fields; an empty diagnostic list means no loss was detected by that API.
 Serialized reports include `schema_version` (currently `1`); report readers should check this
