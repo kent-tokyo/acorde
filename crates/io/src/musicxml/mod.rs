@@ -441,6 +441,54 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<crate::Diagnos
             ));
             diagnostics.push(diagnostic);
         }
+        for (event_index, event) in part.midi_control_changes.iter().enumerate() {
+            let mut diagnostic = crate::Diagnostic::warning(
+                "musicxml.export-unsupported-midi-control-change",
+                "MIDI control-change is not represented by MusicXML export",
+            );
+            diagnostic.source_location = Some(format!(
+                "/score/part/{}/midi-control-change/{}",
+                part_index + 1,
+                event_index + 1
+            ));
+            diagnostic.preserved_value = Some(format!(
+                "tick={},channel={},controller={},value={}",
+                event.tick, event.channel, event.controller, event.value
+            ));
+            diagnostics.push(diagnostic);
+        }
+        for (event_index, event) in part.midi_program_changes.iter().enumerate() {
+            let mut diagnostic = crate::Diagnostic::warning(
+                "musicxml.export-unsupported-midi-program-change",
+                "MIDI program-change event is not represented by MusicXML export",
+            );
+            diagnostic.source_location = Some(format!(
+                "/score/part/{}/midi-program-change/{}",
+                part_index + 1,
+                event_index + 1
+            ));
+            diagnostic.preserved_value = Some(format!(
+                "tick={},channel={},program={}",
+                event.tick, event.channel, event.program
+            ));
+            diagnostics.push(diagnostic);
+        }
+        for (event_index, event) in part.midi_aftertouch.iter().enumerate() {
+            let mut diagnostic = crate::Diagnostic::warning(
+                "musicxml.export-unsupported-midi-aftertouch",
+                "MIDI aftertouch is not represented by MusicXML export",
+            );
+            diagnostic.source_location = Some(format!(
+                "/score/part/{}/midi-aftertouch/{}",
+                part_index + 1,
+                event_index + 1
+            ));
+            diagnostic.preserved_value = Some(format!(
+                "tick={},channel={},key={:?},value={}",
+                event.tick, event.channel, event.key, event.value
+            ));
+            diagnostics.push(diagnostic);
+        }
         for (staff_index, staff) in part.staves.iter().enumerate() {
             let Some(tab) = &staff.tablature else {
                 continue;

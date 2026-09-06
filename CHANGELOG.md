@@ -20,6 +20,8 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
   self-authored fixture-backed metrics contract.
 - ABC export diagnostics now report non-representable part MIDI metadata with stable source paths.
 - MEI export diagnostics now report retained part MIDI and percussion metadata that MEI cannot emit.
+- MusicXML export diagnostics now report retained MIDI control-change, program-change, and
+  aftertouch automation that MusicXML cannot emit.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

@@ -124,6 +124,8 @@ ABC `^/` and `_/` use the same 50-cent quarter accidental contract as
 MEI `qs`/`qf` and MSCX quarter accidental subtypes.
 MusicXML export reports tablature capo as an explicit loss because it has no standard
 `staff-details` representation.
+MusicXML export also reports retained MIDI control-change, program-change, and aftertouch
+automation as source-located losses; MusicXML channel/program declarations remain supported.
 `parse_abc_with_report` reports unsupported ABC headers and `!decoration!`/`+decoration+`
 constructs with line-based source locations.
 `serialize_abc_with_report` reports omitted staves/voices, non-representable part MIDI metadata,

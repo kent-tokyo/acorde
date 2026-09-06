@@ -2118,6 +2118,57 @@ fn musicxml_export_reports_midi_pitch_bend_loss_without_silent_drop() {
     }
 }
 
+#[cfg(all(feature = "midi", feature = "musicxml"))]
+#[test]
+fn musicxml_export_reports_unrepresentable_midi_automation() {
+    use acorde_core::{MidiAftertouch, MidiControlChange, MidiProgramChange, Score};
+    let mut score = Score::new("MIDI automation", 120, 4, 4, 0, 1);
+    let part = &mut score.parts[0];
+    part.midi_control_changes = vec![MidiControlChange {
+        tick: 120,
+        channel: 0,
+        controller: 64,
+        value: 127,
+    }];
+    part.midi_program_changes = vec![MidiProgramChange {
+        tick: 240,
+        channel: 0,
+        program: 40,
+    }];
+    part.midi_aftertouch = vec![MidiAftertouch {
+        tick: 360,
+        channel: 0,
+        key: Some(60),
+        value: 80,
+    }];
+
+    let report = acorde_io::serialize_musicxml_with_report(&score)
+        .expect("MusicXML export reports MIDI automation loss");
+    for (code, path) in [
+        (
+            "musicxml.export-unsupported-midi-control-change",
+            "/score/part/1/midi-control-change/1",
+        ),
+        (
+            "musicxml.export-unsupported-midi-program-change",
+            "/score/part/1/midi-program-change/1",
+        ),
+        (
+            "musicxml.export-unsupported-midi-aftertouch",
+            "/score/part/1/midi-aftertouch/1",
+        ),
+    ] {
+        let diagnostic = report
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code == code)
+            .expect("MIDI automation diagnostic exists");
+        assert_eq!(diagnostic.source_location.as_deref(), Some(path));
+        assert!(diagnostic.preserved_value.is_some());
+        assert!(diagnostic.loss_reason.is_some());
+    }
+}
+
 #[cfg(all(feature = "abc", feature = "musicxml"))]
 #[test]
 fn non_mei_exports_report_harmonic_type_loss() {
