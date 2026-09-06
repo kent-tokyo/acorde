@@ -36,6 +36,7 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
   before requesting SVG.
 - CLI now provides `preflight` for the same renderer capability checks with JSON output.
 - CLI preflight supports `--fail-on-issues` for CI gating while preserving its JSON report.
+- Added a checked-in unsupported-notation fixture for deterministic preflight failure coverage.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

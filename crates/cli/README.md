@@ -42,6 +42,8 @@ preflight emits renderer capability issues with stable score source locations as
 generation.
 `--fail-on-issues` keeps the JSON output but exits with status 1 when any issue is found, which is
 useful for CI gates.
+The repository fixture `tests/fixtures/render_preflight_unsupported.musicxml` demonstrates the
+failure path without external resources.
 analyze emits deterministic chord, melodic-interval, and key-estimate results as JSON.
 export-report writes MusicXML, MIDI, ABC, or MEI and emits machine-readable export diagnostics
 without embedding the binary/text artifact in the JSON response.
