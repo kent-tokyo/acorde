@@ -61,6 +61,8 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
   logs before replay with a typed `HistoryBaseMismatch` error.
 - `EngineHistory::compare` now classifies equivalent, extending, divergent, and base-mismatched
   command logs without replay; WASM exposes the same diagnostic through `compare_histories`.
+- `ScoreEngine::append_history_extension` now applies only a safe remote suffix transactionally;
+  divergent or stale histories are rejected without mutating the local score.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

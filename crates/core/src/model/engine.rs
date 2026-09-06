@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Round-trip: `ScoreEngine::from_history(engine.export_history())` produces an engine whose
 /// score and version match the original.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EngineHistory {
     pub initial_score: Score,
     pub commands: Vec<Command>,
@@ -202,6 +202,25 @@ impl ScoreEngine {
             return Err(Error::HistoryBaseMismatch);
         }
         Self::from_history(history)
+    }
+
+    /// Append a remote history only when it strictly extends this engine's command log.
+    ///
+    /// The complete incoming history is replayed into a candidate engine before replacement.
+    /// Diverged or base-mismatched histories, or replay failures, leave this engine unchanged.
+    pub fn append_history_extension(&mut self, incoming: &EngineHistory) -> Result<usize, Error> {
+        let local = self.export_history();
+        let common_prefix_len = match local.compare(incoming) {
+            HistoryRelation::LeftExtends { common_prefix_len } => common_prefix_len,
+            _ => return Err(Error::HistoryNotAppendable),
+        };
+        let count = incoming.commands.len() - common_prefix_len;
+        if count == 0 {
+            return Ok(0);
+        }
+        let candidate = Self::from_history(incoming.clone())?;
+        *self = candidate;
+        Ok(count)
     }
 
     pub fn copy_voice(
@@ -1053,6 +1072,58 @@ mod tests {
             left.compare(&other.export_history()),
             HistoryRelation::BaseMismatch
         );
+    }
+
+    #[test]
+    fn append_history_extension_applies_only_remote_suffix() {
+        let base_score = ScoreEngine::new().score.clone();
+        let mut local = ScoreEngine::new();
+        local.replace_score(base_score.clone());
+        local
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 160 }))
+            .unwrap();
+
+        let mut remote = ScoreEngine::new();
+        remote.replace_score(base_score);
+        remote
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 160 }))
+            .unwrap();
+        remote
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 180 }))
+            .unwrap();
+
+        let count = local
+            .append_history_extension(&remote.export_history())
+            .unwrap();
+        assert_eq!(count, 1);
+        assert_eq!(local.score.settings.tempo_bpm, 180);
+        assert_eq!(
+            local.export_history().compare(&remote.export_history()),
+            HistoryRelation::Equivalent
+        );
+    }
+
+    #[test]
+    fn append_history_extension_rejects_divergence_without_mutation() {
+        let base_score = ScoreEngine::new().score.clone();
+        let mut local = ScoreEngine::new();
+        local.replace_score(base_score.clone());
+        local
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 160 }))
+            .unwrap();
+        let before = local.score.settings.tempo_bpm;
+
+        let mut remote = ScoreEngine::new();
+        remote.replace_score(base_score);
+        remote
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 140 }))
+            .unwrap();
+
+        assert!(matches!(
+            local.append_history_extension(&remote.export_history()),
+            Err(Error::HistoryNotAppendable)
+        ));
+        assert_eq!(local.score.settings.tempo_bpm, before);
     }
 
     #[test]

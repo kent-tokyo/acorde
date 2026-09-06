@@ -82,4 +82,6 @@ pub enum Error {
     InvalidPatch(String),
     #[error("engine history base score does not match the supplied score")]
     HistoryBaseMismatch,
+    #[error("engine history is not a safe append-only extension")]
+    HistoryNotAppendable,
 }

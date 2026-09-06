@@ -1115,6 +1115,15 @@ impl ScoreEngine {
             .map_err(|e| js_err(format!("history comparison serialization failed: {e}")))
     }
 
+    /// Append a remote history when it is a safe extension of the current command log.
+    pub fn append_history_extension(&mut self, json: &str) -> Result<usize, JsValue> {
+        let history: acorde_core::EngineHistory =
+            parse_json(json, "incoming history", MAX_SCORE_JSON_BYTES)?;
+        self.inner
+            .append_history_extension(&history)
+            .map_err(js_err)
+    }
+
     /// Restore an engine from a previously exported history JSON string.
     ///
     /// Replays all commands against the initial score. Returns an error if replay fails.

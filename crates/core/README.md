@@ -38,6 +38,9 @@ snapshot.
 `EngineHistory::compare` classifies equivalent, extending, divergent, and base-mismatched logs
 without replaying commands; the WASM `ScoreEngine.compare_histories` method exposes the same
 diagnostic to browser hosts.
+`ScoreEngine::append_history_extension` replays and installs only a safe remote suffix
+transactionally, preserving the incoming command-log shape and rejecting divergent logs without
+mutating the local score.
 
 ~~~rust
 use acorde_core::{Command, ScoreEngine, SetTempoCmd};
