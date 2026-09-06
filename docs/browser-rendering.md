@@ -50,6 +50,9 @@ without requiring the browser host to compare result object graphs itself.
 `AnalysisCache.analyze_after_edit_with_diff(previous_score_json, previous_result_json,
 current_json)` combines replacement analysis with the same category diff, so an editor can update
 its result and decide which views to refresh from one deterministic response.
+`AnalysisCache.analyze_selected_after_edit(previous_score_json, previous_result_json, current_json,
+categories_json)` recomputes only the requested categories and returns a complete merged result;
+the caller must supply the immediately preceding result and categories from the refresh planner.
 
 ## Incremental updates
 

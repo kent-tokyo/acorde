@@ -644,6 +644,33 @@ impl AnalysisCache {
             .map_err(|e| js_err(format!("analysis edit serialization failed: {e}")))
     }
 
+    /// Recompute selected analysis categories after an edit and return a complete merged result.
+    pub fn analyze_selected_after_edit(
+        &mut self,
+        previous_score_json: &str,
+        previous_result_json: &str,
+        current_json: &str,
+        categories_json: &str,
+    ) -> Result<String, JsValue> {
+        let previous_score = score_from_json(previous_score_json)?;
+        let previous_result: acorde_analysis::AnalysisResult = parse_json(
+            previous_result_json,
+            "previous analysis",
+            MAX_SMALL_JSON_BYTES,
+        )?;
+        let current = score_from_json(current_json)?;
+        let categories: Vec<acorde_analysis::AnalysisCategory> =
+            parse_json(categories_json, "analysis categories", MAX_SMALL_JSON_BYTES)?;
+        let result = self.inner.analyze_selected_after_edit(
+            &previous_score,
+            &previous_result,
+            &current,
+            &categories,
+        );
+        serde_json::to_string(&result)
+            .map_err(|e| js_err(format!("selected analysis serialization failed: {e}")))
+    }
+
     /// Invalidate one score snapshot and return whether it was cached.
     pub fn invalidate(&mut self, score_json: &str) -> Result<bool, JsValue> {
         let score = score_from_json(score_json)?;

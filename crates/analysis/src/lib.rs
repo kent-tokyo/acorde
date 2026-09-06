@@ -401,6 +401,29 @@ pub struct IntervalObservation {
 
 /// Analyze every voice that contains at least two pitched notes in a measure.
 pub fn analyze_score(score: &Score) -> AnalysisResult {
+    let chords = analyze_chords_only(score);
+    let intervals = analyze_intervals(score);
+    let key_estimates = estimate_keys(score);
+    let cadence_candidates = analyze_cadences(&chords);
+    let voice_leading = analyze_voice_leading(score);
+    let satb_diagnostics = analyze_satb_with_voice_leading(score, &voice_leading);
+    let motifs = analyze_motifs(score);
+    let phrase_boundaries = analyze_phrase_boundaries(score);
+    AnalysisResult {
+        schema_version: ANALYSIS_SCHEMA_VERSION,
+        score_fingerprint: score_fingerprint(score),
+        chords,
+        intervals,
+        key_estimates,
+        cadence_candidates,
+        voice_leading,
+        satb_diagnostics,
+        motifs,
+        phrase_boundaries,
+    }
+}
+
+fn analyze_chords_only(score: &Score) -> Vec<ChordLabel> {
     let mut chords = Vec::new();
     for (part_index, part) in score.parts.iter().enumerate() {
         for (staff_index, staff) in part.staves.iter().enumerate() {
@@ -450,13 +473,63 @@ pub fn analyze_score(score: &Score) -> AnalysisResult {
             }
         }
     }
-    let intervals = analyze_intervals(score);
-    let key_estimates = estimate_keys(score);
-    let cadence_candidates = analyze_cadences(&chords);
-    let voice_leading = analyze_voice_leading(score);
-    let satb_diagnostics = analyze_satb_with_voice_leading(score, &voice_leading);
-    let motifs = analyze_motifs(score);
-    let phrase_boundaries = analyze_phrase_boundaries(score);
+    chords
+}
+
+/// Recompute only the requested categories and carry forward the remaining categories.
+///
+/// The caller must provide a result from the immediately preceding score state. Categories with
+/// dependencies are expanded conservatively: cadence analysis refreshes chords, and SATB
+/// diagnostics refresh voice-leading first. This is intended for editor-local incremental work.
+pub fn analyze_selected_categories(
+    score: &Score,
+    previous: &AnalysisResult,
+    categories: &[AnalysisCategory],
+) -> AnalysisResult {
+    let selected = |category| categories.contains(&category);
+    let chords =
+        if selected(AnalysisCategory::Chords) || selected(AnalysisCategory::CadenceCandidates) {
+            analyze_chords_only(score)
+        } else {
+            previous.chords.clone()
+        };
+    let intervals = if selected(AnalysisCategory::Intervals) {
+        analyze_intervals(score)
+    } else {
+        previous.intervals.clone()
+    };
+    let key_estimates = if selected(AnalysisCategory::KeyEstimates) {
+        estimate_keys(score)
+    } else {
+        previous.key_estimates.clone()
+    };
+    let cadence_candidates = if selected(AnalysisCategory::CadenceCandidates) {
+        analyze_cadences(&chords)
+    } else {
+        previous.cadence_candidates.clone()
+    };
+    let voice_leading = if selected(AnalysisCategory::VoiceLeading)
+        || selected(AnalysisCategory::SatbDiagnostics)
+    {
+        analyze_voice_leading(score)
+    } else {
+        previous.voice_leading.clone()
+    };
+    let satb_diagnostics = if selected(AnalysisCategory::SatbDiagnostics) {
+        analyze_satb_with_voice_leading(score, &voice_leading)
+    } else {
+        previous.satb_diagnostics.clone()
+    };
+    let motifs = if selected(AnalysisCategory::Motifs) {
+        analyze_motifs(score)
+    } else {
+        previous.motifs.clone()
+    };
+    let phrase_boundaries = if selected(AnalysisCategory::PhraseBoundaries) {
+        analyze_phrase_boundaries(score)
+    } else {
+        previous.phrase_boundaries.clone()
+    };
     AnalysisResult {
         schema_version: ANALYSIS_SCHEMA_VERSION,
         score_fingerprint: score_fingerprint(score),
@@ -616,6 +689,28 @@ impl AnalysisCache {
         let analysis = self.analyze_after_edit(previous_score, current);
         let diff = diff_analysis(previous_result, &analysis);
         AnalysisEditResult { analysis, diff }
+    }
+
+    /// Recompute selected categories after an edit and cache the merged complete result.
+    pub fn analyze_selected_after_edit(
+        &mut self,
+        previous_score: &Score,
+        previous_result: &AnalysisResult,
+        current: &Score,
+        categories: &[AnalysisCategory],
+    ) -> AnalysisResult {
+        let key = analysis_cache_key(current);
+        if let Some(result) = self.entries.get(&key) {
+            self.stats.hits = self.stats.hits.saturating_add(1);
+            return result.clone();
+        }
+        self.stats.misses = self.stats.misses.saturating_add(1);
+        if analysis_cache_key(previous_score) != key {
+            self.invalidate(previous_score);
+        }
+        let result = analyze_selected_categories(current, previous_result, categories);
+        self.insert(key, result.clone());
+        result
     }
 
     /// Insert a previously computed result and evict the oldest entry when the cache is full.
@@ -1539,6 +1634,21 @@ mod tests {
         let no_op = cache.analyze_after_edit_with_diff(&current, &edited.analysis, &current);
         assert!(no_op.diff.is_empty());
         assert_eq!(cache.stats(), AnalysisCacheStats { hits: 1, misses: 0 });
+    }
+
+    #[test]
+    fn selected_analysis_reuses_unchanged_categories_and_rebinds_identity() {
+        let previous = Score::default();
+        let previous_result = analyze_score(&previous);
+        let mut current = previous.clone();
+        current.metadata.title = "edited".to_owned();
+        let mut cache = AnalysisCache::with_capacity(2).unwrap();
+        let result = cache.analyze_selected_after_edit(&previous, &previous_result, &current, &[]);
+
+        assert!(result.matches_score(&current));
+        assert_eq!(result.chords, previous_result.chords);
+        assert_ne!(result.score_fingerprint, previous_result.score_fingerprint);
+        assert_eq!(cache.stats(), AnalysisCacheStats { hits: 0, misses: 1 });
     }
 
     #[test]

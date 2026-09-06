@@ -67,6 +67,8 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
   WASM exposes the same diagnostic through `history_conflict`.
 - `acorde-analysis` now maps `ChangeHint` values to conservative analysis refresh categories;
   WASM exposes the planning helper as `affected_analysis_categories`.
+- `AnalysisCache::analyze_selected_after_edit` now recomputes requested categories and caches a
+  complete merged result; WASM exposes the same incremental editor operation.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.
