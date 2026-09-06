@@ -30,6 +30,8 @@ Its `analyze_batch` method preserves input order while reusing duplicate or prev
 scores.
 Editors can call `invalidate(score)` after dropping an old score snapshot to reclaim that entry
 without disturbing other cached results.
+`stats()` exposes deterministic hit/miss counters, and `reset_stats()` clears only those counters
+for host-side measurement windows.
 
 Offline benchmark consumers can use `BenchmarkCase` and `run_benchmark` with hand-verified
 category counts. The report includes predicted counts, precision, recall, explanation

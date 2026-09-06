@@ -419,6 +419,13 @@ pub enum AnalysisCacheError {
     ZeroCapacity,
 }
 
+/// Counters for measuring analysis-cache reuse.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AnalysisCacheStats {
+    pub hits: usize,
+    pub misses: usize,
+}
+
 /// A deterministic, bounded cache for complete analysis results.
 ///
 /// Entries are keyed by the schema-versioned canonical score fingerprint. A score edit therefore
@@ -430,6 +437,7 @@ pub struct AnalysisCache {
     capacity: usize,
     entries: BTreeMap<String, AnalysisResult>,
     insertion_order: VecDeque<String>,
+    stats: AnalysisCacheStats,
 }
 
 impl Default for AnalysisCache {
@@ -438,6 +446,7 @@ impl Default for AnalysisCache {
             capacity: 16,
             entries: BTreeMap::new(),
             insertion_order: VecDeque::new(),
+            stats: AnalysisCacheStats::default(),
         }
     }
 }
@@ -452,12 +461,23 @@ impl AnalysisCache {
             capacity,
             entries: BTreeMap::new(),
             insertion_order: VecDeque::new(),
+            stats: AnalysisCacheStats::default(),
         })
     }
 
     /// Return the configured maximum number of cached results.
     pub fn capacity(&self) -> usize {
         self.capacity
+    }
+
+    /// Return hit/miss counters since construction or the last reset.
+    pub fn stats(&self) -> AnalysisCacheStats {
+        self.stats
+    }
+
+    /// Reset hit/miss counters without removing cached results.
+    pub fn reset_stats(&mut self) {
+        self.stats = AnalysisCacheStats::default();
     }
 
     /// Return a cached result for the supplied score, if its canonical content is present.
@@ -469,9 +489,11 @@ impl AnalysisCache {
     pub fn analyze(&mut self, score: &Score) -> AnalysisResult {
         let key = analysis_cache_key(score);
         if let Some(result) = self.entries.get(&key) {
+            self.stats.hits = self.stats.hits.saturating_add(1);
             return result.clone();
         }
 
+        self.stats.misses = self.stats.misses.saturating_add(1);
         let result = analyze_score(score);
         self.insert(key, result.clone());
         result
@@ -1325,6 +1347,10 @@ mod tests {
         assert_eq!(results[0].score_fingerprint, results[2].score_fingerprint);
         assert_ne!(results[0].score_fingerprint, results[1].score_fingerprint);
         assert_eq!(cache.len(), 2);
+        assert_eq!(cache.stats(), AnalysisCacheStats { hits: 1, misses: 2 });
+        cache.reset_stats();
+        assert_eq!(cache.stats(), AnalysisCacheStats::default());
+        assert!(cache.get(&first).is_some());
     }
 
     #[test]
