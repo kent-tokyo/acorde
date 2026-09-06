@@ -24,7 +24,7 @@ pub use model::commands::{
     ToggleSlurCmd, ToggleTieCmd, ToggleTrillLineCmd, command_key, command_label,
 };
 pub use model::duration::Duration;
-pub use model::engine::{EngineHistory, ScoreEngine};
+pub use model::engine::{EngineHistory, HistoryRelation, ScoreEngine};
 pub use model::gm::{drum_name, program_name};
 pub use model::harmony::{detect_chord, roman_numeral};
 pub use model::interval::{Interval, IntervalQuality};

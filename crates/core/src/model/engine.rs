@@ -26,6 +26,16 @@ pub struct EngineHistory {
     pub commands: Vec<Command>,
 }
 
+/// Deterministic relationship between two command logs sharing a collaboration base.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HistoryRelation {
+    Equivalent,
+    LeftExtends { common_prefix_len: usize },
+    RightExtends { common_prefix_len: usize },
+    Diverged { common_prefix_len: usize },
+    BaseMismatch,
+}
+
 #[derive(Debug, Clone)]
 struct RangeClipboard {
     voice: usize,
@@ -501,6 +511,35 @@ impl EngineHistory {
             _ => false,
         }
     }
+
+    /// Compare two logs without applying commands or mutating either history.
+    pub fn compare(&self, other: &Self) -> HistoryRelation {
+        if !self.base_matches(&other.initial_score) {
+            return HistoryRelation::BaseMismatch;
+        }
+        let common_prefix_len = self
+            .commands
+            .iter()
+            .zip(&other.commands)
+            .take_while(|(left, right)| command_bytes(left) == command_bytes(right))
+            .count();
+        match (self.commands.len(), other.commands.len()) {
+            (left, right) if left == right && common_prefix_len == left => {
+                HistoryRelation::Equivalent
+            }
+            (left, _) if common_prefix_len == left => {
+                HistoryRelation::LeftExtends { common_prefix_len }
+            }
+            (_, right) if common_prefix_len == right => {
+                HistoryRelation::RightExtends { common_prefix_len }
+            }
+            _ => HistoryRelation::Diverged { common_prefix_len },
+        }
+    }
+}
+
+fn command_bytes(command: &Command) -> Option<Vec<u8>> {
+    serde_json::to_vec(command).ok()
 }
 
 #[cfg(test)]
@@ -959,6 +998,61 @@ mod tests {
         assert!(history.base_matches(&base));
         let restored = ScoreEngine::from_history_on_base(history, base).unwrap();
         assert_eq!(restored.score.settings.tempo_bpm, 160);
+    }
+
+    #[test]
+    fn history_compare_reports_prefix_and_divergence() {
+        let base_score = ScoreEngine::new().score.clone();
+        let mut base = ScoreEngine::new();
+        base.replace_score(base_score.clone());
+        let mut left = ScoreEngine::new();
+        left.replace_score(base_score.clone());
+        left.apply(Command::SetTempo(SetTempoCmd { bpm: 160 }))
+            .unwrap();
+        let mut right = ScoreEngine::new();
+        right.replace_score(base_score.clone());
+        right
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 160 }))
+            .unwrap();
+        right
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 180 }))
+            .unwrap();
+
+        assert_eq!(
+            base.export_history().compare(&left.export_history()),
+            HistoryRelation::LeftExtends {
+                common_prefix_len: 0
+            }
+        );
+        assert_eq!(
+            left.export_history().compare(&right.export_history()),
+            HistoryRelation::LeftExtends {
+                common_prefix_len: 1
+            }
+        );
+
+        let mut diverged = ScoreEngine::new();
+        diverged.replace_score(base_score);
+        diverged
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 140 }))
+            .unwrap();
+        assert_eq!(
+            left.export_history().compare(&diverged.export_history()),
+            HistoryRelation::Diverged {
+                common_prefix_len: 0
+            }
+        );
+    }
+
+    #[test]
+    fn history_compare_reports_base_mismatch() {
+        let left = ScoreEngine::new().export_history();
+        let mut other = ScoreEngine::new();
+        other.replace_score(Score::new("Other", 120, 4, 4, 1, 4));
+        assert_eq!(
+            left.compare(&other.export_history()),
+            HistoryRelation::BaseMismatch
+        );
     }
 
     #[test]

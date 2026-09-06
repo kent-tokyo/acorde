@@ -1105,6 +1105,16 @@ impl ScoreEngine {
         serde_json::to_string(&h).map_err(|e| js_err(format!("history serialization failed: {e}")))
     }
 
+    /// Compare two exported histories without replaying them.
+    pub fn compare_histories(left_json: &str, right_json: &str) -> Result<String, JsValue> {
+        let left: acorde_core::EngineHistory =
+            parse_json(left_json, "left history", MAX_SCORE_JSON_BYTES)?;
+        let right: acorde_core::EngineHistory =
+            parse_json(right_json, "right history", MAX_SCORE_JSON_BYTES)?;
+        serde_json::to_string(&left.compare(&right))
+            .map_err(|e| js_err(format!("history comparison serialization failed: {e}")))
+    }
+
     /// Restore an engine from a previously exported history JSON string.
     ///
     /// Replays all commands against the initial score. Returns an error if replay fails.

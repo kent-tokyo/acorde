@@ -35,6 +35,9 @@ participates in the normal undo/redo and JSON command-history contracts.
 `EngineHistory::base_matches` and `ScoreEngine::from_history_on_base` provide a deterministic
 preflight and typed rejection for replaying a stale command log on an unrelated collaboration
 snapshot.
+`EngineHistory::compare` classifies equivalent, extending, divergent, and base-mismatched logs
+without replaying commands; the WASM `ScoreEngine.compare_histories` method exposes the same
+diagnostic to browser hosts.
 
 ~~~rust
 use acorde_core::{Command, ScoreEngine, SetTempoCmd};
