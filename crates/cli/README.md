@@ -12,6 +12,7 @@ acorde info input.musicxml
 acorde validate input.musicxml
 acorde report input.mei
 acorde preflight input.musicxml
+acorde preflight input.musicxml --fail-on-issues
 acorde analyze input.musicxml
 acorde benchmark benchmarks/analysis.json --fail-on-mismatch
 acorde extract --part 0 input.musicxml part.musicxml
@@ -39,6 +40,8 @@ exits with status 1 when structural errors are found. report emits the parsed sc
 import diagnostics as JSON.
 preflight emits renderer capability issues with stable score source locations as JSON before SVG
 generation.
+`--fail-on-issues` keeps the JSON output but exits with status 1 when any issue is found, which is
+useful for CI gates.
 analyze emits deterministic chord, melodic-interval, and key-estimate results as JSON.
 export-report writes MusicXML, MIDI, ABC, or MEI and emits machine-readable export diagnostics
 without embedding the binary/text artifact in the JSON response.

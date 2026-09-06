@@ -44,6 +44,9 @@ enum Commands {
     Preflight {
         /// Input score file
         input: PathBuf,
+        /// Exit with status 1 when any renderer capability issue is found
+        #[arg(long)]
+        fail_on_issues: bool,
     },
     /// Analyze chords, melodic intervals, and key candidates as JSON
     Analyze {
@@ -157,7 +160,10 @@ fn main() {
         Commands::Info { input } => cmd_info(input),
         Commands::Validate { input } => cmd_validate(input),
         Commands::Report { input } => cmd_report(input),
-        Commands::Preflight { input } => cmd_preflight(input),
+        Commands::Preflight {
+            input,
+            fail_on_issues,
+        } => cmd_preflight(input, *fail_on_issues),
         Commands::Analyze { input } => cmd_analyze(input),
         Commands::Benchmark {
             manifest,
@@ -277,12 +283,18 @@ fn cmd_report(input: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn cmd_preflight(input: &Path) -> Result<(), String> {
+fn cmd_preflight(input: &Path, fail_on_issues: bool) -> Result<(), String> {
     let score = parse_score(input)?;
     let issues = acorde_render_svg::render_preflight(&score);
     serde_json::to_writer_pretty(std::io::stdout(), &issues)
         .map_err(|e| format!("preflight serialization failed: {e}"))?;
     println!();
+    if fail_on_issues && !issues.is_empty() {
+        return Err(format!(
+            "renderer preflight found {} issue(s)",
+            issues.len()
+        ));
+    }
     Ok(())
 }
 

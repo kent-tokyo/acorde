@@ -115,6 +115,7 @@ acorde convert input.musicxml output.mei
 acorde info input.musicxml
 acorde validate input.musicxml
 acorde preflight input.musicxml
+acorde preflight input.musicxml --fail-on-issues
 acorde validate guitar.musicxml       # includes tablature line/tuning/string checks
 acorde extract --part 0 input.musicxml part.musicxml
 acorde transpose --semitones 2 input.musicxml transposed.musicxml
@@ -132,6 +133,7 @@ Conversion output is MusicXML, MIDI, ABC, or MEI.
 `validate` performs the same local structural checks for tablature metadata and explicit string
 positions; it does not require a SoundFont or network access.
 `preflight` reports SVG renderer capability boundaries before rendering.
+With `--fail-on-issues`, it also returns status 1 when any issue is detected.
 `tab-position --clear` removes an explicit position; all indices are zero-based except the
 one-based `--string` value.
 `auto-tab` assigns missing single-note and chord positions while minimizing fret load and
