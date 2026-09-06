@@ -80,7 +80,8 @@
       "MSCX malformed note tablature string/fret values are source-located with preserved values",
       "MSCX numeric string positions are checked against owning StaffType line counts",
       "MusicXML malformed technical tablature string/fret values are source-located with preserved values",
-      "SVG tablature multi-position spacing uses deterministic digit-count metrics and a fixed gap"
+      "SVG tablature multi-position spacing uses deterministic digit-count metrics and a fixed gap",
+      "SVG renderer preflight reports unsupported clefs, accidentals, and tablature positions with stable score locations; CLI fail-on-issues provides a deterministic non-zero gate and the unsupported fixture is checksum-pinned"
   ],
   "comparison_rules": {
     "pitch": "compare Pitch.to_midi_cents() and PlaybackEvent.pitch_midi_cents before rounded MIDI note values",
