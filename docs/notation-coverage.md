@@ -79,6 +79,8 @@ MSCX `FiguredBassItem/digit` values map in order to `Measure.figured_bass` and t
 partial.
 The SVG renderer exposes the ordered candidates through a deterministic `acorde-tab-fingering`
 annotation; external font/glyph equivalence remains outside the core renderer contract.
+Renderer-side tab validation rejects string numbers outside the owning staff line range and
+metrics overflow before emission; it does not silently clamp malformed positions.
 MusicXML note-level `instrument@id` is retained as `Note.instrument_id`; concrete percussion sound
 catalog mapping remains partial. Core validation rejects deserialized `microtone_cents` values
 outside -99..99. The SVG renderer preserves non-zero cents visibly as deterministic

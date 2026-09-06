@@ -20,6 +20,8 @@ claiming equivalence to any particular quarter-tone glyph font; hosts may augmen
 with a richer resource.
 Unpitched notes retain their display placement and receive an `acorde-unpitched` class plus a
 `data-acorde-unpitched="true"` hook; the renderer does not invent a percussion sound mapping.
+Tab positions outside the owning staff's line range return `RenderError::InvalidTabPosition`
+before SVG emission; invalid metric arithmetic returns `RenderError::TabMetricsOverflow`.
 
 ~~~rust
 use acorde_core::Score;
