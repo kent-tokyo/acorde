@@ -26,7 +26,7 @@ the `Score` model; rendering and export can have narrower format-specific covera
 | MIDI channel, program, transposition | yes | yes | no | partial | no | yes | yes / no / MIDI |
 | Percussion | partial | partial | no | partial | no | yes | partial / partial / MIDI |
 | Tablature positions and staff metadata | partial (staff-lines, tuning, string/fret, chord positions) | no | no | partial (StaffType, tuning, string/fret) | no | yes | partial / partial / MusicXML, MSCX |
-| Microtonal accidentals | partial (fractional `<alter>`) | no | partial (quarter accidental subset) | partial | partial (`qs`/`qf`) | yes | partial / partial / format-specific |
+| Microtonal accidentals | partial (fractional `<alter>`) | no | partial (quarter accidental subset) | partial | partial (`qs`/`qf`) | yes; non-zero cents emit explicit `acorde-microtone` SVG markers | partial / partial / format-specific |
 
 ## Reading the matrix
 
@@ -80,8 +80,10 @@ partial.
 The SVG renderer exposes the ordered candidates through a deterministic `acorde-tab-fingering`
 annotation; external font/glyph equivalence remains outside the core renderer contract.
 MusicXML note-level `instrument@id` is retained as `Note.instrument_id`; concrete percussion sound
-catalog mapping remains partial.
-Core validation rejects deserialized `microtone_cents` values outside -99..99.
+catalog mapping remains partial. Core validation rejects deserialized `microtone_cents` values
+outside -99..99. The SVG renderer preserves non-zero cents visibly as deterministic
+`acorde-microtone` text markers (for example `+25c`); richer quarter-tone glyph equivalence
+remains a later glyph-resource phase.
 
 - A `partial` import must not be interpreted as lossless interchange. Callers should validate the
   resulting `Score`, inspect the format report, and retain the source document when they need

@@ -2032,6 +2032,26 @@ fn render_pitched_note(
         ));
     }
 
+    // Preserve exact microtonal intent visibly instead of silently reducing it to the
+    // diatonic notehead/accidental subset. Hosts with a richer glyph set can replace or augment
+    // this explicit marker without changing the canonical pitch data.
+    for (pitch_index, pitch) in note.pitches.iter().enumerate() {
+        if pitch.microtone_cents != 0 {
+            let y =
+                staff_bottom_y + geometry::position_y(positions[pitch_index], space) - 1.25 * space;
+            let label = format!("{:+}c", pitch.microtone_cents);
+            write_annotation_text(
+                body,
+                "acorde-microtone",
+                &label,
+                x + (0.65 + pitch_index as f32 * 0.55) * space,
+                y,
+                space,
+                false,
+            );
+        }
+    }
+
     // Stem + flags (shared across a chord). A beamed note's stem follows the beam line
     // instead of the default fixed length, and never gets individual flags — the beam
     // replaces them.

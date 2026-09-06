@@ -631,6 +631,19 @@ fn percussion_clef_is_rejected_not_silently_treble() {
 }
 
 #[test]
+fn microtone_cents_are_exposed_as_explicit_svg_markers() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+
+    let mut score = Score::new("Microtones", 120, 4, 4, 0, 1);
+    let note = Note::new(Pitch::with_microtone(Step::C, 4, 0, 25), Duration::Quarter);
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+
+    let svg = render_svg(&score, &opts()).expect("microtonal pitch should render");
+    assert!(svg.contains("class=\"acorde-microtone\""));
+    assert!(svg.contains(">+25c</text>"));
+}
+
+#[test]
 fn empty_score_is_rejected() {
     use acorde_core::Score;
     let score = Score {

@@ -10,7 +10,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-Development after `1.1.2` is intentionally kept empty until the next release scope is fixed.
+Development after `1.1.2` begins the Phase 11 fidelity-hardening scope.
+
+- Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
+  richer microtonal glyph equivalence remains a separate resource/host phase.
 
 ## [1.1.2] - 2026-09-06
 
