@@ -273,6 +273,9 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
             "simple.musicxml" => include_bytes!("../../../tests/fixtures/simple.musicxml"),
             "multipart.musicxml" => include_bytes!("../../../tests/fixtures/multipart.musicxml"),
             "multivoice.musicxml" => include_bytes!("../../../tests/fixtures/multivoice.musicxml"),
+            "render_preflight_unsupported.musicxml" => {
+                include_bytes!("../../../tests/fixtures/render_preflight_unsupported.musicxml")
+            }
             "interchange_subset.mei" => {
                 include_bytes!("../../../tests/fixtures/interchange_subset.mei")
             }
