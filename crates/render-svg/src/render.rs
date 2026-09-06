@@ -1802,6 +1802,20 @@ fn render_tab_note(
             true,
         );
     }
+    for (pitch_index, pitch) in note.pitches.iter().enumerate() {
+        if pitch.microtone_cents != 0 {
+            let label = format!("{:+}c", pitch.microtone_cents);
+            write_annotation_text(
+                body,
+                "acorde-microtone",
+                &label,
+                x + (0.65 + pitch_index as f32 * 0.55) * space,
+                y - 3.35 * space,
+                space,
+                false,
+            );
+        }
+    }
 }
 
 /// Draw note-attached performance annotations. The semantic values are already part of the

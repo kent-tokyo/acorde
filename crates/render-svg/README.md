@@ -14,10 +14,10 @@ fallback. The renderer has no browser/DOM dependency and uses font-independent S
 notation glyphs. Tablature staffs render their configured line count, explicit string/fret
 positions, and guitar bend/slide/hammer-on/pull-off technique labels; missing positions are shown
 as an explicit `?` marker rather than inferred silently.
-Non-zero `Pitch::microtone_cents` values are rendered as explicit deterministic
-`acorde-microtone` text markers such as `+25c`. This preserves the exact cents value without
-claiming equivalence to any particular quarter-tone glyph font; hosts may augment the marker
-with a richer resource.
+Non-zero `Pitch::microtone_cents` values, including notes on tablature staffs, are rendered as
+explicit deterministic `acorde-microtone` text markers such as `+25c`. This preserves the exact
+cents value without claiming equivalence to any particular quarter-tone glyph font; hosts may
+augment the marker with a richer resource.
 Unpitched notes retain their display placement and receive an `acorde-unpitched` class plus a
 `data-acorde-unpitched="true"` hook; the renderer does not invent a percussion sound mapping.
 Tab positions outside the owning staff's line range return `RenderError::InvalidTabPosition`

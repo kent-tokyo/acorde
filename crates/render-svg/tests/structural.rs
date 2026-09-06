@@ -581,6 +581,32 @@ fn tablature_renders_lines_frets_and_techniques() {
 }
 
 #[test]
+fn tablature_preserves_microtone_marker() {
+    use acorde_core::{
+        Duration, Measure, Note, Pitch, Score, Staff, Step, TabPosition, TablatureConfig,
+    };
+
+    let mut score = Score::new("Tab microtone", 120, 4, 4, 0, 1);
+    let mut staff = Staff::new(acorde_core::Clef::Treble);
+    staff.tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![64, 59, 55, 50, 45, 40],
+        capo: 0,
+    });
+    staff.measures.push(Measure::empty(4, 4));
+    let mut note = Note::new(Pitch::with_microtone(Step::E, 4, 0, 25), Duration::Quarter);
+    note.tab_position = Some(TabPosition { string: 2, fret: 3 });
+    staff.measures[0].voices[0] = vec![note];
+    score.parts[0].staves = vec![staff];
+
+    let svg = render_svg(&score, &opts()).expect("tablature microtone should render");
+    assert!(svg.contains("class=\"acorde-microtone\""));
+    assert!(svg.contains(">+25c</text>"));
+    assert!(svg.contains(">3</text>"));
+    assert_well_formed_xml(&svg);
+}
+
+#[test]
 fn tablature_multiple_positions_get_deterministic_horizontal_spacing() {
     use acorde_core::{Duration, Note, Pitch, Staff, Step, TabPosition, TablatureConfig};
     let mut score = acorde_core::Score::new("Tab positions", 120, 4, 4, 0, 1);
