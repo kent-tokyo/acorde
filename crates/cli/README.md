@@ -11,6 +11,7 @@ acorde convert input.musicxml output.mei
 acorde info input.musicxml
 acorde validate input.musicxml
 acorde report input.mei
+acorde preflight input.musicxml
 acorde analyze input.musicxml
 acorde benchmark benchmarks/analysis.json --fail-on-mismatch
 acorde extract --part 0 input.musicxml part.musicxml
@@ -36,6 +37,8 @@ Input supports .musicxml, .mxl, .mid/.midi, .abc, .mei, .mscz, and .mscx. Conver
 MusicXML, MIDI, ABC, or MEI. info prints title, counts, tempo, time signature, and duration estimate; validate
 exits with status 1 when structural errors are found. report emits the parsed score and structured
 import diagnostics as JSON.
+preflight emits renderer capability issues with stable score source locations as JSON before SVG
+generation.
 analyze emits deterministic chord, melodic-interval, and key-estimate results as JSON.
 export-report writes MusicXML, MIDI, ABC, or MEI and emits machine-readable export diagnostics
 without embedding the binary/text artifact in the JSON response.

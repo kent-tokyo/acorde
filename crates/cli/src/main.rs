@@ -40,6 +40,11 @@ enum Commands {
         /// Input file (.musicxml, .mxl, .mid, .abc, .mscz, .mscx, .mei)
         input: PathBuf,
     },
+    /// Print renderer capability preflight issues as JSON
+    Preflight {
+        /// Input score file
+        input: PathBuf,
+    },
     /// Analyze chords, melodic intervals, and key candidates as JSON
     Analyze {
         /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx)
@@ -152,6 +157,7 @@ fn main() {
         Commands::Info { input } => cmd_info(input),
         Commands::Validate { input } => cmd_validate(input),
         Commands::Report { input } => cmd_report(input),
+        Commands::Preflight { input } => cmd_preflight(input),
         Commands::Analyze { input } => cmd_analyze(input),
         Commands::Benchmark {
             manifest,
@@ -268,6 +274,15 @@ fn cmd_report(input: &Path) -> Result<(), String> {
     let json = serde_json::to_string_pretty(&report)
         .map_err(|e| format!("report serialization failed: {e}"))?;
     println!("{json}");
+    Ok(())
+}
+
+fn cmd_preflight(input: &Path) -> Result<(), String> {
+    let score = parse_score(input)?;
+    let issues = acorde_render_svg::render_preflight(&score);
+    serde_json::to_writer_pretty(std::io::stdout(), &issues)
+        .map_err(|e| format!("preflight serialization failed: {e}"))?;
+    println!();
     Ok(())
 }
 

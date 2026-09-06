@@ -29,6 +29,7 @@ dependencies = [
  "acorde-analysis",
  "acorde-core",
  "acorde-io",
+ "acorde-render-svg",
  "clap",
  "serde",
  "serde_json",
