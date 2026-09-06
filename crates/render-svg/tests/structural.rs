@@ -542,7 +542,7 @@ fn triple_sharp_is_rejected_not_silently_dropped() {
 #[test]
 fn glyph_coverage_is_explicit_and_stable() {
     let coverage = acorde_render_svg::glyph_coverage();
-    assert_eq!(coverage.contract_version, 2);
+    assert_eq!(coverage.contract_version, 3);
     assert_eq!(coverage.resource_id, "acorde-vector-glyphs-v1");
     assert!(coverage.vector_glyphs);
     assert_eq!(coverage.accidental_min, -2);
@@ -551,6 +551,11 @@ fn glyph_coverage_is_explicit_and_stable() {
     assert!(coverage.microtone_marker.supported);
     assert_eq!(coverage.microtone_marker.representation, "svg-text-cents");
     assert!(coverage.microtone_marker.exact_cents);
+    assert!(
+        coverage
+            .percussion_noteheads
+            .contains(&"acorde-percussion-notehead-cross".to_owned())
+    );
 }
 
 #[test]
@@ -697,8 +702,12 @@ fn unpitched_notes_keep_a_semantic_svg_hook_without_inventing_sound_identity() {
     score.parts[0].staves[0].measures[0].voices[0] = vec![note];
 
     let svg = render_svg(&score, &opts()).expect("display-positioned unpitched note should render");
-    assert!(svg.contains("class=\"acorde-note acorde-unpitched\""));
+    assert!(
+        svg.contains("class=\"acorde-note acorde-unpitched acorde-percussion-notehead-normal\"")
+    );
     assert!(svg.contains("data-acorde-unpitched=\"true\""));
+    assert!(svg.contains("data-acorde-percussion-notehead=\"acorde-percussion-notehead-normal\""));
+    assert!(svg.contains("acorde-percussion-notehead-normal"));
 }
 
 #[test]

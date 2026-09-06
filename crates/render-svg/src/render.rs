@@ -1586,6 +1586,11 @@ fn render_note(
     }
     if note.is_unpitched {
         special_class.push_str(" acorde-unpitched");
+        special_class.push_str(" acorde-percussion-notehead-");
+        special_class.push_str(
+            crate::percussion_notehead_resource_id(&note.note_head)
+                .trim_start_matches("acorde-percussion-notehead-"),
+        );
     }
     let stem_up = note.stem_up.unwrap_or(voice_stem_up);
     let anchor_y = if note.is_rest {
@@ -1610,12 +1615,20 @@ fn render_note(
     if interactive {
         let _ = write!(
             g,
-            r#"<g class="acorde-{kind}{special_class}" data-acorde-kind="{kind}" data-part="{part}" data-staff="{staff}" data-measure="{measure_idx}" data-voice="{voice_idx}" data-note="{note_idx}" data-note-addr="{addr}"{unpitched}{transform}>"#,
+            r#"<g class="acorde-{kind}{special_class}" data-acorde-kind="{kind}" data-part="{part}" data-staff="{staff}" data-measure="{measure_idx}" data-voice="{voice_idx}" data-note="{note_idx}" data-note-addr="{addr}"{unpitched}{percussion_head}{transform}>"#,
             unpitched = if note.is_unpitched {
                 " data-acorde-unpitched=\"true\""
             } else {
                 ""
-            }
+            },
+            percussion_head = if note.is_unpitched {
+                format!(
+                    " data-acorde-percussion-notehead=\"{}\"",
+                    crate::percussion_notehead_resource_id(&note.note_head)
+                )
+            } else {
+                String::new()
+            },
         );
     } else {
         let _ = write!(g, r#"<g class="acorde-{kind}{special_class}"{transform}>"#);

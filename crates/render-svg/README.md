@@ -20,7 +20,9 @@ explicit deterministic `acorde-microtone` text markers such as `+25c`. The
 cents preservation. This does not claim equivalence to any particular quarter-tone glyph font;
 hosts may augment the marker with a richer resource.
 Unpitched notes retain their display placement and receive an `acorde-unpitched` class plus a
-`data-acorde-unpitched="true"` hook; the renderer does not invent a percussion sound mapping.
+`data-acorde-unpitched="true"` hook. Their explicit `NoteHead` shape also receives a bounded
+`acorde-percussion-notehead-*` resource hook reported by `glyph_coverage()`; the renderer does
+not invent a percussion sound mapping.
 Tab positions outside the owning staff's line range return `RenderError::InvalidTabPosition`
 before SVG emission; invalid metric arithmetic returns `RenderError::TabMetricsOverflow`.
 

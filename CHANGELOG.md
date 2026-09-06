@@ -14,6 +14,8 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
 
 - `acorde-render-svg` now exposes a versioned `GlyphCoverage` microtone-marker capability
   contract (`svg-text-cents`, exact signed cents preservation) for host-neutral resource checks.
+- Explicit unpitched notehead shapes now expose bounded percussion resource hooks without
+  inferring an instrument or MIDI sound identity.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

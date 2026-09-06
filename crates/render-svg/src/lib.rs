@@ -31,7 +31,7 @@ mod glyphs;
 mod render;
 mod tuplets;
 
-use acorde_core::{Score, TextStyle};
+use acorde_core::{NoteHead, Score, TextStyle};
 use acorde_layout::{LayoutConfig, LayoutResult, compute_layout};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -39,9 +39,24 @@ use std::fmt;
 /// Version of the browser-facing [`RenderMetadata`] contract.
 pub const SVG_CONTRACT_VERSION: u32 = 3;
 /// Version of the built-in glyph coverage contract.
-pub const GLYPH_COVERAGE_CONTRACT_VERSION: u32 = 2;
+pub const GLYPH_COVERAGE_CONTRACT_VERSION: u32 = 3;
 /// Stable identifier for the renderer's font-independent vector glyph set.
 pub const BUILTIN_GLYPH_RESOURCE_ID: &str = "acorde-vector-glyphs-v1";
+
+/// Return the stable built-in resource name for a bounded unpitched notehead shape.
+///
+/// This maps only visual notehead intent; it does not resolve a percussion instrument or
+/// invent a MIDI sound identity.
+pub fn percussion_notehead_resource_id(note_head: &NoteHead) -> &'static str {
+    match note_head {
+        NoteHead::Normal => "acorde-percussion-notehead-normal",
+        NoteHead::Diamond => "acorde-percussion-notehead-diamond",
+        NoteHead::X => "acorde-percussion-notehead-x",
+        NoteHead::Slash => "acorde-percussion-notehead-slash",
+        NoteHead::Cross => "acorde-percussion-notehead-cross",
+        NoteHead::Triangle => "acorde-percussion-notehead-triangle",
+    }
+}
 
 const MAX_RENDER_ANNOTATIONS: usize = 10_000;
 const MAX_ANNOTATION_TEXT_BYTES: usize = 16 * 1024;
@@ -139,6 +154,9 @@ pub struct GlyphCoverage {
     /// Explicit, font-independent microtone representation available to hosts.
     #[serde(default)]
     pub microtone_marker: MicrotoneMarkerCoverage,
+    /// Stable visual resources available for explicitly unpitched notehead shapes.
+    #[serde(default)]
+    pub percussion_noteheads: Vec<String>,
 }
 
 /// Describe the deterministic, font-independent glyphs shipped by this renderer.
@@ -156,6 +174,17 @@ pub fn glyph_coverage() -> GlyphCoverage {
         accidental_min: -2,
         accidental_max: 2,
         microtone_marker: MicrotoneMarkerCoverage::default(),
+        percussion_noteheads: [
+            NoteHead::Normal,
+            NoteHead::Diamond,
+            NoteHead::X,
+            NoteHead::Slash,
+            NoteHead::Cross,
+            NoteHead::Triangle,
+        ]
+        .iter()
+        .map(|head| percussion_notehead_resource_id(head).to_owned())
+        .collect(),
     }
 }
 
