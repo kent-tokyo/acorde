@@ -631,6 +631,21 @@ fn percussion_clef_is_rejected_not_silently_treble() {
 }
 
 #[test]
+fn unpitched_notes_keep_a_semantic_svg_hook_without_inventing_sound_identity() {
+    use acorde_core::{Duration, Score, Step};
+
+    let mut score = Score::new("Unpitched", 120, 4, 4, 0, 1);
+    let mut note = acorde_core::Note::new(acorde_core::Pitch::new(Step::C, 4), Duration::Quarter);
+    note.is_unpitched = true;
+    note.instrument_id = Some("P1-I1".to_string());
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+
+    let svg = render_svg(&score, &opts()).expect("display-positioned unpitched note should render");
+    assert!(svg.contains("class=\"acorde-note acorde-unpitched\""));
+    assert!(svg.contains("data-acorde-unpitched=\"true\""));
+}
+
+#[test]
 fn microtone_cents_are_exposed_as_explicit_svg_markers() {
     use acorde_core::{Duration, Note, Pitch, Score, Step};
 

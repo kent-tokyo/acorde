@@ -18,6 +18,8 @@ Non-zero `Pitch::microtone_cents` values are rendered as explicit deterministic
 `acorde-microtone` text markers such as `+25c`. This preserves the exact cents value without
 claiming equivalence to any particular quarter-tone glyph font; hosts may augment the marker
 with a richer resource.
+Unpitched notes retain their display placement and receive an `acorde-unpitched` class plus a
+`data-acorde-unpitched="true"` hook; the renderer does not invent a percussion sound mapping.
 
 ~~~rust
 use acorde_core::Score;

@@ -84,6 +84,8 @@ catalog mapping remains partial. Core validation rejects deserialized `microtone
 outside -99..99. The SVG renderer preserves non-zero cents visibly as deterministic
 `acorde-microtone` text markers (for example `+25c`); richer quarter-tone glyph equivalence
 remains a later glyph-resource phase.
+Unpitched notes preserve their display placement and expose an `acorde-unpitched` SVG hook without
+inventing a percussion sound identity; percussion clef mappings remain bounded and explicit.
 
 - A `partial` import must not be interpreted as lossless interchange. Callers should validate the
   resulting `Score`, inspect the format report, and retain the source document when they need
