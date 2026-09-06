@@ -42,6 +42,8 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
 - `acorde-analysis` now provides a bounded deterministic `AnalysisCache` keyed by the existing
   schema-versioned score fingerprint, with automatic edit misses and reproducible eviction.
 - `AnalysisCache::analyze_batch` now preserves batch order while reusing cached duplicate scores.
+- `AnalysisCache::invalidate` now lets editors reclaim an old score snapshot without disturbing
+  other cached analysis results.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

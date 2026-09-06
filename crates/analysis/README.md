@@ -28,6 +28,8 @@ score fingerprint. Editing any canonical score content produces a cache miss aut
 eviction is insertion-order based and does not depend on hash-map iteration.
 Its `analyze_batch` method preserves input order while reusing duplicate or previously cached
 scores.
+Editors can call `invalidate(score)` after dropping an old score snapshot to reclaim that entry
+without disturbing other cached results.
 
 Offline benchmark consumers can use `BenchmarkCase` and `run_benchmark` with hand-verified
 category counts. The report includes predicted counts, precision, recall, explanation

@@ -498,6 +498,16 @@ impl AnalysisCache {
         }
     }
 
+    /// Remove the cached result for a score and return whether an entry was removed.
+    pub fn invalidate(&mut self, score: &Score) -> bool {
+        let key = analysis_cache_key(score);
+        let removed = self.entries.remove(&key).is_some();
+        if removed {
+            self.insertion_order.retain(|existing| existing != &key);
+        }
+        removed
+    }
+
     /// Remove all cached results.
     pub fn clear(&mut self) {
         self.entries.clear();
@@ -1315,6 +1325,21 @@ mod tests {
         assert_eq!(results[0].score_fingerprint, results[2].score_fingerprint);
         assert_ne!(results[0].score_fingerprint, results[1].score_fingerprint);
         assert_eq!(cache.len(), 2);
+    }
+
+    #[test]
+    fn analysis_cache_invalidates_one_score_without_affecting_others() {
+        let first = Score::default();
+        let mut second = first.clone();
+        second.metadata.title = "second".to_owned();
+        let mut cache = AnalysisCache::with_capacity(2).unwrap();
+        cache.analyze_batch(&[first.clone(), second.clone()]);
+
+        assert!(cache.invalidate(&first));
+        assert!(!cache.invalidate(&first));
+        assert!(cache.get(&first).is_none());
+        assert!(cache.get(&second).is_some());
+        assert_eq!(cache.len(), 1);
     }
 
     #[test]
