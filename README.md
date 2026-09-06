@@ -119,6 +119,8 @@ category diff together for incremental editor updates.
 categories for host-side incremental update planning.
 `AnalysisCache.analyze_after_edit_with_hint` combines that planning step with cached incremental
 analysis and the deterministic category diff.
+`analysis_refresh_plan` additionally separates measure-local categories from score-global
+dependencies and reports one-measure context on either side for boundary-sensitive passes.
 See [the browser contract](docs/browser-rendering.md) and the
 [browser fixture](examples/browser/README.md).
 

@@ -58,15 +58,75 @@ pub enum AnalysisCategory {
     PhraseBoundaries,
 }
 
-/// Return the complete-analysis categories that a dirty engine hint may affect.
-///
-/// The mapping is intentionally conservative: any layout or playback dirty hint may alter
-/// score content or temporal context, so all categories are returned. A clean hint is known to
-/// affect neither analysis input nor context and returns an empty list.
-pub fn affected_categories_for_change_hint(hint: &ChangeHint) -> Vec<AnalysisCategory> {
+/// A changed part/staff measure interval used by incremental editor planning.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AnalysisRegion {
+    pub part: usize,
+    pub staff: usize,
+    pub start_measure: usize,
+    pub end_measure: usize,
+}
+
+/// Dependency-aware refresh plan for a score edit.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AnalysisRefreshPlan {
+    pub local_categories: Vec<AnalysisCategory>,
+    pub global_categories: Vec<AnalysisCategory>,
+    pub region: Option<AnalysisRegion>,
+    pub context_before: usize,
+    pub context_after: usize,
+}
+
+/// Build a conservative refresh plan from an engine change hint.
+pub fn analysis_refresh_plan(hint: &ChangeHint) -> AnalysisRefreshPlan {
+    let all = all_analysis_categories();
     if !hint.layout_dirty && !hint.playback_dirty {
-        return Vec::new();
+        return AnalysisRefreshPlan {
+            local_categories: Vec::new(),
+            global_categories: Vec::new(),
+            region: None,
+            context_before: 0,
+            context_after: 0,
+        };
     }
+    match &hint.scope {
+        acorde_core::ChangeScope::Measures {
+            part,
+            staff,
+            start,
+            end,
+        } => AnalysisRefreshPlan {
+            local_categories: vec![
+                AnalysisCategory::Chords,
+                AnalysisCategory::Intervals,
+                AnalysisCategory::CadenceCandidates,
+                AnalysisCategory::VoiceLeading,
+                AnalysisCategory::SatbDiagnostics,
+                AnalysisCategory::PhraseBoundaries,
+            ],
+            global_categories: vec![AnalysisCategory::KeyEstimates, AnalysisCategory::Motifs],
+            region: Some(AnalysisRegion {
+                part: *part,
+                staff: *staff,
+                start_measure: *start,
+                end_measure: *end,
+            }),
+            context_before: 1,
+            context_after: 1,
+        },
+        acorde_core::ChangeScope::Part(_) | acorde_core::ChangeScope::Global => {
+            AnalysisRefreshPlan {
+                local_categories: Vec::new(),
+                global_categories: all,
+                region: None,
+                context_before: 0,
+                context_after: 0,
+            }
+        }
+    }
+}
+
+fn all_analysis_categories() -> Vec<AnalysisCategory> {
     vec![
         AnalysisCategory::Chords,
         AnalysisCategory::Intervals,
@@ -77,6 +137,24 @@ pub fn affected_categories_for_change_hint(hint: &ChangeHint) -> Vec<AnalysisCat
         AnalysisCategory::Motifs,
         AnalysisCategory::PhraseBoundaries,
     ]
+}
+
+/// Return the complete-analysis categories that a dirty engine hint may affect.
+///
+/// The mapping is intentionally conservative: any layout or playback dirty hint may alter
+/// score content or temporal context, so all categories are returned. A clean hint is known to
+/// affect neither analysis input nor context and returns an empty list.
+pub fn affected_categories_for_change_hint(hint: &ChangeHint) -> Vec<AnalysisCategory> {
+    let plan = analysis_refresh_plan(hint);
+    let selected: Vec<_> = plan
+        .local_categories
+        .into_iter()
+        .chain(plan.global_categories)
+        .collect();
+    all_analysis_categories()
+        .into_iter()
+        .filter(|category| selected.contains(category))
+        .collect()
 }
 
 /// Deterministic category-level diff between two analysis results.
@@ -1781,6 +1859,41 @@ mod tests {
                 AnalysisCategory::PhraseBoundaries,
             ]
         );
+    }
+
+    #[test]
+    fn refresh_plan_separates_local_and_global_dependencies() {
+        let hint = ChangeHint {
+            scope: acorde_core::ChangeScope::Measures {
+                part: 1,
+                staff: 2,
+                start: 3,
+                end: 4,
+            },
+            layout_dirty: true,
+            playback_dirty: true,
+        };
+        let plan = analysis_refresh_plan(&hint);
+        assert_eq!(
+            plan.region,
+            Some(AnalysisRegion {
+                part: 1,
+                staff: 2,
+                start_measure: 3,
+                end_measure: 4,
+            })
+        );
+        assert!(plan.local_categories.contains(&AnalysisCategory::Chords));
+        assert!(
+            plan.local_categories
+                .contains(&AnalysisCategory::CadenceCandidates)
+        );
+        assert_eq!(
+            plan.global_categories,
+            vec![AnalysisCategory::KeyEstimates, AnalysisCategory::Motifs]
+        );
+        assert_eq!(plan.context_before, 1);
+        assert_eq!(plan.context_after, 1);
     }
 
     #[test]

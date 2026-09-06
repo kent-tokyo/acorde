@@ -579,6 +579,15 @@ pub fn affected_analysis_categories(change_hint_json: &str) -> Result<String, Js
         .map_err(|e| js_err(format!("analysis impact serialization failed: {e}")))
 }
 
+/// Return a dependency-aware refresh plan for a serialized engine change hint.
+#[wasm_bindgen]
+pub fn analysis_refresh_plan(change_hint_json: &str) -> Result<String, JsValue> {
+    let hint: acorde_core::ChangeHint =
+        parse_json(change_hint_json, "change hint", MAX_SMALL_JSON_BYTES)?;
+    serde_json::to_string(&acorde_analysis::analysis_refresh_plan(&hint))
+        .map_err(|e| js_err(format!("analysis refresh plan serialization failed: {e}")))
+}
+
 /// JavaScript-visible bounded cache for deterministic score analysis.
 #[wasm_bindgen]
 pub struct AnalysisCache {

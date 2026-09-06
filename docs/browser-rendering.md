@@ -56,6 +56,8 @@ the caller must supply the immediately preceding result and categories from the 
 `AnalysisCache.analyze_after_edit_with_hint(previous_score_json, previous_result_json,
 current_json, change_hint_json)` connects that planner directly to the editor command result and
 returns the edited analysis with its category diff.
+`analysis_refresh_plan(change_hint_json)` separates local and global dependencies and provides
+one-measure boundary context for host-side scheduling.
 
 ## Incremental updates
 

@@ -71,6 +71,8 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
   complete merged result; WASM exposes the same incremental editor operation.
 - `AnalysisCache::analyze_after_edit_with_hint` now connects `ChangeHint` planning directly to
   incremental analysis and category diffs; WASM exposes the combined operation.
+- `analysis_refresh_plan` now separates measure-local and score-global dependencies and exposes
+  boundary context; WASM exposes the same planner.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.
