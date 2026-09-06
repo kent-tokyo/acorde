@@ -18,6 +18,7 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
   inferring an instrument or MIDI sound identity.
 - Tablature fret-width and inter-label gap assumptions are exposed through a versioned,
   self-authored fixture-backed metrics contract.
+- ABC export diagnostics now report non-representable part MIDI metadata with stable source paths.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

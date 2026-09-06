@@ -720,6 +720,61 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
     }
 
     for (part_index, part) in score.parts.iter().enumerate() {
+        let part_path = format!("/score/part/{}", part_index + 1);
+        for (field, present, value, reason) in [
+            (
+                "midi_channel",
+                part.midi_channel != 0,
+                part.midi_channel.to_string(),
+                "ABC export does not represent MIDI channel metadata",
+            ),
+            (
+                "midi_program",
+                part.midi_program != 0,
+                part.midi_program.to_string(),
+                "ABC export does not represent MIDI program metadata",
+            ),
+            (
+                "midi_pitch_bends",
+                !part.midi_pitch_bends.is_empty(),
+                part.midi_pitch_bends.len().to_string(),
+                "ABC export does not represent MIDI pitch-bend events",
+            ),
+            (
+                "midi_control_changes",
+                !part.midi_control_changes.is_empty(),
+                part.midi_control_changes.len().to_string(),
+                "ABC export does not represent MIDI control-change events",
+            ),
+            (
+                "midi_program_changes",
+                !part.midi_program_changes.is_empty(),
+                part.midi_program_changes.len().to_string(),
+                "ABC export does not represent MIDI program-change events",
+            ),
+            (
+                "midi_aftertouch",
+                !part.midi_aftertouch.is_empty(),
+                part.midi_aftertouch.len().to_string(),
+                "ABC export does not represent MIDI aftertouch events",
+            ),
+            (
+                "percussion_instruments",
+                !part.percussion_instruments.is_empty(),
+                part.percussion_instruments.len().to_string(),
+                "ABC export does not represent declared percussion instrument metadata",
+            ),
+            (
+                "staff_groups",
+                !part.staff_groups.is_empty(),
+                part.staff_groups.len().to_string(),
+                "ABC export does not represent staff-group connector metadata",
+            ),
+        ] {
+            if present {
+                push(format!("{part_path}/{field}"), value, reason);
+            }
+        }
         if part.staves.len() > 1 {
             push(
                 format!("/score/part/{}/staves", part_index + 1),
@@ -1055,6 +1110,34 @@ C D E F | G A B c |";
                 .iter()
                 .any(|diagnostic| diagnostic.source_location.as_deref()
                     == Some("/score/part/1/staff/1/measure/1/voice/1/note/2/technique"))
+        );
+    }
+
+    #[test]
+    fn export_loss_report_marks_unrepresentable_part_midi_metadata() {
+        let mut score = Score::new("MIDI metadata", 120, 4, 4, 0, 1);
+        score.parts[0].midi_channel = 2;
+        score.parts[0].midi_program = 40;
+        score.parts[0].midi_pitch_bends = vec![acorde_core::MidiPitchBend {
+            tick: 0,
+            channel: 2,
+            value: 128,
+        }];
+
+        let diagnostics = export_loss_diagnostics(&score);
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.source_location.as_deref() == Some("/score/part/1/midi_channel")
+        }));
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.source_location.as_deref() == Some("/score/part/1/midi_program")
+        }));
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.source_location.as_deref() == Some("/score/part/1/midi_pitch_bends")
+        }));
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code == "abc.export-unsupported-field")
         );
     }
 
