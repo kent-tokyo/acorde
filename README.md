@@ -109,6 +109,8 @@ playback, theory helpers, deterministic tablature fingering selection, and expla
 
 ```bash
 acorde convert input.mid output.musicxml
+acorde convert input.musicxml output.abc
+acorde convert input.musicxml output.mei
 acorde info input.musicxml
 acorde validate input.musicxml
 acorde validate guitar.musicxml       # includes tablature line/tuning/string checks
@@ -123,8 +125,8 @@ acorde auto-tab guitar.musicxml guitar-tabbed.musicxml
 acorde auto-tab-report guitar.musicxml guitar-tabbed.musicxml
 ```
 
-The CLI supports `.musicxml`, `.mxl`, `.mid`/`.midi`, `.mscz`, and `.mscx` input. Conversion
-output is MusicXML, MIDI, ABC, or MEI.
+The CLI supports `.musicxml`, `.mxl`, `.mid`/`.midi`, `.abc`, `.mei`, `.mscz`, and `.mscx` input.
+Conversion output is MusicXML, MIDI, ABC, or MEI.
 `validate` performs the same local structural checks for tablature metadata and explicit string
 positions; it does not require a SoundFont or network access.
 `tab-position --clear` removes an explicit position; all indices are zero-based except the

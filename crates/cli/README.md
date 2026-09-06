@@ -6,6 +6,8 @@ Command-line conversion and inspection tool for acorde.
 cargo install acorde-cli
 
 acorde convert input.mid output.musicxml
+acorde convert input.musicxml output.abc
+acorde convert input.musicxml output.mei
 acorde info input.musicxml
 acorde validate input.musicxml
 acorde report input.mei
@@ -31,7 +33,7 @@ fret, while writing the optimized score to the requested output path.
 score. Its deterministic policies are `source-order`, `lowest`, and `highest`.
 
 Input supports .musicxml, .mxl, .mid/.midi, .abc, .mei, .mscz, and .mscx. Conversion output is
-MusicXML or MIDI. info prints title, counts, tempo, time signature, and duration estimate; validate
+MusicXML, MIDI, ABC, or MEI. info prints title, counts, tempo, time signature, and duration estimate; validate
 exits with status 1 when structural errors are found. report emits the parsed score and structured
 import diagnostics as JSON.
 analyze emits deterministic chord, melodic-interval, and key-estimate results as JSON.

@@ -20,9 +20,9 @@ struct Cli {
 enum Commands {
     /// Convert a score file between formats
     Convert {
-        /// Input file (.musicxml, .mxl, .mid, .midi)
+        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx)
         input: PathBuf,
-        /// Output file (.musicxml, .mid, .midi)
+        /// Output file (.musicxml, .mid, .midi, .abc, .mei)
         output: PathBuf,
     },
     /// Print title, parts, measure count, and duration estimate
@@ -426,6 +426,16 @@ fn write_score(score: &Score, output: &Path) -> Result<(), String> {
         "mid" | "midi" => {
             let bytes = acorde_io::serialize_midi(score).map_err(|e| e.to_string())?;
             std::fs::write(output, bytes)
+                .map_err(|e| format!("cannot write '{}': {e}", output.display()))
+        }
+        "abc" => {
+            let text = acorde_io::serialize_abc(score).map_err(|e| e.to_string())?;
+            std::fs::write(output, text)
+                .map_err(|e| format!("cannot write '{}': {e}", output.display()))
+        }
+        "mei" => {
+            let text = acorde_io::serialize_mei(score).map_err(|e| e.to_string())?;
+            std::fs::write(output, text)
                 .map_err(|e| format!("cannot write '{}': {e}", output.display()))
         }
         other => Err(format!("unsupported output format: '.{other}'")),
