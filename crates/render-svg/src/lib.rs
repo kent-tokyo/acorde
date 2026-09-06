@@ -242,6 +242,15 @@ pub fn render_preflight(score: &Score) -> Vec<RenderPreflightIssue> {
                 });
             }
             for (measure_index, measure) in staff.measures.iter().enumerate() {
+                if !matches!(staff.clef, acorde_core::Clef::Percussion)
+                    && matches!(measure.clef, Some(acorde_core::Clef::Percussion))
+                {
+                    issues.push(RenderPreflightIssue {
+                        kind: RenderPreflightKind::UnsupportedClef,
+                        source_location: format!("{staff_path}/measure/{}/clef", measure_index + 1),
+                        preserved_value: "percussion".to_owned(),
+                    });
+                }
                 for (voice_index, voice) in measure.voices.iter().enumerate() {
                     for (note_index, note) in voice.iter().enumerate() {
                         let note_path = format!(

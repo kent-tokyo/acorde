@@ -48,6 +48,21 @@ fn render_preflight_locates_renderer_capability_boundaries() {
     }));
 }
 
+#[test]
+fn render_preflight_locates_measure_clef_changes() {
+    use acorde_core::{Clef, Score};
+
+    let mut score = Score::new("measure clef preflight", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].measures[0].clef = Some(Clef::Percussion);
+
+    let issues = render_preflight(&score);
+    assert!(issues.iter().any(|issue| {
+        issue.kind == RenderPreflightKind::UnsupportedClef
+            && issue.source_location.ends_with("/measure/1/clef")
+            && issue.preserved_value == "percussion"
+    }));
+}
+
 /// Well-formedness check: every opened tag closes, via quick-xml's reader (it errors on
 /// malformed XML). Cheaper than diffing full text against a golden file.
 fn assert_well_formed_xml(svg: &str) {

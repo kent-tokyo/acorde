@@ -33,7 +33,7 @@
       "license": "self-authored",
       "sha256": "7757eaf590b24d537204c833d0e53c861644f488bf25178d2df4b7fb1197b538",
       "round_trip": "import-only",
-      "expected_losses": ["unsupported SVG accidental renderer preflight boundary"]
+      "expected_losses": ["unsupported SVG accidental and measure-clef renderer preflight boundaries"]
     },
     {
       "path": "interchange_subset.mei",
