@@ -808,6 +808,73 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                 }
             }
             for (note_index, note) in measure.voices[0].iter().enumerate() {
+                let note_path = format!(
+                    "/score/part/{}/staff/1/measure/{}/voice/1/note/{}",
+                    part_index + 1,
+                    measure_index + 1,
+                    note_index + 1
+                );
+                for (field, present, value, reason) in [
+                    (
+                        "chord-symbol",
+                        note.chord_symbol.is_some(),
+                        note.chord_symbol
+                            .as_ref()
+                            .map_or_else(|| "present".to_string(), |chord| chord.display_text()),
+                        "ABC export does not emit note chord-symbol annotations",
+                    ),
+                    (
+                        "lyric",
+                        note.lyric.is_some(),
+                        note.lyric
+                            .as_ref()
+                            .map_or_else(|| "present".to_string(), |lyric| lyric.text.clone()),
+                        "ABC export does not emit note lyrics",
+                    ),
+                    (
+                        "dynamic",
+                        note.dynamic.is_some(),
+                        note.dynamic.as_ref().map_or_else(
+                            || "present".to_string(),
+                            |dynamic| dynamic.to_musicxml_str().to_string(),
+                        ),
+                        "ABC export does not emit note dynamics",
+                    ),
+                    (
+                        "articulations",
+                        !note.articulations.is_empty(),
+                        note.articulations.len().to_string(),
+                        "ABC export does not emit note articulations",
+                    ),
+                    (
+                        "note_head",
+                        !matches!(note.note_head, acorde_core::NoteHead::Normal),
+                        format!("{:?}", note.note_head),
+                        "ABC export does not emit alternate notehead shapes",
+                    ),
+                    (
+                        "is_unpitched",
+                        note.is_unpitched,
+                        "true".to_string(),
+                        "ABC export does not emit unpitched note semantics",
+                    ),
+                    (
+                        "is_grace",
+                        note.is_grace,
+                        "true".to_string(),
+                        "ABC export does not emit grace-note semantics",
+                    ),
+                    (
+                        "is_cue",
+                        note.is_cue,
+                        "true".to_string(),
+                        "ABC export does not emit cue-note semantics",
+                    ),
+                ] {
+                    if present {
+                        push(format!("{note_path}/{field}"), value, reason);
+                    }
+                }
                 if let Some(harmony_type) = note
                     .chord_symbol
                     .as_ref()
@@ -1076,6 +1143,42 @@ C D E F | G A B c |";
                 .as_deref()
                 .is_some_and(|path| path.ends_with("/pitch/1"))
         }));
+    }
+
+    #[test]
+    fn export_loss_report_locates_unsupported_note_annotations() {
+        let mut score = Score::new("note annotations", 120, 4, 4, 0, 1);
+        let note = &mut score.parts[0].staves[0].measures[0].voices[0][0];
+        note.dynamic = Some(acorde_core::Dynamic::Mf);
+        note.lyric = Some(acorde_core::Lyric {
+            text: "la".to_string(),
+            syllabic: "single".to_string(),
+        });
+        note.articulations.push(acorde_core::Articulation::Staccato);
+        note.note_head = acorde_core::NoteHead::Cross;
+        note.is_unpitched = true;
+        note.is_grace = true;
+        note.is_cue = true;
+
+        let diagnostics = export_loss_diagnostics(&score);
+        for field in [
+            "lyric",
+            "dynamic",
+            "articulations",
+            "note_head",
+            "is_unpitched",
+            "is_grace",
+            "is_cue",
+        ] {
+            let suffix = format!("/voice/1/note/1/{field}");
+            assert!(
+                diagnostics.iter().any(|diagnostic| diagnostic
+                    .source_location
+                    .as_deref()
+                    .is_some_and(|path| path.ends_with(&suffix))),
+                "missing ABC diagnostic for {field}"
+            );
+        }
     }
 
     #[test]

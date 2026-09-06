@@ -129,9 +129,9 @@ automation as source-located losses; MusicXML channel/program declarations remai
 `parse_abc_with_report` reports unsupported ABC headers and `!decoration!`/`+decoration+`
 constructs with line-based source locations.
 `serialize_abc_with_report` reports omitted staves/voices, non-representable part MIDI metadata,
-and microtones outside the supported quarter-tone spelling subset. It also reports ABC's lack of
-a canonical tablature staff, string/fret positions, and guitar-specific techniques as
-source-located losses.
+note annotations such as lyrics/dynamics/alternate noteheads, and microtones outside the
+supported quarter-tone spelling subset. It also reports ABC's lack of a canonical tablature
+staff, string/fret positions, and guitar-specific techniques as source-located losses.
 `parse_mscx_with_report` reports known unsupported MuseScore elements such as tremolos,
 ottavas, glissandos, and harmony with source paths.
 
