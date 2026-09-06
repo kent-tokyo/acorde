@@ -45,6 +45,8 @@ it supports bounded single-score and batch analysis, editor replacement, explici
 and JSON hit/miss statistics. Cache capacity is caller-owned and zero capacity is rejected.
 `capacity()`, `len()`, and `is_empty()` expose bounded cache occupancy without inspecting result
 payloads.
+`diff_analysis(previous_result_json, current_result_json)` reports changed analysis categories
+without requiring the browser host to compare result object graphs itself.
 
 ## Incremental updates
 

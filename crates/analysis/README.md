@@ -37,6 +37,10 @@ snapshot and returns the analysis for the current score in one operation.
 When both snapshots have the same canonical fingerprint, the helper keeps and reuses the existing
 entry instead of forcing an unnecessary recomputation.
 
+`diff_analysis(previous, current)` reports changed result categories in stable order while keeping
+score fingerprint changes separate from category changes. This lets hosts update explanations or
+views selectively without treating metadata-only edits as analysis-content changes.
+
 Offline benchmark consumers can use `BenchmarkCase` and `run_benchmark` with hand-verified
 category counts. The report includes predicted counts, precision, recall, explanation
 completeness, and category-level `BenchmarkFailure` records with missing or excess predictions.

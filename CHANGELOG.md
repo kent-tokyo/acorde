@@ -52,6 +52,9 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
 - WASM now exposes the bounded `AnalysisCache` workflow for repeated browser analysis, including
   batch reuse, editor replacement, invalidation, and hit/miss statistics.
 - WASM `AnalysisCache` now exposes its configured capacity alongside current occupancy.
+- `acorde-analysis` now exposes deterministic category-level `AnalysisDiff` results for comparing
+  analysis outputs while separating score identity changes from content changes.
+- WASM now exposes `diff_analysis` for the same category-level comparison contract.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

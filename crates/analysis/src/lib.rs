@@ -43,6 +43,70 @@ pub struct AnalysisResult {
     pub phrase_boundaries: Vec<PhraseBoundary>,
 }
 
+/// One complete-analysis category that can change between two results.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AnalysisCategory {
+    Chords,
+    Intervals,
+    KeyEstimates,
+    CadenceCandidates,
+    VoiceLeading,
+    SatbDiagnostics,
+    Motifs,
+    PhraseBoundaries,
+}
+
+/// Deterministic category-level diff between two analysis results.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AnalysisDiff {
+    pub previous_score_fingerprint: String,
+    pub current_score_fingerprint: String,
+    pub schema_changed: bool,
+    pub changed_categories: Vec<AnalysisCategory>,
+}
+
+impl AnalysisDiff {
+    /// Return whether any schema or analysis category changed.
+    pub fn is_empty(&self) -> bool {
+        !self.schema_changed && self.changed_categories.is_empty()
+    }
+}
+
+/// Compare two complete results in stable category order.
+pub fn diff_analysis(previous: &AnalysisResult, current: &AnalysisResult) -> AnalysisDiff {
+    let mut changed_categories = Vec::new();
+    if previous.chords != current.chords {
+        changed_categories.push(AnalysisCategory::Chords);
+    }
+    if previous.intervals != current.intervals {
+        changed_categories.push(AnalysisCategory::Intervals);
+    }
+    if previous.key_estimates != current.key_estimates {
+        changed_categories.push(AnalysisCategory::KeyEstimates);
+    }
+    if previous.cadence_candidates != current.cadence_candidates {
+        changed_categories.push(AnalysisCategory::CadenceCandidates);
+    }
+    if previous.voice_leading != current.voice_leading {
+        changed_categories.push(AnalysisCategory::VoiceLeading);
+    }
+    if previous.satb_diagnostics != current.satb_diagnostics {
+        changed_categories.push(AnalysisCategory::SatbDiagnostics);
+    }
+    if previous.motifs != current.motifs {
+        changed_categories.push(AnalysisCategory::Motifs);
+    }
+    if previous.phrase_boundaries != current.phrase_boundaries {
+        changed_categories.push(AnalysisCategory::PhraseBoundaries);
+    }
+    AnalysisDiff {
+        previous_score_fingerprint: previous.score_fingerprint.clone(),
+        current_score_fingerprint: current.score_fingerprint.clone(),
+        schema_changed: previous.schema_version != current.schema_version,
+        changed_categories,
+    }
+}
+
 impl AnalysisResult {
     /// Return a cache key that invalidates when either the input or result schema changes.
     pub fn cache_key(&self) -> String {
@@ -1420,6 +1484,51 @@ mod tests {
         let mut changed = score.clone();
         changed.metadata.title = "Changed".to_string();
         assert!(!result.matches_score(&changed));
+    }
+
+    #[test]
+    fn analysis_diff_is_empty_for_identical_results() {
+        let result = analyze_score(&Score::default());
+        let diff = diff_analysis(&result, &result);
+        assert!(diff.is_empty());
+        assert_eq!(diff.previous_score_fingerprint, result.score_fingerprint);
+        assert_eq!(diff.current_score_fingerprint, result.score_fingerprint);
+    }
+
+    #[test]
+    fn analysis_diff_keeps_score_identity_separate_from_category_changes() {
+        let mut first_score = Score::default();
+        first_score.metadata.title = "first".to_owned();
+        let mut second_score = first_score.clone();
+        second_score.metadata.title = "second".to_owned();
+        let diff = diff_analysis(&analyze_score(&first_score), &analyze_score(&second_score));
+
+        assert!(diff.is_empty());
+        assert!(diff.changed_categories.is_empty());
+        assert_ne!(
+            diff.previous_score_fingerprint,
+            diff.current_score_fingerprint
+        );
+    }
+
+    #[test]
+    fn analysis_diff_reports_changed_categories_in_stable_order() {
+        let previous = analyze_score(&Score::default());
+        let mut changed_score = Score::default();
+        let voice = &mut changed_score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        for step in [Step::C, Step::E, Step::G] {
+            voice.push(Note::new(Pitch::new(step, 4), Duration::Quarter));
+        }
+        let current = analyze_score(&changed_score);
+        let diff = diff_analysis(&previous, &current);
+
+        assert!(!diff.is_empty());
+        assert_eq!(diff.changed_categories[0], AnalysisCategory::Chords);
+        assert!(
+            diff.changed_categories
+                .contains(&AnalysisCategory::Intervals)
+        );
     }
 
     #[test]

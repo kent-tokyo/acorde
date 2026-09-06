@@ -557,6 +557,18 @@ pub fn analysis_cache_key(score_json: &str) -> Result<String, JsValue> {
     Ok(acorde_analysis::analysis_cache_key(&score))
 }
 
+/// Compare two serialized analysis results and return a deterministic category-level diff.
+#[wasm_bindgen]
+pub fn diff_analysis(previous_json: &str, current_json: &str) -> Result<String, JsValue> {
+    let previous: acorde_analysis::AnalysisResult =
+        parse_json(previous_json, "previous analysis", MAX_SMALL_JSON_BYTES)?;
+    let current: acorde_analysis::AnalysisResult =
+        parse_json(current_json, "current analysis", MAX_SMALL_JSON_BYTES)?;
+    let diff = acorde_analysis::diff_analysis(&previous, &current);
+    serde_json::to_string(&diff)
+        .map_err(|e| js_err(format!("analysis diff serialization failed: {e}")))
+}
+
 /// JavaScript-visible bounded cache for deterministic score analysis.
 #[wasm_bindgen]
 pub struct AnalysisCache {
@@ -1410,6 +1422,29 @@ mod wasm_tests {
         let stats = cache.stats().unwrap();
         assert!(stats.contains("\"hits\":1"));
         assert!(stats.contains("\"misses\":1"));
+    }
+
+    #[wasm_bindgen_test]
+    fn browser_analysis_diff_reports_category_changes() {
+        let previous_score = Score::default();
+        let mut current_score = Score::default();
+        let voice = &mut current_score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        for step in [
+            acorde_core::Step::C,
+            acorde_core::Step::E,
+            acorde_core::Step::G,
+        ] {
+            voice.push(acorde_core::Note::new(
+                acorde_core::Pitch::new(step, 4),
+                acorde_core::Duration::Quarter,
+            ));
+        }
+        let previous = analyze_score(&serde_json::to_string(&previous_score).unwrap()).unwrap();
+        let current = analyze_score(&serde_json::to_string(&current_score).unwrap()).unwrap();
+        let diff = diff_analysis(&previous, &current).unwrap();
+        assert!(diff.contains("Chords"));
+        assert!(diff.contains("Intervals"));
     }
 
     #[wasm_bindgen_test]

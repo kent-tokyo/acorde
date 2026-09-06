@@ -112,6 +112,8 @@ Playback events include stable source note addresses for synchronizing audio cur
 notation selection. The WASM package exposes the same pipeline plus `ScoreEngine`, score diff/patch, validation,
 playback, theory helpers, deterministic tablature fingering selection, and explainable score analysis through
 `analyze_score`; its `AnalysisCache` class provides bounded repeated analysis and hit/miss stats.
+The WASM `diff_analysis` call identifies changed analysis categories between two result JSON
+payloads.
 See [the browser contract](docs/browser-rendering.md) and the
 [browser fixture](examples/browser/README.md).
 
