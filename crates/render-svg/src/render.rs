@@ -15,7 +15,7 @@ use crate::glyphs::{self, f};
 use crate::tuplets;
 use crate::{
     AddressBounds, RenderAnnotation, RenderAnnotationError, RenderError, RenderMetadata,
-    SVG_CONTRACT_VERSION, SvgAnnotation, SvgRenderOptions, TextAnnotation,
+    SVG_CONTRACT_VERSION, SvgAnnotation, SvgRenderOptions, TextAnnotation, tab_fret_metrics,
 };
 
 const LEFT_MARGIN_U: f32 = 1.0;
@@ -1711,10 +1711,11 @@ fn validate_tab_note(
             });
         }
     }
-    let widths = positions
+    let total_width = positions
         .iter()
-        .map(|position| position.fret.to_string().chars().count() as f32 * 0.48 * space);
-    let total_width = widths.sum::<f32>() + 0.22 * space * positions.len().saturating_sub(1) as f32;
+        .map(|position| tab_fret_metrics(position.fret).advance_units * space)
+        .sum::<f32>()
+        + tab_fret_metrics(0).side_gap_units * space * positions.len().saturating_sub(1) as f32;
     if !total_width.is_finite() {
         return Err(RenderError::TabMetricsOverflow);
     }
@@ -1754,9 +1755,9 @@ fn render_tab_note(
         // These are conservative font-independent metrics; host typography remains separate.
         let glyph_widths: Vec<f32> = positions
             .iter()
-            .map(|position| position.fret.to_string().chars().count() as f32 * 0.48 * space)
+            .map(|position| tab_fret_metrics(position.fret).advance_units * space)
             .collect();
-        let gap = 0.22 * space;
+        let gap = tab_fret_metrics(0).side_gap_units * space;
         let total_width =
             glyph_widths.iter().sum::<f32>() + gap * glyph_widths.len().saturating_sub(1) as f32;
         let mut cursor = x - total_width / 2.0;

@@ -16,6 +16,8 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
   contract (`svg-text-cents`, exact signed cents preservation) for host-neutral resource checks.
 - Explicit unpitched notehead shapes now expose bounded percussion resource hooks without
   inferring an instrument or MIDI sound identity.
+- Tablature fret-width and inter-label gap assumptions are exposed through a versioned,
+  self-authored fixture-backed metrics contract.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

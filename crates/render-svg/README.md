@@ -25,6 +25,8 @@ Unpitched notes retain their display placement and receive an `acorde-unpitched`
 not invent a percussion sound mapping.
 Tab positions outside the owning staff's line range return `RenderError::InvalidTabPosition`
 before SVG emission; invalid metric arithmetic returns `RenderError::TabMetricsOverflow`.
+The public `tab_fret_metrics()` contract and self-authored fixture pin the digit-width and gap
+assumptions used for deterministic multi-position spacing; installed-font metrics remain host work.
 
 ~~~rust
 use acorde_core::Score;

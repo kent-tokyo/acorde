@@ -615,6 +615,38 @@ fn tablature_preserves_microtone_marker() {
 }
 
 #[test]
+fn tablature_metric_fixture_matches_public_contract() {
+    #[derive(serde::Deserialize)]
+    struct Fixture {
+        contract_version: u32,
+        license: String,
+        cases: Vec<Case>,
+        side_gap_units: f32,
+    }
+    #[derive(serde::Deserialize)]
+    struct Case {
+        fret: u8,
+        digit_count: u8,
+        advance_units: f32,
+    }
+
+    let fixture: Fixture = serde_json::from_str(include_str!("fixtures/tab_metrics.json"))
+        .expect("tab metrics fixture is valid JSON");
+    assert_eq!(
+        fixture.contract_version,
+        acorde_render_svg::TAB_METRICS_CONTRACT_VERSION
+    );
+    assert_eq!(fixture.license, "self-authored");
+    for case in fixture.cases {
+        let metrics = acorde_render_svg::tab_fret_metrics(case.fret);
+        assert_eq!(metrics.fret, case.fret);
+        assert_eq!(metrics.digit_count, case.digit_count);
+        assert!((metrics.advance_units - case.advance_units).abs() < 1e-6);
+        assert!((metrics.side_gap_units - fixture.side_gap_units).abs() < 1e-6);
+    }
+}
+
+#[test]
 fn tablature_multiple_positions_get_deterministic_horizontal_spacing() {
     use acorde_core::{Duration, Note, Pitch, Staff, Step, TabPosition, TablatureConfig};
     let mut score = acorde_core::Score::new("Tab positions", 120, 4, 4, 0, 1);

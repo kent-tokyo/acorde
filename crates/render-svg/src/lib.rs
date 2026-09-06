@@ -42,6 +42,30 @@ pub const SVG_CONTRACT_VERSION: u32 = 3;
 pub const GLYPH_COVERAGE_CONTRACT_VERSION: u32 = 3;
 /// Stable identifier for the renderer's font-independent vector glyph set.
 pub const BUILTIN_GLYPH_RESOURCE_ID: &str = "acorde-vector-glyphs-v1";
+/// Version of the deterministic tablature metric contract.
+pub const TAB_METRICS_CONTRACT_VERSION: u32 = 1;
+
+/// Font-independent metrics for one rendered tablature fret label.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct TabFretMetrics {
+    pub fret: u8,
+    pub digit_count: u8,
+    /// Horizontal advance in staff-space units, before multiplying by staff size.
+    pub advance_units: f32,
+    /// Fixed gap between adjacent fret labels in staff-space units.
+    pub side_gap_units: f32,
+}
+
+/// Return the stable metrics used for tablature fret labels.
+pub fn tab_fret_metrics(fret: u8) -> TabFretMetrics {
+    let digit_count = fret.to_string().len() as u8;
+    TabFretMetrics {
+        fret,
+        digit_count,
+        advance_units: f32::from(digit_count) * 0.48,
+        side_gap_units: 0.22,
+    }
+}
 
 /// Return the stable built-in resource name for a bounded unpitched notehead shape.
 ///

@@ -1,0 +1,13 @@
+{
+  "contract_version": 1,
+  "license": "self-authored",
+  "cases": [
+    { "fret": 0, "digit_count": 1, "advance_units": 0.48 },
+    { "fret": 3, "digit_count": 1, "advance_units": 0.48 },
+    { "fret": 7, "digit_count": 1, "advance_units": 0.48 },
+    { "fret": 12, "digit_count": 2, "advance_units": 0.96 },
+    { "fret": 99, "digit_count": 2, "advance_units": 0.96 },
+    { "fret": 255, "digit_count": 3, "advance_units": 1.44 }
+  ],
+  "side_gap_units": 0.22
+}
