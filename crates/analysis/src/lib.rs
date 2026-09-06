@@ -2,7 +2,7 @@
 
 use acorde_core::{ChordSymbol, KeySignature, NoteAddr, Score, detect_chord, roman_numeral};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use thiserror::Error;
 
 /// Version of the serialized analysis result contract.
@@ -410,6 +410,100 @@ pub fn analysis_cache_key(score: &Score) -> String {
         ANALYSIS_SCHEMA_VERSION,
         score_fingerprint(score)
     )
+}
+
+/// Errors returned when configuring the bounded analysis cache.
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum AnalysisCacheError {
+    #[error("analysis cache capacity must be greater than zero")]
+    ZeroCapacity,
+}
+
+/// A deterministic, bounded cache for complete analysis results.
+///
+/// Entries are keyed by the schema-versioned canonical score fingerprint. A score edit therefore
+/// naturally misses the old entry without requiring callers to diff JSON or manually invalidate
+/// every analysis category. Eviction is insertion-order based rather than hash-map iteration
+/// based, keeping behavior reproducible across hosts.
+#[derive(Debug, Clone)]
+pub struct AnalysisCache {
+    capacity: usize,
+    entries: BTreeMap<String, AnalysisResult>,
+    insertion_order: VecDeque<String>,
+}
+
+impl Default for AnalysisCache {
+    fn default() -> Self {
+        Self::with_capacity(16).expect("the default analysis cache capacity is non-zero")
+    }
+}
+
+impl AnalysisCache {
+    /// Create a cache with a fixed maximum number of score results.
+    pub fn with_capacity(capacity: usize) -> Result<Self, AnalysisCacheError> {
+        if capacity == 0 {
+            return Err(AnalysisCacheError::ZeroCapacity);
+        }
+        Ok(Self {
+            capacity,
+            entries: BTreeMap::new(),
+            insertion_order: VecDeque::new(),
+        })
+    }
+
+    /// Return the configured maximum number of cached results.
+    pub fn capacity(&self) -> usize {
+        self.capacity
+    }
+
+    /// Return a cached result for the supplied score, if its canonical content is present.
+    pub fn get(&self, score: &Score) -> Option<&AnalysisResult> {
+        self.entries.get(&analysis_cache_key(score))
+    }
+
+    /// Analyze a score once per cache key, returning a cloned result for ergonomic host use.
+    pub fn analyze(&mut self, score: &Score) -> AnalysisResult {
+        let key = analysis_cache_key(score);
+        if let Some(result) = self.entries.get(&key) {
+            return result.clone();
+        }
+
+        let result = analyze_score(score);
+        self.insert(key, result.clone());
+        result
+    }
+
+    /// Insert a previously computed result and evict the oldest entry when the cache is full.
+    pub fn insert(&mut self, key: String, result: AnalysisResult) {
+        if self.entries.contains_key(&key) {
+            self.entries.insert(key.clone(), result);
+            self.insertion_order.retain(|existing| existing != &key);
+        } else {
+            self.entries.insert(key.clone(), result);
+        }
+        self.insertion_order.push_back(key);
+        while self.entries.len() > self.capacity {
+            if let Some(oldest) = self.insertion_order.pop_front() {
+                self.entries.remove(&oldest);
+            }
+        }
+    }
+
+    /// Remove all cached results.
+    pub fn clear(&mut self) {
+        self.entries.clear();
+        self.insertion_order.clear();
+    }
+
+    /// Return the number of cached results.
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    /// Return whether the cache contains no results.
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
 }
 
 fn fnv1a64(bytes: &[u8]) -> u64 {
@@ -1167,6 +1261,45 @@ mod tests {
         let mut changed = result.clone();
         changed.schema_version = 8;
         assert_ne!(result.cache_key(), changed.cache_key());
+    }
+
+    #[test]
+    fn analysis_cache_reuses_identical_score_and_misses_after_edit() {
+        let score = Score::default();
+        let mut cache = AnalysisCache::with_capacity(2).unwrap();
+        let first = cache.analyze(&score);
+        assert_eq!(cache.len(), 1);
+        assert!(cache.get(&score).is_some());
+        let second = cache.analyze(&score);
+        assert_eq!(first, second);
+
+        let mut changed = score.clone();
+        changed.metadata.title = "changed".to_owned();
+        assert!(cache.get(&changed).is_none());
+        let changed_result = cache.analyze(&changed);
+        assert_ne!(first.score_fingerprint, changed_result.score_fingerprint);
+        assert_eq!(cache.len(), 2);
+    }
+
+    #[test]
+    fn analysis_cache_eviction_is_bounded_and_deterministic() {
+        let mut cache = AnalysisCache::with_capacity(1).unwrap();
+        let first = Score::default();
+        let mut second = first.clone();
+        second.metadata.title = "second".to_owned();
+        cache.analyze(&first);
+        cache.analyze(&second);
+        assert_eq!(cache.len(), 1);
+        assert!(cache.get(&first).is_none());
+        assert!(cache.get(&second).is_some());
+    }
+
+    #[test]
+    fn analysis_cache_rejects_zero_capacity() {
+        assert!(matches!(
+            AnalysisCache::with_capacity(0),
+            Err(AnalysisCacheError::ZeroCapacity)
+        ));
     }
 
     #[test]

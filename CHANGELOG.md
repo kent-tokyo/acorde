@@ -39,6 +39,8 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
 - Added a checked-in unsupported-notation fixture for deterministic preflight failure coverage.
 - Renderer preflight now detects unsupported clef changes stored at measure scope, matching the
   effective clef used during SVG layout and rendering.
+- `acorde-analysis` now provides a bounded deterministic `AnalysisCache` keyed by the existing
+  schema-versioned score fingerprint, with automatic edit misses and reproducible eviction.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.
