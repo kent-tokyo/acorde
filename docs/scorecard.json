@@ -24,6 +24,7 @@
     "deterministic_svg": "yes",
     "wasm_bindings": "yes",
     "analysis_primitives": "yes",
+    "analysis_cache": "yes",
     "analysis_extension_points": "yes",
     "render_annotation_extension_points": "yes",
     "headless_validate": "yes",
@@ -39,7 +40,8 @@
     "Broad held-out MEI/MSCZ/MIDI corpus comparison and audio-rendering equivalence remain external validation gates.",
     "Compatibility measurements against music21 and browser notation ecosystems, plus downstream adoption evidence, remain external ecosystem gates.",
     "Advanced print engraving, PDF generation, and OS printing remain host-bound or planned work.",
-    "Browser E2E and cross-browser visual measurements are not implied by native tests."
+    "Browser E2E and cross-browser visual measurements are not implied by native tests.",
+    "AnalysisCache reuses complete deterministic results by score fingerprint; dependency-aware partial recomputation remains planned."
   ],
   "evidence": {
     "coverage_matrix": "docs/notation-coverage.md",
