@@ -2922,6 +2922,16 @@ mod tests {
             result.pages[0].publication.text_blocks[1].alignment,
             PublicationTextAlignment::Right
         );
+        let artifacts = result
+            .export_page_artifacts()
+            .expect("publication pages export without host resources");
+        assert_eq!(artifacts.len(), result.pages.len());
+        assert_eq!(artifacts[0].layout.publication, result.pages[0].publication);
+        assert!(
+            artifacts
+                .iter()
+                .all(|artifact| artifact.diagnostics.is_empty())
+        );
     }
 
     #[test]
