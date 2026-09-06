@@ -77,6 +77,8 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
   outside that region when merging editor updates.
 - Interval analysis now accepts bounded regions and retains observations touching the edited
   range, including boundary notes.
+- Voice-leading analysis now accepts bounded regions and preserves observations outside the
+  edited range during incremental merging.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

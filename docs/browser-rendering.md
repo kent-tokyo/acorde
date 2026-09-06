@@ -62,6 +62,8 @@ The Rust analysis layer now applies the supplied region to chord-pass traversal 
 refreshed region with preserved outside results.
 Interval analysis also accepts the region and includes observations touching the edited range,
 so boundary notes are not silently omitted.
+Voice-leading analysis now traverses only the selected region and preserves outside observations
+when merged into an incremental result.
 
 ## Incremental updates
 

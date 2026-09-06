@@ -617,7 +617,11 @@ pub fn analyze_selected_categories_in_region(
     let voice_leading = if selected(AnalysisCategory::VoiceLeading)
         || selected(AnalysisCategory::SatbDiagnostics)
     {
-        analyze_voice_leading(score)
+        merge_voice_leading_region(
+            &previous.voice_leading,
+            analyze_voice_leading_in_region(score, region),
+            region,
+        )
     } else {
         previous.voice_leading.clone()
     };
@@ -676,6 +680,36 @@ fn merge_interval_region(
             item.from.note,
             item.to.measure,
             item.to.note,
+        )
+    });
+    merged
+}
+
+fn merge_voice_leading_region(
+    previous: &[VoiceLeadingObservation],
+    refreshed: Vec<VoiceLeadingObservation>,
+    region: Option<&AnalysisRegion>,
+) -> Vec<VoiceLeadingObservation> {
+    let Some(region) = region else {
+        return refreshed;
+    };
+    let mut merged: Vec<_> = previous
+        .iter()
+        .filter(|item| {
+            !analysis_region_contains(region, &item.upper)
+                && !analysis_region_contains(region, &item.lower)
+        })
+        .cloned()
+        .collect();
+    merged.extend(refreshed);
+    merged.sort_by_key(|item| {
+        (
+            item.upper.part,
+            item.upper.staff,
+            item.upper.measure,
+            item.upper.voice,
+            item.upper.note,
+            item.lower.voice,
         )
     });
     merged
@@ -1441,10 +1475,26 @@ fn roman_figure(roman: &str) -> &str {
 
 /// Check aligned notes in adjacent voices for motion and parallel perfect intervals.
 pub fn analyze_voice_leading(score: &Score) -> Vec<VoiceLeadingObservation> {
+    analyze_voice_leading_in_region(score, None)
+}
+
+/// Analyze voice-leading observations inside an optional part/staff measure region.
+pub fn analyze_voice_leading_in_region(
+    score: &Score,
+    region: Option<&AnalysisRegion>,
+) -> Vec<VoiceLeadingObservation> {
     let mut observations = Vec::new();
     for (part_index, part) in score.parts.iter().enumerate() {
         for (staff_index, staff) in part.staves.iter().enumerate() {
             for (measure_index, measure) in staff.measures.iter().enumerate() {
+                if let Some(region) = region
+                    && (part_index != region.part
+                        || staff_index != region.staff
+                        || measure_index < region.start_measure
+                        || measure_index >= region.end_measure)
+                {
+                    continue;
+                }
                 for (upper_index, upper_voice) in measure.voices.iter().enumerate() {
                     let Some(lower_voice) = measure.voices.get(upper_index + 1) else {
                         continue;
@@ -2075,6 +2125,29 @@ mod tests {
         let intervals = analyze_intervals_in_region(&score, Some(&region));
         assert_eq!(intervals.len(), 1);
         assert_eq!(intervals[0].from.measure, 0);
+    }
+
+    #[test]
+    fn voice_leading_region_limits_measure_traversal() {
+        let mut score = Score::default();
+        for measure_index in 0..2 {
+            let measure = &mut score.parts[0].staves[0].measures[measure_index];
+            measure.voices[0].clear();
+            measure.voices[1].clear();
+            measure.voices[0].push(Note::new(Pitch::new(Step::C, 4), Duration::Quarter));
+            measure.voices[1].push(Note::new(Pitch::new(Step::G, 3), Duration::Quarter));
+            measure.voices[0].push(Note::new(Pitch::new(Step::D, 4), Duration::Quarter));
+            measure.voices[1].push(Note::new(Pitch::new(Step::A, 3), Duration::Quarter));
+        }
+        let region = AnalysisRegion {
+            part: 0,
+            staff: 0,
+            start_measure: 1,
+            end_measure: 2,
+        };
+        let observations = analyze_voice_leading_in_region(&score, Some(&region));
+        assert_eq!(observations.len(), 1);
+        assert_eq!(observations[0].upper.measure, 1);
     }
 
     #[test]
