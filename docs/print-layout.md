@@ -72,8 +72,10 @@ serialized page address, returning no artifact for a mismatched or corrupted add
 For page-oriented export, `PrintLayoutResult::export_page_artifacts()` validates the complete
 result and returns one `PageArtifact` per page in physical order. Each artifact contains
 millimetre dimensions, its physical measure span, the copied `PageLayout`, and typed
-`PageArtifactDiagnostic::SpanContinuation` and `GlyphResourceRequired` entries. The latter marks
-pages whose `GlyphResourcePolicy::HostProvided` key still requires host/provider resolution. It emits no file bytes and has no PDF, font,
+`PageArtifactDiagnostic::SpanContinuation` and `GlyphResourceRequired` entries. Hosts can call
+`PageLayout::artifact_diagnostics(Some(extents))` to add a `GlyphOverflow` entry with the exact
+overflow directions from host-computed glyph bounds. The resource entry marks pages whose
+`GlyphResourcePolicy::HostProvided` key still requires host/provider resolution. It emits no file bytes and has no PDF, font,
 filesystem, or printer dependency; those concerns remain in the host exporter.
 Hosts that persist or transport a complete result can call `PrintLayoutResult::validate()` to
 check page indices, global system indices, and page-local system positions before reuse.
