@@ -32,6 +32,9 @@ compatibility. Measure-level styled text can be edited transactionally with
 `Command::SetMeasureText`: provide an existing `text_index` to replace/remove an entry, or the
 current length to append one. Invalid indexes return an error before mutation, and the operation
 participates in the normal undo/redo and JSON command-history contracts.
+`EngineHistory::base_matches` and `ScoreEngine::from_history_on_base` provide a deterministic
+preflight and typed rejection for replaying a stale command log on an unrelated collaboration
+snapshot.
 
 ~~~rust
 use acorde_core::{Command, ScoreEngine, SetTempoCmd};

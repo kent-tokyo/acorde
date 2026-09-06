@@ -80,4 +80,6 @@ pub enum Error {
     CannotDeleteLastStaff,
     #[error("invalid patch: {0}")]
     InvalidPatch(String),
+    #[error("engine history base score does not match the supplied score")]
+    HistoryBaseMismatch,
 }

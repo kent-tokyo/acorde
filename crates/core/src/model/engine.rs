@@ -183,6 +183,17 @@ impl ScoreEngine {
         Ok(engine)
     }
 
+    /// Reconstruct history only when its declared base matches the supplied collaboration base.
+    ///
+    /// This prevents a stale command log from being replayed onto an unrelated score. Callers
+    /// can use [`EngineHistory::base_matches`] for a non-mutating preflight check first.
+    pub fn from_history_on_base(history: EngineHistory, base: Score) -> Result<Self, Error> {
+        if !history.base_matches(&base) {
+            return Err(Error::HistoryBaseMismatch);
+        }
+        Self::from_history(history)
+    }
+
     pub fn copy_voice(
         &mut self,
         part_index: usize,
@@ -476,6 +487,19 @@ impl ScoreEngine {
             .take()
             .ok_or_else(|| Error::InvalidCommand("no slur in progress".to_string()))?;
         self.apply(Command::ToggleSlur(ToggleSlurCmd { start, end }))
+    }
+}
+
+impl EngineHistory {
+    /// Return whether this history was recorded from the supplied collaboration base.
+    pub fn base_matches(&self, base: &Score) -> bool {
+        match (
+            serde_json::to_vec(&self.initial_score),
+            serde_json::to_vec(base),
+        ) {
+            (Ok(expected), Ok(actual)) => expected == actual,
+            _ => false,
+        }
     }
 }
 
@@ -904,6 +928,37 @@ mod tests {
         assert_eq!(history.commands.len(), 2);
         let restored = ScoreEngine::from_history(history).unwrap();
         assert_eq!(restored.score.settings.tempo_bpm, 180);
+    }
+
+    #[test]
+    fn history_base_check_rejects_stale_collaboration_snapshot() {
+        let mut engine = ScoreEngine::new();
+        engine
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 160 }))
+            .unwrap();
+        let history = engine.export_history();
+        let mut unrelated = history.initial_score.clone();
+        unrelated.metadata.title = "unrelated".to_owned();
+
+        assert!(!history.base_matches(&unrelated));
+        assert!(matches!(
+            ScoreEngine::from_history_on_base(history, unrelated),
+            Err(Error::HistoryBaseMismatch)
+        ));
+    }
+
+    #[test]
+    fn history_base_check_allows_replay_on_matching_snapshot() {
+        let mut engine = ScoreEngine::new();
+        engine
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 160 }))
+            .unwrap();
+        let history = engine.export_history();
+        let base = history.initial_score.clone();
+
+        assert!(history.base_matches(&base));
+        let restored = ScoreEngine::from_history_on_base(history, base).unwrap();
+        assert_eq!(restored.score.settings.tempo_bpm, 160);
     }
 
     #[test]
