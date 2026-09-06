@@ -53,6 +53,9 @@ its result and decide which views to refresh from one deterministic response.
 `AnalysisCache.analyze_selected_after_edit(previous_score_json, previous_result_json, current_json,
 categories_json)` recomputes only the requested categories and returns a complete merged result;
 the caller must supply the immediately preceding result and categories from the refresh planner.
+`AnalysisCache.analyze_after_edit_with_hint(previous_score_json, previous_result_json,
+current_json, change_hint_json)` connects that planner directly to the editor command result and
+returns the edited analysis with its category diff.
 
 ## Incremental updates
 

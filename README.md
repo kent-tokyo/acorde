@@ -117,6 +117,8 @@ payloads, while `AnalysisCache.analyze_after_edit_with_diff` returns the edited 
 category diff together for incremental editor updates.
 `affected_analysis_categories` maps a serialized `ChangeHint` to conservative analysis refresh
 categories for host-side incremental update planning.
+`AnalysisCache.analyze_after_edit_with_hint` combines that planning step with cached incremental
+analysis and the deterministic category diff.
 See [the browser contract](docs/browser-rendering.md) and the
 [browser fixture](examples/browser/README.md).
 

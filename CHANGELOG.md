@@ -69,6 +69,8 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
   WASM exposes the planning helper as `affected_analysis_categories`.
 - `AnalysisCache::analyze_selected_after_edit` now recomputes requested categories and caches a
   complete merged result; WASM exposes the same incremental editor operation.
+- `AnalysisCache::analyze_after_edit_with_hint` now connects `ChangeHint` planning directly to
+  incremental analysis and category diffs; WASM exposes the combined operation.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

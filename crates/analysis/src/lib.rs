@@ -713,6 +713,21 @@ impl AnalysisCache {
         result
     }
 
+    /// Apply a change hint, recompute its affected categories, and return the result diff.
+    pub fn analyze_after_edit_with_hint(
+        &mut self,
+        previous_score: &Score,
+        previous_result: &AnalysisResult,
+        current: &Score,
+        hint: &ChangeHint,
+    ) -> AnalysisEditResult {
+        let categories = affected_categories_for_change_hint(hint);
+        let analysis =
+            self.analyze_selected_after_edit(previous_score, previous_result, current, &categories);
+        let diff = diff_analysis(previous_result, &analysis);
+        AnalysisEditResult { analysis, diff }
+    }
+
     /// Insert a previously computed result and evict the oldest entry when the cache is full.
     pub fn insert(&mut self, key: String, result: AnalysisResult) {
         if self.entries.contains_key(&key) {
@@ -1649,6 +1664,26 @@ mod tests {
         assert_eq!(result.chords, previous_result.chords);
         assert_ne!(result.score_fingerprint, previous_result.score_fingerprint);
         assert_eq!(cache.stats(), AnalysisCacheStats { hits: 0, misses: 1 });
+    }
+
+    #[test]
+    fn hinted_analysis_uses_clean_hint_without_recomputing_categories() {
+        let previous = Score::default();
+        let previous_result = analyze_score(&previous);
+        let mut current = previous.clone();
+        current.metadata.title = "edited".to_owned();
+        let hint = ChangeHint {
+            scope: acorde_core::ChangeScope::Global,
+            layout_dirty: false,
+            playback_dirty: false,
+        };
+        let mut cache = AnalysisCache::with_capacity(2).unwrap();
+        let edited =
+            cache.analyze_after_edit_with_hint(&previous, &previous_result, &current, &hint);
+
+        assert!(edited.diff.is_empty());
+        assert!(edited.analysis.matches_score(&current));
+        assert_eq!(edited.analysis.chords, previous_result.chords);
     }
 
     #[test]

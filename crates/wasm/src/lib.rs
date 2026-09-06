@@ -671,6 +671,33 @@ impl AnalysisCache {
             .map_err(|e| js_err(format!("selected analysis serialization failed: {e}")))
     }
 
+    /// Apply a serialized ChangeHint and return the edited analysis plus category diff.
+    pub fn analyze_after_edit_with_hint(
+        &mut self,
+        previous_score_json: &str,
+        previous_result_json: &str,
+        current_json: &str,
+        change_hint_json: &str,
+    ) -> Result<String, JsValue> {
+        let previous_score = score_from_json(previous_score_json)?;
+        let previous_result: acorde_analysis::AnalysisResult = parse_json(
+            previous_result_json,
+            "previous analysis",
+            MAX_SMALL_JSON_BYTES,
+        )?;
+        let current = score_from_json(current_json)?;
+        let hint: acorde_core::ChangeHint =
+            parse_json(change_hint_json, "change hint", MAX_SMALL_JSON_BYTES)?;
+        let result = self.inner.analyze_after_edit_with_hint(
+            &previous_score,
+            &previous_result,
+            &current,
+            &hint,
+        );
+        serde_json::to_string(&result)
+            .map_err(|e| js_err(format!("hinted analysis serialization failed: {e}")))
+    }
+
     /// Invalidate one score snapshot and return whether it was cached.
     pub fn invalidate(&mut self, score_json: &str) -> Result<bool, JsValue> {
         let score = score_from_json(score_json)?;
