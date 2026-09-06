@@ -35,6 +35,14 @@ PDF conversion, font resolution, printer access, and preview UI remain host resp
 The current conservative capability inventory is tracked in the [scorecard](docs/scorecard.md).
 Security boundaries and resource-limit ownership are documented in the [security contract](docs/security/threat-model.md).
 
+For deterministic score analysis, add `acorde-analysis` directly. `AnalysisCache` supports bounded
+single-score and batch reuse, explicit editor snapshot invalidation, and hit/miss measurements;
+all cache keys include the analysis schema version and canonical score fingerprint.
+
+```toml
+acorde-analysis = "1.1.2"
+```
+
 The optional `soundfont` feature exposes `acorde::soundfont`, a bounded SF2/SF3
 metadata and provider-neutral note lifecycle boundary. It consumes unchanged
 `PlaybackEvent` values; sample decoding, synthesis, and licensed asset ownership
