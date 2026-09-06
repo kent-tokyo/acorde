@@ -434,7 +434,11 @@ pub struct AnalysisCache {
 
 impl Default for AnalysisCache {
     fn default() -> Self {
-        Self::with_capacity(16).expect("the default analysis cache capacity is non-zero")
+        Self {
+            capacity: 16,
+            entries: BTreeMap::new(),
+            insertion_order: VecDeque::new(),
+        }
     }
 }
 
