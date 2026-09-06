@@ -477,6 +477,11 @@ impl AnalysisCache {
         result
     }
 
+    /// Analyze scores in input order while reusing results already present in the cache.
+    pub fn analyze_batch(&mut self, scores: &[Score]) -> Vec<AnalysisResult> {
+        scores.iter().map(|score| self.analyze(score)).collect()
+    }
+
     /// Insert a previously computed result and evict the oldest entry when the cache is full.
     pub fn insert(&mut self, key: String, result: AnalysisResult) {
         if self.entries.contains_key(&key) {
@@ -1296,6 +1301,20 @@ mod tests {
         assert_eq!(cache.len(), 1);
         assert!(cache.get(&first).is_none());
         assert!(cache.get(&second).is_some());
+    }
+
+    #[test]
+    fn analysis_cache_batch_preserves_order_and_reuses_duplicate_scores() {
+        let first = Score::default();
+        let mut second = first.clone();
+        second.metadata.title = "second".to_owned();
+        let mut cache = AnalysisCache::with_capacity(2).unwrap();
+        let results = cache.analyze_batch(&[second.clone(), first.clone(), second.clone()]);
+
+        assert_eq!(results.len(), 3);
+        assert_eq!(results[0].score_fingerprint, results[2].score_fingerprint);
+        assert_ne!(results[0].score_fingerprint, results[1].score_fingerprint);
+        assert_eq!(cache.len(), 2);
     }
 
     #[test]

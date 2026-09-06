@@ -26,6 +26,8 @@ lazy iterator for host-side streaming. Both use the same deterministic result co
 `AnalysisCache` provides a bounded deterministic in-memory cache keyed by the schema-versioned
 score fingerprint. Editing any canonical score content produces a cache miss automatically;
 eviction is insertion-order based and does not depend on hash-map iteration.
+Its `analyze_batch` method preserves input order while reusing duplicate or previously cached
+scores.
 
 Offline benchmark consumers can use `BenchmarkCase` and `run_benchmark` with hand-verified
 category counts. The report includes predicted counts, precision, recall, explanation
