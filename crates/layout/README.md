@@ -27,7 +27,8 @@ pages aggregate cross-system span ownership as `PageSpanSegment` values;
 for its physical measure range and cross-page span continuation;
 `PrintLayoutResult::export_page_artifacts` validates the complete result and returns one
 host-neutral `PageArtifact` per page with physical dimensions, measure span, copied page layout,
-and typed span-continuation diagnostics;
+and typed resource/span-continuation diagnostics; `PageLayout::artifact_diagnostics` additionally
+turns host-computed `GlyphExtents` into deterministic per-side overflow diagnostics;
 `PrintLayoutResult::validate` checks serialized page and system addresses before host reuse;
 `PrintConfig::publication` and `PageLayout::publication` carry deterministic score metadata,
 part labels, running titles, page-scoped measure numbers, and physical header/footer text blocks

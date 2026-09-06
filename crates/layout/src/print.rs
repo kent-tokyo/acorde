@@ -811,6 +811,13 @@ pub struct PageArtifact {
 pub enum PageArtifactDiagnostic {
     /// The page uses a host-owned glyph resource and must be resolved by the exporter.
     GlyphResourceRequired,
+    /// Host-provided glyph extents exceed the page content area on one or more sides.
+    GlyphOverflow {
+        left: bool,
+        top: bool,
+        right: bool,
+        bottom: bool,
+    },
     /// A span continues across a page boundary and needs a continuation mark in the host.
     SpanContinuation {
         span_index: usize,
@@ -838,6 +845,50 @@ impl PageLayout {
         self.span_segments
             .iter()
             .any(|segment| !segment.starts_here || !segment.ends_here)
+    }
+
+    /// Build deterministic page diagnostics from optional host-computed glyph extents.
+    ///
+    /// Extents are expressed relative to the page content origin. This keeps overflow
+    /// detection independent of fonts and renderers while allowing a host to report a
+    /// clipping risk before producing an SVG, PDF, or print artifact.
+    pub fn artifact_diagnostics(
+        &self,
+        glyph_extents: Option<GlyphExtents>,
+    ) -> Vec<PageArtifactDiagnostic> {
+        let mut diagnostics = Vec::new();
+        if matches!(self.glyph_resources, GlyphResourcePolicy::HostProvided(_)) {
+            diagnostics.push(PageArtifactDiagnostic::GlyphResourceRequired);
+        }
+        if let Some(extents) = glyph_extents {
+            let overflow = PageArtifactDiagnostic::GlyphOverflow {
+                left: extents.left_mm < 0.0,
+                top: extents.top_mm < 0.0,
+                right: extents.right_mm > self.content_width_mm,
+                bottom: extents.bottom_mm > self.content_height_mm,
+            };
+            if let PageArtifactDiagnostic::GlyphOverflow {
+                left,
+                top,
+                right,
+                bottom,
+            } = overflow
+                && (left || top || right || bottom)
+            {
+                diagnostics.push(overflow);
+            }
+        }
+        diagnostics.extend(
+            self.span_segments
+                .iter()
+                .filter(|segment| !segment.starts_here || !segment.ends_here)
+                .map(|segment| PageArtifactDiagnostic::SpanContinuation {
+                    span_index: segment.span_index,
+                    starts_here: segment.starts_here,
+                    ends_here: segment.ends_here,
+                }),
+        );
+        diagnostics
     }
 }
 
@@ -957,33 +1008,17 @@ impl PrintLayoutResult {
         Ok(self
             .pages
             .iter()
-            .map(|page| {
-                let mut diagnostics = Vec::new();
-                if matches!(page.glyph_resources, GlyphResourcePolicy::HostProvided(_)) {
-                    diagnostics.push(PageArtifactDiagnostic::GlyphResourceRequired);
-                }
-                diagnostics.extend(
-                    page.span_segments
-                        .iter()
-                        .filter(|segment| !segment.starts_here || !segment.ends_here)
-                        .map(|segment| PageArtifactDiagnostic::SpanContinuation {
-                            span_index: segment.span_index,
-                            starts_here: segment.starts_here,
-                            ends_here: segment.ends_here,
-                        }),
-                );
-                PageArtifact {
-                    address: page.address,
-                    page_index: page.page_index,
-                    page_number: page.page_number,
-                    width_mm: page.width_mm,
-                    height_mm: page.height_mm,
-                    content_width_mm: page.content_width_mm,
-                    content_height_mm: page.content_height_mm,
-                    measure_span: page.measure_span(),
-                    diagnostics,
-                    layout: page.clone(),
-                }
+            .map(|page| PageArtifact {
+                address: page.address,
+                page_index: page.page_index,
+                page_number: page.page_number,
+                width_mm: page.width_mm,
+                height_mm: page.height_mm,
+                content_width_mm: page.content_width_mm,
+                content_height_mm: page.content_height_mm,
+                measure_span: page.measure_span(),
+                diagnostics: page.artifact_diagnostics(None),
+                layout: page.clone(),
             })
             .collect())
     }
@@ -2403,6 +2438,28 @@ mod tests {
             artifacts[0].layout.glyph_resources,
             GlyphResourcePolicy::HostProvided("licensed-font-v1".into())
         );
+    }
+
+    #[test]
+    fn page_artifact_diagnostics_report_glyph_overflow_sides() {
+        let result = compute_print_layout(&score_with_measures(1), &PrintConfig::default())
+            .expect("valid print layout");
+        let page = &result.pages[0];
+        assert_eq!(
+            page.artifact_diagnostics(Some(GlyphExtents {
+                left_mm: -1.0,
+                top_mm: -2.0,
+                right_mm: page.content_width_mm + 3.0,
+                bottom_mm: page.content_height_mm + 4.0,
+            })),
+            vec![PageArtifactDiagnostic::GlyphOverflow {
+                left: true,
+                top: true,
+                right: true,
+                bottom: true,
+            }]
+        );
+        assert!(page.artifact_diagnostics(None).is_empty());
     }
 
     #[test]
