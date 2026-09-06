@@ -96,8 +96,9 @@ model; common ABC (`^/`, `_/`) and MEI (`qs`, `qf`) quarter-accidental subsets a
 ## SVG and browser API
 
 `acorde-render-svg` offers `render_svg`, `render_svg_with_layout`, `render_svg_row`, and
-`render_svg_metadata`. It emits deterministic SVG with optional `data-note-addr` hooks and
-returns errors for unsupported clefs, accidentals, layouts, rows, or render options.
+`render_svg_metadata`, plus `render_preflight` for source-located capability checks before SVG
+emission. It emits deterministic SVG with optional `data-note-addr` hooks and returns errors for
+unsupported clefs, accidentals, layouts, rows, or render options.
 
 Playback events include stable source note addresses for synchronizing audio cursors with
 notation selection. The WASM package exposes the same pipeline plus `ScoreEngine`, score diff/patch, validation,
