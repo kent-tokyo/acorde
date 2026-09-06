@@ -207,6 +207,83 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<Diagnostic> {
             for (measure_index, measure) in staff.measures.iter().enumerate() {
                 for (voice_index, voice) in measure.voices.iter().enumerate() {
                     for (note_index, note) in voice.iter().enumerate() {
+                        let note_path = format!(
+                            "/score/part/{}/staff/{}/measure/{}/voice/{}/note/{}",
+                            part_index + 1,
+                            staff_index + 1,
+                            measure_index + 1,
+                            voice_index + 1,
+                            note_index + 1
+                        );
+                        for (field, present, value, reason) in [
+                            (
+                                "chord-symbol",
+                                note.chord_symbol.is_some(),
+                                note.chord_symbol.as_ref().map_or_else(
+                                    || "present".to_owned(),
+                                    |chord| chord.display_text(),
+                                ),
+                                "MIDI export does not emit note chord-symbol annotations",
+                            ),
+                            (
+                                "lyric",
+                                note.lyric.is_some(),
+                                note.lyric.as_ref().map_or_else(
+                                    || "present".to_owned(),
+                                    |lyric| lyric.text.clone(),
+                                ),
+                                "MIDI export does not emit note lyrics",
+                            ),
+                            (
+                                "articulations",
+                                !note.articulations.is_empty(),
+                                note.articulations.len().to_string(),
+                                "MIDI export does not emit note articulations",
+                            ),
+                            (
+                                "note_head",
+                                !matches!(note.note_head, acorde_core::NoteHead::Normal),
+                                format!("{:?}", note.note_head),
+                                "MIDI export does not emit alternate notehead shapes",
+                            ),
+                            (
+                                "is_unpitched",
+                                note.is_unpitched,
+                                "true".to_owned(),
+                                "MIDI export does not preserve unpitched note semantics",
+                            ),
+                            (
+                                "is_grace",
+                                note.is_grace,
+                                "true".to_owned(),
+                                "MIDI export omits grace-note events",
+                            ),
+                            (
+                                "is_cue",
+                                note.is_cue,
+                                "true".to_owned(),
+                                "MIDI export does not emit cue-note semantics",
+                            ),
+                            (
+                                "tab-position",
+                                note.tab_position.is_some() || !note.tab_positions.is_empty(),
+                                "present".to_owned(),
+                                "MIDI export does not emit tablature string/fret positions",
+                            ),
+                        ] {
+                            if present {
+                                if diagnostics.len() >= MAX_DIAGNOSTICS {
+                                    return diagnostics;
+                                }
+                                let mut diagnostic = Diagnostic::warning(
+                                    "midi.export-unsupported-note-annotation",
+                                    reason,
+                                );
+                                diagnostic.source_location = Some(format!("{note_path}/{field}"));
+                                diagnostic.preserved_value = Some(value);
+                                diagnostics.push(diagnostic);
+                            }
+                        }
                         for (pitch_index, pitch) in note.pitches.iter().enumerate() {
                             if pitch.microtone_cents == 0 {
                                 continue;
@@ -975,6 +1052,31 @@ mod tests {
                 .as_deref()
                 .is_some_and(|path| path.ends_with("/pitch/1"))
         );
+    }
+
+    #[test]
+    fn export_loss_report_locates_non_playback_note_annotations() {
+        let mut score = acorde_core::Score::new("MIDI annotations", 120, 4, 4, 0, 1);
+        let note = &mut score.parts[0].staves[0].measures[0].voices[0][0];
+        note.lyric = Some(acorde_core::Lyric {
+            text: "la".to_owned(),
+            syllabic: "single".to_owned(),
+        });
+        note.is_grace = true;
+        note.is_cue = true;
+        note.tab_position = Some(acorde_core::TabPosition { string: 1, fret: 3 });
+
+        let diagnostics = export_loss_diagnostics(&score);
+        for field in ["lyric", "is_grace", "is_cue", "tab-position"] {
+            let suffix = format!("/voice/1/note/1/{field}");
+            assert!(
+                diagnostics.iter().any(|diagnostic| diagnostic
+                    .source_location
+                    .as_deref()
+                    .is_some_and(|path| path.ends_with(&suffix))),
+                "missing MIDI diagnostic for {field}"
+            );
+        }
     }
 
     #[test]

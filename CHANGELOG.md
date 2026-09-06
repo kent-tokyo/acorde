@@ -26,6 +26,8 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
   noteheads, unpitched notes, grace notes, and cue notes.
 - Print page diagnostics now classify host-computed glyph overflow by side, and SVG rendering
   exposes source-located capability preflight for unsupported clefs, accidentals, and tablature.
+- MIDI export diagnostics now locate note annotations and grace/cue/tablature semantics that are
+  outside the performance event stream.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.
