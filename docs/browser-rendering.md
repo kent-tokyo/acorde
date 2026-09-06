@@ -60,6 +60,8 @@ returns the edited analysis with its category diff.
 one-measure boundary context for host-side scheduling.
 The Rust analysis layer now applies the supplied region to chord-pass traversal and merges the
 refreshed region with preserved outside results.
+Interval analysis also accepts the region and includes observations touching the edited range,
+so boundary notes are not silently omitted.
 
 ## Incremental updates
 

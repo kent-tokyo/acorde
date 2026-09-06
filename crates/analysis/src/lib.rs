@@ -596,7 +596,11 @@ pub fn analyze_selected_categories_in_region(
             previous.chords.clone()
         };
     let intervals = if selected(AnalysisCategory::Intervals) {
-        analyze_intervals(score)
+        merge_interval_region(
+            &previous.intervals,
+            analyze_intervals_in_region(score, region),
+            region,
+        )
     } else {
         previous.intervals.clone()
     };
@@ -644,6 +648,37 @@ pub fn analyze_selected_categories_in_region(
         motifs,
         phrase_boundaries,
     }
+}
+
+fn merge_interval_region(
+    previous: &[IntervalObservation],
+    refreshed: Vec<IntervalObservation>,
+    region: Option<&AnalysisRegion>,
+) -> Vec<IntervalObservation> {
+    let Some(region) = region else {
+        return refreshed;
+    };
+    let mut merged: Vec<_> = previous
+        .iter()
+        .filter(|item| {
+            !analysis_region_contains(region, &item.from)
+                && !analysis_region_contains(region, &item.to)
+        })
+        .cloned()
+        .collect();
+    merged.extend(refreshed);
+    merged.sort_by_key(|item| {
+        (
+            item.from.part,
+            item.from.staff,
+            item.from.measure,
+            item.from.voice,
+            item.from.note,
+            item.to.measure,
+            item.to.note,
+        )
+    });
+    merged
 }
 
 fn merge_chord_region(
@@ -1559,6 +1594,14 @@ pub fn estimate_keys(score: &Score) -> Vec<KeyEstimate> {
 
 /// Analyze adjacent pitched notes in every voice without inferring missing events.
 pub fn analyze_intervals(score: &Score) -> Vec<IntervalObservation> {
+    analyze_intervals_in_region(score, None)
+}
+
+/// Analyze intervals whose endpoints touch an optional part/staff measure region.
+pub fn analyze_intervals_in_region(
+    score: &Score,
+    region: Option<&AnalysisRegion>,
+) -> Vec<IntervalObservation> {
     let mut observations = Vec::new();
     for (part_index, part) in score.parts.iter().enumerate() {
         for (staff_index, staff) in part.staves.iter().enumerate() {
@@ -1592,6 +1635,12 @@ pub fn analyze_intervals(score: &Score) -> Vec<IntervalObservation> {
                             voice: voice_index,
                             note: to_index,
                         };
+                        if let Some(region) = region
+                            && !analysis_region_contains(region, &from_addr)
+                            && !analysis_region_contains(region, &to_addr)
+                        {
+                            continue;
+                        }
                         observations.push(IntervalObservation {
                             from: from_addr.clone(),
                             to: to_addr.clone(),
@@ -2006,6 +2055,26 @@ mod tests {
         let chords = analyze_chords_in_region(&score, Some(&region));
         assert_eq!(chords.len(), 1);
         assert_eq!(chords[0].address.measure, 0);
+    }
+
+    #[test]
+    fn interval_region_includes_boundary_observations() {
+        let mut score = Score::default();
+        for measure_index in 0..2 {
+            let voice = &mut score.parts[0].staves[0].measures[measure_index].voices[0];
+            voice.clear();
+            voice.push(Note::new(Pitch::new(Step::C, 4), Duration::Quarter));
+            voice.push(Note::new(Pitch::new(Step::D, 4), Duration::Quarter));
+        }
+        let region = AnalysisRegion {
+            part: 0,
+            staff: 0,
+            start_measure: 0,
+            end_measure: 1,
+        };
+        let intervals = analyze_intervals_in_region(&score, Some(&region));
+        assert_eq!(intervals.len(), 1);
+        assert_eq!(intervals[0].from.measure, 0);
     }
 
     #[test]

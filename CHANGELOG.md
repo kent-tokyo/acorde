@@ -75,6 +75,8 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
   boundary context; WASM exposes the same planner.
 - Chord analysis now accepts a bounded region for incremental traversal and preserves results
   outside that region when merging editor updates.
+- Interval analysis now accepts bounded regions and retains observations touching the edited
+  range, including boundary notes.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.
