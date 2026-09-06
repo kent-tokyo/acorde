@@ -288,6 +288,17 @@ pub fn compute_layout_ex(score_json: &str, config_json: &str) -> Result<String, 
 
 // ── SVG rendering ────────────────────────────────────────────────────────────
 
+/// Inspect SVG renderer capability boundaries and return source-located issues as JSON.
+///
+/// Browser hosts can call this before requesting SVG to present unsupported notation clearly.
+#[wasm_bindgen]
+pub fn render_preflight(score_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let issues = acorde_render_svg::render_preflight(&score);
+    serde_json::to_string(&issues)
+        .map_err(|e| js_err(format!("render preflight serialization failed: {e}")))
+}
+
 /// Render a score (JSON string) to an SVG string.
 ///
 /// `options_json` is a (partial) [`acorde_render_svg::SvgRenderOptions`] JSON object, e.g.
@@ -1289,6 +1300,7 @@ mod wasm_tests {
         assert!(metadata.contains("contract_version"));
         assert!(metadata.contains("accessible_text"));
         assert!(metadata.contains("address_bounds"));
+        assert_eq!(render_preflight(&score_json).unwrap(), "[]");
         assert!(render_score_svg_with_layout("{}", &layout_json, "{}").is_err());
         assert!(render_score_svg_row(&score_json, &layout_json, 99, "{}").is_err());
         assert!(render_score_metadata(&score_json, "not-json", "{}").is_err());

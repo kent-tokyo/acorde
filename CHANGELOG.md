@@ -32,6 +32,8 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
   diagnostics alongside the existing MusicXML and MIDI paths.
 - CLI `convert` now supports ABC and MEI output paths; use `export-report` when conversion-loss
   diagnostics are required.
+- WASM now exposes `render_preflight` so browser hosts can inspect renderer capability boundaries
+  before requesting SVG.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

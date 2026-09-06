@@ -20,6 +20,8 @@ outside the core/WASM contract and remain application-owned.
 - `compute_layout_ex(score_json, config_json)` returns the serialized `LayoutResult`.
 - `render_score_svg_with_layout(score_json, layout_json, options_json)` renders the complete
   score using that layout.
+- `render_preflight(score_json)` returns source-located JSON issues for renderer capability
+  boundaries before SVG emission (unsupported clefs, accidentals, and tablature positions).
 - `render_score_svg_row(score_json, layout_json, row, options_json)` renders one zero-based
   system, which is the unit a virtualized viewport can cache.
 - `render_score_metadata(score_json, layout_json, options_json)` returns a versioned metadata
