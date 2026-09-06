@@ -10,7 +10,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-Development after `1.1.2` begins the Phase 11 fidelity-hardening scope.
+Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
+
+- `acorde-render-svg` now exposes a versioned `GlyphCoverage` microtone-marker capability
+  contract (`svg-text-cents`, exact signed cents preservation) for host-neutral resource checks.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

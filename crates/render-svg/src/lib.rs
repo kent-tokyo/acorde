@@ -39,7 +39,7 @@ use std::fmt;
 /// Version of the browser-facing [`RenderMetadata`] contract.
 pub const SVG_CONTRACT_VERSION: u32 = 3;
 /// Version of the built-in glyph coverage contract.
-pub const GLYPH_COVERAGE_CONTRACT_VERSION: u32 = 1;
+pub const GLYPH_COVERAGE_CONTRACT_VERSION: u32 = 2;
 /// Stable identifier for the renderer's font-independent vector glyph set.
 pub const BUILTIN_GLYPH_RESOURCE_ID: &str = "acorde-vector-glyphs-v1";
 
@@ -103,6 +103,27 @@ pub struct TextAnnotation {
     pub relative_y: Option<f64>,
 }
 
+/// Host-neutral capability information for the renderer's explicit microtone marker.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MicrotoneMarkerCoverage {
+    /// Whether non-zero cents are emitted as a visible SVG marker.
+    pub supported: bool,
+    /// Stable representation name; this is intentionally not a font glyph claim.
+    pub representation: String,
+    /// Whether the marker preserves the exact signed cents value from the score model.
+    pub exact_cents: bool,
+}
+
+impl Default for MicrotoneMarkerCoverage {
+    fn default() -> Self {
+        Self {
+            supported: true,
+            representation: "svg-text-cents".to_owned(),
+            exact_cents: true,
+        }
+    }
+}
+
 /// Explicit coverage information for the renderer's built-in glyph resource.
 ///
 /// Hosts can use this before rendering or selecting a print resource. Unsupported
@@ -115,6 +136,9 @@ pub struct GlyphCoverage {
     pub supported_clefs: Vec<String>,
     pub accidental_min: i8,
     pub accidental_max: i8,
+    /// Explicit, font-independent microtone representation available to hosts.
+    #[serde(default)]
+    pub microtone_marker: MicrotoneMarkerCoverage,
 }
 
 /// Describe the deterministic, font-independent glyphs shipped by this renderer.
@@ -131,6 +155,7 @@ pub fn glyph_coverage() -> GlyphCoverage {
         ],
         accidental_min: -2,
         accidental_max: 2,
+        microtone_marker: MicrotoneMarkerCoverage::default(),
     }
 }
 
