@@ -15,6 +15,8 @@ acorde extract --part 0 input.musicxml part.musicxml
 acorde transpose --semitones 2 input.musicxml transposed.musicxml
 acorde normalize input.musicxml normalized.musicxml
 acorde export-report input.musicxml exported.musicxml
+acorde export-report input.musicxml exported.abc
+acorde export-report input.musicxml exported.mei
 acorde tab-position guitar.musicxml edited.musicxml --part 0 --measure 0 --note 1 --string 2 --fret 3
 acorde tab-position edited.musicxml cleared.musicxml --part 0 --measure 0 --note 1 --clear
 acorde auto-tab guitar.musicxml guitar-tabbed.musicxml
@@ -33,8 +35,8 @@ MusicXML or MIDI. info prints title, counts, tempo, time signature, and duration
 exits with status 1 when structural errors are found. report emits the parsed score and structured
 import diagnostics as JSON.
 analyze emits deterministic chord, melodic-interval, and key-estimate results as JSON.
-export-report writes MusicXML or MIDI and emits machine-readable export diagnostics without
-embedding the binary/text artifact in the JSON response.
+export-report writes MusicXML, MIDI, ABC, or MEI and emits machine-readable export diagnostics
+without embedding the binary/text artifact in the JSON response.
 benchmark reads a local JSON manifest and emits corpus metadata, including a content fingerprint,
 plus the deterministic suite report.
 Paths are relative to the manifest file. `--fail-on-mismatch` makes the command exit with status 1

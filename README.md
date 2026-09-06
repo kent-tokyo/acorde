@@ -116,13 +116,15 @@ acorde extract --part 0 input.musicxml part.musicxml
 acorde transpose --semitones 2 input.musicxml transposed.musicxml
 acorde normalize input.musicxml normalized.musicxml
 acorde export-report input.musicxml exported.musicxml
+acorde export-report input.musicxml exported.abc
+acorde export-report input.musicxml exported.mei
 acorde tab-position guitar.musicxml edited.musicxml --part 0 --measure 0 --note 1 --string 2 --fret 3
 acorde auto-tab guitar.musicxml guitar-tabbed.musicxml
 acorde auto-tab-report guitar.musicxml guitar-tabbed.musicxml
 ```
 
 The CLI supports `.musicxml`, `.mxl`, `.mid`/`.midi`, `.mscz`, and `.mscx` input. Conversion
-output is MusicXML or MIDI.
+output is MusicXML, MIDI, ABC, or MEI.
 `validate` performs the same local structural checks for tablature metadata and explicit string
 positions; it does not require a SoundFont or network access.
 `tab-position --clear` removes an explicit position; all indices are zero-based except the

@@ -883,6 +883,24 @@ fn cmd_export_report(input: &Path, output: &Path) -> Result<(), String> {
                 report.schema_version,
             )
         }
+        "abc" => {
+            let report = acorde_io::serialize_abc_with_report(&score).map_err(|e| e.to_string())?;
+            (
+                report.format,
+                report.output.into_bytes(),
+                report.diagnostics,
+                report.schema_version,
+            )
+        }
+        "mei" => {
+            let report = acorde_io::serialize_mei_with_report(&score).map_err(|e| e.to_string())?;
+            (
+                report.format,
+                report.output.into_bytes(),
+                report.diagnostics,
+                report.schema_version,
+            )
+        }
         other => return Err(format!("unsupported output format: '.{other}'")),
     };
     let byte_count = bytes.len();
