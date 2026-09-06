@@ -32,6 +32,8 @@ Editors can call `invalidate(score)` after dropping an old score snapshot to rec
 without disturbing other cached results.
 `stats()` exposes deterministic hit/miss counters, and `reset_stats()` clears only those counters
 for host-side measurement windows.
+For an editor replacement flow, `analyze_after_edit(previous, current)` reclaims the previous
+snapshot and returns the analysis for the current score in one operation.
 
 Offline benchmark consumers can use `BenchmarkCase` and `run_benchmark` with hand-verified
 category counts. The report includes predicted counts, precision, recall, explanation

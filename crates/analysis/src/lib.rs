@@ -504,6 +504,12 @@ impl AnalysisCache {
         scores.iter().map(|score| self.analyze(score)).collect()
     }
 
+    /// Reclaim a previous editor snapshot and analyze its replacement in one operation.
+    pub fn analyze_after_edit(&mut self, previous: &Score, current: &Score) -> AnalysisResult {
+        self.invalidate(previous);
+        self.analyze(current)
+    }
+
     /// Insert a previously computed result and evict the oldest entry when the cache is full.
     pub fn insert(&mut self, key: String, result: AnalysisResult) {
         if self.entries.contains_key(&key) {
@@ -1365,6 +1371,21 @@ mod tests {
         assert!(!cache.invalidate(&first));
         assert!(cache.get(&first).is_none());
         assert!(cache.get(&second).is_some());
+        assert_eq!(cache.len(), 1);
+    }
+
+    #[test]
+    fn analysis_cache_analyze_after_edit_reclaims_previous_snapshot() {
+        let previous = Score::default();
+        let mut current = previous.clone();
+        current.metadata.title = "edited".to_owned();
+        let mut cache = AnalysisCache::with_capacity(2).unwrap();
+        cache.analyze(&previous);
+
+        let result = cache.analyze_after_edit(&previous, &current);
+        assert!(result.matches_score(&current));
+        assert!(cache.get(&previous).is_none());
+        assert!(cache.get(&current).is_some());
         assert_eq!(cache.len(), 1);
     }
 
