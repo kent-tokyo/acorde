@@ -59,7 +59,7 @@ the running-title header unless configured.
 dimensions, stable page/system addresses, physical measure indices, and typed break reasons (`MeasureCapacity`, `ExplicitSystemBreak`,
 `ExplicitPageBreak`, `PageCapacity`, `TitlePage`, or `EndOfScore`). Layout honors existing `system_break` and
 `page_break` decisions and produces stable output for the same score and configuration. Its
-`contract_version` is `24` for this address/diagnostic, publication, title-page, part-group, page-number footer, alignment, line-box height, copyright block, bleed/safe-area, scale, page-numbering,
+`contract_version` is `25` for this address/diagnostic, publication, title-page, part-group, page-number footer, alignment, line-box height, copyright block, bleed/safe-area, scale, page-numbering,
 color, crop-mark, and glyph-resource shape. `GlyphResourcePolicy::HostProvided` is only a stable
 resource key; resource lookup, font loading, and glyph metrics remain host/provider work.
 `PRINT_LAYOUT_CONTRACT_VERSION` identifies this serialized page contract, and `validate()` rejects
@@ -72,7 +72,8 @@ serialized page address, returning no artifact for a mismatched or corrupted add
 For page-oriented export, `PrintLayoutResult::export_page_artifacts()` validates the complete
 result and returns one `PageArtifact` per page in physical order. Each artifact contains
 millimetre dimensions, its physical measure span, the copied `PageLayout`, and typed
-`PageArtifactDiagnostic::SpanContinuation` entries. It emits no file bytes and has no PDF, font,
+`PageArtifactDiagnostic::SpanContinuation` and `GlyphResourceRequired` entries. The latter marks
+pages whose `GlyphResourcePolicy::HostProvided` key still requires host/provider resolution. It emits no file bytes and has no PDF, font,
 filesystem, or printer dependency; those concerns remain in the host exporter.
 Hosts that persist or transport a complete result can call `PrintLayoutResult::validate()` to
 check page indices, global system indices, and page-local system positions before reuse.

@@ -626,7 +626,7 @@ impl Default for PrintConfig {
 /// Version of the built-in host-neutral print preset data.
 pub const PRINT_PRESET_SCHEMA_VERSION: u16 = 1;
 /// Version of the serialized host-neutral print layout contract.
-pub const PRINT_LAYOUT_CONTRACT_VERSION: u16 = 24;
+pub const PRINT_LAYOUT_CONTRACT_VERSION: u16 = 25;
 
 /// Reproducible starting configurations for common publication workflows.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -809,6 +809,8 @@ pub struct PageArtifact {
 /// Typed, host-neutral diagnostics attached to a page export descriptor.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PageArtifactDiagnostic {
+    /// The page uses a host-owned glyph resource and must be resolved by the exporter.
+    GlyphResourceRequired,
     /// A span continues across a page boundary and needs a continuation mark in the host.
     SpanContinuation {
         span_index: usize,
@@ -955,26 +957,33 @@ impl PrintLayoutResult {
         Ok(self
             .pages
             .iter()
-            .map(|page| PageArtifact {
-                address: page.address,
-                page_index: page.page_index,
-                page_number: page.page_number,
-                width_mm: page.width_mm,
-                height_mm: page.height_mm,
-                content_width_mm: page.content_width_mm,
-                content_height_mm: page.content_height_mm,
-                measure_span: page.measure_span(),
-                diagnostics: page
-                    .span_segments
-                    .iter()
-                    .filter(|segment| !segment.starts_here || !segment.ends_here)
-                    .map(|segment| PageArtifactDiagnostic::SpanContinuation {
-                        span_index: segment.span_index,
-                        starts_here: segment.starts_here,
-                        ends_here: segment.ends_here,
-                    })
-                    .collect(),
-                layout: page.clone(),
+            .map(|page| {
+                let mut diagnostics = Vec::new();
+                if matches!(page.glyph_resources, GlyphResourcePolicy::HostProvided(_)) {
+                    diagnostics.push(PageArtifactDiagnostic::GlyphResourceRequired);
+                }
+                diagnostics.extend(
+                    page.span_segments
+                        .iter()
+                        .filter(|segment| !segment.starts_here || !segment.ends_here)
+                        .map(|segment| PageArtifactDiagnostic::SpanContinuation {
+                            span_index: segment.span_index,
+                            starts_here: segment.starts_here,
+                            ends_here: segment.ends_here,
+                        }),
+                );
+                PageArtifact {
+                    address: page.address,
+                    page_index: page.page_index,
+                    page_number: page.page_number,
+                    width_mm: page.width_mm,
+                    height_mm: page.height_mm,
+                    content_width_mm: page.content_width_mm,
+                    content_height_mm: page.content_height_mm,
+                    measure_span: page.measure_span(),
+                    diagnostics,
+                    layout: page.clone(),
+                }
             })
             .collect())
     }
@@ -2370,6 +2379,30 @@ mod tests {
         assert!(first.has_span_continuation());
         assert!(result.page(PageAddress { page_index: 99 }).is_none());
         assert!(result.validate().is_ok());
+    }
+
+    #[test]
+    fn export_page_artifacts_reports_host_glyph_resource_requirement() {
+        let result = compute_print_layout(
+            &score_with_measures(1),
+            &PrintConfig {
+                glyph_resources: GlyphResourcePolicy::HostProvided("licensed-font-v1".into()),
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid host resource policy");
+
+        let artifacts = result
+            .export_page_artifacts()
+            .expect("host resource requirement is a diagnostic");
+        assert_eq!(
+            artifacts[0].diagnostics,
+            vec![PageArtifactDiagnostic::GlyphResourceRequired]
+        );
+        assert_eq!(
+            artifacts[0].layout.glyph_resources,
+            GlyphResourcePolicy::HostProvided("licensed-font-v1".into())
+        );
     }
 
     #[test]
