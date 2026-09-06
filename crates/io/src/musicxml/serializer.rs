@@ -301,7 +301,8 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
 
             // Rehearsal mark
             if let Some(reh) = &measure.rehearsal {
-                xml.push_str("      <direction placement=\"above\">\n");
+                let attrs = measure_text_direction_attrs(measure, TextStyle::RehearsalMark, reh);
+                xml.push_str(&format!("      <direction{}>\n", attrs));
                 xml.push_str("        <direction-type>\n");
                 xml.push_str(&format!(
                     "          <rehearsal>{}</rehearsal>\n",
@@ -313,7 +314,8 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
 
             // Tempo text
             if let Some(text) = &measure.tempo_text {
-                xml.push_str("      <direction placement=\"above\">\n");
+                let attrs = measure_text_direction_attrs(measure, TextStyle::Generic, text);
+                xml.push_str(&format!("      <direction{}>\n", attrs));
                 xml.push_str("        <direction-type>\n");
                 xml.push_str(&format!("          <words>{}</words>\n", escape_xml(text)));
                 xml.push_str("        </direction-type>\n");
@@ -322,7 +324,8 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
 
             // Expression text (dolce, espressivo, etc. — no <sound> element)
             if let Some(text) = &measure.expression_text {
-                xml.push_str("      <direction placement=\"above\">\n");
+                let attrs = measure_text_direction_attrs(measure, TextStyle::Expression, text);
+                xml.push_str(&format!("      <direction{}>\n", attrs));
                 xml.push_str("        <direction-type>\n");
                 xml.push_str(&format!("          <words>{}</words>\n", escape_xml(text)));
                 xml.push_str("        </direction-type>\n");
@@ -377,14 +380,20 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     continue;
                 }
                 if styled.style == TextStyle::RehearsalMark {
-                    xml.push_str(
-                        "      <direction placement=\"above\"><direction-type><rehearsal>",
-                    );
+                    let attrs = styled_direction_attrs(styled);
+                    xml.push_str(&format!(
+                        "      <direction{}><direction-type><rehearsal>",
+                        attrs
+                    ));
                     xml.push_str(&escape_xml(&styled.text));
                     xml.push_str("</rehearsal></direction-type></direction>\n");
                     continue;
                 }
-                xml.push_str("      <direction placement=\"above\"><direction-type><words>");
+                let attrs = styled_direction_attrs(styled);
+                xml.push_str(&format!(
+                    "      <direction{}><direction-type><words>",
+                    attrs
+                ));
                 xml.push_str(&escape_xml(&styled.text));
                 xml.push_str("</words></direction-type></direction>\n");
             }
@@ -1065,6 +1074,40 @@ fn split_note_name(name: &str) -> (&str, i8) {
     } else {
         (name, 0)
     }
+}
+
+fn measure_text_direction_attrs(
+    measure: &acorde_core::Measure,
+    style: TextStyle,
+    text: &str,
+) -> String {
+    let styled = measure
+        .texts
+        .iter()
+        .find(|styled| styled.style == style && styled.text == text);
+    styled
+        .map(styled_direction_attrs)
+        .unwrap_or_else(|| " placement=\"above\"".to_string())
+}
+
+fn styled_direction_attrs(styled: &acorde_core::StyledText) -> String {
+    let mut attrs = format!(
+        " placement=\"{}\"",
+        escape_xml(styled.placement.as_deref().unwrap_or("above"))
+    );
+    if let Some(offset_x) = styled.offset_x {
+        attrs.push_str(&format!(" default-x=\"{}\"", offset_x));
+    }
+    if let Some(offset_y) = styled.offset_y {
+        attrs.push_str(&format!(" default-y=\"{}\"", offset_y));
+    }
+    if let Some(relative_x) = styled.relative_x {
+        attrs.push_str(&format!(" relative-x=\"{}\"", relative_x));
+    }
+    if let Some(relative_y) = styled.relative_y {
+        attrs.push_str(&format!(" relative-y=\"{}\"", relative_y));
+    }
+    attrs
 }
 
 fn escape_xml(s: &str) -> String {

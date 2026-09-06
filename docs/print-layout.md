@@ -13,6 +13,10 @@ page-numbering, color, crop-mark, and glyph-resource policies, measures per syst
 `keep_together` ranges, an optional `first_system_measures` capacity for pickup/title systems,
 an automatic or explicit `pickup_policy` that detects a partial first measure, and a `final_page_policy` that
 can deterministically balance automatic pagination.
+`PrintPreset` provides versioned A4/Letter score and extracted-part starting configurations;
+the preset data does not read host preferences or installed resources. Use
+`PrintPreset::config_with_title_page` to opt into a title page without changing the default
+preset configuration.
 A keep-together range uses zero-based inclusive physical measure indices
 and is placed in one system when it fits the configured capacity. Invalid ranges, ranges larger
 than a system, and ranges containing an explicit system/page break return typed errors. Scale applies to system content geometry while
@@ -34,16 +38,64 @@ configured systems-per-page capacity; repeat sections that exceed that capacity 
 error. It disables final-page balancing so the repeat boundary remains deterministic.
 `PageLayout::span_segments` aggregates cross-system span ownership at page boundaries, so a host
 can emit continuation marks without reconstructing spans from adjacent systems.
+`PrintConfig::publication` carries an optional running title, header/footer text, and policies
+for part labels and measure numbers, plus an opt-in metadata-only title page. Each
+`PageLayout::publication` contains copied score metadata, deterministic
+part labels, and only the measure numbers belonging to that page, so a host can render headers
+and labels without reconstructing page ownership. `PartLayoutPolicy::ExtractedPart` is an
+explicit opt-in that scopes pagination and notation spans to one selected part; the default
+`FullScore` policy preserves existing score-level behavior. Publication text is exposed as
+`PublicationTextBlock` values with semantic roles and physical x/y/width in millimetres.
+With `page_number_in_footer`, the final logical page number is emitted as a footer block.
+`PublicationTextAlignment` records left, center, or right alignment within each block's width.
+`PublicationConfig::line_height_mm` supplies the validated line-box height carried by every text
+block; non-finite or non-positive values return a typed layout error.
+Publication page metadata is serde-defaulted so older serialized page objects remain readable.
+Full-score pages also carry `PartGroupMark` bracket/brace metadata; extracted-part pages omit
+cross-part connectors.
+Title pages additionally expose title, subtitle, credit, and copyright blocks; ordinary pages do not receive
+the running-title header unless configured.
 `PrintLayoutResult` records page
 dimensions, stable page/system addresses, physical measure indices, and typed break reasons (`MeasureCapacity`, `ExplicitSystemBreak`,
-`ExplicitPageBreak`, `PageCapacity`, or `EndOfScore`). Layout honors existing `system_break` and
+`ExplicitPageBreak`, `PageCapacity`, `TitlePage`, or `EndOfScore`). Layout honors existing `system_break` and
 `page_break` decisions and produces stable output for the same score and configuration. Its
-`contract_version` is `15` for this address/diagnostic, bleed/safe-area, scale, page-numbering,
+`contract_version` is `24` for this address/diagnostic, publication, title-page, part-group, page-number footer, alignment, line-box height, copyright block, bleed/safe-area, scale, page-numbering,
 color, crop-mark, and glyph-resource shape. `GlyphResourcePolicy::HostProvided` is only a stable
 resource key; resource lookup, font loading, and glyph metrics remain host/provider work.
+`PRINT_LAYOUT_CONTRACT_VERSION` identifies this serialized page contract, and `validate()` rejects
+results from another contract version before host reuse.
+An empty `GlyphResourcePolicy::HostProvided` key is rejected before page layout is produced.
 Hosts can retrieve a page artifact with `PrintLayoutResult::page(PageAddress)`, inspect its
 physical range with `PageLayout::measure_span()`, and detect cross-page continuations with
-`PageLayout::has_span_continuation()`.
+`PageLayout::has_span_continuation()`. Page lookup verifies both the vector index and the
+serialized page address, returning no artifact for a mismatched or corrupted address.
+For page-oriented export, `PrintLayoutResult::export_page_artifacts()` validates the complete
+result and returns one `PageArtifact` per page in physical order. Each artifact contains
+millimetre dimensions, its physical measure span, the copied `PageLayout`, and typed
+`PageArtifactDiagnostic::SpanContinuation` entries. It emits no file bytes and has no PDF, font,
+filesystem, or printer dependency; those concerns remain in the host exporter.
+Hosts that persist or transport a complete result can call `PrintLayoutResult::validate()` to
+check page indices, global system indices, and page-local system positions before reuse.
+It also rejects mixed numbered/unnumbered pages, zero page numbers, non-monotonic numbering,
+and numbered pages that do not match the current `page_index + 1` policy.
+It also requires `TitlePage` to be page zero with no systems and rejects title metadata on
+ordinary pages.
+Physical page and system dimensions are checked for finite, positive values (with non-negative
+bleed and top offsets) before a persisted layout is reused; content dimensions must not exceed
+the physical page.
+Hosts that supply glyph geometry should call `validate_glyph_placements` before
+`resolve_glyph_collisions`; non-finite coordinates, empty resource keys, negative advances, and
+negative bounding-box extents are rejected with a typed error instead of being allowed into
+collision math.
+The `resolve_glyph_collisions_checked` and `resolve_glyph_horizontal_collisions_checked` variants
+combine that validation with mutation and are preferred for host preflight paths. They reject
+non-finite collision gaps and arithmetic overflow before mutation; unchecked variants sanitize
+non-finite gaps to zero.
+After computing remaining system width, `distribute_glyph_spacing` can spread it evenly between
+ordered glyph placements without changing the first placement's anchor.
+`glyph_extents` aggregates validated placement bounds and returns `None` for empty content, allowing
+hosts to derive safe margins without fixed renderer assumptions. Its `GlyphExtents` result exposes
+`width_mm()` and `height_mm()` for the derived content spans.
 The SVG renderer exposes `glyph_coverage()` for its built-in vector resource and rejects notation
 outside the reported clef/accidental coverage with a typed error; it never silently emits a blank
 critical glyph.

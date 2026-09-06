@@ -312,7 +312,7 @@ fn precomputed_row_and_metadata_contracts_are_stable() {
     let layout = compute_layout(&score, &LayoutConfig::default());
     let row = acorde_render_svg::render_svg_row(&score, &layout, 0, &opts()).unwrap();
     let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts()).unwrap();
-    assert_eq!(metadata.contract_version, 2);
+    assert_eq!(metadata.contract_version, 3);
     assert_eq!(metadata.part_count, 1);
     assert_eq!(metadata.staff_count, 2);
     assert_eq!(metadata.measure_count, 1);
@@ -340,6 +340,11 @@ fn metadata_exposes_measure_text_style_and_location() {
     score.parts[0].staves[0].measures[0].texts.push(StyledText {
         style: TextStyle::Technique,
         text: "con sordino".to_string(),
+        placement: None,
+        offset_x: None,
+        offset_y: None,
+        relative_x: None,
+        relative_y: None,
     });
     let layout = compute_layout(&score, &LayoutConfig::default());
     let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts()).unwrap();
@@ -349,6 +354,35 @@ fn metadata_exposes_measure_text_style_and_location() {
     assert_eq!(metadata.text_annotations[0].measure, 0);
     assert_eq!(metadata.text_annotations[0].style, TextStyle::Technique);
     assert_eq!(metadata.text_annotations[0].text, "con sordino");
+    assert_eq!(metadata.text_annotations[0].placement, None);
+}
+
+#[test]
+fn metadata_preserves_positioned_direction_text_fields() {
+    use acorde_core::{StyledText, TextStyle};
+    use acorde_layout::{LayoutConfig, compute_layout};
+    let mut score = common::satb_major();
+    score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        style: TextStyle::Expression,
+        text: "dolce".to_string(),
+        placement: Some("below".to_string()),
+        offset_x: Some(12.5),
+        offset_y: Some(-3.0),
+        relative_x: Some(1.25),
+        relative_y: Some(-0.5),
+    });
+    let layout = compute_layout(&score, &LayoutConfig::default());
+    let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts()).unwrap();
+    let annotation = metadata
+        .text_annotations
+        .iter()
+        .find(|annotation| annotation.text == "dolce")
+        .expect("positioned text annotation");
+    assert_eq!(annotation.placement.as_deref(), Some("below"));
+    assert_eq!(annotation.offset_x, Some(12.5));
+    assert_eq!(annotation.offset_y, Some(-3.0));
+    assert_eq!(annotation.relative_x, Some(1.25));
+    assert_eq!(annotation.relative_y, Some(-0.5));
 }
 
 #[test]

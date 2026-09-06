@@ -45,6 +45,7 @@ pub fn loss_diagnostics(xml: &str) -> Vec<crate::Diagnostic> {
                     diagnostics.push(diagnostic);
                 }
                 push_technique_detail_diagnostic(&name, &event, &path, &mut diagnostics);
+                push_advanced_attribute_diagnostics(&event, &path, &mut diagnostics);
             }
             Ok(quick_xml::events::Event::Empty(event)) => {
                 let name = String::from_utf8_lossy(event.name().as_ref()).into_owned();
@@ -79,6 +80,9 @@ pub fn loss_diagnostics(xml: &str) -> Vec<crate::Diagnostic> {
                     diagnostics.push(diagnostic);
                 }
                 push_technique_detail_diagnostic(&name, &event, &path, &mut diagnostics);
+                let mut element_path = path.clone();
+                element_path.push(name);
+                push_advanced_attribute_diagnostics(&event, &element_path, &mut diagnostics);
             }
             Ok(quick_xml::events::Event::End(event)) => {
                 if event.name().as_ref() == b"figured-bass"
@@ -239,6 +243,49 @@ fn push_technique_detail_diagnostic<'a>(
     diagnostic.source_location = Some(format!("/{}", element_path.join("/")));
     diagnostic.preserved_value = Some(value);
     diagnostics.push(diagnostic);
+}
+
+fn push_advanced_attribute_diagnostics(
+    event: &quick_xml::events::BytesStart<'_>,
+    path: &[String],
+    diagnostics: &mut Vec<crate::Diagnostic>,
+) {
+    for attribute in event.attributes().flatten() {
+        let key = String::from_utf8_lossy(attribute.key.as_ref());
+        if key.starts_with("xmlns") {
+            continue;
+        }
+        let value = String::from_utf8_lossy(attribute.value.as_ref()).into_owned();
+        let (code, message) = match key.as_ref() {
+            "placement" if path.last().map(String::as_str) == Some("direction") => {
+                if matches!(value.as_str(), "above" | "below") {
+                    continue;
+                }
+                (
+                    "musicxml.invalid-direction-placement",
+                    "MusicXML direction placement is not above or below; the original value is preserved",
+                )
+            }
+            "default-x" | "default-y" | "relative-x" | "relative-y" => (
+                "musicxml.unsupported-placement-attribute",
+                "MusicXML placement attribute is outside the canonical score model",
+            ),
+            "font-family" | "font-style" | "font-size" | "font-weight" | "color"
+            | "print-object" | "print-spacing" => (
+                "musicxml.unsupported-render-attribute",
+                "MusicXML rendering attribute is outside the canonical score model",
+            ),
+            _ if key.contains(':') => (
+                "musicxml.unsupported-vendor-attribute",
+                "MusicXML namespaced vendor attribute is outside the canonical score model",
+            ),
+            _ => continue,
+        };
+        let mut diagnostic = crate::Diagnostic::warning(code, message);
+        diagnostic.source_location = Some(format!("/{}@{}", path.join("/"), key));
+        diagnostic.preserved_value = Some(value);
+        diagnostics.push(diagnostic);
+    }
 }
 
 fn push_tablature_value_diagnostic(
@@ -471,5 +518,52 @@ mod tests {
                 "missing diagnostic for {field}"
             );
         }
+    }
+
+    #[test]
+    fn advanced_placement_render_and_vendor_attributes_are_source_diagnosed() {
+        let xml = r#"<score-partwise xmlns:vendor="urn:vendor"><part-list><score-part id="P1"/></part-list><part id="P1"><measure number="1"><note default-x="12.5" print-object="no" vendor:foo="bar"><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note></measure></part></score-partwise>"#;
+        let diagnostics = loss_diagnostics(xml);
+        for (code, suffix, value) in [
+            (
+                "musicxml.unsupported-placement-attribute",
+                "note@default-x",
+                "12.5",
+            ),
+            (
+                "musicxml.unsupported-render-attribute",
+                "note@print-object",
+                "no",
+            ),
+            (
+                "musicxml.unsupported-vendor-attribute",
+                "note@vendor:foo",
+                "bar",
+            ),
+        ] {
+            assert!(
+                diagnostics.iter().any(|diagnostic| {
+                    diagnostic.code == code
+                        && diagnostic
+                            .source_location
+                            .as_deref()
+                            .is_some_and(|path| path.ends_with(suffix))
+                        && diagnostic.preserved_value.as_deref() == Some(value)
+                }),
+                "missing value/path for {code}"
+            );
+        }
+    }
+
+    #[test]
+    fn invalid_direction_placement_is_source_diagnosed_without_rejecting_input() {
+        let xml = r#"<score-partwise><part-list><score-part id="P1"/></part-list><part id="P1"><measure number="1"><direction placement="sideways"><direction-type><words>dolce</words></direction-type></direction></measure></part></score-partwise>"#;
+        let diagnostics = loss_diagnostics(xml);
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "musicxml.invalid-direction-placement"
+                && diagnostic.source_location.as_deref()
+                    == Some("/score-partwise/part/measure/direction@placement")
+                && diagnostic.preserved_value.as_deref() == Some("sideways")
+        }));
     }
 }

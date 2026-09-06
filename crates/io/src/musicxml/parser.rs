@@ -129,6 +129,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut pending_rehearsal: Option<String> = None;
     let mut pending_navigation: Option<String> = None;
     let mut pending_sound_tempo: Option<u16> = None;
+    let mut pending_direction_placement: Option<String> = None;
+    let mut pending_direction_offset_x: Option<f64> = None;
+    let mut pending_direction_offset_y: Option<f64> = None;
+    let mut pending_direction_relative_x: Option<f64> = None;
+    let mut pending_direction_relative_y: Option<f64> = None;
     let mut in_work = false;
     let mut current_text = String::new();
 
@@ -256,7 +261,22 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             attr_str(e, b"location").unwrap_or_else(|| "right".to_string());
                     }
                     "transpose" => in_transpose = true,
-                    "direction" => in_direction = true,
+                    "direction" => {
+                        in_direction = true;
+                        pending_direction_placement = attr_str(e, b"placement");
+                        pending_direction_offset_x = attr_str(e, b"default-x")
+                            .and_then(|value| value.parse::<f64>().ok())
+                            .filter(|value| value.is_finite());
+                        pending_direction_offset_y = attr_str(e, b"default-y")
+                            .and_then(|value| value.parse::<f64>().ok())
+                            .filter(|value| value.is_finite());
+                        pending_direction_relative_x = attr_str(e, b"relative-x")
+                            .and_then(|value| value.parse::<f64>().ok())
+                            .filter(|value| value.is_finite());
+                        pending_direction_relative_y = attr_str(e, b"relative-y")
+                            .and_then(|value| value.parse::<f64>().ok())
+                            .filter(|value| value.is_finite());
+                    }
                     "direction-type" => in_direction_type = true,
                     "measure-style" => in_measure_style = true,
                     "staff-details" => {
@@ -842,6 +862,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 measure.texts.push(StyledText {
                                     style: TextStyle::FiguredBass,
                                     text: figured_bass_text.trim().to_string(),
+                                    placement: None,
+                                    offset_x: None,
+                                    offset_y: None,
+                                    relative_x: None,
+                                    relative_y: None,
                                 });
                             }
                         }
@@ -873,6 +898,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                     m.texts.push(StyledText {
                                         style: TextStyle::Generic,
                                         text,
+                                        placement: pending_direction_placement.clone(),
+                                        offset_x: pending_direction_offset_x,
+                                        offset_y: pending_direction_offset_y,
+                                        relative_x: pending_direction_relative_x,
+                                        relative_y: pending_direction_relative_y,
                                     });
                                 }
                             } else if let Some(text) = pending_expression_text.take()
@@ -882,6 +912,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 m.texts.push(StyledText {
                                     style: TextStyle::Expression,
                                     text,
+                                    placement: pending_direction_placement.clone(),
+                                    offset_x: pending_direction_offset_x,
+                                    offset_y: pending_direction_offset_y,
+                                    relative_x: pending_direction_relative_x,
+                                    relative_y: pending_direction_relative_y,
                                 });
                             }
                             if let Some(reh) = pending_rehearsal.take()
@@ -891,6 +926,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 m.texts.push(StyledText {
                                     style: TextStyle::RehearsalMark,
                                     text: reh,
+                                    placement: pending_direction_placement.clone(),
+                                    offset_x: pending_direction_offset_x,
+                                    offset_y: pending_direction_offset_y,
+                                    relative_x: pending_direction_relative_x,
+                                    relative_y: pending_direction_relative_y,
                                 });
                             }
                             if let Some(bpm) = pending_sound_tempo.take() {
@@ -898,6 +938,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             }
                         }
                         pending_sound_tempo = None;
+                        pending_direction_placement = None;
+                        pending_direction_offset_x = None;
+                        pending_direction_offset_y = None;
+                        pending_direction_relative_x = None;
+                        pending_direction_relative_y = None;
                         pending_tempo_text = None;
                         pending_expression_text = None;
                         pending_rehearsal = None;

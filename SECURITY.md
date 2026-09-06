@@ -38,8 +38,8 @@ CSP, avoid script-capable insertion paths, and validate before inserting into a 
 Before a release, run:
 
 ```text
-cargo test --all
-cargo clippy --all -- -D warnings
+cargo test --all-features --locked
+cargo clippy --all --all-features --locked -- -D warnings
 cargo audit
 cargo deny check advisories licenses
 ```

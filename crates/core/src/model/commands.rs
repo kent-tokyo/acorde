@@ -2386,6 +2386,11 @@ mod tests {
             text: Some(StyledText {
                 style: crate::TextStyle::Technique,
                 text: "dolce".to_string(),
+                placement: None,
+                offset_x: None,
+                offset_y: None,
+                relative_x: None,
+                relative_y: None,
             }),
         };
         engine.apply(Command::SetMeasureText(address)).unwrap();
@@ -2394,6 +2399,11 @@ mod tests {
             StyledText {
                 style: crate::TextStyle::Technique,
                 text: "dolce".to_string(),
+                placement: None,
+                offset_x: None,
+                offset_y: None,
+                relative_x: None,
+                relative_y: None,
             }
         );
 
@@ -2403,6 +2413,11 @@ mod tests {
                 text: Some(StyledText {
                     style: crate::TextStyle::RehearsalMark,
                     text: "A".to_string(),
+                    placement: None,
+                    offset_x: None,
+                    offset_y: None,
+                    relative_x: None,
+                    relative_y: None,
                 }),
                 ..SetMeasureTextCmd {
                     part_index: 0,
@@ -2450,6 +2465,11 @@ mod tests {
             text: Some(StyledText {
                 style: crate::TextStyle::Expression,
                 text: "espressivo".to_string(),
+                placement: None,
+                offset_x: None,
+                offset_y: None,
+                relative_x: None,
+                relative_y: None,
             }),
         });
         let json = serde_json::to_string(&command).unwrap();

@@ -8,11 +8,17 @@ mod print;
 pub use acorde_core::NoteAddr;
 pub use engine::compute_layout;
 pub use print::{
-    BreakReason, CropMarkPolicy, FinalPagePolicy, GlyphMetrics, GlyphPlacement,
-    GlyphResourcePolicy, KeepTogetherRange, MeasureMark, NotationBreakPolicy, PageAddress,
-    PageLayout, PageNumbering, PageOrientation, PageSpanSegment, PaperSize, PickupPolicy,
-    PrintColorPolicy, PrintConfig, PrintLayoutError, PrintLayoutResult, SpanSegment, SystemAddress,
-    SystemLayout, compute_print_layout, resolve_glyph_collisions,
+    BreakReason, CropMarkPolicy, FinalPagePolicy, GlyphExtents, GlyphMetrics, GlyphPlacement,
+    GlyphPlacementError, GlyphResourcePolicy, KeepTogetherRange, MeasureMark, MeasureSpan,
+    NotationBreakPolicy, PRINT_LAYOUT_CONTRACT_VERSION, PRINT_PRESET_SCHEMA_VERSION, PageAddress,
+    PageArtifact, PageArtifactDiagnostic, PageLayout, PageNumbering, PageOrientation,
+    PagePublication, PageSpanSegment, PaperSize, PartGroupMark, PartLabel, PickupPolicy,
+    PrintColorPolicy, PrintConfig, PrintLayoutError, PrintLayoutResult, PrintPreset,
+    PublicationConfig, PublicationTextAlignment, PublicationTextBlock, PublicationTextRole,
+    SpanSegment, SystemAddress, SystemLayout, compute_print_layout, distribute_glyph_spacing,
+    glyph_extents, resolve_glyph_collisions, resolve_glyph_collisions_checked,
+    resolve_glyph_horizontal_collisions, resolve_glyph_horizontal_collisions_checked,
+    validate_glyph_placements,
 };
 
 use acorde_core::{HairpinKind, OttavaKind};

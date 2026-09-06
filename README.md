@@ -1,6 +1,6 @@
 # acorde
 
-Platform-agnostic music score library for Rust and WebAssembly (v1.1.1).
+Platform-agnostic music score library for Rust and WebAssembly (v1.1.2).
 
 acorde provides a serializable score model, undoable commands, format I/O, logical layout,
 deterministic SVG rendering, playback events, and WASM bindings. Core libraries are synchronous,
@@ -61,15 +61,15 @@ model and MIDI round-trip.
 
 ```toml
 [dependencies]
-acorde = "1.1.1"
-acorde-render-svg = "1.1.1"
+acorde = "1.1.2"
+acorde-render-svg = "1.1.2"
 ```
 
 The default I/O features are `musicxml` and `midi`; enable the optional `abc`, `mscz`, or `mei`
 features when needed:
 
 ```toml
-acorde = { version = "1.1.1", features = ["abc", "mscz", "mei"] }
+acorde = { version = "1.1.2", features = ["abc", "mscz", "mei"] }
 ```
 
 ```rust
@@ -134,8 +134,8 @@ movement between successive notes.
 ## Development
 
 ```bash
-cargo test --all
-cargo clippy --all -- -D warnings
+cargo test --all-features --locked
+cargo clippy --all --all-features --locked -- -D warnings
 ```
 
 For the browser fixture:
@@ -148,7 +148,7 @@ python3 -m http.server 8000
 See [browser support](docs/browser-support.md), [performance](docs/performance.md), and
 [visual regression](docs/visual-regression.md) for focused checks. The Score JSON schema is
 currently version 1. See [CHANGELOG.md](CHANGELOG.md) for release notes and [README_ja.md](README_ja.md)
-for a Japanese overview.
+for a Japanese overview. Compatibility notes for older releases are in [migrations.md](docs/migrations.md).
 
 ## License
 

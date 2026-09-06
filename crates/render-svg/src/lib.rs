@@ -37,7 +37,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Version of the browser-facing [`RenderMetadata`] contract.
-pub const SVG_CONTRACT_VERSION: u32 = 2;
+pub const SVG_CONTRACT_VERSION: u32 = 3;
 /// Version of the built-in glyph coverage contract.
 pub const GLYPH_COVERAGE_CONTRACT_VERSION: u32 = 1;
 /// Stable identifier for the renderer's font-independent vector glyph set.
@@ -84,13 +84,23 @@ pub struct RenderMetadata {
 }
 
 /// A measure-level styled text entry exposed to browser hosts without SVG parsing.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TextAnnotation {
     pub part: usize,
     pub staff: usize,
     pub measure: usize,
     pub style: TextStyle,
     pub text: String,
+    #[serde(default)]
+    pub placement: Option<String>,
+    #[serde(default)]
+    pub offset_x: Option<f64>,
+    #[serde(default)]
+    pub offset_y: Option<f64>,
+    #[serde(default)]
+    pub relative_x: Option<f64>,
+    #[serde(default)]
+    pub relative_y: Option<f64>,
 }
 
 /// Explicit coverage information for the renderer's built-in glyph resource.

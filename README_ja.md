@@ -1,6 +1,6 @@
 # acorde
 
-Rust と WebAssembly 向けのプラットフォーム非依存な楽譜ライブラリ（v1.1.1）です。
+Rust と WebAssembly 向けのプラットフォーム非依存な楽譜ライブラリ（v1.1.2）です。
 
 シリアライズ可能なスコアモデル、Undo/Redo 可能なコマンド、各種フォーマット入出力、
 論理レイアウト、決定的な SVG レンダリング、再生イベント、WASM バインディングを提供します。
@@ -29,14 +29,14 @@ SoundFontの`SoundFontPresetZone` APIでは bank/program と key/velocity から
 
 ```toml
 [dependencies]
-acorde = "1.1.1"
-acorde-render-svg = "1.1.1"
+acorde = "1.1.2"
+acorde-render-svg = "1.1.2"
 ```
 
 ABC と MuseScore 入力を有効にする場合：
 
 ```toml
-acorde = { version = "1.1.1", features = ["abc", "mscz", "mei"] }
+acorde = { version = "1.1.2", features = ["abc", "mscz", "mei"] }
 ```
 
 `acorde-io` の既定 feature は `musicxml` と `midi` です。`abc` は ABC の読み書き、
@@ -77,13 +77,14 @@ acorde auto-tab-report guitar.musicxml guitar-tabbed.musicxml
 ## 開発
 
 ```bash
-cargo test --all
-cargo clippy --all -- -D warnings
+cargo test --all-features --locked
+cargo clippy --all --all-features --locked -- -D warnings
 ```
 
 ブラウザ向けの呼び出し順と検証方法は [browser-rendering.md](docs/browser-rendering.md)、
 [browser-support.md](docs/browser-support.md) を参照してください。変更履歴は
 [CHANGELOG.md](CHANGELOG.md) にあります。
+過去バージョンからの移行概要は [migrations.md](docs/migrations.md) にまとめています。
 
 ## ライセンス
 

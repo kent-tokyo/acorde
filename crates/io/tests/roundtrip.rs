@@ -97,10 +97,20 @@ fn styled_measure_text_command_roundtrips_supported_musicxml_styles() {
         StyledText {
             style: TextStyle::Expression,
             text: "dolce".to_string(),
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
         },
         StyledText {
             style: TextStyle::RehearsalMark,
             text: "A".to_string(),
+            placement: Some("below".to_string()),
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
         },
     ]
     .into_iter()
@@ -123,12 +133,56 @@ fn styled_measure_text_command_roundtrips_supported_musicxml_styles() {
     let texts = &restored.parts[0].staves[0].measures[0].texts;
     assert!(texts.contains(&StyledText {
         style: TextStyle::Expression,
-        text: "dolce".to_string()
+        text: "dolce".to_string(),
+        placement: Some("above".to_string()),
+        offset_x: None,
+        offset_y: None,
+        relative_x: None,
+        relative_y: None,
     }));
     assert!(texts.contains(&StyledText {
         style: TextStyle::RehearsalMark,
-        text: "A".to_string()
+        text: "A".to_string(),
+        placement: Some("below".to_string()),
+        offset_x: None,
+        offset_y: None,
+        relative_x: None,
+        relative_y: None,
     }));
+}
+
+#[test]
+fn musicxml_direction_default_offsets_roundtrip_on_styled_text() {
+    let xml = SIMPLE_XML.replacen(
+        "<note",
+        "<direction placement=\"below\" default-x=\"12.5\" default-y=\"-3\" relative-x=\"1.25\" relative-y=\"-0.5\"><direction-type><words>dolce</words></direction-type></direction><note",
+        1,
+    );
+    let score = parse_musicxml(&xml).expect("parse positioned direction");
+    let styled = score.parts[0].staves[0].measures[0]
+        .texts
+        .iter()
+        .find(|text| text.text == "dolce")
+        .expect("positioned direction text");
+    assert_eq!(styled.placement.as_deref(), Some("below"));
+    assert_eq!(styled.offset_x, Some(12.5));
+    assert_eq!(styled.offset_y, Some(-3.0));
+    assert_eq!(styled.relative_x, Some(1.25));
+    assert_eq!(styled.relative_y, Some(-0.5));
+
+    let restored =
+        parse_musicxml(&serialize_musicxml(&score).expect("serialize positioned direction"))
+            .expect("reparse positioned direction");
+    let restored_text = restored.parts[0].staves[0].measures[0]
+        .texts
+        .iter()
+        .find(|text| text.text == "dolce")
+        .expect("reparsed positioned direction text");
+    assert_eq!(restored_text.placement.as_deref(), Some("below"));
+    assert_eq!(restored_text.offset_x, Some(12.5));
+    assert_eq!(restored_text.offset_y, Some(-3.0));
+    assert_eq!(restored_text.relative_x, Some(1.25));
+    assert_eq!(restored_text.relative_y, Some(-0.5));
 }
 
 #[test]
@@ -284,8 +338,8 @@ fn interchange_report_has_machine_checked_phase_evidence() {
     let report: serde_json::Value =
         serde_json::from_str(INTERCHANGE_REPORT).expect("interchange report is valid JSON");
     assert_eq!(report["schema_version"], 1);
-    assert_eq!(report["version_policy"], "workspace version is 1.1.1");
-    assert!(WORKSPACE_MANIFEST.contains("version = \"1.1.1\""));
+    assert_eq!(report["version_policy"], "workspace version is 1.1.2");
+    assert!(WORKSPACE_MANIFEST.contains("version = \"1.1.2\""));
     assert_eq!(
         report["phase_7_policy"]["status"],
         "local-slices-available-external-gates-open"
@@ -507,6 +561,11 @@ fn musicxml_simple_figured_bass_display_text_roundtrips() {
         &[acorde_core::StyledText {
             style: acorde_core::TextStyle::FiguredBass,
             text: "6".to_string(),
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
         }]
     );
     let serialized = acorde_io::serialize_musicxml(&report.score).expect("MusicXML serializes");
@@ -822,6 +881,11 @@ fn mei_simple_figured_bass_display_text_roundtrips() {
         &[acorde_core::StyledText {
             style: acorde_core::TextStyle::FiguredBass,
             text: "6".to_string(),
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
         }]
     );
     let serialized = acorde_io::serialize_mei(&report.score).expect("MEI serializes");
@@ -961,6 +1025,11 @@ fn manifest_interchange_fixtures_parse_without_declared_losses() {
         vec![acorde_core::StyledText {
             style: acorde_core::TextStyle::ChordSymbol,
             text: "Cmaj7".to_string(),
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
         }]
     );
     let mei_serialized = acorde_io::serialize_mei(&mei.score).expect("MEI fixture serializes");
@@ -986,10 +1055,20 @@ fn manifest_interchange_fixtures_parse_without_declared_losses() {
             acorde_core::StyledText {
                 style: acorde_core::TextStyle::ChordSymbol,
                 text: "Cmaj7".to_string(),
+                placement: None,
+                offset_x: None,
+                offset_y: None,
+                relative_x: None,
+                relative_y: None,
             },
             acorde_core::StyledText {
                 style: acorde_core::TextStyle::Expression,
                 text: "dolce".to_string(),
+                placement: None,
+                offset_x: None,
+                offset_y: None,
+                relative_x: None,
+                relative_y: None,
             },
         ]
     );
@@ -1019,6 +1098,11 @@ fn mscx_figured_bass_fixture_roundtrips_structured_order() {
         vec![acorde_core::StyledText {
             style: acorde_core::TextStyle::FiguredBass,
             text: "6 4".to_string(),
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
         }]
     );
 }

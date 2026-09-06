@@ -1,6 +1,10 @@
 {
   "schema_version": 1,
-  "release": "1.1.x",
+  "release": "1.1.2",
+  "contracts": {
+    "svg_render_metadata": 3,
+    "print_layout": 24
+  },
   "policy": {
     "claims_require_fixture_or_focused_test": true,
     "external_publication_verified": false,
@@ -41,8 +45,8 @@
     "coverage_matrix": "docs/notation-coverage.md",
     "analysis_corpus": "benchmarks/analysis.json (synthetic local benchmark; independent corpus pending)",
     "security_checks": [
-      "cargo test --all",
-      "cargo clippy --all -- -D warnings",
+      "cargo test --all-features --locked",
+      "cargo clippy --all --all-features --locked -- -D warnings",
       "cargo deny check advisories licenses sources --disable-fetch",
       "cargo audit --no-fetch"
     ]

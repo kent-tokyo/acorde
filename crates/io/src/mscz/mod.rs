@@ -664,6 +664,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             cur_texts.push(StyledText {
                                 style: TextStyle::ChordSymbol,
                                 text: harmony_name.trim().to_string(),
+                                placement: harmony_placement.clone(),
+                                offset_x: None,
+                                offset_y: None,
+                                relative_x: None,
+                                relative_y: None,
                             });
                         }
                         in_harmony = false;
@@ -690,6 +695,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             cur_texts.push(StyledText {
                                 style: mscx_text_style,
                                 text: mscx_text_value.trim().to_string(),
+                                placement: None,
+                                offset_x: None,
+                                offset_y: None,
+                                relative_x: None,
+                                relative_y: None,
                             });
                         }
                         in_text_element = false;
@@ -739,6 +749,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             cur_texts.push(StyledText {
                                 style: TextStyle::FiguredBass,
                                 text: display,
+                                placement: None,
+                                offset_x: None,
+                                offset_y: None,
+                                relative_x: None,
+                                relative_y: None,
                             });
                         }
                         in_figured_bass = false;
@@ -2417,6 +2432,11 @@ mod tests {
             vec![StyledText {
                 style: TextStyle::FiguredBass,
                 text: "6 4".to_string(),
+                placement: None,
+                offset_x: None,
+                offset_y: None,
+                relative_x: None,
+                relative_y: None,
             }]
         );
         assert!(loss_diagnostics(&xml).is_empty());
@@ -2849,6 +2869,11 @@ mod tests {
             vec![acorde_core::StyledText {
                 style: TextStyle::Expression,
                 text: "dolce".to_string(),
+                placement: None,
+                offset_x: None,
+                offset_y: None,
+                relative_x: None,
+                relative_y: None,
             }]
         );
     }

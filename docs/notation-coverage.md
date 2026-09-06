@@ -40,7 +40,14 @@ spellings, and MEI supports `qs` and `qf`. These
 declared quarter-tone spellings are 50 cents with no additional semitone alter; exact comparisons
 can use `Pitch::to_midi_cents()`. MIDI pitch-bend and vendor-specific accidental spellings remain
 partial. Playback events retain exact `pitch_midi_cents` alongside rounded `pitch_midi`; host audio
-rendering remains backend-dependent. MSCX tab staffs preserve `StaffType group="tab"` line/tuning
+rendering remains backend-dependent. MusicXML `default-x/default-y`, `relative-x/relative-y`,
+rendering attributes, and namespaced vendor attributes are now reported with stable,
+source-located diagnostics and preserved values; direction `placement` (`above`/`below`) and
+MusicXML direction `default-x/default-y` and `relative-x/relative-y` offsets are preserved as
+separate fields in `StyledText`; their coordinate meanings are not collapsed. Vendor semantics
+are not guessed into the canonical model. Other direction placement values are preserved but
+reported as a typed diagnostic.
+MSCX tab staffs preserve `StaffType group="tab"` line/tuning
 data and note-level string/fret when present; `Tuplet`/`endTuplet` ranges preserve their
 `actualNotes`/`normalNotes` ratio, `acciaccatura`/`appoggiatura` grace markers map to the
 canonical grace-note flags, and Arpeggio direction maps to the canonical arpeggiate flag.

@@ -340,6 +340,11 @@ pub(crate) fn build_svg_with_metadata(
                                     measure: measure_index,
                                     style: styled.style,
                                     text: styled.text.clone(),
+                                    placement: styled.placement.clone(),
+                                    offset_x: styled.offset_x,
+                                    offset_y: styled.offset_y,
+                                    relative_x: styled.relative_x,
+                                    relative_y: styled.relative_y,
                                 })
                             },
                         )

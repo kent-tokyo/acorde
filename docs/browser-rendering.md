@@ -27,7 +27,8 @@ outside the core/WASM contract and remain application-owned.
   `note_count`, `accessible_text`, `address_bounds`, and `text_annotations`. Each bound contains `part`, `staff`,
   `measure`, `voice`, and `note`, so a host can map hit testing and playback highlighting back to
   `NoteAddr` without parsing SVG. Each text annotation contains `part`, `staff`, `measure`,
-  `style`, and `text`, so measure-level styled text remains available to host views. Use
+  `style`, `text`, `placement`, `offset_x`, `offset_y`, `relative_x`, and `relative_y`, so measure-level
+  styled text and its source coordinate hints remain available to host views. Use
   `accessible_text` as the text alternative when the host
   cannot expose SVG semantics; check `contract_version` before consuming newer fields.
 

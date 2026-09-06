@@ -2016,6 +2016,11 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                     .push(StyledText {
                                         style: TextStyle::ChordSymbol,
                                         text: text.to_string(),
+                                        placement: None,
+                                        offset_x: None,
+                                        offset_y: None,
+                                        relative_x: None,
+                                        relative_y: None,
                                     });
                             }
                         }
@@ -2046,6 +2051,11 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             measure.texts.push(StyledText {
                                 style: TextStyle::FiguredBass,
                                 text,
+                                placement: None,
+                                offset_x: None,
+                                offset_y: None,
+                                relative_x: None,
+                                relative_y: None,
                             });
                             if !figured_bass_figures.is_empty() {
                                 measure.figured_bass = figured_bass_figures.clone();
@@ -2214,6 +2224,11 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
             measure.texts.push(StyledText {
                 style: TextStyle::ChordSymbol,
                 text: label,
+                placement: None,
+                offset_x: None,
+                offset_y: None,
+                relative_x: None,
+                relative_y: None,
             });
         }
     }
@@ -3714,6 +3729,11 @@ mod tests {
             vec![StyledText {
                 style: TextStyle::FiguredBass,
                 text: "6".to_string(),
+                placement: None,
+                offset_x: None,
+                offset_y: None,
+                relative_x: None,
+                relative_y: None,
             }]
         );
         assert_eq!(

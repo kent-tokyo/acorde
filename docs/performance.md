@@ -4,7 +4,7 @@ The renderer is synchronous and stateless. A reproducible smoke benchmark covers
 rendering together for small, medium, and large scores:
 
 ```bash
-cargo run --release -p acorde-render-svg --example benchmark
+cargo run --release --locked -p acorde-render-svg --example benchmark
 ```
 
 The command prints one machine-readable key/value line per case and fails if any case exceeds its

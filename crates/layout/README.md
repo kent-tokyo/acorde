@@ -25,6 +25,22 @@ per-system `measure_marks` without changing playback order;
 pages aggregate cross-system span ownership as `PageSpanSegment` values;
 `PrintLayoutResult::page` retrieves a stable page artifact without recomputation, with helpers
 for its physical measure range and cross-page span continuation;
+`PrintLayoutResult::export_page_artifacts` validates the complete result and returns one
+host-neutral `PageArtifact` per page with physical dimensions, measure span, copied page layout,
+and typed span-continuation diagnostics;
+`PrintLayoutResult::validate` checks serialized page and system addresses before host reuse;
+`PrintConfig::publication` and `PageLayout::publication` carry deterministic score metadata,
+part labels, running titles, page-scoped measure numbers, and physical header/footer text blocks
+for publication hosts. `PublicationConfig::title_page` adds a metadata-only first page without
+consuming music-system capacity, with title/subtitle/credit blocks placed in physical millimetres;
+`PrintPreset` supplies versioned A4/Letter score and extracted-part starting configurations;
+`PrintPreset::config_with_title_page` opts into a title page while preserving preset defaults;
+full-score publication metadata includes bracket/brace part-group marks;
+`PublicationConfig::page_number_in_footer` adds the final logical page number as a footer block;
+publication text blocks carry explicit left/center/right alignment;
+each block also carries the validated physical line-box height;
+title pages expose copyright as a dedicated block;
+publication page metadata is serde-defaulted so older serialized page objects remain readable;
 `NotationBreakPolicy::KeepVoltaTogether` can preserve contiguous volta endings during system
 breaking when explicitly enabled; `NotationBreakPolicy::KeepRepeatsTogether` can start repeat
 sections on a fresh page and keep them together when they fit the page capacity;
@@ -33,8 +49,14 @@ Safe areas constrain the content rectangle, but the crate does not choose fonts,
 printers, or perform filesystem I/O.
 
 Print consumers can use `GlyphMetrics` and `GlyphPlacement` for font-independent millimetre
-geometry. `resolve_glyph_collisions` applies deterministic, priority-aware vertical separation;
-font loading and final typography remain host responsibilities.
+geometry. `resolve_glyph_collisions` applies deterministic, priority-aware vertical separation and
+`resolve_glyph_horizontal_collisions` applies corresponding horizontal separation for overlapping
+glyphs, and `distribute_glyph_spacing` spreads additional system width evenly between ordered
+placements. The `*_checked` resolver variants validate geometry before mutating placements and
+reject non-finite gaps and placement arithmetic overflow; unchecked variants sanitize non-finite
+gaps to zero. Font loading and final typography remain host responsibilities.
+`glyph_extents` returns validated content bounds so hosts can derive content-aware margins without
+reconstructing glyph geometry; `GlyphExtents::width_mm` and `height_mm` provide the derived spans.
 
 ~~~rust
 use acorde_core::Score;

@@ -385,6 +385,21 @@ pub struct Lyric {
 pub struct StyledText {
     pub style: TextStyle,
     pub text: String,
+    /// Optional vertical placement hint from interchange formats.
+    #[serde(default)]
+    pub placement: Option<String>,
+    /// MusicXML default horizontal offset in tenths, when attached to a direction text.
+    #[serde(default)]
+    pub offset_x: Option<f64>,
+    /// MusicXML default vertical offset in tenths, when attached to a direction text.
+    #[serde(default)]
+    pub offset_y: Option<f64>,
+    /// MusicXML relative horizontal offset in tenths, retaining its relative-coordinate meaning.
+    #[serde(default)]
+    pub relative_x: Option<f64>,
+    /// MusicXML relative vertical offset in tenths, retaining its relative-coordinate meaning.
+    #[serde(default)]
+    pub relative_y: Option<f64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

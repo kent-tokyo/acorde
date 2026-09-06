@@ -2,10 +2,12 @@
 
 The reusable renderer has no browser or DOM dependency. The WASM package is built for
 `wasm32-unknown-unknown` and the checked-in fixture is served as a plain ES module page.
+The v1.1.2 render metadata contract is version 3 and includes position-aware measure-level
+`text_annotations` with source placement and offset fields in addition to note `address_bounds`.
 
 | Surface | Verification | Status |
 |---|---|---|
-| Native Rust renderer | `cargo test --all`, deterministic SVG goldens | supported |
+| Native Rust renderer | `cargo test --all-features --locked`, deterministic SVG goldens | supported |
 | WASM package | `wasm-pack build crates/wasm --target web` | supported |
 | Chromium / Chrome | Playwright browser-contract smoke + reviewed screenshot baseline | verified |
 | Firefox | Playwright browser-contract smoke + reviewed screenshot baseline | verified |
@@ -19,5 +21,8 @@ Playwright 1.55.0 with Chromium 140, Firefox 141, and WebKit 26.
 
 The legacy `wasm-pack test --headless --chrome` path uses a separately downloaded WebDriver.
 The CI job pins `wasm-pack` 0.15.0, installs the current Chrome, and has an explicit timeout so
-driver startup failures cannot hang the workflow. On the development Mac the same test passed
-with the Chrome 151-matched driver; the Playwright matrix remains the cross-browser contract.
+driver startup failures cannot hang the workflow. A local run on 2026-09-06 reached the headless
+test server with ChromeDriver 152 but did not produce completion evidence and was stopped. A
+single filtered render-contract test showed the same pre-test connection stall, so this is not
+evidence of a failure in an individual WASM test case; the Playwright matrix remains the current
+cross-browser contract.

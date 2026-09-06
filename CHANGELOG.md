@@ -10,6 +10,33 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+Development after `1.1.2` is intentionally kept empty until the next release scope is fixed.
+
+## [1.1.2] - 2026-09-06
+
+- Added the host-neutral `PrintLayoutResult::export_page_artifacts` API with stable page
+  addresses, physical dimensions, measure spans, and typed span-continuation diagnostics.
+
+### Added
+
+- Added host-neutral print publication metadata for title pages, running titles, headers,
+  footers, page numbers, part labels, part groups, text alignment, and physical line-box heights.
+- Added versioned A4/Letter full-score and extracted-part print presets.
+- Added deterministic glyph extent, collision, spacing, overflow, and persisted print-layout
+  validation APIs with typed diagnostics.
+
+### Changed
+
+- Bumped the serialized print-layout contract to version 24; SVG render metadata remains version 3.
+- Added backward-compatible defaults for serialized publication metadata and documented the
+  distinction between local evidence and host-dependent engraving/PDF/printing validation.
+
+### Documentation
+
+- Consolidated historical migration notes into `docs/migrations.md`, removed the superseded
+  phase TODO document, and aligned documented validation commands with the locked all-features
+  workspace gate.
+
 ## [1.1.1] - 2026-09-05
 
 ### Added
