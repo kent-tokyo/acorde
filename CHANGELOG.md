@@ -51,6 +51,7 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
 - No-op editor replacements now reuse an identical cached fingerprint instead of evicting it first.
 - WASM now exposes the bounded `AnalysisCache` workflow for repeated browser analysis, including
   batch reuse, editor replacement, invalidation, and hit/miss statistics.
+- WASM `AnalysisCache` now exposes its configured capacity alongside current occupancy.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

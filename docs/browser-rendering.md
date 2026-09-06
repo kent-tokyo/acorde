@@ -43,6 +43,8 @@ the Rust renderer remains stateless.
 For repeated browser analysis, the WASM `AnalysisCache` class mirrors the deterministic Rust cache:
 it supports bounded single-score and batch analysis, editor replacement, explicit invalidation,
 and JSON hit/miss statistics. Cache capacity is caller-owned and zero capacity is rejected.
+`capacity()`, `len()`, and `is_empty()` expose bounded cache occupancy without inspecting result
+payloads.
 
 ## Incremental updates
 

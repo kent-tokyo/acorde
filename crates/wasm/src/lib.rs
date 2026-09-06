@@ -628,6 +628,11 @@ impl AnalysisCache {
         self.inner.len()
     }
 
+    /// Return the configured maximum number of cached results.
+    pub fn capacity(&self) -> usize {
+        self.inner.capacity()
+    }
+
     /// Return whether the cache contains no results.
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
@@ -1397,6 +1402,7 @@ mod wasm_tests {
     fn browser_analysis_cache_reuses_results_and_reports_stats() {
         let score_json = serde_json::to_string(&Score::default()).unwrap();
         let mut cache = AnalysisCache::new(2).unwrap();
+        assert_eq!(cache.capacity(), 2);
         let first = cache.analyze(&score_json).unwrap();
         let second = cache.analyze(&score_json).unwrap();
         assert_eq!(first, second);
