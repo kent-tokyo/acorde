@@ -64,6 +64,8 @@ Interval analysis also accepts the region and includes observations touching the
 so boundary notes are not silently omitted.
 Voice-leading analysis now traverses only the selected region and preserves outside observations
 when merged into an incremental result.
+SATB diagnostics use the same bounded voice-leading input and replace only diagnostics whose
+evidence touches the selected region, preserving findings elsewhere in the score.
 
 ## Incremental updates
 

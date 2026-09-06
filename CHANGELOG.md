@@ -79,6 +79,8 @@ Development after `1.1.2` begins the Phase 10.5 fidelity-hardening scope.
   range, including boundary notes.
 - Voice-leading analysis now accepts bounded regions and preserves observations outside the
   edited range during incremental merging.
+- SATB diagnostics now accept bounded regions and replace only findings whose evidence touches
+  the edited range, preserving diagnostics outside the region.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

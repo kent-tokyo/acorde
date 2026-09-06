@@ -484,7 +484,7 @@ pub fn analyze_score(score: &Score) -> AnalysisResult {
     let key_estimates = estimate_keys(score);
     let cadence_candidates = analyze_cadences(&chords);
     let voice_leading = analyze_voice_leading(score);
-    let satb_diagnostics = analyze_satb_with_voice_leading(score, &voice_leading);
+    let satb_diagnostics = analyze_satb_in_region(score, &voice_leading, None);
     let motifs = analyze_motifs(score);
     let phrase_boundaries = analyze_phrase_boundaries(score);
     AnalysisResult {
@@ -626,7 +626,11 @@ pub fn analyze_selected_categories_in_region(
         previous.voice_leading.clone()
     };
     let satb_diagnostics = if selected(AnalysisCategory::SatbDiagnostics) {
-        analyze_satb_with_voice_leading(score, &voice_leading)
+        merge_satb_region(
+            &previous.satb_diagnostics,
+            analyze_satb_in_region(score, &voice_leading, region),
+            region,
+        )
     } else {
         previous.satb_diagnostics.clone()
     };
@@ -736,6 +740,39 @@ fn merge_chord_region(
             label.address.measure,
             label.address.voice,
             label.address.note,
+        )
+    });
+    merged
+}
+
+fn merge_satb_region(
+    previous: &[SatbDiagnostic],
+    refreshed: Vec<SatbDiagnostic>,
+    region: Option<&AnalysisRegion>,
+) -> Vec<SatbDiagnostic> {
+    let Some(region) = region else {
+        return refreshed;
+    };
+    let mut merged: Vec<_> = previous
+        .iter()
+        .filter(|diagnostic| {
+            !diagnostic
+                .evidence
+                .iter()
+                .any(|address| analysis_region_contains(region, address))
+        })
+        .cloned()
+        .collect();
+    merged.extend(refreshed);
+    merged.sort_by_key(|diagnostic| {
+        (
+            diagnostic.upper.part,
+            diagnostic.upper.staff,
+            diagnostic.upper.measure,
+            diagnostic.upper.voice,
+            diagnostic.upper.note,
+            diagnostic.lower.voice,
+            diagnostic.rule_id.clone(),
         )
     });
     merged
@@ -1230,17 +1267,27 @@ fn percentage(numerator: usize, denominator: usize) -> u8 {
 /// Analyze SATB constraints using the same aligned voice events as voice-leading analysis.
 pub fn analyze_satb(score: &Score) -> Vec<SatbDiagnostic> {
     let voice_leading = analyze_voice_leading(score);
-    analyze_satb_with_voice_leading(score, &voice_leading)
+    analyze_satb_in_region(score, &voice_leading, None)
 }
 
-fn analyze_satb_with_voice_leading(
+/// Analyze SATB diagnostics inside an optional part/staff measure region.
+pub fn analyze_satb_in_region(
     score: &Score,
     voice_leading: &[VoiceLeadingObservation],
+    region: Option<&AnalysisRegion>,
 ) -> Vec<SatbDiagnostic> {
     let mut diagnostics = Vec::new();
     for (part_index, part) in score.parts.iter().enumerate() {
         for (staff_index, staff) in part.staves.iter().enumerate() {
             for (measure_index, measure) in staff.measures.iter().enumerate() {
+                if let Some(region) = region
+                    && (part_index != region.part
+                        || staff_index != region.staff
+                        || measure_index < region.start_measure
+                        || measure_index >= region.end_measure)
+                {
+                    continue;
+                }
                 for (upper_index, upper_voice) in measure.voices.iter().enumerate() {
                     let Some(lower_voice) = measure.voices.get(upper_index + 1) else {
                         continue;
@@ -1290,6 +1337,14 @@ fn analyze_satb_with_voice_leading(
         }
     }
     for observation in voice_leading {
+        if let Some(region) = region
+            && !observation
+                .evidence
+                .iter()
+                .any(|address| analysis_region_contains(region, address))
+        {
+            continue;
+        }
         if observation.parallel_perfect {
             diagnostics.push(satb_diagnostic(
                 observation.upper.clone(),
@@ -2270,6 +2325,42 @@ mod tests {
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].kind, SatbDiagnosticKind::VoiceCrossing);
         assert_eq!(diagnostics[0].severity, SatbSeverity::Error);
+    }
+
+    #[test]
+    fn satb_region_replaces_local_findings_and_preserves_outside_findings() {
+        let mut previous_score = Score::default();
+        for measure in &mut previous_score.parts[0].staves[0].measures {
+            measure.voices[0].clear();
+            measure.voices[1].clear();
+            measure.voices[0].push(Note::new(Pitch::new(Step::C, 3), Duration::Quarter));
+            measure.voices[1].push(Note::new(Pitch::new(Step::C, 4), Duration::Quarter));
+        }
+        let previous = analyze_score(&previous_score);
+
+        let mut edited_score = previous_score.clone();
+        let measure = &mut edited_score.parts[0].staves[0].measures[0];
+        measure.voices[0][0] = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        let region = AnalysisRegion {
+            part: 0,
+            staff: 0,
+            start_measure: 0,
+            end_measure: 1,
+        };
+        let refreshed = analyze_selected_categories_in_region(
+            &edited_score,
+            &previous,
+            &[AnalysisCategory::SatbDiagnostics],
+            Some(&region),
+        );
+
+        assert_eq!(refreshed.satb_diagnostics.len(), 3);
+        assert!(
+            refreshed
+                .satb_diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.upper.measure >= 1)
+        );
     }
 
     #[test]
