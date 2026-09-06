@@ -242,6 +242,10 @@ pub enum RenderError {
     UnsupportedClef,
     /// A pitch's `alter` is outside the supported range (`-2..=2`: double-flat..double-sharp).
     UnsupportedAccidental { alter: i8 },
+    /// A tablature position cannot be represented by the owning staff.
+    InvalidTabPosition { string: u8, lines: u8 },
+    /// Tablature glyph metrics overflowed before SVG emission.
+    TabMetricsOverflow,
     /// Host-provided annotation validation failed.
     Annotation(RenderAnnotationError),
 }
@@ -263,6 +267,11 @@ impl std::fmt::Display for RenderError {
                     "unsupported accidental alter={alter} (supported range is -2..=2)"
                 )
             }
+            RenderError::InvalidTabPosition { string, lines } => write!(
+                f,
+                "tablature string {string} is outside the owning staff line range 1..={lines}"
+            ),
+            RenderError::TabMetricsOverflow => write!(f, "tablature glyph metrics overflowed"),
             RenderError::Annotation(error) => write!(f, "invalid render annotation: {error}"),
         }
     }

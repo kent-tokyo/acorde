@@ -1632,6 +1632,7 @@ fn render_note(
             space,
         );
     } else if let Some(tab) = tablature {
+        validate_tab_note(note, tab, space)?;
         render_tab_note(body, note, tab, x, staff_bottom_y, space);
         render_note_annotations(body, note, x, anchor_y, stem_up, space);
     } else {
@@ -1670,6 +1671,40 @@ fn render_note(
     }
 
     body.push_str("</g>");
+    Ok(())
+}
+
+fn validate_tab_note(
+    note: &Note,
+    tab: &acorde_core::TablatureConfig,
+    space: f32,
+) -> Result<(), RenderError> {
+    if tab.lines == 0 {
+        return Err(RenderError::InvalidTabPosition {
+            string: 0,
+            lines: tab.lines,
+        });
+    }
+    let positions = if !note.tab_positions.is_empty() {
+        note.tab_positions.as_slice()
+    } else {
+        note.tab_position.as_slice()
+    };
+    for position in positions {
+        if position.string == 0 || position.string > tab.lines {
+            return Err(RenderError::InvalidTabPosition {
+                string: position.string,
+                lines: tab.lines,
+            });
+        }
+    }
+    let widths = positions
+        .iter()
+        .map(|position| position.fret.to_string().chars().count() as f32 * 0.48 * space);
+    let total_width = widths.sum::<f32>() + 0.22 * space * positions.len().saturating_sub(1) as f32;
+    if !total_width.is_finite() {
+        return Err(RenderError::TabMetricsOverflow);
+    }
     Ok(())
 }
 

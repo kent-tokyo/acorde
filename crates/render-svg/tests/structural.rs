@@ -619,6 +619,33 @@ fn tablature_multiple_positions_get_deterministic_horizontal_spacing() {
 }
 
 #[test]
+fn invalid_tablature_string_is_rejected_before_svg_emission() {
+    use acorde_core::{Duration, Measure, Note, Pitch, Staff, Step, TablatureConfig};
+
+    let mut score = acorde_core::Score::new("Invalid tab", 120, 4, 4, 0, 1);
+    let mut staff = Staff::new(acorde_core::Clef::Treble);
+    staff.tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![64, 59, 55, 50, 45, 40],
+        capo: 0,
+    });
+    staff.measures.push(Measure::empty(4, 4));
+    let mut note = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+    note.tab_position = Some(acorde_core::TabPosition { string: 7, fret: 3 });
+    staff.measures[0].voices[0] = vec![note];
+    score.parts[0].staves = vec![staff];
+
+    let err = render_svg(&score, &opts()).expect_err("invalid tab string must be rejected");
+    assert_eq!(
+        err,
+        acorde_render_svg::RenderError::InvalidTabPosition {
+            string: 7,
+            lines: 6,
+        }
+    );
+}
+
+#[test]
 fn percussion_clef_is_rejected_not_silently_treble() {
     use acorde_core::{Clef, Part, Score, Staff};
     let mut score = Score::default();
