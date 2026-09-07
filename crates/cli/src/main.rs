@@ -996,6 +996,7 @@ struct CompatibilityReport {
     change_count: usize,
     semantic_equivalent: bool,
     analysis_changed_categories: Vec<acorde_analysis::AnalysisCategory>,
+    analysis_equivalent: bool,
     lossless: bool,
     changes: Vec<acorde_core::ScoreChange>,
     source_warning_count: usize,
@@ -1020,6 +1021,8 @@ fn cmd_compatibility_report(
     let source_analysis = acorde_analysis::analyze_score(&source_report.score);
     let candidate_analysis = acorde_analysis::analyze_score(&candidate_report.score);
     let analysis_diff = acorde_analysis::diff_analysis(&source_analysis, &candidate_analysis);
+    let analysis_equivalent = analysis_diff.is_empty();
+    let analysis_changed_categories = analysis_diff.changed_categories;
     let report = CompatibilityReport {
         schema_version: source_report.schema_version,
         source_format: source_report.format.clone(),
@@ -1028,7 +1031,8 @@ fn cmd_compatibility_report(
         candidate_path: candidate.display().to_string(),
         change_count: changes.len(),
         semantic_equivalent: changes.is_empty(),
-        analysis_changed_categories: analysis_diff.changed_categories,
+        analysis_changed_categories,
+        analysis_equivalent,
         lossless: source_report.loss_count() + candidate_report.loss_count() == 0,
         changes,
         source_warning_count: source_report.warning_count(),
@@ -1045,10 +1049,11 @@ fn cmd_compatibility_report(
         serde_json::to_string_pretty(&report)
             .map_err(|e| format!("compatibility report serialization failed: {e}"))?
     );
-    if fail_on_differences && report.change_count > 0 {
+    if fail_on_differences && (!report.semantic_equivalent || !report.analysis_equivalent) {
         return Err(format!(
-            "compatibility report found {} semantic difference(s)",
-            report.change_count
+            "compatibility report found {} semantic difference(s) and {} analysis category change(s)",
+            report.change_count,
+            report.analysis_changed_categories.len()
         ));
     }
     if fail_on_loss && report.source_loss_count + report.candidate_loss_count > 0 {

@@ -103,6 +103,8 @@ claims remain explicitly outside the local release evidence.
   stable machine-readable aggregation.
 - Compatibility reports now include deterministic analysis categories changed between the source
   and candidate scores.
+- `compatibility-report --fail-on-differences` now gates both score differences and changed
+  deterministic analysis categories; `analysis_equivalent` exposes the analysis decision.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

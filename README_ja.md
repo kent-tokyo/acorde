@@ -53,6 +53,7 @@ CIで意味差分を失敗扱いにする場合は `--fail-on-differences` を�
 型付きの情報損失診断も失敗扱いにする場合は `--fail-on-loss` を使います。
 レポートには判定結果を示す `semantic_equivalent` と `lossless` も含まれます。
 `analysis_changed_categories` には決定的分析で変化したカテゴリも含まれます。
+差分 gate は score と分析の両方を対象とし、分析側の判定は `analysis_equivalent` で確認できます。
 `SampleDecoder` と `SampleRenderer` により、codecと音声出力をホスト側へ委譲する型付き接続点も提供します。
 
 ## CLI

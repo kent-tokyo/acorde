@@ -57,6 +57,8 @@ The JSON includes explicit `semantic_equivalent` and `lossless` booleans so cons
 to infer gate status from counts.
 It also includes `analysis_changed_categories`, covering deterministic chord, interval, key,
 cadence, voice-leading, SATB, motif, and phrase-boundary changes.
+`--fail-on-differences` fails when either the score diff or the analysis category diff is non-empty;
+`analysis_equivalent` exposes that second decision explicitly.
 benchmark reads a local JSON manifest and emits corpus metadata, including a content fingerprint,
 plus the deterministic suite report.
 Paths are relative to the manifest file. `--fail-on-mismatch` makes the command exit with status 1
