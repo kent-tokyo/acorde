@@ -30,6 +30,6 @@ For v1.1.3, use the typed `Command::SetMeasureText` command for undoable measure
 v1.1.3 exposes position-aware `text_annotations` in SVG metadata. Contract version 3 adds
 optional placement and source-coordinate offset fields; older consumers can ignore these fields.
 
-For v1.1.4, `compatibility_report` is exposed through WASM and the browser
+For v1.1.5, `compatibility_report` is exposed through WASM and the browser
 adapter. It compares canonical score JSON values and returns explicit score and deterministic
 analysis gate booleans; it does not replace format-specific import/export diagnostics.

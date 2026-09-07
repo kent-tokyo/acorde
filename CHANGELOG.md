@@ -12,7 +12,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 No unreleased changes.
 
-## [1.1.4] - 2026-09-07
+## [1.1.5] - 2026-09-08
 
 - Added the host-neutral print SVG contract covering physical units, viewBox geometry, resource
   diagnostics, deterministic ordering, and the boundary with PDF/printing hosts.
@@ -33,6 +33,12 @@ No unreleased changes.
   XML/archive-to-SVG workflows without hiding parser or archive diagnostics.
 - Added bounded WASM `parse_mxl_render_svg` for compressed MusicXML-to-SVG workflows while
   preserving archive and import diagnostics in `parse_mxl_report`.
+
+## [1.1.4] - 2026-09-07
+
+This release consolidated the MEI/ABC/MusicXML/MXL/MIDI/MSCX/MSCZ direct-to-SVG WASM paths,
+compatibility gates, print SVG contract, and browser Worker integration. External interchange,
+engraving, PDF, and host adoption claims remain separately gated.
 
 ## [1.1.3] - 2026-09-06
 
