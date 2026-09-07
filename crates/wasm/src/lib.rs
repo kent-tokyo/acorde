@@ -399,6 +399,18 @@ pub fn parse_abc(text: &str) -> Result<String, JsValue> {
     score_to_json(&score)
 }
 
+/// Parse ABC Notation and render the canonical score directly to SVG.
+///
+/// This convenience path reuses the documented ABC parser and the same SVG renderer as native
+/// callers; use `parse_abc_report` when source-located import diagnostics are required.
+#[wasm_bindgen]
+pub fn parse_abc_render_svg(text: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = acorde_io::parse_abc(text).map_err(js_err)?;
+    let options: acorde_render_svg::SvgRenderOptions =
+        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
+    acorde_render_svg::render_svg(&score, &options).map_err(js_err)
+}
+
 /// Parse ABC Notation and return an ImportReport JSON string.
 #[wasm_bindgen]
 pub fn parse_abc_report(text: &str) -> Result<String, JsValue> {
