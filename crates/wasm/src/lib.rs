@@ -70,6 +70,15 @@ pub fn parse_mxl(data: &[u8]) -> Result<String, JsValue> {
     score_to_json(&score)
 }
 
+/// Parse a compressed MusicXML (MXL) archive and render its canonical score directly to SVG.
+#[wasm_bindgen]
+pub fn parse_mxl_render_svg(data: &[u8], options_json: &str) -> Result<String, JsValue> {
+    let score = acorde_io::parse_mxl(data).map_err(js_err)?;
+    let options: acorde_render_svg::SvgRenderOptions =
+        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
+    acorde_render_svg::render_svg(&score, &options).map_err(js_err)
+}
+
 /// Serialize a score (JSON string) to MusicXML.
 #[wasm_bindgen]
 pub fn serialize_musicxml(score_json: &str) -> Result<String, JsValue> {

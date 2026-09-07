@@ -98,7 +98,7 @@ let score: &Score = engine.score();
 The `abc` feature adds ABC parse/serialize; `mscz` adds MuseScore `.mscz`/`.mscx` parsing; `mei`
 adds the documented MEI subset import/export boundary.
 Parsers accept memory buffers and return typed errors. They do not read files.
-The WASM API also provides `parse_musicxml_render_svg`, `parse_mei_render_svg`,
+The WASM API also provides `parse_musicxml_render_svg`, `parse_mxl_render_svg`, `parse_mei_render_svg`,
 `parse_abc_render_svg`, and `parse_midi_render_svg` as bounded one-call paths from documented
 inputs to canonical SVG. MuseScore XML and archive inputs are also covered by
 `parse_mscx_render_svg` and `parse_mscz_render_svg`; use the corresponding `*_report` functions

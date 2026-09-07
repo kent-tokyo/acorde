@@ -13,6 +13,8 @@ The ABC parser has the equivalent `parse_abc_render_svg(text, options_json)` con
 call `parse_abc_report` when ABC import diagnostics are required.
 MusicXML has the equivalent `parse_musicxml_render_svg(xml, options_json)` convenience path;
 call `parse_musicxml_report` when MusicXML import diagnostics are required.
+Compressed MusicXML has `parse_mxl_render_svg(data, options_json)`; use `parse_mxl_report` when
+archive and import diagnostics are required.
 MIDI bytes have the equivalent `parse_midi_render_svg(data, options_json)` path; MIDI's bounded
 performance-to-score projection is preserved and `parse_midi_report` remains the diagnostic path.
 MuseScore XML and archive inputs have equivalent `parse_mscx_render_svg(xml, options_json)` and
@@ -36,6 +38,8 @@ outside the core/WASM contract and remain application-owned.
   directly to SVG.
 - `parse_musicxml_render_svg(xml, options_json)` parses MusicXML and renders its canonical score
   directly to SVG.
+- `parse_mxl_render_svg(data, options_json)` parses compressed MusicXML and renders its canonical
+  score directly to SVG.
 - `parse_midi_render_svg(data, options_json)` parses MIDI bytes and renders the bounded canonical
   score projection directly to SVG.
 - `parse_mscx_render_svg(xml, options_json)` parses MuseScore XML and renders its bounded

@@ -31,6 +31,8 @@ No unreleased changes.
   MIDI's projection limits and diagnostics boundary remain explicit.
 - Added bounded WASM `parse_mscx_render_svg` and `parse_mscz_render_svg` paths for MuseScore
   XML/archive-to-SVG workflows without hiding parser or archive diagnostics.
+- Added bounded WASM `parse_mxl_render_svg` for compressed MusicXML-to-SVG workflows while
+  preserving archive and import diagnostics in `parse_mxl_report`.
 
 ## [1.1.3] - 2026-09-06
 
