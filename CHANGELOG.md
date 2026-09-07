@@ -95,6 +95,8 @@ claims remain explicitly outside the local release evidence.
 - CLI now provides `compatibility-report source candidate`, combining positional semantic diff
   and import diagnostics for later permissioned external corpus measurements without claiming
   lossless interchange.
+- `compatibility-report --fail-on-differences` now provides a deterministic non-zero CI gate while
+  preserving the machine-readable JSON report.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

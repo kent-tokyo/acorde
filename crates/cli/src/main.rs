@@ -157,6 +157,9 @@ enum Commands {
         source: PathBuf,
         /// Candidate score file after conversion
         candidate: PathBuf,
+        /// Exit with status 1 when the semantic diff is non-empty
+        #[arg(long)]
+        fail_on_differences: bool,
     },
 }
 
@@ -206,9 +209,11 @@ fn main() {
         Commands::AutoTabReport { input, output } => cmd_auto_tab_report(input, output),
         Commands::FingeringReport { input, policy } => cmd_fingering_report(input, policy),
         Commands::ExportReport { input, output } => cmd_export_report(input, output),
-        Commands::CompatibilityReport { source, candidate } => {
-            cmd_compatibility_report(source, candidate)
-        }
+        Commands::CompatibilityReport {
+            source,
+            candidate,
+            fail_on_differences,
+        } => cmd_compatibility_report(source, candidate, *fail_on_differences),
     };
     if let Err(e) = result {
         eprintln!("error: {e}");
@@ -996,7 +1001,11 @@ struct CompatibilityReport {
     candidate_diagnostics: Vec<acorde_io::Diagnostic>,
 }
 
-fn cmd_compatibility_report(source: &Path, candidate: &Path) -> Result<(), String> {
+fn cmd_compatibility_report(
+    source: &Path,
+    candidate: &Path,
+    fail_on_differences: bool,
+) -> Result<(), String> {
     let source_report = parse_report(source)?;
     let candidate_report = parse_report(candidate)?;
     let changes = acorde_core::diff(&source_report.score, &candidate_report.score);
@@ -1022,5 +1031,11 @@ fn cmd_compatibility_report(source: &Path, candidate: &Path) -> Result<(), Strin
         serde_json::to_string_pretty(&report)
             .map_err(|e| format!("compatibility report serialization failed: {e}"))?
     );
+    if fail_on_differences && report.change_count > 0 {
+        return Err(format!(
+            "compatibility report found {} semantic difference(s)",
+            report.change_count
+        ));
+    }
     Ok(())
 }

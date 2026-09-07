@@ -50,6 +50,8 @@ without embedding the binary/text artifact in the JSON response.
 compatibility-report parses two local score files and emits their deterministic positional semantic
 diff plus source-located import diagnostics from both sides. It reports differences and does not
 claim lossless interchange.
+`--fail-on-differences` preserves the JSON report and exits with status 1 when semantic changes
+are found, making the command suitable for a compatibility gate.
 benchmark reads a local JSON manifest and emits corpus metadata, including a content fingerprint,
 plus the deterministic suite report.
 Paths are relative to the manifest file. `--fail-on-mismatch` makes the command exit with status 1
