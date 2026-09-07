@@ -99,6 +99,8 @@ claims remain explicitly outside the local release evidence.
   preserving the machine-readable JSON report.
 - `compatibility-report --fail-on-loss` now provides an independent non-zero gate for typed
   information-loss diagnostics on either side of a comparison.
+- Compatibility reports now include explicit `semantic_equivalent` and `lossless` booleans for
+  stable machine-readable aggregation.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.
