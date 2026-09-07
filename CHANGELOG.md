@@ -25,6 +25,8 @@ No unreleased changes.
   deterministic analysis changes remain separately represented by `analysis_equivalent`.
 - Added bounded WASM `parse_mei_render_svg` and `parse_abc_render_svg` convenience paths that
   reuse the canonical score and SVG renderer while keeping import diagnostics in report APIs.
+- Added bounded WASM `parse_musicxml_render_svg` for the primary interchange-to-SVG workflow,
+  with MusicXML diagnostics remaining in `parse_musicxml_report`.
 
 ## [1.1.3] - 2026-09-06
 

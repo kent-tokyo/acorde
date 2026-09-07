@@ -44,6 +44,18 @@ pub fn parse_musicxml(xml: &str) -> Result<String, JsValue> {
     score_to_json(&score)
 }
 
+/// Parse MusicXML and render the canonical score directly to SVG.
+///
+/// This convenience path reuses the documented MusicXML parser and the same SVG renderer as
+/// native callers; use `parse_musicxml_report` when source-located import diagnostics are needed.
+#[wasm_bindgen]
+pub fn parse_musicxml_render_svg(xml: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = acorde_io::parse_musicxml(xml).map_err(js_err)?;
+    let options: acorde_render_svg::SvgRenderOptions =
+        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
+    acorde_render_svg::render_svg(&score, &options).map_err(js_err)
+}
+
 /// Parse MusicXML and return an [`acorde_io::ImportReport`] JSON string.
 #[wasm_bindgen]
 pub fn parse_musicxml_report(xml: &str) -> Result<String, JsValue> {
