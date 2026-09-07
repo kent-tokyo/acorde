@@ -114,7 +114,8 @@ It reports positional semantic changes and import diagnostics for both files wit
 lossless interchange.
 Add `--fail-on-differences` in CI when any semantic change should fail the gate.
 Use `--fail-on-loss` when typed conversion losses must also fail the gate.
-The report also includes explicit `semantic_equivalent` and `lossless` fields.
+The report also includes explicit `semantic_equivalent` and `lossless` fields; `lossless` means
+that the score is equivalent and no typed conversion loss was reported.
 `analysis_changed_categories` reports which deterministic analysis categories changed.
 The difference gate covers both score and analysis changes, with the latter exposed as
 `analysis_equivalent`.

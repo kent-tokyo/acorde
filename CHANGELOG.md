@@ -21,6 +21,8 @@ No unreleased changes.
 - Added WASM `compatibility_report` and browser-adapter/Worker support for comparing canonical
   score JSON values with explicit score and analysis-equivalence gates. Format-specific loss
   diagnostics remain in the import/export report APIs.
+- Aligned CLI and WASM `lossless` semantics: score differences now make the flag false, while
+  deterministic analysis changes remain separately represented by `analysis_equivalent`.
 
 ## [1.1.3] - 2026-09-06
 

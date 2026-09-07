@@ -54,7 +54,8 @@ claim lossless interchange.
 are found, making the command suitable for a compatibility gate.
 `--fail-on-loss` independently fails when either side reports a typed information-loss diagnostic.
 The JSON includes explicit `semantic_equivalent` and `lossless` booleans so consumers do not need
-to infer gate status from counts.
+to infer gate status from counts. `lossless` requires score equivalence and zero typed conversion
+losses; analysis changes remain separately visible through `analysis_equivalent`.
 It also includes `analysis_changed_categories`, covering deterministic chord, interval, key,
 cadence, voice-leading, SATB, motif, and phrase-boundary changes.
 `--fail-on-differences` fails when either the score diff or the analysis category diff is non-empty;

@@ -1033,7 +1033,8 @@ fn cmd_compatibility_report(
         semantic_equivalent: changes.is_empty(),
         analysis_changed_categories,
         analysis_equivalent,
-        lossless: source_report.loss_count() + candidate_report.loss_count() == 0,
+        lossless: changes.is_empty()
+            && source_report.loss_count() + candidate_report.loss_count() == 0,
         changes,
         source_warning_count: source_report.warning_count(),
         source_error_count: source_report.error_count(),

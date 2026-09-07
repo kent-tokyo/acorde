@@ -521,7 +521,7 @@ pub fn compatibility_report(score_a_json: &str, score_b_json: &str) -> Result<St
         "semantic_equivalent": changes.is_empty(),
         "analysis_changed_categories": analysis_diff.changed_categories,
         "analysis_equivalent": analysis_diff.is_empty(),
-        "lossless": changes.is_empty() && analysis_diff.is_empty(),
+        "lossless": changes.is_empty(),
         "changes": changes,
     });
     serde_json::to_string(&report)

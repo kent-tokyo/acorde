@@ -52,7 +52,8 @@ glissandoとcross-staff配置もMusicXMLとの往復変換で保持されます�
 意味差分と両ファイルの import 診断を出力しますが、ロスレス互換性は主張しません。
 CIで意味差分を失敗扱いにする場合は `--fail-on-differences` を追加します。
 型付きの情報損失診断も失敗扱いにする場合は `--fail-on-loss` を使います。
-レポートには判定結果を示す `semantic_equivalent` と `lossless` も含まれます。
+レポートには判定結果を示す `semantic_equivalent` と `lossless` も含まれます。`lossless` は
+scoreが同値で、型付き変換損失がない場合にtrueです。
 `analysis_changed_categories` には決定的分析で変化したカテゴリも含まれます。
 差分 gate は score と分析の両方を対象とし、分析側の判定は `analysis_equivalent` で確認できます。
 WASMの `compatibility_report` とブラウザアダプターの `compatibilityReport()` でも、正規化済み
