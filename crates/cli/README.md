@@ -47,6 +47,9 @@ failure path without external resources.
 analyze emits deterministic chord, melodic-interval, and key-estimate results as JSON.
 export-report writes MusicXML, MIDI, ABC, or MEI and emits machine-readable export diagnostics
 without embedding the binary/text artifact in the JSON response.
+compatibility-report parses two local score files and emits their deterministic positional semantic
+diff plus source-located import diagnostics from both sides. It reports differences and does not
+claim lossless interchange.
 benchmark reads a local JSON manifest and emits corpus metadata, including a content fingerprint,
 plus the deterministic suite report.
 Paths are relative to the manifest file. `--fail-on-mismatch` makes the command exit with status 1

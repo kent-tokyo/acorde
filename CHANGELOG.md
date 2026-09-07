@@ -92,6 +92,9 @@ claims remain explicitly outside the local release evidence.
 - Added `explain_analysis_change` to combine before/after provenance with deterministic analysis
   category diffs for explainable editor updates; WASM exposes the same response.
 - Added a browser-side wasm-bindgen regression for provenance and explainable analysis changes.
+- CLI now provides `compatibility-report source candidate`, combining positional semantic diff
+  and import diagnostics for later permissioned external corpus measurements without claiming
+  lossless interchange.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

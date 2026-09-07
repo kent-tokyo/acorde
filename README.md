@@ -108,6 +108,10 @@ model; common ABC (`^/`, `_/`) and MEI (`qs`, `qf`) quarter-accidental subsets a
 emission. It emits deterministic SVG with optional `data-note-addr` hooks and returns errors for
 unsupported clefs, accidentals, layouts, rows, or render options.
 
+For a deterministic cross-format comparison, use `acorde compatibility-report source candidate`.
+It reports positional semantic changes and import diagnostics for both files without claiming
+lossless interchange.
+
 Playback events include stable source note addresses for synchronizing audio cursors with
 notation selection. The WASM package exposes the same pipeline plus `ScoreEngine`, score diff/patch, validation,
 playback, theory helpers, deterministic tablature fingering selection, and explainable score analysis through

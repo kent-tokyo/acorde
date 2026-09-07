@@ -151,6 +151,13 @@ enum Commands {
         /// Output file (.musicxml, .mid, .midi)
         output: PathBuf,
     },
+    /// Compare two score files and print a deterministic semantic compatibility report
+    CompatibilityReport {
+        /// Source score file
+        source: PathBuf,
+        /// Candidate score file after conversion
+        candidate: PathBuf,
+    },
 }
 
 fn main() {
@@ -199,6 +206,9 @@ fn main() {
         Commands::AutoTabReport { input, output } => cmd_auto_tab_report(input, output),
         Commands::FingeringReport { input, policy } => cmd_fingering_report(input, policy),
         Commands::ExportReport { input, output } => cmd_export_report(input, output),
+        Commands::CompatibilityReport { source, candidate } => {
+            cmd_compatibility_report(source, candidate)
+        }
     };
     if let Err(e) = result {
         eprintln!("error: {e}");
@@ -963,6 +973,54 @@ fn cmd_export_report(input: &Path, output: &Path) -> Result<(), String> {
         "{}",
         serde_json::to_string_pretty(&summary)
             .map_err(|e| format!("report serialization failed: {e}"))?
+    );
+    Ok(())
+}
+
+#[derive(Debug, Serialize)]
+struct CompatibilityReport {
+    schema_version: u32,
+    source_format: String,
+    candidate_format: String,
+    source_path: String,
+    candidate_path: String,
+    change_count: usize,
+    changes: Vec<acorde_core::ScoreChange>,
+    source_warning_count: usize,
+    source_error_count: usize,
+    source_loss_count: usize,
+    source_diagnostics: Vec<acorde_io::Diagnostic>,
+    candidate_warning_count: usize,
+    candidate_error_count: usize,
+    candidate_loss_count: usize,
+    candidate_diagnostics: Vec<acorde_io::Diagnostic>,
+}
+
+fn cmd_compatibility_report(source: &Path, candidate: &Path) -> Result<(), String> {
+    let source_report = parse_report(source)?;
+    let candidate_report = parse_report(candidate)?;
+    let changes = acorde_core::diff(&source_report.score, &candidate_report.score);
+    let report = CompatibilityReport {
+        schema_version: source_report.schema_version,
+        source_format: source_report.format.clone(),
+        candidate_format: candidate_report.format.clone(),
+        source_path: source.display().to_string(),
+        candidate_path: candidate.display().to_string(),
+        change_count: changes.len(),
+        changes,
+        source_warning_count: source_report.warning_count(),
+        source_error_count: source_report.error_count(),
+        source_loss_count: source_report.loss_count(),
+        source_diagnostics: source_report.diagnostics,
+        candidate_warning_count: candidate_report.warning_count(),
+        candidate_error_count: candidate_report.error_count(),
+        candidate_loss_count: candidate_report.loss_count(),
+        candidate_diagnostics: candidate_report.diagnostics,
+    };
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&report)
+            .map_err(|e| format!("compatibility report serialization failed: {e}"))?
     );
     Ok(())
 }
