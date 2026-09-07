@@ -55,6 +55,8 @@ CIで意味差分を失敗扱いにする場合は `--fail-on-differences` を�
 レポートには判定結果を示す `semantic_equivalent` と `lossless` も含まれます。
 `analysis_changed_categories` には決定的分析で変化したカテゴリも含まれます。
 差分 gate は score と分析の両方を対象とし、分析側の判定は `analysis_equivalent` で確認できます。
+WASMの `compatibility_report` とブラウザアダプターの `compatibilityReport()` でも、正規化済み
+score JSON同士の同じ判定を利用できます。形式固有の損失は各 `*_report` APIで確認します。
 `SampleDecoder` と `SampleRenderer` により、codecと音声出力をホスト側へ委譲する型付き接続点も提供します。
 
 ## CLI
