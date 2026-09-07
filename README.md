@@ -98,6 +98,8 @@ let score: &Score = engine.score();
 The `abc` feature adds ABC parse/serialize; `mscz` adds MuseScore `.mscz`/`.mscx` parsing; `mei`
 adds the documented MEI subset import/export boundary.
 Parsers accept memory buffers and return typed errors. They do not read files.
+The WASM API also provides `parse_mei_render_svg` as a bounded one-call path from the documented
+MEI subset to canonical SVG; use `parse_mei_report` when import diagnostics are needed.
 MusicXML voice numbers 1–4 are preserved in `Measure.voices` and through MusicXML round-trips.
 Tablature string/fret positions and fractional MusicXML alterations are preserved in the score
 model; common ABC (`^/`, `_/`) and MEI (`qs`, `qf`) quarter-accidental subsets are also supported.

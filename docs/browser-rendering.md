@@ -6,6 +6,10 @@ The browser integration keeps the same pipeline as native callers:
 parse_musicxml(xml) -> score JSON -> compute_layout_ex(score, config) -> render_score_svg_with_layout
 ```
 
+For the documented MEI subset, `parse_mei_render_svg(xml, options_json)` provides a bounded
+one-call parse-to-SVG path. It uses the same canonical score and renderer as the expanded
+pipeline; call `parse_mei_report` when source-located import diagnostics are required.
+
 The WASM boundary enforces 16 MiB for score JSON, 32 MiB for precomputed layout JSON, and 64 KiB
 for layout/playback/render options JSON. Other small JSON arguments are bounded at 256 KiB. An invalid score,
 layout, options object, or row index returns a rejected `Result`/`JsValue`; no filesystem or
@@ -17,6 +21,8 @@ outside the core/WASM contract and remain application-owned.
 
 ## Stable calls
 
+- `parse_mei_render_svg(xml, options_json)` parses the documented MEI subset and renders its
+  canonical score directly to SVG.
 - `compute_layout_ex(score_json, config_json)` returns the serialized `LayoutResult`.
 - `render_score_svg_with_layout(score_json, layout_json, options_json)` renders the complete
   score using that layout.

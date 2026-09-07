@@ -82,6 +82,18 @@ pub fn parse_mei(xml: &str) -> Result<String, JsValue> {
     score_to_json(&score)
 }
 
+/// Parse the documented MEI subset and render the canonical score directly to SVG.
+///
+/// This convenience path is equivalent to `parse_mei` followed by `render_score_svg`; it does
+/// not broaden MEI support or hide source diagnostics from `parse_mei_report`.
+#[wasm_bindgen]
+pub fn parse_mei_render_svg(xml: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = acorde_io::parse_mei(xml).map_err(js_err)?;
+    let options: acorde_render_svg::SvgRenderOptions =
+        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
+    acorde_render_svg::render_svg(&score, &options).map_err(js_err)
+}
+
 /// Parse the documented MEI subset and return an ImportReport JSON string.
 #[wasm_bindgen]
 pub fn parse_mei_report(xml: &str) -> Result<String, JsValue> {
