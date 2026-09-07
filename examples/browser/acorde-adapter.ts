@@ -155,6 +155,7 @@ export type WorkspaceRequest =
   | { id: string; type: "render-row-svg"; rowIndex: number }
   | { id: string; type: "metadata" }
   | { id: string; type: "analysis" }
+  | { id: string; type: "compatibility-report"; candidateScoreJson: string }
   | { id: string; type: "analysis-cache-key" }
   | { id: string; type: "export-musicxml" }
   | { id: string; type: "export-musicxml-report" }
@@ -653,6 +654,12 @@ export function handleWorkspaceRequest(
         return { id: request.id, ok: true, value: workspace.metadata() };
       case "analysis":
         return { id: request.id, ok: true, value: workspace.analyze() };
+      case "compatibility-report":
+        return {
+          id: request.id,
+          ok: true,
+          value: workspace.compatibilityReport(request.candidateScoreJson),
+        };
       case "analysis-cache-key":
         return { id: request.id, ok: true, value: workspace.analysisCacheKey() };
       case "export-musicxml":

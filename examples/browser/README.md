@@ -54,6 +54,8 @@ has such information, so hosts can present repair guidance without parsing error
 `compatibilityReport(candidateScoreJson)` compares a candidate canonical score with the loaded
 score and returns score and deterministic analysis gate booleans. It does not infer losses from a
 format conversion; use the import/export report methods for that boundary.
+The Worker boundary exposes the same operation as `compatibility-report` with a
+`candidateScoreJson` payload.
 Each sounding playback event carries the stable source address used by `data-note-addr`, and
 `selectPlaybackEvent` sends that address through the shared `SelectionStore` for notation and
 analysis highlighting.
