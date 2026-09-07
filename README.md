@@ -112,6 +112,7 @@ For a deterministic cross-format comparison, use `acorde compatibility-report so
 It reports positional semantic changes and import diagnostics for both files without claiming
 lossless interchange.
 Add `--fail-on-differences` in CI when any semantic change should fail the gate.
+Use `--fail-on-loss` when typed conversion losses must also fail the gate.
 
 Playback events include stable source note addresses for synchronizing audio cursors with
 notation selection. The WASM package exposes the same pipeline plus `ScoreEngine`, score diff/patch, validation,

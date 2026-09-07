@@ -97,6 +97,8 @@ claims remain explicitly outside the local release evidence.
   lossless interchange.
 - `compatibility-report --fail-on-differences` now provides a deterministic non-zero CI gate while
   preserving the machine-readable JSON report.
+- `compatibility-report --fail-on-loss` now provides an independent non-zero gate for typed
+  information-loss diagnostics on either side of a comparison.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

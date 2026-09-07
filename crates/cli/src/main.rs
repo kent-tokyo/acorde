@@ -160,6 +160,9 @@ enum Commands {
         /// Exit with status 1 when the semantic diff is non-empty
         #[arg(long)]
         fail_on_differences: bool,
+        /// Exit with status 1 when either file reports an information-loss diagnostic
+        #[arg(long)]
+        fail_on_loss: bool,
     },
 }
 
@@ -213,7 +216,8 @@ fn main() {
             source,
             candidate,
             fail_on_differences,
-        } => cmd_compatibility_report(source, candidate, *fail_on_differences),
+            fail_on_loss,
+        } => cmd_compatibility_report(source, candidate, *fail_on_differences, *fail_on_loss),
     };
     if let Err(e) = result {
         eprintln!("error: {e}");
@@ -1005,6 +1009,7 @@ fn cmd_compatibility_report(
     source: &Path,
     candidate: &Path,
     fail_on_differences: bool,
+    fail_on_loss: bool,
 ) -> Result<(), String> {
     let source_report = parse_report(source)?;
     let candidate_report = parse_report(candidate)?;
@@ -1035,6 +1040,12 @@ fn cmd_compatibility_report(
         return Err(format!(
             "compatibility report found {} semantic difference(s)",
             report.change_count
+        ));
+    }
+    if fail_on_loss && report.source_loss_count + report.candidate_loss_count > 0 {
+        return Err(format!(
+            "compatibility report found {} information-loss diagnostic(s)",
+            report.source_loss_count + report.candidate_loss_count
         ));
     }
     Ok(())
