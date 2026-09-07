@@ -62,6 +62,8 @@ The Rust analysis layer now applies the supplied region to chord-pass traversal 
 refreshed region with preserved outside results.
 `analysis_provenance(analysis_json, address_json)` provides a deterministic “why” lookup for a
 selected note address, including the rule ID, confidence, and source evidence for each finding.
+`explain_analysis_change(previous_json, current_json, address_json)` combines the before/after
+provenance with the category diff in one response for explainable editor updates.
 Interval analysis also accepts the region and includes observations touching the edited range,
 so boundary notes are not silently omitted.
 Voice-leading analysis now traverses only the selected region and preserves outside observations

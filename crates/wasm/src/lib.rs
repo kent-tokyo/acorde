@@ -580,6 +580,29 @@ pub fn analysis_provenance(analysis_json: &str, address_json: &str) -> Result<St
         .map_err(|e| js_err(format!("analysis provenance serialization failed: {e}")))
 }
 
+/// Compare two analysis results and return the category diff plus before/after explanations.
+#[wasm_bindgen]
+pub fn explain_analysis_change(
+    previous_json: &str,
+    current_json: &str,
+    address_json: &str,
+) -> Result<String, JsValue> {
+    let previous: acorde_analysis::AnalysisResult =
+        parse_json(previous_json, "previous analysis", MAX_SCORE_JSON_BYTES)?;
+    let current: acorde_analysis::AnalysisResult =
+        parse_json(current_json, "current analysis", MAX_SCORE_JSON_BYTES)?;
+    let address: acorde_core::NoteAddr =
+        parse_json(address_json, "analysis address", MAX_SMALL_JSON_BYTES)?;
+    serde_json::to_string(&acorde_analysis::explain_analysis_change(
+        &previous, &current, &address,
+    ))
+    .map_err(|e| {
+        js_err(format!(
+            "analysis change explanation serialization failed: {e}"
+        ))
+    })
+}
+
 /// Return conservative analysis categories affected by a serialized engine change hint.
 #[wasm_bindgen]
 pub fn affected_analysis_categories(change_hint_json: &str) -> Result<String, JsValue> {

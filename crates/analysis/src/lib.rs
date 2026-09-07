@@ -285,6 +285,27 @@ pub fn analysis_provenance(
     findings
 }
 
+/// A score diff together with the explanations affected at one source address.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AnalysisChangeExplanation {
+    pub diff: AnalysisDiff,
+    pub previous: Vec<AnalysisProvenance>,
+    pub current: Vec<AnalysisProvenance>,
+}
+
+/// Compare two analysis results and explain the findings attached to one source address.
+pub fn explain_analysis_change(
+    previous: &AnalysisResult,
+    current: &AnalysisResult,
+    address: &NoteAddr,
+) -> AnalysisChangeExplanation {
+    AnalysisChangeExplanation {
+        diff: diff_analysis(previous, current),
+        previous: analysis_provenance(previous, address),
+        current: analysis_provenance(current, address),
+    }
+}
+
 fn analysis_category_rank(category: AnalysisCategory) -> u8 {
     match category {
         AnalysisCategory::Chords => 0,
@@ -1972,6 +1993,33 @@ mod tests {
             (analysis_category_rank(pair[0].category), &pair[0].rule_id)
                 <= (analysis_category_rank(pair[1].category), &pair[1].rule_id)
         }));
+    }
+
+    #[test]
+    fn change_explanation_combines_diff_and_before_after_provenance() {
+        let mut previous_score = Score::default();
+        let voice = &mut previous_score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        for step in [Step::C, Step::E, Step::G] {
+            voice.push(Note::new(Pitch::new(step, 4), Duration::Quarter));
+        }
+        let previous = analyze_score(&previous_score);
+        let mut current_score = previous_score.clone();
+        current_score.parts[0].staves[0].measures[0].voices[0][1] =
+            Note::new(Pitch::new(Step::F, 4), Duration::Quarter);
+        let current = analyze_score(&current_score);
+        let address = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 1,
+        };
+
+        let explanation = explain_analysis_change(&previous, &current, &address);
+        assert!(!explanation.diff.is_empty());
+        assert!(!explanation.previous.is_empty());
+        assert!(!explanation.current.is_empty());
     }
 
     #[test]

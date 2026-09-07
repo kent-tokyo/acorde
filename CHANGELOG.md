@@ -89,6 +89,8 @@ claims remain explicitly outside the local release evidence.
   the edited range, preserving diagnostics outside the region.
 - Added deterministic analysis provenance lookup by `NoteAddr`, including rule IDs, confidence,
   and source evidence; WASM exposes the same read-only “why” query.
+- Added `explain_analysis_change` to combine before/after provenance with deterministic analysis
+  category diffs for explainable editor updates; WASM exposes the same response.
 
 - Added explicit deterministic SVG `acorde-microtone` markers for non-zero canonical pitch cents;
   richer microtonal glyph equivalence remains a separate resource/host phase.

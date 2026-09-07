@@ -42,6 +42,8 @@ score fingerprint changes separate from category changes. This lets hosts update
 views selectively without treating metadata-only edits as analysis-content changes.
 `analysis_provenance(result, address)` returns the deterministic rule ID, confidence, and source
 evidence for every finding that contains the selected `NoteAddr`.
+`explain_analysis_change(previous, current, address)` combines before/after provenance with the
+deterministic category diff for an explainable editor update.
 
 Offline benchmark consumers can use `BenchmarkCase` and `run_benchmark` with hand-verified
 category counts. The report includes predicted counts, precision, recall, explanation

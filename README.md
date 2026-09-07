@@ -123,6 +123,7 @@ analysis and the deterministic category diff.
 dependencies and reports one-measure context on either side for boundary-sensitive passes.
 `analysis_provenance` returns the deterministic rule, confidence, and source evidence attached
 to a selected `NoteAddr` without rerunning analysis.
+`explain_analysis_change` combines that lookup for before/after results with the category diff.
 See [the browser contract](docs/browser-rendering.md) and the
 [browser fixture](examples/browser/README.md).
 
