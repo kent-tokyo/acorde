@@ -87,6 +87,20 @@ fn svg_root_present_and_well_formed() {
 }
 
 #[test]
+fn svg_root_has_deterministic_print_safe_geometry() {
+    let first = render_svg(&common::satb_major(), &opts()).unwrap();
+    let second = render_svg(&common::satb_major(), &opts()).unwrap();
+
+    assert_eq!(first, second);
+    assert!(first.contains("xmlns=\"http://www.w3.org/2000/svg\""));
+    assert!(first.contains("width=\"700.00\""));
+    assert!(first.contains("viewBox=\"0 0 700.00 "));
+    assert!(!first.contains("<image"));
+    assert!(!first.contains("<use"));
+    assert!(!first.contains("href=\"http"));
+}
+
+#[test]
 fn large_score_and_many_staves_render_without_panicking() {
     use acorde_core::{Clef, Duration, Note, Pitch, Score, Staff, Step};
 
