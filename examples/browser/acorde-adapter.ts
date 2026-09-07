@@ -11,6 +11,7 @@ export type WorkspaceOperation =
   | "render"
   | "metadata"
   | "analysis"
+  | "compatibility"
   | "serialize"
   | "playback";
 
@@ -42,6 +43,7 @@ export interface WasmBindings {
   ): string;
   render_score_metadata(scoreJson: string, layoutJson: string, optionsJson: string): string;
   analyze_score(scoreJson: string): string;
+  compatibility_report(sourceJson: string, candidateJson: string): string;
   analysis_cache_key(scoreJson: string): string;
   to_playback_events_ex(scoreJson: string, optionsJson: string): string;
   compute_playback_position(scoreJson: string, optionsJson: string, elapsedSecs: number): string;
@@ -68,6 +70,16 @@ export interface ExportReport {
   format: string;
   output: string;
   diagnostics: InterchangeDiagnostic[];
+}
+
+export interface CompatibilityReport {
+  schema_version: number;
+  change_count: number;
+  semantic_equivalent: boolean;
+  analysis_changed_categories: string[];
+  analysis_equivalent: boolean;
+  lossless: boolean;
+  changes: unknown[];
 }
 
 export interface PlaybackEvent {
@@ -410,6 +422,18 @@ export class AcordeWorkspace {
       return this.currentAnalysisCacheKey;
     } catch (cause) {
       throw this.toWorkspaceError("analysis", cause);
+    }
+  }
+
+  /** Compare a candidate canonical score against the loaded score for browser-side gating. */
+  compatibilityReport(candidateScoreJson: string): CompatibilityReport {
+    this.assertLoaded();
+    try {
+      return JSON.parse(
+        this.wasm.compatibility_report(this.scoreJson, candidateScoreJson),
+      ) as CompatibilityReport;
+    } catch (cause) {
+      throw this.toWorkspaceError("compatibility", cause);
     }
   }
 

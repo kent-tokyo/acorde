@@ -51,6 +51,9 @@ the adapter to Web Audio or another playback framework.
 `loadMusicXmlWithReport` and `exportMusicXmlWithReport` additionally return structured
 interchange diagnostics, including preserved values and loss reasons when the format adapter
 has such information, so hosts can present repair guidance without parsing error strings.
+`compatibilityReport(candidateScoreJson)` compares a candidate canonical score with the loaded
+score and returns score and deterministic analysis gate booleans. It does not infer losses from a
+format conversion; use the import/export report methods for that boundary.
 Each sounding playback event carries the stable source address used by `data-note-addr`, and
 `selectPlaybackEvent` sends that address through the shared `SelectionStore` for notation and
 analysis highlighting.
