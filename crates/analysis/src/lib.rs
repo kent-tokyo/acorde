@@ -173,6 +173,131 @@ pub struct AnalysisEditResult {
     pub diff: AnalysisDiff,
 }
 
+/// One deterministic explanation attached to a source note address.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AnalysisProvenance {
+    pub category: AnalysisCategory,
+    pub rule_id: String,
+    pub confidence: u8,
+    pub evidence: Vec<NoteAddr>,
+}
+
+/// Return every analysis finding whose evidence contains the supplied source address.
+pub fn analysis_provenance(
+    analysis: &AnalysisResult,
+    address: &NoteAddr,
+) -> Vec<AnalysisProvenance> {
+    let mut findings = Vec::new();
+    let mut add = |category, rule_id: &str, confidence, evidence: &[NoteAddr]| {
+        if evidence.iter().any(|item| item == address) {
+            findings.push(AnalysisProvenance {
+                category,
+                rule_id: rule_id.to_string(),
+                confidence,
+                evidence: evidence.to_vec(),
+            });
+        }
+    };
+    for item in &analysis.chords {
+        add(
+            AnalysisCategory::Chords,
+            &item.rule_id,
+            item.confidence,
+            &item.evidence,
+        );
+    }
+    for item in &analysis.intervals {
+        add(
+            AnalysisCategory::Intervals,
+            &item.rule_id,
+            100,
+            &item.evidence,
+        );
+    }
+    for item in &analysis.key_estimates {
+        add(
+            AnalysisCategory::KeyEstimates,
+            &item.rule_id,
+            item.confidence,
+            &item.evidence,
+        );
+    }
+    for item in &analysis.cadence_candidates {
+        add(
+            AnalysisCategory::CadenceCandidates,
+            &item.rule_id,
+            item.confidence,
+            &item.evidence,
+        );
+    }
+    for item in &analysis.voice_leading {
+        add(
+            AnalysisCategory::VoiceLeading,
+            &item.rule_id,
+            item.confidence,
+            &item.evidence,
+        );
+    }
+    for item in &analysis.satb_diagnostics {
+        add(
+            AnalysisCategory::SatbDiagnostics,
+            &item.rule_id,
+            item.confidence,
+            &item.evidence,
+        );
+    }
+    for item in &analysis.motifs {
+        for occurrence in &item.occurrences {
+            add(
+                AnalysisCategory::Motifs,
+                &item.rule_id,
+                item.confidence,
+                &occurrence.evidence,
+            );
+        }
+    }
+    for item in &analysis.phrase_boundaries {
+        add(
+            AnalysisCategory::PhraseBoundaries,
+            &item.rule_id,
+            item.confidence,
+            &item.evidence,
+        );
+    }
+    findings.sort_by_key(|item| {
+        (
+            analysis_category_rank(item.category),
+            item.rule_id.clone(),
+            item.evidence
+                .iter()
+                .map(|address| {
+                    (
+                        address.part,
+                        address.staff,
+                        address.measure,
+                        address.voice,
+                        address.note,
+                    )
+                })
+                .collect::<Vec<_>>(),
+        )
+    });
+    findings
+}
+
+fn analysis_category_rank(category: AnalysisCategory) -> u8 {
+    match category {
+        AnalysisCategory::Chords => 0,
+        AnalysisCategory::Intervals => 1,
+        AnalysisCategory::KeyEstimates => 2,
+        AnalysisCategory::CadenceCandidates => 3,
+        AnalysisCategory::VoiceLeading => 4,
+        AnalysisCategory::SatbDiagnostics => 5,
+        AnalysisCategory::Motifs => 6,
+        AnalysisCategory::PhraseBoundaries => 7,
+    }
+}
+
 impl AnalysisDiff {
     /// Return whether any schema or analysis category changed.
     pub fn is_empty(&self) -> bool {
@@ -1819,6 +1944,34 @@ mod tests {
         assert_eq!(result.chords[0].evidence.len(), 3);
         assert_eq!(result.chords[0].roman_numeral.as_deref(), Some("I"));
         assert_eq!(chord_name(&result.chords[0].chord), "C");
+    }
+
+    #[test]
+    fn provenance_returns_stable_explanations_for_a_note() {
+        let mut score = Score::default();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        voice.push(Note::new(Pitch::new(Step::C, 4), Duration::Quarter));
+        voice.push(Note::new(Pitch::new(Step::E, 4), Duration::Quarter));
+        voice.push(Note::new(Pitch::new(Step::G, 4), Duration::Quarter));
+        let address = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
+        let findings = analysis_provenance(&analyze_score(&score), &address);
+        let chord = findings
+            .iter()
+            .find(|finding| finding.category == AnalysisCategory::Chords)
+            .expect("chord provenance");
+        assert_eq!(chord.rule_id, "pitch-class-template");
+        assert_eq!(chord.evidence[0], address);
+        assert!(findings.windows(2).all(|pair| {
+            (analysis_category_rank(pair[0].category), &pair[0].rule_id)
+                <= (analysis_category_rank(pair[1].category), &pair[1].rule_id)
+        }));
     }
 
     #[test]

@@ -569,6 +569,17 @@ pub fn diff_analysis(previous_json: &str, current_json: &str) -> Result<String, 
         .map_err(|e| js_err(format!("analysis diff serialization failed: {e}")))
 }
 
+/// Return deterministic analysis explanations whose evidence contains a NoteAddr JSON object.
+#[wasm_bindgen]
+pub fn analysis_provenance(analysis_json: &str, address_json: &str) -> Result<String, JsValue> {
+    let analysis: acorde_analysis::AnalysisResult =
+        parse_json(analysis_json, "analysis", MAX_SCORE_JSON_BYTES)?;
+    let address: acorde_core::NoteAddr =
+        parse_json(address_json, "analysis address", MAX_SMALL_JSON_BYTES)?;
+    serde_json::to_string(&acorde_analysis::analysis_provenance(&analysis, &address))
+        .map_err(|e| js_err(format!("analysis provenance serialization failed: {e}")))
+}
+
 /// Return conservative analysis categories affected by a serialized engine change hint.
 #[wasm_bindgen]
 pub fn affected_analysis_categories(change_hint_json: &str) -> Result<String, JsValue> {

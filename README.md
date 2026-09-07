@@ -121,6 +121,8 @@ categories for host-side incremental update planning.
 analysis and the deterministic category diff.
 `analysis_refresh_plan` additionally separates measure-local categories from score-global
 dependencies and reports one-measure context on either side for boundary-sensitive passes.
+`analysis_provenance` returns the deterministic rule, confidence, and source evidence attached
+to a selected `NoteAddr` without rerunning analysis.
 See [the browser contract](docs/browser-rendering.md) and the
 [browser fixture](examples/browser/README.md).
 
