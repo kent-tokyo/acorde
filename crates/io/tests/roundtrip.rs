@@ -341,8 +341,8 @@ fn interchange_report_has_machine_checked_phase_evidence() {
     let report: serde_json::Value =
         serde_json::from_str(INTERCHANGE_REPORT).expect("interchange report is valid JSON");
     assert_eq!(report["schema_version"], 1);
-    assert_eq!(report["version_policy"], "workspace version is 1.1.3");
-    assert!(WORKSPACE_MANIFEST.contains("version = \"1.1.3\""));
+    assert_eq!(report["version_policy"], "workspace version is 1.1.4");
+    assert!(WORKSPACE_MANIFEST.contains("version = \"1.1.4\""));
     assert_eq!(
         report["phase_7_policy"]["status"],
         "local-slices-available-external-gates-open"

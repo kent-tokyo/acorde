@@ -10,6 +10,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+No unreleased changes.
+
+## [1.1.4] - 2026-09-07
+
 - Added the host-neutral print SVG contract covering physical units, viewBox geometry, resource
   diagnostics, deterministic ordering, and the boundary with PDF/printing hosts.
 - Added deterministic print-SVG structural regression coverage for page geometry and unsafe
