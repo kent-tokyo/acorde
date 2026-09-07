@@ -13,6 +13,8 @@ The ABC parser has the equivalent `parse_abc_render_svg(text, options_json)` con
 call `parse_abc_report` when ABC import diagnostics are required.
 MusicXML has the equivalent `parse_musicxml_render_svg(xml, options_json)` convenience path;
 call `parse_musicxml_report` when MusicXML import diagnostics are required.
+MIDI bytes have the equivalent `parse_midi_render_svg(data, options_json)` path; MIDI's bounded
+performance-to-score projection is preserved and `parse_midi_report` remains the diagnostic path.
 
 The WASM boundary enforces 16 MiB for score JSON, 32 MiB for precomputed layout JSON, and 64 KiB
 for layout/playback/render options JSON. Other small JSON arguments are bounded at 256 KiB. An invalid score,
@@ -31,6 +33,8 @@ outside the core/WASM contract and remain application-owned.
   directly to SVG.
 - `parse_musicxml_render_svg(xml, options_json)` parses MusicXML and renders its canonical score
   directly to SVG.
+- `parse_midi_render_svg(data, options_json)` parses MIDI bytes and renders the bounded canonical
+  score projection directly to SVG.
 - `compute_layout_ex(score_json, config_json)` returns the serialized `LayoutResult`.
 - `render_score_svg_with_layout(score_json, layout_json, options_json)` renders the complete
   score using that layout.

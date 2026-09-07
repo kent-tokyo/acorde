@@ -27,6 +27,8 @@ No unreleased changes.
   reuse the canonical score and SVG renderer while keeping import diagnostics in report APIs.
 - Added bounded WASM `parse_musicxml_render_svg` for the primary interchange-to-SVG workflow,
   with MusicXML diagnostics remaining in `parse_musicxml_report`.
+- Added bounded WASM `parse_midi_render_svg` for direct performance-to-score SVG workflows;
+  MIDI's projection limits and diagnostics boundary remain explicit.
 
 ## [1.1.3] - 2026-09-06
 
