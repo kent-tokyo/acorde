@@ -30,7 +30,8 @@ rendering.
 
 See the [notation coverage matrix](docs/notation-coverage.md) for the supported interchange
 slices and known information-loss boundaries.
-The host-neutral print page contract is described in [print-layout.md](docs/print-layout.md);
+The host-neutral print page contract is described in [print-layout.md](docs/print-layout.md),
+and the page-level SVG requirements are in [print-svg-contract.md](docs/print-svg-contract.md);
 PDF conversion, font resolution, printer access, and preview UI remain host responsibilities.
 The current conservative capability inventory is tracked in the [scorecard](docs/scorecard.md).
 Security boundaries and resource-limit ownership are documented in the [security contract](docs/security/threat-model.md).

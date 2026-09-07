@@ -20,7 +20,8 @@ Rust と WebAssembly 向けのプラットフォーム非依存な楽譜ライ�
 | `acorde-soundfont` | オプションのSF2/SF3メタデータ検証・再生境界 |
 
 `acorde` は `acorde-render-svg` を再エクスポートしません。SVG が必要な場合は直接依存します。
-印刷向けの中立的なページ配置契約は [print-layout.md](docs/print-layout.md) にまとめています。
+印刷向けの中立的なページ配置契約は [print-layout.md](docs/print-layout.md)、ページ単位の
+SVG要件は [print-svg-contract.md](docs/print-svg-contract.md) にまとめています。
 PDF変換、フォント解決、プリンタ接続、印刷プレビューUIはホスト側の責務です。
 SoundFontの`SoundFontPresetZone` APIでは bank/program と key/velocity からサンプル領域を
 選択でき、Composer側でSoundFontのgenerator解析を重複実装する必要がありません。
