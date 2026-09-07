@@ -1605,6 +1605,32 @@ mod wasm_tests {
     }
 
     #[wasm_bindgen_test]
+    fn browser_analysis_explanation_roundtrips_provenance() {
+        let mut score = Score::default();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        for step in [
+            acorde_core::Step::C,
+            acorde_core::Step::E,
+            acorde_core::Step::G,
+        ] {
+            voice.push(acorde_core::Note::new(
+                acorde_core::Pitch::new(step, 4),
+                acorde_core::Duration::Quarter,
+            ));
+        }
+        let score_json = serde_json::to_string(&score).unwrap();
+        let analysis = analyze_score(&score_json).unwrap();
+        let address = r#"{"part":0,"staff":0,"measure":0,"voice":0,"note":0}"#;
+        let provenance = analysis_provenance(&analysis, address).unwrap();
+        assert!(provenance.contains("pitch-class-template"));
+        let explanation = explain_analysis_change(&analysis, &analysis, address).unwrap();
+        assert!(explanation.contains("pitch-class-template"));
+        assert!(explanation.contains("previous"));
+        assert!(explanation.contains("current"));
+    }
+
+    #[wasm_bindgen_test]
     fn browser_score_patch_roundtrips() {
         let before = serde_json::to_string(&Score::default()).unwrap();
         let mut after_score = Score::default();
