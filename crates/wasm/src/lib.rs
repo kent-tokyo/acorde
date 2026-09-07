@@ -503,6 +503,31 @@ pub fn diff_scores(score_a_json: &str, score_b_json: &str) -> Result<String, JsV
     serde_json::to_string(&changes).map_err(|e| js_err(format!("diff serialization failed: {e}")))
 }
 
+/// Compare two canonical score JSON values and return score and analysis gate status.
+///
+/// This is intentionally limited to canonical score inputs. Import/export diagnostics belong
+/// to the format-specific `*_report` APIs and are not inferred here.
+#[wasm_bindgen]
+pub fn compatibility_report(score_a_json: &str, score_b_json: &str) -> Result<String, JsValue> {
+    let a = score_from_json(score_a_json)?;
+    let b = score_from_json(score_b_json)?;
+    let changes = acorde_core::diff(&a, &b);
+    let analysis_a = acorde_analysis::analyze_score(&a);
+    let analysis_b = acorde_analysis::analyze_score(&b);
+    let analysis_diff = acorde_analysis::diff_analysis(&analysis_a, &analysis_b);
+    let report = serde_json::json!({
+        "schema_version": 1,
+        "change_count": changes.len(),
+        "semantic_equivalent": changes.is_empty(),
+        "analysis_changed_categories": analysis_diff.changed_categories,
+        "analysis_equivalent": analysis_diff.is_empty(),
+        "lossless": changes.is_empty() && analysis_diff.is_empty(),
+        "changes": changes,
+    });
+    serde_json::to_string(&report)
+        .map_err(|e| js_err(format!("compatibility report serialization failed: {e}")))
+}
+
 /// Compute portable patch operations between two scores. The returned JSON array can be stored,
 /// transmitted, and applied later with [`apply_score_patch`].
 #[wasm_bindgen]
@@ -1602,6 +1627,23 @@ mod wasm_tests {
         let diff = diff_analysis(&previous, &current).unwrap();
         assert!(diff.contains("Chords"));
         assert!(diff.contains("Intervals"));
+    }
+
+    #[wasm_bindgen_test]
+    fn browser_compatibility_report_combines_score_and_analysis_gates() {
+        let source = serde_json::to_string(&Score::default()).unwrap();
+        let mut candidate_score = Score::default();
+        candidate_score.metadata.title = "Candidate".to_owned();
+        let candidate = serde_json::to_string(&candidate_score).unwrap();
+        let report = compatibility_report(&source, &candidate).unwrap();
+        assert!(report.contains("\"semantic_equivalent\":false"));
+        assert!(report.contains("\"analysis_equivalent\":true"));
+        assert!(report.contains("\"lossless\":false"));
+
+        let identical = compatibility_report(&source, &source).unwrap();
+        assert!(identical.contains("\"semantic_equivalent\":true"));
+        assert!(identical.contains("\"analysis_equivalent\":true"));
+        assert!(identical.contains("\"lossless\":true"));
     }
 
     #[wasm_bindgen_test]

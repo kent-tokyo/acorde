@@ -64,6 +64,9 @@ refreshed region with preserved outside results.
 selected note address, including the rule ID, confidence, and source evidence for each finding.
 `explain_analysis_change(previous_json, current_json, address_json)` combines the before/after
 provenance with the category diff in one response for explainable editor updates.
+`compatibility_report(source_json, candidate_json)` returns deterministic score and analysis gate
+booleans for two canonical score JSON values. It does not infer import/export losses; use the
+format-specific report APIs when crossing a file-format boundary.
 The browser contract includes a wasm-bindgen regression covering both explanation endpoints;
 headless Chrome execution remains an environment-dependent gate.
 Interval analysis also accepts the region and includes observations touching the edited range,

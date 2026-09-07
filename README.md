@@ -135,6 +135,8 @@ dependencies and reports one-measure context on either side for boundary-sensiti
 `analysis_provenance` returns the deterministic rule, confidence, and source evidence attached
 to a selected `NoteAddr` without rerunning analysis.
 `explain_analysis_change` combines that lookup for before/after results with the category diff.
+`compatibility_report` combines canonical score differences with deterministic analysis-category
+changes for browser-side compatibility gates; format diagnostics remain in the `*_report` APIs.
 See [the browser contract](docs/browser-rendering.md) and the
 [browser fixture](examples/browser/README.md).
 
