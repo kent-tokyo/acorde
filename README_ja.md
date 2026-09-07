@@ -52,6 +52,7 @@ glissandoとcross-staff配置もMusicXMLとの往復変換で保持されます�
 CIで意味差分を失敗扱いにする場合は `--fail-on-differences` を追加します。
 型付きの情報損失診断も失敗扱いにする場合は `--fail-on-loss` を使います。
 レポートには判定結果を示す `semantic_equivalent` と `lossless` も含まれます。
+`analysis_changed_categories` には決定的分析で変化したカテゴリも含まれます。
 `SampleDecoder` と `SampleRenderer` により、codecと音声出力をホスト側へ委譲する型付き接続点も提供します。
 
 ## CLI

@@ -995,6 +995,7 @@ struct CompatibilityReport {
     candidate_path: String,
     change_count: usize,
     semantic_equivalent: bool,
+    analysis_changed_categories: Vec<acorde_analysis::AnalysisCategory>,
     lossless: bool,
     changes: Vec<acorde_core::ScoreChange>,
     source_warning_count: usize,
@@ -1016,6 +1017,9 @@ fn cmd_compatibility_report(
     let source_report = parse_report(source)?;
     let candidate_report = parse_report(candidate)?;
     let changes = acorde_core::diff(&source_report.score, &candidate_report.score);
+    let source_analysis = acorde_analysis::analyze_score(&source_report.score);
+    let candidate_analysis = acorde_analysis::analyze_score(&candidate_report.score);
+    let analysis_diff = acorde_analysis::diff_analysis(&source_analysis, &candidate_analysis);
     let report = CompatibilityReport {
         schema_version: source_report.schema_version,
         source_format: source_report.format.clone(),
@@ -1024,6 +1028,7 @@ fn cmd_compatibility_report(
         candidate_path: candidate.display().to_string(),
         change_count: changes.len(),
         semantic_equivalent: changes.is_empty(),
+        analysis_changed_categories: analysis_diff.changed_categories,
         lossless: source_report.loss_count() + candidate_report.loss_count() == 0,
         changes,
         source_warning_count: source_report.warning_count(),

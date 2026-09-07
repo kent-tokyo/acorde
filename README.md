@@ -114,6 +114,7 @@ lossless interchange.
 Add `--fail-on-differences` in CI when any semantic change should fail the gate.
 Use `--fail-on-loss` when typed conversion losses must also fail the gate.
 The report also includes explicit `semantic_equivalent` and `lossless` fields.
+`analysis_changed_categories` reports which deterministic analysis categories changed.
 
 Playback events include stable source note addresses for synchronizing audio cursors with
 notation selection. The WASM package exposes the same pipeline plus `ScoreEngine`, score diff/patch, validation,

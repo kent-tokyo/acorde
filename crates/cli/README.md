@@ -55,6 +55,8 @@ are found, making the command suitable for a compatibility gate.
 `--fail-on-loss` independently fails when either side reports a typed information-loss diagnostic.
 The JSON includes explicit `semantic_equivalent` and `lossless` booleans so consumers do not need
 to infer gate status from counts.
+It also includes `analysis_changed_categories`, covering deterministic chord, interval, key,
+cadence, voice-leading, SATB, motif, and phrase-boundary changes.
 benchmark reads a local JSON manifest and emits corpus metadata, including a content fingerprint,
 plus the deterministic suite report.
 Paths are relative to the manifest file. `--fail-on-mismatch` makes the command exit with status 1
