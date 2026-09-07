@@ -29,6 +29,8 @@ No unreleased changes.
   with MusicXML diagnostics remaining in `parse_musicxml_report`.
 - Added bounded WASM `parse_midi_render_svg` for direct performance-to-score SVG workflows;
   MIDI's projection limits and diagnostics boundary remain explicit.
+- Added bounded WASM `parse_mscx_render_svg` and `parse_mscz_render_svg` paths for MuseScore
+  XML/archive-to-SVG workflows without hiding parser or archive diagnostics.
 
 ## [1.1.3] - 2026-09-06
 
