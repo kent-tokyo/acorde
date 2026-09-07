@@ -7,7 +7,7 @@
   },
   "policy": {
     "claims_require_fixture_or_focused_test": true,
-    "external_publication_verified": false,
+    "external_publication_verified": true,
     "phase_6_local_gates_complete": true,
     "benchmark_latency_is_host_measured": true
   },
