@@ -10,7 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-No unreleased changes.
+- Added the host-neutral print SVG contract covering physical units, viewBox geometry, resource
+  diagnostics, deterministic ordering, and the boundary with PDF/printing hosts.
+- Added deterministic print-SVG structural regression coverage for page geometry and unsafe
+  external resource references.
+- Added WASM `compatibility_report` and browser-adapter/Worker support for comparing canonical
+  score JSON values with explicit score and analysis-equivalence gates. Format-specific loss
+  diagnostics remain in the import/export report APIs.
 
 ## [1.1.3] - 2026-09-06
 
