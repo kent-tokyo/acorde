@@ -17,6 +17,10 @@ as an explicit `?` marker rather than inferred silently.
 `render_preflight()` reports the renderer's unsupported staff or measure clef, accidental, and
 tablature-position boundaries with stable score source locations before SVG emission. This also
 covers clef changes represented on individual measures rather than only the staff default.
+Measure-level `StyledText` entries are emitted as deterministic `acorde-measure-text-*` SVG text
+classes, with stable part/staff/measure/text-index hooks when interactive output is enabled.
+Placement and MusicXML offset hints are projected into host-neutral coordinates; font selection,
+font metrics, embedding, and final publication remain host responsibilities.
 Non-zero `Pitch::microtone_cents` values, including notes on tablature staffs, are rendered as
 explicit deterministic `acorde-microtone` text markers such as `+25c`. The
 `glyph_coverage().microtone_marker` capability reports this as `svg-text-cents` with exact signed

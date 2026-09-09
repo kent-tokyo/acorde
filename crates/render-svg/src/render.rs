@@ -1157,8 +1157,69 @@ fn render_measure(
         }
     }
 
+    for (text_index, styled) in measure.texts.iter().enumerate() {
+        let placement_below = styled
+            .placement
+            .as_deref()
+            .is_some_and(|placement| placement.eq_ignore_ascii_case("below"))
+            || matches!(styled.style, acorde_core::TextStyle::Lyrics);
+        let base_y = if placement_below {
+            bottom_y + 2.8 * space
+        } else {
+            bottom_y - 6.2 * space
+        };
+        let offset_y = styled.offset_y.unwrap_or(0.0) + styled.relative_y.unwrap_or(0.0);
+        let y = base_y + (offset_y as f32 / 10.0) * space;
+        let offset_x = styled.offset_x.unwrap_or(0.0) + styled.relative_x.unwrap_or(0.0);
+        let text_x = content_x0 + (offset_x as f32 / 10.0) * space;
+        let class = measure_text_class(styled.style);
+        let italic = matches!(
+            styled.style,
+            acorde_core::TextStyle::Expression | acorde_core::TextStyle::Technique
+        );
+        let attributes = if interactive {
+            format!(
+                " data-acorde-kind=\"measure-text\" data-part=\"{part}\" data-staff=\"{staff}\" data-measure=\"{measure_idx}\" data-text-index=\"{text_index}\""
+            )
+        } else {
+            String::new()
+        };
+        let anchor = "start";
+        let style = if italic { " font-style=\"italic\"" } else { "" };
+        let _ = write!(
+            body,
+            r#"<text class="{class}" x="{x}" y="{y}" text-anchor="{anchor}" font-family="serif" font-size="{size}"{style}{attributes}>{text}</text>"#,
+            class = class,
+            x = f(text_x),
+            y = f(y),
+            anchor = anchor,
+            size = f(0.78 * space),
+            style = style,
+            attributes = attributes,
+            text = escape_xml(&styled.text),
+        );
+    }
+
     body.push_str("</g>");
     Ok(())
+}
+
+fn measure_text_class(style: acorde_core::TextStyle) -> &'static str {
+    match style {
+        acorde_core::TextStyle::Expression => "acorde-measure-text acorde-measure-text-expression",
+        acorde_core::TextStyle::Technique => "acorde-measure-text acorde-measure-text-technique",
+        acorde_core::TextStyle::Lyrics => "acorde-measure-text acorde-measure-text-lyrics",
+        acorde_core::TextStyle::ChordSymbol => {
+            "acorde-measure-text acorde-measure-text-chord-symbol"
+        }
+        acorde_core::TextStyle::FiguredBass => {
+            "acorde-measure-text acorde-measure-text-figured-bass"
+        }
+        acorde_core::TextStyle::RehearsalMark => {
+            "acorde-measure-text acorde-measure-text-rehearsal-mark"
+        }
+        acorde_core::TextStyle::Generic => "acorde-measure-text acorde-measure-text-generic",
+    }
 }
 
 /// Render all resolved spans after note coordinates for every row are known. A span crossing a

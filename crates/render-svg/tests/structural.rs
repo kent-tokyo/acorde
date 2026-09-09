@@ -417,6 +417,10 @@ fn metadata_exposes_measure_text_style_and_location() {
     assert_eq!(metadata.text_annotations[0].style, TextStyle::Technique);
     assert_eq!(metadata.text_annotations[0].text, "con sordino");
     assert_eq!(metadata.text_annotations[0].placement, None);
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert!(svg.contains("class=\"acorde-measure-text acorde-measure-text-technique\""));
+    assert!(svg.contains("data-acorde-kind=\"measure-text\""));
+    assert!(svg.contains("con sordino"));
 }
 
 #[test]
