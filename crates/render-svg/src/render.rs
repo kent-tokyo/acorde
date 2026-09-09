@@ -32,6 +32,7 @@ const STAFF_HEIGHT_U: f32 = 4.0; // top line to bottom line
 const HEADER_GAP_U: f32 = 0.4;
 const MEASURE_PAD_U: f32 = 0.6; // padding at each end of a measure's content area
 const VOICE_SEPARATION_U: f32 = 0.65; // minimum center-to-center separation for simultaneous voices
+const CHORD_SECOND_SHIFT_U: f32 = 0.32; // standard notehead shift for adjacent chord tones
 
 /// Accidental lookup key: (part, staff, measure, voice, note_index, pitch_index).
 type AccKey = (usize, usize, usize, usize, usize, usize);
@@ -2468,6 +2469,7 @@ fn render_pitched_note(
     }
     let min_pos = *positions.iter().min().unwrap_or(&0);
     let max_pos = *positions.iter().max().unwrap_or(&0);
+    let notehead_offsets = chord_notehead_offsets(&positions);
 
     // Ledger lines (union across the chord's noteheads).
     let mut ledgers: Vec<i32> = Vec::new();
@@ -2502,11 +2504,11 @@ fn render_pitched_note(
     }
 
     // Noteheads.
-    for &p in &positions {
+    for (pitch_index, &p) in positions.iter().enumerate() {
         let y = staff_bottom_y + geometry::position_y(p, space);
         body.push_str(&glyphs::notehead_shape(
             &note.note_head,
-            x,
+            x + notehead_offsets[pitch_index] * space,
             y,
             space,
             filled,
@@ -2580,6 +2582,25 @@ fn render_pitched_note(
 
     let _ = clef; // clef only needed indirectly via clef_bottom, kept for signature clarity
     Ok(())
+}
+
+/// Horizontally separate adjacent diatonic chord tones (seconds) while leaving wider intervals
+/// vertically aligned. The source pitch order is not trusted; offsets are assigned by sorted
+/// staff position and then mapped back to the original pitch indexes.
+fn chord_notehead_offsets(positions: &[i32]) -> Vec<f32> {
+    let mut offsets = vec![0.0; positions.len()];
+    let mut ordered: Vec<usize> = (0..positions.len()).collect();
+    ordered.sort_by_key(|&index| positions[index]);
+    let mut shifted = false;
+    for pair in ordered.windows(2) {
+        if (positions[pair[1]] - positions[pair[0]]).abs() <= 2 {
+            shifted = !shifted;
+            offsets[pair[1]] = if shifted { CHORD_SECOND_SHIFT_U } else { 0.0 };
+        } else {
+            shifted = false;
+        }
+    }
+    offsets
 }
 
 fn courtesy_wrapped(alter: i8, cx: f32, cy: f32, space: f32) -> String {

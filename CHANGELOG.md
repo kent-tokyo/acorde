@@ -29,6 +29,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   structural regression covering opposing voice noteheads.
 - Spaced consecutive grace-note glyphs deterministically along their shared temporal anchor to
   avoid complete visual overlap.
+- Added alternating horizontal offsets for adjacent diatonic tones inside a chord, with a
+  structural regression for dense second-based chord shapes.
 - Included note-attached lyric, dynamic, chord, fingering/technique, microtone, articulation, and
   span offsets in conservative vertical content margins, with a structural regression fixture.
 - Hardened `CommandStack` command, batch, undo, and redo boundaries with validated candidate

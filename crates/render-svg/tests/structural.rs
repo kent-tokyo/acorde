@@ -1114,3 +1114,33 @@ fn consecutive_grace_noteheads_are_not_collapsed_on_one_anchor() {
     assert_eq!(centers.len(), 2);
     assert!((centers[0] - centers[1]).abs() >= 0.4 * opts().staff_size);
 }
+
+#[test]
+fn adjacent_tones_in_a_chord_get_alternating_notehead_offsets() {
+    use acorde_core::{Duration, Measure, Note, Part, Pitch, Score, Staff, Step};
+    let mut score = Score::new("cluster chord", 120, 4, 4, 0, 1);
+    let note = Note {
+        pitches: vec![
+            Pitch::new(Step::C, 5),
+            Pitch::new(Step::D, 5),
+            Pitch::new(Step::E, 5),
+        ],
+        ..Note::new(Pitch::new(Step::C, 5), Duration::Quarter)
+    };
+    let mut staff = Staff::new(acorde_core::Clef::Treble);
+    staff.measures.push(Measure::empty(4, 4));
+    staff.measures[0].voices[0] = vec![note];
+    score.parts = vec![Part::new("Cluster", "Cl.")];
+    score.parts[0].staves = vec![staff];
+
+    let svg = render_svg(&score, &opts()).unwrap();
+    let centers: Vec<f32> = svg
+        .split(r#"class="acorde-notehead""#)
+        .skip(1)
+        .filter_map(|fragment| fragment.split(r#"cx=""#).nth(1))
+        .filter_map(|value| value.split('"').next())
+        .filter_map(|value| value.parse().ok())
+        .collect();
+    assert_eq!(centers.len(), 3);
+    assert!(centers.iter().any(|&center| center != centers[0]));
+}
