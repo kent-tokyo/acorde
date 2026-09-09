@@ -42,7 +42,7 @@ cargo fmt --all -- --check
 cargo test --all-features --locked
 cargo clippy --all-features --locked --all-targets -- -D warnings
 cargo audit
-cargo deny check advisories licenses
+cargo deny check advisories licenses sources bans
 cargo package --workspace --locked
 ```
 

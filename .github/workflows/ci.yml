@@ -22,8 +22,8 @@ jobs:
           cargo install cargo-deny --version 0.19.9 --locked
       - name: Audit advisories
         run: cargo audit
-      - name: Check advisories, licenses, and sources
-        run: cargo deny check advisories licenses sources
+      - name: Check advisories, licenses, sources, and dependency bans
+        run: cargo deny check advisories licenses sources bans
 
   fuzz-smoke:
     name: Parser fuzz smoke

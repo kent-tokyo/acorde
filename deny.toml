@@ -1,6 +1,10 @@
 [advisories]
 version = 2
 
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
 [licenses]
 version = 2
 confidence-threshold = 0.8
