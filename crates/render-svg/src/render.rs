@@ -819,8 +819,13 @@ fn content_margins(
                         annotation_top = annotation_top.max(3.9);
                     }
                     if !note.articulations.is_empty() {
-                        annotation_top = annotation_top.max(2.0);
-                        annotation_bottom = annotation_bottom.max(2.0);
+                        let articulation_extent =
+                            2.0 + note.articulations.len().saturating_sub(1) as f32;
+                        if note.stem_up.unwrap_or(voice_stem_up) {
+                            annotation_top = annotation_top.max(articulation_extent);
+                        } else {
+                            annotation_bottom = annotation_bottom.max(articulation_extent);
+                        }
                     }
                     if note.hairpin_start.is_some() || note.hairpin_end {
                         annotation_top = annotation_top.max(4.8);
@@ -2757,8 +2762,8 @@ fn render_note_annotations(
             );
         }
     }
-    for articulation in &note.articulations {
-        let y = anchor_y + dir * 1.2 * space;
+    for (articulation_index, articulation) in note.articulations.iter().enumerate() {
+        let y = anchor_y + dir * (1.2 + articulation_index as f32) * space;
         match articulation {
             acorde_core::Articulation::Staccato => {
                 let _ = write!(

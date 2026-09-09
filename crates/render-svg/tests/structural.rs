@@ -356,6 +356,32 @@ fn ornament_articulations_are_rendered_with_semantic_classes() {
 }
 
 #[test]
+fn multiple_articulations_stack_on_distinct_baselines() {
+    use acorde_core::{Articulation, Duration, Note, Pitch, Step};
+
+    let mut score = common::single_staff_score(
+        acorde_core::Clef::Treble,
+        0,
+        4,
+        4,
+        vec![Note::new(Pitch::new(Step::C, 5), Duration::Whole)],
+        vec![],
+    );
+    score.parts[0].staves[0].measures[0].voices[0][0].articulations =
+        vec![Articulation::Mordent, Articulation::Turn];
+
+    let svg = render_svg(&score, &opts()).unwrap();
+    let ys: Vec<&str> = svg
+        .split("<text ")
+        .filter(|text| text.contains("acorde-ornament"))
+        .filter_map(|text| text.split("y=\"").nth(1))
+        .filter_map(|text| text.split('\"').next())
+        .collect();
+    assert_eq!(ys.len(), 2);
+    assert_ne!(ys[0], ys[1]);
+}
+
+#[test]
 fn short_rests_custom_noteheads_and_small_notes_are_rendered() {
     use acorde_core::{Duration, Note, NoteHead, Pitch, Step};
 
