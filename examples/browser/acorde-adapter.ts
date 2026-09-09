@@ -18,7 +18,8 @@ export type WorkspaceOperation =
   | "serialize"
   | "playback"
   | "tab-performance"
-  | "validate";
+  | "validate"
+  | "preflight";
 
 /** Structured, host-facing error for showing a repair hint without parsing strings. */
 export class AcordeWorkspaceError extends Error {
@@ -574,7 +575,7 @@ export class AcordeWorkspace {
       result.valid = result.valid && result.tablatureDiagnosticCount === 0;
     }
     if (revision !== this.revisionNumber) {
-      throw new AcordeWorkspaceError("validate", "workspace changed during preflight");
+      throw new AcordeWorkspaceError("preflight", "workspace changed during preflight");
     }
     return result;
   }

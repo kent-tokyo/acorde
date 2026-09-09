@@ -20,6 +20,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   error handling before rendering, playback, or export.
 - Added a revision-stamped browser adapter `preflight` aggregate with validity and diagnostic
   counts for model, renderer, and optional tablature checks.
+- Classified browser preflight consistency failures as `preflight` operation errors so hosts can
+  distinguish them from standalone model validation failures.
 - Added the missing WASM `parse_mxl_report` binding so the browser MXL diagnostic path matches the
   existing IO report contract.
 - Added the CLI `render` command for deterministic input-file-to-SVG rendering through the
