@@ -28,8 +28,11 @@ measure slot, including the hidden extent of multirests. `SystemLayout::span_seg
 cross-system span intersections and whether each segment starts or ends on that system.
 Multirests consume their full visual width when systems are broken and are never split between
 systems; a multirest wider than the configured capacity occupies one system by itself.
-`SystemLayout::measure_marks` carries repeat barlines, volta endings, navigation marks, and
-rehearsal labels for each physical measure in the system; playback expansion remains in core.
+`SystemLayout::measure_marks` carries repeat barlines, volta endings, navigation marks, rehearsal
+labels, and normalized explicit/legacy `StyledText` annotations for each physical measure in the
+system; playback expansion remains in core. Explicit styled entries precede legacy fields, and
+identical style/text pairs are emitted once. The marks are based on the primary score staff, as
+with the existing measure-level publication metadata.
 `NotationBreakPolicy::KeepVoltaTogether` is an opt-in system-breaking policy that keeps a
 contiguous volta begin/end range in one system when it fits; the default `Preserve` policy
 does not infer notation-aware breaks. `NotationBreakPolicy::KeepRepeatsTogether` is an opt-in
@@ -59,7 +62,7 @@ the running-title header unless configured.
 dimensions, stable page/system addresses, physical measure indices, and typed break reasons (`MeasureCapacity`, `ExplicitSystemBreak`,
 `ExplicitPageBreak`, `PageCapacity`, `TitlePage`, or `EndOfScore`). Layout honors existing `system_break` and
 `page_break` decisions and produces stable output for the same score and configuration. Its
-`contract_version` is `25` for this address/diagnostic, publication, title-page, part-group, page-number footer, alignment, line-box height, copyright block, bleed/safe-area, scale, page-numbering,
+`contract_version` is `26` for this address/diagnostic, publication, title-page, part-group, page-number footer, alignment, line-box height, copyright block, bleed/safe-area, scale, page-numbering,
 color, crop-mark, and glyph-resource shape. `GlyphResourcePolicy::HostProvided` is only a stable
 resource key; resource lookup, font loading, and glyph metrics remain host/provider work.
 `PRINT_LAYOUT_CONTRACT_VERSION` identifies this serialized page contract, and `validate()` rejects

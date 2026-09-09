@@ -47,6 +47,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   publication is not verified until the pending registry authentication gate succeeds.
 - Recorded tablature performance contract version 3 in the machine-readable scorecard and
   aligned the playback evidence commands with the locked all-feature release gate.
+- Extended print-layout contract version 26 with normalized measure-level styled-text annotations
+  so publication hosts can consume explicit and legacy text without reconstructing it.
 
 ## [1.1.6] - 2026-09-09
 

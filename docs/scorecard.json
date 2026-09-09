@@ -3,7 +3,7 @@
   "release": "1.1.6",
   "contracts": {
     "svg_render_metadata": 3,
-    "print_layout": 25,
+    "print_layout": 26,
     "tab_performance": 3
   },
   "policy": {

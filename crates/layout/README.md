@@ -20,8 +20,9 @@ each system also exposes physical `measure_spans`, including the hidden extent o
 slots;
 multirests consume their full visual width during system breaking and remain unsplit;
 cross-system spans are exposed as per-system `span_segments` with explicit start/end ownership;
-repeat barlines, volta endings, navigation marks, and rehearsal labels are exposed as
-per-system `measure_marks` without changing playback order;
+repeat barlines, volta endings, navigation marks, rehearsal labels, and normalized measure-level
+styled-text annotations are exposed as per-system `measure_marks` without changing playback
+order;
 pages aggregate cross-system span ownership as `PageSpanSegment` values;
 `PrintLayoutResult::page` retrieves a stable page artifact without recomputation, with helpers
 for its physical measure range and cross-page span continuation;

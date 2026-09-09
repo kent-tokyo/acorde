@@ -1,5 +1,5 @@
 use crate::{LayoutConfig, SpanMark, compute_layout};
-use acorde_core::{Barline, PartGroupSymbol, Score};
+use acorde_core::{Barline, PartGroupSymbol, Score, StyledText, TextStyle};
 use serde::{Deserialize, Serialize};
 
 /// Font-independent metrics for one print glyph, expressed in millimetres.
@@ -626,7 +626,7 @@ impl Default for PrintConfig {
 /// Version of the built-in host-neutral print preset data.
 pub const PRINT_PRESET_SCHEMA_VERSION: u16 = 1;
 /// Version of the serialized host-neutral print layout contract.
-pub const PRINT_LAYOUT_CONTRACT_VERSION: u16 = 25;
+pub const PRINT_LAYOUT_CONTRACT_VERSION: u16 = 26;
 
 /// Reproducible starting configurations for common publication workflows.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -734,7 +734,7 @@ pub struct PageSpanSegment {
 ///
 /// This is presentation metadata only: playback order remains the responsibility of
 /// [`acorde_core::measure_sequence`].
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MeasureMark {
     pub measure_index: usize,
     pub repeat_start: bool,
@@ -743,6 +743,9 @@ pub struct MeasureMark {
     pub volta_kind: Option<String>,
     pub navigation: Option<String>,
     pub rehearsal: Option<String>,
+    /// Explicit and legacy measure-level text in deterministic source order.
+    #[serde(default)]
+    pub text_annotations: Vec<StyledText>,
 }
 
 /// Explains why a system or page ended at its final measure.
@@ -1305,11 +1308,13 @@ fn measure_marks(score: &Score, measure_indices: &[usize]) -> Vec<MeasureMark> {
                 measure.barline_right,
                 Barline::RepeatEnd | Barline::RepeatBoth
             );
+            let text_annotations = measure_text_entries(measure);
             let has_mark = repeat_start
                 || repeat_end
                 || measure.volta.is_some()
                 || measure.navigation.is_some()
-                || measure.rehearsal.is_some();
+                || measure.rehearsal.is_some()
+                || !text_annotations.is_empty();
             has_mark.then(|| MeasureMark {
                 measure_index,
                 repeat_start,
@@ -1318,9 +1323,40 @@ fn measure_marks(score: &Score, measure_indices: &[usize]) -> Vec<MeasureMark> {
                 volta_kind: measure.volta.as_ref().map(|volta| volta.kind.clone()),
                 navigation: measure.navigation.clone(),
                 rehearsal: measure.rehearsal.clone(),
+                text_annotations,
             })
         })
         .collect()
+}
+
+fn measure_text_entries(measure: &acorde_core::Measure) -> Vec<StyledText> {
+    let mut entries = measure.texts.clone();
+    for (style, text) in [
+        (TextStyle::Generic, measure.tempo_text.as_deref()),
+        (TextStyle::RehearsalMark, measure.rehearsal.as_deref()),
+        (TextStyle::Generic, measure.navigation.as_deref()),
+        (TextStyle::Expression, measure.expression_text.as_deref()),
+    ] {
+        let Some(text) = text else {
+            continue;
+        };
+        if entries
+            .iter()
+            .any(|entry| entry.style == style && entry.text == text)
+        {
+            continue;
+        }
+        entries.push(StyledText {
+            style,
+            text: text.to_owned(),
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        });
+    }
+    entries
 }
 
 fn volta_ranges(score: &Score) -> Vec<KeepTogetherRange> {
@@ -2319,6 +2355,7 @@ mod tests {
                     volta_kind: None,
                     navigation: None,
                     rehearsal: None,
+                    text_annotations: vec![],
                 },
                 MeasureMark {
                     measure_index: 1,
@@ -2328,6 +2365,7 @@ mod tests {
                     volta_kind: None,
                     navigation: None,
                     rehearsal: None,
+                    text_annotations: vec![],
                 },
             ]
         );
@@ -2341,6 +2379,26 @@ mod tests {
                 volta_kind: Some("begin".to_string()),
                 navigation: Some("ToCoda".to_string()),
                 rehearsal: Some("B".to_string()),
+                text_annotations: vec![
+                    acorde_core::StyledText {
+                        style: acorde_core::TextStyle::RehearsalMark,
+                        text: "B".to_string(),
+                        placement: None,
+                        offset_x: None,
+                        offset_y: None,
+                        relative_x: None,
+                        relative_y: None,
+                    },
+                    acorde_core::StyledText {
+                        style: acorde_core::TextStyle::Generic,
+                        text: "ToCoda".to_string(),
+                        placement: None,
+                        offset_x: None,
+                        offset_y: None,
+                        relative_x: None,
+                        relative_y: None,
+                    },
+                ],
             }]
         );
     }
