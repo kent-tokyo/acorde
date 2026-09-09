@@ -1538,6 +1538,31 @@ mod tests {
     }
 
     #[test]
+    fn render_report_covers_declared_local_input_formats() {
+        let cases = [
+            ("simple.musicxml", "musicxml"),
+            ("sample.abc", "abc"),
+            ("interchange_subset.mei", "mei"),
+            ("interchange_subset.mscx", "mscx"),
+            ("4_steps_in_31-et_on_c.mid", "midi"),
+        ];
+        for (index, (name, format)) in cases.iter().enumerate() {
+            let output = std::env::temp_dir().join(format!(
+                "acorde-cli-render-format-{}-{}.svg",
+                std::process::id(),
+                index
+            ));
+            let report = render_report_summary(&fixture(name), &output, 900.0, 24.0, 4, true)
+                .unwrap_or_else(|error| panic!("{name} report failed: {error}"));
+            assert_eq!(report.input_format, *format);
+            assert!(report.rendered, "{name} should render: {report:?}");
+            assert!(report.render_error.is_none());
+            assert!(report.svg_byte_count > 0);
+            std::fs::remove_file(output).expect("temporary format output is removable");
+        }
+    }
+
+    #[test]
     fn playback_compare_reports_tolerance_and_rejects_invalid_tolerance() {
         let score = parse_score(&fixture("simple.musicxml")).expect("fixture parses");
         let expected = playback_report_events(&score, Some(120), None, None)
