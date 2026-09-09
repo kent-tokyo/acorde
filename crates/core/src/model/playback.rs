@@ -1675,6 +1675,35 @@ mod tests {
     }
 
     #[test]
+    fn tablature_performance_event_accepts_legacy_json_without_technique() {
+        let mut score = Score::new("Tab", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].tablature = Some(super::super::notation::TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![40, 45, 50, 55, 59, 64],
+            capo: 0,
+        });
+        let mut note = crate::Note::new(
+            crate::Pitch::new(crate::Step::C, 4),
+            crate::Duration::Quarter,
+        );
+        note.tab_position = Some(super::super::notation::TabPosition {
+            string: 1,
+            fret: 20,
+        });
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let report = project_tablature_performance(&score, &PlaybackOptions::default())
+            .expect("tablature projection");
+        let mut legacy = serde_json::to_value(&report.events[0]).expect("event JSON");
+        legacy
+            .as_object_mut()
+            .expect("event object")
+            .remove("technique");
+        let restored: TablaturePerformanceEvent =
+            serde_json::from_value(legacy).expect("legacy event JSON");
+        assert_eq!(restored.technique, None);
+    }
+
+    #[test]
     fn tablature_round_trip_report_preserves_authored_positions() {
         let mut score = Score::new("Tab", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].tablature = Some(super::super::notation::TablatureConfig {
