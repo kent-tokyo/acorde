@@ -28,6 +28,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   before the publish workflow can publish workspace crates.
 - Pinned CI's cargo-audit and cargo-deny tool versions so security results do not silently change
   with an unreviewed latest tool release.
+- Restricted the publish workflow to read-only repository permissions and explicit version-tag refs,
+  preventing accidental branch-based manual publication.
 - Added the missing WASM `parse_mxl_report` binding so the browser MXL diagnostic path matches the
   existing IO report contract.
 - Added the CLI `render` command for deterministic input-file-to-SVG rendering through the
