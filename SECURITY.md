@@ -38,10 +38,20 @@ CSP, avoid script-capable insertion paths, and validate before inserting into a 
 Before a release, run:
 
 ```text
+cargo fmt --all -- --check
 cargo test --all-features --locked
-cargo clippy --all --all-features --locked -- -D warnings
+cargo clippy --all-features --locked --all-targets -- -D warnings
 cargo audit
 cargo deny check advisories licenses
+cargo package --workspace --locked
+```
+
+The parser fuzz smoke uses the pinned nightly toolchain and cargo-fuzz version from CI:
+
+```text
+cd fuzz
+cargo +nightly-2026-05-22 fuzz run --sanitizer address <target> -- \
+  -runs=100 -max_len=4096 -timeout=5 -rss_limit_mb=512
 ```
 
 The advisory database must be refreshed in CI. Local offline checks are useful for reproducing a
