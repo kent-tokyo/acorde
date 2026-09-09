@@ -303,6 +303,8 @@ fn note_annotations_are_rendered_and_xml_escaped() {
         Articulation::Staccatissimo,
         Articulation::Accent,
         Articulation::Tenuto,
+        Articulation::BreathMark,
+        Articulation::Caesura,
     ];
 
     let svg = render_svg(&score, &opts()).unwrap();
@@ -314,6 +316,8 @@ fn note_annotations_are_rendered_and_xml_escaped() {
     assert!(svg.contains("acorde-staccatissimo"));
     assert!(svg.contains("acorde-accent"));
     assert!(svg.contains("acorde-tenuto"));
+    assert!(svg.contains("acorde-breath-mark"));
+    assert!(svg.contains("acorde-caesura"));
 }
 
 #[test]

@@ -2660,6 +2660,34 @@ fn render_note_annotations(
                     f(0.09 * space)
                 );
             }
+            acorde_core::Articulation::BreathMark => {
+                let _ = write!(
+                    body,
+                    r#"<path class="acorde-articulation acorde-breath-mark" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                    f(x - 0.25 * space),
+                    f(y + dir * 0.35 * space),
+                    f(x),
+                    f(y - dir * 0.05 * space),
+                    f(x + 0.25 * space),
+                    f(y - dir * 0.45 * space),
+                    f(0.1 * space)
+                );
+            }
+            acorde_core::Articulation::Caesura => {
+                let _ = write!(
+                    body,
+                    r#"<path class="acorde-articulation acorde-caesura" d="M {},{} L {},{} M {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                    f(x - 0.28 * space),
+                    f(y + dir * 0.45 * space),
+                    f(x - 0.08 * space),
+                    f(y - dir * 0.45 * space),
+                    f(x + 0.08 * space),
+                    f(y + dir * 0.45 * space),
+                    f(x + 0.28 * space),
+                    f(y - dir * 0.45 * space),
+                    f(0.1 * space)
+                );
+            }
             acorde_core::Articulation::Fermata => write_annotation_text(
                 body,
                 "acorde-fermata",
