@@ -32,7 +32,10 @@ pub(crate) fn clef_bottom_line(clef: &Clef) -> Result<i32, RenderError> {
         Clef::Bass => Ok(diatonic_index(&Step::G, 2)),
         Clef::Alto => Ok(diatonic_index(&Step::F, 3)),
         Clef::Tenor => Ok(diatonic_index(&Step::D, 3)),
-        Clef::Percussion => Err(RenderError::UnsupportedClef),
+        // Unpitched display placement still uses the canonical five-line staff. The
+        // instrument identity remains in the score's percussion metadata and is not inferred
+        // from the display pitch.
+        Clef::Percussion => Ok(diatonic_index(&Step::E, 4)),
     }
 }
 
@@ -163,11 +166,10 @@ mod tests {
     }
 
     #[test]
-    fn percussion_clef_is_unsupported() {
-        assert!(matches!(
-            clef_bottom_line(&Clef::Percussion),
-            Err(RenderError::UnsupportedClef)
-        ));
+    fn percussion_clef_uses_the_canonical_display_staff() {
+        let bottom = clef_bottom_line(&Clef::Percussion).unwrap();
+        assert_eq!(staff_position(&Step::E, 4, bottom), 0);
+        assert_eq!(staff_position(&Step::B, 4, bottom), 4);
     }
 
     #[test]

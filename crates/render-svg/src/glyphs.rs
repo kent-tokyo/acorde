@@ -119,6 +119,22 @@ pub(crate) fn clef_c(ox: f32, oy: f32, space: f32, mid_position_u: f32) -> Strin
     )
 }
 
+/// Percussion clef: two deterministic vertical bars spanning the five-line staff.
+pub(crate) fn clef_percussion(ox: f32, oy: f32, space: f32) -> String {
+    let top_y = oy - 4.0 * space;
+    let x1 = ox + 0.35 * space;
+    let x2 = ox + 0.85 * space;
+    let sw = f(0.18 * space);
+    format!(
+        r#"<g class="acorde-clef acorde-clef-percussion"><line x1="{x1}" y1="{top_y}" x2="{x1}" y2="{oy}" stroke="black" stroke-width="{sw}"/><line x1="{x2}" y1="{top_y}" x2="{x2}" y2="{oy}" stroke="black" stroke-width="{sw}"/></g>"#,
+        x1 = f(x1),
+        x2 = f(x2),
+        top_y = f(top_y),
+        oy = f(oy),
+        sw = sw,
+    )
+}
+
 fn dot_at(cx: f32, cy: f32, ox: f32, oy: f32, space: f32) -> String {
     format!(
         r#"<circle cx="{x}" cy="{y}" r="{r}" fill="black"/>"#,

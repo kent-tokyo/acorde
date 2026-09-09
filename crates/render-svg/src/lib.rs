@@ -255,13 +255,6 @@ pub fn render_preflight(score: &Score) -> Vec<RenderPreflightIssue> {
         );
         for (staff_index, staff) in part.staves.iter().enumerate() {
             let staff_path = format!("/score/part/{}/staff/{}", part_index + 1, staff_index + 1);
-            if matches!(staff.clef, acorde_core::Clef::Percussion) {
-                issues.push(RenderPreflightIssue {
-                    kind: RenderPreflightKind::UnsupportedClef,
-                    source_location: format!("{staff_path}/clef"),
-                    preserved_value: "percussion".to_owned(),
-                });
-            }
             for (measure_index, measure) in staff.measures.iter().enumerate() {
                 for (text_index, styled) in measure.texts.iter().enumerate() {
                     let text_path = format!(
@@ -300,15 +293,6 @@ pub fn render_preflight(score: &Score) -> Vec<RenderPreflightIssue> {
                             value,
                         );
                     }
-                }
-                if !matches!(staff.clef, acorde_core::Clef::Percussion)
-                    && matches!(measure.clef, Some(acorde_core::Clef::Percussion))
-                {
-                    issues.push(RenderPreflightIssue {
-                        kind: RenderPreflightKind::UnsupportedClef,
-                        source_location: format!("{staff_path}/measure/{}/clef", measure_index + 1),
-                        preserved_value: "percussion".to_owned(),
-                    });
                 }
                 for (voice_index, voice) in measure.voices.iter().enumerate() {
                     for (note_index, note) in voice.iter().enumerate() {
@@ -500,7 +484,7 @@ impl Default for SvgRenderOptions {
 /// Errors returned by [`render_svg`] / [`render_svg_with_layout`].
 ///
 /// These are all system-boundary validation failures — an arbitrary [`Score`] can reference
-/// notation this renderer does not (yet) support. Never fails silently: an unsupported clef or
+/// notation this renderer does not (yet) support. Never fails silently: unsupported notation or
 /// an accidental beyond double-sharp/double-flat is reported, not dropped or approximated.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RenderError {
@@ -512,7 +496,7 @@ pub enum RenderError {
     InvalidLayout { reason: String },
     /// Rendering dimensions or system settings are not finite and positive.
     InvalidOptions { reason: String },
-    /// A staff uses a clef this renderer has no staff-position mapping for (percussion).
+    /// A staff uses a clef this renderer has no staff-position mapping for.
     UnsupportedClef,
     /// A pitch's `alter` is outside the supported range (`-2..=2`: double-flat..double-sharp).
     UnsupportedAccidental { alter: i8 },

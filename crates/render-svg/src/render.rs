@@ -1084,7 +1084,10 @@ fn write_clef(
             body.push_str(&glyphs::clef_c(x, bottom_y, space, 3.0));
             Ok(1.3 * space)
         }
-        Clef::Percussion => Err(RenderError::UnsupportedClef),
+        Clef::Percussion => {
+            body.push_str(&glyphs::clef_percussion(x, bottom_y, space));
+            Ok(1.2 * space)
+        }
     }
 }
 

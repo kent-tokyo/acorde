@@ -34,10 +34,6 @@ fn render_preflight_locates_renderer_capability_boundaries() {
 
     let issues = render_preflight(&score);
     assert!(issues.iter().any(|issue| {
-        issue.kind == RenderPreflightKind::UnsupportedClef
-            && issue.source_location.ends_with("/staff/1/clef")
-    }));
-    assert!(issues.iter().any(|issue| {
         issue.kind == RenderPreflightKind::UnsupportedAccidental
             && issue.source_location.ends_with("/note/1/pitch/1")
             && issue.preserved_value == "3"
@@ -56,11 +52,11 @@ fn render_preflight_locates_measure_clef_changes() {
     score.parts[0].staves[0].measures[0].clef = Some(Clef::Percussion);
 
     let issues = render_preflight(&score);
-    assert!(issues.iter().any(|issue| {
-        issue.kind == RenderPreflightKind::UnsupportedClef
-            && issue.source_location.ends_with("/measure/1/clef")
-            && issue.preserved_value == "percussion"
-    }));
+    assert!(
+        issues
+            .iter()
+            .all(|issue| issue.kind != RenderPreflightKind::UnsupportedClef)
+    );
 }
 
 /// Well-formedness check: every opened tag closes, via quick-xml's reader (it errors on
@@ -1043,15 +1039,18 @@ fn invalid_tablature_string_is_rejected_before_svg_emission() {
 }
 
 #[test]
-fn percussion_clef_is_rejected_not_silently_treble() {
-    use acorde_core::{Clef, Part, Score, Staff};
+fn percussion_clef_renders_a_dedicated_clef() {
+    use acorde_core::{Clef, Measure, Part, Score, Staff};
     let mut score = Score::default();
     let mut part = Part::new("Drums", "Dr.");
-    part.staves.push(Staff::new(Clef::Percussion));
+    let mut staff = Staff::new(Clef::Percussion);
+    staff.measures.push(Measure::empty(4, 4));
+    part.staves.push(staff);
     score.parts = vec![part];
 
-    let err = render_svg(&score, &opts()).unwrap_err();
-    assert_eq!(err, acorde_render_svg::RenderError::UnsupportedClef);
+    let svg = render_svg(&score, &opts()).expect("percussion clef renders");
+    assert!(svg.contains("acorde-clef-percussion"));
+    assert_well_formed_xml(&svg);
 }
 
 #[test]
