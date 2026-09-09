@@ -88,6 +88,12 @@ outside -99..99. The SVG renderer preserves non-zero cents visibly as determinis
 remains a later glyph-resource phase.
 Unpitched notes preserve their display placement and expose an `acorde-unpitched` SVG hook without
 inventing a percussion sound identity; percussion clef mappings remain bounded and explicit.
+Structured figured bass is projected into the deterministic measure-text SVG path, including a
+bounded continuation-line hook for `extender`; duplicate importer display text is suppressed.
+Supported mordent, inverted mordent, turn, inverted turn, shake, and tremolo articulations expose
+semantic SVG classes with conservative width reservation. Font-specific ornament glyphs and final
+publication typography remain host-resource responsibilities. Sloped beam, secondary-beam, and
+clearance-shift extents are included in the renderer's vertical margin calculation.
 
 - A `partial` import must not be interpreted as lossless interchange. Callers should validate the
   resulting `Score`, inspect the format report, and retain the source document when they need
@@ -101,8 +107,9 @@ inventing a percussion sound identity; percussion clef mappings remain bounded a
   variants are not inferred. Cross-staff notes retain their source note address and record the
   target staff; a target outside the part is rejected by the command engine.
 - `TextStyle` is the typed JSON model for expression, technique, lyrics, chord symbols, rehearsal
-  marks, and generic text. Only measure-level direction text currently has MusicXML emission;
-  other style-specific placement remains provider/render-layer work.
+  marks, figured bass, and generic text. Measure-level styled text is emitted through the
+  deterministic SVG path; provider-specific font shaping and final publication placement remain
+  render-host work.
 
 ## Versioning and evidence
 

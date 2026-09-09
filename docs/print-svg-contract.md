@@ -26,6 +26,9 @@ font installation or embedding, file I/O, and OS printing belong to the consumin
 - Publication text is escaped SVG text with its typed style, alignment, line-box height,
   and physical placement. Hosts may convert it to paths only after recording the selected
   font/resource contract.
+- Structured figured-bass extender flags may be represented by a deterministic continuation-line
+  hook; ornament text hooks and beam geometry remain font-independent, while exact glyph shaping
+  and collision optimization stay with the host.
 - No caller-provided SVG/XML fragments are accepted as annotations.
 
 ## Metadata and colors
