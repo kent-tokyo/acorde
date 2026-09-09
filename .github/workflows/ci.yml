@@ -36,11 +36,25 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
+
       - name: cargo test
-        run: cargo test --all
+        run: cargo test --all-features --locked
 
       - name: cargo clippy
-        run: cargo clippy --all -- -D warnings
+        run: cargo clippy --all-features --locked --all-targets -- -D warnings
+
+  package:
+    name: Package workspace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: cargo package
+        run: cargo package --workspace --locked
 
   wasm:
     name: WASM build

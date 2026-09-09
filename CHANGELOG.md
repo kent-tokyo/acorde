@@ -22,6 +22,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   counts for model, renderer, and optional tablature checks.
 - Classified browser preflight consistency failures as `preflight` operation errors so hosts can
   distinguish them from standalone model validation failures.
+- Aligned CI with the release-candidate gate by requiring formatting, all-feature locked tests,
+  all-target locked clippy, and workspace packaging checks.
 - Added the missing WASM `parse_mxl_report` binding so the browser MXL diagnostic path matches the
   existing IO report contract.
 - Added the CLI `render` command for deterministic input-file-to-SVG rendering through the
