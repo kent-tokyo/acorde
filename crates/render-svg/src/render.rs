@@ -113,7 +113,8 @@ pub(crate) fn build_svg_with_metadata(
         })
         .collect();
     let (top_margin_u, bottom_margin_u) = content_margins(score, &staff_refs);
-    let (left_margin_u, right_margin_u) = content_horizontal_margins(score, &staff_refs);
+    let (left_margin_u, right_margin_u) =
+        content_horizontal_margins(score, &staff_refs, &mandatory, &courtesy);
 
     let system_height_u = staff_refs.len() as f32 * STAFF_HEIGHT_U
         + (staff_refs.len().saturating_sub(1)) as f32 * STAFF_GAP_U;
@@ -848,7 +849,12 @@ fn content_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
 /// Expand breathing room for measure-level annotations and first-system part labels. Font-width
 /// aware line breaking remains host work, but explicit offsets must not move text outside the
 /// renderer's own SVG viewBox.
-fn content_horizontal_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
+fn content_horizontal_margins(
+    score: &Score,
+    staff_refs: &[(usize, usize)],
+    mandatory: &HashMap<AccKey, i8>,
+    courtesy: &HashMap<AccKey, i8>,
+) -> (f32, f32) {
     let mut left = LEFT_MARGIN_U;
     let mut right = RIGHT_MARGIN_U;
     for &(part, staff) in staff_refs {
@@ -860,15 +866,39 @@ fn content_horizontal_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (
             let label_width_u = short_name.chars().count() as f32 * 0.42;
             left = left.max(LEFT_MARGIN_U + 0.35 + label_width_u + 0.25);
         }
-        for measure in &score.parts[part].staves[staff].measures {
+        for (measure_index, measure) in score.parts[part].staves[staff].measures.iter().enumerate()
+        {
             let Ok(clef_bottom) = geometry::clef_bottom_line(&score.parts[part].staves[staff].clef)
             else {
                 continue;
             };
-            for voice in &measure.voices {
-                for note in voice {
-                    if note.pitches.is_empty() || !note.pitches.iter().any(|pitch| pitch.alter != 0)
-                    {
+            for (voice_index, voice) in measure.voices.iter().enumerate() {
+                for (note_index, note) in voice.iter().enumerate() {
+                    let has_accidentals: Vec<bool> = note
+                        .pitches
+                        .iter()
+                        .enumerate()
+                        .map(|(pitch_index, pitch)| {
+                            pitch.alter != 0
+                                || mandatory.contains_key(&(
+                                    part,
+                                    staff,
+                                    measure_index,
+                                    voice_index,
+                                    note_index,
+                                    pitch_index,
+                                ))
+                                || courtesy.contains_key(&(
+                                    part,
+                                    staff,
+                                    measure_index,
+                                    voice_index,
+                                    note_index,
+                                    pitch_index,
+                                ))
+                        })
+                        .collect();
+                    if note.pitches.is_empty() || !has_accidentals.iter().any(|&present| present) {
                         continue;
                     }
                     let positions: Vec<i32> = note
@@ -878,8 +908,6 @@ fn content_horizontal_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (
                             geometry::staff_position(&pitch.step, pitch.octave, clef_bottom)
                         })
                         .collect();
-                    let has_accidentals: Vec<bool> =
-                        note.pitches.iter().map(|pitch| pitch.alter != 0).collect();
                     let accidental_offsets = chord_accidental_offsets(&positions, &has_accidentals);
                     for (pitch_index, &has_accidental) in has_accidentals.iter().enumerate() {
                         if !has_accidental {
@@ -2752,6 +2780,7 @@ fn courtesy_wrapped(alter: i8, cx: f32, cy: f32, space: f32) -> String {
 mod tests {
     use super::{Note, content_horizontal_margins, resolve_adjacent_event_spacing};
     use acorde_core::{Duration, Pitch, Score, Step};
+    use std::collections::HashMap;
 
     #[test]
     fn adjacent_event_spacing_is_pitch_aware_and_atomic() {
@@ -2774,13 +2803,14 @@ mod tests {
         let mut score = Score::default();
         let refs = vec![(0, 0)];
         score.parts[0].short_name.clear();
-        let plain = content_horizontal_margins(&score, &refs).0;
+        let empty = HashMap::new();
+        let plain = content_horizontal_margins(&score, &refs, &empty, &empty).0;
         let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
         voice.clear();
         let mut note = Note::new(Pitch::with_alter(Step::C, 5, 1), Duration::Quarter);
         note.pitches.push(Pitch::with_alter(Step::D, 5, 1));
         voice.push(note);
-        let expanded = content_horizontal_margins(&score, &refs).0;
+        let expanded = content_horizontal_margins(&score, &refs, &empty, &empty).0;
         assert!(expanded > plain);
     }
 }

@@ -39,6 +39,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the measure has capacity, while preserving original positions for intrinsically tight measures.
 - Expanded the left content margin from actual chord accidental columns, preventing dense
   accidental clusters at a measure origin from crossing the SVG viewBox boundary.
+- Routed layout-produced mandatory and courtesy accidental marks into that margin calculation,
+  including naturals whose pitch alter is zero.
 - Included note-attached lyric, dynamic, chord, fingering/technique, microtone, articulation, and
   span offsets in conservative vertical content margins, with a structural regression fixture.
 - Hardened `CommandStack` command, batch, undo, and redo boundaries with validated candidate
