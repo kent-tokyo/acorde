@@ -1661,7 +1661,46 @@ fn event_footprint_u(note: &Note) -> f32 {
         .filter(|pitch| pitch.alter != 0)
         .map(|pitch| glyphs::accidental_width_u(pitch.alter) + 0.15)
         .fold(0.0_f32, f32::max);
-    notehead + accidental
+    let notation_width = notehead + accidental;
+    notation_width.max(note_annotation_width_u(note))
+}
+
+/// Conservative centered width for note-attached text. This is deliberately font-independent;
+/// host typography may still choose a wider font or apply a different shaping policy.
+fn note_annotation_width_u(note: &Note) -> f32 {
+    let mut width = 0.0_f32;
+    if let Some(lyric) = &note.lyric {
+        width = width.max(lyric.text.chars().count() as f32 * 0.42 + 0.6);
+    }
+    if let Some(chord) = &note.chord_symbol {
+        width = width.max(chord.display_text().chars().count() as f32 * 0.42);
+    }
+    if let Some(dynamic) = &note.dynamic {
+        width = width.max(dynamic.to_musicxml_str().chars().count() as f32 * 0.42);
+    }
+    if let Some(text) = &note.technique_text {
+        width = width.max(text.chars().count() as f32 * 0.42);
+    }
+    if note.guitar_technique.is_some() {
+        width = width.max(0.42 * 5.0);
+    }
+    if note.fingering.is_some() || !note.fingerings.is_empty() {
+        width = width.max(0.42 * 3.0);
+    }
+    for pitch in &note.pitches {
+        if pitch.microtone_cents != 0 {
+            width = width.max(format!("{:+}c", pitch.microtone_cents).len() as f32 * 0.42);
+        }
+    }
+    if note.articulations.iter().any(|articulation| {
+        matches!(
+            articulation,
+            acorde_core::Articulation::Fermata | acorde_core::Articulation::Trill
+        )
+    }) {
+        width = width.max(0.42 * 7.0);
+    }
+    width
 }
 
 fn measure_text_class(style: acorde_core::TextStyle) -> &'static str {
@@ -2829,7 +2868,7 @@ mod tests {
     use super::{
         Note, content_horizontal_margins, measure_text_half_width_u, resolve_adjacent_event_spacing,
     };
-    use acorde_core::{Duration, NoteHead, Pitch, Score, Step};
+    use acorde_core::{Duration, Lyric, NoteHead, Pitch, Score, Step};
     use std::collections::HashMap;
 
     #[test]
@@ -2892,5 +2931,32 @@ mod tests {
             10.0,
         );
         assert!(cross_positions[1] > normal_positions[1]);
+    }
+
+    #[test]
+    fn long_note_annotations_receive_a_larger_clearance_footprint() {
+        let plain = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
+        let mut annotated = plain.clone();
+        annotated.lyric = Some(Lyric {
+            text: "long-syllable".to_owned(),
+            syllabic: "single".to_owned(),
+        });
+        let mut plain_positions = [0.0, 1.0];
+        resolve_adjacent_event_spacing(
+            &[plain.clone(), plain.clone()],
+            &mut plain_positions,
+            0.0,
+            100.0,
+            10.0,
+        );
+        let mut annotated_positions = [0.0, 1.0];
+        resolve_adjacent_event_spacing(
+            &[annotated, plain],
+            &mut annotated_positions,
+            0.0,
+            100.0,
+            10.0,
+        );
+        assert!(annotated_positions[1] > plain_positions[1]);
     }
 }
