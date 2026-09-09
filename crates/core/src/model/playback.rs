@@ -277,7 +277,7 @@ pub fn compare_playback_timing(
 }
 
 /// Version of the host-neutral tablature performance projection contract.
-pub const TAB_PERFORMANCE_CONTRACT_VERSION: u16 = 2;
+pub const TAB_PERFORMANCE_CONTRACT_VERSION: u16 = 3;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TablaturePerformanceEvent {
@@ -287,6 +287,9 @@ pub struct TablaturePerformanceEvent {
     /// Authored guitar technique for the host playback adapter, when present.
     #[serde(default)]
     pub technique: Option<GuitarTechnique>,
+    /// Authored bend alteration in cents, when the technique is `Bend`.
+    #[serde(default)]
+    pub bend_alter_cents: Option<i16>,
     pub expected_pitch_midi_cents: i32,
     pub pitch_error_cents: i32,
 }
@@ -557,6 +560,7 @@ pub fn project_tablature_performance(
             string: position.string,
             fret: position.fret,
             technique: note.guitar_technique.clone(),
+            bend_alter_cents: note.guitar_bend_alter_cents,
             expected_pitch_midi_cents,
             pitch_error_cents,
         });
@@ -1624,7 +1628,8 @@ mod tests {
             string: 1,
             fret: 20,
         });
-        notes[0].guitar_technique = Some(super::super::notation::GuitarTechnique::Slide);
+        notes[0].guitar_technique = Some(super::super::notation::GuitarTechnique::Bend);
+        notes[0].guitar_bend_alter_cents = Some(150);
         let report = project_tablature_performance(&score, &PlaybackOptions::default())
             .expect("tablature projection");
         assert_eq!(report.events.len(), 1);
@@ -1632,8 +1637,9 @@ mod tests {
         assert_eq!(report.events[0].fret, 20);
         assert_eq!(
             report.events[0].technique,
-            Some(super::super::notation::GuitarTechnique::Slide)
+            Some(super::super::notation::GuitarTechnique::Bend)
         );
+        assert_eq!(report.events[0].bend_alter_cents, Some(150));
         assert!(report.diagnostics.is_empty());
 
         score.parts[0].staves[0].measures[0].voices[0][0].tab_position =

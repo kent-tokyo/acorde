@@ -128,6 +128,7 @@ playback events paired with authored string/fret positions. It validates tuning 
 the sounding pitch, reports missing or invalid positions and microtonal pitch differences, and
 never guesses a position. Each positioned event also carries the authored `GuitarTechnique` when
 present (`bend`, `slide`, `hammer-on`, or `pull-off`) so hosts can select their own articulation.
+For a bend, `bend_alter_cents` preserves the authored alteration amount when available.
 Automatic assignment remains an explicit caller step.
 
 ## Incremental updates
