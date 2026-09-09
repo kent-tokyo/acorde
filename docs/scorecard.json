@@ -24,6 +24,8 @@
     "logical_layout": "yes",
     "deterministic_svg": "yes",
     "wasm_bindings": "yes",
+    "browser_adapter": "yes",
+    "renderer_preflight": "yes",
     "analysis_primitives": "yes",
     "analysis_cache": "yes",
     "analysis_extension_points": "yes",

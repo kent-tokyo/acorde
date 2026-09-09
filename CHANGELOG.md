@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- Added the framework-neutral browser adapter's transactional loaders for MusicXML, MXL, MEI,
+  ABC, MIDI, MSCX, and MSCZ, including structured import-report variants.
+- Added browser adapter exports for MusicXML, MEI, ABC, and MIDI; MIDI uses `Uint8Array`, and
+  format-specific `WithReport` methods preserve conversion diagnostics.
+- Added browser adapter methods and Worker requests for playback timing comparison, tablature
+  performance projection, canonical tab round-trip diagnostics, and renderer preflight.
+- Added the missing WASM `parse_mxl_report` binding so the browser MXL diagnostic path matches the
+  existing IO report contract.
 - Added the CLI `render` command for deterministic input-file-to-SVG rendering through the
   existing `acorde-render-svg` pipeline, with explicit geometry and interactive-hook options.
 - Added `render-report`, combining import diagnostics, renderer preflight issues, and SVG output

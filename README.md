@@ -143,6 +143,10 @@ to a selected `NoteAddr` without rerunning analysis.
 `explain_analysis_change` combines that lookup for before/after results with the category diff.
 `compatibility_report` combines canonical score differences with deterministic analysis-category
 changes for browser-side compatibility gates; format diagnostics remain in the `*_report` APIs.
+The framework-neutral browser adapter additionally provides transactional loading for MusicXML,
+MXL, MEI, ABC, MIDI, MSCX, and MSCZ, loss-aware import reports, renderer preflight, and
+MusicXML/MEI/ABC/MIDI export. It keeps audio synthesis, font selection, PDF, and OS printing in
+the host.
 See [the browser contract](docs/browser-rendering.md) and the
 [browser fixture](examples/browser/README.md).
 
