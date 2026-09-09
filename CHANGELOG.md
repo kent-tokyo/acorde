@@ -14,6 +14,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   existing `acorde-render-svg` pipeline, with explicit geometry and interactive-hook options.
 - Added `render-report`, combining import diagnostics, renderer preflight issues, and SVG output
   metadata in a deterministic JSON report with an optional non-zero issue gate.
+- Render reports now retain rejected-render status and error details instead of discarding
+  renderer preflight failures without a machine-readable result.
 
 ## [1.1.6] - 2026-09-09
 

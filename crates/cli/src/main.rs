@@ -486,7 +486,9 @@ struct RenderReportSummary {
     input_format: String,
     input_path: String,
     output_path: String,
+    rendered: bool,
     svg_byte_count: usize,
+    render_error: Option<String>,
     import_warning_count: usize,
     import_error_count: usize,
     import_loss_count: usize,
@@ -510,10 +512,16 @@ fn render_report_summary(
         measures_per_system,
         interactive,
     };
-    let svg = acorde_render_svg::render_svg(&import.score, &options)
-        .map_err(|e| format!("SVG rendering failed: {e}"))?;
-    let svg_byte_count = svg.len();
-    std::fs::write(output, svg).map_err(|e| format!("cannot write '{}': {e}", output.display()))?;
+    let (rendered, svg_byte_count, render_error) =
+        match acorde_render_svg::render_svg(&import.score, &options) {
+            Ok(svg) => {
+                let byte_count = svg.len();
+                std::fs::write(output, svg)
+                    .map_err(|e| format!("cannot write '{}': {e}", output.display()))?;
+                (true, byte_count, None)
+            }
+            Err(error) => (false, 0, Some(error.to_string())),
+        };
     let import_warning_count = import.warning_count();
     let import_error_count = import.error_count();
     let import_loss_count = import.loss_count();
@@ -522,7 +530,9 @@ fn render_report_summary(
         input_format: import.format,
         input_path: input.display().to_string(),
         output_path: output.display().to_string(),
+        rendered,
         svg_byte_count,
+        render_error,
         import_warning_count,
         import_error_count,
         import_loss_count,
@@ -548,7 +558,9 @@ fn cmd_render_report(
         measures_per_system,
         interactive,
     )?;
-    let has_issues = !report.import_diagnostics.is_empty() || !report.renderer_issues.is_empty();
+    let has_issues = !report.import_diagnostics.is_empty()
+        || !report.renderer_issues.is_empty()
+        || report.render_error.is_some();
     println!(
         "{}",
         serde_json::to_string_pretty(&report)
@@ -1501,6 +1513,28 @@ mod tests {
         assert!(report.renderer_issues.is_empty());
         assert!(report.svg_byte_count > 0);
         std::fs::remove_file(output).expect("temporary render report output is removable");
+    }
+
+    #[test]
+    fn render_report_retains_rejected_renderer_diagnostics() {
+        let output = std::env::temp_dir().join(format!(
+            "acorde-cli-render-report-rejected-{}.svg",
+            std::process::id()
+        ));
+        let report = render_report_summary(
+            &fixture("render_preflight_unsupported.musicxml"),
+            &output,
+            900.0,
+            24.0,
+            4,
+            true,
+        )
+        .expect("diagnostic report succeeds even when rendering is rejected");
+        assert!(!report.rendered);
+        assert_eq!(report.svg_byte_count, 0);
+        assert!(report.render_error.is_some());
+        assert!(!report.renderer_issues.is_empty());
+        assert!(!output.exists());
     }
 
     #[test]

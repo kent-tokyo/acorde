@@ -59,7 +59,8 @@ preflight emits renderer capability issues with stable score source locations as
 generation.
 `render-report` writes the SVG and emits the input format, byte count, import diagnostics, and
 renderer preflight issues as one JSON report. `--fail-on-issues` makes any such issue a non-zero
-exit, while keeping the report and SVG available for inspection.
+exit. When rendering is rejected, the report still contains `rendered: false` and `render_error`;
+no incomplete SVG is written.
 `--fail-on-issues` keeps the JSON output but exits with status 1 when any issue is found, which is
 useful for CI gates.
 The repository fixture `tests/fixtures/render_preflight_unsupported.musicxml` demonstrates the
