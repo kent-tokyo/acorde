@@ -31,6 +31,11 @@ export class AcordeWorkspaceError extends Error {
 export interface WasmBindings {
   parse_musicxml(xml: string): string;
   parse_musicxml_report(xml: string): string;
+  parse_mxl(data: Uint8Array): string;
+  parse_mei(xml: string): string;
+  parse_abc(text: string): string;
+  parse_mscx(xml: string): string;
+  parse_mscz(data: Uint8Array): string;
   parse_midi(data: Uint8Array): string;
   serialize_musicxml(scoreJson: string): string;
   serialize_musicxml_report(scoreJson: string): string;
@@ -175,6 +180,11 @@ export function decodeScoreJson(data: Uint8Array): string {
 export type WorkspaceRequest =
   | { id: string; type: "load-musicxml"; xml: string }
   | { id: string; type: "load-musicxml-report"; xml: string }
+  | { id: string; type: "load-mxl"; data: Uint8Array }
+  | { id: string; type: "load-mei"; xml: string }
+  | { id: string; type: "load-abc"; text: string }
+  | { id: string; type: "load-mscx"; xml: string }
+  | { id: string; type: "load-mscz"; data: Uint8Array }
   | { id: string; type: "load-midi"; data: Uint8Array }
   | { id: string; type: "replace-score"; scoreJson: string }
   | { id: string; type: "replace-score-bytes"; data: Uint8Array }
@@ -273,6 +283,31 @@ export class AcordeWorkspace {
     this.selection.set(null);
   }
 
+  /** Load compressed MusicXML and replace the current document transactionally. */
+  loadMxl(data: Uint8Array): void {
+    this.loadParsedScore(() => this.wasm.parse_mxl(data));
+  }
+
+  /** Load the documented MEI subset and replace the current document transactionally. */
+  loadMei(xml: string): void {
+    this.loadParsedScore(() => this.wasm.parse_mei(xml));
+  }
+
+  /** Load ABC Notation and replace the current document transactionally. */
+  loadAbc(text: string): void {
+    this.loadParsedScore(() => this.wasm.parse_abc(text));
+  }
+
+  /** Load MuseScore MSCX and replace the current document transactionally. */
+  loadMscx(xml: string): void {
+    this.loadParsedScore(() => this.wasm.parse_mscx(xml));
+  }
+
+  /** Load a MuseScore MSCZ archive and replace the current document transactionally. */
+  loadMscz(data: Uint8Array): void {
+    this.loadParsedScore(() => this.wasm.parse_mscz(data));
+  }
+
   /** Load MusicXML and return structured import diagnostics to the host. */
   loadMusicXmlWithReport(xml: string): ImportReport {
     let report: ImportReport;
@@ -291,9 +326,13 @@ export class AcordeWorkspace {
 
   /** Load MIDI bytes and replace the current document transactionally. */
   loadMidi(data: Uint8Array): void {
+    this.loadParsedScore(() => this.wasm.parse_midi(data));
+  }
+
+  private loadParsedScore(parse: () => string): void {
     let nextScore: string;
     try {
-      nextScore = this.wasm.parse_midi(data);
+      nextScore = parse();
     } catch (cause) {
       throw this.toWorkspaceError("parse", cause);
     }
@@ -697,6 +736,21 @@ export function handleWorkspaceRequest(
         const report = workspace.loadMusicXmlWithReport(request.xml);
         return { id: request.id, ok: true, value: { report, snapshot: workspace.snapshot() } };
       }
+      case "load-mxl":
+        workspace.loadMxl(request.data);
+        return { id: request.id, ok: true, value: workspace.snapshot() };
+      case "load-mei":
+        workspace.loadMei(request.xml);
+        return { id: request.id, ok: true, value: workspace.snapshot() };
+      case "load-abc":
+        workspace.loadAbc(request.text);
+        return { id: request.id, ok: true, value: workspace.snapshot() };
+      case "load-mscx":
+        workspace.loadMscx(request.xml);
+        return { id: request.id, ok: true, value: workspace.snapshot() };
+      case "load-mscz":
+        workspace.loadMscz(request.data);
+        return { id: request.id, ok: true, value: workspace.snapshot() };
       case "load-midi":
         workspace.loadMidi(request.data);
         return { id: request.id, ok: true, value: workspace.snapshot() };

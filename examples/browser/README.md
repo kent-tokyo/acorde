@@ -48,6 +48,9 @@ failed layout preparation leaves the current score unchanged.
 `exportMusicXml` provides offline MusicXML export. `playbackEvents`, `playbackPosition`, and
 `durationSeconds` expose deterministic scheduling data to a host audio backend without coupling
 the adapter to Web Audio or another playback framework.
+`loadMxl`, `loadMei`, `loadAbc`, `loadMscx`, and `loadMscz` expose the corresponding existing
+WASM parsers through the same transactional score replacement boundary; the adapter does not
+claim that any of these format subsets are globally lossless.
 `comparePlaybackTiming(actualEvents, tolerance, options)` compares a host scheduler trace with
 the expected event trace using the versioned WASM contract. It checks event identity and timing,
 not audio output, device latency, or SoundFont behavior. `tablaturePerformance(options)` maps
