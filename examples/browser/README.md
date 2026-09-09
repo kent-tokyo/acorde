@@ -51,6 +51,10 @@ the adapter to Web Audio or another playback framework.
 `loadMxl`, `loadMei`, `loadAbc`, `loadMscx`, and `loadMscz` expose the corresponding existing
 WASM parsers through the same transactional score replacement boundary; the adapter does not
 claim that any of these format subsets are globally lossless.
+The matching `loadMxlWithReport`, `loadMeiWithReport`, `loadAbcWithReport`,
+`loadMscxWithReport`, `loadMsczWithReport`, and `loadMidiWithReport` methods preserve the
+format adapter's structured diagnostics together with the installed snapshot. Their Worker
+request variants return `{ report, snapshot }` as one correlated result.
 `comparePlaybackTiming(actualEvents, tolerance, options)` compares a host scheduler trace with
 the expected event trace using the versioned WASM contract. It checks event identity and timing,
 not audio output, device latency, or SoundFont behavior. `tablaturePerformance(options)` maps

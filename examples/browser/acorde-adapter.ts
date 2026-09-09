@@ -31,6 +31,12 @@ export class AcordeWorkspaceError extends Error {
 export interface WasmBindings {
   parse_musicxml(xml: string): string;
   parse_musicxml_report(xml: string): string;
+  parse_mxl_report(data: Uint8Array): string;
+  parse_mei_report(xml: string): string;
+  parse_abc_report(text: string): string;
+  parse_mscx_report(xml: string): string;
+  parse_mscz_report(data: Uint8Array): string;
+  parse_midi_report(data: Uint8Array): string;
   parse_mxl(data: Uint8Array): string;
   parse_mei(xml: string): string;
   parse_abc(text: string): string;
@@ -180,6 +186,12 @@ export function decodeScoreJson(data: Uint8Array): string {
 export type WorkspaceRequest =
   | { id: string; type: "load-musicxml"; xml: string }
   | { id: string; type: "load-musicxml-report"; xml: string }
+  | { id: string; type: "load-mxl-report"; data: Uint8Array }
+  | { id: string; type: "load-mei-report"; xml: string }
+  | { id: string; type: "load-abc-report"; text: string }
+  | { id: string; type: "load-mscx-report"; xml: string }
+  | { id: string; type: "load-mscz-report"; data: Uint8Array }
+  | { id: string; type: "load-midi-report"; data: Uint8Array }
   | { id: string; type: "load-mxl"; data: Uint8Array }
   | { id: string; type: "load-mei"; xml: string }
   | { id: string; type: "load-abc"; text: string }
@@ -322,6 +334,46 @@ export class AcordeWorkspace {
     this.installScore(prepared.scoreJson, prepared.layoutJson, prepared.layoutOptionsJson);
     this.selection.set(null);
     return report;
+  }
+
+  /** Load any report-capable format while preserving its import diagnostics. */
+  loadWithReport(parse: () => string): ImportReport {
+    let report: ImportReport;
+    try {
+      report = JSON.parse(parse()) as ImportReport;
+    } catch (cause) {
+      throw this.toWorkspaceError("parse", cause);
+    }
+    const prepared = this.prepareScore(JSON.stringify(report.score));
+    this.undoStack.length = 0;
+    this.redoStack.length = 0;
+    this.installScore(prepared.scoreJson, prepared.layoutJson, prepared.layoutOptionsJson);
+    this.selection.set(null);
+    return report;
+  }
+
+  loadMxlWithReport(data: Uint8Array): ImportReport {
+    return this.loadWithReport(() => this.wasm.parse_mxl_report(data));
+  }
+
+  loadMeiWithReport(xml: string): ImportReport {
+    return this.loadWithReport(() => this.wasm.parse_mei_report(xml));
+  }
+
+  loadAbcWithReport(text: string): ImportReport {
+    return this.loadWithReport(() => this.wasm.parse_abc_report(text));
+  }
+
+  loadMscxWithReport(xml: string): ImportReport {
+    return this.loadWithReport(() => this.wasm.parse_mscx_report(xml));
+  }
+
+  loadMsczWithReport(data: Uint8Array): ImportReport {
+    return this.loadWithReport(() => this.wasm.parse_mscz_report(data));
+  }
+
+  loadMidiWithReport(data: Uint8Array): ImportReport {
+    return this.loadWithReport(() => this.wasm.parse_midi_report(data));
   }
 
   /** Load MIDI bytes and replace the current document transactionally. */
@@ -734,6 +786,30 @@ export function handleWorkspaceRequest(
         return { id: request.id, ok: true, value: workspace.snapshot() };
       case "load-musicxml-report": {
         const report = workspace.loadMusicXmlWithReport(request.xml);
+        return { id: request.id, ok: true, value: { report, snapshot: workspace.snapshot() } };
+      }
+      case "load-mxl-report": {
+        const report = workspace.loadMxlWithReport(request.data);
+        return { id: request.id, ok: true, value: { report, snapshot: workspace.snapshot() } };
+      }
+      case "load-mei-report": {
+        const report = workspace.loadMeiWithReport(request.xml);
+        return { id: request.id, ok: true, value: { report, snapshot: workspace.snapshot() } };
+      }
+      case "load-abc-report": {
+        const report = workspace.loadAbcWithReport(request.text);
+        return { id: request.id, ok: true, value: { report, snapshot: workspace.snapshot() } };
+      }
+      case "load-mscx-report": {
+        const report = workspace.loadMscxWithReport(request.xml);
+        return { id: request.id, ok: true, value: { report, snapshot: workspace.snapshot() } };
+      }
+      case "load-mscz-report": {
+        const report = workspace.loadMsczWithReport(request.data);
+        return { id: request.id, ok: true, value: { report, snapshot: workspace.snapshot() } };
+      }
+      case "load-midi-report": {
+        const report = workspace.loadMidiWithReport(request.data);
         return { id: request.id, ok: true, value: { report, snapshot: workspace.snapshot() } };
       }
       case "load-mxl":
