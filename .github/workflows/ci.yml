@@ -75,6 +75,21 @@ jobs:
       - name: cargo package
         run: cargo package --workspace --locked
 
+      - name: Record package provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-provenance
+          cargo metadata --format-version 1 --locked > release-provenance/cargo-metadata.json
+          rustc -Vv > release-provenance/rustc-version.txt
+          sha256sum target/package/*.crate > release-provenance/crates.sha256
+
+      - name: Upload package provenance
+        uses: actions/upload-artifact@v4
+        with:
+          name: acorde-package-provenance
+          path: release-provenance/
+
   wasm:
     name: WASM build
     runs-on: ubuntu-latest

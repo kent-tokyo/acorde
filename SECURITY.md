@@ -46,6 +46,10 @@ cargo deny check advisories licenses sources bans
 cargo package --workspace --locked
 ```
 
+The CI package job also records locked Cargo metadata, the compiler version, and SHA-256
+digests for every generated `.crate` archive. These files provide provenance and reproducibility
+evidence; they are not cryptographic signatures and do not replace a release signing service.
+
 The parser fuzz smoke uses the pinned nightly toolchain and cargo-fuzz version from CI:
 
 ```text
