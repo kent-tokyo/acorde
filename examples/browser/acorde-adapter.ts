@@ -11,6 +11,7 @@ export const WORKSPACE_SNAPSHOT_SCHEMA_VERSION = 1;
 export type WorkspaceOperation =
   | "parse"
   | "layout"
+  | "print-layout"
   | "render"
   | "metadata"
   | "analysis"
@@ -57,6 +58,7 @@ export interface WasmBindings {
   serialize_midi(scoreJson: string): Uint8Array;
   serialize_midi_report(scoreJson: string): string;
   compute_layout_ex(scoreJson: string, configJson: string): string;
+  compute_print_layout(scoreJson: string, configJson: string): string;
   render_score_svg_with_layout(scoreJson: string, layoutJson: string, optionsJson: string): string;
   render_preflight(scoreJson: string): string;
   svg_contract_version(): number;
@@ -242,6 +244,7 @@ export type WorkspaceRequest =
   | { id: string; type: "snapshot" }
   | { id: string; type: "restore-snapshot"; snapshot: WorkspaceSnapshot }
   | { id: string; type: "render-svg" }
+  | { id: string; type: "print-layout"; config?: Record<string, unknown> }
   | { id: string; type: "render-preflight" }
   | { id: string; type: "render-row-svg"; rowIndex: number }
   | { id: string; type: "metadata" }
@@ -524,6 +527,18 @@ export class AcordeWorkspace {
     }
     this.renderCache.set(key, svg);
     return svg;
+  }
+
+  /** Return deterministic physical page metadata for a host print preview/exporter. */
+  printLayout(config: Record<string, unknown> = {}): Record<string, unknown> {
+    this.assertLoaded();
+    try {
+      return JSON.parse(this.wasm.compute_print_layout(
+        this.scoreJson, JSON.stringify(config),
+      )) as Record<string, unknown>;
+    } catch (cause) {
+      throw this.toWorkspaceError("print-layout", cause);
+    }
   }
 
   /** Inspect renderer capability and text-input boundaries before SVG emission. */
@@ -1011,6 +1026,8 @@ export function handleWorkspaceRequest(
         return { id: request.id, ok: true, value: workspace.snapshot() };
       case "render-svg":
         return { id: request.id, ok: true, value: workspace.renderSvg() };
+      case "print-layout":
+        return { id: request.id, ok: true, value: workspace.printLayout(request.config) };
       case "render-preflight":
         return { id: request.id, ok: true, value: workspace.renderPreflight() };
       case "render-row-svg":

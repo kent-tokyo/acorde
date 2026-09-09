@@ -47,6 +47,9 @@ outside the core/WASM contract and remain application-owned.
 - `parse_mscz_render_svg(data, options_json)` parses a MuseScore archive and renders its bounded
   canonical score directly to SVG.
 - `compute_layout_ex(score_json, config_json)` returns the serialized `LayoutResult`.
+- `compute_print_layout(score_json, print_config_json)` returns the serialized physical
+  `PrintLayoutResult` for page-aware hosts. It carries millimetre geometry and publication
+  metadata; PDF generation, font resolution, and printer APIs remain host-owned.
 - `render_score_svg_with_layout(score_json, layout_json, options_json)` renders the complete
   score using that layout.
 - `render_preflight(score_json)` returns source-located JSON issues for renderer capability and
