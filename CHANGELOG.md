@@ -49,6 +49,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   aligned the playback evidence commands with the locked all-feature release gate.
 - Extended print-layout contract version 26 with normalized measure-level styled-text annotations
   so publication hosts can consume explicit and legacy text without reconstructing it.
+- Added the CLI `print-report` command for deterministic host-neutral page/system and publication
+  metadata inspection before PDF or printer-owned export.
 
 ## [1.1.6] - 2026-09-09
 

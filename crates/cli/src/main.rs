@@ -70,6 +70,20 @@ enum Commands {
         #[arg(long)]
         fail_on_issues: bool,
     },
+    /// Print deterministic page/system layout and publication metadata as JSON
+    PrintReport {
+        /// Input score file
+        input: PathBuf,
+        /// Physical measures per printed system
+        #[arg(long, default_value_t = 4)]
+        measures_per_system: usize,
+        /// Optional systems per page override
+        #[arg(long)]
+        systems_per_page: Option<usize>,
+        /// Add a metadata-only title page
+        #[arg(long)]
+        title_page: bool,
+    },
     /// Print title, parts, measure count, and duration estimate
     Info {
         /// Input file (.musicxml, .mxl, .mid, .midi)
@@ -288,6 +302,12 @@ fn main() {
             !*no_interactive,
             *fail_on_issues,
         ),
+        Commands::PrintReport {
+            input,
+            measures_per_system,
+            systems_per_page,
+            title_page,
+        } => cmd_print_report(input, *measures_per_system, *systems_per_page, *title_page),
         Commands::Info { input } => cmd_info(input),
         Commands::Validate { input } => cmd_validate(input),
         Commands::Report { input } => cmd_report(input),
@@ -575,6 +595,27 @@ fn cmd_render_report(
     if fail_on_issues && has_issues {
         return Err("render report found import or renderer issue(s)".to_string());
     }
+    Ok(())
+}
+
+fn cmd_print_report(
+    input: &Path,
+    measures_per_system: usize,
+    systems_per_page: Option<usize>,
+    title_page: bool,
+) -> Result<(), String> {
+    let score = parse_score(input)?;
+    let mut config = acorde_layout::PrintConfig {
+        measures_per_system,
+        systems_per_page,
+        ..acorde_layout::PrintConfig::default()
+    };
+    config.publication.title_page = title_page;
+    let layout = acorde_layout::compute_print_layout(&score, &config)
+        .map_err(|e| format!("print layout failed: {e}"))?;
+    serde_json::to_writer_pretty(std::io::stdout(), &layout)
+        .map_err(|e| format!("print report serialization failed: {e}"))?;
+    println!();
     Ok(())
 }
 

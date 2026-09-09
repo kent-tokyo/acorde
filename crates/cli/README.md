@@ -11,6 +11,7 @@ acorde convert input.musicxml output.mei
 acorde render input.musicxml output.svg
 acorde render input.mei output.svg --width 1200 --staff-size 20 --measures-per-system 3
 acorde render-report input.mei output.svg --fail-on-issues
+acorde print-report input.mei --measures-per-system 3 --systems-per-page 4 --title-page
 acorde info input.musicxml
 acorde validate input.musicxml
 acorde report input.mei
@@ -67,6 +68,10 @@ is a local `fnv1a64-*` evidence identifier, not a cryptographic publication hash
 useful for CI gates.
 The repository fixture `tests/fixtures/render_preflight_unsupported.musicxml` demonstrates the
 failure path without external resources.
+`print-report` emits the host-neutral `PrintLayoutResult` as JSON, including physical pages and
+systems, typed break reasons, publication metadata, normalized measure text annotations, and
+glyph/span diagnostics. It emits no PDF or printer output; `--title-page` and the system/page
+capacity options are deterministic layout inputs.
 analyze emits deterministic chord, melodic-interval, and key-estimate results as JSON.
 export-report writes MusicXML, MIDI, ABC, or MEI and emits machine-readable export diagnostics
 without embedding the binary/text artifact in the JSON response.
