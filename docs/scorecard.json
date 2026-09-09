@@ -3,11 +3,11 @@
   "release": "1.1.6",
   "contracts": {
     "svg_render_metadata": 3,
-    "print_layout": 24
+    "print_layout": 25
   },
   "policy": {
     "claims_require_fixture_or_focused_test": true,
-    "external_publication_verified": true,
+    "external_publication_verified": false,
     "phase_6_local_gates_complete": true,
     "benchmark_latency_is_host_measured": true
   },

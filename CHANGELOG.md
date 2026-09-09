@@ -41,6 +41,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   avoiding duplicate equivalent entries when importers retain both representations.
 - Extended the tablature performance contract to version 2 and carry authored guitar techniques
   through Core, WASM, and CLI JSON for host-owned playback articulation.
+- Synchronized the scorecard with print-layout contract version 25 and recorded that external
+  publication is not verified until the pending registry authentication gate succeeds.
 
 ## [1.1.6] - 2026-09-09
 
