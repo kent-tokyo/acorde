@@ -50,6 +50,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Reserved bounded horizontal space for centered measure-level text using a deterministic,
   font-independent width estimate, avoiding boundary clipping while leaving long-text wrapping to
   the host.
+- Extended adjacent-event clearance to account for the rendered custom notehead footprint, including
+  cross, slash, triangle, diamond, and X shapes used by percussion and contemporary notation.
 - Included note-attached lyric, dynamic, chord, fingering/technique, microtone, articulation, and
   span offsets in conservative vertical content margins, with a structural regression fixture.
 - Hardened `CommandStack` command, batch, undo, and redo boundaries with validated candidate

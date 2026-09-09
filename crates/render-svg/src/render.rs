@@ -1643,7 +1643,18 @@ fn resolve_adjacent_event_spacing(
 /// Conservative horizontal footprint in staff spaces. Accidentals use the same font-independent
 /// width contract as the glyph renderer; host font metrics may still choose a larger layout.
 fn event_footprint_u(note: &Note) -> f32 {
-    let notehead = if note.is_grace { 0.42 } else { 0.62 };
+    let notehead = if note.is_grace {
+        0.42
+    } else {
+        match note.note_head {
+            acorde_core::NoteHead::Normal => 0.62,
+            acorde_core::NoteHead::Diamond => 0.76,
+            acorde_core::NoteHead::Triangle
+            | acorde_core::NoteHead::Cross
+            | acorde_core::NoteHead::Slash => 0.84,
+            acorde_core::NoteHead::X => 0.68,
+        }
+    };
     let accidental = note
         .pitches
         .iter()
@@ -2818,7 +2829,7 @@ mod tests {
     use super::{
         Note, content_horizontal_margins, measure_text_half_width_u, resolve_adjacent_event_spacing,
     };
-    use acorde_core::{Duration, Pitch, Score, Step};
+    use acorde_core::{Duration, NoteHead, Pitch, Score, Step};
     use std::collections::HashMap;
 
     #[test]
@@ -2857,5 +2868,29 @@ mod tests {
     fn measure_text_width_estimate_is_deterministic_and_bounded() {
         assert_eq!(measure_text_half_width_u("tempo"), 1.4);
         assert_eq!(measure_text_half_width_u(&"x".repeat(1_000)), 32.0);
+    }
+
+    #[test]
+    fn wide_noteheads_receive_a_larger_clearance_footprint() {
+        let normal = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
+        let mut cross = normal.clone();
+        cross.note_head = NoteHead::Cross;
+        let mut normal_positions = [0.0, 1.0];
+        resolve_adjacent_event_spacing(
+            &[normal.clone(), normal],
+            &mut normal_positions,
+            0.0,
+            30.0,
+            10.0,
+        );
+        let mut cross_positions = [0.0, 1.0];
+        resolve_adjacent_event_spacing(
+            &[cross.clone(), cross],
+            &mut cross_positions,
+            0.0,
+            30.0,
+            10.0,
+        );
+        assert!(cross_positions[1] > normal_positions[1]);
     }
 }
