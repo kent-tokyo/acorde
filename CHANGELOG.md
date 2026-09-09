@@ -14,6 +14,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   scores: invalid post-command state is rejected atomically and is never recorded in history.
 - Added `ScoreEngine::try_replace_score` and routed WASM replacement, history restoration, and CLI
   tablature editing through the checked replacement boundary.
+- Added final structural validation to `apply_patch`, rejecting invalid cloned scores without
+  mutating the source score.
 - Added the framework-neutral browser adapter's transactional loaders for MusicXML, MXL, MEI,
   ABC, MIDI, MSCX, and MSCZ, including structured import-report variants.
 - Added browser adapter exports for MusicXML, MEI, ABC, and MIDI; MIDI uses `Uint8Array`, and

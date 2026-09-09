@@ -2068,6 +2068,9 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
             }
         }
     }
+    if !super::validate::validate(&s).is_valid() {
+        return Err(Error::InvalidScore);
+    }
     Ok(s)
 }
 
@@ -2785,7 +2788,8 @@ mod tests {
 
     #[test]
     fn score_patch_covers_measure_semantics_and_note_insert_index() {
-        let a = Score::new("T", 120, 4, 4, 0, 1);
+        let mut a = Score::new("T", 120, 4, 4, 0, 1);
+        a.parts[0].staves[0].measures[0].voices[0].clear();
         let mut b = a.clone();
         let measure = &mut b.parts[0].staves[0].measures[0];
         measure.key_sig = Some(KeySignature {
