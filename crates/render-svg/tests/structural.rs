@@ -694,6 +694,12 @@ fn invalid_render_dimensions_return_errors() {
         render_svg(&score, &options),
         Err(acorde_render_svg::RenderError::InvalidOptions { .. })
     ));
+    options = opts();
+    options.width = 80.0;
+    assert!(matches!(
+        render_svg(&score, &options),
+        Err(acorde_render_svg::RenderError::InvalidOptions { .. })
+    ));
 }
 
 #[test]

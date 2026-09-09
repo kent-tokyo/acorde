@@ -23,6 +23,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   offsets behind the renderer's validated content-aware margins, with structural regression cover.
 - Aligned clef, key, and time-signature header origins with the same content-aware left margin so
   expanded labels and offsets do not separate the header from its staff system.
+- Rejected render options when content-aware margins and notation headers leave no usable measure
+  width, preventing silent SVG overflow on undersized output canvases.
 - Included note-attached lyric, dynamic, chord, fingering/technique, microtone, articulation, and
   span offsets in conservative vertical content margins, with a structural regression fixture.
 - Hardened `CommandStack` command, batch, undo, and redo boundaries with validated candidate

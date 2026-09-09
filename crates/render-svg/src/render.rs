@@ -164,6 +164,12 @@ pub(crate) fn build_svg_with_metadata(
             .fold(0.0_f32, f32::max);
 
         let measure_area_width = content_width - header_width_u * space;
+        if !measure_area_width.is_finite() || measure_area_width <= 0.0 {
+            return Err(RenderError::InvalidOptions {
+                reason: "content-aware margins and notation header leave no usable measure width"
+                    .into(),
+            });
+        }
         let beats: Vec<f64> = row
             .measure_indices
             .iter()
