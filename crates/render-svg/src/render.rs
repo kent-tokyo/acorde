@@ -1655,12 +1655,15 @@ fn event_footprint_u(note: &Note) -> f32 {
             acorde_core::NoteHead::X => 0.68,
         }
     };
-    let accidental = note
-        .pitches
-        .iter()
-        .filter(|pitch| pitch.alter != 0)
-        .map(|pitch| glyphs::accidental_width_u(pitch.alter) + 0.15)
-        .fold(0.0_f32, f32::max);
+    let accidental = if note.is_unpitched {
+        0.0
+    } else {
+        note.pitches
+            .iter()
+            .filter(|pitch| pitch.alter != 0)
+            .map(|pitch| glyphs::accidental_width_u(pitch.alter) + 0.15)
+            .fold(0.0_f32, f32::max)
+    };
     let notation_width = notehead + accidental;
     notation_width.max(note_annotation_width_u(note))
 }
@@ -2866,7 +2869,8 @@ fn courtesy_wrapped(alter: i8, cx: f32, cy: f32, space: f32) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        Note, content_horizontal_margins, measure_text_half_width_u, resolve_adjacent_event_spacing,
+        Note, content_horizontal_margins, event_footprint_u, measure_text_half_width_u,
+        resolve_adjacent_event_spacing,
     };
     use acorde_core::{Duration, Lyric, NoteHead, Pitch, Score, Step};
     use std::collections::HashMap;
@@ -2958,5 +2962,15 @@ mod tests {
             10.0,
         );
         assert!(annotated_positions[1] > plain_positions[1]);
+    }
+
+    #[test]
+    fn unpitched_display_alter_does_not_reserve_pitched_accidental_width() {
+        let mut pitched = Note::new(Pitch::with_alter(Step::C, 5, 1), Duration::Quarter);
+        let mut unpitched = pitched.clone();
+        unpitched.is_unpitched = true;
+        assert!(event_footprint_u(&pitched) > event_footprint_u(&unpitched));
+        pitched.is_unpitched = true;
+        assert_eq!(event_footprint_u(&pitched), event_footprint_u(&unpitched));
     }
 }
