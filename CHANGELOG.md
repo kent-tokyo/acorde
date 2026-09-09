@@ -16,6 +16,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   format-specific `WithReport` methods preserve conversion diagnostics.
 - Added browser adapter methods and Worker requests for playback timing comparison, tablature
   performance projection, canonical tab round-trip diagnostics, and renderer preflight.
+- Added browser adapter score validation with a distinct `validate` operation for typed host
+  error handling before rendering, playback, or export.
 - Added the missing WASM `parse_mxl_report` binding so the browser MXL diagnostic path matches the
   existing IO report contract.
 - Added the CLI `render` command for deterministic input-file-to-SVG rendering through the
