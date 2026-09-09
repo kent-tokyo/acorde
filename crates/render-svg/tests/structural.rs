@@ -511,6 +511,36 @@ fn measure_text_extreme_vertical_offsets_expand_content_height() {
 }
 
 #[test]
+fn multiple_measure_text_entries_are_stacked_deterministically() {
+    use acorde_core::{StyledText, TextStyle};
+    let mut score = common::satb_major();
+    let texts = &mut score.parts[0].staves[0].measures[0].texts;
+    for text in ["first", "second"] {
+        texts.push(StyledText {
+            style: TextStyle::Expression,
+            text: text.to_string(),
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        });
+    }
+    let svg = render_svg(&score, &opts()).unwrap();
+    let y_for = |text: &str| {
+        let marker = format!(">{text}</text>");
+        let end = svg.find(&marker).expect("measure text is rendered");
+        let start = svg[..end].rfind(" y=\"").expect("text has a y coordinate") + 4;
+        svg[start..end]
+            .split('"')
+            .next()
+            .expect("y coordinate has a closing quote")
+            .to_string()
+    };
+    assert_ne!(y_for("first"), y_for("second"));
+}
+
+#[test]
 fn malformed_precomputed_layout_returns_error_instead_of_panicking() {
     use acorde_layout::{LayoutConfig, compute_layout};
     let score = common::satb_major();

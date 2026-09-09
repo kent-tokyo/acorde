@@ -665,6 +665,8 @@ fn content_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
                     }
                 }
             }
+            let mut above_texts = 0usize;
+            let mut below_texts = 0usize;
             for styled in &measure.texts {
                 let offset_y = (styled.offset_y.unwrap_or(0.0) + styled.relative_y.unwrap_or(0.0))
                     as f32
@@ -675,9 +677,11 @@ fn content_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
                     .is_some_and(|placement| placement.eq_ignore_ascii_case("below"))
                     || matches!(styled.style, acorde_core::TextStyle::Lyrics);
                 if below {
-                    bottom = bottom.max(3.2 + offset_y);
+                    bottom = bottom.max(3.2 + below_texts as f32 * 0.95 + offset_y);
+                    below_texts += 1;
                 } else {
-                    top = top.max(3.2 - offset_y);
+                    top = top.max(3.2 + above_texts as f32 * 0.95 - offset_y);
+                    above_texts += 1;
                 }
             }
         }
@@ -1197,16 +1201,27 @@ fn render_measure(
         }
     }
 
+    let mut above_texts = 0usize;
+    let mut below_texts = 0usize;
     for (text_index, styled) in measure.texts.iter().enumerate() {
         let placement_below = styled
             .placement
             .as_deref()
             .is_some_and(|placement| placement.eq_ignore_ascii_case("below"))
             || matches!(styled.style, acorde_core::TextStyle::Lyrics);
-        let base_y = if placement_below {
-            bottom_y + 2.8 * space
+        let stack_index = if placement_below {
+            let index = below_texts;
+            below_texts += 1;
+            index
         } else {
-            bottom_y - 6.2 * space
+            let index = above_texts;
+            above_texts += 1;
+            index
+        };
+        let base_y = if placement_below {
+            bottom_y + (2.8 + stack_index as f32 * 0.95) * space
+        } else {
+            bottom_y - (6.2 + stack_index as f32 * 0.95) * space
         };
         let offset_y = styled.offset_y.unwrap_or(0.0) + styled.relative_y.unwrap_or(0.0);
         let y = base_y + (offset_y as f32 / 10.0) * space;

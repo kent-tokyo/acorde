@@ -25,6 +25,9 @@ Text is bounded to the same 16 KiB-per-entry limit as host annotations, and non-
 non-representable offsets are rejected before any SVG is emitted.
 Finite extreme vertical text offsets expand the content-aware SVG breathing room rather than
 being clipped by the ordinary staff margins.
+Multiple measure-level entries on the same side of a staff are stacked in source order with a
+stable staff-space separation; this is a bounded deterministic policy, not full font-aware
+engraving collision optimization.
 Non-zero `Pitch::microtone_cents` values, including notes on tablature staffs, are rendered as
 explicit deterministic `acorde-microtone` text markers such as `+25c`. The
 `glyph_coverage().microtone_marker` capability reports this as `svg-text-cents` with exact signed

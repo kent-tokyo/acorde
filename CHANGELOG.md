@@ -24,6 +24,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   offsets cannot produce invalid SVG or partial output.
 - Extended content-aware SVG vertical margins to account for finite extreme measure-text offsets,
   with regression coverage for the expansion path.
+- Added deterministic source-order stacking for multiple measure-level text entries on one staff,
+  with regression coverage for non-overlapping Y coordinates.
 
 ## [1.1.6] - 2026-09-09
 
