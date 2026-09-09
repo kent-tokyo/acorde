@@ -153,6 +153,15 @@ export interface TablatureRoundTripReport {
   diagnostics: unknown[];
 }
 
+export interface WorkspacePreflight {
+  contractVersion: number;
+  revision: number;
+  validation: Record<string, unknown>;
+  rendererIssues: Array<Record<string, unknown>>;
+  tablaturePerformance?: TablaturePerformanceReport;
+  tablatureRoundTrip?: TablatureRoundTripReport;
+}
+
 export interface ScoreWorkspaceOptions {
   layout?: Record<string, unknown>;
   render?: Record<string, unknown>;
@@ -231,6 +240,11 @@ export type WorkspaceRequest =
   | { id: string; type: "render-row-svg"; rowIndex: number }
   | { id: string; type: "metadata" }
   | { id: string; type: "validate" }
+  | {
+    id: string;
+    type: "preflight";
+    includeTablature?: boolean;
+  }
   | { id: string; type: "analysis" }
   | { id: string; type: "compatibility-report"; candidateScoreJson: string }
   | { id: string; type: "analysis-cache-key" }
@@ -535,6 +549,26 @@ export class AcordeWorkspace {
     } catch (cause) {
       throw this.toWorkspaceError("validate", cause);
     }
+  }
+
+  /** Run model, renderer, and optional tablature checks against one loaded revision. */
+  preflight(includeTablature = false): WorkspacePreflight {
+    this.assertLoaded();
+    const revision = this.revisionNumber;
+    const result: WorkspacePreflight = {
+      contractVersion: BROWSER_ADAPTER_CONTRACT_VERSION,
+      revision,
+      validation: this.validateScore(),
+      rendererIssues: this.renderPreflight(),
+    };
+    if (includeTablature) {
+      result.tablaturePerformance = this.tablaturePerformance();
+      result.tablatureRoundTrip = this.tablatureRoundTripReport();
+    }
+    if (revision !== this.revisionNumber) {
+      throw new AcordeWorkspaceError("validate", "workspace changed during preflight");
+    }
+    return result;
   }
 
   /** Render one logical row, allowing a host to virtualize long scores. */
@@ -975,6 +1009,12 @@ export function handleWorkspaceRequest(
         return { id: request.id, ok: true, value: workspace.metadata() };
       case "validate":
         return { id: request.id, ok: true, value: workspace.validateScore() };
+      case "preflight":
+        return {
+          id: request.id,
+          ok: true,
+          value: workspace.preflight(request.includeTablature),
+        };
       case "analysis":
         return { id: request.id, ok: true, value: workspace.analyze() };
       case "compatibility-report":
