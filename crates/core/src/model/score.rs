@@ -338,6 +338,20 @@ impl Score {
         })
     }
 
+    /// Extract a part through the validated transformation boundary.
+    pub fn extract_part_checked(&self, part_index: usize) -> Result<Score, Error> {
+        if !super::validate::validate(self).is_valid() {
+            return Err(Error::InvalidScore);
+        }
+        let extracted = self
+            .extract_part(part_index)
+            .ok_or(Error::PartNotFound(part_index))?;
+        if !super::validate::validate(&extracted).is_valid() {
+            return Err(Error::InvalidScore);
+        }
+        Ok(extracted)
+    }
+
     /// Merge two scores by appending `other`'s parts to `self`'s parts.
     /// Shorter scores are padded with empty measures to match the longer one.
     /// Metadata and settings are taken from `self`.
@@ -378,6 +392,20 @@ impl Score {
             texts: self.texts.clone(),
             chord_definitions: self.chord_definitions.clone(),
         }
+    }
+
+    /// Merge scores through the validated transformation boundary.
+    pub fn merge_checked(&self, other: &Score) -> Result<Score, Error> {
+        if !super::validate::validate(self).is_valid()
+            || !super::validate::validate(other).is_valid()
+        {
+            return Err(Error::InvalidScore);
+        }
+        let merged = self.merge(other);
+        if !super::validate::validate(&merged).is_valid() {
+            return Err(Error::InvalidScore);
+        }
+        Ok(merged)
     }
 }
 
@@ -780,6 +808,18 @@ pub fn transpose(score: &Score, semitones: i8) -> Score {
         }
     }
     out
+}
+
+/// Transpose a score through the validated transformation boundary.
+pub fn transpose_checked(score: &Score, semitones: i8) -> Result<Score, Error> {
+    if !super::validate::validate(score).is_valid() {
+        return Err(Error::InvalidScore);
+    }
+    let transposed = transpose(score, semitones);
+    if !super::validate::validate(&transposed).is_valid() {
+        return Err(Error::InvalidScore);
+    }
+    Ok(transposed)
 }
 
 fn transpose_pitch(pitch: &Pitch, semitones: i8) -> Pitch {

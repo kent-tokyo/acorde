@@ -53,7 +53,7 @@ pub use model::score::{
     ScorePatch, ScoreSettings, ScoreStats, ScoreTemplate, Staff, StaffGroup, VoltaBracket,
     apply_patch, assign_tablature_positions, compute_beams, diff, measure_beats_remaining,
     optimize_tablature_positions, respell_score, respell_score_to_key, score_duration_secs,
-    score_duration_secs_region, score_patch, suggested_stem_up, transpose,
+    score_duration_secs_region, score_patch, suggested_stem_up, transpose, transpose_checked,
 };
 pub use model::validate::{
     TablatureValidationReason, ValidationError, ValidationReport, ValidationWarning, validate,

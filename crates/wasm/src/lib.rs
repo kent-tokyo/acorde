@@ -602,7 +602,8 @@ pub fn validate_score(score_json: &str) -> Result<String, JsValue> {
 #[wasm_bindgen]
 pub fn transpose_score(score_json: &str, semitones: i8) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
-    score_to_json(&acorde_core::transpose(&score, semitones))
+    let transposed = acorde_core::transpose_checked(&score, semitones).map_err(js_err)?;
+    score_to_json(&transposed)
 }
 
 /// Assign deterministic string/fret positions to eligible tablature notes.
@@ -659,8 +660,13 @@ pub fn select_fingering(
 pub fn extract_part(score_json: &str, part_index: usize) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
     let extracted = score
-        .extract_part(part_index)
-        .ok_or_else(|| js_err(format!("part index {part_index} out of range")))?;
+        .extract_part_checked(part_index)
+        .map_err(|err| match err {
+            acorde_core::Error::PartNotFound(_) => {
+                js_err(format!("part index {part_index} out of range"))
+            }
+            other => js_err(other),
+        })?;
     score_to_json(&extracted)
 }
 
@@ -669,7 +675,8 @@ pub fn extract_part(score_json: &str, part_index: usize) -> Result<String, JsVal
 pub fn merge_scores(score_a_json: &str, score_b_json: &str) -> Result<String, JsValue> {
     let a = score_from_json(score_a_json)?;
     let b = score_from_json(score_b_json)?;
-    score_to_json(&a.merge(&b))
+    let merged = a.merge_checked(&b).map_err(js_err)?;
+    score_to_json(&merged)
 }
 
 /// Compute the diff between two scores. Returns a JSON array of `ScoreChange` objects.
