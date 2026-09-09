@@ -20,6 +20,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   repeated renders with identical inputs and options produce the same evidence identifier.
 - Rendered measure-level styled text into SVG with stable style classes and interactive source
   hooks, while retaining font and publication responsibilities in the host.
+- Added pre-render bounds and finite-coordinate validation for measure-level text so malformed
+  offsets cannot produce invalid SVG or partial output.
 
 ## [1.1.6] - 2026-09-09
 

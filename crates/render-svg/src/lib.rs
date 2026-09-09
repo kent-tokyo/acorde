@@ -410,6 +410,10 @@ pub enum RenderError {
     InvalidTabPosition { string: u8, lines: u8 },
     /// Tablature glyph metrics overflowed before SVG emission.
     TabMetricsOverflow,
+    /// A measure-level styled text entry exceeds the bounded renderer input size.
+    MeasureTextTooLarge { size: usize },
+    /// A measure-level styled text offset is not finite or cannot fit SVG coordinates.
+    InvalidMeasureTextOffset { field: &'static str },
     /// Host-provided annotation validation failed.
     Annotation(RenderAnnotationError),
 }
@@ -436,6 +440,13 @@ impl std::fmt::Display for RenderError {
                 "tablature string {string} is outside the owning staff line range 1..={lines}"
             ),
             RenderError::TabMetricsOverflow => write!(f, "tablature glyph metrics overflowed"),
+            RenderError::MeasureTextTooLarge { size } => write!(
+                f,
+                "measure-level text is too large ({size} bytes; maximum is {MAX_ANNOTATION_TEXT_BYTES})"
+            ),
+            RenderError::InvalidMeasureTextOffset { field } => {
+                write!(f, "measure-level text offset {field} is not finite")
+            }
             RenderError::Annotation(error) => write!(f, "invalid render annotation: {error}"),
         }
     }

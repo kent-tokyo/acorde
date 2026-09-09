@@ -21,6 +21,8 @@ Measure-level `StyledText` entries are emitted as deterministic `acorde-measure-
 classes, with stable part/staff/measure/text-index hooks when interactive output is enabled.
 Placement and MusicXML offset hints are projected into host-neutral coordinates; font selection,
 font metrics, embedding, and final publication remain host responsibilities.
+Text is bounded to the same 16 KiB-per-entry limit as host annotations, and non-finite or
+non-representable offsets are rejected before any SVG is emitted.
 Non-zero `Pitch::microtone_cents` values, including notes on tablature staffs, are rendered as
 explicit deterministic `acorde-microtone` text markers such as `+25c`. The
 `glyph_coverage().microtone_marker` capability reports this as `svg-text-cents` with exact signed

@@ -452,6 +452,32 @@ fn metadata_preserves_positioned_direction_text_fields() {
 }
 
 #[test]
+fn measure_text_rejects_unbounded_or_non_finite_positioning() {
+    use acorde_core::{StyledText, TextStyle};
+    let mut score = common::satb_major();
+    score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        style: TextStyle::Generic,
+        text: "x".to_string(),
+        placement: None,
+        offset_x: Some(f64::NAN),
+        offset_y: None,
+        relative_x: None,
+        relative_y: None,
+    });
+    assert!(matches!(
+        render_svg(&score, &opts()),
+        Err(acorde_render_svg::RenderError::InvalidMeasureTextOffset { field: "offset_x" })
+    ));
+
+    score.parts[0].staves[0].measures[0].texts[0].offset_x = None;
+    score.parts[0].staves[0].measures[0].texts[0].text = "x".repeat(16 * 1024 + 1);
+    assert!(matches!(
+        render_svg(&score, &opts()),
+        Err(acorde_render_svg::RenderError::MeasureTextTooLarge { .. })
+    ));
+}
+
+#[test]
 fn malformed_precomputed_layout_returns_error_instead_of_panicking() {
     use acorde_layout::{LayoutConfig, compute_layout};
     let score = common::satb_major();

@@ -443,6 +443,31 @@ fn validate_inputs(
             reason: "every staff measure must contain four voices".into(),
         });
     }
+    for part in &score.parts {
+        for staff in &part.staves {
+            for measure in &staff.measures {
+                for styled in &measure.texts {
+                    if styled.text.len() > crate::MAX_ANNOTATION_TEXT_BYTES {
+                        return Err(RenderError::MeasureTextTooLarge {
+                            size: styled.text.len(),
+                        });
+                    }
+                    for (field, value) in [
+                        ("offset_x", styled.offset_x),
+                        ("offset_y", styled.offset_y),
+                        ("relative_x", styled.relative_x),
+                        ("relative_y", styled.relative_y),
+                    ] {
+                        if let Some(value) = value {
+                            if !value.is_finite() || !(value as f32).is_finite() {
+                                return Err(RenderError::InvalidMeasureTextOffset { field });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     for row in &layout.rows {
         for &measure in &row.measure_indices {
             if staff_refs
