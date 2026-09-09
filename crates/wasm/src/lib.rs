@@ -1718,6 +1718,26 @@ mod wasm_tests {
     }
 
     #[wasm_bindgen_test]
+    fn browser_render_preflight_preserves_text_boundary_diagnostics() {
+        let mut score = Score::new("preflight", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0]
+            .texts
+            .push(acorde_core::StyledText {
+                style: acorde_core::TextStyle::Expression,
+                text: "bad\u{1}".to_string(),
+                placement: None,
+                offset_x: None,
+                offset_y: None,
+                relative_x: None,
+                relative_y: None,
+            });
+        let score_json = serde_json::to_string(&score).unwrap();
+        let report = render_preflight(&score_json).unwrap();
+        assert!(report.contains("InvalidXmlCharacter"));
+        assert!(report.contains("/score/part/1/staff/1/measure/1/text/1"));
+    }
+
+    #[wasm_bindgen_test]
     fn browser_analysis_cache_reuses_results_and_reports_stats() {
         let score_json = serde_json::to_string(&Score::default()).unwrap();
         let mut cache = AnalysisCache::new(2).unwrap();

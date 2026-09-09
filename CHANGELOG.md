@@ -35,6 +35,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   diagnostics so hosts can gate malformed text before rendering.
 - Extended text preflight coverage to lyrics, chord symbols, note techniques, and measure-level
   tempo/rehearsal/navigation/expression text.
+- Mirrored the expanded text preflight contract through WASM and documented its browser-facing
+  diagnostics.
 
 ## [1.1.6] - 2026-09-09
 
