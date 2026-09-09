@@ -85,6 +85,13 @@ pub fn percussion_notehead_resource_id(note_head: &NoteHead) -> &'static str {
 const MAX_RENDER_ANNOTATIONS: usize = 10_000;
 const MAX_ANNOTATION_TEXT_BYTES: usize = 16 * 1024;
 
+pub(crate) fn is_valid_xml_char(character: char) -> bool {
+    matches!(character, '\u{9}' | '\u{A}' | '\u{D}')
+        || ('\u{20}'..='\u{D7FF}').contains(&character)
+        || ('\u{E000}'..='\u{FFFD}').contains(&character)
+        || ('\u{10000}'..='\u{10FFFF}').contains(&character)
+}
+
 /// Options controlling SVG output. All fields have defaults — safe to deserialize from
 /// partial JSON (e.g. `"{}"` from a WASM caller that only wants defaults).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -350,6 +357,7 @@ pub enum RenderAnnotationError {
     NonFiniteCoordinate { id: String },
     TooManyAnnotations { count: usize },
     AnnotationTextTooLarge { id: String, size: usize },
+    InvalidXmlCharacter { id: String, codepoint: u32 },
 }
 
 impl fmt::Display for RenderAnnotationError {
@@ -370,6 +378,10 @@ impl fmt::Display for RenderAnnotationError {
             Self::AnnotationTextTooLarge { id, size } => {
                 write!(f, "render annotation {id} text exceeds limit: {size} bytes")
             }
+            Self::InvalidXmlCharacter { id, codepoint } => write!(
+                f,
+                "render annotation {id} contains invalid XML character U+{codepoint:04X}"
+            ),
         }
     }
 }
@@ -414,6 +426,8 @@ pub enum RenderError {
     MeasureTextTooLarge { size: usize },
     /// A measure-level styled text offset is not finite or cannot fit SVG coordinates.
     InvalidMeasureTextOffset { field: &'static str },
+    /// A score text contains a character that XML 1.0 cannot represent.
+    InvalidXmlCharacter { codepoint: u32 },
     /// Host-provided annotation validation failed.
     Annotation(RenderAnnotationError),
 }
@@ -447,6 +461,10 @@ impl std::fmt::Display for RenderError {
             RenderError::InvalidMeasureTextOffset { field } => {
                 write!(f, "measure-level text offset {field} is not finite")
             }
+            RenderError::InvalidXmlCharacter { codepoint } => write!(
+                f,
+                "score text contains invalid XML character U+{codepoint:04X}"
+            ),
             RenderError::Annotation(error) => write!(f, "invalid render annotation: {error}"),
         }
     }

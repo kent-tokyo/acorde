@@ -433,6 +433,16 @@ pub(crate) fn collect_annotations(
                 size: annotation.text.len(),
             });
         }
+        if let Some(character) = annotation
+            .text
+            .chars()
+            .find(|&character| !crate::is_valid_xml_char(character))
+        {
+            return Err(RenderAnnotationError::InvalidXmlCharacter {
+                id: annotation.id.clone(),
+                codepoint: character as u32,
+            });
+        }
     }
     Ok(annotations)
 }
@@ -442,6 +452,42 @@ fn validate_inputs(
     layout: &LayoutResult,
     staff_refs: &[(usize, usize)],
 ) -> Result<(), RenderError> {
+    validate_score_text(&score.metadata.title)?;
+    for part in &score.parts {
+        validate_score_text(&part.name)?;
+        validate_score_text(&part.short_name)?;
+        for staff in &part.staves {
+            for measure in &staff.measures {
+                for styled in &measure.texts {
+                    validate_score_text(&styled.text)?;
+                }
+                for value in [
+                    measure.tempo_text.as_deref(),
+                    measure.rehearsal.as_deref(),
+                    measure.navigation.as_deref(),
+                    measure.expression_text.as_deref(),
+                ]
+                .into_iter()
+                .flatten()
+                {
+                    validate_score_text(value)?;
+                }
+                for voice in &measure.voices {
+                    for note in voice {
+                        if let Some(lyric) = &note.lyric {
+                            validate_score_text(&lyric.text)?;
+                        }
+                        if let Some(technique) = &note.technique_text {
+                            validate_score_text(technique)?;
+                        }
+                        if let Some(chord) = &note.chord_symbol {
+                            validate_score_text(&chord.display_text())?;
+                        }
+                    }
+                }
+            }
+        }
+    }
     if !score.parts.iter().all(|p| {
         p.staves
             .iter()
@@ -567,6 +613,18 @@ fn validate_inputs(
                 reason: "span points to a missing note".into(),
             });
         }
+    }
+    Ok(())
+}
+
+fn validate_score_text(value: &str) -> Result<(), RenderError> {
+    if let Some(character) = value
+        .chars()
+        .find(|&character| !crate::is_valid_xml_char(character))
+    {
+        return Err(RenderError::InvalidXmlCharacter {
+            codepoint: character as u32,
+        });
     }
     Ok(())
 }

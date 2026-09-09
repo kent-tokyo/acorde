@@ -23,6 +23,8 @@ Placement and MusicXML offset hints are projected into host-neutral coordinates;
 font metrics, embedding, and final publication remain host responsibilities.
 Text is bounded to the same 16 KiB-per-entry limit as host annotations, and non-finite or
 non-representable offsets are rejected before any SVG is emitted.
+XML 1.0-incompatible control characters in score text and host annotations are also rejected
+before serialization, rather than being escaped into invalid XML.
 Finite extreme vertical text offsets expand the content-aware SVG breathing room rather than
 being clipped by the ordinary staff margins.
 Multiple measure-level entries on the same side of a staff are stacked in source order with a

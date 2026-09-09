@@ -475,6 +475,12 @@ fn measure_text_rejects_unbounded_or_non_finite_positioning() {
         render_svg(&score, &opts()),
         Err(acorde_render_svg::RenderError::MeasureTextTooLarge { .. })
     ));
+
+    score.parts[0].staves[0].measures[0].texts[0].text = "bad\u{1}".to_string();
+    assert!(matches!(
+        render_svg(&score, &opts()),
+        Err(acorde_render_svg::RenderError::InvalidXmlCharacter { codepoint: 1 })
+    ));
 }
 
 #[test]
