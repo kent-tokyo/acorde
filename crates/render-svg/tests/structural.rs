@@ -300,6 +300,7 @@ fn note_annotations_are_rendered_and_xml_escaped() {
     });
     note.articulations = vec![
         Articulation::Staccato,
+        Articulation::Staccatissimo,
         Articulation::Accent,
         Articulation::Tenuto,
     ];
@@ -310,6 +311,7 @@ fn note_annotations_are_rendered_and_xml_escaped() {
     assert!(svg.contains("class=\"acorde-lyric\""));
     assert!(svg.contains("A&amp;B&lt;"));
     assert!(svg.contains("acorde-staccato"));
+    assert!(svg.contains("acorde-staccatissimo"));
     assert!(svg.contains("acorde-accent"));
     assert!(svg.contains("acorde-tenuto"));
 }

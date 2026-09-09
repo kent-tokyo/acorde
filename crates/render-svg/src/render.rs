@@ -2624,6 +2624,18 @@ fn render_note_annotations(
                     f(0.13 * space)
                 );
             }
+            acorde_core::Articulation::Staccatissimo => {
+                let _ = write!(
+                    body,
+                    r#"<path class="acorde-articulation acorde-staccatissimo" d="M {},{} L {},{} L {},{} Z" fill="black"/>"#,
+                    f(x - 0.28 * space),
+                    f(y - dir * 0.18 * space),
+                    f(x + 0.28 * space),
+                    f(y - dir * 0.18 * space),
+                    f(x),
+                    f(y + dir * 0.42 * space)
+                );
+            }
             acorde_core::Articulation::Accent | acorde_core::Articulation::Marcato => {
                 let _ = write!(
                     body,
