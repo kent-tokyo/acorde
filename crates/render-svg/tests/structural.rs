@@ -723,6 +723,22 @@ fn invalid_render_dimensions_return_errors() {
 }
 
 #[test]
+fn minimum_measure_width_overflow_returns_error() {
+    use acorde_core::{Measure, Score};
+
+    let mut score = Score::new("dense system", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].measures.push(Measure::empty(4, 4));
+    let mut options = opts();
+    options.width = 100.0;
+    options.measures_per_system = 2;
+
+    assert!(matches!(
+        render_svg(&score, &options),
+        Err(acorde_render_svg::RenderError::InvalidOptions { .. })
+    ));
+}
+
+#[test]
 fn extreme_ledger_content_expands_vertical_margin() {
     use acorde_core::{Duration, Note, Pitch, Step};
     let normal = common::single_staff_score(

@@ -179,6 +179,18 @@ pub(crate) fn build_svg_with_metadata(
             .map(|&m| measure_total_beats(score, &staff_refs[0], m))
             .collect();
         let total_beats: f64 = beats.iter().sum::<f64>().max(1e-6);
+        let measure_widths: Vec<f32> = beats
+            .iter()
+            .map(|beat| (measure_area_width * (*beat / total_beats) as f32).max(space))
+            .collect();
+        let allocated_measure_width: f32 = measure_widths.iter().sum();
+        if !allocated_measure_width.is_finite()
+            || allocated_measure_width > measure_area_width + f32::EPSILON
+        {
+            return Err(RenderError::InvalidOptions {
+                reason: "minimum measure widths exceed the available system width".into(),
+            });
+        }
 
         let mut staff_y: Vec<f32> = Vec::with_capacity(staff_refs.len());
         {
@@ -250,7 +262,7 @@ pub(crate) fn build_svg_with_metadata(
         // Measures.
         let mut mx = left_margin_u * space + header_width_u * space;
         for (col, &measure_idx) in row.measure_indices.iter().enumerate() {
-            let mwidth = (measure_area_width * (beats[col] / total_beats) as f32).max(space);
+            let mwidth = measure_widths[col];
             for (si_idx, &(pi, si)) in staff_refs.iter().enumerate() {
                 let bottom_y = staff_y[si_idx] + STAFF_HEIGHT_U * space;
                 let clef = &staff_states[si_idx].clef;

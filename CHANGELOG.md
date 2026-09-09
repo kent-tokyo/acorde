@@ -25,6 +25,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   expanded labels and offsets do not separate the header from its staff system.
 - Rejected render options when content-aware margins and notation headers leave no usable measure
   width, preventing silent SVG overflow on undersized output canvases.
+- Aggregated minimum per-measure widths before SVG emission and rejected systems that cannot fit
+  those lower bounds, preventing barlines from extending beyond the available system width.
 - Added centered deterministic horizontal separation for simultaneous non-empty voices and a
   structural regression covering opposing voice noteheads.
 - Spaced consecutive grace-note glyphs deterministically along their shared temporal anchor to
