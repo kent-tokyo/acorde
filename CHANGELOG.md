@@ -10,6 +10,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- Added the CLI `render` command for deterministic input-file-to-SVG rendering through the
+  existing `acorde-render-svg` pipeline, with explicit geometry and interactive-hook options.
+
 ## [1.1.6] - 2026-09-09
 
 - Added the `tab-performance-report` CLI command, exposing the bounded core tablature

@@ -8,6 +8,8 @@ cargo install acorde-cli
 acorde convert input.mid output.musicxml
 acorde convert input.musicxml output.abc
 acorde convert input.musicxml output.mei
+acorde render input.musicxml output.svg
+acorde render input.mei output.svg --width 1200 --staff-size 20 --measures-per-system 3
 acorde info input.musicxml
 acorde validate input.musicxml
 acorde report input.mei
@@ -46,7 +48,10 @@ and supports `--fail-on-mismatch` for CI. Each input JSON file is limited to 64 
 score. Its deterministic policies are `source-order`, `lowest`, and `highest`.
 
 Input supports .musicxml, .mxl, .mid/.midi, .abc, .mei, .mscz, and .mscx. Conversion output is
-MusicXML, MIDI, ABC, or MEI. info prints title, counts, tempo, time signature, and duration estimate; validate
+MusicXML, MIDI, ABC, or MEI. `render` parses the same inputs and writes deterministic SVG through
+`acorde-render-svg`; width, staff size, system capacity, and interactive address hooks are explicit
+options. Address hooks are enabled by default and can be omitted with `--no-interactive`. info
+prints title, counts, tempo, time signature, and duration estimate; validate
 exits with status 1 when structural errors are found. report emits the parsed score and structured
 import diagnostics as JSON.
 preflight emits renderer capability issues with stable score source locations as JSON before SVG

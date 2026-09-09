@@ -152,6 +152,7 @@ See [the browser contract](docs/browser-rendering.md) and the
 acorde convert input.mid output.musicxml
 acorde convert input.musicxml output.abc
 acorde convert input.musicxml output.mei
+acorde render input.musicxml output.svg
 acorde info input.musicxml
 acorde validate input.musicxml
 acorde preflight input.musicxml
@@ -173,6 +174,9 @@ acorde playback-compare expected.json actual.json --fail-on-mismatch
 
 The CLI supports `.musicxml`, `.mxl`, `.mid`/`.midi`, `.abc`, `.mei`, `.mscz`, and `.mscx` input.
 Conversion output is MusicXML, MIDI, ABC, or MEI.
+`render` accepts the same score inputs and writes deterministic SVG through `acorde-render-svg`;
+use `--width`, `--staff-size`, and `--measures-per-system` to select the host-neutral render
+geometry. Address hooks remain enabled by default and can be omitted with `--no-interactive`.
 `validate` performs the same local structural checks for tablature metadata and explicit string
 positions; it does not require a SoundFont or network access.
 `preflight` reports SVG renderer capability boundaries before rendering.

@@ -28,6 +28,25 @@ enum Commands {
         /// Output file (.musicxml, .mid, .midi, .abc, .mei)
         output: PathBuf,
     },
+    /// Render a score file to deterministic SVG
+    Render {
+        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx)
+        input: PathBuf,
+        /// Output SVG file
+        output: PathBuf,
+        /// SVG width in pixels
+        #[arg(long, default_value_t = 900.0)]
+        width: f32,
+        /// Distance between adjacent staff lines in pixels
+        #[arg(long, default_value_t = 24.0)]
+        staff_size: f32,
+        /// Measures per rendered system
+        #[arg(long, default_value_t = 4)]
+        measures_per_system: usize,
+        /// Omit data-* note and score address hooks
+        #[arg(long)]
+        no_interactive: bool,
+    },
     /// Print title, parts, measure count, and duration estimate
     Info {
         /// Input file (.musicxml, .mxl, .mid, .midi)
@@ -214,6 +233,21 @@ fn main() {
     let cli = Cli::parse();
     let result = match &cli.command {
         Commands::Convert { input, output } => cmd_convert(input, output),
+        Commands::Render {
+            input,
+            output,
+            width,
+            staff_size,
+            measures_per_system,
+            no_interactive,
+        } => cmd_render(
+            input,
+            output,
+            *width,
+            *staff_size,
+            *measures_per_system,
+            !*no_interactive,
+        ),
         Commands::Info { input } => cmd_info(input),
         Commands::Validate { input } => cmd_validate(input),
         Commands::Report { input } => cmd_report(input),
@@ -382,6 +416,28 @@ fn cmd_preflight(input: &Path, fail_on_issues: bool) -> Result<(), String> {
             issues.len()
         ));
     }
+    Ok(())
+}
+
+fn cmd_render(
+    input: &Path,
+    output: &Path,
+    width: f32,
+    staff_size: f32,
+    measures_per_system: usize,
+    interactive: bool,
+) -> Result<(), String> {
+    let score = parse_score(input)?;
+    let options = acorde_render_svg::SvgRenderOptions {
+        width,
+        staff_size,
+        measures_per_system,
+        interactive,
+    };
+    let svg = acorde_render_svg::render_svg(&score, &options)
+        .map_err(|e| format!("SVG rendering failed: {e}"))?;
+    std::fs::write(output, svg).map_err(|e| format!("cannot write '{}': {e}", output.display()))?;
+    println!("rendered '{}' to '{}'", input.display(), output.display());
     Ok(())
 }
 
