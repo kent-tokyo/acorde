@@ -2404,6 +2404,31 @@ mod tests {
     }
 
     #[test]
+    fn system_exposes_explicit_measure_text_without_legacy_fields() {
+        let mut score = score_with_measures(1);
+        score.parts[0].staves[0].measures[0]
+            .texts
+            .push(acorde_core::StyledText {
+                style: acorde_core::TextStyle::Expression,
+                text: "dolce".to_string(),
+                placement: Some("above".to_string()),
+                offset_x: Some(2.0),
+                offset_y: Some(-1.0),
+                relative_x: None,
+                relative_y: None,
+            });
+        let result = compute_print_layout(&score, &PrintConfig::default())
+            .expect("valid explicit measure text layout");
+        let annotations = &result.pages[0].systems[0].measure_marks[0].text_annotations;
+        assert_eq!(annotations.len(), 1);
+        assert_eq!(annotations[0].style, acorde_core::TextStyle::Expression);
+        assert_eq!(annotations[0].text, "dolce");
+        assert_eq!(annotations[0].placement.as_deref(), Some("above"));
+        assert_eq!(annotations[0].offset_x, Some(2.0));
+        assert_eq!(annotations[0].offset_y, Some(-1.0));
+    }
+
+    #[test]
     fn page_aggregates_cross_system_span_ownership() {
         let mut score = score_with_measures(4);
         let mut start = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
