@@ -541,6 +541,24 @@ fn multiple_measure_text_entries_are_stacked_deterministically() {
 }
 
 #[test]
+fn negative_measure_text_offsets_expand_left_content_margin() {
+    use acorde_core::{StyledText, TextStyle};
+    let mut score = common::satb_major();
+    score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        style: TextStyle::Generic,
+        text: "left".to_string(),
+        placement: None,
+        offset_x: Some(-100.0),
+        offset_y: None,
+        relative_x: None,
+        relative_y: None,
+    });
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert!(svg.contains(">left</text>"));
+    assert!(!svg.contains("class=\"acorde-measure-text acorde-measure-text-generic\" x=\"-"));
+}
+
+#[test]
 fn malformed_precomputed_layout_returns_error_instead_of_panicking() {
     use acorde_layout::{LayoutConfig, compute_layout};
     let score = common::satb_major();

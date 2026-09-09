@@ -109,11 +109,17 @@ pub(crate) fn build_svg_with_metadata(
         })
         .collect();
     let (top_margin_u, bottom_margin_u) = content_margins(score, &staff_refs);
+    let (left_margin_u, right_margin_u) = content_horizontal_margins(score, &staff_refs);
 
     let system_height_u = staff_refs.len() as f32 * STAFF_HEIGHT_U
         + (staff_refs.len().saturating_sub(1)) as f32 * STAFF_GAP_U;
 
-    let content_width = options.width - (LEFT_MARGIN_U + RIGHT_MARGIN_U) * space;
+    let content_width = options.width - (left_margin_u + right_margin_u) * space;
+    if !content_width.is_finite() || content_width <= 0.0 {
+        return Err(RenderError::InvalidOptions {
+            reason: "content-aware margins leave no usable SVG width".into(),
+        });
+    }
     let total_height = top_margin_u * space
         + layout.rows.len().max(1) as f32 * system_height_u * space
         + layout.rows.len().saturating_sub(1) as f32 * SYSTEM_GAP_U * space
@@ -223,7 +229,7 @@ pub(crate) fn build_svg_with_metadata(
         }
 
         // Measures.
-        let mut mx = LEFT_MARGIN_U * space + header_width_u * space;
+        let mut mx = left_margin_u * space + header_width_u * space;
         for (col, &measure_idx) in row.measure_indices.iter().enumerate() {
             let mwidth = (measure_area_width * (beats[col] / total_beats) as f32).max(space);
             for (si_idx, &(pi, si)) in staff_refs.iter().enumerate() {
@@ -282,6 +288,8 @@ pub(crate) fn build_svg_with_metadata(
         layout,
         &note_points,
         options.width,
+        left_margin_u,
+        right_margin_u,
         space,
         options.interactive,
     );
@@ -687,6 +695,26 @@ fn content_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
         }
     }
     (top, bottom)
+}
+
+/// Expand the left breathing room for measure-level annotations with negative horizontal
+/// offsets. The right margin remains the ordinary baseline because positive offsets are emitted
+/// inside the score's measured content area; font-width-aware line breaking remains host work.
+fn content_horizontal_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
+    let mut left = LEFT_MARGIN_U;
+    for &(part, staff) in staff_refs {
+        for measure in &score.parts[part].staves[staff].measures {
+            for styled in &measure.texts {
+                let offset_x = (styled.offset_x.unwrap_or(0.0) + styled.relative_x.unwrap_or(0.0))
+                    as f32
+                    / 10.0;
+                if offset_x < 0.0 {
+                    left = left.max(LEFT_MARGIN_U - offset_x);
+                }
+            }
+        }
+    }
+    (left, RIGHT_MARGIN_U)
 }
 
 fn collect_staff_refs(score: &Score) -> Vec<(usize, usize)> {
@@ -1281,16 +1309,27 @@ fn measure_text_class(style: acorde_core::TextStyle) -> &'static str {
 /// system is represented by one continuation from its start to the right edge and another from
 /// the left edge to its end; this avoids drawing through unrelated systems or silently dropping
 /// the notation.
+#[allow(clippy::too_many_arguments)]
 fn render_all_spans(
     body: &mut String,
     score: &Score,
     layout: &LayoutResult,
     points: &HashMap<NoteKey, NotePoint>,
     width: f32,
+    left_margin_u: f32,
+    right_margin_u: f32,
     space: f32,
     interactive: bool,
 ) {
-    render_ties(body, score, points, width, space);
+    render_ties(
+        body,
+        score,
+        points,
+        width,
+        left_margin_u,
+        right_margin_u,
+        space,
+    );
     for span in &layout.spans {
         let (start, end) = match span {
             SpanMark::Hairpin { start, end, .. }
@@ -1338,8 +1377,17 @@ fn render_all_spans(
             );
         }
         if row1 != row2 {
-            render_span_segment(body, span, x1, y1, up1, width - space, space, true);
-            render_span_segment(body, span, space, y2, up2, x2, space, false);
+            render_span_segment(
+                body,
+                span,
+                x1,
+                y1,
+                up1,
+                width - right_margin_u * space,
+                space,
+                true,
+            );
+            render_span_segment(body, span, left_margin_u * space, y2, up2, x2, space, false);
             if interactive {
                 body.push_str("</g>");
             }
@@ -1456,6 +1504,8 @@ fn render_ties(
     score: &Score,
     points: &HashMap<NoteKey, NotePoint>,
     width: f32,
+    left_margin_u: f32,
+    right_margin_u: f32,
     space: f32,
 ) {
     for (part, p) in score.parts.iter().enumerate() {
@@ -1480,12 +1530,21 @@ fn render_ties(
                                     "acorde-tie",
                                     x1,
                                     y1,
-                                    width - space,
+                                    width - right_margin_u * space,
                                     y1,
                                     up1,
                                     space,
                                 );
-                                render_curve(body, "acorde-tie", space, y2, x2, y2, up2, space);
+                                render_curve(
+                                    body,
+                                    "acorde-tie",
+                                    left_margin_u * space,
+                                    y2,
+                                    x2,
+                                    y2,
+                                    up2,
+                                    space,
+                                );
                             }
                         }
                     }
@@ -1523,12 +1582,21 @@ fn render_ties(
                                         "acorde-tie",
                                         x1,
                                         y1,
-                                        width - space,
+                                        width - right_margin_u * space,
                                         y1,
                                         up1,
                                         space,
                                     );
-                                    render_curve(body, "acorde-tie", space, y2, x2, y2, up2, space);
+                                    render_curve(
+                                        body,
+                                        "acorde-tie",
+                                        left_margin_u * space,
+                                        y2,
+                                        x2,
+                                        y2,
+                                        up2,
+                                        space,
+                                    );
                                 }
                             }
                         }

@@ -28,6 +28,8 @@ being clipped by the ordinary staff margins.
 Multiple measure-level entries on the same side of a staff are stacked in source order with a
 stable staff-space separation; this is a bounded deterministic policy, not full font-aware
 engraving collision optimization.
+Negative measure-level horizontal offsets expand the left content margin and move the system
+content together; font-width-aware wrapping and positive-offset typography remain host work.
 Non-zero `Pitch::microtone_cents` values, including notes on tablature staffs, are rendered as
 explicit deterministic `acorde-microtone` text markers such as `+25c`. The
 `glyph_coverage().microtone_marker` capability reports this as `svg-text-cents` with exact signed
