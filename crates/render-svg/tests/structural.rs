@@ -1180,3 +1180,27 @@ fn adjacent_accidentals_in_a_chord_get_separate_columns() {
     assert!(accidental_xs.len() >= 2);
     assert_ne!(accidental_xs[0], accidental_xs[1]);
 }
+
+#[test]
+fn accidental_columns_at_measure_origin_stay_inside_svg_viewbox() {
+    use acorde_core::{Duration, Measure, Note, Part, Pitch, Score, Staff, Step};
+    let mut score = Score::new("accidental origin", 120, 4, 4, 0, 1);
+    let mut note = Note::new(Pitch::with_alter(Step::C, 5, 1), Duration::Quarter);
+    note.pitches.push(Pitch::with_alter(Step::D, 5, 1));
+    let mut staff = Staff::new(acorde_core::Clef::Treble);
+    staff.measures.push(Measure::empty(4, 4));
+    staff.measures[0].voices[0] = vec![note];
+    score.parts = vec![Part::new("Cluster", "")];
+    score.parts[0].staves = vec![staff];
+
+    let svg = render_svg(&score, &opts()).unwrap();
+    let accidental_xs: Vec<f32> = svg
+        .split("acorde-accidental")
+        .skip(1)
+        .filter_map(|fragment| fragment.split(r#"x1=""#).nth(1))
+        .filter_map(|value| value.split('"').next())
+        .filter_map(|value| value.parse().ok())
+        .collect();
+    assert!(accidental_xs.len() >= 2);
+    assert!(accidental_xs.iter().all(|&x| x > 0.0));
+}
