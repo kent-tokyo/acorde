@@ -764,7 +764,7 @@ fn content_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
                         annotation_bottom = annotation_bottom.max(4.8);
                     }
                     if note.lyric.is_some() {
-                        annotation_bottom = annotation_bottom.max(5.6);
+                        annotation_bottom = annotation_bottom.max(6.7);
                     }
                     if note.technique_text.is_some()
                         || note.guitar_technique.is_some()
@@ -2254,14 +2254,14 @@ fn render_note_annotations(
     space: f32,
 ) {
     let dir = if stem_up { -1.0 } else { 1.0 };
-    let text_y = anchor_y + dir * 4.0 * space;
+    let dynamic_y = anchor_y + dir * 4.0 * space;
     if let Some(dynamic) = &note.dynamic {
         write_annotation_text(
             body,
             "acorde-dynamic",
             dynamic.to_musicxml_str(),
             x,
-            text_y,
+            dynamic_y,
             space,
             true,
         );
@@ -2278,12 +2278,17 @@ fn render_note_annotations(
         );
     }
     if let Some(lyric) = &note.lyric {
+        let lyric_offset = if !stem_up && note.dynamic.is_some() {
+            5.9
+        } else {
+            4.8
+        };
         write_annotation_text(
             body,
             "acorde-lyric",
             &lyric.text,
             x,
-            anchor_y + 4.8 * space,
+            anchor_y + lyric_offset * space,
             space,
             false,
         );

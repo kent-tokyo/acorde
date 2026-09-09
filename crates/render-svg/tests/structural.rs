@@ -595,6 +595,7 @@ fn note_attached_annotations_expand_content_height() {
     let note = &mut annotated.parts[0].staves[0].measures[0].voices[0][0];
     note.pitches[0] = Pitch::new(Step::C, 2);
     note.dynamic = Some(Dynamic::Ff);
+    note.stem_up = Some(false);
     note.lyric = Some(Lyric {
         text: "long".to_string(),
         syllabic: "single".to_string(),
@@ -616,6 +617,18 @@ fn note_attached_annotations_expand_content_height() {
     .unwrap()
     .height;
     assert!(annotated_height > normal_height);
+    let svg = render_svg(&annotated, &opts()).unwrap();
+    let annotation_y = |class: &str| {
+        let start = svg.find(&format!("class=\"{class}\"")).expect("annotation");
+        let fragment = &svg[start..];
+        fragment
+            .split(" y=\"")
+            .nth(1)
+            .and_then(|value| value.split('"').next())
+            .and_then(|value| value.parse::<f32>().ok())
+            .expect("annotation y")
+    };
+    assert_ne!(annotation_y("acorde-dynamic"), annotation_y("acorde-lyric"));
 }
 
 #[test]
