@@ -18,6 +18,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   performance projection, canonical tab round-trip diagnostics, and renderer preflight.
 - Added browser adapter score validation with a distinct `validate` operation for typed host
   error handling before rendering, playback, or export.
+- Added a revision-stamped browser adapter `preflight` aggregate with validity and diagnostic
+  counts for model, renderer, and optional tablature checks.
 - Added the missing WASM `parse_mxl_report` binding so the browser MXL diagnostic path matches the
   existing IO report contract.
 - Added the CLI `render` command for deterministic input-file-to-SVG rendering through the
