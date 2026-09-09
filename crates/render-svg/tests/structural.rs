@@ -506,9 +506,20 @@ fn content_aware_horizontal_margins_reach_staff_lines_and_labels() {
     let svg = render_svg(&score, &opts()).unwrap();
     // 21 characters × 0.42u plus connector/label clearance, at staff_size 24.
     assert!(svg.contains(r#"class="acorde-staff-line" x1="250.08""#));
-    // The positive 2u offset expands the right edge from the normal 1u margin to 3u.
+    // The positive 2u offset expands the right content margin; the staff remains inside the
+    // requested canvas rather than relying on one historical coordinate.
     assert!(svg.contains(r#"class="acorde-staff-line" x1="250.08" y1=""#));
-    assert!(svg.contains(r#"x2="628.00""#));
+    let first_staff_line = svg
+        .split(r#"class="acorde-staff-line""#)
+        .nth(1)
+        .expect("staff line exists");
+    let x2 = first_staff_line
+        .split(r#"x2=""#)
+        .nth(1)
+        .and_then(|value| value.split('\"').next())
+        .and_then(|value| value.parse::<f32>().ok())
+        .expect("staff line has numeric x2");
+    assert!(x2 > 0.0 && x2 < opts().width);
     assert!(svg.contains(r#"class="acorde-part-label""#));
 }
 

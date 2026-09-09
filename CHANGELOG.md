@@ -47,6 +47,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   preserving percussion instrument identity in score metadata rather than inferring it visually.
 - Prevented unpitched display pitches from emitting pitched accidental glyphs; their display
   placement remains available without inventing pitched notation.
+- Reserved bounded horizontal space for centered measure-level text using a deterministic,
+  font-independent width estimate, avoiding boundary clipping while leaving long-text wrapping to
+  the host.
 - Included note-attached lyric, dynamic, chord, fingering/technique, microtone, articulation, and
   span offsets in conservative vertical content margins, with a structural regression fixture.
 - Hardened `CommandStack` command, batch, undo, and redo boundaries with validated candidate
