@@ -2631,6 +2631,11 @@ fn render_pitched_note(
 
     // Accidentals (mandatory takes precedence over courtesy; unsupported |alter|>2 errors).
     for (pitch_idx, _pitch) in note.pitches.iter().enumerate() {
+        if note.is_unpitched {
+            // Unpitched display-step/display-octave values locate the notehead only; an
+            // alter value must not turn a percussion event into a pitched accidental.
+            continue;
+        }
         let key: AccKey = (part, staff, measure_idx, voice_idx, note_idx, pitch_idx);
         let y = staff_bottom_y + geometry::position_y(positions[pitch_idx], space);
         let acc_x = x - (0.55 + accidental_offsets[pitch_idx]) * space;

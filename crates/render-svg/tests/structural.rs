@@ -1059,6 +1059,7 @@ fn unpitched_notes_keep_a_semantic_svg_hook_without_inventing_sound_identity() {
 
     let mut score = Score::new("Unpitched", 120, 4, 4, 0, 1);
     let mut note = acorde_core::Note::new(acorde_core::Pitch::new(Step::C, 4), Duration::Quarter);
+    note.pitches[0].alter = 1;
     note.is_unpitched = true;
     note.instrument_id = Some("P1-I1".to_string());
     score.parts[0].staves[0].measures[0].voices[0] = vec![note];
@@ -1070,6 +1071,7 @@ fn unpitched_notes_keep_a_semantic_svg_hook_without_inventing_sound_identity() {
     assert!(svg.contains("data-acorde-unpitched=\"true\""));
     assert!(svg.contains("data-acorde-percussion-notehead=\"acorde-percussion-notehead-normal\""));
     assert!(svg.contains("acorde-percussion-notehead-normal"));
+    assert!(!svg.contains("acorde-accidental"));
 }
 
 #[test]

@@ -45,6 +45,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   keeping two-digit fret clusters inside the SVG viewBox at measure boundaries.
 - Added a bounded five-line percussion clef and deterministic unpitched display mapping, while
   preserving percussion instrument identity in score metadata rather than inferring it visually.
+- Prevented unpitched display pitches from emitting pitched accidental glyphs; their display
+  placement remains available without inventing pitched notation.
 - Included note-attached lyric, dynamic, chord, fingering/technique, microtone, articulation, and
   span offsets in conservative vertical content margins, with a structural regression fixture.
 - Hardened `CommandStack` command, batch, undo, and redo boundaries with validated candidate
