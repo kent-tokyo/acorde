@@ -69,6 +69,9 @@ outside the core/WASM contract and remain application-owned.
 
 - `svg_contract_version()` returns the renderer metadata contract version so browser fixtures and
   generated WASM hosts can compare returned metadata without duplicating a version constant.
+- `glyph_resource_contract_version()` returns the print glyph-resource metadata contract version;
+  `validate_glyph_resource_descriptor(descriptor_json)` validates a host resource descriptor before
+  publication export. It does not load fonts or verify licenses.
 
 `SvgRenderOptions` defaults are `width: 900`, `staff_size: 24`, `measures_per_system: 4`, and
 `interactive: true`. Interactive SVG groups carry `data-note-addr="part:staff:measure:voice:note"`.

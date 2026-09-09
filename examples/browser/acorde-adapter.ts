@@ -62,6 +62,8 @@ export interface WasmBindings {
   render_score_svg_with_layout(scoreJson: string, layoutJson: string, optionsJson: string): string;
   render_preflight(scoreJson: string): string;
   svg_contract_version(): number;
+  glyph_resource_contract_version(): number;
+  validate_glyph_resource_descriptor(descriptorJson: string): string;
   validate_score(scoreJson: string): string;
   render_score_svg_row(
     scoreJson: string,

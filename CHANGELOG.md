@@ -52,6 +52,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and explicit fallback validation for reproducible print exports.
 - Exposed the deterministic physical print layout through WASM and the browser Worker adapter so
   publication previews can share the CLI's page contract.
+- Exposed glyph-resource contract version and descriptor validation through WASM for browser and
+  Composer hosts before font resolution or publication export.
 - Added standalone cargo-fuzz targets for the bounded MusicXML, MIDI, ABC, MEI, and MSCZ parser
   report boundaries; fuzz execution budgets remain an explicit security gate.
 - Added a fixed cargo-fuzz 0.13.1 nightly smoke job for all parser targets and checked-in fuzz

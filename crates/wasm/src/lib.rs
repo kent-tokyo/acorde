@@ -41,6 +41,31 @@ pub fn svg_contract_version() -> u32 {
     acorde_render_svg::SVG_CONTRACT_VERSION
 }
 
+/// Return the version of the host-neutral glyph resource descriptor contract.
+#[wasm_bindgen]
+pub fn glyph_resource_contract_version() -> u32 {
+    u32::from(acorde_layout::GLYPH_RESOURCE_CONTRACT_VERSION)
+}
+
+/// Validate and return a host-provided glyph resource descriptor JSON object.
+///
+/// This checks metadata only; font loading, licensing verification, and embedding remain
+/// responsibilities of the consuming host.
+#[wasm_bindgen]
+pub fn validate_glyph_resource_descriptor(descriptor_json: &str) -> Result<String, JsValue> {
+    let descriptor: acorde_layout::GlyphResourceDescriptor = parse_json(
+        descriptor_json,
+        "glyph resource descriptor",
+        MAX_SMALL_JSON_BYTES,
+    )?;
+    descriptor.validate().map_err(js_err)?;
+    serde_json::to_string(&descriptor).map_err(|e| {
+        js_err(format!(
+            "glyph resource descriptor serialization failed: {e}"
+        ))
+    })
+}
+
 // ── MusicXML ──────────────────────────────────────────────────────────────────
 
 /// Parse a MusicXML string and return the score as a JSON string.
@@ -1730,6 +1755,16 @@ mod wasm_tests {
         assert!(metadata.contains("accessible_text"));
         assert!(metadata.contains("address_bounds"));
         assert_eq!(render_preflight(&score_json).unwrap(), "[]");
+        assert_eq!(glyph_resource_contract_version(), 1);
+        let descriptor = r#"{
+            "contract_version":1,
+            "resource_key":"publisher-font-v2",
+            "metrics_contract_version":1,
+            "license_notice":"licensed by publisher",
+            "fallback":"Reject"
+        }"#;
+        assert!(validate_glyph_resource_descriptor(descriptor).is_ok());
+        assert!(validate_glyph_resource_descriptor("{}").is_err());
         let print_layout = compute_print_layout(&score_json, "{}").unwrap();
         assert!(print_layout.contains("contract_version"));
         assert!(print_layout.contains("pages"));
