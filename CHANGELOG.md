@@ -24,6 +24,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   distinguish them from standalone model validation failures.
 - Aligned CI with the release-candidate gate by requiring formatting, all-feature locked tests,
   all-target locked clippy, and workspace packaging checks.
+- Added the same locked release-candidate verification and tag/workspace-version consistency check
+  before the publish workflow can publish workspace crates.
 - Added the missing WASM `parse_mxl_report` binding so the browser MXL diagnostic path matches the
   existing IO report contract.
 - Added the CLI `render` command for deterministic input-file-to-SVG rendering through the
