@@ -31,6 +31,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   staves from overlapping neighboring staves or the system barline.
 - Included stem and flag extents in content-aware vertical margins for extreme notes, preventing
   high/low short-value notation from being clipped at the SVG page edge.
+- Included secondary-beam levels in those vertical margins so 16th-, 32nd-, and 64th-note beam
+  stacks receive enough page breathing room.
 - Added centered deterministic horizontal separation for simultaneous non-empty voices and a
   structural regression covering opposing voice noteheads.
 - Spaced consecutive grace-note glyphs deterministically along their shared temporal anchor to

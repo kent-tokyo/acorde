@@ -850,8 +850,19 @@ fn content_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
                             acorde_core::Duration::SixtyFourth => 4,
                             _ => 0,
                         };
-                        let stem_extent =
+                        let flag_extent =
                             glyphs::DEFAULT_STEM_LEN_U + flag_count as f32 * 0.35 + 0.25;
+                        let beam_levels: u8 = match note.duration {
+                            acorde_core::Duration::Eighth => 1,
+                            acorde_core::Duration::Sixteenth => 2,
+                            acorde_core::Duration::ThirtySecond => 3,
+                            acorde_core::Duration::SixtyFourth => 4,
+                            _ => 0,
+                        };
+                        let beam_extent = glyphs::DEFAULT_STEM_LEN_U
+                            + beam_levels.saturating_sub(1) as f32 * 0.9
+                            + 0.25;
+                        let stem_extent = flag_extent.max(beam_extent);
                         if stem_up {
                             top = top.max(stem_extent + ((min_position - 8).max(0) as f32 / 2.0));
                         } else {
