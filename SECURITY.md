@@ -49,6 +49,9 @@ cargo package --workspace --locked
 The CI package job also records locked Cargo metadata, the compiler version, and SHA-256
 digests for every generated `.crate` archive. These files provide provenance and reproducibility
 evidence; they are not cryptographic signatures and do not replace a release signing service.
+GitHub Actions used by CI and publication are referenced by reviewed commit SHA, with the release
+line retained in comments for update review. The fuzz action is pinned separately from its explicit
+`nightly-2026-05-22` toolchain input.
 
 The parser fuzz smoke uses the pinned nightly toolchain and cargo-fuzz version from CI:
 
