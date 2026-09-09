@@ -45,6 +45,12 @@ export interface WasmBindings {
   parse_midi(data: Uint8Array): string;
   serialize_musicxml(scoreJson: string): string;
   serialize_musicxml_report(scoreJson: string): string;
+  serialize_mei(scoreJson: string): string;
+  serialize_mei_report(scoreJson: string): string;
+  serialize_abc(scoreJson: string): string;
+  serialize_abc_report(scoreJson: string): string;
+  serialize_midi(scoreJson: string): Uint8Array;
+  serialize_midi_report(scoreJson: string): string;
   compute_layout_ex(scoreJson: string, configJson: string): string;
   render_score_svg_with_layout(scoreJson: string, layoutJson: string, optionsJson: string): string;
   render_score_svg_row(
@@ -84,6 +90,13 @@ export interface ExportReport {
   schema_version: number;
   format: string;
   output: string;
+  diagnostics: InterchangeDiagnostic[];
+}
+
+export interface BinaryExportReport {
+  schema_version: number;
+  format: string;
+  output: number[];
   diagnostics: InterchangeDiagnostic[];
 }
 
@@ -215,6 +228,12 @@ export type WorkspaceRequest =
   | { id: string; type: "analysis-cache-key" }
   | { id: string; type: "export-musicxml" }
   | { id: string; type: "export-musicxml-report" }
+  | { id: string; type: "export-mei" }
+  | { id: string; type: "export-mei-report" }
+  | { id: string; type: "export-abc" }
+  | { id: string; type: "export-abc-report" }
+  | { id: string; type: "export-midi" }
+  | { id: string; type: "export-midi-report" }
   | { id: string; type: "playback-events"; options?: Record<string, unknown> }
   | {
     id: string;
@@ -592,6 +611,63 @@ export class AcordeWorkspace {
     }
   }
 
+  /** Serialize the loaded score to the documented MEI subset. */
+  exportMei(): string {
+    this.assertLoaded();
+    try {
+      return this.wasm.serialize_mei(this.scoreJson);
+    } catch (cause) {
+      throw this.toWorkspaceError("serialize", cause);
+    }
+  }
+
+  exportMeiWithReport(): ExportReport {
+    this.assertLoaded();
+    try {
+      return JSON.parse(this.wasm.serialize_mei_report(this.scoreJson)) as ExportReport;
+    } catch (cause) {
+      throw this.toWorkspaceError("serialize", cause);
+    }
+  }
+
+  /** Serialize the loaded score to ABC Notation. */
+  exportAbc(): string {
+    this.assertLoaded();
+    try {
+      return this.wasm.serialize_abc(this.scoreJson);
+    } catch (cause) {
+      throw this.toWorkspaceError("serialize", cause);
+    }
+  }
+
+  exportAbcWithReport(): ExportReport {
+    this.assertLoaded();
+    try {
+      return JSON.parse(this.wasm.serialize_abc_report(this.scoreJson)) as ExportReport;
+    } catch (cause) {
+      throw this.toWorkspaceError("serialize", cause);
+    }
+  }
+
+  /** Serialize the loaded score to MIDI bytes for a host download or player. */
+  exportMidi(): Uint8Array {
+    this.assertLoaded();
+    try {
+      return this.wasm.serialize_midi(this.scoreJson);
+    } catch (cause) {
+      throw this.toWorkspaceError("serialize", cause);
+    }
+  }
+
+  exportMidiWithReport(): BinaryExportReport {
+    this.assertLoaded();
+    try {
+      return JSON.parse(this.wasm.serialize_midi_report(this.scoreJson)) as BinaryExportReport;
+    } catch (cause) {
+      throw this.toWorkspaceError("serialize", cause);
+    }
+  }
+
   /** Produce host-independent playback events for the loaded score. */
   playbackEvents(options: Record<string, unknown> = {}): PlaybackEvent[] {
     this.assertLoaded();
@@ -881,6 +957,18 @@ export function handleWorkspaceRequest(
         return { id: request.id, ok: true, value: workspace.exportMusicXml() };
       case "export-musicxml-report":
         return { id: request.id, ok: true, value: workspace.exportMusicXmlWithReport() };
+      case "export-mei":
+        return { id: request.id, ok: true, value: workspace.exportMei() };
+      case "export-mei-report":
+        return { id: request.id, ok: true, value: workspace.exportMeiWithReport() };
+      case "export-abc":
+        return { id: request.id, ok: true, value: workspace.exportAbc() };
+      case "export-abc-report":
+        return { id: request.id, ok: true, value: workspace.exportAbcWithReport() };
+      case "export-midi":
+        return { id: request.id, ok: true, value: workspace.exportMidi() };
+      case "export-midi-report":
+        return { id: request.id, ok: true, value: workspace.exportMidiWithReport() };
       case "playback-events":
         return { id: request.id, ok: true, value: workspace.playbackEvents(request.options) };
       case "compare-playback-timing":
