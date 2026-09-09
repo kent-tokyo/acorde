@@ -33,6 +33,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added XML 1.0 character validation for score text and host annotations before SVG serialization.
 - Extended renderer preflight with source-located text-size, coordinate, and XML-character
   diagnostics so hosts can gate malformed text before rendering.
+- Extended text preflight coverage to lyrics, chord symbols, note techniques, and measure-level
+  tempo/rehearsal/navigation/expression text.
 
 ## [1.1.6] - 2026-09-09
 

@@ -287,6 +287,20 @@ pub fn render_preflight(score: &Score) -> Vec<RenderPreflightIssue> {
                         }
                     }
                 }
+                for (field, value) in [
+                    ("tempo-text", measure.tempo_text.as_deref()),
+                    ("rehearsal", measure.rehearsal.as_deref()),
+                    ("navigation", measure.navigation.as_deref()),
+                    ("expression-text", measure.expression_text.as_deref()),
+                ] {
+                    if let Some(value) = value {
+                        push_text_preflight_issue(
+                            &mut issues,
+                            &format!("{staff_path}/measure/{}/{}", measure_index + 1, field),
+                            value,
+                        );
+                    }
+                }
                 if !matches!(staff.clef, acorde_core::Clef::Percussion)
                     && matches!(measure.clef, Some(acorde_core::Clef::Percussion))
                 {
@@ -304,6 +318,28 @@ pub fn render_preflight(score: &Score) -> Vec<RenderPreflightIssue> {
                             voice_index + 1,
                             note_index + 1
                         );
+                        if let Some(lyric) = &note.lyric {
+                            push_text_preflight_issue(
+                                &mut issues,
+                                &format!("{note_path}/lyric"),
+                                &lyric.text,
+                            );
+                        }
+                        if let Some(technique) = &note.technique_text {
+                            push_text_preflight_issue(
+                                &mut issues,
+                                &format!("{note_path}/technique-text"),
+                                technique,
+                            );
+                        }
+                        if let Some(chord) = &note.chord_symbol {
+                            let chord_text = chord.display_text();
+                            push_text_preflight_issue(
+                                &mut issues,
+                                &format!("{note_path}/chord-symbol"),
+                                &chord_text,
+                            );
+                        }
                         for (pitch_index, pitch) in note.pitches.iter().enumerate() {
                             if !(-2..=2).contains(&pitch.alter) {
                                 issues.push(RenderPreflightIssue {
