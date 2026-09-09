@@ -18,6 +18,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   renderer preflight failures without a machine-readable result.
 - Added a deterministic local `svg_fingerprint` to render reports and regression coverage proving
   repeated renders with identical inputs and options produce the same evidence identifier.
+- Added an explicit `render_report_schema_version` so hosts can distinguish report evolution from
+  the imported score schema version.
 - Rendered measure-level styled text into SVG with stable style classes and interactive source
   hooks, while retaining font and publication responsibilities in the host.
 - Added pre-render bounds and finite-coordinate validation for measure-level text so malformed

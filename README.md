@@ -178,7 +178,8 @@ Conversion output is MusicXML, MIDI, ABC, or MEI.
 `render` accepts the same score inputs and writes deterministic SVG through `acorde-render-svg`;
 use `--width`, `--staff-size`, and `--measures-per-system` to select the host-neutral render
 geometry. Address hooks remain enabled by default and can be omitted with `--no-interactive`.
-`render-report` additionally emits import diagnostics, renderer preflight issues, render status, and
+`render-report` additionally emits its own `render_report_schema_version`, import diagnostics,
+renderer preflight issues, render status, and
 a deterministic local `fnv1a64-*` `svg_fingerprint` as JSON; rejected renders contain
 `render_error` and do not write incomplete SVG. `--fail-on-issues` provides a deterministic CI gate.
 The fingerprint is evidence of local byte determinism, not a cryptographic publication hash.

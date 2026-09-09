@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 const MAX_PLAYBACK_JSON_BYTES: usize = 64 * 1024 * 1024;
+const RENDER_REPORT_SCHEMA_VERSION: u32 = 1;
 
 #[derive(Parser)]
 #[command(
@@ -482,6 +483,7 @@ fn cmd_render(
 
 #[derive(Debug, Serialize)]
 struct RenderReportSummary {
+    render_report_schema_version: u32,
     schema_version: u32,
     input_format: String,
     input_path: String,
@@ -528,6 +530,7 @@ fn render_report_summary(
     let import_error_count = import.error_count();
     let import_loss_count = import.loss_count();
     Ok(RenderReportSummary {
+        render_report_schema_version: RENDER_REPORT_SCHEMA_VERSION,
         schema_version: import.schema_version,
         input_format: import.format,
         input_path: input.display().to_string(),
@@ -1517,6 +1520,7 @@ mod tests {
         let report =
             render_report_summary(&fixture("simple.musicxml"), &output, 900.0, 24.0, 4, true)
                 .expect("render report succeeds");
+        assert_eq!(report.render_report_schema_version, 1);
         assert_eq!(report.input_format, "musicxml");
         assert_eq!(report.import_warning_count, 0);
         assert_eq!(report.import_error_count, 0);

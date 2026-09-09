@@ -57,7 +57,8 @@ exits with status 1 when structural errors are found. report emits the parsed sc
 import diagnostics as JSON.
 preflight emits renderer capability issues with stable score source locations as JSON before SVG
 generation.
-`render-report` writes the SVG and emits the input format, byte count, deterministic
+`render-report` writes the SVG and emits its own `render_report_schema_version`, the input format,
+byte count, deterministic
 `svg_fingerprint`, import diagnostics, and renderer preflight issues as one JSON report.
 `--fail-on-issues` makes any such issue a non-zero exit. When rendering is rejected, the report
 still contains `rendered: false` and `render_error`; no incomplete SVG is written. The fingerprint

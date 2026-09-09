@@ -85,7 +85,7 @@ acorde playback-compare expected.json actual.json --fail-on-mismatch
 ネットワーク接続は必要ありません。
 `render` は同じ入力形式を決定的なSVGへ変換します。`--width`、`--staff-size`、
 `--measures-per-system` で出力ジオメトリを指定でき、アドレス用フックは既定で有効です。
-`render-report` は入力診断、renderer の preflight 診断、レンダリング結果、およびローカルの
+`render-report` はレポート自身の `render_report_schema_version`、入力診断、renderer の preflight 診断、レンダリング結果、およびローカルの
 決定的な `fnv1a64-*` 形式の `svg_fingerprint` を JSON で出力します。失敗時は
 `rendered: false` と `render_error` を記録し、不完全な SVG は出力しません。フィンガープリントは
 ローカルでのバイト列再現性を示す証拠識別子であり、公開用の暗号学的ハッシュではありません。
