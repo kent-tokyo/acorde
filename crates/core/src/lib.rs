@@ -86,6 +86,8 @@ pub enum Error {
     CannotDeleteLastStaff,
     #[error("invalid patch: {0}")]
     InvalidPatch(String),
+    #[error("score failed structural validation")]
+    InvalidScore,
     #[error("engine history base score does not match the supplied score")]
     HistoryBaseMismatch,
     #[error("engine history is not a safe append-only extension")]

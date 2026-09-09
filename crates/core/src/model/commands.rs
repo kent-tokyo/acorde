@@ -10,6 +10,7 @@ use super::score::{
     Measure, Note, NoteAddr, Part, PartGroup, Score, ScoreTemplate, Staff, respell_score,
     respell_score_to_key,
 };
+use super::validate::validate;
 use crate::Error;
 use serde::{Deserialize, Serialize};
 
@@ -698,7 +699,12 @@ impl CommandStack {
 
     pub fn execute(&mut self, cmd: Command, score: &mut Score) -> Result<(), Error> {
         let snapshot = score.clone();
-        apply_command(&cmd, score)?;
+        let mut candidate = snapshot.clone();
+        apply_command(&cmd, &mut candidate)?;
+        if !validate(&candidate).is_valid() {
+            return Err(Error::InvalidScore);
+        }
+        *score = candidate;
         self.history.push(UndoEntry {
             command: cmd,
             snapshot,
@@ -711,6 +717,10 @@ impl CommandStack {
     }
 
     pub fn undo(&mut self, score: &mut Score) -> Result<ChangeHint, Error> {
+        let entry = self.history.last().ok_or(Error::NothingToUndo)?;
+        if !validate(&entry.snapshot).is_valid() {
+            return Err(Error::InvalidScore);
+        }
         let entry = self.history.pop().ok_or(Error::NothingToUndo)?;
         let hint = command_hint(&entry.command);
         let post_snapshot = score.clone();
@@ -723,6 +733,10 @@ impl CommandStack {
     }
 
     pub fn redo(&mut self, score: &mut Score) -> Result<ChangeHint, Error> {
+        let (_, post) = self.future.last().ok_or(Error::NothingToRedo)?;
+        if !validate(post).is_valid() {
+            return Err(Error::InvalidScore);
+        }
         let (cmd, post) = self.future.pop().ok_or(Error::NothingToRedo)?;
         let hint = command_hint(&cmd);
         let snapshot = score.clone();
@@ -766,12 +780,14 @@ impl CommandStack {
             return Ok(());
         }
         let snapshot = score.clone();
+        let mut candidate = snapshot.clone();
         for cmd in &cmds {
-            if let Err(e) = apply_command(cmd, score) {
-                *score = snapshot;
-                return Err(e);
-            }
+            apply_command(cmd, &mut candidate)?;
         }
+        if !validate(&candidate).is_valid() {
+            return Err(Error::InvalidScore);
+        }
+        *score = candidate;
         self.history.push(UndoEntry {
             command: Command::Batch(BatchCmd {
                 commands: cmds,
@@ -799,12 +815,14 @@ impl CommandStack {
             return Ok(());
         }
         let snapshot = score.clone();
+        let mut candidate = snapshot.clone();
         for cmd in &cmds {
-            if let Err(e) = apply_command(cmd, score) {
-                *score = snapshot;
-                return Err(e);
-            }
+            apply_command(cmd, &mut candidate)?;
         }
+        if !validate(&candidate).is_valid() {
+            return Err(Error::InvalidScore);
+        }
+        *score = candidate;
         self.history.push(UndoEntry {
             command: Command::Batch(BatchCmd {
                 commands: cmds,
@@ -3036,6 +3054,54 @@ mod tests {
         );
         assert!(result.is_err());
         assert_eq!(score.settings.tempo_bpm, original_bpm);
+    }
+
+    #[test]
+    fn execute_rejects_invalid_candidate_without_mutating_or_recording_history() {
+        let mut stack = CommandStack::new(50);
+        let mut score = default_engine_score();
+        score.parts[0].staves[0].tablature = Some(crate::TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![40, 45, 50, 55, 59, 64],
+            capo: 0,
+        });
+        stack
+            .execute(
+                Command::AddNote(AddNoteCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    voice: 0,
+                    position: 0,
+                    pitch: Some(Pitch::new(Step::C, 4)),
+                    duration: Duration::Quarter,
+                    dot_count: 0,
+                    is_rest: false,
+                    tuplet: None,
+                }),
+                &mut score,
+            )
+            .expect("valid pitched note should be accepted");
+        let original = score.clone();
+        let result = stack.execute(
+            Command::SetTabPosition(SetTabPositionCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                note_index: 0,
+                position: Some(crate::TabPosition { string: 7, fret: 0 }),
+            }),
+            &mut score,
+        );
+        assert!(matches!(result, Err(Error::InvalidScore)));
+        let note = &score.parts[0].staves[0].measures[0].voices[0][0];
+        let original_note = &original.parts[0].staves[0].measures[0].voices[0][0];
+        assert_eq!(note.pitches, original_note.pitches);
+        assert_eq!(note.duration, original_note.duration);
+        assert_eq!(note.tab_position, original_note.tab_position);
+        assert_eq!(note.tab_positions, original_note.tab_positions);
+        assert!(stack.can_undo());
     }
 
     #[test]
