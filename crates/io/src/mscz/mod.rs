@@ -2526,10 +2526,7 @@ mod tests {
         );
         let report = crate::parse_mscx_with_report(&xml).expect("MSCX continuation line parses");
         assert!(report.diagnostics.is_empty());
-        assert_eq!(
-            report.score.parts[0].staves[0].measures[0].figured_bass[0].extender,
-            true
-        );
+        assert!(report.score.parts[0].staves[0].measures[0].figured_bass[0].extender);
     }
 
     // ── Feature L: Slur ──────────────────────────────────────────────────────

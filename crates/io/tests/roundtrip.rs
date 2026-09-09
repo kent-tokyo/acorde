@@ -1283,9 +1283,9 @@ fn semantic_projection_matches_across_local_format_boundaries() {
 #[cfg(all(feature = "mei", feature = "mscz"))]
 #[test]
 fn tuplet_semantics_match_across_musicxml_mei_and_mscx() {
-    fn projection(
-        score: &acorde_core::Score,
-    ) -> Vec<(i32, acorde_core::Duration, Option<(u8, u8)>)> {
+    type TupletProjection = (i32, acorde_core::Duration, Option<(u8, u8)>);
+
+    fn projection(score: &acorde_core::Score) -> Vec<TupletProjection> {
         score.parts[0].staves[0].measures[0].voices[0]
             .iter()
             .filter(|note| !note.is_rest)
@@ -1595,9 +1595,14 @@ fn cc0_mscz_pair_extracted_mscx_files_parse_with_same_declared_boundary() {
 #[cfg(all(feature = "mscz", feature = "musicxml"))]
 #[test]
 fn cc0_mscz_samples_roundtrip_through_musicxml_semantically() {
-    fn projection(
-        score: &acorde_core::Score,
-    ) -> Vec<(
+    type ChordProjection = Option<(
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+        Vec<(u8, i8, String)>,
+    )>;
+    type NoteProjection = (
         usize,
         usize,
         usize,
@@ -1606,14 +1611,10 @@ fn cc0_mscz_samples_roundtrip_through_musicxml_semantically() {
         u8,
         Vec<i32>,
         acorde_core::Duration,
-        Option<(
-            String,
-            String,
-            Option<String>,
-            Option<String>,
-            Vec<(u8, i8, String)>,
-        )>,
-    )> {
+        ChordProjection,
+    );
+
+    fn projection(score: &acorde_core::Score) -> Vec<NoteProjection> {
         let mut result = Vec::new();
         for (part_index, part) in score.parts.iter().enumerate() {
             for (staff_index, staff) in part.staves.iter().enumerate() {
