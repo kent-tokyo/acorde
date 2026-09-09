@@ -1293,7 +1293,7 @@ fn render_measure(
         // voice's layout before any individual note is drawn.
         let mut xs = Vec::with_capacity(notes.len());
         let mut beat_pos = 0.0f64;
-        for note in notes {
+        for (note_index, note) in notes.iter().enumerate() {
             let voice_offset = if voice_slots.len() > 1 {
                 // Center simultaneous voices around the beat. This keeps opposing stems and
                 // noteheads legible without changing their temporal positions; single-voice
@@ -1308,7 +1308,11 @@ fn render_measure(
             } else {
                 0.0
             };
-            let grace_offset = if note.is_grace { -0.42 * space } else { 0.0 };
+            let grace_offset = if note.is_grace {
+                grace_note_offset(notes, note_index) * space
+            } else {
+                0.0
+            };
             xs.push(
                 content_x0
                     + (content_w * (beat_pos / total_beats) as f32)
@@ -1492,6 +1496,21 @@ fn render_measure(
 
     body.push_str("</g>");
     Ok(())
+}
+
+/// Return the horizontal offset, in staff spaces, for one grace note in a consecutive run.
+/// Grace notes are zero-duration events, so their temporal anchor is shared; placing the run
+/// from left to right keeps every glyph address stable while avoiding complete overlap.
+fn grace_note_offset(notes: &[Note], index: usize) -> f32 {
+    if !notes.get(index).is_some_and(|note| note.is_grace) {
+        return 0.0;
+    }
+    let run_end = notes[index..]
+        .iter()
+        .position(|note| !note.is_grace)
+        .map_or(notes.len(), |position| index + position);
+    let reverse_index = run_end.saturating_sub(index);
+    -0.42 * reverse_index as f32
 }
 
 fn measure_text_class(style: acorde_core::TextStyle) -> &'static str {

@@ -1090,3 +1090,27 @@ fn simultaneous_voice_noteheads_get_deterministic_horizontal_separation() {
     assert!((centers[0] - centers[4]).abs() >= 0.65 * opts().staff_size - 0.01);
     assert_ne!(centers[0], centers[4]);
 }
+
+#[test]
+fn consecutive_grace_noteheads_are_not_collapsed_on_one_anchor() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("grace spacing", 120, 4, 4, 0, 1);
+    let notes = &mut score.parts[0].staves[0].measures[0].voices[0];
+    let mut first = Note::new(Pitch::new(Step::D, 5), Duration::Eighth);
+    first.is_grace = true;
+    let mut second = Note::new(Pitch::new(Step::E, 5), Duration::Eighth);
+    second.is_grace = true;
+    notes.splice(0..0, [first, second]);
+
+    let svg = render_svg(&score, &opts()).unwrap();
+    let centers: Vec<f32> = svg
+        .split(r#"class="acorde-notehead""#)
+        .skip(1)
+        .filter_map(|fragment| fragment.split(r#"cx=""#).nth(1))
+        .filter_map(|value| value.split('"').next())
+        .filter_map(|value| value.parse().ok())
+        .take(2)
+        .collect();
+    assert_eq!(centers.len(), 2);
+    assert!((centers[0] - centers[1]).abs() >= 0.4 * opts().staff_size);
+}
