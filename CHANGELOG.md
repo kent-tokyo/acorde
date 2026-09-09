@@ -46,6 +46,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   content-aware vertical margin instead of allowing same-note ornament overlap.
 - Added shared above/below annotation lanes so dynamic, lyric, technique, fingering, chord, and
   articulation annotations on one note receive deterministic collision spacing.
+- Reused those annotation-lane distances in page-margin calculation so mixed note annotations are
+  not clipped even when several same-side lanes are active.
 - Included resolved sloped-beam and secondary-beam extents in content-aware vertical margins so
   clearance shifts cannot clip short-value beam groups at the SVG page edge.
 - Projected structured `Measure::figured_bass` into the deterministic measure-text SVG path, with

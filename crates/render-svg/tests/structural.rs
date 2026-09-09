@@ -417,6 +417,40 @@ fn mixed_note_annotations_use_distinct_vertical_lanes() {
 }
 
 #[test]
+fn mixed_annotation_lanes_expand_the_page_margin() {
+    use acorde_core::{Articulation, Duration, Dynamic, Lyric, Note, Pitch, Step};
+
+    let mut score = common::single_staff_score(
+        acorde_core::Clef::Treble,
+        0,
+        4,
+        4,
+        vec![Note::new(Pitch::new(Step::C, 5), Duration::Whole)],
+        vec![],
+    );
+    let note = &mut score.parts[0].staves[0].measures[0].voices[0][0];
+    note.dynamic = Some(Dynamic::F);
+    note.lyric = Some(Lyric {
+        text: "la".to_string(),
+        syllabic: "single".to_string(),
+    });
+    note.articulations = vec![Articulation::Trill, Articulation::Mordent];
+
+    let svg = render_svg(&score, &opts()).unwrap();
+    let view_box = svg
+        .split_once("viewBox=\"")
+        .and_then(|(_, rest)| rest.split_once('\"'))
+        .map(|(value, _)| value)
+        .expect("viewBox");
+    let values: Vec<f32> = view_box
+        .split_whitespace()
+        .map(|value| value.parse::<f32>().expect("finite viewBox value"))
+        .collect();
+    assert_eq!(values.len(), 4);
+    assert!(values[3] > 0.0);
+}
+
+#[test]
 fn short_rests_custom_noteheads_and_small_notes_are_rendered() {
     use acorde_core::{Duration, Note, NoteHead, Pitch, Step};
 

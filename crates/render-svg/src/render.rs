@@ -848,6 +848,9 @@ fn content_margins(
                         annotation_top = annotation_top.max(1.8);
                         annotation_bottom = annotation_bottom.max(1.8);
                     }
+                    let (lane_top, lane_bottom) = note_annotation_lane_extents(note, voice_stem_up);
+                    annotation_top = annotation_top.max(lane_top);
+                    annotation_bottom = annotation_bottom.max(lane_bottom);
                     let max_position = note
                         .pitches
                         .iter()
@@ -2957,6 +2960,56 @@ fn render_note_annotations(
     }
 }
 
+fn note_annotation_lane_extents(note: &Note, voice_stem_up: bool) -> (f32, f32) {
+    let stem_up = note.stem_up.unwrap_or(voice_stem_up);
+    let mut above_distance = 0.0_f32;
+    let mut below_distance = 0.0_f32;
+    let mut reserve = |above: bool, preferred: f32| {
+        if above {
+            let _ = annotation_lane_distance(preferred, &mut above_distance);
+        } else {
+            let _ = annotation_lane_distance(preferred, &mut below_distance);
+        }
+    };
+    if note.dynamic.is_some() {
+        reserve(stem_up, 4.0);
+    }
+    if note.chord_symbol.is_some() {
+        reserve(true, 5.6);
+    }
+    if note.technique_text.is_some() {
+        reserve(stem_up, 6.8);
+    }
+    if note.fingering.is_some() || !note.fingerings.is_empty() {
+        reserve(!stem_up, 5.0);
+    }
+    if note.lyric.is_some() {
+        reserve(
+            false,
+            if !stem_up && note.dynamic.is_some() {
+                5.9
+            } else {
+                4.8
+            },
+        );
+    }
+    for (index, _) in note.articulations.iter().enumerate() {
+        reserve(stem_up, 1.2 + index as f32);
+    }
+    (
+        if above_distance > 0.0 {
+            above_distance + 0.5
+        } else {
+            0.0
+        },
+        if below_distance > 0.0 {
+            below_distance + 0.5
+        } else {
+            0.0
+        },
+    )
+}
+
 fn annotation_y(
     anchor_y: f32,
     above: bool,
@@ -2966,17 +3019,9 @@ fn annotation_y(
     space: f32,
 ) -> f32 {
     let distance = if above {
-        preferred_distance.max(if *above_distance > 0.0 {
-            *above_distance + 1.0
-        } else {
-            0.0
-        })
+        annotation_lane_distance(preferred_distance, above_distance)
     } else {
-        preferred_distance.max(if *below_distance > 0.0 {
-            *below_distance + 1.0
-        } else {
-            0.0
-        })
+        annotation_lane_distance(preferred_distance, below_distance)
     };
     if above {
         *above_distance = distance;
@@ -2985,6 +3030,16 @@ fn annotation_y(
         *below_distance = distance;
         anchor_y + distance * space
     }
+}
+
+fn annotation_lane_distance(preferred_distance: f32, previous_distance: &mut f32) -> f32 {
+    let distance = preferred_distance.max(if *previous_distance > 0.0 {
+        *previous_distance + 1.0
+    } else {
+        0.0
+    });
+    *previous_distance = distance;
+    distance
 }
 
 fn write_annotation_text(
