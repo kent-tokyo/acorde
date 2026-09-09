@@ -68,14 +68,16 @@ is a local `fnv1a64-*` evidence identifier, not a cryptographic publication hash
 useful for CI gates.
 The repository fixture `tests/fixtures/render_preflight_unsupported.musicxml` demonstrates the
 failure path without external resources.
-`print-report` emits the host-neutral `PrintLayoutResult` as JSON, including physical pages and
-systems, typed break reasons, publication metadata, normalized measure text annotations, and
-glyph/span diagnostics. Select `--preset a4-score` or `--preset letter-score` for full scores;
+`print-report` emits a versioned JSON report containing import format/schema and diagnostics plus
+the host-neutral `PrintLayoutResult` under `layout`, including physical pages and systems, typed
+break reasons, publication metadata, normalized measure text annotations, and glyph/span
+diagnostics. Select `--preset a4-score` or `--preset letter-score` for full scores;
 select `--preset a4-part` or `--preset letter-part` with `--part N` for an extracted part. It
 emits no PDF or printer output; `--title-page` and the system/page capacity options are
 deterministic layout inputs. `--running-title`, `--header-text`, `--footer-text`,
 `--page-number-in-footer`, and `--no-part-names` add deterministic publication metadata without
-moving font or printer responsibilities into the CLI.
+moving font or printer responsibilities into the CLI. `--fail-on-issues` preserves the JSON while
+returning a non-zero status when import diagnostics are present.
 analyze emits deterministic chord, melodic-interval, and key-estimate results as JSON.
 export-report writes MusicXML, MIDI, ABC, or MEI and emits machine-readable export diagnostics
 without embedding the binary/text artifact in the JSON response.

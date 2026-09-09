@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 const MAX_PLAYBACK_JSON_BYTES: usize = 64 * 1024 * 1024;
 const RENDER_REPORT_SCHEMA_VERSION: u32 = 1;
+const PRINT_REPORT_SCHEMA_VERSION: u32 = 1;
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
 enum PrintPresetArg {
@@ -33,6 +34,21 @@ struct PrintReportOptions<'a> {
     footer_text: Option<&'a str>,
     page_number_in_footer: bool,
     show_part_names: bool,
+    fail_on_issues: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct PrintReportSummary {
+    print_report_schema_version: u32,
+    import_report_schema_version: u32,
+    score_schema_version: u32,
+    input_format: String,
+    input_path: String,
+    import_warning_count: usize,
+    import_error_count: usize,
+    import_loss_count: usize,
+    import_diagnostics: Vec<acorde_io::Diagnostic>,
+    layout: acorde_layout::PrintLayoutResult,
 }
 
 #[derive(Parser)]
@@ -129,6 +145,9 @@ enum Commands {
         /// Omit part-name publication blocks
         #[arg(long)]
         no_part_names: bool,
+        /// Exit with status 1 when import diagnostics are present
+        #[arg(long)]
+        fail_on_issues: bool,
     },
     /// Print title, parts, measure count, and duration estimate
     Info {
@@ -360,6 +379,7 @@ fn main() {
             footer_text,
             page_number_in_footer,
             no_part_names,
+            fail_on_issues,
         } => cmd_print_report(
             input,
             PrintReportOptions {
@@ -373,6 +393,7 @@ fn main() {
                 footer_text: footer_text.as_deref(),
                 page_number_in_footer: *page_number_in_footer,
                 show_part_names: !*no_part_names,
+                fail_on_issues: *fail_on_issues,
             },
         ),
         Commands::Info { input } => cmd_info(input),
@@ -666,13 +687,32 @@ fn cmd_render_report(
 }
 
 fn cmd_print_report(input: &Path, options: PrintReportOptions<'_>) -> Result<(), String> {
-    let score = parse_score(input)?;
+    let import = parse_report(input)?;
     let config = build_print_config(&options)?;
-    let layout = acorde_layout::compute_print_layout(&score, &config)
+    let layout = acorde_layout::compute_print_layout(&import.score, &config)
         .map_err(|e| format!("print layout failed: {e}"))?;
-    serde_json::to_writer_pretty(std::io::stdout(), &layout)
+    let has_issues = !import.diagnostics.is_empty();
+    let import_warning_count = import.warning_count();
+    let import_error_count = import.error_count();
+    let import_loss_count = import.loss_count();
+    let report = PrintReportSummary {
+        print_report_schema_version: PRINT_REPORT_SCHEMA_VERSION,
+        import_report_schema_version: import.schema_version,
+        score_schema_version: import.score.schema_version,
+        input_format: import.format,
+        input_path: input.display().to_string(),
+        import_warning_count,
+        import_error_count,
+        import_loss_count,
+        import_diagnostics: import.diagnostics,
+        layout,
+    };
+    serde_json::to_writer_pretty(std::io::stdout(), &report)
         .map_err(|e| format!("print report serialization failed: {e}"))?;
     println!();
+    if options.fail_on_issues && has_issues {
+        return Err("print report found import diagnostic(s)".to_string());
+    }
     Ok(())
 }
 
@@ -1772,6 +1812,7 @@ mod tests {
             footer_text: Some("Footer"),
             page_number_in_footer: true,
             show_part_names: false,
+            fail_on_issues: false,
         })
         .expect("print config succeeds");
         assert_eq!(config.paper_size, acorde_layout::PaperSize::Letter);
@@ -1802,6 +1843,7 @@ mod tests {
             footer_text: None,
             page_number_in_footer: false,
             show_part_names: true,
+            fail_on_issues: false,
         })
         .expect_err("full score must reject part selection");
         assert!(error.contains("requires an extracted-part preset"));

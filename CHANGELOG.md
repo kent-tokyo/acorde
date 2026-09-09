@@ -55,6 +55,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   explicit zero-based `--part` selection and deterministic validation of invalid combinations.
 - Added deterministic publication metadata options to `print-report` for running titles,
   header/footer text, page-number footers, and optional part-name suppression.
+- `print-report` now preserves import format/schema and diagnostics in a versioned wrapper under
+  `layout`, with `--fail-on-issues` for loss-aware publication CI gates.
 
 ## [1.1.6] - 2026-09-09
 

@@ -154,7 +154,7 @@ acorde convert input.musicxml output.abc
 acorde convert input.musicxml output.mei
 acorde render input.musicxml output.svg
 acorde render-report input.musicxml output.svg --fail-on-issues
-acorde print-report input.musicxml --preset a4-score --measures-per-system 3 --systems-per-page 4 --title-page
+acorde print-report input.musicxml --preset a4-score --measures-per-system 3 --systems-per-page 4 --title-page --fail-on-issues
 acorde print-report input.musicxml --preset letter-part --part 0 --measures-per-system 3 \
   --running-title "Suite" --page-number-in-footer
 acorde info input.musicxml
@@ -186,11 +186,13 @@ renderer preflight issues, render status, and
 a deterministic local `fnv1a64-*` `svg_fingerprint` as JSON; rejected renders contain
 `render_error` and do not write incomplete SVG. `--fail-on-issues` provides a deterministic CI gate.
 The fingerprint is evidence of local byte determinism, not a cryptographic publication hash.
-`print-report` emits the host-neutral page/system plan as JSON, including physical page geometry,
+`print-report` emits a versioned JSON report containing input format/schema and import diagnostics,
+plus the host-neutral page/system plan under `layout`, including physical page geometry,
 break reasons, publication metadata, measure text annotations, and resource/span diagnostics.
 Use `--preset a4-score` or `--preset letter-score` for full scores, and
 `--preset a4-part`/`--preset letter-part` with `--part` for extracted parts. Other layout options
-override only the selected preset's deterministic starting configuration. It does not generate PDF
+override only the selected preset's deterministic starting configuration. `--fail-on-issues` makes
+any import diagnostic a non-zero CI result while retaining the JSON report. It does not generate PDF
 or access a printer. `--running-title`, `--header-text`, `--footer-text`,
 `--page-number-in-footer`, and `--no-part-names` control publication metadata without selecting
 fonts or changing score semantics.
