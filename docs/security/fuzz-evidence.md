@@ -16,5 +16,6 @@ mscz:     100 runs, no crash or hang
 ```
 
 This is a bounded smoke result, not population-level coverage or a substitute for long-running
-CI fuzzing. CI repeats the same target set with an explicit job timeout and the checked-in
-`fuzz/Cargo.lock`; corpus growth and sanitizer/property coverage remain separate gates.
+CI fuzzing. CI repeats the same target set with AddressSanitizer, a 4 KiB input bound, a five
+second per-input timeout, a 512 MiB RSS limit, an explicit job timeout, and the checked-in
+`fuzz/Cargo.lock`; corpus growth and additional sanitizer/property coverage remain separate gates.

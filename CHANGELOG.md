@@ -50,6 +50,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added a fixed cargo-fuzz 0.13.1 nightly smoke job for all parser targets and checked-in fuzz
   lockfile/evidence documentation.
 - Pinned the fuzz CI job to the nightly toolchain used by the local 100-run smoke evidence.
+- Added explicit AddressSanitizer, input-size, per-input timeout, and RSS limits to the CI fuzz
+  smoke so parser resource bounds are enforced rather than implicit.
 - Added the missing WASM `parse_mxl_report` binding so the browser MXL diagnostic path matches the
   existing IO report contract.
 - Added the CLI `render` command for deterministic input-file-to-SVG rendering through the
