@@ -4,6 +4,7 @@
   "contracts": {
     "svg_render_metadata": 3,
     "print_layout": 26,
+    "glyph_resource": 1,
     "tab_performance": 3
   },
   "policy": {
@@ -36,6 +37,7 @@
     "headless_extract_part": "yes",
     "headless_export_report": "yes",
     "print_pagination": "yes",
+    "print_layout_wasm": "yes",
     "percussion_and_tablature": "partial"
   },
   "known_gaps": [
