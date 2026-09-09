@@ -155,7 +155,8 @@ acorde convert input.musicxml output.mei
 acorde render input.musicxml output.svg
 acorde render-report input.musicxml output.svg --fail-on-issues
 acorde print-report input.musicxml --preset a4-score --measures-per-system 3 --systems-per-page 4 --title-page
-acorde print-report input.musicxml --preset letter-part --part 0 --measures-per-system 3
+acorde print-report input.musicxml --preset letter-part --part 0 --measures-per-system 3 \
+  --running-title "Suite" --page-number-in-footer
 acorde info input.musicxml
 acorde validate input.musicxml
 acorde preflight input.musicxml
@@ -190,7 +191,9 @@ break reasons, publication metadata, measure text annotations, and resource/span
 Use `--preset a4-score` or `--preset letter-score` for full scores, and
 `--preset a4-part`/`--preset letter-part` with `--part` for extracted parts. Other layout options
 override only the selected preset's deterministic starting configuration. It does not generate PDF
-or access a printer.
+or access a printer. `--running-title`, `--header-text`, `--footer-text`,
+`--page-number-in-footer`, and `--no-part-names` control publication metadata without selecting
+fonts or changing score semantics.
 `validate` performs the same local structural checks for tablature metadata and explicit string
 positions; it does not require a SoundFont or network access.
 `preflight` reports SVG renderer capability boundaries before rendering.

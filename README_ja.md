@@ -67,7 +67,8 @@ acorde convert input.mid output.musicxml
 acorde render input.musicxml output.svg
 acorde render-report input.musicxml output.svg --fail-on-issues
 acorde print-report input.musicxml --preset a4-score --measures-per-system 3 --systems-per-page 4 --title-page
-acorde print-report input.musicxml --preset letter-part --part 0 --measures-per-system 3
+acorde print-report input.musicxml --preset letter-part --part 0 --measures-per-system 3 \
+  --running-title "Suite" --page-number-in-footer
 acorde info input.musicxml
 acorde validate input.musicxml
 acorde validate guitar.musicxml       # タブ譜の線数・調弦・弦番号も検証
@@ -97,6 +98,8 @@ acorde playback-compare expected.json actual.json --fail-on-mismatch
 行いません。`--preset a4-score`/`letter-score` は全体譜、`--preset a4-part`/`letter-part`
 は `--part` と組み合わせたパート譜です。その他のレイアウトオプションは、選択したプリセット
 の決定論的な初期値を上書きします。
+`--running-title`、`--header-text`、`--footer-text`、`--page-number-in-footer`、
+`--no-part-names` で出版メタデータも指定できます。フォント選択やScoreの意味論は変更しません。
 `tab-position --clear` で明示位置を解除できます。各インデックスは0始まりで、`--string`だけ
 1始まりです。
 `auto-tab` は未指定の単音・コードに対し、フレット負荷と前後のポジション移動を抑える

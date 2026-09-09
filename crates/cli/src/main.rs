@@ -22,6 +22,19 @@ enum PrintPresetArg {
     LetterPart,
 }
 
+struct PrintReportOptions<'a> {
+    preset: PrintPresetArg,
+    part: Option<usize>,
+    measures_per_system: usize,
+    systems_per_page: Option<usize>,
+    title_page: bool,
+    running_title: Option<&'a str>,
+    header_text: Option<&'a str>,
+    footer_text: Option<&'a str>,
+    page_number_in_footer: bool,
+    show_part_names: bool,
+}
+
 #[derive(Parser)]
 #[command(
     name = "score",
@@ -101,6 +114,21 @@ enum Commands {
         /// Add a metadata-only title page
         #[arg(long)]
         title_page: bool,
+        /// Running title for non-title pages
+        #[arg(long)]
+        running_title: Option<String>,
+        /// Logical page header text
+        #[arg(long)]
+        header_text: Option<String>,
+        /// Logical page footer text
+        #[arg(long)]
+        footer_text: Option<String>,
+        /// Add the logical page number to the footer blocks
+        #[arg(long)]
+        page_number_in_footer: bool,
+        /// Omit part-name publication blocks
+        #[arg(long)]
+        no_part_names: bool,
     },
     /// Print title, parts, measure count, and duration estimate
     Info {
@@ -327,13 +355,25 @@ fn main() {
             measures_per_system,
             systems_per_page,
             title_page,
+            running_title,
+            header_text,
+            footer_text,
+            page_number_in_footer,
+            no_part_names,
         } => cmd_print_report(
             input,
-            *preset,
-            *part,
-            *measures_per_system,
-            *systems_per_page,
-            *title_page,
+            PrintReportOptions {
+                preset: *preset,
+                part: *part,
+                measures_per_system: *measures_per_system,
+                systems_per_page: *systems_per_page,
+                title_page: *title_page,
+                running_title: running_title.as_deref(),
+                header_text: header_text.as_deref(),
+                footer_text: footer_text.as_deref(),
+                page_number_in_footer: *page_number_in_footer,
+                show_part_names: !*no_part_names,
+            },
         ),
         Commands::Info { input } => cmd_info(input),
         Commands::Validate { input } => cmd_validate(input),
@@ -625,43 +665,49 @@ fn cmd_render_report(
     Ok(())
 }
 
-fn cmd_print_report(
-    input: &Path,
-    preset: PrintPresetArg,
-    part: Option<usize>,
-    measures_per_system: usize,
-    systems_per_page: Option<usize>,
-    title_page: bool,
-) -> Result<(), String> {
+fn cmd_print_report(input: &Path, options: PrintReportOptions<'_>) -> Result<(), String> {
     let score = parse_score(input)?;
-    let preset = match preset {
-        PrintPresetArg::A4Score if part.is_some() => {
-            return Err("--part requires an extracted-part preset".to_string());
-        }
-        PrintPresetArg::LetterScore if part.is_some() => {
-            return Err("--part requires an extracted-part preset".to_string());
-        }
-        PrintPresetArg::A4Score => acorde_layout::PrintPreset::A4Score,
-        PrintPresetArg::LetterScore => acorde_layout::PrintPreset::LetterScore,
-        PrintPresetArg::A4Part => acorde_layout::PrintPreset::A4Part {
-            part_index: part.ok_or("--part is required for --preset a4-part")?,
-        },
-        PrintPresetArg::LetterPart => acorde_layout::PrintPreset::LetterPart {
-            part_index: part.ok_or("--part is required for --preset letter-part")?,
-        },
-    };
-    let mut config = preset.config_with_title_page(title_page);
-    config = acorde_layout::PrintConfig {
-        measures_per_system,
-        systems_per_page,
-        ..config
-    };
+    let config = build_print_config(&options)?;
     let layout = acorde_layout::compute_print_layout(&score, &config)
         .map_err(|e| format!("print layout failed: {e}"))?;
     serde_json::to_writer_pretty(std::io::stdout(), &layout)
         .map_err(|e| format!("print report serialization failed: {e}"))?;
     println!();
     Ok(())
+}
+
+fn build_print_config(
+    options: &PrintReportOptions<'_>,
+) -> Result<acorde_layout::PrintConfig, String> {
+    let preset = match options.preset {
+        PrintPresetArg::A4Score if options.part.is_some() => {
+            return Err("--part requires an extracted-part preset".to_string());
+        }
+        PrintPresetArg::LetterScore if options.part.is_some() => {
+            return Err("--part requires an extracted-part preset".to_string());
+        }
+        PrintPresetArg::A4Score => acorde_layout::PrintPreset::A4Score,
+        PrintPresetArg::LetterScore => acorde_layout::PrintPreset::LetterScore,
+        PrintPresetArg::A4Part => acorde_layout::PrintPreset::A4Part {
+            part_index: options
+                .part
+                .ok_or("--part is required for --preset a4-part")?,
+        },
+        PrintPresetArg::LetterPart => acorde_layout::PrintPreset::LetterPart {
+            part_index: options
+                .part
+                .ok_or("--part is required for --preset letter-part")?,
+        },
+    };
+    let mut config = preset.config_with_title_page(options.title_page);
+    config.measures_per_system = options.measures_per_system;
+    config.systems_per_page = options.systems_per_page;
+    config.publication.running_title = options.running_title.map(str::to_owned);
+    config.publication.header_text = options.header_text.map(str::to_owned);
+    config.publication.footer_text = options.footer_text.map(str::to_owned);
+    config.publication.page_number_in_footer = options.page_number_in_footer;
+    config.publication.show_part_names = options.show_part_names;
+    Ok(config)
 }
 
 fn cmd_analyze(input: &Path) -> Result<(), String> {
@@ -1711,5 +1757,53 @@ mod tests {
         assert!(!report.within_tolerance);
         assert_eq!(report.matched_events, expected.len() - 1);
         assert!(playback_comparison_report(&expected, &actual, -0.001, 0.005).is_err());
+    }
+
+    #[test]
+    fn print_report_config_preserves_preset_and_publication_policies() {
+        let config = build_print_config(&PrintReportOptions {
+            preset: PrintPresetArg::LetterPart,
+            part: Some(2),
+            measures_per_system: 3,
+            systems_per_page: Some(4),
+            title_page: true,
+            running_title: Some("Suite"),
+            header_text: Some("Header"),
+            footer_text: Some("Footer"),
+            page_number_in_footer: true,
+            show_part_names: false,
+        })
+        .expect("print config succeeds");
+        assert_eq!(config.paper_size, acorde_layout::PaperSize::Letter);
+        assert_eq!(
+            config.part_layout,
+            acorde_layout::PartLayoutPolicy::ExtractedPart { part_index: 2 }
+        );
+        assert_eq!(config.measures_per_system, 3);
+        assert_eq!(config.systems_per_page, Some(4));
+        assert!(config.publication.title_page);
+        assert_eq!(config.publication.running_title.as_deref(), Some("Suite"));
+        assert_eq!(config.publication.header_text.as_deref(), Some("Header"));
+        assert_eq!(config.publication.footer_text.as_deref(), Some("Footer"));
+        assert!(config.publication.page_number_in_footer);
+        assert!(!config.publication.show_part_names);
+    }
+
+    #[test]
+    fn print_report_config_rejects_part_on_full_score_preset() {
+        let error = build_print_config(&PrintReportOptions {
+            preset: PrintPresetArg::A4Score,
+            part: Some(0),
+            measures_per_system: 4,
+            systems_per_page: None,
+            title_page: false,
+            running_title: None,
+            header_text: None,
+            footer_text: None,
+            page_number_in_footer: false,
+            show_part_names: true,
+        })
+        .expect_err("full score must reject part selection");
+        assert!(error.contains("requires an extracted-part preset"));
     }
 }
