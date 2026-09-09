@@ -30,6 +30,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   with an unreviewed latest tool release.
 - Restricted the publish workflow to read-only repository permissions and explicit version-tag refs,
   preventing accidental branch-based manual publication.
+- Synchronized the machine-readable scorecard with the candidate CI gate, including formatting and
+  workspace packaging verification.
 - Added the missing WASM `parse_mxl_report` binding so the browser MXL diagnostic path matches the
   existing IO report contract.
 - Added the CLI `render` command for deterministic input-file-to-SVG rendering through the

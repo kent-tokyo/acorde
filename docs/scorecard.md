@@ -13,6 +13,7 @@ The framework-neutral browser adapter now covers transactional loading for Music
 ABC, MIDI, MSCX, and MSCZ, plus MusicXML/MEI/ABC/MIDI export. This is an adapter/API capability,
 not evidence of global format losslessness or external application parity.
 
-The `evidence.security_checks` commands are local release gates. Browser E2E, cross-browser
-raster fidelity, and host-measured latency require their respective environments and are not
-claimed by native Rust test results alone.
+The `evidence.security_checks` commands are local release gates and now match the CI candidate
+workflow, including formatting, all-feature/all-target validation, and workspace packaging.
+Browser E2E, cross-browser raster fidelity, and host-measured latency require their respective
+environments and are not claimed by native Rust test results alone.

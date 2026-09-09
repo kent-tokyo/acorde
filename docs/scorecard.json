@@ -50,10 +50,12 @@
     "coverage_matrix": "docs/notation-coverage.md",
     "analysis_corpus": "benchmarks/analysis.json (synthetic local benchmark; independent corpus pending)",
     "security_checks": [
+      "cargo fmt --all -- --check",
       "cargo test --all-features --locked",
-      "cargo clippy --all --all-features --locked -- -D warnings",
+      "cargo clippy --all-features --locked --all-targets -- -D warnings",
       "cargo deny check advisories licenses sources --disable-fetch",
-      "cargo audit --no-fetch"
+      "cargo audit --no-fetch",
+      "cargo package --workspace --locked"
     ]
   }
 }
