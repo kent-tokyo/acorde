@@ -2470,6 +2470,16 @@ fn render_pitched_note(
     let min_pos = *positions.iter().min().unwrap_or(&0);
     let max_pos = *positions.iter().max().unwrap_or(&0);
     let notehead_offsets = chord_notehead_offsets(&positions);
+    let has_accidentals: Vec<bool> = note
+        .pitches
+        .iter()
+        .enumerate()
+        .map(|(pitch_index, _)| {
+            let key: AccKey = (part, staff, measure_idx, voice_idx, note_idx, pitch_index);
+            mandatory.contains_key(&key) || courtesy.contains_key(&key)
+        })
+        .collect();
+    let accidental_offsets = chord_accidental_offsets(&positions, &has_accidentals);
 
     // Ledger lines (union across the chord's noteheads).
     let mut ledgers: Vec<i32> = Vec::new();
@@ -2489,7 +2499,7 @@ fn render_pitched_note(
     for (pitch_idx, _pitch) in note.pitches.iter().enumerate() {
         let key: AccKey = (part, staff, measure_idx, voice_idx, note_idx, pitch_idx);
         let y = staff_bottom_y + geometry::position_y(positions[pitch_idx], space);
-        let acc_x = x - 0.55 * space;
+        let acc_x = x - (0.55 + accidental_offsets[pitch_idx]) * space;
         if let Some(&alter) = mandatory.get(&key) {
             if alter.unsigned_abs() > 2 {
                 return Err(RenderError::UnsupportedAccidental { alter });
@@ -2593,12 +2603,39 @@ fn chord_notehead_offsets(positions: &[i32]) -> Vec<f32> {
     ordered.sort_by_key(|&index| positions[index]);
     let mut shifted = false;
     for pair in ordered.windows(2) {
-        if (positions[pair[1]] - positions[pair[0]]).abs() <= 2 {
+        if (positions[pair[1]] - positions[pair[0]]).abs() <= 1 {
             shifted = !shifted;
             offsets[pair[1]] = if shifted { CHORD_SECOND_SHIFT_U } else { 0.0 };
         } else {
             shifted = false;
         }
+    }
+    offsets
+}
+
+/// Add leftward columns for vertically adjacent chord accidentals. Wide intervals retain the
+/// ordinary single accidental column, while a cluster gets deterministic spacing without
+/// changing pitch order or the notehead/stem anchor.
+fn chord_accidental_offsets(positions: &[i32], has_accidentals: &[bool]) -> Vec<f32> {
+    let mut offsets = vec![0.0; positions.len()];
+    let mut ordered: Vec<usize> = (0..positions.len()).collect();
+    ordered.sort_by_key(|&index| positions[index]);
+    for (ordered_index, &pitch_index) in ordered.iter().enumerate() {
+        if !has_accidentals.get(pitch_index).copied().unwrap_or(false) {
+            continue;
+        }
+        let mut column = 0usize;
+        for &previous in ordered[..ordered_index].iter().rev() {
+            if !has_accidentals.get(previous).copied().unwrap_or(false) {
+                continue;
+            }
+            if (positions[pitch_index] - positions[previous]).abs() <= 1 {
+                column = column.max((offsets[previous] / 0.65_f32).round() as usize + 1);
+            } else {
+                break;
+            }
+        }
+        offsets[pitch_index] = column as f32 * 0.65;
     }
     offsets
 }

@@ -31,6 +31,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   avoid complete visual overlap.
 - Added alternating horizontal offsets for adjacent diatonic tones inside a chord, with a
   structural regression for dense second-based chord shapes.
+- Added deterministic leftward columns for vertically adjacent accidentals in a chord, with a
+  structural regression for an adjacent sharp cluster.
 - Included note-attached lyric, dynamic, chord, fingering/technique, microtone, articulation, and
   span offsets in conservative vertical content margins, with a structural regression fixture.
 - Hardened `CommandStack` command, batch, undo, and redo boundaries with validated candidate

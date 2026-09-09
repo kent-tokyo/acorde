@@ -1144,3 +1144,26 @@ fn adjacent_tones_in_a_chord_get_alternating_notehead_offsets() {
     assert_eq!(centers.len(), 3);
     assert!(centers.iter().any(|&center| center != centers[0]));
 }
+
+#[test]
+fn adjacent_accidentals_in_a_chord_get_separate_columns() {
+    use acorde_core::{Duration, Measure, Note, Part, Pitch, Score, Staff, Step};
+    let mut score = Score::new("accidental cluster", 120, 4, 4, 0, 1);
+    let mut note = Note::new(Pitch::with_alter(Step::C, 5, 1), Duration::Quarter);
+    note.pitches.push(Pitch::with_alter(Step::D, 5, 1));
+    let mut staff = Staff::new(acorde_core::Clef::Treble);
+    staff.measures.push(Measure::empty(4, 4));
+    staff.measures[0].voices[0] = vec![note];
+    score.parts = vec![Part::new("Cluster", "Cl.")];
+    score.parts[0].staves = vec![staff];
+
+    let svg = render_svg(&score, &opts()).unwrap();
+    let accidental_xs: Vec<&str> = svg
+        .split("acorde-accidental")
+        .skip(1)
+        .filter_map(|fragment| fragment.split(r#"x1=""#).nth(1))
+        .filter_map(|value| value.split('"').next())
+        .collect();
+    assert!(accidental_xs.len() >= 2);
+    assert_ne!(accidental_xs[0], accidental_xs[1]);
+}
