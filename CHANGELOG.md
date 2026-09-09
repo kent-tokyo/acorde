@@ -25,6 +25,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   expanded labels and offsets do not separate the header from its staff system.
 - Rejected render options when content-aware margins and notation headers leave no usable measure
   width, preventing silent SVG overflow on undersized output canvases.
+- Added centered deterministic horizontal separation for simultaneous non-empty voices and a
+  structural regression covering opposing voice noteheads.
 - Included note-attached lyric, dynamic, chord, fingering/technique, microtone, articulation, and
   span offsets in conservative vertical content margins, with a structural regression fixture.
 - Hardened `CommandStack` command, batch, undo, and redo boundaries with validated candidate

@@ -1074,3 +1074,19 @@ fn multi_voice_two_voices_get_opposite_stem_directions() {
         4
     );
 }
+
+#[test]
+fn simultaneous_voice_noteheads_get_deterministic_horizontal_separation() {
+    let svg = render_svg(&common::satb_major(), &opts()).unwrap();
+    let centers: Vec<f32> = svg
+        .split(r#"class="acorde-notehead""#)
+        .skip(1)
+        .filter_map(|fragment| fragment.split(r#"cx=""#).nth(1))
+        .filter_map(|value| value.split('"').next())
+        .filter_map(|value| value.parse().ok())
+        .collect();
+    assert!(centers.len() >= 8);
+    // The first staff's voice-0 and voice-1 notes occur at indexes 0 and 4.
+    assert!((centers[0] - centers[4]).abs() >= 0.65 * opts().staff_size - 0.01);
+    assert_ne!(centers[0], centers[4]);
+}

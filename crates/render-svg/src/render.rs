@@ -31,6 +31,7 @@ const SYSTEM_GAP_U: f32 = 9.0; // extra gap between the last staff of a system a
 const STAFF_HEIGHT_U: f32 = 4.0; // top line to bottom line
 const HEADER_GAP_U: f32 = 0.4;
 const MEASURE_PAD_U: f32 = 0.6; // padding at each end of a measure's content area
+const VOICE_SEPARATION_U: f32 = 0.65; // minimum center-to-center separation for simultaneous voices
 
 /// Accidental lookup key: (part, staff, measure, voice, note_index, pitch_index).
 type AccKey = (usize, usize, usize, usize, usize, usize);
@@ -1264,6 +1265,12 @@ fn render_measure(
         .iter()
         .filter(|v| v.iter().any(|n| !n.is_rest))
         .count();
+    let voice_slots: Vec<usize> = measure
+        .voices
+        .iter()
+        .enumerate()
+        .filter_map(|(index, voice)| (!voice.is_empty()).then_some(index))
+        .collect();
 
     let mut opened = String::new();
     if interactive {
@@ -1287,8 +1294,17 @@ fn render_measure(
         let mut xs = Vec::with_capacity(notes.len());
         let mut beat_pos = 0.0f64;
         for note in notes {
-            let voice_offset = if active_voices > 2 {
-                (voice_idx as f32 - 0.5) * 0.14 * space
+            let voice_offset = if voice_slots.len() > 1 {
+                // Center simultaneous voices around the beat. This keeps opposing stems and
+                // noteheads legible without changing their temporal positions; single-voice
+                // output retains its historical coordinates.
+                let voice_rank = voice_slots
+                    .iter()
+                    .position(|&index| index == voice_idx)
+                    .unwrap_or(0);
+                (voice_rank as f32 - (voice_slots.len().saturating_sub(1) as f32 / 2.0))
+                    * VOICE_SEPARATION_U
+                    * space
             } else {
                 0.0
             };
