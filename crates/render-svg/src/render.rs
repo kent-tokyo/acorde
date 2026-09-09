@@ -760,7 +760,13 @@ fn content_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
             continue;
         };
         for measure in &score.parts[part].staves[staff].measures {
-            for voice in &measure.voices {
+            let active_voices = measure
+                .voices
+                .iter()
+                .filter(|voice| voice.iter().any(|note| !note.is_rest))
+                .count();
+            for (voice_index, voice) in measure.voices.iter().enumerate() {
+                let voice_stem_up = active_voices <= 1 || voice_index.is_multiple_of(2);
                 for note in voice {
                     for pitch in &note.pitches {
                         let position =
@@ -835,6 +841,24 @@ fn content_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
                         })
                         .min()
                         .unwrap_or(0);
+                    if !note.is_rest && !matches!(note.duration, acorde_core::Duration::Whole) {
+                        let stem_up = note.stem_up.unwrap_or(voice_stem_up);
+                        let flag_count = match note.duration {
+                            acorde_core::Duration::Eighth => 1,
+                            acorde_core::Duration::Sixteenth => 2,
+                            acorde_core::Duration::ThirtySecond => 3,
+                            acorde_core::Duration::SixtyFourth => 4,
+                            _ => 0,
+                        };
+                        let stem_extent =
+                            glyphs::DEFAULT_STEM_LEN_U + flag_count as f32 * 0.35 + 0.25;
+                        if stem_up {
+                            top = top.max(stem_extent + ((min_position - 8).max(0) as f32 / 2.0));
+                        } else {
+                            bottom =
+                                bottom.max(stem_extent + ((-max_position).max(0) as f32 / 2.0));
+                        }
+                    }
                     top = top.max(annotation_top + ((max_position - 8).max(0) as f32 / 2.0));
                     bottom = bottom.max(annotation_bottom + ((-min_position).max(0) as f32 / 2.0));
                 }
