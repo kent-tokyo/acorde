@@ -48,6 +48,13 @@ failed layout preparation leaves the current score unchanged.
 `exportMusicXml` provides offline MusicXML export. `playbackEvents`, `playbackPosition`, and
 `durationSeconds` expose deterministic scheduling data to a host audio backend without coupling
 the adapter to Web Audio or another playback framework.
+`comparePlaybackTiming(actualEvents, tolerance, options)` compares a host scheduler trace with
+the expected event trace using the versioned WASM contract. It checks event identity and timing,
+not audio output, device latency, or SoundFont behavior. `tablaturePerformance(options)` maps
+authored string/fret positions onto playback events and returns explicit pitch/position
+diagnostics; `tablatureRoundTripReport()` checks the canonical score JSON boundary. These methods
+support alphaTab-like browser hosts while keeping scheduling, synthesis, and rendering outside
+the adapter.
 `loadMusicXmlWithReport` and `exportMusicXmlWithReport` additionally return structured
 interchange diagnostics, including preserved values and loss reasons when the format adapter
 has such information, so hosts can present repair guidance without parsing error strings.
@@ -64,7 +71,9 @@ combines that lookup with selection updates; `WorkspaceSnapshot.selectedAddress`
 state available to persistence and view synchronization code.
 `WorkspaceRequest` and `handleWorkspaceRequest` provide a serializable message boundary for
 Worker hosts; the same handler returns correlated success or structured error responses for load,
-edit, render, analysis, playback, and export operations.
+edit, render, analysis, playback, tablature validation, and export operations. The playback
+comparison request carries `actualEvents`, optional `tolerance`, and the same playback `options`
+used to produce the expected trace, making Worker validation inputs explicit.
 `encodeScoreJson`, `decodeScoreJson`, `scoreJsonBytes`, and the `replace-score-bytes` request use
 UTF-8 `Uint8Array` transport, preserving the string API while allowing Worker structured-clone
 messages to avoid carrying an additional JavaScript string representation.

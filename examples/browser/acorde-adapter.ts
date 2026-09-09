@@ -13,7 +13,8 @@ export type WorkspaceOperation =
   | "analysis"
   | "compatibility"
   | "serialize"
-  | "playback";
+  | "playback"
+  | "tab-performance";
 
 /** Structured, host-facing error for showing a repair hint without parsing strings. */
 export class AcordeWorkspaceError extends Error {
@@ -46,6 +47,9 @@ export interface WasmBindings {
   compatibility_report(sourceJson: string, candidateJson: string): string;
   analysis_cache_key(scoreJson: string): string;
   to_playback_events_ex(scoreJson: string, optionsJson: string): string;
+  compare_playback_timing(expectedJson: string, actualJson: string, toleranceJson: string): string;
+  project_tablature_performance(scoreJson: string, optionsJson: string): string;
+  tablature_round_trip_report(scoreJson: string): string;
   compute_playback_position(scoreJson: string, optionsJson: string, elapsedSecs: number): string;
   score_duration_secs(scoreJson: string): number;
 }
@@ -87,6 +91,36 @@ export interface PlaybackEvent {
   time_secs: number;
   duration_secs: number;
   [key: string]: unknown;
+}
+
+export interface PlaybackTimingReport {
+  contract_version: number;
+  expected_events: number;
+  actual_events: number;
+  matched_events: number;
+  max_start_error_secs: number;
+  max_duration_error_secs: number;
+  within_tolerance: boolean;
+  mismatches: unknown[];
+}
+
+export interface PlaybackTimingTolerance {
+  start_secs: number;
+  duration_secs: number;
+}
+
+export interface TablaturePerformanceReport {
+  contract_version: number;
+  events: Array<Record<string, unknown>>;
+  diagnostics: unknown[];
+}
+
+export interface TablatureRoundTripReport {
+  contract_version: number;
+  checked_notes: number;
+  positioned_notes: number;
+  equivalent: boolean;
+  diagnostics: unknown[];
 }
 
 export interface ScoreWorkspaceOptions {
@@ -160,6 +194,15 @@ export type WorkspaceRequest =
   | { id: string; type: "export-musicxml" }
   | { id: string; type: "export-musicxml-report" }
   | { id: string; type: "playback-events"; options?: Record<string, unknown> }
+  | {
+    id: string;
+    type: "compare-playback-timing";
+    actualEvents: PlaybackEvent[];
+    options?: Record<string, unknown>;
+    tolerance?: Record<string, unknown>;
+  }
+  | { id: string; type: "tablature-performance"; options?: Record<string, unknown> }
+  | { id: string; type: "tablature-round-trip" }
   | { id: string; type: "playback-position"; elapsedSecs: number; options?: Record<string, unknown> }
   | { id: string; type: "select-playback-at"; elapsedSecs: number; options?: Record<string, unknown> }
   | { id: string; type: "duration-seconds" };
@@ -471,6 +514,48 @@ export class AcordeWorkspace {
     }
   }
 
+  /** Compare a host scheduler trace with the deterministic score schedule. */
+  comparePlaybackTiming(
+    actualEvents: PlaybackEvent[],
+    tolerance: Partial<PlaybackTimingTolerance> = {},
+    options: Record<string, unknown> = {},
+  ): PlaybackTimingReport {
+    this.assertLoaded();
+    try {
+      return JSON.parse(this.wasm.compare_playback_timing(
+        JSON.stringify(this.playbackEvents(options)),
+        JSON.stringify(actualEvents),
+        JSON.stringify({ start_secs: 0.005, duration_secs: 0.005, ...tolerance }),
+      )) as PlaybackTimingReport;
+    } catch (cause) {
+      throw this.toWorkspaceError("playback", cause);
+    }
+  }
+
+  /** Project authored tablature positions onto deterministic playback events. */
+  tablaturePerformance(options: Record<string, unknown> = {}): TablaturePerformanceReport {
+    this.assertLoaded();
+    try {
+      return JSON.parse(this.wasm.project_tablature_performance(
+        this.scoreJson,
+        JSON.stringify(options),
+      )) as TablaturePerformanceReport;
+    } catch (cause) {
+      throw this.toWorkspaceError("tab-performance", cause);
+    }
+  }
+
+  /** Verify authored tablature across the canonical score JSON boundary. */
+  tablatureRoundTripReport(): TablatureRoundTripReport {
+    this.assertLoaded();
+    try {
+      return JSON.parse(this.wasm.tablature_round_trip_report(this.scoreJson))
+        as TablatureRoundTripReport;
+    } catch (cause) {
+      throw this.toWorkspaceError("tab-performance", cause);
+    }
+  }
+
   /** Synchronize notation selection with a sounding event from the host audio scheduler. */
   selectPlaybackEvent(event: Pick<PlaybackEvent, "address">): void {
     this.selection.set(event.address);
@@ -668,6 +753,20 @@ export function handleWorkspaceRequest(
         return { id: request.id, ok: true, value: workspace.exportMusicXmlWithReport() };
       case "playback-events":
         return { id: request.id, ok: true, value: workspace.playbackEvents(request.options) };
+      case "compare-playback-timing":
+        return {
+          id: request.id,
+          ok: true,
+          value: workspace.comparePlaybackTiming(
+            request.actualEvents,
+            request.tolerance,
+            request.options,
+          ),
+        };
+      case "tablature-performance":
+        return { id: request.id, ok: true, value: workspace.tablaturePerformance(request.options) };
+      case "tablature-round-trip":
+        return { id: request.id, ok: true, value: workspace.tablatureRoundTripReport() };
       case "playback-position":
         return {
           id: request.id,
