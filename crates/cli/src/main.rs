@@ -488,6 +488,7 @@ struct RenderReportSummary {
     output_path: String,
     rendered: bool,
     svg_byte_count: usize,
+    svg_fingerprint: Option<String>,
     render_error: Option<String>,
     import_warning_count: usize,
     import_error_count: usize,
@@ -512,15 +513,16 @@ fn render_report_summary(
         measures_per_system,
         interactive,
     };
-    let (rendered, svg_byte_count, render_error) =
+    let (rendered, svg_byte_count, svg_fingerprint, render_error) =
         match acorde_render_svg::render_svg(&import.score, &options) {
             Ok(svg) => {
                 let byte_count = svg.len();
+                let fingerprint = bytes_fingerprint(svg.as_bytes());
                 std::fs::write(output, svg)
                     .map_err(|e| format!("cannot write '{}': {e}", output.display()))?;
-                (true, byte_count, None)
+                (true, byte_count, Some(fingerprint), None)
             }
-            Err(error) => (false, 0, Some(error.to_string())),
+            Err(error) => (false, 0, None, Some(error.to_string())),
         };
     let import_warning_count = import.warning_count();
     let import_error_count = import.error_count();
@@ -532,6 +534,7 @@ fn render_report_summary(
         output_path: output.display().to_string(),
         rendered,
         svg_byte_count,
+        svg_fingerprint,
         render_error,
         import_warning_count,
         import_error_count,
@@ -708,6 +711,15 @@ fn benchmark_fingerprint(manifest: &BenchmarkManifest, base_dir: &Path) -> Resul
         }
     }
     Ok(format!("fnv1a64-{hash:016x}"))
+}
+
+fn bytes_fingerprint(bytes: &[u8]) -> String {
+    let mut hash = 0xcbf29ce484222325_u64;
+    for byte in bytes {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    format!("fnv1a64-{hash:016x}")
 }
 
 // ── convert ───────────────────────────────────────────────────────────────────
@@ -1512,7 +1524,42 @@ mod tests {
         assert!(report.import_diagnostics.is_empty());
         assert!(report.renderer_issues.is_empty());
         assert!(report.svg_byte_count > 0);
+        assert!(report.svg_fingerprint.is_some());
         std::fs::remove_file(output).expect("temporary render report output is removable");
+    }
+
+    #[test]
+    fn render_report_fingerprint_is_stable_for_same_input_and_options() {
+        let first_output = std::env::temp_dir().join(format!(
+            "acorde-cli-render-report-fingerprint-first-{}.svg",
+            std::process::id()
+        ));
+        let second_output = std::env::temp_dir().join(format!(
+            "acorde-cli-render-report-fingerprint-second-{}.svg",
+            std::process::id()
+        ));
+        let first = render_report_summary(
+            &fixture("simple.musicxml"),
+            &first_output,
+            900.0,
+            24.0,
+            4,
+            true,
+        )
+        .expect("first render report succeeds");
+        let second = render_report_summary(
+            &fixture("simple.musicxml"),
+            &second_output,
+            900.0,
+            24.0,
+            4,
+            true,
+        )
+        .expect("second render report succeeds");
+        assert_eq!(first.svg_byte_count, second.svg_byte_count);
+        assert_eq!(first.svg_fingerprint, second.svg_fingerprint);
+        std::fs::remove_file(first_output).expect("first temporary output is removable");
+        std::fs::remove_file(second_output).expect("second temporary output is removable");
     }
 
     #[test]

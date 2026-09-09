@@ -57,10 +57,11 @@ exits with status 1 when structural errors are found. report emits the parsed sc
 import diagnostics as JSON.
 preflight emits renderer capability issues with stable score source locations as JSON before SVG
 generation.
-`render-report` writes the SVG and emits the input format, byte count, import diagnostics, and
-renderer preflight issues as one JSON report. `--fail-on-issues` makes any such issue a non-zero
-exit. When rendering is rejected, the report still contains `rendered: false` and `render_error`;
-no incomplete SVG is written.
+`render-report` writes the SVG and emits the input format, byte count, deterministic
+`svg_fingerprint`, import diagnostics, and renderer preflight issues as one JSON report.
+`--fail-on-issues` makes any such issue a non-zero exit. When rendering is rejected, the report
+still contains `rendered: false` and `render_error`; no incomplete SVG is written. The fingerprint
+is a local `fnv1a64-*` evidence identifier, not a cryptographic publication hash.
 `--fail-on-issues` keeps the JSON output but exits with status 1 when any issue is found, which is
 useful for CI gates.
 The repository fixture `tests/fixtures/render_preflight_unsupported.musicxml` demonstrates the

@@ -16,6 +16,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   metadata in a deterministic JSON report with an optional non-zero issue gate.
 - Render reports now retain rejected-render status and error details instead of discarding
   renderer preflight failures without a machine-readable result.
+- Added a deterministic local `svg_fingerprint` to render reports and regression coverage proving
+  repeated renders with identical inputs and options produce the same evidence identifier.
 
 ## [1.1.6] - 2026-09-09
 
