@@ -68,7 +68,8 @@ is a local `fnv1a64-*` evidence identifier, not a cryptographic publication hash
 useful for CI gates.
 The repository fixture `tests/fixtures/render_preflight_unsupported.musicxml` demonstrates the
 failure path without external resources.
-`print-report` emits a versioned JSON report containing import format/schema and diagnostics plus
+`print-report` emits a versioned JSON report containing import format/schema, import diagnostics,
+and renderer preflight issues plus
 the host-neutral `PrintLayoutResult` under `layout`, including physical pages and systems, typed
 break reasons, publication metadata, normalized measure text annotations, and glyph/span
 diagnostics. Select `--preset a4-score` or `--preset letter-score` for full scores;
@@ -77,7 +78,7 @@ emits no PDF or printer output; `--title-page` and the system/page capacity opti
 deterministic layout inputs. `--running-title`, `--header-text`, `--footer-text`,
 `--page-number-in-footer`, and `--no-part-names` add deterministic publication metadata without
 moving font or printer responsibilities into the CLI. `--fail-on-issues` preserves the JSON while
-returning a non-zero status when import diagnostics are present. `--scale`,
+returning a non-zero status when import or renderer issues are present. `--scale`,
 `--first-system-measures`, `--final-page-policy`, `--notation-break-policy`, and `--pickup-policy`
 expose the existing deterministic system-breaking policies.
 analyze emits deterministic chord, melodic-interval, and key-estimate results as JSON.

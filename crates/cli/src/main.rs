@@ -81,6 +81,7 @@ struct PrintReportSummary {
     import_error_count: usize,
     import_loss_count: usize,
     import_diagnostics: Vec<acorde_io::Diagnostic>,
+    renderer_issues: Vec<acorde_render_svg::RenderPreflightIssue>,
     layout: acorde_layout::PrintLayoutResult,
 }
 
@@ -749,7 +750,8 @@ fn cmd_print_report(input: &Path, options: PrintReportOptions<'_>) -> Result<(),
     let config = build_print_config(&options)?;
     let layout = acorde_layout::compute_print_layout(&import.score, &config)
         .map_err(|e| format!("print layout failed: {e}"))?;
-    let has_issues = !import.diagnostics.is_empty();
+    let renderer_issues = acorde_render_svg::render_preflight(&import.score);
+    let has_issues = !import.diagnostics.is_empty() || !renderer_issues.is_empty();
     let import_warning_count = import.warning_count();
     let import_error_count = import.error_count();
     let import_loss_count = import.loss_count();
@@ -763,13 +765,14 @@ fn cmd_print_report(input: &Path, options: PrintReportOptions<'_>) -> Result<(),
         import_error_count,
         import_loss_count,
         import_diagnostics: import.diagnostics,
+        renderer_issues,
         layout,
     };
     serde_json::to_writer_pretty(std::io::stdout(), &report)
         .map_err(|e| format!("print report serialization failed: {e}"))?;
     println!();
     if options.fail_on_issues && has_issues {
-        return Err("print report found import diagnostic(s)".to_string());
+        return Err("print report found import or renderer issue(s)".to_string());
     }
     Ok(())
 }

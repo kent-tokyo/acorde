@@ -94,7 +94,7 @@ acorde playback-compare expected.json actual.json --fail-on-mismatch
 `rendered: false` と `render_error` を記録し、不完全な SVG は出力しません。フィンガープリントは
 ローカルでのバイト列再現性を示す証拠識別子であり、公開用の暗号学的ハッシュではありません。
 `--fail-on-issues` で問題を CI の失敗として扱えます。
-`print-report` は入力形式・スキーマ・import診断と、`layout` 内の物理ページ・システム、改ページ理由、
+`print-report` は入力形式・スキーマ・import診断・renderer preflight診断と、`layout` 内の物理ページ・システム、改ページ理由、
 出版メタデータ、小節テキスト注釈、資源・スパン診断を含むバージョン付きJSONレポートを出力します。
 PDF生成やOS印刷は
 行いません。`--preset a4-score`/`letter-score` は全体譜、`--preset a4-part`/`letter-part`
@@ -102,7 +102,7 @@ PDF生成やOS印刷は
 の決定論的な初期値を上書きします。
 `--running-title`、`--header-text`、`--footer-text`、`--page-number-in-footer`、
 `--no-part-names` で出版メタデータも指定できます。フォント選択やScoreの意味論は変更しません。
-`--fail-on-issues` を指定するとimport診断をJSONに残したまま終了コード1にできます。
+`--fail-on-issues` を指定するとimportまたはrenderer診断をJSONに残したまま終了コード1にできます。
 `--scale`、`--first-system-measures`、`--final-page-policy`、`--notation-break-policy`、
 `--pickup-policy` で既存の決定論的なシステム分割ポリシーも指定できます。
 `tab-position --clear` で明示位置を解除できます。各インデックスは0始まりで、`--string`だけ

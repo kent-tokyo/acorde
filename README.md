@@ -187,13 +187,14 @@ renderer preflight issues, render status, and
 a deterministic local `fnv1a64-*` `svg_fingerprint` as JSON; rejected renders contain
 `render_error` and do not write incomplete SVG. `--fail-on-issues` provides a deterministic CI gate.
 The fingerprint is evidence of local byte determinism, not a cryptographic publication hash.
-`print-report` emits a versioned JSON report containing input format/schema and import diagnostics,
+`print-report` emits a versioned JSON report containing input format/schema, import diagnostics,
+and renderer preflight issues,
 plus the host-neutral page/system plan under `layout`, including physical page geometry,
 break reasons, publication metadata, measure text annotations, and resource/span diagnostics.
 Use `--preset a4-score` or `--preset letter-score` for full scores, and
 `--preset a4-part`/`--preset letter-part` with `--part` for extracted parts. Other layout options
 override only the selected preset's deterministic starting configuration. `--fail-on-issues` makes
-any import diagnostic a non-zero CI result while retaining the JSON report. It does not generate PDF
+any import or renderer issue a non-zero CI result while retaining the JSON report. It does not generate PDF
 or access a printer. `--running-title`, `--header-text`, `--footer-text`,
 `--page-number-in-footer`, and `--no-part-names` control publication metadata without selecting
 fonts or changing score semantics.

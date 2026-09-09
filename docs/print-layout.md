@@ -110,8 +110,9 @@ This API deliberately does not select or embed fonts, draw glyphs, generate PDF,
 invoke OS printer APIs, or provide a preview UI. Those responsibilities belong to
 `acorde-render-svg` or the consuming application/backend. The CLI `print-report` command exposes
 the same layout contract for headless publication preflight. Its versioned report preserves the
-input format/schema and import diagnostics alongside the `layout` result, and
-`--fail-on-issues` provides a loss-aware CI gate; it does not add a PDF or printer dependency.
+input format/schema, import diagnostics, and renderer preflight issues alongside the `layout`
+result, and `--fail-on-issues` provides a loss-aware CI gate; it does not add a PDF or printer
+dependency.
 
 The `Balance` final-page policy redistributes automatically paginated systems as evenly as
 possible and is disabled when explicit page breaks are present. The current contract is a

@@ -59,6 +59,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `layout`, with `--fail-on-issues` for loss-aware publication CI gates.
 - Added CLI controls for print scale, first-system capacity, final-page balancing, notation-aware
   breaks, and pickup detection, reusing the host-neutral layout policies.
+- `print-report` now includes renderer preflight issues and its failure gate covers both import and
+  renderer boundaries before a host performs publication export.
 
 ## [1.1.6] - 2026-09-09
 
