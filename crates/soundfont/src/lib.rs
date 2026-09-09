@@ -12,6 +12,10 @@ pub const PLAYBACK_CONTRACT_VERSION: u16 = 1;
 pub const PROVIDER_CONTRACT_VERSION: u16 = 1;
 pub const MAX_ASSET_BYTES: usize = 64 * 1024 * 1024;
 pub const MAX_PRESETS: usize = 16_384;
+/// Maximum number of provider-materialized zones retained in one snapshot.
+pub const MAX_MATERIALIZED_ZONES: usize = 65_536;
+/// Maximum number of non-fatal provider diagnostics retained in one snapshot.
+pub const MAX_ZONE_DIAGNOSTICS: usize = 4_096;
 pub const MAX_POLYPHONY: usize = 256;
 pub const MAX_DECODED_FRAMES: usize = 16_000_000;
 
@@ -27,6 +31,9 @@ pub const SUPPORTED_GENERATORS: &[&str] = &[
     "endAddrsOffset",
     "startloopAddrsOffset",
     "endloopAddrsOffset",
+    "instrument",
+    "sampleID",
+    "releaseVolEnv",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -645,6 +652,228 @@ impl SoundFontAsset {
             .find(|p| p.bank == bank && p.program == program)
             .ok_or(Error::PresetNotFound { bank, program })
     }
+
+    /// Attach provider-materialized zones to this loaded asset.
+    ///
+    /// The provider remains responsible for interpreting SF2/SF3 generators and
+    /// sample tables. This method only validates the bounded, path-independent
+    /// hand-off and makes the resulting snapshot available to downstream hosts.
+    pub fn materialize_zones(
+        self,
+        zones: impl IntoIterator<Item = SoundFontPresetZone>,
+        diagnostics: impl IntoIterator<Item = SoundFontZoneDiagnostic>,
+    ) -> Result<MaterializedSoundFontAsset, Error> {
+        MaterializedSoundFontAsset::new(self, zones, diagnostics)
+    }
+}
+
+/// Typed, non-fatal information reported while a provider materializes zones.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SoundFontZoneDiagnostic {
+    MissingSample {
+        bank: u16,
+        program: u16,
+        sample_id: u64,
+    },
+    UnsupportedGenerator {
+        bank: u16,
+        program: u16,
+        generator: String,
+    },
+    InvalidZone {
+        bank: u16,
+        program: u16,
+        reason: String,
+    },
+    MissingSampleAt {
+        location: SoundFontZoneLocation,
+        sample_id: u64,
+    },
+    UnsupportedGeneratorAt {
+        location: SoundFontZoneLocation,
+        generator: String,
+    },
+    InvalidZoneAt {
+        location: SoundFontZoneLocation,
+        reason: String,
+    },
+}
+
+/// Source coordinates inside an SF2/SF3 preset/instrument table.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct SoundFontZoneLocation {
+    pub bank: u16,
+    pub program: u16,
+    pub preset_index: usize,
+    pub preset_bag_index: Option<usize>,
+    pub instrument_index: Option<usize>,
+    pub instrument_bag_index: Option<usize>,
+    pub generator_index: Option<usize>,
+}
+
+/// A loaded SoundFont plus its provider-owned, bounded zone materialization.
+///
+/// Keeping this as a wrapper preserves `SoundFontAsset` equality and the
+/// metadata-only `load` API while still giving hosts one reusable snapshot.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MaterializedSoundFontAsset {
+    pub asset: SoundFontAsset,
+    zones: Vec<SoundFontPresetZone>,
+    diagnostics: Vec<SoundFontZoneDiagnostic>,
+}
+
+impl MaterializedSoundFontAsset {
+    fn new(
+        asset: SoundFontAsset,
+        zones: impl IntoIterator<Item = SoundFontPresetZone>,
+        diagnostics: impl IntoIterator<Item = SoundFontZoneDiagnostic>,
+    ) -> Result<Self, Error> {
+        let mut zones: Vec<_> = zones.into_iter().collect();
+        if zones.len() > MAX_MATERIALIZED_ZONES {
+            return Err(Error::TooManyZones(zones.len()));
+        }
+        zones.sort_by_key(|zone| {
+            (
+                zone.bank,
+                zone.program,
+                u16::from(zone.region.key_max.saturating_sub(zone.region.key_min)),
+                u16::from(
+                    zone.region
+                        .velocity_max
+                        .saturating_sub(zone.region.velocity_min),
+                ),
+                zone.region.sample_id,
+            )
+        });
+
+        let mut diagnostics: Vec<_> = diagnostics.into_iter().collect();
+        if diagnostics.len() > MAX_ZONE_DIAGNOSTICS {
+            return Err(Error::TooManyZoneDiagnostics(diagnostics.len()));
+        }
+        diagnostics.sort_by_key(|diagnostic| diagnostic.sort_key());
+        Ok(Self {
+            asset,
+            zones,
+            diagnostics,
+        })
+    }
+
+    pub fn zones(&self) -> &[SoundFontPresetZone] {
+        &self.zones
+    }
+
+    pub fn diagnostics(&self) -> &[SoundFontZoneDiagnostic] {
+        &self.diagnostics
+    }
+
+    /// Return an owned snapshot for one bank/program without exposing provider data.
+    pub fn snapshot_for_preset(
+        &self,
+        bank: u16,
+        program: u16,
+    ) -> Result<SoundFontZoneSnapshot, Error> {
+        let preset = self.asset.preset(bank, program)?.clone();
+        Ok(SoundFontZoneSnapshot {
+            format: self.asset.format,
+            checksum: self.asset.checksum,
+            provider_version: self.asset.provider_version.clone(),
+            preset,
+            zones: self
+                .zones
+                .iter()
+                .filter(|zone| zone.bank == bank && zone.program == program)
+                .map(SoundFontPresetZone::resolved_metadata)
+                .collect(),
+            diagnostics: self
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.matches_preset(bank, program))
+                .cloned()
+                .collect(),
+        })
+    }
+}
+
+/// Owned, deterministic zone metadata suitable for a browser/worker snapshot.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SoundFontZoneSnapshot {
+    pub format: SoundFontFormat,
+    pub checksum: u64,
+    pub provider_version: String,
+    pub preset: SoundFontPreset,
+    pub zones: Vec<ResolvedPresetZoneMetadata>,
+    pub diagnostics: Vec<SoundFontZoneDiagnostic>,
+}
+
+impl SoundFontZoneDiagnostic {
+    fn sort_key(&self) -> (u16, u16, u8, String) {
+        match self {
+            Self::MissingSample {
+                bank,
+                program,
+                sample_id,
+            } => (*bank, *program, 0, sample_id.to_string()),
+            Self::UnsupportedGenerator {
+                bank,
+                program,
+                generator,
+            } => (*bank, *program, 1, generator.clone()),
+            Self::InvalidZone {
+                bank,
+                program,
+                reason,
+            } => (*bank, *program, 2, reason.clone()),
+            Self::MissingSampleAt {
+                location,
+                sample_id,
+            } => (
+                location.bank,
+                location.program,
+                3,
+                format!("{location:?}:{sample_id}"),
+            ),
+            Self::UnsupportedGeneratorAt {
+                location,
+                generator,
+            } => (
+                location.bank,
+                location.program,
+                4,
+                format!("{location:?}:{generator}"),
+            ),
+            Self::InvalidZoneAt { location, reason } => (
+                location.bank,
+                location.program,
+                5,
+                format!("{location:?}:{reason}"),
+            ),
+        }
+    }
+
+    fn matches_preset(&self, bank: u16, program: u16) -> bool {
+        match self {
+            Self::MissingSample {
+                bank: diagnostic_bank,
+                program: diagnostic_program,
+                ..
+            }
+            | Self::UnsupportedGenerator {
+                bank: diagnostic_bank,
+                program: diagnostic_program,
+                ..
+            }
+            | Self::InvalidZone {
+                bank: diagnostic_bank,
+                program: diagnostic_program,
+                ..
+            } => *diagnostic_bank == bank && *diagnostic_program == program,
+            Self::MissingSampleAt { location, .. }
+            | Self::UnsupportedGeneratorAt { location, .. }
+            | Self::InvalidZoneAt { location, .. } => {
+                location.bank == bank && location.program == program
+            }
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
@@ -659,6 +888,10 @@ pub enum Error {
     NoPresets,
     #[error("SoundFont contains too many presets ({0})")]
     TooManyPresets(usize),
+    #[error("SoundFont contains too many materialized zones ({0})")]
+    TooManyZones(usize),
+    #[error("SoundFont contains too many zone diagnostics ({0})")]
+    TooManyZoneDiagnostics(usize),
     #[error("SoundFont preset ({bank}, {program}) was not found")]
     PresetNotFound { bank: u16, program: u16 },
     #[error("invalid playback configuration")]
@@ -730,6 +963,558 @@ pub fn load(data: &[u8], provider_version: impl Into<String>) -> Result<SoundFon
         provider_version: provider_version.into(),
         presets,
     })
+}
+
+/// Load a SoundFont and materialize the supported preset/instrument generator subset.
+///
+/// This remains a metadata operation: sample bytes are not decoded and unsupported
+/// generators are reported as diagnostics. Providers that need a larger generator
+/// projection can still construct [`SoundFontPresetZone`] values themselves.
+pub fn load_materialized(
+    data: &[u8],
+    provider_version: impl Into<String>,
+) -> Result<MaterializedSoundFontAsset, Error> {
+    let asset = load(data, provider_version)?;
+    let (zones, diagnostics) = parse_materialized_zones(data, asset.format)?;
+    asset.materialize_zones(zones, diagnostics)
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SfPresetHeader {
+    bank: u16,
+    program: u16,
+    bag_index: usize,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SfInstrumentHeader {
+    bag_index: usize,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SfBag {
+    generator_index: usize,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SfGenerator {
+    operator: u16,
+    amount: i16,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SfSampleHeader {
+    start: u32,
+    end: u32,
+    start_loop: u32,
+    end_loop: u32,
+    sample_rate: u32,
+    root_key: u8,
+}
+
+#[derive(Debug, Default)]
+struct SfTables {
+    presets: Vec<SfPresetHeader>,
+    preset_bags: Vec<SfBag>,
+    preset_generators: Vec<SfGenerator>,
+    instruments: Vec<SfInstrumentHeader>,
+    instrument_bags: Vec<SfBag>,
+    instrument_generators: Vec<SfGenerator>,
+    samples: Vec<SfSampleHeader>,
+}
+
+#[derive(Debug, Default)]
+struct BoundedZoneDiagnostics(Vec<SoundFontZoneDiagnostic>);
+
+impl BoundedZoneDiagnostics {
+    fn push(&mut self, diagnostic: SoundFontZoneDiagnostic) {
+        if self.0.len() < MAX_ZONE_DIAGNOSTICS {
+            self.0.push(diagnostic);
+        }
+    }
+
+    fn into_inner(self) -> Vec<SoundFontZoneDiagnostic> {
+        self.0
+    }
+}
+
+fn parse_materialized_zones(
+    data: &[u8],
+    format: SoundFontFormat,
+) -> Result<(Vec<SoundFontPresetZone>, Vec<SoundFontZoneDiagnostic>), Error> {
+    let tables = parse_sf_tables(data)?;
+    if tables.presets.is_empty() || tables.instruments.is_empty() {
+        return Ok((Vec::new(), Vec::new()));
+    }
+    let mut zones = Vec::new();
+    let mut diagnostics = BoundedZoneDiagnostics::default();
+    for (preset_index, preset) in tables.presets.iter().enumerate() {
+        let preset_end = tables
+            .presets
+            .get(preset_index + 1)
+            .map_or(tables.preset_bags.len(), |next| next.bag_index);
+        if preset.bag_index >= preset_end || preset_end > tables.preset_bags.len() {
+            diagnostics.push(SoundFontZoneDiagnostic::InvalidZoneAt {
+                location: zone_location(preset, preset_index, None, None, None),
+                reason: "preset bag range".into(),
+            });
+            continue;
+        }
+        for bag_index in preset.bag_index..preset_end {
+            let bag_next = tables
+                .preset_bags
+                .get(bag_index + 1)
+                .map_or(tables.preset_generators.len(), |bag| bag.generator_index);
+            let bag = tables.preset_bags[bag_index];
+            if bag.generator_index > bag_next || bag_next > tables.preset_generators.len() {
+                diagnostics.push(SoundFontZoneDiagnostic::InvalidZoneAt {
+                    location: zone_location(preset, preset_index, Some(bag_index), None, None),
+                    reason: "preset generator range".into(),
+                });
+                continue;
+            }
+            let preset_generators = &tables.preset_generators[bag.generator_index..bag_next];
+            let instrument_index = preset_generators
+                .iter()
+                .find(|generator| generator.operator == 41)
+                .map(|generator| generator.amount as usize);
+            let Some(instrument_index) = instrument_index else {
+                continue;
+            };
+            let Some(instrument) = tables.instruments.get(instrument_index) else {
+                diagnostics.push(SoundFontZoneDiagnostic::InvalidZoneAt {
+                    location: zone_location(
+                        preset,
+                        preset_index,
+                        Some(bag_index),
+                        Some(instrument_index),
+                        None,
+                    ),
+                    reason: "instrument index".into(),
+                });
+                continue;
+            };
+            let instrument_end = tables
+                .instruments
+                .get(instrument_index + 1)
+                .map_or(tables.instrument_bags.len(), |next| next.bag_index);
+            if instrument.bag_index >= instrument_end
+                || instrument_end > tables.instrument_bags.len()
+            {
+                diagnostics.push(SoundFontZoneDiagnostic::InvalidZoneAt {
+                    location: zone_location(
+                        preset,
+                        preset_index,
+                        Some(bag_index),
+                        Some(instrument_index),
+                        None,
+                    ),
+                    reason: "instrument bag range".into(),
+                });
+                continue;
+            }
+            for instrument_bag_index in instrument.bag_index..instrument_end {
+                let instrument_bag = tables.instrument_bags[instrument_bag_index];
+                let instrument_next = tables
+                    .instrument_bags
+                    .get(instrument_bag_index + 1)
+                    .map_or(tables.instrument_generators.len(), |next| {
+                        next.generator_index
+                    });
+                if instrument_bag.generator_index > instrument_next
+                    || instrument_next > tables.instrument_generators.len()
+                {
+                    diagnostics.push(SoundFontZoneDiagnostic::InvalidZoneAt {
+                        location: zone_location(
+                            preset,
+                            preset_index,
+                            Some(bag_index),
+                            Some(instrument_index),
+                            Some(instrument_bag_index),
+                        ),
+                        reason: "instrument generator range".into(),
+                    });
+                    continue;
+                }
+                let instrument_generators =
+                    &tables.instrument_generators[instrument_bag.generator_index..instrument_next];
+                let sample_index = instrument_generators
+                    .iter()
+                    .find(|generator| generator.operator == 53)
+                    .map(|generator| generator.amount as usize);
+                let Some(sample_index) = sample_index else {
+                    continue;
+                };
+                let Some(sample) = tables.samples.get(sample_index).copied() else {
+                    diagnostics.push(SoundFontZoneDiagnostic::MissingSampleAt {
+                        location: zone_location(
+                            preset,
+                            preset_index,
+                            Some(bag_index),
+                            Some(instrument_index),
+                            Some(instrument_bag_index),
+                        ),
+                        sample_id: sample_index as u64,
+                    });
+                    continue;
+                };
+                let mut projection = ZoneProjection::default();
+                let mut supported = true;
+                for (generator_offset, generator) in preset_generators
+                    .iter()
+                    .chain(instrument_generators)
+                    .enumerate()
+                {
+                    if !projection.apply(*generator) {
+                        diagnostics.push(SoundFontZoneDiagnostic::UnsupportedGeneratorAt {
+                            location: SoundFontZoneLocation {
+                                generator_index: Some(
+                                    if generator_offset < preset_generators.len() {
+                                        bag.generator_index + generator_offset
+                                    } else {
+                                        instrument_bag.generator_index + generator_offset
+                                            - preset_generators.len()
+                                    },
+                                ),
+                                ..zone_location(
+                                    preset,
+                                    preset_index,
+                                    Some(bag_index),
+                                    Some(instrument_index),
+                                    Some(instrument_bag_index),
+                                )
+                            },
+                            generator: generator_name(generator.operator).into(),
+                        });
+                        supported = false;
+                    }
+                }
+                if !supported {
+                    continue;
+                }
+                match projection.into_region(sample, sample_index as u64, format) {
+                    Ok(region) => {
+                        match SoundFontPresetZone::new(preset.bank, preset.program, region) {
+                            Ok(zone) => zones.push(zone),
+                            Err(error) => {
+                                diagnostics.push(SoundFontZoneDiagnostic::InvalidZoneAt {
+                                    location: zone_location(
+                                        preset,
+                                        preset_index,
+                                        Some(bag_index),
+                                        Some(instrument_index),
+                                        Some(instrument_bag.generator_index),
+                                    ),
+                                    reason: error.to_string(),
+                                })
+                            }
+                        }
+                    }
+                    Err(reason) => diagnostics.push(SoundFontZoneDiagnostic::InvalidZoneAt {
+                        location: zone_location(
+                            preset,
+                            preset_index,
+                            Some(bag_index),
+                            Some(instrument_index),
+                            Some(instrument_bag.generator_index),
+                        ),
+                        reason,
+                    }),
+                }
+            }
+        }
+    }
+    Ok((zones, diagnostics.into_inner()))
+}
+
+fn zone_location(
+    preset: &SfPresetHeader,
+    preset_index: usize,
+    preset_bag_index: Option<usize>,
+    instrument_index: Option<usize>,
+    instrument_bag_index: Option<usize>,
+) -> SoundFontZoneLocation {
+    SoundFontZoneLocation {
+        bank: preset.bank,
+        program: preset.program,
+        preset_index,
+        preset_bag_index,
+        instrument_index,
+        instrument_bag_index,
+        generator_index: None,
+    }
+}
+
+#[derive(Debug)]
+struct ZoneProjection {
+    key_min: u8,
+    key_max: u8,
+    velocity_min: u8,
+    velocity_max: u8,
+    root_key: Option<u8>,
+    fine_tune_cents: i16,
+    attenuation_db: f32,
+    start_offset: i32,
+    end_offset: i32,
+    start_loop_offset: i32,
+    end_loop_offset: i32,
+    sample_modes: u16,
+    release_timecents: Option<i16>,
+}
+
+impl Default for ZoneProjection {
+    fn default() -> Self {
+        Self {
+            key_min: 0,
+            key_max: 127,
+            velocity_min: 1,
+            velocity_max: 127,
+            root_key: None,
+            fine_tune_cents: 0,
+            attenuation_db: 0.0,
+            start_offset: 0,
+            end_offset: 0,
+            start_loop_offset: 0,
+            end_loop_offset: 0,
+            sample_modes: 0,
+            release_timecents: None,
+        }
+    }
+}
+
+impl ZoneProjection {
+    fn apply(&mut self, generator: SfGenerator) -> bool {
+        match generator.operator {
+            0 => {
+                self.start_offset = self
+                    .start_offset
+                    .saturating_add(i32::from(generator.amount))
+            }
+            1 => self.end_offset = self.end_offset.saturating_add(i32::from(generator.amount)),
+            2 => {
+                self.start_loop_offset = self
+                    .start_loop_offset
+                    .saturating_add(i32::from(generator.amount))
+            }
+            3 => {
+                self.end_loop_offset = self
+                    .end_loop_offset
+                    .saturating_add(i32::from(generator.amount))
+            }
+            38 => self.release_timecents = Some(generator.amount),
+            41 | 53 => {}
+            43 => {
+                self.key_min = generator.amount as u16 as u8;
+                self.key_max = (generator.amount as u16 >> 8) as u8;
+            }
+            44 => {
+                self.velocity_min = generator.amount as u16 as u8;
+                self.velocity_max = (generator.amount as u16 >> 8) as u8;
+            }
+            48 => self.attenuation_db += f32::from(generator.amount) / 10.0,
+            52 => self.fine_tune_cents = self.fine_tune_cents.saturating_add(generator.amount),
+            54 => self.sample_modes = generator.amount as u16,
+            58 => self.root_key = Some(generator.amount as u16 as u8),
+            _ => return false,
+        }
+        true
+    }
+
+    fn into_region(
+        self,
+        sample: SfSampleHeader,
+        sample_id: u64,
+        format: SoundFontFormat,
+    ) -> Result<SampleRegion, String> {
+        let start = offset_frame(sample.start, self.start_offset)?;
+        let end = offset_frame(sample.end, self.end_offset)?;
+        if start >= end {
+            return Err("sample frame range".into());
+        }
+        let loop_points = if self.sample_modes & 3 != 0 {
+            let loop_start = offset_frame(sample.start_loop, self.start_loop_offset)?;
+            let loop_end = offset_frame(sample.end_loop, self.end_loop_offset)?;
+            Some(SampleLoop {
+                start_frame: loop_start,
+                end_frame: loop_end,
+            })
+        } else {
+            None
+        };
+        Ok(SampleRegion {
+            sample_id,
+            start_frame: start,
+            end_frame: end,
+            key_min: self.key_min,
+            key_max: self.key_max,
+            velocity_min: self.velocity_min.max(1),
+            velocity_max: self.velocity_max,
+            root_key: self.root_key.unwrap_or(sample.root_key),
+            fine_tune_cents: self.fine_tune_cents,
+            attenuation_db: self.attenuation_db,
+            sample_rate: sample.sample_rate,
+            compression: match format {
+                SoundFontFormat::Sf2 => SampleCompression::Pcm16,
+                SoundFontFormat::Sf3 => SampleCompression::Vorbis,
+            },
+            loop_points,
+            attack_secs: 0.0,
+            decay_secs: 0.0,
+            sustain_level: 1.0,
+            release_secs: self
+                .release_timecents
+                .map_or(0.0, |value| 2.0_f32.powf(f32::from(value) / 1200.0)),
+        })
+    }
+}
+
+fn offset_frame(base: u32, offset: i32) -> Result<u32, String> {
+    let value = i64::from(base) + i64::from(offset);
+    if value < 0 || value > i64::from(u32::MAX) {
+        return Err("sample offset overflow".into());
+    }
+    Ok(value as u32)
+}
+
+fn generator_name(operator: u16) -> &'static str {
+    match operator {
+        0 => "startAddrsOffset",
+        1 => "endAddrsOffset",
+        2 => "startloopAddrsOffset",
+        3 => "endloopAddrsOffset",
+        38 => "releaseVolEnv",
+        41 => "instrument",
+        43 => "keyRange",
+        44 => "velRange",
+        48 => "initialAttenuation",
+        52 => "fineTune",
+        53 => "sampleID",
+        54 => "sampleModes",
+        58 => "overridingRootKey",
+        _ => "unknown",
+    }
+}
+
+fn parse_sf_tables(data: &[u8]) -> Result<SfTables, Error> {
+    let mut tables = SfTables::default();
+    let mut pos = 12;
+    while pos < data.len() {
+        let (id, payload, next) = next_chunk(data, pos)?;
+        if &id == b"LIST" && payload.len() >= 4 && &payload[..4] == b"pdta" {
+            parse_pdta_tables(&payload[4..], &mut tables)?;
+        }
+        pos = next;
+    }
+    Ok(tables)
+}
+
+fn parse_pdta_tables(data: &[u8], tables: &mut SfTables) -> Result<(), Error> {
+    let mut pos = 0;
+    while pos < data.len() {
+        let (id, payload, next) = next_chunk(data, pos)?;
+        match &id {
+            b"phdr" => tables.presets = parse_preset_headers(payload)?,
+            b"pbag" => tables.preset_bags = parse_bags(payload)?,
+            b"pgen" => tables.preset_generators = parse_generators(payload)?,
+            b"inst" => tables.instruments = parse_instrument_headers(payload)?,
+            b"ibag" => tables.instrument_bags = parse_bags(payload)?,
+            b"igen" => tables.instrument_generators = parse_generators(payload)?,
+            b"shdr" => tables.samples = parse_sample_headers(payload)?,
+            _ => {}
+        }
+        pos = next;
+    }
+    Ok(())
+}
+
+fn next_chunk(data: &[u8], pos: usize) -> Result<([u8; 4], &[u8], usize), Error> {
+    if data.len().saturating_sub(pos) < 8 {
+        return Err(Error::Truncated);
+    }
+    let id = [data[pos], data[pos + 1], data[pos + 2], data[pos + 3]];
+    let len =
+        u32::from_le_bytes([data[pos + 4], data[pos + 5], data[pos + 6], data[pos + 7]]) as usize;
+    let start = pos + 8;
+    let end = start.checked_add(len).ok_or(Error::Truncated)?;
+    let next = end.checked_add(len & 1).ok_or(Error::Truncated)?;
+    if end > data.len() || next > data.len() {
+        return Err(Error::Truncated);
+    }
+    Ok((id, &data[start..end], next))
+}
+
+fn parse_preset_headers(data: &[u8]) -> Result<Vec<SfPresetHeader>, Error> {
+    const RECORD: usize = 38;
+    if data.len() < RECORD || !data.len().is_multiple_of(RECORD) {
+        return Err(Error::Truncated);
+    }
+    Ok(data
+        .chunks_exact(RECORD)
+        .take(data.len() / RECORD - 1)
+        .map(|record| SfPresetHeader {
+            program: u16::from_le_bytes([record[20], record[21]]),
+            bank: u16::from_le_bytes([record[22], record[23]]),
+            bag_index: usize::from(u16::from_le_bytes([record[24], record[25]])),
+        })
+        .collect())
+}
+
+fn parse_instrument_headers(data: &[u8]) -> Result<Vec<SfInstrumentHeader>, Error> {
+    const RECORD: usize = 22;
+    if data.len() < RECORD || !data.len().is_multiple_of(RECORD) {
+        return Err(Error::Truncated);
+    }
+    Ok(data
+        .chunks_exact(RECORD)
+        .take(data.len() / RECORD - 1)
+        .map(|record| SfInstrumentHeader {
+            bag_index: usize::from(u16::from_le_bytes([record[20], record[21]])),
+        })
+        .collect())
+}
+
+fn parse_bags(data: &[u8]) -> Result<Vec<SfBag>, Error> {
+    if data.len() < 4 || !data.len().is_multiple_of(4) {
+        return Err(Error::Truncated);
+    }
+    Ok(data
+        .chunks_exact(4)
+        .map(|record| SfBag {
+            generator_index: usize::from(u16::from_le_bytes([record[0], record[1]])),
+        })
+        .collect())
+}
+
+fn parse_generators(data: &[u8]) -> Result<Vec<SfGenerator>, Error> {
+    if data.len() < 4 || !data.len().is_multiple_of(4) {
+        return Err(Error::Truncated);
+    }
+    Ok(data
+        .chunks_exact(4)
+        .map(|record| SfGenerator {
+            operator: u16::from_le_bytes([record[0], record[1]]),
+            amount: i16::from_le_bytes([record[2], record[3]]),
+        })
+        .collect())
+}
+
+fn parse_sample_headers(data: &[u8]) -> Result<Vec<SfSampleHeader>, Error> {
+    const RECORD: usize = 46;
+    if data.len() < RECORD || !data.len().is_multiple_of(RECORD) {
+        return Err(Error::Truncated);
+    }
+    Ok(data
+        .chunks_exact(RECORD)
+        .take(data.len() / RECORD - 1)
+        .map(|record| SfSampleHeader {
+            start: u32::from_le_bytes([record[20], record[21], record[22], record[23]]),
+            end: u32::from_le_bytes([record[24], record[25], record[26], record[27]]),
+            start_loop: u32::from_le_bytes([record[28], record[29], record[30], record[31]]),
+            end_loop: u32::from_le_bytes([record[32], record[33], record[34], record[35]]),
+            sample_rate: u32::from_le_bytes([record[36], record[37], record[38], record[39]]),
+            root_key: record[40],
+        })
+        .collect())
 }
 
 fn parse_pdta(data: &[u8], presets: &mut Vec<SoundFontPreset>) -> Result<(), Error> {
@@ -1372,6 +2157,139 @@ mod tests {
             SoundFontFormat::Sf3
         );
     }
+
+    #[test]
+    fn materialized_asset_returns_deterministic_bounded_preset_snapshot() {
+        let asset = load(&sf(false), "provider-1").expect("fixture");
+        let wide = SoundFontPresetZone::new(0, 0, region(20, 0, 127)).expect("wide zone");
+        let narrow = SoundFontPresetZone::new(0, 0, region(10, 60, 60)).expect("narrow zone");
+        let materialized = asset
+            .materialize_zones(
+                [wide, narrow],
+                [SoundFontZoneDiagnostic::MissingSample {
+                    bank: 0,
+                    program: 0,
+                    sample_id: 99,
+                }],
+            )
+            .expect("materialized asset");
+
+        let snapshot = materialized.snapshot_for_preset(0, 0).expect("snapshot");
+        assert_eq!(snapshot.format, SoundFontFormat::Sf2);
+        assert_eq!(snapshot.provider_version, "provider-1");
+        assert_eq!(snapshot.zones.len(), 2);
+        assert_eq!(snapshot.zones[0].sample_id, 10);
+        assert_eq!(snapshot.zones[1].sample_id, 20);
+        assert_eq!(snapshot.diagnostics.len(), 1);
+        assert!(matches!(
+            snapshot.diagnostics[0],
+            SoundFontZoneDiagnostic::MissingSample { sample_id: 99, .. }
+        ));
+    }
+
+    #[test]
+    fn materialized_asset_rejects_unbounded_zone_input() {
+        let asset = load(&sf(false), "test").expect("fixture");
+        let zones = std::iter::repeat_with(|| {
+            SoundFontPresetZone::new(0, 0, region(1, 0, 127)).expect("zone")
+        })
+        .take(MAX_MATERIALIZED_ZONES + 1);
+        assert_eq!(
+            asset.materialize_zones(zones, []),
+            Err(Error::TooManyZones(MAX_MATERIALIZED_ZONES + 1))
+        );
+    }
+
+    #[test]
+    fn materialized_sf3_snapshot_preserves_provider_format_and_diagnostics() {
+        let asset = load(&sf(true), "sf3-provider").expect("fixture");
+        let mut sf3_region = region(44, 0, 127);
+        sf3_region.compression = SampleCompression::Vorbis;
+        let zone = SoundFontPresetZone::new(0, 0, sf3_region).expect("SF3 zone");
+        let materialized = asset
+            .materialize_zones(
+                [zone],
+                [SoundFontZoneDiagnostic::UnsupportedGenerator {
+                    bank: 0,
+                    program: 0,
+                    generator: "exclusiveClass".into(),
+                }],
+            )
+            .expect("SF3 materialized asset");
+        let snapshot = materialized.snapshot_for_preset(0, 0).expect("snapshot");
+        assert_eq!(snapshot.format, SoundFontFormat::Sf3);
+        assert_eq!(snapshot.provider_version, "sf3-provider");
+        assert_eq!(snapshot.zones[0].compression, SampleCompression::Vorbis);
+        assert!(matches!(
+            snapshot.diagnostics[0],
+            SoundFontZoneDiagnostic::UnsupportedGenerator { ref generator, .. }
+                if generator == "exclusiveClass"
+        ));
+    }
+
+    #[test]
+    fn load_materialized_reads_real_sf2_generator_tables() {
+        let materialized = load_materialized(
+            include_bytes!("../../../tests/fixtures/UprightPianoKW-small-20190703.sf2"),
+            "fixture-provider",
+        )
+        .expect("real SF2 materialization");
+        assert_eq!(materialized.asset.format, SoundFontFormat::Sf2);
+        assert!(!materialized.zones().is_empty());
+        let preset = materialized.asset.presets.first().expect("preset");
+        let snapshot = materialized
+            .snapshot_for_preset(preset.bank, preset.program)
+            .expect("preset snapshot");
+        assert!(!snapshot.zones.is_empty());
+        assert_eq!(snapshot.zones[0].compression, SampleCompression::Pcm16);
+    }
+
+    #[test]
+    fn load_materialized_reads_real_sf3_generator_tables() {
+        let materialized = load_materialized(
+            include_bytes!("../../../tests/fixtures/FluidR3Mono_GM.sf3"),
+            "fixture-sf3-provider",
+        )
+        .expect("real SF3 materialization");
+        assert_eq!(materialized.asset.format, SoundFontFormat::Sf3);
+        assert!(!materialized.zones().is_empty());
+        assert!(
+            materialized
+                .zones()
+                .iter()
+                .all(|zone| zone.region.compression == SampleCompression::Vorbis)
+        );
+    }
+
+    #[test]
+    fn malformed_generator_table_reports_source_location() {
+        let mut data =
+            include_bytes!("../../../tests/fixtures/UprightPianoKW-small-20190703.sf2").to_vec();
+        let pbag_offset = data
+            .windows(4)
+            .position(|chunk| chunk == b"pbag")
+            .expect("pbag chunk")
+            + 8;
+        data[pbag_offset..pbag_offset + 2].copy_from_slice(&u16::MAX.to_le_bytes());
+        let materialized = load_materialized(&data, "malformed-fixture").expect("diagnostics");
+        let located = materialized
+            .diagnostics()
+            .iter()
+            .find_map(|diagnostic| match diagnostic {
+                SoundFontZoneDiagnostic::InvalidZoneAt { location, reason }
+                    if reason == "preset generator range" =>
+                {
+                    Some(*location)
+                }
+                _ => None,
+            })
+            .expect("located malformed-zone diagnostic");
+        assert_eq!(located.preset_index, 0);
+        assert!(located.preset_bag_index.is_some());
+        assert_eq!(located.bank, 0);
+        assert_eq!(located.program, 0);
+    }
+
     #[test]
     fn lifecycle_preserves_velocity_and_sustain() {
         let mut b = PlaybackBoundary::new(PlaybackConfig {

@@ -270,7 +270,7 @@ pub fn to_playback_events(
         muted_parts,
         ..Default::default()
     };
-    let events = acorde_core::to_playback_events(&score, &options);
+    let events = acorde_core::to_playback_events_bounded(&score, &options).map_err(js_err)?;
     serde_json::to_string(&events)
         .map_err(|e| js_err(format!("playback serialization failed: {e}")))
 }
@@ -286,9 +286,58 @@ pub fn to_playback_events_ex(score_json: &str, options_json: &str) -> Result<Str
     let score = score_from_json(score_json)?;
     let options: acorde_core::PlaybackOptions =
         parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
-    let events = acorde_core::to_playback_events(&score, &options);
+    let events = acorde_core::to_playback_events_bounded(&score, &options).map_err(js_err)?;
     serde_json::to_string(&events)
         .map_err(|e| js_err(format!("playback serialization failed: {e}")))
+}
+
+/// Compare a host/backend playback event trace with an expected trace.
+///
+/// `expected_json` is normally produced by `to_playback_events_ex`; `actual_json` is supplied
+/// by the browser host after scheduling. The result compares event identity and timing only;
+/// Web Audio/device latency and rendered audio remain outside the WASM contract.
+#[wasm_bindgen]
+pub fn compare_playback_timing(
+    expected_json: &str,
+    actual_json: &str,
+    tolerance_json: &str,
+) -> Result<String, JsValue> {
+    let expected: Vec<acorde_core::PlaybackEvent> =
+        parse_json(expected_json, "expected playback", MAX_SCORE_JSON_BYTES)?;
+    let actual: Vec<acorde_core::PlaybackEvent> =
+        parse_json(actual_json, "actual playback", MAX_SCORE_JSON_BYTES)?;
+    let tolerance: acorde_core::PlaybackTimingTolerance =
+        parse_json(tolerance_json, "playback tolerance", MAX_SMALL_JSON_BYTES)?;
+    let report =
+        acorde_core::compare_playback_timing(&expected, &actual, &tolerance).map_err(js_err)?;
+    serde_json::to_string(&report)
+        .map_err(|e| js_err(format!("playback comparison serialization failed: {e}")))
+}
+
+/// Project scheduled playback events onto authored tablature positions.
+///
+/// The result contains string/fret assignments and explicit diagnostics for missing positions,
+/// invalid strings, unavailable tuning, or pitch mismatches. No position is invented here.
+#[wasm_bindgen]
+pub fn project_tablature_performance(
+    score_json: &str,
+    options_json: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::PlaybackOptions =
+        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
+    let report = acorde_core::project_tablature_performance(&score, &options).map_err(js_err)?;
+    serde_json::to_string(&report)
+        .map_err(|e| js_err(format!("tablature projection serialization failed: {e}")))
+}
+
+/// Verify authored tablature through the canonical score JSON round-trip.
+#[wasm_bindgen]
+pub fn tablature_round_trip_report(score_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let report = acorde_core::tablature_round_trip_report(&score).map_err(js_err)?;
+    serde_json::to_string(&report)
+        .map_err(|e| js_err(format!("tablature round-trip serialization failed: {e}")))
 }
 
 /// Map `elapsed_secs` to a `PlaybackPosition` JSON object (`{measure_index, beat}`).

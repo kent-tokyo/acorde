@@ -10,7 +10,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-No unreleased changes.
+## [1.1.6] - 2026-09-09
+
+- Added the `tab-performance-report` CLI command, exposing the bounded core tablature
+  performance projection as deterministic JSON with an optional `--bpm` override.
+- Added `tab-performance-report --fail-on-diagnostics` as a non-zero local validation gate.
+- Added the `playback-report` CLI command to export the deterministic expected event schedule for
+  host-side playback timing comparisons.
+- Added inclusive `--loop-start`/`--loop-end` physical-measure selection to `playback-report` for
+  repeatable partial-score comparison cases.
+- Applied the core playback comparison event limit to `playback-report` output generation.
+- Added the shared bounded `to_playback_events_bounded` core API and used it at CLI/WASM schedule
+  generation boundaries.
+- Added `playback-compare` to compare expected and host-observed event JSON with explicit timing
+  tolerances and a non-zero mismatch gate.
+- Bounded `playback-compare` input JSON files to 64 MiB before UTF-8 decoding or event parsing.
+- Added a metadata preflight before reading playback comparison files, retaining a post-read check
+  for changes during the read.
+- Added `docs/playback-evidence.md` with reproducible local playback/tablature gate commands and
+  an explicit external-evidence boundary.
+- Added the core/WASM `tablature_round_trip_report` contract for explicit score-model persistence
+  diagnostics without implying format or external-editor parity.
 
 ## [1.1.5] - 2026-09-08
 

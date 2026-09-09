@@ -105,6 +105,29 @@ when merged into an incremental result.
 SATB diagnostics use the same bounded voice-leading input and replace only diagnostics whose
 evidence touches the selected region, preserving findings elsewhere in the score.
 
+## Playback comparison contract
+
+`to_playback_events_ex` produces the expected event schedule. A browser or Composer host can
+submit its scheduled event trace to `compare_playback_timing(expected_json, actual_json,
+tolerance_json)`. The response is a deterministic `PlaybackTimingReport` with contract version,
+matched count, maximum start/duration error, and typed mismatches. The default tolerance is 5 ms
+for both start time and duration. This checks event identity and timing only; Web Audio clock
+behavior, SoundFont decoding, device latency, and rendered PCM remain host/provider-owned.
+
+For fixture preparation outside WASM, the CLI command `acorde playback-report input.musicxml
+--bpm 120 --loop-start 0 --loop-end 3` emits the same expected `PlaybackEvent` shape as JSON.
+The optional range selects inclusive physical measures. The CLI is an input-side contract helper;
+it does not claim to observe browser scheduling or audio output.
+
+After a host writes its scheduled trace as JSON, `acorde playback-compare expected.json actual.json
+--fail-on-mismatch` runs the same typed timing comparison locally. This remains event/timing
+evidence only; it is not evidence of equivalent audio rendering.
+
+For tablature-aware hosts, `project_tablature_performance(score_json, options_json)` returns
+playback events paired with authored string/fret positions. It validates tuning and capo against
+the sounding pitch, reports missing or invalid positions and microtonal pitch differences, and
+never guesses a position. Automatic assignment remains an explicit caller step.
+
 ## Incremental updates
 
 `ScoreEngine.apply`, `undo`, and `redo` return a serialized `ChangeHint`. Use `scope` to identify

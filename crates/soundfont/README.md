@@ -21,6 +21,19 @@ resolved zone fields for downstream UI, diagnostics, cache keys, and audio setup
 reconstruct the validated `SampleRegion` without repeating provider parsing.
 `schedule_preset_note_on` combines that selection with the validated voice plan in one call.
 
+For a loaded asset, `SoundFontAsset::materialize_zones` creates a bounded
+`MaterializedSoundFontAsset`. Its `snapshot_for_preset` method returns an owned
+`SoundFontZoneSnapshot` carrying the asset format, checksum, provider version, preset identity,
+resolved zones, and typed provider diagnostics. Zone and diagnostic counts are capped, and both
+collections are sorted deterministically. Providers still own SF2/SF3 generator interpretation;
+the wrapper prevents browser workers and hosts from reparsing the same materialized data.
+`load_materialized` additionally reads the bounded preset/instrument generator tables from SF2/SF3
+RIFF metadata and materializes the supported projection; unsupported generators are retained as
+bounded diagnostics and never silently approximated.
+Malformed preset/instrument table ranges are emitted as `InvalidZoneAt` diagnostics with
+`SoundFontZoneLocation` coordinates, so a host can report the exact table boundary without
+reparsing the asset.
+
 `PROVIDER_CONTRACT_VERSION` identifies the adapter contract. Providers advertise
 `ProviderCapabilities` and hosts should call `validate_provider_capabilities` before decoding;
 unsupported PCM/Vorbis or synthesis support returns a typed error. The checked-in regression

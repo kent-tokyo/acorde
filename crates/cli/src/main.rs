@@ -1,10 +1,13 @@
 use acorde_core::{
-    Command, FingeringSelectionPolicy, Score, ScoreEngine, SetTabPositionCmd, TabPosition,
+    Command, FingeringSelectionPolicy, PlaybackOptions, Score, ScoreEngine, SetTabPositionCmd,
+    TabPosition,
 };
 use acorde_io::ImportReport;
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+
+const MAX_PLAYBACK_JSON_BYTES: usize = 64 * 1024 * 1024;
 
 #[derive(Parser)]
 #[command(
@@ -136,6 +139,47 @@ enum Commands {
         /// Output score file
         output: PathBuf,
     },
+    /// Project authored tablature positions onto the deterministic playback schedule
+    TabPerformanceReport {
+        /// Input score file
+        input: PathBuf,
+        /// Override the score tempo for the projected event timestamps
+        #[arg(long)]
+        bpm: Option<u16>,
+        /// Exit with status 1 when any tablature projection diagnostic is found
+        #[arg(long)]
+        fail_on_diagnostics: bool,
+    },
+    /// Print the deterministic playback event schedule as JSON
+    PlaybackReport {
+        /// Input score file
+        input: PathBuf,
+        /// Override the score tempo for event timestamps
+        #[arg(long)]
+        bpm: Option<u16>,
+        /// Inclusive zero-based physical measure at which the report starts
+        #[arg(long, requires = "loop_end")]
+        loop_start: Option<usize>,
+        /// Inclusive zero-based physical measure at which the report ends
+        #[arg(long, requires = "loop_start")]
+        loop_end: Option<usize>,
+    },
+    /// Compare expected and host-observed playback event JSON files
+    PlaybackCompare {
+        /// JSON file produced by `playback-report`
+        expected: PathBuf,
+        /// JSON file produced by a browser or Composer host
+        actual: PathBuf,
+        /// Maximum permitted absolute start-time error in seconds
+        #[arg(long, default_value_t = 0.005)]
+        start_tolerance: f64,
+        /// Maximum permitted absolute duration error in seconds
+        #[arg(long, default_value_t = 0.005)]
+        duration_tolerance: f64,
+        /// Exit with status 1 when any mismatch is found
+        #[arg(long)]
+        fail_on_mismatch: bool,
+    },
     /// Report a deterministic selection from alternate fingering candidates
     FingeringReport {
         /// Input score file
@@ -210,6 +254,30 @@ fn main() {
         ),
         Commands::AutoTab { input, output } => cmd_auto_tab(input, output),
         Commands::AutoTabReport { input, output } => cmd_auto_tab_report(input, output),
+        Commands::TabPerformanceReport {
+            input,
+            bpm,
+            fail_on_diagnostics,
+        } => cmd_tab_performance_report(input, *bpm, *fail_on_diagnostics),
+        Commands::PlaybackReport {
+            input,
+            bpm,
+            loop_start,
+            loop_end,
+        } => cmd_playback_report(input, *bpm, *loop_start, *loop_end),
+        Commands::PlaybackCompare {
+            expected,
+            actual,
+            start_tolerance,
+            duration_tolerance,
+            fail_on_mismatch,
+        } => cmd_playback_compare(
+            expected,
+            actual,
+            *start_tolerance,
+            *duration_tolerance,
+            *fail_on_mismatch,
+        ),
         Commands::FingeringReport { input, policy } => cmd_fingering_report(input, policy),
         Commands::ExportReport { input, output } => cmd_export_report(input, output),
         Commands::CompatibilityReport {
@@ -798,6 +866,135 @@ fn cmd_auto_tab_report(input: &Path, output: &Path) -> Result<(), String> {
     Ok(())
 }
 
+fn cmd_tab_performance_report(
+    input: &Path,
+    bpm: Option<u16>,
+    fail_on_diagnostics: bool,
+) -> Result<(), String> {
+    let score = parse_score(input)?;
+    let options = PlaybackOptions {
+        bpm_override: bpm,
+        ..PlaybackOptions::default()
+    };
+    let report = acorde_core::project_tablature_performance(&score, &options)
+        .map_err(|e| format!("tablature performance projection failed: {e}"))?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&report)
+            .map_err(|e| format!("tablature performance report serialization failed: {e}"))?
+    );
+    if fail_on_diagnostics && !report.diagnostics.is_empty() {
+        return Err(format!(
+            "tablature performance report found {} diagnostic(s)",
+            report.diagnostics.len()
+        ));
+    }
+    Ok(())
+}
+
+fn cmd_playback_report(
+    input: &Path,
+    bpm: Option<u16>,
+    loop_start: Option<usize>,
+    loop_end: Option<usize>,
+) -> Result<(), String> {
+    let score = parse_score(input)?;
+    let events = playback_report_events(&score, bpm, loop_start, loop_end)?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&events)
+            .map_err(|e| format!("playback report serialization failed: {e}"))?
+    );
+    Ok(())
+}
+
+fn playback_report_events(
+    score: &Score,
+    bpm: Option<u16>,
+    loop_start: Option<usize>,
+    loop_end: Option<usize>,
+) -> Result<Vec<acorde_core::PlaybackEvent>, String> {
+    if let (Some(start), Some(end)) = (loop_start, loop_end) {
+        if start > end {
+            return Err("--loop-start must not exceed --loop-end".to_string());
+        }
+    }
+    let options = PlaybackOptions {
+        bpm_override: bpm,
+        loop_region: loop_start.zip(loop_end),
+        ..PlaybackOptions::default()
+    };
+    acorde_core::to_playback_events_bounded(score, &options)
+        .map_err(|e| format!("playback report generation failed: {e}"))
+}
+
+fn read_playback_events(path: &Path) -> Result<Vec<acorde_core::PlaybackEvent>, String> {
+    let metadata =
+        std::fs::metadata(path).map_err(|e| format!("cannot inspect '{}': {e}", path.display()))?;
+    if metadata.len() > MAX_PLAYBACK_JSON_BYTES as u64 {
+        return Err(format!(
+            "playback event JSON '{}' exceeds {} bytes",
+            path.display(),
+            MAX_PLAYBACK_JSON_BYTES
+        ));
+    }
+    let data = std::fs::read(path).map_err(|e| format!("cannot read '{}': {e}", path.display()))?;
+    if data.len() > MAX_PLAYBACK_JSON_BYTES {
+        return Err(format!(
+            "playback event JSON '{}' exceeds {} bytes",
+            path.display(),
+            MAX_PLAYBACK_JSON_BYTES
+        ));
+    }
+    let text = String::from_utf8(data).map_err(|e| {
+        format!(
+            "invalid UTF-8 in playback event JSON '{}': {e}",
+            path.display()
+        )
+    })?;
+    serde_json::from_str(&text)
+        .map_err(|e| format!("invalid playback event JSON '{}': {e}", path.display()))
+}
+
+fn cmd_playback_compare(
+    expected_path: &Path,
+    actual_path: &Path,
+    start_tolerance: f64,
+    duration_tolerance: f64,
+    fail_on_mismatch: bool,
+) -> Result<(), String> {
+    let expected = read_playback_events(expected_path)?;
+    let actual = read_playback_events(actual_path)?;
+    let report =
+        playback_comparison_report(&expected, &actual, start_tolerance, duration_tolerance)?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&report)
+            .map_err(|e| format!("playback comparison serialization failed: {e}"))?
+    );
+    if fail_on_mismatch && !report.within_tolerance {
+        return Err(format!(
+            "playback comparison found {} mismatch(es)",
+            report.mismatches.len()
+        ));
+    }
+    Ok(())
+}
+
+fn playback_comparison_report(
+    expected: &[acorde_core::PlaybackEvent],
+    actual: &[acorde_core::PlaybackEvent],
+    start_tolerance: f64,
+    duration_tolerance: f64,
+) -> Result<acorde_core::PlaybackTimingReport, String> {
+    let tolerance = acorde_core::PlaybackTimingTolerance {
+        start_secs: start_tolerance,
+        duration_secs: duration_tolerance,
+    };
+    acorde_core::compare_playback_timing(expected, actual, &tolerance)
+        .map_err(|e| format!("playback comparison failed: {e}"))
+}
+
 #[derive(Debug, Serialize)]
 struct FingeringReportEntry {
     part: usize,
@@ -1064,4 +1261,53 @@ fn cmd_compatibility_report(
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fixture(name: &str) -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures")
+            .join(name)
+    }
+
+    #[test]
+    fn playback_report_is_deterministic_and_respects_measure_range() {
+        let score = parse_score(&fixture("simple.musicxml")).expect("fixture parses");
+        let all =
+            playback_report_events(&score, Some(120), None, None).expect("full report succeeds");
+        let partial = playback_report_events(&score, Some(120), Some(0), Some(0))
+            .expect("partial report succeeds");
+        let repeated = playback_report_events(&score, Some(120), None, None)
+            .expect("repeated report succeeds");
+        assert_eq!(all, repeated);
+        assert!(!all.is_empty());
+        assert!(!partial.is_empty());
+        assert!(partial.len() <= all.len());
+        assert!(partial.iter().all(|event| event.time_beats >= 0.0));
+    }
+
+    #[test]
+    fn playback_report_rejects_reversed_measure_range() {
+        let score = parse_score(&fixture("simple.musicxml")).expect("fixture parses");
+        let error = playback_report_events(&score, None, Some(1), Some(0))
+            .expect_err("reversed range must fail");
+        assert!(error.contains("--loop-start must not exceed --loop-end"));
+    }
+
+    #[test]
+    fn playback_compare_reports_tolerance_and_rejects_invalid_tolerance() {
+        let score = parse_score(&fixture("simple.musicxml")).expect("fixture parses");
+        let expected = playback_report_events(&score, Some(120), None, None)
+            .expect("expected schedule succeeds");
+        let mut actual = expected.clone();
+        actual[0].time_secs += 0.01;
+        let report = playback_comparison_report(&expected, &actual, 0.005, 0.005)
+            .expect("comparison succeeds");
+        assert!(!report.within_tolerance);
+        assert_eq!(report.matched_events, expected.len() - 1);
+        assert!(playback_comparison_report(&expected, &actual, -0.001, 0.005).is_err());
+    }
 }

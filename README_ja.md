@@ -1,6 +1,6 @@
 # acorde
 
-Rust と WebAssembly 向けのプラットフォーム非依存な楽譜ライブラリ（v1.1.5）です。
+Rust と WebAssembly 向けのプラットフォーム非依存な楽譜ライブラリ（v1.1.6）です。
 
 シリアライズ可能なスコアモデル、Undo/Redo 可能なコマンド、各種フォーマット入出力、
 論理レイアウト、決定的な SVG レンダリング、再生イベント、WASM バインディングを提供します。
@@ -30,14 +30,14 @@ SoundFontの`SoundFontPresetZone` APIでは bank/program と key/velocity から
 
 ```toml
 [dependencies]
-acorde = "1.1.5"
-acorde-render-svg = "1.1.5"
+acorde = "1.1.6"
+acorde-render-svg = "1.1.6"
 ```
 
 ABC と MuseScore 入力を有効にする場合：
 
 ```toml
-acorde = { version = "1.1.5", features = ["abc", "mscz", "mei"] }
+acorde = { version = "1.1.6", features = ["abc", "mscz", "mei"] }
 ```
 
 `acorde-io` の既定 feature は `musicxml` と `midi` です。`abc` は ABC の読み書き、
@@ -74,6 +74,9 @@ acorde export-report input.musicxml exported.musicxml
 acorde tab-position guitar.musicxml edited.musicxml --part 0 --measure 0 --note 1 --string 2 --fret 3
 acorde auto-tab guitar.musicxml guitar-tabbed.musicxml
 acorde auto-tab-report guitar.musicxml guitar-tabbed.musicxml
+acorde tab-performance-report guitar-tabbed.musicxml --bpm 120 --fail-on-diagnostics
+acorde playback-report input.musicxml --bpm 120 --loop-start 0 --loop-end 3
+acorde playback-compare expected.json actual.json --fail-on-mismatch
 ```
 
 `validate` はタブ譜の線数、調弦値、明示された弦番号もローカルで検証します。SoundFontや
@@ -84,6 +87,15 @@ acorde auto-tab-report guitar.musicxml guitar-tabbed.musicxml
 運指を自動選択します。
 `auto-tab-report` は割り当て数、未割り当て数、コード数、フレット負荷を決定論的なJSONで
 表示し、最適化済みスコアも出力します。
+`tab-performance-report` は明示された弦・フレットを再生イベントへ対応付け、調弦・カポ・
+ピッチ不一致を型付きJSON診断として出力します。位置を推測して補完することはありません。
+`--fail-on-diagnostics` を指定すると、診断がある場合に終了コード1になります。
+`playback-report` は、ブラウザやComposer側のスケジュール結果と比較できる決定論的な期待再生
+イベント列を出力します。`--loop-start` と `--loop-end` で物理小節の範囲も指定できます。
+JSON出力前にcoreの比較イベント上限も適用します。
+WASMの期待イベント生成にも同じ上限を適用します。
+`playback-compare` は期待列とhost側の実測JSONを明示的な時間許容差で比較し、
+`--fail-on-mismatch` でCIゲートとして利用できます。入力JSONは64 MiBに制限されます。
 
 ## 開発
 

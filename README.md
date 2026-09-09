@@ -1,6 +1,6 @@
 # acorde
 
-Platform-agnostic music score library for Rust and WebAssembly (v1.1.5).
+Platform-agnostic music score library for Rust and WebAssembly (v1.1.6).
 
 acorde provides a serializable score model, undoable commands, format I/O, logical layout,
 deterministic SVG rendering, playback events, and WASM bindings. Core libraries are synchronous,
@@ -41,7 +41,7 @@ single-score and batch reuse, explicit editor snapshot invalidation, and hit/mis
 all cache keys include the analysis schema version and canonical score fingerprint.
 
 ```toml
-acorde-analysis = "1.1.5"
+acorde-analysis = "1.1.6"
 ```
 
 The optional `soundfont` feature exposes `acorde::soundfont`, a bounded SF2/SF3
@@ -70,15 +70,15 @@ model and MIDI round-trip.
 
 ```toml
 [dependencies]
-acorde = "1.1.5"
-acorde-render-svg = "1.1.5"
+acorde = "1.1.6"
+acorde-render-svg = "1.1.6"
 ```
 
 The default I/O features are `musicxml` and `midi`; enable the optional `abc`, `mscz`, or `mei`
 features when needed:
 
 ```toml
-acorde = { version = "1.1.5", features = ["abc", "mscz", "mei"] }
+acorde = { version = "1.1.6", features = ["abc", "mscz", "mei"] }
 ```
 
 ```rust
@@ -166,6 +166,9 @@ acorde export-report input.musicxml exported.mei
 acorde tab-position guitar.musicxml edited.musicxml --part 0 --measure 0 --note 1 --string 2 --fret 3
 acorde auto-tab guitar.musicxml guitar-tabbed.musicxml
 acorde auto-tab-report guitar.musicxml guitar-tabbed.musicxml
+acorde tab-performance-report guitar-tabbed.musicxml --bpm 120 --fail-on-diagnostics
+acorde playback-report input.musicxml --bpm 120 --loop-start 0 --loop-end 3
+acorde playback-compare expected.json actual.json --fail-on-mismatch
 ```
 
 The CLI supports `.musicxml`, `.mxl`, `.mid`/`.midi`, `.abc`, `.mei`, `.mscz`, and `.mscx` input.
@@ -179,6 +182,15 @@ one-based `--string` value.
 `auto-tab` assigns missing single-note and chord positions while minimizing fret load and
 movement between successive notes.
 `auto-tab-report` additionally prints deterministic assignment and fret-load metrics as JSON.
+`tab-performance-report` projects authored string/fret positions onto the playback schedule and
+reports tuning, capo, and pitch mismatches as typed JSON diagnostics; it never invents positions.
+Use `--fail-on-diagnostics` as a local CI gate.
+`playback-report` emits the deterministic expected event schedule that a browser or Composer host
+can compare with its scheduled trace. `--loop-start` and `--loop-end` restrict the report to an
+inclusive physical-measure range. The CLI applies the core comparison event limit before emitting
+the JSON; the WASM schedule API applies the same limit.
+`playback-compare` compares that schedule with a host-produced JSON trace using explicit timing
+tolerances and can act as a CI gate with `--fail-on-mismatch`. Input JSON is bounded to 64 MiB.
 
 ## Development
 

@@ -1,5 +1,5 @@
 use super::duration::Duration;
-use super::notation::Articulation;
+use super::notation::{Articulation, TabPosition};
 use super::repeat::measure_sequence;
 use super::score::Score;
 use serde::{Deserialize, Serialize};
@@ -108,7 +108,7 @@ impl Default for PlaybackOptions {
 /// A single sounding event suitable for audio playback engines (e.g. Web Audio, Tone.js).
 ///
 /// Grace notes and rests are excluded. Chords are expanded to one event per pitch.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PlaybackEvent {
     /// Stable source note address (`part:staff:measure:voice:note`), or `None` for metronome events.
     /// Chord pitches share the address of their source note.
@@ -142,6 +142,446 @@ pub struct PlaybackEvent {
     /// `true` for metronome click events injected via [`MetronomeConfig`].
     #[serde(default)]
     pub is_metronome: bool,
+}
+
+/// Version of the host-neutral playback timing comparison contract.
+pub const PLAYBACK_COMPARISON_CONTRACT_VERSION: u16 = 1;
+/// Maximum number of events accepted by one comparison operation.
+pub const MAX_PLAYBACK_COMPARISON_EVENTS: usize = 1_000_000;
+const MAX_PLAYBACK_MISMATCHES: usize = 256;
+/// Maximum number of projected tablature events retained in one report.
+pub const MAX_TAB_PERFORMANCE_EVENTS: usize = 1_000_000;
+const MAX_TAB_PERFORMANCE_DIAGNOSTICS: usize = 1_024;
+
+/// Timing tolerances for comparing a host/backend event trace with acorde's schedule.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PlaybackTimingTolerance {
+    pub start_secs: f64,
+    pub duration_secs: f64,
+}
+
+impl Default for PlaybackTimingTolerance {
+    fn default() -> Self {
+        Self {
+            start_secs: 0.005,
+            duration_secs: 0.005,
+        }
+    }
+}
+
+/// A typed difference in a host playback trace. Audio rendering is deliberately not compared.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum PlaybackTimingMismatch {
+    EventCount { expected: usize, actual: usize },
+    EventIdentity { index: usize },
+    StartTime { index: usize, error_secs: f64 },
+    Duration { index: usize, error_secs: f64 },
+}
+
+/// Deterministic report for a bounded playback timing comparison.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PlaybackTimingReport {
+    pub contract_version: u16,
+    pub expected_events: usize,
+    pub actual_events: usize,
+    pub matched_events: usize,
+    pub max_start_error_secs: f64,
+    pub max_duration_error_secs: f64,
+    pub within_tolerance: bool,
+    pub mismatches: Vec<PlaybackTimingMismatch>,
+}
+
+/// Compare a host-provided event trace with the deterministic score schedule.
+///
+/// This contract covers event identity and timing only. Web Audio scheduling,
+/// SoundFont decoding, device latency, and rendered PCM remain host/provider concerns.
+pub fn compare_playback_timing(
+    expected: &[PlaybackEvent],
+    actual: &[PlaybackEvent],
+    tolerance: &PlaybackTimingTolerance,
+) -> Result<PlaybackTimingReport, crate::Error> {
+    if !tolerance.start_secs.is_finite()
+        || tolerance.start_secs < 0.0
+        || !tolerance.duration_secs.is_finite()
+        || tolerance.duration_secs < 0.0
+    {
+        return Err(crate::Error::InvalidPlaybackComparison);
+    }
+    if expected.len() > MAX_PLAYBACK_COMPARISON_EVENTS {
+        return Err(crate::Error::PlaybackComparisonTooLarge(expected.len()));
+    }
+    if actual.len() > MAX_PLAYBACK_COMPARISON_EVENTS {
+        return Err(crate::Error::PlaybackComparisonTooLarge(actual.len()));
+    }
+    let mut mismatches = Vec::new();
+    if expected.len() != actual.len() {
+        mismatches.push(PlaybackTimingMismatch::EventCount {
+            expected: expected.len(),
+            actual: actual.len(),
+        });
+    }
+    let mut matched_events = 0;
+    let mut max_start_error_secs: f64 = 0.0;
+    let mut max_duration_error_secs: f64 = 0.0;
+    for (index, (expected_event, actual_event)) in expected.iter().zip(actual).enumerate() {
+        let identity_matches = expected_event.address == actual_event.address
+            && expected_event.pitch_midi_cents == actual_event.pitch_midi_cents
+            && expected_event.velocity == actual_event.velocity
+            && expected_event.part_index == actual_event.part_index
+            && expected_event.channel == actual_event.channel
+            && expected_event.is_metronome == actual_event.is_metronome;
+        let start_error_secs = (expected_event.time_secs - actual_event.time_secs).abs();
+        let duration_error_secs = (expected_event.duration_secs - actual_event.duration_secs).abs();
+        if start_error_secs.is_finite() {
+            max_start_error_secs = max_start_error_secs.max(start_error_secs);
+        }
+        if duration_error_secs.is_finite() {
+            max_duration_error_secs = max_duration_error_secs.max(duration_error_secs);
+        }
+        let start_matches =
+            start_error_secs.is_finite() && start_error_secs <= tolerance.start_secs;
+        let duration_matches =
+            duration_error_secs.is_finite() && duration_error_secs <= tolerance.duration_secs;
+        if identity_matches && start_matches && duration_matches {
+            matched_events += 1;
+            continue;
+        }
+        if mismatches.len() < MAX_PLAYBACK_MISMATCHES {
+            if !identity_matches {
+                mismatches.push(PlaybackTimingMismatch::EventIdentity { index });
+            }
+            if !start_matches && mismatches.len() < MAX_PLAYBACK_MISMATCHES {
+                mismatches.push(PlaybackTimingMismatch::StartTime {
+                    index,
+                    error_secs: start_error_secs,
+                });
+            }
+            if !duration_matches && mismatches.len() < MAX_PLAYBACK_MISMATCHES {
+                mismatches.push(PlaybackTimingMismatch::Duration {
+                    index,
+                    error_secs: duration_error_secs,
+                });
+            }
+        }
+    }
+    Ok(PlaybackTimingReport {
+        contract_version: PLAYBACK_COMPARISON_CONTRACT_VERSION,
+        expected_events: expected.len(),
+        actual_events: actual.len(),
+        matched_events,
+        max_start_error_secs,
+        max_duration_error_secs,
+        within_tolerance: mismatches.is_empty(),
+        mismatches,
+    })
+}
+
+/// Version of the host-neutral tablature performance projection contract.
+pub const TAB_PERFORMANCE_CONTRACT_VERSION: u16 = 1;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TablaturePerformanceEvent {
+    pub playback: PlaybackEvent,
+    pub string: u8,
+    pub fret: u8,
+    pub expected_pitch_midi_cents: i32,
+    pub pitch_error_cents: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum TablaturePerformanceDiagnostic {
+    NoTablatureStaff {
+        address: String,
+    },
+    MissingPosition {
+        address: String,
+        pitch_index: usize,
+    },
+    StringOutOfRange {
+        address: String,
+        string: u8,
+        lines: u8,
+    },
+    TuningUnavailable {
+        address: String,
+        string: u8,
+    },
+    PitchMismatch {
+        address: String,
+        pitch_index: usize,
+        error_cents: i32,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TablaturePerformanceReport {
+    pub contract_version: u16,
+    pub events: Vec<TablaturePerformanceEvent>,
+    pub diagnostics: Vec<TablaturePerformanceDiagnostic>,
+}
+
+/// Version of the score-model tablature round-trip diagnostic contract.
+pub const TAB_ROUND_TRIP_CONTRACT_VERSION: u16 = 1;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TablatureRoundTripReport {
+    pub contract_version: u16,
+    pub checked_notes: usize,
+    pub positioned_notes: usize,
+    pub equivalent: bool,
+    pub diagnostics: Vec<TablatureRoundTripDiagnostic>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum TablatureRoundTripDiagnostic {
+    StructureMismatch {
+        address: String,
+    },
+    TablatureConfigMismatch {
+        address: String,
+    },
+    PositionMismatch {
+        address: String,
+        pitch_index: usize,
+        expected: Option<TabPosition>,
+        actual: Option<TabPosition>,
+    },
+}
+
+/// Verify that authored tablature survives the canonical score JSON round-trip.
+///
+/// This checks score-model persistence only. It does not claim MusicXML/MSCX or external
+/// application equivalence; those format and host comparisons remain separate gates.
+pub fn tablature_round_trip_report(
+    score: &Score,
+) -> Result<TablatureRoundTripReport, crate::Error> {
+    let encoded = serde_json::to_string(score)
+        .map_err(|error| crate::Error::TabRoundTripSerialization(error.to_string()))?;
+    let restored: Score = serde_json::from_str(&encoded)
+        .map_err(|error| crate::Error::TabRoundTripSerialization(error.to_string()))?;
+    let mut checked_notes = 0;
+    let mut positioned_notes = 0;
+    let mut diagnostics = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        let Some(restored_part) = restored.parts.get(part_index) else {
+            diagnostics.push(TablatureRoundTripDiagnostic::StructureMismatch {
+                address: format!("{part_index}"),
+            });
+            continue;
+        };
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            let address = format!("{part_index}:{staff_index}");
+            let Some(restored_staff) = restored_part.staves.get(staff_index) else {
+                diagnostics.push(TablatureRoundTripDiagnostic::StructureMismatch { address });
+                continue;
+            };
+            if staff.tablature != restored_staff.tablature {
+                diagnostics.push(TablatureRoundTripDiagnostic::TablatureConfigMismatch {
+                    address: address.clone(),
+                });
+            }
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                let Some(restored_measure) = restored_staff.measures.get(measure_index) else {
+                    diagnostics.push(TablatureRoundTripDiagnostic::StructureMismatch {
+                        address: format!("{address}:{measure_index}"),
+                    });
+                    continue;
+                };
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    let Some(restored_voice) = restored_measure.voices.get(voice_index) else {
+                        diagnostics.push(TablatureRoundTripDiagnostic::StructureMismatch {
+                            address: format!("{address}:{measure_index}:{voice_index}"),
+                        });
+                        continue;
+                    };
+                    for (note_index, note) in voice.iter().enumerate() {
+                        checked_notes += 1;
+                        if !note.tab_positions.is_empty() || note.tab_position.is_some() {
+                            positioned_notes += 1;
+                        }
+                        let note_address =
+                            format!("{address}:{measure_index}:{voice_index}:{note_index}");
+                        let Some(restored_note) = restored_voice.get(note_index) else {
+                            diagnostics.push(TablatureRoundTripDiagnostic::StructureMismatch {
+                                address: note_address,
+                            });
+                            continue;
+                        };
+                        let pitch_count = note.pitches.len().max(note.tab_positions.len()).max(1);
+                        for pitch_index in 0..pitch_count {
+                            let expected = note
+                                .tab_positions
+                                .get(pitch_index)
+                                .cloned()
+                                .or_else(|| note.tab_position.clone());
+                            let actual = restored_note
+                                .tab_positions
+                                .get(pitch_index)
+                                .cloned()
+                                .or_else(|| restored_note.tab_position.clone());
+                            if expected != actual {
+                                diagnostics.push(TablatureRoundTripDiagnostic::PositionMismatch {
+                                    address: note_address.clone(),
+                                    pitch_index,
+                                    expected,
+                                    actual,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(TablatureRoundTripReport {
+        contract_version: TAB_ROUND_TRIP_CONTRACT_VERSION,
+        checked_notes,
+        positioned_notes,
+        equivalent: diagnostics.is_empty(),
+        diagnostics,
+    })
+}
+
+/// Project score playback events onto authored tablature positions.
+///
+/// This operation never invents a string or fret. Callers may run
+/// [`assign_tablature_positions`](crate::assign_tablature_positions) before this
+/// projection when automatic positions are desired.
+pub fn project_tablature_performance(
+    score: &Score,
+    options: &PlaybackOptions,
+) -> Result<TablaturePerformanceReport, crate::Error> {
+    let playback = to_playback_events(score, options);
+    if playback.len() > MAX_TAB_PERFORMANCE_EVENTS {
+        return Err(crate::Error::TabPerformanceTooLarge(playback.len()));
+    }
+    let mut events = Vec::new();
+    let mut diagnostics = Vec::new();
+    for event in playback {
+        let Some(address) = event.address.as_deref() else {
+            continue;
+        };
+        let Some((part_index, staff_index, measure_index, voice_index, note_index)) =
+            parse_playback_address(address)
+        else {
+            continue;
+        };
+        let Some(staff) = score
+            .parts
+            .get(part_index)
+            .and_then(|part| part.staves.get(staff_index))
+        else {
+            continue;
+        };
+        let Some(note) = staff
+            .measures
+            .get(measure_index)
+            .and_then(|measure| measure.voices.get(voice_index))
+            .and_then(|voice| voice.get(note_index))
+        else {
+            continue;
+        };
+        let Some(tab) = staff.tablature.as_ref() else {
+            push_tab_diagnostic(
+                &mut diagnostics,
+                TablaturePerformanceDiagnostic::NoTablatureStaff {
+                    address: address.into(),
+                },
+            );
+            continue;
+        };
+        let transpose_cents = if event.channel == 9 {
+            0
+        } else {
+            i32::from(staff.transpose_semitones) * 100
+        };
+        let written_pitch_cents = event.pitch_midi_cents - transpose_cents;
+        let pitch_index = note
+            .pitches
+            .iter()
+            .position(|pitch| pitch.to_midi_cents() == written_pitch_cents)
+            .unwrap_or(0);
+        let position = note
+            .tab_positions
+            .get(pitch_index)
+            .or(note.tab_position.as_ref());
+        let Some(position) = position else {
+            push_tab_diagnostic(
+                &mut diagnostics,
+                TablaturePerformanceDiagnostic::MissingPosition {
+                    address: address.into(),
+                    pitch_index,
+                },
+            );
+            continue;
+        };
+        if position.string == 0 || position.string > tab.lines {
+            push_tab_diagnostic(
+                &mut diagnostics,
+                TablaturePerformanceDiagnostic::StringOutOfRange {
+                    address: address.into(),
+                    string: position.string,
+                    lines: tab.lines,
+                },
+            );
+            continue;
+        }
+        let Some(tuning) = tab.tuning_midi.get(usize::from(position.string - 1)) else {
+            push_tab_diagnostic(
+                &mut diagnostics,
+                TablaturePerformanceDiagnostic::TuningUnavailable {
+                    address: address.into(),
+                    string: position.string,
+                },
+            );
+            continue;
+        };
+        let expected_pitch_midi_cents =
+            tuning.saturating_add(i16::from(position.fret) + i16::from(tab.capo)) as i32 * 100;
+        let pitch_error_cents = event.pitch_midi_cents - expected_pitch_midi_cents;
+        if pitch_error_cents != 0 {
+            push_tab_diagnostic(
+                &mut diagnostics,
+                TablaturePerformanceDiagnostic::PitchMismatch {
+                    address: address.into(),
+                    pitch_index,
+                    error_cents: pitch_error_cents,
+                },
+            );
+        }
+        events.push(TablaturePerformanceEvent {
+            playback: event,
+            string: position.string,
+            fret: position.fret,
+            expected_pitch_midi_cents,
+            pitch_error_cents,
+        });
+    }
+    Ok(TablaturePerformanceReport {
+        contract_version: TAB_PERFORMANCE_CONTRACT_VERSION,
+        events,
+        diagnostics,
+    })
+}
+
+fn parse_playback_address(address: &str) -> Option<(usize, usize, usize, usize, usize)> {
+    let mut fields = address.split(':').map(|field| field.parse::<usize>().ok());
+    Some((
+        fields.next()??,
+        fields.next()??,
+        fields.next()??,
+        fields.next()??,
+        fields.next()??,
+    ))
+}
+
+fn push_tab_diagnostic(
+    diagnostics: &mut Vec<TablaturePerformanceDiagnostic>,
+    diagnostic: TablaturePerformanceDiagnostic,
+) {
+    if diagnostics.len() < MAX_TAB_PERFORMANCE_DIAGNOSTICS {
+        diagnostics.push(diagnostic);
+    }
 }
 
 /// Convert a [`Score`] into a flat, time-ordered list of [`PlaybackEvent`]s.
@@ -340,6 +780,18 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
     events
 }
 
+/// Convert a score into playback events while enforcing the host-comparison event bound.
+pub fn to_playback_events_bounded(
+    score: &Score,
+    options: &PlaybackOptions,
+) -> Result<Vec<PlaybackEvent>, crate::Error> {
+    let events = to_playback_events(score, options);
+    if events.len() > MAX_PLAYBACK_COMPARISON_EVENTS {
+        return Err(crate::Error::PlaybackComparisonTooLarge(events.len()));
+    }
+    Ok(events)
+}
+
 // ── PlaybackPosition + compute_playback_position ──────────────────────────────
 
 /// Score position at a specific elapsed time.
@@ -445,6 +897,15 @@ mod tests {
             bpm_override: bpm,
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn bounded_playback_events_match_unbounded_schedule_within_limit() {
+        let score = Score::new("bounded", 120, 4, 4, 0, 1);
+        let options = opts(Some(120));
+        let unbounded = to_playback_events(&score, &options);
+        let bounded = to_playback_events_bounded(&score, &options).expect("bounded schedule");
+        assert_eq!(bounded, unbounded);
     }
 
     #[test]
@@ -1068,5 +1529,160 @@ mod tests {
         let score = Score::new("T", 120, 4, 4, 0, 1);
         let events = to_playback_events(&score, &PlaybackOptions::default());
         assert!(events.iter().all(|e| !e.is_metronome));
+    }
+
+    fn comparison_event(time_secs: f64, duration_secs: f64) -> PlaybackEvent {
+        PlaybackEvent {
+            address: Some("0:0:0:0:0".into()),
+            time_beats: 0.0,
+            time_secs,
+            pitch_midi: 60,
+            pitch_midi_cents: 6000,
+            velocity: 64,
+            duration_beats: 1.0,
+            duration_secs,
+            pedal: false,
+            part_index: 0,
+            channel: 0,
+            is_metronome: false,
+        }
+    }
+
+    #[test]
+    fn playback_timing_comparison_reports_tolerance_and_identity() {
+        let expected = [comparison_event(1.0, 0.5)];
+        let actual = [comparison_event(1.004, 0.503)];
+        let report = compare_playback_timing(
+            &expected,
+            &actual,
+            &PlaybackTimingTolerance {
+                start_secs: 0.005,
+                duration_secs: 0.005,
+            },
+        )
+        .expect("comparison");
+        assert!(report.within_tolerance);
+        assert_eq!(report.matched_events, 1);
+        assert_eq!(
+            report.contract_version,
+            PLAYBACK_COMPARISON_CONTRACT_VERSION
+        );
+
+        let actual = [comparison_event(1.02, 0.6)];
+        let report =
+            compare_playback_timing(&expected, &actual, &PlaybackTimingTolerance::default())
+                .expect("comparison");
+        assert!(!report.within_tolerance);
+        assert!(
+            report
+                .mismatches
+                .iter()
+                .any(|m| matches!(m, PlaybackTimingMismatch::StartTime { index: 0, .. }))
+        );
+        assert!(
+            report
+                .mismatches
+                .iter()
+                .any(|m| matches!(m, PlaybackTimingMismatch::Duration { index: 0, .. }))
+        );
+    }
+
+    #[test]
+    fn playback_timing_comparison_rejects_invalid_tolerance() {
+        let error = compare_playback_timing(
+            &[],
+            &[],
+            &PlaybackTimingTolerance {
+                start_secs: -0.1,
+                duration_secs: 0.0,
+            },
+        );
+        assert!(matches!(
+            error,
+            Err(crate::Error::InvalidPlaybackComparison)
+        ));
+    }
+
+    #[test]
+    fn tablature_performance_projection_keeps_position_and_reports_pitch_error() {
+        let mut score = Score::new("Tab", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].tablature = Some(super::super::notation::TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![40, 45, 50, 55, 59, 64],
+            capo: 0,
+        });
+        let notes = &mut score.parts[0].staves[0].measures[0].voices[0];
+        *notes = vec![crate::Note::new(
+            crate::Pitch::new(crate::Step::C, 4),
+            crate::Duration::Quarter,
+        )];
+        notes[0].tab_position = Some(super::super::notation::TabPosition {
+            string: 1,
+            fret: 20,
+        });
+        let report = project_tablature_performance(&score, &PlaybackOptions::default())
+            .expect("tablature projection");
+        assert_eq!(report.events.len(), 1);
+        assert_eq!(report.events[0].string, 1);
+        assert_eq!(report.events[0].fret, 20);
+        assert!(report.diagnostics.is_empty());
+
+        score.parts[0].staves[0].measures[0].voices[0][0].tab_position =
+            Some(super::super::notation::TabPosition {
+                string: 1,
+                fret: 19,
+            });
+        let report = project_tablature_performance(&score, &PlaybackOptions::default())
+            .expect("tablature projection");
+        assert_eq!(report.events[0].pitch_error_cents, 100);
+        assert!(matches!(
+            report.diagnostics[0],
+            TablaturePerformanceDiagnostic::PitchMismatch {
+                error_cents: 100,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn tablature_performance_projection_does_not_invent_missing_positions() {
+        let mut score = Score::new("Tab", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].tablature = Some(super::super::notation::TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![40, 45, 50, 55, 59, 64],
+            capo: 0,
+        });
+        score.parts[0].staves[0].measures[0].voices[0].push(crate::Note::new(
+            crate::Pitch::new(crate::Step::C, 4),
+            crate::Duration::Quarter,
+        ));
+        let report = project_tablature_performance(&score, &PlaybackOptions::default())
+            .expect("tablature projection");
+        assert!(report.events.is_empty());
+        assert!(matches!(
+            report.diagnostics[0],
+            TablaturePerformanceDiagnostic::MissingPosition { .. }
+        ));
+    }
+
+    #[test]
+    fn tablature_round_trip_report_preserves_authored_positions() {
+        let mut score = Score::new("Tab", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].tablature = Some(super::super::notation::TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![40, 45, 50, 55, 59, 64],
+            capo: 2,
+        });
+        let mut note = crate::Note::new(
+            crate::Pitch::new(crate::Step::C, 4),
+            crate::Duration::Quarter,
+        );
+        note.tab_positions = vec![crate::TabPosition { string: 5, fret: 1 }];
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let report = tablature_round_trip_report(&score).expect("tab round-trip report");
+        assert!(report.equivalent);
+        assert_eq!(report.checked_notes, 1);
+        assert_eq!(report.positioned_notes, 1);
+        assert!(report.diagnostics.is_empty());
     }
 }

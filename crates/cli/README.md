@@ -25,12 +25,23 @@ acorde tab-position guitar.musicxml edited.musicxml --part 0 --measure 0 --note 
 acorde tab-position edited.musicxml cleared.musicxml --part 0 --measure 0 --note 1 --clear
 acorde auto-tab guitar.musicxml guitar-tabbed.musicxml
 acorde auto-tab-report guitar.musicxml guitar-tabbed.musicxml
+acorde tab-performance-report guitar-tabbed.musicxml --bpm 120 --fail-on-diagnostics
+acorde playback-report input.musicxml --bpm 120 --loop-start 0 --loop-end 3
+acorde playback-compare expected.json actual.json --fail-on-mismatch
 acorde fingering-report guitar.musicxml --policy source-order
 acorde fingering-report guitar.musicxml --policy lowest
 ~~~
 
 `auto-tab-report` prints JSON containing assigned/remaining notes, chord count, total and maximum
 fret, while writing the optimized score to the requested output path.
+`tab-performance-report` prints the bounded core playback/tablature projection as JSON. It checks
+authored string/fret positions against tuning and capo, accepts an optional `--bpm` override, and
+supports `--fail-on-diagnostics` for a non-zero local CI gate.
+`playback-report` prints the deterministic expected event schedule for comparison with a browser or
+Composer host's scheduled trace. It accepts `--bpm` and inclusive physical-measure range options
+`--loop-start`/`--loop-end`; output is bounded by the core comparison event limit.
+`playback-compare` compares expected and host-observed event JSON with explicit timing tolerances
+and supports `--fail-on-mismatch` for CI. Each input JSON file is limited to 64 MiB.
 `fingering-report` prints each authored candidate list and the selected value without modifying the
 score. Its deterministic policies are `source-order`, `lowest`, and `highest`.
 

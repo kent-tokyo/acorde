@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "release": "1.1.5",
+  "release": "1.1.6",
   "contracts": {
     "svg_render_metadata": 3,
     "print_layout": 24

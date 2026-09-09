@@ -36,8 +36,14 @@ pub use model::notation::{
 };
 pub use model::pitch::{Pitch, Step};
 pub use model::playback::{
-    MetronomeConfig, PlaybackEvent, PlaybackOptions, PlaybackPosition, compute_playback_position,
-    to_playback_events,
+    MAX_PLAYBACK_COMPARISON_EVENTS, MAX_TAB_PERFORMANCE_EVENTS, MetronomeConfig,
+    PLAYBACK_COMPARISON_CONTRACT_VERSION, PlaybackEvent, PlaybackOptions, PlaybackPosition,
+    PlaybackTimingMismatch, PlaybackTimingReport, PlaybackTimingTolerance,
+    TAB_PERFORMANCE_CONTRACT_VERSION, TAB_ROUND_TRIP_CONTRACT_VERSION,
+    TablaturePerformanceDiagnostic, TablaturePerformanceEvent, TablaturePerformanceReport,
+    TablatureRoundTripDiagnostic, TablatureRoundTripReport, compare_playback_timing,
+    compute_playback_position, project_tablature_performance, tablature_round_trip_report,
+    to_playback_events, to_playback_events_bounded,
 };
 pub use model::repeat::measure_sequence;
 pub use model::scale::{Scale, ScaleKind};
@@ -84,4 +90,12 @@ pub enum Error {
     HistoryBaseMismatch,
     #[error("engine history is not a safe append-only extension")]
     HistoryNotAppendable,
+    #[error("invalid playback comparison tolerance")]
+    InvalidPlaybackComparison,
+    #[error("playback comparison contains too many events ({0})")]
+    PlaybackComparisonTooLarge(usize),
+    #[error("tablature performance projection contains too many events ({0})")]
+    TabPerformanceTooLarge(usize),
+    #[error("tablature round-trip serialization failed: {0}")]
+    TabRoundTripSerialization(String),
 }
