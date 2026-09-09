@@ -156,6 +156,10 @@ export interface TablatureRoundTripReport {
 export interface WorkspacePreflight {
   contractVersion: number;
   revision: number;
+  valid: boolean;
+  validationErrorCount: number;
+  rendererIssueCount: number;
+  tablatureDiagnosticCount?: number;
   validation: Record<string, unknown>;
   rendererIssues: Array<Record<string, unknown>>;
   tablaturePerformance?: TablaturePerformanceReport;
@@ -547,12 +551,26 @@ export class AcordeWorkspace {
     const result: WorkspacePreflight = {
       contractVersion: BROWSER_ADAPTER_CONTRACT_VERSION,
       revision,
-      validation: this.validateScore(),
-      rendererIssues: this.renderPreflight(),
+      valid: true,
+      validationErrorCount: 0,
+      rendererIssueCount: 0,
+      validation: {},
+      rendererIssues: [],
     };
+    result.validation = this.validateScore();
+    result.rendererIssues = this.renderPreflight();
+    result.validationErrorCount = Array.isArray(result.validation.errors)
+      ? result.validation.errors.length
+      : 0;
+    result.rendererIssueCount = result.rendererIssues.length;
+    result.valid = result.validationErrorCount === 0 && result.rendererIssueCount === 0;
     if (includeTablature) {
-      result.tablaturePerformance = this.tablaturePerformance();
-      result.tablatureRoundTrip = this.tablatureRoundTripReport();
+      const tablaturePerformance = this.tablaturePerformance();
+      const tablatureRoundTrip = this.tablatureRoundTripReport();
+      result.tablaturePerformance = tablaturePerformance;
+      result.tablatureRoundTrip = tablatureRoundTrip;
+      result.tablatureDiagnosticCount = tablaturePerformance.diagnostics.length
+        + tablatureRoundTrip.diagnostics.length;
     }
     if (revision !== this.revisionNumber) {
       throw new AcordeWorkspaceError("validate", "workspace changed during preflight");
