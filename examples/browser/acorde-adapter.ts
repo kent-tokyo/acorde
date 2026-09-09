@@ -17,7 +17,8 @@ export type WorkspaceOperation =
   | "compatibility"
   | "serialize"
   | "playback"
-  | "tab-performance";
+  | "tab-performance"
+  | "validate";
 
 /** Structured, host-facing error for showing a repair hint without parsing strings. */
 export class AcordeWorkspaceError extends Error {
@@ -532,7 +533,7 @@ export class AcordeWorkspace {
     try {
       return JSON.parse(this.wasm.validate_score(this.scoreJson)) as Record<string, unknown>;
     } catch (cause) {
-      throw this.toWorkspaceError("parse", cause);
+      throw this.toWorkspaceError("validate", cause);
     }
   }
 
