@@ -126,7 +126,9 @@ evidence only; it is not evidence of equivalent audio rendering.
 For tablature-aware hosts, `project_tablature_performance(score_json, options_json)` returns
 playback events paired with authored string/fret positions. It validates tuning and capo against
 the sounding pitch, reports missing or invalid positions and microtonal pitch differences, and
-never guesses a position. Automatic assignment remains an explicit caller step.
+never guesses a position. Each positioned event also carries the authored `GuitarTechnique` when
+present (`bend`, `slide`, `hammer-on`, or `pull-off`) so hosts can select their own articulation.
+Automatic assignment remains an explicit caller step.
 
 ## Incremental updates
 

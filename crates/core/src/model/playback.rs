@@ -1,5 +1,5 @@
 use super::duration::Duration;
-use super::notation::{Articulation, TabPosition};
+use super::notation::{Articulation, GuitarTechnique, TabPosition};
 use super::repeat::measure_sequence;
 use super::score::Score;
 use serde::{Deserialize, Serialize};
@@ -277,13 +277,16 @@ pub fn compare_playback_timing(
 }
 
 /// Version of the host-neutral tablature performance projection contract.
-pub const TAB_PERFORMANCE_CONTRACT_VERSION: u16 = 1;
+pub const TAB_PERFORMANCE_CONTRACT_VERSION: u16 = 2;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TablaturePerformanceEvent {
     pub playback: PlaybackEvent,
     pub string: u8,
     pub fret: u8,
+    /// Authored guitar technique for the host playback adapter, when present.
+    #[serde(default)]
+    pub technique: Option<GuitarTechnique>,
     pub expected_pitch_midi_cents: i32,
     pub pitch_error_cents: i32,
 }
@@ -553,6 +556,7 @@ pub fn project_tablature_performance(
             playback: event,
             string: position.string,
             fret: position.fret,
+            technique: note.guitar_technique.clone(),
             expected_pitch_midi_cents,
             pitch_error_cents,
         });
@@ -1620,11 +1624,16 @@ mod tests {
             string: 1,
             fret: 20,
         });
+        notes[0].guitar_technique = Some(super::super::notation::GuitarTechnique::Slide);
         let report = project_tablature_performance(&score, &PlaybackOptions::default())
             .expect("tablature projection");
         assert_eq!(report.events.len(), 1);
         assert_eq!(report.events[0].string, 1);
         assert_eq!(report.events[0].fret, 20);
+        assert_eq!(
+            report.events[0].technique,
+            Some(super::super::notation::GuitarTechnique::Slide)
+        );
         assert!(report.diagnostics.is_empty());
 
         score.parts[0].staves[0].measures[0].voices[0][0].tab_position =

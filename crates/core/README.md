@@ -54,7 +54,8 @@ engine.undo()?;
 
 The current Score JSON schema version is 1. MIDI pitch-bend, Controller Change, Program Change,
 and key/channel Aftertouch events are preserved per part with canonical 480-PPQ tick and channel
-metadata. Add acorde-io for format conversion and acorde-layout
+metadata. Tablature performance projections also preserve authored guitar techniques for
+host-owned articulation. Add acorde-io for format conversion and acorde-layout
 for renderer-independent layout.
 
 Security invariants and resource-limit ownership are documented in the [security contract](../../docs/security/threat-model.md).

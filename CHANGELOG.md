@@ -39,6 +39,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   diagnostics.
 - Normalized legacy measure text fields into the deterministic `StyledText` SVG and metadata path,
   avoiding duplicate equivalent entries when importers retain both representations.
+- Extended the tablature performance contract to version 2 and carry authored guitar techniques
+  through Core, WASM, and CLI JSON for host-owned playback articulation.
 
 ## [1.1.6] - 2026-09-09
 
