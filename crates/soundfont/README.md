@@ -56,3 +56,7 @@ separately licensed SF2/SF3 renderer, so no external sample assets or vendor
 library become a requirement for acorde itself. The checksum is path-independent
 FNV-1a 64-bit over the asset bytes. `PLAYBACK_CONTRACT_VERSION` identifies the
 action contract consumed by providers.
+
+Security invariants and resource-limit ownership are documented in the
+[security contract](../../docs/security/threat-model.md). SoundFont bytes, provider metadata,
+and decoded samples are untrusted; this crate remains bounded, synchronous, and filesystem-free.
