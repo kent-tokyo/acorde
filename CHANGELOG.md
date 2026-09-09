@@ -34,6 +34,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   workspace packaging verification.
 - Added weekly Dependabot review candidates for Cargo dependencies and GitHub Actions without
   enabling unreviewed automatic updates.
+- Synchronized the browser contract fixture with the current SVG metadata contract version 3.
 - Added the missing WASM `parse_mxl_report` binding so the browser MXL diagnostic path matches the
   existing IO report contract.
 - Added the CLI `render` command for deterministic input-file-to-SVG rendering through the

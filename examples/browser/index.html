@@ -73,7 +73,7 @@
       const svg = render_score_svg_with_layout(nextScore, layout, options);
       const row = render_score_svg_row(nextScore, layout, 0, options);
       const metadata = JSON.parse(render_score_metadata(nextScore, layout, options));
-      if (!svg.startsWith("<svg") || !row.startsWith("<svg") || metadata.contract_version !== 1 ||
+      if (!svg.startsWith("<svg") || !row.startsWith("<svg") || metadata.contract_version !== 3 ||
           metadata.address_bounds.length !== 4 || !metadata.accessible_text) {
         throw new Error("contract output failed validation");
       }
