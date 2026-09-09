@@ -2,6 +2,9 @@
 
 export type NoteAddress = string;
 
+/** Version of the framework-neutral browser adapter request/response contract. */
+export const BROWSER_ADAPTER_CONTRACT_VERSION = 1;
+
 /** Version of the serialized browser workspace snapshot contract. */
 export const WORKSPACE_SNAPSHOT_SCHEMA_VERSION = 1;
 

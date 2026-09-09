@@ -30,6 +30,9 @@ metadata, and analysis transport consistent while `SelectionStore` synchronizes 
 addresses across notation and analysis views. Results are cached by the WASM-provided analysis
 cache key plus layout or render configuration, so repeated view updates and equivalent revisions do
 not rerun WASM analysis or rendering.
+`BROWSER_ADAPTER_CONTRACT_VERSION` identifies the request/response surface independently from
+`WORKSPACE_SNAPSHOT_SCHEMA_VERSION`; hosts can reject an adapter with an unsupported message
+contract before dispatching Worker requests.
 `analysisCacheKey()` and the `analysis-cache-key` Worker request expose the same schema-versioned
 score identity to a host-level or persistent cache without duplicating hashing logic in JavaScript.
 `WorkspaceSnapshot.analysisCacheKey` carries that identity alongside the analysis result for hosts
