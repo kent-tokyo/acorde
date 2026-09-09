@@ -523,7 +523,7 @@ impl std::fmt::Display for RenderError {
             RenderError::InvalidOptions { reason } => write!(f, "invalid render options: {reason}"),
             RenderError::UnsupportedClef => write!(
                 f,
-                "unsupported clef (percussion has no staff-position mapping)"
+                "unsupported clef (no staff-position mapping is available)"
             ),
             RenderError::UnsupportedAccidental { alter } => {
                 write!(
