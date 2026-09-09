@@ -174,11 +174,27 @@ impl ScoreEngine {
         self.commands.redo_key()
     }
 
+    /// Replace a score that has already crossed a validation boundary.
+    ///
+    /// For deserialized or host-provided data, prefer [`ScoreEngine::try_replace_score`].
     pub fn replace_score(&mut self, score: Score) {
         self.initial_score = score.clone();
         self.score = score;
         self.version += 1;
         self.commands = CommandStack::new(200);
+    }
+
+    /// Replace the score after checking its structural invariants.
+    ///
+    /// Unlike [`ScoreEngine::replace_score`], this is the safe boundary for
+    /// deserialized or host-provided scores. On failure, the engine and its
+    /// history remain unchanged.
+    pub fn try_replace_score(&mut self, score: Score) -> Result<(), Error> {
+        if !super::validate::validate(&score).is_valid() {
+            return Err(Error::InvalidScore);
+        }
+        self.replace_score(score);
+        Ok(())
     }
 
     /// Export the command history for serialization (crash recovery, AI replay).
@@ -198,7 +214,7 @@ impl ScoreEngine {
     /// Returns an error if any command fails (e.g. index out of bounds due to stale data).
     pub fn from_history(history: EngineHistory) -> Result<Self, Error> {
         let mut engine = ScoreEngine::new();
-        engine.replace_score(history.initial_score);
+        engine.try_replace_score(history.initial_score)?;
         for cmd in history.commands {
             engine.apply(cmd)?;
         }
@@ -637,6 +653,30 @@ mod tests {
         engine.replace_score(new_score);
         assert!(engine.undo().is_err());
         assert_eq!(engine.score.settings.tempo_bpm, 90);
+    }
+
+    #[test]
+    fn try_replace_score_rejects_invalid_input_without_mutation() {
+        let mut engine = ScoreEngine::new();
+        engine
+            .apply(Command::SetTempo(SetTempoCmd { bpm: 140 }))
+            .unwrap();
+        let original = engine.score.settings.tempo_bpm;
+        let original_version = engine.version;
+        let mut invalid = Score::default();
+        invalid.parts[0].staves[0].tablature = Some(crate::TablatureConfig {
+            lines: 0,
+            tuning_midi: Vec::new(),
+            capo: 0,
+        });
+
+        assert!(matches!(
+            engine.try_replace_score(invalid),
+            Err(Error::InvalidScore)
+        ));
+        assert_eq!(engine.score.settings.tempo_bpm, original);
+        assert_eq!(engine.version, original_version);
+        assert!(engine.commands.can_undo());
     }
 
     #[test]

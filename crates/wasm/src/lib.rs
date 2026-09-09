@@ -1335,8 +1335,9 @@ impl ScoreEngine {
     /// Replace the entire score (JSON string).
     pub fn replace_score(&mut self, score_json: &str) -> Result<(), JsValue> {
         let score = score_from_json(score_json)?;
-        self.inner.replace_score(score);
-        Ok(())
+        self.inner
+            .try_replace_score(score)
+            .map_err(|err| JsValue::from_str(&err.to_string()))
     }
 
     /// Copy a voice into the engine's clipboard.

@@ -1238,7 +1238,9 @@ fn cmd_tab_position(
         position,
     });
     let mut engine = ScoreEngine::new();
-    engine.replace_score(score);
+    engine
+        .try_replace_score(score)
+        .map_err(|e| format!("cannot load score: {e}"))?;
     engine
         .apply(command)
         .map_err(|e| format!("cannot edit score: {e}"))?;
