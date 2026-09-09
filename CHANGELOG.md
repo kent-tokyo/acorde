@@ -46,6 +46,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   clearance shifts cannot clip short-value beam groups at the SVG page edge.
 - Projected structured `Measure::figured_bass` into the deterministic measure-text SVG path, with
   duplicate suppression for importer-provided styled text.
+- Rendered structured figured-bass extender flags as bounded continuation lines in SVG while
+  retaining host ownership of final publication spacing.
 - Added centered deterministic horizontal separation for simultaneous non-empty voices and a
   structural regression covering opposing voice noteheads.
 - Spaced consecutive grace-note glyphs deterministically along their shared temporal anchor to

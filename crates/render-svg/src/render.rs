@@ -1788,6 +1788,22 @@ fn render_measure(
             attributes = attributes,
             text = escape_xml(&styled.text),
         );
+        if styled.style == acorde_core::TextStyle::FiguredBass
+            && measure.figured_bass.iter().any(|figure| figure.extender)
+        {
+            let line_start =
+                text_x + styled.text.chars().count() as f32 * 0.42 * space + 0.25 * space;
+            let line_end = (x + width - MEASURE_PAD_U * space).max(line_start);
+            let _ = write!(
+                body,
+                r#"<line class="acorde-figured-bass-extender" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
+                f(line_start),
+                f(y - 0.18 * space),
+                f(line_end),
+                f(y - 0.18 * space),
+                f(0.06 * space)
+            );
+        }
     }
 
     body.push_str("</g>");

@@ -523,6 +523,24 @@ fn structured_figured_bass_is_rendered_once() {
 }
 
 #[test]
+fn figured_bass_extender_is_rendered_as_a_continuation_line() {
+    use acorde_core::{FiguredBassFigure, Score};
+
+    let mut score = Score::new("figured bass extender", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].measures[0].figured_bass = vec![FiguredBassFigure {
+        number: "6".to_string(),
+        alter: None,
+        prefix: None,
+        suffix: None,
+        extender: true,
+    }];
+
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert!(svg.contains("acorde-figured-bass-extender"));
+    assert_eq!(svg.matches("acorde-figured-bass-extender").count(), 1);
+}
+
+#[test]
 fn metadata_preserves_positioned_direction_text_fields() {
     use acorde_core::{StyledText, TextStyle};
     use acorde_layout::{LayoutConfig, compute_layout};
