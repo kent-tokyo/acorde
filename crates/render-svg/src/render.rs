@@ -1821,13 +1821,21 @@ fn note_annotation_width_u(note: &Note) -> f32 {
             width = width.max(format!("{:+}c", pitch.microtone_cents).len() as f32 * 0.42);
         }
     }
-    if note.articulations.iter().any(|articulation| {
-        matches!(
-            articulation,
-            acorde_core::Articulation::Fermata | acorde_core::Articulation::Trill
-        )
-    }) {
-        width = width.max(0.42 * 7.0);
+    for articulation in &note.articulations {
+        let text_width = match articulation {
+            acorde_core::Articulation::Fermata => Some(7.0),
+            acorde_core::Articulation::Trill => Some(2.0),
+            acorde_core::Articulation::Mordent => Some(7.0),
+            acorde_core::Articulation::InvertedMordent => Some(11.0),
+            acorde_core::Articulation::Turn => Some(4.0),
+            acorde_core::Articulation::InvertedTurn => Some(8.0),
+            acorde_core::Articulation::Shake => Some(5.0),
+            acorde_core::Articulation::Tremolo(level) => Some(8.0 + (*level).min(8) as f32 * 0.35),
+            _ => None,
+        };
+        if let Some(text_width) = text_width {
+            width = width.max(0.42 * text_width);
+        }
     }
     width
 }
@@ -2749,7 +2757,60 @@ fn render_note_annotations(
                 space,
                 true,
             ),
-            _ => {}
+            acorde_core::Articulation::Mordent => write_annotation_text(
+                body,
+                "acorde-articulation acorde-ornament acorde-mordent",
+                "mordent",
+                x,
+                y + dir * 0.8 * space,
+                space,
+                true,
+            ),
+            acorde_core::Articulation::InvertedMordent => write_annotation_text(
+                body,
+                "acorde-articulation acorde-ornament acorde-inverted-mordent",
+                "inv. mordent",
+                x,
+                y + dir * 0.8 * space,
+                space,
+                true,
+            ),
+            acorde_core::Articulation::Turn => write_annotation_text(
+                body,
+                "acorde-articulation acorde-ornament acorde-turn",
+                "turn",
+                x,
+                y + dir * 0.8 * space,
+                space,
+                true,
+            ),
+            acorde_core::Articulation::InvertedTurn => write_annotation_text(
+                body,
+                "acorde-articulation acorde-ornament acorde-inverted-turn",
+                "inv. turn",
+                x,
+                y + dir * 0.8 * space,
+                space,
+                true,
+            ),
+            acorde_core::Articulation::Shake => write_annotation_text(
+                body,
+                "acorde-articulation acorde-ornament acorde-shake",
+                "shake",
+                x,
+                y + dir * 0.8 * space,
+                space,
+                true,
+            ),
+            acorde_core::Articulation::Tremolo(level) => write_annotation_text(
+                body,
+                "acorde-articulation acorde-ornament acorde-tremolo",
+                &format!("tremolo {}", level),
+                x,
+                y + dir * 0.8 * space,
+                space,
+                true,
+            ),
         }
     }
 }

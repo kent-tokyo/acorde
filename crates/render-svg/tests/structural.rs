@@ -321,6 +321,41 @@ fn note_annotations_are_rendered_and_xml_escaped() {
 }
 
 #[test]
+fn ornament_articulations_are_rendered_with_semantic_classes() {
+    use acorde_core::{Articulation, Duration, Note, Pitch, Step};
+
+    let mut score = common::single_staff_score(
+        acorde_core::Clef::Treble,
+        0,
+        4,
+        4,
+        vec![Note::new(Pitch::new(Step::C, 5), Duration::Whole)],
+        vec![],
+    );
+    score.parts[0].staves[0].measures[0].voices[0][0].articulations = vec![
+        Articulation::Mordent,
+        Articulation::InvertedMordent,
+        Articulation::Turn,
+        Articulation::InvertedTurn,
+        Articulation::Shake,
+        Articulation::Tremolo(3),
+    ];
+
+    let svg = render_svg(&score, &opts()).unwrap();
+    for class in [
+        "acorde-mordent",
+        "acorde-inverted-mordent",
+        "acorde-turn",
+        "acorde-inverted-turn",
+        "acorde-shake",
+        "acorde-tremolo",
+    ] {
+        assert!(svg.contains(class), "missing ornament class: {class}");
+    }
+    assert!(svg.contains(">tremolo 3</text>"));
+}
+
+#[test]
 fn short_rests_custom_noteheads_and_small_notes_are_rendered() {
     use acorde_core::{Duration, Note, NoteHead, Pitch, Step};
 
