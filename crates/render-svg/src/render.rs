@@ -206,7 +206,7 @@ pub(crate) fn build_svg_with_metadata(
                     .map(|tab| tab.lines),
             );
             let state = &staff_states[si_idx];
-            let mut hx = LEFT_MARGIN_U * space;
+            let mut hx = left_margin_u * space;
             hx += write_clef(&mut body, &state.clef, hx, bottom_y, space)?;
             hx += HEADER_GAP_U * space;
             hx += write_key_signature(
