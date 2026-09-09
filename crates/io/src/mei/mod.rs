@@ -2126,87 +2126,9 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     {
         return Err(Error::Empty);
     }
-    for (start, end) in pending_slurs {
-        let start = note_ids.get(start.trim_start_matches('#'));
-        let end = note_ids.get(end.trim_start_matches('#'));
-        if let (
-            Some(&(staff, measure, layer, index)),
-            Some(&(end_staff, end_measure, end_layer, end_index)),
-        ) = (start, end)
-        {
-            if let Some(note) = score.parts[0].staves[staff]
-                .measures
-                .get_mut(measure)
-                .and_then(|measure| measure.voices.get_mut(layer))
-                .and_then(|voice| voice.get_mut(index))
-            {
-                note.slur_start = true;
-            }
-            if let Some(note) = score.parts[0].staves[end_staff]
-                .measures
-                .get_mut(end_measure)
-                .and_then(|measure| measure.voices.get_mut(end_layer))
-                .and_then(|voice| voice.get_mut(end_index))
-            {
-                note.slur_end = true;
-            }
-        }
-    }
-    for (start, end, kind) in pending_ottavas {
-        let start = note_ids.get(start.trim_start_matches('#'));
-        let end = note_ids.get(end.trim_start_matches('#'));
-        if let (
-            Some(&(staff, measure, layer, index)),
-            Some(&(end_staff, end_measure, end_layer, end_index)),
-        ) = (start, end)
-        {
-            if let Some(note) = score.parts[0].staves[staff]
-                .measures
-                .get_mut(measure)
-                .and_then(|measure| measure.voices.get_mut(layer))
-                .and_then(|voice| voice.get_mut(index))
-            {
-                note.ottava_start = Some(kind);
-            }
-            if let Some(note) = score.parts[0].staves[end_staff]
-                .measures
-                .get_mut(end_measure)
-                .and_then(|measure| measure.voices.get_mut(end_layer))
-                .and_then(|voice| voice.get_mut(end_index))
-            {
-                note.ottava_end = true;
-            }
-        }
-    }
-    for (start, end) in pending_pedals {
-        let start = note_ids.get(start.trim_start_matches('#'));
-        let end = note_ids.get(end.trim_start_matches('#'));
-        if let (
-            Some(&(staff, measure, layer, index)),
-            Some(&(end_staff, end_measure, end_layer, end_index)),
-        ) = (start, end)
-            && staff == end_staff
-            && measure == end_measure
-            && layer == end_layer
-        {
-            if let Some(note) = score.parts[0].staves[staff]
-                .measures
-                .get_mut(measure)
-                .and_then(|measure| measure.voices.get_mut(layer))
-                .and_then(|voice| voice.get_mut(index))
-            {
-                note.pedal_start = true;
-            }
-            if let Some(note) = score.parts[0].staves[end_staff]
-                .measures
-                .get_mut(end_measure)
-                .and_then(|measure| measure.voices.get_mut(end_layer))
-                .and_then(|voice| voice.get_mut(end_index))
-            {
-                note.pedal_end = true;
-            }
-        }
-    }
+    apply_mei_slurs(&mut score, &note_ids, pending_slurs);
+    apply_mei_ottavas(&mut score, &note_ids, pending_ottavas);
+    apply_mei_pedals(&mut score, &note_ids, pending_pedals);
     for (start, chord, label, fallback_staff, fallback_measure) in pending_harm_symbols {
         if let Some(&(staff, measure, layer, index)) = note_ids.get(start.trim_start_matches('#'))
             && let Some(note) = score.parts[0].staves[staff]
@@ -2237,6 +2159,89 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     }
     score.parts[0].staff_groups = staff_groups;
     Ok(score)
+}
+
+fn mei_note_mut(score: &mut Score, location: (usize, usize, usize, usize)) -> Option<&mut Note> {
+    let (staff, measure, layer, index) = location;
+    score
+        .parts
+        .get_mut(0)?
+        .staves
+        .get_mut(staff)?
+        .measures
+        .get_mut(measure)?
+        .voices
+        .get_mut(layer)?
+        .get_mut(index)
+}
+
+fn apply_mei_slurs(
+    score: &mut Score,
+    note_ids: &HashMap<String, (usize, usize, usize, usize)>,
+    links: Vec<(String, String)>,
+) {
+    for (start, end) in links {
+        let Some(&start_location) = note_ids.get(start.trim_start_matches('#')) else {
+            continue;
+        };
+        let Some(&end_location) = note_ids.get(end.trim_start_matches('#')) else {
+            continue;
+        };
+        if let Some(note) = mei_note_mut(score, start_location) {
+            note.slur_start = true;
+        }
+        if let Some(note) = mei_note_mut(score, end_location) {
+            note.slur_end = true;
+        }
+    }
+}
+
+fn apply_mei_ottavas(
+    score: &mut Score,
+    note_ids: &HashMap<String, (usize, usize, usize, usize)>,
+    links: Vec<(String, String, OttavaKind)>,
+) {
+    for (start, end, kind) in links {
+        let Some(&start_location) = note_ids.get(start.trim_start_matches('#')) else {
+            continue;
+        };
+        let Some(&end_location) = note_ids.get(end.trim_start_matches('#')) else {
+            continue;
+        };
+        if let Some(note) = mei_note_mut(score, start_location) {
+            note.ottava_start = Some(kind);
+        }
+        if let Some(note) = mei_note_mut(score, end_location) {
+            note.ottava_end = true;
+        }
+    }
+}
+
+fn apply_mei_pedals(
+    score: &mut Score,
+    note_ids: &HashMap<String, (usize, usize, usize, usize)>,
+    links: Vec<(String, String)>,
+) {
+    for (start, end) in links {
+        let Some(&start_location) = note_ids.get(start.trim_start_matches('#')) else {
+            continue;
+        };
+        let Some(&end_location) = note_ids.get(end.trim_start_matches('#')) else {
+            continue;
+        };
+        if start_location.0 != end_location.0
+            || start_location.1 != end_location.1
+            || start_location.2 != end_location.2
+        {
+            continue;
+        }
+        if let Some(note) = mei_note_mut(score, start_location) {
+            note.pedal_start = true;
+        }
+        if let Some(note) = mei_note_mut(score, end_location) {
+            note.pedal_end = true;
+        }
+    }
 }
 
 /// Parse MEI and report elements that are intentionally outside the supported subset.

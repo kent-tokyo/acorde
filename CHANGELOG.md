@@ -50,6 +50,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   not clipped even when several same-side lanes are active.
 - Split note-attached articulation SVG emission from the mixed annotation-lane coordinator,
   reducing renderer function size without changing the SVG contract.
+- Split MEI span-link resolution for slurs, ottavas, and pedals into focused helpers, while
+  sharing bounds-checked note lookup and preserving the existing import behavior.
 - Included resolved sloped-beam and secondary-beam extents in content-aware vertical margins so
   clearance shifts cannot clip short-value beam groups at the SVG page edge.
 - Projected structured `Measure::figured_bass` into the deterministic measure-text SVG path, with
