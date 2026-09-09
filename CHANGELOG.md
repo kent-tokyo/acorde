@@ -45,6 +45,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added a pinned TypeScript 5.8.3 adapter typecheck to CI and the browser candidate scorecard.
 - Exposed the SVG metadata contract version through WASM so browser fixtures do not duplicate the
   renderer contract number.
+- Hardened the browser SVG fixture with parse-and-import validation that rejects scripts,
+  event-handler attributes, and JavaScript links before DOM insertion, and documented the host CSP,
+  Trusted Types, Worker, and `data-*` identifier boundary.
 - Added standalone cargo-fuzz targets for the bounded MusicXML, MIDI, ABC, MEI, and MSCZ parser
   report boundaries; fuzz execution budgets remain an explicit security gate.
 - Added a fixed cargo-fuzz 0.13.1 nightly smoke job for all parser targets and checked-in fuzz

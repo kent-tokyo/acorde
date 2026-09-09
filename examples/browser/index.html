@@ -65,6 +65,26 @@
     let redoStack = [];
     const options = JSON.stringify({ width: 700, staff_size: 24, measures_per_system: 4, interactive: true });
     let selectedAddress = null;
+    const mountValidatedSvg = (container, source) => {
+      const parsed = new DOMParser().parseFromString(source, "image/svg+xml");
+      if (parsed.querySelector("parsererror") || parsed.documentElement.localName !== "svg" ||
+          parsed.documentElement.namespaceURI !== "http://www.w3.org/2000/svg") {
+        throw new Error("SVG document validation failed");
+      }
+      const walker = parsed.createTreeWalker(parsed, NodeFilter.SHOW_ELEMENT);
+      while (walker.nextNode()) {
+        const element = walker.currentNode;
+        if (element.localName === "script" || [...element.attributes].some((attribute) => {
+          const name = attribute.name.toLowerCase();
+          const value = attribute.value.trim().toLowerCase();
+          return name.startsWith("on") ||
+            ["href", "xlink:href"].includes(name) && value.startsWith("javascript:");
+        })) {
+          throw new Error("unsafe SVG content rejected");
+        }
+      }
+      container.replaceChildren(document.importNode(parsed.documentElement, true));
+    };
     const updateHistoryControls = () => {
       document.querySelector("#undo").disabled = undoStack.length === 0;
       document.querySelector("#redo").disabled = redoStack.length === 0;
@@ -79,7 +99,7 @@
           metadata.address_bounds.length !== 4 || !metadata.accessible_text) {
         throw new Error("contract output failed validation");
       }
-      document.querySelector("#score").innerHTML = row;
+      mountValidatedSvg(document.querySelector("#score"), row);
       const notes = document.querySelectorAll("#score [data-note-addr]");
       let selectedNote = null;
       const select = (element) => {

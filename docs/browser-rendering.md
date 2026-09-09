@@ -72,6 +72,14 @@ outside the core/WASM contract and remain application-owned.
 The host owns selection state: it may apply a CSS class or overlay after selecting an address;
 the Rust renderer remains stateless.
 
+The reference fixture demonstrates a safe DOM insertion boundary: it parses the returned SVG as
+`image/svg+xml`, requires an SVG root in the SVG namespace, rejects script elements, event-handler
+attributes, and `javascript:` links, then imports the validated tree with `importNode`. Production
+hosts should keep the same validation step, use a restrictive CSP (`script-src 'self'` and no
+untrusted inline execution), enforce Trusted Types where available, and prefer a Worker for WASM
+parsing/rendering. Treat every `data-*` value as an opaque untrusted identifier; never turn it into
+HTML or a URL without a separate allowlist.
+
 For repeated browser analysis, the WASM `AnalysisCache` class mirrors the deterministic Rust cache:
 it supports bounded single-score and batch analysis, editor replacement, explicit invalidation,
 and JSON hit/miss statistics. Cache capacity is caller-owned and zero capacity is rejected.
