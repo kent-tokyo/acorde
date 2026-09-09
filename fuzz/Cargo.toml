@@ -1,0 +1,49 @@
+[package]
+name = "acorde-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+acorde-io = { path = "../crates/io", features = ["musicxml", "midi", "abc", "mei", "mscz"] }
+
+[[bin]]
+name = "musicxml"
+path = "fuzz_targets/musicxml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "midi"
+path = "fuzz_targets/midi.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "abc"
+path = "fuzz_targets/abc.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "mei"
+path = "fuzz_targets/mei.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "mscz"
+path = "fuzz_targets/mscz.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]

@@ -25,6 +25,24 @@ jobs:
       - name: Check advisories, licenses, and sources
         run: cargo deny check advisories licenses sources
 
+  fuzz-smoke:
+    name: Parser fuzz smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --version 0.13.1 --locked
+      - name: Run bounded parser fuzz targets
+        working-directory: fuzz
+        shell: bash
+        run: |
+          set -euo pipefail
+          for target in musicxml midi abc mei mscz; do
+            cargo +nightly fuzz run "$target" -- -runs=100
+          done
+
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

@@ -45,6 +45,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added a pinned TypeScript 5.8.3 adapter typecheck to CI and the browser candidate scorecard.
 - Exposed the SVG metadata contract version through WASM so browser fixtures do not duplicate the
   renderer contract number.
+- Added standalone cargo-fuzz targets for the bounded MusicXML, MIDI, ABC, MEI, and MSCZ parser
+  report boundaries; fuzz execution budgets remain an explicit security gate.
+- Added a fixed cargo-fuzz 0.13.1 nightly smoke job for all parser targets and checked-in fuzz
+  lockfile/evidence documentation.
 - Added the missing WASM `parse_mxl_report` binding so the browser MXL diagnostic path matches the
   existing IO report contract.
 - Added the CLI `render` command for deterministic input-file-to-SVG rendering through the
