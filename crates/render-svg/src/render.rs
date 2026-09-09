@@ -801,6 +801,12 @@ fn content_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
                             } else {
                                 annotation_bottom = annotation_bottom.max(7.2);
                             }
+                        } else if note.fingering.is_some() || !note.fingerings.is_empty() {
+                            if note.stem_up.unwrap_or(voice_stem_up) {
+                                annotation_bottom = annotation_bottom.max(5.2);
+                            } else {
+                                annotation_top = annotation_top.max(7.6);
+                            }
                         } else {
                             annotation_top = annotation_top.max(2.6);
                         }
@@ -2555,6 +2561,28 @@ fn render_note_annotations(
             anchor_y + dir * 6.8 * space,
             space,
             true,
+        );
+    }
+    if note.fingering.is_some() || !note.fingerings.is_empty() {
+        let fingering = if note.fingerings.is_empty() {
+            note.fingering
+                .map(|value| value.to_string())
+                .unwrap_or_default()
+        } else {
+            note.fingerings
+                .iter()
+                .map(u8::to_string)
+                .collect::<Vec<_>>()
+                .join("/")
+        };
+        write_annotation_text(
+            body,
+            "acorde-fingering",
+            &fingering,
+            x,
+            anchor_y + (if stem_up { 5.0 } else { -7.2 }) * space,
+            space,
+            false,
         );
     }
     if let Some(lyric) = &note.lyric {

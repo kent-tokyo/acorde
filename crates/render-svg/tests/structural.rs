@@ -604,6 +604,7 @@ fn note_attached_annotations_expand_content_height() {
     note.dynamic = Some(Dynamic::Ff);
     note.stem_up = Some(false);
     note.technique_text = Some("pizz.".to_string());
+    note.fingering = Some(2);
     note.lyric = Some(Lyric {
         text: "long".to_string(),
         syllabic: "single".to_string(),
@@ -639,6 +640,8 @@ fn note_attached_annotations_expand_content_height() {
     assert_ne!(annotation_y("acorde-dynamic"), annotation_y("acorde-lyric"));
     assert!(svg.contains("class=\"acorde-technique-text\""));
     assert!(svg.contains(">pizz.</text>"));
+    assert!(svg.contains("class=\"acorde-fingering\""));
+    assert!(svg.contains(">2</text>"));
 }
 
 #[test]
