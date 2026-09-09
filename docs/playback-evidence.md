@@ -8,14 +8,15 @@ deterministic score/event contracts from host-owned audio and browser evidence.
 Run from the repository root:
 
 ```text
-cargo test --all
-cargo clippy --all -- -D warnings
+cargo test --all-features --locked
+cargo clippy --all-features --all-targets --locked -- -D warnings
 cargo fmt --all -- --check
 git diff --check
 ```
 
 The tests cover the bounded SoundFont materialization fixtures, playback timing comparison,
-tablature performance projection, CLI playback reports, and CLI playback comparisons. The core
+tablature performance projection (including authored guitar techniques and bend alteration
+cents), CLI playback reports, and CLI playback comparisons. The core
 regression suite also verifies that `to_playback_events_bounded` preserves the canonical schedule
 for ordinary scores. The event bound is `MAX_PLAYBACK_COMPARISON_EVENTS`; comparison mismatches
 are retained as typed, bounded diagnostics.

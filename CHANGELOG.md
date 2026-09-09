@@ -45,6 +45,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   for host playback articulation.
 - Synchronized the scorecard with print-layout contract version 25 and recorded that external
   publication is not verified until the pending registry authentication gate succeeds.
+- Recorded tablature performance contract version 3 in the machine-readable scorecard and
+  aligned the playback evidence commands with the locked all-feature release gate.
 
 ## [1.1.6] - 2026-09-09
 
