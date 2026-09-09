@@ -363,18 +363,7 @@ export class AcordeWorkspace {
 
   /** Load MusicXML and return structured import diagnostics to the host. */
   loadMusicXmlWithReport(xml: string): ImportReport {
-    let report: ImportReport;
-    try {
-      report = JSON.parse(this.wasm.parse_musicxml_report(xml)) as ImportReport;
-    } catch (cause) {
-      throw this.toWorkspaceError("parse", cause);
-    }
-    const prepared = this.prepareScore(JSON.stringify(report.score));
-    this.undoStack.length = 0;
-    this.redoStack.length = 0;
-    this.installScore(prepared.scoreJson, prepared.layoutJson, prepared.layoutOptionsJson);
-    this.selection.set(null);
-    return report;
+    return this.loadWithReport(() => this.wasm.parse_musicxml_report(xml));
   }
 
   /** Load any report-capable format while preserving its import diagnostics. */
