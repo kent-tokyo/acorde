@@ -1354,6 +1354,18 @@ mod tests {
     }
 
     #[test]
+    fn render_command_writes_deterministic_interactive_svg() {
+        let output =
+            std::env::temp_dir().join(format!("acorde-cli-render-{}.svg", std::process::id()));
+        cmd_render(&fixture("simple.musicxml"), &output, 900.0, 24.0, 4, true)
+            .expect("render command succeeds");
+        let svg = std::fs::read_to_string(&output).expect("render output exists");
+        assert!(svg.starts_with("<svg"));
+        assert!(svg.contains("data-note-addr"));
+        std::fs::remove_file(output).expect("temporary render output is removable");
+    }
+
+    #[test]
     fn playback_compare_reports_tolerance_and_rejects_invalid_tolerance() {
         let score = parse_score(&fixture("simple.musicxml")).expect("fixture parses");
         let expected = playback_report_events(&score, Some(120), None, None)
