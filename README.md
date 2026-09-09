@@ -153,6 +153,7 @@ acorde convert input.mid output.musicxml
 acorde convert input.musicxml output.abc
 acorde convert input.musicxml output.mei
 acorde render input.musicxml output.svg
+acorde render-report input.musicxml output.svg --fail-on-issues
 acorde info input.musicxml
 acorde validate input.musicxml
 acorde preflight input.musicxml
@@ -177,6 +178,8 @@ Conversion output is MusicXML, MIDI, ABC, or MEI.
 `render` accepts the same score inputs and writes deterministic SVG through `acorde-render-svg`;
 use `--width`, `--staff-size`, and `--measures-per-system` to select the host-neutral render
 geometry. Address hooks remain enabled by default and can be omitted with `--no-interactive`.
+`render-report` additionally emits import diagnostics and renderer preflight issues as JSON;
+`--fail-on-issues` provides a deterministic CI gate.
 `validate` performs the same local structural checks for tablature metadata and explicit string
 positions; it does not require a SoundFont or network access.
 `preflight` reports SVG renderer capability boundaries before rendering.

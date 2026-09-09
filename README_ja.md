@@ -65,6 +65,7 @@ score JSON同士の同じ判定を利用できます。形式固有の損失は�
 ```bash
 acorde convert input.mid output.musicxml
 acorde render input.musicxml output.svg
+acorde render-report input.musicxml output.svg --fail-on-issues
 acorde info input.musicxml
 acorde validate input.musicxml
 acorde validate guitar.musicxml       # タブ譜の線数・調弦・弦番号も検証
@@ -84,6 +85,8 @@ acorde playback-compare expected.json actual.json --fail-on-mismatch
 ネットワーク接続は必要ありません。
 `render` は同じ入力形式を決定的なSVGへ変換します。`--width`、`--staff-size`、
 `--measures-per-system` で出力ジオメトリを指定でき、アドレス用フックは既定で有効です。
+`render-report` は入力診断と renderer の preflight 診断を JSON で出力し、
+`--fail-on-issues` で問題を CI の失敗として扱えます。
 `tab-position --clear` で明示位置を解除できます。各インデックスは0始まりで、`--string`だけ
 1始まりです。
 `auto-tab` は未指定の単音・コードに対し、フレット負荷と前後のポジション移動を抑える

@@ -10,6 +10,7 @@ acorde convert input.musicxml output.abc
 acorde convert input.musicxml output.mei
 acorde render input.musicxml output.svg
 acorde render input.mei output.svg --width 1200 --staff-size 20 --measures-per-system 3
+acorde render-report input.mei output.svg --fail-on-issues
 acorde info input.musicxml
 acorde validate input.musicxml
 acorde report input.mei
@@ -56,6 +57,9 @@ exits with status 1 when structural errors are found. report emits the parsed sc
 import diagnostics as JSON.
 preflight emits renderer capability issues with stable score source locations as JSON before SVG
 generation.
+`render-report` writes the SVG and emits the input format, byte count, import diagnostics, and
+renderer preflight issues as one JSON report. `--fail-on-issues` makes any such issue a non-zero
+exit, while keeping the report and SVG available for inspection.
 `--fail-on-issues` keeps the JSON output but exits with status 1 when any issue is found, which is
 useful for CI gates.
 The repository fixture `tests/fixtures/render_preflight_unsupported.musicxml` demonstrates the

@@ -47,6 +47,28 @@ enum Commands {
         #[arg(long)]
         no_interactive: bool,
     },
+    /// Render a score file to SVG and print import/renderer diagnostics as JSON
+    RenderReport {
+        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx)
+        input: PathBuf,
+        /// Output SVG file
+        output: PathBuf,
+        /// SVG width in pixels
+        #[arg(long, default_value_t = 900.0)]
+        width: f32,
+        /// Distance between adjacent staff lines in pixels
+        #[arg(long, default_value_t = 24.0)]
+        staff_size: f32,
+        /// Measures per rendered system
+        #[arg(long, default_value_t = 4)]
+        measures_per_system: usize,
+        /// Omit data-* note and score address hooks
+        #[arg(long)]
+        no_interactive: bool,
+        /// Exit with status 1 when import or renderer issues are present
+        #[arg(long)]
+        fail_on_issues: bool,
+    },
     /// Print title, parts, measure count, and duration estimate
     Info {
         /// Input file (.musicxml, .mxl, .mid, .midi)
@@ -248,6 +270,23 @@ fn main() {
             *measures_per_system,
             !*no_interactive,
         ),
+        Commands::RenderReport {
+            input,
+            output,
+            width,
+            staff_size,
+            measures_per_system,
+            no_interactive,
+            fail_on_issues,
+        } => cmd_render_report(
+            input,
+            output,
+            *width,
+            *staff_size,
+            *measures_per_system,
+            !*no_interactive,
+            *fail_on_issues,
+        ),
         Commands::Info { input } => cmd_info(input),
         Commands::Validate { input } => cmd_validate(input),
         Commands::Report { input } => cmd_report(input),
@@ -438,6 +477,86 @@ fn cmd_render(
         .map_err(|e| format!("SVG rendering failed: {e}"))?;
     std::fs::write(output, svg).map_err(|e| format!("cannot write '{}': {e}", output.display()))?;
     println!("rendered '{}' to '{}'", input.display(), output.display());
+    Ok(())
+}
+
+#[derive(Debug, Serialize)]
+struct RenderReportSummary {
+    schema_version: u32,
+    input_format: String,
+    input_path: String,
+    output_path: String,
+    svg_byte_count: usize,
+    import_warning_count: usize,
+    import_error_count: usize,
+    import_loss_count: usize,
+    import_diagnostics: Vec<acorde_io::Diagnostic>,
+    renderer_issues: Vec<acorde_render_svg::RenderPreflightIssue>,
+}
+
+fn render_report_summary(
+    input: &Path,
+    output: &Path,
+    width: f32,
+    staff_size: f32,
+    measures_per_system: usize,
+    interactive: bool,
+) -> Result<RenderReportSummary, String> {
+    let import = parse_report(input)?;
+    let renderer_issues = acorde_render_svg::render_preflight(&import.score);
+    let options = acorde_render_svg::SvgRenderOptions {
+        width,
+        staff_size,
+        measures_per_system,
+        interactive,
+    };
+    let svg = acorde_render_svg::render_svg(&import.score, &options)
+        .map_err(|e| format!("SVG rendering failed: {e}"))?;
+    let svg_byte_count = svg.len();
+    std::fs::write(output, svg).map_err(|e| format!("cannot write '{}': {e}", output.display()))?;
+    let import_warning_count = import.warning_count();
+    let import_error_count = import.error_count();
+    let import_loss_count = import.loss_count();
+    Ok(RenderReportSummary {
+        schema_version: import.schema_version,
+        input_format: import.format,
+        input_path: input.display().to_string(),
+        output_path: output.display().to_string(),
+        svg_byte_count,
+        import_warning_count,
+        import_error_count,
+        import_loss_count,
+        import_diagnostics: import.diagnostics,
+        renderer_issues,
+    })
+}
+
+fn cmd_render_report(
+    input: &Path,
+    output: &Path,
+    width: f32,
+    staff_size: f32,
+    measures_per_system: usize,
+    interactive: bool,
+    fail_on_issues: bool,
+) -> Result<(), String> {
+    let report = render_report_summary(
+        input,
+        output,
+        width,
+        staff_size,
+        measures_per_system,
+        interactive,
+    )?;
+    let has_issues = !report.import_diagnostics.is_empty() || !report.renderer_issues.is_empty();
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&report)
+            .map_err(|e| format!("render report serialization failed: {e}"))?
+    );
+    if fail_on_issues && has_issues {
+        return Err("render report found import or renderer issue(s)".to_string());
+    }
     Ok(())
 }
 
@@ -1363,6 +1482,25 @@ mod tests {
         assert!(svg.starts_with("<svg"));
         assert!(svg.contains("data-note-addr"));
         std::fs::remove_file(output).expect("temporary render output is removable");
+    }
+
+    #[test]
+    fn render_report_preserves_import_and_renderer_boundaries() {
+        let output = std::env::temp_dir().join(format!(
+            "acorde-cli-render-report-{}.svg",
+            std::process::id()
+        ));
+        let report =
+            render_report_summary(&fixture("simple.musicxml"), &output, 900.0, 24.0, 4, true)
+                .expect("render report succeeds");
+        assert_eq!(report.input_format, "musicxml");
+        assert_eq!(report.import_warning_count, 0);
+        assert_eq!(report.import_error_count, 0);
+        assert_eq!(report.import_loss_count, 0);
+        assert!(report.import_diagnostics.is_empty());
+        assert!(report.renderer_issues.is_empty());
+        assert!(report.svg_byte_count > 0);
+        std::fs::remove_file(output).expect("temporary render report output is removable");
     }
 
     #[test]
