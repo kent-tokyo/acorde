@@ -164,3 +164,11 @@ jobs:
         with:
           name: acorde-browser-chromium-hidpi
           path: test-results/**/chromium-hidpi.png
+
+  browser-adapter-typecheck:
+    name: Browser adapter typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Typecheck framework-neutral adapter
+        run: npx --yes -p typescript@5.8.3 tsc --noEmit --target ES2022 --module ES2022 --moduleResolution bundler --strict --skipLibCheck examples/browser/acorde-adapter.ts

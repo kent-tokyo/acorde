@@ -38,6 +38,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Recorded passing Chromium, Firefox, and WebKit browser-contract smoke runs in the support
   matrix and machine-readable scorecard.
 - Added the passing Chromium HiDPI browser-contract smoke result to the candidate evidence matrix.
+- Fixed a TypeScript adapter syntax regression in the tablature round-trip return path and added
+  strict adapter type-check evidence to the candidate verification record.
+- Fixed exhaustive TypeScript Worker dispatch typing so unsupported requests retain their
+  correlation id without relying on a narrowed `never` value.
+- Added a pinned TypeScript 5.8.3 adapter typecheck to CI and the browser candidate scorecard.
 - Added the missing WASM `parse_mxl_report` binding so the browser MXL diagnostic path matches the
   existing IO report contract.
 - Added the CLI `render` command for deterministic input-file-to-SVG rendering through the

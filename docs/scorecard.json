@@ -62,7 +62,8 @@
       "npx playwright test examples/browser/smoke.spec.mjs --project=chromium",
       "npx playwright test examples/browser/smoke.spec.mjs --project=firefox",
       "npx playwright test examples/browser/smoke.spec.mjs --project=webkit",
-      "npx playwright test examples/browser/smoke.spec.mjs --project=chromium-hidpi"
+      "npx playwright test examples/browser/smoke.spec.mjs --project=chromium-hidpi",
+      "npx --yes -p typescript@5.8.3 tsc --noEmit --target ES2022 --module ES2022 --moduleResolution bundler --strict --skipLibCheck examples/browser/acorde-adapter.ts"
     ]
   }
 }

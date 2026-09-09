@@ -787,8 +787,7 @@ export class AcordeWorkspace {
   tablatureRoundTripReport(): TablatureRoundTripReport {
     this.assertLoaded();
     try {
-      return JSON.parse(this.wasm.tablature_round_trip_report(this.scoreJson))
-        as TablatureRoundTripReport;
+      return JSON.parse(this.wasm.tablature_round_trip_report(this.scoreJson)) as TablatureRoundTripReport;
     } catch (cause) {
       throw this.toWorkspaceError("tab-performance", cause);
     }
@@ -926,6 +925,7 @@ export function handleWorkspaceRequest(
   workspace: AcordeWorkspace,
   request: WorkspaceRequest,
 ): WorkspaceResponse {
+  const requestId = request.id;
   try {
     switch (request.type) {
       case "load-musicxml":
@@ -1082,7 +1082,7 @@ export function handleWorkspaceRequest(
         return { id: request.id, ok: true, value: workspace.durationSeconds() };
       default:
         return {
-          id: request.id,
+          id: requestId,
           ok: false,
           error: { message: "unsupported workspace request" },
         };
