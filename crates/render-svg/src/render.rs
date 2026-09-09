@@ -665,6 +665,21 @@ fn content_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
                     }
                 }
             }
+            for styled in &measure.texts {
+                let offset_y = (styled.offset_y.unwrap_or(0.0) + styled.relative_y.unwrap_or(0.0))
+                    as f32
+                    / 10.0;
+                let below = styled
+                    .placement
+                    .as_deref()
+                    .is_some_and(|placement| placement.eq_ignore_ascii_case("below"))
+                    || matches!(styled.style, acorde_core::TextStyle::Lyrics);
+                if below {
+                    bottom = bottom.max(3.2 + offset_y);
+                } else {
+                    top = top.max(3.2 - offset_y);
+                }
+            }
         }
     }
     (top, bottom)

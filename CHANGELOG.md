@@ -22,6 +22,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hooks, while retaining font and publication responsibilities in the host.
 - Added pre-render bounds and finite-coordinate validation for measure-level text so malformed
   offsets cannot produce invalid SVG or partial output.
+- Extended content-aware SVG vertical margins to account for finite extreme measure-text offsets,
+  with regression coverage for the expansion path.
 
 ## [1.1.6] - 2026-09-09
 

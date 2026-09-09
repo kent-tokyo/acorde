@@ -478,6 +478,39 @@ fn measure_text_rejects_unbounded_or_non_finite_positioning() {
 }
 
 #[test]
+fn measure_text_extreme_vertical_offsets_expand_content_height() {
+    use acorde_core::{StyledText, TextStyle};
+    let normal = common::satb_major();
+    let mut offset = normal.clone();
+    offset.parts[0].staves[0].measures[0]
+        .texts
+        .push(StyledText {
+            style: TextStyle::Expression,
+            text: "above".to_string(),
+            placement: None,
+            offset_x: None,
+            offset_y: Some(-200.0),
+            relative_x: None,
+            relative_y: None,
+        });
+    let normal_height = acorde_render_svg::render_svg_metadata(
+        &normal,
+        &acorde_layout::compute_layout(&normal, &Default::default()),
+        &opts(),
+    )
+    .unwrap()
+    .height;
+    let offset_height = acorde_render_svg::render_svg_metadata(
+        &offset,
+        &acorde_layout::compute_layout(&offset, &Default::default()),
+        &opts(),
+    )
+    .unwrap()
+    .height;
+    assert!(offset_height > normal_height);
+}
+
+#[test]
 fn malformed_precomputed_layout_returns_error_instead_of_panicking() {
     use acorde_layout::{LayoutConfig, compute_layout};
     let score = common::satb_major();
