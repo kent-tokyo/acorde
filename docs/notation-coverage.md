@@ -93,7 +93,9 @@ bounded continuation-line hook for `extender`; duplicate importer display text i
 Supported mordent, inverted mordent, turn, inverted turn, shake, and tremolo articulations expose
 semantic SVG classes with conservative width reservation. Font-specific ornament glyphs and final
 publication typography remain host-resource responsibilities. Sloped beam, secondary-beam, and
-clearance-shift extents are included in the renderer's vertical margin calculation.
+clearance-shift extents are included in the renderer's vertical margin calculation. Multiple
+note-attached articulations are stacked in deterministic source order with matching margin
+reservation; cross-note collision optimization remains outside the core renderer.
 
 - A `partial` import must not be interpreted as lossless interchange. Callers should validate the
   resulting `Score`, inspect the format report, and retain the source document when they need
