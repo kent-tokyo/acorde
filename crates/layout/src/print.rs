@@ -16,6 +16,78 @@ pub struct GlyphMetrics {
     pub height_mm: f32,
 }
 
+/// Version of the host-neutral glyph resource descriptor contract.
+pub const GLYPH_RESOURCE_CONTRACT_VERSION: u16 = 1;
+
+/// How a print host should behave when the primary glyph resource is unavailable.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum GlyphFallbackPolicy {
+    /// Fail preflight rather than silently changing notation appearance.
+    #[default]
+    Reject,
+    /// Use another explicitly declared resource key.
+    UseResource(String),
+}
+
+/// Reproducible metadata for a host-resolved font or notation glyph resource.
+///
+/// `acorde` does not load, embed, or license-check the resource. It does require the host to
+/// identify the resource, its metrics contract, license notice, and fallback behavior before a
+/// publication export can claim reproducibility.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GlyphResourceDescriptor {
+    pub contract_version: u16,
+    pub resource_key: String,
+    pub metrics_contract_version: u16,
+    pub license_notice: String,
+    #[serde(default)]
+    pub fallback: GlyphFallbackPolicy,
+}
+
+/// Validation failures for a host-provided glyph resource descriptor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum GlyphResourceDescriptorError {
+    #[error("unsupported glyph resource contract version")]
+    UnsupportedContractVersion,
+    #[error("glyph resource key is empty")]
+    EmptyResourceKey,
+    #[error("glyph resource metrics contract version is invalid")]
+    InvalidMetricsContractVersion,
+    #[error("glyph resource license notice is empty")]
+    EmptyLicenseNotice,
+    #[error("glyph fallback resource key is empty")]
+    EmptyFallbackResourceKey,
+    #[error("glyph fallback resource must differ from the primary resource")]
+    FallbackMatchesPrimary,
+}
+
+impl GlyphResourceDescriptor {
+    /// Validate the metadata needed to resolve a reproducible host resource.
+    pub fn validate(&self) -> Result<(), GlyphResourceDescriptorError> {
+        if self.contract_version != GLYPH_RESOURCE_CONTRACT_VERSION {
+            return Err(GlyphResourceDescriptorError::UnsupportedContractVersion);
+        }
+        if self.resource_key.trim().is_empty() {
+            return Err(GlyphResourceDescriptorError::EmptyResourceKey);
+        }
+        if self.metrics_contract_version == 0 {
+            return Err(GlyphResourceDescriptorError::InvalidMetricsContractVersion);
+        }
+        if self.license_notice.trim().is_empty() {
+            return Err(GlyphResourceDescriptorError::EmptyLicenseNotice);
+        }
+        if let GlyphFallbackPolicy::UseResource(key) = &self.fallback {
+            if key.trim().is_empty() {
+                return Err(GlyphResourceDescriptorError::EmptyFallbackResourceKey);
+            }
+            if key == &self.resource_key {
+                return Err(GlyphResourceDescriptorError::FallbackMatchesPrimary);
+            }
+        }
+        Ok(())
+    }
+}
+
 /// A positioned print glyph with a deterministic collision priority.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GlyphPlacement {
@@ -2987,6 +3059,45 @@ mod tests {
         )
         .expect_err("empty host resource key");
         assert_eq!(error, PrintLayoutError::InvalidGlyphResourceKey);
+    }
+
+    #[test]
+    fn glyph_resource_descriptor_requires_reproducible_metadata() {
+        let descriptor = GlyphResourceDescriptor {
+            contract_version: GLYPH_RESOURCE_CONTRACT_VERSION,
+            resource_key: "publisher-font-v2".into(),
+            metrics_contract_version: 1,
+            license_notice: "licensed by publisher".into(),
+            fallback: GlyphFallbackPolicy::UseResource("acorde-vector-glyphs-v1".into()),
+        };
+        assert_eq!(descriptor.validate(), Ok(()));
+    }
+
+    #[test]
+    fn glyph_resource_descriptor_rejects_missing_license_and_self_fallback() {
+        let missing_license = GlyphResourceDescriptor {
+            contract_version: GLYPH_RESOURCE_CONTRACT_VERSION,
+            resource_key: "font".into(),
+            metrics_contract_version: 1,
+            license_notice: " ".into(),
+            fallback: GlyphFallbackPolicy::Reject,
+        };
+        assert_eq!(
+            missing_license.validate(),
+            Err(GlyphResourceDescriptorError::EmptyLicenseNotice)
+        );
+
+        let self_fallback = GlyphResourceDescriptor {
+            contract_version: GLYPH_RESOURCE_CONTRACT_VERSION,
+            resource_key: "font".into(),
+            metrics_contract_version: 1,
+            license_notice: "licensed".into(),
+            fallback: GlyphFallbackPolicy::UseResource("font".into()),
+        };
+        assert_eq!(
+            self_fallback.validate(),
+            Err(GlyphResourceDescriptorError::FallbackMatchesPrimary)
+        );
     }
 
     #[test]

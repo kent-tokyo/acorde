@@ -48,6 +48,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Hardened the browser SVG fixture with parse-and-import validation that rejects scripts,
   event-handler attributes, and JavaScript links before DOM insertion, and documented the host CSP,
   Trusted Types, Worker, and `data-*` identifier boundary.
+- Added a versioned host-neutral glyph resource descriptor with metrics-contract, license-notice,
+  and explicit fallback validation for reproducible print exports.
 - Added standalone cargo-fuzz targets for the bounded MusicXML, MIDI, ABC, MEI, and MSCZ parser
   report boundaries; fuzz execution budgets remain an explicit security gate.
 - Added a fixed cargo-fuzz 0.13.1 nightly smoke job for all parser targets and checked-in fuzz

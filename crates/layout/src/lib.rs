@@ -8,17 +8,18 @@ mod print;
 pub use acorde_core::NoteAddr;
 pub use engine::compute_layout;
 pub use print::{
-    BreakReason, CropMarkPolicy, FinalPagePolicy, GlyphExtents, GlyphMetrics, GlyphPlacement,
-    GlyphPlacementError, GlyphResourcePolicy, KeepTogetherRange, MeasureMark, MeasureSpan,
-    NotationBreakPolicy, PRINT_LAYOUT_CONTRACT_VERSION, PRINT_PRESET_SCHEMA_VERSION, PageAddress,
-    PageArtifact, PageArtifactDiagnostic, PageLayout, PageNumbering, PageOrientation,
-    PagePublication, PageSpanSegment, PaperSize, PartGroupMark, PartLabel, PartLayoutPolicy,
-    PickupPolicy, PrintColorPolicy, PrintConfig, PrintLayoutError, PrintLayoutResult, PrintPreset,
-    PublicationConfig, PublicationTextAlignment, PublicationTextBlock, PublicationTextRole,
-    SpanSegment, SystemAddress, SystemLayout, compute_print_layout, distribute_glyph_spacing,
-    glyph_extents, resolve_glyph_collisions, resolve_glyph_collisions_checked,
-    resolve_glyph_horizontal_collisions, resolve_glyph_horizontal_collisions_checked,
-    validate_glyph_placements,
+    BreakReason, CropMarkPolicy, FinalPagePolicy, GLYPH_RESOURCE_CONTRACT_VERSION, GlyphExtents,
+    GlyphFallbackPolicy, GlyphMetrics, GlyphPlacement, GlyphPlacementError,
+    GlyphResourceDescriptor, GlyphResourceDescriptorError, GlyphResourcePolicy, KeepTogetherRange,
+    MeasureMark, MeasureSpan, NotationBreakPolicy, PRINT_LAYOUT_CONTRACT_VERSION,
+    PRINT_PRESET_SCHEMA_VERSION, PageAddress, PageArtifact, PageArtifactDiagnostic, PageLayout,
+    PageNumbering, PageOrientation, PagePublication, PageSpanSegment, PaperSize, PartGroupMark,
+    PartLabel, PartLayoutPolicy, PickupPolicy, PrintColorPolicy, PrintConfig, PrintLayoutError,
+    PrintLayoutResult, PrintPreset, PublicationConfig, PublicationTextAlignment,
+    PublicationTextBlock, PublicationTextRole, SpanSegment, SystemAddress, SystemLayout,
+    compute_print_layout, distribute_glyph_spacing, glyph_extents, resolve_glyph_collisions,
+    resolve_glyph_collisions_checked, resolve_glyph_horizontal_collisions,
+    resolve_glyph_horizontal_collisions_checked, validate_glyph_placements,
 };
 
 use acorde_core::{HairpinKind, OttavaKind};

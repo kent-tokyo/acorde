@@ -64,7 +64,13 @@ dimensions, stable page/system addresses, physical measure indices, and typed br
 `page_break` decisions and produces stable output for the same score and configuration. Its
 `contract_version` is `26` for this address/diagnostic, publication, title-page, part-group, page-number footer, alignment, line-box height, copyright block, bleed/safe-area, scale, page-numbering,
 color, crop-mark, and glyph-resource shape. `GlyphResourcePolicy::HostProvided` is only a stable
-resource key; resource lookup, font loading, and glyph metrics remain host/provider work.
+resource key; resource lookup, font loading, and glyph metrics remain host/provider work. Hosts
+that resolve a resource should also transport a `GlyphResourceDescriptor`: it records the
+versioned resource key, metrics-contract version, non-empty license notice, and explicit
+fallback policy. `GlyphResourceDescriptor::validate()` rejects missing licensing metadata,
+unknown contract versions, invalid metrics versions, empty fallback keys, and self-fallbacks
+before export configuration is accepted. This is metadata validation, not a license or font
+embedding check.
 `PRINT_LAYOUT_CONTRACT_VERSION` identifies this serialized page contract, and `validate()` rejects
 results from another contract version before host reuse.
 An empty `GlyphResourcePolicy::HostProvided` key is rejected before page layout is produced.
