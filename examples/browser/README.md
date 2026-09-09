@@ -53,8 +53,9 @@ request provides the same check after an edit and before host export or playback
 when enabled, it also includes tablature projection and canonical round-trip diagnostics. The
 result carries the adapter contract version and revision so a host can discard stale preflight
 results. It also provides `valid` and issue counts: validation errors and renderer issues make
-the result invalid, while validation warnings remain advisory. The matching `preflight` Worker
-request returns the same correlated object.
+the result invalid, while validation warnings remain advisory. When tablature checks are enabled,
+tablature diagnostics also make the result invalid. The matching `preflight` Worker request
+returns the same correlated object.
 Parse, layout, render, metadata, and analysis failures are raised as `AcordeWorkspaceError` with
 a typed operation field, allowing a host to show an actionable diagnostic without matching error
 message text. `replaceScoreJson`, `undo`, and `redo` provide a small host-facing edit history;

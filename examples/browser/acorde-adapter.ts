@@ -571,6 +571,7 @@ export class AcordeWorkspace {
       result.tablatureRoundTrip = tablatureRoundTrip;
       result.tablatureDiagnosticCount = tablaturePerformance.diagnostics.length
         + tablatureRoundTrip.diagnostics.length;
+      result.valid = result.valid && result.tablatureDiagnosticCount === 0;
     }
     if (revision !== this.revisionNumber) {
       throw new AcordeWorkspaceError("validate", "workspace changed during preflight");
