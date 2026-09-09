@@ -52,6 +52,40 @@ pub(crate) struct BeamPlan {
     pub svg: String,
 }
 
+/// Return the conservative vertical bounds of a planned beam group in staff-space units.
+///
+/// The bounds include the primary and secondary beam thicknesses, including isolated hooks.
+/// Callers use normalized x-coordinates because only the relative slope matters here; the
+/// renderer's actual pixel scale is applied by [`plan_beam_group`].
+pub(crate) fn vertical_extents(
+    durations: &[Duration],
+    xs: &[f32],
+    attach_ys: &[f32],
+    stem_up: bool,
+) -> (f32, f32) {
+    if durations.len() < 2 || xs.len() != durations.len() || attach_ys.len() != durations.len() {
+        return (0.0, 0.0);
+    }
+    let plan = plan_beam_group(durations, xs, attach_ys, stem_up, 1.0);
+    let mut min_y = plan.tips.values().copied().fold(f32::INFINITY, f32::min);
+    let mut max_y = plan
+        .tips
+        .values()
+        .copied()
+        .fold(f32::NEG_INFINITY, f32::max);
+    let max_level = durations.iter().map(beam_level).max().unwrap_or(1);
+    let level_extent =
+        (max_level.saturating_sub(1) as f32 * BEAM_LEVEL_GAP_U) + BEAM_THICKNESS_U / 2.0;
+    if stem_up {
+        min_y -= level_extent;
+        max_y += BEAM_THICKNESS_U / 2.0;
+    } else {
+        min_y -= BEAM_THICKNESS_U / 2.0;
+        max_y += level_extent;
+    }
+    (min_y, max_y)
+}
+
 /// Plan one beam group's geometry and emit its SVG.
 ///
 /// `durations`/`xs`/`attach_ys` are parallel arrays, one entry per note in the group (already
@@ -240,5 +274,34 @@ mod tests {
                 "stem-down beam tips must be below (larger y than) the notehead"
             );
         }
+    }
+
+    #[test]
+    fn sloped_beam_bounds_include_clearance_shift_and_secondary_levels() {
+        let durations = vec![
+            Duration::Sixteenth,
+            Duration::Sixteenth,
+            Duration::Sixteenth,
+        ];
+        let xs = vec![0.0, 0.5, 1.0];
+        let attach_ys = vec![0.0, -1.0, 0.0];
+        let (min_y, max_y) = vertical_extents(&durations, &xs, &attach_ys, true);
+        assert!(
+            min_y < -3.0,
+            "top bound must include secondary beams: {min_y}"
+        );
+        assert!(
+            max_y < -2.0,
+            "top-side beam must stay above the staff: {max_y}"
+        );
+        let (min_down, max_down) = vertical_extents(&durations, &xs, &attach_ys, false);
+        assert!(
+            min_down > 2.0,
+            "bottom-side beam must include thickness: {min_down}"
+        );
+        assert!(
+            max_down > 3.0,
+            "bottom bound must include secondary beams: {max_down}"
+        );
     }
 }

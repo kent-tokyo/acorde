@@ -112,7 +112,7 @@ pub(crate) fn build_svg_with_metadata(
             )
         })
         .collect();
-    let (top_margin_u, bottom_margin_u) = content_margins(score, &staff_refs);
+    let (top_margin_u, bottom_margin_u) = content_margins(score, layout, &staff_refs);
     let (left_margin_u, right_margin_u) =
         content_horizontal_margins(score, &staff_refs, &mandatory, &courtesy);
 
@@ -751,7 +751,11 @@ fn render_part_groups(
 /// Compute page breathing room from the actual score content. The historical constants remain
 /// minimums for ordinary scores, while extreme ledger lines and stems expand the page instead
 /// of being clipped by a fixed margin.
-fn content_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
+fn content_margins(
+    score: &Score,
+    layout: &LayoutResult,
+    staff_refs: &[(usize, usize)],
+) -> (f32, f32) {
     let mut top = TOP_MARGIN_U;
     let mut bottom = BOTTOM_MARGIN_U;
     for &(part, staff) in staff_refs {
@@ -908,6 +912,80 @@ fn content_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
                 }
             }
         }
+    }
+    for group in &layout.beam_groups {
+        let Some(part) = score.parts.get(group.part) else {
+            continue;
+        };
+        let Some(staff) = part.staves.get(group.staff) else {
+            continue;
+        };
+        let Some(measure) = staff.measures.get(group.measure) else {
+            continue;
+        };
+        let Some(notes) = measure.voices.get(group.voice) else {
+            continue;
+        };
+        let Ok(clef_bottom) = geometry::clef_bottom_line(&staff.clef) else {
+            continue;
+        };
+        let valid_indices: Vec<usize> = group
+            .note_indices
+            .iter()
+            .copied()
+            .filter(|&index| index < notes.len() && !notes[index].is_grace && !notes[index].is_cue)
+            .collect();
+        if valid_indices.len() < 2 {
+            continue;
+        }
+        let total_beats = measure
+            .time_sig
+            .as_ref()
+            .unwrap_or(&score.settings.time_signature)
+            .total_beats();
+        if !total_beats.is_finite() || total_beats <= 0.0 {
+            continue;
+        }
+        let mut beat_pos = 0.0f64;
+        let mut normalized_positions = vec![0.0f32; notes.len()];
+        for (index, note) in notes.iter().enumerate() {
+            normalized_positions[index] = (beat_pos / total_beats) as f32;
+            beat_pos += note.beats();
+        }
+        let xs: Vec<f32> = valid_indices
+            .iter()
+            .map(|&index| normalized_positions[index])
+            .collect();
+        let durations: Vec<Duration> = valid_indices
+            .iter()
+            .map(|&index| notes[index].duration.clone())
+            .collect();
+        let active_voices = measure
+            .voices
+            .iter()
+            .filter(|voice| voice.iter().any(|note| !note.is_rest))
+            .count();
+        let voice_stem_up = active_voices <= 1 || group.voice.is_multiple_of(2);
+        let stem_up = notes[valid_indices[0]].stem_up.unwrap_or(voice_stem_up);
+        let attach_ys: Vec<f32> = valid_indices
+            .iter()
+            .map(|&index| {
+                let note = &notes[index];
+                let positions = note
+                    .pitches
+                    .iter()
+                    .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, clef_bottom));
+                let outer = if stem_up {
+                    positions.min().unwrap_or(0)
+                } else {
+                    positions.max().unwrap_or(0)
+                };
+                geometry::position_y(outer, 1.0)
+            })
+            .collect();
+        let (beam_min, beam_max) = beams::vertical_extents(&durations, &xs, &attach_ys, stem_up);
+        top = top.max(-beam_min);
+        bottom = bottom.max(beam_max);
     }
     (top, bottom)
 }
