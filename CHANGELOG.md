@@ -27,6 +27,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   width, preventing silent SVG overflow on undersized output canvases.
 - Aggregated minimum per-measure widths before SVG emission and rejected systems that cannot fit
   those lower bounds, preventing barlines from extending beyond the available system width.
+- Sized rendered staff systems from their configured tablature line count, preventing extended tab
+  staves from overlapping neighboring staves or the system barline.
 - Added centered deterministic horizontal separation for simultaneous non-empty voices and a
   structural regression covering opposing voice noteheads.
 - Spaced consecutive grace-note glyphs deterministically along their shared temporal anchor to

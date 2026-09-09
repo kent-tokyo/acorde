@@ -912,6 +912,25 @@ fn tablature_renders_lines_frets_and_techniques() {
 }
 
 #[test]
+fn extended_tablature_staff_height_preserves_system_geometry() {
+    use acorde_core::{Clef, Score, Staff, TablatureConfig};
+
+    let mut score = Score::new("extended tab", 120, 4, 4, 0, 1);
+    let mut tab_staff = Staff::new(Clef::Treble);
+    tab_staff.tablature = Some(TablatureConfig {
+        lines: 8,
+        tuning_midi: vec![64, 59, 55, 50, 45, 40, 35, 30],
+        capo: 0,
+    });
+    tab_staff.measures = score.parts[0].staves[0].measures.clone();
+    score.parts[0].staves.push(tab_staff);
+
+    let svg = render_svg(&score, &opts()).expect("extended tablature should render");
+    assert_eq!(svg.matches("class=\"acorde-staff-line\"").count(), 5 + 8);
+    assert!(svg.contains("data-acorde-kind=\"measure\""));
+}
+
+#[test]
 fn tablature_preserves_microtone_marker() {
     use acorde_core::{
         Duration, Measure, Note, Pitch, Score, Staff, Step, TabPosition, TablatureConfig,

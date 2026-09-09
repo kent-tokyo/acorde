@@ -116,7 +116,11 @@ pub(crate) fn build_svg_with_metadata(
     let (left_margin_u, right_margin_u) =
         content_horizontal_margins(score, &staff_refs, &mandatory, &courtesy);
 
-    let system_height_u = staff_refs.len() as f32 * STAFF_HEIGHT_U
+    let staff_heights_u: Vec<f32> = staff_refs
+        .iter()
+        .map(|&(part, staff)| staff_height_u(score, part, staff))
+        .collect();
+    let system_height_u: f32 = staff_heights_u.iter().sum::<f32>()
         + (staff_refs.len().saturating_sub(1)) as f32 * STAFF_GAP_U;
 
     let content_width = options.width - (left_margin_u + right_margin_u) * space;
@@ -195,19 +199,17 @@ pub(crate) fn build_svg_with_metadata(
         let mut staff_y: Vec<f32> = Vec::with_capacity(staff_refs.len());
         {
             let mut y = row_top_y;
-            for _ in &staff_refs {
+            for &staff_height in &staff_heights_u {
                 staff_y.push(y);
-                y += STAFF_HEIGHT_U * space + STAFF_GAP_U * space;
+                y += (staff_height + STAFF_GAP_U) * space;
             }
         }
         let system_top_y = row_top_y;
-        let system_bottom_y = row_top_y
-            + (staff_refs.len() - 1) as f32 * (STAFF_HEIGHT_U + STAFF_GAP_U) * space
-            + STAFF_HEIGHT_U * space;
+        let system_bottom_y = row_top_y + system_height_u * space;
 
         // Staff lines + headers for every staff in the system.
         for (si_idx, &(pi, si)) in staff_refs.iter().enumerate() {
-            let bottom_y = staff_y[si_idx] + STAFF_HEIGHT_U * space;
+            let bottom_y = staff_y[si_idx] + staff_heights_u[si_idx] * space;
             if options.interactive {
                 let _ = write!(
                     body,
@@ -253,6 +255,7 @@ pub(crate) fn build_svg_with_metadata(
                 score,
                 &staff_refs,
                 &staff_y,
+                &staff_heights_u,
                 row_idx,
                 left_margin_u,
                 space,
@@ -264,7 +267,7 @@ pub(crate) fn build_svg_with_metadata(
         for (col, &measure_idx) in row.measure_indices.iter().enumerate() {
             let mwidth = measure_widths[col];
             for (si_idx, &(pi, si)) in staff_refs.iter().enumerate() {
-                let bottom_y = staff_y[si_idx] + STAFF_HEIGHT_U * space;
+                let bottom_y = staff_y[si_idx] + staff_heights_u[si_idx] * space;
                 let clef = &staff_states[si_idx].clef;
                 render_measure(
                     &mut body,
@@ -664,11 +667,13 @@ fn validate_score_text(value: &str) -> Result<(), RenderError> {
 
 /// Draw logical part connectors at the system edge. Part grouping is optional model data, so
 /// ordinary single-part scores retain the byte-for-byte output of the original renderer.
+#[allow(clippy::too_many_arguments)]
 fn render_part_groups(
     body: &mut String,
     score: &Score,
     staff_refs: &[(usize, usize)],
     staff_y: &[f32],
+    staff_heights_u: &[f32],
     row_idx: usize,
     left_margin_u: f32,
     space: f32,
@@ -685,7 +690,7 @@ fn render_part_groups(
             continue;
         };
         let top = staff_y[first];
-        let bottom = staff_y[last] + STAFF_HEIGHT_U * space;
+        let bottom = staff_y[last] + staff_heights_u[last] * space;
         let x = (left_margin_u - 0.35) * space;
         let class = match group.symbol {
             acorde_core::PartGroupSymbol::Bracket => "acorde-part-bracket",
@@ -856,6 +861,17 @@ fn content_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
         }
     }
     (top, bottom)
+}
+
+/// Return the vertical extent of one staff in staff-space units. Tablature can use more than
+/// the canonical five notation lines; reserving that extra line height prevents tab systems
+/// from overlapping the following staff or their system barline.
+fn staff_height_u(score: &Score, part: usize, staff: usize) -> f32 {
+    score.parts[part].staves[staff]
+        .tablature
+        .as_ref()
+        .map(|tab| f32::from(tab.lines.clamp(1, 64).saturating_sub(1)).max(STAFF_HEIGHT_U))
+        .unwrap_or(STAFF_HEIGHT_U)
 }
 
 /// Expand breathing room for measure-level annotations and first-system part labels. Font-width
