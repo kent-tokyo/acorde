@@ -57,6 +57,7 @@ export interface WasmBindings {
   compute_layout_ex(scoreJson: string, configJson: string): string;
   render_score_svg_with_layout(scoreJson: string, layoutJson: string, optionsJson: string): string;
   render_preflight(scoreJson: string): string;
+  validate_score(scoreJson: string): string;
   render_score_svg_row(
     scoreJson: string,
     layoutJson: string,
@@ -228,6 +229,7 @@ export type WorkspaceRequest =
   | { id: string; type: "render-preflight" }
   | { id: string; type: "render-row-svg"; rowIndex: number }
   | { id: string; type: "metadata" }
+  | { id: string; type: "validate" }
   | { id: string; type: "analysis" }
   | { id: string; type: "compatibility-report"; candidateScoreJson: string }
   | { id: string; type: "analysis-cache-key" }
@@ -521,6 +523,16 @@ export class AcordeWorkspace {
       return JSON.parse(this.wasm.render_preflight(this.scoreJson)) as Array<Record<string, unknown>>;
     } catch (cause) {
       throw this.toWorkspaceError("render", cause);
+    }
+  }
+
+  /** Return the score-model validation report before host export or playback. */
+  validateScore(): Record<string, unknown> {
+    this.assertLoaded();
+    try {
+      return JSON.parse(this.wasm.validate_score(this.scoreJson)) as Record<string, unknown>;
+    } catch (cause) {
+      throw this.toWorkspaceError("parse", cause);
     }
   }
 
@@ -960,6 +972,8 @@ export function handleWorkspaceRequest(
         return { id: request.id, ok: true, value: workspace.renderRowSvg(request.rowIndex) };
       case "metadata":
         return { id: request.id, ok: true, value: workspace.metadata() };
+      case "validate":
+        return { id: request.id, ok: true, value: workspace.validateScore() };
       case "analysis":
         return { id: request.id, ok: true, value: workspace.analyze() };
       case "compatibility-report":

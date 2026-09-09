@@ -47,6 +47,8 @@ virtualize long scores without moving row/index arithmetic into the UI.
 hosts can reject unsupported clefs, accidentals, tablature positions, oversized text, and invalid
 XML characters without parsing renderer error strings. The matching `render-preflight` Worker
 request returns the same issue array.
+`validateScore()` exposes the canonical score-model validation report, and the `validate` Worker
+request provides the same check after an edit and before host export or playback.
 Parse, layout, render, metadata, and analysis failures are raised as `AcordeWorkspaceError` with
 a typed operation field, allowing a host to show an actionable diagnostic without matching error
 message text. `replaceScoreJson`, `undo`, and `redo` provide a small host-facing edit history;
