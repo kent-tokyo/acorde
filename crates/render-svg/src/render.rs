@@ -858,6 +858,7 @@ fn content_horizontal_margins(
     let mut left = LEFT_MARGIN_U;
     let mut right = RIGHT_MARGIN_U;
     for &(part, staff) in staff_refs {
+        let tablature = score.parts[part].staves[staff].tablature.as_ref();
         let short_name = score.parts[part].short_name.trim();
         if !short_name.is_empty() {
             // The renderer intentionally does not resolve a host font here. Reserve a
@@ -874,6 +875,24 @@ fn content_horizontal_margins(
             };
             for (voice_index, voice) in measure.voices.iter().enumerate() {
                 for (note_index, note) in voice.iter().enumerate() {
+                    if tablature.is_some() {
+                        let positions = if !note.tab_positions.is_empty() {
+                            note.tab_positions.as_slice()
+                        } else {
+                            note.tab_position.as_slice()
+                        };
+                        if !positions.is_empty() {
+                            let width = positions
+                                .iter()
+                                .map(|position| tab_fret_metrics(position.fret).advance_units)
+                                .sum::<f32>()
+                                + tab_fret_metrics(0).side_gap_units
+                                    * positions.len().saturating_sub(1) as f32;
+                            let half_width = width / 2.0 + 0.25;
+                            left = left.max(half_width);
+                            right = right.max(half_width);
+                        }
+                    }
                     let has_accidentals: Vec<bool> = note
                         .pitches
                         .iter()

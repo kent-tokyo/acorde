@@ -985,6 +985,37 @@ fn tablature_multiple_positions_get_deterministic_horizontal_spacing() {
 }
 
 #[test]
+fn wide_tablature_chord_at_measure_origin_stays_inside_svg_viewbox() {
+    use acorde_core::{Duration, Note, Pitch, Staff, Step, TabPosition, TablatureConfig};
+    let mut score = acorde_core::Score::new("Wide tab positions", 120, 4, 4, 0, 1);
+    let mut staff = Staff::new(acorde_core::Clef::Treble);
+    staff.tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![64, 59, 55, 50, 45, 40],
+        capo: 0,
+    });
+    staff.measures.push(acorde_core::Measure::empty(4, 4));
+    let mut note = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+    note.tab_positions = (1..=6)
+        .map(|string| TabPosition { string, fret: 12 })
+        .collect();
+    staff.measures[0].voices[0] = vec![note];
+    score.parts[0].staves = vec![staff];
+
+    let svg = render_svg(&score, &opts()).expect("wide tablature chord renders");
+    let fret_xs: Vec<f32> = svg
+        .split("<text class=\"acorde-tab-fret\"")
+        .skip(1)
+        .filter_map(|fragment| fragment.split(" x=\"").nth(1))
+        .filter_map(|value| value.split('\"').next())
+        .filter_map(|value| value.parse().ok())
+        .collect();
+    assert_eq!(fret_xs.len(), 6);
+    assert!(fret_xs.iter().all(|&x| x > 0.0));
+    assert_well_formed_xml(&svg);
+}
+
+#[test]
 fn invalid_tablature_string_is_rejected_before_svg_emission() {
     use acorde_core::{Duration, Measure, Note, Pitch, Staff, Step, TablatureConfig};
 
