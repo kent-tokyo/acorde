@@ -53,6 +53,7 @@ export interface WasmBindings {
   serialize_midi_report(scoreJson: string): string;
   compute_layout_ex(scoreJson: string, configJson: string): string;
   render_score_svg_with_layout(scoreJson: string, layoutJson: string, optionsJson: string): string;
+  render_preflight(scoreJson: string): string;
   render_score_svg_row(
     scoreJson: string,
     layoutJson: string,
@@ -221,6 +222,7 @@ export type WorkspaceRequest =
   | { id: string; type: "snapshot" }
   | { id: string; type: "restore-snapshot"; snapshot: WorkspaceSnapshot }
   | { id: string; type: "render-svg" }
+  | { id: string; type: "render-preflight" }
   | { id: string; type: "render-row-svg"; rowIndex: number }
   | { id: string; type: "metadata" }
   | { id: string; type: "analysis" }
@@ -507,6 +509,16 @@ export class AcordeWorkspace {
     }
     this.renderCache.set(key, svg);
     return svg;
+  }
+
+  /** Inspect renderer capability and text-input boundaries before SVG emission. */
+  renderPreflight(): Array<Record<string, unknown>> {
+    this.assertLoaded();
+    try {
+      return JSON.parse(this.wasm.render_preflight(this.scoreJson)) as Array<Record<string, unknown>>;
+    } catch (cause) {
+      throw this.toWorkspaceError("render", cause);
+    }
   }
 
   /** Render one logical row, allowing a host to virtualize long scores. */
@@ -939,6 +951,8 @@ export function handleWorkspaceRequest(
         return { id: request.id, ok: true, value: workspace.snapshot() };
       case "render-svg":
         return { id: request.id, ok: true, value: workspace.renderSvg() };
+      case "render-preflight":
+        return { id: request.id, ok: true, value: workspace.renderPreflight() };
       case "render-row-svg":
         return { id: request.id, ok: true, value: workspace.renderRowSvg(request.rowIndex) };
       case "metadata":
