@@ -52,6 +52,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Pinned the fuzz CI job to the nightly toolchain used by the local 100-run smoke evidence.
 - Added explicit AddressSanitizer, input-size, per-input timeout, and RSS limits to the CI fuzz
   smoke so parser resource bounds are enforced rather than implicit.
+- Added a bounded Score JSON deserialize-to-validate fuzz target so the WASM/browser-facing model
+  boundary is covered alongside the interchange parsers.
 - Added the missing WASM `parse_mxl_report` binding so the browser MXL diagnostic path matches the
   existing IO report contract.
 - Added the CLI `render` command for deterministic input-file-to-SVG rendering through the

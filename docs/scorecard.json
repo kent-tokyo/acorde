@@ -56,7 +56,7 @@
       "cargo deny check advisories licenses sources --disable-fetch",
       "cargo audit --no-fetch",
       "cargo package --workspace --locked",
-      "cargo +nightly fuzz run <target> -- -runs=100 (musicxml, midi, abc, mei, mscz)"
+      "cargo +nightly fuzz run <target> -- -runs=100 (musicxml, midi, abc, mei, mscz, score_json)"
     ],
     "browser_checks": [
       "wasm-pack build crates/wasm --target web",

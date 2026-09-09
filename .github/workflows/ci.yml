@@ -39,7 +39,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for target in musicxml midi abc mei mscz; do
+          for target in musicxml midi abc mei mscz score_json; do
             cargo +nightly fuzz run --sanitizer address "$target" -- \
               -runs=100 -max_len=4096 -timeout=5 -rss_limit_mb=512
           done

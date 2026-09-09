@@ -16,8 +16,10 @@ dependencies = [
 name = "acorde-fuzz"
 version = "0.0.0"
 dependencies = [
+ "acorde-core",
  "acorde-io",
  "libfuzzer-sys",
+ "serde_json",
 ]
 
 [[package]]
