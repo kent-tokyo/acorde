@@ -18,8 +18,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Install cargo-audit and cargo-deny
         run: |
-          cargo install cargo-audit --locked
-          cargo install cargo-deny --locked
+          cargo install cargo-audit --version 0.22.1 --locked
+          cargo install cargo-deny --version 0.19.9 --locked
       - name: Audit advisories
         run: cargo audit
       - name: Check advisories, licenses, and sources
