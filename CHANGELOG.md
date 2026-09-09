@@ -18,6 +18,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   mutating the source score.
 - Added checked `extract_part_checked`, `merge_checked`, and `transpose_checked` transformations;
   the WASM transpose, extraction, and merge bindings now use these validated paths.
+- Added structural Score validation to WASM analysis-cache and accordion-analysis inputs, keeping
+  invalid snapshots out of deterministic analysis and cache invalidation paths.
 - Added the framework-neutral browser adapter's transactional loaders for MusicXML, MXL, MEI,
   ABC, MIDI, MSCX, and MSCZ, including structured import-report variants.
 - Added browser adapter exports for MusicXML, MEI, ABC, and MIDI; MIDI uses `Uint8Array`, and

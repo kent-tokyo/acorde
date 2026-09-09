@@ -31,6 +31,14 @@ fn score_from_json(json: &str) -> Result<Score, JsValue> {
     parse_json(json, "score", MAX_SCORE_JSON_BYTES)
 }
 
+fn validated_score_from_json(json: &str) -> Result<Score, JsValue> {
+    let score = score_from_json(json)?;
+    if !acorde_core::validate(&score).is_valid() {
+        return Err(js_err("score failed structural validation"));
+    }
+    Ok(score)
+}
+
 fn score_to_json(score: &Score) -> Result<String, JsValue> {
     serde_json::to_string(score).map_err(|e| js_err(format!("score serialization failed: {e}")))
 }
@@ -754,7 +762,7 @@ pub fn score_statistics(score_json: &str) -> Result<String, JsValue> {
 /// preserves all tied best candidates rather than inventing a single answer.
 #[wasm_bindgen]
 pub fn analyze_score(score_json: &str) -> Result<String, JsValue> {
-    let score = score_from_json(score_json)?;
+    let score = validated_score_from_json(score_json)?;
     let analysis = acorde_analysis::analyze_score(&score);
     serde_json::to_string(&analysis)
         .map_err(|e| js_err(format!("analysis serialization failed: {e}")))
@@ -849,7 +857,7 @@ impl AnalysisCache {
 
     /// Analyze one score JSON string, reusing a matching cached result.
     pub fn analyze(&mut self, score_json: &str) -> Result<String, JsValue> {
-        let score = score_from_json(score_json)?;
+        let score = validated_score_from_json(score_json)?;
         let result = self.inner.analyze(&score);
         serde_json::to_string(&result)
             .map_err(|e| js_err(format!("analysis serialization failed: {e}")))
@@ -858,6 +866,12 @@ impl AnalysisCache {
     /// Analyze a JSON array of scores, preserving input order and reusing duplicate results.
     pub fn analyze_batch(&mut self, scores_json: &str) -> Result<String, JsValue> {
         let scores: Vec<Score> = parse_json(scores_json, "scores", MAX_SCORE_JSON_BYTES)?;
+        if scores
+            .iter()
+            .any(|score| !acorde_core::validate(score).is_valid())
+        {
+            return Err(js_err("scores contain a structurally invalid score"));
+        }
         let results = self.inner.analyze_batch(&scores);
         serde_json::to_string(&results)
             .map_err(|e| js_err(format!("analysis batch serialization failed: {e}")))
@@ -869,8 +883,8 @@ impl AnalysisCache {
         previous_json: &str,
         current_json: &str,
     ) -> Result<String, JsValue> {
-        let previous = score_from_json(previous_json)?;
-        let current = score_from_json(current_json)?;
+        let previous = validated_score_from_json(previous_json)?;
+        let current = validated_score_from_json(current_json)?;
         let result = self.inner.analyze_after_edit(&previous, &current);
         serde_json::to_string(&result)
             .map_err(|e| js_err(format!("analysis serialization failed: {e}")))
@@ -883,13 +897,13 @@ impl AnalysisCache {
         previous_result_json: &str,
         current_json: &str,
     ) -> Result<String, JsValue> {
-        let previous_score = score_from_json(previous_score_json)?;
+        let previous_score = validated_score_from_json(previous_score_json)?;
         let previous_result: acorde_analysis::AnalysisResult = parse_json(
             previous_result_json,
             "previous analysis",
             MAX_SMALL_JSON_BYTES,
         )?;
-        let current = score_from_json(current_json)?;
+        let current = validated_score_from_json(current_json)?;
         let result =
             self.inner
                 .analyze_after_edit_with_diff(&previous_score, &previous_result, &current);
@@ -905,13 +919,13 @@ impl AnalysisCache {
         current_json: &str,
         categories_json: &str,
     ) -> Result<String, JsValue> {
-        let previous_score = score_from_json(previous_score_json)?;
+        let previous_score = validated_score_from_json(previous_score_json)?;
         let previous_result: acorde_analysis::AnalysisResult = parse_json(
             previous_result_json,
             "previous analysis",
             MAX_SMALL_JSON_BYTES,
         )?;
-        let current = score_from_json(current_json)?;
+        let current = validated_score_from_json(current_json)?;
         let categories: Vec<acorde_analysis::AnalysisCategory> =
             parse_json(categories_json, "analysis categories", MAX_SMALL_JSON_BYTES)?;
         let result = self.inner.analyze_selected_after_edit(
@@ -932,13 +946,13 @@ impl AnalysisCache {
         current_json: &str,
         change_hint_json: &str,
     ) -> Result<String, JsValue> {
-        let previous_score = score_from_json(previous_score_json)?;
+        let previous_score = validated_score_from_json(previous_score_json)?;
         let previous_result: acorde_analysis::AnalysisResult = parse_json(
             previous_result_json,
             "previous analysis",
             MAX_SMALL_JSON_BYTES,
         )?;
-        let current = score_from_json(current_json)?;
+        let current = validated_score_from_json(current_json)?;
         let hint: acorde_core::ChangeHint =
             parse_json(change_hint_json, "change hint", MAX_SMALL_JSON_BYTES)?;
         let result = self.inner.analyze_after_edit_with_hint(
@@ -953,7 +967,7 @@ impl AnalysisCache {
 
     /// Invalidate one score snapshot and return whether it was cached.
     pub fn invalidate(&mut self, score_json: &str) -> Result<bool, JsValue> {
-        let score = score_from_json(score_json)?;
+        let score = validated_score_from_json(score_json)?;
         Ok(self.inner.invalidate(&score))
     }
 
@@ -997,7 +1011,7 @@ impl AnalysisCache {
 /// semitones — the caller should offer a right-hand-part picker.
 #[wasm_bindgen]
 pub fn analyze_for_accordion(score_json: &str) -> Result<String, JsValue> {
-    let score = score_from_json(score_json)?;
+    let score = validated_score_from_json(score_json)?;
     let analysis = acorde_core::analyze_for_accordion(&score);
     serde_json::to_string(&analysis)
         .map_err(|e| js_err(format!("analysis serialization failed: {e}")))
