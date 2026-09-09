@@ -14,9 +14,12 @@ keywords = ["music", "notation", "layout", "sheet-music"]
 categories = ["multimedia::audio"]
 
 [dependencies]
-acorde-core = { path = "../core", version = "1.1.6" }
+acorde-core = { path = "../core", version = "1.1.7" }
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 
 [dev-dependencies]
 serde_json = "1"
+
+[lints]
+workspace = true
