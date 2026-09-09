@@ -785,7 +785,7 @@ fn content_horizontal_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (
 pub(crate) fn measure_text_entries(measure: &Measure) -> Vec<StyledText> {
     let mut entries = measure.texts.clone();
     let legacy = [
-        (TextStyle::Expression, measure.tempo_text.as_deref()),
+        (TextStyle::Generic, measure.tempo_text.as_deref()),
         (TextStyle::RehearsalMark, measure.rehearsal.as_deref()),
         (TextStyle::Generic, measure.navigation.as_deref()),
         (TextStyle::Expression, measure.expression_text.as_deref()),
