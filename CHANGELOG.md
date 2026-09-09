@@ -57,6 +57,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   header/footer text, page-number footers, and optional part-name suppression.
 - `print-report` now preserves import format/schema and diagnostics in a versioned wrapper under
   `layout`, with `--fail-on-issues` for loss-aware publication CI gates.
+- Added CLI controls for print scale, first-system capacity, final-page balancing, notation-aware
+  breaks, and pickup detection, reusing the host-neutral layout policies.
 
 ## [1.1.6] - 2026-09-09
 

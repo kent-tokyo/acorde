@@ -154,7 +154,8 @@ acorde convert input.musicxml output.abc
 acorde convert input.musicxml output.mei
 acorde render input.musicxml output.svg
 acorde render-report input.musicxml output.svg --fail-on-issues
-acorde print-report input.musicxml --preset a4-score --measures-per-system 3 --systems-per-page 4 --title-page --fail-on-issues
+acorde print-report input.musicxml --preset a4-score --measures-per-system 3 --systems-per-page 4 --title-page --fail-on-issues \
+  --final-page-policy balance --scale 1.05
 acorde print-report input.musicxml --preset letter-part --part 0 --measures-per-system 3 \
   --running-title "Suite" --page-number-in-footer
 acorde info input.musicxml
@@ -196,6 +197,8 @@ any import diagnostic a non-zero CI result while retaining the JSON report. It d
 or access a printer. `--running-title`, `--header-text`, `--footer-text`,
 `--page-number-in-footer`, and `--no-part-names` control publication metadata without selecting
 fonts or changing score semantics.
+`--scale`, `--first-system-measures`, `--final-page-policy`, `--notation-break-policy`, and
+`--pickup-policy` expose the existing deterministic system-breaking policies.
 `validate` performs the same local structural checks for tablature metadata and explicit string
 positions; it does not require a SoundFont or network access.
 `preflight` reports SVG renderer capability boundaries before rendering.

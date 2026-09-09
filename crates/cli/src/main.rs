@@ -23,6 +23,34 @@ enum PrintPresetArg {
     LetterPart,
 }
 
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum PrintFinalPagePolicyArg {
+    /// Keep the configured page capacity.
+    AllowSingleSystem,
+    /// Redistribute automatic systems across pages.
+    Balance,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum PrintNotationBreakPolicyArg {
+    /// Preserve ordinary automatic breaks.
+    Preserve,
+    /// Keep volta endings together when they fit.
+    KeepVoltaTogether,
+    /// Keep repeat sections together on one page when they fit.
+    KeepRepeatsTogether,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum PrintPickupPolicyArg {
+    /// Use the default automatic pickup detection.
+    Auto,
+    /// Do not infer a pickup measure.
+    Preserve,
+    /// Detect and isolate a partial first measure.
+    DetectFirstMeasure,
+}
+
 struct PrintReportOptions<'a> {
     preset: PrintPresetArg,
     part: Option<usize>,
@@ -35,6 +63,11 @@ struct PrintReportOptions<'a> {
     page_number_in_footer: bool,
     show_part_names: bool,
     fail_on_issues: bool,
+    scale: f32,
+    first_system_measures: Option<usize>,
+    final_page_policy: PrintFinalPagePolicyArg,
+    notation_break_policy: PrintNotationBreakPolicyArg,
+    pickup_policy: PrintPickupPolicyArg,
 }
 
 #[derive(Debug, Serialize)]
@@ -148,6 +181,21 @@ enum Commands {
         /// Exit with status 1 when import diagnostics are present
         #[arg(long)]
         fail_on_issues: bool,
+        /// Content scale applied to system geometry
+        #[arg(long, default_value_t = 1.0)]
+        scale: f32,
+        /// Optional first-system physical measure capacity
+        #[arg(long)]
+        first_system_measures: Option<usize>,
+        /// Final-page distribution policy
+        #[arg(long, value_enum, default_value_t = PrintFinalPagePolicyArg::AllowSingleSystem)]
+        final_page_policy: PrintFinalPagePolicyArg,
+        /// Notation-aware system/page break policy
+        #[arg(long, value_enum, default_value_t = PrintNotationBreakPolicyArg::Preserve)]
+        notation_break_policy: PrintNotationBreakPolicyArg,
+        /// Pickup-measure detection policy
+        #[arg(long, value_enum, default_value_t = PrintPickupPolicyArg::Auto)]
+        pickup_policy: PrintPickupPolicyArg,
     },
     /// Print title, parts, measure count, and duration estimate
     Info {
@@ -380,6 +428,11 @@ fn main() {
             page_number_in_footer,
             no_part_names,
             fail_on_issues,
+            scale,
+            first_system_measures,
+            final_page_policy,
+            notation_break_policy,
+            pickup_policy,
         } => cmd_print_report(
             input,
             PrintReportOptions {
@@ -394,6 +447,11 @@ fn main() {
                 page_number_in_footer: *page_number_in_footer,
                 show_part_names: !*no_part_names,
                 fail_on_issues: *fail_on_issues,
+                scale: *scale,
+                first_system_measures: *first_system_measures,
+                final_page_policy: *final_page_policy,
+                notation_break_policy: *notation_break_policy,
+                pickup_policy: *pickup_policy,
             },
         ),
         Commands::Info { input } => cmd_info(input),
@@ -742,6 +800,28 @@ fn build_print_config(
     let mut config = preset.config_with_title_page(options.title_page);
     config.measures_per_system = options.measures_per_system;
     config.systems_per_page = options.systems_per_page;
+    config.scale = options.scale;
+    config.first_system_measures = options.first_system_measures;
+    config.final_page_policy = match options.final_page_policy {
+        PrintFinalPagePolicyArg::AllowSingleSystem => {
+            acorde_layout::FinalPagePolicy::AllowSingleSystem
+        }
+        PrintFinalPagePolicyArg::Balance => acorde_layout::FinalPagePolicy::Balance,
+    };
+    config.notation_break_policy = match options.notation_break_policy {
+        PrintNotationBreakPolicyArg::Preserve => acorde_layout::NotationBreakPolicy::Preserve,
+        PrintNotationBreakPolicyArg::KeepVoltaTogether => {
+            acorde_layout::NotationBreakPolicy::KeepVoltaTogether
+        }
+        PrintNotationBreakPolicyArg::KeepRepeatsTogether => {
+            acorde_layout::NotationBreakPolicy::KeepRepeatsTogether
+        }
+    };
+    config.pickup_policy = match options.pickup_policy {
+        PrintPickupPolicyArg::Auto => acorde_layout::PickupPolicy::Auto,
+        PrintPickupPolicyArg::Preserve => acorde_layout::PickupPolicy::Preserve,
+        PrintPickupPolicyArg::DetectFirstMeasure => acorde_layout::PickupPolicy::DetectFirstMeasure,
+    };
     config.publication.running_title = options.running_title.map(str::to_owned);
     config.publication.header_text = options.header_text.map(str::to_owned);
     config.publication.footer_text = options.footer_text.map(str::to_owned);
@@ -1813,6 +1893,11 @@ mod tests {
             page_number_in_footer: true,
             show_part_names: false,
             fail_on_issues: false,
+            scale: 1.1,
+            first_system_measures: Some(2),
+            final_page_policy: PrintFinalPagePolicyArg::Balance,
+            notation_break_policy: PrintNotationBreakPolicyArg::KeepVoltaTogether,
+            pickup_policy: PrintPickupPolicyArg::Preserve,
         })
         .expect("print config succeeds");
         assert_eq!(config.paper_size, acorde_layout::PaperSize::Letter);
@@ -1822,6 +1907,17 @@ mod tests {
         );
         assert_eq!(config.measures_per_system, 3);
         assert_eq!(config.systems_per_page, Some(4));
+        assert_eq!(config.scale, 1.1);
+        assert_eq!(config.first_system_measures, Some(2));
+        assert_eq!(
+            config.final_page_policy,
+            acorde_layout::FinalPagePolicy::Balance
+        );
+        assert_eq!(
+            config.notation_break_policy,
+            acorde_layout::NotationBreakPolicy::KeepVoltaTogether
+        );
+        assert_eq!(config.pickup_policy, acorde_layout::PickupPolicy::Preserve);
         assert!(config.publication.title_page);
         assert_eq!(config.publication.running_title.as_deref(), Some("Suite"));
         assert_eq!(config.publication.header_text.as_deref(), Some("Header"));
@@ -1844,6 +1940,11 @@ mod tests {
             page_number_in_footer: false,
             show_part_names: true,
             fail_on_issues: false,
+            scale: 1.0,
+            first_system_measures: None,
+            final_page_policy: PrintFinalPagePolicyArg::AllowSingleSystem,
+            notation_break_policy: PrintNotationBreakPolicyArg::Preserve,
+            pickup_policy: PrintPickupPolicyArg::Auto,
         })
         .expect_err("full score must reject part selection");
         assert!(error.contains("requires an extracted-part preset"));
