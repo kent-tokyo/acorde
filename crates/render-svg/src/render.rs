@@ -2681,23 +2681,14 @@ fn render_note_annotations(
     stem_up: bool,
     space: f32,
 ) {
-    let dir = if stem_up { -1.0 } else { 1.0 };
-    let mut above_distance = 0.0_f32;
-    let mut below_distance = 0.0_f32;
+    let mut lanes = AnnotationLanes::default();
     if let Some(dynamic) = &note.dynamic {
         write_annotation_text(
             body,
             "acorde-dynamic",
             dynamic.to_musicxml_str(),
             x,
-            annotation_y(
-                anchor_y,
-                stem_up,
-                4.0,
-                &mut above_distance,
-                &mut below_distance,
-                space,
-            ),
+            annotation_y(anchor_y, stem_up, 4.0, &mut lanes, space),
             space,
             true,
         );
@@ -2708,14 +2699,7 @@ fn render_note_annotations(
             "acorde-chord-symbol",
             &chord.display_text(),
             x,
-            annotation_y(
-                anchor_y,
-                true,
-                5.6,
-                &mut above_distance,
-                &mut below_distance,
-                space,
-            ),
+            annotation_y(anchor_y, true, 5.6, &mut lanes, space),
             space,
             true,
         );
@@ -2726,14 +2710,7 @@ fn render_note_annotations(
             "acorde-technique-text",
             technique,
             x,
-            annotation_y(
-                anchor_y,
-                stem_up,
-                6.8,
-                &mut above_distance,
-                &mut below_distance,
-                space,
-            ),
+            annotation_y(anchor_y, stem_up, 6.8, &mut lanes, space),
             space,
             true,
         );
@@ -2755,14 +2732,7 @@ fn render_note_annotations(
             "acorde-fingering",
             &fingering,
             x,
-            annotation_y(
-                anchor_y,
-                !stem_up,
-                5.0,
-                &mut above_distance,
-                &mut below_distance,
-                space,
-            ),
+            annotation_y(anchor_y, !stem_up, 5.0, &mut lanes, space),
             space,
             false,
         );
@@ -2778,14 +2748,7 @@ fn render_note_annotations(
             "acorde-lyric",
             &lyric.text,
             x,
-            annotation_y(
-                anchor_y,
-                false,
-                lyric_offset,
-                &mut above_distance,
-                &mut below_distance,
-                space,
-            ),
+            annotation_y(anchor_y, false, lyric_offset, &mut lanes, space),
             space,
             false,
         );
@@ -2801,13 +2764,33 @@ fn render_note_annotations(
             );
         }
     }
-    for (articulation_index, articulation) in note.articulations.iter().enumerate() {
+    render_articulation_annotations(
+        body,
+        &note.articulations,
+        x,
+        anchor_y,
+        stem_up,
+        space,
+        &mut lanes,
+    );
+}
+
+fn render_articulation_annotations(
+    body: &mut String,
+    articulations: &[acorde_core::Articulation],
+    x: f32,
+    anchor_y: f32,
+    stem_up: bool,
+    space: f32,
+    lanes: &mut AnnotationLanes,
+) {
+    let dir = if stem_up { -1.0 } else { 1.0 };
+    for (articulation_index, articulation) in articulations.iter().enumerate() {
         let y = annotation_y(
             anchor_y,
             stem_up,
             1.2 + articulation_index as f32,
-            &mut above_distance,
-            &mut below_distance,
+            lanes,
             space,
         );
         match articulation {
@@ -2962,14 +2945,9 @@ fn render_note_annotations(
 
 fn note_annotation_lane_extents(note: &Note, voice_stem_up: bool) -> (f32, f32) {
     let stem_up = note.stem_up.unwrap_or(voice_stem_up);
-    let mut above_distance = 0.0_f32;
-    let mut below_distance = 0.0_f32;
+    let mut lanes = AnnotationLanes::default();
     let mut reserve = |above: bool, preferred: f32| {
-        if above {
-            let _ = annotation_lane_distance(preferred, &mut above_distance);
-        } else {
-            let _ = annotation_lane_distance(preferred, &mut below_distance);
-        }
+        lanes.reserve(above, preferred);
     };
     if note.dynamic.is_some() {
         reserve(stem_up, 4.0);
@@ -2997,37 +2975,46 @@ fn note_annotation_lane_extents(note: &Note, voice_stem_up: bool) -> (f32, f32) 
         reserve(stem_up, 1.2 + index as f32);
     }
     (
-        if above_distance > 0.0 {
-            above_distance + 0.5
+        if lanes.above_distance > 0.0 {
+            lanes.above_distance + 0.5
         } else {
             0.0
         },
-        if below_distance > 0.0 {
-            below_distance + 0.5
+        if lanes.below_distance > 0.0 {
+            lanes.below_distance + 0.5
         } else {
             0.0
         },
     )
 }
 
+#[derive(Default)]
+struct AnnotationLanes {
+    above_distance: f32,
+    below_distance: f32,
+}
+
+impl AnnotationLanes {
+    fn reserve(&mut self, above: bool, preferred_distance: f32) -> f32 {
+        if above {
+            annotation_lane_distance(preferred_distance, &mut self.above_distance)
+        } else {
+            annotation_lane_distance(preferred_distance, &mut self.below_distance)
+        }
+    }
+}
+
 fn annotation_y(
     anchor_y: f32,
     above: bool,
     preferred_distance: f32,
-    above_distance: &mut f32,
-    below_distance: &mut f32,
+    lanes: &mut AnnotationLanes,
     space: f32,
 ) -> f32 {
-    let distance = if above {
-        annotation_lane_distance(preferred_distance, above_distance)
-    } else {
-        annotation_lane_distance(preferred_distance, below_distance)
-    };
+    let distance = lanes.reserve(above, preferred_distance);
     if above {
-        *above_distance = distance;
         anchor_y - distance * space
     } else {
-        *below_distance = distance;
         anchor_y + distance * space
     }
 }
