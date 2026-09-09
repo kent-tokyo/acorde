@@ -51,6 +51,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   so publication hosts can consume explicit and legacy text without reconstructing it.
 - Added the CLI `print-report` command for deterministic host-neutral page/system and publication
   metadata inspection before PDF or printer-owned export.
+- Added reproducible `print-report` presets for A4/Letter full scores and extracted parts, with
+  explicit zero-based `--part` selection and deterministic validation of invalid combinations.
 
 ## [1.1.6] - 2026-09-09
 

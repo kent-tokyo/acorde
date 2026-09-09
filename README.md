@@ -154,7 +154,8 @@ acorde convert input.musicxml output.abc
 acorde convert input.musicxml output.mei
 acorde render input.musicxml output.svg
 acorde render-report input.musicxml output.svg --fail-on-issues
-acorde print-report input.musicxml --measures-per-system 3 --systems-per-page 4 --title-page
+acorde print-report input.musicxml --preset a4-score --measures-per-system 3 --systems-per-page 4 --title-page
+acorde print-report input.musicxml --preset letter-part --part 0 --measures-per-system 3
 acorde info input.musicxml
 acorde validate input.musicxml
 acorde preflight input.musicxml
@@ -186,7 +187,10 @@ a deterministic local `fnv1a64-*` `svg_fingerprint` as JSON; rejected renders co
 The fingerprint is evidence of local byte determinism, not a cryptographic publication hash.
 `print-report` emits the host-neutral page/system plan as JSON, including physical page geometry,
 break reasons, publication metadata, measure text annotations, and resource/span diagnostics.
-It does not generate PDF or access a printer.
+Use `--preset a4-score` or `--preset letter-score` for full scores, and
+`--preset a4-part`/`--preset letter-part` with `--part` for extracted parts. Other layout options
+override only the selected preset's deterministic starting configuration. It does not generate PDF
+or access a printer.
 `validate` performs the same local structural checks for tablature metadata and explicit string
 positions; it does not require a SoundFont or network access.
 `preflight` reports SVG renderer capability boundaries before rendering.

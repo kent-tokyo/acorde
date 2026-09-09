@@ -70,8 +70,10 @@ The repository fixture `tests/fixtures/render_preflight_unsupported.musicxml` de
 failure path without external resources.
 `print-report` emits the host-neutral `PrintLayoutResult` as JSON, including physical pages and
 systems, typed break reasons, publication metadata, normalized measure text annotations, and
-glyph/span diagnostics. It emits no PDF or printer output; `--title-page` and the system/page
-capacity options are deterministic layout inputs.
+glyph/span diagnostics. Select `--preset a4-score` or `--preset letter-score` for full scores;
+select `--preset a4-part` or `--preset letter-part` with `--part N` for an extracted part. It
+emits no PDF or printer output; `--title-page` and the system/page capacity options are
+deterministic layout inputs.
 analyze emits deterministic chord, melodic-interval, and key-estimate results as JSON.
 export-report writes MusicXML, MIDI, ABC, or MEI and emits machine-readable export diagnostics
 without embedding the binary/text artifact in the JSON response.

@@ -108,10 +108,12 @@ critical glyph.
 
 This API deliberately does not select or embed fonts, draw glyphs, generate PDF, open files,
 invoke OS printer APIs, or provide a preview UI. Those responsibilities belong to
-`acorde-render-svg`, a future `acorde-print` crate, or the consuming application/backend.
+`acorde-render-svg` or the consuming application/backend. The CLI `print-report` command exposes
+the same layout contract for headless publication preflight; it does not add a PDF or printer
+dependency.
 
 The `Balance` final-page policy redistributes automatically paginated systems as evenly as
 possible and is disabled when explicit page breaks are present. The current contract is a
-foundation, not full engraving parity: extracted-part policies, headers/footers, collision-aware spacing, and print SVG export metadata
-remain roadmap work. Unsupported or incomplete notation must continue to be
+foundation, not full engraving parity: font-aware collision optimization and final print SVG
+export remain host-side work. Unsupported or incomplete notation must continue to be
 reported through the format capability boundaries rather than treated as lossless.

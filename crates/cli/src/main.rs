@@ -3,12 +3,24 @@ use acorde_core::{
     TabPosition,
 };
 use acorde_io::ImportReport;
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 const MAX_PLAYBACK_JSON_BYTES: usize = 64 * 1024 * 1024;
 const RENDER_REPORT_SCHEMA_VERSION: u32 = 1;
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum PrintPresetArg {
+    /// A4 full score.
+    A4Score,
+    /// US Letter full score.
+    LetterScore,
+    /// A4 extracted part; combine with --part.
+    A4Part,
+    /// US Letter extracted part; combine with --part.
+    LetterPart,
+}
 
 #[derive(Parser)]
 #[command(
@@ -74,6 +86,12 @@ enum Commands {
     PrintReport {
         /// Input score file
         input: PathBuf,
+        /// Reproducible page preset
+        #[arg(long, value_enum, default_value_t = PrintPresetArg::A4Score)]
+        preset: PrintPresetArg,
+        /// Zero-based part index for an extracted-part preset
+        #[arg(long)]
+        part: Option<usize>,
         /// Physical measures per printed system
         #[arg(long, default_value_t = 4)]
         measures_per_system: usize,
@@ -304,10 +322,19 @@ fn main() {
         ),
         Commands::PrintReport {
             input,
+            preset,
+            part,
             measures_per_system,
             systems_per_page,
             title_page,
-        } => cmd_print_report(input, *measures_per_system, *systems_per_page, *title_page),
+        } => cmd_print_report(
+            input,
+            *preset,
+            *part,
+            *measures_per_system,
+            *systems_per_page,
+            *title_page,
+        ),
         Commands::Info { input } => cmd_info(input),
         Commands::Validate { input } => cmd_validate(input),
         Commands::Report { input } => cmd_report(input),
@@ -600,17 +627,35 @@ fn cmd_render_report(
 
 fn cmd_print_report(
     input: &Path,
+    preset: PrintPresetArg,
+    part: Option<usize>,
     measures_per_system: usize,
     systems_per_page: Option<usize>,
     title_page: bool,
 ) -> Result<(), String> {
     let score = parse_score(input)?;
-    let mut config = acorde_layout::PrintConfig {
+    let preset = match preset {
+        PrintPresetArg::A4Score if part.is_some() => {
+            return Err("--part requires an extracted-part preset".to_string());
+        }
+        PrintPresetArg::LetterScore if part.is_some() => {
+            return Err("--part requires an extracted-part preset".to_string());
+        }
+        PrintPresetArg::A4Score => acorde_layout::PrintPreset::A4Score,
+        PrintPresetArg::LetterScore => acorde_layout::PrintPreset::LetterScore,
+        PrintPresetArg::A4Part => acorde_layout::PrintPreset::A4Part {
+            part_index: part.ok_or("--part is required for --preset a4-part")?,
+        },
+        PrintPresetArg::LetterPart => acorde_layout::PrintPreset::LetterPart {
+            part_index: part.ok_or("--part is required for --preset letter-part")?,
+        },
+    };
+    let mut config = preset.config_with_title_page(title_page);
+    config = acorde_layout::PrintConfig {
         measures_per_system,
         systems_per_page,
-        ..acorde_layout::PrintConfig::default()
+        ..config
     };
-    config.publication.title_page = title_page;
     let layout = acorde_layout::compute_print_layout(&score, &config)
         .map_err(|e| format!("print layout failed: {e}"))?;
     serde_json::to_writer_pretty(std::io::stdout(), &layout)
