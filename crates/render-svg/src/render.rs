@@ -1077,7 +1077,50 @@ pub(crate) fn measure_text_entries(measure: &Measure) -> Vec<StyledText> {
             relative_y: None,
         });
     }
+    if let Some(text) = figured_bass_display_text(measure)
+        && !entries
+            .iter()
+            .any(|entry| entry.style == TextStyle::FiguredBass && entry.text == text)
+    {
+        entries.push(StyledText {
+            style: TextStyle::FiguredBass,
+            text,
+            placement: Some("below".to_owned()),
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        });
+    }
     entries
+}
+
+fn figured_bass_display_text(measure: &Measure) -> Option<String> {
+    if measure.figured_bass.is_empty() {
+        return None;
+    }
+    let text = measure
+        .figured_bass
+        .iter()
+        .map(|figure| {
+            let alter = match figure.alter.as_deref() {
+                Some("1") => "#",
+                Some("-1") => "b",
+                Some("0") => "♮",
+                Some(other) => other,
+                None => "",
+            };
+            format!(
+                "{}{}{}{}",
+                figure.prefix.as_deref().unwrap_or(""),
+                alter,
+                figure.number,
+                figure.suffix.as_deref().unwrap_or("")
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    (!text.is_empty()).then_some(text)
 }
 
 fn collect_staff_refs(score: &Score) -> Vec<(usize, usize)> {

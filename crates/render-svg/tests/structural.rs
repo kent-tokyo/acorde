@@ -461,6 +461,33 @@ fn legacy_measure_text_fields_are_rendered_and_exposed_with_styled_text() {
 }
 
 #[test]
+fn structured_figured_bass_is_rendered_once() {
+    use acorde_core::{FiguredBassFigure, Score};
+
+    let mut score = Score::new("figured bass", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].measures[0].figured_bass = vec![
+        FiguredBassFigure {
+            number: "6".to_string(),
+            alter: Some("-1".to_string()),
+            prefix: None,
+            suffix: None,
+            extender: false,
+        },
+        FiguredBassFigure {
+            number: "4".to_string(),
+            alter: None,
+            prefix: None,
+            suffix: None,
+            extender: false,
+        },
+    ];
+
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(svg.matches(">b6 4</text>").count(), 1);
+    assert_eq!(svg.matches("acorde-measure-text-figured-bass").count(), 1);
+}
+
+#[test]
 fn metadata_preserves_positioned_direction_text_fields() {
     use acorde_core::{StyledText, TextStyle};
     use acorde_layout::{LayoutConfig, compute_layout};
