@@ -795,7 +795,15 @@ fn content_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
                         || note.fingering.is_some()
                         || !note.fingerings.is_empty()
                     {
-                        annotation_top = annotation_top.max(2.6);
+                        if note.technique_text.is_some() {
+                            if note.stem_up.unwrap_or(voice_stem_up) {
+                                annotation_top = annotation_top.max(7.2);
+                            } else {
+                                annotation_bottom = annotation_bottom.max(7.2);
+                            }
+                        } else {
+                            annotation_top = annotation_top.max(2.6);
+                        }
                     }
                     if note.pitches.iter().any(|pitch| pitch.microtone_cents != 0) {
                         annotation_top = annotation_top.max(3.9);
@@ -2534,6 +2542,17 @@ fn render_note_annotations(
             &chord.display_text(),
             x,
             anchor_y - 5.6 * space,
+            space,
+            true,
+        );
+    }
+    if let Some(technique) = &note.technique_text {
+        write_annotation_text(
+            body,
+            "acorde-technique-text",
+            technique,
+            x,
+            anchor_y + dir * 6.8 * space,
             space,
             true,
         );
