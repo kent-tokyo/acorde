@@ -6,7 +6,9 @@
 use std::collections::HashMap;
 use std::fmt::Write as _;
 
-use acorde_core::{Barline, Clef, Duration, Note, Score, TimeSignature};
+use acorde_core::{
+    Barline, Clef, Duration, Measure, Note, Score, StyledText, TextStyle, TimeSignature,
+};
 use acorde_layout::{LayoutResult, SpanMark};
 
 use crate::beams;
@@ -342,18 +344,20 @@ pub(crate) fn build_svg_with_metadata(
                     .flat_map(move |(staff_index, staff)| {
                         staff.measures.iter().enumerate().flat_map(
                             move |(measure_index, measure)| {
-                                measure.texts.iter().map(move |styled| TextAnnotation {
-                                    part: part_index,
-                                    staff: staff_index,
-                                    measure: measure_index,
-                                    style: styled.style,
-                                    text: styled.text.clone(),
-                                    placement: styled.placement.clone(),
-                                    offset_x: styled.offset_x,
-                                    offset_y: styled.offset_y,
-                                    relative_x: styled.relative_x,
-                                    relative_y: styled.relative_y,
-                                })
+                                measure_text_entries(measure)
+                                    .into_iter()
+                                    .map(move |styled| TextAnnotation {
+                                        part: part_index,
+                                        staff: staff_index,
+                                        measure: measure_index,
+                                        style: styled.style,
+                                        text: styled.text,
+                                        placement: styled.placement,
+                                        offset_x: styled.offset_x,
+                                        offset_y: styled.offset_y,
+                                        relative_x: styled.relative_x,
+                                        relative_y: styled.relative_y,
+                                    })
                             },
                         )
                     })
@@ -458,7 +462,7 @@ fn validate_inputs(
         validate_score_text(&part.short_name)?;
         for staff in &part.staves {
             for measure in &staff.measures {
-                for styled in &measure.texts {
+                for styled in measure_text_entries(measure) {
                     validate_score_text(&styled.text)?;
                 }
                 for value in [
@@ -500,7 +504,7 @@ fn validate_inputs(
     for part in &score.parts {
         for staff in &part.staves {
             for measure in &staff.measures {
-                for styled in &measure.texts {
+                for styled in measure_text_entries(measure) {
                     if styled.text.len() > crate::MAX_ANNOTATION_TEXT_BYTES {
                         return Err(RenderError::MeasureTextTooLarge {
                             size: styled.text.len(),
@@ -733,7 +737,7 @@ fn content_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
             }
             let mut above_texts = 0usize;
             let mut below_texts = 0usize;
-            for styled in &measure.texts {
+            for styled in measure_text_entries(measure) {
                 let offset_y = (styled.offset_y.unwrap_or(0.0) + styled.relative_y.unwrap_or(0.0))
                     as f32
                     / 10.0;
@@ -762,7 +766,7 @@ fn content_horizontal_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (
     let mut left = LEFT_MARGIN_U;
     for &(part, staff) in staff_refs {
         for measure in &score.parts[part].staves[staff].measures {
-            for styled in &measure.texts {
+            for styled in measure_text_entries(measure) {
                 let offset_x = (styled.offset_x.unwrap_or(0.0) + styled.relative_x.unwrap_or(0.0))
                     as f32
                     / 10.0;
@@ -773,6 +777,40 @@ fn content_horizontal_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (
         }
     }
     (left, RIGHT_MARGIN_U)
+}
+
+/// Return the explicit measure text plus legacy semantic text fields in one renderer-facing
+/// sequence. Explicit StyledText entries remain first; equal style/text pairs are not duplicated
+/// when an importer retained both representations.
+pub(crate) fn measure_text_entries(measure: &Measure) -> Vec<StyledText> {
+    let mut entries = measure.texts.clone();
+    let legacy = [
+        (TextStyle::Expression, measure.tempo_text.as_deref()),
+        (TextStyle::RehearsalMark, measure.rehearsal.as_deref()),
+        (TextStyle::Generic, measure.navigation.as_deref()),
+        (TextStyle::Expression, measure.expression_text.as_deref()),
+    ];
+    for (style, text) in legacy {
+        let Some(text) = text else {
+            continue;
+        };
+        if entries
+            .iter()
+            .any(|entry| entry.style == style && entry.text == text)
+        {
+            continue;
+        }
+        entries.push(StyledText {
+            style,
+            text: text.to_owned(),
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        });
+    }
+    entries
 }
 
 fn collect_staff_refs(score: &Score) -> Vec<(usize, usize)> {
@@ -1289,7 +1327,7 @@ fn render_measure(
 
     let mut above_texts = 0usize;
     let mut below_texts = 0usize;
-    for (text_index, styled) in measure.texts.iter().enumerate() {
+    for (text_index, styled) in measure_text_entries(measure).into_iter().enumerate() {
         let placement_below = styled
             .placement
             .as_deref()

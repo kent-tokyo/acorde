@@ -424,6 +424,34 @@ fn metadata_exposes_measure_text_style_and_location() {
 }
 
 #[test]
+fn legacy_measure_text_fields_are_rendered_and_exposed_with_styled_text() {
+    use acorde_core::TextStyle;
+    let mut score = common::satb_major();
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.rehearsal = Some("A".to_string());
+    measure.expression_text = Some("dolce".to_string());
+    measure.navigation = Some("DaCoda".to_string());
+    let layout = acorde_layout::compute_layout(&score, &Default::default());
+    let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts()).unwrap();
+    assert!(
+        metadata
+            .text_annotations
+            .iter()
+            .any(|text| text.style == TextStyle::RehearsalMark && text.text == "A")
+    );
+    assert!(
+        metadata
+            .text_annotations
+            .iter()
+            .any(|text| text.style == TextStyle::Expression && text.text == "dolce")
+    );
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert!(svg.contains("acorde-measure-text-rehearsal-mark"));
+    assert!(svg.contains(">dolce</text>"));
+    assert!(svg.contains(">DaCoda</text>"));
+}
+
+#[test]
 fn metadata_preserves_positioned_direction_text_fields() {
     use acorde_core::{StyledText, TextStyle};
     use acorde_layout::{LayoutConfig, compute_layout};

@@ -37,6 +37,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   tempo/rehearsal/navigation/expression text.
 - Mirrored the expanded text preflight contract through WASM and documented its browser-facing
   diagnostics.
+- Normalized legacy measure text fields into the deterministic `StyledText` SVG and metadata path,
+  avoiding duplicate equivalent entries when importers retain both representations.
 
 ## [1.1.6] - 2026-09-09
 

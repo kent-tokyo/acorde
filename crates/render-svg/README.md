@@ -32,6 +32,9 @@ being clipped by the ordinary staff margins.
 Multiple measure-level entries on the same side of a staff are stacked in source order with a
 stable staff-space separation; this is a bounded deterministic policy, not full font-aware
 engraving collision optimization.
+Legacy measure fields (`tempo_text`, `rehearsal`, `navigation`, and `expression_text`) are
+normalized into the same `StyledText` render and metadata path. Explicit entries retain priority,
+and an identical style/text pair retained by an importer is emitted only once.
 Negative measure-level horizontal offsets expand the left content margin and move the system
 content together; font-width-aware wrapping and positive-offset typography remain host work.
 Non-zero `Pitch::microtone_cents` values, including notes on tablature staffs, are rendered as
