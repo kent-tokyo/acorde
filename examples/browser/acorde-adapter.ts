@@ -12,6 +12,7 @@ export type WorkspaceOperation =
   | "parse"
   | "layout"
   | "print-layout"
+  | "glyph-resource"
   | "render"
   | "metadata"
   | "analysis"
@@ -159,6 +160,14 @@ export interface TablatureRoundTripReport {
   diagnostics: unknown[];
 }
 
+export interface GlyphResourceDescriptor {
+  contract_version: number;
+  resource_key: string;
+  metrics_contract_version: number;
+  license_notice: string;
+  fallback?: "Reject" | { UseResource: string };
+}
+
 export interface WorkspacePreflight {
   contractVersion: number;
   revision: number;
@@ -247,6 +256,7 @@ export type WorkspaceRequest =
   | { id: string; type: "restore-snapshot"; snapshot: WorkspaceSnapshot }
   | { id: string; type: "render-svg" }
   | { id: string; type: "print-layout"; config?: Record<string, unknown> }
+  | { id: string; type: "validate-glyph-resource"; descriptor: GlyphResourceDescriptor }
   | { id: string; type: "render-preflight" }
   | { id: string; type: "render-row-svg"; rowIndex: number }
   | { id: string; type: "metadata" }
@@ -540,6 +550,23 @@ export class AcordeWorkspace {
       )) as Record<string, unknown>;
     } catch (cause) {
       throw this.toWorkspaceError("print-layout", cause);
+    }
+  }
+
+  /** Validate host font/resource metadata before a publication export. */
+  validateGlyphResourceDescriptor(
+    descriptor: GlyphResourceDescriptor,
+  ): GlyphResourceDescriptor {
+    try {
+      const expectedVersion = this.wasm.glyph_resource_contract_version();
+      if (descriptor.contract_version !== expectedVersion) {
+        throw new Error(`unsupported glyph resource contract version: ${descriptor.contract_version}`);
+      }
+      return JSON.parse(this.wasm.validate_glyph_resource_descriptor(
+        JSON.stringify(descriptor),
+      )) as GlyphResourceDescriptor;
+    } catch (cause) {
+      throw this.toWorkspaceError("glyph-resource", cause);
     }
   }
 
@@ -1030,6 +1057,12 @@ export function handleWorkspaceRequest(
         return { id: request.id, ok: true, value: workspace.renderSvg() };
       case "print-layout":
         return { id: request.id, ok: true, value: workspace.printLayout(request.config) };
+      case "validate-glyph-resource":
+        return {
+          id: request.id,
+          ok: true,
+          value: workspace.validateGlyphResourceDescriptor(request.descriptor),
+        };
       case "render-preflight":
         return { id: request.id, ok: true, value: workspace.renderPreflight() };
       case "render-row-svg":

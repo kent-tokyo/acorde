@@ -54,6 +54,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   publication previews can share the CLI's page contract.
 - Exposed glyph-resource contract version and descriptor validation through WASM for browser and
   Composer hosts before font resolution or publication export.
+- Added typed Browser adapter and Worker entry points for validating glyph-resource metadata before
+  a score is loaded.
 - Added standalone cargo-fuzz targets for the bounded MusicXML, MIDI, ABC, MEI, and MSCZ parser
   report boundaries; fuzz execution budgets remain an explicit security gate.
 - Added a fixed cargo-fuzz 0.13.1 nightly smoke job for all parser targets and checked-in fuzz

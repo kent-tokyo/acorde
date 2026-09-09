@@ -73,6 +73,11 @@ outside the core/WASM contract and remain application-owned.
   `validate_glyph_resource_descriptor(descriptor_json)` validates a host resource descriptor before
   publication export. It does not load fonts or verify licenses.
 
+`AcordeWorkspace.validateGlyphResourceDescriptor()` and the Worker
+`validate-glyph-resource` operation provide the same check without requiring a score to be loaded.
+The adapter first compares the descriptor version with the WASM contract version, then delegates
+the complete validation to Rust.
+
 `SvgRenderOptions` defaults are `width: 900`, `staff_size: 24`, `measures_per_system: 4`, and
 `interactive: true`. Interactive SVG groups carry `data-note-addr="part:staff:measure:voice:note"`.
 The host owns selection state: it may apply a CSS class or overlay after selecting an address;
