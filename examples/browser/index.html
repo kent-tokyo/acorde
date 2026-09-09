@@ -45,6 +45,7 @@
     render_score_svg_with_layout,
     render_score_svg_row,
     render_score_metadata,
+    svg_contract_version,
     analyze_score,
     serialize_musicxml,
   } from "../../crates/wasm/pkg/acorde_wasm.js";
@@ -73,7 +74,8 @@
       const svg = render_score_svg_with_layout(nextScore, layout, options);
       const row = render_score_svg_row(nextScore, layout, 0, options);
       const metadata = JSON.parse(render_score_metadata(nextScore, layout, options));
-      if (!svg.startsWith("<svg") || !row.startsWith("<svg") || metadata.contract_version !== 3 ||
+      if (!svg.startsWith("<svg") || !row.startsWith("<svg") ||
+          metadata.contract_version !== svg_contract_version() ||
           metadata.address_bounds.length !== 4 || !metadata.accessible_text) {
         throw new Error("contract output failed validation");
       }

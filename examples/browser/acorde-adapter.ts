@@ -59,6 +59,7 @@ export interface WasmBindings {
   compute_layout_ex(scoreJson: string, configJson: string): string;
   render_score_svg_with_layout(scoreJson: string, layoutJson: string, optionsJson: string): string;
   render_preflight(scoreJson: string): string;
+  svg_contract_version(): number;
   validate_score(scoreJson: string): string;
   render_score_svg_row(
     scoreJson: string,

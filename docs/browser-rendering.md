@@ -64,6 +64,9 @@ outside the core/WASM contract and remain application-owned.
   `accessible_text` as the text alternative when the host
   cannot expose SVG semantics; check `contract_version` before consuming newer fields.
 
+- `svg_contract_version()` returns the renderer metadata contract version so browser fixtures and
+  generated WASM hosts can compare returned metadata without duplicating a version constant.
+
 `SvgRenderOptions` defaults are `width: 900`, `staff_size: 24`, `measures_per_system: 4`, and
 `interactive: true`. Interactive SVG groups carry `data-note-addr="part:staff:measure:voice:note"`.
 The host owns selection state: it may apply a CSS class or overlay after selecting an address;

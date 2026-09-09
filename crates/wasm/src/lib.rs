@@ -35,6 +35,12 @@ fn score_to_json(score: &Score) -> Result<String, JsValue> {
     serde_json::to_string(score).map_err(|e| js_err(format!("score serialization failed: {e}")))
 }
 
+/// Return the version of the browser-facing SVG metadata contract.
+#[wasm_bindgen]
+pub fn svg_contract_version() -> u32 {
+    acorde_render_svg::SVG_CONTRACT_VERSION
+}
+
 // ── MusicXML ──────────────────────────────────────────────────────────────────
 
 /// Parse a MusicXML string and return the score as a JSON string.

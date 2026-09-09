@@ -43,6 +43,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Fixed exhaustive TypeScript Worker dispatch typing so unsupported requests retain their
   correlation id without relying on a narrowed `never` value.
 - Added a pinned TypeScript 5.8.3 adapter typecheck to CI and the browser candidate scorecard.
+- Exposed the SVG metadata contract version through WASM so browser fixtures do not duplicate the
+  renderer contract number.
 - Added the missing WASM `parse_mxl_report` binding so the browser MXL diagnostic path matches the
   existing IO report contract.
 - Added the CLI `render` command for deterministic input-file-to-SVG rendering through the
