@@ -19,6 +19,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and SHA-256 digests for every generated crate archive.
 - Pinned CI and publication workflow actions to reviewed commit SHAs; the fuzz job now separates
   the pinned toolchain action from its explicit dated nightly toolchain input.
+- Unified SVG staff lines, part-group connectors, first-system labels, and measure-text horizontal
+  offsets behind the renderer's validated content-aware margins, with structural regression cover.
 - Hardened `CommandStack` command, batch, undo, and redo boundaries with validated candidate
   scores: invalid post-command state is rejected atomically and is never recorded in history.
 - Added `ScoreEngine::try_replace_score` and routed WASM replacement, history restoration, and CLI

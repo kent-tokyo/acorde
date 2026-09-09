@@ -487,6 +487,36 @@ fn metadata_preserves_positioned_direction_text_fields() {
 }
 
 #[test]
+fn content_aware_horizontal_margins_reach_staff_lines_and_labels() {
+    use acorde_core::{PartGroup, PartGroupSymbol, StyledText, TextStyle};
+    let mut score = common::satb_major();
+    score.parts[0].short_name = "Long instrument label".to_string();
+    score.part_groups.push(PartGroup {
+        first_part: 0,
+        last_part: 0,
+        symbol: PartGroupSymbol::Bracket,
+        barlines_connect: false,
+    });
+    score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        style: TextStyle::Expression,
+        text: "right offset".to_string(),
+        placement: None,
+        offset_x: Some(20.0),
+        offset_y: None,
+        relative_x: None,
+        relative_y: None,
+    });
+
+    let svg = render_svg(&score, &opts()).unwrap();
+    // 21 characters × 0.42u plus connector/label clearance, at staff_size 24.
+    assert!(svg.contains(r#"class="acorde-staff-line" x1="250.08""#));
+    // The positive 2u offset expands the right edge from the normal 1u margin to 3u.
+    assert!(svg.contains(r#"class="acorde-staff-line" x1="250.08" y1=""#));
+    assert!(svg.contains(r#"x2="628.00""#));
+    assert!(svg.contains(r#"class="acorde-part-label""#));
+}
+
+#[test]
 fn measure_text_rejects_unbounded_or_non_finite_positioning() {
     use acorde_core::{StyledText, TextStyle};
     let mut score = common::satb_major();

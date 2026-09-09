@@ -196,8 +196,8 @@ pub(crate) fn build_svg_with_metadata(
             }
             write_staff_lines(
                 &mut body,
-                LEFT_MARGIN_U * space,
-                options.width - RIGHT_MARGIN_U * space,
+                left_margin_u * space,
+                options.width - right_margin_u * space,
                 bottom_y,
                 space,
                 score.parts[pi].staves[si]
@@ -227,7 +227,15 @@ pub(crate) fn build_svg_with_metadata(
             let _ = (pi, si); // staff-scoped state only; part/staff used below for data-* attrs
         }
         if !score.part_groups.is_empty() {
-            render_part_groups(&mut body, score, &staff_refs, &staff_y, row_idx, space);
+            render_part_groups(
+                &mut body,
+                score,
+                &staff_refs,
+                &staff_y,
+                row_idx,
+                left_margin_u,
+                space,
+            );
         }
 
         // Measures.
@@ -641,6 +649,7 @@ fn render_part_groups(
     staff_refs: &[(usize, usize)],
     staff_y: &[f32],
     row_idx: usize,
+    left_margin_u: f32,
     space: f32,
 ) {
     for group in &score.part_groups {
@@ -656,7 +665,7 @@ fn render_part_groups(
         };
         let top = staff_y[first];
         let bottom = staff_y[last] + STAFF_HEIGHT_U * space;
-        let x = (LEFT_MARGIN_U - 0.35) * space;
+        let x = (left_margin_u - 0.35) * space;
         let class = match group.symbol {
             acorde_core::PartGroupSymbol::Bracket => "acorde-part-bracket",
             acorde_core::PartGroupSymbol::Brace => "acorde-part-brace",
@@ -759,12 +768,21 @@ fn content_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
     (top, bottom)
 }
 
-/// Expand the left breathing room for measure-level annotations with negative horizontal
-/// offsets. The right margin remains the ordinary baseline because positive offsets are emitted
-/// inside the score's measured content area; font-width-aware line breaking remains host work.
+/// Expand breathing room for measure-level annotations and first-system part labels. Font-width
+/// aware line breaking remains host work, but explicit offsets must not move text outside the
+/// renderer's own SVG viewBox.
 fn content_horizontal_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
     let mut left = LEFT_MARGIN_U;
+    let mut right = RIGHT_MARGIN_U;
     for &(part, staff) in staff_refs {
+        let short_name = score.parts[part].short_name.trim();
+        if !short_name.is_empty() {
+            // The renderer intentionally does not resolve a host font here. Reserve a
+            // conservative, deterministic estimate for the first-system part label so the
+            // label and connector cannot be placed outside the SVG viewBox.
+            let label_width_u = short_name.chars().count() as f32 * 0.42;
+            left = left.max(LEFT_MARGIN_U + 0.35 + label_width_u + 0.25);
+        }
         for measure in &score.parts[part].staves[staff].measures {
             for styled in measure_text_entries(measure) {
                 let offset_x = (styled.offset_x.unwrap_or(0.0) + styled.relative_x.unwrap_or(0.0))
@@ -772,11 +790,13 @@ fn content_horizontal_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (
                     / 10.0;
                 if offset_x < 0.0 {
                     left = left.max(LEFT_MARGIN_U - offset_x);
+                } else {
+                    right = right.max(RIGHT_MARGIN_U + offset_x);
                 }
             }
         }
     }
-    (left, RIGHT_MARGIN_U)
+    (left, right)
 }
 
 /// Return the explicit measure text plus legacy semantic text fields in one renderer-facing
