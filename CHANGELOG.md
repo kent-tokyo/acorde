@@ -21,6 +21,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the pinned toolchain action from its explicit dated nightly toolchain input.
 - Unified SVG staff lines, part-group connectors, first-system labels, and measure-text horizontal
   offsets behind the renderer's validated content-aware margins, with structural regression cover.
+- Included note-attached lyric, dynamic, chord, fingering/technique, microtone, articulation, and
+  span offsets in conservative vertical content margins, with a structural regression fixture.
 - Hardened `CommandStack` command, batch, undo, and redo boundaries with validated candidate
   scores: invalid post-command state is rejected atomically and is never recorded in history.
 - Added `ScoreEngine::try_replace_score` and routed WASM replacement, history restoration, and CLI

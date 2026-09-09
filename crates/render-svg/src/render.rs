@@ -742,6 +742,75 @@ fn content_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (f32, f32) {
                         top = top.max(5.5 + ((position - 8).max(0) as f32 / 2.0));
                         bottom = bottom.max(4.5 + ((-position).max(0) as f32 / 2.0));
                     }
+
+                    // Note-attached annotations are emitted at fixed staff-space offsets below;
+                    // include their largest vertical excursion in the same content-aware margin
+                    // contract. Font ascent/line wrapping remains a host responsibility.
+                    let mut annotation_top: f32 = 5.5;
+                    let mut annotation_bottom: f32 = 4.5;
+                    if note.chord_symbol.is_some() {
+                        annotation_top = annotation_top.max(6.4);
+                    }
+                    if note.dynamic.is_some() {
+                        annotation_top = annotation_top.max(4.8);
+                        annotation_bottom = annotation_bottom.max(4.8);
+                    }
+                    if note.lyric.is_some() {
+                        annotation_bottom = annotation_bottom.max(5.6);
+                    }
+                    if note.technique_text.is_some()
+                        || note.guitar_technique.is_some()
+                        || note.fingering.is_some()
+                        || !note.fingerings.is_empty()
+                    {
+                        annotation_top = annotation_top.max(2.6);
+                    }
+                    if note.pitches.iter().any(|pitch| pitch.microtone_cents != 0) {
+                        annotation_top = annotation_top.max(3.9);
+                    }
+                    if !note.articulations.is_empty() {
+                        annotation_top = annotation_top.max(2.0);
+                        annotation_bottom = annotation_bottom.max(2.0);
+                    }
+                    if note.hairpin_start.is_some() || note.hairpin_end {
+                        annotation_top = annotation_top.max(4.8);
+                        annotation_bottom = annotation_bottom.max(4.8);
+                    }
+                    if note.ottava_start.is_some() || note.ottava_end {
+                        annotation_top = annotation_top.max(6.5);
+                        annotation_bottom = annotation_bottom.max(2.4);
+                    }
+                    if note.pedal_start || note.pedal_end {
+                        annotation_bottom = annotation_bottom.max(3.6);
+                    }
+                    if note.slur_start
+                        || note.slur_end
+                        || note.glissando_start
+                        || note.glissando_end
+                        || note.trill_line_start
+                        || note.trill_line_end
+                    {
+                        annotation_top = annotation_top.max(1.8);
+                        annotation_bottom = annotation_bottom.max(1.8);
+                    }
+                    let max_position = note
+                        .pitches
+                        .iter()
+                        .map(|pitch| {
+                            geometry::staff_position(&pitch.step, pitch.octave, clef_bottom)
+                        })
+                        .max()
+                        .unwrap_or(0);
+                    let min_position = note
+                        .pitches
+                        .iter()
+                        .map(|pitch| {
+                            geometry::staff_position(&pitch.step, pitch.octave, clef_bottom)
+                        })
+                        .min()
+                        .unwrap_or(0);
+                    top = top.max(annotation_top + ((max_position - 8).max(0) as f32 / 2.0));
+                    bottom = bottom.max(annotation_bottom + ((-min_position).max(0) as f32 / 2.0));
                 }
             }
             let mut above_texts = 0usize;

@@ -588,6 +588,37 @@ fn measure_text_extreme_vertical_offsets_expand_content_height() {
 }
 
 #[test]
+fn note_attached_annotations_expand_content_height() {
+    use acorde_core::{Dynamic, Lyric, OttavaKind, Pitch, Step};
+    let normal = common::satb_major();
+    let mut annotated = normal.clone();
+    let note = &mut annotated.parts[0].staves[0].measures[0].voices[0][0];
+    note.pitches[0] = Pitch::new(Step::C, 2);
+    note.dynamic = Some(Dynamic::Ff);
+    note.lyric = Some(Lyric {
+        text: "long".to_string(),
+        syllabic: "single".to_string(),
+    });
+    note.ottava_start = Some(OttavaKind::Va8);
+
+    let normal_height = acorde_render_svg::render_svg_metadata(
+        &normal,
+        &acorde_layout::compute_layout(&normal, &Default::default()),
+        &opts(),
+    )
+    .unwrap()
+    .height;
+    let annotated_height = acorde_render_svg::render_svg_metadata(
+        &annotated,
+        &acorde_layout::compute_layout(&annotated, &Default::default()),
+        &opts(),
+    )
+    .unwrap()
+    .height;
+    assert!(annotated_height > normal_height);
+}
+
+#[test]
 fn multiple_measure_text_entries_are_stacked_deterministically() {
     use acorde_core::{StyledText, TextStyle};
     let mut score = common::satb_major();
