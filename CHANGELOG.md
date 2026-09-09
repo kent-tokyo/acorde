@@ -35,6 +35,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   structural regression for an adjacent sharp cluster.
 - Added a separate stem-down lyric slot when a note also carries a dynamic, preventing those
   annotation baselines from colliding.
+- Added deterministic, pitch-footprint-aware spacing between adjacent events in one voice when
+  the measure has capacity, while preserving original positions for intrinsically tight measures.
 - Included note-attached lyric, dynamic, chord, fingering/technique, microtone, articulation, and
   span offsets in conservative vertical content margins, with a structural regression fixture.
 - Hardened `CommandStack` command, batch, undo, and redo boundaries with validated candidate

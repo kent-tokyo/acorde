@@ -1322,6 +1322,7 @@ fn render_measure(
             );
             beat_pos += note.beats();
         }
+        resolve_adjacent_event_spacing(notes, &mut xs, content_x0, content_w, space);
 
         // Beam plan: acorde-layout's beam_groups is the source of truth for *which* notes
         // are beamed together — this renderer never re-infers grouping, only geometry.
@@ -1512,6 +1513,54 @@ fn grace_note_offset(notes: &[Note], index: usize) -> f32 {
         .map_or(notes.len(), |position| index + position);
     let reverse_index = run_end.saturating_sub(index);
     -0.42 * reverse_index as f32
+}
+
+/// Resolve horizontal clearance between adjacent events in one voice. The rhythm-derived
+/// positions remain the first choice; only a collision that can be accommodated inside the
+/// measure is expanded. This keeps the operation deterministic and avoids partial shifts or
+/// viewBox overflow when a measure is intrinsically too dense for the requested width.
+fn resolve_adjacent_event_spacing(
+    notes: &[Note],
+    xs: &mut [f32],
+    content_x0: f32,
+    content_w: f32,
+    space: f32,
+) {
+    if notes.len() < 2 || xs.len() != notes.len() || !content_w.is_finite() || content_w <= 0.0 {
+        return;
+    }
+    let mut candidate = xs.to_vec();
+    for index in 1..notes.len() {
+        if notes[index - 1].is_grace || notes[index].is_grace {
+            continue;
+        }
+        let minimum_gap =
+            (event_footprint_u(&notes[index - 1]) + event_footprint_u(&notes[index])) / 2.0 + 0.18;
+        let required_x = candidate[index - 1] + minimum_gap * space;
+        if candidate[index] < required_x {
+            candidate[index] = required_x;
+        }
+    }
+    let right_edge = content_x0 + content_w;
+    if candidate
+        .last()
+        .is_some_and(|&last| last <= right_edge - 0.25 * space && last.is_finite())
+    {
+        xs.copy_from_slice(&candidate);
+    }
+}
+
+/// Conservative horizontal footprint in staff spaces. Accidentals use the same font-independent
+/// width contract as the glyph renderer; host font metrics may still choose a larger layout.
+fn event_footprint_u(note: &Note) -> f32 {
+    let notehead = if note.is_grace { 0.42 } else { 0.62 };
+    let accidental = note
+        .pitches
+        .iter()
+        .filter(|pitch| pitch.alter != 0)
+        .map(|pitch| glyphs::accidental_width_u(pitch.alter) + 0.15)
+        .fold(0.0_f32, f32::max);
+    notehead + accidental
 }
 
 fn measure_text_class(style: acorde_core::TextStyle) -> &'static str {
@@ -2667,4 +2716,26 @@ fn courtesy_wrapped(alter: i8, cx: f32, cy: f32, space: f32) -> String {
         y2 = f(cy + half_h)
     );
     format!(r#"<g class="acorde-courtesy">{left}{glyph}{right}</g>"#)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Note, resolve_adjacent_event_spacing};
+    use acorde_core::{Duration, Pitch, Step};
+
+    #[test]
+    fn adjacent_event_spacing_is_pitch_aware_and_atomic() {
+        let notes = vec![
+            Note::new(Pitch::with_alter(Step::C, 5, 1), Duration::Quarter),
+            Note::new(Pitch::with_alter(Step::D, 5, -1), Duration::Quarter),
+        ];
+
+        let mut positions = [0.0, 1.0];
+        resolve_adjacent_event_spacing(&notes, &mut positions, 0.0, 30.0, 10.0);
+        assert!(positions[1] > 1.0);
+
+        let mut tight_positions = [0.0, 1.0];
+        resolve_adjacent_event_spacing(&notes, &mut tight_positions, 0.0, 1.1, 10.0);
+        assert_eq!(tight_positions, [0.0, 1.0]);
+    }
 }
