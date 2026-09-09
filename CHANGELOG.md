@@ -31,6 +31,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Extended horizontal content-aware margins for negative measure-text offsets and aligned
   cross-system tie/span continuation anchors with the expanded left margin.
 - Added XML 1.0 character validation for score text and host annotations before SVG serialization.
+- Extended renderer preflight with source-located text-size, coordinate, and XML-character
+  diagnostics so hosts can gate malformed text before rendering.
 
 ## [1.1.6] - 2026-09-09
 

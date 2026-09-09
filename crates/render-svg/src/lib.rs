@@ -225,6 +225,9 @@ pub enum RenderPreflightKind {
     UnsupportedClef,
     UnsupportedAccidental,
     InvalidTabPosition,
+    MeasureTextTooLarge,
+    InvalidMeasureTextOffset,
+    InvalidXmlCharacter,
 }
 
 /// A source-located renderer capability warning discovered before SVG emission.
@@ -238,7 +241,18 @@ pub struct RenderPreflightIssue {
 /// Inspect renderer capability boundaries without producing SVG or partially rendering a score.
 pub fn render_preflight(score: &Score) -> Vec<RenderPreflightIssue> {
     let mut issues = Vec::new();
+    push_text_preflight_issue(&mut issues, "/score/title", &score.metadata.title);
     for (part_index, part) in score.parts.iter().enumerate() {
+        push_text_preflight_issue(
+            &mut issues,
+            &format!("/score/part/{}/name", part_index + 1),
+            &part.name,
+        );
+        push_text_preflight_issue(
+            &mut issues,
+            &format!("/score/part/{}/short-name", part_index + 1),
+            &part.short_name,
+        );
         for (staff_index, staff) in part.staves.iter().enumerate() {
             let staff_path = format!("/score/part/{}/staff/{}", part_index + 1, staff_index + 1);
             if matches!(staff.clef, acorde_core::Clef::Percussion) {
@@ -249,6 +263,30 @@ pub fn render_preflight(score: &Score) -> Vec<RenderPreflightIssue> {
                 });
             }
             for (measure_index, measure) in staff.measures.iter().enumerate() {
+                for (text_index, styled) in measure.texts.iter().enumerate() {
+                    let text_path = format!(
+                        "{staff_path}/measure/{}/text/{}",
+                        measure_index + 1,
+                        text_index + 1
+                    );
+                    push_text_preflight_issue(&mut issues, &text_path, &styled.text);
+                    for (field, value) in [
+                        ("offset_x", styled.offset_x),
+                        ("offset_y", styled.offset_y),
+                        ("relative_x", styled.relative_x),
+                        ("relative_y", styled.relative_y),
+                    ] {
+                        if let Some(value) = value {
+                            if !value.is_finite() || !(value as f32).is_finite() {
+                                issues.push(RenderPreflightIssue {
+                                    kind: RenderPreflightKind::InvalidMeasureTextOffset,
+                                    source_location: format!("{text_path}/{field}"),
+                                    preserved_value: value.to_string(),
+                                });
+                            }
+                        }
+                    }
+                }
                 if !matches!(staff.clef, acorde_core::Clef::Percussion)
                     && matches!(measure.clef, Some(acorde_core::Clef::Percussion))
                 {
@@ -303,6 +341,30 @@ pub fn render_preflight(score: &Score) -> Vec<RenderPreflightIssue> {
         }
     }
     issues
+}
+
+fn push_text_preflight_issue(
+    issues: &mut Vec<RenderPreflightIssue>,
+    source_location: &str,
+    text: &str,
+) {
+    if text.len() > MAX_ANNOTATION_TEXT_BYTES {
+        issues.push(RenderPreflightIssue {
+            kind: RenderPreflightKind::MeasureTextTooLarge,
+            source_location: source_location.to_owned(),
+            preserved_value: format!("bytes={}", text.len()),
+        });
+    }
+    if let Some(character) = text
+        .chars()
+        .find(|&character| !is_valid_xml_char(character))
+    {
+        issues.push(RenderPreflightIssue {
+            kind: RenderPreflightKind::InvalidXmlCharacter,
+            source_location: source_location.to_owned(),
+            preserved_value: format!("U+{:04X}", character as u32),
+        });
+    }
 }
 
 /// Approximate interactive bounds for one stable [`acorde_core::NoteAddr`]. The box is

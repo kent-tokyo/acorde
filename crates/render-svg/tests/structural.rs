@@ -477,6 +477,12 @@ fn measure_text_rejects_unbounded_or_non_finite_positioning() {
     ));
 
     score.parts[0].staves[0].measures[0].texts[0].text = "bad\u{1}".to_string();
+    let preflight = render_preflight(&score);
+    assert!(preflight.iter().any(|issue| {
+        issue.kind == RenderPreflightKind::InvalidXmlCharacter
+            && issue.source_location.ends_with("/text/1")
+            && issue.preserved_value == "U+0001"
+    }));
     assert!(matches!(
         render_svg(&score, &opts()),
         Err(acorde_render_svg::RenderError::InvalidXmlCharacter { codepoint: 1 })

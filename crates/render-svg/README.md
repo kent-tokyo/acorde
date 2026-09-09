@@ -25,6 +25,8 @@ Text is bounded to the same 16 KiB-per-entry limit as host annotations, and non-
 non-representable offsets are rejected before any SVG is emitted.
 XML 1.0-incompatible control characters in score text and host annotations are also rejected
 before serialization, rather than being escaped into invalid XML.
+`render_preflight()` reports oversized measure text, invalid text offsets, and invalid XML
+characters with source locations before the renderer is invoked.
 Finite extreme vertical text offsets expand the content-aware SVG breathing room rather than
 being clipped by the ordinary staff margins.
 Multiple measure-level entries on the same side of a staff are stacked in source order with a
