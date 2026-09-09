@@ -123,6 +123,12 @@ After a host writes its scheduled trace as JSON, `acorde playback-compare expect
 --fail-on-mismatch` runs the same typed timing comparison locally. This remains event/timing
 evidence only; it is not evidence of equivalent audio rendering.
 
+The framework-neutral `examples/browser/acorde-adapter.ts` wraps these bindings into a
+transactional workspace. It supports loading MusicXML/MXL/MEI/ABC/MIDI/MSCX/MSCZ, preserving
+format import reports, and exporting MusicXML/MEI/ABC/MIDI. Its playback timing, tablature
+projection, and canonical tab round-trip methods are host hand-off contracts; they do not add
+audio synthesis, font selection, PDF generation, or browser UI to `acorde`.
+
 For tablature-aware hosts, `project_tablature_performance(score_json, options_json)` returns
 playback events paired with authored string/fret positions. It validates tuning and capo against
 the sounding pitch, reports missing or invalid positions and microtonal pitch differences, and
