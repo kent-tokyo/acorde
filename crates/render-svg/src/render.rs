@@ -875,6 +875,12 @@ fn content_horizontal_margins(
             };
             for (voice_index, voice) in measure.voices.iter().enumerate() {
                 for (note_index, note) in voice.iter().enumerate() {
+                    let annotation_half_width = note_annotation_width_u(note) / 2.0;
+                    if annotation_half_width > 0.0 {
+                        let annotation_extent = annotation_half_width + MEASURE_PAD_U;
+                        left = left.max(annotation_extent);
+                        right = right.max(annotation_extent);
+                    }
                     if tablature.is_some() {
                         let positions = if !note.tab_positions.is_empty() {
                             note.tab_positions.as_slice()

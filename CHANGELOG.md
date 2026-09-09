@@ -56,6 +56,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   dynamics, techniques, fingerings, and microtone labels using bounded text-width estimates.
 - Kept unpitched events out of pitched accidental-width reservation as well as accidental glyph
   emission, preserving compact spacing for percussion display notes.
+- Included note-attached annotation extents in horizontal content margins, preventing centered
+  lyrics, chord symbols, dynamics, techniques, fingerings, and microtone labels from clipping at
+  score boundaries.
 - Included note-attached lyric, dynamic, chord, fingering/technique, microtone, articulation, and
   span offsets in conservative vertical content margins, with a structural regression fixture.
 - Hardened `CommandStack` command, batch, undo, and redo boundaries with validated candidate
