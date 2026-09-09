@@ -37,6 +37,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   annotation baselines from colliding.
 - Added deterministic, pitch-footprint-aware spacing between adjacent events in one voice when
   the measure has capacity, while preserving original positions for intrinsically tight measures.
+- Expanded the left content margin from actual chord accidental columns, preventing dense
+  accidental clusters at a measure origin from crossing the SVG viewBox boundary.
 - Included note-attached lyric, dynamic, chord, fingering/technique, microtone, articulation, and
   span offsets in conservative vertical content margins, with a structural regression fixture.
 - Hardened `CommandStack` command, batch, undo, and redo boundaries with validated candidate

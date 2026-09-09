@@ -861,6 +861,36 @@ fn content_horizontal_margins(score: &Score, staff_refs: &[(usize, usize)]) -> (
             left = left.max(LEFT_MARGIN_U + 0.35 + label_width_u + 0.25);
         }
         for measure in &score.parts[part].staves[staff].measures {
+            let Ok(clef_bottom) = geometry::clef_bottom_line(&score.parts[part].staves[staff].clef)
+            else {
+                continue;
+            };
+            for voice in &measure.voices {
+                for note in voice {
+                    if note.pitches.is_empty() || !note.pitches.iter().any(|pitch| pitch.alter != 0)
+                    {
+                        continue;
+                    }
+                    let positions: Vec<i32> = note
+                        .pitches
+                        .iter()
+                        .map(|pitch| {
+                            geometry::staff_position(&pitch.step, pitch.octave, clef_bottom)
+                        })
+                        .collect();
+                    let has_accidentals: Vec<bool> =
+                        note.pitches.iter().map(|pitch| pitch.alter != 0).collect();
+                    let accidental_offsets = chord_accidental_offsets(&positions, &has_accidentals);
+                    for (pitch_index, &has_accidental) in has_accidentals.iter().enumerate() {
+                        if !has_accidental {
+                            continue;
+                        }
+                        let width = glyphs::accidental_width_u(note.pitches[pitch_index].alter);
+                        left =
+                            left.max(0.55 + accidental_offsets[pitch_index] + width / 2.0 + 0.35);
+                    }
+                }
+            }
             for styled in measure_text_entries(measure) {
                 let offset_x = (styled.offset_x.unwrap_or(0.0) + styled.relative_x.unwrap_or(0.0))
                     as f32
@@ -2720,8 +2750,8 @@ fn courtesy_wrapped(alter: i8, cx: f32, cy: f32, space: f32) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{Note, resolve_adjacent_event_spacing};
-    use acorde_core::{Duration, Pitch, Step};
+    use super::{Note, content_horizontal_margins, resolve_adjacent_event_spacing};
+    use acorde_core::{Duration, Pitch, Score, Step};
 
     #[test]
     fn adjacent_event_spacing_is_pitch_aware_and_atomic() {
@@ -2737,5 +2767,20 @@ mod tests {
         let mut tight_positions = [0.0, 1.0];
         resolve_adjacent_event_spacing(&notes, &mut tight_positions, 0.0, 1.1, 10.0);
         assert_eq!(tight_positions, [0.0, 1.0]);
+    }
+
+    #[test]
+    fn adjacent_accidental_columns_expand_left_content_margin() {
+        let mut score = Score::default();
+        let refs = vec![(0, 0)];
+        score.parts[0].short_name.clear();
+        let plain = content_horizontal_margins(&score, &refs).0;
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        let mut note = Note::new(Pitch::with_alter(Step::C, 5, 1), Duration::Quarter);
+        note.pitches.push(Pitch::with_alter(Step::D, 5, 1));
+        voice.push(note);
+        let expanded = content_horizontal_margins(&score, &refs).0;
+        assert!(expanded > plain);
     }
 }
