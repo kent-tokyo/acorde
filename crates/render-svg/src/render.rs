@@ -948,9 +948,9 @@ fn content_horizontal_margins(
                 let offset_x = (styled.offset_x.unwrap_or(0.0) + styled.relative_x.unwrap_or(0.0))
                     as f32
                     / 10.0;
-                let half_text_width = measure_text_half_width_u(&styled.text);
-                left = left.max(half_text_width + MEASURE_PAD_U - offset_x);
-                right = right.max(half_text_width + MEASURE_PAD_U + offset_x);
+                let text_width = measure_text_width_u(&styled.text);
+                left = left.max(MEASURE_PAD_U - offset_x);
+                right = right.max(MEASURE_PAD_U + text_width + offset_x);
                 if offset_x < 0.0 {
                     left = left.max(LEFT_MARGIN_U - offset_x);
                 } else {
@@ -962,11 +962,11 @@ fn content_horizontal_margins(
     (left, right)
 }
 
-/// Conservative half-width for a centered measure-level text entry. The renderer intentionally
-/// avoids host font metrics; the bound is capped so a very long entry remains a host wrapping
-/// concern instead of turning a bounded score into an unrenderable canvas.
-fn measure_text_half_width_u(text: &str) -> f32 {
-    (text.chars().count() as f32 * 0.21 + 0.35).min(32.0)
+/// Conservative width for a measure-level text entry. The renderer intentionally avoids host
+/// font metrics; the bound is capped so a very long entry remains a host wrapping concern
+/// instead of turning a bounded score into an unrenderable canvas.
+fn measure_text_width_u(text: &str) -> f32 {
+    (text.chars().count() as f32 * 0.42 + 0.7).min(64.0)
 }
 
 /// Return the explicit measure text plus legacy semantic text fields in one renderer-facing
@@ -2875,7 +2875,7 @@ fn courtesy_wrapped(alter: i8, cx: f32, cy: f32, space: f32) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        Note, content_horizontal_margins, event_footprint_u, measure_text_half_width_u,
+        Note, content_horizontal_margins, event_footprint_u, measure_text_width_u,
         resolve_adjacent_event_spacing,
     };
     use acorde_core::{Duration, Lyric, NoteHead, Pitch, Score, Step};
@@ -2915,8 +2915,8 @@ mod tests {
 
     #[test]
     fn measure_text_width_estimate_is_deterministic_and_bounded() {
-        assert_eq!(measure_text_half_width_u("tempo"), 1.4);
-        assert_eq!(measure_text_half_width_u(&"x".repeat(1_000)), 32.0);
+        assert_eq!(measure_text_width_u("tempo"), 2.8);
+        assert_eq!(measure_text_width_u(&"x".repeat(1_000)), 64.0);
     }
 
     #[test]

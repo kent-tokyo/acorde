@@ -47,9 +47,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   preserving percussion instrument identity in score metadata rather than inferring it visually.
 - Prevented unpitched display pitches from emitting pitched accidental glyphs; their display
   placement remains available without inventing pitched notation.
-- Reserved bounded horizontal space for centered measure-level text using a deterministic,
-  font-independent width estimate, avoiding boundary clipping while leaving long-text wrapping to
-  the host.
+- Reserved bounded horizontal space for measure-level text using its start-anchor width and a
+  deterministic, font-independent estimate, avoiding boundary clipping while leaving long-text
+  wrapping to the host.
 - Extended adjacent-event clearance to account for the rendered custom notehead footprint, including
   cross, slash, triangle, diamond, and X shapes used by percussion and contemporary notation.
 - Extended adjacent-event clearance to account for centered note-attached lyrics, chord symbols,
