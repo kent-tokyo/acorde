@@ -18,7 +18,7 @@ stable `data-note-addr` hooks. The CI matrix compares Chromium, Firefox, and Web
 checked-in baselines under `examples/browser/smoke.spec.mjs-snapshots/`. Baselines are reviewed
 artifacts, not a substitute for the native SVG structural tests. The local verification on
 2026-09-09 used Playwright 1.55.0 with Chromium 140, Firefox 141, and WebKit 26; all three
-browser-contract smoke runs passed.
+browser-contract smoke runs passed, including the Chromium HiDPI profile.
 
 The legacy `wasm-pack test --headless --chrome` path uses a separately downloaded WebDriver.
 The CI job pins `wasm-pack` 0.15.0, installs the current Chrome, and has an explicit timeout so

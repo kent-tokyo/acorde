@@ -37,6 +37,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Synchronized the browser contract fixture with the current SVG metadata contract version 3.
 - Recorded passing Chromium, Firefox, and WebKit browser-contract smoke runs in the support
   matrix and machine-readable scorecard.
+- Added the passing Chromium HiDPI browser-contract smoke result to the candidate evidence matrix.
 - Added the missing WASM `parse_mxl_report` binding so the browser MXL diagnostic path matches the
   existing IO report contract.
 - Added the CLI `render` command for deterministic input-file-to-SVG rendering through the
