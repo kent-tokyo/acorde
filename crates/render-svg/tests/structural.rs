@@ -382,6 +382,41 @@ fn multiple_articulations_stack_on_distinct_baselines() {
 }
 
 #[test]
+fn mixed_note_annotations_use_distinct_vertical_lanes() {
+    use acorde_core::{Articulation, Duration, Dynamic, Lyric, Note, Pitch, Step};
+
+    let mut score = common::single_staff_score(
+        acorde_core::Clef::Treble,
+        0,
+        4,
+        4,
+        vec![Note::new(Pitch::new(Step::C, 5), Duration::Whole)],
+        vec![],
+    );
+    let note = &mut score.parts[0].staves[0].measures[0].voices[0][0];
+    note.dynamic = Some(Dynamic::Mf);
+    note.lyric = Some(Lyric {
+        text: "la".to_string(),
+        syllabic: "single".to_string(),
+    });
+    note.articulations = vec![Articulation::Trill];
+
+    let svg = render_svg(&score, &opts()).unwrap();
+    let ys: Vec<&str> = svg
+        .split("<text ")
+        .filter(|text| {
+            text.contains("acorde-dynamic")
+                || text.contains("acorde-lyric")
+                || text.contains("acorde-trill")
+        })
+        .filter_map(|text| text.split("y=\"").nth(1))
+        .filter_map(|text| text.split('\"').next())
+        .collect();
+    assert_eq!(ys.len(), 3);
+    assert_eq!(ys.iter().collect::<std::collections::HashSet<_>>().len(), 3);
+}
+
+#[test]
 fn short_rests_custom_noteheads_and_small_notes_are_rendered() {
     use acorde_core::{Duration, Note, NoteHead, Pitch, Step};
 

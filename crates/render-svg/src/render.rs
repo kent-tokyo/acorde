@@ -2679,14 +2679,22 @@ fn render_note_annotations(
     space: f32,
 ) {
     let dir = if stem_up { -1.0 } else { 1.0 };
-    let dynamic_y = anchor_y + dir * 4.0 * space;
+    let mut above_distance = 0.0_f32;
+    let mut below_distance = 0.0_f32;
     if let Some(dynamic) = &note.dynamic {
         write_annotation_text(
             body,
             "acorde-dynamic",
             dynamic.to_musicxml_str(),
             x,
-            dynamic_y,
+            annotation_y(
+                anchor_y,
+                stem_up,
+                4.0,
+                &mut above_distance,
+                &mut below_distance,
+                space,
+            ),
             space,
             true,
         );
@@ -2697,7 +2705,14 @@ fn render_note_annotations(
             "acorde-chord-symbol",
             &chord.display_text(),
             x,
-            anchor_y - 5.6 * space,
+            annotation_y(
+                anchor_y,
+                true,
+                5.6,
+                &mut above_distance,
+                &mut below_distance,
+                space,
+            ),
             space,
             true,
         );
@@ -2708,7 +2723,14 @@ fn render_note_annotations(
             "acorde-technique-text",
             technique,
             x,
-            anchor_y + dir * 6.8 * space,
+            annotation_y(
+                anchor_y,
+                stem_up,
+                6.8,
+                &mut above_distance,
+                &mut below_distance,
+                space,
+            ),
             space,
             true,
         );
@@ -2730,7 +2752,14 @@ fn render_note_annotations(
             "acorde-fingering",
             &fingering,
             x,
-            anchor_y + (if stem_up { 5.0 } else { -7.2 }) * space,
+            annotation_y(
+                anchor_y,
+                !stem_up,
+                5.0,
+                &mut above_distance,
+                &mut below_distance,
+                space,
+            ),
             space,
             false,
         );
@@ -2746,7 +2775,14 @@ fn render_note_annotations(
             "acorde-lyric",
             &lyric.text,
             x,
-            anchor_y + lyric_offset * space,
+            annotation_y(
+                anchor_y,
+                false,
+                lyric_offset,
+                &mut above_distance,
+                &mut below_distance,
+                space,
+            ),
             space,
             false,
         );
@@ -2763,7 +2799,14 @@ fn render_note_annotations(
         }
     }
     for (articulation_index, articulation) in note.articulations.iter().enumerate() {
-        let y = anchor_y + dir * (1.2 + articulation_index as f32) * space;
+        let y = annotation_y(
+            anchor_y,
+            stem_up,
+            1.2 + articulation_index as f32,
+            &mut above_distance,
+            &mut below_distance,
+            space,
+        );
         match articulation {
             acorde_core::Articulation::Staccato => {
                 let _ = write!(
@@ -2911,6 +2954,36 @@ fn render_note_annotations(
                 true,
             ),
         }
+    }
+}
+
+fn annotation_y(
+    anchor_y: f32,
+    above: bool,
+    preferred_distance: f32,
+    above_distance: &mut f32,
+    below_distance: &mut f32,
+    space: f32,
+) -> f32 {
+    let distance = if above {
+        preferred_distance.max(if *above_distance > 0.0 {
+            *above_distance + 1.0
+        } else {
+            0.0
+        })
+    } else {
+        preferred_distance.max(if *below_distance > 0.0 {
+            *below_distance + 1.0
+        } else {
+            0.0
+        })
+    };
+    if above {
+        *above_distance = distance;
+        anchor_y - distance * space
+    } else {
+        *below_distance = distance;
+        anchor_y + distance * space
     }
 }
 
