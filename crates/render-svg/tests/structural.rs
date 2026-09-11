@@ -1103,6 +1103,8 @@ fn tablature_renders_lines_frets_and_techniques() {
     assert_eq!(svg.matches("acorde-staff-line").count(), 6);
     assert!(svg.contains("acorde-tab-fret"));
     assert!(svg.contains(">3</text>"));
+    assert!(svg.contains("data-acorde-kind=\"tab-fret\" data-string=\"2\" data-fret=\"3\""));
+    assert!(svg.contains("data-acorde-kind=\"tab-fret\" data-string=\"3\" data-fret=\"2\""));
     assert!(svg.contains("acorde-tab-fingering"));
     assert!(svg.contains(">1/3</text>"));
     assert!(svg.contains("acorde-tab-technique"));
@@ -1110,8 +1112,8 @@ fn tablature_renders_lines_frets_and_techniques() {
     assert!(svg.contains("acorde-tab-technique-connection"));
     assert!(svg.contains("data-technique=\"slide\""));
     assert_eq!(svg.matches("data-technique=\"slide\"").count(), 2);
-    assert_eq!(svg.matches("data-string=\"2\"").count(), 1);
-    assert_eq!(svg.matches("data-string=\"3\"").count(), 1);
+    assert_eq!(svg.matches("data-technique=\"slide\" data-string=\"2\"").count(), 1);
+    assert_eq!(svg.matches("data-technique=\"slide\" data-string=\"3\"").count(), 1);
     assert!(svg.contains("data-start-note-addr=\"0:0:0:0:0\""));
     assert!(svg.contains("data-end-note-addr=\"0:0:0:0:1\""));
     assert_well_formed_xml(&svg);

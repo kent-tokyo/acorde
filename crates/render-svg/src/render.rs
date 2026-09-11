@@ -2622,7 +2622,7 @@ fn render_note(
         );
     } else if let Some(tab) = tablature {
         validate_tab_note(note, tab, space)?;
-        render_tab_note(body, note, tab, x, staff_bottom_y, space);
+        render_tab_note(body, note, tab, x, staff_bottom_y, space, interactive);
         render_note_annotations(body, note, x, anchor_y, stem_up, space);
     } else {
         render_pitched_note(
@@ -2716,6 +2716,7 @@ fn render_tab_note(
     x: f32,
     bottom_y: f32,
     space: f32,
+    interactive: bool,
 ) {
     let positions = if !note.tab_positions.is_empty() {
         note.tab_positions.as_slice()
@@ -2740,14 +2741,13 @@ fn render_tab_note(
         for (position, glyph_width) in positions.iter().zip(glyph_widths) {
             let y = bottom_y - f32::from(tab.lines.saturating_sub(position.string)) * space
                 + 0.38 * space;
-            write_annotation_text(
+            write_tab_fret_text(
                 body,
-                "acorde-tab-fret",
-                &position.fret.to_string(),
+                position,
                 cursor + glyph_width / 2.0,
                 y,
                 space,
-                false,
+                interactive,
             );
             cursor += glyph_width + gap;
         }
@@ -2800,6 +2800,33 @@ fn render_tab_note(
             );
         }
     }
+}
+
+fn write_tab_fret_text(
+    body: &mut String,
+    position: &acorde_core::TabPosition,
+    x: f32,
+    y: f32,
+    space: f32,
+    interactive: bool,
+) {
+    let attributes = if interactive {
+        format!(
+            " data-acorde-kind=\"tab-fret\" data-string=\"{}\" data-fret=\"{}\"",
+            position.string, position.fret
+        )
+    } else {
+        String::new()
+    };
+    let _ = write!(
+        body,
+        r#"<text class="acorde-tab-fret" x="{}" y="{}" text-anchor="middle" font-family="serif" font-size="{}"{}>{}</text>"#,
+        f(x),
+        f(y),
+        f(0.72 * space),
+        attributes,
+        escape_xml(&position.fret.to_string())
+    );
 }
 
 fn guitar_technique_label(note: &Note) -> Option<String> {
