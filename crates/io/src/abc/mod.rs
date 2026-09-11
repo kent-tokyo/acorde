@@ -733,6 +733,17 @@ fn barline_to_abc(barline: &Barline) -> &'static str {
     }
 }
 
+fn abc_barline_is_exact(barline: &Barline) -> bool {
+    matches!(
+        barline,
+        Barline::Normal
+            | Barline::Double
+            | Barline::RepeatStart
+            | Barline::RepeatEnd
+            | Barline::RepeatBoth
+    )
+}
+
 /// Report canonical score data that the deliberately small ABC exporter cannot emit.
 pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
     const MAX_DIAGNOSTICS: usize = 1_024;
@@ -833,6 +844,23 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
             );
         }
         for (measure_index, measure) in staff.measures.iter().enumerate() {
+            for (side, barline) in [
+                ("barline-left", &measure.barline_left),
+                ("barline-right", &measure.barline_right),
+            ] {
+                if !abc_barline_is_exact(barline) {
+                    push(
+                        format!(
+                            "/score/part/{}/staff/1/measure/{}/{}",
+                            part_index + 1,
+                            measure_index + 1,
+                            side
+                        ),
+                        format!("{barline:?}"),
+                        "ABC export cannot preserve this barline kind exactly",
+                    );
+                }
+            }
             for (voice_index, voice) in measure.voices.iter().enumerate().skip(1) {
                 if !voice.is_empty() {
                     push(
@@ -1182,6 +1210,23 @@ C D E F | G A B c |";
                 .source_location
                 .as_deref()
                 .is_some_and(|path| path.ends_with("/pitch/1"))
+        }));
+    }
+
+    #[test]
+    fn export_loss_report_locates_non_abc_barline_kinds() {
+        let mut score = Score::new("barline export", 120, 4, 4, 0, 1);
+        let measure = &mut score.parts[0].staves[0].measures[0];
+        measure.barline_left = Barline::Dotted;
+        measure.barline_right = Barline::Final;
+        let diagnostics = export_loss_diagnostics(&score);
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.source_location.as_deref()
+                == Some("/score/part/1/staff/1/measure/1/barline-left")
+        }));
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.source_location.as_deref()
+                == Some("/score/part/1/staff/1/measure/1/barline-right")
         }));
     }
 
