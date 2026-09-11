@@ -118,6 +118,8 @@ model; common ABC (`^/`, `_/`) and MEI (`qs`, `qf`) quarter-accidental subsets a
 `render_svg_metadata`, plus `render_preflight` for source-located capability checks before SVG
 emission. It emits deterministic SVG with optional `data-note-addr` hooks and returns errors for
 unsupported clefs, accidentals, layouts, rows, or render options.
+`render_svg_metadata` also exposes contract-v4 `tablature_positions`, including stable note,
+position, string, and fret fields for browser-side tab editing without SVG parsing.
 
 For a deterministic cross-format comparison, use `acorde compatibility-report source candidate`.
 It reports positional semantic changes and import diagnostics for both files without claiming
@@ -143,8 +145,8 @@ categories for host-side incremental update planning.
 analysis and the deterministic category diff.
 `analysis_refresh_plan` additionally separates measure-local categories from score-global
 dependencies and reports one-measure context on either side for boundary-sensitive passes.
-`analysis_provenance` returns the deterministic rule, confidence, and source evidence attached
-to a selected `NoteAddr` without rerunning analysis.
+`analysis_provenance` returns the deterministic rule, confidence, source evidence, and canonical
+chord label (when applicable) attached to a selected `NoteAddr` without rerunning analysis.
 `explain_analysis_change` combines that lookup for before/after results with the category diff.
 `compatibility_report` combines canonical score differences with deterministic analysis-category
 changes for browser-side compatibility gates; format diagnostics remain in the `*_report` APIs.
