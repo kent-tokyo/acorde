@@ -1101,6 +1101,8 @@ fn tablature_renders_lines_frets_and_techniques() {
     assert!(svg.contains(">bend +200c</text>"));
     assert!(svg.contains("acorde-tab-technique-connection"));
     assert!(svg.contains("data-technique=\"slide\""));
+    assert!(svg.contains("data-start-note-addr=\"0:0:0:0:0\""));
+    assert!(svg.contains("data-end-note-addr=\"0:0:0:0:1\""));
     assert_well_formed_xml(&svg);
 }
 

@@ -1709,7 +1709,18 @@ fn render_measure(
                 tablature,
             )?;
             if let Some(tab) = tablature {
-                render_tab_technique_connection(body, notes, note_idx, &xs, tab, bottom_y, space);
+                let context = TabTechniqueConnectionContext {
+                    part,
+                    staff,
+                    measure_idx,
+                    voice_idx,
+                    notes,
+                    xs: &xs,
+                    tab,
+                    bottom_y,
+                    space,
+                };
+                render_tab_technique_connection(body, &context, note_idx);
             }
         }
         body.push_str(&beam_svg);
@@ -2782,15 +2793,34 @@ fn guitar_technique_label(note: &Note) -> Option<String> {
 /// Connect adjacent tablature events for techniques whose meaning spans two notes. The
 /// technique remains authored data on the destination note; this path only supplies a stable
 /// visual hook for host selection and does not infer playback or pitch semantics.
-fn render_tab_technique_connection(
-    body: &mut String,
-    notes: &[Note],
-    note_index: usize,
-    xs: &[f32],
-    tab: &acorde_core::TablatureConfig,
+struct TabTechniqueConnectionContext<'a> {
+    part: usize,
+    staff: usize,
+    measure_idx: usize,
+    voice_idx: usize,
+    notes: &'a [Note],
+    xs: &'a [f32],
+    tab: &'a acorde_core::TablatureConfig,
     bottom_y: f32,
     space: f32,
+}
+
+fn render_tab_technique_connection(
+    body: &mut String,
+    context: &TabTechniqueConnectionContext<'_>,
+    note_index: usize,
 ) {
+    let TabTechniqueConnectionContext {
+        part,
+        staff,
+        measure_idx,
+        voice_idx,
+        notes,
+        xs,
+        tab,
+        bottom_y,
+        space,
+    } = context;
     if note_index == 0 || note_index >= notes.len() || note_index >= xs.len() {
         return;
     }
@@ -2810,8 +2840,8 @@ fn render_tab_technique_connection(
     if !x1.is_finite() || !x2.is_finite() || x2 <= x1 {
         return;
     }
-    let y1 = tab_note_y(&notes[note_index - 1], tab, bottom_y, space);
-    let y2 = tab_note_y(&notes[note_index], tab, bottom_y, space);
+    let y1 = tab_note_y(&notes[note_index - 1], tab, *bottom_y, *space);
+    let y2 = tab_note_y(&notes[note_index], tab, *bottom_y, *space);
     let (class, data_technique) = match technique {
         acorde_core::GuitarTechnique::Slide => {
             ("acorde-tab-technique-connection acorde-tab-slide", "slide")
@@ -2831,10 +2861,15 @@ fn render_tab_technique_connection(
     if end <= start {
         return;
     }
+    let start_addr = format!(
+        "{part}:{staff}:{measure_idx}:{voice_idx}:{}",
+        note_index - 1
+    );
+    let end_addr = format!("{part}:{staff}:{measure_idx}:{voice_idx}:{note_index}");
     if matches!(technique, acorde_core::GuitarTechnique::Slide) {
         let _ = write!(
             body,
-            r#"<line class="{class}" data-technique="{data_technique}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
+            r#"<line class="{class}" data-technique="{data_technique}" data-start-note-addr="{start_addr}" data-end-note-addr="{end_addr}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
             f(start),
             f(y1),
             f(end),
@@ -2850,7 +2885,7 @@ fn render_tab_technique_connection(
         let control_y = (y1.min(y2) + direction * space).min(y1.min(y2));
         let _ = write!(
             body,
-            r#"<path class="{class}" data-technique="{data_technique}" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+            r#"<path class="{class}" data-technique="{data_technique}" data-start-note-addr="{start_addr}" data-end-note-addr="{end_addr}" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
             f(start),
             f(y1),
             f((start + end) / 2.0),

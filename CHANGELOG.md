@@ -42,6 +42,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `bend +200c`) and included their full width in content-aware collision spacing.
 - Rendered authored tablature slide, hammer-on, and pull-off relationships as deterministic
   semantic connection paths between adjacent events, while keeping playback semantics host-owned.
+- Added stable start/end note addresses to tablature technique connection paths for browser
+  selection and edit hand-off.
 - Aggregated minimum per-measure widths before SVG emission and rejected systems that cannot fit
   those lower bounds, preventing barlines from extending beyond the available system width.
 - Sized rendered staff systems from their configured tablature line count, preventing extended tab
