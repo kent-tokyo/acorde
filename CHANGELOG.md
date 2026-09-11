@@ -16,6 +16,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   diagnostic instead of silently losing their tuplet semantics.
 - Added ABC note-tie parsing and serialization, preserving `tie_start`/`tie_end` across
   notes and measure boundaries.
+- Added ABC slur parsing and serialization, preserving `slur_start`/`slur_end` while
+  distinguishing slur parentheses from tuplet markers.
 - Added ABC `w:` lyric alignment for common syllable boundaries and `~` spaces, with lyric
   serialization for the first voice.
 - Corrected ABC loss diagnostics so supported `V:` voice declarations are not reported as

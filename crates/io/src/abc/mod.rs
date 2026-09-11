@@ -111,6 +111,7 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
     let mut current_part_index = 0usize;
     let mut lyric_lines = Vec::new();
     let mut pending_tie_end = false;
+    let mut pending_slur_start = false;
 
     for (line_idx, raw_line) in text.lines().enumerate() {
         if line_idx >= MAX_LINES {
@@ -145,6 +146,7 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
                     in_header = true;
                     current_measure_number = 0;
                     pending_tie_end = false;
+                    pending_slur_start = false;
                     current_part_index = 0;
                     if let Some(s) = score.parts.first_mut().and_then(|p| p.staves.first_mut()) {
                         s.measures.clear();
@@ -192,6 +194,7 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
                     current_part_index = voice_number - 1;
                     current_measure_number = 0;
                     pending_tie_end = false;
+                    pending_slur_start = false;
                     while score.parts.len() <= current_part_index {
                         let number = score.parts.len() + 1;
                         let mut part = Part::new(&format!("Part {number}"), &format!("P{number}"));
@@ -214,6 +217,7 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
                     current_measure_number: &mut current_measure_number,
                     note_count: &mut note_count,
                     pending_tie_end: &mut pending_tie_end,
+                    pending_slur_start: &mut pending_slur_start,
                     part_index: current_part_index,
                 },
             )?;
@@ -271,6 +275,7 @@ struct AbcBodyContext<'a> {
     current_measure_number: &'a mut u32,
     note_count: &'a mut usize,
     pending_tie_end: &'a mut bool,
+    pending_slur_start: &'a mut bool,
     part_index: usize,
 }
 
@@ -282,6 +287,7 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
         current_measure_number,
         note_count,
         pending_tie_end,
+        pending_slur_start,
         part_index,
     } = context;
     let staff = match score
@@ -320,6 +326,12 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
         {
             pending_tuplet = Some((tuplet, count));
             i = next_index;
+            continue;
+        }
+
+        if ch == '(' {
+            *pending_slur_start = true;
+            i += 1;
             continue;
         }
 
@@ -400,8 +412,13 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
                 let dot = u8::from(is_dotted(*unit_den, cn, cd));
                 let mut note = Note::new(Pitch::with_alter(fs.clone(), *fo, *fa), dur);
                 note.dot_count = dot;
-                note.tie_end = *pending_tie_end;
-                *pending_tie_end = false;
+                apply_abc_note_annotations(
+                    &chars,
+                    &mut i,
+                    &mut note,
+                    pending_tie_end,
+                    pending_slur_start,
+                );
                 note.articulations.append(&mut pending_articulations);
                 note.tuplet = take_abc_tuplet(&mut pending_tuplet);
                 for (s, o, a) in chord.iter().skip(1) {
@@ -409,15 +426,6 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
                 }
                 if let Some(m) = staff.measures.last_mut() {
                     m.voices[0].push(note);
-                }
-                if chars.get(i) == Some(&'-') {
-                    if let Some(m) = staff.measures.last_mut() {
-                        if let Some(note) = m.voices[0].last_mut() {
-                            note.tie_start = true;
-                        }
-                    }
-                    *pending_tie_end = true;
-                    i += 1;
                 }
             }
             continue;
@@ -505,21 +513,17 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
                 dur,
             );
             note.dot_count = dot;
-            note.tie_end = *pending_tie_end;
-            *pending_tie_end = false;
+            apply_abc_note_annotations(
+                &chars,
+                &mut i,
+                &mut note,
+                pending_tie_end,
+                pending_slur_start,
+            );
             note.articulations.append(&mut pending_articulations);
             note.tuplet = take_abc_tuplet(&mut pending_tuplet);
             if let Some(m) = staff.measures.last_mut() {
                 m.voices[0].push(note);
-            }
-            if chars.get(i) == Some(&'-') {
-                if let Some(m) = staff.measures.last_mut() {
-                    if let Some(note) = m.voices[0].last_mut() {
-                        note.tie_start = true;
-                    }
-                }
-                *pending_tie_end = true;
-                i += 1;
             }
         } else {
             i += 1;
@@ -527,6 +531,33 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
     }
 
     Ok(())
+}
+
+fn apply_abc_note_annotations(
+    chars: &[char],
+    cursor: &mut usize,
+    note: &mut Note,
+    pending_tie_end: &mut bool,
+    pending_slur_start: &mut bool,
+) {
+    note.tie_end = *pending_tie_end;
+    *pending_tie_end = false;
+    note.slur_start = *pending_slur_start;
+    *pending_slur_start = false;
+    while let Some(marker) = chars.get(*cursor) {
+        match marker {
+            '-' => {
+                note.tie_start = true;
+                *pending_tie_end = true;
+                *cursor += 1;
+            }
+            ')' => {
+                note.slur_end = true;
+                *cursor += 1;
+            }
+            _ => break,
+        }
+    }
 }
 
 fn parse_abc_chord(chars: &[char], index: usize) -> Option<(AbcChord, usize)> {
@@ -1440,8 +1471,14 @@ fn note_to_abc(note: &Note) -> String {
         chord.push_str(&suf);
         chord
     };
+    if note.slur_start {
+        s.insert(0, '(');
+    }
     if note.tie_start {
         s.push('-');
+    }
+    if note.slur_end {
+        s.push(')');
     }
     s.push(' ');
     s
@@ -1834,6 +1871,23 @@ C D E F | G A B c |";
         let restored_notes = &restored.parts[0].staves[0].measures[0].voices[0];
         assert!(restored_notes[0].tie_start);
         assert!(restored_notes[1].tie_end);
+    }
+
+    #[test]
+    fn abc_slurs_preserve_start_and_end_across_notes() {
+        let abc = "X:1\nT:Slur\nM:3/4\nL:1/4\nK:C\n(C D E) F|\n";
+        let score = parse_abc(abc).expect("ABC slur parses");
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+        assert!(notes[0].slur_start);
+        assert!(notes[2].slur_end);
+        assert!(!notes[1].slur_start);
+
+        let serialized = serialize_abc(&score).expect("ABC slur serializes");
+        assert!(serialized.contains("(C D E)"));
+        let restored = parse_abc(&serialized).expect("serialized slur parses");
+        let restored_notes = &restored.parts[0].staves[0].measures[0].voices[0];
+        assert!(restored_notes[0].slur_start);
+        assert!(restored_notes[2].slur_end);
     }
 
     #[test]
