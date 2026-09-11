@@ -1951,23 +1951,7 @@ fn diatonic_distance(from: &acorde_core::Pitch, to: &acorde_core::Pitch) -> i8 {
 
 /// Return the stable chord spelling as a compact human-readable label.
 pub fn chord_name(chord: &ChordSymbol) -> String {
-    let suffix = match chord.kind.as_str() {
-        "major" => "",
-        "minor" => "m",
-        "dominant" => "7",
-        "major-seventh" => "maj7",
-        "minor-seventh" => "m7",
-        "diminished" => "dim",
-        "diminished-seventh" => "dim7",
-        "half-diminished" => "ø7",
-        "augmented" => "+",
-        _ => chord.kind.as_str(),
-    };
-    let bass = chord
-        .bass
-        .as_deref()
-        .map_or(String::new(), |bass| format!("/{bass}"));
-    format!("{}{suffix}{bass}", chord.root)
+    chord.display_text()
 }
 
 #[cfg(test)]
@@ -2025,6 +2009,42 @@ mod tests {
             vec![result.chords[0].address.clone()]
         );
         assert_eq!(chord_name(&result.chords[0].chord), "F7/A");
+    }
+
+    #[test]
+    fn chord_name_preserves_authored_degree_extensions() {
+        use acorde_core::{ChordDegree, ChordSymbol};
+
+        let chord = ChordSymbol {
+            root: "C".to_owned(),
+            kind: "dominant".to_owned(),
+            bass: None,
+            placement: None,
+            extender: false,
+            harmonic_degree: None,
+            harmony_function: None,
+            harmony_type: None,
+            chord_ref: None,
+            degrees: vec![
+                ChordDegree {
+                    value: 9,
+                    alter: 1,
+                    kind: "add".to_owned(),
+                },
+                ChordDegree {
+                    value: 5,
+                    alter: -1,
+                    kind: "alter".to_owned(),
+                },
+                ChordDegree {
+                    value: 3,
+                    alter: 0,
+                    kind: "subtract".to_owned(),
+                },
+            ],
+        };
+
+        assert_eq!(chord_name(&chord), "C7add#9b5no3");
     }
 
     #[test]

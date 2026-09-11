@@ -46,6 +46,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   selection and edit hand-off.
 - Analysis result schema v8 now preserves authored chord symbols as source-addressed findings
   (`authored-chord-symbol`) instead of replacing them with inferred pitch-class labels.
+- Reused the core chord display policy in analysis labels, preserving authored add/alter/subtract
+  degree extensions instead of dropping them from human-readable chord explanations.
 - Suppressed tablature technique connections across rests or missing tab positions, preventing
   misleading relationships in incomplete or mixed notation input.
 - Added regression coverage for the tab-technique boundary so incomplete endpoint data cannot
