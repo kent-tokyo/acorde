@@ -1650,162 +1650,32 @@ fn render_measure(
     body.push_str(&opened);
 
     for (voice_idx, notes) in measure.voices.iter().enumerate() {
-        if notes.is_empty() {
-            continue;
-        }
-        let up = active_voices <= 1 || voice_idx.is_multiple_of(2);
-
-        // x position for every note, computed up front — beam planning needs the full
-        // voice's layout before any individual note is drawn.
-        let mut xs = Vec::with_capacity(notes.len());
-        let mut beat_pos = 0.0f64;
-        for (note_index, note) in notes.iter().enumerate() {
-            let voice_offset = if voice_slots.len() > 1 {
-                // Center simultaneous voices around the beat. This keeps opposing stems and
-                // noteheads legible without changing their temporal positions; single-voice
-                // output retains its historical coordinates.
-                let voice_rank = voice_slots
-                    .iter()
-                    .position(|&index| index == voice_idx)
-                    .unwrap_or(0);
-                let separation = voice_separation_u(measure, &voice_slots, beat_pos);
-                (voice_rank as f32 - (voice_slots.len().saturating_sub(1) as f32 / 2.0))
-                    * separation
-                    * space
-            } else {
-                0.0
-            };
-            let grace_offset = if note.is_grace {
-                grace_note_offset(notes, note_index) * space
-            } else {
-                0.0
-            };
-            xs.push(
-                content_x0
-                    + (content_w * (beat_pos / total_beats) as f32)
-                    + voice_offset
-                    + grace_offset,
-            );
-            beat_pos += note.beats();
-        }
-        resolve_adjacent_event_spacing(notes, &mut xs, content_x0, content_w, space);
-        resolve_cross_voice_event_spacing(
-            notes,
-            &mut xs,
-            &prior_voice_events,
-            content_x0,
-            content_w,
-            space,
-        );
-        prior_voice_events.extend(notes.iter().zip(xs.iter()).map(|(note, &x)| (x, note)));
-
-        let (beam_tips, beam_svg) = plan_measure_beams(
+        render_measure_voice(
+            body,
+            measure,
             layout,
             part,
             staff,
             measure_idx,
+            row_idx,
             voice_idx,
             notes,
-            &xs,
-            up,
+            voice_slots.as_slice(),
+            active_voices,
+            total_beats,
+            content_x0,
+            content_w,
+            clef,
             clef_bottom,
             bottom_y,
             space,
-        );
-
-        for (note_idx, note) in notes.iter().enumerate() {
-            let stem_up = note.stem_up.unwrap_or(up);
-            let point_y = if note.is_rest {
-                bottom_y - 2.0 * space
-            } else {
-                note_attach_y(note, clef_bottom, stem_up, bottom_y, space)
-            };
-            note_points.insert(
-                (part, staff, measure_idx, voice_idx, note_idx),
-                (xs[note_idx], point_y, stem_up, row_idx),
-            );
-            render_note(
-                body,
-                note,
-                part,
-                staff,
-                measure_idx,
-                voice_idx,
-                note_idx,
-                clef,
-                clef_bottom,
-                xs[note_idx],
-                bottom_y,
-                space,
-                up,
-                beam_tips.get(&note_idx).copied(),
-                interactive,
-                mandatory,
-                courtesy,
-                tablature,
-            )?;
-            if let Some(tab) = tablature {
-                let context = TabTechniqueConnectionContext {
-                    part,
-                    staff,
-                    measure_idx,
-                    voice_idx,
-                    notes,
-                    xs: &xs,
-                    tab,
-                    bottom_y,
-                    space,
-                };
-                render_tab_technique_connection(body, &context, note_idx);
-            }
-        }
-        body.push_str(&beam_svg);
-
-        // Tuplet plan: acorde-layout's tuplet_groups is the source of truth for grouping and
-        // for the actual:normal ratio — this renderer only turns that into a bracket/number.
-        for group in layout.tuplet_groups.iter().filter(|g| {
-            g.part == part && g.staff == staff && g.measure == measure_idx && g.voice == voice_idx
-        }) {
-            if group.note_indices.len() < 2 {
-                continue;
-            }
-            let group_stem_up = group
-                .note_indices
-                .iter()
-                .find_map(|&i| (!notes[i].is_rest).then(|| notes[i].stem_up.unwrap_or(up)))
-                .unwrap_or(up);
-            let beamed_fully = group
-                .note_indices
-                .iter()
-                .all(|&i| !notes[i].is_rest && beam_tips.contains_key(&i));
-            let dir = if group_stem_up { -1.0 } else { 1.0 };
-            let group_xs: Vec<f32> = group.note_indices.iter().map(|&i| xs[i]).collect();
-            let ref_ys: Vec<f32> = group
-                .note_indices
-                .iter()
-                .map(|&i| {
-                    if notes[i].is_rest {
-                        bottom_y - 2.0 * space
-                    } else {
-                        let notehead_y =
-                            note_attach_y(&notes[i], clef_bottom, group_stem_up, bottom_y, space);
-                        match beam_tips.get(&i) {
-                            Some(&tip) => tip,
-                            None => notehead_y + dir * glyphs::DEFAULT_STEM_LEN_U * space,
-                        }
-                    }
-                })
-                .collect();
-            let plan = tuplets::plan_tuplet(
-                &group_xs,
-                &ref_ys,
-                group.actual_notes,
-                group_stem_up,
-                beamed_fully,
-                space,
-            );
-            body.push_str(&plan.svg);
-        }
+            interactive,
+            mandatory,
+            courtesy,
+            tablature,
+            &mut prior_voice_events,
+            note_points,
+        )?;
     }
 
     render_measure_text(
@@ -1823,6 +1693,183 @@ fn render_measure(
     );
 
     body.push_str("</g>");
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_measure_voice<'a>(
+    body: &mut String,
+    measure: &Measure,
+    layout: &LayoutResult,
+    part: usize,
+    staff: usize,
+    measure_idx: usize,
+    row_idx: usize,
+    voice_idx: usize,
+    notes: &'a [Note],
+    voice_slots: &[usize],
+    active_voices: usize,
+    total_beats: f64,
+    content_x0: f32,
+    content_w: f32,
+    clef: &Clef,
+    clef_bottom: i32,
+    bottom_y: f32,
+    space: f32,
+    interactive: bool,
+    mandatory: &HashMap<AccKey, i8>,
+    courtesy: &HashMap<AccKey, i8>,
+    tablature: Option<&acorde_core::TablatureConfig>,
+    prior_voice_events: &mut Vec<(f32, &'a Note)>,
+    note_points: &mut HashMap<NoteKey, NotePoint>,
+) -> Result<(), RenderError> {
+    if notes.is_empty() {
+        return Ok(());
+    }
+    let up = active_voices <= 1 || voice_idx.is_multiple_of(2);
+    let mut xs = Vec::with_capacity(notes.len());
+    let mut beat_pos = 0.0f64;
+    for (note_index, note) in notes.iter().enumerate() {
+        let voice_offset = if voice_slots.len() > 1 {
+            let voice_rank = voice_slots
+                .iter()
+                .position(|&index| index == voice_idx)
+                .unwrap_or(0);
+            let separation = voice_separation_u(measure, voice_slots, beat_pos);
+            (voice_rank as f32 - (voice_slots.len().saturating_sub(1) as f32 / 2.0))
+                * separation
+                * space
+        } else {
+            0.0
+        };
+        let grace_offset = if note.is_grace {
+            grace_note_offset(notes, note_index) * space
+        } else {
+            0.0
+        };
+        xs.push(
+            content_x0
+                + (content_w * (beat_pos / total_beats) as f32)
+                + voice_offset
+                + grace_offset,
+        );
+        beat_pos += note.beats();
+    }
+    resolve_adjacent_event_spacing(notes, &mut xs, content_x0, content_w, space);
+    resolve_cross_voice_event_spacing(
+        notes,
+        &mut xs,
+        prior_voice_events,
+        content_x0,
+        content_w,
+        space,
+    );
+    prior_voice_events.extend(notes.iter().zip(xs.iter()).map(|(note, &x)| (x, note)));
+
+    let (beam_tips, beam_svg) = plan_measure_beams(
+        layout,
+        part,
+        staff,
+        measure_idx,
+        voice_idx,
+        notes,
+        &xs,
+        up,
+        clef_bottom,
+        bottom_y,
+        space,
+    );
+    for (note_idx, note) in notes.iter().enumerate() {
+        let stem_up = note.stem_up.unwrap_or(up);
+        let point_y = if note.is_rest {
+            bottom_y - 2.0 * space
+        } else {
+            note_attach_y(note, clef_bottom, stem_up, bottom_y, space)
+        };
+        note_points.insert(
+            (part, staff, measure_idx, voice_idx, note_idx),
+            (xs[note_idx], point_y, stem_up, row_idx),
+        );
+        render_note(
+            body,
+            note,
+            part,
+            staff,
+            measure_idx,
+            voice_idx,
+            note_idx,
+            clef,
+            clef_bottom,
+            xs[note_idx],
+            bottom_y,
+            space,
+            up,
+            beam_tips.get(&note_idx).copied(),
+            interactive,
+            mandatory,
+            courtesy,
+            tablature,
+        )?;
+        if let Some(tab) = tablature {
+            let context = TabTechniqueConnectionContext {
+                part,
+                staff,
+                measure_idx,
+                voice_idx,
+                notes,
+                xs: &xs,
+                tab,
+                bottom_y,
+                space,
+            };
+            render_tab_technique_connection(body, &context, note_idx);
+        }
+    }
+    body.push_str(&beam_svg);
+
+    for group in layout.tuplet_groups.iter().filter(|g| {
+        g.part == part && g.staff == staff && g.measure == measure_idx && g.voice == voice_idx
+    }) {
+        if group.note_indices.len() < 2 {
+            continue;
+        }
+        let group_stem_up = group
+            .note_indices
+            .iter()
+            .find_map(|&i| (!notes[i].is_rest).then(|| notes[i].stem_up.unwrap_or(up)))
+            .unwrap_or(up);
+        let beamed_fully = group
+            .note_indices
+            .iter()
+            .all(|&i| !notes[i].is_rest && beam_tips.contains_key(&i));
+        let dir = if group_stem_up { -1.0 } else { 1.0 };
+        let group_xs: Vec<f32> = group.note_indices.iter().map(|&i| xs[i]).collect();
+        let ref_ys: Vec<f32> = group
+            .note_indices
+            .iter()
+            .map(|&i| {
+                if notes[i].is_rest {
+                    bottom_y - 2.0 * space
+                } else {
+                    let notehead_y =
+                        note_attach_y(&notes[i], clef_bottom, group_stem_up, bottom_y, space);
+                    match beam_tips.get(&i) {
+                        Some(&tip) => tip,
+                        None => notehead_y + dir * glyphs::DEFAULT_STEM_LEN_U * space,
+                    }
+                }
+            })
+            .collect();
+        let plan = tuplets::plan_tuplet(
+            &group_xs,
+            &ref_ys,
+            group.actual_notes,
+            group_stem_up,
+            beamed_fully,
+            space,
+        );
+        body.push_str(&plan.svg);
+    }
     Ok(())
 }
 
