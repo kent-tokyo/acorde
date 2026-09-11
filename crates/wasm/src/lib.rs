@@ -1738,6 +1738,22 @@ mod tests {
     }
 
     #[test]
+    fn playback_json_exposes_typed_source_address() {
+        let mut score = Score::new("Playback", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(
+            acorde_core::Pitch::new(acorde_core::Step::C, 4),
+            acorde_core::Duration::Quarter,
+        )];
+        let score_json = serde_json::to_string(&score).unwrap();
+        let options_json = serde_json::to_string(&acorde_core::PlaybackOptions::default()).unwrap();
+        let events: Vec<acorde_core::PlaybackEvent> =
+            serde_json::from_str(&to_playback_events_ex(&score_json, &options_json).unwrap())
+                .unwrap();
+        assert_eq!(events[0].address.as_deref(), Some("0:0:0:0:0"));
+        assert_eq!(events[0].source.as_ref().map(|source| source.note), Some(0));
+    }
+
+    #[test]
     fn tab_position_command_roundtrips_through_json() {
         let command = acorde_core::Command::SetTabPosition(acorde_core::SetTabPositionCmd {
             part_index: 0,
