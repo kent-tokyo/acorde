@@ -14,7 +14,8 @@ use crate::{Diagnostic, DiagnosticSeverity, Error, MAX_ABC_LINE_BYTES, MAX_INPUT
 ///
 /// Reference: <https://abcnotation.com/wiki/abc:standard:v2.1>
 use acorde_core::{
-    Clef, Duration, KeySignature, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature,
+    Barline, Clef, Duration, KeySignature, Measure, Note, Part, Pitch, Score, Staff, Step,
+    TimeSignature,
 };
 
 const MAX_LINES: usize = 10_000;
@@ -285,20 +286,22 @@ fn parse_body_line(
             break;
         }
 
-        // Bar line
-        if ch == '|' {
+        // Bar line. Preserve the boundary on both adjacent measures so a system
+        // break can still render a repeat marker at the start of the next row.
+        if matches!(ch, '|' | ':')
+            && let Some((right_barline, left_barline, next_index)) = parse_barline(&chars, i)
+        {
             if let Some(m) = staff.measures.last_mut() {
                 pad_voice(&mut m.voices[0], time.total_beats());
+                m.barline_right = right_barline;
             }
-            i += 1;
-            while i < chars.len() && (chars[i] == '|' || chars[i] == ':') {
-                i += 1;
-            }
+            i = next_index;
             if i < chars.len() && chars[i] != ']' {
                 let mut m = Measure::empty(time.numerator, time.denominator);
                 *current_measure_number += 1;
                 m.number = *current_measure_number;
                 m.voices[0].clear();
+                m.barline_left = left_barline;
                 staff.measures.push(m);
             }
             continue;
@@ -476,6 +479,26 @@ fn parse_body_line(
     }
 
     Ok(())
+}
+
+/// Parse one ABC barline token and return its right-side and next-measure forms.
+fn parse_barline(chars: &[char], index: usize) -> Option<(Barline, Barline, usize)> {
+    let first = *chars.get(index)?;
+    let second = chars.get(index + 1).copied();
+    let (barline, consumed) = match (first, second) {
+        ('|', Some(':')) => (Barline::RepeatStart, 2),
+        (':', Some('|')) => (Barline::RepeatEnd, 2),
+        (':', Some(':')) => (Barline::RepeatBoth, 2),
+        ('|', Some('|')) => (Barline::Double, 2),
+        ('|', _) => (Barline::Normal, 1),
+        _ => return None,
+    };
+    let left = match barline {
+        Barline::RepeatStart | Barline::RepeatBoth | Barline::Double => barline.clone(),
+        Barline::RepeatEnd | Barline::Normal => Barline::Normal,
+        _ => Barline::Normal,
+    };
+    Some((barline, left, index + consumed))
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -681,16 +704,33 @@ pub fn serialize_abc(score: &Score) -> Result<String, Error> {
             Some(s) => s,
             None => continue,
         };
-        for measure in &staff.measures {
+        for (measure_index, measure) in staff.measures.iter().enumerate() {
+            if measure_index == 0 && !matches!(measure.barline_left, Barline::Normal) {
+                out.push_str(barline_to_abc(&measure.barline_left));
+            }
             for note in &measure.voices[0] {
                 out.push_str(&note_to_abc(note));
             }
-            out.push('|');
+            out.push_str(barline_to_abc(&measure.barline_right));
         }
         out.push('\n');
     }
 
     Ok(out)
+}
+
+fn barline_to_abc(barline: &Barline) -> &'static str {
+    match barline {
+        Barline::Double => "||",
+        Barline::RepeatStart => "|:",
+        Barline::RepeatEnd => ":|",
+        Barline::RepeatBoth => "::",
+        Barline::Invisible
+        | Barline::Normal
+        | Barline::Final
+        | Barline::Dashed
+        | Barline::Dotted => "|",
+    }
 }
 
 /// Report canonical score data that the deliberately small ABC exporter cannot emit.
@@ -1263,6 +1303,25 @@ C D E F | G A B c |";
         let score = parse_abc(SIMPLE).unwrap();
         let measures = &score.parts[0].staves[0].measures;
         assert_eq!(measures.len(), 2);
+    }
+
+    #[test]
+    fn abc_barline_forms_round_trip_to_measure_boundaries() {
+        let text = "X:1\nT:Repeats\nM:4/4\nL:1/4\nK:C\nC|:D:|E||F::G|";
+        let score = parse_abc(text).expect("ABC barlines parse");
+        let measures = &score.parts[0].staves[0].measures;
+        assert_eq!(measures.len(), 5);
+        assert_eq!(measures[0].barline_right, Barline::RepeatStart);
+        assert_eq!(measures[1].barline_left, Barline::RepeatStart);
+        assert_eq!(measures[1].barline_right, Barline::RepeatEnd);
+        assert_eq!(measures[2].barline_right, Barline::Double);
+        assert_eq!(measures[3].barline_right, Barline::RepeatBoth);
+
+        let serialized = serialize_abc(&score).expect("ABC barlines serialize");
+        assert!(serialized.contains("|:"));
+        assert!(serialized.contains(":|"));
+        assert!(serialized.contains("||"));
+        assert!(serialized.contains("::"));
     }
 
     #[test]

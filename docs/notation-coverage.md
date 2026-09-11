@@ -15,7 +15,7 @@ the `Score` model; rendering and export can have narrower format-specific covera
 | Pitch, rests, chords, duration | yes | partial | partial | partial | partial | yes | yes / yes / yes |
 | Tempo and time signature | yes | partial | yes | yes | partial | yes | yes / yes / yes |
 | Key signature and clef | yes | no | yes | yes | partial | yes | yes / yes / MusicXML |
-| Barlines, repeats, navigation | partial | partial | partial | partial | partial (barlines, common `dir` navigation marks) | yes | partial / partial / partial |
+| Barlines, repeats, navigation | partial | partial | partial (common barlines/repeats) | partial | partial (barlines, common `dir` navigation marks) | yes | partial / partial / partial |
 | Dynamics and articulations | yes | no | partial | partial | partial (common articulations/ornaments) | yes | yes / yes / MusicXML |
 | Lyrics and expression text | partial | no | no | partial | partial (single-syllable lyrics, `dir`) | yes | partial / partial / MusicXML |
 | Ties, slurs, tuplets, grace/cue notes | yes | partial | partial | partial | partial (ties/slurs/tuplets/grace) | yes | partial / partial / MusicXML |
