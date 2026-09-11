@@ -69,7 +69,7 @@ cannot expose SVG semantics; check `contract_version` before consuming newer fie
 Each `tablature_positions` entry contains `part`, `staff`, `measure`, `voice`, `note`,
 `position`, `string`, and `fret`, so a host can address one position inside a tab chord without
 parsing SVG. Analysis chord results similarly include a canonical `name` beside structured chord
-data; the analysis result schema is version 9.
+data; the analysis result schema is version 10.
 
 - `svg_contract_version()` returns the renderer metadata contract version so browser fixtures and
   generated WASM hosts can compare returned metadata without duplicating a version constant.
@@ -116,7 +116,8 @@ one-measure boundary context for host-side scheduling.
 The Rust analysis layer now applies the supplied region to chord-pass traversal and merges the
 refreshed region with preserved outside results.
 `analysis_provenance(analysis_json, address_json)` provides a deterministic “why” lookup for a
-selected note address, including the rule ID, confidence, and source evidence for each finding.
+selected note address, including the rule ID, confidence, source evidence, and canonical chord
+label (when the finding is a chord) for each finding.
 `explain_analysis_change(previous_json, current_json, address_json)` combines the before/after
 provenance with the category diff in one response for explainable editor updates.
 `compatibility_report(source_json, candidate_json)` returns deterministic score and analysis gate

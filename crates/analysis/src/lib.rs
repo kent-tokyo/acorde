@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, HashMap, VecDeque};
 use thiserror::Error;
 
 /// Version of the serialized analysis result contract.
-pub const ANALYSIS_SCHEMA_VERSION: u32 = 9;
+pub const ANALYSIS_SCHEMA_VERSION: u32 = 10;
 
 /// A chord label with source evidence and the rule that produced it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -183,6 +183,9 @@ pub struct AnalysisProvenance {
     pub rule_id: String,
     pub confidence: u8,
     pub evidence: Vec<NoteAddr>,
+    /// Canonical display label when the finding is a chord explanation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
 }
 
 /// Return every analysis finding whose evidence contains the supplied source address.
@@ -198,6 +201,7 @@ pub fn analysis_provenance(
                 rule_id: rule_id.to_string(),
                 confidence,
                 evidence: evidence.to_vec(),
+                label: None,
             });
         }
     };
@@ -266,6 +270,15 @@ pub fn analysis_provenance(
             item.confidence,
             &item.evidence,
         );
+    }
+    for finding in &mut findings {
+        if finding.category == AnalysisCategory::Chords {
+            finding.label = analysis
+                .chords
+                .iter()
+                .find(|item| item.rule_id == finding.rule_id && item.evidence == finding.evidence)
+                .map(|item| item.name.clone());
+        }
     }
     findings.sort_by_key(|item| {
         (
@@ -2075,6 +2088,7 @@ mod tests {
             .find(|finding| finding.category == AnalysisCategory::Chords)
             .expect("chord provenance");
         assert_eq!(chord.rule_id, "pitch-class-template");
+        assert_eq!(chord.label.as_deref(), Some("C"));
         assert_eq!(chord.evidence[0], address);
         assert!(findings.windows(2).all(|pair| {
             (analysis_category_rank(pair[0].category), &pair[0].rule_id)
@@ -2132,7 +2146,7 @@ mod tests {
     #[test]
     fn cache_key_includes_schema_and_score_identity() {
         let result = analyze_score(&Score::default());
-        assert!(result.cache_key().starts_with("analysis-v9-fnv1a64-"));
+        assert!(result.cache_key().starts_with("analysis-v10-fnv1a64-"));
         assert_eq!(result.cache_key(), analysis_cache_key(&Score::default()));
         let mut changed = result.clone();
         changed.schema_version = ANALYSIS_SCHEMA_VERSION + 1;
