@@ -41,7 +41,7 @@ common `(p` tuplets and preserves their actual/normal timing ratios; complete gr
 explicit `(p:q:r` markers, while incomplete groups are reported as source-located export
 diagnostics instead of being silently flattened. ABC note ties and slurs are preserved across
 notes and measure boundaries; slur parentheses are distinguished from tuplet markers. It also
-supports common `w:` lyric lines with note alignment,
+preserves common `{...}` grace groups as `Note.is_grace`. It also supports common `w:` lyric lines with note alignment,
 syllable boundaries, `~`-joined spaces, and `*`
 placeholders for unlyricized notes; only the first voice is serialized. ABC supports
 double accidentals

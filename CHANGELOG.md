@@ -18,6 +18,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   notes and measure boundaries.
 - Added ABC slur parsing and serialization, preserving `slur_start`/`slur_end` while
   distinguishing slur parentheses from tuplet markers.
+- Added ABC grace-group parsing and serialization, preserving `Note.is_grace` for common
+  `{...}` ornamental notes.
 - Added ABC `w:` lyric alignment for common syllable boundaries and `~` spaces, with lyric
   serialization for the first voice.
 - Corrected ABC loss diagnostics so supported `V:` voice declarations are not reported as

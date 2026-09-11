@@ -112,6 +112,7 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
     let mut lyric_lines = Vec::new();
     let mut pending_tie_end = false;
     let mut pending_slur_start = false;
+    let mut grace_group_active = false;
 
     for (line_idx, raw_line) in text.lines().enumerate() {
         if line_idx >= MAX_LINES {
@@ -147,6 +148,7 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
                     current_measure_number = 0;
                     pending_tie_end = false;
                     pending_slur_start = false;
+                    grace_group_active = false;
                     current_part_index = 0;
                     if let Some(s) = score.parts.first_mut().and_then(|p| p.staves.first_mut()) {
                         s.measures.clear();
@@ -195,6 +197,7 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
                     current_measure_number = 0;
                     pending_tie_end = false;
                     pending_slur_start = false;
+                    grace_group_active = false;
                     while score.parts.len() <= current_part_index {
                         let number = score.parts.len() + 1;
                         let mut part = Part::new(&format!("Part {number}"), &format!("P{number}"));
@@ -218,6 +221,7 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
                     note_count: &mut note_count,
                     pending_tie_end: &mut pending_tie_end,
                     pending_slur_start: &mut pending_slur_start,
+                    grace_group_active: &mut grace_group_active,
                     part_index: current_part_index,
                 },
             )?;
@@ -276,6 +280,7 @@ struct AbcBodyContext<'a> {
     note_count: &'a mut usize,
     pending_tie_end: &'a mut bool,
     pending_slur_start: &'a mut bool,
+    grace_group_active: &'a mut bool,
     part_index: usize,
 }
 
@@ -288,6 +293,7 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
         note_count,
         pending_tie_end,
         pending_slur_start,
+        grace_group_active,
         part_index,
     } = context;
     let staff = match score
@@ -331,6 +337,17 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
 
         if ch == '(' {
             *pending_slur_start = true;
+            i += 1;
+            continue;
+        }
+
+        if ch == '{' {
+            *grace_group_active = true;
+            i += 1;
+            continue;
+        }
+        if ch == '}' {
+            *grace_group_active = false;
             i += 1;
             continue;
         }
@@ -412,6 +429,7 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
                 let dot = u8::from(is_dotted(*unit_den, cn, cd));
                 let mut note = Note::new(Pitch::with_alter(fs.clone(), *fo, *fa), dur);
                 note.dot_count = dot;
+                note.is_grace = *grace_group_active;
                 apply_abc_note_annotations(
                     &chars,
                     &mut i,
@@ -513,6 +531,7 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
                 dur,
             );
             note.dot_count = dot;
+            note.is_grace = *grace_group_active;
             apply_abc_note_annotations(
                 &chars,
                 &mut i,
@@ -1480,6 +1499,10 @@ fn note_to_abc(note: &Note) -> String {
     if note.slur_end {
         s.push(')');
     }
+    if note.is_grace {
+        s.insert(0, '{');
+        s.push('}');
+    }
     s.push(' ');
     s
 }
@@ -1888,6 +1911,25 @@ C D E F | G A B c |";
         let restored_notes = &restored.parts[0].staves[0].measures[0].voices[0];
         assert!(restored_notes[0].slur_start);
         assert!(restored_notes[2].slur_end);
+    }
+
+    #[test]
+    fn abc_grace_groups_preserve_grace_note_flags() {
+        let abc = "X:1\nT:Grace\nM:2/4\nL:1/4\nK:C\n{g a} B|\n";
+        let score = parse_abc(abc).expect("ABC grace group parses");
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+        assert!(notes[0].is_grace);
+        assert!(notes[1].is_grace);
+        assert!(!notes[2].is_grace);
+
+        let serialized = serialize_abc(&score).expect("ABC grace group serializes");
+        assert!(serialized.contains("{g}"));
+        assert!(serialized.contains("{a}"));
+        let restored = parse_abc(&serialized).expect("serialized grace group parses");
+        let restored_notes = &restored.parts[0].staves[0].measures[0].voices[0];
+        assert!(restored_notes[0].is_grace);
+        assert!(restored_notes[1].is_grace);
+        assert!(!restored_notes[2].is_grace);
     }
 
     #[test]
