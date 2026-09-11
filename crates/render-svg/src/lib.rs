@@ -37,7 +37,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Version of the browser-facing [`RenderMetadata`] contract.
-pub const SVG_CONTRACT_VERSION: u32 = 3;
+pub const SVG_CONTRACT_VERSION: u32 = 4;
 /// Version of the built-in glyph coverage contract.
 pub const GLYPH_COVERAGE_CONTRACT_VERSION: u32 = 3;
 /// Stable identifier for the renderer's font-independent vector glyph set.
@@ -127,6 +127,22 @@ pub struct RenderMetadata {
     /// Measure-level text with its stable score location and typed presentation role.
     #[serde(default)]
     pub text_annotations: Vec<TextAnnotation>,
+    /// String/fret positions exposed without requiring hosts to parse SVG elements.
+    #[serde(default)]
+    pub tablature_positions: Vec<TablaturePositionMetadata>,
+}
+
+/// A tablature position with a stable source address for browser editing hosts.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TablaturePositionMetadata {
+    pub part: usize,
+    pub staff: usize,
+    pub measure: usize,
+    pub voice: usize,
+    pub note: usize,
+    pub position: usize,
+    pub string: u8,
+    pub fret: u8,
 }
 
 /// A measure-level styled text entry exposed to browser hosts without SVG parsing.

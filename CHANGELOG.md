@@ -56,6 +56,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   browser hosts to select a specific string position inside a tab chord.
 - Added WASM JSON-engine regression coverage for undoable measure-level styled-text editing,
   including apply, undo, and redo behavior.
+- Bumped the SVG metadata contract to v4 and exposed deterministic tablature string/fret
+  positions, allowing browser hosts to edit tab chords without parsing SVG.
 - Suppressed tablature technique connections across rests or missing tab positions, preventing
   misleading relationships in incomplete or mixed notation input.
 - Added regression coverage for the tab-technique boundary so incomplete endpoint data cannot

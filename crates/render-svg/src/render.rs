@@ -388,6 +388,7 @@ fn build_render_metadata(
         .unwrap_or(0);
     let note_count = address_bounds.len();
     let text_annotations = collect_text_annotations(score);
+    let tablature_positions = collect_tablature_positions(score);
     let accessible_text = format!(
         "{}; {} parts, {} staves, {} measures, {} note events",
         score.metadata.title,
@@ -407,7 +408,40 @@ fn build_render_metadata(
         accessible_text,
         address_bounds,
         text_annotations,
+        tablature_positions,
     }
+}
+
+fn collect_tablature_positions(score: &Score) -> Vec<crate::TablaturePositionMetadata> {
+    let mut positions = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    for (note_index, note) in voice.iter().enumerate() {
+                        let authored = if note.tab_positions.is_empty() {
+                            note.tab_position.as_slice()
+                        } else {
+                            note.tab_positions.as_slice()
+                        };
+                        positions.extend(authored.iter().enumerate().map(|(position, tab)| {
+                            crate::TablaturePositionMetadata {
+                                part: part_index,
+                                staff: staff_index,
+                                measure: measure_index,
+                                voice: voice_index,
+                                note: note_index,
+                                position,
+                                string: tab.string,
+                                fret: tab.fret,
+                            }
+                        }));
+                    }
+                }
+            }
+        }
+    }
+    positions
 }
 
 fn collect_text_annotations(score: &Score) -> Vec<TextAnnotation> {
