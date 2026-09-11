@@ -36,6 +36,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   insufficient.
 - Added unit coverage for cross-voice clearance success and atomic fallback when a measure cannot
   accommodate the required spacing.
+- Added cross-voice near-event regression coverage at the renderer helper boundary, including
+  bounded handling for annotated events that precede a later voice event.
 - Aggregated minimum per-measure widths before SVG emission and rejected systems that cannot fit
   those lower bounds, preventing barlines from extending beyond the available system width.
 - Sized rendered staff systems from their configured tablature line count, preventing extended tab
