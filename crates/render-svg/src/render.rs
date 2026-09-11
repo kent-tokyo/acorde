@@ -772,132 +772,10 @@ fn content_margins(
             for (voice_index, voice) in measure.voices.iter().enumerate() {
                 let voice_stem_up = active_voices <= 1 || voice_index.is_multiple_of(2);
                 for note in voice {
-                    for pitch in &note.pitches {
-                        let position =
-                            geometry::staff_position(&pitch.step, pitch.octave, clef_bottom);
-                        top = top.max(5.5 + ((position - 8).max(0) as f32 / 2.0));
-                        bottom = bottom.max(4.5 + ((-position).max(0) as f32 / 2.0));
-                    }
-
-                    // Note-attached annotations are emitted at fixed staff-space offsets below;
-                    // include their largest vertical excursion in the same content-aware margin
-                    // contract. Font ascent/line wrapping remains a host responsibility.
-                    let mut annotation_top: f32 = 5.5;
-                    let mut annotation_bottom: f32 = 4.5;
-                    if note.chord_symbol.is_some() {
-                        annotation_top = annotation_top.max(6.4);
-                    }
-                    if note.dynamic.is_some() {
-                        annotation_top = annotation_top.max(4.8);
-                        annotation_bottom = annotation_bottom.max(4.8);
-                    }
-                    if note.lyric.is_some() {
-                        annotation_bottom = annotation_bottom.max(6.7);
-                    }
-                    if note.technique_text.is_some()
-                        || note.guitar_technique.is_some()
-                        || note.fingering.is_some()
-                        || !note.fingerings.is_empty()
-                    {
-                        if note.technique_text.is_some() {
-                            if note.stem_up.unwrap_or(voice_stem_up) {
-                                annotation_top = annotation_top.max(7.2);
-                            } else {
-                                annotation_bottom = annotation_bottom.max(7.2);
-                            }
-                        } else if note.fingering.is_some() || !note.fingerings.is_empty() {
-                            if note.stem_up.unwrap_or(voice_stem_up) {
-                                annotation_bottom = annotation_bottom.max(5.2);
-                            } else {
-                                annotation_top = annotation_top.max(7.6);
-                            }
-                        } else {
-                            annotation_top = annotation_top.max(2.6);
-                        }
-                    }
-                    if note.pitches.iter().any(|pitch| pitch.microtone_cents != 0) {
-                        annotation_top = annotation_top.max(3.9);
-                    }
-                    if !note.articulations.is_empty() {
-                        let articulation_extent =
-                            2.0 + note.articulations.len().saturating_sub(1) as f32;
-                        if note.stem_up.unwrap_or(voice_stem_up) {
-                            annotation_top = annotation_top.max(articulation_extent);
-                        } else {
-                            annotation_bottom = annotation_bottom.max(articulation_extent);
-                        }
-                    }
-                    if note.hairpin_start.is_some() || note.hairpin_end {
-                        annotation_top = annotation_top.max(4.8);
-                        annotation_bottom = annotation_bottom.max(4.8);
-                    }
-                    if note.ottava_start.is_some() || note.ottava_end {
-                        annotation_top = annotation_top.max(6.5);
-                        annotation_bottom = annotation_bottom.max(2.4);
-                    }
-                    if note.pedal_start || note.pedal_end {
-                        annotation_bottom = annotation_bottom.max(3.6);
-                    }
-                    if note.slur_start
-                        || note.slur_end
-                        || note.glissando_start
-                        || note.glissando_end
-                        || note.trill_line_start
-                        || note.trill_line_end
-                    {
-                        annotation_top = annotation_top.max(1.8);
-                        annotation_bottom = annotation_bottom.max(1.8);
-                    }
-                    let (lane_top, lane_bottom) = note_annotation_lane_extents(note, voice_stem_up);
-                    annotation_top = annotation_top.max(lane_top);
-                    annotation_bottom = annotation_bottom.max(lane_bottom);
-                    let max_position = note
-                        .pitches
-                        .iter()
-                        .map(|pitch| {
-                            geometry::staff_position(&pitch.step, pitch.octave, clef_bottom)
-                        })
-                        .max()
-                        .unwrap_or(0);
-                    let min_position = note
-                        .pitches
-                        .iter()
-                        .map(|pitch| {
-                            geometry::staff_position(&pitch.step, pitch.octave, clef_bottom)
-                        })
-                        .min()
-                        .unwrap_or(0);
-                    if !note.is_rest && !matches!(note.duration, acorde_core::Duration::Whole) {
-                        let stem_up = note.stem_up.unwrap_or(voice_stem_up);
-                        let flag_count = match note.duration {
-                            acorde_core::Duration::Eighth => 1,
-                            acorde_core::Duration::Sixteenth => 2,
-                            acorde_core::Duration::ThirtySecond => 3,
-                            acorde_core::Duration::SixtyFourth => 4,
-                            _ => 0,
-                        };
-                        let flag_extent =
-                            glyphs::DEFAULT_STEM_LEN_U + flag_count as f32 * 0.35 + 0.25;
-                        let beam_levels: u8 = match note.duration {
-                            acorde_core::Duration::Eighth => 1,
-                            acorde_core::Duration::Sixteenth => 2,
-                            acorde_core::Duration::ThirtySecond => 3,
-                            acorde_core::Duration::SixtyFourth => 4,
-                            _ => 0,
-                        };
-                        let beam_extent = glyphs::DEFAULT_STEM_LEN_U
-                            + beam_levels.saturating_sub(1) as f32 * 0.9
-                            + 0.25;
-                        let stem_extent = flag_extent.max(beam_extent);
-                        if stem_up {
-                            top = top.max(stem_extent + ((min_position - 8).max(0) as f32 / 2.0));
-                        } else {
-                            bottom =
-                                bottom.max(stem_extent + ((-max_position).max(0) as f32 / 2.0));
-                        }
-                    }
-                    top = top.max(annotation_top + ((max_position - 8).max(0) as f32 / 2.0));
-                    bottom = bottom.max(annotation_bottom + ((-min_position).max(0) as f32 / 2.0));
+                    let (note_top, note_bottom) =
+                        note_vertical_margins(note, clef_bottom, voice_stem_up);
+                    top = top.max(note_top);
+                    bottom = bottom.max(note_bottom);
                 }
             }
             let mut above_texts = 0usize;
@@ -995,6 +873,131 @@ fn content_margins(
         top = top.max(-beam_min);
         bottom = bottom.max(beam_max);
     }
+    (top, bottom)
+}
+
+/// Compute the top and bottom breathing room required by one note and its attached notation.
+/// Keeping this policy in one helper makes the page-margin traversal independent of the many
+/// annotation kinds emitted by `render_note` while preserving the renderer's fixed-space bounds.
+fn note_vertical_margins(note: &Note, clef_bottom: i32, voice_stem_up: bool) -> (f32, f32) {
+    let positions: Vec<i32> = note
+        .pitches
+        .iter()
+        .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, clef_bottom))
+        .collect();
+    let max_position = positions.iter().copied().max().unwrap_or(0);
+    let min_position = positions.iter().copied().min().unwrap_or(0);
+    let mut top = positions
+        .iter()
+        .copied()
+        .map(|position| 5.5 + ((position - 8).max(0) as f32 / 2.0))
+        .fold(5.5, f32::max);
+    let mut bottom = positions
+        .iter()
+        .copied()
+        .map(|position| 4.5 + ((-position).max(0) as f32 / 2.0))
+        .fold(4.5, f32::max);
+
+    // Note-attached annotations are emitted at fixed staff-space offsets below; include their
+    // largest vertical excursion in the same content-aware margin contract. Font ascent and
+    // line wrapping remain a host responsibility.
+    let mut annotation_top = 5.5_f32;
+    let mut annotation_bottom = 4.5_f32;
+    if note.chord_symbol.is_some() {
+        annotation_top = annotation_top.max(6.4);
+    }
+    if note.dynamic.is_some() {
+        annotation_top = annotation_top.max(4.8);
+        annotation_bottom = annotation_bottom.max(4.8);
+    }
+    if note.lyric.is_some() {
+        annotation_bottom = annotation_bottom.max(6.7);
+    }
+    if note.technique_text.is_some()
+        || note.guitar_technique.is_some()
+        || note.fingering.is_some()
+        || !note.fingerings.is_empty()
+    {
+        if note.technique_text.is_some() {
+            if note.stem_up.unwrap_or(voice_stem_up) {
+                annotation_top = annotation_top.max(7.2);
+            } else {
+                annotation_bottom = annotation_bottom.max(7.2);
+            }
+        } else if note.fingering.is_some() || !note.fingerings.is_empty() {
+            if note.stem_up.unwrap_or(voice_stem_up) {
+                annotation_bottom = annotation_bottom.max(5.2);
+            } else {
+                annotation_top = annotation_top.max(7.6);
+            }
+        } else {
+            annotation_top = annotation_top.max(2.6);
+        }
+    }
+    if note.pitches.iter().any(|pitch| pitch.microtone_cents != 0) {
+        annotation_top = annotation_top.max(3.9);
+    }
+    if !note.articulations.is_empty() {
+        let articulation_extent = 2.0 + note.articulations.len().saturating_sub(1) as f32;
+        if note.stem_up.unwrap_or(voice_stem_up) {
+            annotation_top = annotation_top.max(articulation_extent);
+        } else {
+            annotation_bottom = annotation_bottom.max(articulation_extent);
+        }
+    }
+    if note.hairpin_start.is_some() || note.hairpin_end {
+        annotation_top = annotation_top.max(4.8);
+        annotation_bottom = annotation_bottom.max(4.8);
+    }
+    if note.ottava_start.is_some() || note.ottava_end {
+        annotation_top = annotation_top.max(6.5);
+        annotation_bottom = annotation_bottom.max(2.4);
+    }
+    if note.pedal_start || note.pedal_end {
+        annotation_bottom = annotation_bottom.max(3.6);
+    }
+    if note.slur_start
+        || note.slur_end
+        || note.glissando_start
+        || note.glissando_end
+        || note.trill_line_start
+        || note.trill_line_end
+    {
+        annotation_top = annotation_top.max(1.8);
+        annotation_bottom = annotation_bottom.max(1.8);
+    }
+    let (lane_top, lane_bottom) = note_annotation_lane_extents(note, voice_stem_up);
+    annotation_top = annotation_top.max(lane_top);
+    annotation_bottom = annotation_bottom.max(lane_bottom);
+
+    if !note.is_rest && !matches!(note.duration, acorde_core::Duration::Whole) {
+        let stem_up = note.stem_up.unwrap_or(voice_stem_up);
+        let flag_count = match note.duration {
+            acorde_core::Duration::Eighth => 1,
+            acorde_core::Duration::Sixteenth => 2,
+            acorde_core::Duration::ThirtySecond => 3,
+            acorde_core::Duration::SixtyFourth => 4,
+            _ => 0,
+        };
+        let flag_extent = glyphs::DEFAULT_STEM_LEN_U + flag_count as f32 * 0.35 + 0.25;
+        let beam_levels: u8 = match note.duration {
+            acorde_core::Duration::Eighth => 1,
+            acorde_core::Duration::Sixteenth => 2,
+            acorde_core::Duration::ThirtySecond => 3,
+            acorde_core::Duration::SixtyFourth => 4,
+            _ => 0,
+        };
+        let beam_extent =
+            glyphs::DEFAULT_STEM_LEN_U + beam_levels.saturating_sub(1) as f32 * 0.9 + 0.25;
+        let stem_extent = flag_extent.max(beam_extent);
+        if stem_up {
+            top = top.max(stem_extent + ((min_position - 8).max(0) as f32 / 2.0));
+        } else {
+            bottom = bottom.max(stem_extent + ((-max_position).max(0) as f32 / 2.0));
+        }
+    }
+    top = top.max(annotation_top + ((max_position - 8).max(0) as f32 / 2.0));
+    bottom = bottom.max(annotation_bottom + ((-min_position).max(0) as f32 / 2.0));
     (top, bottom)
 }
 
