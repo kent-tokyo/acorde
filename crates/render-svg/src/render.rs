@@ -3442,7 +3442,7 @@ fn courtesy_wrapped(alter: i8, cx: f32, cy: f32, space: f32) -> String {
 mod tests {
     use super::{
         Note, content_horizontal_margins, event_footprint_u, measure_text_width_u,
-        resolve_adjacent_event_spacing,
+        resolve_adjacent_event_spacing, resolve_cross_voice_event_spacing,
     };
     use acorde_core::{Duration, Lyric, NoteHead, Pitch, Score, Step};
     use std::collections::HashMap;
@@ -3534,6 +3534,39 @@ mod tests {
             10.0,
         );
         assert!(annotated_positions[1] > plain_positions[1]);
+    }
+
+    #[test]
+    fn cross_voice_annotation_spacing_is_atomic() {
+        let prior = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
+        let mut current = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+        current.lyric = Some(Lyric {
+            text: "a wide lyric".into(),
+            syllabic: "single".into(),
+        });
+        let prior_events = [(0.0, &prior)];
+
+        let mut positions = [1.0];
+        resolve_cross_voice_event_spacing(
+            &[current.clone()],
+            &mut positions,
+            &prior_events,
+            0.0,
+            30.0,
+            1.0,
+        );
+        assert!(positions[0] > 1.0);
+
+        let mut tight_positions = [1.0];
+        resolve_cross_voice_event_spacing(
+            &[current],
+            &mut tight_positions,
+            &prior_events,
+            0.0,
+            1.1,
+            1.0,
+        );
+        assert_eq!(tight_positions, [1.0]);
     }
 
     #[test]
