@@ -20,6 +20,7 @@ export type WorkspaceOperation =
   | "serialize"
   | "playback"
   | "tab-performance"
+  | "soundfont"
   | "validate"
   | "preflight";
 
@@ -80,6 +81,12 @@ export interface WasmBindings {
   compare_playback_timing(expectedJson: string, actualJson: string, toleranceJson: string): string;
   project_tablature_performance(scoreJson: string, optionsJson: string): string;
   tablature_round_trip_report(scoreJson: string): string;
+  soundfont_preset_snapshot(
+    data: Uint8Array,
+    providerVersion: string,
+    bank: number,
+    program: number,
+  ): string;
   compute_playback_position(scoreJson: string, optionsJson: string, elapsedSecs: number): string;
   score_duration_secs(scoreJson: string): number;
 }
@@ -287,6 +294,14 @@ export type WorkspaceRequest =
   }
   | { id: string; type: "tablature-performance"; options?: Record<string, unknown> }
   | { id: string; type: "tablature-round-trip" }
+  | {
+    id: string;
+    type: "soundfont-preset-snapshot";
+    data: Uint8Array;
+    providerVersion: string;
+    bank: number;
+    program: number;
+  }
   | { id: string; type: "playback-position"; elapsedSecs: number; options?: Record<string, unknown> }
   | { id: string; type: "select-playback-at"; elapsedSecs: number; options?: Record<string, unknown> }
   | { id: string; type: "duration-seconds" };
@@ -838,6 +853,22 @@ export class AcordeWorkspace {
     }
   }
 
+  /** Return bounded provider-neutral SF2/SF3 metadata for one browser-host preset. */
+  soundfontPresetSnapshot(
+    data: Uint8Array,
+    providerVersion: string,
+    bank: number,
+    program: number,
+  ): Record<string, unknown> {
+    try {
+      return JSON.parse(this.wasm.soundfont_preset_snapshot(
+        data, providerVersion, bank, program,
+      )) as Record<string, unknown>;
+    } catch (cause) {
+      throw this.toWorkspaceError("soundfont", cause);
+    }
+  }
+
   /** Synchronize notation selection with a sounding event from the host audio scheduler. */
   selectPlaybackEvent(event: Pick<PlaybackEvent, "address">): void {
     this.selection.set(event.address);
@@ -1119,6 +1150,17 @@ export function handleWorkspaceRequest(
         return { id: request.id, ok: true, value: workspace.tablaturePerformance(request.options) };
       case "tablature-round-trip":
         return { id: request.id, ok: true, value: workspace.tablatureRoundTripReport() };
+      case "soundfont-preset-snapshot":
+        return {
+          id: request.id,
+          ok: true,
+          value: workspace.soundfontPresetSnapshot(
+            request.data,
+            request.providerVersion,
+            request.bank,
+            request.program,
+          ),
+        };
       case "playback-position":
         return {
           id: request.id,

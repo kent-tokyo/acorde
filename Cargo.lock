@@ -88,6 +88,7 @@ version = "1.1.7"
 dependencies = [
  "acorde-core",
  "lewton",
+ "serde",
  "thiserror",
 ]
 
@@ -100,6 +101,7 @@ dependencies = [
  "acorde-io",
  "acorde-layout",
  "acorde-render-svg",
+ "acorde-soundfont",
  "getrandom",
  "serde",
  "serde_json",

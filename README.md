@@ -57,6 +57,9 @@ The soundfont crate includes bounded SF2 PCM16 decoding and deterministic offlin
 rendering; SF3 Vorbis is an opt-in feature requiring a separately licensed decoder.
 Its `SoundFontPresetZone` mapping API exposes bank/program/key/velocity selection and bounded
 sample frame ranges without requiring Composer to duplicate SoundFont parsing.
+The WASM binding `soundfont_preset_snapshot` exposes the same bounded, deterministic
+bank/program snapshot to browser hosts, including provider version, asset checksum, resolved
+zones, and typed materialization diagnostics; audio decoding and synthesis remain host-owned.
 For the umbrella crate, enable `soundfont-sf3-vorbis` to forward that feature to the SoundFont
 adapter.
 

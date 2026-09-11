@@ -8,6 +8,7 @@ const MAX_SCORE_JSON_BYTES: usize = 16 * 1024 * 1024;
 const MAX_LAYOUT_JSON_BYTES: usize = 32 * 1024 * 1024;
 const MAX_OPTIONS_JSON_BYTES: usize = 64 * 1024;
 const MAX_SMALL_JSON_BYTES: usize = 256 * 1024;
+const MAX_SOUNDFONT_BYTES: usize = acorde_soundfont::MAX_ASSET_BYTES;
 
 fn js_err(msg: impl std::fmt::Display) -> JsValue {
     JsValue::from_str(&msg.to_string())
@@ -358,6 +359,32 @@ pub fn compare_playback_timing(
         acorde_core::compare_playback_timing(&expected, &actual, &tolerance).map_err(js_err)?;
     serde_json::to_string(&report)
         .map_err(|e| js_err(format!("playback comparison serialization failed: {e}")))
+}
+
+/// Load a bounded SF2/SF3 asset and return one deterministic preset-zone snapshot as JSON.
+///
+/// Zone metadata is provider-neutral; decoding, synthesis, and licensed sample ownership stay
+/// with the host. `bank` and `program` select the preset whose materialized zones are returned.
+#[wasm_bindgen]
+pub fn soundfont_preset_snapshot(
+    data: &[u8],
+    provider_version: &str,
+    bank: u16,
+    program: u16,
+) -> Result<String, JsValue> {
+    if data.len() > MAX_SOUNDFONT_BYTES {
+        return Err(js_err(format!(
+            "SoundFont exceeds limit: {} bytes",
+            data.len()
+        )));
+    }
+    let materialized = acorde_soundfont::load_materialized(data, provider_version)
+        .map_err(|error| js_err(format!("SoundFont load failed: {error}")))?;
+    let snapshot = materialized
+        .snapshot_for_preset(bank, program)
+        .map_err(|error| js_err(format!("SoundFont preset snapshot failed: {error}")))?;
+    serde_json::to_string(&snapshot)
+        .map_err(|error| js_err(format!("SoundFont snapshot serialization failed: {error}")))
 }
 
 /// Project scheduled playback events onto authored tablature positions.

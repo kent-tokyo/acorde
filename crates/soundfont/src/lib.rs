@@ -6,6 +6,7 @@
 //! choose a licensed renderer on the other side of this stable boundary.
 
 use acorde_core::PlaybackEvent;
+use serde::Serialize;
 
 pub const PLAYBACK_CONTRACT_VERSION: u16 = 1;
 /// Version of the provider capability/decoder/renderer adapter contract.
@@ -36,14 +37,14 @@ pub const SUPPORTED_GENERATORS: &[&str] = &[
     "releaseVolEnv",
 ];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum SoundFontFormat {
     Sf2,
     Sf3,
 }
 
 /// Compression handled by a provider. Decoding remains outside this crate.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum SampleCompression {
     Pcm16,
     Vorbis,
@@ -67,14 +68,14 @@ impl ProviderCapabilities {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct SampleLoop {
     pub start_frame: u32,
     pub end_frame: u32,
 }
 
 /// A provider-neutral SF2/SF3 sample region selected by key and velocity.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SampleRegion {
     pub sample_id: u64,
     /// Half-open source-frame range in the provider-owned sample payload.
@@ -171,7 +172,7 @@ pub fn select_sample_region(
 ///
 /// SF2 generators or SF3 metadata are interpreted by the provider and materialized here;
 /// consumers can then select zones without reimplementing SoundFont parsing.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SoundFontPresetZone {
     pub bank: u16,
     pub program: u16,
@@ -203,7 +204,7 @@ impl SoundFontPresetZone {
 /// Providers interpret SF2 generators or SF3 metadata before constructing a
 /// [`SoundFontPresetZone`]. Downstream hosts can retain this owned snapshot for
 /// UI, diagnostics, cache keys, or audio setup without repeating that parsing.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ResolvedPresetZoneMetadata {
     pub bank: u16,
     pub program: u16,
@@ -629,14 +630,14 @@ pub fn render_sample_action(
     Ok(output)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SoundFontPreset {
     pub bank: u16,
     pub program: u16,
     pub name: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SoundFontAsset {
     pub format: SoundFontFormat,
     /// FNV-1a 64-bit checksum of the bytes; independent of the source path.
@@ -668,7 +669,7 @@ impl SoundFontAsset {
 }
 
 /// Typed, non-fatal information reported while a provider materializes zones.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum SoundFontZoneDiagnostic {
     MissingSample {
         bank: u16,
@@ -700,7 +701,7 @@ pub enum SoundFontZoneDiagnostic {
 }
 
 /// Source coordinates inside an SF2/SF3 preset/instrument table.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub struct SoundFontZoneLocation {
     pub bank: u16,
     pub program: u16,
@@ -795,7 +796,7 @@ impl MaterializedSoundFontAsset {
 }
 
 /// Owned, deterministic zone metadata suitable for a browser/worker snapshot.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SoundFontZoneSnapshot {
     pub format: SoundFontFormat,
     pub checksum: u64,

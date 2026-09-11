@@ -109,3 +109,6 @@ round trip.
 `select-address` updates the shared `SelectionStore` from a Worker host and returns the current
 revision plus selected address; `selection-state` reads the same lightweight state without
 rendering or analysis.
+`soundfont-preset-snapshot` accepts SF2/SF3 bytes and returns one bounded, deterministic
+provider-neutral preset-zone snapshot with asset provenance and typed materialization diagnostics;
+sample decoding, synthesis, and licensed assets remain host-owned.
