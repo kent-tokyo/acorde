@@ -10,6 +10,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- Mapped common ABC decorations (`staccato`, `accent`, `tenuto`, `marcato`, `fermata`, `trill`,
+  `mordent`, `turn`, breath, and caesura) to canonical note articulations; unsupported
+  decorations remain source-located export/import diagnostics.
 - Preserved ABC normal, double, repeat-start, repeat-end, and repeat-both barlines on measure
   boundaries and emitted the same canonical forms during ABC serialization, including system-start
   repeat markers.

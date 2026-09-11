@@ -16,7 +16,7 @@ the `Score` model; rendering and export can have narrower format-specific covera
 | Tempo and time signature | yes | partial | yes | yes | partial | yes | yes / yes / yes |
 | Key signature and clef | yes | no | yes | yes | partial | yes | yes / yes / MusicXML |
 | Barlines, repeats, navigation | partial | partial | partial (common barlines/repeats) | partial | partial (barlines, common `dir` navigation marks) | yes | partial / partial / partial |
-| Dynamics and articulations | yes | no | partial | partial | partial (common articulations/ornaments) | yes | yes / yes / MusicXML |
+| Dynamics and articulations | yes | no | partial (common decorations) | partial | partial (common articulations/ornaments) | yes | yes / yes / MusicXML |
 | Lyrics and expression text | partial | no | no | partial | partial (single-syllable lyrics, `dir`) | yes | partial / partial / MusicXML |
 | Ties, slurs, tuplets, grace/cue notes | yes | partial | partial | partial | partial (ties/slurs/tuplets/grace) | yes | partial / partial / MusicXML |
 | Hairpins, pedal, ottava, trill | yes | no | no | partial | no | yes | partial / yes / MusicXML |
@@ -35,7 +35,9 @@ Tablature currently preserves MusicXML `staff-details/staff-lines`, `staff-tunin
 explicit positions and guitar technique labels. Core automatic string/fret assignment and
 sequence-aware movement optimization are available for configured tablature staves. Alternate
 tunings in non-MusicXML formats and instrument-specific engraving remain partial. Microtones use
-`Pitch::microtone_cents`; ABC supports common normal/double/repeat barlines, double accidentals
+`Pitch::microtone_cents`; ABC supports common normal/double/repeat barlines and maps common
+decorations to canonical articulations, while unsupported decorations remain diagnosed. ABC supports
+double accidentals
 plus pure `^/` and `_/` quarter-tone spellings, and MEI supports `qs` and `qf`. ABC barline kinds
 outside that subset are reported with source-located export diagnostics. These
 declared quarter-tone spellings are 50 cents with no additional semitone alter; exact comparisons

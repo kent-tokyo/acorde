@@ -62,14 +62,16 @@ pub fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
                 break;
             };
             let value: String = chars[index + 1..end].iter().collect();
-            let mut diagnostic = Diagnostic::warning(
-                "abc.unsupported-decoration",
-                "ABC decoration is not represented by the canonical score model",
-            );
-            diagnostic.source_location =
-                Some(format!("/line/{line_number}/decoration/{}", index + 1));
-            diagnostic.preserved_value = Some(value);
-            diagnostics.push(diagnostic);
+            if abc_decoration_articulation(&value).is_none() {
+                let mut diagnostic = Diagnostic::warning(
+                    "abc.unsupported-decoration",
+                    "ABC decoration is not represented by the canonical score model",
+                );
+                diagnostic.source_location =
+                    Some(format!("/line/{line_number}/decoration/{}", index + 1));
+                diagnostic.preserved_value = Some(value);
+                diagnostics.push(diagnostic);
+            }
             index = end + 1;
             if diagnostics.len() >= MAX_DIAGNOSTICS {
                 return diagnostics;
@@ -278,12 +280,30 @@ fn parse_body_line(
 
     let chars: Vec<char> = line.chars().collect();
     let mut i = 0;
+    let mut pending_articulations = Vec::new();
 
     while i < chars.len() {
         let ch = chars[i];
 
         if ch == '%' {
             break;
+        }
+
+        // ABC decorations use either !name! or the legacy +name+ spelling.
+        // Only decorations with an exact canonical Articulation mapping are
+        // consumed here; all others remain visible to loss_diagnostics().
+        if (ch == '!' || ch == '+')
+            && let Some(end) = chars[i + 1..]
+                .iter()
+                .position(|character| *character == ch)
+                .map(|offset| i + offset + 1)
+        {
+            let value: String = chars[i + 1..end].iter().collect();
+            if let Some(articulation) = abc_decoration_articulation(&value) {
+                pending_articulations.push(articulation);
+            }
+            i = end + 1;
+            continue;
         }
 
         // Bar line. Preserve the boundary on both adjacent measures so a system
@@ -380,6 +400,7 @@ fn parse_body_line(
                 let dot = u8::from(is_dotted(*unit_den, cn, cd));
                 let mut note = Note::new(Pitch::with_alter(fs.clone(), *fo, *fa), dur);
                 note.dot_count = dot;
+                note.articulations.append(&mut pending_articulations);
                 for (s, o, a) in chord.iter().skip(1) {
                     note.pitches.push(Pitch::with_alter(s.clone(), *o, *a));
                 }
@@ -407,6 +428,7 @@ fn parse_body_line(
             let dot = u8::from(ch != 'Z' && is_dotted(*unit_den, n, d));
             let mut rest = Note::rest(dur);
             rest.dot_count = dot;
+            pending_articulations.clear();
             if let Some(m) = staff.measures.last_mut() {
                 m.voices[0].push(rest);
             }
@@ -470,6 +492,7 @@ fn parse_body_line(
                 dur,
             );
             note.dot_count = dot;
+            note.articulations.append(&mut pending_articulations);
             if let Some(m) = staff.measures.last_mut() {
                 m.voices[0].push(note);
             }
@@ -499,6 +522,24 @@ fn parse_barline(chars: &[char], index: usize) -> Option<(Barline, Barline, usiz
         _ => Barline::Normal,
     };
     Some((barline, left, index + consumed))
+}
+
+fn abc_decoration_articulation(value: &str) -> Option<acorde_core::Articulation> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "dot" | "staccato" => Some(acorde_core::Articulation::Staccato),
+        "staccatissimo" => Some(acorde_core::Articulation::Staccatissimo),
+        "accent" => Some(acorde_core::Articulation::Accent),
+        "tenuto" => Some(acorde_core::Articulation::Tenuto),
+        "marcato" => Some(acorde_core::Articulation::Marcato),
+        "fermata" => Some(acorde_core::Articulation::Fermata),
+        "trill" => Some(acorde_core::Articulation::Trill),
+        "mordent" => Some(acorde_core::Articulation::Mordent),
+        "turn" => Some(acorde_core::Articulation::Turn),
+        "invertedturn" | "inverted-turn" => Some(acorde_core::Articulation::InvertedTurn),
+        "breath" | "breathmark" | "breath-mark" => Some(acorde_core::Articulation::BreathMark),
+        "caesura" => Some(acorde_core::Articulation::Caesura),
+        _ => None,
+    }
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -1176,7 +1217,7 @@ C D E F | G A B c |";
     fn loss_report_locates_unsupported_headers_and_decorations() {
         let abc = "X:1\nT:Report\nZ:metadata\nM:4/4\nK:C\n!trill!C +pizz+ D|\n";
         let diagnostics = loss_diagnostics(abc);
-        assert_eq!(diagnostics.len(), 3);
+        assert_eq!(diagnostics.len(), 2);
         assert_eq!(diagnostics[0].code, "abc.unsupported-header");
         assert_eq!(
             diagnostics[0].source_location.as_deref(),
@@ -1185,9 +1226,9 @@ C D E F | G A B c |";
         assert_eq!(diagnostics[1].code, "abc.unsupported-decoration");
         assert_eq!(
             diagnostics[1].source_location.as_deref(),
-            Some("/line/6/decoration/1")
+            Some("/line/6/decoration/10")
         );
-        assert_eq!(diagnostics[2].preserved_value.as_deref(), Some("pizz"));
+        assert_eq!(diagnostics[1].preserved_value.as_deref(), Some("pizz"));
     }
 
     #[test]
@@ -1414,6 +1455,31 @@ C D E F | G A B c |";
         assert_eq!(pitched[0].pitches[0].alter, 1); // ^C
         assert_eq!(pitched[1].pitches[0].alter, -1); // _E
         assert_eq!(pitched[2].pitches[0].alter, 0); // =G
+    }
+
+    #[test]
+    fn supported_abc_decorations_become_articulations() {
+        let abc =
+            "X:1\nT:Decorations\nM:4/4\nL:1/4\nK:C\n!staccato!C !accent!D !fermata!E +trill+ F|\n";
+        let score = parse_abc(abc).expect("decorated ABC parses");
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(
+            notes[0].articulations,
+            vec![acorde_core::Articulation::Staccato]
+        );
+        assert_eq!(
+            notes[1].articulations,
+            vec![acorde_core::Articulation::Accent]
+        );
+        assert_eq!(
+            notes[2].articulations,
+            vec![acorde_core::Articulation::Fermata]
+        );
+        assert_eq!(
+            notes[3].articulations,
+            vec![acorde_core::Articulation::Trill]
+        );
+        assert!(loss_diagnostics(abc).is_empty());
     }
 
     #[test]
