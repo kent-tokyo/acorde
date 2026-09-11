@@ -1370,6 +1370,39 @@ fn simultaneous_voice_noteheads_get_deterministic_horizontal_separation() {
 }
 
 #[test]
+fn wide_simultaneous_voice_annotations_expand_notehead_separation() {
+    use acorde_core::{Duration, Lyric, Note, Pitch, Score, Step};
+
+    let mut score = Score::new("voice annotation spacing", 120, 4, 4, 0, 1);
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 5), Duration::Quarter)];
+    measure.voices[1] = vec![Note::new(Pitch::new(Step::E, 4), Duration::Quarter)];
+
+    let centers = |svg: &str| {
+        svg.split(r#"class="acorde-notehead""#)
+            .skip(1)
+            .filter_map(|fragment| fragment.split(r#"cx=""#).nth(1))
+            .filter_map(|value| value.split('"').next())
+            .filter_map(|value| value.parse::<f32>().ok())
+            .take(2)
+            .collect::<Vec<_>>()
+    };
+    let baseline = centers(&render_svg(&score, &opts()).unwrap());
+    assert_eq!(baseline.len(), 2);
+
+    score.parts[0].staves[0].measures[0].voices[1][0].lyric = Some(Lyric {
+        text: "a deliberately wide simultaneous lyric".into(),
+        syllabic: "single".into(),
+    });
+    let annotated = centers(&render_svg(&score, &opts()).unwrap());
+    assert_eq!(annotated.len(), 2);
+    assert!(
+        (annotated[0] - annotated[1]).abs() > (baseline[0] - baseline[1]).abs(),
+        "annotation should expand cross-voice spacing: baseline={baseline:?}, annotated={annotated:?}"
+    );
+}
+
+#[test]
 fn consecutive_grace_noteheads_are_not_collapsed_on_one_anchor() {
     use acorde_core::{Duration, Note, Pitch, Score, Step};
     let mut score = Score::new("grace spacing", 120, 4, 4, 0, 1);

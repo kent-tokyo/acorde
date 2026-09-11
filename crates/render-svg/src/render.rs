@@ -1605,8 +1605,9 @@ fn render_measure(
                     .iter()
                     .position(|&index| index == voice_idx)
                     .unwrap_or(0);
+                let separation = voice_separation_u(measure, &voice_slots, beat_pos);
                 (voice_rank as f32 - (voice_slots.len().saturating_sub(1) as f32 / 2.0))
-                    * VOICE_SEPARATION_U
+                    * separation
                     * space
             } else {
                 0.0
@@ -1831,6 +1832,43 @@ fn grace_note_offset(notes: &[Note], index: usize) -> f32 {
         .map_or(notes.len(), |position| index + position);
     let reverse_index = run_end.saturating_sub(index);
     -0.42 * reverse_index as f32
+}
+
+/// Return the minimum center-to-center separation for simultaneous voice events. The base
+/// separation preserves the established multi-voice geometry; wider note-attached annotations
+/// expand it only when their conservative footprints would otherwise overlap.
+fn voice_separation_u(measure: &Measure, voice_slots: &[usize], target_beat: f64) -> f32 {
+    let mut notes = Vec::new();
+    for &voice_index in voice_slots {
+        let Some(voice) = measure.voices.get(voice_index) else {
+            continue;
+        };
+        let mut beat = 0.0;
+        for note in voice {
+            if (beat - target_beat).abs() < 1e-6 {
+                notes.push(note);
+                break;
+            }
+            beat += note.beats();
+        }
+    }
+    // Keep the established geometry for ordinary noteheads.  Only annotation-bearing events
+    // need cross-voice expansion; otherwise the conservative notehead/accidental footprint
+    // would make every normal two-voice passage wider.
+    if !notes.iter().any(|note| note_annotation_width_u(note) > 0.0) {
+        return VOICE_SEPARATION_U;
+    }
+    notes
+        .iter()
+        .enumerate()
+        .flat_map(|(index, &left)| {
+            notes
+                .iter()
+                .skip(index + 1)
+                .map(move |&right| (event_footprint_u(left), event_footprint_u(right)))
+        })
+        .map(|(left, right)| (left + right) / 2.0 + 0.18)
+        .fold(VOICE_SEPARATION_U, f32::max)
 }
 
 /// Resolve horizontal clearance between adjacent events in one voice. The rhythm-derived
