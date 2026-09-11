@@ -1085,7 +1085,10 @@ fn tablature_renders_lines_frets_and_techniques() {
     note.fingering = Some(1);
     note.guitar_technique = Some(GuitarTechnique::Bend);
     note.guitar_bend_alter_cents = Some(200);
-    staff.measures[0].voices[0] = vec![note];
+    let mut slide = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+    slide.tab_position = Some(acorde_core::TabPosition { string: 2, fret: 5 });
+    slide.guitar_technique = Some(GuitarTechnique::Slide);
+    staff.measures[0].voices[0] = vec![note, slide];
     score.parts[0].staves = vec![staff];
 
     let svg = render_svg(&score, &opts()).expect("tablature renders");
@@ -1096,6 +1099,8 @@ fn tablature_renders_lines_frets_and_techniques() {
     assert!(svg.contains(">1/3</text>"));
     assert!(svg.contains("acorde-tab-technique"));
     assert!(svg.contains(">bend +200c</text>"));
+    assert!(svg.contains("acorde-tab-technique-connection"));
+    assert!(svg.contains("data-technique=\"slide\""));
     assert_well_formed_xml(&svg);
 }
 

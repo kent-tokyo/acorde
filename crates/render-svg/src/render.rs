@@ -1708,6 +1708,9 @@ fn render_measure(
                 courtesy,
                 tablature,
             )?;
+            if let Some(tab) = tablature {
+                render_tab_technique_connection(body, notes, note_idx, &xs, tab, bottom_y, space);
+            }
         }
         body.push_str(&beam_svg);
 
@@ -2774,6 +2777,89 @@ fn guitar_technique_label(note: &Note) -> Option<String> {
             acorde_core::GuitarTechnique::HammerOn => "h".to_owned(),
             acorde_core::GuitarTechnique::PullOff => "p".to_owned(),
         })
+}
+
+/// Connect adjacent tablature events for techniques whose meaning spans two notes. The
+/// technique remains authored data on the destination note; this path only supplies a stable
+/// visual hook for host selection and does not infer playback or pitch semantics.
+fn render_tab_technique_connection(
+    body: &mut String,
+    notes: &[Note],
+    note_index: usize,
+    xs: &[f32],
+    tab: &acorde_core::TablatureConfig,
+    bottom_y: f32,
+    space: f32,
+) {
+    if note_index == 0 || note_index >= notes.len() || note_index >= xs.len() {
+        return;
+    }
+    let Some(technique) = notes[note_index].guitar_technique.as_ref() else {
+        return;
+    };
+    if !matches!(
+        technique,
+        acorde_core::GuitarTechnique::Slide
+            | acorde_core::GuitarTechnique::HammerOn
+            | acorde_core::GuitarTechnique::PullOff
+    ) {
+        return;
+    }
+    let x1 = xs[note_index - 1];
+    let x2 = xs[note_index];
+    if !x1.is_finite() || !x2.is_finite() || x2 <= x1 {
+        return;
+    }
+    let y1 = tab_note_y(&notes[note_index - 1], tab, bottom_y, space);
+    let y2 = tab_note_y(&notes[note_index], tab, bottom_y, space);
+    let (class, data_technique) = match technique {
+        acorde_core::GuitarTechnique::Slide => {
+            ("acorde-tab-technique-connection acorde-tab-slide", "slide")
+        }
+        acorde_core::GuitarTechnique::HammerOn => (
+            "acorde-tab-technique-connection acorde-tab-hammer-on",
+            "hammer-on",
+        ),
+        acorde_core::GuitarTechnique::PullOff => (
+            "acorde-tab-technique-connection acorde-tab-pull-off",
+            "pull-off",
+        ),
+        acorde_core::GuitarTechnique::Bend => return,
+    };
+    let start = x1 + 0.2 * space;
+    let end = x2 - 0.2 * space;
+    if end <= start {
+        return;
+    }
+    if matches!(technique, acorde_core::GuitarTechnique::Slide) {
+        let _ = write!(
+            body,
+            r#"<line class="{class}" data-technique="{data_technique}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
+            f(start),
+            f(y1),
+            f(end),
+            f(y2),
+            f(0.08 * space)
+        );
+    } else {
+        let direction = if matches!(technique, acorde_core::GuitarTechnique::HammerOn) {
+            -1.0
+        } else {
+            1.0
+        };
+        let control_y = (y1.min(y2) + direction * space).min(y1.min(y2));
+        let _ = write!(
+            body,
+            r#"<path class="{class}" data-technique="{data_technique}" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+            f(start),
+            f(y1),
+            f((start + end) / 2.0),
+            f(control_y),
+            f(end),
+            f(y2),
+            f(0.08 * space)
+        );
+    }
 }
 
 /// Draw note-attached performance annotations. The semantic values are already part of the
