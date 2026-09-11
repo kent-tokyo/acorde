@@ -1699,42 +1699,19 @@ fn render_measure(
         );
         prior_voice_events.extend(notes.iter().zip(xs.iter()).map(|(note, &x)| (x, note)));
 
-        // Beam plan: acorde-layout's beam_groups is the source of truth for *which* notes
-        // are beamed together — this renderer never re-infers grouping, only geometry.
-        let mut beam_tips: HashMap<usize, f32> = HashMap::new();
-        let mut beam_svg = String::new();
-        for group in layout.beam_groups.iter().filter(|g| {
-            g.part == part && g.staff == staff && g.measure == measure_idx && g.voice == voice_idx
-        }) {
-            if group.note_indices.len() < 2 {
-                continue; // a lone "beamed" note has nothing to connect to
-            }
-            let valid_indices: Vec<usize> = group
-                .note_indices
-                .iter()
-                .copied()
-                .filter(|&i| i < notes.len() && !notes[i].is_grace && !notes[i].is_cue)
-                .collect();
-            if valid_indices.len() < 2 {
-                continue;
-            }
-            let group_stem_up = notes[valid_indices[0]].stem_up.unwrap_or(up);
-            let durations: Vec<Duration> = valid_indices
-                .iter()
-                .map(|&i| notes[i].duration.clone())
-                .collect();
-            let group_xs: Vec<f32> = valid_indices.iter().map(|&i| xs[i]).collect();
-            let attach_ys: Vec<f32> = valid_indices
-                .iter()
-                .map(|&i| note_attach_y(&notes[i], clef_bottom, group_stem_up, bottom_y, space))
-                .collect();
-            let plan =
-                beams::plan_beam_group(&durations, &group_xs, &attach_ys, group_stem_up, space);
-            for (local_i, tip) in plan.tips {
-                beam_tips.insert(valid_indices[local_i], tip);
-            }
-            beam_svg.push_str(&plan.svg);
-        }
+        let (beam_tips, beam_svg) = plan_measure_beams(
+            layout,
+            part,
+            staff,
+            measure_idx,
+            voice_idx,
+            notes,
+            &xs,
+            up,
+            clef_bottom,
+            bottom_y,
+            space,
+        );
 
         for (note_idx, note) in notes.iter().enumerate() {
             let stem_up = note.stem_up.unwrap_or(up);
@@ -1847,6 +1824,60 @@ fn render_measure(
 
     body.push_str("</g>");
     Ok(())
+}
+
+/// Plan all beam groups for one voice and return both stem tips and SVG fragments.
+///
+/// Beam membership comes exclusively from `acorde-layout`; keeping this adapter separate from
+/// note emission prevents the renderer from accidentally re-inferring rhythmic grouping.
+#[allow(clippy::too_many_arguments)]
+fn plan_measure_beams(
+    layout: &LayoutResult,
+    part: usize,
+    staff: usize,
+    measure_idx: usize,
+    voice_idx: usize,
+    notes: &[Note],
+    xs: &[f32],
+    up: bool,
+    clef_bottom: i32,
+    bottom_y: f32,
+    space: f32,
+) -> (HashMap<usize, f32>, String) {
+    let mut beam_tips = HashMap::new();
+    let mut beam_svg = String::new();
+    for group in layout.beam_groups.iter().filter(|g| {
+        g.part == part && g.staff == staff && g.measure == measure_idx && g.voice == voice_idx
+    }) {
+        if group.note_indices.len() < 2 {
+            continue; // a lone "beamed" note has nothing to connect to
+        }
+        let valid_indices: Vec<usize> = group
+            .note_indices
+            .iter()
+            .copied()
+            .filter(|&i| i < notes.len() && !notes[i].is_grace && !notes[i].is_cue)
+            .collect();
+        if valid_indices.len() < 2 {
+            continue;
+        }
+        let group_stem_up = notes[valid_indices[0]].stem_up.unwrap_or(up);
+        let durations: Vec<Duration> = valid_indices
+            .iter()
+            .map(|&i| notes[i].duration.clone())
+            .collect();
+        let group_xs: Vec<f32> = valid_indices.iter().map(|&i| xs[i]).collect();
+        let attach_ys: Vec<f32> = valid_indices
+            .iter()
+            .map(|&i| note_attach_y(&notes[i], clef_bottom, group_stem_up, bottom_y, space))
+            .collect();
+        let plan = beams::plan_beam_group(&durations, &group_xs, &attach_ys, group_stem_up, space);
+        for (local_i, tip) in plan.tips {
+            beam_tips.insert(valid_indices[local_i], tip);
+        }
+        beam_svg.push_str(&plan.svg);
+    }
+    (beam_tips, beam_svg)
 }
 
 /// Render measure-level publication and navigation text after note content has been placed.
