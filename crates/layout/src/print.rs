@@ -1731,6 +1731,62 @@ fn page_publication(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+fn build_page_layout(
+    score: &Score,
+    layout_score: &Score,
+    config: &PrintConfig,
+    systems: Vec<SystemLayout>,
+    page_index: usize,
+    page_number: Option<usize>,
+    width_mm: f32,
+    height_mm: f32,
+    content_width_mm: f32,
+    content_height_mm: f32,
+    break_reason: BreakReason,
+    is_title_page: bool,
+) -> PageLayout {
+    let publication = page_publication(
+        score,
+        layout_score,
+        config,
+        &systems,
+        is_title_page,
+        page_number,
+    );
+    let span_segments = if is_title_page {
+        Vec::new()
+    } else {
+        page_span_segments(&systems)
+    };
+    let measure_marks = if is_title_page {
+        Vec::new()
+    } else {
+        page_measure_marks(&systems)
+    };
+    PageLayout {
+        address: PageAddress { page_index },
+        page_index,
+        page_number,
+        color_policy: config.color_policy,
+        crop_mark_policy: config.crop_mark_policy,
+        glyph_resources: config.glyph_resources.clone(),
+        publication,
+        width_mm,
+        height_mm,
+        content_width_mm,
+        content_height_mm,
+        bleed_top_mm: config.bleed_top_mm,
+        bleed_right_mm: config.bleed_right_mm,
+        bleed_bottom_mm: config.bleed_bottom_mm,
+        bleed_left_mm: config.bleed_left_mm,
+        span_segments,
+        measure_marks,
+        systems,
+        break_reason,
+    }
+}
+
 fn score_for_part_layout(
     score: &Score,
     policy: PartLayoutPolicy,
@@ -1901,40 +1957,24 @@ pub fn compute_print_layout(
             .iter()
             .any(|(first, _)| *first == system_index);
         if repeat_starts_here && !page_systems.is_empty() {
-            pages.push(PageLayout {
-                address: PageAddress { page_index },
+            let page_number = match config.page_numbering {
+                PageNumbering::None => None,
+                PageNumbering::OneBased => Some(page_index + 1),
+            };
+            pages.push(build_page_layout(
+                score,
+                &layout_score,
+                config,
+                std::mem::take(&mut page_systems),
                 page_index,
-                page_number: match config.page_numbering {
-                    PageNumbering::None => None,
-                    PageNumbering::OneBased => Some(page_index + 1),
-                },
-                color_policy: config.color_policy,
-                crop_mark_policy: config.crop_mark_policy,
-                glyph_resources: config.glyph_resources.clone(),
-                publication: page_publication(
-                    score,
-                    &layout_score,
-                    config,
-                    &page_systems,
-                    false,
-                    match config.page_numbering {
-                        PageNumbering::None => None,
-                        PageNumbering::OneBased => Some(page_index + 1),
-                    },
-                ),
+                page_number,
                 width_mm,
                 height_mm,
                 content_width_mm,
                 content_height_mm,
-                bleed_top_mm: config.bleed_top_mm,
-                bleed_right_mm: config.bleed_right_mm,
-                bleed_bottom_mm: config.bleed_bottom_mm,
-                bleed_left_mm: config.bleed_left_mm,
-                span_segments: page_span_segments(&page_systems),
-                measure_marks: page_measure_marks(&page_systems),
-                systems: std::mem::take(&mut page_systems),
-                break_reason: BreakReason::PageCapacity,
-            });
+                BreakReason::PageCapacity,
+                false,
+            ));
             page_index += 1;
         }
         let explicit_page_break = row.measure_indices.last().is_some_and(|&measure_index| {
@@ -1996,78 +2036,46 @@ pub fn compute_print_layout(
             } else {
                 BreakReason::PageCapacity
             };
-            pages.push(PageLayout {
-                address: PageAddress { page_index },
+            let page_number = match config.page_numbering {
+                PageNumbering::None => None,
+                PageNumbering::OneBased => Some(page_index + 1),
+            };
+            pages.push(build_page_layout(
+                score,
+                &layout_score,
+                config,
+                std::mem::take(&mut page_systems),
                 page_index,
-                page_number: match config.page_numbering {
-                    PageNumbering::None => None,
-                    PageNumbering::OneBased => Some(page_index + 1),
-                },
-                color_policy: config.color_policy,
-                crop_mark_policy: config.crop_mark_policy,
-                glyph_resources: config.glyph_resources.clone(),
-                publication: page_publication(
-                    score,
-                    &layout_score,
-                    config,
-                    &page_systems,
-                    false,
-                    match config.page_numbering {
-                        PageNumbering::None => None,
-                        PageNumbering::OneBased => Some(page_index + 1),
-                    },
-                ),
+                page_number,
                 width_mm,
                 height_mm,
                 content_width_mm,
                 content_height_mm,
-                bleed_top_mm: config.bleed_top_mm,
-                bleed_right_mm: config.bleed_right_mm,
-                bleed_bottom_mm: config.bleed_bottom_mm,
-                bleed_left_mm: config.bleed_left_mm,
-                span_segments: page_span_segments(&page_systems),
-                measure_marks: page_measure_marks(&page_systems),
-                systems: std::mem::take(&mut page_systems),
-                break_reason: page_break_reason,
-            });
+                page_break_reason,
+                false,
+            ));
             page_index += 1;
         }
     }
     if !page_systems.is_empty() || pages.is_empty() {
-        pages.push(PageLayout {
-            address: PageAddress { page_index },
+        let page_number = match config.page_numbering {
+            PageNumbering::None => None,
+            PageNumbering::OneBased => Some(page_index + 1),
+        };
+        pages.push(build_page_layout(
+            score,
+            &layout_score,
+            config,
+            page_systems,
             page_index,
-            page_number: match config.page_numbering {
-                PageNumbering::None => None,
-                PageNumbering::OneBased => Some(page_index + 1),
-            },
-            color_policy: config.color_policy,
-            crop_mark_policy: config.crop_mark_policy,
-            glyph_resources: config.glyph_resources.clone(),
-            publication: page_publication(
-                score,
-                &layout_score,
-                config,
-                &page_systems,
-                false,
-                match config.page_numbering {
-                    PageNumbering::None => None,
-                    PageNumbering::OneBased => Some(page_index + 1),
-                },
-            ),
+            page_number,
             width_mm,
             height_mm,
             content_width_mm,
             content_height_mm,
-            bleed_top_mm: config.bleed_top_mm,
-            bleed_right_mm: config.bleed_right_mm,
-            bleed_bottom_mm: config.bleed_bottom_mm,
-            bleed_left_mm: config.bleed_left_mm,
-            span_segments: page_span_segments(&page_systems),
-            measure_marks: page_measure_marks(&page_systems),
-            systems: page_systems,
-            break_reason: BreakReason::EndOfScore,
-        });
+            BreakReason::EndOfScore,
+            false,
+        ));
     }
 
     if config.publication.title_page {
@@ -2091,42 +2099,26 @@ pub fn compute_print_layout(
                 page.page_number,
             );
         }
+        let page_number = match config.page_numbering {
+            PageNumbering::None => None,
+            PageNumbering::OneBased => Some(1),
+        };
         pages.insert(
             0,
-            PageLayout {
-                address: PageAddress { page_index: 0 },
-                page_index: 0,
-                page_number: match config.page_numbering {
-                    PageNumbering::None => None,
-                    PageNumbering::OneBased => Some(1),
-                },
-                color_policy: config.color_policy,
-                crop_mark_policy: config.crop_mark_policy,
-                glyph_resources: config.glyph_resources.clone(),
-                publication: page_publication(
-                    score,
-                    &layout_score,
-                    config,
-                    &[],
-                    true,
-                    match config.page_numbering {
-                        PageNumbering::None => None,
-                        PageNumbering::OneBased => Some(1),
-                    },
-                ),
+            build_page_layout(
+                score,
+                &layout_score,
+                config,
+                Vec::new(),
+                0,
+                page_number,
                 width_mm,
                 height_mm,
                 content_width_mm,
                 content_height_mm,
-                bleed_top_mm: config.bleed_top_mm,
-                bleed_right_mm: config.bleed_right_mm,
-                bleed_bottom_mm: config.bleed_bottom_mm,
-                bleed_left_mm: config.bleed_left_mm,
-                span_segments: Vec::new(),
-                measure_marks: Vec::new(),
-                systems: Vec::new(),
-                break_reason: BreakReason::TitlePage,
-            },
+                BreakReason::TitlePage,
+                true,
+            ),
         );
     }
 
