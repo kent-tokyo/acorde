@@ -301,7 +301,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "Measure" if current_staff_id.is_some() && !in_measure => {
                         in_measure = true;
                         pending_chord_symbol = None;
-                        cur_measure_num += 1;
+                        let sequential_number = cur_measure_num.saturating_add(1);
+                        cur_measure_num = attr_str(e, b"number")
+                            .and_then(|value| value.parse::<u32>().ok())
+                            .filter(|number| *number > 0)
+                            .unwrap_or(sequential_number);
                         cur_key = None;
                         cur_time = None;
                         cur_clef_in_measure = None;
@@ -1513,9 +1517,6 @@ fn assemble_score(
                 let mut s = Staff::new(clef);
                 s.tablature = staff_tablature.get(&sid).cloned();
                 s.measures = staff_measures.remove(&sid).unwrap_or_default();
-                for (i, m) in s.measures.iter_mut().enumerate() {
-                    m.number = (i + 1) as u32;
-                }
                 s
             })
             .collect()
@@ -2016,6 +2017,28 @@ mod tests {
         assert_eq!(notes[0].pitches[0].step, Step::C);
         assert_eq!(notes[0].pitches[0].alter, 0);
         assert_eq!(notes[0].duration, Duration::Quarter);
+    }
+
+    #[test]
+    fn parse_mscx_preserves_authored_measure_numbers() {
+        let xml = simple_mscx(
+            r#"
+      <Measure number="7">
+        <Chord><durationType>quarter</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord>
+      </Measure>
+      <Measure number="9">
+        <Chord><durationType>quarter</durationType><Note><pitch>62</pitch><tpc>16</tpc></Note></Chord>
+      </Measure>"#,
+        );
+        let score = parse_mscx(&xml).expect("numbered MSCX parses");
+        let measures = &score.parts[0].staves[0].measures;
+        assert_eq!(
+            measures
+                .iter()
+                .map(|measure| measure.number)
+                .collect::<Vec<_>>(),
+            [7, 9]
+        );
     }
 
     #[test]
