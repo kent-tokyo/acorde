@@ -405,6 +405,30 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
             continue;
         }
 
+        // Volta ending marker ([1, [2, ...). ABC commonly places it at the
+        // beginning of the ending measure, after the preceding barline.
+        if ch == '[' && chars.get(i + 1).is_some_and(char::is_ascii_digit) {
+            let mut cursor = i + 1;
+            while chars.get(cursor).is_some_and(char::is_ascii_digit) {
+                cursor += 1;
+            }
+            if let Ok(number) = chars[i + 1..cursor]
+                .iter()
+                .collect::<String>()
+                .parse::<u8>()
+                && number > 0
+            {
+                if let Some(measure) = staff.measures.last_mut() {
+                    measure.volta = Some(acorde_core::VoltaBracket {
+                        number,
+                        kind: "begin".to_string(),
+                    });
+                }
+                i = cursor;
+                continue;
+            }
+        }
+
         // Inline field [M:…] [L:…]
         if ch == '['
             && i + 1 < chars.len()
@@ -1001,6 +1025,11 @@ pub fn serialize_abc(score: &Score) -> Result<String, Error> {
             None => continue,
         };
         for (measure_index, measure) in staff.measures.iter().enumerate() {
+            if let Some(volta) = &measure.volta
+                && matches!(volta.kind.as_str(), "begin" | "begin_end")
+            {
+                out.push_str(&format!("[{} ", volta.number));
+            }
             if measure_index == 0 && !matches!(measure.barline_left, Barline::Normal) {
                 out.push_str(barline_to_abc(&measure.barline_left));
             }
@@ -1755,6 +1784,39 @@ C D E F | G A B c |";
         assert!(serialized.contains(":|"));
         assert!(serialized.contains("||"));
         assert!(serialized.contains("::"));
+    }
+
+    #[test]
+    fn abc_volta_start_markers_round_trip_to_measure_metadata() {
+        let text = "X:1\nT:Volta\nM:2/4\nL:1/4\nK:C\nC D|: E F :|[1 G A|[2 B c|\n";
+        let score = parse_abc(text).expect("ABC volta markers parse");
+        let measures = &score.parts[0].staves[0].measures;
+        assert_eq!(
+            measures[2].volta.as_ref().map(|volta| volta.number),
+            Some(1)
+        );
+        assert_eq!(
+            measures[3].volta.as_ref().map(|volta| volta.number),
+            Some(2)
+        );
+        assert!(
+            measures[2]
+                .volta
+                .as_ref()
+                .is_some_and(|volta| volta.kind == "begin")
+        );
+
+        let serialized = serialize_abc(&score).expect("ABC volta markers serialize");
+        assert!(serialized.contains("[1"));
+        assert!(serialized.contains("[2"));
+        let restored = parse_abc(&serialized).expect("serialized volta markers parse");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[2]
+                .volta
+                .as_ref()
+                .map(|volta| volta.number),
+            Some(1)
+        );
     }
 
     #[test]
