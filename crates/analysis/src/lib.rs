@@ -2029,6 +2029,11 @@ mod tests {
         );
         assert_eq!(chord_name(&result.chords[0].chord), "F7/A");
         assert_eq!(result.chords[0].name, "F7/A");
+        let finding = analysis_provenance(&result, &result.chords[0].address)
+            .into_iter()
+            .find(|finding| finding.category == AnalysisCategory::Chords)
+            .expect("authored chord provenance");
+        assert_eq!(finding.label.as_deref(), Some("F7/A"));
     }
 
     #[test]
