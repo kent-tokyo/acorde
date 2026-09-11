@@ -20,6 +20,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   distinguishing slur parentheses from tuplet markers.
 - Added ABC grace-group parsing and serialization, preserving `Note.is_grace` for common
   `{...}` ornamental notes.
+- Added source-located ABC diagnostics for unsupported broken-rhythm markers (`<` and `>`),
+  preventing their duration semantics from being silently discarded.
 - Added ABC `w:` lyric alignment for common syllable boundaries and `~` spaces, with lyric
   serialization for the first voice.
 - Corrected ABC loss diagnostics so supported `V:` voice declarations are not reported as

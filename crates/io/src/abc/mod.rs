@@ -51,6 +51,21 @@ pub fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
         let mut index = 0;
         while index < chars.len() {
             let delimiter = chars[index];
+            if matches!(delimiter, '<' | '>') {
+                let mut diagnostic = Diagnostic::warning(
+                    "abc.unsupported-rhythm-marker",
+                    "ABC broken-rhythm markers are outside the canonical duration subset",
+                );
+                diagnostic.source_location =
+                    Some(format!("/line/{line_number}/body/{}", index + 1));
+                diagnostic.preserved_value = Some(delimiter.to_string());
+                diagnostics.push(diagnostic);
+                index += 1;
+                if diagnostics.len() >= MAX_DIAGNOSTICS {
+                    return diagnostics;
+                }
+                continue;
+            }
             if delimiter != '!' && delimiter != '+' {
                 index += 1;
                 continue;
@@ -1550,6 +1565,18 @@ C D E F | G A B c |";
     fn loss_report_accepts_supported_voice_and_lyric_headers() {
         let abc = "X:1\nT:Report\nM:2/4\nK:C\nV:1\nC D|\nw: do re\n";
         assert!(loss_diagnostics(abc).is_empty());
+    }
+
+    #[test]
+    fn loss_report_locates_unsupported_broken_rhythm_markers() {
+        let diagnostics = loss_diagnostics("X:1\nT:Report\nM:2/4\nK:C\nC>D E|\n");
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].code, "abc.unsupported-rhythm-marker");
+        assert_eq!(
+            diagnostics[0].source_location.as_deref(),
+            Some("/line/5/body/2")
+        );
+        assert_eq!(diagnostics[0].preserved_value.as_deref(), Some(">"));
     }
 
     #[test]

@@ -44,6 +44,8 @@ notes and measure boundaries; slur parentheses are distinguished from tuplet mar
 preserves common `{...}` grace groups as `Note.is_grace`. It also supports common `w:` lyric lines with note alignment,
 syllable boundaries, `~`-joined spaces, and `*`
 placeholders for unlyricized notes; only the first voice is serialized. ABC supports
+source-located diagnostics for unsupported broken-rhythm markers (`<` and `>`), whose duration
+transformations are outside the canonical duration subset. ABC supports
 double accidentals
 plus pure `^/` and `_/` quarter-tone spellings, and MEI supports `qs` and `qf`. ABC barline kinds
 outside that subset are reported with source-located export diagnostics. These
