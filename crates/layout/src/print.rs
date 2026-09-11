@@ -1803,12 +1803,7 @@ fn score_for_part_layout(
     Ok(selected)
 }
 
-/// Compute physical page and system placement without rendering or host integration.
-pub fn compute_print_layout(
-    score: &Score,
-    config: &PrintConfig,
-) -> Result<PrintLayoutResult, PrintLayoutError> {
-    let layout_score = score_for_part_layout(score, config.part_layout)?;
+fn validate_print_config(config: &PrintConfig) -> Result<(f32, f32, f32), PrintLayoutError> {
     let (mut width_mm, mut height_mm) = config.paper_size.dimensions_mm();
     if !width_mm.is_finite() || !height_mm.is_finite() || width_mm <= 0.0 || height_mm <= 0.0 {
         return Err(PrintLayoutError::InvalidPaperDimensions);
@@ -1854,9 +1849,16 @@ pub fn compute_print_layout(
     {
         return Err(PrintLayoutError::InvalidGlyphResourceKey);
     }
-    if !config.publication.line_height_mm.is_finite() || config.publication.line_height_mm <= 0.0 {
-        return Err(PrintLayoutError::InvalidPublicationLineHeight);
-    }
+    Ok((width_mm, height_mm, scaled_system_height_mm))
+}
+
+/// Compute physical page and system placement without rendering or host integration.
+pub fn compute_print_layout(
+    score: &Score,
+    config: &PrintConfig,
+) -> Result<PrintLayoutResult, PrintLayoutError> {
+    let layout_score = score_for_part_layout(score, config.part_layout)?;
+    let (width_mm, height_mm, scaled_system_height_mm) = validate_print_config(config)?;
 
     let content_width_mm = width_mm
         - config.margin_left_mm
