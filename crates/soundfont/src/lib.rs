@@ -1844,6 +1844,7 @@ mod tests {
     fn event(address: &str, velocity: u8) -> PlaybackEvent {
         PlaybackEvent {
             address: Some(address.into()),
+            source: None,
             time_beats: 0.0,
             time_secs: 0.0,
             pitch_midi: 60,

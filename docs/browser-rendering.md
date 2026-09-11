@@ -30,6 +30,10 @@ For optional SoundFont playback, `acorde-soundfont` validates SF2/SF3 metadata
 and manages note/voice lifecycle actions. Sample decoding and audio output stay
 outside the core/WASM contract and remain application-owned.
 
+Playback events retain the legacy string `address` and also expose an optional typed `source`
+`NoteAddr`; metronome events set both source fields to `null`. Browser hosts should prefer the
+typed field and use the string only for compatibility with older snapshots.
+
 ## Stable calls
 
 - `parse_mei_render_svg(xml, options_json)` parses the documented MEI subset and renders its

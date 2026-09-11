@@ -132,8 +132,8 @@ that the score is equivalent and no typed conversion loss was reported.
 The difference gate covers both score and analysis changes, with the latter exposed as
 `analysis_equivalent`.
 
-Playback events include stable source note addresses for synchronizing audio cursors with
-notation selection. The WASM package exposes the same pipeline plus `ScoreEngine`, score diff/patch, validation,
+Playback events include stable string and typed source note addresses for synchronizing audio
+cursors with notation selection. The WASM package exposes the same pipeline plus `ScoreEngine`, score diff/patch, validation,
 playback, theory helpers, deterministic tablature fingering selection, and explainable score analysis through
 `analyze_score`; its `AnalysisCache` class provides bounded repeated analysis and hit/miss stats.
 The WASM `diff_analysis` call identifies changed analysis categories between two result JSON

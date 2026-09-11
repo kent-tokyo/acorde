@@ -1,7 +1,7 @@
 use super::duration::Duration;
 use super::notation::{Articulation, GuitarTechnique, TabPosition};
 use super::repeat::measure_sequence;
-use super::score::Score;
+use super::score::{NoteAddr, Score};
 use serde::{Deserialize, Serialize};
 
 fn default_fermata_multiplier() -> f64 {
@@ -114,6 +114,9 @@ pub struct PlaybackEvent {
     /// Chord pitches share the address of their source note.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<String>,
+    /// Typed source address for notation hosts; `None` for metronome events.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<NoteAddr>,
     /// Absolute beat position from the start of the score.
     pub time_beats: f64,
     /// Absolute time in seconds from the start of the score.
@@ -698,6 +701,13 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                                     address: Some(format!(
                                         "{part_index}:{staff_index}:{idx}:{voice_idx}:{note_index}"
                                     )),
+                                    source: Some(NoteAddr {
+                                        part: part_index,
+                                        staff: staff_index,
+                                        measure: idx,
+                                        voice: voice_idx,
+                                        note: note_index,
+                                    }),
                                     time_beats: measure_start_beats + local_beats,
                                     time_secs: measure_start_secs + local_secs,
                                     pitch_midi: midi,
@@ -749,6 +759,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                 let beat_offset_secs = b as f64 * beat_unit / metro_bpm * 60.0;
                 events.push(PlaybackEvent {
                     address: None,
+                    source: None,
                     time_beats: cursor_beats + b as f64 * beat_unit,
                     time_secs: cursor_secs + beat_offset_secs,
                     pitch_midi: if is_accent {
@@ -930,6 +941,16 @@ mod tests {
         let events = to_playback_events(&score, &opts(None));
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].address.as_deref(), Some("0:0:0:0:0"));
+        assert_eq!(
+            events[0].source,
+            Some(NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            })
+        );
         assert!((events[0].time_beats).abs() < 1e-9);
         assert_eq!(events[0].pitch_midi, 60);
         assert_eq!(events[0].velocity, 64);
@@ -1542,6 +1563,13 @@ mod tests {
     fn comparison_event(time_secs: f64, duration_secs: f64) -> PlaybackEvent {
         PlaybackEvent {
             address: Some("0:0:0:0:0".into()),
+            source: Some(NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            }),
             time_beats: 0.0,
             time_secs,
             pitch_midi: 60,

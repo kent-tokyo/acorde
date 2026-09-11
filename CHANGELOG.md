@@ -63,6 +63,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   notation formatting.
 - Bumped the analysis result schema to v10 and included the canonical chord label in provenance
   responses, so explainable browser updates can render the finding without a second lookup.
+- Added an optional typed `NoteAddr` source to playback events while retaining the legacy string
+  address, allowing browser audio cursors to synchronize with notation without parsing text.
 - Suppressed tablature technique connections across rests or missing tab positions, preventing
   misleading relationships in incomplete or mixed notation input.
 - Added regression coverage for the tab-technique boundary so incomplete endpoint data cannot
