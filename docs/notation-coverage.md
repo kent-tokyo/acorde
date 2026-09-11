@@ -18,7 +18,7 @@ the `Score` model; rendering and export can have narrower format-specific covera
 | Barlines, repeats, navigation | partial | partial | partial (common barlines/repeats) | partial | partial (barlines, common `dir` navigation marks) | yes | partial / partial / partial |
 | Dynamics and articulations | yes | no | partial (common decorations) | partial | partial (common articulations/ornaments) | yes | yes / yes / MusicXML |
 | Lyrics and expression text | partial | no | no | partial | partial (single-syllable lyrics, `dir`) | yes | partial / partial / MusicXML |
-| Ties, slurs, tuplets, grace/cue notes | yes | partial | partial | partial | partial (ties/slurs/tuplets/grace) | yes | partial / partial / MusicXML |
+| Ties, slurs, tuplets, grace/cue notes | yes | partial | partial (common tuplets) | partial | partial (ties/slurs/tuplets/grace) | yes | partial / partial / MusicXML |
 | Hairpins, pedal, ottava, trill | yes | no | no | partial | no | yes | partial / yes / MusicXML |
 | Glissando spanners and cross-staff placement | yes (standard start/stop and `<staff>`) | no | no | no | no | yes | yes / yes / MusicXML |
 | Typed expression, technique, lyric, chord, rehearsal, figured-bass, generic text | partial | no | no | partial (`Harmony/name`, `Text`) | partial (`harm`, `fb`, `reh`, `dir`) | yes | partial / partial / MusicXML |
@@ -37,6 +37,8 @@ sequence-aware movement optimization are available for configured tablature stav
 tunings in non-MusicXML formats and instrument-specific engraving remain partial. Microtones use
 `Pitch::microtone_cents`; ABC supports common normal/double/repeat barlines and maps common
 decorations to canonical articulations, while unsupported decorations remain diagnosed. ABC supports
+common `(p` tuplets and preserves their actual/normal timing ratios; complete groups serialize as
+explicit `(p:q:r` markers. ABC supports
 double accidentals
 plus pure `^/` and `_/` quarter-tone spellings, and MEI supports `qs` and `qf`. ABC barline kinds
 outside that subset are reported with source-located export diagnostics. These

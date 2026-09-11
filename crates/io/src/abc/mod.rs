@@ -15,7 +15,7 @@ use crate::{Diagnostic, DiagnosticSeverity, Error, MAX_ABC_LINE_BYTES, MAX_INPUT
 /// Reference: <https://abcnotation.com/wiki/abc:standard:v2.1>
 use acorde_core::{
     Barline, Clef, Duration, KeySignature, Measure, Note, Part, Pitch, Score, Staff, Step,
-    TimeSignature,
+    TimeSignature, TupletInfo,
 };
 
 const MAX_LINES: usize = 10_000;
@@ -281,12 +281,21 @@ fn parse_body_line(
     let chars: Vec<char> = line.chars().collect();
     let mut i = 0;
     let mut pending_articulations = Vec::new();
+    let mut pending_tuplet: Option<(TupletInfo, usize)> = None;
 
     while i < chars.len() {
         let ch = chars[i];
 
         if ch == '%' {
             break;
+        }
+
+        if ch == '('
+            && let Some((tuplet, count, next_index)) = parse_abc_tuplet(&chars, i)
+        {
+            pending_tuplet = Some((tuplet, count));
+            i = next_index;
+            continue;
         }
 
         // ABC decorations use either !name! or the legacy +name+ spelling.
@@ -401,6 +410,7 @@ fn parse_body_line(
                 let mut note = Note::new(Pitch::with_alter(fs.clone(), *fo, *fa), dur);
                 note.dot_count = dot;
                 note.articulations.append(&mut pending_articulations);
+                note.tuplet = take_abc_tuplet(&mut pending_tuplet);
                 for (s, o, a) in chord.iter().skip(1) {
                     note.pitches.push(Pitch::with_alter(s.clone(), *o, *a));
                 }
@@ -429,6 +439,7 @@ fn parse_body_line(
             let mut rest = Note::rest(dur);
             rest.dot_count = dot;
             pending_articulations.clear();
+            rest.tuplet = take_abc_tuplet(&mut pending_tuplet);
             if let Some(m) = staff.measures.last_mut() {
                 m.voices[0].push(rest);
             }
@@ -493,6 +504,7 @@ fn parse_body_line(
             );
             note.dot_count = dot;
             note.articulations.append(&mut pending_articulations);
+            note.tuplet = take_abc_tuplet(&mut pending_tuplet);
             if let Some(m) = staff.measures.last_mut() {
                 m.voices[0].push(note);
             }
@@ -540,6 +552,79 @@ fn abc_decoration_articulation(value: &str) -> Option<acorde_core::Articulation>
         "caesura" => Some(acorde_core::Articulation::Caesura),
         _ => None,
     }
+}
+
+/// Parse an ABC tuplet marker `(p[:q[:r]]`.
+fn parse_abc_tuplet(chars: &[char], index: usize) -> Option<(TupletInfo, usize, usize)> {
+    if chars.get(index) != Some(&'(') {
+        return None;
+    }
+    let mut cursor = index + 1;
+    let start = cursor;
+    while chars.get(cursor).is_some_and(char::is_ascii_digit) {
+        cursor += 1;
+    }
+    if start == cursor {
+        return None;
+    }
+    let actual = chars[start..cursor]
+        .iter()
+        .collect::<String>()
+        .parse::<u8>()
+        .ok()
+        .filter(|value| *value >= 2)?;
+    let mut normal = match actual {
+        2 => 3,
+        3 => 2,
+        4 => 3,
+        _ => actual.saturating_sub(1),
+    };
+    if chars.get(cursor) == Some(&':') {
+        cursor += 1;
+        let start_normal = cursor;
+        while chars.get(cursor).is_some_and(char::is_ascii_digit) {
+            cursor += 1;
+        }
+        normal = chars[start_normal..cursor]
+            .iter()
+            .collect::<String>()
+            .parse::<u8>()
+            .ok()
+            .filter(|value| *value > 0)?;
+    }
+    let mut count = usize::from(actual);
+    if chars.get(cursor) == Some(&':') {
+        cursor += 1;
+        let start_count = cursor;
+        while chars.get(cursor).is_some_and(char::is_ascii_digit) {
+            cursor += 1;
+        }
+        count = chars[start_count..cursor]
+            .iter()
+            .collect::<String>()
+            .parse::<usize>()
+            .ok()
+            .filter(|value| *value > 0)?;
+    }
+    Some((
+        TupletInfo {
+            actual_notes: actual,
+            normal_notes: normal,
+        },
+        count,
+        cursor,
+    ))
+}
+
+fn take_abc_tuplet(pending: &mut Option<(TupletInfo, usize)>) -> Option<TupletInfo> {
+    let (tuplet, remaining) = pending.as_mut()?;
+    let result = tuplet.clone();
+    if *remaining <= 1 {
+        *pending = None;
+    } else {
+        *remaining -= 1;
+    }
+    Some(result)
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -749,8 +834,36 @@ pub fn serialize_abc(score: &Score) -> Result<String, Error> {
             if measure_index == 0 && !matches!(measure.barline_left, Barline::Normal) {
                 out.push_str(barline_to_abc(&measure.barline_left));
             }
-            for note in &measure.voices[0] {
-                out.push_str(&note_to_abc(note));
+            let notes = &measure.voices[0];
+            let mut note_index = 0;
+            while note_index < notes.len() {
+                if let Some(tuplet) = &notes[note_index].tuplet {
+                    let mut group_len = 0usize;
+                    while note_index + group_len < notes.len()
+                        && notes[note_index + group_len].tuplet.as_ref() == Some(tuplet)
+                        && group_len < usize::from(tuplet.actual_notes)
+                    {
+                        group_len += 1;
+                    }
+                    if group_len == usize::from(tuplet.actual_notes) {
+                        out.push_str(&format!(
+                            "({}:{}:{}",
+                            tuplet.actual_notes, tuplet.normal_notes, group_len
+                        ));
+                    }
+                    let emit_len = if group_len == usize::from(tuplet.actual_notes) {
+                        group_len
+                    } else {
+                        1
+                    };
+                    for note in &notes[note_index..note_index + emit_len] {
+                        out.push_str(&note_to_abc(note));
+                    }
+                    note_index += emit_len;
+                } else {
+                    out.push_str(&note_to_abc(&notes[note_index]));
+                    note_index += 1;
+                }
             }
             out.push_str(barline_to_abc(&measure.barline_right));
         }
@@ -1480,6 +1593,39 @@ C D E F | G A B c |";
             vec![acorde_core::Articulation::Trill]
         );
         assert!(loss_diagnostics(abc).is_empty());
+    }
+
+    #[test]
+    fn abc_tuplet_marker_preserves_triplet_timing_and_round_trip() {
+        let abc = "X:1\nT:Triplet\nM:2/4\nL:1/4\nK:C\n(3CDE F|\n";
+        let score = parse_abc(abc).expect("ABC triplet parses");
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+        let triplet = notes
+            .iter()
+            .filter(|note| !note.is_rest)
+            .take(3)
+            .collect::<Vec<_>>();
+        assert_eq!(triplet.len(), 3);
+        assert!(triplet.iter().all(|note| {
+            note.tuplet
+                == Some(TupletInfo {
+                    actual_notes: 3,
+                    normal_notes: 2,
+                })
+        }));
+        let triplet_beats: f64 = triplet.iter().map(|note| note.beats()).sum();
+        assert!((triplet_beats - 2.0).abs() < 1e-9);
+
+        let serialized = serialize_abc(&score).expect("ABC triplet serializes");
+        assert!(serialized.contains("(3:2:3"));
+        let restored = parse_abc(&serialized).expect("serialized triplet parses");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[0][0].tuplet,
+            Some(TupletInfo {
+                actual_notes: 3,
+                normal_notes: 2,
+            })
+        );
     }
 
     #[test]
