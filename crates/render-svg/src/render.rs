@@ -316,6 +316,7 @@ pub(crate) fn build_svg_with_metadata(
         }
     }
 
+    render_cross_measure_lyric_hyphens(&mut body, score, &note_points, space);
     render_all_spans(
         &mut body,
         score,
@@ -1843,10 +1844,11 @@ fn render_measure_voice<'a>(
                     &LyricHyphenContext {
                         part,
                         staff,
-                        measure_idx,
                         voice_idx,
                         start_note_idx: note_idx,
                         end_note_idx: next_note_idx,
+                        start_measure_idx: measure_idx,
+                        end_measure_idx: measure_idx,
                         start_x: xs[note_idx],
                         end_x: xs[next_note_idx],
                         y: (point_y + next_anchor_y) * 0.5 + 4.55 * space,
@@ -1907,10 +1909,11 @@ fn render_measure_voice<'a>(
 struct LyricHyphenContext {
     part: usize,
     staff: usize,
-    measure_idx: usize,
     voice_idx: usize,
     start_note_idx: usize,
     end_note_idx: usize,
+    start_measure_idx: usize,
+    end_measure_idx: usize,
     start_x: f32,
     end_x: f32,
     y: f32,
@@ -1921,10 +1924,11 @@ fn render_lyric_hyphen(body: &mut String, context: &LyricHyphenContext) {
     let LyricHyphenContext {
         part,
         staff,
-        measure_idx,
         voice_idx,
         start_note_idx,
         end_note_idx,
+        start_measure_idx,
+        end_measure_idx,
         start_x,
         end_x,
         y,
@@ -1937,13 +1941,100 @@ fn render_lyric_hyphen(body: &mut String, context: &LyricHyphenContext) {
     }
     let _ = write!(
         body,
-        r#"<line class="acorde-lyric-hyphen" data-start-note-addr="{part}:{staff}:{measure_idx}:{voice_idx}:{start_note_idx}" data-end-note-addr="{part}:{staff}:{measure_idx}:{voice_idx}:{end_note_idx}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
+        r#"<line class="acorde-lyric-hyphen" data-start-note-addr="{part}:{staff}:{start_measure_idx}:{voice_idx}:{start_note_idx}" data-end-note-addr="{part}:{staff}:{end_measure_idx}:{voice_idx}:{end_note_idx}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
         f(x1),
         f(y),
         f(x2),
         f(y),
         f(0.06 * space)
     );
+}
+
+fn render_cross_measure_lyric_hyphens(
+    body: &mut String,
+    score: &Score,
+    points: &HashMap<NoteKey, NotePoint>,
+    space: f32,
+) {
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    for (note_index, note) in voice.iter().enumerate() {
+                        if !matches!(
+                            note.lyric.as_ref().map(|lyric| lyric.syllabic.as_str()),
+                            Some("begin" | "middle")
+                        ) {
+                            continue;
+                        }
+                        let mut next = None;
+                        for next_measure_index in measure_index..staff.measures.len() {
+                            let next_voice = &staff.measures[next_measure_index].voices;
+                            let Some(next_notes) = next_voice.get(voice_index) else {
+                                continue;
+                            };
+                            let start = if next_measure_index == measure_index {
+                                note_index.saturating_add(1)
+                            } else {
+                                0
+                            };
+                            if let Some(next_note_index) =
+                                next_notes.iter().enumerate().skip(start).find_map(
+                                    |(index, candidate)| (!candidate.is_rest).then_some(index),
+                                )
+                            {
+                                next = Some((next_measure_index, next_note_index));
+                                break;
+                            }
+                        }
+                        let Some((next_measure_index, next_note_index)) = next else {
+                            continue;
+                        };
+                        if next_measure_index == measure_index {
+                            continue;
+                        }
+                        let Some(&(start_x, start_y, _, start_row)) = points.get(&(
+                            part_index,
+                            staff_index,
+                            measure_index,
+                            voice_index,
+                            note_index,
+                        )) else {
+                            continue;
+                        };
+                        let Some(&(end_x, end_y, _, end_row)) = points.get(&(
+                            part_index,
+                            staff_index,
+                            next_measure_index,
+                            voice_index,
+                            next_note_index,
+                        )) else {
+                            continue;
+                        };
+                        if start_row != end_row {
+                            continue;
+                        }
+                        render_lyric_hyphen(
+                            body,
+                            &LyricHyphenContext {
+                                part: part_index,
+                                staff: staff_index,
+                                voice_idx: voice_index,
+                                start_note_idx: note_index,
+                                end_note_idx: next_note_index,
+                                start_measure_idx: measure_index,
+                                end_measure_idx: next_measure_index,
+                                start_x,
+                                end_x,
+                                y: (start_y + end_y) * 0.5 + 4.55 * space,
+                                space,
+                            },
+                        );
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Plan all beam groups for one voice and return both stem tips and SVG fragments.

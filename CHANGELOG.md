@@ -21,6 +21,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   standard `*` placeholders.
 - SVG lyric hyphens now span the actual adjacent note positions and expose stable source
   addresses for interactive hosts.
+- SVG lyric hyphens now continue across adjacent measures when both notes share a system.
 - Mapped common ABC decorations (`staccato`, `accent`, `tenuto`, `marcato`, `fermata`, `trill`,
   `mordent`, `turn`, breath, and caesura) to canonical note articulations; unsupported
   decorations remain source-located export/import diagnostics.

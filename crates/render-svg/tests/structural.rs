@@ -351,6 +351,35 @@ fn lyric_hyphen_connects_adjacent_syllables_by_note_address() {
 }
 
 #[test]
+fn lyric_hyphen_connects_across_measure_boundaries_on_same_system() {
+    use acorde_core::{Duration, Lyric, Measure, Note, Pitch, Step};
+
+    let mut score = common::single_staff_score(
+        acorde_core::Clef::Treble,
+        0,
+        4,
+        4,
+        vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)],
+        vec![],
+    );
+    score.parts[0].staves[0].measures.push(Measure::empty(4, 4));
+    score.parts[0].staves[0].measures[0].voices[0][0].lyric = Some(Lyric {
+        text: "hel".into(),
+        syllabic: "begin".into(),
+    });
+    score.parts[0].staves[0].measures[1].voices[0] =
+        vec![Note::new(Pitch::new(Step::D, 4), Duration::Whole)];
+    score.parts[0].staves[0].measures[1].voices[0][0].lyric = Some(Lyric {
+        text: "lo".into(),
+        syllabic: "end".into(),
+    });
+
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert!(svg.contains("data-start-note-addr=\"0:0:0:0:0\""));
+    assert!(svg.contains("data-end-note-addr=\"0:0:1:0:0\""));
+}
+
+#[test]
 fn ornament_articulations_are_rendered_with_semantic_classes() {
     use acorde_core::{Articulation, Duration, Note, Pitch, Step};
 
