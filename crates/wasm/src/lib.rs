@@ -1836,6 +1836,7 @@ mod wasm_tests {
         assert!(metadata.contains("contract_version"));
         assert!(metadata.contains("accessible_text"));
         assert!(metadata.contains("address_bounds"));
+        assert!(metadata.contains("tablature_positions"));
         assert_eq!(render_preflight(&score_json).unwrap(), "[]");
         assert_eq!(glyph_resource_contract_version(), 1);
         let descriptor = r#"{

@@ -1126,6 +1126,23 @@ fn tablature_renders_lines_frets_and_techniques() {
     assert!(svg.contains("data-start-note-addr=\"0:0:0:0:0\""));
     assert!(svg.contains("data-end-note-addr=\"0:0:0:0:1\""));
     assert_well_formed_xml(&svg);
+
+    let layout = acorde_layout::compute_layout(&score, &acorde_layout::LayoutConfig::default());
+    let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts()).unwrap();
+    assert_eq!(metadata.tablature_positions.len(), 4);
+    assert_eq!(
+        metadata
+            .tablature_positions
+            .iter()
+            .map(|position| (
+                position.note,
+                position.position,
+                position.string,
+                position.fret
+            ))
+            .collect::<Vec<_>>(),
+        vec![(0, 0, 2, 3), (0, 1, 3, 2), (1, 0, 2, 5), (1, 1, 3, 4)]
+    );
 }
 
 #[test]
