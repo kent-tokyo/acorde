@@ -1831,6 +1831,43 @@ fn render_measure(
         }
     }
 
+    render_measure_text(
+        body,
+        measure,
+        part,
+        staff,
+        measure_idx,
+        content_x0,
+        x,
+        bottom_y,
+        width,
+        space,
+        interactive,
+    );
+
+    body.push_str("</g>");
+    Ok(())
+}
+
+/// Render measure-level publication and navigation text after note content has been placed.
+///
+/// Text stacking is intentionally kept separate from note and beam rendering: this gives later
+/// print-quality work one place to add font-independent collision policies without changing the
+/// event-coordinate pipeline.
+#[allow(clippy::too_many_arguments)]
+fn render_measure_text(
+    body: &mut String,
+    measure: &Measure,
+    part: usize,
+    staff: usize,
+    measure_idx: usize,
+    content_x0: f32,
+    x: f32,
+    bottom_y: f32,
+    width: f32,
+    space: f32,
+    interactive: bool,
+) {
     let mut above_texts = 0usize;
     let mut below_texts = 0usize;
     for (text_index, styled) in measure_text_entries(measure).into_iter().enumerate() {
@@ -1869,15 +1906,13 @@ fn render_measure(
         } else {
             String::new()
         };
-        let anchor = "start";
         let style = if italic { " font-style=\"italic\"" } else { "" };
         let _ = write!(
             body,
-            r#"<text class="{class}" x="{x}" y="{y}" text-anchor="{anchor}" font-family="serif" font-size="{size}"{style}{attributes}>{text}</text>"#,
+            r#"<text class="{class}" x="{x}" y="{y}" text-anchor="start" font-family="serif" font-size="{size}"{style}{attributes}>{text}</text>"#,
             class = class,
             x = f(text_x),
             y = f(y),
-            anchor = anchor,
             size = f(0.78 * space),
             style = style,
             attributes = attributes,
@@ -1900,9 +1935,6 @@ fn render_measure(
             );
         }
     }
-
-    body.push_str("</g>");
-    Ok(())
 }
 
 /// Return the horizontal offset, in staff spaces, for one grace note in a consecutive run.
