@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, HashMap, VecDeque};
 use thiserror::Error;
 
 /// Version of the serialized analysis result contract.
-pub const ANALYSIS_SCHEMA_VERSION: u32 = 7;
+pub const ANALYSIS_SCHEMA_VERSION: u32 = 8;
 
 /// A chord label with source evidence and the rule that produced it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -670,6 +670,33 @@ pub fn analyze_chords_in_region(score: &Score, region: Option<&AnalysisRegion>) 
                     .as_ref()
                     .unwrap_or(&score.settings.key_signature);
                 for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    let authored: Vec<_> = voice
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(note_index, note)| {
+                            note.chord_symbol.as_ref().map(|chord| (note_index, chord))
+                        })
+                        .collect();
+                    if !authored.is_empty() {
+                        for (note_index, chord) in authored {
+                            let address = NoteAddr {
+                                part: part_index,
+                                staff: staff_index,
+                                measure: measure_index,
+                                voice: voice_index,
+                                note: note_index,
+                            };
+                            chords.push(ChordLabel {
+                                address: address.clone(),
+                                roman_numeral: roman_numeral(chord, key),
+                                chord: chord.clone(),
+                                confidence: 100,
+                                rule_id: "authored-chord-symbol".to_string(),
+                                evidence: vec![address],
+                            });
+                        }
+                        continue;
+                    }
                     let pitched: Vec<_> = voice
                         .iter()
                         .enumerate()
@@ -1968,6 +1995,39 @@ mod tests {
     }
 
     #[test]
+    fn authored_chord_symbol_wins_with_source_address_provenance() {
+        use acorde_core::ChordSymbol;
+
+        let mut score = Score::default();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        note.chord_symbol = Some(ChordSymbol {
+            root: "F".to_owned(),
+            kind: "dominant".to_owned(),
+            bass: Some("A".to_owned()),
+            placement: None,
+            extender: false,
+            harmonic_degree: Some("4".to_owned()),
+            harmony_function: Some("D".to_owned()),
+            harmony_type: None,
+            chord_ref: None,
+            degrees: Vec::new(),
+        });
+        voice.push(note);
+
+        let result = analyze_score(&score);
+        assert_eq!(result.chords.len(), 1);
+        assert_eq!(result.chords[0].rule_id, "authored-chord-symbol");
+        assert_eq!(result.chords[0].address.note, 0);
+        assert_eq!(
+            result.chords[0].evidence,
+            vec![result.chords[0].address.clone()]
+        );
+        assert_eq!(chord_name(&result.chords[0].chord), "F7/A");
+    }
+
+    #[test]
     fn provenance_returns_stable_explanations_for_a_note() {
         let mut score = Score::default();
         let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
@@ -2045,10 +2105,10 @@ mod tests {
     #[test]
     fn cache_key_includes_schema_and_score_identity() {
         let result = analyze_score(&Score::default());
-        assert!(result.cache_key().starts_with("analysis-v7-fnv1a64-"));
+        assert!(result.cache_key().starts_with("analysis-v8-fnv1a64-"));
         assert_eq!(result.cache_key(), analysis_cache_key(&Score::default()));
         let mut changed = result.clone();
-        changed.schema_version = 8;
+        changed.schema_version = ANALYSIS_SCHEMA_VERSION + 1;
         assert_ne!(result.cache_key(), changed.cache_key());
     }
 
