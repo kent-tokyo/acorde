@@ -984,6 +984,13 @@ fn abc_barline_is_exact(barline: &Barline) -> bool {
     )
 }
 
+fn abc_tuplet_run_len(notes: &[Note], start: usize, tuplet: &TupletInfo) -> usize {
+    notes[start..]
+        .iter()
+        .take_while(|note| note.tuplet.as_ref() == Some(tuplet))
+        .count()
+}
+
 /// Report canonical score data that the deliberately small ABC exporter cannot emit.
 pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
     const MAX_DIAGNOSTICS: usize = 1_024;
@@ -1122,6 +1129,24 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                     measure_index + 1,
                     note_index + 1
                 );
+                let starts_tuplet_group = note_index == 0
+                    || measure.voices[0][note_index - 1].tuplet.as_ref() != note.tuplet.as_ref();
+                if starts_tuplet_group {
+                    if let Some(tuplet) = note.tuplet.as_ref() {
+                        let group_len = abc_tuplet_run_len(&measure.voices[0], note_index, tuplet);
+                        let actual_notes = usize::from(tuplet.actual_notes);
+                        if actual_notes == 0 || group_len < actual_notes {
+                            push(
+                                format!("{note_path}/tuplet"),
+                                format!(
+                                    "{}:{}:{} notes",
+                                    tuplet.actual_notes, tuplet.normal_notes, group_len
+                                ),
+                                "ABC export cannot preserve an incomplete tuplet group",
+                            );
+                        }
+                    }
+                }
                 for (field, present, value, reason) in [
                     (
                         "chord-symbol",
@@ -1701,6 +1726,12 @@ C D E F | G A B c |";
 
         let serialized = serialize_abc(&score).expect("ABC triplet serializes");
         assert!(serialized.contains("(3:2:3"));
+        assert!(export_loss_diagnostics(&score).iter().all(|diagnostic| {
+            !diagnostic
+                .source_location
+                .as_deref()
+                .is_some_and(|path| path.ends_with("/tuplet"))
+        }));
         let restored = parse_abc(&serialized).expect("serialized triplet parses");
         assert_eq!(
             restored.parts[0].staves[0].measures[0].voices[0][0].tuplet,
@@ -1708,6 +1739,44 @@ C D E F | G A B c |";
                 actual_notes: 3,
                 normal_notes: 2,
             })
+        );
+    }
+
+    #[test]
+    fn abc_export_reports_incomplete_tuplet_group_at_first_note() {
+        let mut score = Score::new("Incomplete tuplet", 120, 4, 4, 0, 1);
+        let notes = &mut score.parts[0].staves[0].measures[0].voices[0];
+        notes.push(Note::new(Pitch::new(Step::D, 4), Duration::Quarter));
+        for note in notes.iter_mut().take(2) {
+            note.tuplet = Some(TupletInfo {
+                actual_notes: 3,
+                normal_notes: 2,
+            });
+        }
+
+        let diagnostics = export_loss_diagnostics(&score);
+        let diagnostic = diagnostics
+            .iter()
+            .find(|diagnostic| {
+                diagnostic.source_location.as_deref()
+                    == Some("/score/part/1/staff/1/measure/1/voice/1/note/1/tuplet")
+            })
+            .expect("incomplete tuplet is diagnosed");
+        assert_eq!(diagnostic.code, "abc.export-unsupported-field");
+        assert_eq!(diagnostic.preserved_value.as_deref(), Some("3:2:2 notes"));
+        assert_eq!(
+            diagnostic.loss_reason.as_deref(),
+            Some("ABC export cannot preserve an incomplete tuplet group")
+        );
+        assert_eq!(
+            diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic
+                    .source_location
+                    .as_deref()
+                    .is_some_and(|path| path.ends_with("/tuplet")))
+                .count(),
+            1
         );
     }
 
