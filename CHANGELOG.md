@@ -48,6 +48,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (`authored-chord-symbol`) instead of replacing them with inferred pitch-class labels.
 - Reused the core chord display policy in analysis labels, preserving authored add/alter/subtract
   degree extensions instead of dropping them from human-readable chord explanations.
+- Extracted SVG serialization and render-metadata assembly from the page renderer, keeping the
+  rendering loop focused while preserving the existing SVG and metadata contracts.
 - Suppressed tablature technique connections across rests or missing tab positions, preventing
   misleading relationships in incomplete or mixed notation input.
 - Added regression coverage for the tab-technique boundary so incomplete endpoint data cannot

@@ -328,19 +328,42 @@ pub(crate) fn build_svg_with_metadata(
         options.interactive,
     );
 
+    let svg = format_svg(score, layout, &body, options.width, total_height);
+    let metadata = build_render_metadata(
+        score,
+        &staff_refs,
+        note_points,
+        space,
+        options.width,
+        total_height,
+    );
+    Ok((svg, metadata))
+}
+
+fn format_svg(score: &Score, layout: &LayoutResult, body: &str, width: f32, height: f32) -> String {
     let title = escape_xml(&score.metadata.title);
     let description = escape_xml(&format!(
         "{} parts, {} systems",
         score.parts.len(),
         layout.rows.len().max(1)
     ));
-    let svg = format!(
+    format!(
         r#"<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}" role="img"><title>{title}</title><desc>{description}</desc><g class="acorde-score">{body}</g></svg>"#,
-        w = f(options.width),
-        h = f(total_height),
+        w = f(width),
+        h = f(height),
         title = title,
         description = description,
-    );
+    )
+}
+
+fn build_render_metadata(
+    score: &Score,
+    staff_refs: &[(usize, usize)],
+    note_points: HashMap<NoteKey, NotePoint>,
+    space: f32,
+    width: f32,
+    total_height: f32,
+) -> RenderMetadata {
     let mut address_bounds: Vec<AddressBounds> = note_points
         .into_iter()
         .map(
@@ -364,37 +387,7 @@ pub(crate) fn build_svg_with_metadata(
         .max()
         .unwrap_or(0);
     let note_count = address_bounds.len();
-    let text_annotations =
-        score
-            .parts
-            .iter()
-            .enumerate()
-            .flat_map(|(part_index, part)| {
-                part.staves
-                    .iter()
-                    .enumerate()
-                    .flat_map(move |(staff_index, staff)| {
-                        staff.measures.iter().enumerate().flat_map(
-                            move |(measure_index, measure)| {
-                                measure_text_entries(measure)
-                                    .into_iter()
-                                    .map(move |styled| TextAnnotation {
-                                        part: part_index,
-                                        staff: staff_index,
-                                        measure: measure_index,
-                                        style: styled.style,
-                                        text: styled.text,
-                                        placement: styled.placement,
-                                        offset_x: styled.offset_x,
-                                        offset_y: styled.offset_y,
-                                        relative_x: styled.relative_x,
-                                        relative_y: styled.relative_y,
-                                    })
-                            },
-                        )
-                    })
-            })
-            .collect();
+    let text_annotations = collect_text_annotations(score);
     let accessible_text = format!(
         "{}; {} parts, {} staves, {} measures, {} note events",
         score.metadata.title,
@@ -403,21 +396,53 @@ pub(crate) fn build_svg_with_metadata(
         measure_count,
         note_count
     );
-    Ok((
-        svg,
-        RenderMetadata {
-            contract_version: SVG_CONTRACT_VERSION,
-            width: options.width,
-            height: total_height,
-            part_count: score.parts.len(),
-            staff_count: staff_refs.len(),
-            measure_count,
-            note_count,
-            accessible_text,
-            address_bounds,
-            text_annotations,
-        },
-    ))
+    RenderMetadata {
+        contract_version: SVG_CONTRACT_VERSION,
+        width,
+        height: total_height,
+        part_count: score.parts.len(),
+        staff_count: staff_refs.len(),
+        measure_count,
+        note_count,
+        accessible_text,
+        address_bounds,
+        text_annotations,
+    }
+}
+
+fn collect_text_annotations(score: &Score) -> Vec<TextAnnotation> {
+    score
+        .parts
+        .iter()
+        .enumerate()
+        .flat_map(|(part_index, part)| {
+            part.staves
+                .iter()
+                .enumerate()
+                .flat_map(move |(staff_index, staff)| {
+                    staff
+                        .measures
+                        .iter()
+                        .enumerate()
+                        .flat_map(move |(measure_index, measure)| {
+                            measure_text_entries(measure)
+                                .into_iter()
+                                .map(move |styled| TextAnnotation {
+                                    part: part_index,
+                                    staff: staff_index,
+                                    measure: measure_index,
+                                    style: styled.style,
+                                    text: styled.text,
+                                    placement: styled.placement,
+                                    offset_x: styled.offset_x,
+                                    offset_y: styled.offset_y,
+                                    relative_x: styled.relative_x,
+                                    relative_y: styled.relative_y,
+                                })
+                        })
+                })
+        })
+        .collect()
 }
 
 pub(crate) fn collect_annotations(
