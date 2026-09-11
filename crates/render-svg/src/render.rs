@@ -1577,6 +1577,7 @@ fn render_measure(
         .enumerate()
         .filter_map(|(index, voice)| (!voice.is_empty()).then_some(index))
         .collect();
+    let mut prior_voice_events = Vec::new();
 
     let mut opened = String::new();
     if interactive {
@@ -1629,6 +1630,15 @@ fn render_measure(
             beat_pos += note.beats();
         }
         resolve_adjacent_event_spacing(notes, &mut xs, content_x0, content_w, space);
+        resolve_cross_voice_event_spacing(
+            notes,
+            &mut xs,
+            &prior_voice_events,
+            content_x0,
+            content_w,
+            space,
+        );
+        prior_voice_events.extend(notes.iter().zip(xs.iter()).map(|(note, &x)| (x, note)));
 
         // Beam plan: acorde-layout's beam_groups is the source of truth for *which* notes
         // are beamed together — this renderer never re-infers grouping, only geometry.
@@ -1874,6 +1884,51 @@ fn voice_separation_u(measure: &Measure, voice_slots: &[usize], target_beat: f64
         })
         .map(|(left, right)| (left + right) / 2.0 + 0.18)
         .fold(VOICE_SEPARATION_U, f32::max)
+}
+
+/// Resolve collisions between an event in the current voice and already-positioned events in
+/// earlier voices. Ordinary noteheads retain the historical voice geometry; only an accidental
+/// or note-attached annotation activates the wider footprint policy. Shifts are committed as one
+/// candidate so a dense measure either keeps its original coordinates or receives the full safe
+/// adjustment without a partially shifted voice.
+fn resolve_cross_voice_event_spacing(
+    notes: &[Note],
+    xs: &mut [f32],
+    prior_events: &[(f32, &Note)],
+    content_x0: f32,
+    content_w: f32,
+    space: f32,
+) {
+    if notes.is_empty() || xs.len() != notes.len() || prior_events.is_empty() {
+        return;
+    }
+    let mut candidate = xs.to_vec();
+    for (index, note) in notes.iter().enumerate() {
+        let mut x = candidate[index];
+        let wide_current = note_annotation_width_u(note) > 0.0
+            || note.pitches.iter().any(|pitch| pitch.alter != 0);
+        for &(prior_x, prior_note) in prior_events {
+            let wide_prior = note_annotation_width_u(prior_note) > 0.0
+                || prior_note.pitches.iter().any(|pitch| pitch.alter != 0);
+            if !wide_current && !wide_prior || prior_x > x {
+                continue;
+            }
+            let minimum_gap =
+                (event_footprint_u(prior_note) + event_footprint_u(note)) / 2.0 + 0.18;
+            x = x.max(prior_x + minimum_gap * space);
+        }
+        candidate[index] = x;
+        for later in candidate.iter_mut().skip(index + 1) {
+            *later = (*later).max(x);
+        }
+    }
+    let right_edge = content_x0 + content_w;
+    if candidate
+        .last()
+        .is_some_and(|&last| last <= right_edge - 0.25 * space && last.is_finite())
+    {
+        xs.copy_from_slice(&candidate);
+    }
 }
 
 /// Resolve horizontal clearance between adjacent events in one voice. The rhythm-derived

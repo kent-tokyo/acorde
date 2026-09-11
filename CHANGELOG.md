@@ -31,6 +31,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   notation and annotation clearance behavior centralized and independently testable.
 - Included simultaneous-voice accidental footprints in the same conditional spacing policy, so
   cross-voice accidental columns receive clearance without widening ordinary passages.
+- Added deterministic cross-voice clearance for nearby annotated or accidental events, preserving
+  rhythmic positions when possible and atomically retaining the original layout when capacity is
+  insufficient.
 - Aggregated minimum per-measure widths before SVG emission and rejected systems that cannot fit
   those lower bounds, preventing barlines from extending beyond the available system width.
 - Sized rendered staff systems from their configured tablature line count, preventing extended tab
