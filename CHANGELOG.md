@@ -50,6 +50,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   degree extensions instead of dropping them from human-readable chord explanations.
 - Extracted SVG serialization and render-metadata assembly from the page renderer, keeping the
   rendering loop focused while preserving the existing SVG and metadata contracts.
+- Corrected tablature hammer-on and pull-off curve control points so the two techniques render on
+  deterministic, distinct sides of their connected string events.
 - Suppressed tablature technique connections across rests or missing tab positions, preventing
   misleading relationships in incomplete or mixed notation input.
 - Added regression coverage for the tab-technique boundary so incomplete endpoint data cannot

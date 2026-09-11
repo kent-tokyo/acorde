@@ -2940,12 +2940,7 @@ fn render_tab_technique_connection(
                 f(0.08 * space)
             );
         } else {
-            let direction = if matches!(technique, acorde_core::GuitarTechnique::HammerOn) {
-                -1.0
-            } else {
-                1.0
-            };
-            let control_y = (y1.min(y2) + direction * space).min(y1.min(y2));
+            let control_y = tab_technique_control_y(technique, y1, y2, *space);
             let _ = write!(
                 body,
                 r#"<path class="{class}" data-technique="{data_technique}" data-string="{string}" data-start-note-addr="{start_addr}" data-end-note-addr="{end_addr}" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
@@ -2958,6 +2953,19 @@ fn render_tab_technique_connection(
                 f(0.08 * space)
             );
         }
+    }
+}
+
+fn tab_technique_control_y(
+    technique: &acorde_core::GuitarTechnique,
+    y1: f32,
+    y2: f32,
+    space: f32,
+) -> f32 {
+    if matches!(technique, acorde_core::GuitarTechnique::HammerOn) {
+        y1.min(y2) - space
+    } else {
+        y1.max(y2) + space
     }
 }
 
@@ -3638,7 +3646,7 @@ fn courtesy_wrapped(alter: i8, cx: f32, cy: f32, space: f32) -> String {
 mod tests {
     use super::{
         Note, content_horizontal_margins, event_footprint_u, measure_text_width_u,
-        resolve_adjacent_event_spacing, resolve_cross_voice_event_spacing,
+        resolve_adjacent_event_spacing, resolve_cross_voice_event_spacing, tab_technique_control_y,
     };
     use acorde_core::{Duration, Lyric, NoteHead, Pitch, Score, Step};
     use std::collections::HashMap;
@@ -3657,6 +3665,16 @@ mod tests {
         let mut tight_positions = [0.0, 1.0];
         resolve_adjacent_event_spacing(&notes, &mut tight_positions, 0.0, 1.1, 10.0);
         assert_eq!(tight_positions, [0.0, 1.0]);
+    }
+
+    #[test]
+    fn tab_technique_curves_use_distinct_directions() {
+        use acorde_core::GuitarTechnique;
+
+        let hammer = tab_technique_control_y(&GuitarTechnique::HammerOn, 10.0, 12.0, 2.0);
+        let pull = tab_technique_control_y(&GuitarTechnique::PullOff, 10.0, 12.0, 2.0);
+        assert_eq!(hammer, 8.0);
+        assert_eq!(pull, 14.0);
     }
 
     #[test]
