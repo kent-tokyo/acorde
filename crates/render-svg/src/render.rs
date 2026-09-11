@@ -1824,6 +1824,37 @@ fn render_measure_voice<'a>(
             };
             render_tab_technique_connection(body, &context, note_idx);
         }
+        if matches!(
+            note.lyric.as_ref().map(|lyric| lyric.syllabic.as_str()),
+            Some("begin" | "middle")
+        ) {
+            if let Some(next_note_idx) =
+                ((note_idx + 1)..notes.len()).find(|&index| !notes[index].is_rest)
+            {
+                let next_anchor_y = note_attach_y(
+                    &notes[next_note_idx],
+                    clef_bottom,
+                    notes[next_note_idx].stem_up.unwrap_or(up),
+                    bottom_y,
+                    space,
+                );
+                render_lyric_hyphen(
+                    body,
+                    &LyricHyphenContext {
+                        part,
+                        staff,
+                        measure_idx,
+                        voice_idx,
+                        start_note_idx: note_idx,
+                        end_note_idx: next_note_idx,
+                        start_x: xs[note_idx],
+                        end_x: xs[next_note_idx],
+                        y: (point_y + next_anchor_y) * 0.5 + 4.55 * space,
+                        space,
+                    },
+                );
+            }
+        }
     }
     body.push_str(&beam_svg);
 
@@ -1871,6 +1902,48 @@ fn render_measure_voice<'a>(
         body.push_str(&plan.svg);
     }
     Ok(())
+}
+
+struct LyricHyphenContext {
+    part: usize,
+    staff: usize,
+    measure_idx: usize,
+    voice_idx: usize,
+    start_note_idx: usize,
+    end_note_idx: usize,
+    start_x: f32,
+    end_x: f32,
+    y: f32,
+    space: f32,
+}
+
+fn render_lyric_hyphen(body: &mut String, context: &LyricHyphenContext) {
+    let LyricHyphenContext {
+        part,
+        staff,
+        measure_idx,
+        voice_idx,
+        start_note_idx,
+        end_note_idx,
+        start_x,
+        end_x,
+        y,
+        space,
+    } = *context;
+    let x1 = start_x + 0.7 * space;
+    let x2 = end_x - 0.7 * space;
+    if !x1.is_finite() || !x2.is_finite() || !y.is_finite() || x2 <= x1 {
+        return;
+    }
+    let _ = write!(
+        body,
+        r#"<line class="acorde-lyric-hyphen" data-start-note-addr="{part}:{staff}:{measure_idx}:{voice_idx}:{start_note_idx}" data-end-note-addr="{part}:{staff}:{measure_idx}:{voice_idx}:{end_note_idx}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
+        f(x1),
+        f(y),
+        f(x2),
+        f(y),
+        f(0.06 * space)
+    );
 }
 
 /// Plan all beam groups for one voice and return both stem tips and SVG fragments.
@@ -3225,17 +3298,6 @@ fn render_note_annotations(
             space,
             false,
         );
-        if lyric.syllabic == "begin" || lyric.syllabic == "middle" {
-            let _ = write!(
-                body,
-                r#"<line class="acorde-lyric-hyphen" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
-                f(x + 0.7 * space),
-                f(anchor_y + 4.55 * space),
-                f(x + 1.1 * space),
-                f(anchor_y + 4.55 * space),
-                f(0.06 * space)
-            );
-        }
     }
     render_articulation_annotations(
         body,
