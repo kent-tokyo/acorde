@@ -1753,6 +1753,39 @@ mod tests {
     }
 
     #[test]
+    fn measure_text_command_is_available_through_json_engine_api() {
+        let command = acorde_core::Command::SetMeasureText(acorde_core::SetMeasureTextCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            text_index: 0,
+            text: Some(acorde_core::StyledText {
+                style: acorde_core::TextStyle::RehearsalMark,
+                text: "A".to_owned(),
+                placement: None,
+                offset_x: None,
+                offset_y: None,
+                relative_x: None,
+                relative_y: None,
+            }),
+        });
+        let command_json = serde_json::to_string(&command).unwrap();
+        let mut engine = ScoreEngine::new();
+        engine.apply(&command_json).unwrap();
+        let score: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert_eq!(score.parts[0].staves[0].measures[0].texts[0].text, "A");
+        engine.undo().unwrap();
+        let score: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert!(score.parts[0].staves[0].measures[0].texts.is_empty());
+        engine.redo().unwrap();
+        let score: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].texts[0].style,
+            acorde_core::TextStyle::RehearsalMark
+        );
+    }
+
+    #[test]
     fn score_patch_json_roundtrip_applies_changes() {
         let mut before = Score::new("Before", 120, 4, 4, 0, 1);
         let mut after = before.clone();
