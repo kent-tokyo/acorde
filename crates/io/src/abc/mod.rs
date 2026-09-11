@@ -927,10 +927,12 @@ pub fn serialize_abc(score: &Score) -> Result<String, Error> {
             let lyric_tokens = staff
                 .measures
                 .iter()
-                .flat_map(|measure| {
-                    measure.voices[0]
-                        .iter()
-                        .filter_map(|note| note.lyric.as_ref().map(abc_lyric_token))
+                .flat_map(|measure| measure.voices[0].iter())
+                .filter(|note| !note.is_rest)
+                .map(|note| {
+                    note.lyric
+                        .as_ref()
+                        .map_or_else(|| "*".to_string(), abc_lyric_token)
                 })
                 .collect::<Vec<_>>();
             if !lyric_tokens.is_empty() {
@@ -1745,6 +1747,33 @@ C D E F | G A B c |";
         assert_eq!(
             restored.parts[0].staves[0].measures[0].voices[0][1].lyric,
             notes[1].lyric
+        );
+    }
+
+    #[test]
+    fn abc_lyrics_preserve_unlyricized_note_positions() {
+        let mut score = Score::new("Lyrics", 120, 4, 4, 0, 1);
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        voice.push(Note::new(Pitch::new(Step::C, 4), Duration::Quarter));
+        let mut second = Note::new(Pitch::new(Step::D, 4), Duration::Quarter);
+        second.lyric = Some(acorde_core::Lyric {
+            text: "word".to_string(),
+            syllabic: "single".to_string(),
+        });
+        voice.push(second);
+
+        let serialized = serialize_abc(&score).expect("ABC lyrics serialize");
+        assert!(serialized.contains("w: * word"));
+        let restored = parse_abc(&serialized).expect("serialized ABC lyrics parse");
+        let restored_voice = &restored.parts[0].staves[0].measures[0].voices[0];
+        assert!(restored_voice[0].lyric.is_none());
+        assert_eq!(
+            restored_voice[1]
+                .lyric
+                .as_ref()
+                .map(|lyric| lyric.text.as_str()),
+            Some("word")
         );
     }
 

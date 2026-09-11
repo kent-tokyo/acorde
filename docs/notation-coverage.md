@@ -39,8 +39,8 @@ tunings in non-MusicXML formats and instrument-specific engraving remain partial
 decorations to canonical articulations, while unsupported decorations remain diagnosed. ABC supports
 common `(p` tuplets and preserves their actual/normal timing ratios; complete groups serialize as
 explicit `(p:q:r` markers. ABC supports
-common `w:` lyric lines with note alignment, syllable boundaries, and `~`-joined spaces; only the
-first voice is serialized. ABC supports
+common `w:` lyric lines with note alignment, syllable boundaries, `~`-joined spaces, and `*`
+placeholders for unlyricized notes; only the first voice is serialized. ABC supports
 double accidentals
 plus pure `^/` and `_/` quarter-tone spellings, and MEI supports `qs` and `qf`. ABC barline kinds
 outside that subset are reported with source-located export diagnostics. These
