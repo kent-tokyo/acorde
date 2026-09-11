@@ -991,6 +991,139 @@ fn abc_tuplet_run_len(notes: &[Note], start: usize, tuplet: &TupletInfo) -> usiz
         .count()
 }
 
+fn abc_note_export_losses(
+    notes: &[Note],
+    note_index: usize,
+    note_path: &str,
+) -> Vec<(String, String, &'static str)> {
+    let note = &notes[note_index];
+    let mut losses = Vec::new();
+    let starts_tuplet_group =
+        note_index == 0 || notes[note_index - 1].tuplet.as_ref() != note.tuplet.as_ref();
+    if starts_tuplet_group {
+        if let Some(tuplet) = note.tuplet.as_ref() {
+            let group_len = abc_tuplet_run_len(notes, note_index, tuplet);
+            let actual_notes = usize::from(tuplet.actual_notes);
+            if actual_notes == 0 || group_len < actual_notes {
+                losses.push((
+                    format!("{note_path}/tuplet"),
+                    format!(
+                        "{}:{}:{} notes",
+                        tuplet.actual_notes, tuplet.normal_notes, group_len
+                    ),
+                    "ABC export cannot preserve an incomplete tuplet group",
+                ));
+            }
+        }
+    }
+    for (field, present, value, reason) in [
+        (
+            "chord-symbol",
+            note.chord_symbol.is_some(),
+            note.chord_symbol
+                .as_ref()
+                .map_or_else(|| "present".to_string(), |chord| chord.display_text()),
+            "ABC export does not emit note chord-symbol annotations",
+        ),
+        (
+            "dynamic",
+            note.dynamic.is_some(),
+            note.dynamic.as_ref().map_or_else(
+                || "present".to_string(),
+                |dynamic| dynamic.to_musicxml_str().to_string(),
+            ),
+            "ABC export does not emit note dynamics",
+        ),
+        (
+            "articulations",
+            !note.articulations.is_empty(),
+            note.articulations.len().to_string(),
+            "ABC export does not emit note articulations",
+        ),
+        (
+            "note_head",
+            !matches!(note.note_head, acorde_core::NoteHead::Normal),
+            format!("{:?}", note.note_head),
+            "ABC export does not emit alternate notehead shapes",
+        ),
+        (
+            "is_unpitched",
+            note.is_unpitched,
+            "true".to_string(),
+            "ABC export does not emit unpitched note semantics",
+        ),
+        (
+            "is_grace",
+            note.is_grace,
+            "true".to_string(),
+            "ABC export does not emit grace-note semantics",
+        ),
+        (
+            "is_cue",
+            note.is_cue,
+            "true".to_string(),
+            "ABC export does not emit cue-note semantics",
+        ),
+    ] {
+        if present {
+            losses.push((format!("{note_path}/{field}"), value, reason));
+        }
+    }
+    if let Some(harmony_type) = note
+        .chord_symbol
+        .as_ref()
+        .and_then(|chord| chord.harmony_type.as_ref())
+    {
+        losses.push((
+            format!("{note_path}/chord-symbol/harm@type"),
+            harmony_type.clone(),
+            "ABC export does not represent MEI harm@type metadata",
+        ));
+    }
+    if let Some(chord_ref) = note
+        .chord_symbol
+        .as_ref()
+        .and_then(|chord| chord.chord_ref.as_ref())
+    {
+        losses.push((
+            format!("{note_path}/chord-symbol/harm@chordref"),
+            chord_ref.clone(),
+            "ABC export does not represent MEI harm@chordref metadata",
+        ));
+    }
+    if note.tab_position.is_some() || !note.tab_positions.is_empty() {
+        losses.push((
+            format!("{note_path}/tablature"),
+            "position(s) present".to_string(),
+            "ABC exporter does not emit string/fret tablature positions",
+        ));
+    }
+    if note.guitar_technique.is_some() {
+        losses.push((
+            format!("{note_path}/technique"),
+            "guitar technique present".to_string(),
+            "ABC exporter does not emit guitar-specific techniques",
+        ));
+    }
+    for (pitch_index, pitch) in note.pitches.iter().enumerate() {
+        let abc_pitch_supported = matches!(
+            (pitch.alter, pitch.microtone_cents),
+            (-2..=2, 0) | (0, 50 | -50)
+        );
+        if !abc_pitch_supported {
+            losses.push((
+                format!("{note_path}/pitch/{}", pitch_index + 1),
+                format!(
+                    "alter={},microtone_cents={}",
+                    pitch.alter, pitch.microtone_cents
+                ),
+                "ABC exporter supports only double-accidental semitones and pure quarter-tone spellings",
+            ));
+        }
+    }
+    losses
+}
+
 /// Report canonical score data that the deliberately small ABC exporter cannot emit.
 pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
     const MAX_DIAGNOSTICS: usize = 1_024;
@@ -1122,161 +1255,17 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                     );
                 }
             }
-            for (note_index, note) in measure.voices[0].iter().enumerate() {
+            for (note_index, _note) in measure.voices[0].iter().enumerate() {
                 let note_path = format!(
                     "/score/part/{}/staff/1/measure/{}/voice/1/note/{}",
                     part_index + 1,
                     measure_index + 1,
                     note_index + 1
                 );
-                let starts_tuplet_group = note_index == 0
-                    || measure.voices[0][note_index - 1].tuplet.as_ref() != note.tuplet.as_ref();
-                if starts_tuplet_group {
-                    if let Some(tuplet) = note.tuplet.as_ref() {
-                        let group_len = abc_tuplet_run_len(&measure.voices[0], note_index, tuplet);
-                        let actual_notes = usize::from(tuplet.actual_notes);
-                        if actual_notes == 0 || group_len < actual_notes {
-                            push(
-                                format!("{note_path}/tuplet"),
-                                format!(
-                                    "{}:{}:{} notes",
-                                    tuplet.actual_notes, tuplet.normal_notes, group_len
-                                ),
-                                "ABC export cannot preserve an incomplete tuplet group",
-                            );
-                        }
-                    }
-                }
-                for (field, present, value, reason) in [
-                    (
-                        "chord-symbol",
-                        note.chord_symbol.is_some(),
-                        note.chord_symbol
-                            .as_ref()
-                            .map_or_else(|| "present".to_string(), |chord| chord.display_text()),
-                        "ABC export does not emit note chord-symbol annotations",
-                    ),
-                    (
-                        "dynamic",
-                        note.dynamic.is_some(),
-                        note.dynamic.as_ref().map_or_else(
-                            || "present".to_string(),
-                            |dynamic| dynamic.to_musicxml_str().to_string(),
-                        ),
-                        "ABC export does not emit note dynamics",
-                    ),
-                    (
-                        "articulations",
-                        !note.articulations.is_empty(),
-                        note.articulations.len().to_string(),
-                        "ABC export does not emit note articulations",
-                    ),
-                    (
-                        "note_head",
-                        !matches!(note.note_head, acorde_core::NoteHead::Normal),
-                        format!("{:?}", note.note_head),
-                        "ABC export does not emit alternate notehead shapes",
-                    ),
-                    (
-                        "is_unpitched",
-                        note.is_unpitched,
-                        "true".to_string(),
-                        "ABC export does not emit unpitched note semantics",
-                    ),
-                    (
-                        "is_grace",
-                        note.is_grace,
-                        "true".to_string(),
-                        "ABC export does not emit grace-note semantics",
-                    ),
-                    (
-                        "is_cue",
-                        note.is_cue,
-                        "true".to_string(),
-                        "ABC export does not emit cue-note semantics",
-                    ),
-                ] {
-                    if present {
-                        push(format!("{note_path}/{field}"), value, reason);
-                    }
-                }
-                if let Some(harmony_type) = note
-                    .chord_symbol
-                    .as_ref()
-                    .and_then(|chord| chord.harmony_type.as_ref())
+                for (path, value, reason) in
+                    abc_note_export_losses(&measure.voices[0], note_index, &note_path)
                 {
-                    push(
-                        format!(
-                            "/score/part/{}/staff/1/measure/{}/voice/1/note/{}/chord-symbol/harm@type",
-                            part_index + 1,
-                            measure_index + 1,
-                            note_index + 1
-                        ),
-                        harmony_type.clone(),
-                        "ABC export does not represent MEI harm@type metadata",
-                    );
-                }
-                if let Some(chord_ref) = note
-                    .chord_symbol
-                    .as_ref()
-                    .and_then(|chord| chord.chord_ref.as_ref())
-                {
-                    push(
-                        format!(
-                            "/score/part/{}/staff/1/measure/{}/voice/1/note/{}/chord-symbol/harm@chordref",
-                            part_index + 1,
-                            measure_index + 1,
-                            note_index + 1
-                        ),
-                        chord_ref.clone(),
-                        "ABC export does not represent MEI harm@chordref metadata",
-                    );
-                }
-                if note.tab_position.is_some() || !note.tab_positions.is_empty() {
-                    push(
-                        format!(
-                            "/score/part/{}/staff/1/measure/{}/voice/1/note/{}/tablature",
-                            part_index + 1,
-                            measure_index + 1,
-                            note_index + 1
-                        ),
-                        "position(s) present".to_string(),
-                        "ABC exporter does not emit string/fret tablature positions",
-                    );
-                }
-                if note.guitar_technique.is_some() {
-                    push(
-                        format!(
-                            "/score/part/{}/staff/1/measure/{}/voice/1/note/{}/technique",
-                            part_index + 1,
-                            measure_index + 1,
-                            note_index + 1
-                        ),
-                        "guitar technique present".to_string(),
-                        "ABC exporter does not emit guitar-specific techniques",
-                    );
-                }
-                for (pitch_index, pitch) in note.pitches.iter().enumerate() {
-                    let abc_pitch_supported = matches!(
-                        (pitch.alter, pitch.microtone_cents),
-                        (-2..=2, 0) | (0, 50 | -50)
-                    );
-                    if !abc_pitch_supported {
-                        push(
-                            format!(
-                                "/score/part/{}/staff/1/measure/{}/voice/1/note/{}/pitch/{}",
-                                part_index + 1,
-                                measure_index + 1,
-                                note_index + 1,
-                                pitch_index + 1
-                            ),
-                            format!(
-                                "alter={},microtone_cents={}",
-                                pitch.alter, pitch.microtone_cents
-                            ),
-                            "ABC exporter supports only double-accidental semitones and pure quarter-tone spellings",
-                        );
-                    }
+                    push(path, value, reason);
                 }
             }
         }
