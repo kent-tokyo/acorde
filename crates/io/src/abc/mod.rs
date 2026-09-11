@@ -367,7 +367,10 @@ fn parse_body_line(
 
         // Chord bracket [CEG]
         if ch == '[' {
-            let (chord, next_index) = parse_abc_chord(&chars, i).unwrap_or_default();
+            let Some((chord, next_index)) = parse_abc_chord(&chars, i) else {
+                i += 1;
+                continue;
+            };
             i = next_index;
             let (cn, cd, ni) = parse_duration_suffix(&chars, i);
             i = ni;
