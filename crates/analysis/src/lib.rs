@@ -8,13 +8,16 @@ use std::collections::{BTreeMap, HashMap, VecDeque};
 use thiserror::Error;
 
 /// Version of the serialized analysis result contract.
-pub const ANALYSIS_SCHEMA_VERSION: u32 = 8;
+pub const ANALYSIS_SCHEMA_VERSION: u32 = 9;
 
 /// A chord label with source evidence and the rule that produced it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ChordLabel {
     pub address: NoteAddr,
     pub chord: ChordSymbol,
+    /// Canonical human-readable spelling derived from `chord`.
+    #[serde(default)]
+    pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub roman_numeral: Option<String>,
     pub confidence: u8,
@@ -688,6 +691,7 @@ pub fn analyze_chords_in_region(score: &Score, region: Option<&AnalysisRegion>) 
                             };
                             chords.push(ChordLabel {
                                 address: address.clone(),
+                                name: chord_name(chord),
                                 roman_numeral: roman_numeral(chord, key),
                                 chord: chord.clone(),
                                 confidence: 100,
@@ -727,6 +731,7 @@ pub fn analyze_chords_in_region(score: &Score, region: Option<&AnalysisRegion>) 
                             voice: voice_index,
                             note: pitched[0].0,
                         },
+                        name: chord_name(&chord),
                         roman_numeral: roman_numeral(&chord, key),
                         chord,
                         confidence: 100,
@@ -1976,6 +1981,7 @@ mod tests {
         assert_eq!(result.chords[0].evidence.len(), 3);
         assert_eq!(result.chords[0].roman_numeral.as_deref(), Some("I"));
         assert_eq!(chord_name(&result.chords[0].chord), "C");
+        assert_eq!(result.chords[0].name, "C");
     }
 
     #[test]
@@ -2009,6 +2015,7 @@ mod tests {
             vec![result.chords[0].address.clone()]
         );
         assert_eq!(chord_name(&result.chords[0].chord), "F7/A");
+        assert_eq!(result.chords[0].name, "F7/A");
     }
 
     #[test]
@@ -2125,7 +2132,7 @@ mod tests {
     #[test]
     fn cache_key_includes_schema_and_score_identity() {
         let result = analyze_score(&Score::default());
-        assert!(result.cache_key().starts_with("analysis-v8-fnv1a64-"));
+        assert!(result.cache_key().starts_with("analysis-v9-fnv1a64-"));
         assert_eq!(result.cache_key(), analysis_cache_key(&Score::default()));
         let mut changed = result.clone();
         changed.schema_version = ANALYSIS_SCHEMA_VERSION + 1;

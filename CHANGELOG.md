@@ -58,6 +58,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   including apply, undo, and redo behavior.
 - Bumped the SVG metadata contract to v4 and exposed deterministic tablature string/fret
   positions, allowing browser hosts to edit tab chords without parsing SVG.
+- Bumped the analysis result schema to v9 and added a canonical `ChordLabel.name`, allowing
+  browser and comparison hosts to display structured chord explanations without reimplementing
+  notation formatting.
 - Suppressed tablature technique connections across rests or missing tab positions, preventing
   misleading relationships in incomplete or mixed notation input.
 - Added regression coverage for the tab-technique boundary so incomplete endpoint data cannot
