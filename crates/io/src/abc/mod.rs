@@ -21,6 +21,7 @@ use acorde_core::{
 const MAX_LINES: usize = 10_000;
 const MAX_NOTES: usize = 100_000;
 const MAX_DIAGNOSTICS: usize = 1_024;
+type AbcChord = Vec<(Step, i8, i8)>;
 
 /// Report ABC constructs that are accepted as input but have no canonical model field.
 ///
@@ -366,45 +367,8 @@ fn parse_body_line(
 
         // Chord bracket [CEG]
         if ch == '[' {
-            i += 1;
-            let mut chord: Vec<(Step, i8, i8)> = Vec::new();
-            let mut last_alter = 0i8;
-            while i < chars.len() && chars[i] != ']' {
-                match chars[i] {
-                    '^' => {
-                        last_alter = 1;
-                        i += 1;
-                    }
-                    '_' => {
-                        last_alter = -1;
-                        i += 1;
-                    }
-                    '=' => {
-                        last_alter = 0;
-                        i += 1;
-                    }
-                    c if "ABCDEFGabcdefg".contains(c) => {
-                        let (step, mut oct) = abc_note_char(c);
-                        i += 1;
-                        while i < chars.len() && chars[i] == ',' {
-                            oct -= 1;
-                            i += 1;
-                        }
-                        while i < chars.len() && chars[i] == '\'' {
-                            oct += 1;
-                            i += 1;
-                        }
-                        chord.push((step, oct, last_alter));
-                        last_alter = 0;
-                    }
-                    _ => {
-                        i += 1;
-                    }
-                }
-            }
-            if i < chars.len() {
-                i += 1;
-            } // skip ']'
+            let (chord, next_index) = parse_abc_chord(&chars, i).unwrap_or_default();
+            i = next_index;
             let (cn, cd, ni) = parse_duration_suffix(&chars, i);
             i = ni;
             if let Some((fs, fo, fa)) = chord.first() {
@@ -521,6 +485,50 @@ fn parse_body_line(
     }
 
     Ok(())
+}
+
+fn parse_abc_chord(chars: &[char], index: usize) -> Option<(AbcChord, usize)> {
+    if chars.get(index) != Some(&'[') {
+        return None;
+    }
+    let mut cursor = index + 1;
+    let mut chord = Vec::new();
+    let mut last_alter = 0i8;
+    while cursor < chars.len() && chars[cursor] != ']' {
+        match chars[cursor] {
+            '^' => {
+                last_alter = 1;
+                cursor += 1;
+            }
+            '_' => {
+                last_alter = -1;
+                cursor += 1;
+            }
+            '=' => {
+                last_alter = 0;
+                cursor += 1;
+            }
+            c if "ABCDEFGabcdefg".contains(c) => {
+                let (step, mut octave) = abc_note_char(c);
+                cursor += 1;
+                while cursor < chars.len() && chars[cursor] == ',' {
+                    octave -= 1;
+                    cursor += 1;
+                }
+                while cursor < chars.len() && chars[cursor] == '\'' {
+                    octave += 1;
+                    cursor += 1;
+                }
+                chord.push((step, octave, last_alter));
+                last_alter = 0;
+            }
+            _ => cursor += 1,
+        }
+    }
+    if cursor < chars.len() {
+        cursor += 1;
+    }
+    Some((chord, cursor))
 }
 
 /// Parse one ABC barline token and return its right-side and next-measure forms.
