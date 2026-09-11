@@ -46,6 +46,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   selection and edit hand-off.
 - Suppressed tablature technique connections across rests or missing tab positions, preventing
   misleading relationships in incomplete or mixed notation input.
+- Added regression coverage for the tab-technique boundary so incomplete endpoint data cannot
+  produce misleading SVG relationships.
 - Aggregated minimum per-measure widths before SVG emission and rejected systems that cannot fit
   those lower bounds, preventing barlines from extending beyond the available system width.
 - Sized rendered staff systems from their configured tablature line count, preventing extended tab
