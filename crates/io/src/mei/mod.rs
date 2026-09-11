@@ -2163,15 +2163,34 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     apply_mei_slurs(&mut score, &note_ids, pending_slurs);
     apply_mei_ottavas(&mut score, &note_ids, pending_ottavas);
     apply_mei_pedals(&mut score, &note_ids, pending_pedals);
-    for pending in pending_harm_symbols {
+    apply_pending_harm_symbols(&mut score, &note_ids, pending_harm_symbols);
+    if !title.trim().is_empty() {
+        score.metadata.title = title.trim().to_string();
+    }
+    score.parts[0].staff_groups = staff_groups;
+    Ok(score)
+}
+
+/// Attach deferred MEI harmony elements after all notes and timestamp context exist.
+///
+/// MEI permits both ID-based and timestamp-based harmony placement. Keeping this resolution
+/// outside the streaming reader makes the precedence rule explicit and leaves the XML event loop
+/// focused on constructing the canonical score.
+fn apply_pending_harm_symbols(
+    score: &mut Score,
+    note_ids: &HashMap<String, (usize, usize, usize, usize)>,
+    pending_symbols: Vec<PendingHarmSymbol>,
+) {
+    for pending in pending_symbols {
         let timestamp_location = pending.timestamp.and_then(|value| {
-            mei_note_location_at_timestamp(&score, pending.staff, pending.measure, value)
+            mei_note_location_at_timestamp(score, pending.staff, pending.measure, value)
         });
-        if let Some(&(staff, measure, layer, index)) = pending
+        let note_location = pending
             .start_id
             .as_deref()
             .and_then(|value| note_ids.get(value.trim_start_matches('#')))
-            .or(timestamp_location.as_ref())
+            .or(timestamp_location.as_ref());
+        if let Some(&(staff, measure, layer, index)) = note_location
             && let Some(note) = score.parts[0].staves[staff]
                 .measures
                 .get_mut(measure)
@@ -2195,11 +2214,6 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
             });
         }
     }
-    if !title.trim().is_empty() {
-        score.metadata.title = title.trim().to_string();
-    }
-    score.parts[0].staff_groups = staff_groups;
-    Ok(score)
 }
 
 fn mei_note_location_at_timestamp(
