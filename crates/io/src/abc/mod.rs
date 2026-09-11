@@ -34,7 +34,7 @@ pub fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
         let line = raw_line.split('%').next().unwrap_or_default();
         if line.len() >= 2 && line.as_bytes().get(1) == Some(&b':') {
             let field = &line[0..1];
-            if !matches!(field, "X" | "T" | "C" | "M" | "L" | "Q" | "K" | "w") {
+            if !matches!(field, "X" | "T" | "C" | "M" | "L" | "Q" | "K" | "V" | "w") {
                 let mut diagnostic = Diagnostic::warning(
                     "abc.unsupported-header",
                     format!("ABC header field '{field}' is outside acorde's supported subset"),
@@ -1418,6 +1418,12 @@ C D E F | G A B c |";
             Some("/line/6/decoration/10")
         );
         assert_eq!(diagnostics[1].preserved_value.as_deref(), Some("pizz"));
+    }
+
+    #[test]
+    fn loss_report_accepts_supported_voice_and_lyric_headers() {
+        let abc = "X:1\nT:Report\nM:2/4\nK:C\nV:1\nC D|\nw: do re\n";
+        assert!(loss_diagnostics(abc).is_empty());
     }
 
     #[test]

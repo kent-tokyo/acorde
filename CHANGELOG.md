@@ -15,6 +15,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   using explicit `(p:q:r` markers.
 - Added ABC `w:` lyric alignment for common syllable boundaries and `~` spaces, with lyric
   serialization for the first voice.
+- Corrected ABC loss diagnostics so supported `V:` voice declarations are not reported as
+  unsupported headers.
 - Mapped common ABC decorations (`staccato`, `accent`, `tenuto`, `marcato`, `fermata`, `trill`,
   `mordent`, `turn`, breath, and caesura) to canonical note articulations; unsupported
   decorations remain source-located export/import diagnostics.
