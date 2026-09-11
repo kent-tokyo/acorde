@@ -1084,6 +1084,7 @@ fn tablature_renders_lines_frets_and_techniques() {
     note.fingerings = vec![1, 3];
     note.fingering = Some(1);
     note.guitar_technique = Some(GuitarTechnique::Bend);
+    note.guitar_bend_alter_cents = Some(200);
     staff.measures[0].voices[0] = vec![note];
     score.parts[0].staves = vec![staff];
 
@@ -1094,7 +1095,7 @@ fn tablature_renders_lines_frets_and_techniques() {
     assert!(svg.contains("acorde-tab-fingering"));
     assert!(svg.contains(">1/3</text>"));
     assert!(svg.contains("acorde-tab-technique"));
-    assert!(svg.contains(">bend</text>"));
+    assert!(svg.contains(">bend +200c</text>"));
     assert_well_formed_xml(&svg);
 }
 

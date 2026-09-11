@@ -38,6 +38,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   accommodate the required spacing.
 - Added cross-voice near-event regression coverage at the renderer helper boundary, including
   bounded handling for annotated events that precede a later voice event.
+- Rendered authored tablature bend alterations as explicit cents labels (for example,
+  `bend +200c`) and included their full width in content-aware collision spacing.
 - Aggregated minimum per-measure widths before SVG emission and rejected systems that cannot fit
   those lower bounds, preventing barlines from extending beyond the available system width.
 - Sized rendered staff systems from their configured tablature line count, preventing extended tab

@@ -2010,8 +2010,8 @@ fn note_annotation_width_u(note: &Note) -> f32 {
     if let Some(text) = &note.technique_text {
         width = width.max(text.chars().count() as f32 * 0.42);
     }
-    if note.guitar_technique.is_some() {
-        width = width.max(0.42 * 5.0);
+    if let Some(label) = guitar_technique_label(note) {
+        width = width.max(label.chars().count() as f32 * 0.42);
     }
     if note.fingering.is_some() || !note.fingerings.is_empty() {
         width = width.max(0.42 * 3.0);
@@ -2736,17 +2736,11 @@ fn render_tab_note(
             false,
         );
     }
-    if let Some(technique) = &note.guitar_technique {
-        let label = match technique {
-            acorde_core::GuitarTechnique::Bend => "bend",
-            acorde_core::GuitarTechnique::Slide => "slide",
-            acorde_core::GuitarTechnique::HammerOn => "h",
-            acorde_core::GuitarTechnique::PullOff => "p",
-        };
+    if let Some(label) = guitar_technique_label(note) {
         write_annotation_text(
             body,
             "acorde-tab-technique",
-            label,
+            &label,
             x,
             y - 1.15 * space,
             space,
@@ -2767,6 +2761,19 @@ fn render_tab_note(
             );
         }
     }
+}
+
+fn guitar_technique_label(note: &Note) -> Option<String> {
+    note.guitar_technique
+        .as_ref()
+        .map(|technique| match technique {
+            acorde_core::GuitarTechnique::Bend => note
+                .guitar_bend_alter_cents
+                .map_or_else(|| "bend".to_owned(), |cents| format!("bend {cents:+}c")),
+            acorde_core::GuitarTechnique::Slide => "slide".to_owned(),
+            acorde_core::GuitarTechnique::HammerOn => "h".to_owned(),
+            acorde_core::GuitarTechnique::PullOff => "p".to_owned(),
+        })
 }
 
 /// Draw note-attached performance annotations. The semantic values are already part of the
