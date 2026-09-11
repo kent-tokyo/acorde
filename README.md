@@ -39,6 +39,8 @@ Security boundaries and resource-limit ownership are documented in the [security
 For deterministic score analysis, add `acorde-analysis` directly. `AnalysisCache` supports bounded
 single-score and batch reuse, explicit editor snapshot invalidation, and hit/miss measurements;
 all cache keys include the analysis schema version and canonical score fingerprint.
+Analysis results also expose schema-versioned canonical chord names alongside structured chord
+data, so browser hosts do not need to duplicate notation formatting rules.
 
 ```toml
 acorde-analysis = "1.1.7"

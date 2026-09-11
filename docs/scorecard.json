@@ -2,7 +2,8 @@
   "schema_version": 1,
   "release": "1.1.7",
   "contracts": {
-    "svg_render_metadata": 3,
+    "svg_render_metadata": 4,
+    "analysis_result": 9,
     "print_layout": 26,
     "glyph_resource": 1,
     "tab_performance": 3

@@ -2,8 +2,9 @@
 
 The reusable renderer has no browser or DOM dependency. The WASM package is built for
 `wasm32-unknown-unknown` and the checked-in fixture is served as a plain ES module page.
-The v1.1.7 candidate render metadata contract is version 3 and includes position-aware measure-level
-`text_annotations` with source placement and offset fields in addition to note `address_bounds`.
+The v1.1.7 candidate render metadata contract is version 4 and includes position-aware measure-level
+`text_annotations` with source placement and offset fields, plus deterministic `tablature_positions`,
+in addition to note `address_bounds`.
 
 | Surface | Verification | Status |
 |---|---|---|

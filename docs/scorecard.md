@@ -5,7 +5,7 @@ inventory of the current contracts, not a claim of parity with MuseScore, music2
 Verovio. Capability labels must remain aligned with the [notation coverage matrix](notation-coverage.md)
 and backed by a fixture or focused test.
 
-The current serialized contracts are SVG render metadata version 3, print layout version 26,
+The current serialized contracts are SVG render metadata version 4, print layout version 26,
 glyph-resource metadata version 1, and tablature performance version 3; all values are recorded in
 `scorecard.json` and must be updated together with their contract documentation and regression
 tests. The physical print layout is also exposed through WASM and the browser adapter; this does

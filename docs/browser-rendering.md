@@ -59,13 +59,17 @@ outside the core/WASM contract and remain application-owned.
   system, which is the unit a virtualized viewport can cache.
 - `render_score_metadata(score_json, layout_json, options_json)` returns a versioned metadata
   object with `contract_version`, `width`, `height`, `part_count`, `staff_count`, `measure_count`,
-  `note_count`, `accessible_text`, `address_bounds`, and `text_annotations`. Each bound contains `part`, `staff`,
+  `note_count`, `accessible_text`, `address_bounds`, `text_annotations`, and `tablature_positions`. Each bound contains `part`, `staff`,
   `measure`, `voice`, and `note`, so a host can map hit testing and playback highlighting back to
   `NoteAddr` without parsing SVG. Each text annotation contains `part`, `staff`, `measure`,
   `style`, `text`, `placement`, `offset_x`, `offset_y`, `relative_x`, and `relative_y`, so measure-level
-  styled text and its source coordinate hints remain available to host views. Use
-  `accessible_text` as the text alternative when the host
-  cannot expose SVG semantics; check `contract_version` before consuming newer fields.
+styled text and its source coordinate hints remain available to host views. Use
+`accessible_text` as the text alternative when the host
+cannot expose SVG semantics; check `contract_version` before consuming newer fields.
+Each `tablature_positions` entry contains `part`, `staff`, `measure`, `voice`, `note`,
+`position`, `string`, and `fret`, so a host can address one position inside a tab chord without
+parsing SVG. Analysis chord results similarly include a canonical `name` beside structured chord
+data; the analysis result schema is version 9.
 
 - `svg_contract_version()` returns the renderer metadata contract version so browser fixtures and
   generated WASM hosts can compare returned metadata without duplicating a version constant.
