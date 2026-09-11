@@ -227,7 +227,11 @@ pub fn compare_playback_timing(
     let mut max_start_error_secs: f64 = 0.0;
     let mut max_duration_error_secs: f64 = 0.0;
     for (index, (expected_event, actual_event)) in expected.iter().zip(actual).enumerate() {
-        let identity_matches = expected_event.address == actual_event.address
+        let source_identity_matches = match (&expected_event.source, &actual_event.source) {
+            (Some(expected), Some(actual)) => expected == actual,
+            _ => expected_event.address == actual_event.address,
+        };
+        let identity_matches = source_identity_matches
             && expected_event.pitch_midi_cents == actual_event.pitch_midi_cents
             && expected_event.velocity == actual_event.velocity
             && expected_event.part_index == actual_event.part_index
@@ -1603,6 +1607,16 @@ mod tests {
             report.contract_version,
             PLAYBACK_COMPARISON_CONTRACT_VERSION
         );
+
+        let mut typed_only = comparison_event(1.004, 0.503);
+        typed_only.address = None;
+        let report = compare_playback_timing(
+            &expected,
+            &[typed_only],
+            &PlaybackTimingTolerance::default(),
+        )
+        .expect("typed source comparison");
+        assert_eq!(report.matched_events, 1);
 
         let actual = [comparison_event(1.02, 0.6)];
         let report =

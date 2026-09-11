@@ -65,6 +65,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   responses, so explainable browser updates can render the finding without a second lookup.
 - Added an optional typed `NoteAddr` source to playback events while retaining the legacy string
   address, allowing browser audio cursors to synchronize with notation without parsing text.
+- Playback timing comparison now prefers matching typed source addresses and falls back to the
+  legacy string address, allowing host traces to omit redundant address text safely.
 - Suppressed tablature technique connections across rests or missing tab positions, preventing
   misleading relationships in incomplete or mixed notation input.
 - Added regression coverage for the tab-technique boundary so incomplete endpoint data cannot
