@@ -50,7 +50,6 @@ fn step(value: &str) -> Option<Step> {
 const UNSUPPORTED_ELEMENTS: &[&str] = &["beam", "chord", "figuredBass", "pedal"];
 const UNSUPPORTED_ATTRIBUTES: &[(&str, &str, &str)] = &[
     ("harm", "endid", "endid"),
-    ("harm", "tstamp", "tstamp"),
     ("harm", "tstamp.ges", "tstamp.ges"),
     ("harm", "tstamp.real", "tstamp.real"),
     ("harm", "rendgrid", "rendgrid"),
@@ -369,6 +368,14 @@ fn parse_pedal(event: &BytesStart<'_>) -> Option<(String, String)> {
     } else {
         None
     }
+}
+
+fn parse_mei_timestamp(value: &str) -> Option<f64> {
+    let timestamp = value.parse::<f64>().ok()?;
+    timestamp
+        .is_finite()
+        .then_some(timestamp)
+        .filter(|value| *value >= 1.0)
 }
 
 fn parse_chord_label(value: &str) -> Option<ChordSymbol> {
@@ -1492,6 +1499,29 @@ fn push_value_diagnostics(
             truncated,
         );
     }
+    if element == "harm"
+        && let Some(value) = attr(event, b"tstamp")
+        && parse_mei_timestamp(&value).is_none()
+    {
+        push_invalid_value_diagnostic(
+            diagnostics,
+            path,
+            element,
+            "tstamp",
+            value,
+            "is not a finite beat position greater than or equal to 1",
+            truncated,
+        );
+    }
+}
+
+struct PendingHarmSymbol {
+    start_id: Option<String>,
+    timestamp: Option<f64>,
+    chord: ChordSymbol,
+    label: String,
+    staff: usize,
+    measure: usize,
 }
 
 /// Parse the supported MEI subset into the canonical score model.
@@ -1528,6 +1558,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut in_harm = false;
     let mut harm_text = String::new();
     let mut harm_start_id: Option<String> = None;
+    let mut harm_tstamp: Option<f64> = None;
     let mut harm_placement: Option<String> = None;
     let mut harm_extender = false;
     let mut harm_degree: Option<String> = None;
@@ -1550,7 +1581,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut pending_slurs: Vec<(String, String)> = Vec::new();
     let mut pending_ottavas: Vec<(String, String, OttavaKind)> = Vec::new();
     let mut pending_pedals: Vec<(String, String)> = Vec::new();
-    let mut pending_harm_symbols: Vec<(String, ChordSymbol, String, usize, usize)> = Vec::new();
+    let mut pending_harm_symbols: Vec<PendingHarmSymbol> = Vec::new();
     let mut staff_grp_depth = 0usize;
     let mut open_staff_groups: Vec<(Vec<usize>, PartGroupSymbol, bool)> = Vec::new();
     let mut staff_groups: Vec<StaffGroup> = Vec::new();
@@ -1738,6 +1769,8 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         in_harm = true;
                         harm_text.clear();
                         harm_start_id = attr(&event, b"startid");
+                        harm_tstamp =
+                            attr(&event, b"tstamp").and_then(|value| parse_mei_timestamp(&value));
                         harm_placement = attr(&event, b"place");
                         harm_extender = attr(&event, b"extender")
                             .as_deref()
@@ -1992,12 +2025,12 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                     if let Some(measure_index) = current_measure {
                         let text = harm_text.trim();
                         if !text.is_empty() {
-                            if let (Some(start_id), Some(chord)) =
-                                (harm_start_id.take(), parse_chord_label(text))
-                            {
-                                pending_harm_symbols.push((
+                            let start_id = harm_start_id.take();
+                            if let Some(chord) = parse_chord_label(text) {
+                                pending_harm_symbols.push(PendingHarmSymbol {
                                     start_id,
-                                    ChordSymbol {
+                                    timestamp: harm_tstamp,
+                                    chord: ChordSymbol {
                                         placement: harm_placement.clone(),
                                         extender: harm_extender,
                                         harmonic_degree: harm_degree.clone(),
@@ -2006,10 +2039,10 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                         chord_ref: harm_chord_ref.clone(),
                                         ..chord
                                     },
-                                    text.to_string(),
-                                    current_staff,
-                                    measure_index,
-                                ));
+                                    label: text.to_string(),
+                                    staff: current_staff,
+                                    measure: measure_index,
+                                });
                             } else {
                                 score.parts[0].staves[current_staff].measures[measure_index]
                                     .texts
@@ -2026,6 +2059,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         }
                     }
                     harm_start_id = None;
+                    harm_tstamp = None;
                     harm_placement = None;
                     harm_extender = false;
                     harm_degree = None;
@@ -2129,23 +2163,30 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     apply_mei_slurs(&mut score, &note_ids, pending_slurs);
     apply_mei_ottavas(&mut score, &note_ids, pending_ottavas);
     apply_mei_pedals(&mut score, &note_ids, pending_pedals);
-    for (start, chord, label, fallback_staff, fallback_measure) in pending_harm_symbols {
-        if let Some(&(staff, measure, layer, index)) = note_ids.get(start.trim_start_matches('#'))
+    for pending in pending_harm_symbols {
+        let timestamp_location = pending.timestamp.and_then(|value| {
+            mei_note_location_at_timestamp(&score, pending.staff, pending.measure, value)
+        });
+        if let Some(&(staff, measure, layer, index)) = pending
+            .start_id
+            .as_deref()
+            .and_then(|value| note_ids.get(value.trim_start_matches('#')))
+            .or(timestamp_location.as_ref())
             && let Some(note) = score.parts[0].staves[staff]
                 .measures
                 .get_mut(measure)
                 .and_then(|measure| measure.voices.get_mut(layer))
                 .and_then(|voice| voice.get_mut(index))
         {
-            note.chord_symbol = Some(chord);
+            note.chord_symbol = Some(pending.chord);
         } else if let Some(measure) = score.parts[0]
             .staves
-            .get_mut(fallback_staff)
-            .and_then(|staff| staff.measures.get_mut(fallback_measure))
+            .get_mut(pending.staff)
+            .and_then(|staff| staff.measures.get_mut(pending.measure))
         {
             measure.texts.push(StyledText {
                 style: TextStyle::ChordSymbol,
-                text: label,
+                text: pending.label,
                 placement: None,
                 offset_x: None,
                 offset_y: None,
@@ -2159,6 +2200,41 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     }
     score.parts[0].staff_groups = staff_groups;
     Ok(score)
+}
+
+fn mei_note_location_at_timestamp(
+    score: &Score,
+    staff_index: usize,
+    measure_index: usize,
+    timestamp: f64,
+) -> Option<(usize, usize, usize, usize)> {
+    let measure = score
+        .parts
+        .first()?
+        .staves
+        .get(staff_index)?
+        .measures
+        .get(measure_index)?;
+    let denominator = measure
+        .time_sig
+        .as_ref()
+        .map_or(score.settings.time_signature.denominator, |time| {
+            time.denominator
+        });
+    let beat_target = (timestamp - 1.0) * 4.0 / f64::from(denominator);
+    if !beat_target.is_finite() || beat_target < 0.0 {
+        return None;
+    }
+    for (layer, voice) in measure.voices.iter().enumerate() {
+        let mut beat = 0.0;
+        for (index, note) in voice.iter().enumerate() {
+            if (beat - beat_target).abs() < 1e-6 {
+                return Some((staff_index, measure_index, layer, index));
+            }
+            beat += note.beats();
+        }
+    }
+    None
 }
 
 fn mei_note_mut(score: &mut Score, location: (usize, usize, usize, usize)) -> Option<&mut Note> {
@@ -3104,18 +3180,62 @@ mod tests {
     }
 
     #[test]
-    fn unparseable_harm_attachment_keeps_placement_loss() {
+    fn valid_harm_timestamp_is_not_reported_when_label_is_invalid() {
         let xml = FIXTURE.replace(
             "<measure n=\"7\">",
             "<measure n=\"7\"><harm startid=\"#n1\" tstamp=\"1\">Cfoo</harm>",
         );
         let report = parse_mei_with_report(&xml).expect("MEI harm parses");
         assert!(
-            report
+            !report
                 .diagnostics
                 .iter()
                 .any(|diagnostic| diagnostic.code == "mei.unsupported-attribute.harm.tstamp")
         );
+        assert!(
+            report
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "mei.unsupported-detail.harm")
+        );
+    }
+
+    #[test]
+    fn harm_timestamp_attaches_to_note_at_meter_beat() {
+        let xml = r##"<mei><music><body><mdiv><score><section><measure n="1">
+            <harm tstamp="2">G7</harm>
+            <staff n="1"><layer n="1"><note pname="c" oct="4" dur="4"/>
+            <note pname="d" oct="4" dur="4"/></layer></staff>
+        </measure></section></score></mdiv></body></music></mei>"##;
+        let score = parse_mei(xml).expect("MEI timestamp harm parses");
+        assert!(
+            score.parts[0].staves[0].measures[0].voices[0][0]
+                .chord_symbol
+                .is_none()
+        );
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][1]
+                .chord_symbol
+                .as_ref()
+                .map(|chord| chord.display_text()),
+            Some("G7".to_string())
+        );
+    }
+
+    #[test]
+    fn invalid_harm_timestamp_is_source_diagnosed() {
+        let xml = r##"<mei><music><body><mdiv><score><section><measure n="1">
+            <harm tstamp="zero">G7</harm>
+            <staff n="1"><layer n="1"><note pname="c" oct="4" dur="4"/></layer></staff>
+        </measure></section></score></mdiv></body></music></mei>"##;
+        let report = parse_mei_with_report(xml).expect("invalid timestamp remains importable");
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "mei.invalid-value.harm.tstamp"
+                && diagnostic
+                    .source_location
+                    .as_deref()
+                    .is_some_and(|path| path.ends_with("/@tstamp"))
+        }));
     }
 
     #[test]

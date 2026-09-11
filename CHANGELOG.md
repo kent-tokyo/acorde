@@ -56,6 +56,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   provenance, asset checksum, resolved playback metadata, and typed diagnostics for browser hosts.
 - Added a browser/WASM regression fixture for real SF2 preset-zone snapshot serialization; native
   and compile-time WASM gates pass, while ChromeDriver execution remains environment-dependent.
+- Added bounded MEI `harm@tstamp` resolution to the canonical chord-symbol path, including
+  meter-denominator conversion and source-located diagnostics for invalid beat positions.
 - Included resolved sloped-beam and secondary-beam extents in content-aware vertical margins so
   clearance shifts cannot clip short-value beam groups at the SVG page edge.
 - Projected structured `Measure::figured_bass` into the deterministic measure-text SVG path, with
