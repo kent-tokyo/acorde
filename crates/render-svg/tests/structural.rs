@@ -377,6 +377,11 @@ fn lyric_hyphen_connects_across_measure_boundaries_on_same_system() {
     let svg = render_svg(&score, &opts()).unwrap();
     assert!(svg.contains("data-start-note-addr=\"0:0:0:0:0\""));
     assert!(svg.contains("data-end-note-addr=\"0:0:1:0:0\""));
+
+    let mut split_options = opts();
+    split_options.measures_per_system = 1;
+    let split_svg = render_svg(&score, &split_options).unwrap();
+    assert!(!split_svg.contains("data-end-note-addr=\"0:0:1:0:0\""));
 }
 
 #[test]
