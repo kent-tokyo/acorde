@@ -14,6 +14,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   applying the timing ratio to each grouped note during import; complete groups round-trip
   using explicit `(p:q:r` markers. Incomplete groups now produce a source-located export
   diagnostic instead of silently losing their tuplet semantics.
+- Added ABC note-tie parsing and serialization, preserving `tie_start`/`tie_end` across
+  notes and measure boundaries.
 - Added ABC `w:` lyric alignment for common syllable boundaries and `~` spaces, with lyric
   serialization for the first voice.
 - Corrected ABC loss diagnostics so supported `V:` voice declarations are not reported as

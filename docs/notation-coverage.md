@@ -39,7 +39,8 @@ tunings in non-MusicXML formats and instrument-specific engraving remain partial
 decorations to canonical articulations, while unsupported decorations remain diagnosed. ABC supports
 common `(p` tuplets and preserves their actual/normal timing ratios; complete groups serialize as
 explicit `(p:q:r` markers, while incomplete groups are reported as source-located export
-diagnostics instead of being silently flattened. It also supports common `w:` lyric lines with note alignment,
+diagnostics instead of being silently flattened. ABC note ties are preserved across notes and
+measure boundaries. It also supports common `w:` lyric lines with note alignment,
 syllable boundaries, `~`-joined spaces, and `*`
 placeholders for unlyricized notes; only the first voice is serialized. ABC supports
 double accidentals
