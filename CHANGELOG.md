@@ -29,6 +29,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   established two-voice geometry while preventing long lyrics or chord symbols from colliding.
 - Refactored note-level vertical margin policy out of the SVG page-margin traversal, keeping
   notation and annotation clearance behavior centralized and independently testable.
+- Included simultaneous-voice accidental footprints in the same conditional spacing policy, so
+  cross-voice accidental columns receive clearance without widening ordinary passages.
 - Aggregated minimum per-measure widths before SVG emission and rejected systems that cannot fit
   those lower bounds, preventing barlines from extending beyond the available system width.
 - Sized rendered staff systems from their configured tablature line count, preventing extended tab

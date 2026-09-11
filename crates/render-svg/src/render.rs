@@ -1838,7 +1838,7 @@ fn grace_note_offset(notes: &[Note], index: usize) -> f32 {
 }
 
 /// Return the minimum center-to-center separation for simultaneous voice events. The base
-/// separation preserves the established multi-voice geometry; wider note-attached annotations
+/// separation preserves the established multi-voice geometry; wider accidentals or annotations
 /// expand it only when their conservative footprints would otherwise overlap.
 fn voice_separation_u(measure: &Measure, voice_slots: &[usize], target_beat: f64) -> f32 {
     let mut notes = Vec::new();
@@ -1855,10 +1855,12 @@ fn voice_separation_u(measure: &Measure, voice_slots: &[usize], target_beat: f64
             beat += note.beats();
         }
     }
-    // Keep the established geometry for ordinary noteheads.  Only annotation-bearing events
-    // need cross-voice expansion; otherwise the conservative notehead/accidental footprint
-    // would make every normal two-voice passage wider.
-    if !notes.iter().any(|note| note_annotation_width_u(note) > 0.0) {
+    // Keep the established geometry for ordinary noteheads. Only events with wider visible
+    // content need cross-voice expansion; otherwise the conservative footprint would make every
+    // normal two-voice passage wider.
+    if !notes.iter().any(|note| {
+        note_annotation_width_u(note) > 0.0 || note.pitches.iter().any(|pitch| pitch.alter != 0)
+    }) {
         return VOICE_SEPARATION_U;
     }
     notes

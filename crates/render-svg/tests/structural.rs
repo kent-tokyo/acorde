@@ -1400,6 +1400,16 @@ fn wide_simultaneous_voice_annotations_expand_notehead_separation() {
         (annotated[0] - annotated[1]).abs() > (baseline[0] - baseline[1]).abs(),
         "annotation should expand cross-voice spacing: baseline={baseline:?}, annotated={annotated:?}"
     );
+
+    let mut accidental_score = score;
+    accidental_score.parts[0].staves[0].measures[0].voices[1][0].lyric = None;
+    accidental_score.parts[0].staves[0].measures[0].voices[1][0].pitches[0].alter = 1;
+    let accidental = centers(&render_svg(&accidental_score, &opts()).unwrap());
+    assert_eq!(accidental.len(), 2);
+    assert!(
+        (accidental[0] - accidental[1]).abs() > (baseline[0] - baseline[1]).abs(),
+        "accidental should expand cross-voice spacing: baseline={baseline:?}, accidental={accidental:?}"
+    );
 }
 
 #[test]
