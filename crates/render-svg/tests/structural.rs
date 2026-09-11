@@ -1081,12 +1081,20 @@ fn tablature_renders_lines_frets_and_techniques() {
     staff.measures.push(acorde_core::Measure::empty(4, 4));
     let mut note = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
     note.tab_position = Some(acorde_core::TabPosition { string: 2, fret: 3 });
+    note.tab_positions = vec![
+        acorde_core::TabPosition { string: 2, fret: 3 },
+        acorde_core::TabPosition { string: 3, fret: 2 },
+    ];
     note.fingerings = vec![1, 3];
     note.fingering = Some(1);
     note.guitar_technique = Some(GuitarTechnique::Bend);
     note.guitar_bend_alter_cents = Some(200);
     let mut slide = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
     slide.tab_position = Some(acorde_core::TabPosition { string: 2, fret: 5 });
+    slide.tab_positions = vec![
+        acorde_core::TabPosition { string: 2, fret: 5 },
+        acorde_core::TabPosition { string: 3, fret: 4 },
+    ];
     slide.guitar_technique = Some(GuitarTechnique::Slide);
     staff.measures[0].voices[0] = vec![note, slide];
     score.parts[0].staves = vec![staff];
@@ -1101,6 +1109,7 @@ fn tablature_renders_lines_frets_and_techniques() {
     assert!(svg.contains(">bend +200c</text>"));
     assert!(svg.contains("acorde-tab-technique-connection"));
     assert!(svg.contains("data-technique=\"slide\""));
+    assert_eq!(svg.matches("data-technique=\"slide\"").count(), 2);
     assert!(svg.contains("data-start-note-addr=\"0:0:0:0:0\""));
     assert!(svg.contains("data-end-note-addr=\"0:0:0:0:1\""));
     assert_well_formed_xml(&svg);

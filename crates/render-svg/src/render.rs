@@ -2847,8 +2847,37 @@ fn render_tab_technique_connection(
     if !x1.is_finite() || !x2.is_finite() || x2 <= x1 {
         return;
     }
-    let y1 = tab_note_y(&notes[note_index - 1], tab, *bottom_y, *space);
-    let y2 = tab_note_y(&notes[note_index], tab, *bottom_y, *space);
+    let previous_positions = if !notes[note_index - 1].tab_positions.is_empty() {
+        notes[note_index - 1].tab_positions.as_slice()
+    } else {
+        notes[note_index - 1].tab_position.as_slice()
+    };
+    let current_positions = if !notes[note_index].tab_positions.is_empty() {
+        notes[note_index].tab_positions.as_slice()
+    } else {
+        notes[note_index].tab_position.as_slice()
+    };
+    let y_pairs: Vec<_> = current_positions
+        .iter()
+        .enumerate()
+        .filter_map(|(index, current)| {
+            let previous = previous_positions
+                .iter()
+                .find(|candidate| candidate.string == current.string)
+                .or_else(|| {
+                    (previous_positions.len() == current_positions.len())
+                        .then(|| previous_positions.get(index))
+                        .flatten()
+                })?;
+            Some((
+                *bottom_y - f32::from(tab.lines.saturating_sub(previous.string)) * *space,
+                *bottom_y - f32::from(tab.lines.saturating_sub(current.string)) * *space,
+            ))
+        })
+        .collect();
+    if y_pairs.is_empty() {
+        return;
+    }
     let (class, data_technique) = match technique {
         acorde_core::GuitarTechnique::Slide => {
             ("acorde-tab-technique-connection acorde-tab-slide", "slide")
@@ -2873,34 +2902,36 @@ fn render_tab_technique_connection(
         note_index - 1
     );
     let end_addr = format!("{part}:{staff}:{measure_idx}:{voice_idx}:{note_index}");
-    if matches!(technique, acorde_core::GuitarTechnique::Slide) {
-        let _ = write!(
-            body,
-            r#"<line class="{class}" data-technique="{data_technique}" data-start-note-addr="{start_addr}" data-end-note-addr="{end_addr}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
-            f(start),
-            f(y1),
-            f(end),
-            f(y2),
-            f(0.08 * space)
-        );
-    } else {
-        let direction = if matches!(technique, acorde_core::GuitarTechnique::HammerOn) {
-            -1.0
+    for (y1, y2) in y_pairs {
+        if matches!(technique, acorde_core::GuitarTechnique::Slide) {
+            let _ = write!(
+                body,
+                r#"<line class="{class}" data-technique="{data_technique}" data-start-note-addr="{start_addr}" data-end-note-addr="{end_addr}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
+                f(start),
+                f(y1),
+                f(end),
+                f(y2),
+                f(0.08 * space)
+            );
         } else {
-            1.0
-        };
-        let control_y = (y1.min(y2) + direction * space).min(y1.min(y2));
-        let _ = write!(
-            body,
-            r#"<path class="{class}" data-technique="{data_technique}" data-start-note-addr="{start_addr}" data-end-note-addr="{end_addr}" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
-            f(start),
-            f(y1),
-            f((start + end) / 2.0),
-            f(control_y),
-            f(end),
-            f(y2),
-            f(0.08 * space)
-        );
+            let direction = if matches!(technique, acorde_core::GuitarTechnique::HammerOn) {
+                -1.0
+            } else {
+                1.0
+            };
+            let control_y = (y1.min(y2) + direction * space).min(y1.min(y2));
+            let _ = write!(
+                body,
+                r#"<path class="{class}" data-technique="{data_technique}" data-start-note-addr="{start_addr}" data-end-note-addr="{end_addr}" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                f(start),
+                f(y1),
+                f((start + end) / 2.0),
+                f(control_y),
+                f(end),
+                f(y2),
+                f(0.08 * space)
+            );
+        }
     }
 }
 

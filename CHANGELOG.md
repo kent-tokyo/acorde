@@ -48,6 +48,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   misleading relationships in incomplete or mixed notation input.
 - Added regression coverage for the tab-technique boundary so incomplete endpoint data cannot
   produce misleading SVG relationships.
+- Rendered tablature technique connections per matching string for multi-position chords, using
+  string identity before positional fallback to preserve chord-tab semantics.
 - Aggregated minimum per-measure widths before SVG emission and rejected systems that cannot fit
   those lower bounds, preventing barlines from extending beyond the available system width.
 - Sized rendered staff systems from their configured tablature line count, preventing extended tab
