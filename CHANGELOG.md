@@ -44,6 +44,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   semantic connection paths between adjacent events, while keeping playback semantics host-owned.
 - Added stable start/end note addresses to tablature technique connection paths for browser
   selection and edit hand-off.
+- Suppressed tablature technique connections across rests or missing tab positions, preventing
+  misleading relationships in incomplete or mixed notation input.
 - Aggregated minimum per-measure widths before SVG emission and rejected systems that cannot fit
   those lower bounds, preventing barlines from extending beyond the available system width.
 - Sized rendered staff systems from their configured tablature line count, preventing extended tab

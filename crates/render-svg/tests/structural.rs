@@ -1107,6 +1107,30 @@ fn tablature_renders_lines_frets_and_techniques() {
 }
 
 #[test]
+fn tablature_technique_connections_skip_rests_and_missing_positions() {
+    use acorde_core::{
+        Duration, GuitarTechnique, Measure, Note, Pitch, Staff, Step, TabPosition, TablatureConfig,
+    };
+
+    let mut score = acorde_core::Score::new("Tab technique boundary", 120, 4, 4, 0, 1);
+    let mut staff = Staff::new(acorde_core::Clef::Treble);
+    staff.tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![64, 59, 55, 50, 45, 40],
+        capo: 0,
+    });
+    staff.measures.push(Measure::empty(4, 4));
+    let mut slide = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+    slide.tab_position = Some(TabPosition { string: 2, fret: 5 });
+    slide.guitar_technique = Some(GuitarTechnique::Slide);
+    staff.measures[0].voices[0] = vec![Note::rest(Duration::Quarter), slide];
+    score.parts[0].staves = vec![staff];
+
+    let svg = render_svg(&score, &opts()).expect("tab boundary case should render");
+    assert!(!svg.contains("acorde-tab-technique-connection"));
+}
+
+#[test]
 fn extended_tablature_staff_height_preserves_system_geometry() {
     use acorde_core::{Clef, Score, Staff, TablatureConfig};
 

@@ -2824,6 +2824,13 @@ fn render_tab_technique_connection(
     if note_index == 0 || note_index >= notes.len() || note_index >= xs.len() {
         return;
     }
+    if notes[note_index - 1].is_rest
+        || notes[note_index].is_rest
+        || !has_tab_position(&notes[note_index - 1])
+        || !has_tab_position(&notes[note_index])
+    {
+        return;
+    }
     let Some(technique) = notes[note_index].guitar_technique.as_ref() else {
         return;
     };
@@ -2895,6 +2902,10 @@ fn render_tab_technique_connection(
             f(0.08 * space)
         );
     }
+}
+
+fn has_tab_position(note: &Note) -> bool {
+    !note.tab_positions.is_empty() || note.tab_position.is_some()
 }
 
 /// Draw note-attached performance annotations. The semantic values are already part of the
