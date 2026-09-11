@@ -13,6 +13,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Preserved ABC normal, double, repeat-start, repeat-end, and repeat-both barlines on measure
   boundaries and emitted the same canonical forms during ABC serialization, including system-start
   repeat markers.
+- Added source-located ABC export diagnostics for final, dashed, dotted, and invisible barlines
+  whose semantics cannot be represented exactly by the ABC subset.
 - Prepared the 1.1.7 candidate line with synchronized workspace crate versions, locked dependency
   metadata, current README examples, and machine-checked interchange/scorecard version policy.
 - Applied the workspace `unsafe_code = "forbid"` lint to every published crate.

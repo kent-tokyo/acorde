@@ -35,8 +35,9 @@ Tablature currently preserves MusicXML `staff-details/staff-lines`, `staff-tunin
 explicit positions and guitar technique labels. Core automatic string/fret assignment and
 sequence-aware movement optimization are available for configured tablature staves. Alternate
 tunings in non-MusicXML formats and instrument-specific engraving remain partial. Microtones use
-`Pitch::microtone_cents`; ABC supports double accidentals plus pure `^/` and `_/` quarter-tone
-spellings, and MEI supports `qs` and `qf`. These
+`Pitch::microtone_cents`; ABC supports common normal/double/repeat barlines, double accidentals
+plus pure `^/` and `_/` quarter-tone spellings, and MEI supports `qs` and `qf`. ABC barline kinds
+outside that subset are reported with source-located export diagnostics. These
 declared quarter-tone spellings are 50 cents with no additional semitone alter; exact comparisons
 can use `Pitch::to_midi_cents()`. MIDI pitch-bend and vendor-specific accidental spellings remain
 partial. Playback events retain exact `pitch_midi_cents` alongside rounded `pitch_midi`; host audio
