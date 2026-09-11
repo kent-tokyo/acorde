@@ -54,6 +54,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   sharing bounds-checked note lookup and preserving the existing import behavior.
 - Exposed bounded SF2/SF3 materialized preset-zone snapshots through WASM, including provider
   provenance, asset checksum, resolved playback metadata, and typed diagnostics for browser hosts.
+- Added a browser/WASM regression fixture for real SF2 preset-zone snapshot serialization; native
+  and compile-time WASM gates pass, while ChromeDriver execution remains environment-dependent.
 - Included resolved sloped-beam and secondary-beam extents in content-aware vertical margins so
   clearance shifts cannot clip short-value beam groups at the SVG page edge.
 - Projected structured `Measure::figured_bass` into the deterministic measure-text SVG path, with

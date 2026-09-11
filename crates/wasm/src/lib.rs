@@ -1854,6 +1854,21 @@ mod wasm_tests {
     }
 
     #[wasm_bindgen_test]
+    fn browser_soundfont_snapshot_exposes_materialized_zone_metadata() {
+        let snapshot = soundfont_preset_snapshot(
+            include_bytes!("../../../tests/fixtures/UprightPianoKW-small-20190703.sf2"),
+            "fixture-provider",
+            0,
+            0,
+        )
+        .unwrap();
+        assert!(snapshot.contains("\"format\":\"Sf2\""));
+        assert!(snapshot.contains("\"checksum\":"));
+        assert!(snapshot.contains("\"provider_version\":\"fixture-provider\""));
+        assert!(snapshot.contains("\"zones\":["));
+    }
+
+    #[wasm_bindgen_test]
     fn browser_analysis_cache_reuses_results_and_reports_stats() {
         let score_json = serde_json::to_string(&Score::default()).unwrap();
         let mut cache = AnalysisCache::new(2).unwrap();
