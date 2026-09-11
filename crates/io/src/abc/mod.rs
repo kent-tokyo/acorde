@@ -2,7 +2,7 @@ use crate::{Diagnostic, DiagnosticSeverity, Error, MAX_ABC_LINE_BYTES, MAX_INPUT
 /// Parse ABC notation (.abc) into a Score.
 ///
 /// Supports a useful subset of ABC notation:
-///   - Header fields: X, T, C, M (meter), L (unit length), Q (tempo), K (key)
+///   - Header fields: X, T, C, M (meter), L (unit length), Q (tempo), K (key), w (lyrics)
 ///   - Notes: C D E F G A B (uppercase = octave 4), c d e f g a b (octave 5)
 ///   - Octave: , lowers by one octave, ' raises by one octave (stackable)
 ///   - Accidentals: ^ = sharp, _ = flat, = = natural (before note)
@@ -34,7 +34,7 @@ pub fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
         let line = raw_line.split('%').next().unwrap_or_default();
         if line.len() >= 2 && line.as_bytes().get(1) == Some(&b':') {
             let field = &line[0..1];
-            if !matches!(field, "X" | "T" | "C" | "M" | "L" | "Q" | "K") {
+            if !matches!(field, "X" | "T" | "C" | "M" | "L" | "Q" | "K" | "w") {
                 let mut diagnostic = Diagnostic::warning(
                     "abc.unsupported-header",
                     format!("ABC header field '{field}' is outside acorde's supported subset"),
@@ -108,6 +108,7 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
     let mut current_measure_number = 0u32;
     let mut note_count = 0usize;
     let mut current_part_index = 0usize;
+    let mut lyric_lines = Vec::new();
 
     for (line_idx, raw_line) in text.lines().enumerate() {
         if line_idx >= MAX_LINES {
@@ -133,6 +134,10 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
         if line.len() >= 2 && line.as_bytes().get(1) == Some(&b':') {
             let field = &line[0..1];
             let value = line[2..].trim();
+            if field == "w" {
+                lyric_lines.push((current_part_index, value.to_string()));
+                continue;
+            }
             match field {
                 "X" => {
                     in_header = true;
@@ -219,6 +224,8 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
             pad_voice(&mut m.voices[0], beats);
         }
     }
+
+    apply_abc_lyrics(&mut score, &lyric_lines);
 
     // Renumber and annotate first measure
     let key = score.settings.key_signature.clone();
@@ -792,6 +799,54 @@ fn pad_voice(voice: &mut Vec<Note>, max_beats: f64) {
     }
 }
 
+fn apply_abc_lyrics(score: &mut Score, lyric_lines: &[(usize, String)]) {
+    let mut cursors = vec![0usize; score.parts.len()];
+    for (part_index, line) in lyric_lines {
+        let Some(part) = score.parts.get_mut(*part_index) else {
+            continue;
+        };
+        let Some(staff) = part.staves.first_mut() else {
+            continue;
+        };
+        let Some(cursor) = cursors.get_mut(*part_index) else {
+            continue;
+        };
+        for token in line.split_whitespace() {
+            if token == "*" {
+                *cursor = cursor.saturating_add(1);
+                continue;
+            }
+            let Some(note) = staff
+                .measures
+                .iter_mut()
+                .flat_map(|measure| measure.voices[0].iter_mut())
+                .filter(|note| !note.is_rest)
+                .nth(*cursor)
+            else {
+                break;
+            };
+            let text = token.trim_matches('-').replace('~', " ");
+            if text.is_empty() {
+                *cursor = cursor.saturating_add(1);
+                continue;
+            }
+            let starts_with_hyphen = token.starts_with('-');
+            let ends_with_hyphen = token.ends_with('-');
+            let syllabic = match (starts_with_hyphen, ends_with_hyphen) {
+                (false, false) => "single",
+                (false, true) => "begin",
+                (true, false) => "end",
+                (true, true) => "middle",
+            };
+            note.lyric = Some(acorde_core::Lyric {
+                text,
+                syllabic: syllabic.to_string(),
+            });
+            *cursor = cursor.saturating_add(1);
+        }
+    }
+}
+
 // ── serializer ────────────────────────────────────────────────────────────────
 
 /// Serialize a [`Score`] to ABC Notation.
@@ -868,9 +923,38 @@ pub fn serialize_abc(score: &Score) -> Result<String, Error> {
             out.push_str(barline_to_abc(&measure.barline_right));
         }
         out.push('\n');
+        if i == 0 {
+            let lyric_tokens = staff
+                .measures
+                .iter()
+                .flat_map(|measure| {
+                    measure.voices[0]
+                        .iter()
+                        .filter_map(|note| note.lyric.as_ref().map(abc_lyric_token))
+                })
+                .collect::<Vec<_>>();
+            if !lyric_tokens.is_empty() {
+                out.push_str("w:");
+                for token in lyric_tokens {
+                    out.push(' ');
+                    out.push_str(&token);
+                }
+                out.push('\n');
+            }
+        }
     }
 
     Ok(out)
+}
+
+fn abc_lyric_token(lyric: &acorde_core::Lyric) -> String {
+    let text = lyric.text.replace(' ', "~");
+    match lyric.syllabic.as_str() {
+        "begin" => format!("{text}-"),
+        "middle" => format!("-{text}-"),
+        "end" => format!("-{text}"),
+        _ => text,
+    }
 }
 
 fn barline_to_abc(barline: &Barline) -> &'static str {
@@ -1044,14 +1128,6 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                             .as_ref()
                             .map_or_else(|| "present".to_string(), |chord| chord.display_text()),
                         "ABC export does not emit note chord-symbol annotations",
-                    ),
-                    (
-                        "lyric",
-                        note.lyric.is_some(),
-                        note.lyric
-                            .as_ref()
-                            .map_or_else(|| "present".to_string(), |lyric| lyric.text.clone()),
-                        "ABC export does not emit note lyrics",
                     ),
                     (
                         "dynamic",
@@ -1401,7 +1477,6 @@ C D E F | G A B c |";
 
         let diagnostics = export_loss_diagnostics(&score);
         for field in [
-            "lyric",
             "dynamic",
             "articulations",
             "note_head",
@@ -1625,6 +1700,45 @@ C D E F | G A B c |";
                 actual_notes: 3,
                 normal_notes: 2,
             })
+        );
+    }
+
+    #[test]
+    fn abc_lyrics_align_and_round_trip() {
+        let abc = "X:1\nT:Lyrics\nM:3/4\nL:1/4\nK:C\nC D E|\nw: do- -re mi\n";
+        let score = parse_abc(abc).expect("ABC lyrics parse");
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(
+            notes[0].lyric.as_ref().map(|lyric| lyric.text.as_str()),
+            Some("do")
+        );
+        assert_eq!(
+            notes[0].lyric.as_ref().map(|lyric| lyric.syllabic.as_str()),
+            Some("begin")
+        );
+        assert_eq!(
+            notes[1].lyric.as_ref().map(|lyric| lyric.text.as_str()),
+            Some("re")
+        );
+        assert_eq!(
+            notes[1].lyric.as_ref().map(|lyric| lyric.syllabic.as_str()),
+            Some("end")
+        );
+        assert_eq!(
+            notes[2].lyric.as_ref().map(|lyric| lyric.text.as_str()),
+            Some("mi")
+        );
+        assert_eq!(
+            notes[2].lyric.as_ref().map(|lyric| lyric.syllabic.as_str()),
+            Some("single")
+        );
+
+        let serialized = serialize_abc(&score).expect("ABC lyrics serialize");
+        assert!(serialized.contains("w: do- -re mi"));
+        let restored = parse_abc(&serialized).expect("serialized ABC lyrics parse");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[0][1].lyric,
+            notes[1].lyric
         );
     }
 

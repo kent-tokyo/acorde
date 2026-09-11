@@ -17,7 +17,7 @@ the `Score` model; rendering and export can have narrower format-specific covera
 | Key signature and clef | yes | no | yes | yes | partial | yes | yes / yes / MusicXML |
 | Barlines, repeats, navigation | partial | partial | partial (common barlines/repeats) | partial | partial (barlines, common `dir` navigation marks) | yes | partial / partial / partial |
 | Dynamics and articulations | yes | no | partial (common decorations) | partial | partial (common articulations/ornaments) | yes | yes / yes / MusicXML |
-| Lyrics and expression text | partial | no | no | partial | partial (single-syllable lyrics, `dir`) | yes | partial / partial / MusicXML |
+| Lyrics and expression text | partial | no | partial (`w:` lyrics) | partial | partial (single-syllable lyrics, `dir`) | yes | partial / partial / MusicXML, ABC |
 | Ties, slurs, tuplets, grace/cue notes | yes | partial | partial (common tuplets) | partial | partial (ties/slurs/tuplets/grace) | yes | partial / partial / MusicXML |
 | Hairpins, pedal, ottava, trill | yes | no | no | partial | no | yes | partial / yes / MusicXML |
 | Glissando spanners and cross-staff placement | yes (standard start/stop and `<staff>`) | no | no | no | no | yes | yes / yes / MusicXML |
@@ -39,6 +39,8 @@ tunings in non-MusicXML formats and instrument-specific engraving remain partial
 decorations to canonical articulations, while unsupported decorations remain diagnosed. ABC supports
 common `(p` tuplets and preserves their actual/normal timing ratios; complete groups serialize as
 explicit `(p:q:r` markers. ABC supports
+common `w:` lyric lines with note alignment, syllable boundaries, and `~`-joined spaces; only the
+first voice is serialized. ABC supports
 double accidentals
 plus pure `^/` and `_/` quarter-tone spellings, and MEI supports `qs` and `qf`. ABC barline kinds
 outside that subset are reported with source-located export diagnostics. These

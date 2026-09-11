@@ -13,6 +13,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added ABC tuplet parsing and serialization, preserving actual/normal note ratios and
   applying the timing ratio to each grouped note during import; complete groups round-trip
   using explicit `(p:q:r` markers.
+- Added ABC `w:` lyric alignment for common syllable boundaries and `~` spaces, with lyric
+  serialization for the first voice.
 - Mapped common ABC decorations (`staccato`, `accent`, `tenuto`, `marcato`, `fermata`, `trill`,
   `mordent`, `turn`, breath, and caesura) to canonical note articulations; unsupported
   decorations remain source-located export/import diagnostics.
