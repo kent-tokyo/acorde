@@ -50,6 +50,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   produce misleading SVG relationships.
 - Rendered tablature technique connections per matching string for multi-position chords, using
   string identity before positional fallback to preserve chord-tab semantics.
+- Added canonical `data-string` metadata to each tablature technique connection so browser hosts
+  can select and edit a specific string within a chord relationship.
 - Aggregated minimum per-measure widths before SVG emission and rejected systems that cannot fit
   those lower bounds, preventing barlines from extending beyond the available system width.
 - Sized rendered staff systems from their configured tablature line count, preventing extended tab

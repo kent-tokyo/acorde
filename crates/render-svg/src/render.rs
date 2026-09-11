@@ -2870,6 +2870,7 @@ fn render_tab_technique_connection(
                         .flatten()
                 })?;
             Some((
+                current.string,
                 *bottom_y - f32::from(tab.lines.saturating_sub(previous.string)) * *space,
                 *bottom_y - f32::from(tab.lines.saturating_sub(current.string)) * *space,
             ))
@@ -2902,11 +2903,11 @@ fn render_tab_technique_connection(
         note_index - 1
     );
     let end_addr = format!("{part}:{staff}:{measure_idx}:{voice_idx}:{note_index}");
-    for (y1, y2) in y_pairs {
+    for (string, y1, y2) in y_pairs {
         if matches!(technique, acorde_core::GuitarTechnique::Slide) {
             let _ = write!(
                 body,
-                r#"<line class="{class}" data-technique="{data_technique}" data-start-note-addr="{start_addr}" data-end-note-addr="{end_addr}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
+                r#"<line class="{class}" data-technique="{data_technique}" data-string="{string}" data-start-note-addr="{start_addr}" data-end-note-addr="{end_addr}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
                 f(start),
                 f(y1),
                 f(end),
@@ -2922,7 +2923,7 @@ fn render_tab_technique_connection(
             let control_y = (y1.min(y2) + direction * space).min(y1.min(y2));
             let _ = write!(
                 body,
-                r#"<path class="{class}" data-technique="{data_technique}" data-start-note-addr="{start_addr}" data-end-note-addr="{end_addr}" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                r#"<path class="{class}" data-technique="{data_technique}" data-string="{string}" data-start-note-addr="{start_addr}" data-end-note-addr="{end_addr}" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
                 f(start),
                 f(y1),
                 f((start + end) / 2.0),
