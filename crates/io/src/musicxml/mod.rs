@@ -4,6 +4,7 @@ mod parser;
 mod serializer;
 
 pub use mxl::parse_mxl;
+pub(crate) use mxl::read_mxl_score;
 pub use parser::parse_musicxml;
 pub use serializer::serialize_musicxml;
 
@@ -266,6 +267,17 @@ fn push_advanced_attribute_diagnostics(
                     "MusicXML direction placement is not above or below; the original value is preserved",
                 )
             }
+            "default-x" | "default-y" | "relative-x" | "relative-y"
+                if path.last().map(String::as_str) == Some("note") =>
+            {
+                if value.parse::<f64>().is_ok_and(|number| number.is_finite()) {
+                    continue;
+                }
+                (
+                    "musicxml.invalid-note-placement",
+                    "MusicXML note placement is not a finite number; the value cannot be applied",
+                )
+            }
             "default-x" | "default-y" | "relative-x" | "relative-y" => (
                 "musicxml.unsupported-placement-attribute",
                 "MusicXML placement attribute is outside the canonical score model",
@@ -380,6 +392,29 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<crate::Diagnos
                 }
                 for (voice_index, voice) in measure.voices.iter().enumerate() {
                     for (note_index, note) in voice.iter().enumerate() {
+                        if let Some(end) = note
+                            .chord_symbol
+                            .as_ref()
+                            .and_then(|chord| chord.range_end.as_ref())
+                        {
+                            let mut diagnostic = crate::Diagnostic::warning(
+                                "musicxml.export-unsupported-harmony-range",
+                                "harmony range endpoint is not represented by MusicXML export",
+                            );
+                            diagnostic.source_location = Some(format!(
+                                "/score/part/{}/staff/{}/measure/{}/voice/{}/note/{}/chord-symbol/harm@end",
+                                part_index + 1,
+                                staff_index + 1,
+                                measure_index + 1,
+                                voice_index + 1,
+                                note_index + 1
+                            ));
+                            diagnostic.preserved_value = Some(format!(
+                                "{}:{}:{}:{}:{}",
+                                end.part, end.staff, end.measure, end.voice, end.note
+                            ));
+                            diagnostics.push(diagnostic);
+                        }
                         if let Some(harmony_type) = note
                             .chord_symbol
                             .as_ref()
@@ -574,11 +609,6 @@ mod tests {
         let diagnostics = loss_diagnostics(xml);
         for (code, suffix, value) in [
             (
-                "musicxml.unsupported-placement-attribute",
-                "note@default-x",
-                "12.5",
-            ),
-            (
                 "musicxml.unsupported-render-attribute",
                 "note@print-object",
                 "no",
@@ -601,6 +631,27 @@ mod tests {
                 "missing value/path for {code}"
             );
         }
+        assert!(!diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "musicxml.unsupported-placement-attribute"
+                && diagnostic
+                    .source_location
+                    .as_deref()
+                    .is_some_and(|path| path.ends_with("note@default-x"))
+        }));
+    }
+
+    #[test]
+    fn invalid_note_placement_is_source_diagnosed() {
+        let xml = r#"<score-partwise><part-list><score-part id="P1"/></part-list><part id="P1"><measure number="1"><note default-y="NaN"><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note></measure></part></score-partwise>"#;
+        let diagnostics = loss_diagnostics(xml);
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "musicxml.invalid-note-placement"
+                && diagnostic
+                    .source_location
+                    .as_deref()
+                    .is_some_and(|path| path.ends_with("note@default-y"))
+                && diagnostic.preserved_value.as_deref() == Some("NaN")
+        }));
     }
 
     #[test]

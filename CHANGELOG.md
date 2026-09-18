@@ -10,6 +10,237 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- Documentation is synchronized for the 1.1.7 candidate, including the English/Japanese
+  overviews, crate READMEs, migration notes, browser contract, and scorecard contract version.
+- MSCX import reports source-located diagnostics for malformed key-signature, time-signature,
+  tempo, pitch, and TPC values instead of silently hiding parser fallback substitutions.
+- Fuzz lockfile dependencies are synchronized with the workspace 1.1.7 crates, restoring
+  reproducible `--locked` fuzz checks.
+- Pitch scientific names now preserve arbitrary authored accidental counts, and parsing rejects
+  accidental runs that would overflow the canonical signed alteration range.
+- Updated the umbrella crate README dependency examples to the current 1.1.7 version.
+- WASM `ScoreEngine` now exposes a typed, undoable `set_tablature_config` convenience method
+  for setting or clearing staff line count, tuning, and capo without hand-building command JSON.
+- **[schema]** Voice-leading observations now preserve exact signed upper/lower motion in cents;
+  parallel-perfect checks use exact 0/700-cent classes while retaining legacy semitone motions.
+- Interval analysis now treats rests and pitchless events as hard melodic boundaries, preventing
+  false adjacent-interval findings across silence.
+- **[schema]** Key estimates now preserve duration-weighted coverage and total pitched duration,
+  improving long-tone versus passing-tone decisions while retaining pitch-count fields.
+- Browser hosts can retrieve typed interval observations and duration-weighted key candidates
+  directly from the adapter without manually traversing the analysis result.
+- Browser smoke coverage now asserts analysis schema v13 and duration-weighted key fields in the
+  rendered analysis panel.
+- Browser hosts can select notes through typed canonical addresses and resolve the selected note's
+  semantic metadata without parsing SVG or score JSON; the legacy string selection contract remains.
+- Added undoable `SetScoreText` editing for score-level styled text, keeping imported MuseScore
+  `VBox` annotations on the core/WASM command-history path.
+- Score diff/patch now reports and applies score-level styled-text changes, preventing title-page
+  annotations from being dropped during browser collaboration and snapshot synchronization.
+- Score diff/patch now reports and applies chord-definition collection changes as typed local
+  operations, avoiding unnecessary full-score replacement during chord-library editing.
+- Score diff/patch now reports and applies part name and short-name changes as typed local
+  operations, keeping publication labels stable during collaborative editing.
+- Score diff/patch now reports and applies common part MIDI channel/program changes locally,
+  preserving playback routing without replacing the complete score.
+- Refactored unrepresented-field diff discovery into score, part, staff, and measure helpers;
+  stable diagnostic paths and precedence are unchanged.
+- Score diff/patch now reports and applies part MIDI automation collections (pitch bend, CC,
+  program change, and aftertouch) locally, preserving authored playback events during sync.
+- Score diff/patch now reports and applies staff clef and transpose configuration locally,
+  preserving publication and transposing-instrument edits during synchronization.
+- Score diff/patch now reports and applies measure presentation settings locally, including
+  measure numbering, local clef, display text, multi-rest spans, and system/page breaks.
+- Fixed compatibility diff reporting so measure-level key-signature edits use their existing
+  typed local patch instead of being redundantly classified as unrepresented fields.
+- SVG spacing now reserves the combined width of visible chord accidentals and their deterministic
+  columns, reducing accidental-overlap risk in dense chords without relying on font metrics.
+- Chord analysis now recognizes common extended qualities including power chords, add9, altered
+  dominants, minor-major seventh, and ninth chords with stable display and Roman-numeral suffixes.
+- Chord analysis now preserves double-sharp and double-flat spellings for detected roots and basses,
+  including Roman-numeral pitch-class resolution.
+- Playback-event generation now coalesces contiguous authored ties into one continuous event,
+  while malformed or non-contiguous tie endings remain observable instead of being dropped.
+- Refactored MusicXML chord-note assembly into a bounded helper with a typed detail object,
+  preserving multi-pitch, tablature, technique, placement, and notehead semantics while reducing
+  the streaming parser's inline mutation surface.
+- MusicXML import now preserves note-level `tie` and notation-level `tied` start/stop markers,
+  allowing imported ties to use the continuous playback-event path without retriggering.
+- MSCX/MSCZ canonical export and import now preserve both ends of MuseScore tie spanners;
+  tie endings are no longer reported as an unsupported export field.
+- **[contract]** SVG metadata contract version 15 exposes authored `tie_start` and `tie_end`
+  flags in typed note semantics, allowing browser editing and playback hosts to follow ties
+  without reparsing SVG geometry or score JSON.
+- SVG tie rendering now rejects rest endpoints, preventing authored tie starts from drawing
+  curves across silence; the guard covers both within-measure and cross-measure joins.
+- Score patch generation now uses local operations for structured figured bass, measure text,
+  tablature configuration, and chord-definition collections; fields without a positional variant
+  still use an atomic full-score replacement to prevent silent notation loss.
+- Score diffs now expose typed measure-text and figured-bass changes, making those edits visible to
+  compatibility reports and explainable editor updates.
+- Score diffs now expose score-level annotations as complete old/new collections, keeping title-page
+  changes explainable alongside note and measure edits.
+- Score diffs now report stable paths for semantic fields without dedicated diff variants, avoiding
+  false equivalence for part, staff, tablature, and measure-structure changes.
+- Added undoable `SetTablatureConfig` editing for staff tuning, string count, and capo, with local
+  score patches and WASM JSON coverage for alphaTab-like browser workflows.
+- Added a typed browser-adapter `setTablatureConfig()` convenience method for the same checked edit
+  path, including clearing a staff's tablature configuration.
+- Score diffs now expose old/new tablature configuration values, keeping tuning and capo edits
+  visible to compatibility reports and editor refresh planning.
+- **[contract]** The MSCZ feature now provides deterministic canonical-subset `serialize_mscx` and
+  `serialize_mscz` output for score structure, voices, durations, pitches, tablature positions,
+  common techniques, lyrics, and basic measure metadata; full MuseScore byte/feature parity is not claimed.
+- **[diagnostics]** MSCX/MSCZ export report variants now identify omitted canonical fields with
+  bounded score paths, and the CLI/browser/WASM paths preserve those diagnostics.
+- **[interchange]** MSCX/MSCZ canonical export now preserves score metadata, supported quarter-tone
+  accidentals, and dynamics through parse/serialize round-trips.
+- **[interchange]** MSCX canonical export/import now preserves common staccato, accent, tenuto,
+  marcato, and staccatissimo articulations; unsupported composite symbols remain diagnosed.
+- **[interchange]** MSCX canonical export/import now preserves explicit stem direction and the
+  supported notehead shapes (diamond, x, slash, cross, and triangle).
+- **[interchange]** MSCX canonical export/import now preserves MuseScore `BeamMode` values for
+  begin, mid/continue, and end segments; unsupported hook variants remain diagnosed.
+- MSCX import now interprets standalone `<Beam><StemDirection>` groups for the preceding voice
+  group and normalizes them into canonical stem directions; beam geometry remains explicitly
+  outside the score model.
+- MSCX metadata parsing now mirrors canonical export for lyricist, copyright, work number, and
+  movement title fields instead of retaining only title and composer.
+- MSCX import now preserves MuseScore `StaffText` content and authored x/y offsets as typed
+  measure-text metadata, improving publication and editing hand-off.
+- MSCX/MSCZ export now re-emits offset measure text as `StaffText`, closing the import/export
+  symmetry for this canonical placement subset.
+- MSCX measure-text parsing now recognizes `Lyrics` and `FiguredBass` styles, preserving the
+  serializer's typed text projection instead of degrading them to generic text.
+- MSCX/MSCZ now round-trip score-level `VBox` title text through `Score.texts`, including typed
+  styles and bounded authored offsets.
+- Print layout publication metadata now carries score-level styled text for title-page hosts, and
+  the print-layout contract advances to version 27.
+- MSCX/MSCZ now preserves the canonical part MIDI channel (`midiChannel`) through import/export;
+  invalid channel values are source-located instead of silently accepted.
+- Refactored MSCX export-loss detection so note-level representability policy is isolated from
+  score traversal, preserving diagnostics while keeping future notation additions localized.
+- Refactored text-based articulation rendering into a dedicated helper, preserving deterministic
+  SVG classes, labels, and placement while reducing the main articulation dispatch surface.
+- **[schema]** Analysis interval observations now expose a backward-compatible signed `cents`
+  value, preserving exact microtonal distances while retaining the existing semitone field.
+- Refactored SVG articulation emission into a bounded per-articulation helper, preserving the
+  existing deterministic glyph/text output while keeping annotation orchestration readable.
+- Refactored SVG note validation and content emission into score-content, measure-text, layout
+  reference, and note-body helpers, preserving the renderer's validation order and output.
+- **[contract]** SVG metadata contract version 13 exposes ordered note articulations as stable
+  kebab-case values (including `tremolo-N`), canonical beat durations, and exact
+  `pitch_midi_cents` values in `note_semantics`, so browser hosts need not parse SVG or score JSON
+  for editing and playback hand-off.
+- Refactored SVG note annotation margin policy into a dedicated helper, keeping content-aware
+  vertical bounds behavior unchanged while isolating future engraving changes.
+- Browser TypeScript metadata now models harmony-range and tablature-technique endpoints as the
+  same typed `{part, staff, measure, voice, note}` objects emitted by Rust `NoteAddr` JSON.
+- SVG tablature bends now receive a dedicated curved `acorde-tab-bend` hook with the authored
+  bend amount, giving browser hosts a deterministic visual primitive in addition to typed note
+  semantics.
+- **[contract]** SVG metadata contract version 11 exposes typed tablature technique connections
+  with start/end note addresses, string numbers, and a cross-measure flag. Browser hosts can now
+  render or schedule slide, hammer-on, and pull-off continuations without parsing SVG geometry.
+- SVG tab technique connections now bridge the last note of one measure to the first note of the
+  next for slide, hammer-on, and pull-off, including edge-owned continuation segments at system
+  breaks. Stable note addresses and typed technique metadata remain available for browser hosts.
+- MusicXML note-level `default-x`/`default-y` and `relative-x`/`relative-y` values are now
+  preserved in the canonical note model, round-tripped by the MusicXML serializer, applied by
+  SVG placement, and exposed through render metadata and the WASM editing API. Valid numeric
+  values are no longer reported as losses; invalid values retain source-located diagnostics.
+- ABC, MEI, and MIDI export reports now identify retained MusicXML note-placement offsets as
+  explicit source-located losses instead of allowing unsupported placement to disappear silently.
+- SVG content-aware margins now account for note-level placement offsets in both axes, preventing
+  large authored offsets from clipping noteheads, stems, or attached annotations at the page edge.
+- Beamed notes now apply authored horizontal and vertical placement offsets to beam anchors and
+  beam-aware content margins, keeping moved notes and their beams aligned without edge clipping.
+- Horizontal note placement is now applied before event spacing, so adjacent-note collision
+  resolution, cross-voice spacing, connectors, and hit-test anchors share the rendered X position.
+- Centralized note anchor-Y calculation for notes, lyrics, tuplets, stems, and annotations; this
+  prevents authored vertical placement from being omitted on connected geometry and avoids
+  applying the offset twice to beam tips.
+- Tuplet reference geometry now uses the same placement-aware anchor for pitched notes, rests, and
+  tablature, so offset edits cannot leave a tuplet bracket or number at the old position.
+- Tablature event spacing now includes authored multi-string and two-digit fret widths, preventing
+  adjacent tab labels from colliding while preserving the existing bounded spacing policy.
+- Tablature staff geometry now reserves deterministic top clearance for fingering, techniques,
+  bends, and microtone markers, preventing annotations from intruding into the preceding staff.
+- Chord accidental columns now use the actual rendered accidental widths plus a deterministic
+  clearance gap, reducing collisions between vertically adjacent mixed accidental glyphs.
+- MusicXML note placement offsets now move the rendered notehead, rest, tablature, accidental,
+  dot, stem, and beam source geometry together with their semantic anchors; the prior partial
+  offset application could leave the note body behind.
+- Multi-string tablature anchors now use the first authored position when no legacy primary
+  position exists, keeping bends and note-attached techniques on the authored string.
+- Measure-level publication text now moves outside overlapping note-attached annotation lanes
+  using the rendered note anchors, with conservative content-margin reservation for the added gap.
+- Adjacent and cross-voice event spacing now distinguishes notation, upper-annotation, and
+  lower-annotation collision lanes, keeping same-side text clear without blindly conflating all
+  annotation widths.
+- Browser hosts can now apply any JSON-compatible core command through a validated stateless WASM
+  boundary and Worker `apply-command` request, with the adapter recording the resulting snapshot
+  for undo/redo.
+- SVG metadata contract version 10 exposes typed guitar techniques and bend amounts in
+  `note_semantics`, allowing tab editors and playback hosts to consume authored performance meaning
+  without parsing SVG annotations.
+- SVG tie, span, lyric, and address-bound anchors now include authored note placement offsets, so
+  shifted notes remain aligned with their semantic connectors and browser hit regions.
+- SVG microtone markers now expose exact cents and pitch indexes through stable data attributes,
+  allowing browser hosts to select and edit multi-pitch microtones without geometry inference.
+- SVG render metadata contract version 8 adds typed note semantics and tablature staff
+  configuration (tuning/capo) for common note annotations, instrument identity, unpitched status,
+  and per-pitch microtone cents without requiring SVG parsing.
+- Interactive SVG unpitched-note elements now expose the preserved MusicXML instrument ID,
+  allowing percussion hosts to resolve sound identity without inferring it from note geometry.
+- Refreshed the reproducible release-renderer benchmark evidence for the current `v1.1.7`
+  working tree; all small, medium, and large cases remain within their published budgets.
+- **[contract]** SVG render metadata now exposes ranged harmony annotations with typed start/end
+  note addresses and deterministic labels, allowing browser editors to follow MEI harmony extenders
+  without parsing SVG elements; the metadata contract is now version 5.
+- Added typed harmony ranges to `LayoutResult.spans` and rendered them as semantic, system-aware
+  SVG extender lines, keeping MEI harmony semantics consistent across layout, publication, and
+  browser selection.
+- Added the undoable, JSON-compatible `SetHarmonyRange` command so browser hosts can edit or clear
+  a harmony range endpoint without replacing the complete chord symbol.
+- Core validation now rejects harmony ranges whose typed end address does not resolve to an
+  existing note, preventing invalid spans from reaching layout or publication output.
+- Added a typed `ScoreEngine.set_harmony_range` WASM method accepting `NoteAddr` JSON and `null`
+  for clearing, so browser hosts can edit harmony extenders without assembling command JSON.
+- MusicXML export reports harmony range endpoints explicitly as unsupported instead of silently
+  dropping MEI-derived continuation semantics.
+- The regular CLI `convert` path now surfaces both import and export diagnostics on stderr, so
+  format-conversion loss is visible without requiring a separate `export-report` invocation.
+- MXL import reports now reuse diagnostics from the extracted inner MusicXML document, keeping
+  compressed and uncompressed MusicXML workflows on the same loss-report contract.
+- Other score-writing CLI workflows now surface export diagnostics through the shared writer,
+  keeping normalization and edit/export commands subject to the same loss visibility contract.
+- Refactored SVG tuplet rendering into a dedicated context-driven helper, reducing the size of
+  the per-voice rendering path without changing SVG output.
+- Refactored MEI staff, voice, note, span, multi-rest, and barline serialization into a bounded
+  helper, preserving the canonical MEI output while keeping the public serializer maintainable.
+- Added backward-compatible class-aware print collision resolvers with deterministic semantic
+  tie-breaks for critical notation, spacing symbols, annotations, and decoration.
+- **[contract]** SVG metadata contract version 7 now exposes typed tablature staff tuning and capo
+  values, allowing browser playback and editors to resolve authored tab positions without SVG
+  parsing or score reconstruction.
+- The framework-neutral TypeScript adapter now types renderer metadata and its optional tablature
+  staff configuration, including line count, tuning, and capo for browser hosts.
+- The browser adapter now exposes typed tablature positions, harmony ranges, and note semantics
+  (`dynamic`, lyric, technique, fingering, instrument, and microtone fields), keeping common
+  editing/playback metadata aligned with the Rust renderer contract.
+- Browser `RenderMetadata` now types address bounds and measure-level text annotations as well,
+  making hit testing and publication text placement consumable without generic JSON records.
+- Reverified the browser contract with Playwright 1.55.0 across Chromium 140, Firefox 141, and
+  WebKit 26; all three smoke workflows pass with the current WASM metadata contract.
+- Isolated initial SVG voice-position calculation behind a dedicated context, keeping collision
+  resolution separate from beat-to-position mapping for future layout policies.
+- Extracted per-note SVG drawing, address registration, tab-technique links, and lyric-hyphen
+  handling behind `VoiceNotesRenderContext`, reducing the orchestration function's responsibility.
+- Extracted chord notehead, ledger-line, accidental, and microtone-marker emission from the
+  pitched-note renderer, keeping chord geometry separate from stems and flags.
+- Extracted pitched-note stem/flag and augmentation-dot emission behind a focused rendering
+  context, keeping notehead geometry and duration ornaments independently testable.
 - Added ABC tuplet parsing and serialization, preserving actual/normal note ratios and
   applying the timing ratio to each grouped note during import; complete groups round-trip
   using explicit `(p:q:r` markers. Incomplete groups now produce a source-located export
@@ -22,6 +253,39 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `{...}` ornamental notes.
 - Added source-located ABC diagnostics for unsupported broken-rhythm markers (`<` and `>`),
   preventing their duration semantics from being silently discarded.
+- Preserved common single-number ABC volta starts (`[1`, `[2`, ...) as `Measure.volta` with
+  deterministic re-serialization; richer ending variants remain outside the declared subset.
+- Added source-located ABC diagnostics for multi-number volta endings such as `[1,2`, preventing
+  the unsupported numbers from being silently ignored.
+- Corrected ABC export diagnostics so supported grace-note markers are not reported as lost, while
+  non-`begin` volta kinds now receive source-addressed loss diagnostics.
+- Hardened ABC serialization and export reporting against missing primary-voice data, returning a
+  typed error or a source-addressed diagnostic instead of indexing blindly.
+- ABC common decorations now serialize back to deterministic `!name!` markers; unsupported
+  articulation variants remain source-diagnosed instead of being silently flattened.
+- Extended the ABC decoration subset with inverted mordent (`!invertedmordent!` and
+  `!lowermordent!`), the `!uppermordent!` alias, and shake markers.
+- Preserved ABC decorations attached to rests during parse/serialize round-trips, including
+  fermata markers.
+- Refactored ABC chord and rest token parsing into bounded helpers, keeping body-line state
+  handling separate from note construction without changing parse results or diagnostics.
+- Extracted ABC pitched-note token parsing and its pending annotation state, keeping accidental,
+  microtone, octave, and duration handling out of the line scanner.
+- Extracted ABC header-field handling into a dedicated state context, keeping metadata, voice
+  selection, and body-line scanning independently maintainable without changing parse semantics.
+- Extracted MEI note/rest construction and source-ID registration into a dedicated parsing
+  context, reducing streaming-loop complexity while preserving note, grace, tie, lyric, and
+  tuplet semantics.
+- MEI loss reports now explicitly preserve source locations and values for common editorial and
+  facsimile attributes (`facs`, `resp`, `cert`, and `evidence`) instead of silently dropping them.
+- MEI loss reports now identify facsimile structure elements (`facsimile`, `surface`, `zone`, and
+  `graphic`) individually, keeping image-reference boundaries visible to publication hosts.
+- Preserved pure quarter-sharp and quarter-flat spellings inside ABC chord brackets, including
+  deterministic serialization and parse/serialize regression coverage.
+- Corrected ABC chord parsing so repeated `^`/`_` prefixes preserve double accidentals with the
+  same semantics as standalone notes.
+- **[schema]** `ChordSymbol.range_end` now preserves MEI `harm@tstamp2`/`endid` as a typed note
+  address, with deterministic `endid` serialization and backward-compatible JSON defaults.
 - Added ABC `w:` lyric alignment for common syllable boundaries and `~` spaces, with lyric
   serialization for the first voice.
 - Corrected ABC loss diagnostics so supported `V:` voice declarations are not reported as

@@ -20,6 +20,9 @@ available, and a loss reason. A successful parse alone does not promote a matrix
 MusicXML `<unpitched>` notes retain display placement and the canonical `Note.is_unpitched` flag,
 then re-emit as `<unpitched>`; sound identity resolves only through explicit instrument
 declarations or retained MIDI display keys, while unmatched notes remain source-located losses.
+MusicXML note-level `default-x/default-y` and `relative-x/relative-y` numeric offsets are retained
+on `Note`, round-trip through the serializer, and are applied by SVG; non-finite values remain
+source-located import diagnostics rather than being silently normalized.
 The MSCX tablature boundary imports ordered `<Fingering>` values into canonical
 `Note.fingerings` and synchronizes the legacy first candidate in `Note.fingering`, with
 MusicXML/MSCX semantic comparison coverage; alternate-fingering policy and renderer glyph
@@ -45,6 +48,9 @@ MEI simple `fb`/`f` values populate ordered `Measure.figured_bass` entries and r
 `TextStyle::FiguredBass`; richer MEI and vendor-specific figure semantics remain source-located
 diagnostics. Standard `time-modification` tuplets are
 preserved as `TupletInfo`.
+MEI `facsimile`, `surface`, `zone`, and `graphic` elements are explicitly source-located as
+unsupported structure, and common `facs`, `resp`, `cert`, and `evidence` attributes preserve their
+values in diagnostics. No image or editorial reference is invented in the canonical score.
 ABC reports identify unsupported header fields and decoration delimiters by line; the body parser
 continues to use the declared note/rest/chord subset.
  MEI measure tempo (`mm`), plain-text `harm` chord labels, `reh` rehearsal marks, and `dir` directions/navigation marks are preserved in the supported subset. Unattached `harm` remains a measure-level `StyledText` display label; a bounded set of attached labels using `startid` becomes structured `ChordSymbol` data on the addressed note. Attached `chordref` is retained as raw canonical metadata; unattached `chordref`, timing-only placement, and unparseable labels receive source-located diagnostics. MEI `octave` spans are now supported for note-addressed `dis`/`dis.place` ranges; same-measure/layer note-addressed piano `pedal dir="down"` spans using `startid`/`endid` are also supported. Timestamp, release-only, and half-pedal variants remain explicitly reported as unsupported, with available `dir`, ID, and timing attributes preserved in the diagnostic. MEI export reports identify unrepresentable canonical score fields by score path, so an empty
@@ -134,6 +140,8 @@ The checked-in public-domain MIDI corpus now includes the original perfect-fifth
 Wikimedia Commons interval fixtures covering signed negative (`-1850`) and positive (`1437`)
 nonzero pitch-bend values; each is checksum-pinned and round-tripped by semantic event value.
 This three-file public-domain set is a permitted smoke corpus, not a held-out population benchmark.
+The regular CLI `convert` command now prints both import and export diagnostics to stderr; use
+`export-report` when machine-readable counts and structured diagnostic JSON are required.
 MusicXML export reports tablature capo because the canonical field is not part of the standard
 staff-details representation. MEI imports and exports simple note-addressed octave spans using
 `octave @dis`/`@dis.place` and same-measure/layer note-addressed pedal spans using `@dir="down"`, `@startid`, and `@endid`; timestamp and release-only pedal forms remain outside the current subset and retain their source timing attributes in diagnostics. MusicXML preserves `bend-alter` as canonical bend cents; non-start slide,
@@ -143,6 +151,18 @@ ABC export reports omitted non-primary voices/staves, note annotations, tablatur
 staff/string/fret/technique fields, and unsupported fractional cents rather than claiming that
 its compact notation is a complete Score serialization.
 MSCX simple `Harmony/name` values are preserved as measure-level chord-symbol display labels.
+The canonical MSCX/MSCZ exporter also preserves explicit stem direction, supported notehead
+shapes (diamond, x, slash, cross, and triangle), short part names, dynamics, and common
+articulations, plus common `BeamMode` begin/continue/end segments; unknown notehead, stem, or
+beam values receive source-located diagnostics.
+Standalone MuseScore `<Beam><StemDirection>` groups are normalized to the preceding voice group;
+beam fragments and hook geometry remain outside the canonical model and are not claimed lossless.
+The same MSCX/MSCZ projection now round-trips title, composer, lyricist, copyright, work number,
+and movement title metadata. Part MIDI channel values are preserved as well, with invalid channel
+values reported at their source path.
+MuseScore `StaffText` content, typed style, and finite authored x/y offsets are also retained as
+typed measure-text metadata and deterministically re-emitted by MSCX/MSCZ export, while host font
+metrics and final engraving remain explicitly external.
 The bounded `harmonyInfo/root` plus common `name` subset also attaches a canonical `ChordSymbol`
 to the following chord, and `harmonyInfo/base` maps to its slash-chord bass; placement is retained
 in the canonical model. `harmonyInfo/function` is retained as the same canonical
@@ -155,6 +175,9 @@ split into canonical `ChordDegree` values; unknown suffixes remain verbatim rath
 Out-of-range root/base TPC values (outside the bounded MuseScore `6..=26` spelling range) are
 rejected from the canonical mapping and retained in a source-located diagnostic, preventing
 unbounded accidental-name allocation.
+Malformed MSCX key-signature, time-signature, tempo, pitch, and TPC values follow the same
+non-silent-loss rule: the safe canonical fallback is retained for continued parsing, while the
+raw value and XML path are emitted under stable `mscx.invalid-*` diagnostic codes.
 The local semantic suite also compares the resulting chord-label projection between MEI and MSCX;
 this is display-label equivalence, not structured harmonic analysis equivalence.
 

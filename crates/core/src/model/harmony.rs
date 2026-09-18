@@ -16,6 +16,15 @@ const TEMPLATES: &[(&[u8], &str)] = &[
     (&[0, 5, 7], "suspended-fourth"),
     (&[0, 4, 7, 9], "major-sixth"),
     (&[0, 3, 7, 9], "minor-sixth"),
+    (&[0, 7], "power"),
+    (&[0, 2, 4, 7], "major-add9"),
+    (&[0, 2, 3, 7], "minor-add9"),
+    (&[0, 3, 7, 11], "minor-major-seventh"),
+    (&[0, 4, 6, 10], "dominant-flat-five"),
+    (&[0, 4, 8, 10], "dominant-sharp-five"),
+    (&[0, 2, 4, 7, 10], "dominant-ninth"),
+    (&[0, 2, 4, 7, 11], "major-ninth"),
+    (&[0, 2, 3, 7, 10], "minor-ninth"),
 ];
 
 /// Detect the chord name from a slice of pitches.
@@ -48,20 +57,10 @@ pub fn detect_chord(pitches: &[Pitch]) -> Option<ChordSymbol> {
 
         for &(template, kind) in TEMPLATES {
             if intervals.as_slice() == template {
-                let acc = match root_pitch.alter {
-                    1 => "#",
-                    -1 => "b",
-                    _ => "",
-                };
-                let root = format!("{}{}", root_pitch.step.to_char(), acc);
+                let root = pitch_name(root_pitch);
 
                 let bass = if bass_pc != root_pc {
-                    let b_acc = match bass_pitch.alter {
-                        1 => "#",
-                        -1 => "b",
-                        _ => "",
-                    };
-                    Some(format!("{}{}", bass_pitch.step.to_char(), b_acc))
+                    Some(pitch_name(bass_pitch))
                 } else {
                     None
                 };
@@ -76,6 +75,7 @@ pub fn detect_chord(pitches: &[Pitch]) -> Option<ChordSymbol> {
                     harmony_function: None,
                     harmony_type: None,
                     chord_ref: None,
+                    range_end: None,
                     degrees: Vec::new(),
                 });
             }
@@ -98,13 +98,27 @@ fn root_to_pc(root: &str) -> Option<u8> {
         'B' => 11,
         _ => return None,
     };
-    let pc = match chars.next() {
-        Some('#') => base + 1,
-        Some('b') => base.wrapping_sub(1),
-        None => base,
+    let accidental: String = chars.collect();
+    let offset = match accidental.as_str() {
+        "" => 0,
+        "#" => 1,
+        "##" => 2,
+        "b" => -1,
+        "bb" => -2,
         _ => return None,
     };
-    Some(pc % 12)
+    Some((base as i16 + offset).rem_euclid(12) as u8)
+}
+
+fn pitch_name(pitch: &Pitch) -> String {
+    let accidental = match pitch.alter {
+        -2 => "bb",
+        -1 => "b",
+        1 => "#",
+        2 => "##",
+        _ => "",
+    };
+    format!("{}{}", pitch.step.to_char(), accidental)
 }
 
 /// Returns the Roman numeral analysis string for `chord` in the context of `key`.
@@ -154,6 +168,15 @@ pub fn roman_numeral(chord: &ChordSymbol, key: &KeySignature) -> Option<String> 
         "dominant" => (true, "7"),
         "major-seventh" => (true, "maj7"),
         "major-sixth" => (true, "6"),
+        "power" => (true, "5"),
+        "major-add9" => (true, "add9"),
+        "minor-add9" => (false, "add9"),
+        "minor-major-seventh" => (false, "maj7"),
+        "dominant-flat-five" => (true, "7b5"),
+        "dominant-sharp-five" => (true, "7#5"),
+        "dominant-ninth" => (true, "9"),
+        "major-ninth" => (true, "maj9"),
+        "minor-ninth" => (false, "9"),
         "augmented" => (true, "+"),
         k if k.starts_with("suspended") => (true, ""),
         "minor" => (false, ""),
@@ -272,6 +295,58 @@ mod tests {
         assert_eq!(cs.kind, "major");
     }
 
+    #[test]
+    fn detect_chord_preserves_double_accidentals_in_root_and_bass() {
+        let pitches = [pa(Step::C, 4, 2), pa(Step::E, 4, 2), pa(Step::G, 4, 2)];
+        let chord = detect_chord(&pitches).expect("double-sharp chord should be detected");
+        assert_eq!(chord.root, "C##");
+        assert_eq!(chord.bass, None);
+        assert_eq!(root_to_pc("C##"), Some(2));
+        assert_eq!(root_to_pc("Abb"), Some(7));
+    }
+
+    #[test]
+    fn detect_chord_common_extended_qualities() {
+        let cases = vec![
+            (
+                vec![p(Step::C, 4), p(Step::D, 4), p(Step::E, 4), p(Step::G, 4)],
+                "major-add9",
+            ),
+            (
+                vec![
+                    p(Step::G, 3),
+                    p(Step::B, 3),
+                    p(Step::D, 4),
+                    p(Step::F, 4),
+                    p(Step::A, 4),
+                ],
+                "dominant-ninth",
+            ),
+            (vec![p(Step::C, 4), p(Step::G, 4)], "power"),
+        ];
+        for (pitches, expected_kind) in cases {
+            let chord = detect_chord(&pitches).expect("extended chord should be detected");
+            assert_eq!(chord.kind, expected_kind);
+        }
+    }
+
+    #[test]
+    fn extended_chord_qualities_have_stable_display_and_roman_suffixes() {
+        let chord = detect_chord(&[
+            p(Step::G, 3),
+            p(Step::B, 3),
+            p(Step::D, 4),
+            p(Step::F, 4),
+            p(Step::A, 4),
+        ])
+        .expect("dominant ninth should be detected");
+        assert_eq!(chord.display_text(), "G9");
+        assert_eq!(
+            roman_numeral(&chord, &c_major_key()),
+            Some("V9".to_string())
+        );
+    }
+
     fn c_major_key() -> KeySignature {
         KeySignature {
             fifths: 0,
@@ -291,6 +366,7 @@ mod tests {
             harmony_function: None,
             harmony_type: None,
             chord_ref: None,
+            range_end: None,
             degrees: Vec::new(),
         };
         assert_eq!(roman_numeral(&chord, &c_major_key()), Some("I".to_string()));
@@ -308,6 +384,7 @@ mod tests {
             harmony_function: None,
             harmony_type: None,
             chord_ref: None,
+            range_end: None,
             degrees: Vec::new(),
         };
         assert_eq!(
@@ -328,6 +405,7 @@ mod tests {
             harmony_function: None,
             harmony_type: None,
             chord_ref: None,
+            range_end: None,
             degrees: Vec::new(),
         };
         assert_eq!(
@@ -348,6 +426,7 @@ mod tests {
             harmony_function: None,
             harmony_type: None,
             chord_ref: None,
+            range_end: None,
             degrees: Vec::new(),
         };
         assert_eq!(
@@ -369,6 +448,7 @@ mod tests {
             harmony_function: None,
             harmony_type: None,
             chord_ref: None,
+            range_end: None,
             degrees: Vec::new(),
         };
         assert!(roman_numeral(&chord, &c_major_key()).is_none());
@@ -387,6 +467,7 @@ mod tests {
             harmony_function: None,
             harmony_type: None,
             chord_ref: None,
+            range_end: None,
             degrees: Vec::new(),
         };
         assert_eq!(

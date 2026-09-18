@@ -186,6 +186,35 @@ fn musicxml_direction_default_offsets_roundtrip_on_styled_text() {
 }
 
 #[test]
+fn musicxml_note_placement_offsets_roundtrip_and_are_not_reported_as_loss() {
+    let xml = SIMPLE_XML.replacen(
+        "<note",
+        "<note default-x=\"12.5\" default-y=\"-3\" relative-x=\"1.25\" relative-y=\"-0.5\"",
+        1,
+    );
+    let score = parse_musicxml(&xml).expect("parse positioned note");
+    let note = notes_in(&score, 0, 0)
+        .iter()
+        .find(|note| !note.is_rest)
+        .expect("positioned note");
+    assert_eq!(note.offset_x, Some(12.5));
+    assert_eq!(note.offset_y, Some(-3.0));
+    assert_eq!(note.relative_x, Some(1.25));
+    assert_eq!(note.relative_y, Some(-0.5));
+
+    let restored = parse_musicxml(&serialize_musicxml(&score).expect("serialize positioned note"))
+        .expect("reparse positioned note");
+    let restored_note = notes_in(&restored, 0, 0)
+        .iter()
+        .find(|note| !note.is_rest)
+        .expect("reparsed positioned note");
+    assert_eq!(restored_note.offset_x, Some(12.5));
+    assert_eq!(restored_note.offset_y, Some(-3.0));
+    assert_eq!(restored_note.relative_x, Some(1.25));
+    assert_eq!(restored_note.relative_y, Some(-0.5));
+}
+
+#[test]
 fn simple_musicxml_roundtrip_preserves_structure() {
     let score1 = parse_musicxml(SIMPLE_XML).expect("first parse failed");
     let xml2 = serialize_musicxml(&score1).expect("serialize failed");
@@ -1157,6 +1186,16 @@ fn openscore_lieder_cc0_fixture_parses_as_external_smoke_corpus() {
     assert_eq!(report.score.parts.len(), 4);
     assert_eq!(report.score.parts[0].staves[0].measures.len(), 23);
     assert_eq!(report.score.metadata.title, "Aloha Oe");
+    assert!(report.score.parts.iter().any(|part| {
+        part.staves.iter().any(|staff| {
+            staff.measures.iter().any(|measure| {
+                measure
+                    .voices
+                    .iter()
+                    .any(|voice| voice.iter().any(|note| note.tie_end))
+            })
+        })
+    }));
 }
 
 #[cfg(feature = "mei")]
@@ -2176,7 +2215,7 @@ fn musicxml_export_reports_unrepresentable_midi_automation() {
 #[cfg(all(feature = "abc", feature = "musicxml"))]
 #[test]
 fn non_mei_exports_report_harmonic_type_loss() {
-    use acorde_core::{ChordDefinition, ChordSymbol, Duration, Note, Pitch, Score, Step};
+    use acorde_core::{ChordDefinition, ChordSymbol, Duration, Note, NoteAddr, Pitch, Score, Step};
     let mut score = Score::new("harmonic type", 120, 4, 4, 0, 1);
     let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
     note.chord_symbol = Some(ChordSymbol {
@@ -2189,6 +2228,13 @@ fn non_mei_exports_report_harmonic_type_loss() {
         harmony_function: None,
         harmony_type: Some("roman".to_string()),
         chord_ref: Some("#harmonychordA".to_string()),
+        range_end: Some(NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        }),
         degrees: Vec::new(),
     });
     score.parts[0].staves[0].measures[0].voices[0] = vec![note];
@@ -2237,6 +2283,21 @@ fn non_mei_exports_report_harmonic_type_loss() {
     assert_eq!(
         musicxml_ref_loss.preserved_value.as_deref(),
         Some("#harmonychordA")
+    );
+    let musicxml_range_loss = musicxml
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == "musicxml.export-unsupported-harmony-range")
+        .expect("MusicXML harmony range loss is diagnosed");
+    assert_eq!(
+        musicxml_range_loss.preserved_value.as_deref(),
+        Some("0:0:0:0:0")
+    );
+    assert!(
+        musicxml_range_loss
+            .source_location
+            .as_deref()
+            .is_some_and(|path| path.ends_with("/harm@end"))
     );
     let abc_ref_loss = abc
         .diagnostics

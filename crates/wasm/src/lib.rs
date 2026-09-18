@@ -232,6 +232,36 @@ pub fn parse_mscx_report(xml: &str) -> Result<String, JsValue> {
     serde_json::to_string(&report).map_err(|e| js_err(format!("report serialization failed: {e}")))
 }
 
+/// Serialize a score to the deterministic canonical MuseScore MSCX subset.
+#[wasm_bindgen]
+pub fn serialize_mscx(score_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    acorde_io::serialize_mscx(&score).map_err(js_err)
+}
+
+/// Serialize a score to MSCX and return structured export diagnostics.
+#[wasm_bindgen]
+pub fn serialize_mscx_report(score_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let report = acorde_io::serialize_mscx_with_report(&score).map_err(js_err)?;
+    serde_json::to_string(&report).map_err(|e| js_err(format!("report serialization failed: {e}")))
+}
+
+/// Serialize a score to a deterministic canonical MuseScore MSCZ archive.
+#[wasm_bindgen]
+pub fn serialize_mscz(score_json: &str) -> Result<Vec<u8>, JsValue> {
+    let score = score_from_json(score_json)?;
+    acorde_io::serialize_mscz(&score).map_err(js_err)
+}
+
+/// Serialize a score to MSCZ and return structured export diagnostics.
+#[wasm_bindgen]
+pub fn serialize_mscz_report(score_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let report = acorde_io::serialize_mscz_with_report(&score).map_err(js_err)?;
+    serde_json::to_string(&report).map_err(|e| js_err(format!("report serialization failed: {e}")))
+}
+
 /// Parse a MIDI file (byte array) and return the score as a JSON string.
 #[wasm_bindgen]
 pub fn parse_midi(data: &[u8]) -> Result<String, JsValue> {
@@ -767,6 +797,27 @@ pub fn apply_score_patch(score_json: &str, patches_json: &str) -> Result<String,
         .map_err(|e| js_err(format!("invalid score patch JSON: {e}")))?;
     let patched = acorde_core::apply_patch(&score, &patches).map_err(js_err)?;
     score_to_json(&patched)
+}
+
+/// Apply one JSON-encoded core command to a validated score without mutating the input.
+///
+/// The result is `{ "score": <score>, "hint": <change hint> }`, allowing stateless browser
+/// adapters to keep their own snapshot/history boundary while reusing the same checked command
+/// engine as the stateful [`ScoreEngine`] class. This is intentionally a single-command boundary;
+/// callers needing one undo entry for several edits should use the stateful class or a core batch
+/// command.
+#[wasm_bindgen]
+pub fn apply_score_command(score_json: &str, command_json: &str) -> Result<String, JsValue> {
+    let score = validated_score_from_json(score_json)?;
+    let command: Command = parse_json(command_json, "command", MAX_SMALL_JSON_BYTES)?;
+    let mut engine = acorde_core::ScoreEngine::new();
+    engine.try_replace_score(score).map_err(js_err)?;
+    let hint = engine.apply(command).map_err(js_err)?;
+    serde_json::to_string(&serde_json::json!({
+        "score": engine.score,
+        "hint": hint,
+    }))
+    .map_err(|e| js_err(format!("command result serialization failed: {e}")))
 }
 
 /// Compute statistics for a score (JSON string).
@@ -1347,6 +1398,80 @@ impl ScoreEngine {
         serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
     }
 
+    /// Set or clear a chord-symbol harmony range from typed `NoteAddr` JSON values.
+    ///
+    /// `start_json` identifies the note carrying the chord symbol. `end_json` is either a
+    /// `NoteAddr` object or JSON `null` to clear the range. The operation is undoable and is
+    /// equivalent to applying the `SetHarmonyRange` command directly.
+    pub fn set_harmony_range(
+        &mut self,
+        start_json: &str,
+        end_json: &str,
+    ) -> Result<String, JsValue> {
+        let start: acorde_core::NoteAddr =
+            parse_json(start_json, "harmony range start", MAX_SMALL_JSON_BYTES)?;
+        let end: Option<acorde_core::NoteAddr> =
+            parse_json(end_json, "harmony range end", MAX_SMALL_JSON_BYTES)?;
+        let command = acorde_core::Command::SetHarmonyRange(acorde_core::SetHarmonyRangeCmd {
+            part_index: start.part,
+            staff_index: start.staff,
+            measure_index: start.measure,
+            voice: start.voice,
+            note_index: start.note,
+            end,
+        });
+        let hint = self.inner.apply(command).map_err(js_err)?;
+        serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
+    }
+
+    /// Set or clear a staff's tablature configuration from typed JSON.
+    ///
+    /// `config_json` is either a [`TablatureConfig`] object or JSON `null`. The operation is
+    /// undoable and is equivalent to applying the `SetTablatureConfig` command directly.
+    pub fn set_tablature_config(
+        &mut self,
+        part_index: usize,
+        staff_index: usize,
+        config_json: &str,
+    ) -> Result<String, JsValue> {
+        let config: Option<acorde_core::TablatureConfig> =
+            parse_json(config_json, "tablature config", MAX_SMALL_JSON_BYTES)?;
+        let command =
+            acorde_core::Command::SetTablatureConfig(acorde_core::SetTablatureConfigCmd {
+                part_index,
+                staff_index,
+                config,
+            });
+        let hint = self.inner.apply(command).map_err(js_err)?;
+        serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
+    }
+
+    /// Set or clear MusicXML-compatible note placement offsets in tenths.
+    pub fn set_note_placement(
+        &mut self,
+        note_json: &str,
+        offset_x: Option<f64>,
+        offset_y: Option<f64>,
+        relative_x: Option<f64>,
+        relative_y: Option<f64>,
+    ) -> Result<String, JsValue> {
+        let addr: acorde_core::NoteAddr =
+            parse_json(note_json, "note placement address", MAX_SMALL_JSON_BYTES)?;
+        let command = acorde_core::Command::SetNotePlacement(acorde_core::SetNotePlacementCmd {
+            part_index: addr.part,
+            staff_index: addr.staff,
+            measure_index: addr.measure,
+            voice: addr.voice,
+            note_index: addr.note,
+            offset_x,
+            offset_y,
+            relative_x,
+            relative_y,
+        });
+        let hint = self.inner.apply(command).map_err(js_err)?;
+        serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
+    }
+
     /// Undo the last command. Returns a [`ChangeHint`] JSON string on success.
     pub fn undo(&mut self) -> Result<String, JsValue> {
         let hint = self.inner.undo().map_err(js_err)?;
@@ -1769,6 +1894,64 @@ mod tests {
     }
 
     #[test]
+    fn tablature_config_command_is_available_through_json_engine_api() {
+        let command =
+            acorde_core::Command::SetTablatureConfig(acorde_core::SetTablatureConfigCmd {
+                part_index: 0,
+                staff_index: 0,
+                config: Some(acorde_core::TablatureConfig {
+                    lines: 6,
+                    tuning_midi: vec![40, 45, 50, 55, 59, 64],
+                    capo: 2,
+                }),
+            });
+        let command_json = serde_json::to_string(&command).unwrap();
+        let mut engine = ScoreEngine::new();
+        engine.apply(&command_json).unwrap();
+        let score: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0]
+                .tablature
+                .as_ref()
+                .map(|tab| tab.capo),
+            Some(2)
+        );
+    }
+
+    #[test]
+    fn typed_tablature_config_engine_api_supports_clear_and_undo() {
+        let mut engine = ScoreEngine::new();
+        engine
+            .set_tablature_config(
+                0,
+                0,
+                r#"{"lines":6,"tuning_midi":[40,45,50,55,59,64],"capo":2}"#,
+            )
+            .unwrap();
+        let configured: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert_eq!(
+            configured.parts[0].staves[0]
+                .tablature
+                .as_ref()
+                .map(|tab| tab.lines),
+            Some(6)
+        );
+
+        engine.set_tablature_config(0, 0, "null").unwrap();
+        let cleared: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert!(cleared.parts[0].staves[0].tablature.is_none());
+        engine.undo().unwrap();
+        let restored: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert_eq!(
+            restored.parts[0].staves[0]
+                .tablature
+                .as_ref()
+                .map(|tab| tab.capo),
+            Some(2)
+        );
+    }
+
+    #[test]
     fn measure_text_command_is_available_through_json_engine_api() {
         let command = acorde_core::Command::SetMeasureText(acorde_core::SetMeasureTextCmd {
             part_index: 0,
@@ -1802,17 +1985,141 @@ mod tests {
     }
 
     #[test]
+    fn score_text_command_is_available_through_json_engine_api() {
+        let command = acorde_core::Command::SetScoreText(acorde_core::SetScoreTextCmd {
+            text_index: 0,
+            text: Some(acorde_core::StyledText {
+                style: acorde_core::TextStyle::Expression,
+                text: "Prelude".to_owned(),
+                placement: None,
+                offset_x: Some(12.0),
+                offset_y: Some(-8.0),
+                relative_x: None,
+                relative_y: None,
+            }),
+        });
+        let command_json = serde_json::to_string(&command).unwrap();
+        let mut engine = ScoreEngine::new();
+        engine.apply(&command_json).unwrap();
+        let score: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert_eq!(score.texts[0].text, "Prelude");
+        assert_eq!(score.texts[0].offset_x, Some(12.0));
+        engine.undo().unwrap();
+        let score: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert!(score.texts.is_empty());
+        engine.redo().unwrap();
+        let score: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert_eq!(score.texts[0].style, acorde_core::TextStyle::Expression);
+    }
+
+    #[test]
+    fn typed_harmony_range_api_sets_and_clears_endpoint() {
+        let mut score = Score::new("Harmony", 120, 4, 4, 0, 2);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(
+            acorde_core::Pitch::new(acorde_core::Step::C, 4),
+            acorde_core::Duration::Whole,
+        )];
+        score.parts[0].staves[0].measures[1].voices[0] = vec![acorde_core::Note::new(
+            acorde_core::Pitch::new(acorde_core::Step::G, 4),
+            acorde_core::Duration::Whole,
+        )];
+        score.parts[0].staves[0].measures[0].voices[0][0].chord_symbol =
+            Some(acorde_core::ChordSymbol {
+                root: "C".to_owned(),
+                kind: "major".to_owned(),
+                bass: None,
+                placement: None,
+                extender: true,
+                harmonic_degree: None,
+                harmony_function: None,
+                harmony_type: None,
+                chord_ref: None,
+                range_end: None,
+                degrees: Vec::new(),
+            });
+
+        let mut engine = ScoreEngine::new();
+        let score_json = serde_json::to_string(&score).unwrap();
+        engine.replace_score(&score_json).unwrap();
+        engine
+            .set_harmony_range(
+                r#"{"part":0,"staff":0,"measure":0,"voice":0,"note":0}"#,
+                r#"{"part":0,"staff":0,"measure":1,"voice":0,"note":0}"#,
+            )
+            .unwrap();
+        let changed: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert_eq!(
+            changed.parts[0].staves[0].measures[0].voices[0][0]
+                .chord_symbol
+                .as_ref()
+                .and_then(|chord| chord.range_end.as_ref())
+                .map(|end| end.measure),
+            Some(1)
+        );
+        engine
+            .set_harmony_range(
+                r#"{"part":0,"staff":0,"measure":0,"voice":0,"note":0}"#,
+                "null",
+            )
+            .unwrap();
+        let cleared: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert!(
+            cleared.parts[0].staves[0].measures[0].voices[0][0]
+                .chord_symbol
+                .as_ref()
+                .is_some_and(|chord| chord.range_end.is_none())
+        );
+    }
+
+    #[test]
     fn score_patch_json_roundtrip_applies_changes() {
         let mut before = Score::new("Before", 120, 4, 4, 0, 1);
         let mut after = before.clone();
         after.metadata.title = "After".to_string();
         after.settings.tempo_bpm = 96;
+        after.texts.push(acorde_core::StyledText {
+            style: acorde_core::TextStyle::Expression,
+            text: "Prelude".to_owned(),
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        });
         let patches = acorde_core::score_patch(&before, &after);
         let json = serde_json::to_string(&patches).unwrap();
         let decoded: Vec<acorde_core::ScorePatch> = serde_json::from_str(&json).unwrap();
         before = acorde_core::apply_patch(&before, &decoded).unwrap();
         assert_eq!(before.metadata.title, "After");
         assert_eq!(before.settings.tempo_bpm, 96);
+        assert_eq!(before.texts[0].text, "Prelude");
+    }
+
+    #[test]
+    fn stateless_command_boundary_returns_changed_score_and_hint() {
+        let score = Score::default();
+        let command = acorde_core::Command::SetNotePlacement(acorde_core::SetNotePlacementCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            note_index: 0,
+            offset_x: Some(8.0),
+            offset_y: Some(-2.0),
+            relative_x: None,
+            relative_y: None,
+        });
+        let result = apply_score_command(
+            &serde_json::to_string(&score).unwrap(),
+            &serde_json::to_string(&command).unwrap(),
+        )
+        .unwrap();
+        let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(
+            value["score"]["parts"][0]["staves"][0]["measures"][0]["voices"][0][0]["offset_x"],
+            8.0
+        );
+        assert_eq!(value["hint"]["layout_dirty"], true);
     }
 }
 
@@ -1852,7 +2159,9 @@ mod wasm_tests {
         assert!(metadata.contains("contract_version"));
         assert!(metadata.contains("accessible_text"));
         assert!(metadata.contains("address_bounds"));
+        assert!(metadata.contains("score_texts"));
         assert!(metadata.contains("tablature_positions"));
+        assert!(metadata.contains("note_semantics"));
         assert_eq!(render_preflight(&score_json).unwrap(), "[]");
         assert_eq!(glyph_resource_contract_version(), 1);
         let descriptor = r#"{
@@ -1930,6 +2239,27 @@ mod wasm_tests {
         let stats = cache.stats().unwrap();
         assert!(stats.contains("\"hits\":1"));
         assert!(stats.contains("\"misses\":1"));
+    }
+
+    #[wasm_bindgen_test]
+    fn browser_analysis_preserves_microtonal_intervals_and_key_weights() {
+        let mut score = Score::default();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        voice.push(acorde_core::Note::new(
+            acorde_core::Pitch::try_with_microtone(acorde_core::Step::C, 4, 0, 25)
+                .expect("valid microtone"),
+            acorde_core::Duration::Whole,
+        ));
+        voice.push(acorde_core::Note::new(
+            acorde_core::Pitch::new(acorde_core::Step::D, 4),
+            acorde_core::Duration::Eighth,
+        ));
+        let score_json = serde_json::to_string(&score).unwrap();
+        let analysis = analyze_score(&score_json).unwrap();
+        assert!(analysis.contains("\"cents\":175"));
+        assert!(analysis.contains("\"weighted_covered_beats\":"));
+        assert!(analysis.contains("\"total_duration_beats\":4.5"));
     }
 
     #[wasm_bindgen_test]

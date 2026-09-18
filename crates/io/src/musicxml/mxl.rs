@@ -9,6 +9,11 @@ const MAX_MXL_DECOMPRESSED: u64 = 32 * 1024 * 1024; // 32 MB (zip-bomb guard)
 const MAX_MXL_ENTRIES: usize = 1024;
 
 pub fn parse_mxl(data: &[u8]) -> Result<Score, Error> {
+    let xml = read_mxl_score(data)?;
+    super::parser::parse_musicxml(&xml)
+}
+
+pub(crate) fn read_mxl_score(data: &[u8]) -> Result<String, Error> {
     if data.len() > MAX_MXL_COMPRESSED {
         return Err(Error::TooLarge(data.len()));
     }
@@ -43,7 +48,7 @@ pub fn parse_mxl(data: &[u8]) -> Result<Score, Error> {
         find_score_entry(&mut archive)?
     };
 
-    super::parser::parse_musicxml(&xml)
+    Ok(xml)
 }
 
 fn validate_zip_path(path: &str) -> Result<(), Error> {

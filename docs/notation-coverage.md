@@ -33,32 +33,50 @@ the `Score` model; rendering and export can have narrower format-specific covera
 Tablature currently preserves MusicXML `staff-details/staff-lines`, `staff-tuning`, and note
 `technical/string` plus `fret`, including per-pitch positions for chords; the SVG renderer displays
 explicit positions and guitar technique labels. Core automatic string/fret assignment and
-sequence-aware movement optimization are available for configured tablature staves. Alternate
-tunings in non-MusicXML formats and instrument-specific engraving remain partial. Microtones use
-`Pitch::microtone_cents`; ABC supports common normal/double/repeat barlines and maps common
-decorations to canonical articulations, while unsupported decorations remain diagnosed. ABC supports
-common `(p` tuplets and preserves their actual/normal timing ratios; complete groups serialize as
-explicit `(p:q:r` markers, while incomplete groups are reported as source-located export
-diagnostics instead of being silently flattened. ABC note ties and slurs are preserved across
-notes and measure boundaries; slur parentheses are distinguished from tuplet markers. It also
-preserves common `{...}` grace groups as `Note.is_grace`. It also supports common `w:` lyric lines with note alignment,
-syllable boundaries, `~`-joined spaces, and `*`
+sequence-aware movement optimization are available for configured tablature staves. SVG metadata
+also exposes each tablature staff's line count, tuning MIDI values, and capo as typed fields, so
+browser hosts do not need to reconstruct tuning from SVG geometry. Alternate
+tunings in non-MusicXML formats and instrument-specific engraving remain partial. SVG also exposes
+typed slide, hammer-on, pull-off, and cross-measure connection metadata; system-break continuation
+segments follow the same edge-owned policy as other spans. Microtones use
+`Pitch::microtone_cents`; MSCX/MSCZ preserves explicit stem direction and the canonical
+notehead-shape subset (diamond, x, slash, cross, triangle) in its bounded export contract. ABC
+supports common normal/double/repeat barlines and maps common
+decorations to canonical articulations and deterministically serializes those supported
+articulations back to `!name!` markers, while unsupported decorations remain diagnosed. ABC supports
+inverted mordent and shake aliases in that same round-trip subset; `uppermordent` and
+`lowermordent` map to the corresponding mordent directions.
+The same decoration subset is retained on rests, including fermata markers, rather than being
+dropped during import. ABC supports common `(p` tuplets and preserves their actual/normal timing
+ratios; complete groups serialize as explicit `(p:q:r` markers, while incomplete groups are
+reported as source-located export diagnostics instead of being silently flattened. ABC note ties
+and slurs are preserved across notes and measure boundaries; slur parentheses are distinguished
+from tuplet markers. It also preserves common `{...}` grace groups as `Note.is_grace`. It supports
+common `w:` lyric lines with note alignment, syllable boundaries, `~`-joined spaces, and `*`
 placeholders for unlyricized notes; only the first voice is serialized. ABC supports
 source-located diagnostics for unsupported broken-rhythm markers (`<` and `>`), whose duration
 transformations are outside the canonical duration subset. ABC supports
-double accidentals
-plus pure `^/` and `_/` quarter-tone spellings, and MEI supports `qs` and `qf`. ABC barline kinds
-outside that subset are reported with source-located export diagnostics. These
+common single-number volta starts (`[1`, `[2`, ...) as `Measure.volta` with deterministic
+round-trip serialization; non-`begin` volta kinds and richer multi-number ending syntax remain
+outside the declared subset and are source-located on import/export.
+ABC also supports double accidentals plus pure `^/` and `_/` quarter-tone spellings in notes and
+chord members, with matching semantics for standalone and chord pitches; MEI supports `qs` and
+`qf`. ABC barline kinds outside that subset are reported with source-located export diagnostics.
+These
 declared quarter-tone spellings are 50 cents with no additional semitone alter; exact comparisons
 can use `Pitch::to_midi_cents()`. MIDI pitch-bend and vendor-specific accidental spellings remain
 partial. Playback events retain exact `pitch_midi_cents` alongside rounded `pitch_midi`; host audio
 rendering remains backend-dependent. MusicXML `default-x/default-y`, `relative-x/relative-y`,
+Scientific-name formatting preserves authored extended accidental runs; parser overflow is rejected
+instead of wrapping into an unrelated pitch. Authored ties are also prevented from connecting to
+rests in SVG, while their start/end state remains available in typed metadata.
 rendering attributes, and namespaced vendor attributes are now reported with stable,
-source-located diagnostics and preserved values; direction `placement` (`above`/`below`) and
-MusicXML direction `default-x/default-y` and `relative-x/relative-y` offsets are preserved as
-separate fields in `StyledText`; their coordinate meanings are not collapsed. Vendor semantics
-are not guessed into the canonical model. Other direction placement values are preserved but
-reported as a typed diagnostic.
+source-located diagnostics and preserved values. Note-level `default-x/default-y` and
+`relative-x/relative-y` numeric offsets are canonical, round-trip through MusicXML, and are
+applied by SVG; direction `placement` (`above`/`below`) and MusicXML direction offsets remain
+separate `StyledText` fields because their coordinate meanings are not collapsed. Vendor
+semantics are not guessed into the canonical model. Other direction placement values are
+preserved but reported as a typed diagnostic.
 MSCX tab staffs preserve `StaffType group="tab"` line/tuning
 data and note-level string/fret when present; `Tuplet`/`endTuplet` ranges preserve their
 `actualNotes`/`normalNotes` ratio, `acciaccatura`/`appoggiatura` grace markers map to the
@@ -73,8 +91,25 @@ or unsupported attachments remain diagnostics. Attached MEI `harm@deg` is retain
 harmonic-analysis metadata, and standard `harm@type` is retained as optional classification
 metadata. MEI `harm@func` and MusicXML/MSCX harmony function values share the canonical
 `ChordSymbol.harmony_function` field; unattached or timing-only attributes remain source-located
-diagnostics.
-MEI simple `fb`/`f` values map in order to `Measure.figured_bass` and typed display-level
+diagnostics. `harm@tstamp` resolves to a note at the corresponding meter beat, and
+`harm@tstamp2`/`endid` preserve a typed harmony end-note address with deterministic MEI output.
+Malformed range timestamps and range targets that cannot be resolved to an existing note remain
+source-located diagnostics while the import itself stays usable.
+When rendered, ranged harmonies are also exposed through versioned SVG metadata with typed start
+and end addresses, and through `LayoutResult.spans` as system-aware semantic extender lines, so
+browser editors can select or update the range without parsing SVG.
+Endpoint-only edits are available through the undoable JSON/WASM command contract, while the
+existing full chord-symbol command remains backward compatible.
+Core validation rejects range endpoints that do not resolve to an existing note, so invalid
+references cannot silently reach layout or SVG publication.
+WASM hosts can use the typed `ScoreEngine.set_harmony_range` method with a `NoteAddr` JSON value
+and `null` to clear the endpoint, without constructing a full command object.
+MusicXML export reports ranged-harmony loss explicitly because the standard harmony element has
+no equivalent endpoint contract; MEI remains the loss-preserving export for this field.
+MEI editorial and facsimile attributes such as `facs`, `resp`, `cert`, and `evidence` are
+source-located with preserved values in import diagnostics; `facsimile`, `surface`, `zone`, and
+`graphic` structure elements are diagnosed individually. They remain outside the canonical score
+until a reference-preserving model is defined. MEI simple `fb`/`f` values map in order to `Measure.figured_bass` and typed display-level
 `TextStyle::FiguredBass`; MEI leading accidental semantics, common `|`/`+` decorations,
 balanced parentheses, source text, and `f@extender` are also preserved. MusicXML `figured-bass` figure number, alter, prefix, and suffix values map to structured
 `Measure.figured_bass`; richer MEI and vendor-specific figured-bass semantics remain partial and
@@ -97,9 +132,11 @@ MusicXML note-level `instrument@id` is retained as `Note.instrument_id`; concret
 catalog mapping remains partial. Core validation rejects deserialized `microtone_cents` values
 outside -99..99. The SVG renderer preserves non-zero cents visibly as deterministic
 `acorde-microtone` text markers (for example `+25c`); richer quarter-tone glyph equivalence
-remains a later glyph-resource phase.
-Unpitched notes preserve their display placement and expose an `acorde-unpitched` SVG hook without
-inventing a percussion sound identity; percussion clef mappings remain bounded and explicit.
+remain a later glyph-resource phase. Each marker also exposes exact cents and pitch index data
+attributes for browser selection without geometry inference.
+Unpitched notes preserve their display placement and expose an `acorde-unpitched` SVG hook plus
+the preserved `data-acorde-instrument-id` when available, without inventing a percussion sound
+identity; percussion clef mappings remain bounded and explicit.
 Structured figured bass is projected into the deterministic measure-text SVG path, including a
 bounded continuation-line hook for `extender`; duplicate importer display text is suppressed.
 Supported mordent, inverted mordent, turn, inverted turn, shake, and tremolo articulations expose
@@ -135,7 +172,9 @@ the repository. The fixture provenance and evidence mode are pinned in
 [`interchange-evidence.md`](interchange-evidence.md). Known losses are tracked here until `ImportReport` and `ExportReport` expose source
 location, severity, preserved value, and loss reason through the native, CLI, and WASM APIs. The
 WASM bindings expose report variants for MusicXML, MXL, MEI, MIDI, ABC, MSCZ, and MSCX imports,
-plus MusicXML, MEI, MIDI, and ABC exports. The
+plus MusicXML, MEI, MIDI, ABC, MSCX, and MSCZ exports. The
+MXL reports extract the bounded inner MusicXML entry and reuse its source-located diagnostics,
+so compression does not weaken the MusicXML loss boundary.
 MEI boundary currently supports one part, multiple numbered staves, up to four layers per measure,
 title,
 score-level and measure-level meter, score-level key signature and clef, notes, rests, accidentals,

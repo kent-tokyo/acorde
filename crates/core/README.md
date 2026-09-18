@@ -5,13 +5,18 @@ Score data model and command engine for Rust and WebAssembly.
 This crate has no I/O, filesystem, renderer, or async-runtime dependency. It provides Score, Part,
 Staff, Measure, Note, notation types, ScoreEngine, serializable Command values, undo/redo,
 validation, playback-event generation, score diff/patch, transposition, and music-theory helpers.
+Playback-event generation coalesces contiguous authored ties into one continuous event while
+keeping malformed or non-contiguous tie endings observable as separate events.
 Pitches preserve fractional cents, and playback events expose exact MIDI-cent values in addition to
 the rounded MIDI note, while notes and staves can carry tablature string/fret and
 tuning metadata with serde defaults for older score JSON.
+`Pitch::to_scientific_name()` preserves authored accidental runs beyond double-sharp/double-flat;
+scientific-name parsing rejects an accidental run that would overflow the signed alteration range.
 Validation rejects deserialized `microtone_cents` values outside the canonical -99..99 range.
 `assign_tablature_positions` provides deterministic capo-aware placement, while
 `optimize_tablature_positions` considers movement between notes and chord strings. `SetTabPositionCmd`
 makes explicit positions editable through the command engine.
+`SetTablatureConfigCmd` makes staff tuning, string count, and capo editable with undo/redo.
 Ordered alternate fingering candidates are stored in `Note.fingerings`; `SetFingeringsCmd` keeps
 the first candidate synchronized with the legacy `Note.fingering` field.
 `Note::select_fingering` provides a non-mutating deterministic source-order, lowest-number, or
@@ -30,8 +35,19 @@ is preserved through the serde-defaulted `ChordSymbol.harmony_function` field.
 clamping; the legacy `with_microtone()` constructor retains its clamping behavior for
 compatibility. Measure-level styled text can be edited transactionally with
 `Command::SetMeasureText`: provide an existing `text_index` to replace/remove an entry, or the
-current length to append one. Invalid indexes return an error before mutation, and the operation
-participates in the normal undo/redo and JSON command-history contracts.
+current length to append one. Score-level styled text uses the same contract through
+`Command::SetScoreText`, keeping title-page annotations editable after import. Invalid indexes
+return an error before mutation, and both operations participate in the normal undo/redo and
+JSON command-history contracts.
+`diff` and `ScorePatch` also preserve the complete score-level text collection, so collaboration
+and snapshot synchronization do not drop title-page annotations.
+Structured figured bass, measure presentation, measure text, tablature configuration, chord definitions, part names, and
+common part MIDI routing use local score-patch operations. When a score contains fields without a dedicated positional
+patch variant, patch generation uses an atomic full-score replacement instead of silently dropping
+those fields. `ScoreChange` reports these editing changes explicitly as well.
+Score-level annotation changes are reported with their complete old/new collections.
+Fields without dedicated diff variants are reported with stable semantic paths rather than being
+silently treated as equivalent.
 `EngineHistory::base_matches` and `ScoreEngine::from_history_on_base` provide a deterministic
 preflight and typed rejection for replaying a stale command log on an unrelated collaboration
 snapshot.

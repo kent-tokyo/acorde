@@ -250,6 +250,16 @@ fn resolve_spans(score: &Score) -> Vec<SpanMark> {
                                 end: addr.clone(),
                             });
                         }
+
+                        if let Some(chord) = &note.chord_symbol
+                            && let Some(end) = &chord.range_end
+                        {
+                            spans.push(SpanMark::Harmony {
+                                label: chord.display_text(),
+                                start: addr.clone(),
+                                end: end.clone(),
+                            });
+                        }
                     }
                 }
             }
@@ -921,6 +931,42 @@ mod tests {
             assert_eq!(start.note, 0);
             assert_eq!(end.note, 1);
         }
+    }
+
+    #[test]
+    fn harmony_range_span_resolved_from_typed_end_address() {
+        use acorde_core::{ChordSymbol, Duration, Note, NoteAddr, Pitch, Step};
+        let mut score = score_with_measures(2);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        score.parts[0].staves[0].measures[1].voices[0] =
+            vec![Note::new(Pitch::new(Step::G, 4), Duration::Whole)];
+        score.parts[0].staves[0].measures[0].voices[0][0].chord_symbol = Some(ChordSymbol {
+            root: "C".to_owned(),
+            kind: "major".to_owned(),
+            bass: None,
+            placement: None,
+            extender: true,
+            harmonic_degree: None,
+            harmony_function: None,
+            harmony_type: None,
+            chord_ref: None,
+            range_end: Some(NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 1,
+                voice: 0,
+                note: 0,
+            }),
+            degrees: Vec::new(),
+        });
+
+        let result = compute_layout(&score, &LayoutConfig::default());
+        assert!(matches!(
+            result.spans.as_slice(),
+            [SpanMark::Harmony { label, start, end }]
+                if label == "C" && start.measure == 0 && end.measure == 1
+        ));
     }
 
     // ── CourtesyAccidental ────────────────────────────────────────────────────

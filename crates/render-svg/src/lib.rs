@@ -31,13 +31,13 @@ mod glyphs;
 mod render;
 mod tuplets;
 
-use acorde_core::{NoteHead, Score, TextStyle};
+use acorde_core::{NoteAddr, NoteHead, Score, TextStyle};
 use acorde_layout::{LayoutConfig, LayoutResult, compute_layout};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Version of the browser-facing [`RenderMetadata`] contract.
-pub const SVG_CONTRACT_VERSION: u32 = 4;
+pub const SVG_CONTRACT_VERSION: u32 = 15;
 /// Version of the built-in glyph coverage contract.
 pub const GLYPH_COVERAGE_CONTRACT_VERSION: u32 = 3;
 /// Stable identifier for the renderer's font-independent vector glyph set.
@@ -127,9 +127,87 @@ pub struct RenderMetadata {
     /// Measure-level text with its stable score location and typed presentation role.
     #[serde(default)]
     pub text_annotations: Vec<TextAnnotation>,
+    /// Score-level title-page text imported from formats such as MuseScore VBox.
+    #[serde(default)]
+    pub score_texts: Vec<ScoreTextMetadata>,
     /// String/fret positions exposed without requiring hosts to parse SVG elements.
     #[serde(default)]
     pub tablature_positions: Vec<TablaturePositionMetadata>,
+    /// Tuning and capo metadata for each rendered tablature staff.
+    #[serde(default)]
+    pub tablature_staves: Vec<TablatureStaffMetadata>,
+    /// Chord labels whose continuation range is exposed with typed note addresses.
+    #[serde(default)]
+    pub harmony_ranges: Vec<HarmonyRangeMetadata>,
+    /// Tablature technique connections with stable start/end note addresses.
+    #[serde(default)]
+    pub tablature_technique_connections: Vec<TablatureTechniqueConnectionMetadata>,
+    /// Note-level semantic fields needed by browser playback and editing hosts.
+    #[serde(default)]
+    pub note_semantics: Vec<NoteSemanticMetadata>,
+}
+
+/// Stable note-level semantic metadata that avoids forcing browser hosts to parse SVG elements.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NoteSemanticMetadata {
+    pub part: usize,
+    pub staff: usize,
+    pub measure: usize,
+    pub voice: usize,
+    pub note: usize,
+    pub is_unpitched: bool,
+    /// Whether the note starts or ends an authored tie.
+    #[serde(default)]
+    pub tie_start: bool,
+    #[serde(default)]
+    pub tie_end: bool,
+    /// Per-note performed duration in canonical beats, including dots and tuplets.
+    #[serde(default)]
+    pub duration_beats: f64,
+    /// Exact sounding pitch for each source pitch in hundredths of a MIDI semitone.
+    #[serde(default)]
+    pub pitch_midi_cents: Vec<i32>,
+    /// MusicXML note placement offsets in tenths, when authored.
+    #[serde(default)]
+    pub offset_x: Option<f64>,
+    #[serde(default)]
+    pub offset_y: Option<f64>,
+    #[serde(default)]
+    pub relative_x: Option<f64>,
+    #[serde(default)]
+    pub relative_y: Option<f64>,
+    #[serde(default)]
+    pub dynamic: Option<String>,
+    #[serde(default)]
+    pub lyric: Option<String>,
+    #[serde(default)]
+    pub chord_label: Option<String>,
+    #[serde(default)]
+    pub technique_text: Option<String>,
+    /// Ordered note articulations using stable kebab-case names; tremolo includes its level.
+    #[serde(default)]
+    pub articulations: Vec<String>,
+    /// Guitar technique used by tablature playback/rendering hosts.
+    #[serde(default)]
+    pub guitar_technique: Option<acorde_core::GuitarTechnique>,
+    /// Authored bend amount in cents, when present.
+    #[serde(default)]
+    pub guitar_bend_alter_cents: Option<i16>,
+    #[serde(default)]
+    pub fingerings: Vec<u8>,
+    #[serde(default)]
+    pub instrument_id: Option<String>,
+    /// One entry per pitch in source order; zero means no microtonal offset.
+    #[serde(default)]
+    pub microtone_cents: Vec<i16>,
+}
+
+/// A ranged harmony annotation with stable score addresses for browser editors.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct HarmonyRangeMetadata {
+    pub start: NoteAddr,
+    pub end: NoteAddr,
+    pub label: String,
 }
 
 /// A tablature position with a stable source address for browser editing hosts.
@@ -145,12 +223,52 @@ pub struct TablaturePositionMetadata {
     pub fret: u8,
 }
 
+/// Typed tablature configuration for a rendered staff.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TablatureStaffMetadata {
+    pub part: usize,
+    pub staff: usize,
+    pub lines: u8,
+    #[serde(default)]
+    pub tuning_midi: Vec<i16>,
+    pub capo: u8,
+}
+
+/// A typed tablature connection for browser editing and playback hosts.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TablatureTechniqueConnectionMetadata {
+    pub start: NoteAddr,
+    pub end: NoteAddr,
+    pub technique: acorde_core::GuitarTechnique,
+    pub string: u8,
+    /// True when the connection joins adjacent physical measures.
+    #[serde(default)]
+    pub cross_measure: bool,
+}
+
 /// A measure-level styled text entry exposed to browser hosts without SVG parsing.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TextAnnotation {
     pub part: usize,
     pub staff: usize,
     pub measure: usize,
+    pub style: TextStyle,
+    pub text: String,
+    #[serde(default)]
+    pub placement: Option<String>,
+    #[serde(default)]
+    pub offset_x: Option<f64>,
+    #[serde(default)]
+    pub offset_y: Option<f64>,
+    #[serde(default)]
+    pub relative_x: Option<f64>,
+    #[serde(default)]
+    pub relative_y: Option<f64>,
+}
+
+/// A score-level styled text entry exposed without requiring hosts to parse SVG or interchange XML.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ScoreTextMetadata {
     pub style: TextStyle,
     pub text: String,
     #[serde(default)]
@@ -243,6 +361,7 @@ pub enum RenderPreflightKind {
     InvalidTabPosition,
     MeasureTextTooLarge,
     InvalidMeasureTextOffset,
+    InvalidNotePlacement,
     InvalidXmlCharacter,
 }
 
@@ -339,6 +458,22 @@ pub fn render_preflight(score: &Score) -> Vec<RenderPreflightIssue> {
                                 &format!("{note_path}/chord-symbol"),
                                 &chord_text,
                             );
+                        }
+                        for (field, value) in [
+                            ("default-x", note.offset_x),
+                            ("default-y", note.offset_y),
+                            ("relative-x", note.relative_x),
+                            ("relative-y", note.relative_y),
+                        ] {
+                            if let Some(value) = value {
+                                if !value.is_finite() || !(value as f32).is_finite() {
+                                    issues.push(RenderPreflightIssue {
+                                        kind: RenderPreflightKind::InvalidNotePlacement,
+                                        source_location: format!("{note_path}/{field}"),
+                                        preserved_value: value.to_string(),
+                                    });
+                                }
+                            }
                         }
                         for (pitch_index, pitch) in note.pitches.iter().enumerate() {
                             if !(-2..=2).contains(&pitch.alter) {
@@ -524,6 +659,8 @@ pub enum RenderError {
     MeasureTextTooLarge { size: usize },
     /// A measure-level styled text offset is not finite or cannot fit SVG coordinates.
     InvalidMeasureTextOffset { field: &'static str },
+    /// A note-level MusicXML placement offset is not finite or cannot fit SVG coordinates.
+    InvalidNotePlacement { field: &'static str },
     /// A score text contains a character that XML 1.0 cannot represent.
     InvalidXmlCharacter { codepoint: u32 },
     /// Host-provided annotation validation failed.
@@ -558,6 +695,9 @@ impl std::fmt::Display for RenderError {
             ),
             RenderError::InvalidMeasureTextOffset { field } => {
                 write!(f, "measure-level text offset {field} is not finite")
+            }
+            RenderError::InvalidNotePlacement { field } => {
+                write!(f, "note placement offset {field} is not finite")
             }
             RenderError::InvalidXmlCharacter { codepoint } => write!(
                 f,

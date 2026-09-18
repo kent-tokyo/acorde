@@ -10,7 +10,10 @@ python3 -m http.server 8000
 
 The page verifies `parse_musicxml` → `compute_layout_ex` →
 `render_score_svg_with_layout` / `render_score_svg_row` / `render_score_metadata`, including
-stable `address_bounds` coverage. It also provides an offline reference workflow for loading a
+stable `address_bounds`, typed `note_semantics`, and tablature staff tuning/capo metadata coverage;
+the browser smoke contract also asserts the presence of the `tablature_staves` field.
+It also asserts the versioned analysis result and duration-weighted key-estimate fields.
+It also provides an offline reference workflow for loading a
 local MusicXML file, editing and applying the source, undoing/redoing edits, running analysis,
 selecting and playing notes, and exporting MusicXML. It is intentionally framework-free so it can
 also serve as a smoke test for future browser integrations.
@@ -27,9 +30,29 @@ selection/highlighting/playback belong to the browser host rather than the state
 `acorde-adapter.ts` is a dependency-free, framework-neutral starting point for a browser
 workspace. Inject the generated WASM module into `AcordeWorkspace`; it keeps score, layout,
 metadata, and analysis transport consistent while `SelectionStore` synchronizes stable note
-addresses across notation and analysis views. Results are cached by the WASM-provided analysis
+addresses across notation and analysis views. `RenderMetadata` uses typed entries for hit-test
+bounds, styled text, note semantics, tablature positions/staff configuration, and harmony ranges,
+so hosts can consume
+editing and playback fields without parsing SVG or maintaining a duplicate score index. Results
+are cached by the WASM-provided analysis
 cache key plus layout or render configuration, so repeated view updates and equivalent revisions do
 not rerun WASM analysis or rendering.
+ Its `RenderMetadata` type includes optional typed `tablature_staves` entries for line count,
+MIDI tuning, and capo, plus note articulation names and typed tablature technique connections. The
+`tablatureTechniqueConnections()` helper returns that connection list directly while
+preserving compatibility with older generated WASM bindings.
+`noteSemanticAt(address)` provides the complete typed semantic entry for one stable note address,
+including articulation names, without requiring hosts to scan the metadata array.
+The current metadata contract is version 15. Its note semantics include authored `tie_start` and
+`tie_end`; SVG tie geometry is suppressed when either endpoint is a rest, so hosts should use the
+typed flags and source addresses rather than infer ties from curve presence.
+The adapter also types the analysis result's interval observations; each interval exposes both the
+legacy semitone distance and the exact signed `cents` value, so microtonal editor views do not need
+to decode untyped JSON fields.
+Key estimates also expose duration-weighted coverage and total pitched duration, allowing hosts to
+explain why sustained tones outweigh short passing tones in a candidate ranking.
+`analysisIntervals()` and `analysisKeyEstimates()` provide those typed categories directly while
+reusing the same analysis cache entry.
 `BROWSER_ADAPTER_CONTRACT_VERSION` identifies the request/response surface independently from
 `WORKSPACE_SNAPSHOT_SCHEMA_VERSION`; hosts can reject an adapter with an unsupported message
 contract before dispatching Worker requests.
@@ -64,9 +87,10 @@ failed layout preparation leaves the current score unchanged.
 `exportMusicXml` provides offline MusicXML export. `playbackEvents`, `playbackPosition`, and
 `durationSeconds` expose deterministic scheduling data to a host audio backend without coupling
 the adapter to Web Audio or another playback framework.
-`exportMei`, `exportAbc`, and `exportMidi` expose the existing format serializers for browser
-downloads or host adapters; the corresponding `WithReport` methods preserve typed conversion
-diagnostics. MIDI is returned as `Uint8Array`, while text formats are returned as strings.
+`exportMei`, `exportAbc`, `exportMidi`, `exportMscx`, and `exportMscz` expose the format serializers for browser
+downloads or host adapters; report-capable formats retain typed conversion diagnostics through
+their `WithReport` methods. MIDI and MSCZ are returned as `Uint8Array`, while text formats are
+returned as strings.
 `loadMxl`, `loadMei`, `loadAbc`, `loadMscx`, and `loadMscz` expose the corresponding existing
 WASM parsers through the same transactional score replacement boundary; the adapter does not
 claim that any of these format subsets are globally lossless.
@@ -109,6 +133,16 @@ round trip.
 `select-address` updates the shared `SelectionStore` from a Worker host and returns the current
 revision plus selected address; `selection-state` reads the same lightweight state without
 rendering or analysis.
+`formatNoteAddress`, `parseNoteAddress`, and `select-note` provide a typed bridge for hosts that
+already use the metadata/analysis `{part, staff, measure, voice, note}` address shape. The
+legacy string selection remains available, and `selectedNoteSemantic()` resolves the current
+selection without requiring the host to parse SVG or score JSON.
+`apply-command` and `AcordeWorkspace.applyCommandJson()` route one JSON-compatible core command
+through the validated WASM command boundary, then record the resulting snapshot in adapter undo
+history. Note, tablature, and notation edits therefore use the same checked path as native
+`ScoreEngine` edits.
+`AcordeWorkspace.setTablatureConfig()` provides a typed convenience wrapper for changing or
+clearing staff tuning, string count, and capo without hand-assembling command JSON.
 `soundfont-preset-snapshot` accepts SF2/SF3 bytes and returns one bounded, deterministic
 provider-neutral preset-zone snapshot with asset provenance and typed materialization diagnostics;
 sample decoding, synthesis, and licensed assets remain host-owned.

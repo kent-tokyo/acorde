@@ -2,7 +2,7 @@ use acorde_core::{
     Command, FingeringSelectionPolicy, PlaybackOptions, Score, ScoreEngine, SetTabPositionCmd,
     TabPosition,
 };
-use acorde_io::ImportReport;
+use acorde_io::{Diagnostic, DiagnosticSeverity, ImportReport};
 use clap::{Parser, Subcommand, ValueEnum};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -983,6 +983,12 @@ fn bytes_fingerprint(bytes: &[u8]) -> String {
 // ── convert ───────────────────────────────────────────────────────────────────
 
 fn write_score(score: &Score, output: &Path) -> Result<(), String> {
+    let diagnostics = write_score_with_report(score, output)?;
+    print_conversion_diagnostics("export", &diagnostics);
+    Ok(())
+}
+
+fn write_score_with_report(score: &Score, output: &Path) -> Result<Vec<Diagnostic>, String> {
     let ext = output
         .extension()
         .and_then(|e| e.to_str())
@@ -990,32 +996,75 @@ fn write_score(score: &Score, output: &Path) -> Result<(), String> {
         .to_ascii_lowercase();
     match ext.as_str() {
         "xml" | "musicxml" => {
-            let xml = acorde_io::serialize_musicxml(score).map_err(|e| e.to_string())?;
-            std::fs::write(output, xml)
-                .map_err(|e| format!("cannot write '{}': {e}", output.display()))
+            let report =
+                acorde_io::serialize_musicxml_with_report(score).map_err(|e| e.to_string())?;
+            std::fs::write(output, report.output)
+                .map_err(|e| format!("cannot write '{}': {e}", output.display()))?;
+            Ok(report.diagnostics)
         }
         "mid" | "midi" => {
-            let bytes = acorde_io::serialize_midi(score).map_err(|e| e.to_string())?;
-            std::fs::write(output, bytes)
-                .map_err(|e| format!("cannot write '{}': {e}", output.display()))
+            let report = acorde_io::serialize_midi_with_report(score).map_err(|e| e.to_string())?;
+            std::fs::write(output, report.output)
+                .map_err(|e| format!("cannot write '{}': {e}", output.display()))?;
+            Ok(report.diagnostics)
         }
         "abc" => {
-            let text = acorde_io::serialize_abc(score).map_err(|e| e.to_string())?;
-            std::fs::write(output, text)
-                .map_err(|e| format!("cannot write '{}': {e}", output.display()))
+            let report = acorde_io::serialize_abc_with_report(score).map_err(|e| e.to_string())?;
+            std::fs::write(output, report.output)
+                .map_err(|e| format!("cannot write '{}': {e}", output.display()))?;
+            Ok(report.diagnostics)
         }
         "mei" => {
-            let text = acorde_io::serialize_mei(score).map_err(|e| e.to_string())?;
-            std::fs::write(output, text)
-                .map_err(|e| format!("cannot write '{}': {e}", output.display()))
+            let report = acorde_io::serialize_mei_with_report(score).map_err(|e| e.to_string())?;
+            std::fs::write(output, report.output)
+                .map_err(|e| format!("cannot write '{}': {e}", output.display()))?;
+            Ok(report.diagnostics)
+        }
+        "mscx" => {
+            let report = acorde_io::serialize_mscx_with_report(score).map_err(|e| e.to_string())?;
+            std::fs::write(output, report.output)
+                .map_err(|e| format!("cannot write '{}': {e}", output.display()))?;
+            Ok(report.diagnostics)
+        }
+        "mscz" => {
+            let report = acorde_io::serialize_mscz_with_report(score).map_err(|e| e.to_string())?;
+            std::fs::write(output, report.output)
+                .map_err(|e| format!("cannot write '{}': {e}", output.display()))?;
+            Ok(report.diagnostics)
         }
         other => Err(format!("unsupported output format: '.{other}'")),
     }
 }
 
+fn print_conversion_diagnostics(phase: &str, diagnostics: &[Diagnostic]) {
+    for diagnostic in diagnostics {
+        let severity = match diagnostic.severity {
+            DiagnosticSeverity::Info => "info",
+            DiagnosticSeverity::Warning => "warning",
+            DiagnosticSeverity::Error => "error",
+        };
+        let location = diagnostic
+            .source_location
+            .as_deref()
+            .map(|value| format!(" at {value}"))
+            .unwrap_or_default();
+        let reason = diagnostic
+            .loss_reason
+            .as_deref()
+            .or(diagnostic.preserved_value.as_deref())
+            .unwrap_or("no additional detail");
+        eprintln!(
+            "{phase} diagnostic [{severity}] {}{location}: {reason}",
+            diagnostic.code
+        );
+    }
+}
+
 fn cmd_convert(input: &Path, output: &Path) -> Result<(), String> {
-    let score = parse_score(input)?;
-    write_score(&score, output)?;
+    let import = parse_report(input)?;
+    print_conversion_diagnostics("import", &import.diagnostics);
+    let export_diagnostics = write_score_with_report(&import.score, output)?;
+    print_conversion_diagnostics("export", &export_diagnostics);
     println!("wrote '{}'", output.display());
     Ok(())
 }
@@ -1196,6 +1245,26 @@ fn cmd_validate(input: &Path) -> Result<(), String> {
                     note + 1,
                     pitch + 1,
                     microtone_cents
+                ),
+                acorde_core::ValidationError::InvalidHarmonyRange {
+                    part,
+                    staff,
+                    measure,
+                    voice,
+                    note,
+                    end,
+                } => eprintln!(
+                    "part {} staff {} measure {} voice {} note {}: harmony range ends at missing note {}:{}:{}:{}:{}",
+                    part + 1,
+                    staff + 1,
+                    measure + 1,
+                    voice + 1,
+                    note + 1,
+                    end.part + 1,
+                    end.staff + 1,
+                    end.measure + 1,
+                    end.voice + 1,
+                    end.note + 1
                 ),
             }
         }
@@ -1613,6 +1682,26 @@ fn cmd_export_report(input: &Path, output: &Path) -> Result<(), String> {
                 report.schema_version,
             )
         }
+        "mscx" => {
+            let report =
+                acorde_io::serialize_mscx_with_report(&score).map_err(|e| e.to_string())?;
+            (
+                report.format,
+                report.output.into_bytes(),
+                report.diagnostics,
+                report.schema_version,
+            )
+        }
+        "mscz" => {
+            let report =
+                acorde_io::serialize_mscz_with_report(&score).map_err(|e| e.to_string())?;
+            (
+                report.format,
+                report.output,
+                report.diagnostics,
+                report.schema_version,
+            )
+        }
         other => return Err(format!("unsupported output format: '.{other}'")),
     };
     let byte_count = bytes.len();
@@ -1766,6 +1855,22 @@ mod tests {
         assert!(svg.starts_with("<svg"));
         assert!(svg.contains("data-note-addr"));
         std::fs::remove_file(output).expect("temporary render output is removable");
+    }
+
+    #[test]
+    fn convert_path_returns_export_loss_diagnostics() {
+        let import = parse_report(&fixture("interchange_harm_analysis.mei"))
+            .expect("MEI fixture report succeeds");
+        let output = std::env::temp_dir().join(format!(
+            "acorde-cli-convert-diagnostics-{}.musicxml",
+            std::process::id()
+        ));
+        let diagnostics =
+            write_score_with_report(&import.score, &output).expect("MusicXML conversion succeeds");
+        assert!(diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "musicxml.export-unsupported-mei-harmony-type"));
+        std::fs::remove_file(output).expect("temporary conversion output is removable");
     }
 
     #[test]

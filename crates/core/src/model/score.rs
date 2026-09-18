@@ -1125,6 +1125,18 @@ pub struct Note {
     /// Optional source instrument identifier (for example MusicXML note-level `instrument@id`).
     #[serde(default)]
     pub instrument_id: Option<String>,
+    /// MusicXML note-level horizontal placement in tenths, relative to the rhythmic anchor.
+    #[serde(default)]
+    pub offset_x: Option<f64>,
+    /// MusicXML note-level vertical placement in tenths, relative to the staff position.
+    #[serde(default)]
+    pub offset_y: Option<f64>,
+    /// MusicXML note-level horizontal adjustment in tenths.
+    #[serde(default)]
+    pub relative_x: Option<f64>,
+    /// MusicXML note-level vertical adjustment in tenths.
+    #[serde(default)]
+    pub relative_y: Option<f64>,
     /// Single note: one pitch. Chord: multiple pitches (same duration).
     pub pitches: Vec<Pitch>,
     #[serde(default)]
@@ -1237,6 +1249,10 @@ impl Note {
             is_rest: false,
             is_unpitched: false,
             instrument_id: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
             pitches: vec![pitch],
             tab_position: None,
             tab_positions: Vec::new(),
@@ -1284,6 +1300,10 @@ impl Note {
             is_rest: true,
             is_unpitched: false,
             instrument_id: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
             pitches: Vec::new(),
             tab_position: None,
             tab_positions: Vec::new(),
@@ -1376,6 +1396,95 @@ pub struct NoteAddr {
 /// A single change between two [`Score`] values as reported by [`diff`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ScoreChange {
+    ScoreTextChanged {
+        old: Vec<StyledText>,
+        new: Vec<StyledText>,
+    },
+    MeasureTextChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old: Vec<StyledText>,
+        new: Vec<StyledText>,
+    },
+    FiguredBassChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old: Vec<FiguredBassFigure>,
+        new: Vec<FiguredBassFigure>,
+    },
+    ChordDefinitionsChanged {
+        old: Vec<ChordDefinition>,
+        new: Vec<ChordDefinition>,
+    },
+    PartNamesChanged {
+        part: usize,
+        old_name: String,
+        new_name: String,
+        old_short_name: String,
+        new_short_name: String,
+    },
+    PartMidiChanged {
+        part: usize,
+        old_channel: u8,
+        new_channel: u8,
+        old_program: u8,
+        new_program: u8,
+    },
+    PartMidiAutomationChanged {
+        part: usize,
+        old_pitch_bends: Vec<MidiPitchBend>,
+        new_pitch_bends: Vec<MidiPitchBend>,
+        old_control_changes: Vec<MidiControlChange>,
+        new_control_changes: Vec<MidiControlChange>,
+        old_program_changes: Vec<MidiProgramChange>,
+        new_program_changes: Vec<MidiProgramChange>,
+        old_aftertouch: Vec<MidiAftertouch>,
+        new_aftertouch: Vec<MidiAftertouch>,
+    },
+    StaffConfigurationChanged {
+        part: usize,
+        staff: usize,
+        old_clef: Clef,
+        new_clef: Clef,
+        old_transpose_semitones: i8,
+        new_transpose_semitones: i8,
+    },
+    MeasurePresentationChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old_number: u32,
+        new_number: u32,
+        old_clef: Option<Clef>,
+        new_clef: Option<Clef>,
+        old_tempo_text: Option<String>,
+        new_tempo_text: Option<String>,
+        old_navigation: Option<String>,
+        new_navigation: Option<String>,
+        old_expression_text: Option<String>,
+        new_expression_text: Option<String>,
+        old_multi_rest_count: Option<u8>,
+        new_multi_rest_count: Option<u8>,
+        old_system_break: bool,
+        new_system_break: bool,
+        old_page_break: bool,
+        new_page_break: bool,
+    },
+    TablatureConfigChanged {
+        part: usize,
+        staff: usize,
+        old: Option<TablatureConfig>,
+        new: Option<TablatureConfig>,
+    },
+    /// A semantic field changed without a dedicated positional diff variant.
+    ///
+    /// The stable path keeps compatibility reports honest while the complete score remains
+    /// available through [`ScorePatch::ReplaceScore`].
+    UnrepresentedFieldChanged {
+        path: String,
+    },
     MetadataChanged {
         field: String,
         old: String,
@@ -1460,6 +1569,22 @@ pub enum ScoreChange {
 pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
     let mut changes: Vec<ScoreChange> = Vec::new();
 
+    if a.texts != b.texts {
+        changes.push(ScoreChange::ScoreTextChanged {
+            old: a.texts.clone(),
+            new: b.texts.clone(),
+        });
+    }
+    if a.chord_definitions != b.chord_definitions {
+        changes.push(ScoreChange::ChordDefinitionsChanged {
+            old: a.chord_definitions.clone(),
+            new: b.chord_definitions.clone(),
+        });
+    }
+    if let Some(path) = first_unrepresented_field_change(a, b) {
+        changes.push(ScoreChange::UnrepresentedFieldChanged { path });
+    }
+
     macro_rules! meta {
         ($field:ident, $name:literal) => {
             if a.metadata.$field != b.metadata.$field {
@@ -1506,12 +1631,98 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
     for pi in 0..a_len.min(b_len) {
         let ap = &a.parts[pi];
         let bp = &b.parts[pi];
+        if ap.name != bp.name || ap.short_name != bp.short_name {
+            changes.push(ScoreChange::PartNamesChanged {
+                part: pi,
+                old_name: ap.name.clone(),
+                new_name: bp.name.clone(),
+                old_short_name: ap.short_name.clone(),
+                new_short_name: bp.short_name.clone(),
+            });
+        }
+        if ap.midi_channel != bp.midi_channel || ap.midi_program != bp.midi_program {
+            changes.push(ScoreChange::PartMidiChanged {
+                part: pi,
+                old_channel: ap.midi_channel,
+                new_channel: bp.midi_channel,
+                old_program: ap.midi_program,
+                new_program: bp.midi_program,
+            });
+        }
+        if ap.midi_pitch_bends != bp.midi_pitch_bends
+            || ap.midi_control_changes != bp.midi_control_changes
+            || ap.midi_program_changes != bp.midi_program_changes
+            || ap.midi_aftertouch != bp.midi_aftertouch
+        {
+            changes.push(ScoreChange::PartMidiAutomationChanged {
+                part: pi,
+                old_pitch_bends: ap.midi_pitch_bends.clone(),
+                new_pitch_bends: bp.midi_pitch_bends.clone(),
+                old_control_changes: ap.midi_control_changes.clone(),
+                new_control_changes: bp.midi_control_changes.clone(),
+                old_program_changes: ap.midi_program_changes.clone(),
+                new_program_changes: bp.midi_program_changes.clone(),
+                old_aftertouch: ap.midi_aftertouch.clone(),
+                new_aftertouch: bp.midi_aftertouch.clone(),
+            });
+        }
         for si in 0..ap.staves.len().min(bp.staves.len()) {
             let a_staff = &ap.staves[si];
             let b_staff = &bp.staves[si];
+            if a_staff.clef != b_staff.clef
+                || a_staff.transpose_semitones != b_staff.transpose_semitones
+            {
+                changes.push(ScoreChange::StaffConfigurationChanged {
+                    part: pi,
+                    staff: si,
+                    old_clef: a_staff.clef.clone(),
+                    new_clef: b_staff.clef.clone(),
+                    old_transpose_semitones: a_staff.transpose_semitones,
+                    new_transpose_semitones: b_staff.transpose_semitones,
+                });
+            }
+            if a_staff.tablature != b_staff.tablature {
+                changes.push(ScoreChange::TablatureConfigChanged {
+                    part: pi,
+                    staff: si,
+                    old: a_staff.tablature.clone(),
+                    new: b_staff.tablature.clone(),
+                });
+            }
             for mi in 0..a_staff.measures.len().min(b_staff.measures.len()) {
                 let am = &a_staff.measures[mi];
                 let bm = &b_staff.measures[mi];
+                if am.number != bm.number
+                    || am.clef != bm.clef
+                    || am.tempo_text != bm.tempo_text
+                    || am.navigation != bm.navigation
+                    || am.expression_text != bm.expression_text
+                    || am.multi_rest_count != bm.multi_rest_count
+                    || am.system_break != bm.system_break
+                    || am.page_break != bm.page_break
+                {
+                    changes.push(ScoreChange::MeasurePresentationChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old_number: am.number,
+                        new_number: bm.number,
+                        old_clef: am.clef.clone(),
+                        new_clef: bm.clef.clone(),
+                        old_tempo_text: am.tempo_text.clone(),
+                        new_tempo_text: bm.tempo_text.clone(),
+                        old_navigation: am.navigation.clone(),
+                        new_navigation: bm.navigation.clone(),
+                        old_expression_text: am.expression_text.clone(),
+                        new_expression_text: bm.expression_text.clone(),
+                        old_multi_rest_count: am.multi_rest_count,
+                        new_multi_rest_count: bm.multi_rest_count,
+                        old_system_break: am.system_break,
+                        new_system_break: bm.system_break,
+                        old_page_break: am.page_break,
+                        new_page_break: bm.page_break,
+                    });
+                }
                 for vi in 0..4usize {
                     let av = &am.voices[vi];
                     let bv = &bm.voices[vi];
@@ -1588,11 +1799,98 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                         measure: mi,
                     });
                 }
+                if am.texts != bm.texts {
+                    changes.push(ScoreChange::MeasureTextChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.texts.clone(),
+                        new: bm.texts.clone(),
+                    });
+                }
+                if am.figured_bass != bm.figured_bass {
+                    changes.push(ScoreChange::FiguredBassChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.figured_bass.clone(),
+                        new: bm.figured_bass.clone(),
+                    });
+                }
             }
         }
     }
 
     changes
+}
+
+fn first_unrepresented_field_change(a: &Score, b: &Score) -> Option<String> {
+    if a.settings.time_signature != b.settings.time_signature {
+        return Some("settings.time_signature".to_string());
+    }
+    if a.part_groups.len() != b.part_groups.len()
+        || a.part_groups.iter().zip(&b.part_groups).any(|(x, y)| {
+            x.first_part != y.first_part
+                || x.last_part != y.last_part
+                || x.symbol != y.symbol
+                || x.barlines_connect != y.barlines_connect
+        })
+    {
+        return Some("part_groups".to_string());
+    }
+    a.parts
+        .iter()
+        .zip(&b.parts)
+        .enumerate()
+        .find_map(|(part_index, (ap, bp))| first_unrepresented_part_change(part_index, ap, bp))
+}
+
+fn first_unrepresented_part_change(part_index: usize, a: &Part, b: &Part) -> Option<String> {
+    let prefix = format!("parts[{part_index}]");
+    if a.percussion_instruments != b.percussion_instruments {
+        return Some(format!("{prefix}.percussion_instruments"));
+    }
+    if a.staff_groups != b.staff_groups {
+        return Some(format!("{prefix}.staff_groups"));
+    }
+    if a.staves.len() != b.staves.len() {
+        return Some(format!("{prefix}.staves"));
+    }
+    a.staves
+        .iter()
+        .zip(&b.staves)
+        .enumerate()
+        .find_map(|(staff_index, (a, b))| {
+            first_unrepresented_staff_change(&prefix, staff_index, a, b)
+        })
+}
+
+fn first_unrepresented_staff_change(
+    part_prefix: &str,
+    staff_index: usize,
+    a: &Staff,
+    b: &Staff,
+) -> Option<String> {
+    let prefix = format!("{part_prefix}.staves[{staff_index}]");
+    if a.measures.len() != b.measures.len() {
+        return Some(format!("{prefix}.measures"));
+    }
+    a.measures
+        .iter()
+        .zip(&b.measures)
+        .enumerate()
+        .find_map(|(measure_index, (a, b))| {
+            first_unrepresented_measure_change(&prefix, measure_index, a, b)
+        })
+}
+
+fn first_unrepresented_measure_change(
+    _staff_prefix: &str,
+    _measure_index: usize,
+    _a: &Measure,
+    _b: &Measure,
+) -> Option<String> {
+    None
 }
 
 // ── ScorePatch ────────────────────────────────────────────────────────────────
@@ -1603,6 +1901,65 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
 /// [`Score`] without needing the original score. Use [`apply_patch`] to apply a list.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ScorePatch {
+    SetScoreTexts {
+        value: Vec<StyledText>,
+    },
+    SetMeasureTexts {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        value: Vec<StyledText>,
+    },
+    SetFiguredBass {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        value: Vec<FiguredBassFigure>,
+    },
+    SetChordDefinitions {
+        value: Vec<ChordDefinition>,
+    },
+    SetPartNames {
+        part: usize,
+        name: String,
+        short_name: String,
+    },
+    SetPartMidi {
+        part: usize,
+        channel: u8,
+        program: u8,
+    },
+    SetPartMidiAutomation {
+        part: usize,
+        pitch_bends: Vec<MidiPitchBend>,
+        control_changes: Vec<MidiControlChange>,
+        program_changes: Vec<MidiProgramChange>,
+        aftertouch: Vec<MidiAftertouch>,
+    },
+    SetStaffConfiguration {
+        part: usize,
+        staff: usize,
+        clef: Clef,
+        transpose_semitones: i8,
+    },
+    SetMeasurePresentation {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        number: u32,
+        clef: Option<Clef>,
+        tempo_text: Option<String>,
+        navigation: Option<String>,
+        expression_text: Option<String>,
+        multi_rest_count: Option<u8>,
+        system_break: bool,
+        page_break: bool,
+    },
+    SetTablatureConfig {
+        part: usize,
+        staff: usize,
+        value: Option<TablatureConfig>,
+    },
     SetMetadata {
         field: String,
         value: String,
@@ -1705,39 +2062,15 @@ fn patch_requires_replace(a: &Score, b: &Score) -> bool {
         return true;
     }
     for (ap, bp) in a.parts.iter().zip(&b.parts) {
-        if ap.name != bp.name
-            || ap.short_name != bp.short_name
-            || ap.midi_channel != bp.midi_channel
-            || ap.midi_program != bp.midi_program
-            || ap.midi_pitch_bends != bp.midi_pitch_bends
-            || ap.midi_control_changes != bp.midi_control_changes
-            || ap.midi_program_changes != bp.midi_program_changes
-            || ap.midi_aftertouch != bp.midi_aftertouch
-            || ap.percussion_instruments != bp.percussion_instruments
+        if ap.percussion_instruments != bp.percussion_instruments
             || ap.staff_groups != bp.staff_groups
             || ap.staves.len() != bp.staves.len()
         {
             return true;
         }
         for (as_, bs) in ap.staves.iter().zip(&bp.staves) {
-            if as_.clef != bs.clef
-                || as_.transpose_semitones != bs.transpose_semitones
-                || as_.measures.len() != bs.measures.len()
-            {
+            if as_.measures.len() != bs.measures.len() {
                 return true;
-            }
-            for (am, bm) in as_.measures.iter().zip(&bs.measures) {
-                if am.number != bm.number
-                    || am.clef != bm.clef
-                    || am.tempo_text != bm.tempo_text
-                    || am.navigation != bm.navigation
-                    || am.expression_text != bm.expression_text
-                    || am.multi_rest_count != bm.multi_rest_count
-                    || am.system_break != bm.system_break
-                    || am.page_break != bm.page_break
-                {
-                    return true;
-                }
             }
         }
     }
@@ -1755,6 +2088,17 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
         return vec![ScorePatch::ReplaceScore {
             score: Box::new(b.clone()),
         }];
+    }
+
+    if a.texts != b.texts {
+        patches.push(ScorePatch::SetScoreTexts {
+            value: b.texts.clone(),
+        });
+    }
+    if a.chord_definitions != b.chord_definitions {
+        patches.push(ScorePatch::SetChordDefinitions {
+            value: b.chord_definitions.clone(),
+        });
     }
 
     macro_rules! meta {
@@ -1783,13 +2127,80 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
     for pi in 0..a.parts.len().min(b.parts.len()) {
         let ap = &a.parts[pi];
         let bp = &b.parts[pi];
+        if ap.name != bp.name || ap.short_name != bp.short_name {
+            patches.push(ScorePatch::SetPartNames {
+                part: pi,
+                name: bp.name.clone(),
+                short_name: bp.short_name.clone(),
+            });
+        }
+        if ap.midi_channel != bp.midi_channel || ap.midi_program != bp.midi_program {
+            patches.push(ScorePatch::SetPartMidi {
+                part: pi,
+                channel: bp.midi_channel,
+                program: bp.midi_program,
+            });
+        }
+        if ap.midi_pitch_bends != bp.midi_pitch_bends
+            || ap.midi_control_changes != bp.midi_control_changes
+            || ap.midi_program_changes != bp.midi_program_changes
+            || ap.midi_aftertouch != bp.midi_aftertouch
+        {
+            patches.push(ScorePatch::SetPartMidiAutomation {
+                part: pi,
+                pitch_bends: bp.midi_pitch_bends.clone(),
+                control_changes: bp.midi_control_changes.clone(),
+                program_changes: bp.midi_program_changes.clone(),
+                aftertouch: bp.midi_aftertouch.clone(),
+            });
+        }
         for si in 0..ap.staves.len().min(bp.staves.len()) {
             let a_staff = &ap.staves[si];
             let b_staff = &bp.staves[si];
+            if a_staff.clef != b_staff.clef
+                || a_staff.transpose_semitones != b_staff.transpose_semitones
+            {
+                patches.push(ScorePatch::SetStaffConfiguration {
+                    part: pi,
+                    staff: si,
+                    clef: b_staff.clef.clone(),
+                    transpose_semitones: b_staff.transpose_semitones,
+                });
+            }
+            if a_staff.tablature != b_staff.tablature {
+                patches.push(ScorePatch::SetTablatureConfig {
+                    part: pi,
+                    staff: si,
+                    value: b_staff.tablature.clone(),
+                });
+            }
             for mi in 0..a_staff.measures.len().min(b_staff.measures.len()) {
                 let am = &a_staff.measures[mi];
                 let bm = &b_staff.measures[mi];
 
+                if am.number != bm.number
+                    || am.clef != bm.clef
+                    || am.tempo_text != bm.tempo_text
+                    || am.navigation != bm.navigation
+                    || am.expression_text != bm.expression_text
+                    || am.multi_rest_count != bm.multi_rest_count
+                    || am.system_break != bm.system_break
+                    || am.page_break != bm.page_break
+                {
+                    patches.push(ScorePatch::SetMeasurePresentation {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        number: bm.number,
+                        clef: bm.clef.clone(),
+                        tempo_text: bm.tempo_text.clone(),
+                        navigation: bm.navigation.clone(),
+                        expression_text: bm.expression_text.clone(),
+                        multi_rest_count: bm.multi_rest_count,
+                        system_break: bm.system_break,
+                        page_break: bm.page_break,
+                    });
+                }
                 if am.key_sig != bm.key_sig {
                     patches.push(ScorePatch::SetKeySignature {
                         part: pi,
@@ -1837,6 +2248,22 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                         staff: si,
                         measure: mi,
                         value: bm.tempo,
+                    });
+                }
+                if am.texts != bm.texts {
+                    patches.push(ScorePatch::SetMeasureTexts {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: bm.texts.clone(),
+                    });
+                }
+                if am.figured_bass != bm.figured_bass {
+                    patches.push(ScorePatch::SetFiguredBass {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: bm.figured_bass.clone(),
                     });
                 }
 
@@ -1894,6 +2321,145 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
         match patch {
             ScorePatch::ReplaceScore { score } => {
                 s = (**score).clone();
+            }
+            ScorePatch::SetScoreTexts { value } => {
+                s.texts = value.clone();
+            }
+            ScorePatch::SetMeasureTexts {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .texts = value.clone();
+            }
+            ScorePatch::SetFiguredBass {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .figured_bass = value.clone();
+            }
+            ScorePatch::SetChordDefinitions { value } => {
+                s.chord_definitions = value.clone();
+            }
+            ScorePatch::SetPartNames {
+                part,
+                name,
+                short_name,
+            } => {
+                let target = s
+                    .parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?;
+                target.name = name.clone();
+                target.short_name = short_name.clone();
+            }
+            ScorePatch::SetPartMidi {
+                part,
+                channel,
+                program,
+            } => {
+                let target = s
+                    .parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?;
+                target.midi_channel = *channel;
+                target.midi_program = *program;
+            }
+            ScorePatch::SetPartMidiAutomation {
+                part,
+                pitch_bends,
+                control_changes,
+                program_changes,
+                aftertouch,
+            } => {
+                let target = s
+                    .parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?;
+                target.midi_pitch_bends = pitch_bends.clone();
+                target.midi_control_changes = control_changes.clone();
+                target.midi_program_changes = program_changes.clone();
+                target.midi_aftertouch = aftertouch.clone();
+            }
+            ScorePatch::SetStaffConfiguration {
+                part,
+                staff,
+                clef,
+                transpose_semitones,
+            } => {
+                let target = s
+                    .parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?;
+                target.clef = clef.clone();
+                target.transpose_semitones = *transpose_semitones;
+            }
+            ScorePatch::SetMeasurePresentation {
+                part,
+                staff,
+                measure,
+                number,
+                clef,
+                tempo_text,
+                navigation,
+                expression_text,
+                multi_rest_count,
+                system_break,
+                page_break,
+            } => {
+                let target = s
+                    .parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| {
+                        Error::InvalidPatch(format!("measure {measure} out of range"))
+                    })?;
+                target.number = *number;
+                target.clef = clef.clone();
+                target.tempo_text = tempo_text.clone();
+                target.navigation = navigation.clone();
+                target.expression_text = expression_text.clone();
+                target.multi_rest_count = *multi_rest_count;
+                target.system_break = *system_break;
+                target.page_break = *page_break;
+            }
+            ScorePatch::SetTablatureConfig { part, staff, value } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .tablature = value.clone();
             }
             ScorePatch::SetMetadata { field, value } => match field.as_str() {
                 "title" => s.metadata.title = value.clone(),
@@ -2316,6 +2882,10 @@ fn note_content_eq(a: &Note, b: &Note) -> bool {
     a.is_rest == b.is_rest
         && a.is_unpitched == b.is_unpitched
         && a.instrument_id == b.instrument_id
+        && a.offset_x == b.offset_x
+        && a.offset_y == b.offset_y
+        && a.relative_x == b.relative_x
+        && a.relative_y == b.relative_y
         && a.pitches == b.pitches
         && a.duration == b.duration
         && a.dot_count == b.dot_count
@@ -2348,7 +2918,10 @@ fn note_content_eq(a: &Note, b: &Note) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{notation::FingeringSelectionPolicy, pitch::Step};
+    use crate::model::{
+        notation::{FingeringSelectionPolicy, TextStyle},
+        pitch::Step,
+    };
 
     #[test]
     fn fingering_selection_policy_is_deterministic_and_non_mutating() {
@@ -2847,6 +3420,22 @@ mod tests {
             number: 1,
             kind: "begin_end".to_string(),
         });
+        measure.texts.push(StyledText {
+            style: TextStyle::RehearsalMark,
+            text: "A".to_string(),
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        });
+        measure.figured_bass.push(FiguredBassFigure {
+            number: "6".to_string(),
+            alter: None,
+            prefix: None,
+            suffix: None,
+            extender: false,
+        });
         measure.voices[0].insert(0, Note::new(Pitch::new(Step::C, 4), Duration::Quarter));
         let expected = b.parts[0].staves[0].measures[0].clone();
 
@@ -2871,6 +3460,16 @@ mod tests {
                 .iter()
                 .any(|p| matches!(p, ScorePatch::SetVolta { .. }))
         );
+        assert!(
+            patches
+                .iter()
+                .any(|p| matches!(p, ScorePatch::SetMeasureTexts { .. }))
+        );
+        assert!(
+            patches
+                .iter()
+                .any(|p| matches!(p, ScorePatch::SetFiguredBass { .. }))
+        );
         let result = apply_patch(&a, &patches).expect("patch application failed");
         let result_measure = &result.parts[0].staves[0].measures[0];
         assert_eq!(result_measure.key_sig, expected.key_sig);
@@ -2879,21 +3478,409 @@ mod tests {
         assert_eq!(result_measure.barline_right, expected.barline_right);
         assert_eq!(result_measure.rehearsal, expected.rehearsal);
         assert_eq!(result_measure.volta, expected.volta);
+        assert_eq!(result_measure.texts, expected.texts);
+        assert_eq!(result_measure.figured_bass, expected.figured_bass);
         assert_eq!(result_measure.voices[0].len(), expected.voices[0].len());
     }
 
     #[test]
-    fn score_patch_replaces_when_structure_or_uncovered_fields_change() {
+    fn diff_and_patch_preserve_score_level_texts() {
+        let a = Score::new("T", 120, 4, 4, 0, 1);
+        let mut b = a.clone();
+        b.texts.push(StyledText {
+            style: TextStyle::Expression,
+            text: "Prelude".to_string(),
+            placement: Some("above".to_string()),
+            offset_x: Some(12.0),
+            offset_y: Some(-8.0),
+            relative_x: None,
+            relative_y: None,
+        });
+
+        let changes = diff(&a, &b);
+        assert!(changes.iter().any(|change| matches!(
+            change,
+            ScoreChange::ScoreTextChanged { old, new }
+                if old.is_empty() && new == &b.texts
+        )));
+
+        let patches = score_patch(&a, &b);
+        assert!(patches.iter().any(|patch| matches!(
+            patch,
+            ScorePatch::SetScoreTexts { value } if value == &b.texts
+        )));
+        let result = apply_patch(&a, &patches).expect("score text patch failed");
+        assert_eq!(result.texts, b.texts);
+    }
+
+    #[test]
+    fn measure_presentation_changes_use_typed_diff_and_local_patch() {
+        let a = Score::new("T", 120, 4, 4, 0, 1);
+        let mut b = a.clone();
+        let measure = &mut b.parts[0].staves[0].measures[0];
+        measure.number = 8;
+        measure.clef = Some(Clef::Bass);
+        measure.tempo_text = Some("Allegro".to_string());
+        measure.navigation = Some("D.S.".to_string());
+        measure.expression_text = Some("espressivo".to_string());
+        measure.multi_rest_count = Some(3);
+        measure.system_break = true;
+        measure.page_break = true;
+
+        let changes = diff(&a, &b);
+        assert!(changes.iter().any(|change| matches!(
+            change,
+            ScoreChange::MeasurePresentationChanged {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                old_number: 1,
+                new_number: 8,
+                old_clef: None,
+                new_clef: Some(Clef::Bass),
+                new_tempo_text: Some(text),
+                new_navigation: Some(navigation),
+                new_expression_text: Some(expression),
+                new_multi_rest_count: Some(3),
+                old_system_break: false,
+                new_system_break: true,
+                old_page_break: false,
+                new_page_break: true,
+                ..
+            } if text == "Allegro" && navigation == "D.S." && expression == "espressivo"
+        )));
+        assert!(!changes.iter().any(|change| matches!(
+            change,
+            ScoreChange::UnrepresentedFieldChanged { path }
+                if path == "parts[0].staves[0].measures[0].number"
+        )));
+
+        let patches = score_patch(&a, &b);
+        assert!(patches.iter().any(|patch| matches!(
+            patch,
+            ScorePatch::SetMeasurePresentation {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                number: 8,
+                clef: Some(Clef::Bass),
+                tempo_text: Some(text),
+                navigation: Some(navigation),
+                expression_text: Some(expression),
+                multi_rest_count: Some(3),
+                system_break: true,
+                page_break: true,
+            } if text == "Allegro" && navigation == "D.S." && expression == "espressivo"
+        )));
+        assert!(
+            !patches
+                .iter()
+                .any(|patch| matches!(patch, ScorePatch::ReplaceScore { .. }))
+        );
+        let json = serde_json::to_string(&patches).expect("measure presentation patch JSON");
+        let decoded: Vec<ScorePatch> =
+            serde_json::from_str(&json).expect("measure presentation patch should decode");
+        let result = apply_patch(&a, &decoded).expect("measure presentation patch failed");
+        assert_eq!(result.parts[0].staves[0].measures[0].number, 8);
+        assert_eq!(result.parts[0].staves[0].measures[0].clef, Some(Clef::Bass));
+        assert_eq!(
+            serde_json::to_value(&result).expect("patched score JSON"),
+            serde_json::to_value(&b).expect("expected score JSON")
+        );
+    }
+
+    #[test]
+    fn chord_definition_changes_use_typed_diff_and_local_patch() {
+        let a = Score::new("T", 120, 4, 4, 0, 1);
+        let mut b = a.clone();
+        b.chord_definitions.push(ChordDefinition {
+            id: Some("c-major".to_string()),
+            label: Some("C".to_string()),
+            kind: Some("major".to_string()),
+            fret_position: Some(0),
+            tab_strings: Some("x32010".to_string()),
+            tab_courses: None,
+            members: Vec::new(),
+            barres: Vec::new(),
+        });
+
+        let changes = diff(&a, &b);
+        assert!(changes.iter().any(|change| matches!(
+            change,
+            ScoreChange::ChordDefinitionsChanged { old, new }
+                if old.is_empty() && new == &b.chord_definitions
+        )));
+        assert!(!changes.iter().any(|change| matches!(
+            change,
+            ScoreChange::UnrepresentedFieldChanged { path }
+                if path == "chord_definitions"
+        )));
+
+        let patches = score_patch(&a, &b);
+        assert!(patches.iter().any(|patch| matches!(
+            patch,
+            ScorePatch::SetChordDefinitions { value } if value == &b.chord_definitions
+        )));
+        assert!(
+            !patches
+                .iter()
+                .any(|patch| matches!(patch, ScorePatch::ReplaceScore { .. }))
+        );
+        let json = serde_json::to_string(&patches).expect("chord definition patch JSON");
+        let decoded: Vec<ScorePatch> =
+            serde_json::from_str(&json).expect("chord definition patch should decode");
+        let result = apply_patch(&a, &decoded).expect("chord definition patch failed");
+        assert_eq!(result.chord_definitions, b.chord_definitions);
+    }
+
+    #[test]
+    fn part_name_changes_use_typed_diff_and_local_patch() {
+        let a = Score::new("T", 120, 4, 4, 0, 1);
+        let mut b = a.clone();
+        b.parts[0].name = "Violin".to_string();
+        b.parts[0].short_name = "Vln.".to_string();
+        b.parts[0].midi_channel = 4;
+        b.parts[0].midi_program = 40;
+        b.parts[0].midi_pitch_bends.push(MidiPitchBend {
+            tick: 120,
+            channel: 4,
+            value: 2048,
+        });
+        b.parts[0].midi_control_changes.push(MidiControlChange {
+            tick: 240,
+            channel: 4,
+            controller: 64,
+            value: 127,
+        });
+        b.parts[0].midi_program_changes.push(MidiProgramChange {
+            tick: 0,
+            channel: 4,
+            program: 40,
+        });
+        b.parts[0].midi_aftertouch.push(MidiAftertouch {
+            tick: 360,
+            channel: 4,
+            key: Some(64),
+            value: 80,
+        });
+        b.parts[0].staves[0].clef = Clef::Bass;
+        b.parts[0].staves[0].transpose_semitones = -2;
+
+        let changes = diff(&a, &b);
+        assert!(changes.iter().any(|change| matches!(
+            change,
+            ScoreChange::PartNamesChanged {
+                part: 0,
+                old_name,
+                new_name,
+                old_short_name,
+                new_short_name,
+            } if old_name == "Piano"
+                && new_name == "Violin"
+                && old_short_name == "Pno."
+                && new_short_name == "Vln."
+        )));
+        assert!(changes.iter().any(|change| matches!(
+            change,
+            ScoreChange::PartMidiChanged {
+                part: 0,
+                old_channel: 0,
+                new_channel: 4,
+                old_program: 0,
+                new_program: 40,
+            }
+        )));
+        assert!(changes.iter().any(|change| matches!(
+            change,
+            ScoreChange::PartMidiAutomationChanged {
+                part: 0,
+                new_pitch_bends,
+                new_control_changes,
+                new_program_changes,
+                new_aftertouch,
+                ..
+            } if new_pitch_bends == &b.parts[0].midi_pitch_bends
+                && new_control_changes == &b.parts[0].midi_control_changes
+                && new_program_changes == &b.parts[0].midi_program_changes
+                && new_aftertouch == &b.parts[0].midi_aftertouch
+        )));
+        assert!(changes.iter().any(|change| matches!(
+            change,
+            ScoreChange::StaffConfigurationChanged {
+                part: 0,
+                staff: 0,
+                old_clef: Clef::Treble,
+                new_clef: Clef::Bass,
+                old_transpose_semitones: 0,
+                new_transpose_semitones: -2,
+            }
+        )));
+        assert!(!changes.iter().any(|change| matches!(
+            change,
+            ScoreChange::UnrepresentedFieldChanged { path }
+                if path == "parts[0].name"
+        )));
+
+        let patches = score_patch(&a, &b);
+        assert!(patches.iter().any(|patch| matches!(
+            patch,
+            ScorePatch::SetPartNames {
+                part: 0,
+                name,
+                short_name,
+            } if name == "Violin" && short_name == "Vln."
+        )));
+        assert!(
+            !patches
+                .iter()
+                .any(|patch| matches!(patch, ScorePatch::ReplaceScore { .. }))
+        );
+        assert!(patches.iter().any(|patch| matches!(
+            patch,
+            ScorePatch::SetPartMidi {
+                part: 0,
+                channel: 4,
+                program: 40,
+            }
+        )));
+        assert!(patches.iter().any(|patch| matches!(
+            patch,
+            ScorePatch::SetPartMidiAutomation {
+                part: 0,
+                pitch_bends,
+                control_changes,
+                program_changes,
+                aftertouch,
+            } if pitch_bends == &b.parts[0].midi_pitch_bends
+                && control_changes == &b.parts[0].midi_control_changes
+                && program_changes == &b.parts[0].midi_program_changes
+                && aftertouch == &b.parts[0].midi_aftertouch
+        )));
+        assert!(patches.iter().any(|patch| matches!(
+            patch,
+            ScorePatch::SetStaffConfiguration {
+                part: 0,
+                staff: 0,
+                clef: Clef::Bass,
+                transpose_semitones: -2,
+            }
+        )));
+        let result = apply_patch(&a, &patches).expect("part name patch failed");
+        assert_eq!(result.parts[0].name, b.parts[0].name);
+        assert_eq!(result.parts[0].short_name, b.parts[0].short_name);
+        assert_eq!(result.parts[0].midi_channel, b.parts[0].midi_channel);
+        assert_eq!(result.parts[0].midi_program, b.parts[0].midi_program);
+        assert_eq!(
+            result.parts[0].midi_pitch_bends,
+            b.parts[0].midi_pitch_bends
+        );
+        assert_eq!(
+            result.parts[0].midi_control_changes,
+            b.parts[0].midi_control_changes
+        );
+        assert_eq!(
+            result.parts[0].midi_program_changes,
+            b.parts[0].midi_program_changes
+        );
+        assert_eq!(result.parts[0].midi_aftertouch, b.parts[0].midi_aftertouch);
+        assert_eq!(result.parts[0].staves[0].clef, b.parts[0].staves[0].clef);
+        assert_eq!(
+            result.parts[0].staves[0].transpose_semitones,
+            b.parts[0].staves[0].transpose_semitones
+        );
+    }
+
+    #[test]
+    fn diff_reports_measure_text_and_figured_bass_changes() {
+        let a = Score::new("T", 120, 4, 4, 0, 1);
+        let mut b = a.clone();
+        let measure = &mut b.parts[0].staves[0].measures[0];
+        measure.texts.push(StyledText {
+            style: TextStyle::Lyrics,
+            text: "la".to_string(),
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        });
+        measure.figured_bass.push(FiguredBassFigure {
+            number: "6".to_string(),
+            alter: None,
+            prefix: None,
+            suffix: None,
+            extender: false,
+        });
+
+        let changes = diff(&a, &b);
+        assert!(changes.iter().any(|change| matches!(
+            change,
+            ScoreChange::MeasureTextChanged { part: 0, staff: 0, measure: 0, old, new }
+                if old.is_empty() && new.len() == 1
+        )));
+        assert!(changes.iter().any(|change| matches!(
+            change,
+            ScoreChange::FiguredBassChanged { part: 0, staff: 0, measure: 0, old, new }
+                if old.is_empty() && new.len() == 1
+        )));
+    }
+
+    #[test]
+    fn diff_reports_tablature_changes_and_patches_them_locally() {
+        let a = Score::new("T", 120, 4, 4, 0, 1);
+        let mut b = a.clone();
+        b.parts[0].staves[0].tablature = Some(TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![40, 45, 50, 55, 59, 64],
+            capo: 2,
+        });
+
+        let changes = diff(&a, &b);
+        assert!(!changes.iter().any(|change| matches!(
+            change,
+            ScoreChange::UnrepresentedFieldChanged { path }
+                if path == "parts[0].staves[0].tablature"
+        )));
+        assert!(changes.iter().any(|change| matches!(
+            change,
+            ScoreChange::TablatureConfigChanged { part: 0, staff: 0, old: None, new: Some(config) }
+                if config.lines == 6 && config.capo == 2
+        )));
+        let patches = score_patch(&a, &b);
+        assert!(patches.iter().any(|patch| matches!(
+            patch,
+            ScorePatch::SetTablatureConfig { part: 0, staff: 0, value: Some(config) }
+                if config.lines == 6 && config.capo == 2
+        )));
+        assert_eq!(
+            apply_patch(&a, &patches).unwrap().parts[0].staves[0].tablature,
+            b.parts[0].staves[0].tablature
+        );
+    }
+
+    #[test]
+    fn score_patch_uses_local_presentation_patch_for_display_fields() {
         let a = Score::new("T", 120, 4, 4, 0, 1);
         let mut b = a.clone();
         b.parts[0].name = "Piano".to_string();
         b.parts[0].staves[0].measures[0].expression_text = Some("dolce".to_string());
         let patches = score_patch(&a, &b);
-        assert!(matches!(
-            patches.as_slice(),
-            [ScorePatch::ReplaceScore { .. }]
-        ));
-        let result = apply_patch(&a, &patches).expect("replacement failed");
+        assert!(patches.iter().any(|patch| matches!(
+            patch,
+            ScorePatch::SetMeasurePresentation {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                expression_text: Some(text),
+                ..
+            } if text == "dolce"
+        )));
+        assert!(
+            !patches
+                .iter()
+                .any(|patch| matches!(patch, ScorePatch::ReplaceScore { .. }))
+        );
+        let result = apply_patch(&a, &patches).expect("measure presentation patch failed");
         assert_eq!(result.parts[0].name, "Piano");
         assert_eq!(
             result.parts[0].staves[0].measures[0].expression_text,
@@ -3029,6 +4016,37 @@ mod tests {
             changes
                 .iter()
                 .any(|c| matches!(c, ScoreChange::KeySignatureChanged { .. }))
+        );
+    }
+
+    #[test]
+    fn measure_key_signature_uses_typed_local_patch() {
+        let a = Score::new("T", 120, 4, 4, 0, 1);
+        let mut b = a.clone();
+        b.parts[0].staves[0].measures[0].key_sig = Some(KeySignature {
+            fifths: 2,
+            mode: "major".to_string(),
+        });
+        let changes = diff(&a, &b);
+        assert!(!changes.iter().any(|change| matches!(
+            change,
+            ScoreChange::UnrepresentedFieldChanged { path }
+                if path == "parts[0].staves[0].measures[0].key_sig"
+        )));
+        let patches = score_patch(&a, &b);
+        assert!(patches.iter().any(|patch| matches!(
+            patch,
+            ScorePatch::SetKeySignature {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                value: Some(KeySignature { fifths: 2, .. }),
+            }
+        )));
+        assert!(
+            !patches
+                .iter()
+                .any(|patch| matches!(patch, ScorePatch::ReplaceScore { .. }))
         );
     }
 

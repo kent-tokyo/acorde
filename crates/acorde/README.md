@@ -8,11 +8,13 @@ The optional `soundfont` feature re-exports `acorde-soundfont` as `acorde::sound
 bounded SF2/SF3 metadata and provider-neutral playback lifecycle actions without bundling samples.
 Enable `soundfont-sf3-vorbis` to opt into the separately licensed Vorbis decoder feature.
 acorde-render-svg is intentionally not re-exported and must be added directly.
+Format report APIs preserve source-located import/export diagnostics; malformed MSCX numeric
+values are reported instead of being indistinguishable from canonical defaults.
 
 ~~~toml
 [dependencies]
-acorde = "1.1.6"
-acorde-render-svg = "1.1.6"
+acorde = "1.1.7"
+acorde-render-svg = "1.1.7"
 ~~~
 
 [API documentation](https://docs.rs/acorde) · [Repository](https://github.com/kent-tokyo/acorde)

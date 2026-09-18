@@ -43,7 +43,7 @@ error. It disables final-page balancing so the repeat boundary remains determini
 can emit continuation marks without reconstructing spans from adjacent systems.
 `PrintConfig::publication` carries an optional running title, header/footer text, and policies
 for part labels and measure numbers, plus an opt-in metadata-only title page. Each
-`PageLayout::publication` contains copied score metadata, deterministic
+`PageLayout::publication` contains copied score metadata and score-level styled text, deterministic
 part labels, and only the measure numbers belonging to that page, so a host can render headers
 and labels without reconstructing page ownership. `PartLayoutPolicy::ExtractedPart` is an
 explicit opt-in that scopes pagination and notation spans to one selected part; the default
@@ -62,7 +62,7 @@ the running-title header unless configured.
 dimensions, stable page/system addresses, physical measure indices, and typed break reasons (`MeasureCapacity`, `ExplicitSystemBreak`,
 `ExplicitPageBreak`, `PageCapacity`, `TitlePage`, or `EndOfScore`). Layout honors existing `system_break` and
 `page_break` decisions and produces stable output for the same score and configuration. Its
-`contract_version` is `26` for this address/diagnostic, publication, title-page, part-group, page-number footer, alignment, line-box height, copyright block, bleed/safe-area, scale, page-numbering,
+`contract_version` is `27` for this address/diagnostic, publication, title-page, part-group, page-number footer, alignment, line-box height, copyright block, bleed/safe-area, scale, page-numbering,
 color, crop-mark, and glyph-resource shape. `GlyphResourcePolicy::HostProvided` is only a stable
 resource key; resource lookup, font loading, and glyph metrics remain host/provider work. Hosts
 that resolve a resource should also transport a `GlyphResourceDescriptor`: it records the
@@ -103,6 +103,11 @@ The `resolve_glyph_collisions_checked` and `resolve_glyph_horizontal_collisions_
 combine that validation with mutation and are preferred for host preflight paths. They reject
 non-finite collision gaps and arithmetic overflow before mutation; unchecked variants sanitize
 non-finite gaps to zero.
+The class-aware `resolve_glyph_collisions_with_classes` and
+`resolve_glyph_horizontal_collisions_with_classes` variants additionally accept
+`GlyphCollisionClass` values. `Critical`, `Spacing`, `Annotation`, and `Decorative` form a stable
+semantic tie-break after priority; the class vector is validated before any mutation. The
+original resolvers remain available for older callers.
 After computing remaining system width, `distribute_glyph_spacing` can spread it evenly between
 ordered glyph placements without changing the first placement's anchor.
 `glyph_extents` aggregates validated placement bounds and returns `None` for empty content, allowing

@@ -1,5 +1,5 @@
 use super::gm::instrument_range;
-use super::score::Score;
+use super::score::{NoteAddr, Score};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -70,6 +70,15 @@ pub enum ValidationError {
         note: usize,
         pitch: usize,
         microtone_cents: i16,
+    },
+    /// A harmony continuation points to a note address that does not exist.
+    InvalidHarmonyRange {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        voice: usize,
+        note: usize,
+        end: NoteAddr,
     },
 }
 
@@ -261,6 +270,19 @@ pub fn validate(score: &Score) -> ValidationReport {
                         if note.is_rest || note.is_grace {
                             continue;
                         }
+                        if let Some(chord) = &note.chord_symbol
+                            && let Some(end) = &chord.range_end
+                            && !note_exists(score, end)
+                        {
+                            errors.push(ValidationError::InvalidHarmonyRange {
+                                part: pi,
+                                staff: si,
+                                measure: mi,
+                                voice: vi,
+                                note: ni,
+                                end: end.clone(),
+                            });
+                        }
                         for (pitch_index, pitch) in note.pitches.iter().enumerate() {
                             if !(-99..=99).contains(&pitch.microtone_cents) {
                                 errors.push(ValidationError::MicrotoneOutOfRange {
@@ -336,13 +358,25 @@ fn valid_time_signature(time: &super::notation::TimeSignature) -> bool {
     time.numerator > 0 && matches!(time.denominator, 1 | 2 | 4 | 8 | 16 | 32 | 64)
 }
 
+fn note_exists(score: &Score, address: &NoteAddr) -> bool {
+    score
+        .parts
+        .get(address.part)
+        .and_then(|part| part.staves.get(address.staff))
+        .and_then(|staff| staff.measures.get(address.measure))
+        .and_then(|measure| measure.voices.get(address.voice))
+        .and_then(|voice| voice.get(address.note))
+        .is_some()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::model::{
         duration::Duration,
+        notation::ChordSymbol,
         pitch::{Pitch, Step},
-        score::{Note, Score},
+        score::{Note, NoteAddr, Score},
     };
 
     #[test]
@@ -446,6 +480,37 @@ mod tests {
         score.parts[0].staves[0].measures[0].multi_rest_count = Some(4);
         score.parts[0].staves[0].measures[0].voices[0].clear();
         assert!(validate(&score).errors.is_empty());
+    }
+
+    #[test]
+    fn validate_rejects_harmony_range_to_missing_note() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        note.chord_symbol = Some(ChordSymbol {
+            root: "C".to_owned(),
+            kind: "major".to_owned(),
+            bass: None,
+            placement: None,
+            extender: true,
+            harmonic_degree: None,
+            harmony_function: None,
+            harmony_type: None,
+            chord_ref: None,
+            range_end: Some(NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 9,
+            }),
+            degrees: Vec::new(),
+        });
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        assert!(validate(&score).errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidHarmonyRange { note: 0, end, .. }
+                if end.note == 9
+        )));
     }
 
     #[test]

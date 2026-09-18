@@ -15,13 +15,14 @@ pub use model::commands::{
     RespellScoreToKeyCmd, SetArpeggioCmd, SetBarlineCmd, SetChordSymbolCmd, SetClefCmd,
     SetCrossStaffCmd, SetCueCmd, SetDurationCmd, SetDynamicCmd, SetExpressionTextCmd,
     SetFiguredBassCmd, SetFingeringCmd, SetFingeringsCmd, SetGlissandoCmd, SetGraceCmd,
-    SetGuitarBendAlterCmd, SetGuitarTechniqueCmd, SetInstrumentIdCmd, SetKeySignatureCmd,
-    SetLyricCmd, SetMeasureTextCmd, SetMetadataCmd, SetMidiInstrumentCmd, SetMultiRestCmd,
-    SetNavigationMarkCmd, SetNoteHeadCmd, SetOttavaCmd, SetPageBreakCmd, SetPartGroupCmd,
-    SetPartNameCmd, SetRehearsalMarkCmd, SetStemCmd, SetStringNumberCmd, SetSystemBreakCmd,
-    SetTabPositionCmd, SetTechniqueTextCmd, SetTempoAtMeasureCmd, SetTempoCmd, SetTimeSignatureCmd,
-    SetTransposeCmd, SetTupletCmd, SetUnpitchedCmd, SetVoltaCmd, ToggleArticulationCmd,
-    ToggleSlurCmd, ToggleTieCmd, ToggleTrillLineCmd, command_key, command_label,
+    SetGuitarBendAlterCmd, SetGuitarTechniqueCmd, SetHarmonyRangeCmd, SetInstrumentIdCmd,
+    SetKeySignatureCmd, SetLyricCmd, SetMeasureTextCmd, SetMetadataCmd, SetMidiInstrumentCmd,
+    SetMultiRestCmd, SetNavigationMarkCmd, SetNoteHeadCmd, SetNotePlacementCmd, SetOttavaCmd,
+    SetPageBreakCmd, SetPartGroupCmd, SetPartNameCmd, SetRehearsalMarkCmd, SetScoreTextCmd,
+    SetStemCmd, SetStringNumberCmd, SetSystemBreakCmd, SetTabPositionCmd, SetTablatureConfigCmd,
+    SetTechniqueTextCmd, SetTempoAtMeasureCmd, SetTempoCmd, SetTimeSignatureCmd, SetTransposeCmd,
+    SetTupletCmd, SetUnpitchedCmd, SetVoltaCmd, ToggleArticulationCmd, ToggleSlurCmd, ToggleTieCmd,
+    ToggleTrillLineCmd, command_key, command_label,
 };
 pub use model::duration::Duration;
 pub use model::engine::{EngineHistory, HistoryConflict, HistoryRelation, ScoreEngine};

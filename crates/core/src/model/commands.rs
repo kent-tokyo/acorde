@@ -3,7 +3,7 @@ use super::duration::Duration;
 use super::notation::{
     Articulation, Barline, ChordSymbol, Clef, CrossStaff, Dynamic, FiguredBassFigure,
     GuitarTechnique, HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind, StyledText,
-    TimeSignature, TupletInfo,
+    TablatureConfig, TimeSignature, TupletInfo,
 };
 use super::pitch::Pitch;
 use super::score::{
@@ -38,6 +38,7 @@ pub enum Command {
     SetRehearsalMark(SetRehearsalMarkCmd),
     SetNavigationMark(SetNavigationMarkCmd),
     SetChordSymbol(SetChordSymbolCmd),
+    SetHarmonyRange(SetHarmonyRangeCmd),
     SetFiguredBass(SetFiguredBassCmd),
     SetGrace(SetGraceCmd),
     SetOttava(SetOttavaCmd),
@@ -67,14 +68,17 @@ pub enum Command {
     SetFingerings(SetFingeringsCmd),
     SetStringNumber(SetStringNumberCmd),
     SetTabPosition(SetTabPositionCmd),
+    SetTablatureConfig(SetTablatureConfigCmd),
     SetNoteHead(SetNoteHeadCmd),
     SetCue(SetCueCmd),
     SetUnpitched(SetUnpitchedCmd),
     SetInstrumentId(SetInstrumentIdCmd),
+    SetNotePlacement(SetNotePlacementCmd),
     SetGuitarTechnique(SetGuitarTechniqueCmd),
     SetGuitarBendAlter(SetGuitarBendAlterCmd),
     SetExpressionText(SetExpressionTextCmd),
     SetMeasureText(SetMeasureTextCmd),
+    SetScoreText(SetScoreTextCmd),
     ToggleTrillLine(ToggleTrillLineCmd),
     SetGlissando(SetGlissandoCmd),
     SetCrossStaff(SetCrossStaffCmd),
@@ -267,6 +271,17 @@ pub struct SetChordSymbolCmd {
     pub voice: usize,
     pub note_index: usize,
     pub chord: Option<ChordSymbol>,
+}
+
+/// Set or clear the end note of a chord-symbol continuation range.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetHarmonyRangeCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub voice: usize,
+    pub note_index: usize,
+    pub end: Option<NoteAddr>,
 }
 
 /// Replace the structured figured-bass figures attached to a measure.
@@ -569,6 +584,15 @@ pub struct SetTabPositionCmd {
     pub position: Option<super::notation::TabPosition>,
 }
 
+/// Set (or clear) the tablature tuning and capo configuration on a staff.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetTablatureConfigCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    /// `None` clears tablature mode for the staff.
+    pub config: Option<TablatureConfig>,
+}
+
 /// Set (or clear) the guitar playing technique on a note (bend, slide, hammer-on, pull-off).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetGuitarTechniqueCmd {
@@ -615,6 +639,17 @@ pub struct SetMeasureTextCmd {
     pub text: Option<StyledText>,
 }
 
+/// Insert, replace, or remove one score-level styled text entry.
+///
+/// `text_index == texts.len()` with `Some(text)` appends an entry. An existing
+/// index with `Some(text)` replaces it; an existing index with `None` removes it.
+/// `None` at the end, or an index beyond the end, is rejected.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetScoreTextCmd {
+    pub text_index: usize,
+    pub text: Option<StyledText>,
+}
+
 /// Mark or unmark a note as a cue note (cue notes have zero beats).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetCueCmd {
@@ -646,6 +681,24 @@ pub struct SetInstrumentIdCmd {
     pub voice: usize,
     pub note_index: usize,
     pub instrument_id: Option<String>,
+}
+
+/// Set or clear MusicXML-compatible note placement offsets in tenths.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetNotePlacementCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub voice: usize,
+    pub note_index: usize,
+    #[serde(default)]
+    pub offset_x: Option<f64>,
+    #[serde(default)]
+    pub offset_y: Option<f64>,
+    #[serde(default)]
+    pub relative_x: Option<f64>,
+    #[serde(default)]
+    pub relative_y: Option<f64>,
 }
 
 /// Set the note head shape on a note.
@@ -892,6 +945,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
             false,
             false
         ),
+        Command::SetScoreText(_) => hint!(Global, false, false),
 
         Command::SetMultiRest(_) => hint!(Global, true, false),
 
@@ -931,6 +985,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::SetLyric(c) => hint!(meas!(c), false, true),
         Command::AddPedal(c) => hint!(meas!(c), false, true),
         Command::SetChordSymbol(c) => hint!(meas!(c), false, true),
+        Command::SetHarmonyRange(c) => hint!(meas!(c), false, true),
         Command::SetFiguredBass(_) => hint!(Global, false, true),
 
         Command::SetSystemBreak(_) | Command::SetPageBreak(_) => hint!(Global, true, false),
@@ -956,12 +1011,14 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::SetFingerings(c) => hint!(meas!(c), false, false),
         Command::SetStringNumber(c) => hint!(meas!(c), false, false),
         Command::SetTabPosition(c) => hint!(meas!(c), false, false),
+        Command::SetTablatureConfig(c) => hint!(Part(c.part_index), true, true),
         Command::SetGuitarTechnique(c) => hint!(meas!(c), false, false),
         Command::SetGuitarBendAlter(c) => hint!(meas!(c), false, false),
         Command::SetNoteHead(c) => hint!(meas!(c), false, false),
         Command::SetCue(c) => hint!(meas!(c), false, true),
         Command::SetUnpitched(c) => hint!(meas!(c), false, true),
         Command::SetInstrumentId(c) => hint!(meas!(c), false, true),
+        Command::SetNotePlacement(c) => hint!(meas!(c), true, false),
 
         Command::Batch(c) => {
             let Some(first) = c.commands.first() else {
@@ -1000,6 +1057,7 @@ pub fn command_label(cmd: &Command) -> String {
         Command::SetRehearsalMark(_) => "Set Rehearsal Mark".to_string(),
         Command::SetNavigationMark(_) => "Set Navigation Mark".to_string(),
         Command::SetChordSymbol(_) => "Set Chord Symbol".to_string(),
+        Command::SetHarmonyRange(_) => "Set Harmony Range".to_string(),
         Command::SetFiguredBass(_) => "Set Figured Bass".to_string(),
         Command::SetGrace(_) => "Set Grace Note".to_string(),
         Command::SetOttava(_) => "Set Ottava".to_string(),
@@ -1026,6 +1084,7 @@ pub fn command_label(cmd: &Command) -> String {
         }
         .to_string(),
         Command::SetInstrumentId(_) => "Set Note Instrument".to_string(),
+        Command::SetNotePlacement(_) => "Set Note Placement".to_string(),
         Command::SetUnpitched(c) => if c.is_unpitched {
             "Set Unpitched Note"
         } else {
@@ -1046,6 +1105,7 @@ pub fn command_label(cmd: &Command) -> String {
         Command::SetFingerings(_) => "Set Fingering Candidates".to_string(),
         Command::SetStringNumber(_) => "Set String Number".to_string(),
         Command::SetTabPosition(_) => "Set Tablature Position".to_string(),
+        Command::SetTablatureConfig(_) => "Set Tablature Configuration".to_string(),
         Command::SetGuitarTechnique(_) => "Set Guitar Technique".to_string(),
         Command::SetGuitarBendAlter(_) => "Set Guitar Bend Alter".to_string(),
         Command::SetNoteHead(_) => "Set Note Head".to_string(),
@@ -1059,6 +1119,11 @@ pub fn command_label(cmd: &Command) -> String {
         Command::SetMeasureText(c) => match c.text {
             Some(_) => "Set Measure Text",
             None => "Remove Measure Text",
+        }
+        .to_string(),
+        Command::SetScoreText(c) => match c.text {
+            Some(_) => "Set Score Text",
+            None => "Remove Score Text",
         }
         .to_string(),
         Command::ToggleTrillLine(_) => "Toggle Trill Line".to_string(),
@@ -1100,6 +1165,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetRehearsalMark(_) => "SetRehearsalMark".to_string(),
         Command::SetNavigationMark(_) => "SetNavigationMark".to_string(),
         Command::SetChordSymbol(_) => "SetChordSymbol".to_string(),
+        Command::SetHarmonyRange(_) => "SetHarmonyRange".to_string(),
         Command::SetFiguredBass(_) => "SetFiguredBass".to_string(),
         Command::SetGrace(_) => "SetGrace".to_string(),
         Command::SetOttava(_) => "SetOttava".to_string(),
@@ -1129,14 +1195,17 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetFingerings(_) => "SetFingerings".to_string(),
         Command::SetStringNumber(_) => "SetStringNumber".to_string(),
         Command::SetTabPosition(_) => "SetTabPosition".to_string(),
+        Command::SetTablatureConfig(_) => "SetTablatureConfig".to_string(),
         Command::SetGuitarTechnique(_) => "SetGuitarTechnique".to_string(),
         Command::SetGuitarBendAlter(_) => "SetGuitarBendAlter".to_string(),
         Command::SetNoteHead(_) => "SetNoteHead".to_string(),
         Command::SetCue(_) => "SetCue".to_string(),
         Command::SetUnpitched(_) => "SetUnpitched".to_string(),
         Command::SetInstrumentId(_) => "SetInstrumentId".to_string(),
+        Command::SetNotePlacement(_) => "SetNotePlacement".to_string(),
         Command::SetExpressionText(_) => "SetExpressionText".to_string(),
         Command::SetMeasureText(_) => "SetMeasureText".to_string(),
+        Command::SetScoreText(_) => "SetScoreText".to_string(),
         Command::ToggleTrillLine(_) => "ToggleTrillLine".to_string(),
         Command::SetGlissando(_) => "SetGlissando".to_string(),
         Command::SetCrossStaff(_) => "SetCrossStaff".to_string(),
@@ -1233,6 +1302,35 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
                 c.note_index,
             )?
             .chord_symbol = c.chord.clone();
+            Ok(())
+        }
+        Command::SetHarmonyRange(c) => {
+            if let Some(end) = &c.end
+                && !score
+                    .parts
+                    .get(end.part)
+                    .and_then(|part| part.staves.get(end.staff))
+                    .and_then(|staff| staff.measures.get(end.measure))
+                    .and_then(|measure| measure.voices.get(end.voice))
+                    .and_then(|voice| voice.get(end.note))
+                    .is_some()
+            {
+                return Err(Error::InvalidCommand(
+                    "harmony range end does not point to an existing note".into(),
+                ));
+            }
+            let note = get_note_mut(
+                score,
+                c.part_index,
+                c.staff_index,
+                c.measure_index,
+                c.voice,
+                c.note_index,
+            )?;
+            let chord = note.chord_symbol.as_mut().ok_or_else(|| {
+                Error::InvalidCommand("cannot set a harmony range without a chord symbol".into())
+            })?;
+            chord.range_end = c.end.clone();
             Ok(())
         }
         Command::SetFiguredBass(c) => {
@@ -1551,6 +1649,28 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
             .instrument_id = c.instrument_id.clone();
             Ok(())
         }
+        Command::SetNotePlacement(c) => {
+            let note = get_note_mut(
+                score,
+                c.part_index,
+                c.staff_index,
+                c.measure_index,
+                c.voice,
+                c.note_index,
+            )?;
+            for value in [c.offset_x, c.offset_y, c.relative_x, c.relative_y] {
+                if value.is_some_and(|value| !value.is_finite()) {
+                    return Err(Error::InvalidCommand(
+                        "note placement offsets must be finite".into(),
+                    ));
+                }
+            }
+            note.offset_x = c.offset_x;
+            note.offset_y = c.offset_y;
+            note.relative_x = c.relative_x;
+            note.relative_y = c.relative_y;
+            Ok(())
+        }
         Command::SetExpressionText(c) => {
             for_each_measure_at(score, c.measure_index, |m| {
                 m.expression_text = c.text.clone();
@@ -1558,6 +1678,8 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
             Ok(())
         }
         Command::SetMeasureText(c) => apply_set_measure_text(c, score),
+        Command::SetScoreText(c) => apply_set_score_text(c, score),
+        Command::SetTablatureConfig(c) => apply_set_tablature_config(c, score),
         Command::ToggleTrillLine(c) => apply_toggle_trill_line(c, score),
         Command::SetPartGroup(c) => {
             if let Some(group) = &c.group {
@@ -1581,6 +1703,18 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
+
+fn apply_set_tablature_config(cmd: &SetTablatureConfigCmd, score: &mut Score) -> Result<(), Error> {
+    let staff = score
+        .parts
+        .get_mut(cmd.part_index)
+        .ok_or(Error::PartNotFound(cmd.part_index))?
+        .staves
+        .get_mut(cmd.staff_index)
+        .ok_or_else(|| Error::InvalidCommand(format!("staff {} out of range", cmd.staff_index)))?;
+    staff.tablature = cmd.config.clone();
+    Ok(())
+}
 
 fn get_note_mut(
     score: &mut Score,
@@ -1645,6 +1779,28 @@ fn apply_set_measure_text(cmd: &SetMeasureTextCmd, score: &mut Score) -> Result<
         }
     } else {
         measure.texts.remove(cmd.text_index);
+    }
+    Ok(())
+}
+
+fn apply_set_score_text(cmd: &SetScoreTextCmd, score: &mut Score) -> Result<(), Error> {
+    if cmd.text_index > score.texts.len()
+        || (cmd.text.is_none() && cmd.text_index == score.texts.len())
+    {
+        return Err(Error::InvalidCommand(format!(
+            "styled score text index {} out of range for {} entries",
+            cmd.text_index,
+            score.texts.len()
+        )));
+    }
+    if let Some(text) = &cmd.text {
+        if cmd.text_index == score.texts.len() {
+            score.texts.push(text.clone());
+        } else {
+            score.texts[cmd.text_index] = text.clone();
+        }
+    } else {
+        score.texts.remove(cmd.text_index);
     }
     Ok(())
 }
@@ -2301,6 +2457,7 @@ fn pad_voice_to_measure(voice: &mut Vec<Note>, max_beats: f64) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ScoreEngine;
     use crate::model::pitch::Step;
 
     fn default_engine_score() -> Score {
@@ -2500,6 +2657,147 @@ mod tests {
         assert_eq!(
             serde_json::to_value(&score).unwrap(),
             serde_json::to_value(&before).unwrap()
+        );
+    }
+
+    #[test]
+    fn set_score_text_supports_append_replace_remove_and_undo_redo() {
+        let mut engine = crate::ScoreEngine::new();
+        let text = StyledText {
+            style: crate::TextStyle::Expression,
+            text: "Title".to_string(),
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        };
+        engine
+            .apply(Command::SetScoreText(SetScoreTextCmd {
+                text_index: 0,
+                text: Some(text.clone()),
+            }))
+            .unwrap();
+        assert_eq!(engine.score.texts, vec![text.clone()]);
+
+        let mut replacement = text.clone();
+        replacement.text = "Subtitle".to_string();
+        engine
+            .apply(Command::SetScoreText(SetScoreTextCmd {
+                text_index: 0,
+                text: Some(replacement.clone()),
+            }))
+            .unwrap();
+        assert_eq!(engine.score.texts, vec![replacement]);
+
+        engine
+            .apply(Command::SetScoreText(SetScoreTextCmd {
+                text_index: 0,
+                text: None,
+            }))
+            .unwrap();
+        assert!(engine.score.texts.is_empty());
+        engine.undo().unwrap();
+        assert_eq!(engine.score.texts.len(), 1);
+        engine.redo().unwrap();
+        assert!(engine.score.texts.is_empty());
+    }
+
+    #[test]
+    fn set_harmony_range_is_undoable_and_json_compatible() {
+        let mut score = default_engine_score();
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        score.parts[0].staves[0].measures[0].voices[0][0].chord_symbol = Some(ChordSymbol {
+            root: "C".to_owned(),
+            kind: "major".to_owned(),
+            bass: None,
+            placement: None,
+            extender: true,
+            harmonic_degree: None,
+            harmony_function: None,
+            harmony_type: None,
+            chord_ref: None,
+            range_end: None,
+            degrees: Vec::new(),
+        });
+        let mut engine = ScoreEngine::new();
+        engine.replace_score(score);
+        let command = Command::SetHarmonyRange(SetHarmonyRangeCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            note_index: 0,
+            end: Some(NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            }),
+        });
+        let json = serde_json::to_string(&command).unwrap();
+        let restored: Command = serde_json::from_str(&json).unwrap();
+        engine.apply(restored).unwrap();
+        assert!(
+            engine.score.parts[0].staves[0].measures[0].voices[0][0]
+                .chord_symbol
+                .as_ref()
+                .and_then(|chord| chord.range_end.as_ref())
+                .is_some()
+        );
+        engine.undo().unwrap();
+        assert!(
+            engine.score.parts[0].staves[0].measures[0].voices[0][0]
+                .chord_symbol
+                .as_ref()
+                .is_some_and(|chord| chord.range_end.is_none())
+        );
+    }
+
+    #[test]
+    fn set_note_placement_is_undoable_and_rejects_non_finite_values() {
+        let mut score = default_engine_score();
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        let mut engine = ScoreEngine::new();
+        engine.replace_score(score);
+        let command = Command::SetNotePlacement(SetNotePlacementCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            note_index: 0,
+            offset_x: Some(12.5),
+            offset_y: Some(-3.0),
+            relative_x: Some(1.25),
+            relative_y: Some(-0.5),
+        });
+        engine.apply(command).unwrap();
+        let note = &engine.score.parts[0].staves[0].measures[0].voices[0][0];
+        assert_eq!(note.offset_x, Some(12.5));
+        assert_eq!(note.relative_y, Some(-0.5));
+        engine.undo().unwrap();
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].voices[0][0].offset_x,
+            None
+        );
+        let invalid = Command::SetNotePlacement(SetNotePlacementCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            note_index: 0,
+            offset_x: Some(f64::NAN),
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        });
+        assert!(engine.apply(invalid).is_err());
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].voices[0][0].offset_x,
+            None
         );
     }
 
@@ -3102,6 +3400,39 @@ mod tests {
         assert_eq!(note.tab_position, original_note.tab_position);
         assert_eq!(note.tab_positions, original_note.tab_positions);
         assert!(stack.can_undo());
+    }
+
+    #[test]
+    fn set_tablature_config_is_undoable_and_json_compatible() {
+        let mut stack = CommandStack::new(50);
+        let mut score = default_engine_score();
+        let config = crate::TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![40, 45, 50, 55, 59, 64],
+            capo: 2,
+        };
+        let command = Command::SetTablatureConfig(SetTablatureConfigCmd {
+            part_index: 0,
+            staff_index: 0,
+            config: Some(config.clone()),
+        });
+        let json = serde_json::to_string(&command).expect("command should serialize");
+        let decoded: Command = serde_json::from_str(&json).expect("command should deserialize");
+        assert_eq!(command_key(&decoded), "SetTablatureConfig");
+        stack
+            .execute(decoded, &mut score)
+            .expect("config should apply");
+        assert_eq!(score.parts[0].staves[0].tablature, Some(config));
+        stack.undo(&mut score).expect("config undo should apply");
+        assert!(score.parts[0].staves[0].tablature.is_none());
+        stack.redo(&mut score).expect("config redo should apply");
+        assert_eq!(
+            score.parts[0].staves[0]
+                .tablature
+                .as_ref()
+                .map(|tab| tab.capo),
+            Some(2)
+        );
     }
 
     #[test]

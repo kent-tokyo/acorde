@@ -250,6 +250,45 @@ fn common_span_marks_are_rendered() {
 }
 
 #[test]
+fn ties_do_not_connect_to_rest_events() {
+    use acorde_core::{Duration, Note, Pitch, Step};
+
+    let mut score = common::single_staff_score(
+        acorde_core::Clef::Treble,
+        0,
+        4,
+        4,
+        vec![
+            Note::new(Pitch::new(Step::C, 5), Duration::Quarter),
+            Note::rest(Duration::Quarter),
+            Note::new(Pitch::new(Step::D, 5), Duration::Quarter),
+        ],
+        vec![],
+    );
+    score.parts[0].staves[0].measures[0].voices[0][0].tie_start = true;
+
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert!(!svg.contains("class=\"acorde-tie\""));
+}
+
+#[test]
+fn ties_do_not_skip_leading_rest_at_measure_boundary() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+
+    let mut score = Score::new("Boundary tie", 120, 4, 4, 0, 2);
+    score.parts[0].staves[0].measures[0].voices[0] =
+        vec![Note::new(Pitch::new(Step::C, 5), Duration::Whole)];
+    score.parts[0].staves[0].measures[1].voices[0] = vec![
+        Note::rest(Duration::Quarter),
+        Note::new(Pitch::new(Step::C, 5), Duration::Quarter),
+    ];
+    score.parts[0].staves[0].measures[0].voices[0][0].tie_start = true;
+
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert!(!svg.contains("class=\"acorde-tie\""));
+}
+
+#[test]
 fn spans_crossing_systems_get_continuation_segments() {
     use acorde_core::{Duration, HairpinKind, Note, Pitch, Step};
 
@@ -292,6 +331,7 @@ fn note_annotations_are_rendered_and_xml_escaped() {
         harmony_function: None,
         harmony_type: None,
         chord_ref: None,
+        range_end: None,
         degrees: Vec::new(),
     });
     note.lyric = Some(Lyric {
@@ -570,7 +610,7 @@ fn precomputed_row_and_metadata_contracts_are_stable() {
     let layout = compute_layout(&score, &LayoutConfig::default());
     let row = acorde_render_svg::render_svg_row(&score, &layout, 0, &opts()).unwrap();
     let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts()).unwrap();
-    assert_eq!(metadata.contract_version, 4);
+    assert_eq!(metadata.contract_version, 15);
     assert_eq!(metadata.part_count, 1);
     assert_eq!(metadata.staff_count, 2);
     assert_eq!(metadata.measure_count, 1);
@@ -580,6 +620,10 @@ fn precomputed_row_and_metadata_contracts_are_stable() {
     assert_eq!(metadata.width, opts().width);
     assert_eq!(metadata.address_bounds.len(), 16);
     assert!(metadata.tablature_positions.is_empty());
+    assert!(metadata.tablature_staves.is_empty());
+    assert!(metadata.harmony_ranges.is_empty());
+    assert!(metadata.tablature_technique_connections.is_empty());
+    assert_eq!(metadata.note_semantics.len(), 16);
     assert_eq!(
         (
             metadata.address_bounds[0].part,
@@ -589,6 +633,179 @@ fn precomputed_row_and_metadata_contracts_are_stable() {
         (0, 0, 0)
     );
     assert!(acorde_render_svg::render_svg_row(&score, &layout, 99, &opts()).is_err());
+}
+
+#[test]
+fn metadata_exposes_typed_note_semantics_without_svg_parsing() {
+    use acorde_core::{
+        Articulation, ChordSymbol, Duration, Dynamic, GuitarTechnique, Lyric, Note, Pitch, Score,
+        Step,
+    };
+    use acorde_layout::{LayoutConfig, compute_layout};
+
+    let mut score = Score::new("Note semantics", 120, 4, 4, 0, 1);
+    let mut note = Note::new(Pitch::with_microtone(Step::C, 4, 0, 25), Duration::Quarter);
+    note.pitches.push(Pitch::with_microtone(Step::E, 4, 0, -50));
+    note.tie_start = true;
+    note.tie_end = true;
+    note.is_unpitched = true;
+    note.instrument_id = Some("P1&\"I1".to_owned());
+    note.dynamic = Some(Dynamic::Mf);
+    note.lyric = Some(Lyric {
+        text: "la".to_owned(),
+        syllabic: "single".to_owned(),
+    });
+    note.chord_symbol = Some(ChordSymbol {
+        root: "C".to_owned(),
+        kind: "major".to_owned(),
+        bass: None,
+        placement: None,
+        extender: false,
+        harmonic_degree: None,
+        harmony_function: None,
+        harmony_type: None,
+        chord_ref: None,
+        range_end: None,
+        degrees: Vec::new(),
+    });
+    note.technique_text = Some("pizz.".to_owned());
+    note.guitar_technique = Some(GuitarTechnique::Bend);
+    note.guitar_bend_alter_cents = Some(150);
+    note.articulations = vec![Articulation::Accent, Articulation::Tremolo(2)];
+    note.fingerings = vec![1, 3];
+    note.offset_x = Some(12.5);
+    note.offset_y = Some(-3.0);
+    note.relative_x = Some(1.25);
+    note.relative_y = Some(-0.5);
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+
+    let layout = compute_layout(&score, &LayoutConfig::default());
+    let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts())
+        .expect("typed note metadata should render");
+    assert_eq!(metadata.note_semantics.len(), 1);
+    assert_eq!(
+        metadata.note_semantics[0].instrument_id.as_deref(),
+        Some("P1&\"I1")
+    );
+    assert!(metadata.note_semantics[0].is_unpitched);
+    assert!(metadata.note_semantics[0].tie_start);
+    assert!(metadata.note_semantics[0].tie_end);
+    assert_eq!(metadata.note_semantics[0].duration_beats, 1.0);
+    assert_eq!(
+        metadata.note_semantics[0].pitch_midi_cents,
+        vec![6025, 6350]
+    );
+    assert_eq!(metadata.note_semantics[0].dynamic.as_deref(), Some("mf"));
+    assert_eq!(metadata.note_semantics[0].lyric.as_deref(), Some("la"));
+    assert_eq!(metadata.note_semantics[0].chord_label.as_deref(), Some("C"));
+    assert_eq!(
+        metadata.note_semantics[0].technique_text.as_deref(),
+        Some("pizz.")
+    );
+    assert_eq!(
+        metadata.note_semantics[0].guitar_technique,
+        Some(GuitarTechnique::Bend)
+    );
+    assert_eq!(
+        metadata.note_semantics[0].guitar_bend_alter_cents,
+        Some(150)
+    );
+    assert_eq!(
+        metadata.note_semantics[0].articulations,
+        vec!["accent", "tremolo-2"]
+    );
+    assert_eq!(metadata.note_semantics[0].fingerings, vec![1, 3]);
+    assert_eq!(metadata.note_semantics[0].microtone_cents, vec![25, -50]);
+    assert_eq!(metadata.note_semantics[0].offset_x, Some(12.5));
+    assert_eq!(metadata.note_semantics[0].offset_y, Some(-3.0));
+    assert_eq!(metadata.note_semantics[0].relative_x, Some(1.25));
+    assert_eq!(metadata.note_semantics[0].relative_y, Some(-0.5));
+    assert_eq!(
+        (
+            metadata.note_semantics[0].part,
+            metadata.note_semantics[0].staff,
+            metadata.note_semantics[0].measure,
+            metadata.note_semantics[0].voice,
+            metadata.note_semantics[0].note,
+        ),
+        (0, 0, 0, 0, 0)
+    );
+}
+
+#[test]
+fn metadata_exposes_tablature_tuning_and_capo_without_svg_parsing() {
+    use acorde_core::{Duration, Measure, Note, Pitch, Score, Staff, Step, TablatureConfig};
+    use acorde_layout::{LayoutConfig, compute_layout};
+
+    let mut score = Score::new("tab metadata", 120, 4, 4, 0, 1);
+    let mut staff = Staff::new(acorde_core::Clef::Treble);
+    staff.tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![64, 59, 55, 50, 45, 40],
+        capo: 3,
+    });
+    staff.measures = vec![Measure::empty(4, 4)];
+    staff.measures[0].voices[0] = vec![Note::new(Pitch::new(Step::E, 4), Duration::Quarter)];
+    score.parts[0].staves[0] = staff;
+
+    let layout = compute_layout(&score, &LayoutConfig::default());
+    let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts())
+        .expect("tablature metadata should render");
+    assert_eq!(
+        metadata.tablature_staves,
+        vec![acorde_render_svg::TablatureStaffMetadata {
+            part: 0,
+            staff: 0,
+            lines: 6,
+            tuning_midi: vec![64, 59, 55, 50, 45, 40],
+            capo: 3,
+        }]
+    );
+}
+
+#[test]
+fn metadata_exposes_typed_harmony_ranges_for_browser_hosts() {
+    use acorde_core::{ChordSymbol, Duration, Note, NoteAddr, Pitch, Score, Step};
+
+    let mut score = Score::new("harmony range", 120, 4, 4, 0, 2);
+    score.parts[0].staves[0].measures[0].voices[0] =
+        vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+    score.parts[0].staves[0].measures[1].voices[0] =
+        vec![Note::new(Pitch::new(Step::G, 4), Duration::Whole)];
+    score.parts[0].staves[0].measures[0].voices[0][0].chord_symbol = Some(ChordSymbol {
+        root: "C".to_owned(),
+        kind: "major".to_owned(),
+        bass: None,
+        placement: None,
+        extender: true,
+        harmonic_degree: None,
+        harmony_function: None,
+        harmony_type: None,
+        chord_ref: None,
+        range_end: Some(NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 1,
+            voice: 0,
+            note: 0,
+        }),
+        degrees: Vec::new(),
+    });
+
+    let layout = acorde_layout::compute_layout(&score, &acorde_layout::LayoutConfig::default());
+    let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts()).unwrap();
+    assert_eq!(metadata.harmony_ranges.len(), 1);
+    let range = &metadata.harmony_ranges[0];
+    assert_eq!(range.start.measure, 0);
+    assert_eq!(range.end.measure, 1);
+    assert_eq!(range.label, "C");
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert!(svg.contains("acorde-harmony-extender"));
+    assert!(svg.contains("data-acorde-span=\"harmony\""));
+    let mut split_options = opts();
+    split_options.measures_per_system = 1;
+    let split_svg = render_svg(&score, &split_options).unwrap();
+    assert!(split_svg.contains("class=\"acorde-harmony-extender\" data-continuation=\"true\""));
 }
 
 #[test]
@@ -618,6 +835,74 @@ fn metadata_exposes_measure_text_style_and_location() {
     assert!(svg.contains("class=\"acorde-measure-text acorde-measure-text-technique\""));
     assert!(svg.contains("data-acorde-kind=\"measure-text\""));
     assert!(svg.contains("con sordino"));
+}
+
+#[test]
+fn metadata_exposes_score_level_text_for_browser_hosts() {
+    use acorde_core::{Score, StyledText, TextStyle};
+    use acorde_layout::{LayoutConfig, compute_layout};
+
+    let mut score = Score::default();
+    score.texts.push(StyledText {
+        style: TextStyle::Expression,
+        text: "Subtitle".to_string(),
+        placement: None,
+        offset_x: Some(-1.0),
+        offset_y: Some(2.0),
+        relative_x: None,
+        relative_y: None,
+    });
+    let layout = compute_layout(&score, &LayoutConfig::default());
+    let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts()).unwrap();
+    assert_eq!(metadata.score_texts.len(), 1);
+    assert_eq!(metadata.score_texts[0].style, TextStyle::Expression);
+    assert_eq!(metadata.score_texts[0].text, "Subtitle");
+    assert_eq!(metadata.score_texts[0].offset_x, Some(-1.0));
+    assert_eq!(metadata.score_texts[0].offset_y, Some(2.0));
+}
+
+#[test]
+fn measure_text_moves_outside_note_annotation_lane() {
+    use acorde_core::{ChordSymbol, StyledText, TextStyle};
+
+    let mut score = common::satb_major();
+    let note = &mut score.parts[0].staves[0].measures[0].voices[0][0];
+    note.chord_symbol = Some(ChordSymbol {
+        root: "C".to_string(),
+        kind: "major".to_string(),
+        bass: None,
+        placement: None,
+        extender: false,
+        harmonic_degree: None,
+        harmony_function: None,
+        harmony_type: None,
+        chord_ref: None,
+        range_end: None,
+        degrees: Vec::new(),
+    });
+    score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        style: TextStyle::Expression,
+        text: "above".to_string(),
+        placement: None,
+        offset_x: None,
+        offset_y: None,
+        relative_x: None,
+        relative_y: None,
+    });
+    let svg = render_svg(&score, &opts()).unwrap();
+    let y_for_class = |class: &str| {
+        svg.split(&format!("class=\"{class}\""))
+            .nth(1)
+            .and_then(|fragment| fragment.split(" y=\"").nth(1))
+            .and_then(|value| value.split('"').next())
+            .and_then(|value| value.parse::<f32>().ok())
+            .expect("annotation has y coordinate")
+    };
+    assert!(
+        y_for_class("acorde-measure-text acorde-measure-text-expression")
+            < y_for_class("acorde-chord-symbol")
+    );
+    assert_well_formed_xml(&svg);
 }
 
 #[test]
@@ -841,6 +1126,85 @@ fn measure_text_extreme_vertical_offsets_expand_content_height() {
 }
 
 #[test]
+fn note_placement_offsets_expand_content_bounds() {
+    let normal = common::satb_major();
+    let mut offset = normal.clone();
+    let note = &mut offset.parts[0].staves[0].measures[0].voices[0][0];
+    note.offset_x = Some(-200.0);
+    note.offset_y = Some(-200.0);
+    let normal_metadata = acorde_render_svg::render_svg_metadata(
+        &normal,
+        &acorde_layout::compute_layout(&normal, &Default::default()),
+        &opts(),
+    )
+    .unwrap();
+    let offset_metadata = acorde_render_svg::render_svg_metadata(
+        &offset,
+        &acorde_layout::compute_layout(&offset, &Default::default()),
+        &opts(),
+    )
+    .unwrap();
+    assert!(offset_metadata.height > normal_metadata.height);
+    assert!(offset_metadata.address_bounds[0].x < normal_metadata.address_bounds[0].x);
+    assert!(offset_metadata.address_bounds[0].y < normal_metadata.address_bounds[0].y);
+    let normal_svg = render_svg(&normal, &opts()).unwrap();
+    let offset_svg = render_svg(&offset, &opts()).unwrap();
+    let notehead_y_values = |svg: &str| {
+        svg.split(r#"class="acorde-notehead""#)
+            .skip(1)
+            .filter_map(|fragment| fragment.split(r#" cy=""#).nth(1))
+            .filter_map(|value| value.split('"').next())
+            .filter_map(|value| value.parse::<f32>().ok())
+            .collect::<Vec<_>>()
+    };
+    let normal_y = notehead_y_values(&normal_svg);
+    let offset_y = notehead_y_values(&offset_svg);
+    assert!(normal_y.len() >= 2 && offset_y.len() >= 2);
+    assert!(offset_y[0] - offset_y[1] < normal_y[0] - normal_y[1]);
+    assert_well_formed_xml(&offset_svg);
+}
+
+#[test]
+fn note_placement_offsets_keep_beam_anchors_aligned() {
+    use acorde_core::{BeamState, Duration, Note, Pitch, Score, Step};
+
+    let mut score = Score::new("beamed placement", 120, 4, 4, 0, 1);
+    let mut notes = vec![
+        Note::new(Pitch::new(Step::C, 5), Duration::Eighth),
+        Note::new(Pitch::new(Step::D, 5), Duration::Eighth),
+        Note::new(Pitch::new(Step::E, 5), Duration::Eighth),
+        Note::new(Pitch::new(Step::F, 5), Duration::Eighth),
+    ];
+    notes[0].beam = BeamState::Begin;
+    notes[1].beam = BeamState::Continue;
+    notes[2].beam = BeamState::Continue;
+    notes[3].beam = BeamState::End;
+    score.parts[0].staves[0].measures[0].voices[0] = notes;
+    let baseline = render_svg(&score, &opts()).unwrap();
+    score.parts[0].staves[0].measures[0].voices[0][3].offset_x = Some(40.0);
+    score.parts[0].staves[0].measures[0].voices[0][3].offset_y = Some(-20.0);
+    let shifted = render_svg(&score, &opts()).unwrap();
+
+    let beam_points = |svg: &str| {
+        let start = svg.find("class=\"acorde-beam\"").expect("beam");
+        let points = svg[start..]
+            .split("points=\"")
+            .nth(1)
+            .and_then(|value| value.split('"').next())
+            .expect("beam points");
+        points
+            .split_whitespace()
+            .nth(1)
+            .and_then(|point| point.split(',').next())
+            .and_then(|value| value.parse::<f32>().ok())
+            .expect("beam endpoint x")
+    };
+    assert!(beam_points(&shifted) > beam_points(&baseline));
+    assert_ne!(shifted, baseline);
+    assert_well_formed_xml(&shifted);
+}
+
+#[test]
 fn note_attached_annotations_expand_content_height() {
     use acorde_core::{Dynamic, Lyric, OttavaKind, Pitch, Step};
     let normal = common::satb_major();
@@ -888,6 +1252,25 @@ fn note_attached_annotations_expand_content_height() {
     assert!(svg.contains(">pizz.</text>"));
     assert!(svg.contains("class=\"acorde-fingering\""));
     assert!(svg.contains(">2</text>"));
+}
+
+#[test]
+fn score_level_text_reuses_bounded_positioning_validation() {
+    use acorde_core::{StyledText, TextStyle};
+    let mut score = common::satb_major();
+    score.texts.push(StyledText {
+        style: TextStyle::Expression,
+        text: "title".to_string(),
+        placement: None,
+        offset_x: Some(f64::INFINITY),
+        offset_y: None,
+        relative_x: None,
+        relative_y: None,
+    });
+    assert!(matches!(
+        render_svg(&score, &opts()),
+        Err(acorde_render_svg::RenderError::InvalidMeasureTextOffset { field: "offset_x" })
+    ));
 }
 
 #[test]
@@ -1173,6 +1556,8 @@ fn tablature_renders_lines_frets_and_techniques() {
     assert!(svg.contains("acorde-tab-fingering"));
     assert!(svg.contains(">1/3</text>"));
     assert!(svg.contains("acorde-tab-technique"));
+    assert!(svg.contains("class=\"acorde-tab-bend\""));
+    assert!(svg.contains("data-bend-cents=\"200\""));
     assert!(svg.contains(">bend +200c</text>"));
     assert!(svg.contains("acorde-tab-technique-connection"));
     assert!(svg.contains("data-technique=\"slide\""));
@@ -1207,6 +1592,13 @@ fn tablature_renders_lines_frets_and_techniques() {
             .collect::<Vec<_>>(),
         vec![(0, 0, 2, 3), (0, 1, 3, 2), (1, 0, 2, 5), (1, 1, 3, 4)]
     );
+    assert_eq!(metadata.tablature_technique_connections.len(), 2);
+    assert!(
+        metadata
+            .tablature_technique_connections
+            .iter()
+            .all(|connection| !connection.cross_measure)
+    );
 }
 
 #[test]
@@ -1231,6 +1623,47 @@ fn tablature_technique_connections_skip_rests_and_missing_positions() {
 
     let svg = render_svg(&score, &opts()).expect("tab boundary case should render");
     assert!(!svg.contains("acorde-tab-technique-connection"));
+}
+
+#[test]
+fn tablature_technique_connections_cross_measure_on_same_system() {
+    use acorde_core::{
+        Duration, GuitarTechnique, Note, Pitch, Score, Staff, Step, TabPosition, TablatureConfig,
+    };
+
+    let mut score = Score::new("Cross-measure tab technique", 120, 4, 4, 0, 2);
+    let mut staff = Staff::new(acorde_core::Clef::Treble);
+    staff.measures = score.parts[0].staves[0].measures.clone();
+    staff.tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![64, 59, 55, 50, 45, 40],
+        capo: 0,
+    });
+    let mut first = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+    first.tab_position = Some(TabPosition { string: 2, fret: 3 });
+    let mut second = Note::new(Pitch::new(Step::F, 4), Duration::Quarter);
+    second.tab_position = Some(TabPosition { string: 2, fret: 5 });
+    second.guitar_technique = Some(GuitarTechnique::Slide);
+    staff.measures[0].voices[0] = vec![first];
+    staff.measures[1].voices[0] = vec![second];
+    score.parts[0].staves = vec![staff];
+
+    let svg = render_svg(&score, &opts()).expect("cross-measure tab technique should render");
+    assert_eq!(svg.matches("data-technique=\"slide\"").count(), 1);
+    assert!(svg.contains("data-start-note-addr=\"0:0:0:0:0\""));
+    assert!(svg.contains("data-end-note-addr=\"0:0:1:0:0\""));
+    assert!(svg.contains("data-string=\"2\""));
+    let layout = acorde_layout::compute_layout(&score, &acorde_layout::LayoutConfig::default());
+    let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts())
+        .expect("cross-measure metadata should render");
+    assert_eq!(metadata.tablature_technique_connections.len(), 1);
+    assert!(metadata.tablature_technique_connections[0].cross_measure);
+
+    let mut split_options = opts();
+    split_options.measures_per_system = 1;
+    let split_svg = render_svg(&score, &split_options)
+        .expect("cross-system tab technique should render continuation segments");
+    assert_eq!(split_svg.matches("data-technique=\"slide\"").count(), 2);
 }
 
 #[test]
@@ -1266,13 +1699,29 @@ fn tablature_preserves_microtone_marker() {
         capo: 0,
     });
     staff.measures.push(Measure::empty(4, 4));
+    score.parts[0].staves = vec![staff.clone()];
+    let baseline_height = acorde_render_svg::render_svg_metadata(
+        &score,
+        &acorde_layout::compute_layout(&score, &Default::default()),
+        &opts(),
+    )
+    .expect("empty tablature should render")
+    .height;
     let mut note = Note::new(Pitch::with_microtone(Step::E, 4, 0, 25), Duration::Quarter);
     note.tab_position = Some(TabPosition { string: 2, fret: 3 });
     staff.measures[0].voices[0] = vec![note];
     score.parts[0].staves = vec![staff];
 
+    let metadata = acorde_render_svg::render_svg_metadata(
+        &score,
+        &acorde_layout::compute_layout(&score, &Default::default()),
+        &opts(),
+    )
+    .expect("tablature microtone metadata should render");
+    assert!(metadata.height > baseline_height);
     let svg = render_svg(&score, &opts()).expect("tablature microtone should render");
     assert!(svg.contains("class=\"acorde-microtone\""));
+    assert!(svg.contains("data-acorde-microtone-cents=\"25\""));
     assert!(svg.contains(">+25c</text>"));
     assert!(svg.contains(">3</text>"));
     assert_well_formed_xml(&svg);
@@ -1429,7 +1878,7 @@ fn unpitched_notes_keep_a_semantic_svg_hook_without_inventing_sound_identity() {
     let mut note = acorde_core::Note::new(acorde_core::Pitch::new(Step::C, 4), Duration::Quarter);
     note.pitches[0].alter = 1;
     note.is_unpitched = true;
-    note.instrument_id = Some("P1-I1".to_string());
+    note.instrument_id = Some("P1&\"I1".to_string());
     score.parts[0].staves[0].measures[0].voices[0] = vec![note];
 
     let svg = render_svg(&score, &opts()).expect("display-positioned unpitched note should render");
@@ -1437,6 +1886,7 @@ fn unpitched_notes_keep_a_semantic_svg_hook_without_inventing_sound_identity() {
         svg.contains("class=\"acorde-note acorde-unpitched acorde-percussion-notehead-normal\"")
     );
     assert!(svg.contains("data-acorde-unpitched=\"true\""));
+    assert!(svg.contains("data-acorde-instrument-id=\"P1&amp;&quot;I1\""));
     assert!(svg.contains("data-acorde-percussion-notehead=\"acorde-percussion-notehead-normal\""));
     assert!(svg.contains("acorde-percussion-notehead-normal"));
     assert!(!svg.contains("acorde-accidental"));
@@ -1452,6 +1902,8 @@ fn microtone_cents_are_exposed_as_explicit_svg_markers() {
 
     let svg = render_svg(&score, &opts()).expect("microtonal pitch should render");
     assert!(svg.contains("class=\"acorde-microtone\""));
+    assert!(svg.contains("data-acorde-microtone-cents=\"25\""));
+    assert!(svg.contains("data-acorde-pitch-index=\"0\""));
     assert!(svg.contains(">+25c</text>"));
 }
 

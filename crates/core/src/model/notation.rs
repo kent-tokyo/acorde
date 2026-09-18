@@ -1,3 +1,4 @@
+use super::score::NoteAddr;
 use serde::{Deserialize, Serialize};
 
 use super::pitch::{Pitch, Step};
@@ -466,6 +467,13 @@ pub struct ChordSymbol {
     /// MEI `harm@chordref` URI, retained without resolving an external chord definition.
     #[serde(default)]
     pub chord_ref: Option<String>,
+    /// Optional note address where a harmony range ends.
+    ///
+    /// This is primarily used by MEI `harm@tstamp2`/`endid`.  The field is
+    /// optional so older score JSON and formats without harmony ranges remain
+    /// fully compatible.
+    #[serde(default)]
+    pub range_end: Option<NoteAddr>,
     /// Structured chord extensions such as add9, alter5, or omit3.
     #[serde(default)]
     pub degrees: Vec<ChordDegree>,
@@ -592,6 +600,15 @@ impl ChordSymbol {
             "half-diminished" => "m7b5",
             "major-sixth" => "6",
             "minor-sixth" => "m6",
+            "power" => "5",
+            "major-add9" => "add9",
+            "minor-add9" => "madd9",
+            "minor-major-seventh" => "mMaj7",
+            "dominant-flat-five" => "7b5",
+            "dominant-sharp-five" => "7#5",
+            "dominant-ninth" => "9",
+            "major-ninth" => "maj9",
+            "minor-ninth" => "m9",
             other => other,
         };
         let bass_str = match &self.bass {
@@ -737,6 +754,7 @@ mod tests {
             harmony_function: None,
             harmony_type: None,
             chord_ref: None,
+            range_end: None,
             degrees: Vec::new(),
         };
         assert_eq!(c.display_text(), "C");
@@ -754,6 +772,7 @@ mod tests {
             harmony_function: None,
             harmony_type: None,
             chord_ref: None,
+            range_end: None,
             degrees: Vec::new(),
         };
         assert_eq!(c.display_text(), "Dm7/F");
@@ -771,6 +790,7 @@ mod tests {
             harmony_function: None,
             harmony_type: None,
             chord_ref: None,
+            range_end: None,
             degrees: vec![
                 ChordDegree {
                     value: 9,

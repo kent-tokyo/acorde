@@ -50,7 +50,7 @@ and supports `--fail-on-mismatch` for CI. Each input JSON file is limited to 64 
 score. Its deterministic policies are `source-order`, `lowest`, and `highest`.
 
 Input supports .musicxml, .mxl, .mid/.midi, .abc, .mei, .mscz, and .mscx. Conversion output is
-MusicXML, MIDI, ABC, or MEI. `render` parses the same inputs and writes deterministic SVG through
+MusicXML, MIDI, ABC, MEI, or the deterministic canonical MSCX/MSCZ subset. MSCX/MSCZ output is intentionally bounded and does not claim full MuseScore feature parity. `render` parses the same inputs and writes deterministic SVG through
 `acorde-render-svg`; width, staff size, system capacity, and interactive address hooks are explicit
 options. Address hooks are enabled by default and can be omitted with `--no-interactive`. info
 prints title, counts, tempo, time signature, and duration estimate; validate

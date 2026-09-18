@@ -8,7 +8,7 @@
 use crate::{Diagnostic, Error, ImportReport};
 use acorde_core::{
     Articulation, Barline, ChordBarre, ChordDefinition, ChordDefinitionMember, ChordDegree,
-    ChordSymbol, Clef, Duration, Dynamic, FiguredBassFigure, KeySignature, Measure, Note,
+    ChordSymbol, Clef, Duration, Dynamic, FiguredBassFigure, KeySignature, Measure, Note, NoteAddr,
     OttavaKind, Part, PartGroupSymbol, Pitch, Score, Staff, StaffGroup, Step, StyledText,
     TextStyle, TimeSignature, TupletInfo,
 };
@@ -47,13 +47,22 @@ fn step(value: &str) -> Option<Step> {
     value.chars().next().and_then(Step::from_char)
 }
 
-const UNSUPPORTED_ELEMENTS: &[&str] = &["beam", "chord", "figuredBass", "pedal"];
+const UNSUPPORTED_ELEMENTS: &[&str] = &[
+    "beam",
+    "chord",
+    "figuredBass",
+    "pedal",
+    "facsimile",
+    "surface",
+    "zone",
+    "graphic",
+];
 const UNSUPPORTED_ATTRIBUTES: &[(&str, &str, &str)] = &[
-    ("harm", "endid", "endid"),
     ("harm", "tstamp.ges", "tstamp.ges"),
     ("harm", "tstamp.real", "tstamp.real"),
     ("harm", "rendgrid", "rendgrid"),
 ];
+const EDITORIAL_ATTRIBUTES: &[&str] = &["facs", "resp", "cert", "evidence"];
 
 fn parse_meter(count: Option<String>, unit: Option<String>) -> Option<TimeSignature> {
     let numerator = count?.parse::<u8>().ok()?;
@@ -378,6 +387,19 @@ fn parse_mei_timestamp(value: &str) -> Option<f64> {
         .filter(|value| *value >= 1.0)
 }
 
+fn parse_mei_timestamp2(value: &str) -> Option<(usize, f64)> {
+    let (measure_offset, beat) = value.trim().split_once('m')?;
+    let measure_offset = if measure_offset.is_empty() {
+        0
+    } else {
+        measure_offset.parse::<usize>().ok()?
+    };
+    let beat = beat.strip_prefix('+')?.parse::<f64>().ok()?;
+    beat.is_finite()
+        .then_some((measure_offset, beat))
+        .filter(|(_, beat)| *beat >= 1.0)
+}
+
 fn parse_chord_label(value: &str) -> Option<ChordSymbol> {
     let value = value.trim();
     let (label, bass) = value
@@ -429,6 +451,7 @@ fn parse_chord_label(value: &str) -> Option<ChordSymbol> {
         harmony_function: None,
         harmony_type: None,
         chord_ref: None,
+        range_end: None,
         degrees,
     })
 }
@@ -758,6 +781,12 @@ fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
                 }
                 push_flattening_diagnostic(&mut diagnostics, &path, &name, &event, &mut truncated);
                 push_attribute_diagnostics(&mut diagnostics, &path, &name, &event, &mut truncated);
+                push_editorial_attribute_diagnostics(
+                    &mut diagnostics,
+                    &path,
+                    &event,
+                    &mut truncated,
+                );
                 push_value_diagnostics(&mut diagnostics, &path, &name, &event, &mut truncated);
                 if matches!(name.as_str(), "chordDef" | "chordMember") {
                     push_duplicate_chord_id_diagnostic(
@@ -860,6 +889,12 @@ fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
                     &mut diagnostics,
                     &element_path,
                     &name,
+                    &event,
+                    &mut truncated,
+                );
+                push_editorial_attribute_diagnostics(
+                    &mut diagnostics,
+                    &element_path,
                     &event,
                     &mut truncated,
                 );
@@ -1393,6 +1428,33 @@ fn push_attribute_diagnostics(
     push_unknown_chord_attribute_diagnostics(diagnostics, path, element, event, truncated);
 }
 
+fn push_editorial_attribute_diagnostics(
+    diagnostics: &mut Vec<Diagnostic>,
+    path: &[String],
+    event: &BytesStart<'_>,
+    truncated: &mut bool,
+) {
+    for attribute in event.attributes().flatten() {
+        let name = String::from_utf8_lossy(attribute.key.as_ref());
+        if !EDITORIAL_ATTRIBUTES.contains(&name.as_ref()) {
+            continue;
+        }
+        if diagnostics.len() < MAX_MEI_DIAGNOSTICS {
+            let mut diagnostic = Diagnostic::warning(
+                format!("mei.unsupported-editorial-attribute.{name}"),
+                format!(
+                    "MEI editorial attribute '{name}' is not represented by the canonical model"
+                ),
+            );
+            diagnostic.source_location = Some(format!("/{}/@{name}", path.join("/")));
+            diagnostic.preserved_value = String::from_utf8(attribute.value.to_vec()).ok();
+            diagnostics.push(diagnostic);
+        } else if !*truncated {
+            push_truncation_diagnostic(diagnostics, path, truncated);
+        }
+    }
+}
+
 fn push_invalid_value_diagnostic(
     diagnostics: &mut Vec<Diagnostic>,
     path: &[String],
@@ -1513,11 +1575,27 @@ fn push_value_diagnostics(
             truncated,
         );
     }
+    if element == "harm"
+        && let Some(value) = attr(event, b"tstamp2")
+        && parse_mei_timestamp2(&value).is_none()
+    {
+        push_invalid_value_diagnostic(
+            diagnostics,
+            path,
+            element,
+            "tstamp2",
+            value,
+            "is not a supported measure-offset and beat position",
+            truncated,
+        );
+    }
 }
 
 struct PendingHarmSymbol {
     start_id: Option<String>,
+    end_id: Option<String>,
     timestamp: Option<f64>,
+    end_timestamp: Option<String>,
     chord: ChordSymbol,
     label: String,
     staff: usize,
@@ -1525,6 +1603,113 @@ struct PendingHarmSymbol {
 }
 
 /// Parse the supported MEI subset into the canonical score model.
+struct MeiNoteContext<'a> {
+    score: &'a mut Score,
+    current_staff: usize,
+    current_measure: Option<usize>,
+    current_layer: usize,
+    note_count: &'a mut usize,
+    pending_dynamic: &'a mut Option<Dynamic>,
+    pending_lyric: &'a mut Option<acorde_core::Lyric>,
+    pending_articulations: &'a mut Vec<Articulation>,
+    current_tuplet: &'a Option<TupletInfo>,
+    note_ids: &'a mut HashMap<String, (usize, usize, usize, usize)>,
+}
+
+fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> Result<(), Error> {
+    let MeiNoteContext {
+        score,
+        current_staff,
+        current_measure,
+        current_layer,
+        note_count,
+        pending_dynamic,
+        pending_lyric,
+        pending_articulations,
+        current_tuplet,
+        note_ids,
+    } = context;
+    if *note_count >= MAX_MEI_NOTES {
+        return Err(Error::Xml("MEI document has too many notes".into()));
+    }
+    let Some(measure_index) = current_measure else {
+        return Err(Error::Xml("MEI note is outside a measure".into()));
+    };
+    let dur = duration(attr(event, b"dur").as_deref())
+        .ok_or_else(|| Error::Xml("MEI note has unsupported duration".into()))?;
+    let dots = attr(event, b"dots")
+        .and_then(|value| value.parse::<u8>().ok())
+        .unwrap_or(0);
+    let is_rest = event.name().as_ref() == b"rest";
+    let grace_value = attr(event, b"grace");
+    let grace_slash =
+        attr(event, b"stem.mod").is_some_and(|value| value.to_ascii_lowercase().contains("slash"));
+    if let Some(value) = grace_value.as_deref()
+        && parse_grace(value).is_none()
+    {
+        return Err(Error::Xml(format!("unsupported MEI grace value '{value}'")));
+    }
+    let mut note = if is_rest {
+        Note::rest(dur)
+    } else {
+        let pitch_step = attr(event, b"pname")
+            .as_deref()
+            .and_then(step)
+            .ok_or_else(|| Error::Xml("MEI note is missing pname".into()))?;
+        let octave = attr(event, b"oct")
+            .and_then(|value| value.parse::<i8>().ok())
+            .ok_or_else(|| Error::Xml("MEI note is missing oct".into()))?;
+        let (alter, microtone_cents) = match attr(event, b"accid").as_deref() {
+            Some("s") => (1, 0),
+            Some("f") => (-1, 0),
+            Some("ss") => (2, 0),
+            Some("ff") => (-2, 0),
+            Some("n") | None => (0, 0),
+            Some("qs") => (0, 50),
+            Some("qf") => (0, -50),
+            Some(value) => {
+                return Err(Error::Xml(format!("unsupported MEI accid '{value}'")));
+            }
+        };
+        Note::new(
+            Pitch::with_microtone(pitch_step, octave, alter, microtone_cents),
+            dur,
+        )
+    };
+    note.dot_count = dots;
+    if !is_rest {
+        note.is_grace = grace_value
+            .as_deref()
+            .and_then(parse_grace)
+            .unwrap_or(false);
+        note.grace_slash = note.is_grace && grace_slash;
+    }
+    note.dynamic = pending_dynamic.take();
+    note.lyric = pending_lyric.take();
+    note.articulations.append(pending_articulations);
+    note.tuplet = (*current_tuplet).clone();
+    match attr(event, b"tie").as_deref() {
+        Some("i") => note.tie_start = true,
+        Some("t") => note.tie_end = true,
+        Some("m") => {
+            note.tie_start = true;
+            note.tie_end = true;
+        }
+        _ => {}
+    }
+    let note_index =
+        score.parts[0].staves[current_staff].measures[measure_index].voices[current_layer].len();
+    if let Some(id) = attr(event, b"xml:id").or_else(|| attr(event, b"id")) {
+        note_ids.insert(
+            id.trim_start_matches('#').to_string(),
+            (current_staff, measure_index, current_layer, note_index),
+        );
+    }
+    score.parts[0].staves[current_staff].measures[measure_index].voices[current_layer].push(note);
+    *note_count += 1;
+    Ok(())
+}
+
 pub fn parse_mei(text: &str) -> Result<Score, Error> {
     if text.trim().is_empty() {
         return Err(Error::Empty);
@@ -1558,7 +1743,9 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut in_harm = false;
     let mut harm_text = String::new();
     let mut harm_start_id: Option<String> = None;
+    let mut harm_end_id: Option<String> = None;
     let mut harm_tstamp: Option<f64> = None;
+    let mut harm_tstamp2: Option<String> = None;
     let mut harm_placement: Option<String> = None;
     let mut harm_extender = false;
     let mut harm_degree: Option<String> = None;
@@ -1769,8 +1956,10 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         in_harm = true;
                         harm_text.clear();
                         harm_start_id = attr(&event, b"startid");
+                        harm_end_id = attr(&event, b"endid");
                         harm_tstamp =
                             attr(&event, b"tstamp").and_then(|value| parse_mei_timestamp(&value));
+                        harm_tstamp2 = attr(&event, b"tstamp2");
                         harm_placement = attr(&event, b"place");
                         harm_extender = attr(&event, b"extender")
                             .as_deref()
@@ -1858,93 +2047,21 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         }
                     }
                     b"note" | b"rest" => {
-                        if note_count >= MAX_MEI_NOTES {
-                            return Err(Error::Xml("MEI document has too many notes".into()));
-                        }
-                        let Some(measure_index) = current_measure else {
-                            return Err(Error::Xml("MEI note is outside a measure".into()));
-                        };
-                        let dur = duration(attr(&event, b"dur").as_deref()).ok_or_else(|| {
-                            Error::Xml("MEI note has unsupported duration".into())
-                        })?;
-                        let dots = attr(&event, b"dots")
-                            .and_then(|value| value.parse::<u8>().ok())
-                            .unwrap_or(0);
-                        let is_rest = event.name().as_ref() == b"rest";
-                        let grace_value = attr(&event, b"grace");
-                        let grace_slash = attr(&event, b"stem.mod")
-                            .is_some_and(|value| value.to_ascii_lowercase().contains("slash"));
-                        if let Some(value) = grace_value.as_deref()
-                            && parse_grace(value).is_none()
-                        {
-                            return Err(Error::Xml(format!(
-                                "unsupported MEI grace value '{value}'"
-                            )));
-                        }
-                        let mut note = if is_rest {
-                            Note::rest(dur)
-                        } else {
-                            let pitch_step = attr(&event, b"pname")
-                                .as_deref()
-                                .and_then(step)
-                                .ok_or_else(|| Error::Xml("MEI note is missing pname".into()))?;
-                            let octave = attr(&event, b"oct")
-                                .and_then(|value| value.parse::<i8>().ok())
-                                .ok_or_else(|| Error::Xml("MEI note is missing oct".into()))?;
-                            let (alter, microtone_cents) = match attr(&event, b"accid").as_deref() {
-                                Some("s") => (1, 0),
-                                Some("f") => (-1, 0),
-                                Some("ss") => (2, 0),
-                                Some("ff") => (-2, 0),
-                                Some("n") | None => (0, 0),
-                                Some("qs") => (0, 50),
-                                Some("qf") => (0, -50),
-                                Some(value) => {
-                                    return Err(Error::Xml(format!(
-                                        "unsupported MEI accid '{value}'"
-                                    )));
-                                }
-                            };
-                            Note::new(
-                                Pitch::with_microtone(pitch_step, octave, alter, microtone_cents),
-                                dur,
-                            )
-                        };
-                        note.dot_count = dots;
-                        if !is_rest {
-                            note.is_grace = grace_value
-                                .as_deref()
-                                .and_then(parse_grace)
-                                .unwrap_or(false);
-                            note.grace_slash = note.is_grace && grace_slash;
-                        }
-                        note.dynamic = pending_dynamic.take();
-                        note.lyric = pending_lyric.take();
-                        note.articulations.append(&mut pending_articulations);
-                        note.tuplet = current_tuplet.clone();
-                        match attr(&event, b"tie").as_deref() {
-                            Some("i") => note.tie_start = true,
-                            Some("t") => note.tie_end = true,
-                            Some("m") => {
-                                note.tie_start = true;
-                                note.tie_end = true;
-                            }
-                            _ => {}
-                        }
-                        let note_index = score.parts[0].staves[current_staff].measures
-                            [measure_index]
-                            .voices[current_layer]
-                            .len();
-                        if let Some(id) = attr(&event, b"xml:id").or_else(|| attr(&event, b"id")) {
-                            note_ids.insert(
-                                id.trim_start_matches('#').to_string(),
-                                (current_staff, measure_index, current_layer, note_index),
-                            );
-                        }
-                        score.parts[0].staves[current_staff].measures[measure_index].voices
-                            [current_layer]
-                            .push(note);
-                        note_count += 1;
+                        parse_mei_note_event(
+                            &event,
+                            MeiNoteContext {
+                                score: &mut score,
+                                current_staff,
+                                current_measure,
+                                current_layer,
+                                note_count: &mut note_count,
+                                pending_dynamic: &mut pending_dynamic,
+                                pending_lyric: &mut pending_lyric,
+                                pending_articulations: &mut pending_articulations,
+                                current_tuplet: &current_tuplet,
+                                note_ids: &mut note_ids,
+                            },
+                        )?;
                     }
                     _ => {}
                 }
@@ -2029,7 +2146,9 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             if let Some(chord) = parse_chord_label(text) {
                                 pending_harm_symbols.push(PendingHarmSymbol {
                                     start_id,
+                                    end_id: harm_end_id.take(),
                                     timestamp: harm_tstamp,
+                                    end_timestamp: harm_tstamp2.clone(),
                                     chord: ChordSymbol {
                                         placement: harm_placement.clone(),
                                         extender: harm_extender,
@@ -2059,7 +2178,9 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         }
                     }
                     harm_start_id = None;
+                    harm_end_id = None;
                     harm_tstamp = None;
+                    harm_tstamp2 = None;
                     harm_placement = None;
                     harm_extender = false;
                     harm_degree = None;
@@ -2185,6 +2306,15 @@ fn apply_pending_harm_symbols(
         let timestamp_location = pending.timestamp.and_then(|value| {
             mei_note_location_at_timestamp(score, pending.staff, pending.measure, value)
         });
+        let timestamp_end_location = pending.end_timestamp.as_deref().and_then(|value| {
+            mei_note_location_at_timestamp2(score, pending.staff, pending.measure, value)
+        });
+        let end_location = pending
+            .end_id
+            .as_deref()
+            .and_then(|value| note_ids.get(value.trim_start_matches('#')))
+            .copied()
+            .or(timestamp_end_location);
         let note_location = pending
             .start_id
             .as_deref()
@@ -2197,7 +2327,15 @@ fn apply_pending_harm_symbols(
                 .and_then(|measure| measure.voices.get_mut(layer))
                 .and_then(|voice| voice.get_mut(index))
         {
-            note.chord_symbol = Some(pending.chord);
+            let mut chord = pending.chord;
+            chord.range_end = end_location.map(|(staff, measure, voice, note)| NoteAddr {
+                part: 0,
+                staff,
+                measure,
+                voice,
+                note,
+            });
+            note.chord_symbol = Some(chord);
         } else if let Some(measure) = score.parts[0]
             .staves
             .get_mut(pending.staff)
@@ -2249,6 +2387,17 @@ fn mei_note_location_at_timestamp(
         }
     }
     None
+}
+
+fn mei_note_location_at_timestamp2(
+    score: &Score,
+    staff_index: usize,
+    measure_index: usize,
+    timestamp: &str,
+) -> Option<(usize, usize, usize, usize)> {
+    let (measure_offset, beat) = parse_mei_timestamp2(timestamp)?;
+    let target_measure = measure_index.checked_add(measure_offset)?;
+    mei_note_location_at_timestamp(score, staff_index, target_measure, beat)
 }
 
 fn mei_note_mut(score: &mut Score, location: (usize, usize, usize, usize)) -> Option<&mut Note> {
@@ -2334,14 +2483,88 @@ fn apply_mei_pedals(
     }
 }
 
+fn unresolved_harm_timestamp2_diagnostics(text: &str, score: &Score) -> Vec<Diagnostic> {
+    let mut reader = Reader::from_str(text);
+    let mut path = Vec::new();
+    let mut measure_index = None;
+    let mut staff_index = 0usize;
+    let mut diagnostics = Vec::new();
+
+    let mut check_harm = |event: &BytesStart<'_>,
+                          harm_path: &[String],
+                          current_measure: Option<usize>,
+                          current_staff: usize| {
+        let Some(timestamp) = attr(event, b"tstamp2") else {
+            return;
+        };
+        let Some((_, _)) = parse_mei_timestamp2(&timestamp) else {
+            return;
+        };
+        let Some(measure_index) = current_measure else {
+            return;
+        };
+        if mei_note_location_at_timestamp2(score, current_staff, measure_index, &timestamp)
+            .is_some()
+        {
+            return;
+        }
+        if diagnostics.len() >= MAX_MEI_DIAGNOSTICS {
+            return;
+        }
+        let mut diagnostic = Diagnostic::warning(
+            "mei.unresolved-reference.harm.tstamp2",
+            "MEI harm@tstamp2 does not resolve to a note in the referenced measure",
+        );
+        diagnostic.source_location = Some(format!("/{}@tstamp2", harm_path.join("/")));
+        diagnostic.preserved_value = Some(timestamp);
+        diagnostics.push(diagnostic);
+    };
+
+    loop {
+        match reader.read_event() {
+            Ok(Event::Start(event)) => {
+                let name = String::from_utf8_lossy(event.name().as_ref()).into_owned();
+                if name == "measure" {
+                    measure_index = Some(measure_index.map_or(0, |index| index + 1));
+                } else if name == "staff" {
+                    staff_index = attr(&event, b"n")
+                        .and_then(|value| value.parse::<usize>().ok())
+                        .filter(|number| *number > 0)
+                        .map_or(0, |number| number - 1);
+                }
+                path.push(name.clone());
+                if name == "harm" {
+                    check_harm(&event, &path, measure_index, staff_index);
+                }
+            }
+            Ok(Event::Empty(event)) => {
+                let name = String::from_utf8_lossy(event.name().as_ref()).into_owned();
+                let mut element_path = path.clone();
+                element_path.push(name.clone());
+                if name == "harm" {
+                    check_harm(&event, &element_path, measure_index, staff_index);
+                }
+            }
+            Ok(Event::End(_)) => {
+                path.pop();
+            }
+            Ok(Event::Eof) | Err(_) => break,
+            _ => {}
+        }
+    }
+    diagnostics
+}
+
 /// Parse MEI and report elements that are intentionally outside the supported subset.
 pub fn parse_mei_with_report(text: &str) -> Result<ImportReport, Error> {
     let score = parse_mei(text)?;
+    let mut diagnostics = loss_diagnostics(text);
+    diagnostics.extend(unresolved_harm_timestamp2_diagnostics(text, &score));
     Ok(ImportReport {
         schema_version: crate::REPORT_SCHEMA_VERSION,
         format: "mei".to_string(),
         score,
-        diagnostics: loss_diagnostics(text),
+        diagnostics,
     })
 }
 
@@ -2690,6 +2913,94 @@ fn append_mei_chord_definitions(out: &mut String, definitions: &[ChordDefinition
     out.push_str("</chordTable>");
 }
 
+fn mei_note_id(number: u32, staff: usize, voice: usize, note: usize) -> String {
+    format!("n{}_{}_{}_{}", number, staff + 1, voice + 1, note + 1)
+}
+
+fn append_mei_measure_staves(
+    out: &mut String,
+    staves: &[Staff],
+    measure_index: usize,
+    number: u32,
+    default_time: &TimeSignature,
+) -> Result<(), Error> {
+    for (staff_index, staff) in staves.iter().enumerate() {
+        let Some(measure) = staff.measures.get(measure_index) else {
+            continue;
+        };
+        let measure_time = measure.time_sig.as_ref().unwrap_or(default_time);
+        out.push_str(&format!("<staff n=\"{}\"", staff_index + 1));
+        if measure.time_sig.is_some() {
+            out.push_str(&format!(
+                " meter.count=\"{}\" meter.unit=\"{}\"",
+                measure_time.numerator, measure_time.denominator
+            ));
+        }
+        out.push('>');
+        for (voice_index, voice) in measure.voices.iter().enumerate() {
+            if voice.is_empty() {
+                continue;
+            }
+            out.push_str(&format!("<layer n=\"{}\">", voice_index + 1));
+            for (note_index, note) in voice.iter().enumerate() {
+                append_mei_dynamic(out, note);
+                append_mei_lyric(out, note);
+                append_mei_articulations(out, note);
+                if let Some(tuplet) = &note.tuplet {
+                    out.push_str(&format!(
+                        "<tuplet num=\"{}\" numbase=\"{}\">",
+                        tuplet.actual_notes, tuplet.normal_notes
+                    ));
+                }
+                let id = mei_note_id(number, staff_index, voice_index, note_index);
+                append_mei_note(out, note, &id)?;
+                if note.tuplet.is_some() {
+                    out.push_str("</tuplet>");
+                }
+            }
+            for (start_index, _note) in voice.iter().enumerate().filter(|(_, note)| note.slur_start)
+            {
+                if let Some((end_index, _)) = voice
+                    .iter()
+                    .enumerate()
+                    .skip(start_index + 1)
+                    .find(|(_, note)| note.slur_end)
+                {
+                    let start_id = mei_note_id(number, staff_index, voice_index, start_index);
+                    let end_id = mei_note_id(number, staff_index, voice_index, end_index);
+                    out.push_str(&format!(
+                        "<slur startid=\"#{start_id}\" endid=\"#{end_id}\"/>"
+                    ));
+                }
+            }
+            append_mei_ottava_spans(out, voice, number, staff_index, voice_index);
+            append_mei_pedal_spans(out, voice, number, staff_index, voice_index);
+            out.push_str("</layer>");
+        }
+        if let Some(count) = measure.multi_rest_count {
+            out.push_str(&if count == 1 {
+                "<mRest/>".to_string()
+            } else {
+                format!("<multiRest num=\"{count}\"/>")
+            });
+        }
+        if !matches!(measure.barline_left, Barline::Normal) {
+            out.push_str(&format!(
+                "<barLine form=\"{}\"/>",
+                mei_barline(measure.barline_left.clone())
+            ));
+        }
+        if !matches!(measure.barline_right, Barline::Normal) {
+            out.push_str(&format!(
+                "<barLine form=\"{}\"/>",
+                mei_barline(measure.barline_right.clone())
+            ));
+        }
+        out.push_str("</staff>");
+    }
+    Ok(())
+}
+
 /// Serialize the score subset understood by [`parse_mei`].
 pub fn serialize_mei(score: &Score) -> Result<String, Error> {
     if score.parts.is_empty() || score.parts[0].staves.is_empty() {
@@ -2814,6 +3125,21 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
                     if let Some(chord_ref) = &chord.chord_ref {
                         out.push_str(&format!(" chordref=\"{}\"", escape(chord_ref)));
                     }
+                    if let Some(end) = &chord.range_end {
+                        if let Some(end_measure) = staves
+                            .get(end.staff)
+                            .and_then(|staff| staff.measures.get(end.measure))
+                        {
+                            let end_id = format!(
+                                "n{}_{}_{}_{}",
+                                end_measure.number,
+                                end.staff + 1,
+                                end.voice + 1,
+                                end.note + 1
+                            );
+                            out.push_str(&format!(" endid=\"#{end_id}\""));
+                        }
+                    }
                     out.push_str(&format!(">{}</harm>", escape(&chord.display_text())));
                 }
             }
@@ -2838,99 +3164,7 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
                 out.push_str("</dir>");
             }
         }
-        for (staff_index, staff) in staves.iter().enumerate() {
-            let Some(measure) = staff.measures.get(measure_index) else {
-                continue;
-            };
-            let measure_time = measure.time_sig.as_ref().unwrap_or(time);
-            out.push_str(&format!("<staff n=\"{}\"", staff_index + 1));
-            if measure.time_sig.is_some() {
-                out.push_str(&format!(
-                    " meter.count=\"{}\" meter.unit=\"{}\"",
-                    measure_time.numerator, measure_time.denominator
-                ));
-            }
-            out.push('>');
-            for (voice_index, voice) in measure.voices.iter().enumerate() {
-                if voice.is_empty() {
-                    continue;
-                }
-                out.push_str(&format!("<layer n=\"{}\">", voice_index + 1));
-                for (note_index, note) in voice.iter().enumerate() {
-                    append_mei_dynamic(&mut out, note);
-                    append_mei_lyric(&mut out, note);
-                    append_mei_articulations(&mut out, note);
-                    if let Some(tuplet) = &note.tuplet {
-                        out.push_str(&format!(
-                            "<tuplet num=\"{}\" numbase=\"{}\">",
-                            tuplet.actual_notes, tuplet.normal_notes
-                        ));
-                    }
-                    let id = format!(
-                        "n{}_{}_{}_{}",
-                        number,
-                        staff_index + 1,
-                        voice_index + 1,
-                        note_index + 1
-                    );
-                    append_mei_note(&mut out, note, &id)?;
-                    if note.tuplet.is_some() {
-                        out.push_str("</tuplet>");
-                    }
-                }
-                for (start_index, _note) in
-                    voice.iter().enumerate().filter(|(_, note)| note.slur_start)
-                {
-                    if let Some((end_index, _)) = voice
-                        .iter()
-                        .enumerate()
-                        .skip(start_index + 1)
-                        .find(|(_, note)| note.slur_end)
-                    {
-                        let start_id = format!(
-                            "n{}_{}_{}_{}",
-                            number,
-                            staff_index + 1,
-                            voice_index + 1,
-                            start_index + 1
-                        );
-                        let end_id = format!(
-                            "n{}_{}_{}_{}",
-                            number,
-                            staff_index + 1,
-                            voice_index + 1,
-                            end_index + 1
-                        );
-                        out.push_str(&format!(
-                            "<slur startid=\"#{start_id}\" endid=\"#{end_id}\"/>"
-                        ));
-                    }
-                }
-                append_mei_ottava_spans(&mut out, voice, number, staff_index, voice_index);
-                append_mei_pedal_spans(&mut out, voice, number, staff_index, voice_index);
-                out.push_str("</layer>");
-            }
-            if let Some(count) = measure.multi_rest_count {
-                out.push_str(&if count == 1 {
-                    "<mRest/>".to_string()
-                } else {
-                    format!("<multiRest num=\"{count}\"/>")
-                });
-            }
-            if !matches!(measure.barline_left, Barline::Normal) {
-                out.push_str(&format!(
-                    "<barLine form=\"{}\"/>",
-                    mei_barline(measure.barline_left.clone())
-                ));
-            }
-            if !matches!(measure.barline_right, Barline::Normal) {
-                out.push_str(&format!(
-                    "<barLine form=\"{}\"/>",
-                    mei_barline(measure.barline_right.clone())
-                ));
-            }
-            out.push_str("</staff>");
-        }
+        append_mei_measure_staves(&mut out, staves, measure_index, number, time)?;
         out.push_str("</measure>");
     }
     out.push_str("</section></score></mdiv></body></music></mei>");
@@ -3038,6 +3272,13 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                             note_index + 1
                         );
                         let unsupported = [
+                            (
+                                "placement",
+                                note.offset_x.is_some()
+                                    || note.offset_y.is_some()
+                                    || note.relative_x.is_some()
+                                    || note.relative_y.is_some(),
+                            ),
                             ("tab_position", note.tab_position.is_some()),
                             ("tab_positions", !note.tab_positions.is_empty()),
                             ("ottava_start", note.ottava_start.is_some()),
@@ -3194,6 +3435,58 @@ mod tests {
     }
 
     #[test]
+    fn editorial_and_facsimile_attributes_are_source_diagnosed() {
+        let xml = FIXTURE.replace(
+            "<note pname=\"c\"",
+            "<note facs=\"#surface1\" resp=\"#editor\" cert=\"high\" evidence=\"internal\" pname=\"c\"",
+        );
+        let report = parse_mei_with_report(&xml).expect("MEI editorial attributes parse");
+        for attribute in ["facs", "resp", "cert", "evidence"] {
+            let diagnostic = report
+                .diagnostics
+                .iter()
+                .find(|diagnostic| {
+                    diagnostic.code == format!("mei.unsupported-editorial-attribute.{attribute}")
+                })
+                .expect("editorial attribute diagnostic exists");
+            assert_eq!(
+                diagnostic.preserved_value.as_deref(),
+                Some(match attribute {
+                    "facs" => "#surface1",
+                    "resp" => "#editor",
+                    "cert" => "high",
+                    "evidence" => "internal",
+                    _ => unreachable!(),
+                })
+            );
+            assert!(
+                diagnostic
+                    .source_location
+                    .as_deref()
+                    .is_some_and(|path| path.ends_with(&format!("/@{attribute}")))
+            );
+        }
+    }
+
+    #[test]
+    fn facsimile_structure_elements_are_source_diagnosed() {
+        let xml = FIXTURE.replace(
+            "<music>",
+            "<facsimile><surface><zone xml:id=\"zone1\"/><graphic target=\"scan.png\"/></surface></facsimile><music>",
+        );
+        let report = parse_mei_with_report(&xml).expect("MEI facsimile structure parses");
+        for element in ["facsimile", "surface", "zone", "graphic"] {
+            assert!(report.diagnostics.iter().any(|diagnostic| {
+                diagnostic.code == format!("mei.unsupported-element.{element}")
+                    && diagnostic
+                        .source_location
+                        .as_deref()
+                        .is_some_and(|path| path.ends_with(&format!("/{element}")))
+            }));
+        }
+    }
+
+    #[test]
     fn valid_harm_timestamp_is_not_reported_when_label_is_invalid() {
         let xml = FIXTURE.replace(
             "<measure n=\"7\">",
@@ -3250,6 +3543,64 @@ mod tests {
                     .as_deref()
                     .is_some_and(|path| path.ends_with("/@tstamp"))
         }));
+    }
+
+    #[test]
+    fn harm_timestamp_end_round_trips_to_a_typed_note_address() {
+        let xml = r##"<mei><music><body><mdiv><score><section><measure n="1">
+            <harm tstamp="1" tstamp2="1m+1">G7</harm>
+            <staff n="1"><layer n="1"><note pname="c" oct="4" dur="4"/>
+            <note pname="d" oct="4" dur="4"/></layer></staff>
+        </measure><measure n="2"><staff n="1"><layer n="1"><note pname="e" oct="4" dur="4"/>
+        </layer></staff></measure></section></score></mdiv></body></music></mei>"##;
+        let report = parse_mei_with_report(xml).expect("MEI range harmony remains importable");
+        assert!(report.diagnostics.is_empty());
+        let chord = report.score.parts[0].staves[0].measures[0].voices[0][0]
+            .chord_symbol
+            .as_ref()
+            .expect("timestamp harmony attaches to its start note");
+        assert_eq!(
+            chord.range_end,
+            Some(NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 1,
+                voice: 0,
+                note: 0,
+            })
+        );
+        let serialized = serialize_mei(&report.score).expect("MEI harmony range serializes");
+        assert!(serialized.contains("endid=\"#n2_1_1_1\""));
+        let restored = parse_mei(&serialized).expect("serialized MEI harmony range parses");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[0][0]
+                .chord_symbol
+                .as_ref()
+                .and_then(|chord| chord.range_end.clone()),
+            chord.range_end
+        );
+    }
+
+    #[test]
+    fn unresolved_harm_timestamp_end_is_source_diagnosed() {
+        let xml = r##"<mei><music><body><mdiv><score><section><measure n="1">
+            <harm tstamp="1" tstamp2="1m+9">G7</harm>
+            <staff n="1"><layer n="1"><note pname="c" oct="4" dur="4"/></layer></staff>
+        </measure><measure n="2"><staff n="1"><layer n="1"><note pname="e" oct="4" dur="4"/>
+        </layer></staff></measure></section></score></mdiv></body></music></mei>"##;
+        let report = parse_mei_with_report(xml).expect("unresolved range remains importable");
+        let diagnostic = report
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code == "mei.unresolved-reference.harm.tstamp2")
+            .expect("unresolved tstamp2 is diagnosed");
+        assert_eq!(diagnostic.preserved_value.as_deref(), Some("1m+9"));
+        assert!(
+            diagnostic
+                .source_location
+                .as_deref()
+                .is_some_and(|path| path.ends_with("harm@tstamp2"))
+        );
     }
 
     #[test]
@@ -3347,6 +3698,7 @@ mod tests {
                 harmony_function: Some("D".to_string()),
                 harmony_type: Some("roman".to_string()),
                 chord_ref: Some("#harmonychordA".to_string()),
+                range_end: None,
                 degrees: vec![
                     ChordDegree {
                         value: 9,
@@ -4092,7 +4444,12 @@ mod tests {
         let note = &mut score.parts[0].staves[0].measures[0].voices[0][0];
         note.tab_position = Some(acorde_core::TabPosition { string: 1, fret: 3 });
         note.guitar_technique = Some(acorde_core::GuitarTechnique::Bend);
+        note.offset_y = Some(4.0);
         let diagnostics = export_loss_diagnostics(&score);
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.source_location.as_deref()
+                == Some("/score/part/1/staff/1/measure/1/voice/1/note/1/placement")
+        }));
         assert!(diagnostics.iter().any(|diagnostic| {
             diagnostic.source_location.as_deref()
                 == Some("/score/part/1/staff/1/measure/1/voice/1/note/1/tab_position")

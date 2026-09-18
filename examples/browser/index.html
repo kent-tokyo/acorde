@@ -96,7 +96,11 @@
       const metadata = JSON.parse(render_score_metadata(nextScore, layout, options));
       if (!svg.startsWith("<svg") || !row.startsWith("<svg") ||
           metadata.contract_version !== svg_contract_version() ||
-          metadata.address_bounds.length !== 4 || !metadata.accessible_text) {
+          metadata.address_bounds.length !== 4 ||
+          !Array.isArray(metadata.tablature_staves) ||
+          !Array.isArray(metadata.note_semantics) ||
+          metadata.note_semantics.length !== metadata.note_count ||
+          !metadata.accessible_text) {
         throw new Error("contract output failed validation");
       }
       mountValidatedSvg(document.querySelector("#score"), row);

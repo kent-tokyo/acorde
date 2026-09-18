@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, HashMap, VecDeque};
 use thiserror::Error;
 
 /// Version of the serialized analysis result contract.
-pub const ANALYSIS_SCHEMA_VERSION: u32 = 10;
+pub const ANALYSIS_SCHEMA_VERSION: u32 = 13;
 
 /// A chord label with source evidence and the rule that produced it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -443,12 +443,18 @@ pub fn run_analysis_passes(
         .collect())
 }
 
-/// A deterministic key candidate ranked by diatonic pitch coverage.
+/// A deterministic key candidate ranked by duration-weighted diatonic pitch coverage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct KeyEstimate {
     pub key: KeySignature,
     pub covered_pitches: usize,
     pub total_pitches: usize,
+    /// Sum of note durations whose pitches belong to this key candidate.
+    #[serde(default)]
+    pub weighted_covered_beats: f64,
+    /// Sum of pitched-note durations used as the weighting denominator.
+    #[serde(default)]
+    pub total_duration_beats: f64,
     pub confidence: u8,
     pub rule_id: String,
     pub evidence: Vec<NoteAddr>,
@@ -481,6 +487,12 @@ pub struct VoiceLeadingObservation {
     pub lower: NoteAddr,
     pub upper_motion: i16,
     pub lower_motion: i16,
+    /// Exact signed upper-voice motion in cents.
+    #[serde(default)]
+    pub upper_motion_cents: i32,
+    /// Exact signed lower-voice motion in cents.
+    #[serde(default)]
+    pub lower_motion_cents: i32,
     pub parallel_perfect: bool,
     pub confidence: u8,
     pub rule_id: String,
@@ -634,6 +646,9 @@ pub struct IntervalObservation {
     pub from: NoteAddr,
     pub to: NoteAddr,
     pub semitones: u8,
+    /// Signed exact pitch distance in cents; unlike `semitones`, this preserves microtones.
+    #[serde(default)]
+    pub cents: i32,
     pub diatonic_steps: i8,
     pub rule_id: String,
     pub evidence: Vec<NoteAddr>,
@@ -1753,12 +1768,17 @@ pub fn analyze_voice_leading_in_region(
                         let Some(lower) = lower_voice[note_index].pitches.first() else {
                             continue;
                         };
-                        let next_upper = upper_voice[note_index + 1..]
-                            .iter()
-                            .find_map(|note| note.pitches.first());
-                        let next_lower = lower_voice[note_index + 1..]
-                            .iter()
-                            .find_map(|note| note.pitches.first());
+                        let Some(next_upper_note) = upper_voice.get(note_index + 1) else {
+                            continue;
+                        };
+                        let Some(next_lower_note) = lower_voice.get(note_index + 1) else {
+                            continue;
+                        };
+                        if next_upper_note.is_rest || next_lower_note.is_rest {
+                            continue;
+                        }
+                        let next_upper = next_upper_note.pitches.first();
+                        let next_lower = next_lower_note.pitches.first();
                         let (Some(next_upper), Some(next_lower)) = (next_upper, next_lower) else {
                             continue;
                         };
@@ -1780,17 +1800,24 @@ pub fn analyze_voice_leading_in_region(
                         let lower_next_midi = next_lower.to_midi();
                         let upper_motion = upper_next_midi - upper.to_midi();
                         let lower_motion = lower_next_midi - lower.to_midi();
-                        let initial = (upper.to_midi() - lower.to_midi()).unsigned_abs() % 12;
-                        let next = (upper_next_midi - lower_next_midi).unsigned_abs() % 12;
+                        let upper_motion_cents = next_upper.to_midi_cents() - upper.to_midi_cents();
+                        let lower_motion_cents = next_lower.to_midi_cents() - lower.to_midi_cents();
+                        let initial =
+                            (upper.to_midi_cents() - lower.to_midi_cents()).unsigned_abs() % 1200;
+                        let next = (next_upper.to_midi_cents() - next_lower.to_midi_cents())
+                            .unsigned_abs()
+                            % 1200;
                         observations.push(VoiceLeadingObservation {
                             upper: upper_addr.clone(),
                             lower: lower_addr.clone(),
                             upper_motion,
                             lower_motion,
-                            parallel_perfect: matches!(initial, 0 | 7)
+                            upper_motion_cents,
+                            lower_motion_cents,
+                            parallel_perfect: matches!(initial, 0 | 700)
                                 && initial == next
-                                && upper_motion != 0
-                                && upper_motion.signum() == lower_motion.signum(),
+                                && upper_motion_cents != 0
+                                && upper_motion_cents.signum() == lower_motion_cents.signum(),
                             confidence: 100,
                             rule_id: "aligned-adjacent-voice-leading".to_string(),
                             evidence: vec![upper_addr, lower_addr],
@@ -1833,7 +1860,8 @@ pub fn estimate_keys(score: &Score) -> Vec<KeyEstimate> {
                         if note.is_rest {
                             continue;
                         }
-                        pitches.extend(note.pitches.iter());
+                        let duration_beats = note.beats().max(0.0);
+                        pitches.extend(note.pitches.iter().map(|pitch| (pitch, duration_beats)));
                         if !note.pitches.is_empty() {
                             evidence.push(NoteAddr {
                                 part: part_index,
@@ -1852,6 +1880,7 @@ pub fn estimate_keys(score: &Score) -> Vec<KeyEstimate> {
         return Vec::new();
     }
     let total_pitches = pitches.len();
+    let total_duration_beats: f64 = pitches.iter().map(|(_, beats)| *beats).sum();
     let mut candidates = Vec::with_capacity(30);
     for fifths in -7..=7 {
         for mode in ["major", "minor"] {
@@ -1861,30 +1890,46 @@ pub fn estimate_keys(score: &Score) -> Vec<KeyEstimate> {
             };
             let covered = pitches
                 .iter()
-                .filter(|pitch| key.contains_pitch(pitch))
+                .filter(|(pitch, _)| key.contains_pitch(pitch))
                 .count();
-            candidates.push((key, covered));
+            let weighted_covered_beats = pitches
+                .iter()
+                .filter(|(pitch, _)| key.contains_pitch(pitch))
+                .map(|(_, beats)| *beats)
+                .sum::<f64>();
+            candidates.push((key, covered, weighted_covered_beats));
         }
     }
-    candidates.sort_by(|(left_key, left_score), (right_key, right_score)| {
-        right_score
-            .cmp(left_score)
-            .then_with(|| left_key.fifths.abs().cmp(&right_key.fifths.abs()))
-            .then_with(|| left_key.fifths.cmp(&right_key.fifths))
-            .then_with(|| left_key.mode.cmp(&right_key.mode))
-    });
-    let best = candidates[0].1;
+    candidates.sort_by(
+        |(left_key, left_score, left_weight), (right_key, right_score, right_weight)| {
+            right_weight
+                .total_cmp(left_weight)
+                .then_with(|| right_score.cmp(left_score))
+                .then_with(|| left_key.fifths.abs().cmp(&right_key.fifths.abs()))
+                .then_with(|| left_key.fifths.cmp(&right_key.fifths))
+                .then_with(|| left_key.mode.cmp(&right_key.mode))
+        },
+    );
+    let best_weight = candidates[0].2;
     candidates
         .into_iter()
-        .take_while(|(_, covered)| *covered == best)
-        .map(|(key, covered_pitches)| KeyEstimate {
-            key,
-            covered_pitches,
-            total_pitches,
-            confidence: ((covered_pitches * 100) / total_pitches) as u8,
-            rule_id: "diatonic-pitch-coverage".to_string(),
-            evidence: evidence.clone(),
-        })
+        .take_while(|(_, _, weighted)| weighted.total_cmp(&best_weight).is_eq())
+        .map(
+            |(key, covered_pitches, weighted_covered_beats)| KeyEstimate {
+                key,
+                covered_pitches,
+                total_pitches,
+                weighted_covered_beats,
+                total_duration_beats,
+                confidence: if total_duration_beats > 0.0 {
+                    ((weighted_covered_beats / total_duration_beats * 100.0).round() as u8).min(100)
+                } else {
+                    0
+                },
+                rule_id: "duration-weighted-diatonic-pitch-coverage".to_string(),
+                evidence: evidence.clone(),
+            },
+        )
         .collect()
 }
 
@@ -1903,20 +1948,18 @@ pub fn analyze_intervals_in_region(
         for (staff_index, staff) in part.staves.iter().enumerate() {
             for (measure_index, measure) in staff.measures.iter().enumerate() {
                 for (voice_index, voice) in measure.voices.iter().enumerate() {
-                    let notes: Vec<_> = voice
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(note_index, note)| {
-                            if note.is_rest {
-                                None
-                            } else {
-                                note.pitches.first().map(|pitch| (note_index, pitch))
-                            }
-                        })
-                        .collect();
-                    for pair in notes.windows(2) {
-                        let (from_index, from) = pair[0];
-                        let (to_index, to) = pair[1];
+                    for pair in voice.iter().enumerate().collect::<Vec<_>>().windows(2) {
+                        let (from_index, from_note) = pair[0];
+                        let (to_index, to_note) = pair[1];
+                        if from_note.is_rest || to_note.is_rest {
+                            continue;
+                        }
+                        let Some(from) = from_note.pitches.first() else {
+                            continue;
+                        };
+                        let Some(to) = to_note.pitches.first() else {
+                            continue;
+                        };
                         let from_addr = NoteAddr {
                             part: part_index,
                             staff: staff_index,
@@ -1941,6 +1984,7 @@ pub fn analyze_intervals_in_region(
                             from: from_addr.clone(),
                             to: to_addr.clone(),
                             semitones: (to.to_midi() - from.to_midi()).unsigned_abs() as u8,
+                            cents: to.to_midi_cents() - from.to_midi_cents(),
                             diatonic_steps: diatonic_distance(from, to),
                             rule_id: "adjacent-melodic-interval".to_string(),
                             evidence: vec![from_addr, to_addr],
@@ -2015,6 +2059,7 @@ mod tests {
             harmony_function: Some("D".to_owned()),
             harmony_type: None,
             chord_ref: None,
+            range_end: None,
             degrees: Vec::new(),
         });
         voice.push(note);
@@ -2050,6 +2095,7 @@ mod tests {
             harmony_function: None,
             harmony_type: None,
             chord_ref: None,
+            range_end: None,
             degrees: vec![
                 ChordDegree {
                     value: 9,
@@ -2151,7 +2197,7 @@ mod tests {
     #[test]
     fn cache_key_includes_schema_and_score_identity() {
         let result = analyze_score(&Score::default());
-        assert!(result.cache_key().starts_with("analysis-v10-fnv1a64-"));
+        assert!(result.cache_key().starts_with("analysis-v13-fnv1a64-"));
         assert_eq!(result.cache_key(), analysis_cache_key(&Score::default()));
         let mut changed = result.clone();
         changed.schema_version = ANALYSIS_SCHEMA_VERSION + 1;
@@ -2527,6 +2573,52 @@ mod tests {
     }
 
     #[test]
+    fn interval_analysis_treats_rests_as_melodic_boundaries() {
+        let mut score = Score::default();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        voice.push(Note::new(Pitch::new(Step::C, 4), Duration::Quarter));
+        voice.push(Note::rest(Duration::Quarter));
+        voice.push(Note::new(Pitch::new(Step::G, 4), Duration::Quarter));
+
+        assert!(analyze_intervals(&score).is_empty());
+    }
+
+    #[test]
+    fn interval_observation_preserves_exact_microtonal_distance() {
+        let mut score = Score::default();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        voice.push(Note::new(
+            Pitch::try_with_microtone(Step::C, 4, 0, 25).expect("valid microtone"),
+            Duration::Quarter,
+        ));
+        voice.push(Note::new(Pitch::new(Step::D, 4), Duration::Quarter));
+
+        let intervals = analyze_intervals(&score);
+        assert_eq!(intervals.len(), 1);
+        assert_eq!(intervals[0].semitones, 2);
+        assert_eq!(intervals[0].cents, 175);
+    }
+
+    #[test]
+    fn key_estimates_report_duration_weighted_coverage() {
+        let mut score = Score::default();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        voice.push(Note::new(Pitch::new(Step::C, 4), Duration::Whole));
+        voice.push(Note::new(Pitch::new(Step::D, 4), Duration::Eighth));
+
+        let estimates = estimate_keys(&score);
+        assert!(!estimates.is_empty());
+        assert!(estimates.iter().all(|estimate| {
+            (estimate.total_duration_beats - 4.5).abs() < f64::EPSILON
+                && estimate.weighted_covered_beats <= estimate.total_duration_beats
+                && estimate.rule_id == "duration-weighted-diatonic-pitch-coverage"
+        }));
+    }
+
+    #[test]
     fn does_not_invent_label_for_unknown_pitch_set() {
         let mut score = Score::default();
         let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
@@ -2613,11 +2705,28 @@ mod tests {
         let observations = analyze_voice_leading(&score);
         assert_eq!(observations.len(), 1);
         assert!(observations[0].parallel_perfect);
+        assert_eq!(observations[0].upper_motion_cents, 200);
+        assert_eq!(observations[0].lower_motion_cents, 200);
         assert_eq!(observations[0].evidence.len(), 2);
         let diagnostics = analyze_satb(&score);
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].kind, SatbDiagnosticKind::ParallelPerfect);
         assert_eq!(diagnostics[0].severity, SatbSeverity::Warning);
+    }
+
+    #[test]
+    fn voice_leading_does_not_bridge_rests() {
+        let mut score = Score::default();
+        let measure = &mut score.parts[0].staves[0].measures[0];
+        measure.voices[0].clear();
+        measure.voices[1].clear();
+        let (upper_voices, lower_voices) = measure.voices.split_at_mut(1);
+        for voice in [&mut upper_voices[0], &mut lower_voices[0]] {
+            voice.push(Note::new(Pitch::new(Step::C, 4), Duration::Quarter));
+            voice.push(Note::rest(Duration::Quarter));
+            voice.push(Note::new(Pitch::new(Step::D, 4), Duration::Quarter));
+        }
+        assert!(analyze_voice_leading(&score).is_empty());
     }
 
     #[test]

@@ -1,14 +1,17 @@
 use crate::{Diagnostic, Error};
 use acorde_core::{
-    Articulation, Barline, ChordDegree, ChordSymbol, Clef, Duration, Dynamic, FiguredBassFigure,
-    GuitarTechnique, KeySignature, Lyric, Measure, Note, Part, PartGroupSymbol, Pitch, Score,
-    Staff, StaffGroup, Step, StyledText, TabPosition, TablatureConfig, TextStyle, TimeSignature,
-    TupletInfo, VoltaBracket,
+    Articulation, Barline, BeamState, ChordDegree, ChordSymbol, Clef, Duration, Dynamic,
+    FiguredBassFigure, GuitarTechnique, KeySignature, Lyric, Measure, Note, NoteHead, Part,
+    PartGroupSymbol, Pitch, Score, Staff, StaffGroup, Step, StyledText, TabPosition,
+    TablatureConfig, TextStyle, TimeSignature, TupletInfo, VoltaBracket,
 };
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use std::collections::HashMap;
 use std::collections::HashSet;
+
+mod serialize;
+pub use serialize::{export_loss_diagnostics, serialize_mscx, serialize_mscz};
 
 const MAX_ELEMENTS: usize = 500_000;
 const MAX_MSCZ_COMPRESSED: usize = 64 * 1024 * 1024;
@@ -19,6 +22,7 @@ const MAX_HARMONY_TPC: i32 = 26;
 
 struct PartMeta {
     name: String,
+    short_name: String,
     midi_program: u8,
     midi_channel: u8,
     staff_ids: Vec<usize>,
@@ -83,15 +87,19 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
         return Err(Error::TooLarge(xml.len()));
     }
     let mut reader = Reader::from_str(xml);
-    reader.config_mut().trim_text(true);
+    // Preserve spaces split around entity references (for example `&amp;`) so text labels
+    // survive canonical MSCX round-trips. Individual field consumers trim where appropriate.
+    reader.config_mut().trim_text(false);
 
     let mut element_count = 0usize;
     let base_score = Score::default();
+    let mut metadata = base_score.metadata.clone();
 
     // Part metadata
     let mut parts_meta: Vec<PartMeta> = Vec::new();
     let mut in_part = false;
     let mut cur_part_name = String::new();
+    let mut cur_part_short_name = String::new();
     let mut cur_part_program: u8 = 0;
     let mut cur_part_channel: u8 = 0;
     let mut cur_part_staff_ids: Vec<usize> = Vec::new();
@@ -107,8 +115,6 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut staff_tablature: HashMap<usize, TablatureConfig> = HashMap::new();
 
     // Score metadata
-    let mut score_title = String::new();
-    let mut score_composer = String::new();
     let mut in_meta_tag = false;
     let mut meta_tag_name = String::new();
 
@@ -129,6 +135,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut cur_barline_right = Barline::Normal;
     let mut cur_volta: Option<VoltaBracket> = None;
     let mut cur_texts: Vec<StyledText> = Vec::new();
+    let mut score_texts: Vec<StyledText> = Vec::new();
     let mut cur_figured_bass: Vec<FiguredBassFigure> = Vec::new();
 
     // Feature M: MuseScore 4.x voice wrapper container
@@ -165,9 +172,14 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut chord_duration: Option<Duration> = None;
     let mut chord_dots: u8 = 0;
     let mut chord_voice: usize = 0;
+    let mut chord_stem_up: Option<bool> = None;
+    let mut chord_beam = BeamState::None;
+    let mut last_voice_index = 0usize;
+    let mut beam_group_starts = [0usize; 4];
     let mut chord_pitches: Vec<Pitch> = Vec::new();
     let mut chord_tab_positions: Vec<TabPosition> = Vec::new();
     let mut chord_tie_start = false;
+    let mut chord_tie_end = false;
     let mut chord_slur_start = false; // Feature L
     let mut chord_is_grace = false;
     let mut chord_grace_slash = false;
@@ -175,6 +187,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut in_arpeggio = false;
     let mut chord_tremolo: Option<u8> = None;
     let mut in_tremolo = false;
+    let mut chord_articulations: Vec<Articulation> = Vec::new();
+    let mut in_articulation = false;
+    let mut articulation_subtype = String::new();
+    let mut in_beam = false;
+    let mut beam_stem_up: Option<bool> = None;
     let mut in_tuplet = false;
     let mut tuplet_actual_notes: Option<u8> = None;
     let mut tuplet_normal_notes: Option<u8> = None;
@@ -187,8 +204,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut harmony_function: Option<String> = None;
     let mut pending_chord_symbol: Option<ChordSymbol> = None;
     let mut in_text_element = false;
+    let mut in_vbox = false;
+    let mut mscx_text_is_score_level = false;
     let mut mscx_text_style = TextStyle::Generic;
     let mut mscx_text_value = String::new();
+    let mut mscx_text_offset_x: Option<f64> = None;
+    let mut mscx_text_offset_y: Option<f64> = None;
     let mut in_figured_bass = false;
     let mut in_figured_bass_item = false;
     let mut figured_bass_number = String::new();
@@ -200,6 +221,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut in_note_elem = false;
     let mut note_midi: i32 = 60;
     let mut note_tpc: i32 = 14;
+    let mut note_head = NoteHead::Normal;
     let mut note_microtone_cents: i16 = 0;
     let mut in_accidental = false;
     let mut note_tab_string: Option<u8> = None;
@@ -211,6 +233,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut in_spanner = false;
     let mut spanner_is_tie = false;
     let mut spanner_has_next = false;
+    let mut spanner_has_prev = false;
 
     // Feature L: Slur Spanner state (Chord level)
     let mut in_chord_slur_spanner = false;
@@ -260,6 +283,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "Part" if !in_part && current_staff_id.is_none() => {
                         in_part = true;
                         cur_part_name.clear();
+                        cur_part_short_name.clear();
                         cur_part_program = 0;
                         cur_part_channel = 0;
                         cur_part_staff_ids.clear();
@@ -285,6 +309,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         staff_tab_lines = 6;
                         staff_tuning.clear();
                     }
+                    "VBox" if current_staff_id.is_some() && !in_measure => {
+                        in_vbox = true;
+                    }
                     "Staff" if in_part => {
                         cur_part_staff_count += 1;
                         if let Some(id) = attr_usize(e, b"id") {
@@ -300,6 +327,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "Measure" if current_staff_id.is_some() && !in_measure => {
                         in_measure = true;
+                        beam_group_starts = [0; 4];
+                        last_voice_index = 0;
                         pending_chord_symbol = None;
                         let sequential_number = cur_measure_num.saturating_add(1);
                         cur_measure_num = attr_str(e, b"number")
@@ -346,8 +375,31 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "Text" if in_measure && !in_chord && !in_rest_elem => {
                         in_text_element = true;
+                        mscx_text_is_score_level = false;
                         mscx_text_style = TextStyle::Generic;
                         mscx_text_value.clear();
+                        mscx_text_offset_x = None;
+                        mscx_text_offset_y = None;
+                    }
+                    "StaffText" if in_measure && !in_chord && !in_rest_elem => {
+                        in_text_element = true;
+                        mscx_text_is_score_level = false;
+                        mscx_text_style = TextStyle::Generic;
+                        mscx_text_value.clear();
+                        mscx_text_offset_x = None;
+                        mscx_text_offset_y = None;
+                    }
+                    "Text" | "StaffText" if in_vbox && !in_measure => {
+                        in_text_element = true;
+                        mscx_text_is_score_level = true;
+                        mscx_text_style = TextStyle::Generic;
+                        mscx_text_value.clear();
+                        mscx_text_offset_x = None;
+                        mscx_text_offset_y = None;
+                    }
+                    "offset" if in_text_element => {
+                        mscx_text_offset_x = attr_str(e, b"x").and_then(|value| value.parse().ok());
+                        mscx_text_offset_y = attr_str(e, b"y").and_then(|value| value.parse().ok());
                     }
                     "FiguredBass" if in_measure && !in_chord && !in_rest_elem => {
                         in_figured_bass = true;
@@ -369,14 +421,19 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         } else {
                             0
                         };
+                        last_voice_index = chord_voice.min(3);
+                        chord_stem_up = None;
+                        chord_beam = BeamState::None;
                         chord_pitches.clear();
                         chord_tab_positions.clear();
                         chord_tie_start = false;
+                        chord_tie_end = false;
                         chord_slur_start = false;
                         chord_is_grace = false;
                         chord_grace_slash = false;
                         chord_arpeggiate = None;
                         chord_tremolo = None;
+                        chord_articulations.clear();
                     }
                     "Tuplet" if in_measure && !in_chord && !in_rest_elem => {
                         in_tuplet = true;
@@ -397,6 +454,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         in_note_elem = true;
                         note_midi = 60;
                         note_tpc = 14;
+                        note_head = NoteHead::Normal;
                         note_microtone_cents = 0;
                         note_tab_string = None;
                         note_tab_fret = None;
@@ -420,8 +478,19 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         in_tremolo = true;
                         chord_tremolo = Some(1);
                     }
+                    "Articulation" if in_chord && !in_note_elem => {
+                        in_articulation = true;
+                        articulation_subtype.clear();
+                    }
                     "Accidental" if in_note_elem => {
                         in_accidental = true;
+                    }
+                    "head" if in_note_elem => {}
+                    "stemDirection" if in_chord && !in_note_elem => {}
+                    "BeamMode" if in_chord && !in_note_elem => {}
+                    "Beam" if in_measure && !in_chord && !in_rest_elem => {
+                        in_beam = true;
+                        beam_stem_up = None;
                     }
                     "Bend" if in_note_elem => note_technique = Some(GuitarTechnique::Bend),
                     "Slide" if in_note_elem => note_technique = Some(GuitarTechnique::Slide),
@@ -432,9 +501,13 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         in_spanner = true;
                         spanner_is_tie = attr_str(e, b"type").as_deref() == Some("Tie");
                         spanner_has_next = false;
+                        spanner_has_prev = false;
                     }
                     "next" if in_spanner => {
                         spanner_has_next = true;
+                    }
+                    "prev" if in_spanner => {
+                        spanner_has_prev = true;
                     }
                     // Feature M: MuseScore 4.x voice wrapper container at Measure level
                     "voice" if in_measure && !in_chord && !in_rest_elem => {
@@ -485,8 +558,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     // Metadata
                     "metaTag" if in_meta_tag => {
                         match meta_tag_name.as_str() {
-                            "workTitle" | "title" => score_title = t.to_string(),
-                            "composer" => score_composer = t.to_string(),
+                            "workTitle" | "title" => metadata.title = t.to_string(),
+                            "composer" => metadata.composer = t.to_string(),
+                            "lyricist" => metadata.lyricist = t.to_string(),
+                            "copyright" => metadata.copyright = t.to_string(),
+                            "workNumber" => metadata.work_number = t.to_string(),
+                            "movementTitle" => metadata.movement_title = t.to_string(),
                             _ => {}
                         }
                         in_meta_tag = false;
@@ -496,11 +573,17 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "trackName" if in_part => {
                         cur_part_name = t.to_string();
                     }
+                    "shortName" if in_part => {
+                        cur_part_short_name = t.to_string();
+                    }
                     "Instrument" if in_part => {
                         in_instrument = false;
                     }
                     "Channel" if in_instrument => {
                         in_channel = false;
+                    }
+                    "midiChannel" if in_channel => {
+                        cur_part_channel = t.parse::<u8>().unwrap_or(0).min(15);
                     }
                     "barLineSpan" if in_bar_line_span => {
                         if let Some(spec) = cur_part_staff_group_specs.last_mut() {
@@ -511,6 +594,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "Part" if in_part => {
                         parts_meta.push(PartMeta {
                             name: cur_part_name.clone(),
+                            short_name: cur_part_short_name.clone(),
                             midi_program: cur_part_program,
                             midi_channel: cur_part_channel,
                             staff_ids: cur_part_staff_ids.clone(),
@@ -685,6 +769,10 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             TextStyle::RehearsalMark
                         } else if style.contains("technique") {
                             TextStyle::Technique
+                        } else if style.contains("lyric") {
+                            TextStyle::Lyrics
+                        } else if style.contains("figured") {
+                            TextStyle::FiguredBass
                         } else if style.contains("expression") || style.contains("tempo") {
                             TextStyle::Expression
                         } else {
@@ -696,7 +784,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "Text" if in_text_element => {
                         if !mscx_text_value.trim().is_empty() {
-                            cur_texts.push(StyledText {
+                            let styled = StyledText {
                                 style: mscx_text_style,
                                 text: mscx_text_value.trim().to_string(),
                                 placement: None,
@@ -704,9 +792,38 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 offset_y: None,
                                 relative_x: None,
                                 relative_y: None,
-                            });
+                            };
+                            if mscx_text_is_score_level {
+                                score_texts.push(styled);
+                            } else {
+                                cur_texts.push(styled);
+                            }
                         }
                         in_text_element = false;
+                        mscx_text_is_score_level = false;
+                    }
+                    "StaffText" if in_text_element => {
+                        if !mscx_text_value.trim().is_empty() {
+                            let styled = StyledText {
+                                style: mscx_text_style,
+                                text: mscx_text_value.trim().to_string(),
+                                placement: None,
+                                offset_x: mscx_text_offset_x,
+                                offset_y: mscx_text_offset_y,
+                                relative_x: None,
+                                relative_y: None,
+                            };
+                            if mscx_text_is_score_level {
+                                score_texts.push(styled);
+                            } else {
+                                cur_texts.push(styled);
+                            }
+                        }
+                        in_text_element = false;
+                        mscx_text_is_score_level = false;
+                    }
+                    "VBox" => {
+                        in_vbox = false;
                     }
                     "digit" if in_figured_bass_item => {
                         figured_bass_number = t.to_string();
@@ -847,11 +964,14 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     // Note-level Spanner/Tie
                     "next" if in_spanner => {}
                     "Spanner" if in_spanner => {
-                        if spanner_is_tie && spanner_has_next {
-                            chord_tie_start = true;
+                        if spanner_is_tie {
+                            chord_tie_start |= spanner_has_next;
+                            chord_tie_end |= spanner_has_prev;
                         }
                         in_spanner = false;
                         spanner_is_tie = false;
+                        spanner_has_next = false;
+                        spanner_has_prev = false;
                     }
 
                     // Feature L: Chord-level Slur Spanner
@@ -914,6 +1034,54 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "Tremolo" if in_tremolo => {
                         in_tremolo = false;
                     }
+                    "subtype" if in_articulation => {
+                        articulation_subtype = t.to_string();
+                    }
+                    "head" if in_note_elem => {
+                        note_head = mscx_note_head(t);
+                    }
+                    "stemDirection" if in_chord && !in_note_elem => {
+                        chord_stem_up = match t.trim().to_ascii_lowercase().as_str() {
+                            "up" => Some(true),
+                            "down" => Some(false),
+                            "auto" => None,
+                            _ => None,
+                        };
+                    }
+                    "StemDirection" if in_beam => {
+                        beam_stem_up = match t.trim().to_ascii_lowercase().as_str() {
+                            "up" => Some(true),
+                            "down" => Some(false),
+                            "auto" => None,
+                            _ => None,
+                        };
+                    }
+                    "BeamMode" if in_chord && !in_note_elem => {
+                        chord_beam = match t.trim().to_ascii_lowercase().as_str() {
+                            "begin" => BeamState::Begin,
+                            "continue" | "mid" => BeamState::Continue,
+                            "end" => BeamState::End,
+                            _ => BeamState::None,
+                        };
+                    }
+                    "Beam" if in_beam => {
+                        if let Some(stem_up) = beam_stem_up {
+                            let voice = last_voice_index.min(3);
+                            let start = beam_group_starts[voice].min(cur_voices[voice].len());
+                            for note in &mut cur_voices[voice][start..] {
+                                note.stem_up = Some(stem_up);
+                            }
+                        }
+                        beam_group_starts[last_voice_index.min(3)] =
+                            cur_voices[last_voice_index.min(3)].len();
+                        in_beam = false;
+                    }
+                    "Articulation" if in_articulation => {
+                        if let Some(articulation) = mscx_articulation(&articulation_subtype) {
+                            chord_articulations.push(articulation);
+                        }
+                        in_articulation = false;
+                    }
                     "actualNotes" if in_tuplet => {
                         tuplet_actual_notes = t.parse::<u8>().ok();
                     }
@@ -955,6 +1123,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             let mut note = Note::new(chord_pitches[0].clone(), dur);
                             note.dot_count = chord_dots;
                             note.tie_start = chord_tie_start;
+                            note.tie_end = chord_tie_end;
                             note.slur_start = chord_slur_start;
                             note.pitches = chord_pitches.clone();
                             note.tab_positions = chord_tab_positions.clone();
@@ -966,10 +1135,15 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             note.is_grace = chord_is_grace;
                             note.grace_slash = chord_grace_slash;
                             note.arpeggiate = chord_arpeggiate;
+                            note.stem_up = chord_stem_up;
+                            note.beam = chord_beam;
+                            note.note_head = note_head.clone();
                             note.chord_symbol = pending_chord_symbol.take();
                             if let Some(level) = chord_tremolo {
                                 note.articulations.push(Articulation::Tremolo(level));
                             }
+                            note.articulations
+                                .extend(chord_articulations.iter().cloned());
                             if let Some(dyn_val) = pending_dynamic.take() {
                                 note.dynamic = Some(dyn_val);
                             }
@@ -1039,6 +1213,10 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "Bend" if in_note_elem => {
                         note_technique = Some(GuitarTechnique::Bend);
                     }
+                    "offset" if in_text_element => {
+                        mscx_text_offset_x = attr_str(e, b"x").and_then(|value| value.parse().ok());
+                        mscx_text_offset_y = attr_str(e, b"y").and_then(|value| value.parse().ok());
+                    }
                     "Slide" if in_note_elem => {
                         note_technique = Some(GuitarTechnique::Slide);
                     }
@@ -1047,6 +1225,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "PullOff" if in_note_elem => {
                         note_technique = Some(GuitarTechnique::PullOff);
+                    }
+                    "next" if in_spanner => {
+                        spanner_has_next = true;
+                    }
+                    "prev" if in_spanner => {
+                        spanner_has_prev = true;
                     }
                     "acciaccatura" | "grace8" | "grace16" | "grace32" | "grace64"
                         if in_chord && !in_note_elem =>
@@ -1082,6 +1266,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     text.push_str(&t);
                 }
             }
+            Ok(Event::GeneralRef(ref e)) => {
+                let reference = format!("&{};", String::from_utf8_lossy(e.as_ref()));
+                if let Ok(decoded) = quick_xml::escape::unescape(&reference) {
+                    text.push_str(&decoded);
+                }
+            }
 
             _ => {}
         }
@@ -1093,13 +1283,26 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
 
     assemble_score(
         base_score,
-        &score_title,
-        &score_composer,
+        metadata,
+        score_texts,
         parts_meta,
         staff_measures,
         staff_clefs,
         staff_tablature,
     )
+}
+
+fn push_invalid_numeric_diagnostic(
+    diagnostics: &mut Vec<Diagnostic>,
+    code: &str,
+    reason: &str,
+    path: &[String],
+    value: String,
+) {
+    let mut diagnostic = Diagnostic::warning(code, reason);
+    diagnostic.source_location = Some(format!("/{}", path.join("/")));
+    diagnostic.preserved_value = Some(value);
+    diagnostics.push(diagnostic);
 }
 
 /// Report known MSCX elements that are not represented by the canonical score model.
@@ -1287,6 +1490,131 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
             }
             Ok(Event::Text(event)) => {
                 let field = path.last().map(String::as_str);
+                let value = String::from_utf8_lossy(event.as_ref()).trim().to_string();
+                if field == Some("accidental")
+                    && path.iter().rev().nth(1).map(String::as_str) == Some("KeySig")
+                    && value.parse::<i8>().is_err()
+                {
+                    push_invalid_numeric_diagnostic(
+                        &mut diagnostics,
+                        "mscx.invalid-key-signature",
+                        "MSCX KeySig accidental must be an integer",
+                        &path,
+                        value.clone(),
+                    );
+                }
+                if matches!(field, Some("sigN") | Some("sigD"))
+                    && path.iter().rev().nth(1).map(String::as_str) == Some("TimeSig")
+                    && value.parse::<u8>().is_err()
+                {
+                    push_invalid_numeric_diagnostic(
+                        &mut diagnostics,
+                        "mscx.invalid-time-signature",
+                        "MSCX TimeSig value must be an integer",
+                        &path,
+                        value.clone(),
+                    );
+                }
+                if field == Some("tempo")
+                    && path.iter().rev().nth(1).map(String::as_str) == Some("Tempo")
+                    && !value.parse::<f64>().is_ok_and(|qps| {
+                        qps.is_finite() && qps > 0.0 && qps * 60.0 <= u16::MAX as f64
+                    })
+                {
+                    push_invalid_numeric_diagnostic(
+                        &mut diagnostics,
+                        "mscx.invalid-tempo",
+                        "MSCX tempo must be a finite positive quarter-notes-per-second value within the canonical BPM range",
+                        &path,
+                        value.clone(),
+                    );
+                }
+                if field == Some("pitch")
+                    && path.iter().rev().nth(1).map(String::as_str) == Some("Note")
+                    && !value
+                        .parse::<i32>()
+                        .is_ok_and(|midi| (0..=127).contains(&midi))
+                {
+                    push_invalid_numeric_diagnostic(
+                        &mut diagnostics,
+                        "mscx.invalid-pitch",
+                        "MSCX Note pitch must be an integer MIDI value in the range 0..=127",
+                        &path,
+                        value.clone(),
+                    );
+                }
+                if field == Some("tpc")
+                    && path.iter().rev().nth(1).map(String::as_str) == Some("Note")
+                    && value.parse::<i32>().is_err()
+                {
+                    push_invalid_numeric_diagnostic(
+                        &mut diagnostics,
+                        "mscx.invalid-tpc",
+                        "MSCX Note tpc must be an integer",
+                        &path,
+                        value.clone(),
+                    );
+                }
+                if field == Some("head")
+                    && path.iter().rev().nth(1).map(String::as_str) == Some("Note")
+                    && !matches!(
+                        value.to_ascii_lowercase().as_str(),
+                        "normal" | "diamond" | "x" | "slash" | "cross" | "triangle"
+                    )
+                {
+                    let mut diagnostic = Diagnostic::warning(
+                        "mscx.unsupported-notehead",
+                        "MSCX notehead shape is outside acorde's canonical subset",
+                    );
+                    diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                    diagnostic.preserved_value =
+                        Some(String::from_utf8_lossy(event.as_ref()).into());
+                    diagnostics.push(diagnostic);
+                }
+                if field == Some("stemDirection")
+                    && path.iter().rev().nth(1).map(String::as_str) == Some("Chord")
+                    && !matches!(value.to_ascii_lowercase().as_str(), "up" | "down" | "auto")
+                {
+                    let mut diagnostic = Diagnostic::warning(
+                        "mscx.unsupported-stem-direction",
+                        "MSCX stem direction is outside acorde's canonical subset",
+                    );
+                    diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                    diagnostic.preserved_value =
+                        Some(String::from_utf8_lossy(event.as_ref()).into());
+                    diagnostics.push(diagnostic);
+                }
+                if field == Some("BeamMode")
+                    && path.iter().rev().nth(1).map(String::as_str) == Some("Chord")
+                    && !matches!(
+                        String::from_utf8_lossy(event.as_ref())
+                            .trim()
+                            .to_ascii_lowercase()
+                            .as_str(),
+                        "begin" | "continue" | "mid" | "end" | "no"
+                    )
+                {
+                    let mut diagnostic = Diagnostic::warning(
+                        "mscx.unsupported-beam-mode",
+                        "MSCX beam mode is outside acorde's canonical subset",
+                    );
+                    diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                    diagnostic.preserved_value =
+                        Some(String::from_utf8_lossy(event.as_ref()).into());
+                    diagnostics.push(diagnostic);
+                }
+                if field == Some("midiChannel")
+                    && path.iter().rev().nth(1).map(String::as_str) == Some("Channel")
+                    && value.parse::<u8>().map_or(true, |channel| channel > 15)
+                {
+                    let mut diagnostic = Diagnostic::warning(
+                        "mscx.invalid-midi-channel",
+                        "MSCX MIDI channel must be an integer in the range 0..=15",
+                    );
+                    diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                    diagnostic.preserved_value = Some(value);
+                    diagnostics.push(diagnostic);
+                }
                 if field == Some("subtype")
                     && path.iter().rev().nth(1).map(String::as_str) == Some("Accidental")
                 {
@@ -1490,8 +1818,8 @@ pub fn tab_position_diagnostics(score: &acorde_core::Score) -> Vec<Diagnostic> {
 
 fn assemble_score(
     mut score: Score,
-    title: &str,
-    composer: &str,
+    metadata: acorde_core::ScoreMetadata,
+    score_texts: Vec<StyledText>,
     parts_meta: Vec<PartMeta>,
     mut staff_measures: HashMap<usize, Vec<Measure>>,
     staff_clefs: HashMap<usize, Clef>,
@@ -1499,12 +1827,8 @@ fn assemble_score(
 ) -> Result<Score, Error> {
     // Replace the default Score parts with the parsed content.
     score.parts.clear();
-    if !title.is_empty() {
-        score.metadata.title = title.to_string();
-    }
-    if !composer.is_empty() {
-        score.metadata.composer = composer.to_string();
-    }
+    score.metadata = metadata;
+    score.texts = score_texts;
 
     let build_staves = |ids: &[usize],
                         staff_measures: &mut HashMap<usize, Vec<Measure>>,
@@ -1535,7 +1859,14 @@ fn assemble_score(
         score.parts.push(part);
     } else {
         for meta in parts_meta {
-            let mut part = Part::new(&meta.name, &meta.name);
+            let mut part = Part::new(
+                &meta.name,
+                if meta.short_name.is_empty() {
+                    &meta.name
+                } else {
+                    &meta.short_name
+                },
+            );
             part.midi_program = meta.midi_program;
             part.midi_channel = meta.midi_channel;
             let ids = if meta.staff_ids.is_empty() {
@@ -1664,6 +1995,7 @@ fn mscx_chord_symbol(
         harmony_function,
         harmony_type: None,
         chord_ref: None,
+        range_end: None,
         degrees,
     }
 }
@@ -1775,6 +2107,7 @@ fn mscz_duration_type(s: &str) -> Duration {
         "eighth" => Duration::Eighth,
         "16th" => Duration::Sixteenth,
         "32nd" => Duration::ThirtySecond,
+        "64th" => Duration::SixtyFourth,
         "measure" => Duration::Whole,
         _ => Duration::Quarter,
     }
@@ -1847,6 +2180,34 @@ fn mscx_tremolo_level(subtype: &str) -> u8 {
                 .map(|_| 4)
         })
         .unwrap_or(1)
+}
+
+fn mscx_articulation(subtype: &str) -> Option<Articulation> {
+    let normalized = subtype
+        .trim()
+        .strip_prefix("artic")
+        .unwrap_or(subtype.trim())
+        .trim_end_matches("Above")
+        .trim_end_matches("Below");
+    match normalized {
+        "Staccato" => Some(Articulation::Staccato),
+        "Staccatissimo" => Some(Articulation::Staccatissimo),
+        "Accent" => Some(Articulation::Accent),
+        "Tenuto" => Some(Articulation::Tenuto),
+        "Marcato" => Some(Articulation::Marcato),
+        _ => None,
+    }
+}
+
+fn mscx_note_head(value: &str) -> NoteHead {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "diamond" => NoteHead::Diamond,
+        "x" => NoteHead::X,
+        "cross" => NoteHead::Cross,
+        "slash" => NoteHead::Slash,
+        "triangle" => NoteHead::Triangle,
+        _ => NoteHead::Normal,
+    }
 }
 
 fn parse_volta_number(text: &str) -> u8 {
@@ -2537,6 +2898,41 @@ mod tests {
     }
 
     #[test]
+    fn mscx_invalid_numeric_fields_are_source_located() {
+        let xml = simple_mscx(
+            r#"
+      <Measure number="1">
+        <KeySig><accidental>bad</accidental></KeySig>
+        <TimeSig><sigN>bad</sigN><sigD>bad</sigD></TimeSig>
+        <Tempo><tempo>bad</tempo></Tempo>
+        <Chord><durationType>quarter</durationType>
+          <Note><pitch>bad</pitch><tpc>bad</tpc></Note>
+        </Chord>
+      </Measure>"#,
+        );
+        let diagnostics = loss_diagnostics(&xml);
+        let codes = diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            codes,
+            vec![
+                "mscx.invalid-key-signature",
+                "mscx.invalid-time-signature",
+                "mscx.invalid-time-signature",
+                "mscx.invalid-tempo",
+                "mscx.invalid-pitch",
+                "mscx.invalid-tpc",
+            ]
+        );
+        assert!(diagnostics.iter().all(|diagnostic| {
+            diagnostic.source_location.is_some()
+                && diagnostic.preserved_value.as_deref() == Some("bad")
+        }));
+    }
+
+    #[test]
     fn mscx_figured_bass_continuation_line_preserves_extender() {
         let xml = simple_mscx(
             r#"
@@ -2593,6 +2989,51 @@ mod tests {
             report.diagnostics[0].source_location.as_deref(),
             Some("/museScore/Score/Staff/Measure/Harmony")
         );
+    }
+
+    #[test]
+    fn mscx_report_marks_unknown_notehead_and_stem_values() {
+        let xml = simple_mscx(
+            r#"
+      <Measure number="1">
+        <Chord><durationType>quarter</durationType><stemDirection>sideways</stemDirection>
+          <BeamMode>diagonal</BeamMode>
+          <Note><pitch>60</pitch><tpc>14</tpc><head>hexagon</head></Note>
+        </Chord>
+      </Measure>"#,
+        );
+        let diagnostics = loss_diagnostics(&xml);
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "mscx.unsupported-notehead"
+                && diagnostic.preserved_value.as_deref() == Some("hexagon")
+        }));
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "mscx.unsupported-stem-direction"
+                && diagnostic.preserved_value.as_deref() == Some("sideways")
+        }));
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "mscx.unsupported-beam-mode"
+                && diagnostic.preserved_value.as_deref() == Some("diagonal")
+        }));
+    }
+
+    #[test]
+    fn parse_mscx_standalone_beam_applies_stem_to_previous_group() {
+        let xml = simple_mscx(
+            r#"
+      <Measure number="1">
+        <Chord><BeamMode>begin</BeamMode><durationType>eighth</durationType>
+          <Note><pitch>60</pitch><tpc>14</tpc></Note></Chord>
+        <Chord><BeamMode>end</BeamMode><durationType>eighth</durationType>
+          <Note><pitch>62</pitch><tpc>16</tpc></Note></Chord>
+        <Beam><StemDirection>down</StemDirection><Fragment><y1>1</y1><y2>2</y2></Fragment></Beam>
+      </Measure>"#,
+        );
+        let report = crate::parse_mscx_with_report(&xml).expect("MSCX beam parses");
+        let notes = &report.score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(notes.len(), 2);
+        assert!(notes.iter().all(|note| note.stem_up == Some(false)));
+        assert!(report.diagnostics.is_empty());
     }
 
     #[test]
@@ -2766,6 +3207,7 @@ mod tests {
                 harmony_function: Some("D".to_string()),
                 harmony_type: None,
                 chord_ref: None,
+                range_end: None,
                 degrees: vec![
                     ChordDegree {
                         value: 9,
@@ -2895,6 +3337,31 @@ mod tests {
                 relative_x: None,
                 relative_y: None,
             }]
+        );
+    }
+
+    #[test]
+    fn parse_mscx_staff_text_preserves_offsets() {
+        let xml = simple_mscx(
+            r#"
+      <Measure number="1">
+        <StaffText><offset x="-1.5" y="2.25"/><text>Chorus</text></StaffText>
+        <Rest><durationType>whole</durationType></Rest>
+      </Measure>"#,
+        );
+        let report = crate::parse_mscx_with_report(&xml).expect("MSCX staff text parses");
+        assert!(report.diagnostics.is_empty());
+        assert_eq!(
+            report.score.parts[0].staves[0].measures[0].texts[0],
+            StyledText {
+                style: TextStyle::Generic,
+                text: "Chorus".to_string(),
+                placement: None,
+                offset_x: Some(-1.5),
+                offset_y: Some(2.25),
+                relative_x: None,
+                relative_y: None,
+            }
         );
     }
 

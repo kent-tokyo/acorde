@@ -67,9 +67,13 @@ adapter.
 
 Interchange APIs also provide typed `ImportReport` and `ExportReport` wrappers for structured
 conversion diagnostics. WASM exposes report-returning variants for supported import formats and
-MusicXML, MEI, MIDI, and ABC exports.
+MusicXML, MEI, MIDI, ABC, MSCX, and MSCZ exports.
 MIDI pitch-bend events retain their tick, channel, and signed 14-bit value through the score
 model and MIDI round-trip.
+MSCX import reports source-located diagnostics when malformed numeric fields require a safe
+canonical fallback; callers can distinguish invalid source data from an authored default.
+Pitch scientific-name formatting preserves extended accidental runs, while parsing rejects
+accidental input that would overflow the canonical alteration range.
 
 ## Quick start
 
@@ -100,9 +104,10 @@ let score: &Score = engine.score();
 
 `acorde-io` exposes `parse_musicxml`, `parse_mxl`, `serialize_musicxml`, `parse_midi`,
 `serialize_midi`, and `serialize_midi_region` with the default `musicxml` and `midi` features.
-The `abc` feature adds ABC parse/serialize; `mscz` adds MuseScore `.mscz`/`.mscx` parsing; `mei`
-adds the documented MEI subset import/export boundary.
+The `abc` feature adds ABC parse/serialize; `mscz` adds MuseScore `.mscz`/`.mscx` parsing and
+canonical-subset serialization; `mei` adds the documented MEI subset import/export boundary.
 Parsers accept memory buffers and return typed errors. They do not read files.
+MSCX/MSCZ export also has report variants that identify fields omitted by the bounded subset.
 The WASM API also provides `parse_musicxml_render_svg`, `parse_mxl_render_svg`, `parse_mei_render_svg`,
 `parse_abc_render_svg`, and `parse_midi_render_svg` as bounded one-call paths from documented
 inputs to canonical SVG. MuseScore XML and archive inputs are also covered by
@@ -111,6 +116,8 @@ when import diagnostics are needed.
 MusicXML voice numbers 1–4 are preserved in `Measure.voices` and through MusicXML round-trips.
 Tablature string/fret positions and fractional MusicXML alterations are preserved in the score
 model; common ABC (`^/`, `_/`) and MEI (`qs`, `qf`) quarter-accidental subsets are also supported.
+Authored ties never render through rest endpoints; SVG metadata exposes typed tie start/end flags
+for hosts that synchronize editing and playback without reparsing geometry.
 
 ## SVG and browser API
 
@@ -189,7 +196,7 @@ acorde playback-compare expected.json actual.json --fail-on-mismatch
 ```
 
 The CLI supports `.musicxml`, `.mxl`, `.mid`/`.midi`, `.abc`, `.mei`, `.mscz`, and `.mscx` input.
-Conversion output is MusicXML, MIDI, ABC, or MEI.
+Conversion output is MusicXML, MIDI, ABC, MEI, or the deterministic canonical MSCX/MSCZ subset.
 `render` accepts the same score inputs and writes deterministic SVG through `acorde-render-svg`;
 use `--width`, `--staff-size`, and `--measures-per-system` to select the host-neutral render
 geometry. Address hooks remain enabled by default and can be omitted with `--no-interactive`.

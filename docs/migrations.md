@@ -33,3 +33,9 @@ optional placement and source-coordinate offset fields; older consumers can igno
 For v1.1.5, `compatibility_report` is exposed through WASM and the browser
 adapter. It compares canonical score JSON values and returns explicit score and deterministic
 analysis gate booleans; it does not replace format-specific import/export diagnostics.
+
+For the v1.1.7 candidate, MSCX import reports malformed numeric fallbacks with stable,
+source-located diagnostic codes. `Pitch::to_scientific_name()` preserves extended accidental
+spellings and scientific-name parsing rejects accidental overflow. The fuzz lockfile is aligned
+with the 1.1.7 workspace crates; consumers should use the report APIs and pinned lockfile when
+building reproducible interchange checks.

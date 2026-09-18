@@ -16,8 +16,10 @@ use crate::geometry;
 use crate::glyphs::{self, f};
 use crate::tuplets;
 use crate::{
-    AddressBounds, RenderAnnotation, RenderAnnotationError, RenderError, RenderMetadata,
-    SVG_CONTRACT_VERSION, SvgAnnotation, SvgRenderOptions, TextAnnotation, tab_fret_metrics,
+    AddressBounds, HarmonyRangeMetadata, NoteSemanticMetadata, RenderAnnotation,
+    RenderAnnotationError, RenderError, RenderMetadata, SVG_CONTRACT_VERSION, ScoreTextMetadata,
+    SvgAnnotation, SvgRenderOptions, TablatureStaffMetadata, TablatureTechniqueConnectionMetadata,
+    TextAnnotation, tab_fret_metrics,
 };
 
 const LEFT_MARGIN_U: f32 = 1.0;
@@ -317,6 +319,15 @@ pub(crate) fn build_svg_with_metadata(
     }
 
     render_cross_measure_lyric_hyphens(&mut body, score, &note_points, space);
+    render_cross_measure_tab_technique_connections(
+        &mut body,
+        score,
+        &note_points,
+        options.width,
+        left_margin_u,
+        right_margin_u,
+        space,
+    );
     render_all_spans(
         &mut body,
         score,
@@ -388,8 +399,13 @@ fn build_render_metadata(
         .max()
         .unwrap_or(0);
     let note_count = address_bounds.len();
+    let score_texts = collect_score_texts(score);
     let text_annotations = collect_text_annotations(score);
     let tablature_positions = collect_tablature_positions(score);
+    let tablature_staves = collect_tablature_staves(score, staff_refs);
+    let harmony_ranges = collect_harmony_ranges(score);
+    let tablature_technique_connections = collect_tablature_technique_connections(score);
+    let note_semantics = collect_note_semantics(score);
     let accessible_text = format!(
         "{}; {} parts, {} staves, {} measures, {} note events",
         score.metadata.title,
@@ -408,9 +424,297 @@ fn build_render_metadata(
         note_count,
         accessible_text,
         address_bounds,
+        score_texts,
         text_annotations,
         tablature_positions,
+        tablature_staves,
+        harmony_ranges,
+        tablature_technique_connections,
+        note_semantics,
     }
+}
+
+fn collect_score_texts(score: &Score) -> Vec<ScoreTextMetadata> {
+    score
+        .texts
+        .iter()
+        .cloned()
+        .map(|styled| ScoreTextMetadata {
+            style: styled.style,
+            text: styled.text,
+            placement: styled.placement,
+            offset_x: styled.offset_x,
+            offset_y: styled.offset_y,
+            relative_x: styled.relative_x,
+            relative_y: styled.relative_y,
+        })
+        .collect()
+}
+
+fn collect_tablature_staves(
+    score: &Score,
+    staff_refs: &[(usize, usize)],
+) -> Vec<TablatureStaffMetadata> {
+    staff_refs
+        .iter()
+        .filter_map(|&(part, staff)| {
+            score.parts[part].staves[staff]
+                .tablature
+                .as_ref()
+                .map(|tab| TablatureStaffMetadata {
+                    part,
+                    staff,
+                    lines: tab.lines,
+                    tuning_midi: tab.tuning_midi.clone(),
+                    capo: tab.capo,
+                })
+        })
+        .collect()
+}
+
+fn collect_tablature_technique_connections(
+    score: &Score,
+) -> Vec<TablatureTechniqueConnectionMetadata> {
+    let mut connections = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            if staff.tablature.is_none() {
+                continue;
+            }
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    for (note_index, pair) in voice.windows(2).enumerate() {
+                        append_tab_technique_connections(
+                            &mut connections,
+                            &pair[0],
+                            &pair[1],
+                            (
+                                part_index,
+                                staff_index,
+                                measure_index,
+                                voice_index,
+                                note_index,
+                            ),
+                            (
+                                part_index,
+                                staff_index,
+                                measure_index,
+                                voice_index,
+                                note_index + 1,
+                            ),
+                            false,
+                        );
+                    }
+                }
+            }
+            for measure_index in 1..staff.measures.len() {
+                let previous = &staff.measures[measure_index - 1];
+                let current = &staff.measures[measure_index];
+                for voice_index in 0..previous.voices.len().min(current.voices.len()) {
+                    let Some(previous_note) = previous.voices[voice_index].last() else {
+                        continue;
+                    };
+                    let Some(current_note) = current.voices[voice_index].first() else {
+                        continue;
+                    };
+                    append_tab_technique_connections(
+                        &mut connections,
+                        previous_note,
+                        current_note,
+                        (
+                            part_index,
+                            staff_index,
+                            measure_index - 1,
+                            voice_index,
+                            previous.voices[voice_index].len() - 1,
+                        ),
+                        (part_index, staff_index, measure_index, voice_index, 0),
+                        true,
+                    );
+                }
+            }
+        }
+    }
+    connections
+}
+
+fn append_tab_technique_connections(
+    connections: &mut Vec<TablatureTechniqueConnectionMetadata>,
+    previous: &Note,
+    current: &Note,
+    previous_key: NoteKey,
+    current_key: NoteKey,
+    cross_measure: bool,
+) {
+    let Some(technique) = current.guitar_technique.clone() else {
+        return;
+    };
+    if previous.is_rest
+        || current.is_rest
+        || !matches!(
+            technique,
+            acorde_core::GuitarTechnique::Slide
+                | acorde_core::GuitarTechnique::HammerOn
+                | acorde_core::GuitarTechnique::PullOff
+        )
+    {
+        return;
+    }
+    let previous_positions = if previous.tab_positions.is_empty() {
+        previous.tab_position.as_slice()
+    } else {
+        previous.tab_positions.as_slice()
+    };
+    let current_positions = if current.tab_positions.is_empty() {
+        current.tab_position.as_slice()
+    } else {
+        current.tab_positions.as_slice()
+    };
+    for (index, current_position) in current_positions.iter().enumerate() {
+        let Some(_previous_position) = previous_positions
+            .iter()
+            .find(|candidate| candidate.string == current_position.string)
+            .or_else(|| {
+                (previous_positions.len() == current_positions.len())
+                    .then(|| previous_positions.get(index))
+                    .flatten()
+            })
+        else {
+            continue;
+        };
+        connections.push(TablatureTechniqueConnectionMetadata {
+            start: note_addr(previous_key),
+            end: note_addr(current_key),
+            technique: technique.clone(),
+            string: current_position.string,
+            cross_measure,
+        });
+    }
+}
+
+fn note_addr((part, staff, measure, voice, note): NoteKey) -> acorde_core::NoteAddr {
+    acorde_core::NoteAddr {
+        part,
+        staff,
+        measure,
+        voice,
+        note,
+    }
+}
+
+fn collect_note_semantics(score: &Score) -> Vec<NoteSemanticMetadata> {
+    let mut semantics = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    for (note_index, note) in voice.iter().enumerate() {
+                        semantics.push(NoteSemanticMetadata {
+                            part: part_index,
+                            staff: staff_index,
+                            measure: measure_index,
+                            voice: voice_index,
+                            note: note_index,
+                            is_unpitched: note.is_unpitched,
+                            tie_start: note.tie_start,
+                            tie_end: note.tie_end,
+                            duration_beats: note.beats(),
+                            pitch_midi_cents: note
+                                .pitches
+                                .iter()
+                                .map(acorde_core::Pitch::to_midi_cents)
+                                .collect(),
+                            offset_x: note.offset_x,
+                            offset_y: note.offset_y,
+                            relative_x: note.relative_x,
+                            relative_y: note.relative_y,
+                            dynamic: note
+                                .dynamic
+                                .as_ref()
+                                .map(|value| value.to_musicxml_str().to_owned()),
+                            lyric: note.lyric.as_ref().map(|value| value.text.clone()),
+                            chord_label: note
+                                .chord_symbol
+                                .as_ref()
+                                .map(|value| value.display_text()),
+                            technique_text: note.technique_text.clone(),
+                            articulations: note
+                                .articulations
+                                .iter()
+                                .map(articulation_metadata_name)
+                                .collect(),
+                            guitar_technique: note.guitar_technique.clone(),
+                            guitar_bend_alter_cents: note.guitar_bend_alter_cents,
+                            fingerings: if note.fingerings.is_empty() {
+                                note.fingering.into_iter().collect()
+                            } else {
+                                note.fingerings.clone()
+                            },
+                            instrument_id: note.instrument_id.clone(),
+                            microtone_cents: note
+                                .pitches
+                                .iter()
+                                .map(|pitch| pitch.microtone_cents)
+                                .collect(),
+                        });
+                    }
+                }
+            }
+        }
+    }
+    semantics
+}
+
+fn articulation_metadata_name(articulation: &acorde_core::Articulation) -> String {
+    match articulation {
+        acorde_core::Articulation::Staccato => "staccato".to_owned(),
+        acorde_core::Articulation::Staccatissimo => "staccatissimo".to_owned(),
+        acorde_core::Articulation::Accent => "accent".to_owned(),
+        acorde_core::Articulation::Tenuto => "tenuto".to_owned(),
+        acorde_core::Articulation::Marcato => "marcato".to_owned(),
+        acorde_core::Articulation::Fermata => "fermata".to_owned(),
+        acorde_core::Articulation::Trill => "trill".to_owned(),
+        acorde_core::Articulation::Mordent => "mordent".to_owned(),
+        acorde_core::Articulation::InvertedMordent => "inverted-mordent".to_owned(),
+        acorde_core::Articulation::Turn => "turn".to_owned(),
+        acorde_core::Articulation::InvertedTurn => "inverted-turn".to_owned(),
+        acorde_core::Articulation::Shake => "shake".to_owned(),
+        acorde_core::Articulation::Tremolo(level) => format!("tremolo-{level}"),
+        acorde_core::Articulation::BreathMark => "breath-mark".to_owned(),
+        acorde_core::Articulation::Caesura => "caesura".to_owned(),
+    }
+}
+
+fn collect_harmony_ranges(score: &Score) -> Vec<HarmonyRangeMetadata> {
+    let mut ranges = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    for (note_index, note) in voice.iter().enumerate() {
+                        let Some(chord) = &note.chord_symbol else {
+                            continue;
+                        };
+                        let Some(end) = &chord.range_end else {
+                            continue;
+                        };
+                        ranges.push(HarmonyRangeMetadata {
+                            start: acorde_core::NoteAddr {
+                                part: part_index,
+                                staff: staff_index,
+                                measure: measure_index,
+                                voice: voice_index,
+                                note: note_index,
+                            },
+                            end: end.clone(),
+                            label: chord.display_text(),
+                        });
+                    }
+                }
+            }
+        }
+    }
+    ranges
 }
 
 fn collect_tablature_positions(score: &Score) -> Vec<crate::TablaturePositionMetadata> {
@@ -548,7 +852,16 @@ fn validate_inputs(
     layout: &LayoutResult,
     staff_refs: &[(usize, usize)],
 ) -> Result<(), RenderError> {
+    validate_score_content(score)?;
+    validate_measure_text_constraints(score)?;
+    validate_layout_references(score, layout, staff_refs)
+}
+
+fn validate_score_content(score: &Score) -> Result<(), RenderError> {
     validate_score_text(&score.metadata.title)?;
+    for styled in &score.texts {
+        validate_score_text(&styled.text)?;
+    }
     for part in &score.parts {
         validate_score_text(&part.name)?;
         validate_score_text(&part.short_name)?;
@@ -579,11 +892,27 @@ fn validate_inputs(
                         if let Some(chord) = &note.chord_symbol {
                             validate_score_text(&chord.display_text())?;
                         }
+                        for (field, value) in [
+                            ("offset_x", note.offset_x),
+                            ("offset_y", note.offset_y),
+                            ("relative_x", note.relative_x),
+                            ("relative_y", note.relative_y),
+                        ] {
+                            if let Some(value) = value {
+                                if !value.is_finite() || !(value as f32).is_finite() {
+                                    return Err(RenderError::InvalidNotePlacement { field });
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
     }
+    Ok(())
+}
+
+fn validate_measure_text_constraints(score: &Score) -> Result<(), RenderError> {
     if !score.parts.iter().all(|p| {
         p.staves
             .iter()
@@ -593,31 +922,47 @@ fn validate_inputs(
             reason: "every staff measure must contain four voices".into(),
         });
     }
+    for styled in &score.texts {
+        validate_styled_text_constraints(styled)?;
+    }
     for part in &score.parts {
         for staff in &part.staves {
             for measure in &staff.measures {
                 for styled in measure_text_entries(measure) {
-                    if styled.text.len() > crate::MAX_ANNOTATION_TEXT_BYTES {
-                        return Err(RenderError::MeasureTextTooLarge {
-                            size: styled.text.len(),
-                        });
-                    }
-                    for (field, value) in [
-                        ("offset_x", styled.offset_x),
-                        ("offset_y", styled.offset_y),
-                        ("relative_x", styled.relative_x),
-                        ("relative_y", styled.relative_y),
-                    ] {
-                        if let Some(value) = value {
-                            if !value.is_finite() || !(value as f32).is_finite() {
-                                return Err(RenderError::InvalidMeasureTextOffset { field });
-                            }
-                        }
-                    }
+                    validate_styled_text_constraints(&styled)?;
                 }
             }
         }
     }
+    Ok(())
+}
+
+fn validate_styled_text_constraints(styled: &StyledText) -> Result<(), RenderError> {
+    if styled.text.len() > crate::MAX_ANNOTATION_TEXT_BYTES {
+        return Err(RenderError::MeasureTextTooLarge {
+            size: styled.text.len(),
+        });
+    }
+    for (field, value) in [
+        ("offset_x", styled.offset_x),
+        ("offset_y", styled.offset_y),
+        ("relative_x", styled.relative_x),
+        ("relative_y", styled.relative_y),
+    ] {
+        if let Some(value) = value {
+            if !value.is_finite() || !(value as f32).is_finite() {
+                return Err(RenderError::InvalidMeasureTextOffset { field });
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_layout_references(
+    score: &Score,
+    layout: &LayoutResult,
+    staff_refs: &[(usize, usize)],
+) -> Result<(), RenderError> {
     for row in &layout.rows {
         for &measure in &row.measure_indices {
             if staff_refs
@@ -695,7 +1040,8 @@ fn validate_inputs(
             | SpanMark::Pedal { start, end }
             | SpanMark::Slur { start, end }
             | SpanMark::TrillLine { start, end }
-            | SpanMark::Glissando { start, end } => (start, end),
+            | SpanMark::Glissando { start, end }
+            | SpanMark::Harmony { start, end, .. } => (start, end),
         };
         if !valid_note(
             start.part,
@@ -838,6 +1184,16 @@ fn content_margins(
                     bottom = bottom.max(note_bottom);
                 }
             }
+            let has_above_note_annotations = measure
+                .voices
+                .iter()
+                .flat_map(|voice| voice.iter())
+                .any(|note| note_annotation_lane_extents(note, true).0 > 0.0);
+            let has_below_note_annotations = measure
+                .voices
+                .iter()
+                .flat_map(|voice| voice.iter())
+                .any(|note| note_annotation_lane_extents(note, false).1 > 0.0);
             let mut above_texts = 0usize;
             let mut below_texts = 0usize;
             for styled in measure_text_entries(measure) {
@@ -850,10 +1206,17 @@ fn content_margins(
                     .is_some_and(|placement| placement.eq_ignore_ascii_case("below"))
                     || matches!(styled.style, acorde_core::TextStyle::Lyrics);
                 if below {
-                    bottom = bottom.max(3.2 + below_texts as f32 * 0.95 + offset_y);
+                    bottom = bottom.max(
+                        3.2 + below_texts as f32 * 0.95
+                            + offset_y
+                            + if has_below_note_annotations { 1.0 } else { 0.0 },
+                    );
                     below_texts += 1;
                 } else {
-                    top = top.max(3.2 + above_texts as f32 * 0.95 - offset_y);
+                    top = top.max(
+                        3.2 + above_texts as f32 * 0.95 - offset_y
+                            + if has_above_note_annotations { 1.0 } else { 0.0 },
+                    );
                     above_texts += 1;
                 }
             }
@@ -926,12 +1289,63 @@ fn content_margins(
                 } else {
                     positions.max().unwrap_or(0)
                 };
-                geometry::position_y(outer, 1.0)
+                geometry::position_y(outer, 1.0) + note_placement_offsets_u(note).1
             })
             .collect();
         let (beam_min, beam_max) = beams::vertical_extents(&durations, &xs, &attach_ys, stem_up);
         top = top.max(-beam_min);
         bottom = bottom.max(beam_max);
+    }
+    (top, bottom)
+}
+
+/// Compute the base annotation lanes required by one note before span-specific margins.
+fn note_annotation_margins(note: &Note, voice_stem_up: bool) -> (f32, f32) {
+    // Note-attached annotations are emitted at fixed staff-space offsets; font ascent and line
+    // wrapping remain a host responsibility.
+    let mut top = 5.5_f32;
+    let mut bottom = 4.5_f32;
+    if note.chord_symbol.is_some() {
+        top = top.max(6.4);
+    }
+    if note.dynamic.is_some() {
+        top = top.max(4.8);
+        bottom = bottom.max(4.8);
+    }
+    if note.lyric.is_some() {
+        bottom = bottom.max(6.7);
+    }
+    if note.technique_text.is_some()
+        || note.guitar_technique.is_some()
+        || note.fingering.is_some()
+        || !note.fingerings.is_empty()
+    {
+        if note.technique_text.is_some() {
+            if note.stem_up.unwrap_or(voice_stem_up) {
+                top = top.max(7.2);
+            } else {
+                bottom = bottom.max(7.2);
+            }
+        } else if note.fingering.is_some() || !note.fingerings.is_empty() {
+            if note.stem_up.unwrap_or(voice_stem_up) {
+                bottom = bottom.max(5.2);
+            } else {
+                top = top.max(7.6);
+            }
+        } else {
+            top = top.max(2.6);
+        }
+    }
+    if note.pitches.iter().any(|pitch| pitch.microtone_cents != 0) {
+        top = top.max(3.9);
+    }
+    if !note.articulations.is_empty() {
+        let extent = 2.0 + note.articulations.len().saturating_sub(1) as f32;
+        if note.stem_up.unwrap_or(voice_stem_up) {
+            top = top.max(extent);
+        } else {
+            bottom = bottom.max(extent);
+        }
     }
     (top, bottom)
 }
@@ -958,53 +1372,7 @@ fn note_vertical_margins(note: &Note, clef_bottom: i32, voice_stem_up: bool) -> 
         .map(|position| 4.5 + ((-position).max(0) as f32 / 2.0))
         .fold(4.5, f32::max);
 
-    // Note-attached annotations are emitted at fixed staff-space offsets below; include their
-    // largest vertical excursion in the same content-aware margin contract. Font ascent and
-    // line wrapping remain a host responsibility.
-    let mut annotation_top = 5.5_f32;
-    let mut annotation_bottom = 4.5_f32;
-    if note.chord_symbol.is_some() {
-        annotation_top = annotation_top.max(6.4);
-    }
-    if note.dynamic.is_some() {
-        annotation_top = annotation_top.max(4.8);
-        annotation_bottom = annotation_bottom.max(4.8);
-    }
-    if note.lyric.is_some() {
-        annotation_bottom = annotation_bottom.max(6.7);
-    }
-    if note.technique_text.is_some()
-        || note.guitar_technique.is_some()
-        || note.fingering.is_some()
-        || !note.fingerings.is_empty()
-    {
-        if note.technique_text.is_some() {
-            if note.stem_up.unwrap_or(voice_stem_up) {
-                annotation_top = annotation_top.max(7.2);
-            } else {
-                annotation_bottom = annotation_bottom.max(7.2);
-            }
-        } else if note.fingering.is_some() || !note.fingerings.is_empty() {
-            if note.stem_up.unwrap_or(voice_stem_up) {
-                annotation_bottom = annotation_bottom.max(5.2);
-            } else {
-                annotation_top = annotation_top.max(7.6);
-            }
-        } else {
-            annotation_top = annotation_top.max(2.6);
-        }
-    }
-    if note.pitches.iter().any(|pitch| pitch.microtone_cents != 0) {
-        annotation_top = annotation_top.max(3.9);
-    }
-    if !note.articulations.is_empty() {
-        let articulation_extent = 2.0 + note.articulations.len().saturating_sub(1) as f32;
-        if note.stem_up.unwrap_or(voice_stem_up) {
-            annotation_top = annotation_top.max(articulation_extent);
-        } else {
-            annotation_bottom = annotation_bottom.max(articulation_extent);
-        }
-    }
+    let (mut annotation_top, mut annotation_bottom) = note_annotation_margins(note, voice_stem_up);
     if note.hairpin_start.is_some() || note.hairpin_end {
         annotation_top = annotation_top.max(4.8);
         annotation_bottom = annotation_bottom.max(4.8);
@@ -1058,18 +1426,82 @@ fn note_vertical_margins(note: &Note, clef_bottom: i32, voice_stem_up: bool) -> 
     }
     top = top.max(annotation_top + ((max_position - 8).max(0) as f32 / 2.0));
     bottom = bottom.max(annotation_bottom + ((-min_position).max(0) as f32 / 2.0));
+    let (_, offset_y) = note_placement_offsets_u(note);
+    if offset_y < 0.0 {
+        top += -offset_y;
+    } else {
+        bottom += offset_y;
+    }
     (top, bottom)
+}
+
+/// Return the authored MusicXML note offsets in staff-space units. Validation guarantees that
+/// the f64 values are finite and representable as f32 before this geometry path is reached.
+fn note_placement_offsets_u(note: &Note) -> (f32, f32) {
+    (
+        ((note.offset_x.unwrap_or(0.0) + note.relative_x.unwrap_or(0.0)) as f32) / 10.0,
+        ((note.offset_y.unwrap_or(0.0) + note.relative_y.unwrap_or(0.0)) as f32) / 10.0,
+    )
+}
+
+/// Apply authored horizontal offsets before spacing and connector coordinates are resolved.
+fn apply_note_horizontal_offsets(notes: &[Note], xs: &mut [f32], space: f32) {
+    for (note, x) in notes.iter().zip(xs.iter_mut()) {
+        *x += note_placement_offsets_u(note).0 * space;
+    }
 }
 
 /// Return the vertical extent of one staff in staff-space units. Tablature can use more than
 /// the canonical five notation lines; reserving that extra line height prevents tab systems
 /// from overlapping the following staff or their system barline.
 fn staff_height_u(score: &Score, part: usize, staff: usize) -> f32 {
-    score.parts[part].staves[staff]
-        .tablature
-        .as_ref()
-        .map(|tab| f32::from(tab.lines.clamp(1, 64).saturating_sub(1)).max(STAFF_HEIGHT_U))
-        .unwrap_or(STAFF_HEIGHT_U)
+    let staff_ref = &score.parts[part].staves[staff];
+    let Some(tab) = staff_ref.tablature.as_ref() else {
+        return STAFF_HEIGHT_U;
+    };
+    f32::from(tab.lines.clamp(1, 64).saturating_sub(1)).max(STAFF_HEIGHT_U)
+        + tablature_top_clearance_u(staff_ref)
+}
+
+/// Reserve space above a tablature staff for annotations that are intentionally drawn above
+/// the highest string. The line geometry itself is still determined by the configured string
+/// count; this extra clearance prevents fret labels, techniques, bends, and microtone markers
+/// from colliding with the preceding staff or system boundary.
+fn tablature_top_clearance_u(staff: &acorde_core::Staff) -> f32 {
+    let Some(_tab) = staff.tablature.as_ref() else {
+        return 0.0;
+    };
+    let mut clearance = 0.0_f32;
+    for measure in &staff.measures {
+        let active_voices = measure
+            .voices
+            .iter()
+            .filter(|voice| voice.iter().any(|note| !note.is_rest))
+            .count();
+        for (voice_index, voice) in measure.voices.iter().enumerate() {
+            let voice_stem_up = active_voices <= 1 || voice_index.is_multiple_of(2);
+            for note in voice {
+                let (annotation_top, _) = note_annotation_lane_extents(note, voice_stem_up);
+                clearance = clearance.max(annotation_top);
+                if note.fingering.is_some() || !note.fingerings.is_empty() {
+                    clearance = clearance.max(2.7);
+                }
+                if note.technique_text.is_some() || note.guitar_technique.is_some() {
+                    clearance = clearance.max(1.8);
+                }
+                if note.pitches.iter().any(|pitch| pitch.microtone_cents != 0) {
+                    clearance = clearance.max(3.8);
+                }
+                if matches!(
+                    note.guitar_technique,
+                    Some(acorde_core::GuitarTechnique::Bend)
+                ) {
+                    clearance = clearance.max(2.8);
+                }
+            }
+        }
+    }
+    clearance
 }
 
 /// Expand breathing room for measure-level annotations and first-system part labels. Font-width
@@ -1102,6 +1534,13 @@ fn content_horizontal_margins(
             for (voice_index, voice) in measure.voices.iter().enumerate() {
                 for (note_index, note) in voice.iter().enumerate() {
                     let annotation_half_width = note_annotation_width_u(note) / 2.0;
+                    let (offset_x, _) = note_placement_offsets_u(note);
+                    let note_half_width = annotation_half_width.max(0.7);
+                    if offset_x < 0.0 {
+                        left = left.max(-offset_x + note_half_width);
+                    } else {
+                        right = right.max(offset_x + note_half_width);
+                    }
                     if annotation_half_width > 0.0 {
                         let annotation_extent = annotation_half_width + MEASURE_PAD_U;
                         left = left.max(annotation_extent);
@@ -1159,7 +1598,29 @@ fn content_horizontal_margins(
                             geometry::staff_position(&pitch.step, pitch.octave, clef_bottom)
                         })
                         .collect();
-                    let accidental_offsets = chord_accidental_offsets(&positions, &has_accidentals);
+                    let accidental_widths: Vec<f32> = note
+                        .pitches
+                        .iter()
+                        .enumerate()
+                        .map(|(pitch_index, pitch)| {
+                            let key = (
+                                part,
+                                staff,
+                                measure_index,
+                                voice_index,
+                                note_index,
+                                pitch_index,
+                            );
+                            mandatory
+                                .get(&key)
+                                .or_else(|| courtesy.get(&key))
+                                .copied()
+                                .or((pitch.alter != 0).then_some(pitch.alter))
+                                .map_or(0.0, glyphs::accidental_width_u)
+                        })
+                        .collect();
+                    let accidental_offsets =
+                        chord_accidental_offsets(&positions, &has_accidentals, &accidental_widths);
                     for (pitch_index, &has_accidental) in has_accidentals.iter().enumerate() {
                         if !has_accidental {
                             continue;
@@ -1691,6 +2152,7 @@ fn render_measure(
         width,
         space,
         interactive,
+        note_points,
     );
 
     body.push_str("</g>");
@@ -1728,34 +2190,17 @@ fn render_measure_voice<'a>(
         return Ok(());
     }
     let up = active_voices <= 1 || voice_idx.is_multiple_of(2);
-    let mut xs = Vec::with_capacity(notes.len());
-    let mut beat_pos = 0.0f64;
-    for (note_index, note) in notes.iter().enumerate() {
-        let voice_offset = if voice_slots.len() > 1 {
-            let voice_rank = voice_slots
-                .iter()
-                .position(|&index| index == voice_idx)
-                .unwrap_or(0);
-            let separation = voice_separation_u(measure, voice_slots, beat_pos);
-            (voice_rank as f32 - (voice_slots.len().saturating_sub(1) as f32 / 2.0))
-                * separation
-                * space
-        } else {
-            0.0
-        };
-        let grace_offset = if note.is_grace {
-            grace_note_offset(notes, note_index) * space
-        } else {
-            0.0
-        };
-        xs.push(
-            content_x0
-                + (content_w * (beat_pos / total_beats) as f32)
-                + voice_offset
-                + grace_offset,
-        );
-        beat_pos += note.beats();
-    }
+    let mut xs = initial_measure_voice_positions(&VoicePositionContext {
+        measure,
+        notes,
+        voice_slots,
+        voice_idx,
+        total_beats,
+        content_x0,
+        content_w,
+        space,
+    });
+    apply_note_horizontal_offsets(notes, &mut xs, space);
     resolve_adjacent_event_spacing(notes, &mut xs, content_x0, content_w, space);
     resolve_cross_voice_event_spacing(
         notes,
@@ -1780,48 +2225,135 @@ fn render_measure_voice<'a>(
         bottom_y,
         space,
     );
-    for (note_idx, note) in notes.iter().enumerate() {
-        let stem_up = note.stem_up.unwrap_or(up);
-        let point_y = if note.is_rest {
-            bottom_y - 2.0 * space
-        } else {
-            note_attach_y(note, clef_bottom, stem_up, bottom_y, space)
-        };
-        note_points.insert(
-            (part, staff, measure_idx, voice_idx, note_idx),
-            (xs[note_idx], point_y, stem_up, row_idx),
-        );
-        render_note(
-            body,
-            note,
+    render_measure_voice_notes(
+        body,
+        &mut VoiceNotesRenderContext {
             part,
             staff,
             measure_idx,
+            row_idx,
             voice_idx,
-            note_idx,
+            notes,
+            xs: &xs,
             clef,
             clef_bottom,
-            xs[note_idx],
             bottom_y,
             space,
-            up,
-            beam_tips.get(&note_idx).copied(),
+            voice_stem_up: up,
+            beam_tips: &beam_tips,
             interactive,
             mandatory,
             courtesy,
             tablature,
+            note_points,
+        },
+    )?;
+    body.push_str(&beam_svg);
+
+    render_measure_voice_tuplets(
+        body,
+        &TupletRenderContext {
+            layout,
+            part,
+            staff,
+            measure_idx,
+            voice_idx,
+            notes,
+            xs: &xs,
+            voice_stem_up: up,
+            clef_bottom,
+            bottom_y,
+            space,
+            beam_tips: &beam_tips,
+            tablature,
+        },
+    );
+    Ok(())
+}
+
+struct VoiceNotesRenderContext<'a> {
+    part: usize,
+    staff: usize,
+    measure_idx: usize,
+    row_idx: usize,
+    voice_idx: usize,
+    notes: &'a [Note],
+    xs: &'a [f32],
+    clef: &'a Clef,
+    clef_bottom: i32,
+    bottom_y: f32,
+    space: f32,
+    voice_stem_up: bool,
+    beam_tips: &'a HashMap<usize, f32>,
+    interactive: bool,
+    mandatory: &'a HashMap<AccKey, i8>,
+    courtesy: &'a HashMap<AccKey, i8>,
+    tablature: Option<&'a acorde_core::TablatureConfig>,
+    note_points: &'a mut HashMap<NoteKey, NotePoint>,
+}
+
+fn render_measure_voice_notes(
+    body: &mut String,
+    context: &mut VoiceNotesRenderContext<'_>,
+) -> Result<(), RenderError> {
+    let VoiceNotesRenderContext {
+        part,
+        staff,
+        measure_idx,
+        row_idx,
+        voice_idx,
+        notes,
+        xs,
+        clef,
+        clef_bottom,
+        bottom_y,
+        space,
+        voice_stem_up,
+        beam_tips,
+        interactive,
+        mandatory,
+        courtesy,
+        tablature,
+        note_points,
+    } = context;
+    for (note_idx, note) in notes.iter().enumerate() {
+        let stem_up = note.stem_up.unwrap_or(*voice_stem_up);
+        let point_y = note_anchor_y(note, *clef_bottom, stem_up, *bottom_y, *space, *tablature);
+        note_points.insert(
+            (*part, *staff, *measure_idx, *voice_idx, note_idx),
+            (xs[note_idx], point_y, stem_up, *row_idx),
+        );
+        render_note(
+            body,
+            note,
+            *part,
+            *staff,
+            *measure_idx,
+            *voice_idx,
+            note_idx,
+            clef,
+            *clef_bottom,
+            xs[note_idx],
+            *bottom_y,
+            *space,
+            *voice_stem_up,
+            beam_tips.get(&note_idx).copied(),
+            *interactive,
+            mandatory,
+            courtesy,
+            *tablature,
         )?;
         if let Some(tab) = tablature {
             let context = TabTechniqueConnectionContext {
-                part,
-                staff,
-                measure_idx,
-                voice_idx,
+                part: *part,
+                staff: *staff,
+                measure_idx: *measure_idx,
+                voice_idx: *voice_idx,
                 notes,
-                xs: &xs,
+                xs,
                 tab,
-                bottom_y,
-                space,
+                bottom_y: *bottom_y,
+                space: *space,
             };
             render_tab_technique_connection(body, &context, note_idx);
         }
@@ -1832,36 +2364,123 @@ fn render_measure_voice<'a>(
             if let Some(next_note_idx) =
                 ((note_idx + 1)..notes.len()).find(|&index| !notes[index].is_rest)
             {
-                let next_anchor_y = note_attach_y(
+                let next_anchor_y = note_anchor_y(
                     &notes[next_note_idx],
-                    clef_bottom,
-                    notes[next_note_idx].stem_up.unwrap_or(up),
-                    bottom_y,
-                    space,
+                    *clef_bottom,
+                    notes[next_note_idx].stem_up.unwrap_or(*voice_stem_up),
+                    *bottom_y,
+                    *space,
+                    *tablature,
                 );
                 render_lyric_hyphen(
                     body,
                     &LyricHyphenContext {
-                        part,
-                        staff,
-                        voice_idx,
+                        part: *part,
+                        staff: *staff,
+                        voice_idx: *voice_idx,
                         start_note_idx: note_idx,
                         end_note_idx: next_note_idx,
-                        start_measure_idx: measure_idx,
-                        end_measure_idx: measure_idx,
+                        start_measure_idx: *measure_idx,
+                        end_measure_idx: *measure_idx,
                         start_x: xs[note_idx],
                         end_x: xs[next_note_idx],
-                        y: (point_y + next_anchor_y) * 0.5 + 4.55 * space,
-                        space,
+                        y: (point_y + next_anchor_y) * 0.5 + 4.55 * *space,
+                        space: *space,
                     },
                 );
             }
         }
     }
-    body.push_str(&beam_svg);
+    Ok(())
+}
 
+struct VoicePositionContext<'a> {
+    measure: &'a Measure,
+    notes: &'a [Note],
+    voice_slots: &'a [usize],
+    voice_idx: usize,
+    total_beats: f64,
+    content_x0: f32,
+    content_w: f32,
+    space: f32,
+}
+
+fn initial_measure_voice_positions(context: &VoicePositionContext<'_>) -> Vec<f32> {
+    let VoicePositionContext {
+        measure,
+        notes,
+        voice_slots,
+        voice_idx,
+        total_beats,
+        content_x0,
+        content_w,
+        space,
+    } = context;
+    let mut xs = Vec::with_capacity(notes.len());
+    let mut beat_pos = 0.0f64;
+    for (note_index, note) in notes.iter().enumerate() {
+        let voice_offset = if voice_slots.len() > 1 {
+            let voice_rank = voice_slots
+                .iter()
+                .position(|&index| index == *voice_idx)
+                .unwrap_or(0);
+            let separation = voice_separation_u(measure, voice_slots, beat_pos);
+            (voice_rank as f32 - (voice_slots.len().saturating_sub(1) as f32 / 2.0))
+                * separation
+                * *space
+        } else {
+            0.0
+        };
+        let grace_offset = if note.is_grace {
+            grace_note_offset(notes, note_index) * *space
+        } else {
+            0.0
+        };
+        xs.push(
+            *content_x0
+                + (*content_w * (beat_pos / *total_beats) as f32)
+                + voice_offset
+                + grace_offset,
+        );
+        beat_pos += note.beats();
+    }
+    xs
+}
+
+struct TupletRenderContext<'a> {
+    layout: &'a LayoutResult,
+    part: usize,
+    staff: usize,
+    measure_idx: usize,
+    voice_idx: usize,
+    notes: &'a [Note],
+    xs: &'a [f32],
+    voice_stem_up: bool,
+    clef_bottom: i32,
+    bottom_y: f32,
+    space: f32,
+    beam_tips: &'a HashMap<usize, f32>,
+    tablature: Option<&'a acorde_core::TablatureConfig>,
+}
+
+fn render_measure_voice_tuplets(body: &mut String, context: &TupletRenderContext<'_>) {
+    let TupletRenderContext {
+        layout,
+        part,
+        staff,
+        measure_idx,
+        voice_idx,
+        notes,
+        xs,
+        voice_stem_up,
+        clef_bottom,
+        bottom_y,
+        space,
+        beam_tips,
+        tablature,
+    } = context;
     for group in layout.tuplet_groups.iter().filter(|g| {
-        g.part == part && g.staff == staff && g.measure == measure_idx && g.voice == voice_idx
+        g.part == *part && g.staff == *staff && g.measure == *measure_idx && g.voice == *voice_idx
     }) {
         if group.note_indices.len() < 2 {
             continue;
@@ -1869,8 +2488,8 @@ fn render_measure_voice<'a>(
         let group_stem_up = group
             .note_indices
             .iter()
-            .find_map(|&i| (!notes[i].is_rest).then(|| notes[i].stem_up.unwrap_or(up)))
-            .unwrap_or(up);
+            .find_map(|&i| (!notes[i].is_rest).then(|| notes[i].stem_up.unwrap_or(*voice_stem_up)))
+            .unwrap_or(*voice_stem_up);
         let beamed_fully = group
             .note_indices
             .iter()
@@ -1881,15 +2500,18 @@ fn render_measure_voice<'a>(
             .note_indices
             .iter()
             .map(|&i| {
-                if notes[i].is_rest {
-                    bottom_y - 2.0 * space
-                } else {
-                    let notehead_y =
-                        note_attach_y(&notes[i], clef_bottom, group_stem_up, bottom_y, space);
-                    match beam_tips.get(&i) {
-                        Some(&tip) => tip,
-                        None => notehead_y + dir * glyphs::DEFAULT_STEM_LEN_U * space,
-                    }
+                let notehead_y = note_anchor_y(
+                    &notes[i],
+                    *clef_bottom,
+                    group_stem_up,
+                    *bottom_y,
+                    *space,
+                    *tablature,
+                );
+                match beam_tips.get(&i) {
+                    Some(&tip) => tip,
+                    None if notes[i].is_rest => notehead_y,
+                    None => notehead_y + dir * glyphs::DEFAULT_STEM_LEN_U * *space,
                 }
             })
             .collect();
@@ -1899,11 +2521,10 @@ fn render_measure_voice<'a>(
             group.actual_notes,
             group_stem_up,
             beamed_fully,
-            space,
+            *space,
         );
         body.push_str(&plan.svg);
     }
-    Ok(())
 }
 
 struct LyricHyphenContext {
@@ -2080,7 +2701,10 @@ fn plan_measure_beams(
         let group_xs: Vec<f32> = valid_indices.iter().map(|&i| xs[i]).collect();
         let attach_ys: Vec<f32> = valid_indices
             .iter()
-            .map(|&i| note_attach_y(&notes[i], clef_bottom, group_stem_up, bottom_y, space))
+            .map(|&i| {
+                note_attach_y(&notes[i], clef_bottom, group_stem_up, bottom_y, space)
+                    + note_placement_offsets_u(&notes[i]).1 * space
+            })
             .collect();
         let plan = beams::plan_beam_group(&durations, &group_xs, &attach_ys, group_stem_up, space);
         for (local_i, tip) in plan.tips {
@@ -2109,6 +2733,7 @@ fn render_measure_text(
     width: f32,
     space: f32,
     interactive: bool,
+    note_points: &HashMap<NoteKey, NotePoint>,
 ) {
     let mut above_texts = 0usize;
     let mut below_texts = 0usize;
@@ -2127,13 +2752,22 @@ fn render_measure_text(
             above_texts += 1;
             index
         };
-        let base_y = if placement_below {
+        let default_y = if placement_below {
             bottom_y + (2.8 + stack_index as f32 * 0.95) * space
         } else {
             bottom_y - (6.2 + stack_index as f32 * 0.95) * space
         };
         let offset_y = styled.offset_y.unwrap_or(0.0) + styled.relative_y.unwrap_or(0.0);
-        let y = base_y + (offset_y as f32 / 10.0) * space;
+        let y = measure_text_collision_y(&MeasureTextCollisionContext {
+            measure,
+            part,
+            staff,
+            measure_idx,
+            note_points,
+            default_y,
+            space,
+            below: placement_below,
+        }) + (offset_y as f32 / 10.0) * space;
         let offset_x = styled.offset_x.unwrap_or(0.0) + styled.relative_x.unwrap_or(0.0);
         let text_x = content_x0 + (offset_x as f32 / 10.0) * space;
         let class = measure_text_class(styled.style);
@@ -2176,6 +2810,60 @@ fn render_measure_text(
                 f(0.06 * space)
             );
         }
+    }
+}
+
+struct MeasureTextCollisionContext<'a> {
+    measure: &'a Measure,
+    part: usize,
+    staff: usize,
+    measure_idx: usize,
+    note_points: &'a HashMap<NoteKey, NotePoint>,
+    default_y: f32,
+    space: f32,
+    below: bool,
+}
+
+/// Move measure-level text outside note-attached annotation lanes when its default baseline
+/// would overlap them. This is deliberately font-independent; a host with exact font metrics
+/// may add more clearance during final publication export.
+fn measure_text_collision_y(context: &MeasureTextCollisionContext<'_>) -> f32 {
+    let MeasureTextCollisionContext {
+        measure,
+        part,
+        staff,
+        measure_idx,
+        note_points,
+        default_y,
+        space,
+        below,
+    } = context;
+    let mut boundary = if *below {
+        f32::NEG_INFINITY
+    } else {
+        f32::INFINITY
+    };
+    for (voice_idx, voice) in measure.voices.iter().enumerate() {
+        for (note_idx, note) in voice.iter().enumerate() {
+            let Some(&(_, anchor_y, stem_up, _)) =
+                note_points.get(&(*part, *staff, *measure_idx, voice_idx, note_idx))
+            else {
+                continue;
+            };
+            let (above_extent, below_extent) = note_annotation_lane_extents(note, stem_up);
+            if *below {
+                if below_extent > 0.0 {
+                    boundary = boundary.max(anchor_y + (below_extent + 0.8) * *space);
+                }
+            } else if above_extent > 0.0 {
+                boundary = boundary.min(anchor_y - (above_extent + 0.8) * *space);
+            }
+        }
+    }
+    if *below {
+        (*default_y).max(boundary)
+    } else {
+        (*default_y).min(boundary)
     }
 }
 
@@ -2227,9 +2915,8 @@ fn voice_separation_u(measure: &Measure, voice_slots: &[usize], target_beat: f64
             notes
                 .iter()
                 .skip(index + 1)
-                .map(move |&right| (event_footprint_u(left), event_footprint_u(right)))
+                .map(move |&right| event_pair_clearance_u(left, right))
         })
-        .map(|(left, right)| (left + right) / 2.0 + 0.18)
         .fold(VOICE_SEPARATION_U, f32::max)
 }
 
@@ -2260,8 +2947,7 @@ fn resolve_cross_voice_event_spacing(
             if !wide_current && !wide_prior || prior_x > x {
                 continue;
             }
-            let minimum_gap =
-                (event_footprint_u(prior_note) + event_footprint_u(note)) / 2.0 + 0.18;
+            let minimum_gap = event_pair_clearance_u(prior_note, note);
             x = x.max(prior_x + minimum_gap * space);
         }
         candidate[index] = x;
@@ -2297,8 +2983,7 @@ fn resolve_adjacent_event_spacing(
         if notes[index - 1].is_grace || notes[index].is_grace {
             continue;
         }
-        let minimum_gap =
-            (event_footprint_u(&notes[index - 1]) + event_footprint_u(&notes[index])) / 2.0 + 0.18;
+        let minimum_gap = event_pair_clearance_u(&notes[index - 1], &notes[index]);
         let required_x = candidate[index - 1] + minimum_gap * space;
         if candidate[index] < required_x {
             candidate[index] = required_x;
@@ -2313,9 +2998,25 @@ fn resolve_adjacent_event_spacing(
     }
 }
 
-/// Conservative horizontal footprint in staff spaces. Accidentals use the same font-independent
-/// width contract as the glyph renderer; host font metrics may still choose a larger layout.
-fn event_footprint_u(note: &Note) -> f32 {
+/// Return the clearance required for two adjacent events after separating annotation lanes.
+/// Noteheads and accidentals always participate; text only participates when both annotations
+/// occupy the same semantic side of the staff.
+fn event_pair_clearance_u(left: &Note, right: &Note) -> f32 {
+    let notation =
+        (note_notation_footprint_u(left) + note_notation_footprint_u(right)) / 2.0 + 0.18;
+    let annotations = [true, false]
+        .into_iter()
+        .map(|above| {
+            (note_annotation_lane_width_u(left, above) + note_annotation_lane_width_u(right, above))
+                / 2.0
+                + 0.18
+        })
+        .fold(0.0_f32, f32::max);
+    notation.max(annotations)
+}
+
+/// Width of noteheads, accidentals, and authored tablature positions, excluding annotations.
+fn note_notation_footprint_u(note: &Note) -> f32 {
     let notehead = if note.is_grace {
         0.42
     } else {
@@ -2328,17 +3029,122 @@ fn event_footprint_u(note: &Note) -> f32 {
             acorde_core::NoteHead::X => 0.68,
         }
     };
-    let accidental = if note.is_unpitched {
-        0.0
-    } else {
-        note.pitches
-            .iter()
-            .filter(|pitch| pitch.alter != 0)
-            .map(|pitch| glyphs::accidental_width_u(pitch.alter) + 0.15)
-            .fold(0.0_f32, f32::max)
-    };
+    let accidental = accidental_footprint_u(note);
     let notation_width = notehead + accidental;
-    notation_width.max(note_annotation_width_u(note))
+    let tab_width = if !note.tab_positions.is_empty() {
+        note.tab_positions
+            .iter()
+            .map(|position| tab_fret_metrics(position.fret).advance_units)
+            .sum::<f32>()
+            + tab_fret_metrics(0).side_gap_units * note.tab_positions.len().saturating_sub(1) as f32
+    } else {
+        note.tab_position
+            .as_ref()
+            .map(|position| tab_fret_metrics(position.fret).advance_units)
+            .unwrap_or(0.0)
+    };
+    notation_width.max(tab_width)
+}
+
+/// Reserve the horizontal footprint of all visible accidentals in an event.
+///
+/// Chord accidentals may occupy separate leftward columns when their staff positions
+/// collide. Summing their widths with a deterministic inter-column gap is conservative,
+/// but prevents a later chord member from being placed over an earlier accidental.
+fn accidental_footprint_u(note: &Note) -> f32 {
+    if note.is_unpitched {
+        return 0.0;
+    }
+    let widths: Vec<f32> = note
+        .pitches
+        .iter()
+        .filter(|pitch| pitch.alter != 0)
+        .map(|pitch| glyphs::accidental_width_u(pitch.alter) + 0.15)
+        .collect();
+    widths.iter().sum::<f32>() + 0.25 * widths.len().saturating_sub(1) as f32
+}
+
+/// Conservative width for one annotation collision lane. When stem direction is implicit,
+/// direction-sensitive annotations are reserved on both sides to avoid a false negative.
+fn note_annotation_lane_width_u(note: &Note, above: bool) -> f32 {
+    let mut width = 0.0_f32;
+    let direction = note.stem_up;
+    if note.chord_symbol.is_some() && above {
+        if let Some(chord) = &note.chord_symbol {
+            width = width.max(chord.display_text().chars().count() as f32 * 0.42);
+        }
+    }
+    if let Some(dynamic) = &note.dynamic {
+        reserve_annotation_lane(
+            &mut width,
+            direction,
+            above,
+            dynamic.to_musicxml_str().chars().count() as f32 * 0.42,
+            true,
+        );
+    }
+    if let Some(text) = &note.technique_text {
+        reserve_annotation_lane(
+            &mut width,
+            direction,
+            above,
+            text.chars().count() as f32 * 0.42,
+            true,
+        );
+    }
+    if let Some(label) = guitar_technique_label(note) {
+        // Tab technique labels are rendered above the string staff.
+        if note.tab_positions.is_empty() && note.tab_position.is_none() {
+            reserve_annotation_lane(
+                &mut width,
+                direction,
+                above,
+                label.chars().count() as f32 * 0.42,
+                true,
+            );
+        } else if above {
+            width = width.max(label.chars().count() as f32 * 0.42);
+        }
+    }
+    if note.fingering.is_some() || !note.fingerings.is_empty() {
+        let fingering_width = 0.42 * 3.0;
+        if note.tab_positions.is_empty() && note.tab_position.is_none() {
+            reserve_annotation_lane(&mut width, direction, above, fingering_width, false);
+        } else if above {
+            width = width.max(fingering_width);
+        }
+    }
+    if note.lyric.is_some() && !above {
+        if let Some(lyric) = &note.lyric {
+            width = width.max(lyric.text.chars().count() as f32 * 0.42 + 0.6);
+        }
+    }
+    if note.pitches.iter().any(|pitch| pitch.microtone_cents != 0) && above {
+        width = width.max(
+            note.pitches
+                .iter()
+                .filter(|pitch| pitch.microtone_cents != 0)
+                .map(|pitch| format!("{:+}c", pitch.microtone_cents).len() as f32 * 0.42)
+                .fold(0.0_f32, f32::max),
+        );
+    }
+    if !note.articulations.is_empty() {
+        let articulation_width = note_annotation_width_u(note);
+        reserve_annotation_lane(&mut width, direction, above, articulation_width, true);
+    }
+    width
+}
+
+fn reserve_annotation_lane(
+    width: &mut f32,
+    direction: Option<bool>,
+    above: bool,
+    value: f32,
+    naturally_above: bool,
+) {
+    if direction.is_none() || naturally_above == above {
+        *width = (*width).max(value);
+    }
 }
 
 /// Conservative centered width for note-attached text. This is deliberately font-independent;
@@ -2437,7 +3243,8 @@ fn render_all_spans(
             | SpanMark::Pedal { start, end }
             | SpanMark::Slur { start, end }
             | SpanMark::TrillLine { start, end }
-            | SpanMark::Glissando { start, end } => (start, end),
+            | SpanMark::Glissando { start, end }
+            | SpanMark::Harmony { start, end, .. } => (start, end),
         };
         let (Some(&(x1, y1, up1, row1)), Some(&(x2, y2, up2, row2))) = (
             points.get(&(
@@ -2458,6 +3265,7 @@ fn render_all_spans(
             SpanMark::Slur { .. } => "slur",
             SpanMark::TrillLine { .. } => "trill-line",
             SpanMark::Glissando { .. } => "glissando",
+            SpanMark::Harmony { .. } => "harmony",
         };
         if interactive {
             let _ = write!(
@@ -2493,108 +3301,136 @@ fn render_all_spans(
             }
             continue;
         }
-        let (left, right) = if x1 <= x2 { (x1, x2) } else { (x2, x1) };
-        match span {
-            SpanMark::Hairpin { kind, .. } => {
-                let y = y1 + (if up1 { 2.0 } else { -4.0 }) * space;
-                let open = matches!(kind, acorde_core::HairpinKind::Crescendo);
-                let (a, b) = if open {
-                    (y + 0.45 * space, y)
-                } else {
-                    (y, y + 0.45 * space)
-                };
-                let _ = write!(
-                    body,
-                    r#"<path class="acorde-hairpin" d="M {},{} L {},{} M {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
-                    f(left),
-                    f(a),
-                    f((left + right) / 2.0),
-                    f(b),
-                    f((left + right) / 2.0),
-                    f(b),
-                    f(right),
-                    f(a),
-                    f(0.08 * space)
-                );
-            }
-            SpanMark::Slur { .. } | SpanMark::TrillLine { .. } | SpanMark::Glissando { .. } => {
-                let y = if up1 || up2 {
-                    y1.min(y2) - 1.0 * space
-                } else {
-                    y1.max(y2) + 1.0 * space
-                };
-                let bend = if up1 || up2 {
-                    -0.8 * space
-                } else {
-                    0.8 * space
-                };
-                let _ = write!(
-                    body,
-                    r#"<path class="{}" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
-                    if matches!(span, SpanMark::Slur { .. }) {
-                        "acorde-slur"
-                    } else if matches!(span, SpanMark::Glissando { .. }) {
-                        "acorde-glissando"
-                    } else {
-                        "acorde-trill-line"
-                    },
-                    f(x1),
-                    f(y1),
-                    f((x1 + x2) / 2.0),
-                    f(y + bend),
-                    f(x2),
-                    f(y2),
-                    f(0.08 * space)
-                );
-            }
-            SpanMark::Pedal { .. } => {
-                let y = y1 + 2.0 * space;
-                let _ = write!(
-                    body,
-                    r#"<g class="acorde-pedal"><text x="{}" y="{}" font-family="serif" font-size="{}">Ped.</text><line x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/></g>"#,
-                    f(left),
-                    f(y),
-                    f(0.75 * space),
-                    f(left + 0.8 * space),
-                    f(y + 0.12 * space),
-                    f(right),
-                    f(y + 0.12 * space),
-                    f(0.06 * space)
-                );
-            }
-            SpanMark::Ottava { kind, .. } => {
-                let label = match kind {
-                    acorde_core::OttavaKind::Ma15 | acorde_core::OttavaKind::Mb15 => "15ma",
-                    _ => "8va",
-                };
-                let y = y1
-                    + (if matches!(
-                        kind,
-                        acorde_core::OttavaKind::Va8 | acorde_core::OttavaKind::Ma15
-                    ) {
-                        -5.8
-                    } else {
-                        1.5
-                    }) * space;
-                let _ = write!(
-                    body,
-                    r#"<g class="acorde-ottava"><text x="{}" y="{}" font-family="serif" font-style="italic" font-size="{}">{}</text><line x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}" stroke-dasharray="{},{}"/></g>"#,
-                    f(left),
-                    f(y),
-                    f(0.75 * space),
-                    label,
-                    f(left + 1.5 * space),
-                    f(y - 0.12 * space),
-                    f(right),
-                    f(y - 0.12 * space),
-                    f(0.06 * space),
-                    f(0.3 * space),
-                    f(0.2 * space)
-                );
-            }
-        }
+        render_same_row_span(body, span, x1, y1, up1, x2, y2, up2, space);
         if interactive {
             body.push_str("</g>");
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_same_row_span(
+    body: &mut String,
+    span: &SpanMark,
+    x1: f32,
+    y1: f32,
+    up1: bool,
+    x2: f32,
+    y2: f32,
+    up2: bool,
+    space: f32,
+) {
+    let (left, right) = if x1 <= x2 { (x1, x2) } else { (x2, x1) };
+    match span {
+        SpanMark::Hairpin { kind, .. } => {
+            let y = y1 + (if up1 { 2.0 } else { -4.0 }) * space;
+            let open = matches!(kind, acorde_core::HairpinKind::Crescendo);
+            let (a, b) = if open {
+                (y + 0.45 * space, y)
+            } else {
+                (y, y + 0.45 * space)
+            };
+            let _ = write!(
+                body,
+                r#"<path class="acorde-hairpin" d="M {},{} L {},{} M {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                f(left),
+                f(a),
+                f((left + right) / 2.0),
+                f(b),
+                f((left + right) / 2.0),
+                f(b),
+                f(right),
+                f(a),
+                f(0.08 * space)
+            );
+        }
+        SpanMark::Slur { .. } | SpanMark::TrillLine { .. } | SpanMark::Glissando { .. } => {
+            let y = if up1 || up2 {
+                y1.min(y2) - 1.0 * space
+            } else {
+                y1.max(y2) + 1.0 * space
+            };
+            let bend = if up1 || up2 {
+                -0.8 * space
+            } else {
+                0.8 * space
+            };
+            let class = if matches!(span, SpanMark::Slur { .. }) {
+                "acorde-slur"
+            } else if matches!(span, SpanMark::Glissando { .. }) {
+                "acorde-glissando"
+            } else {
+                "acorde-trill-line"
+            };
+            let _ = write!(
+                body,
+                r#"<path class="{}" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                class,
+                f(x1),
+                f(y1),
+                f((x1 + x2) / 2.0),
+                f(y + bend),
+                f(x2),
+                f(y2),
+                f(0.08 * space)
+            );
+        }
+        SpanMark::Pedal { .. } => {
+            let y = y1 + 2.0 * space;
+            let _ = write!(
+                body,
+                r#"<g class="acorde-pedal"><text x="{}" y="{}" font-family="serif" font-size="{}">Ped.</text><line x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/></g>"#,
+                f(left),
+                f(y),
+                f(0.75 * space),
+                f(left + 0.8 * space),
+                f(y + 0.12 * space),
+                f(right),
+                f(y + 0.12 * space),
+                f(0.06 * space)
+            );
+        }
+        SpanMark::Ottava { kind, .. } => {
+            let label = match kind {
+                acorde_core::OttavaKind::Ma15 | acorde_core::OttavaKind::Mb15 => "15ma",
+                _ => "8va",
+            };
+            let y = y1
+                + (if matches!(
+                    kind,
+                    acorde_core::OttavaKind::Va8 | acorde_core::OttavaKind::Ma15
+                ) {
+                    -5.8
+                } else {
+                    1.5
+                }) * space;
+            let _ = write!(
+                body,
+                r#"<g class="acorde-ottava"><text x="{}" y="{}" font-family="serif" font-style="italic" font-size="{}">{}</text><line x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}" stroke-dasharray="{},{}"/></g>"#,
+                f(left),
+                f(y),
+                f(0.75 * space),
+                label,
+                f(left + 1.5 * space),
+                f(y - 0.12 * space),
+                f(right),
+                f(y - 0.12 * space),
+                f(0.06 * space),
+                f(0.3 * space),
+                f(0.2 * space)
+            );
+        }
+        SpanMark::Harmony { .. } => {
+            let y = y1.min(y2) - 6.8 * space;
+            let _ = write!(
+                body,
+                r#"<line class="acorde-harmony-extender" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
+                f(left),
+                f(y),
+                f(right),
+                f(y),
+                f(0.07 * space)
+            );
         }
     }
 }
@@ -2616,7 +3452,10 @@ fn render_ties(
                     for (note, current) in
                         notes.iter().enumerate().take(notes.len().saturating_sub(1))
                     {
-                        if !current.tie_start {
+                        let Some(next) = notes.get(note + 1) else {
+                            continue;
+                        };
+                        if !current.tie_start || current.is_rest || next.is_rest {
                             continue;
                         }
                         let a = points.get(&(part, staff, measure, voice, note));
@@ -2649,19 +3488,16 @@ fn render_ties(
                         }
                     }
                     if let Some(last) = notes.last() {
-                        if last.tie_start {
+                        if last.tie_start && !last.is_rest {
                             let Some(next_measure) = s.measures.get(measure + 1) else {
                                 continue;
                             };
                             let next = &next_measure.voices[voice];
                             if let (Some(a), Some(b)) = (
                                 points.get(&(part, staff, measure, voice, notes.len() - 1)),
-                                next.iter()
-                                    .enumerate()
-                                    .find_map(|(i, n)| (!n.is_rest).then_some((i, n)))
-                                    .and_then(|(i, _)| {
-                                        points.get(&(part, staff, measure + 1, voice, i))
-                                    }),
+                                next.first().filter(|note| !note.is_rest).and_then(|_| {
+                                    points.get(&(part, staff, measure + 1, voice, 0))
+                                }),
                             ) {
                                 let (x1, y1, up1, row1) = *a;
                                 let (x2, y2, up2, row2) = *b;
@@ -2780,6 +3616,18 @@ fn render_span_segment(
                 f(0.06 * space)
             );
         }
+        SpanMark::Harmony { .. } => {
+            let y = y1 - 6.8 * space;
+            let _ = write!(
+                body,
+                r#"<line class="acorde-harmony-extender" data-continuation="true" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
+                f(x1),
+                f(y),
+                f(x2),
+                f(y),
+                f(0.07 * space)
+            );
+        }
     }
     let _ = start;
 }
@@ -2838,6 +3686,28 @@ fn note_attach_y(
     staff_bottom_y + geometry::position_y(outer, space)
 }
 
+/// Return the rendered anchor point for a note, including authored placement offsets.
+///
+/// All note-connected geometry (hit-test metadata, lyrics, tuplets, stems, and annotations)
+/// must use this helper so a MusicXML placement edit cannot leave one connected element behind.
+fn note_anchor_y(
+    note: &Note,
+    clef_bottom: i32,
+    stem_up: bool,
+    staff_bottom_y: f32,
+    space: f32,
+    tablature: Option<&acorde_core::TablatureConfig>,
+) -> f32 {
+    let base = if note.is_rest {
+        staff_bottom_y - 2.0 * space
+    } else if let Some(tab) = tablature {
+        tab_note_y(note, tab, staff_bottom_y, space)
+    } else {
+        note_attach_y(note, clef_bottom, stem_up, staff_bottom_y, space)
+    };
+    base + note_placement_offsets_u(note).1 * space
+}
+
 #[allow(clippy::too_many_arguments)]
 fn render_note(
     body: &mut String,
@@ -2859,6 +3729,8 @@ fn render_note(
     courtesy: &HashMap<AccKey, i8>,
     tablature: Option<&acorde_core::TablatureConfig>,
 ) -> Result<(), RenderError> {
+    let (_, offset_y) = note_placement_offsets_u(note);
+    let placed_staff_bottom_y = staff_bottom_y + offset_y * space;
     let addr = format!("{part}:{staff}:{measure_idx}:{voice_idx}:{note_idx}");
     let kind = if note.is_rest { "rest" } else { "note" };
     let mut special_class = String::new();
@@ -2877,13 +3749,7 @@ fn render_note(
         );
     }
     let stem_up = note.stem_up.unwrap_or(voice_stem_up);
-    let anchor_y = if note.is_rest {
-        staff_bottom_y - 2.0 * space
-    } else if let Some(tab) = tablature {
-        tab_note_y(note, tab, staff_bottom_y, space)
-    } else {
-        note_attach_y(note, clef_bottom, stem_up, staff_bottom_y, space)
-    };
+    let anchor_y = note_anchor_y(note, clef_bottom, stem_up, staff_bottom_y, space, tablature);
     let transform = if note.is_grace || note.is_cue {
         format!(
             " transform=\"translate({} {}) scale(0.68) translate({} {})\"",
@@ -2899,12 +3765,17 @@ fn render_note(
     if interactive {
         let _ = write!(
             g,
-            r#"<g class="acorde-{kind}{special_class}" data-acorde-kind="{kind}" data-part="{part}" data-staff="{staff}" data-measure="{measure_idx}" data-voice="{voice_idx}" data-note="{note_idx}" data-note-addr="{addr}"{unpitched}{percussion_head}{transform}>"#,
+            r#"<g class="acorde-{kind}{special_class}" data-acorde-kind="{kind}" data-part="{part}" data-staff="{staff}" data-measure="{measure_idx}" data-voice="{voice_idx}" data-note="{note_idx}" data-note-addr="{addr}"{unpitched}{instrument_id}{percussion_head}{transform}>"#,
             unpitched = if note.is_unpitched {
                 " data-acorde-unpitched=\"true\""
             } else {
                 ""
             },
+            instrument_id = note
+                .instrument_id
+                .as_deref()
+                .map(|id| format!(" data-acorde-instrument-id=\"{}\"", escape_xml(id)))
+                .unwrap_or_default(),
             percussion_head = if note.is_unpitched {
                 format!(
                     " data-acorde-percussion-notehead=\"{}\"",
@@ -2919,18 +3790,74 @@ fn render_note(
     }
     body.push_str(&g);
 
+    render_note_content(
+        body,
+        note,
+        part,
+        staff,
+        measure_idx,
+        voice_idx,
+        note_idx,
+        clef,
+        clef_bottom,
+        x,
+        placed_staff_bottom_y,
+        anchor_y,
+        space,
+        stem_up,
+        beam_tip,
+        interactive,
+        mandatory,
+        courtesy,
+        tablature,
+    )?;
+
+    body.push_str("</g>");
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_note_content(
+    body: &mut String,
+    note: &Note,
+    part: usize,
+    staff: usize,
+    measure_idx: usize,
+    voice_idx: usize,
+    note_idx: usize,
+    clef: &Clef,
+    clef_bottom: i32,
+    x: f32,
+    placed_staff_bottom_y: f32,
+    anchor_y: f32,
+    space: f32,
+    stem_up: bool,
+    beam_tip: Option<f32>,
+    interactive: bool,
+    mandatory: &HashMap<AccKey, i8>,
+    courtesy: &HashMap<AccKey, i8>,
+    tablature: Option<&acorde_core::TablatureConfig>,
+) -> Result<(), RenderError> {
     if note.is_rest {
         render_rest(
             body,
             &note.duration,
             note.dot_count,
             x,
-            staff_bottom_y,
+            placed_staff_bottom_y,
             space,
         );
     } else if let Some(tab) = tablature {
         validate_tab_note(note, tab, space)?;
-        render_tab_note(body, note, tab, x, staff_bottom_y, space, interactive);
+        render_tab_note(
+            body,
+            note,
+            tab,
+            x,
+            placed_staff_bottom_y,
+            space,
+            interactive,
+        );
         render_note_annotations(body, note, x, anchor_y, stem_up, space);
     } else {
         render_pitched_note(
@@ -2944,7 +3871,7 @@ fn render_note(
             clef,
             clef_bottom,
             x,
-            staff_bottom_y,
+            placed_staff_bottom_y,
             space,
             stem_up,
             beam_tip,
@@ -2966,8 +3893,6 @@ fn render_note(
             );
         }
     }
-
-    body.push_str("</g>");
     Ok(())
 }
 
@@ -3008,8 +3933,9 @@ fn validate_tab_note(
 
 fn tab_note_y(note: &Note, tab: &acorde_core::TablatureConfig, bottom_y: f32, space: f32) -> f32 {
     let string = note
-        .tab_position
-        .as_ref()
+        .tab_positions
+        .first()
+        .or(note.tab_position.as_ref())
         .map(|position| position.string)
         .or(note.string_number)
         .unwrap_or(1)
@@ -3083,6 +4009,7 @@ fn render_tab_note(
             false,
         );
     }
+    render_tab_bend(body, note, tab, x, bottom_y, space, interactive);
     if let Some(label) = guitar_technique_label(note) {
         write_annotation_text(
             body,
@@ -3096,18 +4023,55 @@ fn render_tab_note(
     }
     for (pitch_index, pitch) in note.pitches.iter().enumerate() {
         if pitch.microtone_cents != 0 {
-            let label = format!("{:+}c", pitch.microtone_cents);
-            write_annotation_text(
+            write_microtone_marker(
                 body,
-                "acorde-microtone",
-                &label,
                 x + (0.65 + pitch_index as f32 * 0.55) * space,
                 y - 3.35 * space,
                 space,
-                false,
+                pitch_index,
+                pitch.microtone_cents,
             );
         }
     }
+}
+
+fn render_tab_bend(
+    body: &mut String,
+    note: &Note,
+    tab: &acorde_core::TablatureConfig,
+    x: f32,
+    bottom_y: f32,
+    space: f32,
+    interactive: bool,
+) {
+    if !matches!(
+        note.guitar_technique,
+        Some(acorde_core::GuitarTechnique::Bend)
+    ) {
+        return;
+    }
+    let y = tab_note_y(note, tab, bottom_y, space);
+    let cents = note.guitar_bend_alter_cents.unwrap_or(100);
+    let rise = (0.9 + f32::from(cents.unsigned_abs()) / 200.0 * 0.6).clamp(0.9, 2.4) * space;
+    let start = x - 0.35 * space;
+    let end = x + 0.65 * space;
+    let attributes = if interactive {
+        format!(" data-acorde-kind=\"tab-bend\" data-bend-cents=\"{cents}\"")
+    } else {
+        String::new()
+    };
+    let _ = write!(
+        body,
+        r#"<path class="acorde-tab-bend" data-technique="bend"{} d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+        attributes,
+        f(start),
+        f(y - 0.35 * space),
+        f(x + 0.1 * space),
+        f(y - rise),
+        f(end),
+        f(y - rise * 0.82),
+        f(0.08 * space)
+    );
 }
 
 fn write_tab_fret_text(
@@ -3239,6 +4203,203 @@ fn render_tab_technique_connection(
     if y_pairs.is_empty() {
         return;
     }
+    let start = x1 + 0.2 * space;
+    let end = x2 - 0.2 * space;
+    if end <= start {
+        return;
+    }
+    let start_addr = format!(
+        "{part}:{staff}:{measure_idx}:{voice_idx}:{}",
+        note_index - 1
+    );
+    let end_addr = format!("{part}:{staff}:{measure_idx}:{voice_idx}:{note_index}");
+    for (string, y1, y2) in y_pairs {
+        render_tab_technique_segment(
+            body,
+            technique,
+            TabTechniqueSegment {
+                string,
+                start_addr: &start_addr,
+                end_addr: &end_addr,
+                start,
+                y1,
+                end,
+                y2,
+                space: *space,
+            },
+        );
+    }
+}
+
+/// Render tab techniques between the last note of one measure and the first note of the next.
+/// System breaks use the same edge-owned continuation policy as ties and other score spans.
+fn render_cross_measure_tab_technique_connections(
+    body: &mut String,
+    score: &Score,
+    note_points: &HashMap<NoteKey, NotePoint>,
+    width: f32,
+    left_margin_u: f32,
+    right_margin_u: f32,
+    space: f32,
+) {
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            if staff.tablature.is_none() {
+                continue;
+            }
+            for measure_index in 1..staff.measures.len() {
+                let previous_measure = &staff.measures[measure_index - 1];
+                let measure = &staff.measures[measure_index];
+                let voice_count = previous_measure.voices.len().min(measure.voices.len());
+                for voice_index in 0..voice_count {
+                    let Some(previous) = previous_measure.voices[voice_index].last() else {
+                        continue;
+                    };
+                    let Some(current) = measure.voices[voice_index].first() else {
+                        continue;
+                    };
+                    let Some(technique) = current.guitar_technique.as_ref() else {
+                        continue;
+                    };
+                    if !matches!(
+                        technique,
+                        acorde_core::GuitarTechnique::Slide
+                            | acorde_core::GuitarTechnique::HammerOn
+                            | acorde_core::GuitarTechnique::PullOff
+                    ) || previous.is_rest
+                        || current.is_rest
+                        || !has_tab_position(previous)
+                        || !has_tab_position(current)
+                    {
+                        continue;
+                    }
+                    let previous_key = (
+                        part_index,
+                        staff_index,
+                        measure_index - 1,
+                        voice_index,
+                        previous_measure.voices[voice_index].len() - 1,
+                    );
+                    let current_key = (part_index, staff_index, measure_index, voice_index, 0);
+                    let Some(&(x1, anchor_y1, _, row1)) = note_points.get(&previous_key) else {
+                        continue;
+                    };
+                    let Some(&(x2, anchor_y2, _, row2)) = note_points.get(&current_key) else {
+                        continue;
+                    };
+                    if !x1.is_finite() || !x2.is_finite() {
+                        continue;
+                    }
+                    let previous_positions = if !previous.tab_positions.is_empty() {
+                        previous.tab_positions.as_slice()
+                    } else {
+                        previous.tab_position.as_slice()
+                    };
+                    let current_positions = if !current.tab_positions.is_empty() {
+                        current.tab_positions.as_slice()
+                    } else {
+                        current.tab_position.as_slice()
+                    };
+                    let previous_anchor = tab_anchor_string(previous);
+                    let current_anchor = tab_anchor_string(current);
+                    let start_addr = format!(
+                        "{part_index}:{staff_index}:{}:{voice_index}:{}",
+                        measure_index - 1,
+                        previous_measure.voices[voice_index].len() - 1
+                    );
+                    let end_addr =
+                        format!("{part_index}:{staff_index}:{measure_index}:{voice_index}:0");
+                    for current_position in current_positions {
+                        let Some(previous_position) = previous_positions
+                            .iter()
+                            .find(|candidate| candidate.string == current_position.string)
+                            .or_else(|| {
+                                (previous_positions.len() == current_positions.len())
+                                    .then(|| previous_positions.first())
+                                    .flatten()
+                            })
+                        else {
+                            continue;
+                        };
+                        let y1 = anchor_y1
+                            + (i16::from(previous_position.string) - i16::from(previous_anchor))
+                                as f32
+                                * space;
+                        let y2 = anchor_y2
+                            + (i16::from(current_position.string) - i16::from(current_anchor))
+                                as f32
+                                * space;
+                        let render_segment =
+                            |body: &mut String, start: f32, start_y: f32, end: f32, end_y: f32| {
+                                render_tab_technique_segment(
+                                    body,
+                                    technique,
+                                    TabTechniqueSegment {
+                                        string: current_position.string,
+                                        start_addr: &start_addr,
+                                        end_addr: &end_addr,
+                                        start,
+                                        y1: start_y,
+                                        end,
+                                        y2: end_y,
+                                        space,
+                                    },
+                                );
+                            };
+                        if row1 == row2 {
+                            render_segment(body, x1 + 0.2 * space, y1, x2 - 0.2 * space, y2);
+                        } else {
+                            render_segment(
+                                body,
+                                x1 + 0.2 * space,
+                                y1,
+                                width - right_margin_u * space,
+                                y1,
+                            );
+                            render_segment(body, left_margin_u * space, y2, x2 - 0.2 * space, y2);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn tab_anchor_string(note: &Note) -> u8 {
+    note.tab_positions
+        .first()
+        .or(note.tab_position.as_ref())
+        .map(|position| position.string)
+        .or(note.string_number)
+        .unwrap_or(1)
+}
+
+struct TabTechniqueSegment<'a> {
+    string: u8,
+    start_addr: &'a str,
+    end_addr: &'a str,
+    start: f32,
+    y1: f32,
+    end: f32,
+    y2: f32,
+    space: f32,
+}
+
+fn render_tab_technique_segment(
+    body: &mut String,
+    technique: &acorde_core::GuitarTechnique,
+    segment: TabTechniqueSegment<'_>,
+) {
+    let TabTechniqueSegment {
+        string,
+        start_addr,
+        end_addr,
+        start,
+        y1,
+        end,
+        y2,
+        space,
+    } = segment;
     let (class, data_technique) = match technique {
         acorde_core::GuitarTechnique::Slide => {
             ("acorde-tab-technique-connection acorde-tab-slide", "slide")
@@ -3253,41 +4414,32 @@ fn render_tab_technique_connection(
         ),
         acorde_core::GuitarTechnique::Bend => return,
     };
-    let start = x1 + 0.2 * space;
-    let end = x2 - 0.2 * space;
-    if end <= start {
+    if !start.is_finite() || !end.is_finite() || end <= start {
         return;
     }
-    let start_addr = format!(
-        "{part}:{staff}:{measure_idx}:{voice_idx}:{}",
-        note_index - 1
-    );
-    let end_addr = format!("{part}:{staff}:{measure_idx}:{voice_idx}:{note_index}");
-    for (string, y1, y2) in y_pairs {
-        if matches!(technique, acorde_core::GuitarTechnique::Slide) {
-            let _ = write!(
-                body,
-                r#"<line class="{class}" data-technique="{data_technique}" data-string="{string}" data-start-note-addr="{start_addr}" data-end-note-addr="{end_addr}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
-                f(start),
-                f(y1),
-                f(end),
-                f(y2),
-                f(0.08 * space)
-            );
-        } else {
-            let control_y = tab_technique_control_y(technique, y1, y2, *space);
-            let _ = write!(
-                body,
-                r#"<path class="{class}" data-technique="{data_technique}" data-string="{string}" data-start-note-addr="{start_addr}" data-end-note-addr="{end_addr}" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
-                f(start),
-                f(y1),
-                f((start + end) / 2.0),
-                f(control_y),
-                f(end),
-                f(y2),
-                f(0.08 * space)
-            );
-        }
+    if matches!(technique, acorde_core::GuitarTechnique::Slide) {
+        let _ = write!(
+            body,
+            r#"<line class="{class}" data-technique="{data_technique}" data-string="{string}" data-start-note-addr="{start_addr}" data-end-note-addr="{end_addr}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
+            f(start),
+            f(y1),
+            f(end),
+            f(y2),
+            f(0.08 * space)
+        );
+    } else {
+        let control_y = tab_technique_control_y(technique, y1, y2, space);
+        let _ = write!(
+            body,
+            r#"<path class="{class}" data-technique="{data_technique}" data-string="{string}" data-start-note-addr="{start_addr}" data-end-note-addr="{end_addr}" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+            f(start),
+            f(y1),
+            f((start + end) / 2.0),
+            f(control_y),
+            f(end),
+            f(y2),
+            f(0.08 * space)
+        );
     }
 }
 
@@ -3419,154 +4571,143 @@ fn render_articulation_annotations(
             lanes,
             space,
         );
-        match articulation {
-            acorde_core::Articulation::Staccato => {
-                let _ = write!(
-                    body,
-                    r#"<circle class="acorde-articulation acorde-staccato" cx="{}" cy="{}" r="{}" fill="black"/>"#,
-                    f(x),
-                    f(y),
-                    f(0.13 * space)
-                );
-            }
-            acorde_core::Articulation::Staccatissimo => {
-                let _ = write!(
-                    body,
-                    r#"<path class="acorde-articulation acorde-staccatissimo" d="M {},{} L {},{} L {},{} Z" fill="black"/>"#,
-                    f(x - 0.28 * space),
-                    f(y - dir * 0.18 * space),
-                    f(x + 0.28 * space),
-                    f(y - dir * 0.18 * space),
-                    f(x),
-                    f(y + dir * 0.42 * space)
-                );
-            }
-            acorde_core::Articulation::Accent | acorde_core::Articulation::Marcato => {
-                let _ = write!(
-                    body,
-                    r#"<path class="acorde-articulation acorde-accent" d="M {},{} L {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
-                    f(x - 0.35 * space),
-                    f(y + dir * 0.25 * space),
-                    f(x),
-                    f(y - dir * 0.15 * space),
-                    f(x + 0.35 * space),
-                    f(y + dir * 0.25 * space),
-                    f(0.09 * space)
-                );
-            }
-            acorde_core::Articulation::Tenuto => {
-                let _ = write!(
-                    body,
-                    r#"<line class="acorde-articulation acorde-tenuto" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
-                    f(x - 0.35 * space),
-                    f(y),
-                    f(x + 0.35 * space),
-                    f(y),
-                    f(0.09 * space)
-                );
-            }
-            acorde_core::Articulation::BreathMark => {
-                let _ = write!(
-                    body,
-                    r#"<path class="acorde-articulation acorde-breath-mark" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
-                    f(x - 0.25 * space),
-                    f(y + dir * 0.35 * space),
-                    f(x),
-                    f(y - dir * 0.05 * space),
-                    f(x + 0.25 * space),
-                    f(y - dir * 0.45 * space),
-                    f(0.1 * space)
-                );
-            }
-            acorde_core::Articulation::Caesura => {
-                let _ = write!(
-                    body,
-                    r#"<path class="acorde-articulation acorde-caesura" d="M {},{} L {},{} M {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
-                    f(x - 0.28 * space),
-                    f(y + dir * 0.45 * space),
-                    f(x - 0.08 * space),
-                    f(y - dir * 0.45 * space),
-                    f(x + 0.08 * space),
-                    f(y + dir * 0.45 * space),
-                    f(x + 0.28 * space),
-                    f(y - dir * 0.45 * space),
-                    f(0.1 * space)
-                );
-            }
-            acorde_core::Articulation::Fermata => write_annotation_text(
+        render_articulation(body, articulation, x, y, dir, space);
+    }
+}
+
+fn render_articulation(
+    body: &mut String,
+    articulation: &acorde_core::Articulation,
+    x: f32,
+    y: f32,
+    dir: f32,
+    space: f32,
+) {
+    match articulation {
+        acorde_core::Articulation::Staccato => {
+            let _ = write!(
                 body,
-                "acorde-fermata",
-                "fermata",
-                x,
-                y + dir * 0.8 * space,
-                space,
-                true,
-            ),
-            acorde_core::Articulation::Trill => write_annotation_text(
+                r#"<circle class="acorde-articulation acorde-staccato" cx="{}" cy="{}" r="{}" fill="black"/>"#,
+                f(x),
+                f(y),
+                f(0.13 * space)
+            );
+        }
+        acorde_core::Articulation::Staccatissimo => {
+            let _ = write!(
                 body,
-                "acorde-articulation acorde-trill",
-                "tr",
-                x,
-                y + dir * 0.8 * space,
-                space,
-                true,
-            ),
-            acorde_core::Articulation::Mordent => write_annotation_text(
+                r#"<path class="acorde-articulation acorde-staccatissimo" d="M {},{} L {},{} L {},{} Z" fill="black"/>"#,
+                f(x - 0.28 * space),
+                f(y - dir * 0.18 * space),
+                f(x + 0.28 * space),
+                f(y - dir * 0.18 * space),
+                f(x),
+                f(y + dir * 0.42 * space)
+            );
+        }
+        acorde_core::Articulation::Accent | acorde_core::Articulation::Marcato => {
+            let _ = write!(
                 body,
-                "acorde-articulation acorde-ornament acorde-mordent",
-                "mordent",
-                x,
-                y + dir * 0.8 * space,
-                space,
-                true,
-            ),
-            acorde_core::Articulation::InvertedMordent => write_annotation_text(
+                r#"<path class="acorde-articulation acorde-accent" d="M {},{} L {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                f(x - 0.35 * space),
+                f(y + dir * 0.25 * space),
+                f(x),
+                f(y - dir * 0.15 * space),
+                f(x + 0.35 * space),
+                f(y + dir * 0.25 * space),
+                f(0.09 * space)
+            );
+        }
+        acorde_core::Articulation::Tenuto => {
+            let _ = write!(
                 body,
-                "acorde-articulation acorde-ornament acorde-inverted-mordent",
-                "inv. mordent",
-                x,
-                y + dir * 0.8 * space,
-                space,
-                true,
-            ),
-            acorde_core::Articulation::Turn => write_annotation_text(
+                r#"<line class="acorde-articulation acorde-tenuto" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
+                f(x - 0.35 * space),
+                f(y),
+                f(x + 0.35 * space),
+                f(y),
+                f(0.09 * space)
+            );
+        }
+        acorde_core::Articulation::BreathMark => {
+            let _ = write!(
                 body,
-                "acorde-articulation acorde-ornament acorde-turn",
-                "turn",
-                x,
-                y + dir * 0.8 * space,
-                space,
-                true,
-            ),
-            acorde_core::Articulation::InvertedTurn => write_annotation_text(
+                r#"<path class="acorde-articulation acorde-breath-mark" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                f(x - 0.25 * space),
+                f(y + dir * 0.35 * space),
+                f(x),
+                f(y - dir * 0.05 * space),
+                f(x + 0.25 * space),
+                f(y - dir * 0.45 * space),
+                f(0.1 * space)
+            );
+        }
+        acorde_core::Articulation::Caesura => {
+            let _ = write!(
                 body,
-                "acorde-articulation acorde-ornament acorde-inverted-turn",
-                "inv. turn",
-                x,
-                y + dir * 0.8 * space,
-                space,
-                true,
-            ),
-            acorde_core::Articulation::Shake => write_annotation_text(
-                body,
-                "acorde-articulation acorde-ornament acorde-shake",
-                "shake",
-                x,
-                y + dir * 0.8 * space,
-                space,
-                true,
-            ),
-            acorde_core::Articulation::Tremolo(level) => write_annotation_text(
-                body,
-                "acorde-articulation acorde-ornament acorde-tremolo",
-                &format!("tremolo {}", level),
-                x,
-                y + dir * 0.8 * space,
-                space,
-                true,
-            ),
+                r#"<path class="acorde-articulation acorde-caesura" d="M {},{} L {},{} M {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                f(x - 0.28 * space),
+                f(y + dir * 0.45 * space),
+                f(x - 0.08 * space),
+                f(y - dir * 0.45 * space),
+                f(x + 0.08 * space),
+                f(y + dir * 0.45 * space),
+                f(x + 0.28 * space),
+                f(y - dir * 0.45 * space),
+                f(0.1 * space)
+            );
+        }
+        acorde_core::Articulation::Fermata
+        | acorde_core::Articulation::Trill
+        | acorde_core::Articulation::Mordent
+        | acorde_core::Articulation::InvertedMordent
+        | acorde_core::Articulation::Turn
+        | acorde_core::Articulation::InvertedTurn
+        | acorde_core::Articulation::Shake
+        | acorde_core::Articulation::Tremolo(_) => {
+            render_text_articulation(body, articulation, x, y, dir, space);
         }
     }
+}
+
+fn render_text_articulation(
+    body: &mut String,
+    articulation: &acorde_core::Articulation,
+    x: f32,
+    y: f32,
+    dir: f32,
+    space: f32,
+) {
+    let (class, label) = match articulation {
+        acorde_core::Articulation::Fermata => ("acorde-fermata", "fermata".to_owned()),
+        acorde_core::Articulation::Trill => ("acorde-articulation acorde-trill", "tr".to_owned()),
+        acorde_core::Articulation::Mordent => (
+            "acorde-articulation acorde-ornament acorde-mordent",
+            "mordent".to_owned(),
+        ),
+        acorde_core::Articulation::InvertedMordent => (
+            "acorde-articulation acorde-ornament acorde-inverted-mordent",
+            "inv. mordent".to_owned(),
+        ),
+        acorde_core::Articulation::Turn => (
+            "acorde-articulation acorde-ornament acorde-turn",
+            "turn".to_owned(),
+        ),
+        acorde_core::Articulation::InvertedTurn => (
+            "acorde-articulation acorde-ornament acorde-inverted-turn",
+            "inv. turn".to_owned(),
+        ),
+        acorde_core::Articulation::Shake => (
+            "acorde-articulation acorde-ornament acorde-shake",
+            "shake".to_owned(),
+        ),
+        acorde_core::Articulation::Tremolo(level) => (
+            "acorde-articulation acorde-ornament acorde-tremolo",
+            format!("tremolo {level}"),
+        ),
+        _ => return,
+    };
+    write_annotation_text(body, class, &label, x, y + dir * 0.8 * space, space, true);
 }
 
 fn note_annotation_lane_extents(note: &Note, voice_stem_up: bool) -> (f32, f32) {
@@ -3677,6 +4818,31 @@ fn write_annotation_text(
     );
 }
 
+/// Emit an exact, browser-addressable microtone marker while retaining the readable fallback
+/// label. The pitch index distinguishes markers on multi-pitch chords without requiring hosts to
+/// infer ownership from SVG geometry.
+fn write_microtone_marker(
+    body: &mut String,
+    x: f32,
+    y: f32,
+    space: f32,
+    pitch_index: usize,
+    cents: i16,
+) {
+    let label = format!("{cents:+}c");
+    let _ = write!(
+        body,
+        r#"<text class="acorde-microtone" data-acorde-microtone-cents="{}" data-acorde-pitch-index="{}" aria-label="microtone {} cents" x="{}" y="{}" text-anchor="middle" font-family="serif" font-size="{}">{}</text>"#,
+        cents,
+        pitch_index,
+        cents,
+        f(x),
+        f(y),
+        f(0.72 * space),
+        escape_xml(&label)
+    );
+}
+
 pub(crate) fn escape_xml(value: &str) -> String {
     value
         .chars()
@@ -3776,11 +4942,170 @@ fn render_pitched_note(
             mandatory.contains_key(&key) || courtesy.contains_key(&key)
         })
         .collect();
-    let accidental_offsets = chord_accidental_offsets(&positions, &has_accidentals);
+    let accidental_widths: Vec<f32> = note
+        .pitches
+        .iter()
+        .enumerate()
+        .map(|(pitch_index, pitch)| {
+            let key: AccKey = (part, staff, measure_idx, voice_idx, note_idx, pitch_index);
+            mandatory
+                .get(&key)
+                .or_else(|| courtesy.get(&key))
+                .copied()
+                .or((pitch.alter != 0).then_some(pitch.alter))
+                .map_or(0.0, glyphs::accidental_width_u)
+        })
+        .collect();
+    let accidental_offsets =
+        chord_accidental_offsets(&positions, &has_accidentals, &accidental_widths);
 
+    render_pitched_note_heads(
+        body,
+        note,
+        &positions,
+        &notehead_offsets,
+        &accidental_offsets,
+        part,
+        staff,
+        measure_idx,
+        voice_idx,
+        note_idx,
+        x,
+        staff_bottom_y,
+        space,
+        filled,
+        mandatory,
+        courtesy,
+    )?;
+
+    let mut stem_context = PitchedNoteStemContext {
+        body,
+        min_pos,
+        max_pos,
+        x,
+        staff_bottom_y,
+        space,
+        stem_up,
+        beam_tip,
+        has_stem,
+        flag_count,
+    };
+    render_pitched_note_stem_and_flags(&mut stem_context);
+    let body = stem_context.body;
+    render_pitched_note_dots(body, &positions, note.dot_count, x, staff_bottom_y, space);
+
+    let _ = clef; // clef only needed indirectly via clef_bottom, kept for signature clarity
+    Ok(())
+}
+
+/// Draw the stem and un-beamed flags shared by all pitches in a chord.
+struct PitchedNoteStemContext<'a> {
+    body: &'a mut String,
+    min_pos: i32,
+    max_pos: i32,
+    x: f32,
+    staff_bottom_y: f32,
+    space: f32,
+    stem_up: bool,
+    beam_tip: Option<f32>,
+    has_stem: bool,
+    flag_count: u8,
+}
+
+fn render_pitched_note_stem_and_flags(context: &mut PitchedNoteStemContext<'_>) {
+    if !context.has_stem {
+        return;
+    }
+    let notehead_y = if context.stem_up {
+        context.staff_bottom_y + geometry::position_y(context.min_pos, context.space)
+    } else {
+        context.staff_bottom_y + geometry::position_y(context.max_pos, context.space)
+    };
+    if let Some(tip_y) = context.beam_tip {
+        context.body.push_str(&glyphs::stem_to(
+            context.x,
+            notehead_y,
+            tip_y,
+            context.space,
+            context.stem_up,
+        ));
+        return;
+    }
+
+    let (stem_svg, tip_y) = glyphs::stem(context.x, notehead_y, context.space, context.stem_up);
+    context.body.push_str(&stem_svg);
+    for i in 0..context.flag_count {
+        let fy = tip_y
+            + if context.stem_up {
+                i as f32 * 0.35 * context.space
+            } else {
+                -(i as f32) * 0.35 * context.space
+            };
+        let x_off = 0.31 * context.space * 0.92;
+        let stem_x = if context.stem_up {
+            context.x + x_off
+        } else {
+            context.x - x_off
+        };
+        context
+            .body
+            .push_str(&glyphs::flag(stem_x, fy, context.space, context.stem_up));
+    }
+}
+
+/// Draw augmentation dots for every pitch row in a chord.
+fn render_pitched_note_dots(
+    body: &mut String,
+    positions: &[i32],
+    dot_count: u8,
+    x: f32,
+    staff_bottom_y: f32,
+    space: f32,
+) {
+    if dot_count == 0 {
+        return;
+    }
+    let dot_x = x + 0.55 * space;
+    for &position in positions {
+        let y = staff_bottom_y + geometry::position_y(position, space);
+        // Dots sit in a space, never directly on a line — nudge up half a step if needed.
+        let dot_y = if position % 2 == 0 {
+            y - 0.5 * space
+        } else {
+            y
+        };
+        for dot_index in 0..dot_count {
+            body.push_str(&glyphs::augmentation_dot(
+                dot_x + dot_index as f32 * 0.3 * space,
+                dot_y,
+                space,
+            ));
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_pitched_note_heads(
+    body: &mut String,
+    note: &Note,
+    positions: &[i32],
+    notehead_offsets: &[f32],
+    accidental_offsets: &[f32],
+    part: usize,
+    staff: usize,
+    measure_idx: usize,
+    voice_idx: usize,
+    note_idx: usize,
+    x: f32,
+    staff_bottom_y: f32,
+    space: f32,
+    filled: bool,
+    mandatory: &HashMap<AccKey, i8>,
+    courtesy: &HashMap<AccKey, i8>,
+) -> Result<(), RenderError> {
     // Ledger lines (union across the chord's noteheads).
     let mut ledgers: Vec<i32> = Vec::new();
-    for &p in &positions {
+    for &p in positions {
         for lp in geometry::ledger_positions(p) {
             if !ledgers.contains(&lp) {
                 ledgers.push(lp);
@@ -3834,65 +5159,16 @@ fn render_pitched_note(
         if pitch.microtone_cents != 0 {
             let y =
                 staff_bottom_y + geometry::position_y(positions[pitch_index], space) - 1.25 * space;
-            let label = format!("{:+}c", pitch.microtone_cents);
-            write_annotation_text(
+            write_microtone_marker(
                 body,
-                "acorde-microtone",
-                &label,
                 x + (0.65 + pitch_index as f32 * 0.55) * space,
                 y,
                 space,
-                false,
+                pitch_index,
+                pitch.microtone_cents,
             );
         }
     }
-
-    // Stem + flags (shared across a chord). A beamed note's stem follows the beam line
-    // instead of the default fixed length, and never gets individual flags — the beam
-    // replaces them.
-    if has_stem {
-        let notehead_y = if stem_up {
-            staff_bottom_y + geometry::position_y(min_pos, space)
-        } else {
-            staff_bottom_y + geometry::position_y(max_pos, space)
-        };
-        if let Some(tip_y) = beam_tip {
-            body.push_str(&glyphs::stem_to(x, notehead_y, tip_y, space, stem_up));
-        } else {
-            let (stem_svg, tip_y) = glyphs::stem(x, notehead_y, space, stem_up);
-            body.push_str(&stem_svg);
-            for i in 0..flag_count {
-                let fy = tip_y
-                    + if stem_up {
-                        i as f32 * 0.35 * space
-                    } else {
-                        -(i as f32) * 0.35 * space
-                    };
-                let x_off = 0.31 * space * 0.92;
-                let stem_x = if stem_up { x + x_off } else { x - x_off };
-                body.push_str(&glyphs::flag(stem_x, fy, space, stem_up));
-            }
-        }
-    }
-
-    // Augmentation dots (one per pitch row, offset right of the outermost notehead edge).
-    if note.dot_count > 0 {
-        let dot_x = x + 0.55 * space;
-        for &p in &positions {
-            let y = staff_bottom_y + geometry::position_y(p, space);
-            // Dots sit in a space, never directly on a line — nudge up half a step if needed.
-            let dot_y = if p % 2 == 0 { y - 0.5 * space } else { y };
-            for d in 0..note.dot_count {
-                body.push_str(&glyphs::augmentation_dot(
-                    dot_x + d as f32 * 0.3 * space,
-                    dot_y,
-                    space,
-                ));
-            }
-        }
-    }
-
-    let _ = clef; // clef only needed indirectly via clef_bottom, kept for signature clarity
     Ok(())
 }
 
@@ -3918,7 +5194,11 @@ fn chord_notehead_offsets(positions: &[i32]) -> Vec<f32> {
 /// Add leftward columns for vertically adjacent chord accidentals. Wide intervals retain the
 /// ordinary single accidental column, while a cluster gets deterministic spacing without
 /// changing pitch order or the notehead/stem anchor.
-fn chord_accidental_offsets(positions: &[i32], has_accidentals: &[bool]) -> Vec<f32> {
+fn chord_accidental_offsets(
+    positions: &[i32],
+    has_accidentals: &[bool],
+    accidental_widths: &[f32],
+) -> Vec<f32> {
     let mut offsets = vec![0.0; positions.len()];
     let mut ordered: Vec<usize> = (0..positions.len()).collect();
     ordered.sort_by_key(|&index| positions[index]);
@@ -3932,12 +5212,16 @@ fn chord_accidental_offsets(positions: &[i32], has_accidentals: &[bool]) -> Vec<
                 continue;
             }
             if (positions[pitch_index] - positions[previous]).abs() <= 1 {
-                column = column.max((offsets[previous] / 0.65_f32).round() as usize + 1);
+                let previous_width = accidental_widths.get(previous).copied().unwrap_or(0.0);
+                let current_width = accidental_widths.get(pitch_index).copied().unwrap_or(0.0);
+                let required = offsets[previous] + (previous_width + current_width) / 2.0 + 0.18;
+                offsets[pitch_index] = offsets[pitch_index].max(required);
+                column = column.max((offsets[pitch_index] / 0.65_f32).ceil() as usize);
             } else {
                 break;
             }
         }
-        offsets[pitch_index] = column as f32 * 0.65;
+        offsets[pitch_index] = offsets[pitch_index].max(column as f32 * 0.65);
     }
     offsets
 }
@@ -3969,10 +5253,13 @@ fn courtesy_wrapped(alter: i8, cx: f32, cy: f32, space: f32) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        Note, content_horizontal_margins, event_footprint_u, measure_text_width_u,
-        resolve_adjacent_event_spacing, resolve_cross_voice_event_spacing, tab_technique_control_y,
+        Note, accidental_footprint_u, content_horizontal_margins, measure_text_width_u,
+        note_anchor_y, note_notation_footprint_u, resolve_adjacent_event_spacing,
+        resolve_cross_voice_event_spacing, tab_note_y, tab_technique_control_y,
     };
-    use acorde_core::{Duration, Lyric, NoteHead, Pitch, Score, Step};
+    use acorde_core::{
+        Duration, Lyric, NoteHead, Pitch, Score, Step, TabPosition, TablatureConfig,
+    };
     use std::collections::HashMap;
 
     #[test]
@@ -3999,6 +5286,30 @@ mod tests {
         let pull = tab_technique_control_y(&GuitarTechnique::PullOff, 10.0, 12.0, 2.0);
         assert_eq!(hammer, 8.0);
         assert_eq!(pull, 14.0);
+    }
+
+    #[test]
+    fn note_anchor_y_applies_authored_vertical_offset_once() {
+        let mut note = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
+        let baseline = note_anchor_y(&note, 0, true, 100.0, 10.0, None);
+        note.offset_y = Some(20.0);
+        let shifted = note_anchor_y(&note, 0, true, 100.0, 10.0, None);
+        assert_eq!(shifted - baseline, 20.0);
+    }
+
+    #[test]
+    fn tab_anchor_uses_the_first_authored_multi_string_position() {
+        let mut note = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
+        note.tab_positions = vec![
+            TabPosition { string: 4, fret: 5 },
+            TabPosition { string: 2, fret: 7 },
+        ];
+        let tab = TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![64, 59, 55, 50, 45, 40],
+            capo: 0,
+        };
+        assert_eq!(tab_note_y(&note, &tab, 100.0, 10.0), 80.0);
     }
 
     #[test]
@@ -4075,6 +5386,35 @@ mod tests {
     }
 
     #[test]
+    fn multi_string_tab_positions_receive_a_larger_clearance_footprint() {
+        use acorde_core::TabPosition;
+
+        let plain = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
+        let mut tabbed = plain.clone();
+        tabbed.tab_positions = vec![
+            TabPosition {
+                string: 1,
+                fret: 12,
+            },
+            TabPosition {
+                string: 2,
+                fret: 10,
+            },
+        ];
+        let mut plain_positions = [0.0, 1.0];
+        resolve_adjacent_event_spacing(
+            &[plain.clone(), plain.clone()],
+            &mut plain_positions,
+            0.0,
+            100.0,
+            10.0,
+        );
+        let mut tab_positions = [0.0, 1.0];
+        resolve_adjacent_event_spacing(&[tabbed, plain], &mut tab_positions, 0.0, 100.0, 10.0);
+        assert!(tab_positions[1] > plain_positions[1]);
+    }
+
+    #[test]
     fn cross_voice_annotation_spacing_is_atomic() {
         let prior = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
         let mut current = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
@@ -4112,8 +5452,31 @@ mod tests {
         let mut pitched = Note::new(Pitch::with_alter(Step::C, 5, 1), Duration::Quarter);
         let mut unpitched = pitched.clone();
         unpitched.is_unpitched = true;
-        assert!(event_footprint_u(&pitched) > event_footprint_u(&unpitched));
+        assert!(note_notation_footprint_u(&pitched) > note_notation_footprint_u(&unpitched));
         pitched.is_unpitched = true;
-        assert_eq!(event_footprint_u(&pitched), event_footprint_u(&unpitched));
+        assert_eq!(
+            note_notation_footprint_u(&pitched),
+            note_notation_footprint_u(&unpitched)
+        );
+    }
+
+    #[test]
+    fn chord_accidentals_reserve_each_visible_column() {
+        let single = Note::new(Pitch::with_alter(Step::C, 5, 1), Duration::Quarter);
+        let mut chord = single.clone();
+        chord.pitches.push(Pitch::with_alter(Step::D, 5, -1));
+        assert!(accidental_footprint_u(&chord) > accidental_footprint_u(&single));
+
+        let mut single_positions = [0.0, 1.0];
+        resolve_adjacent_event_spacing(
+            &[single.clone(), single.clone()],
+            &mut single_positions,
+            0.0,
+            100.0,
+            10.0,
+        );
+        let mut chord_positions = [0.0, 1.0];
+        resolve_adjacent_event_spacing(&[chord, single], &mut chord_positions, 0.0, 100.0, 10.0);
+        assert!(chord_positions[1] > single_positions[1]);
     }
 }

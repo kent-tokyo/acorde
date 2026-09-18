@@ -31,7 +31,8 @@ host-neutral `PageArtifact` per page with physical dimensions, measure span, cop
 and typed resource/span-continuation diagnostics; `PageLayout::artifact_diagnostics` additionally
 turns host-computed `GlyphExtents` into deterministic per-side overflow diagnostics;
 `PrintLayoutResult::validate` checks serialized page and system addresses before host reuse;
-`PrintConfig::publication` and `PageLayout::publication` carry deterministic score metadata,
+`PrintConfig::publication` and `PageLayout::publication` carry deterministic score metadata and
+score-level styled text,
 part labels, running titles, page-scoped measure numbers, and physical header/footer text blocks
 for publication hosts. `PublicationConfig::title_page` adds a metadata-only first page without
 consuming music-system capacity, with title/subtitle/credit blocks placed in physical millimetres;

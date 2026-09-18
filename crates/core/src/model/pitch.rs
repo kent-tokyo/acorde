@@ -171,13 +171,10 @@ impl Pitch {
 
     /// Scientific pitch notation, e.g. "C4", "F#5", "Bb3".
     pub fn to_scientific_name(&self) -> String {
-        let accidental = match self.alter {
-            2 => "##",
-            1 => "#",
-            0 => "",
-            -1 => "b",
-            -2 => "bb",
-            _ => "",
+        let accidental = match self.alter.cmp(&0) {
+            std::cmp::Ordering::Greater => "#".repeat(self.alter as usize),
+            std::cmp::Ordering::Less => "b".repeat(self.alter.unsigned_abs() as usize),
+            std::cmp::Ordering::Equal => String::new(),
         };
         format!("{}{}{}", self.step.to_char(), accidental, self.octave)
     }
@@ -208,11 +205,11 @@ impl std::str::FromStr for Pitch {
         loop {
             match chars.peek() {
                 Some('#') => {
-                    alter += 1;
+                    alter = alter.checked_add(1).ok_or(())?;
                     chars.next();
                 }
                 Some('b') => {
-                    alter -= 1;
+                    alter = alter.checked_sub(1).ok_or(())?;
                     chars.next();
                 }
                 _ => break,
@@ -370,6 +367,24 @@ mod tests {
         assert_eq!(p.step, Step::C);
         assert_eq!(p.alter, 2);
         assert_eq!(p.octave, 4);
+    }
+
+    #[test]
+    fn scientific_name_preserves_extended_accidentals() {
+        assert_eq!(
+            Pitch::with_alter(Step::C, 4, 3).to_scientific_name(),
+            "C###4"
+        );
+        assert_eq!(
+            Pitch::with_alter(Step::C, 4, -3).to_scientific_name(),
+            "Cbbb4"
+        );
+    }
+
+    #[test]
+    fn from_str_rejects_accidental_overflow() {
+        assert!(format!("C{}4", "#".repeat(128)).parse::<Pitch>().is_err());
+        assert!(format!("C{}4", "b".repeat(129)).parse::<Pitch>().is_err());
     }
 
     #[test]

@@ -99,6 +99,24 @@ pub struct GlyphPlacement {
     pub priority: u8,
 }
 
+/// Semantic collision classes used to make dense print placement deterministic.
+///
+/// The class is supplied alongside placements so the existing [`GlyphPlacement`] JSON shape
+/// remains backwards-compatible. Higher-priority placements still win; the class is the stable
+/// tie-breaker for placements with equal priority.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum GlyphCollisionClass {
+    /// Primary notation that must retain its requested position when possible.
+    #[default]
+    Critical,
+    /// Spacing-bearing symbols such as accidentals and noteheads.
+    Spacing,
+    /// Text and other semantic annotations.
+    Annotation,
+    /// Optional visual decoration.
+    Decorative,
+}
+
 /// The content bounds of a validated glyph placement collection, in millimetres.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct GlyphExtents {
@@ -133,6 +151,8 @@ pub enum GlyphPlacementError {
     EmptyResourceKey { index: usize },
     #[error("glyph placement {index} has a negative advance")]
     NegativeAdvance { index: usize },
+    #[error("collision class count {classes} does not match placement count {placements}")]
+    CollisionClassCount { placements: usize, classes: usize },
 }
 
 /// Validate font-independent glyph geometry before collision resolution.
@@ -246,13 +266,48 @@ pub fn distribute_glyph_spacing(
 /// draw anything. The stable input order breaks ties, and the return value reports how many
 /// placements were moved so a host can expose a preflight diagnostic.
 pub fn resolve_glyph_collisions(placements: &mut [GlyphPlacement], gap_mm: f32) -> usize {
+    let order = collision_order(placements, None);
+    resolve_glyph_collisions_ordered(placements, gap_mm, &order)
+}
+
+/// Resolve vertical collisions using explicit semantic classes.
+///
+/// This is the class-aware counterpart to [`resolve_glyph_collisions`]. It validates the class
+/// vector before mutating placements, then uses priority followed by class and source order as
+/// the deterministic ownership rule.
+pub fn resolve_glyph_collisions_with_classes(
+    placements: &mut [GlyphPlacement],
+    classes: &[GlyphCollisionClass],
+    gap_mm: f32,
+) -> Result<usize, GlyphPlacementError> {
+    validate_glyph_placements(placements)?;
+    if classes.len() != placements.len() {
+        return Err(GlyphPlacementError::CollisionClassCount {
+            placements: placements.len(),
+            classes: classes.len(),
+        });
+    }
+    if !gap_mm.is_finite() {
+        return Err(GlyphPlacementError::NonFiniteSpacing);
+    }
+    let mut candidate = placements.to_vec();
+    let order = collision_order(&candidate, Some(classes));
+    let moved = resolve_glyph_collisions_ordered(&mut candidate, gap_mm, &order);
+    glyph_extents(&candidate)?;
+    placements.clone_from_slice(&candidate);
+    Ok(moved)
+}
+
+fn resolve_glyph_collisions_ordered(
+    placements: &mut [GlyphPlacement],
+    gap_mm: f32,
+    order: &[usize],
+) -> usize {
     let gap_mm = if gap_mm.is_finite() {
         gap_mm.max(0.0)
     } else {
         0.0
     };
-    let mut order: Vec<usize> = (0..placements.len()).collect();
-    order.sort_by_key(|&index| (std::cmp::Reverse(placements[index].priority), index));
     let mut moved = 0;
     for position in 0..order.len() {
         let index = order[position];
@@ -305,13 +360,44 @@ pub fn resolve_glyph_horizontal_collisions(
     placements: &mut [GlyphPlacement],
     gap_mm: f32,
 ) -> usize {
+    let order = collision_order(placements, None);
+    resolve_glyph_horizontal_collisions_ordered(placements, gap_mm, &order)
+}
+
+/// Resolve horizontal collisions using explicit semantic classes.
+pub fn resolve_glyph_horizontal_collisions_with_classes(
+    placements: &mut [GlyphPlacement],
+    classes: &[GlyphCollisionClass],
+    gap_mm: f32,
+) -> Result<usize, GlyphPlacementError> {
+    validate_glyph_placements(placements)?;
+    if classes.len() != placements.len() {
+        return Err(GlyphPlacementError::CollisionClassCount {
+            placements: placements.len(),
+            classes: classes.len(),
+        });
+    }
+    if !gap_mm.is_finite() {
+        return Err(GlyphPlacementError::NonFiniteSpacing);
+    }
+    let mut candidate = placements.to_vec();
+    let order = collision_order(&candidate, Some(classes));
+    let moved = resolve_glyph_horizontal_collisions_ordered(&mut candidate, gap_mm, &order);
+    glyph_extents(&candidate)?;
+    placements.clone_from_slice(&candidate);
+    Ok(moved)
+}
+
+fn resolve_glyph_horizontal_collisions_ordered(
+    placements: &mut [GlyphPlacement],
+    gap_mm: f32,
+    order: &[usize],
+) -> usize {
     let gap_mm = if gap_mm.is_finite() {
         gap_mm.max(0.0)
     } else {
         0.0
     };
-    let mut order: Vec<usize> = (0..placements.len()).collect();
-    order.sort_by_key(|&index| (std::cmp::Reverse(placements[index].priority), index));
     let mut moved = 0;
     for position in 0..order.len() {
         let index = order[position];
@@ -341,6 +427,31 @@ pub fn resolve_glyph_horizontal_collisions(
         }
     }
     moved
+}
+
+fn collision_order(
+    placements: &[GlyphPlacement],
+    classes: Option<&[GlyphCollisionClass]>,
+) -> Vec<usize> {
+    let class_rank = |index: usize| {
+        classes
+            .and_then(|values| values.get(index))
+            .map_or(0, |class| match class {
+                GlyphCollisionClass::Critical => 0,
+                GlyphCollisionClass::Spacing => 1,
+                GlyphCollisionClass::Annotation => 2,
+                GlyphCollisionClass::Decorative => 3,
+            })
+    };
+    let mut order: Vec<usize> = (0..placements.len()).collect();
+    order.sort_by_key(|&index| {
+        (
+            std::cmp::Reverse(placements[index].priority),
+            class_rank(index),
+            index,
+        )
+    });
+    order
 }
 
 /// Validate glyph geometry, then apply deterministic horizontal collision resolution.
@@ -587,6 +698,9 @@ pub struct PagePublication {
     pub lyricist: String,
     pub copyright: String,
     pub running_title: Option<String>,
+    /// Score-level styled text retained for title-page and host publication rendering.
+    #[serde(default)]
+    pub score_texts: Vec<StyledText>,
     pub part_labels: Vec<PartLabel>,
     #[serde(default)]
     pub part_groups: Vec<PartGroupMark>,
@@ -698,7 +812,7 @@ impl Default for PrintConfig {
 /// Version of the built-in host-neutral print preset data.
 pub const PRINT_PRESET_SCHEMA_VERSION: u16 = 1;
 /// Version of the serialized host-neutral print layout contract.
-pub const PRINT_LAYOUT_CONTRACT_VERSION: u16 = 26;
+pub const PRINT_LAYOUT_CONTRACT_VERSION: u16 = 27;
 
 /// Reproducible starting configurations for common publication workflows.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -1337,7 +1451,8 @@ fn span_bounds(span: &SpanMark) -> (usize, usize) {
         | SpanMark::Pedal { start, end }
         | SpanMark::Slur { start, end }
         | SpanMark::TrillLine { start, end }
-        | SpanMark::Glissando { start, end } => (
+        | SpanMark::Glissando { start, end }
+        | SpanMark::Harmony { start, end, .. } => (
             start.measure.min(end.measure),
             start.measure.max(end.measure),
         ),
@@ -1724,6 +1839,7 @@ fn page_publication(
         lyricist: metadata.lyricist.clone(),
         copyright: metadata.copyright.clone(),
         running_title: config.publication.running_title.clone(),
+        score_texts: score.texts.clone(),
         part_labels,
         part_groups,
         measure_numbers,
@@ -3249,6 +3365,15 @@ mod tests {
     #[test]
     fn title_page_is_inserted_without_consuming_music_page_capacity() {
         let mut score = score_with_measures(3);
+        score.texts.push(StyledText {
+            style: TextStyle::Expression,
+            text: "Dedication".into(),
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        });
         score.metadata.title = "Suite".into();
         score.metadata.movement_title = "I. Prelude".into();
         score.metadata.composer = "Composer".into();
@@ -3274,6 +3399,7 @@ mod tests {
         assert_eq!(result.pages[1].page_number, Some(2));
         assert_eq!(result.pages[1].systems[0].page_index, 1);
         assert!(!result.pages[1].publication.is_title_page);
+        assert_eq!(result.pages[0].publication.score_texts, score.texts);
         assert!(result.validate().is_ok());
         assert_eq!(
             result.pages[0]
@@ -3347,6 +3473,54 @@ mod tests {
         assert_eq!(moved, 1);
         assert_eq!(placements[0].y_mm, 20.0);
         assert_eq!(placements[1].y_mm, 25.0);
+    }
+
+    #[test]
+    fn class_aware_collision_resolution_uses_stable_semantic_tie_breakers() {
+        let metrics = GlyphMetrics {
+            advance_mm: 4.0,
+            left_mm: -1.0,
+            top_mm: -2.0,
+            width_mm: 2.0,
+            height_mm: 4.0,
+        };
+        let mut placements = vec![
+            GlyphPlacement {
+                resource_key: "annotation".into(),
+                metrics,
+                x_mm: 10.0,
+                y_mm: 20.0,
+                priority: 1,
+            },
+            GlyphPlacement {
+                resource_key: "critical".into(),
+                metrics,
+                x_mm: 10.0,
+                y_mm: 20.0,
+                priority: 1,
+            },
+        ];
+        let classes = [
+            GlyphCollisionClass::Annotation,
+            GlyphCollisionClass::Critical,
+        ];
+        assert_eq!(
+            resolve_glyph_collisions_with_classes(&mut placements, &classes, 1.0),
+            Ok(1)
+        );
+        assert_eq!(placements[0].y_mm, 25.0);
+        assert_eq!(placements[1].y_mm, 20.0);
+        assert_eq!(
+            resolve_glyph_horizontal_collisions_with_classes(
+                &mut placements,
+                &[GlyphCollisionClass::Annotation],
+                1.0,
+            ),
+            Err(GlyphPlacementError::CollisionClassCount {
+                placements: 2,
+                classes: 1,
+            })
+        );
     }
 
     #[test]

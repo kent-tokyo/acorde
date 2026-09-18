@@ -22,6 +22,7 @@ export type WorkspaceOperation =
   | "tab-performance"
   | "soundfont"
   | "validate"
+  | "edit"
   | "preflight";
 
 /** Structured, host-facing error for showing a repair hint without parsing strings. */
@@ -55,10 +56,15 @@ export interface WasmBindings {
   serialize_musicxml_report(scoreJson: string): string;
   serialize_mei(scoreJson: string): string;
   serialize_mei_report(scoreJson: string): string;
+  serialize_mscx(scoreJson: string): string;
+  serialize_mscx_report(scoreJson: string): string;
+  serialize_mscz(scoreJson: string): Uint8Array;
+  serialize_mscz_report(scoreJson: string): string;
   serialize_abc(scoreJson: string): string;
   serialize_abc_report(scoreJson: string): string;
   serialize_midi(scoreJson: string): Uint8Array;
   serialize_midi_report(scoreJson: string): string;
+  apply_score_command(scoreJson: string, commandJson: string): string;
   compute_layout_ex(scoreJson: string, configJson: string): string;
   compute_print_layout(scoreJson: string, configJson: string): string;
   render_score_svg_with_layout(scoreJson: string, layoutJson: string, optionsJson: string): string;
@@ -113,11 +119,211 @@ export interface ExportReport {
   diagnostics: InterchangeDiagnostic[];
 }
 
+export interface AnalysisIntervalObservation {
+  from: NoteAddressObject;
+  to: NoteAddressObject;
+  semitones: number;
+  /** Signed exact pitch distance; preserves microtonal analysis values. */
+  cents: number;
+  diatonic_steps: number;
+  rule_id: string;
+  evidence: NoteAddressObject[];
+}
+
+export interface AnalysisKeyEstimate {
+  key: Record<string, unknown>;
+  covered_pitches: number;
+  total_pitches: number;
+  weighted_covered_beats: number;
+  total_duration_beats: number;
+  confidence: number;
+  rule_id: string;
+  evidence: NoteAddressObject[];
+}
+
+export interface AnalysisVoiceLeadingObservation {
+  upper: NoteAddressObject;
+  lower: NoteAddressObject;
+  upper_motion: number;
+  lower_motion: number;
+  upper_motion_cents: number;
+  lower_motion_cents: number;
+  parallel_perfect: boolean;
+  confidence: number;
+  rule_id: string;
+  evidence: NoteAddressObject[];
+}
+
+export interface AnalysisResult {
+  schema_version: number;
+  score_fingerprint: string;
+  intervals: AnalysisIntervalObservation[];
+  key_estimates: AnalysisKeyEstimate[];
+  voice_leading: AnalysisVoiceLeadingObservation[];
+  [category: string]: unknown;
+}
+
 export interface BinaryExportReport {
   schema_version: number;
   format: string;
   output: number[];
   diagnostics: InterchangeDiagnostic[];
+}
+
+export interface TablatureStaffMetadata {
+  part: number;
+  staff: number;
+  lines: number;
+  tuning_midi: number[];
+  capo: number;
+}
+
+/** Typed input for editing a staff's tablature configuration. */
+export interface TablatureConfigInput {
+  lines: number;
+  tuning_midi: number[];
+  capo: number;
+}
+
+export interface AddressBoundsMetadata {
+  part: number;
+  staff: number;
+  measure: number;
+  voice: number;
+  note: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface TextAnnotationMetadata {
+  part: number;
+  staff: number;
+  measure: number;
+  style: string;
+  text: string;
+  placement?: string;
+  offset_x?: number;
+  offset_y?: number;
+  relative_x?: number;
+  relative_y?: number;
+}
+
+export interface ScoreTextMetadata {
+  style: string;
+  text: string;
+  placement?: string;
+  offset_x?: number;
+  offset_y?: number;
+  relative_x?: number;
+  relative_y?: number;
+}
+
+export interface TablaturePositionMetadata {
+  part: number;
+  staff: number;
+  measure: number;
+  voice: number;
+  note: number;
+  position: number;
+  string: number;
+  fret: number;
+}
+
+export interface HarmonyRangeMetadata {
+  start: NoteAddressObject;
+  end: NoteAddressObject;
+  label: string;
+}
+
+export interface NoteSemanticMetadata {
+  part: number;
+  staff: number;
+  measure: number;
+  voice: number;
+  note: number;
+  is_unpitched: boolean;
+  tie_start?: boolean;
+  tie_end?: boolean;
+  duration_beats: number;
+  pitch_midi_cents: number[];
+  offset_x?: number;
+  offset_y?: number;
+  relative_x?: number;
+  relative_y?: number;
+  dynamic?: string;
+  lyric?: string;
+  chord_label?: string;
+  technique_text?: string;
+  /** Ordered stable articulation names, including `tremolo-N`. */
+  articulations: string[];
+  guitar_technique?: "bend" | "slide" | "hammer-on" | "pull-off";
+  guitar_bend_alter_cents?: number;
+  fingerings: number[];
+  instrument_id?: string;
+  microtone_cents: number[];
+}
+
+/** Versioned renderer metadata used by browser selection, playback, and print hosts. */
+export interface RenderMetadata {
+  contract_version: number;
+  width: number;
+  height: number;
+  part_count: number;
+  staff_count: number;
+  measure_count: number;
+  note_count: number;
+  accessible_text: string;
+  address_bounds: AddressBoundsMetadata[];
+  score_texts?: ScoreTextMetadata[];
+  text_annotations?: TextAnnotationMetadata[];
+  tablature_positions?: TablaturePositionMetadata[];
+  tablature_staves?: TablatureStaffMetadata[];
+  note_semantics?: NoteSemanticMetadata[];
+  harmony_ranges?: HarmonyRangeMetadata[];
+  tablature_technique_connections?: TablatureTechniqueConnectionMetadata[];
+  [key: string]: unknown;
+}
+
+export interface TablatureTechniqueConnectionMetadata {
+  start: NoteAddressObject;
+  end: NoteAddressObject;
+  technique: "bend" | "slide" | "hammer-on" | "pull-off";
+  string: number;
+  cross_measure?: boolean;
+}
+
+export interface NoteAddressObject {
+  part: number;
+  staff: number;
+  measure: number;
+  voice: number;
+  note: number;
+}
+
+/** Convert a validated canonical note address to the SVG/legacy hook form. */
+export function formatNoteAddress(address: NoteAddressObject): NoteAddress {
+  const fields = [address.part, address.staff, address.measure, address.voice, address.note];
+  if (fields.some((field) => !Number.isSafeInteger(field) || field < 0)) {
+    throw new TypeError("note address fields must be non-negative safe integers");
+  }
+  return fields.join(":");
+}
+
+/** Parse the stable `part:staff:measure:voice:note` hook form without throwing. */
+export function parseNoteAddress(address: NoteAddress): NoteAddressObject | undefined {
+  const fields = address.split(":");
+  if (fields.length !== 5 || fields.some((field) => !/^\d+$/.test(field))) return undefined;
+  const values = fields.map(Number);
+  if (values.some((value) => !Number.isSafeInteger(value))) return undefined;
+  return {
+    part: values[0],
+    staff: values[1],
+    measure: values[2],
+    voice: values[3],
+    note: values[4],
+  };
 }
 
 export interface CompatibilityReport {
@@ -205,8 +411,8 @@ export interface WorkspaceSnapshot {
   scoreJson: string;
   layoutJson: string;
   selectedAddress: NoteAddress | null;
-  metadata: Record<string, unknown>;
-  analysis: Record<string, unknown>;
+  metadata: RenderMetadata;
+  analysis: AnalysisResult;
   analysisCacheKey: string;
 }
 
@@ -225,6 +431,11 @@ export interface WorkspaceMutationResult {
   changed: boolean;
   snapshot: WorkspaceSnapshot | null;
   history: WorkspaceHistoryState;
+}
+
+export interface WorkspaceCommandResult {
+  hint: Record<string, unknown>;
+  mutation: WorkspaceMutationResult;
 }
 
 /** Encode score JSON for a Worker structured-clone boundary without a string copy. */
@@ -254,10 +465,12 @@ export type WorkspaceRequest =
   | { id: string; type: "load-midi"; data: Uint8Array }
   | { id: string; type: "replace-score"; scoreJson: string }
   | { id: string; type: "replace-score-bytes"; data: Uint8Array }
+  | { id: string; type: "apply-command"; commandJson: string }
   | { id: string; type: "undo" }
   | { id: string; type: "redo" }
   | { id: string; type: "history-state" }
   | { id: string; type: "select-address"; address: NoteAddress | null }
+  | { id: string; type: "select-note"; address: NoteAddressObject }
   | { id: string; type: "selection-state" }
   | { id: string; type: "snapshot" }
   | { id: string; type: "restore-snapshot"; snapshot: WorkspaceSnapshot }
@@ -280,6 +493,10 @@ export type WorkspaceRequest =
   | { id: string; type: "export-musicxml-report" }
   | { id: string; type: "export-mei" }
   | { id: string; type: "export-mei-report" }
+  | { id: string; type: "export-mscx" }
+  | { id: string; type: "export-mscx-report" }
+  | { id: string; type: "export-mscz" }
+  | { id: string; type: "export-mscz-report" }
   | { id: string; type: "export-abc" }
   | { id: string; type: "export-abc-report" }
   | { id: string; type: "export-midi" }
@@ -338,8 +555,8 @@ export class AcordeWorkspace {
   private revisionNumber = 0;
   private readonly layoutCache = new Map<string, string>();
   private readonly renderCache = new Map<string, string>();
-  private readonly metadataCache = new Map<string, Record<string, unknown>>();
-  private readonly analysisCache = new Map<string, Record<string, unknown>>();
+  private readonly metadataCache = new Map<string, RenderMetadata>();
+  private readonly analysisCache = new Map<string, AnalysisResult>();
   private currentAnalysisCacheKey: string | null = null;
   private readonly undoStack: string[] = [];
   private readonly redoStack: string[] = [];
@@ -485,6 +702,45 @@ export class AcordeWorkspace {
     }
   }
 
+  /** Apply one checked core command through the stateless WASM boundary and record it for undo. */
+  applyCommandJson(commandJson: string): WorkspaceCommandResult {
+    this.assertLoaded();
+    let result: { score: string; hint: Record<string, unknown> };
+    try {
+      result = JSON.parse(this.wasm.apply_score_command(this.scoreJson, commandJson)) as {
+        score: string;
+        hint: Record<string, unknown>;
+      };
+    } catch (cause) {
+      throw this.toWorkspaceError("edit", cause);
+    }
+    this.replaceScoreJson(result.score);
+    return {
+      hint: result.hint,
+      mutation: {
+        changed: true,
+        snapshot: this.snapshot(),
+        history: this.historyState(),
+      },
+    };
+  }
+
+  /** Edit or clear one staff's tablature configuration through the checked core command path. */
+  setTablatureConfig(
+    partIndex: number,
+    staffIndex: number,
+    config: TablatureConfigInput | null,
+  ): WorkspaceCommandResult {
+    return this.applyCommandJson(
+      JSON.stringify({
+        type: "set_tablature_config",
+        part_index: partIndex,
+        staff_index: staffIndex,
+        config,
+      }),
+    );
+  }
+
   /** Return the current score JSON as UTF-8 bytes for compact Worker transport. */
   scoreJsonBytes(): Uint8Array {
     this.assertLoaded();
@@ -512,6 +768,19 @@ export class AcordeWorkspace {
       revision: this.revisionNumber,
       selectedAddress: this.selection.get(),
     };
+  }
+
+  /** Select a note using the typed address shared by metadata and analysis APIs. */
+  selectNote(address: NoteAddressObject): WorkspaceSelectionState {
+    this.selection.set(formatNoteAddress(address));
+    return this.selectionState();
+  }
+
+  /** Resolve the selected SVG address to typed note semantics for host controls. */
+  selectedNoteSemantic(): NoteSemanticMetadata | undefined {
+    const selected = this.selection.get();
+    const address = selected === null ? undefined : parseNoteAddress(selected);
+    return address === undefined ? undefined : this.noteSemanticAt(address);
   }
 
   undo(): boolean {
@@ -659,17 +928,17 @@ export class AcordeWorkspace {
     return svg;
   }
 
-  metadata(): Record<string, unknown> {
+  metadata(): RenderMetadata {
     this.assertLoaded();
     const optionsJson = JSON.stringify(this.options.render ?? {});
     const key = `${this.revisionNumber}:${this.layoutJson}:${optionsJson}`;
     const cached = this.metadataCache.get(key);
     if (cached !== undefined) return cached;
-    let metadata: Record<string, unknown>;
+    let metadata: RenderMetadata;
     try {
       metadata = JSON.parse(this.wasm.render_score_metadata(
         this.scoreJson, this.layoutJson, optionsJson,
-      )) as Record<string, unknown>;
+      )) as RenderMetadata;
     } catch (cause) {
       throw this.toWorkspaceError("metadata", cause);
     }
@@ -677,7 +946,23 @@ export class AcordeWorkspace {
     return metadata;
   }
 
-  analyze(): Record<string, unknown> {
+  /** Return typed tablature technique connections for the current rendered revision. */
+  tablatureTechniqueConnections(): TablatureTechniqueConnectionMetadata[] {
+    return this.metadata().tablature_technique_connections ?? [];
+  }
+
+  /** Return typed semantics for one stable note address, if the address is present. */
+  noteSemanticAt(address: NoteAddressObject): NoteSemanticMetadata | undefined {
+    return this.metadata().note_semantics?.find((entry) => (
+      entry.part === address.part
+      && entry.staff === address.staff
+      && entry.measure === address.measure
+      && entry.voice === address.voice
+      && entry.note === address.note
+    ));
+  }
+
+  analyze(): AnalysisResult {
     this.assertLoaded();
     let cacheKey: string;
     try {
@@ -688,14 +973,24 @@ export class AcordeWorkspace {
     this.currentAnalysisCacheKey = cacheKey;
     const cached = this.analysisCache.get(cacheKey);
     if (cached !== undefined) return cached;
-    let analysis: Record<string, unknown>;
+    let analysis: AnalysisResult;
     try {
-      analysis = JSON.parse(this.wasm.analyze_score(this.scoreJson)) as Record<string, unknown>;
+      analysis = JSON.parse(this.wasm.analyze_score(this.scoreJson)) as AnalysisResult;
     } catch (cause) {
       throw this.toWorkspaceError("analysis", cause);
     }
     this.analysisCache.set(cacheKey, analysis);
     return analysis;
+  }
+
+  /** Return the typed interval observations for the current score. */
+  analysisIntervals(): AnalysisIntervalObservation[] {
+    return this.analyze().intervals;
+  }
+
+  /** Return duration-weighted key candidates for the current score. */
+  analysisKeyEstimates(): AnalysisKeyEstimate[] {
+    return this.analyze().key_estimates;
   }
 
   /** Return the schema-versioned score identity used for analysis caching. */
@@ -756,6 +1051,44 @@ export class AcordeWorkspace {
     this.assertLoaded();
     try {
       return JSON.parse(this.wasm.serialize_mei_report(this.scoreJson)) as ExportReport;
+    } catch (cause) {
+      throw this.toWorkspaceError("serialize", cause);
+    }
+  }
+
+  /** Serialize the loaded score to the deterministic canonical MuseScore MSCX subset. */
+  exportMscx(): string {
+    this.assertLoaded();
+    try {
+      return this.wasm.serialize_mscx(this.scoreJson);
+    } catch (cause) {
+      throw this.toWorkspaceError("serialize", cause);
+    }
+  }
+
+  exportMscxWithReport(): ExportReport {
+    this.assertLoaded();
+    try {
+      return JSON.parse(this.wasm.serialize_mscx_report(this.scoreJson)) as ExportReport;
+    } catch (cause) {
+      throw this.toWorkspaceError("serialize", cause);
+    }
+  }
+
+  /** Serialize the loaded score to a deterministic canonical MuseScore MSCZ archive. */
+  exportMscz(): Uint8Array {
+    this.assertLoaded();
+    try {
+      return this.wasm.serialize_mscz(this.scoreJson);
+    } catch (cause) {
+      throw this.toWorkspaceError("serialize", cause);
+    }
+  }
+
+  exportMsczWithReport(): BinaryExportReport {
+    this.assertLoaded();
+    try {
+      return JSON.parse(this.wasm.serialize_mscz_report(this.scoreJson)) as BinaryExportReport;
     } catch (cause) {
       throw this.toWorkspaceError("serialize", cause);
     }
@@ -1059,6 +1392,8 @@ export function handleWorkspaceRequest(
       case "replace-score-bytes":
         workspace.replaceScoreJsonBytes(request.data);
         return { id: request.id, ok: true, value: workspace.snapshot() };
+      case "apply-command":
+        return { id: request.id, ok: true, value: workspace.applyCommandJson(request.commandJson) };
       case "undo":
       case "redo": {
         const changed = request.type === "undo" ? workspace.undo() : workspace.redo();
@@ -1077,6 +1412,8 @@ export function handleWorkspaceRequest(
       case "select-address":
         workspace.selection.set(request.address);
         return { id: request.id, ok: true, value: workspace.selectionState() };
+      case "select-note":
+        return { id: request.id, ok: true, value: workspace.selectNote(request.address) };
       case "selection-state":
         return { id: request.id, ok: true, value: workspace.selectionState() };
       case "snapshot":
@@ -1126,6 +1463,14 @@ export function handleWorkspaceRequest(
         return { id: request.id, ok: true, value: workspace.exportMei() };
       case "export-mei-report":
         return { id: request.id, ok: true, value: workspace.exportMeiWithReport() };
+      case "export-mscx":
+        return { id: request.id, ok: true, value: workspace.exportMscx() };
+      case "export-mscx-report":
+        return { id: request.id, ok: true, value: workspace.exportMscxWithReport() };
+      case "export-mscz":
+        return { id: request.id, ok: true, value: workspace.exportMscz() };
+      case "export-mscz-report":
+        return { id: request.id, ok: true, value: workspace.exportMsczWithReport() };
       case "export-abc":
         return { id: request.id, ok: true, value: workspace.exportAbc() };
       case "export-abc-report":

@@ -795,12 +795,74 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
         }
     }
 
+    events = merge_tied_events(score, events);
     events.sort_by(|a, b| {
         a.time_beats
             .partial_cmp(&b.time_beats)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     events
+}
+
+/// Coalesce adjacent playback events that are connected by authored ties.
+///
+/// Ties are a notational continuation, not repeated attacks. The event keeps the first
+/// source address and accumulates the sounding duration of each contiguous segment. Malformed
+/// or non-contiguous tie endings remain as independent events so playback never silently drops
+/// a note.
+fn merge_tied_events(score: &Score, events: Vec<PlaybackEvent>) -> Vec<PlaybackEvent> {
+    use std::collections::HashMap;
+
+    let mut merged = Vec::with_capacity(events.len());
+    let mut pending: HashMap<(usize, usize, usize, i32), usize> = HashMap::new();
+    for event in events {
+        let Some(source) = event.source.as_ref() else {
+            merged.push(event);
+            continue;
+        };
+        let tied_note = score
+            .parts
+            .get(source.part)
+            .and_then(|part| part.staves.get(source.staff))
+            .and_then(|staff| staff.measures.get(source.measure))
+            .and_then(|measure| measure.voices.get(source.voice))
+            .and_then(|voice| voice.get(source.note));
+        let Some(note) = tied_note else {
+            merged.push(event);
+            continue;
+        };
+        let key = (
+            source.part,
+            source.staff,
+            source.voice,
+            event.pitch_midi_cents,
+        );
+        if note.tie_end
+            && pending.get(&key).is_some_and(|&index| {
+                merged.get(index).is_some_and(|previous| {
+                    (previous.time_beats + previous.duration_beats - event.time_beats).abs() < 1e-9
+                })
+            })
+        {
+            let index = pending[&key];
+            let previous = &mut merged[index];
+            previous.duration_beats += event.duration_beats;
+            previous.duration_secs += event.duration_secs;
+            if !note.tie_start {
+                pending.remove(&key);
+            }
+            continue;
+        }
+
+        let index = merged.len();
+        merged.push(event);
+        if note.tie_start {
+            pending.insert(key, index);
+        } else {
+            pending.remove(&key);
+        }
+    }
+    merged
 }
 
 /// Convert a score into playback events while enforcing the host-comparison event bound.
@@ -960,6 +1022,62 @@ mod tests {
         assert_eq!(events[0].velocity, 64);
         assert!((events[0].duration_beats - 1.0).abs() < 1e-9);
         assert_eq!(events[0].part_index, 0);
+    }
+
+    #[test]
+    fn tied_notes_are_one_continuous_playback_event() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        let mut first = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        first.tie_start = true;
+        let mut second = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        second.tie_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![first, second];
+
+        let events = to_playback_events(&score, &opts(None));
+        assert_eq!(events.len(), 1);
+        assert_eq!(
+            events[0].source.as_ref().map(|address| address.note),
+            Some(0)
+        );
+        assert!((events[0].time_beats).abs() < 1e-9);
+        assert!((events[0].duration_beats - 2.0).abs() < 1e-9);
+        assert!((events[0].duration_secs - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn ties_cross_measure_boundaries_and_tempo_changes_without_retriggering() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 2);
+        let first_measure = &mut score.parts[0].staves[0].measures[0];
+        let mut first = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        first.tie_start = true;
+        first_measure.voices[0] = vec![first];
+
+        let second_measure = &mut score.parts[0].staves[0].measures[1];
+        second_measure.tempo = Some(60);
+        let mut second = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        second.tie_end = true;
+        second_measure.voices[0] = vec![second];
+
+        let events = to_playback_events(&score, &opts(None));
+        assert_eq!(events.len(), 1);
+        assert_eq!(
+            events[0].source.as_ref().map(|address| address.measure),
+            Some(0)
+        );
+        assert!((events[0].time_beats).abs() < 1e-9);
+        assert!((events[0].duration_beats - 8.0).abs() < 1e-9);
+        assert!((events[0].duration_secs - 6.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn malformed_tie_end_does_not_drop_playback_event() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        note.tie_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let events = to_playback_events(&score, &opts(None));
+        assert_eq!(events.len(), 1);
+        assert!((events[0].duration_beats - 1.0).abs() < 1e-9);
     }
 
     #[test]

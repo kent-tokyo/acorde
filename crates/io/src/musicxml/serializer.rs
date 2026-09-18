@@ -605,7 +605,7 @@ fn serialize_note(xml: &mut String, note: &Note, voice_number: usize, staff_numb
     let dur_ticks = note.duration.to_ticks(note.dot_count);
 
     if note.is_rest {
-        xml.push_str("      <note>\n");
+        xml.push_str(&format!("      <note{}>\n", note_placement_attrs(note)));
         xml.push_str("        <rest/>\n");
         xml.push_str(&format!("        <duration>{}</duration>\n", dur_ticks));
         if let Some(tuplet) = &note.tuplet {
@@ -638,7 +638,7 @@ fn serialize_note(xml: &mut String, note: &Note, voice_number: usize, staff_numb
         }
         xml.push_str("      </note>\n");
     } else if let Some(pitch) = note.pitches.first() {
-        xml.push_str("      <note>\n");
+        xml.push_str(&format!("      <note{}>\n", note_placement_attrs(note)));
         if note.is_grace {
             if note.grace_slash {
                 xml.push_str("        <grace slash=\"yes\"/>\n");
@@ -750,7 +750,7 @@ fn serialize_note(xml: &mut String, note: &Note, voice_number: usize, staff_numb
 
         // Additional chord pitches
         for (pitch_idx, extra) in note.pitches.iter().skip(1).enumerate() {
-            xml.push_str("      <note>\n");
+            xml.push_str(&format!("      <note{}>\n", note_placement_attrs(note)));
             xml.push_str("        <chord/>\n");
             if note.is_unpitched {
                 xml.push_str("        <unpitched>\n");
@@ -1106,6 +1106,23 @@ fn styled_direction_attrs(styled: &acorde_core::StyledText) -> String {
     }
     if let Some(relative_y) = styled.relative_y {
         attrs.push_str(&format!(" relative-y=\"{}\"", relative_y));
+    }
+    attrs
+}
+
+fn note_placement_attrs(note: &Note) -> String {
+    let mut attrs = String::new();
+    for (name, value) in [
+        ("default-x", note.offset_x),
+        ("default-y", note.offset_y),
+        ("relative-x", note.relative_x),
+        ("relative-y", note.relative_y),
+    ] {
+        if let Some(value) = value {
+            if value.is_finite() {
+                attrs.push_str(&format!(" {name}=\"{value}\""));
+            }
+        }
     }
     attrs
 }

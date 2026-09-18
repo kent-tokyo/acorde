@@ -40,6 +40,8 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut in_note = false;
     let mut note_slur_start = false;
     let mut note_slur_end = false;
+    let mut note_tie_start = false;
+    let mut note_tie_end = false;
     let mut note_glissando_start = false;
     let mut note_glissando_end = false;
     let mut in_notations = false;
@@ -66,6 +68,10 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut in_unpitched = false;
     let mut note_is_unpitched = false;
     let mut note_instrument_id: Option<String> = None;
+    let mut note_offset_x: Option<f64> = None;
+    let mut note_offset_y: Option<f64> = None;
+    let mut note_relative_x: Option<f64> = None;
+    let mut note_relative_y: Option<f64> = None;
     let mut note_chord = false;
     let mut note_voice = 1u8;
     let mut note_staff = 1usize;
@@ -316,6 +322,18 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     }
                     "note" => {
                         in_note = true;
+                        note_offset_x = attr_str(e, b"default-x")
+                            .and_then(|value| value.parse().ok())
+                            .filter(|value: &f64| value.is_finite());
+                        note_offset_y = attr_str(e, b"default-y")
+                            .and_then(|value| value.parse().ok())
+                            .filter(|value: &f64| value.is_finite());
+                        note_relative_x = attr_str(e, b"relative-x")
+                            .and_then(|value| value.parse().ok())
+                            .filter(|value: &f64| value.is_finite());
+                        note_relative_y = attr_str(e, b"relative-y")
+                            .and_then(|value| value.parse().ok())
+                            .filter(|value: &f64| value.is_finite());
                         note_rest = false;
                         note_chord = false;
                         note_voice = 1;
@@ -340,6 +358,8 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         note_type = "quarter".to_string();
                         note_slur_start = false;
                         note_slur_end = false;
+                        note_tie_start = false;
+                        note_tie_end = false;
                         note_glissando_start = false;
                         note_glissando_end = false;
                         pending_articulations.clear();
@@ -354,6 +374,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         note_stem_up = None;
                         pending_note_head = None;
                     }
+                    "tie" | "tied" if in_note => match attr_str(e, b"type").as_deref() {
+                        Some("start") => note_tie_start = true,
+                        Some("stop") => note_tie_end = true,
+                        _ => {}
+                    },
                     "pitch" => in_pitch = true,
                     "instrument" if in_note => {
                         note_instrument_id = attr_str(e, b"id");
@@ -431,6 +456,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "slur" if in_note => match attr_str(e, b"type").as_deref() {
                         Some("start") => note_slur_start = true,
                         Some("stop") => note_slur_end = true,
+                        _ => {}
+                    },
+                    "tie" | "tied" if in_note => match attr_str(e, b"type").as_deref() {
+                        Some("start") => note_tie_start = true,
+                        Some("stop") => note_tie_end = true,
                         _ => {}
                     },
                     "staccato" if in_artic_block => {
@@ -796,6 +826,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 harmony_function: harmony_function.take(),
                                 harmony_type: None,
                                 chord_ref: None,
+                                range_end: None,
                                 degrees: std::mem::take(&mut harmony_degrees),
                             });
                         }
@@ -1279,7 +1310,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 let voice = &mut m.voices[voice_index];
                                 let dur = parse_duration_type(&note_type);
                                 let dot_count = u8::from(note_dot);
-                                let note = if note_rest {
+                                let mut note = if note_rest {
                                     let mut n = Note::rest(dur);
                                     n.dot_count = dot_count;
                                     n
@@ -1297,57 +1328,40 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                     n.is_cue = note_is_cue;
                                     n.is_unpitched = note_is_unpitched;
                                     n.instrument_id = note_instrument_id.clone();
+                                    n.offset_x = note_offset_x;
+                                    n.offset_y = note_offset_y;
+                                    n.relative_x = note_relative_x;
+                                    n.relative_y = note_relative_y;
                                     n
                                 };
+                                note.tie_start = note_tie_start;
+                                note.tie_end = note_tie_end;
                                 if note_chord && !voice.is_empty() {
                                     if let Some(last) = voice.last_mut()
                                         && !last.is_rest
                                         && !note.is_rest
                                     {
-                                        if let Some(p) = note.pitches.first() {
-                                            last.pitches.push(p.clone());
-                                        }
-                                        last.is_unpitched |= note_is_unpitched;
-                                        if note_instrument_id.is_some() {
-                                            last.instrument_id = note_instrument_id.clone();
-                                        }
-                                        if !pending_fingerings.is_empty() {
-                                            if last.fingering.is_none() {
-                                                last.fingering =
-                                                    pending_fingerings.first().copied();
-                                            }
-                                            last.fingerings.append(&mut pending_fingerings);
-                                        }
-                                        let tab_string = pending_string_number.take();
-                                        if let Some(s) = tab_string {
-                                            last.string_number = Some(s);
-                                        }
-                                        if let (Some(string), Some(fret)) =
-                                            (tab_string, pending_fret.take())
-                                        {
-                                            let position =
-                                                acorde_core::TabPosition { string, fret };
-                                            last.tab_positions.push(position.clone());
-                                            if last.tab_position.is_none() {
-                                                last.tab_position = Some(position);
-                                            }
-                                        }
-                                        if let Some(t) = pending_technique_text.take() {
-                                            last.technique_text = Some(t);
-                                        }
-                                        if let Some(nh) = pending_note_head.take() {
-                                            last.note_head = nh;
-                                        }
-                                        if let Some(gt) = pending_guitar_technique.take() {
-                                            last.guitar_technique = Some(gt);
-                                        }
-                                        if let Some(cents) = pending_guitar_bend_alter_cents.take()
-                                        {
-                                            last.guitar_bend_alter_cents = Some(cents);
-                                        }
-                                        if let Some(up) = note_stem_up {
-                                            last.stem_up = Some(up);
-                                        }
+                                        merge_musicxml_chord_note(
+                                            last,
+                                            &note,
+                                            MusicXmlChordNoteDetails {
+                                                is_unpitched: note_is_unpitched,
+                                                instrument_id: note_instrument_id.clone(),
+                                                offset_x: note_offset_x,
+                                                offset_y: note_offset_y,
+                                                relative_x: note_relative_x,
+                                                relative_y: note_relative_y,
+                                                fingerings: std::mem::take(&mut pending_fingerings),
+                                                string_number: pending_string_number.take(),
+                                                fret: pending_fret.take(),
+                                                technique_text: pending_technique_text.take(),
+                                                note_head: pending_note_head.take(),
+                                                guitar_technique: pending_guitar_technique.take(),
+                                                guitar_bend_alter_cents:
+                                                    pending_guitar_bend_alter_cents.take(),
+                                                stem_up: note_stem_up,
+                                            },
+                                        );
                                     }
                                 } else {
                                     if voice.len() >= MAX_NOTES_PER_VOICE {
@@ -1473,6 +1487,75 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     score.settings.key_signature = current_key;
 
     Ok(score)
+}
+
+/// Merge the second `<note>` of a MusicXML chord into the note that owns the event.
+///
+/// MusicXML stores chord pitches as separate note elements. Keeping this mutation in one
+/// helper makes the parser's streaming state machine responsible only for collecting fields,
+/// while this function owns the canonical multi-pitch and tablature merge policy.
+struct MusicXmlChordNoteDetails {
+    is_unpitched: bool,
+    instrument_id: Option<String>,
+    offset_x: Option<f64>,
+    offset_y: Option<f64>,
+    relative_x: Option<f64>,
+    relative_y: Option<f64>,
+    fingerings: Vec<u8>,
+    string_number: Option<u8>,
+    fret: Option<u8>,
+    technique_text: Option<String>,
+    note_head: Option<NoteHead>,
+    guitar_technique: Option<GuitarTechnique>,
+    guitar_bend_alter_cents: Option<i16>,
+    stem_up: Option<bool>,
+}
+
+fn merge_musicxml_chord_note(last: &mut Note, note: &Note, details: MusicXmlChordNoteDetails) {
+    if let Some(pitch) = note.pitches.first() {
+        last.pitches.push(pitch.clone());
+    }
+    last.tie_start |= note.tie_start;
+    last.tie_end |= note.tie_end;
+    last.is_unpitched |= details.is_unpitched;
+    if details.instrument_id.is_some() {
+        last.instrument_id = details.instrument_id;
+    }
+    last.offset_x = details.offset_x;
+    last.offset_y = details.offset_y;
+    last.relative_x = details.relative_x;
+    last.relative_y = details.relative_y;
+    if !details.fingerings.is_empty() {
+        if last.fingering.is_none() {
+            last.fingering = details.fingerings.first().copied();
+        }
+        last.fingerings.extend(details.fingerings);
+    }
+    if let Some(string) = details.string_number {
+        last.string_number = Some(string);
+        if let Some(fret) = details.fret {
+            let position = acorde_core::TabPosition { string, fret };
+            last.tab_positions.push(position.clone());
+            if last.tab_position.is_none() {
+                last.tab_position = Some(position);
+            }
+        }
+    }
+    if let Some(text) = details.technique_text {
+        last.technique_text = Some(text);
+    }
+    if let Some(note_head) = details.note_head {
+        last.note_head = note_head;
+    }
+    if let Some(technique) = details.guitar_technique {
+        last.guitar_technique = Some(technique);
+    }
+    if let Some(cents) = details.guitar_bend_alter_cents {
+        last.guitar_bend_alter_cents = Some(cents);
+    }
+    if let Some(stem_up) = details.stem_up {
+        last.stem_up = Some(stem_up);
+    }
 }
 
 fn parse_duration_type(t: &str) -> Duration {
@@ -1620,6 +1703,24 @@ mod tests {
         assert!(!notes[0].slur_end);
         assert!(notes[1].slur_end, "second note should have slur_end");
         assert!(!notes[1].slur_start);
+    }
+
+    #[test]
+    fn ties_are_parsed_from_note_level_and_notations_elements() {
+        let xml = r#"<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1"><measure number="1"><attributes><time><beats>2</beats><beat-type>4</beat-type></time></attributes>
+    <note><pitch><step>C</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type><tie type="start"/><notations><tied type="start"/></notations></note>
+    <note><pitch><step>C</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type><tie type="stop"/><notations><tied type="stop"/></notations></note>
+  </measure></part>
+</score-partwise>"#;
+        let score = parse_musicxml(xml).expect("MusicXML ties parse");
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(notes.len(), 2);
+        assert!(notes[0].tie_start);
+        assert!(!notes[0].tie_end);
+        assert!(!notes[1].tie_start);
+        assert!(notes[1].tie_end);
     }
 
     fn xml_with_notations(notations_inner: &str) -> String {

@@ -9,6 +9,15 @@ test("browser contract renders and exposes selectable notes", async ({ page }) =
   await expect(page.locator("#export")).toBeEnabled();
   await page.getByRole("button", { name: "Analyze" }).click();
   await expect(page.locator("#analysis")).not.toHaveText("");
+  await expect(page.locator("#analysis")).toContainText('"schema_version": 13');
+  await expect(page.locator("#analysis")).toContainText('"key_estimates"');
+  await expect(page.locator("#analysis")).toContainText('"weighted_covered_beats"');
+  await expect(page.locator("#metadata")).toContainText('"tablature_staves"');
+  await expect(page.locator("#metadata")).toContainText('"contract_version": 15');
+  await expect(page.locator("#metadata")).toContainText('"note_semantics"');
+  await expect(page.locator("#metadata")).toContainText('"duration_beats"');
+  await expect(page.locator("#metadata")).toContainText('"pitch_midi_cents"');
+  await expect(page.locator("#metadata")).toContainText('"articulations"');
   await expect(page.locator("[data-note-addr]")).toHaveCount(4);
   const source = page.locator("#source");
   await expect(source).toHaveValue(/<score-partwise/);

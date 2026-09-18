@@ -41,11 +41,16 @@ acorde = { version = "1.1.7", features = ["abc", "mscz", "mei"] }
 ```
 
 `acorde-io` の既定 feature は `musicxml` と `midi` です。`abc` は ABC の読み書き、
-`mscz` は `.mscz`/`.mscx` の読み込み、`mei` は文書化されたMEIサブセットの入出力を追加します。パーサーはメモリ上の入力を受け取り、
+`mscz` は `.mscz`/`.mscx` の読み込みと決定的なcanonical subset出力、`mei` は文書化されたMEIサブセットの入出力を追加します。パーサーはメモリ上の入力を受け取り、
 ファイルは読みません。
+MSCXのキー署名、拍子、テンポ、音高、TPCなどの数値が不正で安全なcanonical値へ
+フォールバックされた場合、入力位置付き診断として報告します。ピッチの科学的表記は
+拡張された臨時記号の連続を保持し、範囲をオーバーフローする入力はエラーにします。
 MusicXMLのvoice番号1〜4は`Measure.voices`に保持され、MusicXMLの往復変換でも維持されます。
 タブ譜の弦番号/フレットとMusicXMLの微分音（小数`alter`）を保持できます。ABCの`^/`/`_/`、
 MEIの`qs`/`qf`による一般的な四分音臨時記号にも対応します。
+タイは休符を終点として描画せず、SVGメタデータには編集・再生同期用の型付き
+`tie_start`/`tie_end`が含まれます。
 glissandoとcross-staff配置もMusicXMLとの往復変換で保持されます。SoundFontはサンプルデコードを
 内包せず、ライセンスを管理するアプリケーション側rendererとの境界として提供します。
 形式変換後の比較には `acorde compatibility-report source candidate` を使えます。位置ベースの
@@ -59,6 +64,8 @@ scoreが同値で、型付き変換損失がない場合にtrueです。
 WASMの `compatibility_report` とブラウザアダプターの `compatibilityReport()` でも、正規化済み
 score JSON同士の同じ判定を利用できます。形式固有の損失は各 `*_report` APIで確認します。
 `SampleDecoder` と `SampleRenderer` により、codecと音声出力をホスト側へ委譲する型付き接続点も提供します。
+入出力APIは型付きの`ImportReport`/`ExportReport`で変換診断を返します。WASMでも対応する
+importと、MusicXML、MEI、MIDI、ABC、MSCX、MSCZのexportについてレポート付きAPIを利用できます。
 
 ## CLI
 

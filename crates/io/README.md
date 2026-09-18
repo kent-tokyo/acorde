@@ -7,12 +7,16 @@ Default features are musicxml and midi. Optional features:
 | Feature | Provides |
 |---|---|
 | abc | parse_abc and serialize_abc |
-| mscz | parse_mscz and parse_mscx |
+| mscz | parse_mscz, parse_mscx, serialize_mscz, and serialize_mscx for the bounded canonical subset |
 | mei | parse_mei and serialize_mei for the documented subset, including scoreDef/staffDef meter, key, and clef |
 
 The default API includes parse_musicxml, parse_mxl, serialize_musicxml, parse_midi,
 serialize_midi, and serialize_midi_region. Parsers accept strings or byte slices and never touch
 the filesystem.
+`serialize_mscx` and `serialize_mscz` emit a deterministic MuseScore-compatible canonical subset;
+they do not claim byte identity or full MuseScore feature coverage.
+`serialize_mscx_with_report` and `serialize_mscz_with_report` additionally identify canonical
+score fields omitted by that subset, with bounded source-like score paths.
 `parse_musicxml_with_report` preserves simple `figured-bass` figure-number text as typed
 display-level `TextStyle::FiguredBass`; prefixes, suffixes, and alterations are retained in
 structured figure fields. MusicXML `<unpitched>` percussion notes retain
@@ -76,6 +80,11 @@ instead of silently claiming lossless interchange.
 MEI numeric fallbacks for malformed `measure@n`, meter attributes, `tempo@mm`, and multi-rest
 counts are also source-located with their preserved values; callers can distinguish a valid
 canonical default from source data that was not representable.
+The MSCX report applies the same rule to malformed key signatures, time signatures, tempos,
+note pitches, and TPC values, using stable codes `mscx.invalid-key-signature`,
+`mscx.invalid-time-signature`, `mscx.invalid-tempo`, `mscx.invalid-pitch`, and
+`mscx.invalid-tpc`. These diagnostics preserve the XML path and raw value, so a fallback such as
+middle C or 120 BPM is never mistaken for lossless source data.
 
 MusicXML notes are mapped from voice numbers 1–4 to the corresponding `Measure.voices` entries;
 serialization emits the same voice numbers and `<backup>` boundaries for round-trip fidelity.
@@ -131,9 +140,23 @@ constructs with line-based source locations.
 `serialize_abc_with_report` reports omitted staves/voices, non-representable part MIDI metadata,
 note annotations such as lyrics/dynamics/alternate noteheads, and microtones outside the
 supported quarter-tone spelling subset. It also reports ABC's lack of a canonical tablature
-staff, string/fret positions, and guitar-specific techniques as source-located losses.
+staff, string/fret positions, guitar-specific techniques, and MusicXML note placement offsets as
+source-located losses. MIDI and MEI export reports likewise identify note placement offsets that
+their formats cannot represent.
 `parse_mscx_with_report` reports known unsupported MuseScore elements such as tremolos,
-ottavas, glissandos, and harmony with source paths.
+ottavas, glissandos, and harmony with source paths. The canonical MSCX/MSCZ serializer preserves
+explicit stem direction, the supported notehead shapes, common articulations, dynamics, and
+short part names, and common `BeamMode` segments; richer vendor-specific notation remains
+diagnosed by the export report. Standalone MuseScore beam groups with a stem direction are
+normalized to the preceding voice group; their geometric fragments are not claimed lossless.
+The canonical metadata projection includes title, composer, lyricist, copyright, work number, and
+movement title in both directions. Part MIDI channels are also preserved in the bounded channel
+projection; invalid values remain source-located diagnostics.
+MSCX `StaffText` content, typed style (including lyrics and figured-bass text), and authored x/y
+offsets are imported into and deterministically exported from the typed measure-text projection;
+final font metrics and engraving remain outside the library boundary.
+Score-level `VBox` title text is likewise projected through `Score.texts` rather than silently
+discarded.
 
 Each supported format also exposes `*_with_report` wrappers returning `ImportReport` or
 `ExportReport<T>`. The MEI export report identifies score fields outside its canonical subset

@@ -50,6 +50,9 @@ typed field and use the string only for compatibility with older snapshots.
   canonical score directly to SVG.
 - `parse_mscz_render_svg(data, options_json)` parses a MuseScore archive and renders its bounded
   canonical score directly to SVG.
+- `serialize_mscx(score_json)` and `serialize_mscz(score_json)` emit the deterministic canonical
+  MuseScore subset for text or binary browser downloads. These serializers do not claim full
+  MuseScore feature or byte-for-byte compatibility.
 - `compute_layout_ex(score_json, config_json)` returns the serialized `LayoutResult`.
 - `compute_print_layout(score_json, print_config_json)` returns the serialized physical
   `PrintLayoutResult` for page-aware hosts. It carries millimetre geometry and publication
@@ -63,17 +66,35 @@ typed field and use the string only for compatibility with older snapshots.
   system, which is the unit a virtualized viewport can cache.
 - `render_score_metadata(score_json, layout_json, options_json)` returns a versioned metadata
   object with `contract_version`, `width`, `height`, `part_count`, `staff_count`, `measure_count`,
-  `note_count`, `accessible_text`, `address_bounds`, `text_annotations`, and `tablature_positions`. Each bound contains `part`, `staff`,
+  `note_count`, `accessible_text`, `address_bounds`, `score_texts`, `text_annotations`, `tablature_positions`,
+  `tablature_staves`, `tablature_technique_connections`, and `note_semantics`. Each bound contains `part`, `staff`,
   `measure`, `voice`, and `note`, so a host can map hit testing and playback highlighting back to
   `NoteAddr` without parsing SVG. Each text annotation contains `part`, `staff`, `measure`,
   `style`, `text`, `placement`, `offset_x`, `offset_y`, `relative_x`, and `relative_y`, so measure-level
 styled text and its source coordinate hints remain available to host views. Use
 `accessible_text` as the text alternative when the host
 cannot expose SVG semantics; check `contract_version` before consuming newer fields.
+Each `score_texts` entry contains the score-level style, text, and optional placement offsets
+imported from title-page structures such as MuseScore `VBox`, so browser editors can retain those
+annotations without reparsing the source format.
 Each `tablature_positions` entry contains `part`, `staff`, `measure`, `voice`, `note`,
 `position`, `string`, and `fret`, so a host can address one position inside a tab chord without
-parsing SVG. Analysis chord results similarly include a canonical `name` beside structured chord
-data; the analysis result schema is version 10.
+parsing SVG. Each `tablature_staves` entry contains `part`, `staff`, `lines`, `tuning_midi`, and
+`capo`, so playback and editing hosts can resolve authored positions without reconstructing staff
+tuning from SVG. Analysis chord results similarly include a canonical `name` beside structured chord
+data; the analysis result schema is version 13. Each `note_semantics` entry contains the source
+address, `is_unpitched`, `tie_start`, `tie_end`, `duration_beats`, `pitch_midi_cents`, optional `dynamic`, `lyric`, `chord_label`, `technique_text`, ordered
+`articulations` names (including `tremolo-N`), `fingerings`, and `instrument_id`, plus one
+`microtone_cents` value per source pitch and optional
+MusicXML placement offsets (`offset_x`, `offset_y`, `relative_x`, `relative_y`), typed guitar
+techniques and bend cents, so playback
+and editor hosts can consume note identity and common annotations without parsing SVG or inferring
+chord pitch order. Interactive note groups additionally expose
+`data-acorde-instrument-id` when the source supplied `instrument@id`; for unpitched notes this
+allows a host to resolve percussion sound identity from an allowlisted instrument catalog.
+Microtone markers expose
+`data-acorde-microtone-cents` and `data-acorde-pitch-index`; these are exact score values and must
+be treated as opaque data, not as markup or URLs.
 
 - `svg_contract_version()` returns the renderer metadata contract version so browser fixtures and
   generated WASM hosts can compare returned metadata without duplicating a version constant.
@@ -90,6 +111,10 @@ the complete validation to Rust.
 `interactive: true`. Interactive SVG groups carry `data-note-addr="part:staff:measure:voice:note"`.
 The host owns selection state: it may apply a CSS class or overlay after selecting an address;
 the Rust renderer remains stateless.
+The adapter also exposes `formatNoteAddress`, `parseNoteAddress`, and the Worker
+`select-note` request so typed metadata addresses can be selected without reconstructing the
+legacy string form. `selectedNoteSemantic()` maps the current selection back to the typed
+`note_semantics` entry.
 
 The reference fixture demonstrates a safe DOM insertion boundary: it parses the returned SVG as
 `image/svg+xml`, requires an SVG root in the SVG namespace, rejects script elements, event-handler
@@ -129,7 +154,11 @@ booleans for two canonical score JSON values. It does not infer import/export lo
 format-specific report APIs when crossing a file-format boundary.
 The browser contract includes a wasm-bindgen regression covering both explanation endpoints;
 headless Chrome execution remains an environment-dependent gate.
-Interval analysis also accepts the region and includes observations touching the edited range,
+Interval analysis also accepts the region and includes observations touching the edited range;
+each interval observation retains a signed exact `cents` distance in addition to the legacy semitone value,
+so microtonal analysis is not silently rounded away. Rests and pitchless events remain hard
+melodic boundaries rather than being bridged by the interval pass. Voice-leading observations
+likewise retain exact signed upper/lower motion in cents.
 so boundary notes are not silently omitted.
 Voice-leading analysis now traverses only the selected region and preserves outside observations
 when merged into an incremental result.
@@ -156,7 +185,8 @@ evidence only; it is not evidence of equivalent audio rendering.
 
 The framework-neutral `examples/browser/acorde-adapter.ts` wraps these bindings into a
 transactional workspace. It supports loading MusicXML/MXL/MEI/ABC/MIDI/MSCX/MSCZ, preserving
-format import reports, and exporting MusicXML/MEI/ABC/MIDI. Its playback timing, tablature
+format import reports, and exporting MusicXML/MEI/ABC/MIDI/MSCX/MSCZ, including bounded export
+reports for the MSCX/MSCZ subset. Its playback timing, tablature
 projection, and canonical tab round-trip methods are host hand-off contracts; they do not add
 audio synthesis, font selection, PDF generation, or browser UI to `acorde`.
 
@@ -166,6 +196,9 @@ the sounding pitch, reports missing or invalid positions and microtonal pitch di
 never guesses a position. Each positioned event also carries the authored `GuitarTechnique` when
 present (`bend`, `slide`, `hammer-on`, or `pull-off`) so hosts can select their own articulation.
 For a bend, `bend_alter_cents` preserves the authored alteration amount when available.
+The technique-connection metadata additionally identifies paired note addresses, string numbers,
+and cross-measure boundaries without requiring SVG parsing. Harmony range endpoints and technique
+connection endpoints use the same typed `{part, staff, measure, voice, note}` address object.
 Automatic assignment remains an explicit caller step.
 
 ## Incremental updates

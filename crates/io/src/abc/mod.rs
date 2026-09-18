@@ -21,7 +21,7 @@ use acorde_core::{
 const MAX_LINES: usize = 10_000;
 const MAX_NOTES: usize = 100_000;
 const MAX_DIAGNOSTICS: usize = 1_024;
-type AbcChord = Vec<(Step, i8, i8)>;
+type AbcChord = Vec<(Step, i8, i8, i16)>;
 
 /// Report ABC constructs that are accepted as input but have no canonical model field.
 ///
@@ -51,6 +51,35 @@ pub fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
         let mut index = 0;
         while index < chars.len() {
             let delimiter = chars[index];
+            if delimiter == '[' && chars.get(index + 1).is_some_and(char::is_ascii_digit) {
+                let mut end = index + 1;
+                while chars.get(end).is_some_and(char::is_ascii_digit) {
+                    end += 1;
+                }
+                if chars.get(end) == Some(&',') {
+                    let mut value_end = end + 1;
+                    while chars
+                        .get(value_end)
+                        .is_some_and(|character| character.is_ascii_digit() || *character == ',')
+                    {
+                        value_end += 1;
+                    }
+                    let value: String = chars[index..value_end].iter().collect();
+                    let mut diagnostic = Diagnostic::warning(
+                        "abc.unsupported-volta",
+                        "ABC multi-number volta endings are outside the canonical subset",
+                    );
+                    diagnostic.source_location =
+                        Some(format!("/line/{line_number}/volta/{}", index + 1));
+                    diagnostic.preserved_value = Some(value);
+                    diagnostics.push(diagnostic);
+                    index = value_end;
+                    if diagnostics.len() >= MAX_DIAGNOSTICS {
+                        return diagnostics;
+                    }
+                    continue;
+                }
+            }
             if matches!(delimiter, '<' | '>') {
                 let mut diagnostic = Diagnostic::warning(
                     "abc.unsupported-rhythm-marker",
@@ -149,79 +178,21 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
             continue;
         }
 
-        // Header field: "X:1", "T:Title", etc.
-        if line.len() >= 2 && line.as_bytes().get(1) == Some(&b':') {
-            let field = &line[0..1];
-            let value = line[2..].trim();
-            if field == "w" {
-                lyric_lines.push((current_part_index, value.to_string()));
-                continue;
-            }
-            match field {
-                "X" => {
-                    in_header = true;
-                    current_measure_number = 0;
-                    pending_tie_end = false;
-                    pending_slur_start = false;
-                    grace_group_active = false;
-                    current_part_index = 0;
-                    if let Some(s) = score.parts.first_mut().and_then(|p| p.staves.first_mut()) {
-                        s.measures.clear();
-                    }
-                }
-                "T" => {
-                    if score.metadata.title.is_empty() || score.metadata.title == "Untitled Score" {
-                        score.metadata.title = value.to_string();
-                    }
-                }
-                "C" => {
-                    score.metadata.composer = value.to_string();
-                }
-                "M" => {
-                    let (num, den) = parse_meter(value);
-                    time = TimeSignature {
-                        numerator: num,
-                        denominator: den,
-                    };
-                    score.settings.time_signature = time.clone();
-                }
-                "L" => {
-                    if let Some(d) = value.split('/').nth(1) {
-                        unit_den = d.parse().unwrap_or(8);
-                    }
-                }
-                "Q" => {
-                    let bpm_str = value.split('=').next_back().unwrap_or(value);
-                    if let Ok(bpm) = bpm_str.trim().parse::<u16>() {
-                        score.settings.tempo_bpm = bpm.clamp(20, 400);
-                    }
-                }
-                "K" => {
-                    let (fifths, mode) = parse_key(value);
-                    score.settings.key_signature = KeySignature { fifths, mode };
-                    in_header = false;
-                }
-                "V" => {
-                    let voice_number = value
-                        .split_whitespace()
-                        .next()
-                        .and_then(|number| number.parse::<usize>().ok())
-                        .filter(|&number| (1..=32).contains(&number))
-                        .ok_or_else(|| Error::Abc(format!("invalid ABC voice: {value}")))?;
-                    current_part_index = voice_number - 1;
-                    current_measure_number = 0;
-                    pending_tie_end = false;
-                    pending_slur_start = false;
-                    grace_group_active = false;
-                    while score.parts.len() <= current_part_index {
-                        let number = score.parts.len() + 1;
-                        let mut part = Part::new(&format!("Part {number}"), &format!("P{number}"));
-                        part.staves.push(Staff::new(Clef::Treble));
-                        score.parts.push(part);
-                    }
-                }
-                _ => {}
-            }
+        if parse_abc_header_line(
+            line,
+            AbcHeaderContext {
+                score: &mut score,
+                unit_den: &mut unit_den,
+                time: &mut time,
+                current_measure_number: &mut current_measure_number,
+                current_part_index: &mut current_part_index,
+                in_header: &mut in_header,
+                lyric_lines: &mut lyric_lines,
+                pending_tie_end: &mut pending_tie_end,
+                pending_slur_start: &mut pending_slur_start,
+                grace_group_active: &mut grace_group_active,
+            },
+        )? {
             continue;
         }
 
@@ -287,6 +258,111 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
 
 // ── body line parser ──────────────────────────────────────────────────────────
 
+struct AbcHeaderContext<'a> {
+    score: &'a mut Score,
+    unit_den: &'a mut u32,
+    time: &'a mut TimeSignature,
+    current_measure_number: &'a mut u32,
+    current_part_index: &'a mut usize,
+    in_header: &'a mut bool,
+    lyric_lines: &'a mut Vec<(usize, String)>,
+    pending_tie_end: &'a mut bool,
+    pending_slur_start: &'a mut bool,
+    grace_group_active: &'a mut bool,
+}
+
+fn parse_abc_header_line(line: &str, context: AbcHeaderContext<'_>) -> Result<bool, Error> {
+    if line.len() < 2 || line.as_bytes().get(1) != Some(&b':') {
+        return Ok(false);
+    }
+    let AbcHeaderContext {
+        score,
+        unit_den,
+        time,
+        current_measure_number,
+        current_part_index,
+        in_header,
+        lyric_lines,
+        pending_tie_end,
+        pending_slur_start,
+        grace_group_active,
+    } = context;
+    let field = &line[0..1];
+    let value = line[2..].trim();
+    if field == "w" {
+        lyric_lines.push((*current_part_index, value.to_string()));
+        return Ok(true);
+    }
+    match field {
+        "X" => {
+            *in_header = true;
+            *current_measure_number = 0;
+            *pending_tie_end = false;
+            *pending_slur_start = false;
+            *grace_group_active = false;
+            *current_part_index = 0;
+            if let Some(staff) = score
+                .parts
+                .first_mut()
+                .and_then(|part| part.staves.first_mut())
+            {
+                staff.measures.clear();
+            }
+        }
+        "T" => {
+            if score.metadata.title.is_empty() || score.metadata.title == "Untitled Score" {
+                score.metadata.title = value.to_string();
+            }
+        }
+        "C" => score.metadata.composer = value.to_string(),
+        "M" => {
+            let (numerator, denominator) = parse_meter(value);
+            *time = TimeSignature {
+                numerator,
+                denominator,
+            };
+            score.settings.time_signature = time.clone();
+        }
+        "L" => {
+            if let Some(denominator) = value.split('/').nth(1) {
+                *unit_den = denominator.parse().unwrap_or(8);
+            }
+        }
+        "Q" => {
+            let bpm = value.split('=').next_back().unwrap_or(value);
+            if let Ok(bpm) = bpm.trim().parse::<u16>() {
+                score.settings.tempo_bpm = bpm.clamp(20, 400);
+            }
+        }
+        "K" => {
+            let (fifths, mode) = parse_key(value);
+            score.settings.key_signature = KeySignature { fifths, mode };
+            *in_header = false;
+        }
+        "V" => {
+            let voice_number = value
+                .split_whitespace()
+                .next()
+                .and_then(|number| number.parse::<usize>().ok())
+                .filter(|&number| (1..=32).contains(&number))
+                .ok_or_else(|| Error::Abc(format!("invalid ABC voice: {value}")))?;
+            *current_part_index = voice_number - 1;
+            *current_measure_number = 0;
+            *pending_tie_end = false;
+            *pending_slur_start = false;
+            *grace_group_active = false;
+            while score.parts.len() <= *current_part_index {
+                let number = score.parts.len() + 1;
+                let mut part = Part::new(&format!("Part {number}"), &format!("P{number}"));
+                part.staves.push(Staff::new(Clef::Treble));
+                score.parts.push(part);
+            }
+        }
+        _ => {}
+    }
+    Ok(true)
+}
+
 struct AbcBodyContext<'a> {
     score: &'a mut Score,
     unit_den: &'a mut u32,
@@ -297,6 +373,19 @@ struct AbcBodyContext<'a> {
     pending_slur_start: &'a mut bool,
     grace_group_active: &'a mut bool,
     part_index: usize,
+}
+
+struct AbcRestTiming {
+    unit_den: u32,
+    measure_beats: f64,
+}
+
+struct AbcPendingNoteState<'a> {
+    note_count: &'a mut usize,
+    pending_tie_end: &'a mut bool,
+    pending_slur_start: &'a mut bool,
+    pending_articulations: &'a mut Vec<acorde_core::Articulation>,
+    pending_tuplet: &'a mut Option<(TupletInfo, usize)>,
 }
 
 fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error> {
@@ -451,144 +540,245 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
         }
 
         // Chord bracket [CEG]
-        if ch == '[' {
-            let Some((chord, next_index)) = parse_abc_chord(&chars, i) else {
-                i += 1;
-                continue;
-            };
-            i = next_index;
-            let (cn, cd, ni) = parse_duration_suffix(&chars, i);
-            i = ni;
-            if let Some((fs, fo, fa)) = chord.first() {
-                *note_count += 1;
-                if *note_count > MAX_NOTES {
-                    return Err(Error::Abc(format!("input exceeds {MAX_NOTES} notes")));
-                }
-                let dur = unit_to_duration(*unit_den, cn, cd);
-                let dot = u8::from(is_dotted(*unit_den, cn, cd));
-                let mut note = Note::new(Pitch::with_alter(fs.clone(), *fo, *fa), dur);
-                note.dot_count = dot;
-                note.is_grace = *grace_group_active;
-                apply_abc_note_annotations(
-                    &chars,
-                    &mut i,
-                    &mut note,
-                    pending_tie_end,
-                    pending_slur_start,
-                );
-                note.articulations.append(&mut pending_articulations);
-                note.tuplet = take_abc_tuplet(&mut pending_tuplet);
-                for (s, o, a) in chord.iter().skip(1) {
-                    note.pitches.push(Pitch::with_alter(s.clone(), *o, *a));
-                }
-                if let Some(m) = staff.measures.last_mut() {
-                    m.voices[0].push(note);
-                }
-            }
+        if ch == '['
+            && append_abc_chord_note(
+                &chars,
+                &mut i,
+                staff,
+                *unit_den,
+                *grace_group_active,
+                note_count,
+                pending_tie_end,
+                pending_slur_start,
+                &mut pending_articulations,
+                &mut pending_tuplet,
+            )?
+        {
             continue;
         }
 
         // Rest
-        if ch == 'z' || ch == 'Z' {
-            i += 1;
-            let (n, d, ni) = parse_duration_suffix(&chars, i);
-            i = ni;
-            *note_count += 1;
-            if *note_count > MAX_NOTES {
-                return Err(Error::Abc(format!("input exceeds {MAX_NOTES} notes")));
-            }
-            let dur = if ch == 'Z' {
-                Duration::whole_filling_beats(time.total_beats())
-            } else {
-                unit_to_duration(*unit_den, n, d)
-            };
-            let dot = u8::from(ch != 'Z' && is_dotted(*unit_den, n, d));
-            let mut rest = Note::rest(dur);
-            rest.dot_count = dot;
-            pending_articulations.clear();
-            rest.tuplet = take_abc_tuplet(&mut pending_tuplet);
-            if let Some(m) = staff.measures.last_mut() {
-                m.voices[0].push(rest);
-            }
+        if (ch == 'z' || ch == 'Z')
+            && append_abc_rest_note(
+                &chars,
+                &mut i,
+                staff,
+                AbcRestTiming {
+                    unit_den: *unit_den,
+                    measure_beats: time.total_beats(),
+                },
+                note_count,
+                &mut pending_articulations,
+                &mut pending_tuplet,
+            )?
+        {
             continue;
         }
 
-        // Accidental prefix
-        let mut alter = 0i8;
-        let mut microtone_accidental = false;
-        if ch == '^' || ch == '_' {
-            let sign = if ch == '^' { 1 } else { -1 };
-            while i < chars.len() && chars[i] == ch {
-                alter = alter.saturating_add(sign);
-                i += 1;
-            }
-            // ABC's slash accidental is a quarter-tone only for a single
-            // sharp/flat. Leave compound slash spellings outside the subset
-            // rather than silently interpreting them as a different pitch.
-            if alter.abs() == 1 && i < chars.len() && chars[i] == '/' {
-                microtone_accidental = true;
-                i += 1;
-            }
-        } else if ch == '=' {
-            alter = 0;
-            i += 1;
-        }
-
-        if i >= chars.len() {
-            break;
-        }
-        let nc = chars[i];
-        if "ABCDEFGabcdefg".contains(nc) {
-            let (step, mut octave) = abc_note_char(nc);
-            i += 1;
-            while i < chars.len() && chars[i] == ',' {
-                octave -= 1;
-                i += 1;
-            }
-            while i < chars.len() && chars[i] == '\'' {
-                octave += 1;
-                i += 1;
-            }
-            let (n, d, ni) = parse_duration_suffix(&chars, i);
-            i = ni;
-            *note_count += 1;
-            if *note_count > MAX_NOTES {
-                return Err(Error::Abc(format!("input exceeds {MAX_NOTES} notes")));
-            }
-            let dur = unit_to_duration(*unit_den, n, d);
-            let dot = u8::from(is_dotted(*unit_den, n, d));
-            // In acorde's declared ABC subset `^/` and `_/` are quarter-sharp
-            // and quarter-flat spellings, not a semitone plus a quarter-tone.
-            // Keep the diatonic alter at zero so they agree with MEI `qs`/`qf`
-            // and MSCX quarter accidental subtypes.
-            let microtone = if microtone_accidental { alter * 50 } else { 0 };
-            if microtone_accidental {
-                alter = 0;
-            }
-            let mut note = Note::new(
-                Pitch::with_microtone(step, octave, alter, microtone.into()),
-                dur,
-            );
-            note.dot_count = dot;
-            note.is_grace = *grace_group_active;
-            apply_abc_note_annotations(
-                &chars,
-                &mut i,
-                &mut note,
+        if append_abc_pitched_note(
+            &chars,
+            &mut i,
+            staff,
+            *unit_den,
+            *grace_group_active,
+            &mut AbcPendingNoteState {
+                note_count,
                 pending_tie_end,
                 pending_slur_start,
-            );
-            note.articulations.append(&mut pending_articulations);
-            note.tuplet = take_abc_tuplet(&mut pending_tuplet);
-            if let Some(m) = staff.measures.last_mut() {
-                m.voices[0].push(note);
-            }
-        } else {
-            i += 1;
+                pending_articulations: &mut pending_articulations,
+                pending_tuplet: &mut pending_tuplet,
+            },
+        )? {
+            continue;
         }
+        i += 1;
     }
 
     Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn append_abc_chord_note(
+    chars: &[char],
+    cursor: &mut usize,
+    staff: &mut Staff,
+    unit_den: u32,
+    is_grace: bool,
+    note_count: &mut usize,
+    pending_tie_end: &mut bool,
+    pending_slur_start: &mut bool,
+    pending_articulations: &mut Vec<acorde_core::Articulation>,
+    pending_tuplet: &mut Option<(TupletInfo, usize)>,
+) -> Result<bool, Error> {
+    if chars.get(*cursor) != Some(&'[') {
+        return Ok(false);
+    }
+    let Some((chord, next_index)) = parse_abc_chord(chars, *cursor) else {
+        *cursor += 1;
+        return Ok(true);
+    };
+    *cursor = next_index;
+    let (cn, cd, ni) = parse_duration_suffix(chars, *cursor);
+    *cursor = ni;
+    let Some((first_step, first_octave, first_alter, first_microtone)) = chord.first() else {
+        return Ok(true);
+    };
+    *note_count += 1;
+    if *note_count > MAX_NOTES {
+        return Err(Error::Abc(format!("input exceeds {MAX_NOTES} notes")));
+    }
+    let mut note = Note::new(
+        Pitch::with_microtone(
+            first_step.clone(),
+            *first_octave,
+            *first_alter,
+            *first_microtone,
+        ),
+        unit_to_duration(unit_den, cn, cd),
+    );
+    note.dot_count = u8::from(is_dotted(unit_den, cn, cd));
+    note.is_grace = is_grace;
+    apply_abc_note_annotations(
+        chars,
+        cursor,
+        &mut note,
+        pending_tie_end,
+        pending_slur_start,
+    );
+    note.articulations.append(pending_articulations);
+    note.tuplet = take_abc_tuplet(pending_tuplet);
+    for (step, octave, alter, microtone) in chord.iter().skip(1) {
+        note.pitches.push(Pitch::with_microtone(
+            step.clone(),
+            *octave,
+            *alter,
+            *microtone,
+        ));
+    }
+    if let Some(measure) = staff.measures.last_mut() {
+        measure.voices[0].push(note);
+    }
+    Ok(true)
+}
+
+fn append_abc_rest_note(
+    chars: &[char],
+    cursor: &mut usize,
+    staff: &mut Staff,
+    timing: AbcRestTiming,
+    note_count: &mut usize,
+    pending_articulations: &mut Vec<acorde_core::Articulation>,
+    pending_tuplet: &mut Option<(TupletInfo, usize)>,
+) -> Result<bool, Error> {
+    let Some(&kind) = chars.get(*cursor) else {
+        return Ok(false);
+    };
+    if !matches!(kind, 'z' | 'Z') {
+        return Ok(false);
+    }
+    *cursor += 1;
+    let (numerator, denominator, next_index) = parse_duration_suffix(chars, *cursor);
+    *cursor = next_index;
+    *note_count += 1;
+    if *note_count > MAX_NOTES {
+        return Err(Error::Abc(format!("input exceeds {MAX_NOTES} notes")));
+    }
+    let duration = if kind == 'Z' {
+        Duration::whole_filling_beats(timing.measure_beats)
+    } else {
+        unit_to_duration(timing.unit_den, numerator, denominator)
+    };
+    let mut rest = Note::rest(duration);
+    rest.dot_count = u8::from(kind != 'Z' && is_dotted(timing.unit_den, numerator, denominator));
+    rest.articulations.append(pending_articulations);
+    rest.tuplet = take_abc_tuplet(pending_tuplet);
+    if let Some(measure) = staff.measures.last_mut() {
+        measure.voices[0].push(rest);
+    }
+    Ok(true)
+}
+
+fn append_abc_pitched_note(
+    chars: &[char],
+    cursor: &mut usize,
+    staff: &mut Staff,
+    unit_den: u32,
+    is_grace: bool,
+    state: &mut AbcPendingNoteState<'_>,
+) -> Result<bool, Error> {
+    let start = *cursor;
+    let mut alter = 0i8;
+    let mut microtone_accidental = false;
+    if chars.get(*cursor).is_some_and(|ch| matches!(ch, '^' | '_')) {
+        let accidental = chars[*cursor];
+        let sign = if accidental == '^' { 1 } else { -1 };
+        while *cursor < chars.len() && chars[*cursor] == accidental {
+            alter = alter.saturating_add(sign);
+            *cursor += 1;
+        }
+        // ABC's slash accidental is a quarter-tone only for a single
+        // sharp/flat. Leave compound slash spellings outside the subset
+        // rather than silently interpreting them as a different pitch.
+        if alter.abs() == 1 && chars.get(*cursor) == Some(&'/') {
+            microtone_accidental = true;
+            *cursor += 1;
+        }
+    } else if chars.get(*cursor) == Some(&'=') {
+        *cursor += 1;
+    }
+
+    let Some(&note_char) = chars.get(*cursor) else {
+        return Ok(*cursor != start);
+    };
+    if !"ABCDEFGabcdefg".contains(note_char) {
+        if *cursor != start {
+            *cursor += 1;
+            return Ok(true);
+        }
+        return Ok(false);
+    }
+
+    let (step, mut octave) = abc_note_char(note_char);
+    *cursor += 1;
+    while chars.get(*cursor) == Some(&',') {
+        octave -= 1;
+        *cursor += 1;
+    }
+    while chars.get(*cursor) == Some(&'\'') {
+        octave += 1;
+        *cursor += 1;
+    }
+    let (numerator, denominator, next_index) = parse_duration_suffix(chars, *cursor);
+    *cursor = next_index;
+    *state.note_count += 1;
+    if *state.note_count > MAX_NOTES {
+        return Err(Error::Abc(format!("input exceeds {MAX_NOTES} notes")));
+    }
+    // In acorde's declared ABC subset `^/` and `_/` are quarter-sharp and
+    // quarter-flat spellings, not a semitone plus a quarter-tone.
+    let microtone = if microtone_accidental { alter * 50 } else { 0 };
+    if microtone_accidental {
+        alter = 0;
+    }
+    let mut note = Note::new(
+        Pitch::with_microtone(step, octave, alter, microtone.into()),
+        unit_to_duration(unit_den, numerator, denominator),
+    );
+    note.dot_count = u8::from(is_dotted(unit_den, numerator, denominator));
+    note.is_grace = is_grace;
+    apply_abc_note_annotations(
+        chars,
+        cursor,
+        &mut note,
+        state.pending_tie_end,
+        state.pending_slur_start,
+    );
+    note.articulations.append(state.pending_articulations);
+    note.tuplet = take_abc_tuplet(state.pending_tuplet);
+    if let Some(measure) = staff.measures.last_mut() {
+        measure.voices[0].push(note);
+    }
+    Ok(true)
 }
 
 fn apply_abc_note_annotations(
@@ -625,18 +815,34 @@ fn parse_abc_chord(chars: &[char], index: usize) -> Option<(AbcChord, usize)> {
     let mut cursor = index + 1;
     let mut chord = Vec::new();
     let mut last_alter = 0i8;
+    let mut last_microtone = 0i16;
     while cursor < chars.len() && chars[cursor] != ']' {
         match chars[cursor] {
             '^' => {
-                last_alter = 1;
-                cursor += 1;
+                if last_alter == 0 && chars.get(cursor + 1) == Some(&'/') {
+                    last_alter = 0;
+                    last_microtone = 50;
+                    cursor += 2;
+                } else {
+                    last_alter = last_alter.saturating_add(1);
+                    last_microtone = 0;
+                    cursor += 1;
+                }
             }
             '_' => {
-                last_alter = -1;
-                cursor += 1;
+                if last_alter == 0 && chars.get(cursor + 1) == Some(&'/') {
+                    last_alter = 0;
+                    last_microtone = -50;
+                    cursor += 2;
+                } else {
+                    last_alter = last_alter.saturating_sub(1);
+                    last_microtone = 0;
+                    cursor += 1;
+                }
             }
             '=' => {
                 last_alter = 0;
+                last_microtone = 0;
                 cursor += 1;
             }
             c if "ABCDEFGabcdefg".contains(c) => {
@@ -650,8 +856,9 @@ fn parse_abc_chord(chars: &[char], index: usize) -> Option<(AbcChord, usize)> {
                     octave += 1;
                     cursor += 1;
                 }
-                chord.push((step, octave, last_alter));
+                chord.push((step, octave, last_alter, last_microtone));
                 last_alter = 0;
+                last_microtone = 0;
             }
             _ => cursor += 1,
         }
@@ -691,12 +898,34 @@ fn abc_decoration_articulation(value: &str) -> Option<acorde_core::Articulation>
         "marcato" => Some(acorde_core::Articulation::Marcato),
         "fermata" => Some(acorde_core::Articulation::Fermata),
         "trill" => Some(acorde_core::Articulation::Trill),
-        "mordent" => Some(acorde_core::Articulation::Mordent),
+        "mordent" | "uppermordent" => Some(acorde_core::Articulation::Mordent),
+        "invertedmordent" | "lowermordent" => Some(acorde_core::Articulation::InvertedMordent),
         "turn" => Some(acorde_core::Articulation::Turn),
         "invertedturn" | "inverted-turn" => Some(acorde_core::Articulation::InvertedTurn),
+        "shake" => Some(acorde_core::Articulation::Shake),
         "breath" | "breathmark" | "breath-mark" => Some(acorde_core::Articulation::BreathMark),
         "caesura" => Some(acorde_core::Articulation::Caesura),
         _ => None,
+    }
+}
+
+fn abc_articulation_decoration(articulation: &acorde_core::Articulation) -> Option<&'static str> {
+    match articulation {
+        acorde_core::Articulation::Staccato => Some("staccato"),
+        acorde_core::Articulation::Staccatissimo => Some("staccatissimo"),
+        acorde_core::Articulation::Accent => Some("accent"),
+        acorde_core::Articulation::Tenuto => Some("tenuto"),
+        acorde_core::Articulation::Marcato => Some("marcato"),
+        acorde_core::Articulation::Fermata => Some("fermata"),
+        acorde_core::Articulation::Trill => Some("trill"),
+        acorde_core::Articulation::Mordent => Some("mordent"),
+        acorde_core::Articulation::InvertedMordent => Some("invertedmordent"),
+        acorde_core::Articulation::Turn => Some("turn"),
+        acorde_core::Articulation::InvertedTurn => Some("invertedturn"),
+        acorde_core::Articulation::Shake => Some("shake"),
+        acorde_core::Articulation::BreathMark => Some("breath"),
+        acorde_core::Articulation::Caesura => Some("caesura"),
+        acorde_core::Articulation::Tremolo(_) => None,
     }
 }
 
@@ -1033,7 +1262,13 @@ pub fn serialize_abc(score: &Score) -> Result<String, Error> {
             if measure_index == 0 && !matches!(measure.barline_left, Barline::Normal) {
                 out.push_str(barline_to_abc(&measure.barline_left));
             }
-            let notes = &measure.voices[0];
+            let Some(notes) = measure.voices.first() else {
+                return Err(Error::Abc(format!(
+                    "part {} measure {} has no voice 1",
+                    i + 1,
+                    measure_index + 1
+                )));
+            };
             let mut note_index = 0;
             while note_index < notes.len() {
                 if let Some(tuplet) = &notes[note_index].tuplet {
@@ -1071,7 +1306,8 @@ pub fn serialize_abc(score: &Score) -> Result<String, Error> {
             let lyric_tokens = staff
                 .measures
                 .iter()
-                .flat_map(|measure| measure.voices[0].iter())
+                .filter_map(|measure| measure.voices.first())
+                .flat_map(|voice| voice.iter())
                 .filter(|note| !note.is_rest)
                 .map(|note| {
                     note.lyric
@@ -1162,6 +1398,18 @@ fn abc_note_export_losses(
     }
     for (field, present, value, reason) in [
         (
+            "placement",
+            note.offset_x.is_some()
+                || note.offset_y.is_some()
+                || note.relative_x.is_some()
+                || note.relative_y.is_some(),
+            format!(
+                "offset_x={:?},offset_y={:?},relative_x={:?},relative_y={:?}",
+                note.offset_x, note.offset_y, note.relative_x, note.relative_y
+            ),
+            "ABC export does not emit MusicXML note placement offsets",
+        ),
+        (
             "chord-symbol",
             note.chord_symbol.is_some(),
             note.chord_symbol
@@ -1179,12 +1427,6 @@ fn abc_note_export_losses(
             "ABC export does not emit note dynamics",
         ),
         (
-            "articulations",
-            !note.articulations.is_empty(),
-            note.articulations.len().to_string(),
-            "ABC export does not emit note articulations",
-        ),
-        (
             "note_head",
             !matches!(note.note_head, acorde_core::NoteHead::Normal),
             format!("{:?}", note.note_head),
@@ -1195,12 +1437,6 @@ fn abc_note_export_losses(
             note.is_unpitched,
             "true".to_string(),
             "ABC export does not emit unpitched note semantics",
-        ),
-        (
-            "is_grace",
-            note.is_grace,
-            "true".to_string(),
-            "ABC export does not emit grace-note semantics",
         ),
         (
             "is_cue",
@@ -1264,6 +1500,18 @@ fn abc_note_export_losses(
                 "ABC exporter supports only double-accidental semitones and pure quarter-tone spellings",
             ));
         }
+    }
+    let unsupported_articulations = note
+        .articulations
+        .iter()
+        .filter(|articulation| abc_articulation_decoration(articulation).is_none())
+        .count();
+    if unsupported_articulations > 0 {
+        losses.push((
+            format!("{note_path}/articulations"),
+            unsupported_articulations.to_string(),
+            "ABC export does not represent every note articulation",
+        ));
     }
     losses
 }
@@ -1385,6 +1633,19 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                     );
                 }
             }
+            if let Some(volta) = &measure.volta
+                && volta.kind != "begin"
+            {
+                push(
+                    format!(
+                        "/score/part/{}/staff/1/measure/{}/volta",
+                        part_index + 1,
+                        measure_index + 1
+                    ),
+                    format!("{}:{}", volta.number, volta.kind),
+                    "ABC export preserves only volta begin markers",
+                );
+            }
             for (voice_index, voice) in measure.voices.iter().enumerate().skip(1) {
                 if !voice.is_empty() {
                     push(
@@ -1399,7 +1660,19 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                     );
                 }
             }
-            for (note_index, _note) in measure.voices[0].iter().enumerate() {
+            let Some(first_voice) = measure.voices.first() else {
+                push(
+                    format!(
+                        "/score/part/{}/staff/1/measure/{}/voice/1",
+                        part_index + 1,
+                        measure_index + 1
+                    ),
+                    "missing".to_string(),
+                    "ABC export requires voice 1 for every measure",
+                );
+                continue;
+            };
+            for (note_index, _note) in first_voice.iter().enumerate() {
                 let note_path = format!(
                     "/score/part/{}/staff/1/measure/{}/voice/1/note/{}",
                     part_index + 1,
@@ -1407,7 +1680,7 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                     note_index + 1
                 );
                 for (path, value, reason) in
-                    abc_note_export_losses(&measure.voices[0], note_index, &note_path)
+                    abc_note_export_losses(first_voice, note_index, &note_path)
                 {
                     push(path, value, reason);
                 }
@@ -1534,6 +1807,13 @@ fn note_to_abc(note: &Note) -> String {
         chord.push_str(&suf);
         chord
     };
+    let decorations: String = note
+        .articulations
+        .iter()
+        .filter_map(abc_articulation_decoration)
+        .map(|name| format!("!{name}!"))
+        .collect();
+    s.insert_str(0, &decorations);
     if note.slur_start {
         s.insert(0, '(');
     }
@@ -1609,6 +1889,18 @@ C D E F | G A B c |";
     }
 
     #[test]
+    fn loss_report_locates_multi_number_volta_endings() {
+        let diagnostics = loss_diagnostics("X:1\nT:Report\nM:2/4\nK:C\n[1,2 C D|\n");
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].code, "abc.unsupported-volta");
+        assert_eq!(
+            diagnostics[0].source_location.as_deref(),
+            Some("/line/5/volta/1")
+        );
+        assert_eq!(diagnostics[0].preserved_value.as_deref(), Some("[1,2"));
+    }
+
+    #[test]
     fn export_loss_report_marks_non_abc_subset_fields() {
         let mut score = Score::new("export", 120, 4, 4, 0, 1);
         let mut note = Note::new(Pitch::with_microtone(Step::C, 4, 0, 25), Duration::Quarter);
@@ -1657,11 +1949,15 @@ C D E F | G A B c |";
             text: "la".to_string(),
             syllabic: "single".to_string(),
         });
-        note.articulations.push(acorde_core::Articulation::Staccato);
+        note.articulations.extend([
+            acorde_core::Articulation::Staccato,
+            acorde_core::Articulation::Tremolo(3),
+        ]);
         note.note_head = acorde_core::NoteHead::Cross;
         note.is_unpitched = true;
         note.is_grace = true;
         note.is_cue = true;
+        note.offset_x = Some(12.5);
 
         let diagnostics = export_loss_diagnostics(&score);
         for field in [
@@ -1669,8 +1965,8 @@ C D E F | G A B c |";
             "articulations",
             "note_head",
             "is_unpitched",
-            "is_grace",
             "is_cue",
+            "placement",
         ] {
             let suffix = format!("/voice/1/note/1/{field}");
             assert!(
@@ -1681,6 +1977,41 @@ C D E F | G A B c |";
                 "missing ABC diagnostic for {field}"
             );
         }
+        assert!(!diagnostics.iter().any(|diagnostic| {
+            diagnostic
+                .source_location
+                .as_deref()
+                .is_some_and(|path| path.ends_with("/is_grace"))
+        }));
+        assert_eq!(
+            diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic
+                    .source_location
+                    .as_deref()
+                    .is_some_and(|path| path.ends_with("/articulations")))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn export_loss_report_locates_non_begin_volta_kinds() {
+        let mut score = Score::new("volta export", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].volta = Some(acorde_core::VoltaBracket {
+            number: 1,
+            kind: "begin_end".to_string(),
+        });
+
+        let diagnostics = export_loss_diagnostics(&score);
+        let diagnostic = diagnostics
+            .iter()
+            .find(|diagnostic| {
+                diagnostic.source_location.as_deref()
+                    == Some("/score/part/1/staff/1/measure/1/volta")
+            })
+            .expect("volta loss diagnostic");
+        assert_eq!(diagnostic.preserved_value.as_deref(), Some("1:begin_end"));
     }
 
     #[test]
@@ -1868,8 +2199,7 @@ C D E F | G A B c |";
 
     #[test]
     fn supported_abc_decorations_become_articulations() {
-        let abc =
-            "X:1\nT:Decorations\nM:4/4\nL:1/4\nK:C\n!staccato!C !accent!D !fermata!E +trill+ F|\n";
+        let abc = "X:1\nT:Decorations\nM:6/4\nL:1/4\nK:C\n!staccato!C !accent!D !fermata!E +trill+ F !invertedmordent! G !shake! A|\n";
         let score = parse_abc(abc).expect("decorated ABC parses");
         let notes = &score.parts[0].staves[0].measures[0].voices[0];
         assert_eq!(
@@ -1888,7 +2218,62 @@ C D E F | G A B c |";
             notes[3].articulations,
             vec![acorde_core::Articulation::Trill]
         );
+        assert_eq!(
+            notes[4].articulations,
+            vec![acorde_core::Articulation::InvertedMordent]
+        );
+        assert_eq!(
+            notes[5].articulations,
+            vec![acorde_core::Articulation::Shake]
+        );
+        let serialized = serialize_abc(&score).expect("supported decorations serialize");
+        assert!(serialized.contains("!staccato!C"));
+        assert!(serialized.contains("!accent!D"));
+        assert!(serialized.contains("!fermata!E"));
+        assert!(serialized.contains("!trill!F"));
+        assert!(serialized.contains("!invertedmordent!G"));
+        assert!(serialized.contains("!shake!A"));
+        let restored = parse_abc(&serialized).expect("serialized decorations parse");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[0][0].articulations,
+            notes[0].articulations
+        );
         assert!(loss_diagnostics(abc).is_empty());
+    }
+
+    #[test]
+    fn abc_mordent_aliases_preserve_directional_semantics() {
+        let abc = "X:1\nT:Mordent aliases\nM:2/4\nL:1/4\nK:C\n!uppermordent!C !lowermordent!D|\n";
+        let score = parse_abc(abc).expect("mordent aliases parse");
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(
+            notes[0].articulations,
+            vec![acorde_core::Articulation::Mordent]
+        );
+        assert_eq!(
+            notes[1].articulations,
+            vec![acorde_core::Articulation::InvertedMordent]
+        );
+        let serialized = serialize_abc(&score).expect("mordent aliases serialize");
+        assert!(serialized.contains("!mordent!C"));
+        assert!(serialized.contains("!invertedmordent!D"));
+    }
+
+    #[test]
+    fn abc_rest_decorations_round_trip_without_loss() {
+        let abc = "X:1\nT:Rest decoration\nM:2/4\nL:1/4\nK:C\n!fermata!z C|\n";
+        let score = parse_abc(abc).expect("decorated rest parses");
+        let rest = &score.parts[0].staves[0].measures[0].voices[0][0];
+        assert!(rest.is_rest);
+        assert_eq!(rest.articulations, vec![acorde_core::Articulation::Fermata]);
+        let serialized = serialize_abc(&score).expect("decorated rest serializes");
+        assert!(serialized.contains("!fermata!z"));
+        let restored = parse_abc(&serialized).expect("serialized decorated rest parses");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[0][0].articulations,
+            rest.articulations
+        );
+        assert!(export_loss_diagnostics(&score).is_empty());
     }
 
     #[test]
@@ -2258,6 +2643,47 @@ C D E F | G A B c |";
         score.parts[0].staves[0].measures[0].voices[0] = vec![note];
         let abc = serialize_abc(&score).unwrap();
         assert!(abc.contains("[CE] "), "Chord should be [CE]");
+    }
+
+    #[test]
+    fn abc_chord_quarter_accidentals_round_trip() {
+        let abc = "X:1\nT:Quarter chord\nM:4/4\nL:1/4\nK:C\n[^/CE] [_/DF]|\n";
+        let score = parse_abc(abc).expect("quarter-tone chord parses");
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(notes[0].pitches[0].microtone_cents, 50);
+        assert_eq!(notes[0].pitches[0].alter, 0);
+        assert_eq!(notes[1].pitches[0].microtone_cents, -50);
+        assert_eq!(notes[1].pitches[0].alter, 0);
+
+        let serialized = serialize_abc(&score).expect("quarter-tone chord serializes");
+        assert!(serialized.contains("[^/CE]"));
+        assert!(serialized.contains("[_/DF]"));
+        let restored = parse_abc(&serialized).expect("serialized quarter-tone chord parses");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[0][0].pitches[0].microtone_cents,
+            50
+        );
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[0][1].pitches[0].microtone_cents,
+            -50
+        );
+        assert!(export_loss_diagnostics(&score).is_empty());
+    }
+
+    #[test]
+    fn abc_chord_double_accidentals_match_note_semantics() {
+        let abc = "X:1\nT:Double chord\nM:4/4\nL:1/4\nK:C\n[^^C__E]|\n";
+        let score = parse_abc(abc).expect("double-accidental chord parses");
+        let pitches = &score.parts[0].staves[0].measures[0].voices[0][0].pitches;
+        assert_eq!(pitches[0].alter, 2);
+        assert_eq!(pitches[1].alter, -2);
+        let serialized = serialize_abc(&score).expect("double-accidental chord serializes");
+        assert!(serialized.contains("[^^C__E]"));
+        let restored = parse_abc(&serialized).expect("serialized double chord parses");
+        let restored_pitches = &restored.parts[0].staves[0].measures[0].voices[0][0].pitches;
+        assert_eq!(restored_pitches[0].alter, 2);
+        assert_eq!(restored_pitches[1].alter, -2);
+        assert!(export_loss_diagnostics(&score).is_empty());
     }
 
     #[test]

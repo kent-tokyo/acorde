@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "version_policy": "workspace version is 1.1.7",
-  "generated_on": "2026-09-06",
+  "generated_on": "2026-09-12",
   "phase_7_policy": {
     "status": "local-slices-available-external-gates-open",
     "claim_boundary": "Phase 7 is not aggregate-lossless until each declared format slice passes its own evidence gate",
-    "local_evidence": ["typed source-located diagnostics", "checked-in format fixtures", "generated_boundary_corpus_preserves_event_meaning", "generated_boundary_corpus_reports_timing_and_pairing_boundaries", "abc_voice_tags_preserve_multipart_semantics", "mei_invalid_numeric_values_are_source_diagnosed", "musicxml_advanced_attributes_are_source_diagnosed", "cross-format semantic projections"],
-    "open_gates": ["broader held-out MIDI/ABC/MEI/MSCZ corpora", "richer vendor and reference semantics", "canonical MSCX export contract", "host audio/engraving equivalence"]
+    "local_evidence": ["typed source-located diagnostics", "checked-in format fixtures", "generated_boundary_corpus_preserves_event_meaning", "generated_boundary_corpus_reports_timing_and_pairing_boundaries", "abc_voice_tags_preserve_multipart_semantics", "mei_invalid_numeric_values_are_source_diagnosed", "mei_editorial_and_facsimile_attributes_are_source_diagnosed", "mei_facsimile_structure_elements_are_source_diagnosed", "musicxml_advanced_attributes_are_source_diagnosed", "cross-format semantic projections"],
+    "open_gates": ["broader held-out MIDI/ABC/MEI/MSCZ corpora", "richer vendor and reference semantics", "canonical MSCX export parity and vendor coverage", "host audio/engraving equivalence"]
   },
   "phases": {
     "6A": { "status": "local-gate-passed", "evidence": ["tests/fixtures/manifest.json", "docs/interchange-evidence.md", "crates/io/tests/roundtrip.rs fixture SHA-256 verification"] },
@@ -28,11 +28,14 @@
   },
   "local_updates": [
     "MIDI export loss reports now source-locate omitted note annotations, grace/cue semantics, and tablature positions; CLI export-report and convert expose ABC and MEI output paths",
+    "MXL import extracts the selected inner MusicXML entry and reuses its source-located loss diagnostics through parse_mxl_with_report",
     "MEI attached harm labels in the bounded startid text subset now round-trip through canonical ChordSymbol; unresolved IDs, unparseable labels, and timing-only placements remain diagnosed",
     "MEI simple fb/f values are retained in order as Measure.figured_bass and regenerate typed display text; MusicXML figured-bass structure is retained as Measure.figured_bass and richer MEI semantics remain diagnosed",
     "MusicXML unpitched percussion notes retain display-step/display-octave placement and Note.is_unpitched through MusicXML round-trip; sound identity resolves only through explicit instrument declarations or retained MIDI display keys, with unmatched notes source-located as unresolved",
     "MSCX and MusicXML Fingering values map to ordered Note.fingerings with the first value mirrored by Note.fingering; deterministic alternate selection is available and external glyph fidelity remains partial",
     "MusicXML note-level instrument@id maps to Note.instrument_id and round-trips without guessing a concrete percussion sound",
+    "Interactive SVG note elements expose preserved instrument IDs through data-acorde-instrument-id for host-side percussion sound resolution",
+    "SVG metadata contract version 15 exposes score-level VBox text, typed note semantics, ordered articulation names, authored tie start/end flags, canonical beat durations, exact pitch MIDI cents, common note annotations, tablature tuning/capo, source identity, unpitched status, instrument IDs, per-pitch microtone cents, typed guitar techniques with bend amounts, and explicit tablature technique connections",
     "Note serde defaults and SetUnpitched/SetInstrumentId command JSON round-trips are covered for backwards-compatible score editing",
     "MusicXML figured-bass figure number/alter/prefix/suffix values round-trip structurally and regenerate deterministic display text",
     "MusicXML standard figure-alter values flatten to visible accidental markers with diagnostic coverage",
@@ -63,7 +66,9 @@
       "MusicXML advanced placement, rendering, and namespaced vendor attributes receive source-located preserved-value diagnostics",
       "MusicXML direction placement above/below is preserved on StyledText through parse/serialize/parse; numeric offsets and vendor semantics remain diagnosed",
       "MusicXML direction default-x/default-y offsets are preserved on StyledText through parse/serialize/parse",
-      "MusicXML direction relative-x/relative-y offsets are preserved separately on StyledText through parse/serialize/parse",
+    "MusicXML direction relative-x/relative-y offsets are preserved separately on StyledText through parse/serialize/parse",
+    "MusicXML note-level placement offsets round-trip through Note and SVG content bounds; typed guitar techniques and bend cents are exposed in note semantics for browser tab hosts",
+    "SVG tablature bends emit deterministic curves with authored bend cents, and slide/hammer-on/pull-off connections continue across system edges with stable note addresses",
       "MusicXML direction placement values outside above/below are source-located with the original value preserved",
       "Note::select_fingering provides deterministic non-mutating source-order, lowest-number, and highest-number projections",
       "CLI fingering-report exposes the same three policies as a read-only JSON diagnostic",
@@ -76,6 +81,10 @@
       "MEI and MusicXML figured-bass values match through a normalized alteration semantic projection",
       "MIDI serialization rejects out-of-range canonical channel, controller, program, aftertouch, and pitch-bend values",
       "MEI malformed measure, meter, tempo, and multi-rest numeric values are source-located with preserved fallback diagnostics",
+      "MEI editorial/facsimile attributes facs, resp, cert, and evidence preserve values in source-located diagnostics",
+      "MEI facsimile, surface, zone, and graphic elements receive individual unsupported-element diagnostics",
+      "MEI note/rest parsing is isolated behind a dedicated context without changing the semantic round-trip contract",
+      "CLI convert and shared score-writing workflows surface export diagnostics on stderr",
       "Tablature validation checks primary and alternate tab_positions against declared staff lines",
       "MSCX malformed note tablature string/fret values are source-located with preserved values",
       "MSCX numeric string positions are checked against owning StaffType line counts",
@@ -126,7 +135,11 @@
       "MEI attached harm@deg is retained as ChordSymbol.harmonic_degree; unattached values are diagnosed",
       "MusicXML lossy fractional alter and MSCX unsupported accidental subtype diagnostics preserve source values at the microtonal boundary",
       "MEI export diagnoses note pitch combinations outside its supported accidental subset",
-      "MSCX standard accidental subtypes remain silent while unknown microtonal subtypes are source-located"
+      "MSCX standard accidental subtypes remain silent while unknown microtonal subtypes are source-located",
+      "MXL import reports reuse diagnostics from the extracted inner MusicXML entry",
+      "Interactive SVG exposes preserved percussion instrument IDs without inferring a concrete sound identity",
+      "SVG metadata now carries typed note semantics so browser hosts do not need to parse SVG for playback identity",
+      "MEI facsimile structure and editorial attributes remain source-located rather than silently discarded"
     ]
   },
   "external_gates": [

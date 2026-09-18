@@ -284,6 +284,25 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<Diagnostic> {
                                 diagnostics.push(diagnostic);
                             }
                         }
+                        if note.offset_x.is_some()
+                            || note.offset_y.is_some()
+                            || note.relative_x.is_some()
+                            || note.relative_y.is_some()
+                        {
+                            if diagnostics.len() >= MAX_DIAGNOSTICS {
+                                return diagnostics;
+                            }
+                            let mut diagnostic = Diagnostic::warning(
+                                "midi.export-unsupported-note-placement",
+                                "MIDI export does not emit MusicXML note placement offsets",
+                            );
+                            diagnostic.source_location = Some(format!("{note_path}/placement"));
+                            diagnostic.preserved_value = Some(format!(
+                                "offset_x={:?},offset_y={:?},relative_x={:?},relative_y={:?}",
+                                note.offset_x, note.offset_y, note.relative_x, note.relative_y
+                            ));
+                            diagnostics.push(diagnostic);
+                        }
                         for (pitch_index, pitch) in note.pitches.iter().enumerate() {
                             if pitch.microtone_cents == 0 {
                                 continue;
@@ -1065,9 +1084,10 @@ mod tests {
         note.is_grace = true;
         note.is_cue = true;
         note.tab_position = Some(acorde_core::TabPosition { string: 1, fret: 3 });
+        note.relative_y = Some(-2.0);
 
         let diagnostics = export_loss_diagnostics(&score);
-        for field in ["lyric", "is_grace", "is_cue", "tab-position"] {
+        for field in ["lyric", "is_grace", "is_cue", "tab-position", "placement"] {
             let suffix = format!("/voice/1/note/1/{field}");
             assert!(
                 diagnostics.iter().any(|diagnostic| diagnostic

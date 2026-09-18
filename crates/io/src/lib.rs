@@ -44,7 +44,14 @@ pub fn parse_musicxml_with_report(xml: &str) -> Result<ImportReport, Error> {
 
 #[cfg(feature = "musicxml")]
 pub fn parse_mxl_with_report(data: &[u8]) -> Result<ImportReport, Error> {
-    Ok(ImportReport::for_format(parse_mxl(data)?, "mxl"))
+    let xml = musicxml::read_mxl_score(data)?;
+    let score = parse_musicxml(&xml)?;
+    Ok(ImportReport {
+        schema_version: REPORT_SCHEMA_VERSION,
+        format: "mxl".to_string(),
+        score,
+        diagnostics: musicxml::loss_diagnostics(&xml),
+    })
 }
 
 #[cfg(feature = "mei")]
@@ -133,7 +140,31 @@ pub fn serialize_abc_with_report(
 }
 
 #[cfg(feature = "mscz")]
-pub use mscz::{parse_mscx, parse_mscz};
+pub use mscz::{parse_mscx, parse_mscz, serialize_mscx, serialize_mscz};
+
+#[cfg(feature = "mscz")]
+pub fn serialize_mscx_with_report(
+    score: &acorde_core::Score,
+) -> Result<ExportReport<String>, Error> {
+    Ok(ExportReport {
+        schema_version: REPORT_SCHEMA_VERSION,
+        format: "mscx".to_string(),
+        output: serialize_mscx(score)?,
+        diagnostics: mscz::export_loss_diagnostics(score),
+    })
+}
+
+#[cfg(feature = "mscz")]
+pub fn serialize_mscz_with_report(
+    score: &acorde_core::Score,
+) -> Result<ExportReport<Vec<u8>>, Error> {
+    Ok(ExportReport {
+        schema_version: REPORT_SCHEMA_VERSION,
+        format: "mscz".to_string(),
+        output: serialize_mscz(score)?,
+        diagnostics: mscz::export_loss_diagnostics(score),
+    })
+}
 
 #[cfg(feature = "mscz")]
 pub fn parse_mscx_with_report(text: &str) -> Result<ImportReport, Error> {
@@ -164,6 +195,29 @@ pub fn parse_mscz_with_report(data: &[u8]) -> Result<ImportReport, Error> {
 #[cfg(test)]
 mod security_tests {
     use super::Error;
+
+    #[cfg(feature = "musicxml")]
+    #[test]
+    fn mxl_report_preserves_inner_musicxml_diagnostics() {
+        use std::io::{Cursor, Write};
+        use zip::ZipWriter;
+        use zip::write::SimpleFileOptions;
+
+        let xml = include_str!("../../../tests/fixtures/simple.musicxml");
+        let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
+        writer
+            .start_file("score.xml", SimpleFileOptions::default())
+            .expect("MXL score entry starts");
+        writer
+            .write_all(xml.as_bytes())
+            .expect("MXL score entry writes");
+        let data = writer.finish().expect("MXL archive finishes").into_inner();
+
+        let report = super::parse_mxl_with_report(&data).expect("MXL report succeeds");
+        assert_eq!(report.format, "mxl");
+        assert_eq!(report.diagnostics, super::musicxml::loss_diagnostics(xml));
+        assert!(!report.score.parts.is_empty());
+    }
 
     #[cfg(feature = "midi")]
     #[test]

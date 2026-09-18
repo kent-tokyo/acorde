@@ -2,8 +2,8 @@ use super::change_hint::{ChangeHint, ChangeScope};
 use super::commands::{
     AddStaffCmd, Command, CommandStack, DeleteStaffCmd, PasteRangeCmd, PasteVoiceCmd,
     RespellScoreCmd, RespellScoreToKeyCmd, SetArpeggioCmd, SetCueCmd, SetDurationCmd,
-    SetInstrumentIdCmd, SetNoteHeadCmd, SetPartGroupCmd, SetStemCmd, SetTupletCmd, SetUnpitchedCmd,
-    ToggleSlurCmd, ToggleTrillLineCmd, command_hint, command_key,
+    SetInstrumentIdCmd, SetNoteHeadCmd, SetNotePlacementCmd, SetPartGroupCmd, SetStemCmd,
+    SetTupletCmd, SetUnpitchedCmd, ToggleSlurCmd, ToggleTrillLineCmd, command_hint, command_key,
 };
 use super::duration::Duration;
 use super::notation::{Clef, NoteHead, TupletInfo};
@@ -375,6 +375,28 @@ impl ScoreEngine {
             voice_index: addr.voice,
             note_index: addr.note,
             stem_up,
+        }))
+    }
+
+    /// Set or clear MusicXML-compatible note placement offsets in tenths (undo-able).
+    pub fn set_note_placement(
+        &mut self,
+        addr: NoteAddr,
+        offset_x: Option<f64>,
+        offset_y: Option<f64>,
+        relative_x: Option<f64>,
+        relative_y: Option<f64>,
+    ) -> Result<ChangeHint, Error> {
+        self.apply(Command::SetNotePlacement(SetNotePlacementCmd {
+            part_index: addr.part,
+            staff_index: addr.staff,
+            measure_index: addr.measure,
+            voice: addr.voice,
+            note_index: addr.note,
+            offset_x,
+            offset_y,
+            relative_x,
+            relative_y,
         }))
     }
 
