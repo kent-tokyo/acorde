@@ -2,8 +2,8 @@
 
 Logical, pixel-free layout computation for acorde-core scores.
 
-compute_layout(&Score, &LayoutConfig) returns visual measure slots, rows, resolved spans, beam
-groups, tuplet groups, concert-pitch key overrides, and mandatory/courtesy accidental marks. It
+compute_layout(&Score, &LayoutConfig) returns visual measure slots, rows, resolved spans, typed
+stable-ID spanners, beam groups, tuplet groups, concert-pitch key overrides, and mandatory/courtesy accidental marks. It
 does not render pixels and has no browser or filesystem dependency.
 
 `compute_print_layout(&Score, &PrintConfig)` adds a host-neutral page/system plan. Dimensions

@@ -1,5 +1,5 @@
 use super::gm::instrument_range;
-use super::score::{NoteAddr, Score};
+use super::score::{NotationSpannerKind, NoteAddr, Score};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -80,6 +80,29 @@ pub enum ValidationError {
         note: usize,
         end: NoteAddr,
     },
+    /// A typed notation span must have a non-empty unique stable identity.
+    InvalidSpannerId { index: usize, id: String },
+    /// A typed notation span has a duplicate stable identity.
+    DuplicateSpannerId {
+        first: usize,
+        duplicate: usize,
+        id: String,
+    },
+    /// A typed notation span endpoint does not point to a canonical note.
+    InvalidSpannerEndpoint {
+        index: usize,
+        id: String,
+        kind: NotationSpannerKind,
+        endpoint: SpannerEndpoint,
+        address: NoteAddr,
+    },
+}
+
+/// Which endpoint of a typed notation spanner failed validation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SpannerEndpoint {
+    Start,
+    End,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -139,6 +162,36 @@ pub fn validate(score: &Score) -> ValidationReport {
 
     if score.parts.is_empty() {
         errors.push(ValidationError::EmptyScore);
+    }
+
+    let mut spanner_ids: HashMap<&str, usize> = HashMap::new();
+    for (index, spanner) in score.spanners.iter().enumerate() {
+        if spanner.id.trim().is_empty() {
+            errors.push(ValidationError::InvalidSpannerId {
+                index,
+                id: spanner.id.clone(),
+            });
+        } else if let Some(first) = spanner_ids.insert(spanner.id.as_str(), index) {
+            errors.push(ValidationError::DuplicateSpannerId {
+                first,
+                duplicate: index,
+                id: spanner.id.clone(),
+            });
+        }
+        for (endpoint, address) in [
+            (SpannerEndpoint::Start, &spanner.start),
+            (SpannerEndpoint::End, &spanner.end),
+        ] {
+            if !note_exists(score, address) {
+                errors.push(ValidationError::InvalidSpannerEndpoint {
+                    index,
+                    id: spanner.id.clone(),
+                    kind: spanner.kind.clone(),
+                    endpoint,
+                    address: address.clone(),
+                });
+            }
+        }
     }
 
     for (pi, part) in score.parts.iter().enumerate() {
@@ -572,6 +625,94 @@ mod tests {
                 ..
             }
         )));
+    }
+
+    #[test]
+    fn validate_rejects_invalid_and_duplicate_typed_spanners() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        let address = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
+        score.spanners = vec![
+            super::super::score::NotationSpanner {
+                id: String::new(),
+                kind: NotationSpannerKind::Slur,
+                start: address.clone(),
+                end: address.clone(),
+                number: Some(1),
+                line_type: None,
+                text: None,
+                placement: None,
+                ottava_size: None,
+                ottava_type: None,
+            },
+            super::super::score::NotationSpanner {
+                id: "duplicate".to_string(),
+                kind: NotationSpannerKind::Pedal,
+                start: address.clone(),
+                end: NoteAddr { note: 9, ..address },
+                number: Some(2),
+                line_type: None,
+                text: None,
+                placement: None,
+                ottava_size: None,
+                ottava_type: None,
+            },
+            super::super::score::NotationSpanner {
+                id: "duplicate".to_string(),
+                kind: NotationSpannerKind::Ottava,
+                start: NoteAddr {
+                    part: 9,
+                    staff: 0,
+                    measure: 0,
+                    voice: 0,
+                    note: 0,
+                },
+                end: NoteAddr {
+                    part: 0,
+                    staff: 0,
+                    measure: 0,
+                    voice: 0,
+                    note: 0,
+                },
+                number: None,
+                line_type: None,
+                text: None,
+                placement: None,
+                ottava_size: Some(8),
+                ottava_type: None,
+            },
+        ];
+
+        let report = validate(&score);
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|error| matches!(error, ValidationError::InvalidSpannerId { index: 0, .. }))
+        );
+        assert!(report.errors.iter().any(|error| matches!(
+            error,
+            ValidationError::DuplicateSpannerId {
+                first: 1,
+                duplicate: 2,
+                ..
+            }
+        )));
+        assert_eq!(
+            report
+                .errors
+                .iter()
+                .filter(|error| matches!(error, ValidationError::InvalidSpannerEndpoint { .. }))
+                .count(),
+            2
+        );
     }
 
     #[test]

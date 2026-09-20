@@ -1056,6 +1056,25 @@ fn validate_layout_references(
             });
         }
     }
+    for span in &layout.typed_spanners {
+        if !valid_note(
+            span.start.part,
+            span.start.staff,
+            span.start.measure,
+            span.start.voice,
+            span.start.note,
+        ) || !valid_note(
+            span.end.part,
+            span.end.staff,
+            span.end.measure,
+            span.end.voice,
+            span.end.note,
+        ) {
+            return Err(RenderError::InvalidLayout {
+                reason: "typed spanner points to a missing note".into(),
+            });
+        }
+    }
     Ok(())
 }
 
@@ -3306,6 +3325,33 @@ fn render_all_spans(
             body.push_str("</g>");
         }
     }
+    if interactive {
+        for span in &layout.typed_spanners {
+            let kind = match span.kind {
+                acorde_core::NotationSpannerKind::Slur => "slur",
+                acorde_core::NotationSpannerKind::Glissando => "glissando",
+                acorde_core::NotationSpannerKind::TrillLine => "trill-line",
+                acorde_core::NotationSpannerKind::Pedal => "pedal",
+                acorde_core::NotationSpannerKind::Ottava => "ottava",
+            };
+            let _ = write!(
+                body,
+                r#"<g class="acorde-span-metadata" data-acorde-kind="span" data-acorde-span-id="{}" data-acorde-span="{}" data-start-note-addr="{}:{}:{}:{}:{}" data-end-note-addr="{}:{}:{}:{}:{}"/>"#,
+                escape_xml(&span.id),
+                kind,
+                span.start.part,
+                span.start.staff,
+                span.start.measure,
+                span.start.voice,
+                span.start.note,
+                span.end.part,
+                span.end.staff,
+                span.end.measure,
+                span.end.voice,
+                span.end.note,
+            );
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -5253,13 +5299,16 @@ fn courtesy_wrapped(alter: i8, cx: f32, cy: f32, space: f32) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        Note, accidental_footprint_u, content_horizontal_margins, measure_text_width_u,
+        Note, accidental_footprint_u, build_svg, content_horizontal_margins, measure_text_width_u,
         note_anchor_y, note_notation_footprint_u, resolve_adjacent_event_spacing,
         resolve_cross_voice_event_spacing, tab_note_y, tab_technique_control_y,
     };
+    use crate::SvgRenderOptions;
     use acorde_core::{
-        Duration, Lyric, NoteHead, Pitch, Score, Step, TabPosition, TablatureConfig,
+        Duration, Lyric, NotationSpanner, NotationSpannerKind, NoteAddr, NoteHead, Pitch, Score,
+        Step, TabPosition, TablatureConfig,
     };
+    use acorde_layout::{LayoutConfig, compute_layout};
     use std::collections::HashMap;
 
     #[test]
@@ -5478,5 +5527,42 @@ mod tests {
         let mut chord_positions = [0.0, 1.0];
         resolve_adjacent_event_spacing(&[chord, single], &mut chord_positions, 0.0, 100.0, 10.0);
         assert!(chord_positions[1] > single_positions[1]);
+    }
+
+    #[test]
+    fn interactive_svg_exposes_typed_spanner_stable_identity() {
+        let mut score = Score::new("Spanner", 120, 2, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::D, 4), Duration::Quarter),
+        ];
+        score.spanners.push(NotationSpanner {
+            id: "svg-slur-2".to_string(),
+            kind: NotationSpannerKind::Slur,
+            start: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+            end: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 1,
+            },
+            number: Some(2),
+            line_type: None,
+            text: None,
+            placement: None,
+            ottava_size: None,
+            ottava_type: None,
+        });
+        let layout = compute_layout(&score, &LayoutConfig::default());
+        let svg = build_svg(&score, &layout, &SvgRenderOptions::default()).expect("renders");
+        assert!(svg.contains("data-acorde-span-id=\"svg-slur-2\""));
+        assert!(svg.contains("data-acorde-span=\"slur\""));
     }
 }

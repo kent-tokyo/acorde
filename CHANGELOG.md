@@ -10,6 +10,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **[schema]** Added score-level `NotationSpanner` values for numbered slur, glissando, trill
+  line, pedal, and ottava ranges. MusicXML preserves bounded endpoint metadata (number, line
+  type, text, placement, ottava size/direction); commands add/update/remove them atomically with
+  undo/redo; layout and interactive SVG expose their stable IDs. Older Score JSON defaults
+  `Score.spanners` to an empty list, while legacy note-level span booleans remain readable during
+  migration.
 - SoundFont materialization now inherits supported preset-global and instrument-global generators
   into local zones. Layered key/velocity matches resolve in deterministic order through a new
   multi-action convenience path; unsupported generator diagnostics and bounded zone limits remain.

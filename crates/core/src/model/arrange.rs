@@ -469,6 +469,7 @@ pub fn arrange_for_accordion(
         part_groups: Vec::new(),
         texts: score.texts.clone(),
         chord_definitions: score.chord_definitions.clone(),
+        spanners: score.spanners.clone(),
     };
 
     let (fitted, shift) = octave_fit(&merged);

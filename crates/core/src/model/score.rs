@@ -106,6 +106,41 @@ pub struct Score {
     /// Reusable chord/tablature definitions imported from interchange formats.
     #[serde(default)]
     pub chord_definitions: Vec<ChordDefinition>,
+    /// Typed notation spans. Legacy note-level boolean endpoints remain supported during migration.
+    #[serde(default)]
+    pub spanners: Vec<NotationSpanner>,
+}
+
+/// Bounded notation span kinds with stable source identity.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum NotationSpannerKind {
+    Slur,
+    Glissando,
+    TrillLine,
+    Pedal,
+    Ottava,
+}
+
+/// A typed, potentially cross-staff notation span between two canonical note addresses.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NotationSpanner {
+    pub id: String,
+    pub kind: NotationSpannerKind,
+    pub start: NoteAddr,
+    pub end: NoteAddr,
+    #[serde(default)]
+    pub number: Option<u16>,
+    #[serde(default)]
+    pub line_type: Option<String>,
+    #[serde(default)]
+    pub text: Option<String>,
+    #[serde(default)]
+    pub placement: Option<String>,
+    #[serde(default)]
+    pub ottava_size: Option<u8>,
+    /// MusicXML octave-shift direction (`up` or `down`) when this is an ottava span.
+    #[serde(default)]
+    pub ottava_type: Option<String>,
 }
 
 impl Default for Score {
@@ -124,6 +159,7 @@ impl Default for Score {
             part_groups: Vec::new(),
             texts: Vec::new(),
             chord_definitions: Vec::new(),
+            spanners: Vec::new(),
         }
     }
 }
@@ -205,6 +241,7 @@ impl Score {
             part_groups: Vec::new(),
             texts: Vec::new(),
             chord_definitions: Vec::new(),
+            spanners: Vec::new(),
         };
 
         match kind {
@@ -326,6 +363,17 @@ impl Score {
     /// Returns `None` if `part_index` is out of range.
     pub fn extract_part(&self, part_index: usize) -> Option<Score> {
         let part = self.parts.get(part_index)?.clone();
+        let spanners = self
+            .spanners
+            .iter()
+            .filter(|spanner| spanner.start.part == part_index && spanner.end.part == part_index)
+            .cloned()
+            .map(|mut spanner| {
+                spanner.start.part = 0;
+                spanner.end.part = 0;
+                spanner
+            })
+            .collect();
         Some(Score {
             id: Uuid::new_v4().to_string(),
             schema_version: 1,
@@ -335,6 +383,7 @@ impl Score {
             part_groups: Vec::new(),
             texts: self.texts.clone(),
             chord_definitions: self.chord_definitions.clone(),
+            spanners,
         })
     }
 
@@ -381,6 +430,13 @@ impl Score {
         for p in &other.parts {
             parts.push(pad(p.clone(), other_count));
         }
+        let self_part_count = self.parts.len();
+        let mut spanners = self.spanners.clone();
+        spanners.extend(other.spanners.iter().cloned().map(|mut spanner| {
+            spanner.start.part += self_part_count;
+            spanner.end.part += self_part_count;
+            spanner
+        }));
 
         Score {
             id: Uuid::new_v4().to_string(),
@@ -391,6 +447,7 @@ impl Score {
             part_groups: Vec::new(),
             texts: self.texts.clone(),
             chord_definitions: self.chord_definitions.clone(),
+            spanners,
         }
     }
 
@@ -3127,6 +3184,62 @@ mod tests {
         assert!(score.extract_part(99).is_none());
     }
 
+    #[test]
+    fn extract_and_merge_remap_typed_spanner_part_addresses() {
+        let mut left = Score::template(ScoreTemplate::StringQuartet);
+        let address = NoteAddr {
+            part: 1,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
+        left.spanners.push(NotationSpanner {
+            id: "left-span".to_string(),
+            kind: NotationSpannerKind::Slur,
+            start: address.clone(),
+            end: address,
+            number: Some(1),
+            line_type: None,
+            text: None,
+            placement: None,
+            ottava_size: None,
+            ottava_type: None,
+        });
+        let extracted = left.extract_part_checked(1).expect("valid extracted part");
+        assert_eq!(extracted.spanners[0].start.part, 0);
+        assert_eq!(extracted.spanners[0].end.part, 0);
+
+        let mut right = Score::new("R", 120, 4, 4, 0, 1);
+        let right_address = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
+        right.spanners.push(NotationSpanner {
+            id: "right-span".to_string(),
+            kind: NotationSpannerKind::Pedal,
+            start: right_address.clone(),
+            end: right_address,
+            number: Some(1),
+            line_type: None,
+            text: None,
+            placement: None,
+            ottava_size: None,
+            ottava_type: None,
+        });
+        let merged = left.merge_checked(&right).expect("valid merged score");
+        let right_span = merged
+            .spanners
+            .iter()
+            .find(|spanner| spanner.id == "right-span")
+            .expect("merged right span");
+        assert_eq!(right_span.start.part, left.parts.len());
+        assert_eq!(right_span.end.part, left.parts.len());
+    }
+
     // ── transpose ─────────────────────────────────────────────────────────────
 
     #[test]
@@ -3277,6 +3390,18 @@ mod tests {
         let json = r#"{"id":"abc","metadata":{"title":"T","composer":"","lyricist":"","copyright":"","work_number":"","movement_title":""},"settings":{"tempo_bpm":120,"time_signature":{"numerator":4,"denominator":4},"key_signature":{"fifths":0,"mode":"major"}},"parts":[]}"#;
         let score: Score = serde_json::from_str(json).unwrap();
         assert_eq!(score.schema_version, 0);
+    }
+
+    #[test]
+    fn legacy_score_json_defaults_typed_spanners() {
+        let score = Score::new("Legacy", 120, 4, 4, 0, 1);
+        let mut value = serde_json::to_value(score).expect("score serializes");
+        value
+            .as_object_mut()
+            .expect("score is an object")
+            .remove("spanners");
+        let restored: Score = serde_json::from_value(value).expect("legacy score deserializes");
+        assert!(restored.spanners.is_empty());
     }
 
     #[test]

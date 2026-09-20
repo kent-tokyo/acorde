@@ -9,9 +9,9 @@ pub use model::arrange::{
 };
 pub use model::change_hint::{ChangeHint, ChangeScope};
 pub use model::commands::{
-    AddHairpinCmd, AddMeasureCmd, AddNoteCmd, AddPartCmd, AddPedalCmd, AddPitchCmd, AddStaffCmd,
-    BatchCmd, Command, CommandStack, DeleteMeasureCmd, DeleteNoteCmd, DeletePartCmd,
-    DeleteStaffCmd, NewScoreCmd, PasteRangeCmd, PasteVoiceCmd, RespellScoreCmd,
+    AddHairpinCmd, AddMeasureCmd, AddNoteCmd, AddPartCmd, AddPedalCmd, AddPitchCmd, AddSpannerCmd,
+    AddStaffCmd, BatchCmd, Command, CommandStack, DeleteMeasureCmd, DeleteNoteCmd, DeletePartCmd,
+    DeleteStaffCmd, NewScoreCmd, PasteRangeCmd, PasteVoiceCmd, RemoveSpannerCmd, RespellScoreCmd,
     RespellScoreToKeyCmd, SetArpeggioCmd, SetBarlineCmd, SetChordSymbolCmd, SetClefCmd,
     SetCrossStaffCmd, SetCueCmd, SetDurationCmd, SetDynamicCmd, SetExpressionTextCmd,
     SetFiguredBassCmd, SetFingeringCmd, SetFingeringsCmd, SetGlissandoCmd, SetGraceCmd,
@@ -22,7 +22,7 @@ pub use model::commands::{
     SetStemCmd, SetStringNumberCmd, SetSystemBreakCmd, SetTabPositionCmd, SetTablatureConfigCmd,
     SetTechniqueTextCmd, SetTempoAtMeasureCmd, SetTempoCmd, SetTimeSignatureCmd, SetTransposeCmd,
     SetTupletCmd, SetUnpitchedCmd, SetVoltaCmd, ToggleArticulationCmd, ToggleSlurCmd, ToggleTieCmd,
-    ToggleTrillLineCmd, command_key, command_label,
+    ToggleTrillLineCmd, UpdateSpannerCmd, command_key, command_label,
 };
 pub use model::duration::Duration;
 pub use model::engine::{EngineHistory, HistoryConflict, HistoryRelation, ScoreEngine};
@@ -49,15 +49,17 @@ pub use model::playback::{
 pub use model::repeat::measure_sequence;
 pub use model::scale::{Scale, ScaleKind};
 pub use model::score::{
-    Measure, MidiAftertouch, MidiControlChange, MidiPitchBend, MidiProgramChange, Note, NoteAddr,
-    Part, PartGroup, PartGroupSymbol, PercussionInstrument, Score, ScoreChange, ScoreMetadata,
-    ScorePatch, ScoreSettings, ScoreStats, ScoreTemplate, Staff, StaffGroup, VoltaBracket,
-    apply_patch, assign_tablature_positions, compute_beams, diff, measure_beats_remaining,
-    optimize_tablature_positions, respell_score, respell_score_to_key, score_duration_secs,
-    score_duration_secs_region, score_patch, suggested_stem_up, transpose, transpose_checked,
+    Measure, MidiAftertouch, MidiControlChange, MidiPitchBend, MidiProgramChange, NotationSpanner,
+    NotationSpannerKind, Note, NoteAddr, Part, PartGroup, PartGroupSymbol, PercussionInstrument,
+    Score, ScoreChange, ScoreMetadata, ScorePatch, ScoreSettings, ScoreStats, ScoreTemplate, Staff,
+    StaffGroup, VoltaBracket, apply_patch, assign_tablature_positions, compute_beams, diff,
+    measure_beats_remaining, optimize_tablature_positions, respell_score, respell_score_to_key,
+    score_duration_secs, score_duration_secs_region, score_patch, suggested_stem_up, transpose,
+    transpose_checked,
 };
 pub use model::validate::{
-    TablatureValidationReason, ValidationError, ValidationReport, ValidationWarning, validate,
+    SpannerEndpoint, TablatureValidationReason, ValidationError, ValidationReport,
+    ValidationWarning, validate,
 };
 
 /// Current Score JSON schema version produced by this crate.

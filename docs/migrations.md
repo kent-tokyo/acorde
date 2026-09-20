@@ -39,3 +39,10 @@ source-located diagnostic codes. `Pitch::to_scientific_name()` preserves extende
 spellings and scientific-name parsing rejects accidental overflow. The fuzz lockfile is aligned
 with the 1.1.7 workspace crates; consumers should use the report APIs and pinned lockfile when
 building reproducible interchange checks.
+
+The same candidate adds `Score.spanners`: typed, stable-ID ranges for slur, glissando, trill line,
+pedal, and ottava. Missing `spanners` deserializes as an empty list. Existing note-level flags
+(`slur_start`, `pedal_end`, and related fields) remain accepted as legacy input and continue to
+produce legacy layout spans; new editing and MusicXML work should use typed spanners. A typed
+endpoint takes precedence over a matching legacy endpoint during MusicXML serialization so a
+consumer does not emit two copies of the same notation.

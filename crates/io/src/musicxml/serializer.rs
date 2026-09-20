@@ -1,7 +1,8 @@
 use crate::Error;
 use acorde_core::{
-    Articulation, Barline, Duration, GuitarTechnique, HairpinKind, Note, NoteHead, PartGroup,
-    PartGroupSymbol, Score, TextStyle, TimeSignature,
+    Articulation, Barline, Duration, GuitarTechnique, HairpinKind, NotationSpanner,
+    NotationSpannerKind, Note, NoteAddr, NoteHead, PartGroup, PartGroupSymbol, Score, TextStyle,
+    TimeSignature,
 };
 
 const DIVISIONS: u32 = 480;
@@ -99,7 +100,7 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
     }
     xml.push_str("  </part-list>\n");
 
-    for part in &score.parts {
+    for (pi, part) in score.parts.iter().enumerate() {
         xml.push_str(&format!("  <part id=\"{}\">\n", escape_xml(&part.id)));
         let staff = match part.staves.first() {
             Some(s) => s,
@@ -435,13 +436,21 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     xml.push_str(&format!("        <duration>{}</duration>\n", cursor_ticks));
                     xml.push_str("      </backup>\n");
                 }
-                for note in voice {
+                for (note_index, note) in voice.iter().enumerate() {
                     serialize_note(
                         &mut xml,
                         note,
                         musicxml_voice_number(measure, voice_index),
                         1,
                         measure_ticks,
+                        score,
+                        &NoteAddr {
+                            part: pi,
+                            staff: 0,
+                            measure: i,
+                            voice: voice_index,
+                            note: note_index,
+                        },
                     );
                 }
                 cursor_ticks = serialized_voice_ticks(voice, measure_ticks);
@@ -470,13 +479,21 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                         xml.push_str(&format!("        <duration>{}</duration>\n", cursor_ticks));
                         xml.push_str("      </backup>\n");
                     }
-                    for note in voice {
+                    for (note_index, note) in voice.iter().enumerate() {
                         serialize_note(
                             &mut xml,
                             note,
                             musicxml_voice_number(extra_measure, voice_index),
                             staff_index + 1,
                             measure_ticks,
+                            score,
+                            &NoteAddr {
+                                part: pi,
+                                staff: staff_index,
+                                measure: i,
+                                voice: voice_index,
+                                note: note_index,
+                            },
                         );
                     }
                     cursor_ticks = serialized_voice_ticks(voice, measure_ticks);
@@ -528,9 +545,20 @@ fn serialize_note(
     voice_number: u32,
     staff_number: usize,
     measure_ticks: u32,
+    score: &Score,
+    address: &NoteAddr,
 ) {
+    let typed_spanners: Vec<&NotationSpanner> = score
+        .spanners
+        .iter()
+        .filter(|spanner| spanner.start == *address || spanner.end == *address)
+        .collect();
+    serialize_typed_direction_spanners(xml, &typed_spanners, address);
+    let has_typed_endpoint =
+        |kind: NotationSpannerKind| typed_spanners.iter().any(|spanner| spanner.kind == kind);
+
     // Pedal start
-    if note.pedal_start {
+    if note.pedal_start && !has_typed_endpoint(NotationSpannerKind::Pedal) {
         xml.push_str("      <direction placement=\"below\">\n");
         xml.push_str("        <direction-type>\n");
         xml.push_str("          <pedal type=\"start\" line=\"no\"/>\n");
@@ -539,7 +567,9 @@ fn serialize_note(
     }
 
     // Ottava start
-    if let Some(ok) = &note.ottava_start {
+    if let Some(ok) = &note.ottava_start
+        && !has_typed_endpoint(NotationSpannerKind::Ottava)
+    {
         xml.push_str("      <direction placement=\"above\">\n");
         xml.push_str("        <direction-type>\n");
         xml.push_str(&format!(
@@ -774,7 +804,7 @@ fn serialize_note(
             };
             xml.push_str(&format!("        <notehead>{}</notehead>\n", nh_str));
         }
-        serialize_notations(xml, note);
+        serialize_notations(xml, note, &typed_spanners, address);
         if let Some(lyric) = &note.lyric {
             xml.push_str("        <lyric number=\"1\">\n");
             xml.push_str(&format!(
@@ -841,7 +871,7 @@ fn serialize_note(
     }
 
     // Pedal stop
-    if note.pedal_end {
+    if note.pedal_end && !has_typed_endpoint(NotationSpannerKind::Pedal) {
         xml.push_str("      <direction placement=\"below\">\n");
         xml.push_str("        <direction-type>\n");
         xml.push_str("          <pedal type=\"stop\" line=\"no\"/>\n");
@@ -850,7 +880,7 @@ fn serialize_note(
     }
 
     // Ottava stop
-    if note.ottava_end {
+    if note.ottava_end && !has_typed_endpoint(NotationSpannerKind::Ottava) {
         xml.push_str("      <direction>\n");
         xml.push_str("        <direction-type>\n");
         xml.push_str("          <octave-shift type=\"stop\" number=\"1\"/>\n");
@@ -939,11 +969,78 @@ fn serialized_note_ticks(note: &Note) -> u32 {
     adjusted.min(u64::from(u32::MAX)) as u32
 }
 
-fn serialize_notations(xml: &mut String, note: &Note) {
+fn serialize_typed_direction_spanners(
+    xml: &mut String,
+    spanners: &[&NotationSpanner],
+    address: &NoteAddr,
+) {
+    for spanner in spanners {
+        let endpoint = if spanner.start == *address {
+            Some("start")
+        } else if spanner.end == *address {
+            Some("stop")
+        } else {
+            None
+        };
+        let Some(endpoint) = endpoint else {
+            continue;
+        };
+        let number = spanner.number.unwrap_or(1);
+        match spanner.kind {
+            NotationSpannerKind::Pedal => {
+                let placement = spanner.placement.as_deref().unwrap_or("below");
+                let line = spanner.line_type.as_deref().unwrap_or("no");
+                xml.push_str(&format!(
+                    "      <direction placement=\"{}\">\n",
+                    escape_xml(placement)
+                ));
+                xml.push_str("        <direction-type>\n");
+                xml.push_str(&format!(
+                    "          <pedal type=\"{endpoint}\" number=\"{number}\" line=\"{}\"/>\n",
+                    escape_xml(line)
+                ));
+                xml.push_str("        </direction-type>\n");
+                xml.push_str("      </direction>\n");
+            }
+            NotationSpannerKind::Ottava => {
+                let placement = spanner.placement.as_deref().unwrap_or("above");
+                let shift_type = if endpoint == "stop" {
+                    "stop"
+                } else {
+                    spanner.ottava_type.as_deref().unwrap_or("up")
+                };
+                let size = spanner.ottava_size.unwrap_or(8);
+                xml.push_str(&format!(
+                    "      <direction placement=\"{}\">\n",
+                    escape_xml(placement)
+                ));
+                xml.push_str("        <direction-type>\n");
+                xml.push_str(&format!(
+                    "          <octave-shift type=\"{}\" size=\"{size}\" number=\"{number}\"/>\n",
+                    escape_xml(shift_type)
+                ));
+                xml.push_str("        </direction-type>\n");
+                xml.push_str("      </direction>\n");
+            }
+            _ => {}
+        }
+    }
+}
+
+fn serialize_notations(
+    xml: &mut String,
+    note: &Note,
+    typed_spanners: &[&NotationSpanner],
+    address: &NoteAddr,
+) {
+    let typed_has =
+        |kind: NotationSpannerKind| typed_spanners.iter().any(|spanner| spanner.kind == kind);
     let has_tie = note.tie_start || note.tie_end;
-    let has_glissando = note.glissando_start || note.glissando_end;
-    let has_slur = note.slur_start || note.slur_end;
-    let has_trill_line = note.trill_line_start || note.trill_line_end;
+    let has_glissando =
+        note.glissando_start || note.glissando_end || typed_has(NotationSpannerKind::Glissando);
+    let has_slur = note.slur_start || note.slur_end || typed_has(NotationSpannerKind::Slur);
+    let has_trill_line =
+        note.trill_line_start || note.trill_line_end || typed_has(NotationSpannerKind::TrillLine);
     let has_artic = !note.articulations.is_empty();
     let has_arp = note.arpeggiate.is_some();
     let has_technical = note.fingering.is_some()
@@ -970,22 +1067,61 @@ fn serialize_notations(xml: &mut String, note: &Note) {
     if note.tie_start {
         xml.push_str("          <tied type=\"start\"/>\n");
     }
-    if note.slur_end {
+    for spanner in typed_spanners {
+        let endpoint = if spanner.start == *address {
+            Some("start")
+        } else if spanner.end == *address {
+            Some("stop")
+        } else {
+            None
+        };
+        let Some(endpoint) = endpoint else {
+            continue;
+        };
+        let number = spanner.number.unwrap_or(1);
+        let line_type = spanner
+            .line_type
+            .as_ref()
+            .map(|line_type| format!(" line-type=\"{}\"", escape_xml(line_type)))
+            .unwrap_or_default();
+        let placement = spanner
+            .placement
+            .as_ref()
+            .map(|placement| format!(" placement=\"{}\"", escape_xml(placement)))
+            .unwrap_or_default();
+        match spanner.kind {
+            NotationSpannerKind::Slur => xml.push_str(&format!(
+                "          <slur number=\"{number}\" type=\"{endpoint}\"{line_type}{placement}/>\n"
+            )),
+            NotationSpannerKind::Glissando => {
+                let text = spanner.text.as_deref().unwrap_or("");
+                xml.push_str(&format!(
+                    "          <glissando number=\"{number}\" type=\"{endpoint}\"{line_type}{placement}>{}</glissando>\n",
+                    escape_xml(text)
+                ));
+            }
+            NotationSpannerKind::TrillLine => xml.push_str(&format!(
+                "          <wavy-line number=\"{number}\" type=\"{endpoint}\"{line_type}{placement}/>\n"
+            )),
+            NotationSpannerKind::Pedal | NotationSpannerKind::Ottava => {}
+        }
+    }
+    if note.slur_end && !typed_has(NotationSpannerKind::Slur) {
         xml.push_str("          <slur number=\"1\" type=\"stop\"/>\n");
     }
-    if note.slur_start {
+    if note.slur_start && !typed_has(NotationSpannerKind::Slur) {
         xml.push_str("          <slur number=\"1\" type=\"start\"/>\n");
     }
-    if note.glissando_end {
+    if note.glissando_end && !typed_has(NotationSpannerKind::Glissando) {
         xml.push_str("          <glissando number=\"1\" type=\"stop\"/>\n");
     }
-    if note.glissando_start {
+    if note.glissando_start && !typed_has(NotationSpannerKind::Glissando) {
         xml.push_str("          <glissando number=\"1\" type=\"start\">gliss.</glissando>\n");
     }
-    if note.trill_line_end {
+    if note.trill_line_end && !typed_has(NotationSpannerKind::TrillLine) {
         xml.push_str("          <wavy-line number=\"1\" type=\"stop\"/>\n");
     }
-    if note.trill_line_start {
+    if note.trill_line_start && !typed_has(NotationSpannerKind::TrillLine) {
         xml.push_str("          <wavy-line number=\"1\" type=\"start\"/>\n");
     }
 
@@ -1245,7 +1381,10 @@ fn escape_xml(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acorde_core::{Duration, Note, Pitch, Score, Step, TupletInfo};
+    use acorde_core::{
+        Duration, NotationSpanner, NotationSpannerKind, Note, NoteAddr, Pitch, Score, Step,
+        TupletInfo,
+    };
 
     #[test]
     fn serialize_default_score_produces_xml() {
@@ -1261,6 +1400,206 @@ mod tests {
         let score = Score::new("T", 120, 4, 4, 0, 1);
         let xml = serialize_musicxml(&score).unwrap();
         assert!(xml.contains("<rest/>"));
+    }
+
+    #[test]
+    fn typed_numbered_spanners_serialize_without_legacy_duplicates() {
+        let mut score = Score::new("Spans", 120, 2, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::D, 4), Duration::Quarter),
+        ];
+        let start = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
+        let end = NoteAddr {
+            note: 1,
+            ..start.clone()
+        };
+        score.spanners = vec![
+            NotationSpanner {
+                id: "slur-2".to_string(),
+                kind: NotationSpannerKind::Slur,
+                start: start.clone(),
+                end: end.clone(),
+                number: Some(2),
+                line_type: Some("dashed".to_string()),
+                text: None,
+                placement: Some("above".to_string()),
+                ottava_size: None,
+                ottava_type: None,
+            },
+            NotationSpanner {
+                id: "gliss-3".to_string(),
+                kind: NotationSpannerKind::Glissando,
+                start,
+                end,
+                number: Some(3),
+                line_type: Some("wavy".to_string()),
+                text: Some("gliss.".to_string()),
+                placement: Some("below".to_string()),
+                ottava_size: None,
+                ottava_type: None,
+            },
+            NotationSpanner {
+                id: "slur-7".to_string(),
+                kind: NotationSpannerKind::Slur,
+                start: NoteAddr {
+                    part: 0,
+                    staff: 0,
+                    measure: 0,
+                    voice: 0,
+                    note: 0,
+                },
+                end: NoteAddr {
+                    part: 0,
+                    staff: 0,
+                    measure: 0,
+                    voice: 0,
+                    note: 1,
+                },
+                number: Some(7),
+                line_type: None,
+                text: None,
+                placement: Some("below".to_string()),
+                ottava_size: None,
+                ottava_type: None,
+            },
+            NotationSpanner {
+                id: "pedal-4".to_string(),
+                kind: NotationSpannerKind::Pedal,
+                start: NoteAddr {
+                    part: 0,
+                    staff: 0,
+                    measure: 0,
+                    voice: 0,
+                    note: 0,
+                },
+                end: NoteAddr {
+                    part: 0,
+                    staff: 0,
+                    measure: 0,
+                    voice: 0,
+                    note: 1,
+                },
+                number: Some(4),
+                line_type: Some("yes".to_string()),
+                text: None,
+                placement: Some("below".to_string()),
+                ottava_size: None,
+                ottava_type: None,
+            },
+            NotationSpanner {
+                id: "ottava-5".to_string(),
+                kind: NotationSpannerKind::Ottava,
+                start: NoteAddr {
+                    part: 0,
+                    staff: 0,
+                    measure: 0,
+                    voice: 0,
+                    note: 0,
+                },
+                end: NoteAddr {
+                    part: 0,
+                    staff: 0,
+                    measure: 0,
+                    voice: 0,
+                    note: 1,
+                },
+                number: Some(5),
+                line_type: None,
+                text: None,
+                placement: Some("above".to_string()),
+                ottava_size: Some(15),
+                ottava_type: Some("down".to_string()),
+            },
+        ];
+
+        let xml = serialize_musicxml(&score).expect("serializes typed spanners");
+        assert_eq!(xml.matches("<slur number=\"2\"").count(), 2);
+        assert_eq!(xml.matches("<slur number=\"7\"").count(), 2);
+        assert_eq!(xml.matches("<glissando number=\"3\"").count(), 2);
+        assert_eq!(xml.matches("<pedal type=").count(), 2);
+        assert!(xml.contains("<octave-shift type=\"down\" size=\"15\" number=\"5\""));
+        assert!(!xml.contains("<slur number=\"1\""));
+        let reparsed = crate::parse_musicxml(&xml).expect("reparses typed spanners");
+        assert_eq!(reparsed.spanners.len(), 5);
+        assert!(
+            reparsed
+                .spanners
+                .iter()
+                .any(|spanner| spanner.kind == NotationSpannerKind::Slur
+                    && spanner.number == Some(2))
+        );
+        assert!(
+            reparsed
+                .spanners
+                .iter()
+                .any(|spanner| spanner.kind == NotationSpannerKind::Slur
+                    && spanner.number == Some(7))
+        );
+        assert!(reparsed.spanners.iter().any(|spanner| {
+            spanner.kind == NotationSpannerKind::Glissando && spanner.number == Some(3)
+        }));
+        assert!(reparsed.spanners.iter().any(|spanner| {
+            spanner.kind == NotationSpannerKind::Pedal && spanner.number == Some(4)
+        }));
+        assert!(reparsed.spanners.iter().any(|spanner| {
+            spanner.kind == NotationSpannerKind::Ottava
+                && spanner.number == Some(5)
+                && spanner.ottava_type.as_deref() == Some("down")
+        }));
+    }
+
+    #[test]
+    fn typed_spanner_roundtrips_cross_measure_voice_and_staff_endpoints() {
+        let mut score = Score::template(acorde_core::ScoreTemplate::Piano);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        score.parts[0].staves[1].measures[1].voices[1] =
+            vec![Note::new(Pitch::new(Step::D, 3), Duration::Quarter)];
+        score.spanners.push(NotationSpanner {
+            id: "cross-staff-gliss".to_string(),
+            kind: NotationSpannerKind::Glissando,
+            start: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+            end: NoteAddr {
+                part: 0,
+                staff: 1,
+                measure: 1,
+                voice: 1,
+                note: 0,
+            },
+            number: Some(9),
+            line_type: Some("solid".to_string()),
+            text: Some("gliss.".to_string()),
+            placement: Some("above".to_string()),
+            ottava_size: None,
+            ottava_type: None,
+        });
+
+        let xml = serialize_musicxml(&score).expect("serializes cross-staff span");
+        let reparsed = crate::parse_musicxml(&xml).expect("reparses cross-staff span");
+        let span = reparsed
+            .spanners
+            .iter()
+            .find(|span| span.number == Some(9))
+            .expect("typed span");
+        assert_eq!(span.start.measure, 0);
+        assert_eq!(span.start.voice, 0);
+        assert_eq!(span.start.staff, 0);
+        assert_eq!(span.end.measure, 1);
+        assert_eq!(span.end.voice, 1);
+        assert_eq!(span.end.staff, 1);
     }
 
     #[test]

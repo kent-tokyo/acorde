@@ -51,6 +51,7 @@ pub fn compute_layout(score: &Score, config: &LayoutConfig) -> LayoutResult {
         vis_slots,
         rows,
         spans,
+        typed_spanners: score.spanners.clone(),
         concert_key_overrides,
         beam_groups,
         tuplet_groups,
@@ -975,6 +976,45 @@ mod tests {
             assert_eq!(start.note, 0);
             assert_eq!(end.note, 1);
         }
+    }
+
+    #[test]
+    fn typed_spanners_keep_stable_identity_in_layout_result() {
+        use acorde_core::{Duration, NotationSpanner, NotationSpannerKind, Note, Pitch, Step};
+        let mut score = score_with_measures(1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::D, 4), Duration::Quarter),
+        ];
+        score.spanners.push(NotationSpanner {
+            id: "typed-slur-7".to_string(),
+            kind: NotationSpannerKind::Slur,
+            start: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+            end: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 1,
+            },
+            number: Some(7),
+            line_type: Some("dashed".to_string()),
+            text: None,
+            placement: Some("above".to_string()),
+            ottava_size: None,
+            ottava_type: None,
+        });
+
+        let result = compute_layout(&score, &LayoutConfig::default());
+        assert_eq!(result.typed_spanners.len(), 1);
+        assert_eq!(result.typed_spanners[0].id, "typed-slur-7");
+        assert_eq!(result.typed_spanners[0].number, Some(7));
     }
 
     #[test]

@@ -7,8 +7,8 @@ use super::notation::{
 };
 use super::pitch::Pitch;
 use super::score::{
-    Measure, Note, NoteAddr, Part, PartGroup, Score, ScoreTemplate, Staff, respell_score,
-    respell_score_to_key,
+    Measure, NotationSpanner, Note, NoteAddr, Part, PartGroup, Score, ScoreTemplate, Staff,
+    respell_score, respell_score_to_key,
 };
 use super::validate::validate;
 use crate::Error;
@@ -83,6 +83,9 @@ pub enum Command {
     SetGlissando(SetGlissandoCmd),
     SetCrossStaff(SetCrossStaffCmd),
     SetPartGroup(SetPartGroupCmd),
+    AddSpanner(AddSpannerCmd),
+    UpdateSpanner(UpdateSpannerCmd),
+    RemoveSpanner(RemoveSpannerCmd),
     Batch(BatchCmd),
 }
 
@@ -121,6 +124,24 @@ pub struct SetDurationCmd {
     pub duration: Duration,
     #[serde(default)]
     pub dot_count: u8,
+}
+
+/// Add a typed notation span to the score.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AddSpannerCmd {
+    pub spanner: NotationSpanner,
+}
+
+/// Replace every mutable property of an existing typed notation span.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateSpannerCmd {
+    pub spanner: NotationSpanner,
+}
+
+/// Remove a typed notation span by its stable identity.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoveSpannerCmd {
+    pub id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -993,6 +1014,9 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::ToggleSlur(_) | Command::ToggleTrillLine(_) => hint!(Global, true, false),
         Command::SetGlissando(c) => hint!(meas!(c), true, true),
         Command::SetCrossStaff(c) => hint!(meas!(c), true, true),
+        Command::AddSpanner(_) | Command::UpdateSpanner(_) | Command::RemoveSpanner(_) => {
+            hint!(Global, true, true)
+        }
 
         Command::SetPartGroup(_) => hint!(Global, false, false),
 
@@ -1130,6 +1154,9 @@ pub fn command_label(cmd: &Command) -> String {
         Command::SetGlissando(_) => "Set Glissando".to_string(),
         Command::SetCrossStaff(_) => "Set Cross-Staff Placement".to_string(),
         Command::SetPartGroup(_) => "Set Part Group".to_string(),
+        Command::AddSpanner(_) => "Add Notation Spanner".to_string(),
+        Command::UpdateSpanner(_) => "Update Notation Spanner".to_string(),
+        Command::RemoveSpanner(_) => "Remove Notation Spanner".to_string(),
         Command::Batch(c) => c.label.clone().unwrap_or_else(|| {
             c.commands
                 .first()
@@ -1210,6 +1237,9 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetGlissando(_) => "SetGlissando".to_string(),
         Command::SetCrossStaff(_) => "SetCrossStaff".to_string(),
         Command::SetPartGroup(_) => "SetPartGroup".to_string(),
+        Command::AddSpanner(_) => "AddSpanner".to_string(),
+        Command::UpdateSpanner(_) => "UpdateSpanner".to_string(),
+        Command::RemoveSpanner(_) => "RemoveSpanner".to_string(),
         Command::Batch(c) => c.label.clone().unwrap_or_else(|| "Batch".to_string()),
     }
 }
@@ -1691,6 +1721,45 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
                 // When None, the command carries no range info so we clear all groups.
                 score.part_groups.clear();
             }
+            Ok(())
+        }
+        Command::AddSpanner(c) => {
+            if score
+                .spanners
+                .iter()
+                .any(|spanner| spanner.id == c.spanner.id)
+            {
+                return Err(Error::InvalidCommand(format!(
+                    "notation spanner id already exists: {}",
+                    c.spanner.id
+                )));
+            }
+            score.spanners.push(c.spanner.clone());
+            Ok(())
+        }
+        Command::UpdateSpanner(c) => {
+            let existing = score
+                .spanners
+                .iter_mut()
+                .find(|spanner| spanner.id == c.spanner.id)
+                .ok_or_else(|| {
+                    Error::InvalidCommand(format!(
+                        "notation spanner id does not exist: {}",
+                        c.spanner.id
+                    ))
+                })?;
+            *existing = c.spanner.clone();
+            Ok(())
+        }
+        Command::RemoveSpanner(c) => {
+            let index = score
+                .spanners
+                .iter()
+                .position(|spanner| spanner.id == c.id)
+                .ok_or_else(|| {
+                    Error::InvalidCommand(format!("notation spanner id does not exist: {}", c.id))
+                })?;
+            score.spanners.remove(index);
             Ok(())
         }
         Command::Batch(c) => {
@@ -3742,5 +3811,75 @@ mod tests {
         let pitch = &score.parts[0].staves[0].measures[0].voices[0][0].pitches[0];
         assert_eq!(pitch.step, Step::D);
         assert_eq!(pitch.alter, -1); // Db4
+    }
+
+    #[test]
+    fn typed_spanner_commands_are_atomic_and_undoable() {
+        use crate::model::score::{NotationSpanner, NotationSpannerKind};
+
+        let mut score = default_engine_score();
+        let address = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
+        let spanner = NotationSpanner {
+            id: "slur-1".to_string(),
+            kind: NotationSpannerKind::Slur,
+            start: address.clone(),
+            end: address,
+            number: Some(1),
+            line_type: Some("dashed".to_string()),
+            text: None,
+            placement: Some("above".to_string()),
+            ottava_size: None,
+            ottava_type: None,
+        };
+        let mut stack = CommandStack::new(8);
+        stack
+            .execute(Command::AddSpanner(AddSpannerCmd { spanner }), &mut score)
+            .unwrap();
+        assert_eq!(score.spanners.len(), 1);
+        assert_eq!(stack.undo_key().as_deref(), Some("AddSpanner"));
+
+        let before_duplicate = score.clone();
+        let duplicate = score.spanners[0].clone();
+        assert!(
+            stack
+                .execute(
+                    Command::AddSpanner(AddSpannerCmd { spanner: duplicate }),
+                    &mut score,
+                )
+                .is_err()
+        );
+        assert_eq!(score.spanners, before_duplicate.spanners);
+
+        let mut updated = score.spanners[0].clone();
+        updated.number = Some(2);
+        stack
+            .execute(
+                Command::UpdateSpanner(UpdateSpannerCmd { spanner: updated }),
+                &mut score,
+            )
+            .unwrap();
+        assert_eq!(score.spanners[0].number, Some(2));
+        stack.undo(&mut score).unwrap();
+        assert_eq!(score.spanners[0].number, Some(1));
+        stack.redo(&mut score).unwrap();
+        assert_eq!(score.spanners[0].number, Some(2));
+
+        stack
+            .execute(
+                Command::RemoveSpanner(RemoveSpannerCmd {
+                    id: "slur-1".to_string(),
+                }),
+                &mut score,
+            )
+            .unwrap();
+        assert!(score.spanners.is_empty());
+        stack.undo(&mut score).unwrap();
+        assert_eq!(score.spanners.len(), 1);
     }
 }

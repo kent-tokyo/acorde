@@ -1266,6 +1266,39 @@ fn cmd_validate(input: &Path) -> Result<(), String> {
                     end.voice + 1,
                     end.note + 1
                 ),
+                acorde_core::ValidationError::InvalidSpannerId { index, id } => eprintln!(
+                    "notation spanner {} has an empty stable id ('{}')",
+                    index + 1,
+                    id
+                ),
+                acorde_core::ValidationError::DuplicateSpannerId {
+                    first,
+                    duplicate,
+                    id,
+                } => eprintln!(
+                    "notation spanners {} and {} share stable id '{}'",
+                    first + 1,
+                    duplicate + 1,
+                    id
+                ),
+                acorde_core::ValidationError::InvalidSpannerEndpoint {
+                    index,
+                    id,
+                    kind,
+                    endpoint,
+                    address,
+                } => eprintln!(
+                    "notation spanner {} ('{}', {:?}) has a missing {:?} endpoint at {}:{}:{}:{}:{}",
+                    index + 1,
+                    id,
+                    kind,
+                    endpoint,
+                    address.part + 1,
+                    address.staff + 1,
+                    address.measure + 1,
+                    address.voice + 1,
+                    address.note + 1
+                ),
             }
         }
         std::process::exit(1);

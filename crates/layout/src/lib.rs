@@ -24,7 +24,7 @@ pub use print::{
     validate_glyph_placements,
 };
 
-use acorde_core::{HairpinKind, OttavaKind};
+use acorde_core::{HairpinKind, NotationSpanner, OttavaKind};
 use serde::{Deserialize, Serialize};
 
 /// Configuration for a layout pass.
@@ -208,6 +208,13 @@ pub struct LayoutResult {
 
     /// Fully resolved span marks (hairpin / ottava / pedal start+end pairs).
     pub spans: Vec<SpanMark>,
+
+    /// Validated typed notation spans with stable identities and canonical endpoints.
+    ///
+    /// This is separate from legacy-derived [`SpanMark`] values so renderers can migrate without
+    /// inventing an identity for old note-level boolean endpoints.
+    #[serde(default)]
+    pub typed_spanners: Vec<NotationSpanner>,
 
     /// Per-staff concert-pitch key signature overrides.
     /// Non-empty only when `LayoutConfig::concert_pitch` is `true` and at least one staff

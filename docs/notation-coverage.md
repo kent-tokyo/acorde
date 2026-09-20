@@ -18,9 +18,9 @@ the `Score` model; rendering and export can have narrower format-specific covera
 | Barlines, repeats, navigation | partial | partial | partial (common barlines/repeats) | partial | partial (barlines, common `dir` navigation marks) | yes | partial / partial / partial |
 | Dynamics and articulations | yes | no | partial (common decorations) | partial | partial (common articulations/ornaments) | yes | yes / yes / MusicXML |
 | Lyrics and expression text | partial | no | partial (`w:` lyrics) | partial | partial (single-syllable lyrics, `dir`) | yes | partial / partial / MusicXML, ABC |
-| Ties, slurs, tuplets, grace/cue notes | yes | partial | partial (common tuplets) | partial | partial (ties/slurs/tuplets/grace) | yes | partial / partial / MusicXML |
-| Hairpins, pedal, ottava, trill | yes | no | no | partial | no | yes | partial / yes / MusicXML |
-| Glissando spanners and cross-staff placement | yes (standard start/stop and `<staff>`) | no | no | no | no | yes | yes / yes / MusicXML |
+| Ties, slurs, tuplets, grace/cue notes | yes (numbered typed slurs) | partial | partial (common tuplets) | partial | partial (ties/slurs/tuplets/grace) | yes | partial / legacy geometry / MusicXML |
+| Hairpins, pedal, ottava, trill | yes (typed pedal/ottava/trill endpoints) | no | no | partial | no | yes | partial / legacy geometry / MusicXML |
+| Glissando spanners and cross-staff placement | yes (typed numbered start/stop and `<staff>`) | no | no | no | no | yes | yes / legacy geometry / MusicXML |
 | Typed expression, technique, lyric, chord, rehearsal, figured-bass, generic text | partial | no | no | partial (`Harmony/name`, `Text`) | partial (`harm`, `fb`, `reh`, `dir`) | yes | partial / partial / MusicXML |
 | Volta brackets and part groups | yes | no | partial | partial | no | yes | yes / yes / MusicXML |
 | MIDI channel, program, transposition | yes | yes | no | partial | no | yes | yes / no / MIDI |
@@ -29,6 +29,10 @@ the `Score` model; rendering and export can have narrower format-specific covera
 | Microtonal accidentals | partial (fractional `<alter>`) | no | partial (quarter accidental subset) | partial | partial (`qs`/`qf`) | yes; non-zero cents emit explicit `acorde-microtone` SVG markers | partial / partial / format-specific |
 
 ## Reading the matrix
+
+Typed numbered spanners pass through layout and interactive SVG as stable-ID metadata. Current
+visible SVG geometry is supplied by the matching legacy note flags produced by MusicXML import;
+direct geometry for a spanner authored only through `Score.spanners` is a later engraving phase.
 
 Tablature currently preserves MusicXML `staff-details/staff-lines`, `staff-tuning`, and note
 `technical/string` plus `fret`, including per-pitch positions for chords; the SVG renderer displays

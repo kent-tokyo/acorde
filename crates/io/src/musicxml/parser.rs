@@ -1,9 +1,10 @@
 use crate::Error;
 use acorde_core::{
     Articulation, Barline, ChordDegree, ChordSymbol, Clef, Duration, FiguredBassFigure,
-    GuitarTechnique, HairpinKind, KeySignature, Lyric, Measure, Note, NoteHead, OttavaKind, Part,
-    PartGroup, PartGroupSymbol, PercussionInstrument, Pitch, Score, Staff, Step, StyledText,
-    TextStyle, TimeSignature, TupletInfo, VoltaBracket,
+    GuitarTechnique, HairpinKind, KeySignature, Lyric, Measure, NotationSpanner,
+    NotationSpannerKind, Note, NoteAddr, NoteHead, OttavaKind, Part, PartGroup, PartGroupSymbol,
+    PercussionInstrument, Pitch, Score, Staff, Step, StyledText, TextStyle, TimeSignature,
+    TupletInfo, VoltaBracket,
 };
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
@@ -19,6 +20,104 @@ const MAX_STAVES: usize = 32;
 const MAX_NOTES_PER_VOICE: usize = 50_000;
 const MAX_SOURCE_VOICE_NUMBER: u32 = 1_000_000;
 const MAX_DEPTH: usize = 64;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SpannerAction {
+    Start,
+    Stop,
+}
+
+#[derive(Debug, Clone)]
+struct ParsedSpannerEvent {
+    kind: NotationSpannerKind,
+    action: SpannerAction,
+    number: u16,
+    line_type: Option<String>,
+    text: Option<String>,
+    placement: Option<String>,
+    ottava_size: Option<u8>,
+}
+
+#[derive(Debug, Clone)]
+struct OpenSpanner {
+    start: NoteAddr,
+    line_type: Option<String>,
+    text: Option<String>,
+    placement: Option<String>,
+    ottava_size: Option<u8>,
+}
+
+fn parse_spanner_number(value: Option<String>) -> Result<u16, Error> {
+    match value {
+        None => Ok(1),
+        Some(value) => value
+            .parse::<u16>()
+            .map_err(|_| Error::Xml(format!("invalid MusicXML spanner number: {value}"))),
+    }
+}
+
+fn apply_spanner_event(
+    score: &mut Score,
+    open_spanners: &mut HashMap<(NotationSpannerKind, u16), Vec<OpenSpanner>>,
+    event: ParsedSpannerEvent,
+    address: NoteAddr,
+) -> Result<(), Error> {
+    let key = (event.kind.clone(), event.number);
+    match event.action {
+        SpannerAction::Start => {
+            open_spanners.entry(key).or_default().push(OpenSpanner {
+                start: address,
+                line_type: event.line_type,
+                text: event.text,
+                placement: event.placement,
+                ottava_size: event.ottava_size,
+            });
+        }
+        SpannerAction::Stop => {
+            let open = open_spanners
+                .get_mut(&key)
+                .and_then(Vec::pop)
+                .ok_or_else(|| {
+                    Error::Xml(format!(
+                        "orphan MusicXML {:?} spanner stop number {}",
+                        event.kind, event.number
+                    ))
+                })?;
+            if open_spanners.get(&key).is_some_and(Vec::is_empty) {
+                open_spanners.remove(&key);
+            }
+            let id = format!(
+                "musicxml:{:?}:{}:{}:{}:{}:{}:{}-{}:{}:{}:{}:{}",
+                event.kind,
+                event.number,
+                open.start.part,
+                open.start.staff,
+                open.start.measure,
+                open.start.voice,
+                open.start.note,
+                address.part,
+                address.staff,
+                address.measure,
+                address.voice,
+                address.note,
+            )
+            .to_lowercase();
+            score.spanners.push(NotationSpanner {
+                id,
+                kind: event.kind,
+                start: open.start,
+                end: address,
+                number: Some(event.number),
+                line_type: event.line_type.or(open.line_type),
+                text: event.text.or(open.text),
+                placement: event.placement.or(open.placement),
+                ottava_size: event.ottava_size.or(open.ottava_size),
+                ottava_type: None,
+            });
+        }
+    }
+    Ok(())
+}
 
 pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     if xml.len() > MAX_MUSICXML_BYTES {
@@ -45,6 +144,10 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut note_tie_end = false;
     let mut note_glissando_start = false;
     let mut note_glissando_end = false;
+    let mut note_spanner_events: Vec<ParsedSpannerEvent> = Vec::new();
+    let mut pending_direction_spanner_events: Vec<ParsedSpannerEvent> = Vec::new();
+    let mut open_spanners: HashMap<(NotationSpannerKind, u16), Vec<OpenSpanner>> = HashMap::new();
+    let mut open_ottava_types: HashMap<u16, String> = HashMap::new();
     let mut in_notations = false;
     let mut in_artic_block = false;
     let mut in_ornament_block = false;
@@ -149,6 +252,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut voice_cursor_ticks: HashMap<(usize, usize), u32> = HashMap::new();
     let mut source_voice_slots: HashMap<(usize, u32), usize> = HashMap::new();
     let mut last_note_start: Option<(usize, usize, u32)> = None;
+    let mut last_note_address: Option<NoteAddr> = None;
     let mut current_text = String::new();
 
     let mut part_index: Option<usize> = None;
@@ -310,11 +414,33 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "articulations" if in_notations => in_artic_block = true,
                     "ornaments" if in_notations => in_ornament_block = true,
                     "technical" if in_notations => in_technical_block = true,
-                    "glissando" if in_notations => {
-                        if attr_str(e, b"type").as_deref() == Some("start") {
+                    "glissando" if in_notations => match attr_str(e, b"type").as_deref() {
+                        Some("start") => {
                             note_glissando_start = true;
+                            note_spanner_events.push(ParsedSpannerEvent {
+                                kind: NotationSpannerKind::Glissando,
+                                action: SpannerAction::Start,
+                                number: parse_spanner_number(attr_str(e, b"number"))?,
+                                line_type: attr_str(e, b"line-type"),
+                                text: None,
+                                placement: attr_str(e, b"placement"),
+                                ottava_size: None,
+                            });
                         }
-                    }
+                        Some("stop") => {
+                            note_glissando_end = true;
+                            note_spanner_events.push(ParsedSpannerEvent {
+                                kind: NotationSpannerKind::Glissando,
+                                action: SpannerAction::Stop,
+                                number: parse_spanner_number(attr_str(e, b"number"))?,
+                                line_type: attr_str(e, b"line-type"),
+                                text: None,
+                                placement: attr_str(e, b"placement"),
+                                ottava_size: None,
+                            });
+                        }
+                        _ => {}
+                    },
                     "tremolo" if in_ornament_block => {
                         pending_tremolo = true;
                     }
@@ -371,6 +497,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         note_tie_end = false;
                         note_glissando_start = false;
                         note_glissando_end = false;
+                        note_spanner_events.clear();
                         pending_articulations.clear();
                         pending_tremolo = false;
                         note_arpeggiate = None;
@@ -440,6 +567,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         measure_cursor_ticks = 0;
                         voice_cursor_ticks.clear();
                         last_note_start = None;
+                        last_note_address = None;
                     }
                     "backup" => in_backup = true,
                     "forward" => in_forward = true,
@@ -472,8 +600,30 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "dot" if in_note => note_dot = true,
                     "chord" if in_note => note_chord = true,
                     "slur" if in_note => match attr_str(e, b"type").as_deref() {
-                        Some("start") => note_slur_start = true,
-                        Some("stop") => note_slur_end = true,
+                        Some("start") => {
+                            note_slur_start = true;
+                            note_spanner_events.push(ParsedSpannerEvent {
+                                kind: NotationSpannerKind::Slur,
+                                action: SpannerAction::Start,
+                                number: parse_spanner_number(attr_str(e, b"number"))?,
+                                line_type: attr_str(e, b"line-type"),
+                                text: None,
+                                placement: attr_str(e, b"placement"),
+                                ottava_size: None,
+                            });
+                        }
+                        Some("stop") => {
+                            note_slur_end = true;
+                            note_spanner_events.push(ParsedSpannerEvent {
+                                kind: NotationSpannerKind::Slur,
+                                action: SpannerAction::Stop,
+                                number: parse_spanner_number(attr_str(e, b"number"))?,
+                                line_type: attr_str(e, b"line-type"),
+                                text: None,
+                                placement: attr_str(e, b"placement"),
+                                ottava_size: None,
+                            });
+                        }
                         _ => {}
                     },
                     "tie" | "tied" if in_note => match attr_str(e, b"type").as_deref() {
@@ -553,13 +703,57 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         }
                     }
                     "wavy-line" if in_notations => match attr_str(e, b"type").as_deref() {
-                        Some("start") => note_trill_line_start = true,
-                        Some("stop") => note_trill_line_end = true,
+                        Some("start") => {
+                            note_trill_line_start = true;
+                            note_spanner_events.push(ParsedSpannerEvent {
+                                kind: NotationSpannerKind::TrillLine,
+                                action: SpannerAction::Start,
+                                number: parse_spanner_number(attr_str(e, b"number"))?,
+                                line_type: attr_str(e, b"line-type"),
+                                text: None,
+                                placement: attr_str(e, b"placement"),
+                                ottava_size: None,
+                            });
+                        }
+                        Some("stop") => {
+                            note_trill_line_end = true;
+                            note_spanner_events.push(ParsedSpannerEvent {
+                                kind: NotationSpannerKind::TrillLine,
+                                action: SpannerAction::Stop,
+                                number: parse_spanner_number(attr_str(e, b"number"))?,
+                                line_type: attr_str(e, b"line-type"),
+                                text: None,
+                                placement: attr_str(e, b"placement"),
+                                ottava_size: None,
+                            });
+                        }
                         _ => {}
                     },
                     "glissando" if in_notations => match attr_str(e, b"type").as_deref() {
-                        Some("start") => note_glissando_start = true,
-                        Some("stop") => note_glissando_end = true,
+                        Some("start") => {
+                            note_glissando_start = true;
+                            note_spanner_events.push(ParsedSpannerEvent {
+                                kind: NotationSpannerKind::Glissando,
+                                action: SpannerAction::Start,
+                                number: parse_spanner_number(attr_str(e, b"number"))?,
+                                line_type: attr_str(e, b"line-type"),
+                                text: None,
+                                placement: attr_str(e, b"placement"),
+                                ottava_size: None,
+                            });
+                        }
+                        Some("stop") => {
+                            note_glissando_end = true;
+                            note_spanner_events.push(ParsedSpannerEvent {
+                                kind: NotationSpannerKind::Glissando,
+                                action: SpannerAction::Stop,
+                                number: parse_spanner_number(attr_str(e, b"number"))?,
+                                line_type: attr_str(e, b"line-type"),
+                                text: None,
+                                placement: attr_str(e, b"placement"),
+                                ottava_size: None,
+                            });
+                        }
                         _ => {}
                     },
                     "wedge" => match attr_str(e, b"type").as_deref() {
@@ -584,32 +778,94 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             .unwrap_or(8);
                         match shift_type.as_str() {
                             "up" => {
+                                let number = parse_spanner_number(attr_str(e, b"number"))?;
+                                open_ottava_types.insert(number, shift_type.clone());
                                 pending_ottava_start = Some(if shift_size >= 15 {
                                     OttavaKind::Ma15
                                 } else {
                                     OttavaKind::Va8
                                 });
+                                pending_direction_spanner_events.push(ParsedSpannerEvent {
+                                    kind: NotationSpannerKind::Ottava,
+                                    action: SpannerAction::Start,
+                                    number,
+                                    line_type: attr_str(e, b"line-type"),
+                                    text: None,
+                                    placement: pending_direction_placement.clone(),
+                                    ottava_size: Some(shift_size),
+                                });
                             }
                             "down" => {
+                                let number = parse_spanner_number(attr_str(e, b"number"))?;
+                                open_ottava_types.insert(number, shift_type.clone());
                                 pending_ottava_start = Some(if shift_size >= 15 {
                                     OttavaKind::Mb15
                                 } else {
                                     OttavaKind::Vb8
                                 });
+                                pending_direction_spanner_events.push(ParsedSpannerEvent {
+                                    kind: NotationSpannerKind::Ottava,
+                                    action: SpannerAction::Start,
+                                    number,
+                                    line_type: attr_str(e, b"line-type"),
+                                    text: None,
+                                    placement: pending_direction_placement.clone(),
+                                    ottava_size: Some(shift_size),
+                                });
                             }
                             "stop" => {
+                                let number = parse_spanner_number(attr_str(e, b"number"))?;
                                 if let Some(pi) = part_index
                                     && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
                                     && let Some(n) = m.voices[0].last_mut()
                                 {
                                     n.ottava_end = true;
                                 }
+                                let address = last_note_address.clone().ok_or_else(|| {
+                                    Error::Xml(
+                                        "MusicXML octave-shift stop has no preceding note".into(),
+                                    )
+                                })?;
+                                apply_spanner_event(
+                                    &mut score,
+                                    &mut open_spanners,
+                                    ParsedSpannerEvent {
+                                        kind: NotationSpannerKind::Ottava,
+                                        action: SpannerAction::Stop,
+                                        number,
+                                        line_type: attr_str(e, b"line-type"),
+                                        text: None,
+                                        placement: pending_direction_placement.clone(),
+                                        ottava_size: Some(shift_size),
+                                    },
+                                    address,
+                                )?;
+                                let ottava_type =
+                                    open_ottava_types.remove(&number).ok_or_else(|| {
+                                        Error::Xml(format!(
+                                            "orphan MusicXML octave-shift stop number {number}"
+                                        ))
+                                    })?;
+                                if let Some(spanner) = score.spanners.last_mut() {
+                                    spanner.ottava_type = Some(ottava_type);
+                                }
                             }
                             _ => {}
                         }
                     }
                     "pedal" => match attr_str(e, b"type").as_deref() {
-                        Some("start") => pending_pedal_start = true,
+                        Some("start") => {
+                            pending_pedal_start = true;
+                            pending_direction_spanner_events.push(ParsedSpannerEvent {
+                                kind: NotationSpannerKind::Pedal,
+                                action: SpannerAction::Start,
+                                number: parse_spanner_number(attr_str(e, b"number"))?,
+                                line_type: attr_str(e, b"line"),
+                                text: None,
+                                placement: pending_direction_placement.clone(),
+                                ottava_size: None,
+                            });
+                        }
                         Some("stop") => {
                             if let Some(pi) = part_index
                                 && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
@@ -617,6 +873,23 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             {
                                 n.pedal_end = true;
                             }
+                            let address = last_note_address.clone().ok_or_else(|| {
+                                Error::Xml("MusicXML pedal stop has no preceding note".into())
+                            })?;
+                            apply_spanner_event(
+                                &mut score,
+                                &mut open_spanners,
+                                ParsedSpannerEvent {
+                                    kind: NotationSpannerKind::Pedal,
+                                    action: SpannerAction::Stop,
+                                    number: parse_spanner_number(attr_str(e, b"number"))?,
+                                    line_type: attr_str(e, b"line"),
+                                    text: None,
+                                    placement: pending_direction_placement.clone(),
+                                    ottava_size: None,
+                                },
+                                address,
+                            )?;
                         }
                         _ => {}
                     },
@@ -692,6 +965,18 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     .unwrap_or("")
                     .to_string();
                 match tag.as_str() {
+                    "glissando" if in_notations => {
+                        let text = current_text.trim();
+                        if !text.is_empty()
+                            && let Some(event) =
+                                note_spanner_events.iter_mut().rev().find(|event| {
+                                    event.kind == NotationSpannerKind::Glissando
+                                        && event.text.is_none()
+                                })
+                        {
+                            event.text = Some(text.to_string());
+                        }
+                    }
                     "instrument-name" if in_score_instrument => {
                         let name = current_text.trim();
                         if !name.is_empty() {
@@ -1351,6 +1636,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                     .measures
                                     .push(staff_measure);
                             }
+                            let mut completed_note_address = None;
                             if let Some(m) = score.parts[pi].staves[target_staff_index]
                                 .measures
                                 .last_mut()
@@ -1582,11 +1868,38 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                         lyric_syllabic = "single".to_string();
                                     }
                                     voice.push(note);
+                                    let address = NoteAddr {
+                                        part: pi,
+                                        staff: target_staff_index,
+                                        measure: measure_count - 1,
+                                        voice: voice_index,
+                                        note: voice.len() - 1,
+                                    };
                                     voice_cursor_ticks
                                         .insert((target_staff_index, voice_index), next_cursor);
                                     measure_cursor_ticks = next_cursor;
                                     last_note_start =
                                         Some((target_staff_index, voice_index, note_start));
+                                    last_note_address = Some(address.clone());
+                                    completed_note_address = Some(address);
+                                }
+                            }
+                            if let Some(address) = completed_note_address {
+                                for event in std::mem::take(&mut pending_direction_spanner_events) {
+                                    apply_spanner_event(
+                                        &mut score,
+                                        &mut open_spanners,
+                                        event,
+                                        address.clone(),
+                                    )?;
+                                }
+                                for event in std::mem::take(&mut note_spanner_events) {
+                                    apply_spanner_event(
+                                        &mut score,
+                                        &mut open_spanners,
+                                        event,
+                                        address.clone(),
+                                    )?;
                                 }
                             }
                         }
@@ -1608,7 +1921,6 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     if score.parts.is_empty() {
         return Err(Error::Empty);
     }
-
     score.settings.time_signature = current_time;
     score.settings.key_signature = current_key;
 
@@ -2020,6 +2332,75 @@ mod tests {
         assert!(!notes[0].slur_end);
         assert!(notes[1].slur_end, "second note should have slur_end");
         assert!(!notes[1].slur_start);
+        assert_eq!(score.spanners.len(), 1);
+        let spanner = &score.spanners[0];
+        assert_eq!(spanner.kind, NotationSpannerKind::Slur);
+        assert_eq!(spanner.number, Some(1));
+        assert_eq!(spanner.start.note, 0);
+        assert_eq!(spanner.end.note, 1);
+    }
+
+    #[test]
+    fn numbered_spanners_preserve_overlaps_and_direction_endpoints() {
+        let xml = r#"<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1"><measure number="1">
+    <attributes><divisions>480</divisions><time><beats>2</beats><beat-type>4</beat-type></time></attributes>
+    <direction placement="below"><direction-type><pedal type="start" number="4" line="yes"/></direction-type></direction>
+    <direction placement="above"><direction-type><octave-shift type="down" size="15" number="5"/></direction-type></direction>
+    <note><pitch><step>C</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type><notations>
+      <slur number="1" type="start" line-type="dashed" placement="above"/>
+      <slur number="2" type="start"/>
+      <glissando number="3" type="start" line-type="wavy">gliss.</glissando>
+      <wavy-line number="6" type="start"/>
+    </notations></note>
+    <note><pitch><step>D</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type><notations>
+      <slur number="2" type="stop"/><slur number="1" type="stop" line-type="dashed"/>
+      <glissando number="3" type="stop">gliss.</glissando><wavy-line number="6" type="stop"/>
+    </notations></note>
+    <direction placement="below"><direction-type><pedal type="stop" number="4" line="yes"/></direction-type></direction>
+    <direction placement="above"><direction-type><octave-shift type="stop" size="15" number="5"/></direction-type></direction>
+  </measure></part>
+</score-partwise>"#;
+
+        let score = parse_musicxml(xml).expect("numbered spanners parse");
+        assert_eq!(score.spanners.len(), 6);
+        let by_number = |kind: NotationSpannerKind, number: u16| {
+            score
+                .spanners
+                .iter()
+                .find(|spanner| spanner.kind == kind && spanner.number == Some(number))
+                .expect("typed span")
+        };
+        assert_eq!(
+            by_number(NotationSpannerKind::Slur, 1).line_type.as_deref(),
+            Some("dashed")
+        );
+        assert_eq!(by_number(NotationSpannerKind::Slur, 2).start.note, 0);
+        let glissando = by_number(NotationSpannerKind::Glissando, 3);
+        assert_eq!(glissando.end.note, 1);
+        assert_eq!(glissando.text.as_deref(), Some("gliss."));
+        assert_eq!(
+            by_number(NotationSpannerKind::Pedal, 4)
+                .placement
+                .as_deref(),
+            Some("below")
+        );
+        let ottava = by_number(NotationSpannerKind::Ottava, 5);
+        assert_eq!(ottava.ottava_size, Some(15));
+        assert_eq!(ottava.ottava_type.as_deref(), Some("down"));
+        assert_eq!(by_number(NotationSpannerKind::TrillLine, 6).end.note, 1);
+    }
+
+    #[test]
+    fn orphan_numbered_spanner_stop_is_rejected() {
+        let xml = r#"<score-partwise><part-list><score-part id="P1"/></part-list><part id="P1"><measure><note><pitch><step>C</step><octave>4</octave></pitch><duration>480</duration><notations><slur number="3" type="stop"/></notations></note></measure></part></score-partwise>"#;
+        let error = parse_musicxml(xml).expect_err("orphan stop must be rejected");
+        assert!(
+            error
+                .to_string()
+                .contains("orphan MusicXML Slur spanner stop number 3")
+        );
     }
 
     #[test]
