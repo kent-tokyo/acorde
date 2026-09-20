@@ -74,6 +74,41 @@ pub struct SampleLoop {
     pub end_frame: u32,
 }
 
+/// The channel represented by one member of a linked stereo sample pair.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StereoChannel {
+    Left,
+    Right,
+}
+
+/// PCM layout needed to decode one materialized SoundFont sample region.
+///
+/// SF2 stores linked stereo samples as two independent mono ranges.  SF3 may
+/// instead store one interleaved Ogg/Vorbis stream.  A host can therefore use
+/// [`ResolvedPresetZoneMetadata::decode_channels`] without reparsing RIFF
+/// tables, while `LinkedStereo` identifies the other mono region to combine.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum SampleChannelLayout {
+    Mono,
+    LinkedStereo {
+        channel: StereoChannel,
+        linked_sample_id: u64,
+    },
+    InterleavedStereo,
+}
+
+impl SampleChannelLayout {
+    /// Number of PCM channels carried by this region's own source payload.
+    pub const fn decode_channels(self) -> u8 {
+        match self {
+            Self::InterleavedStereo => 2,
+            Self::Mono | Self::LinkedStereo { .. } => 1,
+        }
+    }
+}
+
 /// A provider-neutral SF2/SF3 sample region selected by key and velocity.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SampleRegion {
@@ -179,6 +214,7 @@ pub struct SoundFontPresetZone {
     pub bank: u16,
     pub program: u16,
     pub region: SampleRegion,
+    channel_layout: SampleChannelLayout,
 }
 
 impl SoundFontPresetZone {
@@ -188,7 +224,29 @@ impl SoundFontPresetZone {
             bank,
             program,
             region,
+            channel_layout: SampleChannelLayout::Mono,
         })
+    }
+
+    /// Construct a zone with the source PCM layout resolved by a SoundFont provider.
+    pub fn with_channel_layout(
+        bank: u16,
+        program: u16,
+        region: SampleRegion,
+        channel_layout: SampleChannelLayout,
+    ) -> Result<Self, Error> {
+        validate_sample_region(&region)?;
+        Ok(Self {
+            bank,
+            program,
+            region,
+            channel_layout,
+        })
+    }
+
+    /// Source PCM layout for this region. `new` remains mono for compatibility.
+    pub const fn channel_layout(&self) -> SampleChannelLayout {
+        self.channel_layout
     }
 
     pub fn contains(&self, bank: u16, program: u16, key: u8, velocity: u8) -> bool {
@@ -222,6 +280,10 @@ pub struct ResolvedPresetZoneMetadata {
     pub attenuation_db: f32,
     pub sample_rate: u32,
     pub compression: SampleCompression,
+    /// Layout of the source payload; this determines [`Self::decode_channels`].
+    pub channel_layout: SampleChannelLayout,
+    /// Number of PCM channels to pass to [`decode_sample_region`].
+    pub decode_channels: u8,
     pub loop_points: Option<SampleLoop>,
     pub attack_secs: f32,
     pub decay_secs: f32,
@@ -247,6 +309,8 @@ impl ResolvedPresetZoneMetadata {
             attenuation_db: region.attenuation_db,
             sample_rate: region.sample_rate,
             compression: region.compression,
+            channel_layout: zone.channel_layout,
+            decode_channels: zone.channel_layout.decode_channels(),
             loop_points: region.loop_points,
             attack_secs: region.attack_secs,
             decay_secs: region.decay_secs,
@@ -277,6 +341,14 @@ impl ResolvedPresetZoneMetadata {
             release_secs: self.release_secs,
         };
         validate_sample_region(&region).map(|()| region)
+    }
+
+    /// Decode this snapshot using its materialized channel count.
+    pub fn decode_sample_region(&self, data: &[u8]) -> Result<DecodedSampleRegion, Error> {
+        if self.decode_channels != self.channel_layout.decode_channels() {
+            return Err(Error::InvalidSample);
+        }
+        decode_materialized_sample_region(data, self.sample_region()?, self.decode_channels)
     }
 }
 
@@ -591,6 +663,28 @@ pub fn decode_sample_region(
     }
 }
 
+/// Decode a region from a [`MaterializedSoundFontAsset`] snapshot.
+///
+/// Unlike the backward-compatible [`decode_sample_region`] convenience helper,
+/// this resolves an SF3 Ogg logical stream by the region's materialized
+/// `sample_id`. Use [`ResolvedPresetZoneMetadata::decode_sample_region`] when
+/// a serialized snapshot is the only provider data available.
+pub fn decode_materialized_sample_region(
+    data: &[u8],
+    region: SampleRegion,
+    channels: u8,
+) -> Result<DecodedSampleRegion, Error> {
+    validate_sample_region(&region)?;
+    match region.compression {
+        SampleCompression::Pcm16 => decode_sample_region(data, region, channels),
+        SampleCompression::Vorbis => {
+            let full_sample =
+                decode_sf3_vorbis_sample(data, region.sample_id, region.sample_rate, channels)?;
+            DecodedSampleRegion::from_full_sample(region, &full_sample)
+        }
+    }
+}
+
 /// Decode an interleaved little-endian PCM16 sample from an SF2 `smpl` chunk.
 ///
 /// `start_frame..end_frame` is half-open. The SF2 container and sample data are supplied by
@@ -630,11 +724,25 @@ pub fn decode_sf3_vorbis(
     sample_rate: u32,
     channels: u8,
 ) -> Result<DecodedSample, Error> {
+    decode_sf3_vorbis_sample(data, 0, sample_rate, channels)
+}
+
+/// Decode the Ogg/Vorbis stream identified by a materialized SF3 sample ID.
+///
+/// SF3 stores one Ogg logical stream per sample header.  This keeps callers from
+/// accidentally decoding sample zero for every materialized region.
+#[cfg(feature = "sf3-vorbis")]
+pub fn decode_sf3_vorbis_sample(
+    data: &[u8],
+    sample_id: u64,
+    sample_rate: u32,
+    channels: u8,
+) -> Result<DecodedSample, Error> {
     use std::io::Cursor;
     if sample_rate == 0 || !(1..=2).contains(&channels) {
         return Err(Error::InvalidSample);
     }
-    let payload = find_ogg_payload(data).ok_or(Error::InvalidHeader)?;
+    let payload = find_ogg_payload_at(data, sample_id).ok_or(Error::InvalidHeader)?;
     let mut reader = lewton::inside_ogg::OggStreamReader::new(Cursor::new(payload))
         .map_err(|_| Error::Decode("invalid SF3 Vorbis stream".to_string()))?;
     if reader.ident_hdr.audio_channels != channels
@@ -659,6 +767,18 @@ pub fn decode_sf3_vorbis(
 #[cfg(not(feature = "sf3-vorbis"))]
 pub fn decode_sf3_vorbis(
     _data: &[u8],
+    _sample_rate: u32,
+    _channels: u8,
+) -> Result<DecodedSample, Error> {
+    Err(Error::UnsupportedCompression(SampleCompression::Vorbis))
+}
+
+/// See [`decode_sf3_vorbis_sample`]. This explicit fallback preserves the
+/// feature-gated compression boundary for callers that retain sample IDs.
+#[cfg(not(feature = "sf3-vorbis"))]
+pub fn decode_sf3_vorbis_sample(
+    _data: &[u8],
+    _sample_id: u64,
     _sample_rate: u32,
     _channels: u8,
 ) -> Result<DecodedSample, Error> {
@@ -695,9 +815,7 @@ fn find_chunk_in_range<'a>(mut data: &'a [u8], wanted: &[u8; 4]) -> Option<&'a [
     None
 }
 
-#[cfg(feature = "sf3-vorbis")]
-fn find_ogg_payload(data: &[u8]) -> Option<&[u8]> {
-    let start = data.windows(4).position(|window| window == b"OggS")?;
+fn ogg_payload_end(data: &[u8], start: usize) -> Option<usize> {
     let mut offset = start;
     let mut serial = None;
     loop {
@@ -730,13 +848,44 @@ fn find_ogg_payload(data: &[u8]) -> Option<&[u8]> {
             return None;
         }
         if data[offset + 5] & 0x04 != 0 {
-            return Some(&data[start..page_end]);
+            return Some(page_end);
         }
         offset = page_end;
         if &data[offset..].get(..4)? != b"OggS" {
             return None;
         }
     }
+}
+
+fn find_ogg_payload_at(data: &[u8], sample_id: u64) -> Option<&[u8]> {
+    let sample_id = usize::try_from(sample_id).ok()?;
+    let mut search_from = 0;
+    for current_id in 0..=sample_id {
+        let relative_start = data[search_from..]
+            .windows(4)
+            .position(|window| window == b"OggS")?;
+        let start = search_from.checked_add(relative_start)?;
+        let end = ogg_payload_end(data, start)?;
+        if current_id == sample_id {
+            return Some(&data[start..end]);
+        }
+        search_from = end;
+    }
+    None
+}
+
+/// Read the channel count from an SF3 Ogg/Vorbis identification packet without
+/// invoking a codec. It is used only to describe materialized metadata; actual
+/// decoding remains behind the `sf3-vorbis` feature.
+fn sf3_ogg_channels(data: &[u8], sample_id: u64) -> Option<u8> {
+    let payload = find_ogg_payload_at(data, sample_id)?;
+    let header = payload
+        .windows(7)
+        .position(|window| window == b"\x01vorbis")?;
+    payload
+        .get(header + 11)
+        .copied()
+        .filter(|channels| (1..=2).contains(channels))
 }
 
 /// Render one scheduled sample action into deterministic interleaved PCM16 frames.
@@ -877,6 +1026,17 @@ pub enum SoundFontZoneDiagnostic {
     },
     InvalidZoneAt {
         location: SoundFontZoneLocation,
+        reason: String,
+    },
+    UnsupportedSampleTypeAt {
+        location: SoundFontZoneLocation,
+        sample_id: u64,
+        sample_type: u16,
+    },
+    InvalidSampleLinkAt {
+        location: SoundFontZoneLocation,
+        sample_id: u64,
+        linked_sample_id: u64,
         reason: String,
     },
 }
@@ -1029,6 +1189,27 @@ impl SoundFontZoneDiagnostic {
                 5,
                 format!("{location:?}:{reason}"),
             ),
+            Self::UnsupportedSampleTypeAt {
+                location,
+                sample_id,
+                sample_type,
+            } => (
+                location.bank,
+                location.program,
+                6,
+                format!("{location:?}:{sample_id}:{sample_type}"),
+            ),
+            Self::InvalidSampleLinkAt {
+                location,
+                sample_id,
+                linked_sample_id,
+                reason,
+            } => (
+                location.bank,
+                location.program,
+                7,
+                format!("{location:?}:{sample_id}:{linked_sample_id}:{reason}"),
+            ),
         }
     }
 
@@ -1051,7 +1232,9 @@ impl SoundFontZoneDiagnostic {
             } => *diagnostic_bank == bank && *diagnostic_program == program,
             Self::MissingSampleAt { location, .. }
             | Self::UnsupportedGeneratorAt { location, .. }
-            | Self::InvalidZoneAt { location, .. } => {
+            | Self::InvalidZoneAt { location, .. }
+            | Self::UnsupportedSampleTypeAt { location, .. }
+            | Self::InvalidSampleLinkAt { location, .. } => {
                 location.bank == bank && location.program == program
             }
         }
@@ -1192,6 +1375,102 @@ struct SfSampleHeader {
     end_loop: u32,
     sample_rate: u32,
     root_key: u8,
+    sample_link: u16,
+    sample_type: u16,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SampleLayoutError {
+    UnsupportedType {
+        sample_type: u16,
+    },
+    InvalidLink {
+        linked_sample_id: u64,
+        reason: &'static str,
+    },
+}
+
+fn sample_channel_layout(
+    samples: &[SfSampleHeader],
+    sample_index: usize,
+    format: SoundFontFormat,
+) -> Result<SampleChannelLayout, SampleLayoutError> {
+    let sample = samples
+        .get(sample_index)
+        .ok_or(SampleLayoutError::InvalidLink {
+            linked_sample_id: sample_index as u64,
+            reason: "sample index",
+        })?;
+    let sample_type = match (format, sample.sample_type) {
+        // SF3 marks compressed variants with bit 0x10 while retaining the
+        // SF2 mono/right/left low bits.
+        (SoundFontFormat::Sf3, 0x11) => 1,
+        (SoundFontFormat::Sf3, 0x12) => 2,
+        (SoundFontFormat::Sf3, 0x14) => 4,
+        _ => sample.sample_type,
+    };
+    match sample_type {
+        1 => Ok(SampleChannelLayout::Mono),
+        2 | 4 => {
+            // FluidR3Mono and similar SF3 assets retain the compressed
+            // left/right marker while storing a standalone mono Ogg stream
+            // with a zero link.  It is not a stereo pair; expose its actual
+            // one-channel decode contract instead of inventing a partner.
+            if format == SoundFontFormat::Sf3 && sample.sample_link == 0 {
+                return Ok(SampleChannelLayout::Mono);
+            }
+            let linked_index = usize::from(sample.sample_link);
+            let Some(linked) = samples.get(linked_index) else {
+                return Err(SampleLayoutError::InvalidLink {
+                    linked_sample_id: u64::from(sample.sample_link),
+                    reason: "linked sample index",
+                });
+            };
+            let expected_type = if sample_type == 2 { 4 } else { 2 };
+            let linked_type = match (format, linked.sample_type) {
+                (SoundFontFormat::Sf3, 0x11) => 1,
+                (SoundFontFormat::Sf3, 0x12) => 2,
+                (SoundFontFormat::Sf3, 0x14) => 4,
+                _ => linked.sample_type,
+            };
+            if linked_type != expected_type {
+                return Err(SampleLayoutError::InvalidLink {
+                    linked_sample_id: u64::from(sample.sample_link),
+                    reason: "linked sample type",
+                });
+            }
+            if usize::from(linked.sample_link) != sample_index {
+                return Err(SampleLayoutError::InvalidLink {
+                    linked_sample_id: u64::from(sample.sample_link),
+                    reason: "linked sample back-reference",
+                });
+            }
+            if sample.sample_rate != linked.sample_rate
+                || sample.end.saturating_sub(sample.start)
+                    != linked.end.saturating_sub(linked.start)
+                || sample.start_loop.saturating_sub(sample.start)
+                    != linked.start_loop.saturating_sub(linked.start)
+                || sample.end_loop.saturating_sub(sample.start)
+                    != linked.end_loop.saturating_sub(linked.start)
+            {
+                return Err(SampleLayoutError::InvalidLink {
+                    linked_sample_id: u64::from(sample.sample_link),
+                    reason: "linked sample frame layout",
+                });
+            }
+            Ok(SampleChannelLayout::LinkedStereo {
+                channel: if sample_type == 4 {
+                    StereoChannel::Left
+                } else {
+                    StereoChannel::Right
+                },
+                linked_sample_id: u64::from(sample.sample_link),
+            })
+        }
+        _ => Err(SampleLayoutError::UnsupportedType {
+            sample_type: sample.sample_type,
+        }),
+    }
 }
 
 #[derive(Debug, Default)]
@@ -1241,7 +1520,15 @@ fn parse_materialized_zones(
     format: SoundFontFormat,
 ) -> Result<(Vec<SoundFontPresetZone>, Vec<SoundFontZoneDiagnostic>), Error> {
     let tables = parse_sf_tables(data)?;
-    materialize_tables(&tables, format)
+    let (mut zones, diagnostics) = materialize_tables(&tables, format)?;
+    if format == SoundFontFormat::Sf3 {
+        for zone in &mut zones {
+            if sf3_ogg_channels(data, zone.region.sample_id) == Some(2) {
+                zone.channel_layout = SampleChannelLayout::InterleavedStereo;
+            }
+        }
+    }
+    Ok((zones, diagnostics))
 }
 
 fn materialize_tables(
@@ -1416,9 +1703,45 @@ fn materialize_tables(
                 if !supported {
                     continue;
                 }
+                let location = zone_location(
+                    preset,
+                    preset_index,
+                    Some(bag_index),
+                    Some(instrument_index),
+                    Some(instrument_bag_index),
+                );
+                let channel_layout =
+                    match sample_channel_layout(&tables.samples, sample_index, format) {
+                        Ok(layout) => layout,
+                        Err(SampleLayoutError::UnsupportedType { sample_type }) => {
+                            diagnostics.push(SoundFontZoneDiagnostic::UnsupportedSampleTypeAt {
+                                location,
+                                sample_id: sample_index as u64,
+                                sample_type,
+                            });
+                            continue;
+                        }
+                        Err(SampleLayoutError::InvalidLink {
+                            linked_sample_id,
+                            reason,
+                        }) => {
+                            diagnostics.push(SoundFontZoneDiagnostic::InvalidSampleLinkAt {
+                                location,
+                                sample_id: sample_index as u64,
+                                linked_sample_id,
+                                reason: reason.into(),
+                            });
+                            continue;
+                        }
+                    };
                 match projection.into_region(sample, sample_index as u64, format) {
                     Ok(region) => {
-                        match SoundFontPresetZone::new(preset.bank, preset.program, region) {
+                        match SoundFontPresetZone::with_channel_layout(
+                            preset.bank,
+                            preset.program,
+                            region,
+                            channel_layout,
+                        ) {
                             Ok(zone) => zones.push(zone),
                             Err(error) => {
                                 diagnostics.push(SoundFontZoneDiagnostic::InvalidZoneAt {
@@ -1567,6 +1890,27 @@ impl ZoneProjection {
             })
         } else {
             None
+        };
+        // SF2 `smpl` is one shared PCM array, while SF3 maps every sample
+        // header to a distinct Ogg logical stream.  SF3 regions must be
+        // stream-relative before the decoder crops the selected payload.
+        let (start, end, loop_points) = if format == SoundFontFormat::Sf3 {
+            let normalize = |frame: u32| {
+                frame
+                    .checked_sub(sample.start)
+                    .ok_or_else(|| "SF3 sample frame range".to_string())
+            };
+            let normalized_loop = loop_points
+                .map(|points| {
+                    Ok::<SampleLoop, String>(SampleLoop {
+                        start_frame: normalize(points.start_frame)?,
+                        end_frame: normalize(points.end_frame)?,
+                    })
+                })
+                .transpose()?;
+            (normalize(start)?, normalize(end)?, normalized_loop)
+        } else {
+            (start, end, loop_points)
         };
         Ok(SampleRegion {
             sample_id,
@@ -1740,6 +2084,8 @@ fn parse_sample_headers(data: &[u8]) -> Result<Vec<SfSampleHeader>, Error> {
             end_loop: u32::from_le_bytes([record[32], record[33], record[34], record[35]]),
             sample_rate: u32::from_le_bytes([record[36], record[37], record[38], record[39]]),
             root_key: record[40],
+            sample_link: u16::from_le_bytes([record[42], record[43]]),
+            sample_type: u16::from_le_bytes([record[44], record[45]]),
         })
         .collect())
 }
@@ -2199,7 +2545,7 @@ mod tests {
     #[test]
     fn materialization_inherits_preset_and_instrument_global_generators() {
         let key_range = i16::from_le_bytes([50, 70]);
-        let tables = SfTables {
+        let mut tables = SfTables {
             presets: vec![SfPresetHeader {
                 bank: 0,
                 program: 0,
@@ -2235,6 +2581,8 @@ mod tests {
                 end_loop: 100,
                 sample_rate: 44_100,
                 root_key: 60,
+                sample_link: 0,
+                sample_type: 1,
             }],
         };
         let (zones, diagnostics) =
@@ -2244,17 +2592,104 @@ mod tests {
         assert_eq!(zones[0].region.key_min, 50);
         assert_eq!(zones[0].region.key_max, 70);
         assert_eq!(zones[0].region.fine_tune_cents, 12);
+        tables.samples[0].sample_type = 8;
+        let (zones, diagnostics) =
+            materialize_tables(&tables, SoundFontFormat::Sf2).expect("tables materialize");
+        assert!(zones.is_empty());
+        assert!(matches!(
+            diagnostics.as_slice(),
+            [SoundFontZoneDiagnostic::UnsupportedSampleTypeAt {
+                sample_id: 0,
+                sample_type: 8,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn sample_channel_layout_resolves_mono_linked_stereo_and_sf3_single_payloads() {
+        let header = |sample_type, sample_link, start| SfSampleHeader {
+            start,
+            end: start + 1_000,
+            start_loop: start + 10,
+            end_loop: start + 100,
+            sample_rate: 44_100,
+            root_key: 60,
+            sample_link,
+            sample_type,
+        };
+        let samples = [header(4, 1, 100), header(2, 0, 8_000)];
+        assert_eq!(
+            sample_channel_layout(&samples, 0, SoundFontFormat::Sf2),
+            Ok(SampleChannelLayout::LinkedStereo {
+                channel: StereoChannel::Left,
+                linked_sample_id: 1,
+            })
+        );
+        assert_eq!(
+            sample_channel_layout(&samples, 1, SoundFontFormat::Sf2),
+            Ok(SampleChannelLayout::LinkedStereo {
+                channel: StereoChannel::Right,
+                linked_sample_id: 0,
+            })
+        );
+        assert_eq!(
+            sample_channel_layout(&[header(0x14, 0, 100)], 0, SoundFontFormat::Sf3),
+            Ok(SampleChannelLayout::Mono)
+        );
+    }
+
+    #[test]
+    fn malformed_sample_layouts_return_typed_errors() {
+        let header = |sample_type, sample_link| SfSampleHeader {
+            start: 100,
+            end: 1_100,
+            start_loop: 110,
+            end_loop: 200,
+            sample_rate: 44_100,
+            root_key: 60,
+            sample_link,
+            sample_type,
+        };
+        assert_eq!(
+            sample_channel_layout(&[header(2, 9)], 0, SoundFontFormat::Sf2),
+            Err(SampleLayoutError::InvalidLink {
+                linked_sample_id: 9,
+                reason: "linked sample index",
+            })
+        );
+        assert_eq!(
+            sample_channel_layout(&[header(8, 0)], 0, SoundFontFormat::Sf2),
+            Err(SampleLayoutError::UnsupportedType { sample_type: 8 })
+        );
     }
 
     #[test]
     fn resolved_zone_metadata_is_owned_and_round_trips_to_region() {
-        let zone = SoundFontPresetZone::new(2, 10, region(7, 48, 72)).expect("zone");
+        let zone = SoundFontPresetZone::with_channel_layout(
+            2,
+            10,
+            region(7, 48, 72),
+            SampleChannelLayout::LinkedStereo {
+                channel: StereoChannel::Left,
+                linked_sample_id: 8,
+            },
+        )
+        .expect("zone");
         let metadata = zone.resolved_metadata();
         assert_eq!(metadata.bank, 2);
         assert_eq!(metadata.program, 10);
         assert_eq!(metadata.sample_id, 7);
         assert_eq!(metadata.key_min, 48);
         assert_eq!(metadata.key_max, 72);
+        assert_eq!(metadata.decode_channels, 1);
+        assert_eq!(
+            metadata.channel_layout,
+            SampleChannelLayout::LinkedStereo {
+                channel: StereoChannel::Left,
+                linked_sample_id: 8,
+            }
+        );
         assert_eq!(
             metadata.loop_points,
             Some(SampleLoop {
@@ -2489,6 +2924,10 @@ mod tests {
     #[cfg(feature = "sf3-vorbis")]
     #[test]
     fn decodes_permitted_synthetic_sf3_vorbis_fixture() {
+        assert_eq!(
+            sf3_ogg_channels(include_bytes!("../../../tests/fixtures/synthetic.sf3"), 0),
+            Some(2)
+        );
         let sample = decode_sf3_vorbis(
             include_bytes!("../../../tests/fixtures/synthetic.sf3"),
             8000,
@@ -2633,7 +3072,7 @@ mod tests {
         .expect("real SF2 materialization");
         assert_eq!(materialized.asset.format, SoundFontFormat::Sf2);
         assert!(!materialized.zones().is_empty());
-        let preset = materialized.asset.presets.first().expect("preset");
+        let preset = materialized.zones().first().expect("materialized zone");
         let snapshot = materialized
             .snapshot_for_preset(preset.bank, preset.program)
             .expect("preset snapshot");
@@ -2643,11 +3082,9 @@ mod tests {
 
     #[test]
     fn load_materialized_reads_real_sf3_generator_tables() {
-        let materialized = load_materialized(
-            include_bytes!("../../../tests/fixtures/FluidR3Mono_GM.sf3"),
-            "fixture-sf3-provider",
-        )
-        .expect("real SF3 materialization");
+        let data = include_bytes!("../../../tests/fixtures/FluidR3Mono_GM.sf3");
+        let materialized =
+            load_materialized(data, "fixture-sf3-provider").expect("real SF3 materialization");
         assert_eq!(materialized.asset.format, SoundFontFormat::Sf3);
         assert!(!materialized.zones().is_empty());
         assert!(
@@ -2655,6 +3092,29 @@ mod tests {
                 .zones()
                 .iter()
                 .all(|zone| zone.region.compression == SampleCompression::Vorbis)
+        );
+        let zone = materialized.zones().first().expect("materialized zone");
+        let snapshot = materialized
+            .snapshot_for_preset(zone.bank, zone.program)
+            .expect("snapshot");
+        let metadata = snapshot.zones.first().expect("materialized zone");
+        assert!(
+            metadata.sample_id > 0,
+            "fixture must exercise a non-first Ogg stream"
+        );
+        assert_eq!(metadata.start_frame, 0);
+        #[cfg(feature = "sf3-vorbis")]
+        let decoded = metadata
+            .decode_sample_region(data)
+            .expect("materialized SF3 decode");
+        #[cfg(feature = "sf3-vorbis")]
+        assert_eq!(decoded.sample.channels, metadata.decode_channels);
+        #[cfg(feature = "sf3-vorbis")]
+        assert!(!decoded.sample.pcm_i16.is_empty());
+        #[cfg(not(feature = "sf3-vorbis"))]
+        assert_eq!(
+            metadata.decode_sample_region(data),
+            Err(Error::UnsupportedCompression(SampleCompression::Vorbis))
         );
     }
 
