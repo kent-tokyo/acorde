@@ -1072,6 +1072,13 @@ pub struct Measure {
     pub page_break: bool,
     /// Up to 4 voices; voice 0 is the primary voice.
     pub voices: [Vec<Note>; 4],
+    /// Original positive MusicXML voice numbers associated with the four editable slots.
+    ///
+    /// `None` retains the legacy convention that slot `n` serializes as voice `n + 1`.
+    /// This lets import preserve sparse source identifiers such as voices 1 and 5 without
+    /// changing the established fixed-slot editing API.
+    #[serde(default)]
+    pub source_voice_numbers: [Option<u32>; 4],
 }
 
 impl Measure {
@@ -1107,6 +1114,7 @@ impl Measure {
             system_break: false,
             page_break: false,
             voices: [voice0, vec![], vec![], vec![]],
+            source_voice_numbers: [None; 4],
         }
     }
 
@@ -3269,6 +3277,22 @@ mod tests {
         let json = r#"{"id":"abc","metadata":{"title":"T","composer":"","lyricist":"","copyright":"","work_number":"","movement_title":""},"settings":{"tempo_bpm":120,"time_signature":{"numerator":4,"denominator":4},"key_signature":{"fifths":0,"mode":"major"}},"parts":[]}"#;
         let score: Score = serde_json::from_str(json).unwrap();
         assert_eq!(score.schema_version, 0);
+    }
+
+    #[test]
+    fn legacy_measure_json_defaults_source_voice_numbers() {
+        let score = Score::new("Legacy", 120, 4, 4, 0, 1);
+        let mut value = serde_json::to_value(&score).expect("score serializes");
+        value["parts"][0]["staves"][0]["measures"][0]
+            .as_object_mut()
+            .expect("measure is an object")
+            .remove("source_voice_numbers");
+
+        let restored: Score = serde_json::from_value(value).expect("legacy score deserializes");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].source_voice_numbers,
+            [None; 4]
+        );
     }
 
     #[test]

@@ -117,6 +117,10 @@ pub struct PlaybackEvent {
     /// Typed source address for notation hosts; `None` for metronome events.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<NoteAddr>,
+    /// Original MusicXML voice number when the source used a non-default identifier.
+    /// `source` remains the stable four-slot canonical address used by editing APIs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_voice_number: Option<u32>,
     /// Absolute beat position from the start of the score.
     pub time_beats: f64,
     /// Absolute time in seconds from the start of the score.
@@ -712,6 +716,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                                         voice: voice_idx,
                                         note: note_index,
                                     }),
+                                    source_voice_number: measure.source_voice_numbers[voice_idx],
                                     time_beats: measure_start_beats + local_beats,
                                     time_secs: measure_start_secs + local_secs,
                                     pitch_midi: midi,
@@ -764,6 +769,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                 events.push(PlaybackEvent {
                     address: None,
                     source: None,
+                    source_voice_number: None,
                     time_beats: cursor_beats + b as f64 * beat_unit,
                     time_secs: cursor_secs + beat_offset_secs,
                     pitch_midi: if is_accent {
@@ -1559,6 +1565,22 @@ mod tests {
         assert!(addresses.contains(&"0:0:0:1:0"));
     }
 
+    #[test]
+    fn playback_exposes_original_musicxml_voice_number_alongside_slot_address() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        let measure = &mut score.parts[0].staves[0].measures[0];
+        measure.voices[1] = vec![Note::new(Pitch::new(Step::E, 4), Duration::Quarter)];
+        measure.source_voice_numbers[1] = Some(5);
+
+        let events = to_playback_events(&score, &PlaybackOptions::default());
+        let event = events
+            .iter()
+            .find(|event| event.address.as_deref() == Some("0:0:0:1:0"))
+            .expect("event from slot 1");
+        assert_eq!(event.source.as_ref().map(|source| source.voice), Some(1));
+        assert_eq!(event.source_voice_number, Some(5));
+    }
+
     // ── compute_playback_position ─────────────────────────────────────────────
 
     #[test]
@@ -1692,6 +1714,7 @@ mod tests {
                 voice: 0,
                 note: 0,
             }),
+            source_voice_number: None,
             time_beats: 0.0,
             time_secs,
             pitch_midi: 60,

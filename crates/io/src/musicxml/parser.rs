@@ -17,6 +17,7 @@ const MAX_PARTS: usize = 64;
 const MAX_MEASURES: usize = 10_000;
 const MAX_STAVES: usize = 32;
 const MAX_NOTES_PER_VOICE: usize = 50_000;
+const MAX_SOURCE_VOICE_NUMBER: u32 = 1_000_000;
 const MAX_DEPTH: usize = 64;
 
 pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
@@ -74,7 +75,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut note_relative_x: Option<f64> = None;
     let mut note_relative_y: Option<f64> = None;
     let mut note_chord = false;
-    let mut note_voice = 1u8;
+    let mut note_voice = 1u32;
     let mut note_staff = 1usize;
     let mut note_is_grace = false;
     let mut note_grace_slash = false;
@@ -146,6 +147,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut in_forward = false;
     let mut measure_cursor_ticks = 0u32;
     let mut voice_cursor_ticks: HashMap<(usize, usize), u32> = HashMap::new();
+    let mut source_voice_slots: HashMap<(usize, u32), usize> = HashMap::new();
     let mut last_note_start: Option<(usize, usize, u32)> = None;
     let mut current_text = String::new();
 
@@ -414,6 +416,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         current_key = KeySignature::default();
                         current_clef = Clef::Treble;
                         current_measure_number = 0;
+                        source_voice_slots.clear();
                     }
                     "measure" => {
                         current_measure_number = attr_str(e, b"number")
@@ -1227,7 +1230,14 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "backup" => in_backup = false,
                     "forward" => in_forward = false,
                     "voice" if in_note => {
-                        note_voice = current_text.parse().unwrap_or(1);
+                        note_voice = current_text.trim().parse::<u32>().map_err(|_| {
+                            Error::Xml("MusicXML voice number must be a positive integer".into())
+                        })?;
+                        if note_voice == 0 || note_voice > MAX_SOURCE_VOICE_NUMBER {
+                            return Err(Error::Xml(format!(
+                                "MusicXML voice number must be between 1 and {MAX_SOURCE_VOICE_NUMBER}"
+                            )));
+                        }
                     }
                     "staff" if in_note => {
                         note_staff = current_text
@@ -1345,13 +1355,12 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 .measures
                                 .last_mut()
                             {
-                                let voice_index = note_voice.saturating_sub(1) as usize;
-                                if voice_index >= m.voices.len() {
-                                    return Err(Error::Xml(format!(
-                                        "voice number must be between 1 and {}",
-                                        m.voices.len()
-                                    )));
-                                }
+                                let voice_index = musicxml_voice_slot(
+                                    m,
+                                    &mut source_voice_slots,
+                                    target_staff_index,
+                                    note_voice,
+                                )?;
                                 let duration_ticks = if note_is_grace || note_is_cue {
                                     0
                                 } else {
@@ -1626,6 +1635,42 @@ fn musicxml_measure_ticks(time: &TimeSignature, divisions: u32) -> Result<u32, E
         .map_err(|_| Error::Xml("MusicXML measure duration overflow".into()))
 }
 
+/// Map an arbitrary positive MusicXML voice identifier onto one of the four canonical editing
+/// slots without changing the source identifier stored on the measure. The mapping is stable for
+/// the enclosing part/staff, so a sparse source voice remains in the same host slot across
+/// measures. A fifth distinct source voice is rejected explicitly rather than silently merged.
+fn musicxml_voice_slot(
+    measure: &mut Measure,
+    source_slots: &mut HashMap<(usize, u32), usize>,
+    staff_index: usize,
+    source_voice: u32,
+) -> Result<usize, Error> {
+    if let Some(&slot) = source_slots.get(&(staff_index, source_voice)) {
+        measure.source_voice_numbers[slot] = Some(source_voice);
+        return Ok(slot);
+    }
+
+    let occupied = |slot: usize| {
+        source_slots
+            .iter()
+            .any(|(&(mapped_staff, _), &mapped_slot)| {
+                mapped_staff == staff_index && mapped_slot == slot
+            })
+    };
+    let preferred = usize::try_from(source_voice.saturating_sub(1)).ok();
+    let slot = preferred
+        .filter(|slot| *slot < measure.voices.len() && !occupied(*slot))
+        .or_else(|| (0..measure.voices.len()).find(|slot| !occupied(*slot)))
+        .ok_or_else(|| {
+            Error::Xml(
+                "MusicXML part/staff contains more than four distinct source voice numbers".into(),
+            )
+        })?;
+    source_slots.insert((staff_index, source_voice), slot);
+    measure.source_voice_numbers[slot] = Some(source_voice);
+    Ok(slot)
+}
+
 fn append_musicxml_gap_rests(
     voice: &mut Vec<Note>,
     mut ticks: u32,
@@ -1885,6 +1930,40 @@ mod tests {
 
         let overflow = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>"#;
         assert!(parse_musicxml(overflow).is_err());
+    }
+
+    #[test]
+    fn sparse_source_voice_numbers_use_stable_editing_slots_without_renumbering() {
+        let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note><backup><duration>1</duration></backup><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>5</voice><type>quarter</type></note></measure><measure number="2"><note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><voice>5</voice><type>quarter</type></note></measure></part></score-partwise>"#;
+        let score = parse_musicxml(xml).expect("sparse voices parse");
+        let first = &score.parts[0].staves[0].measures[0];
+        let second = &score.parts[0].staves[0].measures[1];
+        assert_eq!(first.source_voice_numbers, [Some(1), Some(5), None, None]);
+        assert_eq!(second.source_voice_numbers, [None, Some(5), None, None]);
+        assert_eq!(first.voices[1][0].pitches[0].step, Step::E);
+        assert_eq!(second.voices[1][0].pitches[0].step, Step::F);
+
+        let serialized = crate::serialize_musicxml(&score).expect("serializes");
+        assert!(serialized.contains("<voice>5</voice>"));
+        let restored = parse_musicxml(&serialized).expect("reparses");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].source_voice_numbers,
+            [Some(1), Some(5), None, None]
+        );
+    }
+
+    #[test]
+    fn invalid_or_unrepresentable_source_voice_numbers_are_rejected() {
+        for voice in ["0", "-1", "bad", "1000001"] {
+            let xml = format!(
+                "<score-partwise><part-list><score-part id=\"P1\"/></part-list><part id=\"P1\"><measure><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>{voice}</voice></note></measure></part></score-partwise>"
+            );
+            assert!(parse_musicxml(&xml).is_err(), "voice {voice} must fail");
+        }
+
+        let xml = r#"<score-partwise><part-list><score-part id="P1"/></part-list><part id="P1"><measure><attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice></note><backup><duration>1</duration></backup><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><voice>2</voice></note><backup><duration>1</duration></backup><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>3</voice></note><backup><duration>1</duration></backup><note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><voice>4</voice></note><backup><duration>1</duration></backup><note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><voice>5</voice></note></measure></part></score-partwise>"#;
+        let error = parse_musicxml(xml).expect_err("fifth source voice must fail");
+        assert!(error.to_string().contains("more than four distinct"));
     }
 
     #[test]

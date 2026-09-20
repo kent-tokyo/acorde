@@ -656,6 +656,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 std::mem::take(&mut cur_voices[2]),
                                 std::mem::take(&mut cur_voices[3]),
                             ],
+                            source_voice_numbers: [None; 4],
                         };
                         staff_measures.entry(sid).or_default().push(meas);
                         in_measure = false;

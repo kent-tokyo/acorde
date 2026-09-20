@@ -436,7 +436,13 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     xml.push_str("      </backup>\n");
                 }
                 for note in voice {
-                    serialize_note(&mut xml, note, voice_index + 1, 1, measure_ticks);
+                    serialize_note(
+                        &mut xml,
+                        note,
+                        musicxml_voice_number(measure, voice_index),
+                        1,
+                        measure_ticks,
+                    );
                 }
                 cursor_ticks = serialized_voice_ticks(voice, measure_ticks);
                 emitted_voice = true;
@@ -468,7 +474,7 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                         serialize_note(
                             &mut xml,
                             note,
-                            voice_index + 1,
+                            musicxml_voice_number(extra_measure, voice_index),
                             staff_index + 1,
                             measure_ticks,
                         );
@@ -519,7 +525,7 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
 fn serialize_note(
     xml: &mut String,
     note: &Note,
-    voice_number: usize,
+    voice_number: u32,
     staff_number: usize,
     measure_ticks: u32,
 ) {
@@ -866,6 +872,10 @@ fn serialized_voice_ticks(voice: &[Note], measure_ticks: u32) -> u32 {
     voice.iter().fold(0u32, |ticks, note| {
         ticks.saturating_add(serialized_note_timing(note, measure_ticks).0)
     })
+}
+
+fn musicxml_voice_number(measure: &acorde_core::Measure, slot: usize) -> u32 {
+    measure.source_voice_numbers[slot].unwrap_or((slot + 1) as u32)
 }
 
 fn serialized_note_timing(note: &Note, measure_ticks: u32) -> (u32, &'static str, u8, bool) {

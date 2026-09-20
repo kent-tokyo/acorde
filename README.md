@@ -113,7 +113,8 @@ The WASM API also provides `parse_musicxml_render_svg`, `parse_mxl_render_svg`, 
 inputs to canonical SVG. MuseScore XML and archive inputs are also covered by
 `parse_mscx_render_svg` and `parse_mscz_render_svg`; use the corresponding `*_report` functions
 when import diagnostics are needed.
-MusicXML voice numbers 1–4 are preserved in `Measure.voices` and through MusicXML round-trips.
+MusicXML voice numbers are retained independently from the four canonical `Measure.voices`
+editing slots, so sparse source identifiers such as 1 and 5 survive a round-trip unchanged.
 Standard `backup`/`forward` cursor movement becomes explicit canonical rests, while malformed
 cursor underflow or measure overflow is rejected rather than silently reordered.
 Tablature string/fret positions and fractional MusicXML alterations are preserved in the score

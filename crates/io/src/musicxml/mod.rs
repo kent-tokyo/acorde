@@ -185,8 +185,8 @@ fn push_invalid_numeric_value_diagnostic(
     let valid = match field {
         "divisions" | "duration" => value.parse::<u32>().is_ok_and(|number| number > 0),
         "voice" => value
-            .parse::<u16>()
-            .is_ok_and(|number| (1..=4).contains(&number)),
+            .parse::<u32>()
+            .is_ok_and(|number| (1..=1_000_000).contains(&number)),
         "staff" => value
             .parse::<u16>()
             .is_ok_and(|number| (1..=32).contains(&number)),
@@ -586,9 +586,13 @@ mod tests {
 
     #[test]
     fn invalid_numeric_parser_defaults_are_source_diagnosed() {
-        let xml = r#"<score-partwise><part-list><score-part id="P1"/></part-list><part id="P1"><measure><attributes><divisions>0</divisions></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>bad</duration><voice>9</voice></note></measure></part></score-partwise>"#;
+        let xml = r#"<score-partwise><part-list><score-part id="P1"/></part-list><part id="P1"><measure><attributes><divisions>0</divisions></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>bad</duration><voice>1000001</voice></note></measure></part></score-partwise>"#;
         let diagnostics = loss_diagnostics(xml);
-        for (field, value) in [("divisions", "0"), ("duration", "bad"), ("voice", "9")] {
+        for (field, value) in [
+            ("divisions", "0"),
+            ("duration", "bad"),
+            ("voice", "1000001"),
+        ] {
             assert!(
                 diagnostics.iter().any(|diagnostic| {
                     diagnostic.code == "musicxml.invalid-numeric-value"

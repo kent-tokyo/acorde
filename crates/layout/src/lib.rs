@@ -243,4 +243,20 @@ pub struct LayoutResult {
     /// See [`AccidentalMark`] for the precedence rule against `courtesy_accidentals`.
     #[serde(default)]
     pub accidentals: Vec<AccidentalMark>,
+
+    /// Source MusicXML voice identities for non-default canonical voice slots.
+    /// Consumers keep using the slot-based [`NoteAddr`] fields in layout groups, then consult this
+    /// table when they also need the original external voice number.
+    #[serde(default)]
+    pub source_voice_addresses: Vec<SourceVoiceAddress>,
+}
+
+/// Mapping from a stable canonical voice slot to its original MusicXML voice number.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SourceVoiceAddress {
+    pub part: usize,
+    pub staff: usize,
+    pub measure: usize,
+    pub voice: usize,
+    pub source_voice_number: u32,
 }

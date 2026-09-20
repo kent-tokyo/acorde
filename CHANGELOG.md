@@ -10,6 +10,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **[schema]** MusicXML source voice numbers now survive independently of the four canonical
+  editor slots. Sparse identifiers such as voices 1 and 5 round-trip unchanged; layout and
+  playback expose the source number alongside their stable slot address. Older Score JSON defaults
+  the new `Measure.source_voice_numbers` field to the legacy slot numbering.
 - MusicXML import now honors `backup` and `forward` cursor movement, materializing leading and
   internal gaps as canonical rests while rejecting cursor underflow and measure overflow. Export
   emits cursor-consistent backups, preserves later measure attribute changes, and writes valid

@@ -1966,6 +1966,7 @@ mod tests {
         PlaybackEvent {
             address: Some(address.into()),
             source: None,
+            source_voice_number: None,
             time_beats: 0.0,
             time_secs: 0.0,
             pitch_midi: 60,

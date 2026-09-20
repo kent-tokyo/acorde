@@ -1,6 +1,6 @@
 use crate::{
     AccidentalMark, BeamGroup, ConcertKeyOverride, CourtesyAccidental, LayoutConfig, LayoutResult,
-    RowLayout, SpanMark, TupletGroup,
+    RowLayout, SourceVoiceAddress, SpanMark, TupletGroup,
 };
 use acorde_core::{BeamState, HairpinKind, NoteAddr, OttavaKind, Score, Step, TupletInfo};
 use std::collections::HashMap;
@@ -45,6 +45,7 @@ pub fn compute_layout(score: &Score, config: &LayoutConfig) -> LayoutResult {
     let tuplet_groups = collect_tuplet_groups(score);
     let courtesy_accidentals = collect_courtesy_accidentals(score);
     let accidentals = collect_accidental_marks(score);
+    let source_voice_addresses = collect_source_voice_addresses(score);
 
     LayoutResult {
         vis_slots,
@@ -55,7 +56,32 @@ pub fn compute_layout(score: &Score, config: &LayoutConfig) -> LayoutResult {
         tuplet_groups,
         courtesy_accidentals,
         accidentals,
+        source_voice_addresses,
     }
+}
+
+fn collect_source_voice_addresses(score: &Score) -> Vec<SourceVoiceAddress> {
+    let mut addresses = Vec::new();
+    for (part, part_value) in score.parts.iter().enumerate() {
+        for (staff, staff_value) in part_value.staves.iter().enumerate() {
+            for (measure, measure_value) in staff_value.measures.iter().enumerate() {
+                for (voice, source_voice_number) in
+                    measure_value.source_voice_numbers.iter().enumerate()
+                {
+                    if let Some(source_voice_number) = source_voice_number {
+                        addresses.push(SourceVoiceAddress {
+                            part,
+                            staff,
+                            measure,
+                            voice,
+                            source_voice_number: *source_voice_number,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    addresses
 }
 
 // ── vis_slots ─────────────────────────────────────────────────────────────────
@@ -805,6 +831,24 @@ mod tests {
         let score = Score::default();
         let result = compute_layout(&score, &LayoutConfig::default());
         assert!(result.beam_groups.is_empty());
+    }
+
+    #[test]
+    fn layout_exposes_source_voice_number_for_canonical_slot() {
+        let mut score = score_with_measures(1);
+        score.parts[0].staves[0].measures[0].source_voice_numbers[1] = Some(5);
+
+        let result = compute_layout(&score, &LayoutConfig::default());
+        assert_eq!(
+            result.source_voice_addresses,
+            vec![SourceVoiceAddress {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 1,
+                source_voice_number: 5,
+            }]
+        );
     }
 
     #[test]

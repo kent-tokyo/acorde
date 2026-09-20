@@ -86,7 +86,10 @@ note pitches, and TPC values, using stable codes `mscx.invalid-key-signature`,
 `mscx.invalid-tpc`. These diagnostics preserve the XML path and raw value, so a fallback such as
 middle C or 120 BPM is never mistaken for lossless source data.
 
-MusicXML notes are mapped from voice numbers 1–4 to the corresponding `Measure.voices` entries.
+MusicXML notes use the established four `Measure.voices` editing slots, while
+`Measure.source_voice_numbers` retains their original positive MusicXML identifiers. Sparse
+identifiers such as 1 and 5 therefore round-trip without renumbering; a fifth distinct source
+voice on one part/staff is rejected rather than merged silently.
 The importer honors standard `<backup>`/`<forward>` cursor movement and materializes leading or
 internal gaps as canonical rests; cursor underflow and measure overflow are errors. Serialization
 emits the same voice numbers and cursor-consistent `<backup>` boundaries, including later local
