@@ -8,7 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
+## [1.1.7] - 2026-09-20
 
 - **[schema]** Added score-level `NotationSpanner` values for numbered slur, glissando, trill
   line, pedal, and ottava ranges. MusicXML preserves bounded endpoint metadata (number, line
