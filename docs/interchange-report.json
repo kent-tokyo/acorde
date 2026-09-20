@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "version_policy": "workspace version is 1.1.7",
-  "generated_on": "2026-09-12",
+  "version_policy": "workspace version is 1.2.0",
+  "generated_on": "2026-09-21",
   "phase_7_policy": {
     "status": "local-slices-available-external-gates-open",
     "claim_boundary": "Phase 7 is not aggregate-lossless until each declared format slice passes its own evidence gate",

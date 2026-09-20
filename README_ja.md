@@ -1,6 +1,6 @@
 # acorde
 
-Rust と WebAssembly 向けのプラットフォーム非依存な楽譜ライブラリ（v1.1.7候補）です。
+Rust と WebAssembly 向けのプラットフォーム非依存な楽譜ライブラリ（v1.2.0）です。
 
 シリアライズ可能なスコアモデル、Undo/Redo 可能なコマンド、各種フォーマット入出力、
 論理レイアウト、決定的な SVG レンダリング、再生イベント、WASM バインディングを提供します。
@@ -25,19 +25,22 @@ SVG要件は [print-svg-contract.md](docs/print-svg-contract.md) にまとめて
 PDF変換、フォント解決、プリンタ接続、印刷プレビューUIはホスト側の責務です。
 SoundFontの`SoundFontPresetZone` APIでは bank/program と key/velocity からサンプル領域を
 選択でき、Composer側でSoundFontのgenerator解析を重複実装する必要がありません。
+materialized SoundFont snapshot には source PCM の channel layout と decode channel count も含まれます。
+SF3では snapshot の decode API を使うことで sample ID に対応する Ogg stream を選択できます。SF2の
+linked stereo は左右のmono source regionの明示的な組として扱います。
 
 ## 利用例
 
 ```toml
 [dependencies]
-acorde = "1.1.7"
-acorde-render-svg = "1.1.7"
+acorde = "1.2.0"
+acorde-render-svg = "1.2.0"
 ```
 
 ABC と MuseScore 入力を有効にする場合：
 
 ```toml
-acorde = { version = "1.1.7", features = ["abc", "mscz", "mei"] }
+acorde = { version = "1.2.0", features = ["abc", "mscz", "mei"] }
 ```
 
 `acorde-io` の既定 feature は `musicxml` と `midi` です。`abc` は ABC の読み書き、
