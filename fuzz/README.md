@@ -4,7 +4,7 @@ These standalone `cargo-fuzz` targets exercise the public bounded parser/report 
 MusicXML, MIDI, ABC, MEI, MSCZ, and Score JSON. The fuzz package is intentionally outside the
 main workspace; it is not published and does not change runtime dependencies of the library crates.
 
-Install `cargo-fuzz` with the nightly toolchain (CI pins Rust nightly 2026-05-22), then run a
+Install `cargo-fuzz` with a stable toolchain (CI pins Rust nightly 2026-05-22 for the targets), then run a
 bounded smoke pass from this directory:
 
 ```text

@@ -1,0 +1,5 @@
+# Fixture checksums are byte-level evidence. Keep textual fixture bytes stable on every checkout.
+tests/fixtures/*.abc text eol=lf
+tests/fixtures/*.mei text eol=lf
+tests/fixtures/*.musicxml text eol=lf
+tests/fixtures/*.mscx text eol=lf

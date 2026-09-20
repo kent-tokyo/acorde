@@ -2183,13 +2183,12 @@ mod wasm_tests {
     }
 
     #[wasm_bindgen_test]
-    fn browser_render_preflight_returns_source_located_issue_json() {
+    fn browser_render_preflight_accepts_percussion_clef() {
         let mut score = Score::new("preflight", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].clef = acorde_core::Clef::Percussion;
         let score_json = serde_json::to_string(&score).unwrap();
         let report = render_preflight(&score_json).unwrap();
-        assert!(report.contains("UnsupportedClef"));
-        assert!(report.contains("/score/part/1/staff/1/clef"));
+        assert_eq!(report, "[]");
     }
 
     #[wasm_bindgen_test]
@@ -2243,7 +2242,7 @@ mod wasm_tests {
 
     #[wasm_bindgen_test]
     fn browser_analysis_preserves_microtonal_intervals_and_key_weights() {
-        let mut score = Score::default();
+        let mut score = Score::new("microtone", 120, 9, 8, 0, 1);
         let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
         voice.clear();
         voice.push(acorde_core::Note::new(
