@@ -23,7 +23,17 @@ The lower-level decode and render functions remain available for providers that 
 consistent coordinate system.
 `ResolvedPresetZoneMetadata` and `resolve_preset_zone_metadata` expose an owned snapshot of all
 resolved zone fields for downstream UI, diagnostics, cache keys, and audio setup; hosts can
-reconstruct the validated `SampleRegion` without repeating provider parsing.
+reconstruct the validated `SampleRegion` without repeating provider parsing. Each snapshot also
+contains `channel_layout` and `decode_channels`, so `metadata.decode_sample_region(bytes)` uses
+the correct source channel count and SF3 logical stream without the host reparsing SF2/SF3 tables.
+SF2 linked stereo is
+represented as two mono regions with reciprocal sample IDs and an explicit left/right role; hosts
+combine that pair after decoding. A single interleaved stereo payload is represented separately.
+SF3 Ogg identification headers distinguish a single interleaved stereo payload from a linked pair.
+Some SF3 libraries retain a left/right marker for a standalone mono Ogg payload; it is exposed as
+mono because its decoder contract is one channel. Unsupported sample types and broken or
+inconsistent nonzero stereo links are retained as typed `SoundFontZoneDiagnostic` values rather
+than silently approximated.
 `schedule_preset_note_on` combines that selection with the validated voice plan in one call.
 
 For a loaded asset, `SoundFontAsset::materialize_zones` creates a bounded
@@ -54,7 +64,9 @@ The built-in `decode_sf2_pcm16` path decodes bounded PCM16 from an SF2 `smpl` ch
 `render_sample_action` provides deterministic nearest-neighbor playback with gain, envelope,
 looping, and pitch-rate handling. Enable the optional `sf3-vorbis` feature to use the separately
 licensed `lewton` decoder for SF3 Ogg/Vorbis payloads; without it, Vorbis returns an explicit
-unsupported-compression error.
+unsupported-compression error. `decode_sample_region` retains the legacy first-stream SF3
+convenience behavior; `decode_materialized_sample_region` and snapshot metadata select the Ogg
+stream matching the materialized `sample_id`.
 
 It does not decode samples or include a synthesizer. Applications provide a
 separately licensed SF2/SF3 renderer, so no external sample assets or vendor
