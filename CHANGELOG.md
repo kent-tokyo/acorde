@@ -10,6 +10,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- SoundFont region decoding now normalizes loop points to cropped PCM coordinates for SF2 and
+  feature-enabled SF3 paths, preventing non-zero sample starts from disabling or misplacing loops.
 - Documentation is synchronized for the 1.1.7 candidate, including the English/Japanese
   overviews, crate READMEs, migration notes, browser contract, and scorecard contract version.
 - MSCX import reports source-located diagnostics for malformed key-signature, time-signature,

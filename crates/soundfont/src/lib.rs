@@ -90,6 +90,7 @@ pub struct SampleRegion {
     pub attenuation_db: f32,
     pub sample_rate: u32,
     pub compression: SampleCompression,
+    /// Asset-relative loop points. [`DecodedSampleRegion`] normalizes these for cropped PCM.
     pub loop_points: Option<SampleLoop>,
     pub attack_secs: f32,
     pub decay_secs: f32,
@@ -134,7 +135,8 @@ pub fn validate_sample_region(region: &SampleRegion) -> Result<(), Error> {
     }
     if let Some(loop_points) = region.loop_points
         && (loop_points.start_frame >= loop_points.end_frame
-            || loop_points.end_frame as u64 > MAX_DECODED_FRAMES as u64)
+            || loop_points.start_frame < region.start_frame
+            || loop_points.end_frame > region.end_frame)
     {
         return Err(Error::InvalidZone("loop points"));
     }
@@ -349,6 +351,81 @@ pub struct DecodedSample {
     pub pcm_i16: Vec<i16>,
 }
 
+/// PCM decoded for one [`SampleRegion`].
+///
+/// `sample` is indexed from zero through `region.end_frame - region.start_frame`; therefore
+/// `loop_points` are buffer-relative as well. The original asset-relative coordinates remain in
+/// `region.loop_points`. This prevents a cropped non-zero source range from being rendered with
+/// loop coordinates from the full SoundFont payload.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DecodedSampleRegion {
+    pub region: SampleRegion,
+    pub sample: DecodedSample,
+    pub loop_points: Option<SampleLoop>,
+}
+
+impl DecodedSampleRegion {
+    /// Construct a playable region from PCM already cropped to the region's half-open frame range.
+    pub fn new(region: SampleRegion, sample: DecodedSample) -> Result<Self, Error> {
+        validate_sample_region(&region)?;
+        if sample.sample_rate != region.sample_rate
+            || sample.frame_count()
+                != usize::try_from(region.end_frame - region.start_frame)
+                    .map_err(|_| Error::InvalidSample)?
+        {
+            return Err(Error::InvalidSample);
+        }
+        let loop_points = region.loop_points.map(|loop_points| SampleLoop {
+            start_frame: loop_points.start_frame - region.start_frame,
+            end_frame: loop_points.end_frame - region.start_frame,
+        });
+        Ok(Self {
+            region,
+            sample,
+            loop_points,
+        })
+    }
+
+    /// Crop full asset-relative decoded PCM into this region's buffer-relative contract.
+    pub fn from_full_sample(
+        region: SampleRegion,
+        full_sample: &DecodedSample,
+    ) -> Result<Self, Error> {
+        validate_sample_region(&region)?;
+        if full_sample.sample_rate != region.sample_rate {
+            return Err(Error::InvalidSample);
+        }
+        let start = usize::try_from(region.start_frame).map_err(|_| Error::InvalidSample)?;
+        let end = usize::try_from(region.end_frame).map_err(|_| Error::InvalidSample)?;
+        if end > full_sample.frame_count() {
+            return Err(Error::Truncated);
+        }
+        let channels = usize::from(full_sample.channels);
+        let samples = full_sample.pcm_i16[start * channels..end * channels].to_vec();
+        Self::new(
+            region,
+            DecodedSample::new(full_sample.sample_rate, full_sample.channels, samples)?,
+        )
+    }
+
+    /// Apply this region's buffer-relative loop coordinates to one scheduled action.
+    pub fn normalize_action(&self, action: &SampleAction) -> Result<SampleAction, Error> {
+        let mut normalized = action.clone();
+        match &mut normalized {
+            SampleAction::Start {
+                sample_id,
+                parameters,
+                ..
+            } if *sample_id == self.region.sample_id => {
+                parameters.loop_points = self.loop_points;
+                Ok(normalized)
+            }
+            SampleAction::Start { .. } => Err(Error::InvalidSample),
+            SampleAction::Stop { .. } => Ok(normalized),
+        }
+    }
+}
+
 /// A separately licensed provider that decodes a selected region into PCM.
 ///
 /// Implementations own codec dependencies, asset access, and licensing. This
@@ -417,6 +494,40 @@ impl DecodedSample {
             channels,
             pcm_i16,
         })
+    }
+
+    /// Number of interleaved PCM frames after validation.
+    pub fn frame_count(&self) -> usize {
+        self.pcm_i16.len() / usize::from(self.channels)
+    }
+}
+
+/// Decode one validated SoundFont region into PCM with buffer-relative loop coordinates.
+///
+/// SF2 reads exactly the region's source-frame interval. Feature-enabled SF3 first decodes the
+/// Ogg payload and then applies the same bounded crop. `channels` is supplied by the host or
+/// materialized sample metadata because the provider-neutral region does not own channel count.
+pub fn decode_sample_region(
+    data: &[u8],
+    region: SampleRegion,
+    channels: u8,
+) -> Result<DecodedSampleRegion, Error> {
+    validate_sample_region(&region)?;
+    match region.compression {
+        SampleCompression::Pcm16 => DecodedSampleRegion::new(
+            region.clone(),
+            decode_sf2_pcm16(
+                data,
+                usize::try_from(region.start_frame).map_err(|_| Error::InvalidSample)?,
+                usize::try_from(region.end_frame).map_err(|_| Error::InvalidSample)?,
+                region.sample_rate,
+                channels,
+            )?,
+        ),
+        SampleCompression::Vorbis => {
+            let full_sample = decode_sf3_vorbis(data, region.sample_rate, channels)?;
+            DecodedSampleRegion::from_full_sample(region, &full_sample)
+        }
     }
 }
 
@@ -628,6 +739,16 @@ pub fn render_sample_action(
         }
     }
     Ok(output)
+}
+
+/// Render an action against a [`DecodedSampleRegion`] using its normalized loop coordinates.
+pub fn render_sample_region_action(
+    sample_region: &DecodedSampleRegion,
+    action: &SampleAction,
+    output_rate: u32,
+) -> Result<Vec<i16>, Error> {
+    let normalized = sample_region.normalize_action(action)?;
+    render_sample_action(&sample_region.sample, &normalized, output_rate)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -2071,6 +2192,89 @@ mod tests {
             .expect("sample action");
         let rendered = render_sample_action(&sample, &action, 2).expect("rendered sample");
         assert_eq!(rendered, vec![-1000, 2000]);
+    }
+
+    #[test]
+    fn region_decode_normalizes_nonzero_source_loops_before_rendering() {
+        let mut sf2 = b"RIFFxxxxsfbk".to_vec();
+        sf2.extend(b"LIST".as_slice());
+        sf2.extend(24u32.to_le_bytes());
+        sf2.extend(b"sdta");
+        sf2.extend(b"smpl");
+        sf2.extend(12u32.to_le_bytes());
+        for value in [10i16, 20, 30, 40, 50, 60] {
+            sf2.extend(value.to_le_bytes());
+        }
+        let mut playback_region = region(7, 0, 127);
+        playback_region.start_frame = 2;
+        playback_region.end_frame = 6;
+        playback_region.loop_points = Some(SampleLoop {
+            start_frame: 3,
+            end_frame: 5,
+        });
+        playback_region.sample_rate = 2;
+        playback_region.attack_secs = 0.0;
+        playback_region.sustain_level = 1.0;
+
+        let decoded =
+            decode_sample_region(&sf2, playback_region.clone(), 1).expect("region decode");
+        assert_eq!(decoded.sample.pcm_i16, vec![30, 40, 50, 60]);
+        assert_eq!(
+            decoded.loop_points,
+            Some(SampleLoop {
+                start_frame: 1,
+                end_frame: 3,
+            })
+        );
+
+        let mut scheduled = event("nonzero-region", 127);
+        scheduled.duration_secs = 3.0;
+        let action =
+            schedule_sample_note_on(1, scheduled, &playback_region, 1.0).expect("sample action");
+        let rendered = render_sample_region_action(&decoded, &action, 2).expect("region render");
+        assert_eq!(rendered, vec![30, 40, 50, 40, 50, 40]);
+    }
+
+    #[test]
+    fn region_loop_must_be_inside_the_asset_frame_range() {
+        let mut invalid = region(1, 0, 127);
+        invalid.start_frame = 10;
+        invalid.end_frame = 20;
+        invalid.loop_points = Some(SampleLoop {
+            start_frame: 9,
+            end_frame: 15,
+        });
+        assert_eq!(
+            validate_sample_region(&invalid),
+            Err(Error::InvalidZone("loop points"))
+        );
+    }
+
+    #[cfg(feature = "sf3-vorbis")]
+    #[test]
+    fn sf3_region_decode_uses_the_same_buffer_relative_contract() {
+        let data = include_bytes!("../../../tests/fixtures/synthetic.sf3");
+        let full = decode_sf3_vorbis(data, 8_000, 2).expect("SF3 fixture");
+        assert!(full.frame_count() >= 3, "fixture must have three frames");
+        let mut playback_region = region(8, 0, 127);
+        playback_region.start_frame = 1;
+        playback_region.end_frame = 3;
+        playback_region.sample_rate = 8_000;
+        playback_region.compression = SampleCompression::Vorbis;
+        playback_region.loop_points = Some(SampleLoop {
+            start_frame: 2,
+            end_frame: 3,
+        });
+
+        let decoded = decode_sample_region(data, playback_region, 2).expect("SF3 region decode");
+        assert_eq!(decoded.sample.frame_count(), 2);
+        assert_eq!(
+            decoded.loop_points,
+            Some(SampleLoop {
+                start_frame: 1,
+                end_frame: 2,
+            })
+        );
     }
 
     #[test]
