@@ -1876,20 +1876,6 @@ fn apply_set_score_text(cmd: &SetScoreTextCmd, score: &mut Score) -> Result<(), 
 
 fn apply_add_note(cmd: &AddNoteCmd, score: &mut Score) -> Result<(), Error> {
     let ts_beats = score.settings.time_signature.total_beats();
-    let voice = score
-        .parts
-        .get_mut(cmd.part_index)
-        .ok_or(Error::PartNotFound(cmd.part_index))?
-        .staves
-        .get_mut(cmd.staff_index)
-        .ok_or(Error::StaffNotFound(cmd.staff_index))?
-        .measures
-        .get_mut(cmd.measure_index)
-        .ok_or(Error::MeasureNotFound(cmd.measure_index))?
-        .voices
-        .get_mut(cmd.voice)
-        .ok_or(Error::VoiceOutOfRange(cmd.voice))?;
-
     let note = if cmd.is_rest {
         let mut n = Note::rest(cmd.duration.clone());
         n.dot_count = cmd.dot_count;
@@ -1906,9 +1892,41 @@ fn apply_add_note(cmd: &AddNoteCmd, score: &mut Score) -> Result<(), Error> {
         n
     };
 
-    let pos = cmd.position.min(voice.len());
-    voice.insert(pos, note);
-    trim_voice_to_measure(voice, ts_beats);
+    let pos = {
+        let voice = score
+            .parts
+            .get_mut(cmd.part_index)
+            .ok_or(Error::PartNotFound(cmd.part_index))?
+            .staves
+            .get_mut(cmd.staff_index)
+            .ok_or(Error::StaffNotFound(cmd.staff_index))?
+            .measures
+            .get_mut(cmd.measure_index)
+            .ok_or(Error::MeasureNotFound(cmd.measure_index))?
+            .voices
+            .get_mut(cmd.voice)
+            .ok_or(Error::VoiceOutOfRange(cmd.voice))?;
+        let pos = cmd.position.min(voice.len());
+        voice.insert(pos, note);
+        trim_voice_to_measure(voice, ts_beats);
+        pos
+    };
+    remap_spanners(score, |address| {
+        if same_voice(
+            address,
+            cmd.part_index,
+            cmd.staff_index,
+            cmd.measure_index,
+            cmd.voice,
+        ) && address.note >= pos
+        {
+            let mut shifted = address.clone();
+            shifted.note += 1;
+            Some(shifted)
+        } else {
+            Some(address.clone())
+        }
+    });
     Ok(())
 }
 
@@ -1944,53 +1962,85 @@ fn apply_add_pitch(cmd: &AddPitchCmd, score: &mut Score) -> Result<(), Error> {
 
 fn apply_set_duration(cmd: &SetDurationCmd, score: &mut Score) -> Result<(), Error> {
     let ts_beats = score.settings.time_signature.total_beats();
-    let voice = score
-        .parts
-        .get_mut(cmd.part_index)
-        .ok_or(Error::PartNotFound(cmd.part_index))?
-        .staves
-        .get_mut(cmd.staff_index)
-        .ok_or(Error::StaffNotFound(cmd.staff_index))?
-        .measures
-        .get_mut(cmd.measure_index)
-        .ok_or(Error::MeasureNotFound(cmd.measure_index))?
-        .voices
-        .get_mut(cmd.voice)
-        .ok_or(Error::VoiceOutOfRange(cmd.voice))?;
-    let note = voice
-        .get_mut(cmd.note_index)
-        .ok_or(Error::NoteNotFound(cmd.note_index))?;
-    note.duration = cmd.duration.clone();
-    note.dot_count = cmd.dot_count;
-    trim_voice_to_measure(voice, ts_beats);
+    {
+        let voice = score
+            .parts
+            .get_mut(cmd.part_index)
+            .ok_or(Error::PartNotFound(cmd.part_index))?
+            .staves
+            .get_mut(cmd.staff_index)
+            .ok_or(Error::StaffNotFound(cmd.staff_index))?
+            .measures
+            .get_mut(cmd.measure_index)
+            .ok_or(Error::MeasureNotFound(cmd.measure_index))?
+            .voices
+            .get_mut(cmd.voice)
+            .ok_or(Error::VoiceOutOfRange(cmd.voice))?;
+        let note = voice
+            .get_mut(cmd.note_index)
+            .ok_or(Error::NoteNotFound(cmd.note_index))?;
+        note.duration = cmd.duration.clone();
+        note.dot_count = cmd.dot_count;
+        trim_voice_to_measure(voice, ts_beats);
+    }
+    prune_orphaned_spanners(score);
     Ok(())
 }
 
 fn apply_delete_note(cmd: &DeleteNoteCmd, score: &mut Score) -> Result<(), Error> {
     let ts_beats = score.settings.time_signature.total_beats();
-    let voice = score
-        .parts
-        .get_mut(cmd.part_index)
-        .ok_or(Error::PartNotFound(cmd.part_index))?
-        .staves
-        .get_mut(cmd.staff_index)
-        .ok_or(Error::StaffNotFound(cmd.staff_index))?
-        .measures
-        .get_mut(cmd.measure_index)
-        .ok_or(Error::MeasureNotFound(cmd.measure_index))?
-        .voices
-        .get_mut(cmd.voice)
-        .ok_or(Error::VoiceOutOfRange(cmd.voice))?;
-    voice.retain(|n| n.id != cmd.note_id);
-    pad_voice_to_measure(voice, ts_beats);
+    let deleted_position = {
+        let voice = score
+            .parts
+            .get_mut(cmd.part_index)
+            .ok_or(Error::PartNotFound(cmd.part_index))?
+            .staves
+            .get_mut(cmd.staff_index)
+            .ok_or(Error::StaffNotFound(cmd.staff_index))?
+            .measures
+            .get_mut(cmd.measure_index)
+            .ok_or(Error::MeasureNotFound(cmd.measure_index))?
+            .voices
+            .get_mut(cmd.voice)
+            .ok_or(Error::VoiceOutOfRange(cmd.voice))?;
+        let position = voice.iter().position(|note| note.id == cmd.note_id);
+        voice.retain(|note| note.id != cmd.note_id);
+        pad_voice_to_measure(voice, ts_beats);
+        position
+    };
+    if let Some(position) = deleted_position {
+        remap_spanners(score, |address| {
+            if !same_voice(
+                address,
+                cmd.part_index,
+                cmd.staff_index,
+                cmd.measure_index,
+                cmd.voice,
+            ) {
+                return Some(address.clone());
+            }
+            if address.note == position {
+                None
+            } else if address.note > position {
+                let mut shifted = address.clone();
+                shifted.note -= 1;
+                Some(shifted)
+            } else {
+                Some(address.clone())
+            }
+        });
+    } else {
+        prune_orphaned_spanners(score);
+    }
     Ok(())
 }
 
 fn apply_add_measure(cmd: &AddMeasureCmd, score: &mut Score) -> Result<(), Error> {
     let ts = score.settings.time_signature.clone();
+    let insert_at = cmd.after_index.saturating_add(1);
     for part in &mut score.parts {
         for staff in &mut part.staves {
-            let insert_at = (cmd.after_index + 1).min(staff.measures.len());
+            let insert_at = insert_at.min(staff.measures.len());
             let mut m = Measure::empty(ts.numerator, ts.denominator);
             m.number = insert_at as u32 + 1;
             staff.measures.insert(insert_at, m);
@@ -1999,6 +2049,15 @@ fn apply_add_measure(cmd: &AddMeasureCmd, score: &mut Score) -> Result<(), Error
             }
         }
     }
+    remap_spanners(score, |address| {
+        if address.measure >= insert_at {
+            let mut shifted = address.clone();
+            shifted.measure += 1;
+            Some(shifted)
+        } else {
+            Some(address.clone())
+        }
+    });
     Ok(())
 }
 
@@ -2013,6 +2072,17 @@ fn apply_delete_measure(cmd: &DeleteMeasureCmd, score: &mut Score) -> Result<(),
             }
         }
     }
+    remap_spanners(score, |address| {
+        if address.measure == cmd.measure_index {
+            None
+        } else if address.measure > cmd.measure_index {
+            let mut shifted = address.clone();
+            shifted.measure -= 1;
+            Some(shifted)
+        } else {
+            Some(address.clone())
+        }
+    });
     Ok(())
 }
 
@@ -2285,6 +2355,17 @@ fn apply_delete_part(cmd: &DeletePartCmd, score: &mut Score) -> Result<(), Error
         return Err(Error::PartNotFound(cmd.part_index));
     }
     score.parts.remove(cmd.part_index);
+    remap_spanners(score, |address| {
+        if address.part == cmd.part_index {
+            None
+        } else if address.part > cmd.part_index {
+            let mut shifted = address.clone();
+            shifted.part -= 1;
+            Some(shifted)
+        } else {
+            Some(address.clone())
+        }
+    });
     Ok(())
 }
 
@@ -2333,24 +2414,46 @@ fn apply_set_transpose(cmd: &SetTransposeCmd, score: &mut Score) -> Result<(), E
 }
 
 fn apply_paste_voice(cmd: &PasteVoiceCmd, score: &mut Score) -> Result<(), Error> {
-    let voice = score
-        .parts
-        .get_mut(cmd.part_index)
-        .ok_or(Error::PartNotFound(cmd.part_index))?
-        .staves
-        .get_mut(cmd.staff_index)
-        .ok_or(Error::StaffNotFound(cmd.staff_index))?
-        .measures
-        .get_mut(cmd.measure_index)
-        .ok_or(Error::MeasureNotFound(cmd.measure_index))?
-        .voices
-        .get_mut(cmd.voice_index)
-        .ok_or(Error::VoiceOutOfRange(cmd.voice_index))?;
-    *voice = cmd.notes.clone();
+    let endpoint_ids = capture_replaced_endpoint_ids(score, |address| {
+        same_voice(
+            address,
+            cmd.part_index,
+            cmd.staff_index,
+            cmd.measure_index,
+            cmd.voice_index,
+        )
+    });
+    {
+        let voice = score
+            .parts
+            .get_mut(cmd.part_index)
+            .ok_or(Error::PartNotFound(cmd.part_index))?
+            .staves
+            .get_mut(cmd.staff_index)
+            .ok_or(Error::StaffNotFound(cmd.staff_index))?
+            .measures
+            .get_mut(cmd.measure_index)
+            .ok_or(Error::MeasureNotFound(cmd.measure_index))?
+            .voices
+            .get_mut(cmd.voice_index)
+            .ok_or(Error::VoiceOutOfRange(cmd.voice_index))?;
+        *voice = cmd.notes.clone();
+    }
+    remap_replaced_spanner_endpoints(score, &endpoint_ids);
     Ok(())
 }
 
 fn apply_paste_range(cmd: &PasteRangeCmd, score: &mut Score) -> Result<(), Error> {
+    if cmd.voice_index >= 4 {
+        return Err(Error::VoiceOutOfRange(cmd.voice_index));
+    }
+    let endpoint_ids = capture_replaced_endpoint_ids(score, |address| {
+        address.part == cmd.part_index
+            && address.staff == cmd.staff_index
+            && address.voice == cmd.voice_index
+            && address.measure >= cmd.target_measure
+            && address.measure < cmd.target_measure.saturating_add(cmd.measures.len())
+    });
     let part = score
         .parts
         .get_mut(cmd.part_index)
@@ -2359,9 +2462,6 @@ fn apply_paste_range(cmd: &PasteRangeCmd, score: &mut Score) -> Result<(), Error
         .staves
         .get_mut(cmd.staff_index)
         .ok_or(Error::StaffNotFound(cmd.staff_index))?;
-    if cmd.voice_index >= 4 {
-        return Err(Error::VoiceOutOfRange(cmd.voice_index));
-    }
     for (offset, notes) in cmd.measures.iter().enumerate() {
         let mi = cmd.target_measure + offset;
         let measure = staff
@@ -2370,6 +2470,7 @@ fn apply_paste_range(cmd: &PasteRangeCmd, score: &mut Score) -> Result<(), Error
             .ok_or(Error::MeasureNotFound(mi))?;
         measure.voices[cmd.voice_index] = notes.clone();
     }
+    remap_replaced_spanner_endpoints(score, &endpoint_ids);
     Ok(())
 }
 
@@ -2496,7 +2597,111 @@ fn apply_delete_staff(cmd: &DeleteStaffCmd, score: &mut Score) -> Result<(), Err
         return Err(Error::StaffNotFound(cmd.staff_index));
     }
     part.staves.remove(cmd.staff_index);
+    remap_spanners(score, |address| {
+        if address.part != cmd.part_index {
+            Some(address.clone())
+        } else if address.staff == cmd.staff_index {
+            None
+        } else if address.staff > cmd.staff_index {
+            let mut shifted = address.clone();
+            shifted.staff -= 1;
+            Some(shifted)
+        } else {
+            Some(address.clone())
+        }
+    });
     Ok(())
+}
+
+/// Returns true when an address refers to the given canonical voice.
+fn same_voice(address: &NoteAddr, part: usize, staff: usize, measure: usize, voice: usize) -> bool {
+    address.part == part
+        && address.staff == staff
+        && address.measure == measure
+        && address.voice == voice
+}
+
+fn note_at<'a>(score: &'a Score, address: &NoteAddr) -> Option<&'a Note> {
+    score
+        .parts
+        .get(address.part)
+        .and_then(|part| part.staves.get(address.staff))
+        .and_then(|staff| staff.measures.get(address.measure))
+        .and_then(|measure| measure.voices.get(address.voice))
+        .and_then(|voice| voice.get(address.note))
+}
+
+/// Remap typed notation endpoints after a structural edit.
+///
+/// An endpoint that cannot be mapped, or no longer names an existing note, removes its complete
+/// span. This deliberately favors an observable removed span over silently retargeting it.
+fn remap_spanners(score: &mut Score, mut remap: impl FnMut(&NoteAddr) -> Option<NoteAddr>) {
+    let spanners = std::mem::take(&mut score.spanners);
+    score.spanners = spanners
+        .into_iter()
+        .filter_map(|mut spanner| {
+            spanner.start = remap(&spanner.start)?;
+            spanner.end = remap(&spanner.end)?;
+            (note_at(score, &spanner.start).is_some() && note_at(score, &spanner.end).is_some())
+                .then_some(spanner)
+        })
+        .collect();
+}
+
+fn prune_orphaned_spanners(score: &mut Score) {
+    remap_spanners(score, |address| Some(address.clone()));
+}
+
+/// Capture the note identities behind endpoints that will be replaced wholesale.
+fn capture_replaced_endpoint_ids(
+    score: &Score,
+    mut replaced: impl FnMut(&NoteAddr) -> bool,
+) -> Vec<(NoteAddr, String)> {
+    score
+        .spanners
+        .iter()
+        .flat_map(|spanner| [&spanner.start, &spanner.end])
+        .filter(|address| replaced(address))
+        .filter_map(|address| {
+            note_at(score, address).map(|note| (address.clone(), note.id.clone()))
+        })
+        .collect()
+}
+
+/// Re-resolve endpoints in a replaced voice/range by their original note IDs.
+/// Duplicate IDs are treated as ambiguous and remove the affected span instead of guessing.
+fn remap_replaced_spanner_endpoints(score: &mut Score, endpoint_ids: &[(NoteAddr, String)]) {
+    let mapped: Vec<(NoteAddr, Option<NoteAddr>)> = endpoint_ids
+        .iter()
+        .map(|(address, note_id)| {
+            let matches: Vec<usize> = score
+                .parts
+                .get(address.part)
+                .and_then(|part| part.staves.get(address.staff))
+                .and_then(|staff| staff.measures.get(address.measure))
+                .and_then(|measure| measure.voices.get(address.voice))
+                .map(|voice| {
+                    voice
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(index, note)| (note.id == *note_id).then_some(index))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let replacement = (matches.len() == 1).then(|| NoteAddr {
+                note: matches[0],
+                ..address.clone()
+            });
+            (address.clone(), replacement)
+        })
+        .collect();
+    remap_spanners(score, |address| {
+        mapped
+            .iter()
+            .find(|(old, _)| old == address)
+            .map(|(_, replacement)| replacement.clone())
+            .unwrap_or_else(|| Some(address.clone()))
+    });
 }
 
 fn trim_voice_to_measure(voice: &mut Vec<Note>, max_beats: f64) {
@@ -2541,6 +2746,55 @@ mod tests {
         s
     }
 
+    fn score_with_typed_spanner() -> Score {
+        use crate::model::score::{NotationSpanner, NotationSpannerKind};
+
+        let mut score = Score::new("Spanner edits", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = (0..4)
+            .map(|offset| Note::new(Pitch::new(Step::C, 4 + offset), Duration::Quarter))
+            .collect();
+        score.spanners.push(NotationSpanner {
+            id: "typed-glissando".to_string(),
+            kind: NotationSpannerKind::Glissando,
+            start: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 1,
+            },
+            end: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 2,
+            },
+            number: Some(1),
+            line_type: None,
+            text: None,
+            placement: None,
+            ottava_size: None,
+            ottava_type: None,
+        });
+        score
+    }
+
+    fn insert_note_at(position: usize) -> Command {
+        Command::AddNote(AddNoteCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            position,
+            pitch: Some(Pitch::new(Step::D, 5)),
+            duration: Duration::Quarter,
+            dot_count: 0,
+            is_rest: false,
+            tuplet: None,
+        })
+    }
+
     #[test]
     fn add_note_inserts_into_voice() {
         let mut score = default_engine_score();
@@ -2560,6 +2814,122 @@ mod tests {
         let first = &score.parts[0].staves[0].measures[0].voices[0][0];
         assert!(!first.is_rest);
         assert_eq!(first.pitches[0].step, Step::C);
+    }
+
+    #[test]
+    fn typed_spanners_follow_note_insertions_at_every_relative_position() {
+        for (position, expected_start, expected_end) in [
+            (0, 2, 3), // before the span
+            (1, 2, 3), // at its start endpoint
+            (2, 1, 3), // inside the span
+            (4, 1, 2), // at the end of the voice
+            (3, 1, 2), // after the span
+        ] {
+            let mut score = score_with_typed_spanner();
+            apply_command(&insert_note_at(position), &mut score).unwrap();
+            let span = score.spanners.first().expect("span remains attached");
+            assert_eq!(span.start.note, expected_start, "position {position}");
+            assert_eq!(span.end.note, expected_end, "position {position}");
+        }
+    }
+
+    #[test]
+    fn deleting_a_typed_spanner_endpoint_removes_the_whole_span_and_undo_redo_is_atomic() {
+        let mut score = score_with_typed_spanner();
+        let endpoint_id = score.parts[0].staves[0].measures[0].voices[0][1].id.clone();
+        let mut stack = CommandStack::new(8);
+
+        stack
+            .execute(
+                Command::DeleteNote(DeleteNoteCmd {
+                    note_id: endpoint_id,
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    voice: 0,
+                }),
+                &mut score,
+            )
+            .unwrap();
+        assert!(score.spanners.is_empty());
+
+        stack.undo(&mut score).unwrap();
+        assert_eq!(score.spanners[0].start.note, 1);
+        assert_eq!(score.spanners[0].end.note, 2);
+
+        stack.redo(&mut score).unwrap();
+        assert!(score.spanners.is_empty());
+    }
+
+    #[test]
+    fn batched_structural_edits_remap_typed_spanners_and_restore_them_on_undo() {
+        let mut score = score_with_typed_spanner();
+        let mut stack = CommandStack::new(8);
+        stack
+            .batch_execute(
+                vec![
+                    insert_note_at(0),
+                    Command::SetTempo(SetTempoCmd { bpm: 144 }),
+                ],
+                &mut score,
+            )
+            .unwrap();
+        assert_eq!(score.spanners[0].start.note, 2);
+        assert_eq!(score.spanners[0].end.note, 3);
+
+        stack.undo(&mut score).unwrap();
+        assert_eq!(score.spanners[0].start.note, 1);
+        assert_eq!(score.spanners[0].end.note, 2);
+
+        stack.redo(&mut score).unwrap();
+        assert_eq!(score.spanners[0].start.note, 2);
+        assert_eq!(score.spanners[0].end.note, 3);
+    }
+
+    #[test]
+    fn typed_spanners_remap_only_the_edited_endpoint_across_staff_and_voice() {
+        use crate::model::score::{NotationSpanner, NotationSpannerKind, ScoreTemplate};
+
+        let mut score = Score::template(ScoreTemplate::Piano);
+        for staff in &mut score.parts[0].staves {
+            let notes: Vec<Note> = (0..4)
+                .map(|offset| Note::new(Pitch::new(Step::C, 4 + offset), Duration::Quarter))
+                .collect();
+            staff.measures[0].voices[0] = notes.clone();
+            staff.measures[0].voices[1] = notes;
+        }
+        score.spanners.push(NotationSpanner {
+            id: "cross-staff".to_string(),
+            kind: NotationSpannerKind::Slur,
+            start: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 1,
+            },
+            end: NoteAddr {
+                part: 0,
+                staff: 1,
+                measure: 0,
+                voice: 1,
+                note: 2,
+            },
+            number: Some(2),
+            line_type: None,
+            text: None,
+            placement: None,
+            ottava_size: None,
+            ottava_type: None,
+        });
+
+        let mut stack = CommandStack::new(8);
+        stack.execute(insert_note_at(0), &mut score).unwrap();
+        let span = &score.spanners[0];
+        assert_eq!(span.start.note, 2);
+        assert_eq!(span.end.staff, 1);
+        assert_eq!(span.end.voice, 1);
+        assert_eq!(span.end.note, 2);
     }
 
     #[test]
