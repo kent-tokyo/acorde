@@ -304,6 +304,36 @@ pub fn select_preset_zone(
         })
 }
 
+/// Return every playable preset zone in deterministic order for a note request.
+///
+/// SoundFonts may intentionally layer overlapping key/velocity zones. The historical
+/// [`select_preset_zone`] helper remains the single-zone convenience path and returns the first
+/// entry from this ordering.
+pub fn select_preset_zones(
+    zones: &[SoundFontPresetZone],
+    bank: u16,
+    program: u16,
+    key: u8,
+    velocity: u8,
+) -> Vec<&SoundFontPresetZone> {
+    let mut matches: Vec<_> = zones
+        .iter()
+        .filter(|zone| zone.contains(bank, program, key, velocity))
+        .collect();
+    matches.sort_by_key(|zone| {
+        (
+            u16::from(zone.region.key_max.saturating_sub(zone.region.key_min)),
+            u16::from(
+                zone.region
+                    .velocity_max
+                    .saturating_sub(zone.region.velocity_min),
+            ),
+            zone.region.sample_id,
+        )
+    });
+    matches
+}
+
 /// Resolve and return owned metadata for a bank/program/key/velocity request.
 pub fn resolve_preset_zone_metadata(
     zones: &[SoundFontPresetZone],
@@ -333,6 +363,36 @@ pub fn schedule_preset_note_on(
     let zone = select_preset_zone(zones, bank, program, event.pitch_midi, event.velocity)
         .ok_or(Error::InvalidSample)?;
     schedule_sample_note_on(voice_id, event, &zone.region, velocity_exponent)
+}
+
+/// Build one provider-neutral note-on action for every matching layered preset zone.
+pub fn schedule_preset_note_ons(
+    voice_id: u64,
+    event: PlaybackEvent,
+    zones: &[SoundFontPresetZone],
+    bank: u16,
+    program: u16,
+    velocity_exponent: f32,
+) -> Result<Vec<SampleAction>, Error> {
+    let matches = select_preset_zones(zones, bank, program, event.pitch_midi, event.velocity);
+    if matches.is_empty() {
+        return Err(Error::InvalidSample);
+    }
+    matches
+        .into_iter()
+        .enumerate()
+        .map(|(layer, zone)| {
+            let layer_voice_id = voice_id
+                .checked_add(u64::try_from(layer).map_err(|_| Error::InvalidSample)?)
+                .ok_or(Error::InvalidSample)?;
+            schedule_sample_note_on(
+                layer_voice_id,
+                event.clone(),
+                &zone.region,
+                velocity_exponent,
+            )
+        })
+        .collect()
 }
 
 /// Converts MIDI velocity to a deterministic linear gain with a configurable exponent.
@@ -1160,11 +1220,34 @@ impl BoundedZoneDiagnostics {
     }
 }
 
+fn bag_generators<'a>(
+    bags: &[SfBag],
+    generators: &'a [SfGenerator],
+    bag_index: usize,
+) -> Option<&'a [SfGenerator]> {
+    let bag = bags.get(bag_index)?;
+    let end = bags
+        .get(bag_index + 1)
+        .map_or(generators.len(), |next| next.generator_index);
+    if bag.generator_index <= end && end <= generators.len() {
+        Some(&generators[bag.generator_index..end])
+    } else {
+        None
+    }
+}
+
 fn parse_materialized_zones(
     data: &[u8],
     format: SoundFontFormat,
 ) -> Result<(Vec<SoundFontPresetZone>, Vec<SoundFontZoneDiagnostic>), Error> {
     let tables = parse_sf_tables(data)?;
+    materialize_tables(&tables, format)
+}
+
+fn materialize_tables(
+    tables: &SfTables,
+    format: SoundFontFormat,
+) -> Result<(Vec<SoundFontPresetZone>, Vec<SoundFontZoneDiagnostic>), Error> {
     if tables.presets.is_empty() || tables.instruments.is_empty() {
         return Ok((Vec::new(), Vec::new()));
     }
@@ -1182,6 +1265,12 @@ fn parse_materialized_zones(
             });
             continue;
         }
+        let preset_global_generators = bag_generators(
+            &tables.preset_bags,
+            &tables.preset_generators,
+            preset.bag_index,
+        )
+        .filter(|generators| !generators.iter().any(|generator| generator.operator == 41));
         for bag_index in preset.bag_index..preset_end {
             let bag_next = tables
                 .preset_bags
@@ -1235,6 +1324,12 @@ fn parse_materialized_zones(
                 });
                 continue;
             }
+            let instrument_global_generators = bag_generators(
+                &tables.instrument_bags,
+                &tables.instrument_generators,
+                instrument.bag_index,
+            )
+            .filter(|generators| !generators.iter().any(|generator| generator.operator == 53));
             for instrument_bag_index in instrument.bag_index..instrument_end {
                 let instrument_bag = tables.instrument_bags[instrument_bag_index];
                 let instrument_next = tables
@@ -1282,8 +1377,15 @@ fn parse_materialized_zones(
                 };
                 let mut projection = ZoneProjection::default();
                 let mut supported = true;
-                for (generator_offset, generator) in preset_generators
+                for (generator_offset, generator) in preset_global_generators
                     .iter()
+                    .flat_map(|generators| generators.iter())
+                    .chain(preset_generators)
+                    .chain(
+                        instrument_global_generators
+                            .iter()
+                            .flat_map(|generators| generators.iter()),
+                    )
                     .chain(instrument_generators)
                     .enumerate()
                 {
@@ -1405,6 +1507,9 @@ impl Default for ZoneProjection {
 }
 
 impl ZoneProjection {
+    /// Apply generators in SoundFont inheritance order: preset global, preset local,
+    /// instrument global, then instrument local. Range/root/mode values use the last supported
+    /// value, while additive offsets, attenuation, and fine tune accumulate.
     fn apply(&mut self, generator: SfGenerator) -> bool {
         match generator.operator {
             0 => {
@@ -2054,6 +2159,91 @@ mod tests {
         let action = schedule_preset_note_on(9, event("preset", 100), &zones, 2, 10, 1.0)
             .expect("preset plan");
         assert!(matches!(action, SampleAction::Start { sample_id: 2, .. }));
+    }
+
+    #[test]
+    fn layered_preset_selection_and_schedule_are_stable() {
+        let zones = vec![
+            SoundFontPresetZone::new(2, 10, region(20, 0, 127)).expect("wide layer"),
+            SoundFontPresetZone::new(2, 10, region(10, 60, 60)).expect("narrow layer"),
+        ];
+        let selected = select_preset_zones(&zones, 2, 10, 60, 100);
+        assert_eq!(
+            selected
+                .iter()
+                .map(|zone| zone.region.sample_id)
+                .collect::<Vec<_>>(),
+            vec![10, 20]
+        );
+        let actions = schedule_preset_note_ons(9, event("layered", 100), &zones, 2, 10, 1.0)
+            .expect("layered plan");
+        assert_eq!(actions.len(), 2);
+        assert!(matches!(
+            actions[0],
+            SampleAction::Start {
+                voice_id: 9,
+                sample_id: 10,
+                ..
+            }
+        ));
+        assert!(matches!(
+            actions[1],
+            SampleAction::Start {
+                voice_id: 10,
+                sample_id: 20,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn materialization_inherits_preset_and_instrument_global_generators() {
+        let key_range = i16::from_le_bytes([50, 70]);
+        let tables = SfTables {
+            presets: vec![SfPresetHeader {
+                bank: 0,
+                program: 0,
+                bag_index: 0,
+            }],
+            preset_bags: vec![SfBag { generator_index: 0 }, SfBag { generator_index: 1 }],
+            preset_generators: vec![
+                SfGenerator {
+                    operator: 43,
+                    amount: key_range,
+                },
+                SfGenerator {
+                    operator: 41,
+                    amount: 0,
+                },
+            ],
+            instruments: vec![SfInstrumentHeader { bag_index: 0 }],
+            instrument_bags: vec![SfBag { generator_index: 0 }, SfBag { generator_index: 1 }],
+            instrument_generators: vec![
+                SfGenerator {
+                    operator: 52,
+                    amount: 12,
+                },
+                SfGenerator {
+                    operator: 53,
+                    amount: 0,
+                },
+            ],
+            samples: vec![SfSampleHeader {
+                start: 0,
+                end: 1_000,
+                start_loop: 10,
+                end_loop: 100,
+                sample_rate: 44_100,
+                root_key: 60,
+            }],
+        };
+        let (zones, diagnostics) =
+            materialize_tables(&tables, SoundFontFormat::Sf2).expect("tables materialize");
+        assert!(diagnostics.is_empty());
+        assert_eq!(zones.len(), 1);
+        assert_eq!(zones[0].region.key_min, 50);
+        assert_eq!(zones[0].region.key_max, 70);
+        assert_eq!(zones[0].region.fine_tune_cents, 12);
     }
 
     #[test]

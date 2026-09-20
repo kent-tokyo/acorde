@@ -10,6 +10,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- SoundFont materialization now inherits supported preset-global and instrument-global generators
+  into local zones. Layered key/velocity matches resolve in deterministic order through a new
+  multi-action convenience path; unsupported generator diagnostics and bounded zone limits remain.
 - **[schema]** MusicXML source voice numbers now survive independently of the four canonical
   editor slots. Sparse identifiers such as voices 1 and 5 round-trip unchanged; layout and
   playback expose the source number alongside their stable slot address. Older Score JSON defaults
