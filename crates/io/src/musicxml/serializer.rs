@@ -1,6 +1,6 @@
 use crate::Error;
 use acorde_core::{
-    Articulation, Barline, GuitarTechnique, HairpinKind, Note, NoteHead, PartGroup,
+    Articulation, Barline, Duration, GuitarTechnique, HairpinKind, Note, NoteHead, PartGroup,
     PartGroupSymbol, Score, TextStyle, TimeSignature,
 };
 
@@ -116,6 +116,11 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
             }
 
             xml.push_str(&format!("    <measure number=\"{}\">\n", measure.number));
+            let measure_time = measure
+                .time_sig
+                .as_ref()
+                .unwrap_or(&score.settings.time_signature);
+            let measure_ticks = time_signature_ticks(measure_time).unwrap_or(DIVISIONS * 4);
 
             // System / page break (written before barlines, as a print element)
             if measure.system_break || measure.page_break {
@@ -154,57 +159,76 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 xml.push_str("      </barline>\n");
             }
 
-            // Attributes
-            if i == 0 {
+            // Attributes. MusicXML attributes persist until changed, so emit the
+            // score defaults in the first measure and measure-local overrides
+            // wherever they occur. Omitting a later time signature makes a
+            // valid score serialize with the wrong cursor length.
+            if i == 0
+                || measure.key_sig.is_some()
+                || measure.time_sig.is_some()
+                || measure.clef.is_some()
+            {
                 xml.push_str("      <attributes>\n");
-                xml.push_str(&format!("        <divisions>{}</divisions>\n", DIVISIONS));
-                let key = measure
-                    .key_sig
-                    .as_ref()
-                    .unwrap_or(&score.settings.key_signature);
-                xml.push_str("        <key>\n");
-                xml.push_str(&format!("          <fifths>{}</fifths>\n", key.fifths));
-                xml.push_str(&format!("          <mode>{}</mode>\n", key.mode));
-                xml.push_str("        </key>\n");
-                let ts = measure
-                    .time_sig
-                    .as_ref()
-                    .unwrap_or(&score.settings.time_signature);
-                xml.push_str("        <time>\n");
-                xml.push_str(&format!("          <beats>{}</beats>\n", ts.numerator));
-                xml.push_str(&format!(
-                    "          <beat-type>{}</beat-type>\n",
-                    ts.denominator
-                ));
-                xml.push_str("        </time>\n");
-                let clef = measure.clef.as_ref().unwrap_or(&staff.clef);
-                xml.push_str("        <clef>\n");
-                xml.push_str(&format!(
-                    "          <sign>{}</sign>\n",
-                    clef.to_musicxml_sign()
-                ));
-                xml.push_str(&format!(
-                    "          <line>{}</line>\n",
-                    clef.musicxml_line()
-                ));
-                xml.push_str("        </clef>\n");
-                for (staff_number, extra_staff) in part.staves.iter().enumerate().skip(1) {
-                    let has_content = extra_staff
-                        .measures
-                        .iter()
-                        .flat_map(|measure| measure.voices.iter())
-                        .any(|voice| !voice.is_empty());
-                    if !has_content {
-                        continue;
-                    }
+                if i == 0 {
+                    xml.push_str(&format!("        <divisions>{}</divisions>\n", DIVISIONS));
+                }
+                if i == 0 || measure.key_sig.is_some() {
+                    let key = measure
+                        .key_sig
+                        .as_ref()
+                        .unwrap_or(&score.settings.key_signature);
+                    xml.push_str("        <key>\n");
+                    xml.push_str(&format!("          <fifths>{}</fifths>\n", key.fifths));
+                    xml.push_str(&format!("          <mode>{}</mode>\n", key.mode));
+                    xml.push_str("        </key>\n");
+                }
+                if i == 0 || measure.time_sig.is_some() {
+                    let ts = measure
+                        .time_sig
+                        .as_ref()
+                        .unwrap_or(&score.settings.time_signature);
+                    xml.push_str("        <time>\n");
+                    xml.push_str(&format!("          <beats>{}</beats>\n", ts.numerator));
                     xml.push_str(&format!(
+                        "          <beat-type>{}</beat-type>\n",
+                        ts.denominator
+                    ));
+                    xml.push_str("        </time>\n");
+                }
+                if i == 0 || measure.clef.is_some() {
+                    let clef = measure.clef.as_ref().unwrap_or(&staff.clef);
+                    xml.push_str("        <clef>\n");
+                    xml.push_str(&format!(
+                        "          <sign>{}</sign>\n",
+                        clef.to_musicxml_sign()
+                    ));
+                    xml.push_str(&format!(
+                        "          <line>{}</line>\n",
+                        clef.musicxml_line()
+                    ));
+                    xml.push_str("        </clef>\n");
+                }
+                if i == 0 {
+                    for (staff_number, extra_staff) in part.staves.iter().enumerate().skip(1) {
+                        let has_content = extra_staff
+                            .measures
+                            .iter()
+                            .flat_map(|measure| measure.voices.iter())
+                            .any(|voice| !voice.is_empty());
+                        if !has_content {
+                            continue;
+                        }
+                        xml.push_str(&format!(
                         "        <clef number=\"{}\">\n          <sign>{}</sign>\n          <line>{}</line>\n        </clef>\n",
                         staff_number + 1,
                         extra_staff.clef.to_musicxml_sign(),
                         extra_staff.clef.musicxml_line()
                     ));
+                    }
                 }
-                if let Some(tab) = &staff.tablature {
+                if i == 0
+                    && let Some(tab) = &staff.tablature
+                {
                     xml.push_str("        <staff-details>\n");
                     xml.push_str(&format!(
                         "          <staff-lines>{}</staff-lines>\n",
@@ -225,7 +249,7 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     }
                     xml.push_str("        </staff-details>\n");
                 }
-                if staff.transpose_semitones != 0 {
+                if i == 0 && staff.transpose_semitones != 0 {
                     xml.push_str("        <transpose>\n");
                     xml.push_str(&format!(
                         "          <chromatic>{}</chromatic>\n",
@@ -401,21 +425,20 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
             // Emit each populated voice in stable model order. MusicXML advances one shared
             // measure cursor, so return to the measure start before every subsequent voice.
             let mut emitted_voice = false;
+            let mut cursor_ticks = 0u32;
             for (voice_index, voice) in measure.voices.iter().enumerate() {
                 if voice.is_empty() {
                     continue;
                 }
                 if emitted_voice {
                     xml.push_str("      <backup>\n");
-                    xml.push_str(&format!(
-                        "        <duration>{}</duration>\n",
-                        measure_duration_ticks(measure, &score.settings.time_signature)
-                    ));
+                    xml.push_str(&format!("        <duration>{}</duration>\n", cursor_ticks));
                     xml.push_str("      </backup>\n");
                 }
                 for note in voice {
-                    serialize_note(&mut xml, note, voice_index + 1, 1);
+                    serialize_note(&mut xml, note, voice_index + 1, 1, measure_ticks);
                 }
+                cursor_ticks = serialized_voice_ticks(voice, measure_ticks);
                 emitted_voice = true;
             }
 
@@ -426,12 +449,11 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 let Some(extra_measure) = extra_staff.measures.get(i) else {
                     continue;
                 };
-                xml.push_str("      <backup>\n");
-                xml.push_str(&format!(
-                    "        <duration>{}</duration>\n",
-                    measure_duration_ticks(extra_measure, &score.settings.time_signature)
-                ));
-                xml.push_str("      </backup>\n");
+                if emitted_voice {
+                    xml.push_str("      <backup>\n");
+                    xml.push_str(&format!("        <duration>{}</duration>\n", cursor_ticks));
+                    xml.push_str("      </backup>\n");
+                }
                 let mut extra_emitted_voice = false;
                 for (voice_index, voice) in extra_measure.voices.iter().enumerate() {
                     if voice.is_empty() {
@@ -439,16 +461,21 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     }
                     if extra_emitted_voice {
                         xml.push_str("      <backup>\n");
-                        xml.push_str(&format!(
-                            "        <duration>{}</duration>\n",
-                            measure_duration_ticks(extra_measure, &score.settings.time_signature)
-                        ));
+                        xml.push_str(&format!("        <duration>{}</duration>\n", cursor_ticks));
                         xml.push_str("      </backup>\n");
                     }
                     for note in voice {
-                        serialize_note(&mut xml, note, voice_index + 1, staff_index + 1);
+                        serialize_note(
+                            &mut xml,
+                            note,
+                            voice_index + 1,
+                            staff_index + 1,
+                            measure_ticks,
+                        );
                     }
+                    cursor_ticks = serialized_voice_ticks(voice, measure_ticks);
                     extra_emitted_voice = true;
+                    emitted_voice = true;
                 }
             }
 
@@ -489,7 +516,13 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
     Ok(xml)
 }
 
-fn serialize_note(xml: &mut String, note: &Note, voice_number: usize, staff_number: usize) {
+fn serialize_note(
+    xml: &mut String,
+    note: &Note,
+    voice_number: usize,
+    staff_number: usize,
+    measure_ticks: u32,
+) {
     // Pedal start
     if note.pedal_start {
         xml.push_str("      <direction placement=\"below\">\n");
@@ -602,11 +635,16 @@ fn serialize_note(xml: &mut String, note: &Note, voice_number: usize, staff_numb
         xml.push_str("      </direction>\n");
     }
 
-    let dur_ticks = note.duration.to_ticks(note.dot_count);
+    let (dur_ticks, duration_type, dot_count, is_measure_rest) =
+        serialized_note_timing(note, measure_ticks);
 
     if note.is_rest {
         xml.push_str(&format!("      <note{}>\n", note_placement_attrs(note)));
-        xml.push_str("        <rest/>\n");
+        if is_measure_rest {
+            xml.push_str("        <rest measure=\"yes\"/>\n");
+        } else {
+            xml.push_str("        <rest/>\n");
+        }
         xml.push_str(&format!("        <duration>{}</duration>\n", dur_ticks));
         if let Some(tuplet) = &note.tuplet {
             xml.push_str("        <time-modification>\n");
@@ -629,11 +667,8 @@ fn serialize_note(xml: &mut String, note: &Note, voice_number: usize, staff_numb
         } else {
             xml.push_str(&format!("        <staff>{staff_number}</staff>\n"));
         }
-        xml.push_str(&format!(
-            "        <type>{}</type>\n",
-            note.duration.to_musicxml_type()
-        ));
-        for _ in 0..note.dot_count {
+        xml.push_str(&format!("        <type>{}</type>\n", duration_type));
+        for _ in 0..dot_count {
             xml.push_str("        <dot/>\n");
         }
         xml.push_str("      </note>\n");
@@ -827,9 +862,71 @@ fn serialize_note(xml: &mut String, note: &Note, voice_number: usize, staff_numb
     }
 }
 
-fn measure_duration_ticks(measure: &acorde_core::Measure, fallback: &TimeSignature) -> u32 {
-    let time = measure.time_sig.as_ref().unwrap_or(fallback);
-    (time.total_beats() * DIVISIONS as f64).round() as u32
+fn serialized_voice_ticks(voice: &[Note], measure_ticks: u32) -> u32 {
+    voice.iter().fold(0u32, |ticks, note| {
+        ticks.saturating_add(serialized_note_timing(note, measure_ticks).0)
+    })
+}
+
+fn serialized_note_timing(note: &Note, measure_ticks: u32) -> (u32, &'static str, u8, bool) {
+    let ticks = serialized_note_ticks(note);
+    if note.is_rest
+        && matches!(note.duration, Duration::Whole)
+        && note.dot_count == 0
+        && ticks != measure_ticks
+        && let Some((duration_type, dot_count)) = duration_notation_for_ticks(measure_ticks)
+    {
+        return (measure_ticks, duration_type, dot_count, true);
+    }
+    (
+        ticks,
+        note.duration.to_musicxml_type(),
+        note.dot_count,
+        false,
+    )
+}
+
+fn duration_notation_for_ticks(ticks: u32) -> Option<(&'static str, u8)> {
+    const NOTATIONS: &[(u32, &str, u8)] = &[
+        (DIVISIONS * 4, "whole", 0),
+        (DIVISIONS * 3, "half", 1),
+        (DIVISIONS * 2, "half", 0),
+        (DIVISIONS * 3 / 2, "quarter", 1),
+        (DIVISIONS, "quarter", 0),
+        (DIVISIONS * 3 / 4, "eighth", 1),
+        (DIVISIONS / 2, "eighth", 0),
+        (DIVISIONS * 3 / 8, "16th", 1),
+        (DIVISIONS / 4, "16th", 0),
+    ];
+    NOTATIONS
+        .iter()
+        .find_map(|(candidate, duration_type, dots)| {
+            (*candidate == ticks).then_some((*duration_type, *dots))
+        })
+}
+
+fn time_signature_ticks(time: &TimeSignature) -> Option<u32> {
+    let numerator = u64::from(time.numerator)
+        .checked_mul(4)?
+        .checked_mul(u64::from(DIVISIONS))?;
+    let ticks = numerator.checked_div(u64::from(time.denominator))?;
+    u32::try_from(ticks).ok()
+}
+
+fn serialized_note_ticks(note: &Note) -> u32 {
+    if note.is_grace || note.is_cue {
+        return 0;
+    }
+    let base = u64::from(note.duration.to_ticks(note.dot_count));
+    let adjusted = if let Some(tuplet) = &note.tuplet {
+        if tuplet.actual_notes == 0 {
+            return 0;
+        }
+        base.saturating_mul(u64::from(tuplet.normal_notes)) / u64::from(tuplet.actual_notes)
+    } else {
+        base
+    };
+    adjusted.min(u64::from(u32::MAX)) as u32
 }
 
 fn serialize_notations(xml: &mut String, note: &Note) {
@@ -1154,6 +1251,21 @@ mod tests {
         let score = Score::new("T", 120, 4, 4, 0, 1);
         let xml = serialize_musicxml(&score).unwrap();
         assert!(xml.contains("<rest/>"));
+    }
+
+    #[test]
+    fn irregular_whole_rest_uses_valid_measure_rest_timing() {
+        let mut score = Score::new("T", 120, 3, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![Note::rest(Duration::Whole)];
+
+        let xml = serialize_musicxml(&score).expect("serializes");
+        assert!(xml.contains("<rest measure=\"yes\"/>"));
+        assert!(xml.contains("<duration>1440</duration>"));
+        let restored = crate::parse_musicxml(&xml).expect("reparses");
+        let rest = &restored.parts[0].staves[0].measures[0].voices[0][0];
+        assert!(rest.is_rest);
+        assert!(matches!(rest.duration, Duration::Whole));
+        assert_eq!(rest.dot_count, 0);
     }
 
     #[test]

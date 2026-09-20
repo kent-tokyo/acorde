@@ -10,6 +10,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- MusicXML import now honors `backup` and `forward` cursor movement, materializing leading and
+  internal gaps as canonical rests while rejecting cursor underflow and measure overflow. Export
+  emits cursor-consistent backups, preserves later measure attribute changes, and writes valid
+  `rest measure="yes"` timing for irregular full-measure rest markers.
 - SoundFont region decoding now normalizes loop points to cropped PCM coordinates for SF2 and
   feature-enabled SF3 paths, preventing non-zero sample starts from disabling or misplacing loops.
 - Documentation is synchronized for the 1.1.7 candidate, including the English/Japanese

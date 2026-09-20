@@ -32,7 +32,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut depth = 0usize;
 
     let mut current_measure_number = 0u32;
-    let mut _current_divisions = 480u32;
+    let mut current_divisions = 480u32;
     let mut current_time = TimeSignature::default();
     let mut current_key = KeySignature::default();
     let mut current_clef = Clef::Treble;
@@ -61,10 +61,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut note_octave = 4i8;
     let mut note_alter = 0i8;
     let mut note_microtone_cents = 0i16;
-    let mut _note_duration_ticks = 0u32;
+    let mut note_duration_ticks: Option<u32> = None;
     let mut note_type = "quarter".to_string();
     let mut note_dot = false;
     let mut note_rest = false;
+    let mut note_is_measure_rest = false;
     let mut in_unpitched = false;
     let mut note_is_unpitched = false;
     let mut note_instrument_id: Option<String> = None;
@@ -141,6 +142,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut pending_direction_relative_x: Option<f64> = None;
     let mut pending_direction_relative_y: Option<f64> = None;
     let mut in_work = false;
+    let mut in_backup = false;
+    let mut in_forward = false;
+    let mut measure_cursor_ticks = 0u32;
+    let mut voice_cursor_ticks: HashMap<(usize, usize), u32> = HashMap::new();
+    let mut last_note_start: Option<(usize, usize, u32)> = None;
     let mut current_text = String::new();
 
     let mut part_index: Option<usize> = None;
@@ -335,6 +341,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             .and_then(|value| value.parse().ok())
                             .filter(|value: &f64| value.is_finite());
                         note_rest = false;
+                        note_is_measure_rest = false;
                         note_chord = false;
                         note_voice = 1;
                         note_staff = 1;
@@ -346,7 +353,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         note_instrument_id = None;
                         note_step = Step::C;
                         note_octave = 4;
-                        _note_duration_ticks = 0;
+                        note_duration_ticks = None;
                         note_is_grace = false;
                         note_grace_slash = false;
                         note_is_cue = false;
@@ -402,7 +409,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         part.staves.push(Staff::new(Clef::Treble));
                         score.parts.push(part);
                         part_index = Some(score.parts.len() - 1);
-                        _current_divisions = 480;
+                        current_divisions = 480;
                         current_time = TimeSignature::default();
                         current_key = KeySignature::default();
                         current_clef = Clef::Treble;
@@ -427,7 +434,12 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             }
                             score.parts[pi].staves[0].measures.push(m);
                         }
+                        measure_cursor_ticks = 0;
+                        voice_cursor_ticks.clear();
+                        last_note_start = None;
                     }
+                    "backup" => in_backup = true,
+                    "forward" => in_forward = true,
                     _ => {}
                 }
             }
@@ -449,7 +461,10 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             }
                         }
                     }
-                    "rest" if in_note => note_rest = true,
+                    "rest" if in_note => {
+                        note_rest = true;
+                        note_is_measure_rest = attr_is_yes(e, b"measure");
+                    }
                     "instrument" if in_note => note_instrument_id = attr_str(e, b"id"),
                     "dot" if in_note => note_dot = true,
                     "chord" if in_note => note_chord = true,
@@ -1021,7 +1036,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         }
                     }
                     "divisions" => {
-                        _current_divisions = current_text.parse().unwrap_or(480);
+                        current_divisions = current_text.parse().unwrap_or(480);
                     }
                     "beats" => {
                         current_time.numerator = current_text.parse().unwrap_or(4);
@@ -1169,8 +1184,36 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "syllabic" if in_lyric => lyric_syllabic = current_text.trim().to_string(),
                     "text" if in_lyric => lyric_text = current_text.trim().to_string(),
                     "lyric" if in_lyric => in_lyric = false,
+                    "duration" if in_backup => {
+                        let duration = current_text
+                            .trim()
+                            .parse::<u32>()
+                            .map_err(|_| Error::Xml("invalid backup duration".into()))?;
+                        measure_cursor_ticks = measure_cursor_ticks
+                            .checked_sub(duration)
+                            .ok_or_else(|| Error::Xml("MusicXML backup cursor underflow".into()))?;
+                        last_note_start = None;
+                    }
+                    "duration" if in_forward => {
+                        let duration = current_text
+                            .trim()
+                            .parse::<u32>()
+                            .map_err(|_| Error::Xml("invalid forward duration".into()))?;
+                        let measure_ticks =
+                            musicxml_measure_ticks(&current_time, current_divisions)?;
+                        measure_cursor_ticks = measure_cursor_ticks
+                            .checked_add(duration)
+                            .filter(|cursor| *cursor <= measure_ticks)
+                            .ok_or_else(|| Error::Xml("MusicXML forward cursor overflow".into()))?;
+                        last_note_start = None;
+                    }
                     "duration" if in_note => {
-                        _note_duration_ticks = current_text.parse().unwrap_or(480);
+                        note_duration_ticks = Some(
+                            current_text
+                                .trim()
+                                .parse::<u32>()
+                                .map_err(|_| Error::Xml("invalid note duration".into()))?,
+                        );
                     }
                     "actual-notes" if in_time_modification => {
                         note_tuplet_actual = current_text.trim().parse().ok();
@@ -1181,6 +1224,8 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "time-modification" if in_time_modification => {
                         in_time_modification = false;
                     }
+                    "backup" => in_backup = false,
+                    "forward" => in_forward = false,
                     "voice" if in_note => {
                         note_voice = current_text.parse().unwrap_or(1);
                     }
@@ -1307,9 +1352,73 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                         m.voices.len()
                                     )));
                                 }
+                                let duration_ticks = if note_is_grace || note_is_cue {
+                                    0
+                                } else {
+                                    note_duration_ticks.ok_or_else(|| {
+                                        Error::Xml("MusicXML note is missing duration".into())
+                                    })?
+                                };
+                                let note_start = if note_chord {
+                                    let (staff, voice, start) =
+                                        last_note_start.ok_or_else(|| {
+                                            Error::Xml(
+                                                "MusicXML chord has no preceding note".into(),
+                                            )
+                                        })?;
+                                    if staff != target_staff_index || voice != voice_index {
+                                        return Err(Error::Xml(
+                                            "MusicXML chord changes staff or voice".into(),
+                                        ));
+                                    }
+                                    start
+                                } else {
+                                    measure_cursor_ticks
+                                };
+                                let next_cursor = note_start
+                                    .checked_add(duration_ticks)
+                                    .ok_or_else(|| Error::Xml("MusicXML cursor overflow".into()))?;
+                                if !note_chord
+                                    && next_cursor
+                                        > musicxml_measure_ticks(&current_time, current_divisions)?
+                                {
+                                    return Err(Error::Xml(format!(
+                                        "MusicXML note cursor exceeds measure duration in measure {} voice {} ({} / {}, divisions {}): {} + {}",
+                                        current_measure_number,
+                                        note_voice,
+                                        current_time.numerator,
+                                        current_time.denominator,
+                                        current_divisions,
+                                        note_start,
+                                        duration_ticks,
+                                    )));
+                                }
                                 let voice = &mut m.voices[voice_index];
-                                let dur = parse_duration_type(&note_type);
-                                let dot_count = u8::from(note_dot);
+                                if !note_chord {
+                                    let voice_cursor = *voice_cursor_ticks
+                                        .get(&(target_staff_index, voice_index))
+                                        .unwrap_or(&0);
+                                    if voice_cursor > note_start {
+                                        return Err(Error::Xml(
+                                            "MusicXML voice cursor moves backward".into(),
+                                        ));
+                                    }
+                                    append_musicxml_gap_rests(
+                                        voice,
+                                        note_start - voice_cursor,
+                                        current_divisions,
+                                    )?;
+                                }
+                                let dur = if note_is_measure_rest {
+                                    Duration::Whole
+                                } else {
+                                    parse_duration_type(&note_type)
+                                };
+                                let dot_count = if note_is_measure_rest {
+                                    0
+                                } else {
+                                    u8::from(note_dot)
+                                };
                                 let mut note = if note_rest {
                                     let mut n = Note::rest(dur);
                                     n.dot_count = dot_count;
@@ -1336,33 +1445,36 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 };
                                 note.tie_start = note_tie_start;
                                 note.tie_end = note_tie_end;
-                                if note_chord && !voice.is_empty() {
-                                    if let Some(last) = voice.last_mut()
-                                        && !last.is_rest
-                                        && !note.is_rest
-                                    {
-                                        merge_musicxml_chord_note(
-                                            last,
-                                            &note,
-                                            MusicXmlChordNoteDetails {
-                                                is_unpitched: note_is_unpitched,
-                                                instrument_id: note_instrument_id.clone(),
-                                                offset_x: note_offset_x,
-                                                offset_y: note_offset_y,
-                                                relative_x: note_relative_x,
-                                                relative_y: note_relative_y,
-                                                fingerings: std::mem::take(&mut pending_fingerings),
-                                                string_number: pending_string_number.take(),
-                                                fret: pending_fret.take(),
-                                                technique_text: pending_technique_text.take(),
-                                                note_head: pending_note_head.take(),
-                                                guitar_technique: pending_guitar_technique.take(),
-                                                guitar_bend_alter_cents:
-                                                    pending_guitar_bend_alter_cents.take(),
-                                                stem_up: note_stem_up,
-                                            },
-                                        );
+                                if note_chord {
+                                    let last = voice.last_mut().ok_or_else(|| {
+                                        Error::Xml("MusicXML chord has no preceding note".into())
+                                    })?;
+                                    if last.is_rest || note.is_rest {
+                                        return Err(Error::Xml(
+                                            "MusicXML chord cannot contain a rest".into(),
+                                        ));
                                     }
+                                    merge_musicxml_chord_note(
+                                        last,
+                                        &note,
+                                        MusicXmlChordNoteDetails {
+                                            is_unpitched: note_is_unpitched,
+                                            instrument_id: note_instrument_id.clone(),
+                                            offset_x: note_offset_x,
+                                            offset_y: note_offset_y,
+                                            relative_x: note_relative_x,
+                                            relative_y: note_relative_y,
+                                            fingerings: std::mem::take(&mut pending_fingerings),
+                                            string_number: pending_string_number.take(),
+                                            fret: pending_fret.take(),
+                                            technique_text: pending_technique_text.take(),
+                                            note_head: pending_note_head.take(),
+                                            guitar_technique: pending_guitar_technique.take(),
+                                            guitar_bend_alter_cents:
+                                                pending_guitar_bend_alter_cents.take(),
+                                            stem_up: note_stem_up,
+                                        },
+                                    );
                                 } else {
                                     if voice.len() >= MAX_NOTES_PER_VOICE {
                                         return Err(Error::Xml("too many notes in voice".into()));
@@ -1461,6 +1573,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                         lyric_syllabic = "single".to_string();
                                     }
                                     voice.push(note);
+                                    voice_cursor_ticks
+                                        .insert((target_staff_index, voice_index), next_cursor);
+                                    measure_cursor_ticks = next_cursor;
+                                    last_note_start =
+                                        Some((target_staff_index, voice_index, note_start));
                                 }
                             }
                         }
@@ -1487,6 +1604,65 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     score.settings.key_signature = current_key;
 
     Ok(score)
+}
+
+fn musicxml_measure_ticks(time: &TimeSignature, divisions: u32) -> Result<u32, Error> {
+    if time.denominator == 0 || divisions == 0 {
+        return Err(Error::Xml(
+            "MusicXML time signature or divisions is invalid".into(),
+        ));
+    }
+    let numerator = u64::from(time.numerator)
+        .checked_mul(4)
+        .and_then(|value| value.checked_mul(u64::from(divisions)))
+        .ok_or_else(|| Error::Xml("MusicXML measure duration overflow".into()))?;
+    let denominator = u64::from(time.denominator);
+    if numerator % denominator != 0 {
+        return Err(Error::Xml(
+            "MusicXML time signature is not representable by divisions".into(),
+        ));
+    }
+    u32::try_from(numerator / denominator)
+        .map_err(|_| Error::Xml("MusicXML measure duration overflow".into()))
+}
+
+fn append_musicxml_gap_rests(
+    voice: &mut Vec<Note>,
+    mut ticks: u32,
+    divisions: u32,
+) -> Result<(), Error> {
+    let candidates = [
+        (Duration::Whole, divisions.checked_mul(4)),
+        (Duration::Half, divisions.checked_mul(2)),
+        (Duration::Quarter, Some(divisions)),
+        (Duration::Eighth, divisions.checked_div(2)),
+        (Duration::Sixteenth, divisions.checked_div(4)),
+        (Duration::ThirtySecond, divisions.checked_div(8)),
+        (Duration::SixtyFourth, divisions.checked_div(16)),
+    ];
+    while ticks > 0 {
+        let mut selected = None;
+        for (duration, duration_ticks) in &candidates {
+            if let Some(duration_ticks) = duration_ticks
+                && *duration_ticks > 0
+                && *duration_ticks <= ticks
+            {
+                selected = Some((duration.clone(), *duration_ticks));
+                break;
+            }
+        }
+        let Some((duration, duration_ticks)) = selected else {
+            return Err(Error::Xml(
+                "MusicXML cursor gap is not representable by canonical rests".into(),
+            ));
+        };
+        if voice.len() >= MAX_NOTES_PER_VOICE {
+            return Err(Error::Xml("too many notes in voice".into()));
+        }
+        voice.push(Note::rest(duration));
+        ticks -= duration_ticks;
+    }
+    Ok(())
 }
 
 /// Merge the second `<note>` of a MusicXML chord into the note that owns the event.
@@ -1647,6 +1823,68 @@ mod tests {
         let notes = &score.parts[0].staves[0].measures[0].voices[0];
         assert!(!notes.is_empty());
         assert!(!notes[0].is_rest);
+    }
+
+    #[test]
+    fn forwards_and_backups_preserve_voice_onsets_with_explicit_rests() {
+        let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><forward><duration>1</duration></forward><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note><backup><duration>2</duration></backup><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>2</voice><type>quarter</type></note></measure></part></score-partwise>"#;
+        let score = parse_musicxml(xml).expect("cursor fixture parses");
+        let measure = &score.parts[0].staves[0].measures[0];
+        assert_eq!(measure.voices[0].len(), 3);
+        assert!(measure.voices[0][0].is_rest);
+        assert_eq!(measure.voices[0][1].pitches[0].step, Step::C);
+        assert!(measure.voices[0][2].is_rest);
+        assert_eq!(measure.voices[1].len(), 3);
+        assert_eq!(measure.voices[1][0].pitches[0].step, Step::E);
+        assert!(measure.voices[1][1].is_rest);
+        assert!(measure.voices[1][2].is_rest);
+
+        let serialized = crate::serialize_musicxml(&score).expect("serialize cursor fixture");
+        let restored = parse_musicxml(&serialized).expect("reparse cursor fixture");
+        let restored_measure = &restored.parts[0].staves[0].measures[0];
+        assert!(restored_measure.voices[0][0].is_rest);
+        assert_eq!(restored_measure.voices[0][1].pitches[0].step, Step::C);
+        assert_eq!(restored_measure.voices[1][0].pitches[0].step, Step::E);
+    }
+
+    #[test]
+    fn cursor_semantics_cover_internal_gaps_chords_and_cross_staff_notes() {
+        let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><forward><duration>1</duration></forward><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note><note><chord/><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note><forward><duration>1</duration></forward><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note><backup><duration>4</duration></backup><note><pitch><step>F</step><octave>3</octave></pitch><duration>1</duration><voice>1</voice><staff>2</staff><type>quarter</type></note></measure></part></score-partwise>"#;
+        let score = parse_musicxml(xml).expect("cursor fixture parses");
+        let part = &score.parts[0];
+        let upper = &part.staves[0].measures[0].voices[0];
+        assert!(upper[0].is_rest);
+        assert_eq!(upper[1].pitches.len(), 2);
+        assert!(upper[2].is_rest);
+        assert_eq!(upper[3].pitches[0].step, Step::D);
+        assert_eq!(part.staves.len(), 2);
+        assert_eq!(
+            part.staves[1].measures[0].voices[0][0].pitches[0].step,
+            Step::F
+        );
+
+        let serialized = crate::serialize_musicxml(&score).expect("serializes");
+        assert!(serialized.contains("<backup>"));
+        let restored = parse_musicxml(&serialized).expect("reparses");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[0][1]
+                .pitches
+                .len(),
+            2
+        );
+        assert_eq!(
+            restored.parts[0].staves[1].measures[0].voices[0][0].pitches[0].step,
+            Step::F
+        );
+    }
+
+    #[test]
+    fn cursor_underflow_and_overflow_are_rejected() {
+        let underflow = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><backup><duration>1</duration></backup></measure></part></score-partwise>"#;
+        assert!(parse_musicxml(underflow).is_err());
+
+        let overflow = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>"#;
+        assert!(parse_musicxml(overflow).is_err());
     }
 
     #[test]

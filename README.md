@@ -114,6 +114,8 @@ inputs to canonical SVG. MuseScore XML and archive inputs are also covered by
 `parse_mscx_render_svg` and `parse_mscz_render_svg`; use the corresponding `*_report` functions
 when import diagnostics are needed.
 MusicXML voice numbers 1–4 are preserved in `Measure.voices` and through MusicXML round-trips.
+Standard `backup`/`forward` cursor movement becomes explicit canonical rests, while malformed
+cursor underflow or measure overflow is rejected rather than silently reordered.
 Tablature string/fret positions and fractional MusicXML alterations are preserved in the score
 model; common ABC (`^/`, `_/`) and MEI (`qs`, `qf`) quarter-accidental subsets are also supported.
 Authored ties never render through rest endpoints; SVG metadata exposes typed tie start/end flags

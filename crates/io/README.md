@@ -86,8 +86,11 @@ note pitches, and TPC values, using stable codes `mscx.invalid-key-signature`,
 `mscx.invalid-tpc`. These diagnostics preserve the XML path and raw value, so a fallback such as
 middle C or 120 BPM is never mistaken for lossless source data.
 
-MusicXML notes are mapped from voice numbers 1–4 to the corresponding `Measure.voices` entries;
-serialization emits the same voice numbers and `<backup>` boundaries for round-trip fidelity.
+MusicXML notes are mapped from voice numbers 1–4 to the corresponding `Measure.voices` entries.
+The importer honors standard `<backup>`/`<forward>` cursor movement and materializes leading or
+internal gaps as canonical rests; cursor underflow and measure overflow are errors. Serialization
+emits the same voice numbers and cursor-consistent `<backup>` boundaries, including later local
+attribute changes and valid `rest measure="yes"` timing for irregular full-measure rest markers.
 MIDI pitch-bend events are preserved on `Part::midi_pitch_bends` with their absolute canonical
 480-PPQ tick,
 source channel, and signed 14-bit value; Controller Change, Program Change, and key/channel
