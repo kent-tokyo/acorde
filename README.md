@@ -1,6 +1,6 @@
 # acorde
 
-Platform-agnostic music score library for Rust and WebAssembly (v1.1.7 candidate).
+Platform-agnostic music score library for Rust and WebAssembly (v1.2.0).
 
 acorde provides a serializable score model, undoable commands, format I/O, logical layout,
 deterministic SVG rendering, playback events, and WASM bindings. Core libraries are synchronous,
@@ -43,7 +43,7 @@ Analysis results also expose schema-versioned canonical chord names alongside st
 data, so browser hosts do not need to duplicate notation formatting rules.
 
 ```toml
-acorde-analysis = "1.1.7"
+acorde-analysis = "1.2.0"
 ```
 
 The optional `soundfont` feature exposes `acorde::soundfont`, a bounded SF2/SF3
@@ -62,6 +62,9 @@ sample frame ranges without requiring Composer to duplicate SoundFont parsing.
 The WASM binding `soundfont_preset_snapshot` exposes the same bounded, deterministic
 bank/program snapshot to browser hosts, including provider version, asset checksum, resolved
 zones, and typed materialization diagnostics; audio decoding and synthesis remain host-owned.
+SoundFont snapshots also expose source channel layout and decode channel count. Use the snapshot
+decode method for materialized SF3 regions so the host selects the matching Ogg stream rather than
+assuming the first payload; linked SF2 stereo remains an explicit pair of mono source regions.
 For the umbrella crate, enable `soundfont-sf3-vorbis` to forward that feature to the SoundFont
 adapter.
 
@@ -79,15 +82,15 @@ accidental input that would overflow the canonical alteration range.
 
 ```toml
 [dependencies]
-acorde = "1.1.7"
-acorde-render-svg = "1.1.7"
+acorde = "1.2.0"
+acorde-render-svg = "1.2.0"
 ```
 
 The default I/O features are `musicxml` and `midi`; enable the optional `abc`, `mscz`, or `mei`
 features when needed:
 
 ```toml
-acorde = { version = "1.1.7", features = ["abc", "mscz", "mei"] }
+acorde = { version = "1.2.0", features = ["abc", "mscz", "mei"] }
 ```
 
 ```rust

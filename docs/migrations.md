@@ -25,6 +25,20 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
+### v1.2.0 — SoundFont materialized decoding
+
+`SoundFontPresetZone` is now constructed through `SoundFontPresetZone::new` or
+`SoundFontPresetZone::with_channel_layout`; direct Rust struct literals are no longer supported.
+Use `with_channel_layout` when a provider has resolved mono, linked-stereo, or interleaved-stereo
+source PCM. `ResolvedPresetZoneMetadata` serializes the added `channel_layout` and
+`decode_channels` fields. JSON consumers must ignore unknown additive fields until they opt into
+the new audio setup path.
+
+For SF3, use `ResolvedPresetZoneMetadata::decode_sample_region` or
+`decode_materialized_sample_region` for a materialized zone. These select the Ogg logical stream
+by materialized sample ID and use stream-relative frame/loop coordinates. The older
+`decode_sample_region` remains available for its legacy first-stream convenience contract.
+
 For v1.1.3, use the typed `Command::SetMeasureText` command for undoable measure-level
 `StyledText` editing. Check the render metadata `contract_version` before consuming newer fields;
 v1.1.3 exposes position-aware `text_annotations` in SVG metadata. Contract version 3 adds
@@ -34,7 +48,7 @@ For v1.1.5, `compatibility_report` is exposed through WASM and the browser
 adapter. It compares canonical score JSON values and returns explicit score and deterministic
 analysis gate booleans; it does not replace format-specific import/export diagnostics.
 
-For the v1.1.7 candidate, MSCX import reports malformed numeric fallbacks with stable,
+For v1.1.7, MSCX import reports malformed numeric fallbacks with stable,
 source-located diagnostic codes. `Pitch::to_scientific_name()` preserves extended accidental
 spellings and scientific-name parsing rejects accidental overflow. The fuzz lockfile is aligned
 with the 1.1.7 workspace crates; consumers should use the report APIs and pinned lockfile when

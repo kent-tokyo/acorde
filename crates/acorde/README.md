@@ -13,8 +13,8 @@ values are reported instead of being indistinguishable from canonical defaults.
 
 ~~~toml
 [dependencies]
-acorde = "1.1.7"
-acorde-render-svg = "1.1.7"
+acorde = "1.2.0"
+acorde-render-svg = "1.2.0"
 ~~~
 
 [API documentation](https://docs.rs/acorde) · [Repository](https://github.com/kent-tokyo/acorde)

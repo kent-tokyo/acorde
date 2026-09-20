@@ -8,6 +8,35 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.2.0] - 2026-09-21
+
+### SoundFont materialization and SF3 decoding
+
+- Materialized SoundFont snapshots now expose `SampleChannelLayout` and `decode_channels` for
+  mono payloads, linked SF2 stereo pairs, and interleaved SF3 stereo payloads. Broken stereo
+  links and unsupported sample types are retained as typed zone diagnostics instead of being
+  silently approximated.
+- `ResolvedPresetZoneMetadata::decode_sample_region` and
+  `decode_materialized_sample_region` select the SF3 Ogg logical stream matching the materialized
+  sample ID. SF3 regions are normalized to stream-relative frame and loop coordinates before PCM
+  cropping; the checked-in FluidR3Mono fixture exercises a non-first stream through PCM output.
+- The legacy `decode_sample_region` keeps its first-stream SF3 convenience behavior. Consumers
+  with materialized metadata should use the metadata method or
+  `decode_materialized_sample_region`.
+
+### Compatibility
+
+- **[breaking]** `SoundFontPresetZone` must be created with `new` or `with_channel_layout`; direct
+  struct literals are no longer supported. `ResolvedPresetZoneMetadata` JSON gains
+  `channel_layout` and `decode_channels`; JSON consumers must accept additive fields.
+- Workspace crate versions and internal dependency constraints are now `1.2.0`.
+
+### Verification
+
+- Passed `cargo test --workspace --locked`, SoundFont tests with all features, and all-target
+  SoundFont clippy with warnings denied. These are local checks; no GitHub Actions run was created
+  for the SoundFont PR.
+
 ## [1.1.7] - 2026-09-20
 
 - **[schema]** Added score-level `NotationSpanner` values for numbered slur, glissando, trill
