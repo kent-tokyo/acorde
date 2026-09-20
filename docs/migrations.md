@@ -46,3 +46,9 @@ pedal, and ottava. Missing `spanners` deserializes as an empty list. Existing no
 produce legacy layout spans; new editing and MusicXML work should use typed spanners. A typed
 endpoint takes precedence over a matching legacy endpoint during MusicXML serialization so a
 consumer does not emit two copies of the same notation.
+
+Structural commands keep typed endpoints attached to their original notes: insertion and
+container edits rebase positional `NoteAddr` values, while deleting or wholesale-replacing an
+endpoint removes the complete typed span when its original note cannot be resolved. This avoids
+silently retargeting a span; legacy note-level flags and their serialized `NoteAddr` shape remain
+compatible.

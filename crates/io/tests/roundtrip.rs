@@ -1,4 +1,6 @@
-use acorde_core::{Clef, Command, Duration, SetMeasureTextCmd, Step, StyledText, TextStyle};
+use acorde_core::{
+    AddNoteCmd, Clef, Command, Duration, Pitch, SetMeasureTextCmd, Step, StyledText, TextStyle,
+};
 /// Integration tests: parse a fixture, serialize, re-parse, and verify
 /// that key musical properties are preserved across the round-trip.
 use acorde_io::{parse_midi, parse_musicxml, serialize_musicxml};
@@ -88,6 +90,45 @@ fn simple_musicxml_parses() {
     assert_eq!(notes2[0].pitches[0].step, Step::G);
     assert_eq!(notes2[0].duration, Duration::Half);
     assert!(notes2[1].is_rest);
+}
+
+#[test]
+fn musicxml_typed_spanner_survives_structural_edit_and_roundtrip() {
+    let xml = r#"<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1"><measure number="1"><attributes><divisions>480</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+    <note><pitch><step>C</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type><notations><slur number="1" type="start"/></notations></note>
+    <note><pitch><step>D</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type><notations><slur number="1" type="stop"/></notations></note>
+    <note><pitch><step>E</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type></note>
+    <note><pitch><step>F</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type></note>
+  </measure></part>
+</score-partwise>"#;
+    let mut score = parse_musicxml(xml).expect("parse typed span");
+    acorde_core::model::commands::apply_command(
+        &Command::AddNote(AddNoteCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            position: 0,
+            pitch: Some(Pitch::new(Step::B, 3)),
+            duration: Duration::Quarter,
+            dot_count: 0,
+            is_rest: false,
+            tuplet: None,
+        }),
+        &mut score,
+    )
+    .expect("structural edit applies");
+    assert_eq!(score.spanners.len(), 1);
+    assert_eq!(score.spanners[0].start.note, 1);
+    assert_eq!(score.spanners[0].end.note, 2);
+
+    let restored = parse_musicxml(&serialize_musicxml(&score).expect("serialize edited score"))
+        .expect("reparse edited score");
+    assert_eq!(restored.spanners.len(), 1);
+    assert_eq!(restored.spanners[0].start.note, 1);
+    assert_eq!(restored.spanners[0].end.note, 2);
 }
 
 #[test]
