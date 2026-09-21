@@ -1382,8 +1382,8 @@ fn escape_xml(s: &str) -> String {
 mod tests {
     use super::*;
     use acorde_core::{
-        Duration, NotationSpanner, NotationSpannerKind, Note, NoteAddr, Pitch, Score, Step,
-        TupletInfo,
+        Command, Duration, NotationSpanner, NotationSpannerKind, Note, NoteAddr, Pitch,
+        RemoveSpannerCmd, Score, ScoreEngine, Step, TupletInfo,
     };
 
     #[test]
@@ -1553,6 +1553,44 @@ mod tests {
                 && spanner.number == Some(5)
                 && spanner.ottava_type.as_deref() == Some("down")
         }));
+    }
+
+    #[test]
+    fn removing_a_typed_glissando_does_not_resurrect_legacy_endpoints() {
+        let mut score = Score::new("Spans", 120, 2, 4, 0, 1);
+        let mut start_note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        start_note.glissando_start = true;
+        let mut end_note = Note::new(Pitch::new(Step::D, 4), Duration::Quarter);
+        end_note.glissando_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![start_note, end_note];
+        let start = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
+        score.spanners.push(NotationSpanner {
+            id: "gliss-1".into(),
+            kind: NotationSpannerKind::Glissando,
+            start: start.clone(),
+            end: NoteAddr { note: 1, ..start },
+            number: Some(1),
+            line_type: None,
+            text: None,
+            placement: None,
+            ottava_size: None,
+            ottava_type: None,
+        });
+        let mut engine = ScoreEngine::new();
+        engine.replace_score(score);
+        engine
+            .apply(Command::RemoveSpanner(RemoveSpannerCmd {
+                id: "gliss-1".into(),
+            }))
+            .expect("remove typed glissando");
+        let xml = serialize_musicxml(&engine.score).expect("serialize after removal");
+        assert!(!xml.contains("<glissando"), "{xml}");
     }
 
     #[test]

@@ -7,7 +7,8 @@ use super::notation::{
 };
 use super::pitch::Pitch;
 use super::score::{
-    Measure, NotationSpanner, Note, NoteAddr, Part, PartGroup, Score, ScoreTemplate, Staff,
+    Measure, NotationSpanner, NotationSpannerKind, Note, NoteAddr, Part, PartGroup, Score,
+    ScoreTemplate, Staff,
     respell_score, respell_score_to_key,
 };
 use super::validate::validate;
@@ -1738,17 +1739,20 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
             Ok(())
         }
         Command::UpdateSpanner(c) => {
-            let existing = score
+            let index = score
                 .spanners
-                .iter_mut()
-                .find(|spanner| spanner.id == c.spanner.id)
+                .iter()
+                .position(|spanner| spanner.id == c.spanner.id)
                 .ok_or_else(|| {
                     Error::InvalidCommand(format!(
                         "notation spanner id does not exist: {}",
                         c.spanner.id
                     ))
                 })?;
-            *existing = c.spanner.clone();
+            let previous = score.spanners[index].clone();
+            score.spanners[index] = c.spanner.clone();
+            clear_legacy_spanner_endpoints(score, &previous);
+            clear_legacy_spanner_endpoints(score, &c.spanner);
             Ok(())
         }
         Command::RemoveSpanner(c) => {
@@ -1759,7 +1763,8 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
                 .ok_or_else(|| {
                     Error::InvalidCommand(format!("notation spanner id does not exist: {}", c.id))
                 })?;
-            score.spanners.remove(index);
+            let removed = score.spanners.remove(index);
+            clear_legacy_spanner_endpoints(score, &removed);
             Ok(())
         }
         Command::Batch(c) => {
@@ -2629,6 +2634,41 @@ fn note_at<'a>(score: &'a Score, address: &NoteAddr) -> Option<&'a Note> {
         .and_then(|staff| staff.measures.get(address.measure))
         .and_then(|measure| measure.voices.get(address.voice))
         .and_then(|voice| voice.get(address.note))
+}
+
+fn note_at_mut<'a>(score: &'a mut Score, address: &NoteAddr) -> Option<&'a mut Note> {
+    score
+        .parts
+        .get_mut(address.part)
+        .and_then(|part| part.staves.get_mut(address.staff))
+        .and_then(|staff| staff.measures.get_mut(address.measure))
+        .and_then(|measure| measure.voices.get_mut(address.voice))
+        .and_then(|voice| voice.get_mut(address.note))
+}
+
+/// Typed spanners are authoritative once edited through the command engine. Parsers retain
+/// legacy endpoint flags for backwards-compatible JSON, but edits must not resurrect them.
+fn clear_legacy_spanner_endpoints(score: &mut Score, spanner: &NotationSpanner) {
+    let clear_start = |note: &mut Note| match spanner.kind {
+        NotationSpannerKind::Slur => note.slur_start = false,
+        NotationSpannerKind::Glissando => note.glissando_start = false,
+        NotationSpannerKind::TrillLine => note.trill_line_start = false,
+        NotationSpannerKind::Pedal => note.pedal_start = false,
+        NotationSpannerKind::Ottava => note.ottava_start = None,
+    };
+    let clear_end = |note: &mut Note| match spanner.kind {
+        NotationSpannerKind::Slur => note.slur_end = false,
+        NotationSpannerKind::Glissando => note.glissando_end = false,
+        NotationSpannerKind::TrillLine => note.trill_line_end = false,
+        NotationSpannerKind::Pedal => note.pedal_end = false,
+        NotationSpannerKind::Ottava => note.ottava_end = false,
+    };
+    if let Some(note) = note_at_mut(score, &spanner.start) {
+        clear_start(note);
+    }
+    if let Some(note) = note_at_mut(score, &spanner.end) {
+        clear_end(note);
+    }
 }
 
 /// Remap typed notation endpoints after a structural edit.
