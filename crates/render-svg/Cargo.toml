@@ -19,7 +19,7 @@ acorde-layout = { path = "../layout", version = "1.2.0" }
 serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
-quick-xml = "0.41"
+quick-xml = "0.42"
 serde_json = "1"
 # musicxml dev-dep for the render_musicxml example/tests only — never part of the published
 # library's dependency graph (acorde-render-svg itself stays I/O-free).
