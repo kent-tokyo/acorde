@@ -1989,6 +1989,28 @@ mod tests {
             acorde_core::Pitch::new(acorde_core::Step::C, 4),
             acorde_core::Duration::Quarter,
         )];
+        score.parts[0]
+            .midi_pitch_bends
+            .push(acorde_core::MidiPitchBend {
+                tick: 480,
+                channel: 2,
+                value: -512,
+            });
+        score.parts[0]
+            .midi_program_changes
+            .push(acorde_core::MidiProgramChange {
+                tick: 480,
+                channel: 2,
+                program: 41,
+            });
+        score.parts[0]
+            .midi_aftertouch
+            .push(acorde_core::MidiAftertouch {
+                tick: 480,
+                channel: 2,
+                key: Some(64),
+                value: 88,
+            });
         let score_json = serde_json::to_string(&score).unwrap();
         let options_json = serde_json::to_string(&acorde_core::PlaybackOptions::default()).unwrap();
         let events: Vec<acorde_core::PlaybackEvent> =
