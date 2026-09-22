@@ -165,6 +165,9 @@ pub struct RenderMetadata {
     /// Harp pedal diagrams in the conventional D-C-B / E-F-G-A order.
     #[serde(default)]
     pub harp_pedal_diagrams: Vec<HarpPedalDiagramMetadata>,
+    /// Semantic section boundaries by physical measure; unrelated to page or system breaks.
+    #[serde(default)]
+    pub section_breaks: Vec<usize>,
 }
 
 /// Browser-facing identity and effective style for a resolved linked view.

@@ -137,6 +137,9 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 };
                 xml.push_str(&format!("      <print{}{}/>\n", ns, np));
             }
+            if measure.section_break {
+                xml.push_str("      <direction><direction-type><other-direction>acorde:section-break</other-direction></direction-type></direction>\n");
+            }
 
             // Left barline
             let has_left = !matches!(measure.barline_left, Barline::Normal)

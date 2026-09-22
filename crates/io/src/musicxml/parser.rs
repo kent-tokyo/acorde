@@ -240,6 +240,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut pending_expression_text: Option<String> = None;
     let mut pending_rehearsal: Option<String> = None;
     let mut pending_navigation: Option<String> = None;
+    let mut pending_section_break = false;
     let mut pending_sound_tempo: Option<u16> = None;
     let mut pending_direction_placement: Option<String> = None;
     let mut pending_direction_offset_x: Option<f64> = None;
@@ -1272,6 +1273,15 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     }
                     "direction-type" => in_direction_type = false,
                     "direction" => {
+                        if pending_section_break {
+                            if let Some(pi) = part_index {
+                                for staff in &mut score.parts[pi].staves {
+                                    if let Some(measure) = staff.measures.last_mut() {
+                                        measure.section_break = true;
+                                    }
+                                }
+                            }
+                        }
                         if let Some(pi) = part_index
                             && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
                         {
@@ -1340,6 +1350,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         pending_expression_text = None;
                         pending_rehearsal = None;
                         pending_navigation = None;
+                        pending_section_break = false;
                         in_direction = false;
                     }
                     "attributes" => {
@@ -1365,6 +1376,9 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 pending_expression_text = Some(text);
                             }
                         }
+                    }
+                    "other-direction" if in_direction_type => {
+                        pending_section_break = current_text.trim() == "acorde:section-break";
                     }
                     "rehearsal" if in_direction_type => {
                         let text = current_text.trim().to_string();

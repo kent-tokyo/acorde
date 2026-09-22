@@ -402,6 +402,20 @@ fn rich_musicxml_fragment_fixture_roundtrips_and_pastes_undoably() {
 }
 
 #[test]
+fn musicxml_section_break_roundtrips_without_becoming_a_layout_break() {
+    let mut score = parse_musicxml(SIMPLE_XML).expect("fixture parses");
+    score.parts[0].staves[0].measures[1].section_break = true;
+    let xml = serialize_musicxml(&score).expect("serializes section break");
+    assert!(xml.contains("<other-direction>acorde:section-break</other-direction>"));
+    assert!(!xml.contains("<print new-system=\"yes\""));
+    let restored = parse_musicxml(&xml).expect("reparses section break");
+    let measure = &restored.parts[0].staves[0].measures[1];
+    assert!(measure.section_break);
+    assert!(!measure.system_break);
+    assert!(!measure.page_break);
+}
+
+#[test]
 fn fixture_scores_have_deterministic_json_and_roundtrip_identity() {
     for fixture in [SIMPLE_XML, MULTIPART_XML, MULTIVOICE_XML] {
         let score = parse_musicxml(fixture).expect("fixture parses");

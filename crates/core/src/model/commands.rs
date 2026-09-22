@@ -83,6 +83,7 @@ pub enum Command {
     ScaleVoiceRange(ScaleVoiceRangeCmd),
     SetSystemBreak(SetSystemBreakCmd),
     SetPageBreak(SetPageBreakCmd),
+    SetSectionBreak(SetSectionBreakCmd),
     ToggleSlur(ToggleSlurCmd),
     AddStaff(AddStaffCmd),
     DeleteStaff(DeleteStaffCmd),
@@ -527,6 +528,13 @@ pub struct SetSystemBreakCmd {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetPageBreakCmd {
+    pub measure_index: usize,
+    pub value: bool,
+}
+
+/// Set or clear a semantic section boundary at a physical measure.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetSectionBreakCmd {
     pub measure_index: usize,
     pub value: bool,
 }
@@ -1351,7 +1359,9 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::SetFiguredBass(_) => hint!(Global, false, true),
         Command::SetHarpPedalDiagrams(c) => hint!(meas!(c), false, false),
 
-        Command::SetSystemBreak(_) | Command::SetPageBreak(_) => hint!(Global, true, false),
+        Command::SetSystemBreak(_) | Command::SetPageBreak(_) | Command::SetSectionBreak(_) => {
+            hint!(Global, true, false)
+        }
 
         Command::ToggleSlur(_) | Command::ToggleTrillLine(_) => hint!(Global, true, false),
         Command::SetGlissando(c) => hint!(meas!(c), true, true),
@@ -1470,6 +1480,7 @@ pub fn command_label(cmd: &Command) -> String {
         .to_string(),
         Command::SetSystemBreak(_) => "Set System Break".to_string(),
         Command::SetPageBreak(_) => "Set Page Break".to_string(),
+        Command::SetSectionBreak(_) => "Set Section Break".to_string(),
         Command::ToggleSlur(_) => "Toggle Slur".to_string(),
         Command::AddStaff(_) => "Add Staff".to_string(),
         Command::DeleteStaff(_) => "Delete Staff".to_string(),
@@ -1604,6 +1615,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::ScaleVoiceRange(_) => "ScaleVoiceRange".to_string(),
         Command::SetSystemBreak(_) => "SetSystemBreak".to_string(),
         Command::SetPageBreak(_) => "SetPageBreak".to_string(),
+        Command::SetSectionBreak(_) => "SetSectionBreak".to_string(),
         Command::ToggleSlur(_) => "ToggleSlur".to_string(),
         Command::AddStaff(_) => "AddStaff".to_string(),
         Command::DeleteStaff(_) => "DeleteStaff".to_string(),
@@ -1886,6 +1898,15 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         Command::SetPageBreak(c) => {
             for_each_measure_at(score, c.measure_index, |m| {
                 m.page_break = c.value;
+            });
+            Ok(())
+        }
+        Command::SetSectionBreak(c) => {
+            if c.measure_index >= score.measure_count() {
+                return Err(Error::MeasureNotFound(c.measure_index));
+            }
+            for_each_measure_at(score, c.measure_index, |m| {
+                m.section_break = c.value;
             });
             Ok(())
         }
@@ -6898,5 +6919,48 @@ mod tests {
             stack.redo(&mut score).expect("view redo applies");
         }
         assert_eq!(score.views, restored.views);
+    }
+
+    #[test]
+    fn section_break_is_atomic_undoable_and_synced_across_staves() {
+        let mut score = Score::template(ScoreTemplate::Piano);
+        let original = score.clone();
+        let mut stack = CommandStack::new(4);
+        stack
+            .execute(
+                Command::SetSectionBreak(SetSectionBreakCmd {
+                    measure_index: 2,
+                    value: true,
+                }),
+                &mut score,
+            )
+            .expect("section break applies");
+        assert!(
+            score.parts[0]
+                .staves
+                .iter()
+                .all(|staff| staff.measures[2].section_break)
+        );
+        stack.undo(&mut score).expect("section break undoes");
+        assert_eq!(
+            serde_json::to_value(&score).unwrap(),
+            serde_json::to_value(&original).unwrap()
+        );
+
+        assert!(
+            stack
+                .execute(
+                    Command::SetSectionBreak(SetSectionBreakCmd {
+                        measure_index: 99,
+                        value: true,
+                    }),
+                    &mut score,
+                )
+                .is_err()
+        );
+        assert_eq!(
+            serde_json::to_value(&score).unwrap(),
+            serde_json::to_value(&original).unwrap()
+        );
     }
 }

@@ -535,6 +535,34 @@ impl Score {
             .unwrap_or(0)
     }
 
+    /// Resolve the inclusive section containing `measure_index`.
+    ///
+    /// A section boundary belongs to the measure where it starts. Layout breaks are
+    /// intentionally ignored: they have no editor-range semantics.
+    pub fn section_range(
+        &self,
+        measure_index: usize,
+    ) -> Result<std::ops::RangeInclusive<usize>, Error> {
+        let measures = self
+            .parts
+            .first()
+            .and_then(|part| part.staves.first())
+            .map(|staff| &staff.measures)
+            .ok_or(Error::MeasureNotFound(measure_index))?;
+        if measure_index >= measures.len() {
+            return Err(Error::MeasureNotFound(measure_index));
+        }
+        let start = (0..=measure_index)
+            .rev()
+            .find(|&index| measures[index].section_break)
+            .unwrap_or(0);
+        let end = ((measure_index + 1)..measures.len())
+            .find(|&index| measures[index].section_break)
+            .map(|index| index - 1)
+            .unwrap_or(measures.len() - 1);
+        Ok(start..=end)
+    }
+
     /// Aggregate statistics about the score.
     pub fn statistics(&self) -> ScoreStats {
         let measure_count = self.measure_count();
@@ -1824,6 +1852,10 @@ pub struct Measure {
     /// Force a new page after this measure.
     #[serde(default)]
     pub page_break: bool,
+    /// Semantic section boundary beginning at this measure. Unlike system and page breaks,
+    /// this is an editor/navigation marker and has no layout implication.
+    #[serde(default)]
+    pub section_break: bool,
     /// Up to 4 voices; voice 0 is the primary voice.
     pub voices: [Vec<Note>; 4],
     /// Original positive MusicXML voice numbers associated with the four editable slots.
@@ -1871,6 +1903,7 @@ impl Measure {
             multi_rest_count: None,
             system_break: false,
             page_break: false,
+            section_break: false,
             voices: [voice0, vec![], vec![], vec![]],
             source_voice_numbers: [None; 4],
         }
@@ -2271,6 +2304,8 @@ pub enum ScoreChange {
         new_system_break: bool,
         old_page_break: bool,
         new_page_break: bool,
+        old_section_break: bool,
+        new_section_break: bool,
     },
     TablatureConfigChanged {
         part: usize,
@@ -2545,6 +2580,7 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                     || am.multi_rest_count != bm.multi_rest_count
                     || am.system_break != bm.system_break
                     || am.page_break != bm.page_break
+                    || am.section_break != bm.section_break
                 {
                     changes.push(ScoreChange::MeasurePresentationChanged {
                         part: pi,
@@ -2566,6 +2602,8 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                         new_system_break: bm.system_break,
                         old_page_break: am.page_break,
                         new_page_break: bm.page_break,
+                        old_section_break: am.section_break,
+                        new_section_break: bm.section_break,
                     });
                 }
                 for vi in 0..4usize {
@@ -2835,6 +2873,7 @@ pub enum ScorePatch {
         multi_rest_count: Option<u8>,
         system_break: bool,
         page_break: bool,
+        section_break: bool,
     },
     SetTablatureConfig {
         part: usize,
@@ -3107,6 +3146,7 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                     || am.multi_rest_count != bm.multi_rest_count
                     || am.system_break != bm.system_break
                     || am.page_break != bm.page_break
+                    || am.section_break != bm.section_break
                 {
                     patches.push(ScorePatch::SetMeasurePresentation {
                         part: pi,
@@ -3120,6 +3160,7 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                         multi_rest_count: bm.multi_rest_count,
                         system_break: bm.system_break,
                         page_break: bm.page_break,
+                        section_break: bm.section_break,
                     });
                 }
                 if am.key_sig != bm.key_sig {
@@ -3403,6 +3444,7 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                 multi_rest_count,
                 system_break,
                 page_break,
+                section_break,
             } => {
                 let target = s
                     .parts
@@ -3424,6 +3466,7 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                 target.multi_rest_count = *multi_rest_count;
                 target.system_break = *system_break;
                 target.page_break = *page_break;
+                target.section_break = *section_break;
             }
             ScorePatch::SetTablatureConfig { part, staff, value } => {
                 s.parts
@@ -4765,6 +4808,20 @@ mod tests {
         let m = Measure::empty(4, 4);
         assert!(!m.system_break);
         assert!(!m.page_break);
+        assert!(!m.section_break);
+    }
+
+    #[test]
+    fn section_range_uses_semantic_boundaries_not_layout_breaks() {
+        let mut score = Score::new("sections", 120, 4, 4, 0, 6);
+        score.parts[0].staves[0].measures[2].section_break = true;
+        score.parts[0].staves[0].measures[4].section_break = true;
+        score.parts[0].staves[0].measures[1].system_break = true;
+        score.parts[0].staves[0].measures[3].page_break = true;
+        assert_eq!(score.section_range(0).unwrap(), 0..=1);
+        assert_eq!(score.section_range(3).unwrap(), 2..=3);
+        assert_eq!(score.section_range(5).unwrap(), 4..=5);
+        assert!(score.section_range(6).is_err());
     }
 
     #[test]
@@ -4977,6 +5034,7 @@ mod tests {
                 multi_rest_count: Some(3),
                 system_break: true,
                 page_break: true,
+                section_break: false,
             } if text == "Allegro" && navigation == "D.S." && expression == "espressivo"
         )));
         assert!(

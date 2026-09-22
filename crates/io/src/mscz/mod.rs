@@ -657,6 +657,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             multi_rest_count: None,
                             system_break: false,
                             page_break: false,
+                            section_break: false,
                             voices: [
                                 std::mem::take(&mut cur_voices[0]),
                                 std::mem::take(&mut cur_voices[1]),

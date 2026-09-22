@@ -411,6 +411,19 @@ fn build_render_metadata(
     let note_semantics = collect_note_semantics(score);
     let object_style_overrides = score.object_style_overrides.clone();
     let harp_pedal_diagrams = collect_harp_pedal_diagrams(score);
+    let section_breaks = score
+        .parts
+        .first()
+        .and_then(|part| part.staves.first())
+        .map(|staff| {
+            staff
+                .measures
+                .iter()
+                .enumerate()
+                .filter_map(|(measure, value)| value.section_break.then_some(measure))
+                .collect()
+        })
+        .unwrap_or_default();
     let accessible_text = format!(
         "{}; {} parts, {} staves, {} measures, {} note events",
         score.metadata.title,
@@ -440,6 +453,7 @@ fn build_render_metadata(
         note_semantics,
         object_style_overrides,
         harp_pedal_diagrams,
+        section_breaks,
     }
 }
 
