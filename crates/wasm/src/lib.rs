@@ -392,6 +392,20 @@ pub fn build_offline_render_manifest(
         .map_err(|e| js_err(format!("offline render manifest serialization failed: {e}")))
 }
 
+/// Validate a persisted provider-neutral offline-render manifest.
+///
+/// Hosts can call this after transport or storage, before handing the schedule
+/// to a synthesizer. It does not decode audio assets or invoke a provider.
+#[wasm_bindgen]
+pub fn validate_offline_render_manifest(manifest_json: &str) -> Result<(), JsValue> {
+    let manifest: acorde_core::OfflineRenderManifest = parse_json(
+        manifest_json,
+        "offline render manifest",
+        MAX_LAYOUT_JSON_BYTES,
+    )?;
+    manifest.validate().map_err(js_err)
+}
+
 /// Extract a versioned, host-neutral score fragment as JSON.
 ///
 /// Selections are JSON-encoded `ScoreFragmentSelection` values. Clipboard
@@ -2793,6 +2807,20 @@ mod wasm_tests {
             wasm["semantic_events"]
                 .as_array()
                 .is_some_and(|events| events.len() >= 4)
+        );
+        assert!(
+            validate_offline_render_manifest(
+                &serde_json::to_string(&wasm).expect("manifest JSON serializes")
+            )
+            .is_ok()
+        );
+        let mut invalid = wasm;
+        invalid["duration_frames"] = serde_json::json!(1);
+        assert!(
+            validate_offline_render_manifest(
+                &serde_json::to_string(&invalid).expect("invalid manifest JSON serializes")
+            )
+            .is_err()
         );
     }
 
