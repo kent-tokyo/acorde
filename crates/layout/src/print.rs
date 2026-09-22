@@ -4980,6 +4980,10 @@ mod tests {
             (PageRenderAddress::Note(address), PageRenderNodeKind::Rest)
                 if address.part == 0 && address.staff == 0 && address.measure == 0 && address.note == 1
         )));
+        let restored: Vec<PageRenderTree> =
+            serde_json::from_str(&serde_json::to_string(&trees).expect("trees serialize"))
+                .expect("trees deserialize");
+        assert_eq!(restored, trees);
     }
 
     #[test]
