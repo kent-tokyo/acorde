@@ -222,7 +222,7 @@ pub const MAX_TAB_PERFORMANCE_EVENTS: usize = 1_000_000;
 const MAX_TAB_PERFORMANCE_DIAGNOSTICS: usize = 1_024;
 
 /// Version of the host-neutral offline rendering manifest contract.
-pub const OFFLINE_RENDER_CONTRACT_VERSION: u16 = 2;
+pub const OFFLINE_RENDER_CONTRACT_VERSION: u16 = 3;
 
 /// Score material selected for an offline render.  Addresses remain those of the
 /// source score even when a view or a range is selected.
@@ -264,6 +264,14 @@ pub struct OfflineRenderFrameEvent {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub enum OfflineRenderSemanticEventKind {
+    /// A measure-local instrument routing change. Providers apply this before
+    /// attacks at the same frame rather than inferring it from note events.
+    InstrumentChange {
+        instrument_id: String,
+        channel: u8,
+        program: u8,
+        transpose_semitones: i8,
+    },
     Controller {
         channel: u8,
         controller: u8,
@@ -938,6 +946,19 @@ fn append_measure_semantic_events(
                 events.push(OfflineRenderSemanticFrameEvent {
                     kind: OfflineRenderSemanticEventKind::Navigation {
                         marker: marker.clone(),
+                    },
+                    frame,
+                    source: None,
+                    measure: Some(address.clone()),
+                });
+            }
+            if let Some(instrument) = &measure.instrument_change {
+                events.push(OfflineRenderSemanticFrameEvent {
+                    kind: OfflineRenderSemanticEventKind::InstrumentChange {
+                        instrument_id: instrument.id.clone(),
+                        channel: instrument.midi_channel,
+                        program: instrument.midi_program,
+                        transpose_semitones: instrument.transpose_semitones,
                     },
                     frame,
                     source: None,
@@ -3136,6 +3157,21 @@ mod tests {
             Some("flute")
         );
         assert_eq!(manifest.frame_events[3].event.program, 73);
+        assert!(manifest.semantic_events.iter().any(|event| {
+            matches!(
+                &event.kind,
+                OfflineRenderSemanticEventKind::InstrumentChange {
+                    instrument_id,
+                    channel: 2,
+                    program: 73,
+                    transpose_semitones: 0,
+                } if instrument_id == "flute"
+            ) && event
+                .measure
+                .as_ref()
+                .is_some_and(|address| address.measure == 1)
+                && event.frame == manifest.frame_events[1].start_frame
+        }));
         assert!(manifest.semantic_events.iter().any(|event| matches!(
             event.kind,
             OfflineRenderSemanticEventKind::Pedal { down: true }
