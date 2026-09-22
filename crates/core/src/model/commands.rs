@@ -5008,7 +5008,7 @@ mod tests {
     fn typed_spanners_remap_only_the_edited_endpoint_across_staff_and_voice() {
         use crate::model::score::{NotationSpanner, NotationSpannerKind, ScoreTemplate};
 
-        let mut score = Score::template(ScoreTemplate::StringQuartet);
+        let mut score = Score::template(ScoreTemplate::Piano);
         for staff in &mut score.parts[0].staves {
             let notes: Vec<Note> = (0..4)
                 .map(|offset| Note::new(Pitch::new(Step::C, 4 + offset), Duration::Quarter))
