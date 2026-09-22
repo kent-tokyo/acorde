@@ -1,6 +1,8 @@
 use super::change_hint::{ChangeHint, ChangeScope};
 use super::duration::Duration;
-use super::fragment::{SCORE_FRAGMENT_CONTRACT_VERSION, ScoreFragment};
+use super::fragment::{
+    SCORE_FRAGMENT_CONTRACT_VERSION, ScoreFragment, ScoreFragmentSelection, extract_score_fragment,
+};
 use super::notation::{
     Articulation, Barline, ChordSymbol, Clef, CrossStaff, Dynamic, FiguredBassFigure,
     GuitarTechnique, HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind, StyledText,
@@ -71,6 +73,7 @@ pub enum Command {
     PasteRange(PasteRangeCmd),
     PasteScoreFragment(PasteScoreFragmentCmd),
     ExchangeVoices(ExchangeVoicesCmd),
+    MoveOrCopyVoiceRange(MoveOrCopyVoiceRangeCmd),
     SetSystemBreak(SetSystemBreakCmd),
     SetPageBreak(SetPageBreakCmd),
     ToggleSlur(ToggleSlurCmd),
@@ -578,6 +581,19 @@ pub struct ExchangeVoicesCmd {
     pub end_measure: usize,
     pub first_voice: usize,
     pub second_voice: usize,
+}
+
+/// Copy or move an inclusive, whole-measure single-voice range.
+///
+/// The operation reuses the versioned ScoreFragment mapping contract. `move_source`
+/// clears the source lane only after the destination has been validated and populated.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MoveOrCopyVoiceRangeCmd {
+    pub source_start: NoteAddr,
+    pub source_end: NoteAddr,
+    pub target: NoteAddr,
+    #[serde(default)]
+    pub move_source: bool,
 }
 
 /// Toggle slur_start on `start` note and slur_end on `end` note (cross-measure aware).
@@ -1192,6 +1208,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
             true,
             true
         ),
+        Command::MoveOrCopyVoiceRange(_) => hint!(Global, true, true),
         Command::AddHairpin(c) => hint!(meas!(c), false, true),
         Command::ToggleTie(c) => hint!(meas!(c), false, true),
         Command::SetDynamic(c) => hint!(meas!(c), false, true),
@@ -1306,6 +1323,12 @@ pub fn command_label(cmd: &Command) -> String {
         Command::PasteRange(_) => "Paste Range".to_string(),
         Command::PasteScoreFragment(_) => "Paste Score Fragment".to_string(),
         Command::ExchangeVoices(_) => "Exchange Voices".to_string(),
+        Command::MoveOrCopyVoiceRange(c) => if c.move_source {
+            "Move Voice Range"
+        } else {
+            "Copy Voice Range"
+        }
+        .to_string(),
         Command::SetSystemBreak(_) => "Set System Break".to_string(),
         Command::SetPageBreak(_) => "Set Page Break".to_string(),
         Command::ToggleSlur(_) => "Toggle Slur".to_string(),
@@ -1433,6 +1456,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::PasteRange(_) => "PasteRange".to_string(),
         Command::PasteScoreFragment(_) => "PasteScoreFragment".to_string(),
         Command::ExchangeVoices(_) => "ExchangeVoices".to_string(),
+        Command::MoveOrCopyVoiceRange(_) => "MoveOrCopyVoiceRange".to_string(),
         Command::SetSystemBreak(_) => "SetSystemBreak".to_string(),
         Command::SetPageBreak(_) => "SetPageBreak".to_string(),
         Command::ToggleSlur(_) => "ToggleSlur".to_string(),
@@ -1701,6 +1725,7 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         Command::PasteRange(c) => apply_paste_range(c, score),
         Command::PasteScoreFragment(c) => apply_paste_score_fragment(c, score),
         Command::ExchangeVoices(c) => apply_exchange_voices(c, score),
+        Command::MoveOrCopyVoiceRange(c) => apply_move_or_copy_voice_range(c, score),
         Command::SetSystemBreak(c) => {
             for_each_measure_at(score, c.measure_index, |m| {
                 m.system_break = c.value;
@@ -3281,6 +3306,84 @@ fn apply_exchange_voices(cmd: &ExchangeVoicesCmd, score: &mut Score) -> Result<(
         }
         Some(remapped)
     });
+    Ok(())
+}
+
+fn apply_move_or_copy_voice_range(
+    cmd: &MoveOrCopyVoiceRangeCmd,
+    score: &mut Score,
+) -> Result<(), Error> {
+    if cmd.source_start.part != cmd.source_end.part
+        || cmd.source_start.staff != cmd.source_end.staff
+        || cmd.source_start.voice != cmd.source_end.voice
+    {
+        return Err(Error::InvalidCommand(
+            "move or copy source endpoints must share part, staff, and voice".into(),
+        ));
+    }
+    if cmd.source_start.voice >= 4 {
+        return Err(Error::VoiceOutOfRange(cmd.source_start.voice));
+    }
+    let source_from = cmd.source_start.measure.min(cmd.source_end.measure);
+    let source_to = cmd.source_start.measure.max(cmd.source_end.measure);
+    let source_count = source_to - source_from + 1;
+    let target_end = cmd
+        .target
+        .measure
+        .checked_add(source_count - 1)
+        .ok_or_else(|| Error::InvalidCommand("voice range target overflows".into()))?;
+    if cmd.move_source
+        && cmd.target.part == cmd.source_start.part
+        && cmd.target.staff == cmd.source_start.staff
+        && cmd.target.voice == cmd.source_start.voice
+        && cmd.target.measure <= source_to
+        && target_end >= source_from
+    {
+        return Err(Error::InvalidCommand(
+            "moving a voice range onto itself is not supported".into(),
+        ));
+    }
+
+    let fragment = extract_score_fragment(
+        score,
+        &[ScoreFragmentSelection {
+            start: cmd.source_start.clone(),
+            end: cmd.source_end.clone(),
+        }],
+    )?;
+    apply_paste_score_fragment(
+        &PasteScoreFragmentCmd {
+            fragment,
+            target: cmd.target.clone(),
+        },
+        score,
+    )?;
+    if !cmd.move_source {
+        return Ok(());
+    }
+
+    let settings_time_signature = score.settings.time_signature.clone();
+    let staff = score
+        .parts
+        .get_mut(cmd.source_start.part)
+        .ok_or(Error::PartNotFound(cmd.source_start.part))?
+        .staves
+        .get_mut(cmd.source_start.staff)
+        .ok_or(Error::StaffNotFound(cmd.source_start.staff))?;
+    if source_to >= staff.measures.len() {
+        return Err(Error::MeasureNotFound(source_to));
+    }
+    for measure in &mut staff.measures[source_from..=source_to] {
+        let signature = measure
+            .time_sig
+            .as_ref()
+            .unwrap_or(&settings_time_signature);
+        let mut replacement = Vec::new();
+        pad_voice_to_measure(&mut replacement, signature.total_beats());
+        measure.voices[cmd.source_start.voice] = replacement;
+        measure.source_voice_numbers[cmd.source_start.voice] = None;
+    }
+    prune_orphaned_spanners(score);
     Ok(())
 }
 
