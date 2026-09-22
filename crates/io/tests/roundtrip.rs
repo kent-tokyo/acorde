@@ -668,8 +668,8 @@ fn interchange_report_has_machine_checked_phase_evidence() {
     let report: serde_json::Value =
         serde_json::from_str(INTERCHANGE_REPORT).expect("interchange report is valid JSON");
     assert_eq!(report["schema_version"], 1);
-    assert_eq!(report["version_policy"], "workspace version is 1.2.1");
-    assert!(WORKSPACE_MANIFEST.contains("version = \"1.2.1\""));
+    assert_eq!(report["version_policy"], "workspace version is 1.2.2");
+    assert!(WORKSPACE_MANIFEST.contains("version = \"1.2.2\""));
     assert_eq!(
         report["phase_7_policy"]["status"],
         "local-slices-available-external-gates-open"
@@ -2649,8 +2649,12 @@ fn tablature_semantics_match_between_musicxml_and_mscx() {
     note.fingering = Some(2);
     note.guitar_technique = Some(GuitarTechnique::Slide);
     staff.measures[0].voices[0] = vec![note];
-    let musicxml = parse_musicxml(&serialize_musicxml(&score).expect("tab XML serializes"))
-        .expect("tab XML parses");
+    let serialized = serialize_musicxml(&score).expect("tab XML serializes");
+    assert!(
+        serialized.contains("<string>6</string>"),
+        "MusicXML string numbers count from the high string"
+    );
+    let musicxml = parse_musicxml(&serialized).expect("tab XML parses");
     let mscx = acorde_io::parse_mscx(
     r#"<museScore><Score><Part><Staff id="1"/></Part><Staff id="1"><StaffType group="tab"><lines>6</lines><StringData><string>40</string><string>45</string><string>50</string><string>55</string><string>59</string><string>64</string></StringData></StaffType><Measure><Chord><durationType>quarter</durationType><Note><pitch>43</pitch><tpc>8</tpc><string>1</string><fret>3</fret><Fingering>2</Fingering><Slide/></Note></Chord></Measure></Staff></Score></museScore>"#,
     )

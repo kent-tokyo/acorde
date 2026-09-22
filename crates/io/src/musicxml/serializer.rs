@@ -617,6 +617,21 @@ fn serialize_note(
     score: &Score,
     address: &NoteAddr,
 ) {
+    let tab_lines = score
+        .parts
+        .get(address.part)
+        .and_then(|part| part.staves.get(address.staff))
+        .and_then(|staff| staff.tablature.as_ref())
+        .map(|tab| tab.lines);
+    let musicxml_tab_string = |string: u8| {
+        score
+            .parts
+            .get(address.part)
+            .and_then(|part| part.staves.get(address.staff))
+            .and_then(|staff| staff.tablature.as_ref())
+            .and_then(|tab| (string != 0 && string <= tab.lines).then_some(tab.lines + 1 - string))
+            .unwrap_or(string)
+    };
     let typed_spanners: Vec<&NotationSpanner> = score
         .spanners
         .iter()
@@ -873,7 +888,7 @@ fn serialize_note(
             };
             xml.push_str(&format!("        <notehead>{}</notehead>\n", nh_str));
         }
-        serialize_notations(xml, note, &typed_spanners, address);
+        serialize_notations(xml, note, &typed_spanners, address, tab_lines);
         if let Some(lyric) = &note.lyric {
             xml.push_str("        <lyric number=\"1\">\n");
             xml.push_str(&format!(
@@ -931,7 +946,10 @@ fn serialize_note(
             ));
             if let Some(tab) = note.tab_positions.get(pitch_idx + 1) {
                 xml.push_str("        <technical>\n");
-                xml.push_str(&format!("          <string>{}</string>\n", tab.string));
+                xml.push_str(&format!(
+                    "          <string>{}</string>\n",
+                    musicxml_tab_string(tab.string)
+                ));
                 xml.push_str(&format!("          <fret>{}</fret>\n", tab.fret));
                 xml.push_str("        </technical>\n");
             }
@@ -1101,6 +1119,7 @@ fn serialize_notations(
     note: &Note,
     typed_spanners: &[&NotationSpanner],
     address: &NoteAddr,
+    tab_lines: Option<u8>,
 ) {
     let typed_has =
         |kind: NotationSpannerKind| typed_spanners.iter().any(|spanner| spanner.kind == kind);
@@ -1293,11 +1312,17 @@ fn serialize_notations(
             }
         }
         if let Some(s) = note.string_number {
-            xml.push_str(&format!("            <string>{}</string>\n", s));
+            xml.push_str(&format!(
+                "            <string>{}</string>\n",
+                musicxml_tab_string_from_internal(s, tab_lines)
+            ));
         }
         if let Some(tab) = &note.tab_position {
             if note.string_number.is_none() {
-                xml.push_str(&format!("            <string>{}</string>\n", tab.string));
+                xml.push_str(&format!(
+                    "            <string>{}</string>\n",
+                    musicxml_tab_string_from_internal(tab.string, tab_lines)
+                ));
             }
             xml.push_str(&format!("            <fret>{}</fret>\n", tab.fret));
         }
@@ -1346,6 +1371,13 @@ fn navigation_direction(nav: &str) -> (String, Option<&'static str>) {
         "DalSegnoAlCoda" => ("<words>D.S. al Coda</words>".into(), None),
         "ToCoda" => ("<words>To Coda</words>".into(), Some("tocoda")),
         other => (format!("<words>{}</words>", escape_xml(other)), None),
+    }
+}
+
+fn musicxml_tab_string_from_internal(string: u8, tab_lines: Option<u8>) -> u8 {
+    match tab_lines {
+        Some(lines) if string != 0 && string <= lines => lines + 1 - string,
+        _ => string,
     }
 }
 

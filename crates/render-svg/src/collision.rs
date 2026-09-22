@@ -106,11 +106,11 @@ mod tests {
             priority: 1,
         };
 
-        let mut owner = CollisionOwner::with_fixed_obstacles(&[source.clone()]);
+        let mut owner = CollisionOwner::with_fixed_obstacles(std::slice::from_ref(&source));
         owner.push(
             GlyphPlacement {
                 resource_key: "later".into(),
-                metrics: source.metrics.clone(),
+                metrics: source.metrics,
                 x_mm: 10.0,
                 y_mm: 20.0,
                 priority: 1,

@@ -10,6 +10,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-09-22
+
+### Interoperability
+
+- MusicXML input now accepts the conventional MusicXML public DTD declaration emitted by MuseScore
+  without loading external resources. Internal subsets and `ENTITY`/`SYSTEM` declarations remain
+  rejected.
+- Technical string numbers now convert between Acorde's low-to-high tablature storage and
+  MusicXML's high-to-low convention at parser and serializer boundaries. A minimal low-E/fret-3
+  fixture and a bounded alphaTab structural/playback-pitch observation cover the mapping.
+- Added checksum-pinned Verovio, MuseScore, alphaTab, and music21 observation records. They are
+  bounded structural checks, not claims of visual, playback, or lossless-interchange parity.
+
+### Maintenance
+
+- Isolated SVG annotation/span/tab collision domains and command structural/range/spanner-remap
+  domains while retaining the public command API. Restored production spanner-remap imports that
+  had been incorrectly test-gated (#80).
+- Synchronized workspace package versions, internal dependency constraints, scorecard, and
+  English/Japanese dependency examples for 1.2.2.
+
 ## [1.2.1] - 2026-09-22
 
 ### SVG engraving

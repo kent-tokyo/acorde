@@ -1,6 +1,6 @@
 # acorde
 
-Platform-agnostic music score library for Rust and WebAssembly (v1.2.1).
+Platform-agnostic music score library for Rust and WebAssembly (v1.2.2).
 
 acorde provides a serializable score model, undoable commands, format I/O, logical layout,
 deterministic SVG rendering, playback events, and WASM bindings. Core libraries are synchronous,
@@ -32,6 +32,8 @@ See the [notation coverage matrix](docs/notation-coverage.md) for the supported 
 slices and known information-loss boundaries.
 The bounded, version- and checksum-pinned [external music21 analysis protocol](docs/external-analysis-evidence.md)
 records a smoke comparison without claiming general analysis parity.
+The checksum-pinned [external interoperability evidence](docs/external-interoperability-evidence.md)
+records bounded Verovio, MuseScore, and alphaTab observations without claiming notation or engraving parity.
 The host-neutral print page contract is described in [print-layout.md](docs/print-layout.md),
 and the page-level SVG requirements are in [print-svg-contract.md](docs/print-svg-contract.md);
 PDF conversion, font resolution, printer access, and preview UI remain host responsibilities.
@@ -45,7 +47,7 @@ Analysis results also expose schema-versioned canonical chord names alongside st
 data, so browser hosts do not need to duplicate notation formatting rules.
 
 ```toml
-acorde-analysis = "1.2.1"
+acorde-analysis = "1.2.2"
 ```
 
 The optional `soundfont` feature exposes `acorde::soundfont`, a bounded SF2/SF3
@@ -84,15 +86,15 @@ accidental input that would overflow the canonical alteration range.
 
 ```toml
 [dependencies]
-acorde = "1.2.1"
-acorde-render-svg = "1.2.1"
+acorde = "1.2.2"
+acorde-render-svg = "1.2.2"
 ```
 
 The default I/O features are `musicxml` and `midi`; enable the optional `abc`, `mscz`, or `mei`
 features when needed:
 
 ```toml
-acorde = { version = "1.2.1", features = ["abc", "mscz", "mei"] }
+acorde = { version = "1.2.2", features = ["abc", "mscz", "mei"] }
 ```
 
 ```rust

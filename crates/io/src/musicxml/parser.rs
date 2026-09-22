@@ -21,6 +21,46 @@ const MAX_NOTES_PER_VOICE: usize = 50_000;
 const MAX_SOURCE_VOICE_NUMBER: u32 = 1_000_000;
 const MAX_DEPTH: usize = 64;
 
+/// Accept only the conventional external MusicXML DTD declaration.
+///
+/// `quick-xml` does not resolve the declaration, but accepting an internal subset would
+/// unnecessarily widen the parser's input surface. MuseScore writes this public declaration
+/// by default, so retain the compatibility path without admitting entity declarations.
+fn is_safe_musicxml_doctype(declaration: &[u8]) -> bool {
+    let Ok(declaration) = std::str::from_utf8(declaration) else {
+        return false;
+    };
+    let normalized = declaration.to_ascii_lowercase();
+    if normalized.contains(['[', ']', '%'])
+        || normalized.contains("entity")
+        || normalized.contains("system")
+    {
+        return false;
+    }
+
+    let (root, system_id) = if normalized.starts_with("score-partwise") {
+        ("score-partwise", "musicxml.org/dtds/partwise.dtd")
+    } else if normalized.starts_with("score-timewise") {
+        ("score-timewise", "musicxml.org/dtds/timewise.dtd")
+    } else {
+        return false;
+    };
+
+    normalized.starts_with(root)
+        && normalized.contains("public")
+        && normalized.contains("-//recordare//dtd musicxml")
+        && normalized.contains(system_id)
+}
+
+/// Acorde stores tablature tuning from low to high, while MusicXML technical string numbers
+/// count from the highest string. Translate at the I/O boundary when tuning metadata is known.
+fn musicxml_string_to_internal(string: u8, tab_lines: Option<u8>) -> u8 {
+    match tab_lines {
+        Some(lines) if string != 0 && string <= lines => lines + 1 - string,
+        _ => string,
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SpannerAction {
     Start,
@@ -1720,6 +1760,10 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             } else {
                                 0
                             };
+                            let tab_lines = score.parts[pi].staves[target_staff_index]
+                                .tablature
+                                .as_ref()
+                                .map(|tab| tab.lines);
                             let measure_count = score.parts[pi].staves[0].measures.len();
                             while score.parts[pi].staves[target_staff_index].measures.len()
                                 < measure_count
@@ -1858,7 +1902,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                             relative_x: note_relative_x,
                                             relative_y: note_relative_y,
                                             fingerings: std::mem::take(&mut pending_fingerings),
-                                            string_number: pending_string_number.take(),
+                                            string_number: pending_string_number.take().map(
+                                                |string| {
+                                                    musicxml_string_to_internal(string, tab_lines)
+                                                },
+                                            ),
                                             fret: pending_fret.take(),
                                             technique_text: pending_technique_text.take(),
                                             note_head: pending_note_head.take(),
@@ -1912,7 +1960,8 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                         note.fingering = note.fingerings.first().copied();
                                     }
                                     if let Some(s) = pending_string_number.take() {
-                                        note.string_number = Some(s);
+                                        note.string_number =
+                                            Some(musicxml_string_to_internal(s, tab_lines));
                                     }
                                     if let (Some(string), Some(fret)) =
                                         (note.string_number, pending_fret.take())
@@ -2008,8 +2057,8 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
             }
             Ok(Event::Eof) => break,
             Err(e) => return Err(Error::Xml(format!("{e}"))),
-            Ok(Event::DocType(_)) => {
-                return Err(Error::Xml("DOCTYPE declarations are not allowed".into()));
+            Ok(Event::DocType(declaration)) if !is_safe_musicxml_doctype(declaration.as_ref()) => {
+                return Err(Error::Xml("unsafe DOCTYPE declaration".into()));
             }
             _ => {}
         }
@@ -2242,9 +2291,22 @@ mod tests {
     }
 
     #[test]
-    fn doctype_rejected() {
+    fn unsafe_doctype_rejected() {
         let xml = "<?xml version=\"1.0\"?><!DOCTYPE foo><score-partwise/>";
         assert!(parse_musicxml(xml).is_err());
+    }
+
+    #[test]
+    fn standard_public_musicxml_doctype_is_accepted() {
+        let xml = r#"<?xml version="1.0"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes>
+    <note><rest/><duration>1</duration><type>quarter</type></note>
+  </measure></part>
+</score-partwise>"#;
+        assert!(parse_musicxml(xml).is_ok());
     }
 
     #[test]
