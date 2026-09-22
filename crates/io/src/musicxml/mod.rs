@@ -353,6 +353,15 @@ fn push_pitch_alter_diagnostic(
 /// Report canonical score fields that the MusicXML serializer cannot represent.
 pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<crate::Diagnostic> {
     let mut diagnostics = Vec::new();
+    for (view_index, view) in score.views.iter().enumerate() {
+        let mut diagnostic = crate::Diagnostic::warning(
+            "musicxml.export-unsupported-score-view",
+            "linked score views are retained in acorde JSON but MusicXML export contains shared score content only",
+        );
+        diagnostic.source_location = Some(format!("/score/views/{}", view_index + 1));
+        diagnostic.preserved_value = Some(format!("id={};name={}", view.id, view.name));
+        diagnostics.push(diagnostic);
+    }
     for (override_index, override_) in score.object_style_overrides.iter().enumerate() {
         let mut diagnostic = crate::Diagnostic::warning(
             "musicxml.export-unsupported-object-style-override",
@@ -648,6 +657,27 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<crate::Diagnos
 #[cfg(test)]
 mod tests {
     use super::{export_loss_diagnostics, loss_diagnostics};
+    use acorde_core::{Score, ScoreView};
+
+    #[test]
+    fn export_loss_report_locates_linked_score_views() {
+        let mut score = Score::new("Views", 120, 4, 4, 0, 1);
+        score
+            .views
+            .push(ScoreView::linked_part("piano", "Piano", 0));
+        let diagnostic = export_loss_diagnostics(&score)
+            .into_iter()
+            .find(|diagnostic| diagnostic.code == "musicxml.export-unsupported-score-view")
+            .expect("linked-view diagnostic");
+        assert_eq!(
+            diagnostic.source_location.as_deref(),
+            Some("/score/views/1")
+        );
+        assert_eq!(
+            diagnostic.preserved_value.as_deref(),
+            Some("id=piano;name=Piano")
+        );
+    }
 
     #[test]
     fn fractional_pitch_alter_is_diagnosed_when_not_exactly_representable() {
