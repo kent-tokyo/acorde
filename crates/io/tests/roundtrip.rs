@@ -1,5 +1,6 @@
 use acorde_core::{
-    AddNoteCmd, Clef, Command, Duration, Pitch, SetMeasureTextCmd, Step, StyledText, TextStyle,
+    AddMeasureCmd, AddNoteCmd, Clef, Command, Duration, NoteAddr, Pitch, ScoreEngine,
+    ScoreFragmentSelection, SetMeasureTextCmd, Step, StyledText, TextStyle, extract_score_fragment,
 };
 /// Integration tests: parse a fixture, serialize, re-parse, and verify
 /// that key musical properties are preserved across the round-trip.
@@ -11,6 +12,7 @@ use acorde_io::{parse_midi, parse_musicxml, serialize_musicxml};
 static SIMPLE_XML: &str = include_str!("../../../tests/fixtures/simple.musicxml");
 static MULTIPART_XML: &str = include_str!("../../../tests/fixtures/multipart.musicxml");
 static MULTIVOICE_XML: &str = include_str!("../../../tests/fixtures/multivoice.musicxml");
+static FRAGMENT_RICH_XML: &str = include_str!("../../../tests/fixtures/fragment_rich.musicxml");
 static FIXTURE_MANIFEST: &str = include_str!("../../../tests/fixtures/manifest.json");
 static INTERCHANGE_REPORT: &str = include_str!("../../../docs/interchange-report.json");
 static WORKSPACE_MANIFEST: &str = include_str!("../../../Cargo.toml");
@@ -288,6 +290,84 @@ fn simple_musicxml_roundtrip_preserves_structure() {
             }
         }
     }
+}
+
+#[test]
+fn rich_musicxml_fragment_fixture_roundtrips_and_pastes_undoably() {
+    let score = parse_musicxml(FRAGMENT_RICH_XML).expect("rich fixture parses");
+    assert_eq!(score.parts[0].staves[0].measures.len(), 2);
+    assert_eq!(
+        score.parts[0].staves[0].measures[0].source_voice_numbers,
+        [Some(1), Some(5), None, None]
+    );
+    assert_eq!(score.spanners.len(), 1);
+    assert_eq!(
+        score.parts[0].staves[0].measures[0].voices[0][0]
+            .lyric
+            .as_ref()
+            .map(|lyric| lyric.text.as_str()),
+        Some("frag")
+    );
+    let restored = parse_musicxml(&serialize_musicxml(&score).expect("rich fixture serializes"))
+        .expect("rich fixture reparses");
+
+    let mut engine = ScoreEngine::new();
+    engine.try_replace_score(restored).expect("score is valid");
+    engine
+        .apply(Command::AddMeasure(AddMeasureCmd { after_index: 1 }))
+        .expect("third measure adds");
+    engine
+        .apply(Command::AddMeasure(AddMeasureCmd { after_index: 2 }))
+        .expect("fourth measure adds");
+    let start = NoteAddr {
+        part: 0,
+        staff: 0,
+        measure: 0,
+        voice: 0,
+        note: 0,
+    };
+    let fragment = extract_score_fragment(
+        &engine.score,
+        &[
+            ScoreFragmentSelection {
+                start: start.clone(),
+                end: NoteAddr {
+                    measure: 1,
+                    ..start.clone()
+                },
+            },
+            ScoreFragmentSelection {
+                start: NoteAddr {
+                    voice: 1,
+                    ..start.clone()
+                },
+                end: NoteAddr {
+                    measure: 1,
+                    voice: 1,
+                    ..start.clone()
+                },
+            },
+        ],
+    )
+    .expect("fragment extracts");
+    engine
+        .paste_score_fragment(
+            fragment,
+            NoteAddr {
+                measure: 2,
+                ..start.clone()
+            },
+        )
+        .expect("fragment pastes");
+    assert_eq!(engine.score.spanners.len(), 2);
+    assert_eq!(
+        engine.score.parts[0].staves[0].measures[2].source_voice_numbers,
+        [Some(1), Some(5), None, None]
+    );
+    engine.undo().expect("paste undoes");
+    assert_eq!(engine.score.spanners.len(), 1);
+    engine.redo().expect("paste redoes");
+    assert_eq!(engine.score.spanners.len(), 2);
 }
 
 #[test]
