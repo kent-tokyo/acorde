@@ -1,6 +1,7 @@
 //! Serializable, non-mutating previews for structural score transformations.
 
 use super::commands::{Command, apply_command, command_key};
+use super::duration::Duration;
 use super::score::{NoteAddr, Score};
 use super::validate::validate;
 use crate::Error;
@@ -63,6 +64,7 @@ fn is_structural_command(command: &Command) -> bool {
             | Command::JoinMeasures(_)
             | Command::ImplodeStaves(_)
             | Command::ExplodeVoices(_)
+            | Command::ScaleVoiceRange(_)
     )
 }
 
@@ -80,7 +82,14 @@ fn diagnostic_kind(message: &str) -> StructuralChangeDiagnosticKind {
     }
 }
 
-fn note_addresses(score: &Score) -> BTreeMap<String, Vec<NoteAddr>> {
+#[derive(Clone, PartialEq, Eq)]
+struct NoteRecord {
+    address: NoteAddr,
+    duration: Duration,
+    dot_count: u8,
+}
+
+fn note_records(score: &Score) -> BTreeMap<String, Vec<NoteRecord>> {
     let mut addresses = BTreeMap::new();
     for (part, part_data) in score.parts.iter().enumerate() {
         for (staff, staff_data) in part_data.staves.iter().enumerate() {
@@ -90,12 +99,16 @@ fn note_addresses(score: &Score) -> BTreeMap<String, Vec<NoteAddr>> {
                         addresses
                             .entry(note_data.id.clone())
                             .or_insert_with(Vec::new)
-                            .push(NoteAddr {
-                                part,
-                                staff,
-                                measure,
-                                voice,
-                                note,
+                            .push(NoteRecord {
+                                address: NoteAddr {
+                                    part,
+                                    staff,
+                                    measure,
+                                    voice,
+                                    note,
+                                },
+                                duration: note_data.duration.clone(),
+                                dot_count: note_data.dot_count,
                             });
                     }
                 }
@@ -120,16 +133,24 @@ fn sorted_unique_addresses(mut addresses: Vec<NoteAddr>) -> Vec<NoteAddr> {
 }
 
 fn affected_addresses(before: &Score, after: &Score) -> Vec<NoteAddr> {
-    let before = note_addresses(before);
-    let after = note_addresses(after);
+    let before = note_records(before);
+    let after = note_records(after);
     let ids: BTreeSet<_> = before.keys().chain(after.keys()).cloned().collect();
     let mut affected = Vec::new();
     for id in ids {
         let old = before.get(&id);
         let new = after.get(&id);
         if old != new {
-            affected.extend(old.into_iter().flatten().cloned());
-            affected.extend(new.into_iter().flatten().cloned());
+            affected.extend(
+                old.into_iter()
+                    .flatten()
+                    .map(|record| record.address.clone()),
+            );
+            affected.extend(
+                new.into_iter()
+                    .flatten()
+                    .map(|record| record.address.clone()),
+            );
         }
     }
     sorted_unique_addresses(affected)
@@ -286,7 +307,10 @@ pub fn plan_structural_change(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Duration, ExplodeVoicesCmd, ImplodeStavesCmd, Note, Pitch, ScoreTemplate, Step};
+    use crate::{
+        Duration, DurationScale, ExplodeVoicesCmd, ImplodeStavesCmd, Note, Pitch,
+        ScaleVoiceRangeCmd, ScoreTemplate, Step, TupletInfo,
+    };
 
     fn piano_score() -> Score {
         let mut score = Score::template(ScoreTemplate::Piano);
@@ -360,5 +384,64 @@ mod tests {
             StructuralChangeDiagnosticKind::Conflict
         );
         assert_eq!(serde_json::to_value(&score).unwrap(), before);
+    }
+
+    #[test]
+    fn scale_plan_reports_tuplet_limit_without_mutation() {
+        let mut score = piano_score();
+        score.parts[0].staves[0].measures[0].voices[0][0].tuplet = Some(TupletInfo {
+            actual_notes: 3,
+            normal_notes: 2,
+        });
+        let before = serde_json::to_value(&score).unwrap();
+        let plan = plan_structural_change(
+            &score,
+            &Command::ScaleVoiceRange(ScaleVoiceRangeCmd {
+                part_index: 0,
+                staff_index: 0,
+                voice: 0,
+                start_measure: 0,
+                end_measure: 0,
+                scale: DurationScale::Half,
+            }),
+        )
+        .unwrap();
+        assert!(!plan.can_apply);
+        assert_eq!(
+            plan.diagnostics[0].kind,
+            StructuralChangeDiagnosticKind::Unsupported
+        );
+        assert_eq!(serde_json::to_value(&score).unwrap(), before);
+    }
+
+    #[test]
+    fn scale_plan_marks_duration_changes_at_stable_addresses() {
+        let score = piano_score();
+        let plan = plan_structural_change(
+            &score,
+            &Command::ScaleVoiceRange(ScaleVoiceRangeCmd {
+                part_index: 0,
+                staff_index: 0,
+                voice: 0,
+                start_measure: 0,
+                end_measure: 0,
+                scale: DurationScale::Half,
+            }),
+        )
+        .unwrap();
+        assert!(plan.can_apply);
+        assert!(plan.affected_addresses.iter().any(|address| {
+            address.part == 0
+                && address.staff == 0
+                && address.measure == 0
+                && address.voice == 0
+                && address.note == 0
+        }));
+        assert!(plan.resulting_measures.iter().any(|measure| {
+            measure.part == 0
+                && measure.staff == 0
+                && measure.measure == 0
+                && measure.voice_note_counts == [2, 0, 0, 0]
+        }));
     }
 }

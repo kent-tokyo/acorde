@@ -78,6 +78,7 @@ pub enum Command {
     JoinMeasures(JoinMeasuresCmd),
     ImplodeStaves(ImplodeStavesCmd),
     ExplodeVoices(ExplodeVoicesCmd),
+    ScaleVoiceRange(ScaleVoiceRangeCmd),
     SetSystemBreak(SetSystemBreakCmd),
     SetPageBreak(SetPageBreakCmd),
     ToggleSlur(ToggleSlurCmd),
@@ -641,6 +642,30 @@ pub struct ExplodeVoicesCmd {
     pub target_staves: Vec<usize>,
     pub start_measure: usize,
     pub end_measure: usize,
+}
+
+/// Exact power-of-two duration scaling supported by the portable score model.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DurationScale {
+    Half,
+    Double,
+}
+
+/// Scale every note in one voice across an inclusive measure range.
+///
+/// Tuplets are rejected because scaling their displayed and performed duration
+/// requires a separate ratio policy. Underfilled scaled measures receive
+/// explicit trailing rests; overflow rejects the complete command before any
+/// score or history mutation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScaleVoiceRangeCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub voice: usize,
+    pub start_measure: usize,
+    pub end_measure: usize,
+    pub scale: DurationScale,
 }
 
 /// Toggle slur_start on `start` note and slur_end on `end` note (cross-measure aware).
@@ -1259,6 +1284,16 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::SplitMeasure(_) => hint!(Global, true, true),
         Command::JoinMeasures(_) => hint!(Global, true, true),
         Command::ImplodeStaves(_) | Command::ExplodeVoices(_) => hint!(Global, true, true),
+        Command::ScaleVoiceRange(c) => hint!(
+            Measures {
+                part: c.part_index,
+                staff: c.staff_index,
+                start: c.start_measure.min(c.end_measure),
+                end: c.start_measure.max(c.end_measure) + 1,
+            },
+            true,
+            true
+        ),
         Command::AddHairpin(c) => hint!(meas!(c), false, true),
         Command::ToggleTie(c) => hint!(meas!(c), false, true),
         Command::SetDynamic(c) => hint!(meas!(c), false, true),
@@ -1383,6 +1418,11 @@ pub fn command_label(cmd: &Command) -> String {
         Command::JoinMeasures(_) => "Join Measures".to_string(),
         Command::ImplodeStaves(_) => "Implode Staves".to_string(),
         Command::ExplodeVoices(_) => "Explode Voices".to_string(),
+        Command::ScaleVoiceRange(c) => match c.scale {
+            DurationScale::Half => "Halve Voice Durations",
+            DurationScale::Double => "Double Voice Durations",
+        }
+        .to_string(),
         Command::SetSystemBreak(_) => "Set System Break".to_string(),
         Command::SetPageBreak(_) => "Set Page Break".to_string(),
         Command::ToggleSlur(_) => "Toggle Slur".to_string(),
@@ -1515,6 +1555,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::JoinMeasures(_) => "JoinMeasures".to_string(),
         Command::ImplodeStaves(_) => "ImplodeStaves".to_string(),
         Command::ExplodeVoices(_) => "ExplodeVoices".to_string(),
+        Command::ScaleVoiceRange(_) => "ScaleVoiceRange".to_string(),
         Command::SetSystemBreak(_) => "SetSystemBreak".to_string(),
         Command::SetPageBreak(_) => "SetPageBreak".to_string(),
         Command::ToggleSlur(_) => "ToggleSlur".to_string(),
@@ -1788,6 +1829,7 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         Command::JoinMeasures(c) => apply_join_measures(c, score),
         Command::ImplodeStaves(c) => apply_implode_staves(c, score),
         Command::ExplodeVoices(c) => apply_explode_voices(c, score),
+        Command::ScaleVoiceRange(c) => apply_scale_voice_range(c, score),
         Command::SetSystemBreak(c) => {
             for_each_measure_at(score, c.measure_index, |m| {
                 m.system_break = c.value;
@@ -3889,6 +3931,98 @@ fn apply_explode_voices(cmd: &ExplodeVoicesCmd, score: &mut Score) -> Result<(),
             ..address.clone()
         })
     });
+    Ok(())
+}
+
+fn scaled_duration(duration: &Duration, scale: DurationScale) -> Option<Duration> {
+    match (duration, scale) {
+        (Duration::Whole, DurationScale::Double) | (Duration::SixtyFourth, DurationScale::Half) => {
+            None
+        }
+        (Duration::Whole, DurationScale::Half) | (Duration::Half, DurationScale::Double) => {
+            Some(Duration::Half)
+        }
+        (Duration::Half, DurationScale::Half) | (Duration::Quarter, DurationScale::Double) => {
+            Some(Duration::Quarter)
+        }
+        (Duration::Quarter, DurationScale::Half) | (Duration::Eighth, DurationScale::Double) => {
+            Some(Duration::Eighth)
+        }
+        (Duration::Eighth, DurationScale::Half) | (Duration::Sixteenth, DurationScale::Double) => {
+            Some(Duration::Sixteenth)
+        }
+        (Duration::Sixteenth, DurationScale::Half)
+        | (Duration::ThirtySecond, DurationScale::Double) => Some(Duration::ThirtySecond),
+        (Duration::ThirtySecond, DurationScale::Half)
+        | (Duration::SixtyFourth, DurationScale::Double) => Some(Duration::SixtyFourth),
+    }
+}
+
+fn apply_scale_voice_range(cmd: &ScaleVoiceRangeCmd, score: &mut Score) -> Result<(), Error> {
+    if cmd.voice >= 4 {
+        return Err(Error::VoiceOutOfRange(cmd.voice));
+    }
+    let (start, end) = normalized_structural_measure_range(cmd.start_measure, cmd.end_measure);
+    let staff = score
+        .parts
+        .get(cmd.part_index)
+        .ok_or(Error::PartNotFound(cmd.part_index))?
+        .staves
+        .get(cmd.staff_index)
+        .ok_or(Error::StaffNotFound(cmd.staff_index))?;
+    for measure_index in start..=end {
+        let measure = staff
+            .measures
+            .get(measure_index)
+            .ok_or(Error::MeasureNotFound(measure_index))?;
+        let expected =
+            effective_staff_measure_beats(staff, &score.settings.time_signature, measure_index)?;
+        let voice = &measure.voices[cmd.voice];
+        if voice.iter().any(|note| note.tuplet.is_some()) {
+            return Err(Error::InvalidCommand(
+                "duration scaling does not support tuplets".into(),
+            ));
+        }
+        let mut scaled_beats = 0.0;
+        for note in voice {
+            if scaled_duration(&note.duration, cmd.scale).is_none() {
+                return Err(Error::InvalidCommand(
+                    "duration scaling exceeds the portable duration range".into(),
+                ));
+            }
+            if !note.is_grace && !note.is_cue {
+                scaled_beats += match cmd.scale {
+                    DurationScale::Half => note.beats() / 2.0,
+                    DurationScale::Double => note.beats() * 2.0,
+                };
+            }
+        }
+        if scaled_beats > expected + 1e-9 {
+            return Err(Error::InvalidCommand(format!(
+                "duration scaling overflows measure {measure_index}: {scaled_beats} beats exceeds {expected}"
+            )));
+        }
+    }
+
+    for measure_index in start..=end {
+        let expected = effective_staff_measure_beats(
+            &score.parts[cmd.part_index].staves[cmd.staff_index],
+            &score.settings.time_signature,
+            measure_index,
+        )?;
+        let voice = &mut score.parts[cmd.part_index].staves[cmd.staff_index].measures
+            [measure_index]
+            .voices[cmd.voice];
+        if voice.is_empty() {
+            continue;
+        }
+        for note in voice.iter_mut() {
+            note.duration = scaled_duration(&note.duration, cmd.scale).ok_or_else(|| {
+                Error::InvalidCommand("duration scaling exceeds the portable duration range".into())
+            })?;
+        }
+        pad_voice_to_measure(voice, expected);
+    }
     Ok(())
 }
 
