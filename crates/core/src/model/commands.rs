@@ -8,8 +8,7 @@ use super::notation::{
 use super::pitch::Pitch;
 use super::score::{
     Measure, NotationSpanner, NotationSpannerKind, Note, NoteAddr, Part, PartGroup, Score,
-    ScoreTemplate, Staff,
-    respell_score, respell_score_to_key,
+    ScoreTemplate, Staff, respell_score, respell_score_to_key,
 };
 use super::validate::validate;
 use crate::Error;

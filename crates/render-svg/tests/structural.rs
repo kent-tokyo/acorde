@@ -5,6 +5,7 @@
 mod common;
 
 use acorde_render_svg::{RenderPreflightKind, SvgRenderOptions, render_preflight, render_svg};
+use std::collections::BTreeMap;
 
 fn opts() -> SvgRenderOptions {
     SvgRenderOptions {
@@ -208,6 +209,85 @@ fn interactive_false_omits_data_attributes() {
     let svg = render_svg(&common::satb_major(), &o).unwrap();
     assert!(!svg.contains("data-acorde-kind"));
     assert!(!svg.contains("data-note-addr"));
+}
+
+fn svg_attributes(element: &str) -> BTreeMap<String, String> {
+    let mut attributes = BTreeMap::new();
+    for token in element.split_whitespace().skip(1) {
+        let token = token.trim_end_matches("/>");
+        if let Some((key, value)) = token.split_once('=') {
+            attributes.insert(key.to_string(), value.trim_matches('"').to_string());
+        }
+    }
+    attributes
+}
+
+fn measure_hit_regions(svg: &str) -> Vec<BTreeMap<String, String>> {
+    svg.split("<rect class=\"acorde-measure-hit-region\"")
+        .skip(1)
+        .filter_map(|tail| tail.split_once("/>").map(|(element, _)| element))
+        .map(|element| {
+            svg_attributes(&format!(
+                "<rect class=\"acorde-measure-hit-region\"{element}"
+            ))
+        })
+        .collect()
+}
+
+fn assert_stable_measure_hit_regions(score: &acorde_core::Score, expected_count: usize) {
+    let svg = render_svg(score, &opts()).expect("score renders interactively");
+    let regions = measure_hit_regions(&svg);
+    assert_eq!(regions.len(), expected_count);
+
+    let mut by_system_staff: BTreeMap<(usize, usize, usize), Vec<(f32, f32)>> = BTreeMap::new();
+    for region in regions {
+        assert_eq!(region["data-acorde-kind"], "measure-hit-region");
+        let part = region["data-part"].parse::<usize>().expect("part index");
+        let staff = region["data-staff"].parse::<usize>().expect("staff index");
+        let row = region["data-system-row"]
+            .parse::<usize>()
+            .expect("system row");
+        let x = region["x"].parse::<f32>().expect("hit x");
+        let width = region["width"].parse::<f32>().expect("hit width");
+        let height = region["height"].parse::<f32>().expect("hit height");
+        assert!(width > 0.0, "measure hit width must be non-zero");
+        assert!(height > 0.0, "measure hit height must be non-zero");
+        by_system_staff
+            .entry((part, staff, row))
+            .or_default()
+            .push((x, width));
+    }
+    for regions in by_system_staff.values_mut() {
+        regions.sort_by(|left, right| left.0.total_cmp(&right.0));
+        for pair in regions.windows(2) {
+            assert!(
+                pair[0].0 + pair[0].1 <= pair[1].0 + 0.01,
+                "measure hit regions overlap: {:?}",
+                pair
+            );
+        }
+    }
+    assert!(svg.contains("fill=\"transparent\" pointer-events=\"all\""));
+}
+
+#[test]
+fn interactive_measure_hit_regions_cover_empty_and_dense_scores() {
+    use acorde_core::Score;
+
+    assert_stable_measure_hit_regions(&Score::new("one", 120, 4, 4, 0, 1), 1);
+    assert_stable_measure_hit_regions(&Score::new("four", 120, 4, 4, 0, 4), 4);
+    assert_stable_measure_hit_regions(&Score::new("hundred", 120, 4, 4, 0, 100), 100);
+    assert_stable_measure_hit_regions(&common::satb_major(), 2);
+}
+
+#[test]
+fn interactive_false_omits_measure_hit_regions() {
+    use acorde_core::Score;
+
+    let mut options = opts();
+    options.interactive = false;
+    let svg = render_svg(&Score::new("noninteractive", 120, 4, 4, 0, 1), &options).unwrap();
+    assert!(!svg.contains("acorde-measure-hit-region"));
 }
 
 #[test]
