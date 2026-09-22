@@ -1220,6 +1220,82 @@ mod tests {
     }
 
     #[test]
+    fn move_or_copy_voice_range_is_atomic_and_undoable() {
+        use crate::MoveOrCopyVoiceRangeCmd;
+        use crate::{Duration, Note, Pitch, Step};
+
+        let mut engine = ScoreEngine::new();
+        engine.score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        let source = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
+        let target = NoteAddr {
+            measure: 1,
+            ..source.clone()
+        };
+        engine
+            .apply(Command::MoveOrCopyVoiceRange(MoveOrCopyVoiceRangeCmd {
+                source_start: source.clone(),
+                source_end: source.clone(),
+                target: target.clone(),
+                move_source: false,
+            }))
+            .unwrap();
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[1].voices[0][0].pitches[0].step,
+            Step::C
+        );
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].voices[0][0].pitches[0].step,
+            Step::C
+        );
+
+        engine
+            .apply(Command::MoveOrCopyVoiceRange(MoveOrCopyVoiceRangeCmd {
+                source_start: source.clone(),
+                source_end: source.clone(),
+                target: NoteAddr {
+                    measure: 2,
+                    ..source.clone()
+                },
+                move_source: true,
+            }))
+            .unwrap();
+        assert!(
+            engine.score.parts[0].staves[0].measures[0].voices[0]
+                .iter()
+                .all(|note| note.is_rest)
+        );
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[2].voices[0][0].pitches[0].step,
+            Step::C
+        );
+        engine.undo().unwrap();
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].voices[0][0].pitches[0].step,
+            Step::C
+        );
+
+        let before = serde_json::to_value(&engine.score).unwrap();
+        assert!(
+            engine
+                .apply(Command::MoveOrCopyVoiceRange(MoveOrCopyVoiceRangeCmd {
+                    source_start: source.clone(),
+                    source_end: source.clone(),
+                    target: source,
+                    move_source: true,
+                }))
+                .is_err()
+        );
+        assert_eq!(serde_json::to_value(&engine.score).unwrap(), before);
+    }
+
+    #[test]
     fn copy_range_paste_range_roundtrip() {
         use crate::model::duration::Duration;
         use crate::model::pitch::{Pitch, Step};
