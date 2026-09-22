@@ -1,10 +1,10 @@
 use super::change_hint::{ChangeHint, ChangeScope};
 use super::commands::{
-    AddStaffCmd, Command, CommandStack, DeleteStaffCmd, ExchangeVoicesCmd, PasteRangeCmd,
-    PasteScoreFragmentCmd, PasteVoiceCmd, RespellScoreCmd, RespellScoreToKeyCmd, SetArpeggioCmd,
-    SetCueCmd, SetDurationCmd, SetInstrumentIdCmd, SetNoteHeadCmd, SetNotePlacementCmd,
-    SetPartGroupCmd, SetStemCmd, SetTupletCmd, SetUnpitchedCmd, ToggleSlurCmd, ToggleTrillLineCmd,
-    command_hint, command_key,
+    AddStaffCmd, Command, CommandStack, DeleteStaffCmd, ExchangeVoicesCmd, ExplodeVoicesCmd,
+    ImplodeStavesCmd, PasteRangeCmd, PasteScoreFragmentCmd, PasteVoiceCmd, RespellScoreCmd,
+    RespellScoreToKeyCmd, SetArpeggioCmd, SetCueCmd, SetDurationCmd, SetInstrumentIdCmd,
+    SetNoteHeadCmd, SetNotePlacementCmd, SetPartGroupCmd, SetStemCmd, SetTupletCmd,
+    SetUnpitchedCmd, ToggleSlurCmd, ToggleTrillLineCmd, command_hint, command_key,
 };
 use super::duration::Duration;
 use super::fragment::ScoreFragment;
@@ -375,6 +375,44 @@ impl ScoreEngine {
             end_measure,
             first_voice,
             second_voice,
+        }))
+    }
+
+    /// Move compatible primary staff voices into the voices of `target_staff`
+    /// as one undoable, lossless structural transformation.
+    pub fn implode_staves(
+        &mut self,
+        part_index: usize,
+        source_staves: Vec<usize>,
+        target_staff: usize,
+        start_measure: usize,
+        end_measure: usize,
+    ) -> Result<ChangeHint, Error> {
+        self.apply(Command::ImplodeStaves(ImplodeStavesCmd {
+            part_index,
+            source_staves,
+            target_staff,
+            start_measure,
+            end_measure,
+        }))
+    }
+
+    /// Move voices from `source_staff` to the primary voices of
+    /// `target_staves` as one undoable structural transformation.
+    pub fn explode_voices(
+        &mut self,
+        part_index: usize,
+        source_staff: usize,
+        target_staves: Vec<usize>,
+        start_measure: usize,
+        end_measure: usize,
+    ) -> Result<ChangeHint, Error> {
+        self.apply(Command::ExplodeVoices(ExplodeVoicesCmd {
+            part_index,
+            source_staff,
+            target_staves,
+            start_measure,
+            end_measure,
         }))
     }
 
@@ -1365,6 +1403,95 @@ mod tests {
         );
         assert_eq!(engine.score.spanners[0].end.measure, 0);
         assert_eq!(engine.score.spanners[0].end.note, 1);
+    }
+
+    #[test]
+    fn implode_then_explode_preserves_voices_spans_and_source_numbers() {
+        use crate::model::score::{NotationSpanner, NotationSpannerKind, ScoreTemplate};
+        use crate::{Duration, Note, Pitch, Step};
+
+        let mut engine = ScoreEngine::new();
+        engine.score = Score::template(ScoreTemplate::Piano);
+        let upper = &mut engine.score.parts[0].staves[0].measures[0];
+        upper.voices[0] = vec![Note::new(Pitch::new(Step::C, 5), Duration::Whole)];
+        upper.source_voice_numbers = [Some(1), None, None, None];
+        let lower = &mut engine.score.parts[0].staves[1].measures[0];
+        lower.voices[0] = vec![Note::new(Pitch::new(Step::E, 3), Duration::Whole)];
+        lower.source_voice_numbers = [Some(5), None, None, None];
+        engine.score.spanners.push(NotationSpanner {
+            id: "implode-span".into(),
+            kind: NotationSpannerKind::Slur,
+            start: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+            end: NoteAddr {
+                part: 0,
+                staff: 1,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+            number: None,
+            line_type: None,
+            text: None,
+            placement: None,
+            ottava_size: None,
+            ottava_type: None,
+        });
+        let before = serde_json::to_value(&engine.score).unwrap();
+
+        engine.implode_staves(0, vec![0, 1], 0, 0, 0).unwrap();
+        let upper = &engine.score.parts[0].staves[0].measures[0];
+        assert_eq!(upper.voices[0][0].pitches[0].step, Step::C);
+        assert_eq!(upper.voices[1][0].pitches[0].step, Step::E);
+        assert_eq!(upper.source_voice_numbers, [Some(1), Some(5), None, None]);
+        assert!(
+            engine.score.parts[0].staves[1].measures[0].voices[0]
+                .iter()
+                .all(|note| note.is_rest)
+        );
+        assert_eq!(engine.score.spanners[0].end.staff, 0);
+        assert_eq!(engine.score.spanners[0].end.voice, 1);
+
+        engine.explode_voices(0, 0, vec![0, 1], 0, 0).unwrap();
+        assert_eq!(serde_json::to_value(&engine.score).unwrap(), before);
+        engine.undo().unwrap();
+        assert_eq!(engine.score.spanners[0].end.staff, 0);
+        assert_eq!(engine.score.spanners[0].end.voice, 1);
+        engine.redo().unwrap();
+        assert_eq!(serde_json::to_value(&engine.score).unwrap(), before);
+    }
+
+    #[test]
+    fn explode_rejects_an_occupied_destination_without_mutation() {
+        use crate::model::score::ScoreTemplate;
+        use crate::{Duration, ExplodeVoicesCmd, Note, Pitch, Step};
+
+        let mut engine = ScoreEngine::new();
+        engine.score = Score::template(ScoreTemplate::Piano);
+        let source = &mut engine.score.parts[0].staves[0].measures[0];
+        source.voices[0] = vec![Note::new(Pitch::new(Step::C, 5), Duration::Whole)];
+        source.voices[1] = vec![Note::new(Pitch::new(Step::E, 4), Duration::Whole)];
+        engine.score.parts[0].staves[1].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::G, 3), Duration::Whole)];
+        let before = serde_json::to_value(&engine.score).unwrap();
+
+        assert!(
+            engine
+                .apply(Command::ExplodeVoices(ExplodeVoicesCmd {
+                    part_index: 0,
+                    source_staff: 0,
+                    target_staves: vec![0, 1],
+                    start_measure: 0,
+                    end_measure: 0,
+                }))
+                .is_err()
+        );
+        assert_eq!(serde_json::to_value(&engine.score).unwrap(), before);
     }
 
     #[test]
