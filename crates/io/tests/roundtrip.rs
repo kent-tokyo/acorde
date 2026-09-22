@@ -15,6 +15,7 @@ static MULTIVOICE_XML: &str = include_str!("../../../tests/fixtures/multivoice.m
 static FRAGMENT_RICH_XML: &str = include_str!("../../../tests/fixtures/fragment_rich.musicxml");
 static CROSS_STAFF_FRAGMENT_XML: &str =
     include_str!("../../../tests/fixtures/cross_staff_fragment.musicxml");
+static SECTION_BREAKS_XML: &str = include_str!("../../../tests/fixtures/section_breaks.musicxml");
 static FIXTURE_MANIFEST: &str = include_str!("../../../tests/fixtures/manifest.json");
 static INTERCHANGE_REPORT: &str = include_str!("../../../docs/interchange-report.json");
 static WORKSPACE_MANIFEST: &str = include_str!("../../../Cargo.toml");
@@ -415,6 +416,33 @@ fn musicxml_section_break_roundtrips_without_becoming_a_layout_break() {
     assert!(measure.section_break);
     assert!(!measure.system_break);
     assert!(!measure.page_break);
+}
+
+#[test]
+fn multipart_section_break_fixture_preserves_leading_middle_and_trailing_boundaries() {
+    let score = parse_musicxml(SECTION_BREAKS_XML).expect("section-break fixture parses");
+    assert_eq!(score.parts.len(), 2);
+    for part in &score.parts {
+        for staff in &part.staves {
+            assert_eq!(staff.measures.len(), 3);
+            assert!(staff.measures.iter().all(|measure| measure.section_break));
+            assert!(
+                staff
+                    .measures
+                    .iter()
+                    .all(|measure| !measure.system_break && !measure.page_break)
+            );
+        }
+    }
+
+    let restored =
+        parse_musicxml(&serialize_musicxml(&score).expect("section-break fixture serializes"))
+            .expect("section-break fixture reparses");
+    for part in &restored.parts {
+        for staff in &part.staves {
+            assert!(staff.measures.iter().all(|measure| measure.section_break));
+        }
+    }
 }
 
 #[test]
