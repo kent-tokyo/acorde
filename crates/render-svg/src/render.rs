@@ -2310,7 +2310,11 @@ fn render_measure(
     // transparent fill preserves pointer events while the following notation elements remain on
     // top in SVG paint order.
     if interactive {
-        let line_count = tablature.map(|config| config.lines).unwrap_or(5).max(1);
+        let line_count = tablature
+            .as_ref()
+            .map(|config| config.lines)
+            .unwrap_or(5)
+            .max(1);
         let hit_height = (line_count.saturating_sub(1) as f32 * space).max(space);
         let hit_y = bottom_y - hit_height;
         let _ = write!(
