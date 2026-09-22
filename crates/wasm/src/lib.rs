@@ -368,6 +368,30 @@ pub fn to_playback_events_ex(score_json: &str, options_json: &str) -> Result<Str
         .map_err(|e| js_err(format!("playback serialization failed: {e}")))
 }
 
+/// Build the provider-neutral offline-render timing manifest as JSON.
+///
+/// This produces semantic scheduling data only; audio synthesis, sample assets and
+/// encoding remain responsibilities of the calling host.
+#[wasm_bindgen]
+pub fn build_offline_render_manifest(
+    score_json: &str,
+    options_json: &str,
+    request_json: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::PlaybackOptions =
+        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
+    let request: acorde_core::OfflineRenderRequest = parse_json(
+        request_json,
+        "offline render request",
+        MAX_OPTIONS_JSON_BYTES,
+    )?;
+    let manifest =
+        acorde_core::build_offline_render_manifest(&score, &options, &request).map_err(js_err)?;
+    serde_json::to_string(&manifest)
+        .map_err(|e| js_err(format!("offline render manifest serialization failed: {e}")))
+}
+
 /// Compare a host/backend playback event trace with an expected trace.
 ///
 /// `expected_json` is normally produced by `to_playback_events_ex`; `actual_json` is supplied
