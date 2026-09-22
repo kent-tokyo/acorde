@@ -226,6 +226,32 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                         extra_staff.clef.to_musicxml_sign(),
                         extra_staff.clef.musicxml_line()
                     ));
+                        if extra_staff.tablature.is_some() || extra_staff.presentation.lines != 5 {
+                            xml.push_str(&format!(
+                                "        <staff-details number=\"{}\">\n          <staff-lines>{}</staff-lines>\n",
+                                staff_number + 1,
+                                extra_staff
+                                    .tablature
+                                    .as_ref()
+                                    .map_or(extra_staff.presentation.lines, |tab| tab.lines),
+                            ));
+                            if let Some(tab) = &extra_staff.tablature {
+                                for (index, &midi) in tab.tuning_midi.iter().enumerate() {
+                                    if index >= usize::from(tab.lines) {
+                                        break;
+                                    }
+                                    let (step, alter, octave) = midi_to_musicxml_tuning(midi);
+                                    xml.push_str(&format!(
+                                        "          <staff-tuning line=\"{}\"><tuning-step>{}</tuning-step><tuning-alter>{}</tuning-alter><tuning-octave>{}</tuning-octave></staff-tuning>\n",
+                                        index + 1,
+                                        step,
+                                        alter,
+                                        octave
+                                    ));
+                                }
+                            }
+                            xml.push_str("        </staff-details>\n");
+                        }
                     }
                 }
                 let tablature = if let Some(change) = measure.tablature_change.as_ref() {
@@ -254,6 +280,13 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                             octave
                         ));
                     }
+                    xml.push_str("        </staff-details>\n");
+                } else if i == 0 && staff.presentation.lines != 5 {
+                    xml.push_str("        <staff-details>\n");
+                    xml.push_str(&format!(
+                        "          <staff-lines>{}</staff-lines>\n",
+                        staff.presentation.lines
+                    ));
                     xml.push_str("        </staff-details>\n");
                 }
                 if i == 0 && staff.transpose_semitones != 0 {

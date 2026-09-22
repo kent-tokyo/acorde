@@ -3,8 +3,8 @@ use acorde_core::{
     Articulation, Barline, ChordDegree, ChordSymbol, Clef, Duration, FiguredBassFigure,
     GuitarTechnique, HairpinKind, HarpPedalDiagram, HarpPedalPosition, KeySignature, Lyric,
     Measure, NotationSpanner, NotationSpannerKind, Note, NoteAddr, NoteHead, OttavaKind, Part,
-    PartGroup, PartGroupSymbol, PercussionInstrument, Pitch, Score, Staff, Step, StyledText,
-    TextStyle, TimeSignature, TupletInfo, VoltaBracket,
+    PartGroup, PartGroupSymbol, PercussionInstrument, Pitch, Score, Staff, StaffKind, Step,
+    StyledText, TextStyle, TimeSignature, TupletInfo, VoltaBracket,
 };
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
@@ -223,6 +223,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut lyric_syllabic = String::new();
     let mut in_measure_style = false;
     let mut in_staff_details = false;
+    let mut staff_details_number = 1usize;
     let mut staff_lines: Option<u8> = None;
     let mut in_staff_tuning = false;
     let mut staff_tuning_line: Option<u8> = None;
@@ -414,6 +415,15 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "measure-style" => in_measure_style = true,
                     "staff-details" => {
                         in_staff_details = true;
+                        staff_details_number = attr_str(e, b"number")
+                            .and_then(|value| value.parse().ok())
+                            .filter(|number: &usize| (1..=MAX_STAVES).contains(number))
+                            .unwrap_or(1);
+                        if let Some(pi) = part_index {
+                            while score.parts[pi].staves.len() < staff_details_number {
+                                score.parts[pi].staves.push(Staff::new(Clef::Treble));
+                            }
+                        }
                         staff_lines = None;
                         staff_tunings.clear();
                     }
@@ -1520,21 +1530,26 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         if let Some(lines) = staff_lines
                             && (1..=64).contains(&lines)
                             && let Some(pi) = part_index
+                            && let Some(staff) =
+                                score.parts[pi].staves.get_mut(staff_details_number - 1)
                         {
-                            let config = acorde_core::TablatureConfig {
-                                lines,
-                                tuning_midi: staff_tunings
-                                    .iter()
-                                    .filter(|(line, _)| *line <= lines)
-                                    .map(|(_, midi)| *midi)
-                                    .collect(),
-                                capo: 0,
-                            };
-                            let staff = &mut score.parts[pi].staves[0];
-                            if staff.measures.len() <= 1 {
-                                staff.tablature = Some(config);
-                            } else if let Some(measure) = staff.measures.last_mut() {
-                                measure.tablature_change = Some(config);
+                            staff.presentation.lines = lines;
+                            if !staff_tunings.is_empty() {
+                                let config = acorde_core::TablatureConfig {
+                                    lines,
+                                    tuning_midi: staff_tunings
+                                        .iter()
+                                        .filter(|(line, _)| *line <= lines)
+                                        .map(|(_, midi)| *midi)
+                                        .collect(),
+                                    capo: 0,
+                                };
+                                staff.presentation.kind = StaffKind::Tablature;
+                                if staff.measures.len() <= 1 {
+                                    staff.tablature = Some(config);
+                                } else if let Some(measure) = staff.measures.last_mut() {
+                                    measure.tablature_change = Some(config);
+                                }
                             }
                         }
                     }

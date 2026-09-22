@@ -2821,3 +2821,35 @@ fn musicxml_measure_local_tablature_tuning_roundtrip() {
         Some(changed)
     );
 }
+
+#[test]
+fn musicxml_staff_lines_roundtrip_without_implying_tablature() {
+    use acorde_core::{Score, StaffKind};
+    let mut score = Score::new("One-line percussion", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].presentation.lines = 1;
+
+    let xml = serialize_musicxml(&score).expect("serialize");
+    assert!(xml.contains("<staff-lines>1</staff-lines>"));
+    let restored = parse_musicxml(&xml).expect("parse");
+    let staff = &restored.parts[0].staves[0];
+    assert_eq!(staff.presentation.lines, 1);
+    assert_eq!(staff.presentation.kind, StaffKind::Standard);
+    assert!(staff.tablature.is_none());
+}
+
+#[test]
+fn musicxml_extra_staff_lines_roundtrip_to_matching_staff() {
+    use acorde_core::{Duration, Note, Pitch, Score, ScoreTemplate, StaffKind, Step};
+    let mut score = Score::template(ScoreTemplate::Piano);
+    score.parts[0].staves[1].presentation.lines = 4;
+    score.parts[0].staves[1].measures[0].voices[0] =
+        vec![Note::new(Pitch::new(Step::C, 3), Duration::Quarter)];
+
+    let xml = serialize_musicxml(&score).expect("serialize");
+    assert!(xml.contains("<staff-details number=\"2\">"));
+    let restored = parse_musicxml(&xml).expect("parse");
+    let staff = &restored.parts[0].staves[1];
+    assert_eq!(staff.presentation.lines, 4);
+    assert_eq!(staff.presentation.kind, StaffKind::Standard);
+    assert!(staff.tablature.is_none());
+}
