@@ -1004,11 +1004,16 @@ mod tests {
     fn score_fragment_paste_is_undoable_and_assigns_fresh_spanner_ids() {
         use crate::model::fragment::{ScoreFragmentSelection, extract_score_fragment};
         use crate::model::score::{NotationSpanner, NotationSpannerKind};
-        use crate::{Duration, Note, Pitch, Step};
+        use crate::{CrossStaff, Duration, Note, Pitch, Score, ScoreTemplate, Step};
 
         let mut engine = ScoreEngine::new();
-        engine.score.parts[0].staves[0].measures[0].voices[0] =
-            vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        engine.score = Score::template(ScoreTemplate::Piano);
+        let mut source_note = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        source_note.cross_staff = Some(CrossStaff {
+            target_staff: 1,
+            target_voice: Some(0),
+        });
+        engine.score.parts[0].staves[0].measures[0].voices[0] = vec![source_note];
         engine.score.spanners.push(NotationSpanner {
             id: "source-slur".into(),
             kind: NotationSpannerKind::Slur,
@@ -1067,6 +1072,13 @@ mod tests {
             .id
             .clone();
         assert_ne!(pasted_id, source_id);
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[1].voices[0][0]
+                .cross_staff
+                .as_ref()
+                .map(|cross_staff| cross_staff.target_staff),
+            Some(1)
+        );
         assert!(
             engine
                 .score

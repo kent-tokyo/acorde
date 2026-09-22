@@ -31,8 +31,9 @@ pub use model::commands::{
 pub use model::duration::Duration;
 pub use model::engine::{EngineHistory, HistoryConflict, HistoryRelation, ScoreEngine};
 pub use model::fragment::{
-    SCORE_FRAGMENT_CONTRACT_VERSION, ScoreFragment, ScoreFragmentDiagnostic, ScoreFragmentMeasure,
-    ScoreFragmentSelection, ScoreFragmentVoice, extract_score_fragment,
+    SCORE_FRAGMENT_CONTRACT_VERSION, ScoreFragment, ScoreFragmentCrossStaffTarget,
+    ScoreFragmentDiagnostic, ScoreFragmentMeasure, ScoreFragmentSelection, ScoreFragmentVoice,
+    extract_score_fragment,
 };
 pub use model::gm::{drum_name, program_name};
 pub use model::harmony::{detect_chord, roman_numeral};
