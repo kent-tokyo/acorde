@@ -264,6 +264,19 @@ pub struct OfflineRenderFrameEvent {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub enum OfflineRenderSemanticEventKind {
+    Controller {
+        channel: u8,
+        controller: u8,
+        value: u8,
+    },
+    Tempo {
+        bpm: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ramp_to_bpm: Option<u16>,
+    },
+    Navigation {
+        marker: String,
+    },
     Pedal {
         down: bool,
     },
@@ -285,6 +298,16 @@ pub struct OfflineRenderSemanticFrameEvent {
     pub frame: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<NoteAddr>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub measure: Option<OfflineRenderMeasureAddress>,
+}
+
+/// Stable source location for a measure-scoped offline action.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct OfflineRenderMeasureAddress {
+    pub part: usize,
+    pub staff: usize,
+    pub measure: usize,
 }
 
 /// Machine-readable condition observed while deriving an offline schedule.
@@ -714,6 +737,7 @@ pub fn build_offline_render_manifest(
                 kind: OfflineRenderSemanticEventKind::Pedal { down: true },
                 frame: event.start_frame,
                 source: source.clone(),
+                measure: None,
             });
         }
         if source.as_ref().is_some_and(|address| {
@@ -730,6 +754,7 @@ pub fn build_offline_render_manifest(
                 kind: OfflineRenderSemanticEventKind::Pedal { down: false },
                 frame: event.start_frame,
                 source: source.clone(),
+                measure: None,
             });
         }
         for articulation in &event.event.articulations {
@@ -739,6 +764,7 @@ pub fn build_offline_render_manifest(
                 },
                 frame: event.start_frame,
                 source: source.clone(),
+                measure: None,
             });
         }
         if !event.event.pitch_bend_curve.is_empty() {
@@ -748,14 +774,22 @@ pub fn build_offline_render_manifest(
                 },
                 frame: event.start_frame,
                 source,
+                measure: None,
             });
         }
     }
+    append_measure_semantic_events(
+        &resolved_score,
+        &effective_options,
+        request.sample_rate_hz,
+        &mut semantic_events,
+    );
     if release_tail_frames > 0.0 {
         semantic_events.push(OfflineRenderSemanticFrameEvent {
             kind: OfflineRenderSemanticEventKind::ReleaseTail,
             frame: duration_frames as u64,
             source: None,
+            measure: None,
         });
     }
     Ok(OfflineRenderManifest {
@@ -777,6 +811,148 @@ pub fn build_offline_render_manifest(
         semantic_events,
         diagnostics,
     })
+}
+
+#[derive(Clone, Copy)]
+struct OfflineMeasureTime {
+    measure: usize,
+    start_secs: f64,
+    bpm: f64,
+    ramp_to_bpm: Option<f64>,
+    beats: f64,
+}
+
+fn offline_measure_times(
+    score: &Score,
+    options: &PlaybackOptions,
+    part: usize,
+    staff: usize,
+) -> Vec<OfflineMeasureTime> {
+    let Some(staff_ref) = score
+        .parts
+        .get(part)
+        .and_then(|part| part.staves.get(staff))
+    else {
+        return Vec::new();
+    };
+    let sequence = measure_sequence(score).into_iter().filter(|measure| {
+        options
+            .loop_region
+            .is_none_or(|(start, end)| *measure >= start && *measure <= end)
+    });
+    let mut bpm = options
+        .bpm_override
+        .unwrap_or(score.settings.tempo_bpm)
+        .max(1) as f64;
+    let mut secs = 0.0;
+    let mut result = Vec::new();
+    for measure_index in sequence {
+        let Some(measure) = staff_ref.measures.get(measure_index) else {
+            continue;
+        };
+        if let Some(tempo) = measure.tempo {
+            bpm = tempo.max(1) as f64;
+        }
+        let beats = measure
+            .time_sig
+            .as_ref()
+            .unwrap_or(&score.settings.time_signature)
+            .total_beats();
+        let ramp_to_bpm = measure
+            .tempo_ramp_to
+            .map(f64::from)
+            .filter(|tempo| *tempo > 0.0);
+        result.push(OfflineMeasureTime {
+            measure: measure_index,
+            start_secs: secs,
+            bpm,
+            ramp_to_bpm,
+            beats,
+        });
+        secs += tempo_ramp_seconds(bpm, ramp_to_bpm, beats, beats);
+        if let Some(end_bpm) = ramp_to_bpm {
+            bpm = end_bpm;
+        }
+    }
+    result
+}
+
+fn append_measure_semantic_events(
+    score: &Score,
+    options: &PlaybackOptions,
+    sample_rate_hz: u32,
+    events: &mut Vec<OfflineRenderSemanticFrameEvent>,
+) {
+    for (part_index, part) in score.parts.iter().enumerate() {
+        let timeline = offline_measure_times(score, options, part_index, 0);
+        let Some(staff) = part.staves.first() else {
+            continue;
+        };
+        let mut tick_starts = Vec::with_capacity(staff.measures.len());
+        let mut tick = 0u64;
+        for measure in &staff.measures {
+            tick_starts.push(tick);
+            let beats = measure
+                .time_sig
+                .as_ref()
+                .unwrap_or(&score.settings.time_signature)
+                .total_beats();
+            tick = tick.saturating_add((beats * 480.0).round() as u64);
+        }
+        for time in timeline {
+            let address = OfflineRenderMeasureAddress {
+                part: part_index,
+                staff: 0,
+                measure: time.measure,
+            };
+            let frame = (time.start_secs * f64::from(sample_rate_hz)).round() as u64;
+            let measure = &staff.measures[time.measure];
+            if part_index == 0 && (measure.tempo.is_some() || measure.tempo_ramp_to.is_some()) {
+                events.push(OfflineRenderSemanticFrameEvent {
+                    kind: OfflineRenderSemanticEventKind::Tempo {
+                        bpm: time.bpm.round() as u16,
+                        ramp_to_bpm: measure.tempo_ramp_to,
+                    },
+                    frame,
+                    source: None,
+                    measure: Some(address.clone()),
+                });
+            }
+            if part_index == 0
+                && let Some(marker) = &measure.navigation
+            {
+                events.push(OfflineRenderSemanticFrameEvent {
+                    kind: OfflineRenderSemanticEventKind::Navigation {
+                        marker: marker.clone(),
+                    },
+                    frame,
+                    source: None,
+                    measure: Some(address.clone()),
+                });
+            }
+            let start_tick = tick_starts[time.measure];
+            let end_tick = start_tick.saturating_add((time.beats * 480.0).round() as u64);
+            for control in &part.midi_control_changes {
+                if control.tick < start_tick || control.tick >= end_tick {
+                    continue;
+                }
+                let local_beats = (control.tick - start_tick) as f64 / 480.0;
+                let secs = time.start_secs
+                    + tempo_ramp_seconds(time.bpm, time.ramp_to_bpm, time.beats, local_beats);
+                events.push(OfflineRenderSemanticFrameEvent {
+                    kind: OfflineRenderSemanticEventKind::Controller {
+                        channel: control.channel,
+                        controller: control.controller,
+                        value: control.value,
+                    },
+                    frame: (secs * f64::from(sample_rate_hz)).round() as u64,
+                    source: None,
+                    measure: Some(address.clone()),
+                });
+            }
+        }
+    }
+    events.sort_by_key(|event| event.frame);
 }
 
 /// Timing tolerances for comparing a host/backend event trace with acorde's schedule.
@@ -1900,7 +2076,7 @@ mod tests {
     use crate::model::{
         duration::Duration,
         pitch::{Pitch, Step},
-        score::{Note, Score},
+        score::{MidiControlChange, Note, Score},
     };
 
     fn opts(bpm: Option<u16>) -> PlaybackOptions {
@@ -2885,6 +3061,13 @@ mod tests {
         score.parts[0].staves[0].measures[0].barline_left =
             super::super::notation::Barline::RepeatStart;
         score.parts[0].staves[0].measures[0].tempo_ramp_to = Some(60);
+        score.parts[0].staves[0].measures[0].navigation = Some("Segno".to_string());
+        score.parts[0].midi_control_changes.push(MidiControlChange {
+            tick: 480,
+            channel: 0,
+            controller: 11,
+            value: 96,
+        });
 
         let mut second = Note::new(Pitch::new(Step::D, 4), Duration::Quarter);
         second.pedal_end = true;
@@ -2942,8 +3125,46 @@ mod tests {
             event.kind,
             OfflineRenderSemanticEventKind::GuitarBend { .. }
         )));
-
+        let tempo_events = manifest
+            .semantic_events
+            .iter()
+            .filter(|event| matches!(event.kind, OfflineRenderSemanticEventKind::Tempo { .. }))
+            .count();
+        let navigation_events = manifest
+            .semantic_events
+            .iter()
+            .filter(|event| {
+                matches!(
+                    event.kind,
+                    OfflineRenderSemanticEventKind::Navigation { .. }
+                )
+            })
+            .count();
+        let control_frames: Vec<u64> = manifest
+            .semantic_events
+            .iter()
+            .filter_map(|event| {
+                matches!(
+                    event.kind,
+                    OfflineRenderSemanticEventKind::Controller {
+                        channel: 0,
+                        controller: 11,
+                        value: 96
+                    }
+                )
+                .then_some(event.frame)
+            })
+            .collect();
+        assert_eq!(tempo_events, 2);
+        assert_eq!(navigation_events, 2);
+        assert_eq!(control_frames.len(), 2);
         let ramp_duration = tempo_ramp_seconds(120.0, Some(60.0), 4.0, 4.0);
+        assert_eq!(
+            control_frames[0],
+            (tempo_ramp_seconds(120.0, Some(60.0), 4.0, 1.0) * 48_000.0).round() as u64
+        );
+        assert_eq!(control_frames[1], 373_084);
+
         let expected_starts = [0.0, ramp_duration, ramp_duration + 4.0, ramp_duration + 8.0];
         for (frame_event, expected_secs) in manifest.frame_events.iter().zip(expected_starts) {
             assert_eq!(
