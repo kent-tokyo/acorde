@@ -2010,6 +2010,36 @@ mod tests {
             acorde_core::Duration::Quarter,
         )];
         score.parts[0]
+            .midi_control_changes
+            .push(acorde_core::MidiControlChange {
+                tick: 480,
+                channel: 2,
+                controller: 64,
+                value: 127,
+            });
+        score.parts[0]
+            .midi_pitch_bends
+            .push(acorde_core::MidiPitchBend {
+                tick: 480,
+                channel: 2,
+                value: -512,
+            });
+        score.parts[0]
+            .midi_program_changes
+            .push(acorde_core::MidiProgramChange {
+                tick: 480,
+                channel: 2,
+                program: 41,
+            });
+        score.parts[0]
+            .midi_aftertouch
+            .push(acorde_core::MidiAftertouch {
+                tick: 480,
+                channel: 2,
+                key: Some(64),
+                value: 88,
+            });
+        score.parts[0]
             .midi_pitch_bends
             .push(acorde_core::MidiPitchBend {
                 tick: 480,
@@ -2718,6 +2748,11 @@ mod wasm_tests {
         )
         .unwrap();
         assert_eq!(wasm, native);
+        assert!(
+            wasm["semantic_events"]
+                .as_array()
+                .is_some_and(|events| events.len() >= 4)
+        );
     }
 
     #[wasm_bindgen_test]
