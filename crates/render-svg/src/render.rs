@@ -7,8 +7,8 @@ use std::collections::HashMap;
 use std::fmt::Write as _;
 
 use acorde_core::{
-    Barline, Clef, Duration, Measure, Note, Score, StyledText, TablatureRhythmDisplay, TextStyle,
-    TimeSignature,
+    Articulation, Barline, Clef, Duration, Measure, Note, Score, StyledText,
+    TablatureRhythmDisplay, TextStyle, TimeSignature,
 };
 use acorde_layout::{LayoutResult, SpanMark};
 
@@ -2441,9 +2441,16 @@ fn render_measure(
         )?;
     }
 
-    render_measure_lyrics(body, measure, part, staff, measure_idx, note_points, space)?;
-    render_measure_dynamic_and_chords(body, measure, part, staff, measure_idx, note_points, space)?;
-    render_measure_articulations(body, measure, part, staff, measure_idx, note_points, space)?;
+    render_measure_semantic_annotations(
+        body,
+        measure,
+        part,
+        staff,
+        measure_idx,
+        note_points,
+        space,
+        MeasureSemanticAnnotationKinds::ALL,
+    )?;
 
     render_measure_text(
         body,
@@ -2464,167 +2471,41 @@ fn render_measure(
     Ok(())
 }
 
-/// Render dynamic and chord-symbol text through shared semantic escape lanes.
-fn render_measure_dynamic_and_chords(
-    body: &mut String,
-    measure: &Measure,
-    part: usize,
-    staff: usize,
-    measure_idx: usize,
-    note_points: &HashMap<NoteKey, NotePoint>,
-    space: f32,
-) -> Result<(), RenderError> {
-    let mut labels = Vec::new();
-    let mut placements = Vec::new();
-    let mut classes = Vec::new();
-    let mut directions = Vec::new();
-    for (voice_idx, voice) in measure.voices.iter().enumerate() {
-        for (note_idx, note) in voice.iter().enumerate() {
-            let Some(&(x, anchor_y, stem_up, _)) =
-                note_points.get(&(part, staff, measure_idx, voice_idx, note_idx))
-            else {
-                continue;
-            };
-            for (kind, text, above, priority) in [
-                (
-                    "acorde-dynamic",
-                    note.dynamic
-                        .as_ref()
-                        .map(|value| value.to_musicxml_str().to_owned()),
-                    stem_up,
-                    1,
-                ),
-                (
-                    "acorde-chord-symbol",
-                    note.chord_symbol.as_ref().map(|value| value.display_text()),
-                    true,
-                    2,
-                ),
-            ] {
-                let Some(text) = text else {
-                    continue;
-                };
-                let distance = if kind == "acorde-dynamic" { 4.0 } else { 5.6 };
-                let y = if above {
-                    anchor_y - distance * space
-                } else {
-                    anchor_y + distance * space
-                };
-                let width = text.chars().count() as f32 * 0.42 * space + 0.6 * space;
-                labels.push((kind, x, text));
-                placements.push(acorde_layout::GlyphPlacement {
-                    resource_key: format!(
-                        "{kind}:{part}:{staff}:{measure_idx}:{voice_idx}:{note_idx}"
-                    ),
-                    metrics: acorde_layout::GlyphMetrics {
-                        advance_mm: 0.0,
-                        left_mm: -width / 2.0,
-                        top_mm: -0.72 * space,
-                        width_mm: width,
-                        height_mm: 0.9 * space,
-                    },
-                    x_mm: x,
-                    y_mm: y,
-                    priority,
-                });
-                classes.push(acorde_layout::GlyphCollisionClass::Annotation);
-                directions.push(if above {
-                    acorde_layout::GlyphCollisionDirection::Up
-                } else {
-                    acorde_layout::GlyphCollisionDirection::Down
-                });
-            }
-        }
-    }
-    acorde_layout::resolve_glyph_collisions_constrained(
-        &mut placements,
-        &classes,
-        &directions,
-        crate::SVG_ANNOTATION_COLLISION_GAP_PX,
-    )
-    .map_err(|_| RenderError::InvalidNotePlacement {
-        field: "dynamic/chord collision",
-    })?;
-    for ((kind, x, text), placement) in labels.into_iter().zip(placements) {
-        write_annotation_text(body, kind, &text, x, placement.y_mm, space, true);
-    }
-    Ok(())
+#[derive(Clone, Copy)]
+struct MeasureSemanticAnnotationKinds {
+    lyrics: bool,
+    dynamics_and_chords: bool,
+    articulations: bool,
 }
 
-/// Render note articulations through shared semantic escape lanes.
-fn render_measure_articulations(
-    body: &mut String,
-    measure: &Measure,
-    part: usize,
-    staff: usize,
-    measure_idx: usize,
-    note_points: &HashMap<NoteKey, NotePoint>,
-    space: f32,
-) -> Result<(), RenderError> {
-    let mut marks = Vec::new();
-    let mut placements = Vec::new();
-    let mut classes = Vec::new();
-    let mut directions = Vec::new();
-    for (voice_idx, voice) in measure.voices.iter().enumerate() {
-        for (note_idx, note) in voice.iter().enumerate() {
-            let Some(&(x, anchor_y, stem_up, _)) =
-                note_points.get(&(part, staff, measure_idx, voice_idx, note_idx))
-            else {
-                continue;
-            };
-            for (articulation_idx, articulation) in note.articulations.iter().enumerate() {
-                let distance = 1.2 + articulation_idx as f32;
-                let y = if stem_up {
-                    anchor_y - distance * space
-                } else {
-                    anchor_y + distance * space
-                };
-                marks.push((articulation, x, if stem_up { -1.0 } else { 1.0 }));
-                placements.push(acorde_layout::GlyphPlacement {
-                    resource_key: format!(
-                        "articulation:{part}:{staff}:{measure_idx}:{voice_idx}:{note_idx}:{articulation_idx}"
-                    ),
-                    metrics: acorde_layout::GlyphMetrics {
-                        advance_mm: 0.0,
-                        left_mm: -0.48 * space,
-                        top_mm: -0.48 * space,
-                        width_mm: 0.96 * space,
-                        height_mm: 0.96 * space,
-                    },
-                    x_mm: x,
-                    y_mm: y,
-                    priority: 1,
-                });
-                classes.push(acorde_layout::GlyphCollisionClass::Annotation);
-                directions.push(if stem_up {
-                    acorde_layout::GlyphCollisionDirection::Up
-                } else {
-                    acorde_layout::GlyphCollisionDirection::Down
-                });
-            }
-        }
-    }
-    acorde_layout::resolve_glyph_collisions_constrained(
-        &mut placements,
-        &classes,
-        &directions,
-        crate::SVG_ANNOTATION_COLLISION_GAP_PX,
-    )
-    .map_err(|_| RenderError::InvalidNotePlacement {
-        field: "articulation collision",
-    })?;
-    for ((articulation, x, direction), placement) in marks.into_iter().zip(placements) {
-        render_articulation(body, articulation, x, placement.y_mm, direction, space);
-    }
-    Ok(())
+impl MeasureSemanticAnnotationKinds {
+    const ALL: Self = Self {
+        lyrics: true,
+        dynamics_and_chords: true,
+        articulations: true,
+    };
 }
 
-/// Render all note lyrics for one measure through a shared downward collision lane.
+enum MeasureSemanticAnnotation<'a> {
+    Text {
+        class: &'static str,
+        text: String,
+        x: f32,
+        italic: bool,
+    },
+    Articulation {
+        articulation: &'a Articulation,
+        x: f32,
+        direction: f32,
+    },
+}
+
+/// Render lyrics, dynamics, chord symbols, and articulations through one constrained pass.
 ///
-/// Note bodies are emitted first so this pass can use their stable anchors. Horizontal event
-/// spacing still reserves lyric width; this pass handles simultaneous or cross-voice vertical
-/// overlap without requiring a font or DOM measurement.
-fn render_measure_lyrics(
+/// Individual annotation classes retain their semantic priority and preferred escape direction,
+/// but now share vertical ownership with every other annotation emitted for a measure.
+#[allow(clippy::too_many_arguments)]
+fn render_measure_semantic_annotations(
     body: &mut String,
     measure: &Measure,
     part: usize,
@@ -2632,50 +2513,148 @@ fn render_measure_lyrics(
     measure_idx: usize,
     note_points: &HashMap<NoteKey, NotePoint>,
     space: f32,
+    kinds: MeasureSemanticAnnotationKinds,
 ) -> Result<(), RenderError> {
-    let mut lyrics = Vec::new();
+    let mut annotations = Vec::new();
     let mut placements = Vec::new();
+    let mut classes = Vec::new();
+    let mut directions = Vec::new();
+
     for (voice_idx, voice) in measure.voices.iter().enumerate() {
         for (note_idx, note) in voice.iter().enumerate() {
-            let Some(lyric) = &note.lyric else {
-                continue;
-            };
             let Some(&(x, anchor_y, stem_up, _)) =
                 note_points.get(&(part, staff, measure_idx, voice_idx, note_idx))
             else {
                 continue;
             };
-            let lyric_offset = if !stem_up && note.dynamic.is_some() {
-                5.9
-            } else {
-                4.8
-            };
-            let y = anchor_y + lyric_offset * space;
-            let width = lyric.text.chars().count() as f32 * 0.42 * space + 0.6 * space;
-            lyrics.push((x, lyric.text.as_str()));
-            placements.push(acorde_layout::GlyphPlacement {
-                resource_key: format!("lyric:{part}:{staff}:{measure_idx}:{voice_idx}:{note_idx}"),
-                metrics: acorde_layout::GlyphMetrics {
-                    advance_mm: 0.0,
-                    left_mm: -width / 2.0,
-                    top_mm: -0.72 * space,
-                    width_mm: width,
-                    height_mm: 0.9 * space,
-                },
-                x_mm: x,
-                y_mm: y,
-                priority: 1,
-            });
+            if kinds.dynamics_and_chords {
+                for (class, text, above, priority) in [
+                    (
+                        "acorde-dynamic",
+                        note.dynamic
+                            .as_ref()
+                            .map(|value| value.to_musicxml_str().to_owned()),
+                        stem_up,
+                        1,
+                    ),
+                    (
+                        "acorde-chord-symbol",
+                        note.chord_symbol.as_ref().map(|value| value.display_text()),
+                        true,
+                        2,
+                    ),
+                ] {
+                    let Some(text) = text else {
+                        continue;
+                    };
+                    let distance = if class == "acorde-dynamic" { 4.0 } else { 5.6 };
+                    let y = if above {
+                        anchor_y - distance * space
+                    } else {
+                        anchor_y + distance * space
+                    };
+                    let width = text.chars().count() as f32 * 0.42 * space + 0.6 * space;
+                    annotations.push(MeasureSemanticAnnotation::Text {
+                        class,
+                        text,
+                        x,
+                        italic: true,
+                    });
+                    placements.push(acorde_layout::GlyphPlacement {
+                        resource_key: format!(
+                            "{class}:{part}:{staff}:{measure_idx}:{voice_idx}:{note_idx}"
+                        ),
+                        metrics: acorde_layout::GlyphMetrics {
+                            advance_mm: 0.0,
+                            left_mm: -width / 2.0,
+                            top_mm: -0.72 * space,
+                            width_mm: width,
+                            height_mm: 0.9 * space,
+                        },
+                        x_mm: x,
+                        y_mm: y,
+                        priority,
+                    });
+                    classes.push(acorde_layout::GlyphCollisionClass::Annotation);
+                    directions.push(if above {
+                        acorde_layout::GlyphCollisionDirection::Up
+                    } else {
+                        acorde_layout::GlyphCollisionDirection::Down
+                    });
+                }
+            }
+            if kinds.lyrics {
+                if let Some(lyric) = &note.lyric {
+                    let lyric_offset = if !stem_up && note.dynamic.is_some() {
+                        5.9
+                    } else {
+                        4.8
+                    };
+                    let text = lyric.text.clone();
+                    let width = text.chars().count() as f32 * 0.42 * space + 0.6 * space;
+                    annotations.push(MeasureSemanticAnnotation::Text {
+                        class: "acorde-lyric",
+                        text,
+                        x,
+                        italic: false,
+                    });
+                    placements.push(acorde_layout::GlyphPlacement {
+                        resource_key: format!(
+                            "lyric:{part}:{staff}:{measure_idx}:{voice_idx}:{note_idx}"
+                        ),
+                        metrics: acorde_layout::GlyphMetrics {
+                            advance_mm: 0.0,
+                            left_mm: -width / 2.0,
+                            top_mm: -0.72 * space,
+                            width_mm: width,
+                            height_mm: 0.9 * space,
+                        },
+                        x_mm: x,
+                        y_mm: anchor_y + lyric_offset * space,
+                        priority: 1,
+                    });
+                    classes.push(acorde_layout::GlyphCollisionClass::Annotation);
+                    directions.push(acorde_layout::GlyphCollisionDirection::Down);
+                }
+            }
+            if kinds.articulations {
+                for (articulation_idx, articulation) in note.articulations.iter().enumerate() {
+                    let distance = 1.2 + articulation_idx as f32;
+                    let y = if stem_up {
+                        anchor_y - distance * space
+                    } else {
+                        anchor_y + distance * space
+                    };
+                    annotations.push(MeasureSemanticAnnotation::Articulation {
+                        articulation,
+                        x,
+                        direction: if stem_up { -1.0 } else { 1.0 },
+                    });
+                    placements.push(acorde_layout::GlyphPlacement {
+                        resource_key: format!(
+                            "articulation:{part}:{staff}:{measure_idx}:{voice_idx}:{note_idx}:{articulation_idx}"
+                        ),
+                        metrics: acorde_layout::GlyphMetrics {
+                            advance_mm: 0.0,
+                            left_mm: -0.48 * space,
+                            top_mm: -0.48 * space,
+                            width_mm: 0.96 * space,
+                            height_mm: 0.96 * space,
+                        },
+                        x_mm: x,
+                        y_mm: y,
+                        priority: 1,
+                    });
+                    classes.push(acorde_layout::GlyphCollisionClass::Annotation);
+                    directions.push(if stem_up {
+                        acorde_layout::GlyphCollisionDirection::Up
+                    } else {
+                        acorde_layout::GlyphCollisionDirection::Down
+                    });
+                }
+            }
         }
     }
-    if placements.len() < 2 {
-        for ((x, lyric), placement) in lyrics.into_iter().zip(placements) {
-            write_annotation_text(body, "acorde-lyric", lyric, x, placement.y_mm, space, false);
-        }
-        return Ok(());
-    }
-    let classes = vec![acorde_layout::GlyphCollisionClass::Annotation; placements.len()];
-    let directions = vec![acorde_layout::GlyphCollisionDirection::Down; placements.len()];
     acorde_layout::resolve_glyph_collisions_constrained(
         &mut placements,
         &classes,
@@ -2683,10 +2662,22 @@ fn render_measure_lyrics(
         crate::SVG_ANNOTATION_COLLISION_GAP_PX,
     )
     .map_err(|_| RenderError::InvalidNotePlacement {
-        field: "lyric collision",
+        field: "semantic annotation collision",
     })?;
-    for ((x, lyric), placement) in lyrics.into_iter().zip(placements) {
-        write_annotation_text(body, "acorde-lyric", lyric, x, placement.y_mm, space, false);
+    for (annotation, placement) in annotations.into_iter().zip(placements) {
+        match annotation {
+            MeasureSemanticAnnotation::Text {
+                class,
+                text,
+                x,
+                italic,
+            } => write_annotation_text(body, class, &text, x, placement.y_mm, space, italic),
+            MeasureSemanticAnnotation::Articulation {
+                articulation,
+                x,
+                direction,
+            } => render_articulation(body, articulation, x, placement.y_mm, direction, space),
+        }
     }
     Ok(())
 }
@@ -6144,9 +6135,9 @@ fn courtesy_wrapped(alter: i8, cx: f32, cy: f32, space: f32) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        Note, OwnedTabTechniqueSegment, accidental_footprint_u, build_svg,
-        content_horizontal_margins, measure_text_width_u, note_anchor_y, note_notation_footprint_u,
-        render_measure_articulations, render_measure_dynamic_and_chords, render_measure_lyrics,
+        MeasureSemanticAnnotationKinds, Note, OwnedTabTechniqueSegment, accidental_footprint_u,
+        build_svg, content_horizontal_margins, measure_text_width_u, note_anchor_y,
+        note_notation_footprint_u, render_measure_semantic_annotations,
         resolve_adjacent_event_spacing, resolve_cross_voice_event_spacing,
         resolve_span_lane_offsets, resolve_tab_technique_lane_offsets, span_lane_baseline,
         tab_note_y, tab_technique_control_y,
@@ -6194,8 +6185,21 @@ mod tests {
         assert!(measure.voices[1][0].lyric.is_some());
         assert!(note_points.contains_key(&(0, 0, 0, 1, 0)));
         let mut body = String::new();
-        render_measure_lyrics(&mut body, &measure, 0, 0, 0, &note_points, 24.0)
-            .expect("shared lyrics render");
+        render_measure_semantic_annotations(
+            &mut body,
+            &measure,
+            0,
+            0,
+            0,
+            &note_points,
+            24.0,
+            MeasureSemanticAnnotationKinds {
+                lyrics: true,
+                dynamics_and_chords: false,
+                articulations: false,
+            },
+        )
+        .expect("shared lyrics render");
         let lyric_ys = body
             .match_indices("class=\"acorde-lyric\"")
             .map(|(index, _)| {
@@ -6236,8 +6240,21 @@ mod tests {
         note_points.insert((0, 0, 0, 0, 0), (100.0, 200.0, true, 0));
         note_points.insert((0, 0, 0, 1, 0), (100.0, 200.0, true, 0));
         let mut body = String::new();
-        render_measure_dynamic_and_chords(&mut body, &measure, 0, 0, 0, &note_points, 24.0)
-            .expect("shared dynamic/chord render");
+        render_measure_semantic_annotations(
+            &mut body,
+            &measure,
+            0,
+            0,
+            0,
+            &note_points,
+            24.0,
+            MeasureSemanticAnnotationKinds {
+                lyrics: false,
+                dynamics_and_chords: true,
+                articulations: false,
+            },
+        )
+        .expect("shared dynamic/chord render");
         for class in ["acorde-dynamic", "acorde-chord-symbol"] {
             let ys = body
                 .match_indices(&format!("class=\"{class}\""))
@@ -6256,6 +6273,50 @@ mod tests {
     }
 
     #[test]
+    fn shared_semantic_lane_separates_dynamic_and_articulation() {
+        let mut measure = Measure::empty(4, 4);
+        let mut dynamic = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        dynamic.dynamic = Some(Dynamic::Mf);
+        measure.voices[0] = vec![dynamic];
+        let mut articulation = Note::new(Pitch::new(Step::D, 4), Duration::Quarter);
+        articulation.articulations.push(Articulation::Staccato);
+        measure.voices[1] = vec![articulation];
+
+        let note_points = HashMap::from([
+            ((0, 0, 0, 0, 0), (100.0, 200.0, true, 0)),
+            ((0, 0, 0, 1, 0), (100.0, 132.8, true, 0)),
+        ]);
+        let mut body = String::new();
+        render_measure_semantic_annotations(
+            &mut body,
+            &measure,
+            0,
+            0,
+            0,
+            &note_points,
+            24.0,
+            MeasureSemanticAnnotationKinds::ALL,
+        )
+        .expect("shared semantic annotations render");
+
+        let dynamic_y = body
+            .split("class=\"acorde-dynamic\"")
+            .nth(1)
+            .and_then(|value| value.split(" y=\"").nth(1))
+            .and_then(|value| value.split('"').next())
+            .and_then(|value| value.parse::<f32>().ok())
+            .expect("dynamic y");
+        let articulation_y = body
+            .split("class=\"acorde-articulation")
+            .nth(1)
+            .and_then(|value| value.split(" cy=\"").nth(1))
+            .and_then(|value| value.split('"').next())
+            .and_then(|value| value.parse::<f32>().ok())
+            .expect("articulation y");
+        assert!((dynamic_y - articulation_y).abs() >= 23.0, "{body}");
+    }
+
+    #[test]
     fn shared_articulation_lane_separates_overlapping_voice_marks() {
         let mut measure = Measure::empty(4, 4);
         for voice_index in 0..2 {
@@ -6267,8 +6328,21 @@ mod tests {
         note_points.insert((0, 0, 0, 0, 0), (100.0, 200.0, true, 0));
         note_points.insert((0, 0, 0, 1, 0), (100.0, 200.0, true, 0));
         let mut body = String::new();
-        render_measure_articulations(&mut body, &measure, 0, 0, 0, &note_points, 24.0)
-            .expect("shared articulation render");
+        render_measure_semantic_annotations(
+            &mut body,
+            &measure,
+            0,
+            0,
+            0,
+            &note_points,
+            24.0,
+            MeasureSemanticAnnotationKinds {
+                lyrics: false,
+                dynamics_and_chords: false,
+                articulations: true,
+            },
+        )
+        .expect("shared articulation render");
         let articulation_ys = body
             .match_indices("class=\"acorde-articulation")
             .map(|(index, _)| {

@@ -20,6 +20,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   voices before SVG emission and receive deterministic collision lanes. Cross-measure technique
   continuations now use the same lane assignment while retaining their edge-owned rendering
   policy.
+- Lyrics, dynamics, chord symbols, and articulations within a measure now share one semantic
+  collision pass. Their existing priorities and preferred up/down escape directions are retained,
+  while overlapping annotations from different notation classes receive separate lanes.
 
 ## [1.2.0] - 2026-09-21
 
