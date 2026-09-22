@@ -656,6 +656,7 @@ pub fn build_offline_render_manifest(
     }
     let mut events = to_playback_events_bounded(&resolved_score, &effective_options)?;
     let mut diagnostics = Vec::new();
+    let mut selection_origin_secs = 0.0;
     if let OfflineRenderScope::Selection { ref addresses } = request.scope {
         if addresses.is_empty() {
             return Err(crate::Error::InvalidOfflineRenderRequest);
@@ -682,6 +683,7 @@ pub fn build_offline_render_manifest(
             .map(|event| event.time_secs)
             .fold(f64::INFINITY, f64::min);
         if origin_secs.is_finite() {
+            selection_origin_secs = origin_secs;
             for event in &mut events {
                 event.time_secs -= origin_secs;
             }
@@ -782,6 +784,8 @@ pub fn build_offline_render_manifest(
         &resolved_score,
         &effective_options,
         request.sample_rate_hz,
+        &request.scope,
+        selection_origin_secs,
         &mut semantic_events,
     );
     if release_tail_frames > 0.0 {
@@ -881,6 +885,8 @@ fn append_measure_semantic_events(
     score: &Score,
     options: &PlaybackOptions,
     sample_rate_hz: u32,
+    scope: &OfflineRenderScope,
+    origin_secs: f64,
     events: &mut Vec<OfflineRenderSemanticFrameEvent>,
 ) {
     for (part_index, part) in score.parts.iter().enumerate() {
@@ -900,12 +906,20 @@ fn append_measure_semantic_events(
             tick = tick.saturating_add((beats * 480.0).round() as u64);
         }
         for time in timeline {
+            if let OfflineRenderScope::Selection { addresses } = scope
+                && !addresses
+                    .iter()
+                    .any(|address| address.part == part_index && address.measure == time.measure)
+            {
+                continue;
+            }
             let address = OfflineRenderMeasureAddress {
                 part: part_index,
                 staff: 0,
                 measure: time.measure,
             };
-            let frame = (time.start_secs * f64::from(sample_rate_hz)).round() as u64;
+            let frame = ((time.start_secs - origin_secs).max(0.0) * f64::from(sample_rate_hz))
+                .round() as u64;
             let measure = &staff.measures[time.measure];
             if part_index == 0 && (measure.tempo.is_some() || measure.tempo_ramp_to.is_some()) {
                 events.push(OfflineRenderSemanticFrameEvent {
@@ -945,7 +959,8 @@ fn append_measure_semantic_events(
                         controller: control.controller,
                         value: control.value,
                     },
-                    frame: (secs * f64::from(sample_rate_hz)).round() as u64,
+                    frame: ((secs - origin_secs).max(0.0) * f64::from(sample_rate_hz)).round()
+                        as u64,
                     source: None,
                     measure: Some(address.clone()),
                 });
@@ -3007,6 +3022,12 @@ mod tests {
             Note::new(Pitch::new(Step::D, 4), Duration::Quarter),
         ];
         let events = to_playback_events(&score, &PlaybackOptions::default());
+        score.parts[0].midi_control_changes.push(MidiControlChange {
+            tick: 480,
+            channel: 0,
+            controller: 7,
+            value: 100,
+        });
         let request = OfflineRenderRequest {
             sample_rate_hz: 8_000,
             release_tail_millis: 125,
@@ -3020,6 +3041,14 @@ mod tests {
         assert_eq!(manifest.events.len(), 1);
         assert_eq!(manifest.events[0].source, events[1].source);
         assert_eq!(manifest.frame_events[0].start_frame, 0);
+        assert!(manifest.semantic_events.iter().any(|event| matches!(
+            event.kind,
+            OfflineRenderSemanticEventKind::Controller {
+                channel: 0,
+                controller: 7,
+                value: 100
+            }
+        ) && event.frame == 0));
         assert_eq!(manifest.release_tail_frames, 1_000);
         assert_eq!(manifest.duration_frames, 5_000);
     }
