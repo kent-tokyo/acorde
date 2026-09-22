@@ -1302,6 +1302,83 @@ pub struct PageRenderTree {
     pub nodes: Vec<PageRenderNode>,
 }
 
+impl PageRenderTree {
+    /// Verify that every serialized node still refers to this page and to a
+    /// canonical score or publication object. Hosts can run this before using
+    /// a persisted tree, rather than trusting page-local indices.
+    pub fn validate(&self, score: &Score) -> Result<(), PrintLayoutError> {
+        if self.contract_version != PAGE_RENDER_TREE_CONTRACT_VERSION {
+            return Err(PrintLayoutError::UnsupportedPageRenderTreeContractVersion {
+                found: self.contract_version,
+            });
+        }
+        for (node_index, node) in self.nodes.iter().enumerate() {
+            if node
+                .system
+                .is_some_and(|system| system.page_index != self.page.page_index)
+            {
+                return Err(PrintLayoutError::InvalidRenderTreeNode { node_index });
+            }
+            let valid = match &node.address {
+                PageRenderAddress::Note(address) => score
+                    .parts
+                    .get(address.part)
+                    .and_then(|part| part.staves.get(address.staff))
+                    .and_then(|staff| staff.measures.get(address.measure))
+                    .and_then(|measure| measure.voices.get(address.voice))
+                    .and_then(|voice| voice.get(address.note))
+                    .is_some(),
+                PageRenderAddress::Spanner { id } => {
+                    score.spanners.iter().any(|span| span.id == *id)
+                }
+                PageRenderAddress::Publication {
+                    page_index,
+                    block_index,
+                } => {
+                    *page_index == self.page.page_index
+                        && self
+                            .page
+                            .layout
+                            .publication
+                            .text_blocks
+                            .get(*block_index)
+                            .is_some()
+                }
+                PageRenderAddress::Resource {
+                    page_index,
+                    resource_key,
+                } => {
+                    *page_index == self.page.page_index
+                        && self
+                            .page
+                            .layout
+                            .publication
+                            .image_resources
+                            .iter()
+                            .any(|image| image.resource_key == *resource_key)
+                }
+                PageRenderAddress::Frame {
+                    page_index,
+                    frame_index,
+                } => {
+                    *page_index == self.page.page_index
+                        && self
+                            .page
+                            .layout
+                            .publication
+                            .frames
+                            .get(*frame_index)
+                            .is_some()
+                }
+            };
+            if !valid {
+                return Err(PrintLayoutError::InvalidRenderTreeNode { node_index });
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Typed, host-neutral diagnostics attached to a page export descriptor.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PageArtifactDiagnostic {
@@ -1668,6 +1745,10 @@ impl PrintLayoutResult {
 
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum PrintLayoutError {
+    #[error("unsupported page render tree contract version {found}")]
+    UnsupportedPageRenderTreeContractVersion { found: u16 },
+    #[error("page render tree node {node_index} has invalid ownership or address")]
+    InvalidRenderTreeNode { node_index: usize },
     #[error("unknown score view")]
     InvalidView,
     #[error("paper dimensions must be finite and greater than zero")]
@@ -5002,6 +5083,7 @@ mod tests {
             .expect("render trees");
         assert_eq!(trees.len(), 1);
         assert_eq!(trees[0].contract_version, PAGE_RENDER_TREE_CONTRACT_VERSION);
+        assert_eq!(trees[0].validate(&score), Ok(()));
         assert!(trees[0].nodes.iter().any(|node| matches!(
             (&node.address, &node.kind),
             (PageRenderAddress::Note(address), PageRenderNodeKind::Note)
@@ -5016,6 +5098,16 @@ mod tests {
             serde_json::from_str(&serde_json::to_string(&trees).expect("trees serialize"))
                 .expect("trees deserialize");
         assert_eq!(restored, trees);
+        let mut invalid = restored[0].clone();
+        invalid.nodes[0]
+            .system
+            .as_mut()
+            .expect("system node")
+            .page_index = 99;
+        assert!(matches!(
+            invalid.validate(&score),
+            Err(PrintLayoutError::InvalidRenderTreeNode { node_index: 0 })
+        ));
     }
 
     #[test]
