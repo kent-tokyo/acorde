@@ -6,13 +6,18 @@
 use std::collections::HashMap;
 use std::fmt::Write as _;
 
+#[cfg(test)]
+use acorde_core::Articulation;
 use acorde_core::{
-    Articulation, Barline, Clef, Duration, Measure, Note, Score, StyledText,
-    TablatureRhythmDisplay, TextStyle, TimeSignature,
+    Barline, Clef, Duration, Measure, Note, Score, StyledText, TablatureRhythmDisplay, TextStyle,
+    TimeSignature,
 };
 use acorde_layout::{LayoutResult, SpanMark};
 
+use crate::annotations;
 use crate::beams;
+#[cfg(test)]
+use crate::collision;
 use crate::geometry;
 use crate::glyphs::{self, f};
 use crate::tuplets;
@@ -23,6 +28,7 @@ use crate::{
     SvgAnnotationMetrics, SvgRenderOptions, TablatureChangeMetadata, TablatureStaffMetadata,
     TablatureTechniqueConnectionMetadata, TextAnnotation, tab_fret_metrics,
 };
+use crate::{spans, tab_technique};
 
 const LEFT_MARGIN_U: f32 = 1.0;
 const RIGHT_MARGIN_U: f32 = 1.0;
@@ -40,8 +46,8 @@ const CHORD_SECOND_SHIFT_U: f32 = 0.32; // standard notehead shift for adjacent 
 
 /// Accidental lookup key: (part, staff, measure, voice, note_index, pitch_index).
 type AccKey = (usize, usize, usize, usize, usize, usize);
-type NoteKey = (usize, usize, usize, usize, usize);
-type NotePoint = (f32, f32, bool, usize);
+pub(crate) type NoteKey = (usize, usize, usize, usize, usize);
+pub(crate) type NotePoint = (f32, f32, bool, usize);
 
 pub(crate) fn build_svg(
     score: &Score,
@@ -2434,6 +2440,18 @@ fn render_measure(
         )?;
     }
 
+    let semantic_placements = annotations::render_measure_semantic_annotations(
+        body,
+        measure,
+        part,
+        staff,
+        measure_idx,
+        note_points,
+        space,
+        annotations::Kinds::ALL,
+    )?;
+    resolved_annotation_obstacles.extend(semantic_placements.iter().cloned());
+
     if tablature.is_some() {
         render_measure_tab_technique_connections(
             body,
@@ -2443,20 +2461,9 @@ fn render_measure(
             measure_idx,
             space,
             note_points,
+            &semantic_placements,
         )?;
     }
-
-    let semantic_placements = render_measure_semantic_annotations(
-        body,
-        measure,
-        part,
-        staff,
-        measure_idx,
-        note_points,
-        space,
-        MeasureSemanticAnnotationKinds::ALL,
-    )?;
-    resolved_annotation_obstacles.extend(semantic_placements.iter().cloned());
 
     render_measure_text(
         body,
@@ -2478,6 +2485,7 @@ fn render_measure(
     Ok(())
 }
 
+#[cfg(test)]
 #[derive(Clone, Copy)]
 struct MeasureSemanticAnnotationKinds {
     lyrics: bool,
@@ -2485,6 +2493,7 @@ struct MeasureSemanticAnnotationKinds {
     articulations: bool,
 }
 
+#[cfg(test)]
 impl MeasureSemanticAnnotationKinds {
     const ALL: Self = Self {
         lyrics: true,
@@ -2493,6 +2502,7 @@ impl MeasureSemanticAnnotationKinds {
     };
 }
 
+#[cfg(test)]
 enum MeasureSemanticAnnotation<'a> {
     Text {
         class: &'static str,
@@ -2511,6 +2521,7 @@ enum MeasureSemanticAnnotation<'a> {
 ///
 /// Individual annotation classes retain their semantic priority and preferred escape direction,
 /// but now share vertical ownership with every other annotation emitted for a measure.
+#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 fn render_measure_semantic_annotations(
     body: &mut String,
@@ -3812,7 +3823,7 @@ fn render_all_spans(
     interactive: bool,
     resolved_annotation_obstacles: &[acorde_layout::GlyphPlacement],
 ) {
-    let lane_offsets = resolve_span_lane_offsets(
+    let lane_offsets = spans::resolve_lane_offsets(
         layout,
         points,
         width,
@@ -3964,6 +3975,7 @@ fn render_all_spans(
 /// class-aware constrained resolver as text and annotation lanes, while keeping each span's
 /// endpoint ownership and horizontal geometry unchanged.  A cross-system span receives one
 /// independently resolved lane per visible segment.
+#[cfg(test)]
 fn resolve_span_lane_offsets(
     layout: &LayoutResult,
     points: &HashMap<NoteKey, NotePoint>,
@@ -3976,12 +3988,8 @@ fn resolve_span_lane_offsets(
     let mut keys = Vec::new();
     let mut original_y = Vec::new();
     let obstacle_count = resolved_annotation_obstacles.len();
-    let mut placements = resolved_annotation_obstacles.to_vec();
-    let mut classes = vec![acorde_layout::GlyphCollisionClass::Critical; obstacle_count];
-    let mut directions = vec![acorde_layout::GlyphCollisionDirection::Fixed; obstacle_count];
-    for placement in &mut placements {
-        placement.priority = u8::MAX;
-    }
+    let (mut placements, mut classes, mut directions) =
+        collision::fixed_obstacles(resolved_annotation_obstacles);
 
     for (span_index, span) in layout.spans.iter().enumerate() {
         let (start, end) = match span {
@@ -4056,6 +4064,7 @@ fn resolve_span_lane_offsets(
         .collect()
 }
 
+#[cfg(test)]
 fn span_lane_baseline(span: &SpanMark, anchor_y: f32, stem_up: bool, space: f32) -> (f32, bool) {
     match span {
         SpanMark::Hairpin { .. } => (anchor_y + (if stem_up { 2.0 } else { -4.0 }) * space, false),
@@ -5028,6 +5037,7 @@ fn render_measure_tab_technique_connections(
     measure_idx: usize,
     space: f32,
     note_points: &HashMap<NoteKey, NotePoint>,
+    annotation_obstacles: &[acorde_layout::GlyphPlacement],
 ) -> Result<(), RenderError> {
     let mut segments = Vec::new();
     for (voice_idx, notes) in measure.voices.iter().enumerate() {
@@ -5089,7 +5099,7 @@ fn render_measure_tab_technique_connections(
                 let y2 = anchor_y2
                     + (i16::from(current_position.string) - i16::from(current_anchor)) as f32
                         * space;
-                segments.push(OwnedTabTechniqueSegment {
+                segments.push(tab_technique::OwnedSegment {
                     technique: technique.clone(),
                     string: current_position.string,
                     start_addr: format!(
@@ -5105,7 +5115,7 @@ fn render_measure_tab_technique_connections(
             }
         }
     }
-    let offsets = resolve_tab_technique_lane_offsets(&segments, space, &[])?;
+    let offsets = tab_technique::resolve_lane_offsets(&segments, space, annotation_obstacles)?;
     for (segment, offset) in segments.into_iter().zip(offsets) {
         render_tab_technique_segment(
             body,
@@ -5133,6 +5143,8 @@ fn tab_positions(note: &Note) -> &[acorde_core::TabPosition] {
     }
 }
 
+#[cfg(test)]
+#[allow(dead_code)]
 struct OwnedTabTechniqueSegment {
     technique: acorde_core::GuitarTechnique,
     string: u8,
@@ -5144,6 +5156,7 @@ struct OwnedTabTechniqueSegment {
     y2: f32,
 }
 
+#[cfg(test)]
 fn resolve_tab_technique_lane_offsets(
     segments: &[OwnedTabTechniqueSegment],
     space: f32,
@@ -5157,10 +5170,7 @@ fn resolve_tab_technique_lane_offsets(
         .map(|segment| (segment.y1 + segment.y2) / 2.0)
         .collect();
     let obstacle_count = obstacles.len();
-    let mut placements = obstacles.to_vec();
-    for placement in &mut placements {
-        placement.priority = u8::MAX;
-    }
+    let (mut placements, mut classes, mut directions) = collision::fixed_obstacles(obstacles);
     placements.extend(
         segments
             .iter()
@@ -5180,12 +5190,10 @@ fn resolve_tab_technique_lane_offsets(
             })
             .collect::<Vec<_>>(),
     );
-    let mut classes = vec![acorde_layout::GlyphCollisionClass::Critical; obstacle_count];
     classes.extend(vec![
         acorde_layout::GlyphCollisionClass::Annotation;
         segments.len()
     ]);
-    let mut directions = vec![acorde_layout::GlyphCollisionDirection::Fixed; obstacle_count];
     directions.extend(vec![
         acorde_layout::GlyphCollisionDirection::Up;
         segments.len()
@@ -5309,7 +5317,7 @@ fn render_cross_measure_tab_technique_connections(
                                 as f32
                                 * space;
                         if row1 == row2 {
-                            segments.push(OwnedTabTechniqueSegment {
+                            segments.push(tab_technique::OwnedSegment {
                                 technique: technique.clone(),
                                 string: current_position.string,
                                 start_addr: start_addr.clone(),
@@ -5320,7 +5328,7 @@ fn render_cross_measure_tab_technique_connections(
                                 y2,
                             });
                         } else {
-                            segments.push(OwnedTabTechniqueSegment {
+                            segments.push(tab_technique::OwnedSegment {
                                 technique: technique.clone(),
                                 string: current_position.string,
                                 start_addr: start_addr.clone(),
@@ -5330,7 +5338,7 @@ fn render_cross_measure_tab_technique_connections(
                                 end: width - right_margin_u * space,
                                 y2: y1,
                             });
-                            segments.push(OwnedTabTechniqueSegment {
+                            segments.push(tab_technique::OwnedSegment {
                                 technique: technique.clone(),
                                 string: current_position.string,
                                 start_addr: start_addr.clone(),
@@ -5346,7 +5354,7 @@ fn render_cross_measure_tab_technique_connections(
             }
         }
     }
-    let Ok(offsets) = resolve_tab_technique_lane_offsets(&segments, space, obstacles) else {
+    let Ok(offsets) = tab_technique::resolve_lane_offsets(&segments, space, obstacles) else {
         return;
     };
     for (segment, offset) in segments.into_iter().zip(offsets) {
@@ -5508,7 +5516,7 @@ fn render_note_annotations(
     }
 }
 
-fn render_articulation(
+pub(crate) fn render_articulation(
     body: &mut String,
     articulation: &acorde_core::Articulation,
     x: f32,
@@ -5729,7 +5737,7 @@ fn annotation_lane_distance(preferred_distance: f32, previous_distance: &mut f32
     distance
 }
 
-fn write_annotation_text(
+pub(crate) fn write_annotation_text(
     body: &mut String,
     class: &str,
     value: &str,

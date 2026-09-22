@@ -25,10 +25,14 @@
 //! assert!(svg.starts_with("<svg"));
 //! ```
 
+mod annotations;
 mod beams;
+mod collision;
 mod geometry;
 mod glyphs;
 mod render;
+mod spans;
+mod tab_technique;
 mod tuplets;
 
 use acorde_core::{

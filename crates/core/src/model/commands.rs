@@ -23,6 +23,16 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use uuid::Uuid;
 
+mod range_commands;
+mod spanner_remap;
+mod structural_commands;
+
+use self::range_commands::{apply_paste_range, apply_paste_voice};
+use self::spanner_remap::{
+    clear_legacy_spanner_endpoints, note_at, prune_orphaned_spanners, remap_spanners,
+};
+use self::structural_commands::{apply_join_measures, apply_split_measure};
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Command {
@@ -3371,67 +3381,6 @@ fn apply_transpose_staff_region(
     Ok(())
 }
 
-fn apply_paste_voice(cmd: &PasteVoiceCmd, score: &mut Score) -> Result<(), Error> {
-    let endpoint_ids = capture_replaced_endpoint_ids(score, |address| {
-        same_voice(
-            address,
-            cmd.part_index,
-            cmd.staff_index,
-            cmd.measure_index,
-            cmd.voice_index,
-        )
-    });
-    {
-        let voice = score
-            .parts
-            .get_mut(cmd.part_index)
-            .ok_or(Error::PartNotFound(cmd.part_index))?
-            .staves
-            .get_mut(cmd.staff_index)
-            .ok_or(Error::StaffNotFound(cmd.staff_index))?
-            .measures
-            .get_mut(cmd.measure_index)
-            .ok_or(Error::MeasureNotFound(cmd.measure_index))?
-            .voices
-            .get_mut(cmd.voice_index)
-            .ok_or(Error::VoiceOutOfRange(cmd.voice_index))?;
-        *voice = cmd.notes.clone();
-    }
-    remap_replaced_spanner_endpoints(score, &endpoint_ids);
-    Ok(())
-}
-
-fn apply_paste_range(cmd: &PasteRangeCmd, score: &mut Score) -> Result<(), Error> {
-    if cmd.voice_index >= 4 {
-        return Err(Error::VoiceOutOfRange(cmd.voice_index));
-    }
-    let endpoint_ids = capture_replaced_endpoint_ids(score, |address| {
-        address.part == cmd.part_index
-            && address.staff == cmd.staff_index
-            && address.voice == cmd.voice_index
-            && address.measure >= cmd.target_measure
-            && address.measure < cmd.target_measure.saturating_add(cmd.measures.len())
-    });
-    let part = score
-        .parts
-        .get_mut(cmd.part_index)
-        .ok_or(Error::PartNotFound(cmd.part_index))?;
-    let staff = part
-        .staves
-        .get_mut(cmd.staff_index)
-        .ok_or(Error::StaffNotFound(cmd.staff_index))?;
-    for (offset, notes) in cmd.measures.iter().enumerate() {
-        let mi = cmd.target_measure + offset;
-        let measure = staff
-            .measures
-            .get_mut(mi)
-            .ok_or(Error::MeasureNotFound(mi))?;
-        measure.voices[cmd.voice_index] = notes.clone();
-    }
-    remap_replaced_spanner_endpoints(score, &endpoint_ids);
-    Ok(())
-}
-
 fn apply_exchange_voices(cmd: &ExchangeVoicesCmd, score: &mut Score) -> Result<(), Error> {
     if cmd.first_voice >= 4 {
         return Err(Error::VoiceOutOfRange(cmd.first_voice));
@@ -3557,150 +3506,6 @@ fn apply_move_or_copy_voice_range(
         measure.source_voice_numbers[cmd.source_start.voice] = None;
     }
     prune_orphaned_spanners(score);
-    Ok(())
-}
-
-fn apply_split_measure(cmd: &SplitMeasureCmd, score: &mut Score) -> Result<(), Error> {
-    if !cmd.split_at_beats.is_finite() || cmd.split_at_beats <= 0.0 {
-        return Err(Error::InvalidCommand("split point must be positive".into()));
-    }
-    let mut boundaries = Vec::new();
-    for (part_index, part) in score.parts.iter().enumerate() {
-        for (staff_index, staff) in part.staves.iter().enumerate() {
-            let measure = staff
-                .measures
-                .get(cmd.measure_index)
-                .ok_or(Error::MeasureNotFound(cmd.measure_index))?;
-            let expected = measure
-                .time_sig
-                .as_ref()
-                .unwrap_or(&score.settings.time_signature)
-                .total_beats();
-            if cmd.split_at_beats >= expected - 1e-9 {
-                return Err(Error::InvalidCommand(
-                    "split point must be inside measure".into(),
-                ));
-            }
-            let mut indices = [0usize; 4];
-            for (voice_index, voice) in measure.voices.iter().enumerate() {
-                let mut beats = 0.0;
-                let mut found = false;
-                for (index, note) in voice.iter().enumerate() {
-                    beats += note.beats();
-                    if (beats - cmd.split_at_beats).abs() < 1e-9 {
-                        indices[voice_index] = index + 1;
-                        found = true;
-                        break;
-                    }
-                    if beats > cmd.split_at_beats {
-                        break;
-                    }
-                }
-                if !voice.is_empty() && !found {
-                    return Err(Error::InvalidCommand(
-                        "split point must align with every voice note boundary".into(),
-                    ));
-                }
-            }
-            boundaries.push((part_index, staff_index, indices));
-        }
-    }
-    for (part_index, staff_index, indices) in &boundaries {
-        let measure =
-            &mut score.parts[*part_index].staves[*staff_index].measures[cmd.measure_index];
-        let mut right = measure.clone();
-        for (voice_index, split_index) in indices.iter().enumerate() {
-            right.voices[voice_index] = measure.voices[voice_index].split_off(*split_index);
-        }
-        measure.barline_right = Barline::Normal;
-        right.barline_left = Barline::Normal;
-        score.parts[*part_index].staves[*staff_index]
-            .measures
-            .insert(cmd.measure_index + 1, right);
-        for (index, measure) in score.parts[*part_index].staves[*staff_index]
-            .measures
-            .iter_mut()
-            .enumerate()
-        {
-            measure.number = index as u32 + 1;
-        }
-    }
-    remap_spanners(score, |address| {
-        if address.measure < cmd.measure_index {
-            return Some(address.clone());
-        }
-        if address.measure > cmd.measure_index {
-            let mut shifted = address.clone();
-            shifted.measure += 1;
-            return Some(shifted);
-        }
-        let split = boundaries
-            .iter()
-            .find(|(part, staff, _)| *part == address.part && *staff == address.staff)?
-            .2[address.voice];
-        if address.note >= split {
-            Some(NoteAddr {
-                measure: cmd.measure_index + 1,
-                note: address.note - split,
-                ..address.clone()
-            })
-        } else {
-            Some(address.clone())
-        }
-    });
-    Ok(())
-}
-
-fn apply_join_measures(cmd: &JoinMeasuresCmd, score: &mut Score) -> Result<(), Error> {
-    let mut offsets = Vec::new();
-    for (part_index, part) in score.parts.iter().enumerate() {
-        for (staff_index, staff) in part.staves.iter().enumerate() {
-            let left = staff
-                .measures
-                .get(cmd.measure_index)
-                .ok_or(Error::MeasureNotFound(cmd.measure_index))?;
-            let _right = staff
-                .measures
-                .get(cmd.measure_index + 1)
-                .ok_or(Error::MeasureNotFound(cmd.measure_index + 1))?;
-            let mut counts = [0usize; 4];
-            for (voice, notes) in left.voices.iter().enumerate() {
-                counts[voice] = notes.len();
-            }
-            offsets.push((part_index, staff_index, counts));
-        }
-    }
-    for (part, staff, _) in &offsets {
-        let measures = &mut score.parts[*part].staves[*staff].measures;
-        let right = measures.remove(cmd.measure_index + 1);
-        let left = &mut measures[cmd.measure_index];
-        for voice in 0..4 {
-            left.voices[voice].extend(right.voices[voice].clone());
-        }
-        left.barline_right = right.barline_right;
-        for (index, measure) in measures.iter_mut().enumerate() {
-            measure.number = index as u32 + 1;
-        }
-    }
-    remap_spanners(score, |address| {
-        if address.measure < cmd.measure_index + 1 {
-            return Some(address.clone());
-        }
-        if address.measure > cmd.measure_index + 1 {
-            let mut shifted = address.clone();
-            shifted.measure -= 1;
-            return Some(shifted);
-        }
-        let offset = offsets
-            .iter()
-            .find(|(part, staff, _)| *part == address.part && *staff == address.staff)?
-            .2[address.voice];
-        Some(NoteAddr {
-            measure: cmd.measure_index,
-            note: address.note + offset,
-            ..address.clone()
-        })
-    });
     Ok(())
 }
 
@@ -4689,125 +4494,6 @@ fn same_voice(address: &NoteAddr, part: usize, staff: usize, measure: usize, voi
         && address.staff == staff
         && address.measure == measure
         && address.voice == voice
-}
-
-fn note_at<'a>(score: &'a Score, address: &NoteAddr) -> Option<&'a Note> {
-    score
-        .parts
-        .get(address.part)
-        .and_then(|part| part.staves.get(address.staff))
-        .and_then(|staff| staff.measures.get(address.measure))
-        .and_then(|measure| measure.voices.get(address.voice))
-        .and_then(|voice| voice.get(address.note))
-}
-
-fn note_at_mut<'a>(score: &'a mut Score, address: &NoteAddr) -> Option<&'a mut Note> {
-    score
-        .parts
-        .get_mut(address.part)
-        .and_then(|part| part.staves.get_mut(address.staff))
-        .and_then(|staff| staff.measures.get_mut(address.measure))
-        .and_then(|measure| measure.voices.get_mut(address.voice))
-        .and_then(|voice| voice.get_mut(address.note))
-}
-
-/// Typed spanners are authoritative once edited through the command engine.  Parsers retain
-/// legacy endpoint flags for backwards-compatible JSON, but a typed remove/update must not leave
-/// those flags able to resurrect stale MusicXML notation during serialization.
-fn clear_legacy_spanner_endpoints(score: &mut Score, spanner: &NotationSpanner) {
-    let clear_start = |note: &mut Note| match spanner.kind {
-        NotationSpannerKind::Slur => note.slur_start = false,
-        NotationSpannerKind::Glissando => note.glissando_start = false,
-        NotationSpannerKind::TrillLine => note.trill_line_start = false,
-        NotationSpannerKind::Pedal => note.pedal_start = false,
-        NotationSpannerKind::Ottava => note.ottava_start = None,
-    };
-    let clear_end = |note: &mut Note| match spanner.kind {
-        NotationSpannerKind::Slur => note.slur_end = false,
-        NotationSpannerKind::Glissando => note.glissando_end = false,
-        NotationSpannerKind::TrillLine => note.trill_line_end = false,
-        NotationSpannerKind::Pedal => note.pedal_end = false,
-        NotationSpannerKind::Ottava => note.ottava_end = false,
-    };
-    if let Some(note) = note_at_mut(score, &spanner.start) {
-        clear_start(note);
-    }
-    if let Some(note) = note_at_mut(score, &spanner.end) {
-        clear_end(note);
-    }
-}
-
-/// Remap typed notation endpoints after a structural edit.
-///
-/// An endpoint that cannot be mapped, or no longer names an existing note, removes its complete
-/// span. This deliberately favors an observable removed span over silently retargeting it.
-fn remap_spanners(score: &mut Score, mut remap: impl FnMut(&NoteAddr) -> Option<NoteAddr>) {
-    let spanners = std::mem::take(&mut score.spanners);
-    score.spanners = spanners
-        .into_iter()
-        .filter_map(|mut spanner| {
-            spanner.start = remap(&spanner.start)?;
-            spanner.end = remap(&spanner.end)?;
-            (note_at(score, &spanner.start).is_some() && note_at(score, &spanner.end).is_some())
-                .then_some(spanner)
-        })
-        .collect();
-}
-
-fn prune_orphaned_spanners(score: &mut Score) {
-    remap_spanners(score, |address| Some(address.clone()));
-}
-
-/// Capture the note identities behind endpoints that will be replaced wholesale.
-fn capture_replaced_endpoint_ids(
-    score: &Score,
-    mut replaced: impl FnMut(&NoteAddr) -> bool,
-) -> Vec<(NoteAddr, String)> {
-    score
-        .spanners
-        .iter()
-        .flat_map(|spanner| [&spanner.start, &spanner.end])
-        .filter(|address| replaced(address))
-        .filter_map(|address| {
-            note_at(score, address).map(|note| (address.clone(), note.id.clone()))
-        })
-        .collect()
-}
-
-/// Re-resolve endpoints in a replaced voice/range by their original note IDs.
-/// Duplicate IDs are treated as ambiguous and remove the affected span instead of guessing.
-fn remap_replaced_spanner_endpoints(score: &mut Score, endpoint_ids: &[(NoteAddr, String)]) {
-    let mapped: Vec<(NoteAddr, Option<NoteAddr>)> = endpoint_ids
-        .iter()
-        .map(|(address, note_id)| {
-            let matches: Vec<usize> = score
-                .parts
-                .get(address.part)
-                .and_then(|part| part.staves.get(address.staff))
-                .and_then(|staff| staff.measures.get(address.measure))
-                .and_then(|measure| measure.voices.get(address.voice))
-                .map(|voice| {
-                    voice
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(index, note)| (note.id == *note_id).then_some(index))
-                        .collect()
-                })
-                .unwrap_or_default();
-            let replacement = (matches.len() == 1).then(|| NoteAddr {
-                note: matches[0],
-                ..address.clone()
-            });
-            (address.clone(), replacement)
-        })
-        .collect();
-    remap_spanners(score, |address| {
-        mapped
-            .iter()
-            .find(|(old, _)| old == address)
-            .map(|(_, replacement)| replacement.clone())
-            .unwrap_or_else(|| Some(address.clone()))
-    });
 }
 
 fn trim_voice_to_measure(voice: &mut Vec<Note>, max_beats: f64) {
