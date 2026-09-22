@@ -30,6 +30,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   had been incorrectly test-gated (#80).
 - Synchronized workspace package versions, internal dependency constraints, scorecard, and
   English/Japanese dependency examples for 1.2.2.
+- Updated the browser smoke contract pin to SVG metadata version 22 and retained a bounded 5 MiB
+  WASM artifact gate for the 4.56 MiB feature-complete build.
 
 ## [1.2.1] - 2026-09-22
 
