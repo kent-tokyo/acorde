@@ -13,7 +13,10 @@ test("browser contract renders and exposes selectable notes", async ({ page }) =
   await expect(page.locator("#analysis")).toContainText('"key_estimates"');
   await expect(page.locator("#analysis")).toContainText('"weighted_covered_beats"');
   await expect(page.locator("#metadata")).toContainText('"tablature_staves"');
-  await expect(page.locator("#metadata")).toContainText('"contract_version": 15');
+  // Keep this browser boundary pinned to the current SVG metadata contract.
+  // A contract bump requires an explicit browser-review update rather than
+  // silently accepting a different payload.
+  await expect(page.locator("#metadata")).toContainText('"contract_version": 21');
   await expect(page.locator("#metadata")).toContainText('"note_semantics"');
   await expect(page.locator("#metadata")).toContainText('"duration_beats"');
   await expect(page.locator("#metadata")).toContainText('"pitch_midi_cents"');
