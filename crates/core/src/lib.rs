@@ -25,9 +25,9 @@ pub use model::commands::{
     SetScoreStyleOverridesCmd, SetScoreTextCmd, SetStaffPresentationCmd, SetStemCmd,
     SetStringNumberCmd, SetSystemBreakCmd, SetTabPositionCmd, SetTablatureConfigCmd,
     SetTechniqueTextCmd, SetTempoAtMeasureCmd, SetTempoCmd, SetTimeSignatureCmd, SetTransposeCmd,
-    SetTupletCmd, SetUnpitchedCmd, SetVoltaCmd, ToggleArticulationCmd, ToggleSlurCmd, ToggleTieCmd,
-    ToggleTrillLineCmd, TransposeStaffRegionCmd, UpdateSpannerCmd, UpsertScoreViewCmd, command_key,
-    command_label,
+    SetTupletCmd, SetUnpitchedCmd, SetVoltaCmd, SplitMeasureCmd, ToggleArticulationCmd,
+    ToggleSlurCmd, ToggleTieCmd, ToggleTrillLineCmd, TransposeStaffRegionCmd, UpdateSpannerCmd,
+    UpsertScoreViewCmd, command_key, command_label,
 };
 pub use model::duration::Duration;
 pub use model::engine::{EngineHistory, HistoryConflict, HistoryRelation, ScoreEngine};
