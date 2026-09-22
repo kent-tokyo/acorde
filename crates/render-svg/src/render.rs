@@ -4042,7 +4042,7 @@ fn span_lane_baseline(span: &SpanMark, anchor_y: f32, stem_up: bool, space: f32)
                 kind,
                 acorde_core::OttavaKind::Va8 | acorde_core::OttavaKind::Ma15
             );
-            (anchor_y + if above { -5.8 } else { 1.5 } * space, above)
+            (anchor_y + (if above { -5.8 } else { 1.5 }) * space, above)
         }
         SpanMark::Harmony { .. } => (anchor_y - 6.8 * space, true),
         SpanMark::Slur { .. } | SpanMark::TrillLine { .. } | SpanMark::Glissando { .. } => {
@@ -6148,16 +6148,16 @@ mod tests {
         content_horizontal_margins, measure_text_width_u, note_anchor_y, note_notation_footprint_u,
         render_measure_articulations, render_measure_dynamic_and_chords, render_measure_lyrics,
         resolve_adjacent_event_spacing, resolve_cross_voice_event_spacing,
-        resolve_span_lane_offsets, resolve_tab_technique_lane_offsets, tab_note_y,
-        tab_technique_control_y,
+        resolve_span_lane_offsets, resolve_tab_technique_lane_offsets, span_lane_baseline,
+        tab_note_y, tab_technique_control_y,
     };
     use crate::SvgRenderOptions;
     use acorde_core::{
         Articulation, ChordSymbol, Duration, Dynamic, GuitarTechnique, HairpinKind, Lyric, Measure,
-        NotationSpanner, NotationSpannerKind, NoteAddr, NoteHead, Pitch, Score, Step, TabPosition,
-        TablatureConfig,
+        NotationSpanner, NotationSpannerKind, NoteAddr, NoteHead, OttavaKind, Pitch, Score, Step,
+        TabPosition, TablatureConfig,
     };
-    use acorde_layout::{LayoutConfig, compute_layout};
+    use acorde_layout::{LayoutConfig, SpanMark, compute_layout};
     use std::collections::HashMap;
 
     #[test]
@@ -6543,6 +6543,24 @@ mod tests {
         let offsets = resolve_span_lane_offsets(&layout, &points, 200.0, 1.0, 1.0, 10.0);
         assert_eq!(offsets.len(), 2);
         assert_ne!(offsets[&(0, 0)], offsets[&(1, 0)]);
+    }
+
+    #[test]
+    fn ottava_span_lane_scales_with_staff_size() {
+        let addr = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
+        let span = SpanMark::Ottava {
+            kind: OttavaKind::Va8,
+            start: addr.clone(),
+            end: addr,
+        };
+
+        assert_eq!(span_lane_baseline(&span, 100.0, true, 10.0), (42.0, true));
     }
 
     #[test]
