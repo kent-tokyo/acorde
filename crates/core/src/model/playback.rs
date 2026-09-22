@@ -277,6 +277,23 @@ pub enum OfflineRenderSemanticEventKind {
         controller: u8,
         value: u8,
     },
+    /// Signed MIDI 14-bit pitch bend retained from the interchange timeline.
+    PitchBend {
+        channel: u8,
+        value: i16,
+    },
+    /// MIDI program selection at a canonical score tick.
+    ProgramChange {
+        channel: u8,
+        program: u8,
+    },
+    /// Channel pressure or key pressure at a canonical score tick.
+    Aftertouch {
+        channel: u8,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        key: Option<u8>,
+        value: u8,
+    },
     Tempo {
         bpm: u16,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -979,6 +996,61 @@ fn append_measure_semantic_events(
                         channel: control.channel,
                         controller: control.controller,
                         value: control.value,
+                    },
+                    frame: ((secs - origin_secs).max(0.0) * f64::from(sample_rate_hz)).round()
+                        as u64,
+                    source: None,
+                    measure: Some(address.clone()),
+                });
+            }
+            for bend in &part.midi_pitch_bends {
+                if bend.tick < start_tick || bend.tick >= end_tick {
+                    continue;
+                }
+                let local_beats = (bend.tick - start_tick) as f64 / 480.0;
+                let secs = time.start_secs
+                    + tempo_ramp_seconds(time.bpm, time.ramp_to_bpm, time.beats, local_beats);
+                events.push(OfflineRenderSemanticFrameEvent {
+                    kind: OfflineRenderSemanticEventKind::PitchBend {
+                        channel: bend.channel,
+                        value: bend.value,
+                    },
+                    frame: ((secs - origin_secs).max(0.0) * f64::from(sample_rate_hz)).round()
+                        as u64,
+                    source: None,
+                    measure: Some(address.clone()),
+                });
+            }
+            for program in &part.midi_program_changes {
+                if program.tick < start_tick || program.tick >= end_tick {
+                    continue;
+                }
+                let local_beats = (program.tick - start_tick) as f64 / 480.0;
+                let secs = time.start_secs
+                    + tempo_ramp_seconds(time.bpm, time.ramp_to_bpm, time.beats, local_beats);
+                events.push(OfflineRenderSemanticFrameEvent {
+                    kind: OfflineRenderSemanticEventKind::ProgramChange {
+                        channel: program.channel,
+                        program: program.program,
+                    },
+                    frame: ((secs - origin_secs).max(0.0) * f64::from(sample_rate_hz)).round()
+                        as u64,
+                    source: None,
+                    measure: Some(address.clone()),
+                });
+            }
+            for aftertouch in &part.midi_aftertouch {
+                if aftertouch.tick < start_tick || aftertouch.tick >= end_tick {
+                    continue;
+                }
+                let local_beats = (aftertouch.tick - start_tick) as f64 / 480.0;
+                let secs = time.start_secs
+                    + tempo_ramp_seconds(time.bpm, time.ramp_to_bpm, time.beats, local_beats);
+                events.push(OfflineRenderSemanticFrameEvent {
+                    kind: OfflineRenderSemanticEventKind::Aftertouch {
+                        channel: aftertouch.channel,
+                        key: aftertouch.key,
+                        value: aftertouch.value,
                     },
                     frame: ((secs - origin_secs).max(0.0) * f64::from(sample_rate_hz)).round()
                         as u64,
@@ -2114,7 +2186,7 @@ mod tests {
     use crate::model::{
         duration::Duration,
         pitch::{Pitch, Step},
-        score::{MidiControlChange, Note, Score},
+        score::{MidiAftertouch, MidiControlChange, MidiPitchBend, MidiProgramChange, Note, Score},
     };
 
     fn opts(bpm: Option<u16>) -> PlaybackOptions {
@@ -3097,6 +3169,60 @@ mod tests {
         .expect("request-owned playback options");
         assert_eq!(manifest.playback_options, request_options);
         assert_eq!(manifest.frame_events[0].duration_frames, 48_000);
+    }
+
+    #[test]
+    fn offline_manifest_projects_typed_midi_events_to_exact_frames() {
+        let mut score = Score::new("MIDI semantics", 120, 4, 4, 0, 1);
+        score.parts[0].midi_pitch_bends.push(MidiPitchBend {
+            tick: 480,
+            channel: 2,
+            value: -512,
+        });
+        score.parts[0].midi_program_changes.push(MidiProgramChange {
+            tick: 480,
+            channel: 2,
+            program: 41,
+        });
+        score.parts[0].midi_aftertouch.push(MidiAftertouch {
+            tick: 480,
+            channel: 2,
+            key: Some(64),
+            value: 88,
+        });
+        let manifest = build_offline_render_manifest(
+            &score,
+            &PlaybackOptions::default(),
+            &OfflineRenderRequest {
+                sample_rate_hz: 48_000,
+                ..Default::default()
+            },
+        )
+        .expect("manifest builds");
+        for kind in [
+            OfflineRenderSemanticEventKind::PitchBend {
+                channel: 2,
+                value: -512,
+            },
+            OfflineRenderSemanticEventKind::ProgramChange {
+                channel: 2,
+                program: 41,
+            },
+            OfflineRenderSemanticEventKind::Aftertouch {
+                channel: 2,
+                key: Some(64),
+                value: 88,
+            },
+        ] {
+            assert!(manifest.semantic_events.iter().any(|event| {
+                event.kind == kind
+                    && event.frame == 24_000
+                    && event
+                        .measure
+                        .as_ref()
+                        .is_some_and(|address| address.part == 0 && address.measure == 0)
+            }));
+        }
     }
 
     #[test]
