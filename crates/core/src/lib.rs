@@ -42,10 +42,12 @@ pub use model::notation::{
 pub use model::pitch::{Pitch, Step};
 pub use model::playback::{
     MAX_PLAYBACK_COMPARISON_EVENTS, MAX_TAB_PERFORMANCE_EVENTS, MetronomeConfig,
-    OFFLINE_RENDER_CONTRACT_VERSION, OfflineRenderFormat, OfflineRenderManifest,
-    OfflineRenderRequest, OfflineRenderResult, PLAYBACK_COMPARISON_CONTRACT_VERSION,
-    PLAYBACK_ROUTING_CONTRACT_VERSION, PLAYBACK_TIMING_CORPUS_CONTRACT_VERSION, PlaybackAuxSend,
-    PlaybackBusRoute, PlaybackEffectRoute, PlaybackEvent, PlaybackOptions, PlaybackPosition,
+    OFFLINE_RENDER_CONTRACT_VERSION, OfflineRenderDiagnostic, OfflineRenderDiagnosticKind,
+    OfflineRenderFormat, OfflineRenderFrameEvent, OfflineRenderManifest,
+    OfflineRenderNavigationPolicy, OfflineRenderRequest, OfflineRenderResult, OfflineRenderScope,
+    PLAYBACK_COMPARISON_CONTRACT_VERSION, PLAYBACK_ROUTING_CONTRACT_VERSION,
+    PLAYBACK_TIMING_CORPUS_CONTRACT_VERSION, PlaybackAuxSend, PlaybackBusRoute,
+    PlaybackEffectRoute, PlaybackEvent, PlaybackOptions, PlaybackPosition,
     PlaybackRealizationProfile, PlaybackRoutingConfig, PlaybackRoutingManifest, PlaybackTimingCase,
     PlaybackTimingCaseReport, PlaybackTimingCorpusReport, PlaybackTimingMismatch,
     PlaybackTimingReport, PlaybackTimingTolerance, TAB_PERFORMANCE_CONTRACT_VERSION,

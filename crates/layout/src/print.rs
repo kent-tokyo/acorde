@@ -1,5 +1,5 @@
 use crate::{LayoutConfig, SpanMark, compute_layout};
-use acorde_core::{Barline, PartGroupSymbol, Score, StyledText, TextStyle};
+use acorde_core::{Barline, NoteAddr, PartGroupSymbol, Score, StyledText, TextStyle};
 use serde::{Deserialize, Serialize};
 
 /// Font-independent metrics for one print glyph, expressed in millimetres.
@@ -1246,6 +1246,52 @@ pub struct PageArtifact {
     pub layout: PageLayout,
 }
 
+/// Version of the serializable page-render tree contract.
+pub const PAGE_RENDER_TREE_CONTRACT_VERSION: u16 = 1;
+
+/// Canonical score address or page-owned publication address for one render node.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum PageRenderAddress {
+    Note(NoteAddr),
+    Spanner {
+        id: String,
+    },
+    Publication {
+        page_index: usize,
+        block_index: usize,
+    },
+}
+
+/// Backend-neutral semantic node in a page render tree.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum PageRenderNodeKind {
+    Note,
+    Rest,
+    Spanner { starts_here: bool, ends_here: bool },
+    PublicationBlock,
+}
+
+/// One node with its physical page and system ownership.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PageRenderNode {
+    pub address: PageRenderAddress,
+    pub kind: PageRenderNodeKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub system: Option<SystemAddress>,
+}
+
+/// Deterministic semantic tree for one physical page.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PageRenderTree {
+    pub contract_version: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub view_id: Option<String>,
+    pub page: PageArtifact,
+    pub nodes: Vec<PageRenderNode>,
+}
+
 /// Typed, host-neutral diagnostics attached to a page export descriptor.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PageArtifactDiagnostic {
@@ -1474,10 +1520,124 @@ impl PrintLayoutResult {
             })
             .collect())
     }
+
+    /// Project this validated pagination and score into page-owned semantic nodes.
+    ///
+    /// Nodes keep canonical score addresses so a host never has to reverse-engineer
+    /// ownership from SVG groups or page-local indices.
+    pub fn export_page_render_trees(
+        &self,
+        score: &Score,
+    ) -> Result<Vec<PageRenderTree>, PrintLayoutError> {
+        let artifacts = self.export_page_artifacts()?;
+        Ok(self
+            .pages
+            .iter()
+            .zip(artifacts)
+            .map(|(page, artifact)| {
+                let mut nodes = Vec::new();
+                for system in &page.systems {
+                    for span in &system.measure_spans {
+                        for (part_index, part) in score.parts.iter().enumerate() {
+                            for (staff_index, staff) in part.staves.iter().enumerate() {
+                                for measure_index in span.first_measure..=span.last_measure {
+                                    let Some(measure) = staff.measures.get(measure_index) else {
+                                        continue;
+                                    };
+                                    for (voice, notes) in measure.voices.iter().enumerate() {
+                                        for (note, value) in notes.iter().enumerate() {
+                                            nodes.push(PageRenderNode {
+                                                address: PageRenderAddress::Note(NoteAddr {
+                                                    part: part_index,
+                                                    staff: staff_index,
+                                                    measure: measure_index,
+                                                    voice,
+                                                    note,
+                                                }),
+                                                kind: if value.is_rest {
+                                                    PageRenderNodeKind::Rest
+                                                } else {
+                                                    PageRenderNodeKind::Note
+                                                },
+                                                system: Some(system.address),
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    for segment in &system.span_segments {
+                        if let Some(spanner) = score.spanners.get(segment.span_index) {
+                            nodes.push(PageRenderNode {
+                                address: PageRenderAddress::Spanner {
+                                    id: spanner.id.clone(),
+                                },
+                                kind: PageRenderNodeKind::Spanner {
+                                    starts_here: segment.starts_here,
+                                    ends_here: segment.ends_here,
+                                },
+                                system: Some(system.address),
+                            });
+                        }
+                    }
+                }
+                for (block_index, _) in page.publication.text_blocks.iter().enumerate() {
+                    nodes.push(PageRenderNode {
+                        address: PageRenderAddress::Publication {
+                            page_index: page.page_index,
+                            block_index,
+                        },
+                        kind: PageRenderNodeKind::PublicationBlock,
+                        system: None,
+                    });
+                }
+                PageRenderTree {
+                    contract_version: PAGE_RENDER_TREE_CONTRACT_VERSION,
+                    view_id: None,
+                    page: artifact,
+                    nodes,
+                }
+            })
+            .collect())
+    }
+
+    /// Export page trees for a linked view without rewriting canonical source addresses.
+    pub fn export_page_render_trees_for_view(
+        &self,
+        score: &Score,
+        view_id: &str,
+    ) -> Result<Vec<PageRenderTree>, PrintLayoutError> {
+        let view = score
+            .views
+            .iter()
+            .find(|view| view.id == view_id)
+            .ok_or(PrintLayoutError::InvalidView)?;
+        let selected_parts = &view.parts;
+        let mut trees = self.export_page_render_trees(score)?;
+        for tree in &mut trees {
+            tree.view_id = Some(view.id.clone());
+            tree.nodes.retain(|node| match &node.address {
+                PageRenderAddress::Note(address) => selected_parts.contains(&address.part),
+                PageRenderAddress::Spanner { id } => score
+                    .spanners
+                    .iter()
+                    .find(|spanner| spanner.id == *id)
+                    .is_some_and(|spanner| {
+                        selected_parts.contains(&spanner.start.part)
+                            || selected_parts.contains(&spanner.end.part)
+                    }),
+                PageRenderAddress::Publication { .. } => true,
+            });
+        }
+        Ok(trees)
+    }
 }
 
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum PrintLayoutError {
+    #[error("unknown score view")]
+    InvalidView,
     #[error("paper dimensions must be finite and greater than zero")]
     InvalidPaperDimensions,
     #[error("margins must be finite and non-negative")]
@@ -2819,7 +2979,8 @@ pub fn compute_print_layout(
 mod tests {
     use super::*;
     use acorde_core::{
-        Clef, Duration, Measure, Note, Part, PartGroup, PartGroupSymbol, Pitch, Score, Staff, Step,
+        Clef, Duration, Measure, Note, Part, PartGroup, PartGroupSymbol, Pitch, Score, ScoreView,
+        Staff, Step,
     };
 
     fn score_with_measures(count: usize) -> Score {
@@ -4793,6 +4954,59 @@ mod tests {
         assert_eq!(
             glyph_extents(&placements),
             Err(GlyphPlacementError::NonFinite { index: 0 })
+        );
+    }
+
+    #[test]
+    fn page_render_tree_preserves_canonical_note_and_rest_addresses() {
+        let mut score = score_with_measures(1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            Note::rest(Duration::Quarter),
+        ];
+        let layout = compute_print_layout(&score, &PrintConfig::default()).expect("layout");
+        let trees = layout
+            .export_page_render_trees(&score)
+            .expect("render trees");
+        assert_eq!(trees.len(), 1);
+        assert_eq!(trees[0].contract_version, PAGE_RENDER_TREE_CONTRACT_VERSION);
+        assert!(trees[0].nodes.iter().any(|node| matches!(
+            (&node.address, &node.kind),
+            (PageRenderAddress::Note(address), PageRenderNodeKind::Note)
+                if address.part == 0 && address.staff == 0 && address.measure == 0 && address.note == 0
+        )));
+        assert!(trees[0].nodes.iter().any(|node| matches!(
+            (&node.address, &node.kind),
+            (PageRenderAddress::Note(address), PageRenderNodeKind::Rest)
+                if address.part == 0 && address.staff == 0 && address.measure == 0 && address.note == 1
+        )));
+        let restored: Vec<PageRenderTree> =
+            serde_json::from_str(&serde_json::to_string(&trees).expect("trees serialize"))
+                .expect("trees deserialize");
+        assert_eq!(restored, trees);
+    }
+
+    #[test]
+    fn page_render_tree_for_linked_view_keeps_source_part_addresses() {
+        let mut score = score_with_measures(1);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        score
+            .views
+            .push(ScoreView::linked_part("piano", "Piano", 0));
+        let layout = compute_print_layout(&score, &PrintConfig::default()).expect("layout");
+        let trees = layout
+            .export_page_render_trees_for_view(&score, "piano")
+            .expect("view trees");
+        assert_eq!(trees[0].view_id.as_deref(), Some("piano"));
+        assert!(trees[0].nodes.iter().all(|node| match &node.address {
+            PageRenderAddress::Note(address) => address.part == 0,
+            _ => true,
+        }));
+        assert!(
+            layout
+                .export_page_render_trees_for_view(&score, "missing")
+                .is_err()
         );
     }
 }

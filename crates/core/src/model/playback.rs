@@ -54,7 +54,7 @@ pub enum PlaybackRealizationProfile {
 ///
 /// Metronome events are tagged with `PlaybackEvent.is_metronome = true` and can be
 /// routed separately by checking `channel` (default 9 = GM drums).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MetronomeConfig {
     /// MIDI channel for the click track. Default 9 (GM drum channel).
     #[serde(default = "default_metronome_channel")]
@@ -86,7 +86,7 @@ impl Default for MetronomeConfig {
 }
 
 /// Options for [`to_playback_events`].
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PlaybackOptions {
     /// Replaces the score's tempo when `Some`; `None` uses `score.settings.tempo_bpm`.
     pub bpm_override: Option<u16>,
@@ -222,7 +222,59 @@ pub const MAX_TAB_PERFORMANCE_EVENTS: usize = 1_000_000;
 const MAX_TAB_PERFORMANCE_DIAGNOSTICS: usize = 1_024;
 
 /// Version of the host-neutral offline rendering manifest contract.
-pub const OFFLINE_RENDER_CONTRACT_VERSION: u16 = 1;
+pub const OFFLINE_RENDER_CONTRACT_VERSION: u16 = 2;
+
+/// Score material selected for an offline render.  Addresses remain those of the
+/// source score even when a view or a range is selected.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum OfflineRenderScope {
+    #[default]
+    FullScore,
+    MeasureRange {
+        start: usize,
+        end: usize,
+    },
+    Selection {
+        addresses: Vec<NoteAddr>,
+    },
+}
+
+/// Navigation realization selected by an offline-render request.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum OfflineRenderNavigationPolicy {
+    /// Follow the score's authored repeats, jumps and endings.
+    #[default]
+    Authored,
+}
+
+/// One event with integer sample-frame boundaries for an offline renderer.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OfflineRenderFrameEvent {
+    pub event: PlaybackEvent,
+    pub start_frame: u64,
+    pub duration_frames: u64,
+    pub end_frame: u64,
+}
+
+/// Machine-readable condition observed while deriving an offline schedule.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum OfflineRenderDiagnosticKind {
+    /// A selected canonical note address did not yield a sounding event.
+    UnresolvedSelectionAddress,
+    /// A valid selection contained no sounding events after scheduling.
+    EmptySelection,
+}
+
+/// Source-located diagnostic for a provider-neutral offline manifest.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct OfflineRenderDiagnostic {
+    pub kind: OfflineRenderDiagnosticKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<NoteAddr>,
+}
 
 /// Encoded audio format requested from a host-side offline renderer.
 ///
@@ -237,7 +289,7 @@ pub enum OfflineRenderFormat {
 }
 
 /// Host-neutral parameters for an offline render operation.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct OfflineRenderRequest {
     /// Requested encoded format. The host reports unsupported formats explicitly.
     #[serde(default)]
@@ -251,6 +303,23 @@ pub struct OfflineRenderRequest {
     /// Stable name/version of the selected host provider, when already chosen.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider_identity: Option<String>,
+    /// Stable provider asset identifier (for example a host preset or sample set).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asset_identity: Option<String>,
+    /// Optional linked view to resolve before event scheduling.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub view_id: Option<String>,
+    #[serde(default)]
+    pub scope: OfflineRenderScope,
+    #[serde(default)]
+    pub navigation_policy: OfflineRenderNavigationPolicy,
+    /// Extra release tail after the final sounding event, in milliseconds.
+    #[serde(default)]
+    pub release_tail_millis: u32,
+    /// Full reproducible playback policy. When omitted, the legacy function
+    /// argument is used and copied into the manifest for migration clarity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub playback_options: Option<PlaybackOptions>,
 }
 
 fn default_offline_render_sample_rate() -> u32 {
@@ -268,6 +337,12 @@ impl Default for OfflineRenderRequest {
             sample_rate_hz: default_offline_render_sample_rate(),
             channels: default_offline_render_channels(),
             provider_identity: None,
+            asset_identity: None,
+            view_id: None,
+            scope: OfflineRenderScope::FullScore,
+            navigation_policy: OfflineRenderNavigationPolicy::Authored,
+            release_tail_millis: 0,
+            playback_options: None,
         }
     }
 }
@@ -285,8 +360,27 @@ pub struct OfflineRenderManifest {
     pub channels: u8,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider_identity: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asset_identity: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub view_id: Option<String>,
+    #[serde(default)]
+    pub scope: OfflineRenderScope,
+    #[serde(default)]
+    pub navigation_policy: OfflineRenderNavigationPolicy,
+    #[serde(default)]
+    pub release_tail_frames: u64,
+    /// The exact timing policy that produced this manifest.
+    #[serde(default)]
+    pub playback_options: PlaybackOptions,
     pub duration_frames: u64,
     pub events: Vec<PlaybackEvent>,
+    /// Frame-quantized equivalents of `events`; retained alongside the legacy
+    /// seconds schedule so v1 clients can migrate without losing semantics.
+    #[serde(default)]
+    pub frame_events: Vec<OfflineRenderFrameEvent>,
+    #[serde(default)]
+    pub diagnostics: Vec<OfflineRenderDiagnostic>,
 }
 
 /// Host-reported result metadata for an [`OfflineRenderManifest`].
@@ -490,7 +584,59 @@ pub fn build_offline_render_manifest(
     {
         return Err(crate::Error::InvalidOfflineRenderRequest);
     }
-    let events = to_playback_events_bounded(score, playback_options)?;
+    let resolved_score = match request.view_id.as_deref() {
+        Some(view_id) => score.resolve_view(view_id)?,
+        None => score.clone(),
+    };
+    let mut effective_options = request
+        .playback_options
+        .clone()
+        .unwrap_or_else(|| playback_options.clone());
+    if let OfflineRenderScope::MeasureRange { start, end } = request.scope {
+        if start > end {
+            return Err(crate::Error::InvalidOfflineRenderRequest);
+        }
+        effective_options.loop_region = Some((start, end));
+    }
+    let mut events = to_playback_events_bounded(&resolved_score, &effective_options)?;
+    let mut diagnostics = Vec::new();
+    if let OfflineRenderScope::Selection { ref addresses } = request.scope {
+        if addresses.is_empty() {
+            return Err(crate::Error::InvalidOfflineRenderRequest);
+        }
+        for address in addresses {
+            if !events
+                .iter()
+                .any(|event| event.source.as_ref() == Some(address))
+            {
+                diagnostics.push(OfflineRenderDiagnostic {
+                    kind: OfflineRenderDiagnosticKind::UnresolvedSelectionAddress,
+                    source: Some(address.clone()),
+                });
+            }
+        }
+        events.retain(|event| {
+            event
+                .source
+                .as_ref()
+                .is_some_and(|source| addresses.contains(source))
+        });
+        let origin_secs = events
+            .iter()
+            .map(|event| event.time_secs)
+            .fold(f64::INFINITY, f64::min);
+        if origin_secs.is_finite() {
+            for event in &mut events {
+                event.time_secs -= origin_secs;
+            }
+        }
+        if events.is_empty() {
+            diagnostics.push(OfflineRenderDiagnostic {
+                kind: OfflineRenderDiagnosticKind::EmptySelection,
+                source: None,
+            });
+        }
+    }
     let duration_secs = events
         .iter()
         .map(|event| event.time_secs + event.duration_secs)
@@ -498,10 +644,35 @@ pub fn build_offline_render_manifest(
     if !duration_secs.is_finite() || duration_secs < 0.0 {
         return Err(crate::Error::InvalidOfflineRenderRequest);
     }
+    let release_tail_frames =
+        (f64::from(request.release_tail_millis) * f64::from(request.sample_rate_hz) / 1_000.0)
+            .ceil();
     let duration_frames = (duration_secs * f64::from(request.sample_rate_hz)).ceil();
     if !duration_frames.is_finite() || duration_frames > u64::MAX as f64 {
         return Err(crate::Error::InvalidOfflineRenderRequest);
     }
+    if !release_tail_frames.is_finite()
+        || release_tail_frames > u64::MAX as f64
+        || duration_frames > (u64::MAX as f64 - release_tail_frames)
+    {
+        return Err(crate::Error::InvalidOfflineRenderRequest);
+    }
+    let frame_events = events
+        .iter()
+        .cloned()
+        .map(|event| {
+            let start_frame = (event.time_secs * f64::from(request.sample_rate_hz)).round() as u64;
+            let end_frame = ((event.time_secs + event.duration_secs)
+                * f64::from(request.sample_rate_hz))
+            .ceil() as u64;
+            OfflineRenderFrameEvent {
+                duration_frames: end_frame.saturating_sub(start_frame),
+                event,
+                start_frame,
+                end_frame,
+            }
+        })
+        .collect();
     Ok(OfflineRenderManifest {
         contract_version: OFFLINE_RENDER_CONTRACT_VERSION,
         playback_contract_version: PLAYBACK_COMPARISON_CONTRACT_VERSION,
@@ -509,8 +680,16 @@ pub fn build_offline_render_manifest(
         sample_rate_hz: request.sample_rate_hz,
         channels: request.channels,
         provider_identity: request.provider_identity.clone(),
-        duration_frames: duration_frames as u64,
+        asset_identity: request.asset_identity.clone(),
+        view_id: request.view_id.clone(),
+        scope: request.scope.clone(),
+        navigation_policy: request.navigation_policy,
+        release_tail_frames: release_tail_frames as u64,
+        playback_options: effective_options,
+        duration_frames: duration_frames as u64 + release_tail_frames as u64,
         events,
+        frame_events,
+        diagnostics,
     })
 }
 
@@ -2525,6 +2704,7 @@ mod tests {
             sample_rate_hz: 48_000,
             channels: 2,
             provider_identity: Some("test-provider@1".into()),
+            ..Default::default()
         };
 
         let manifest = build_offline_render_manifest(&score, &PlaybackOptions::default(), &request)
@@ -2533,6 +2713,11 @@ mod tests {
         assert_eq!(manifest.format, OfflineRenderFormat::Flac);
         assert_eq!(manifest.duration_frames, 24_000);
         assert_eq!(manifest.events.len(), 1);
+        assert_eq!(manifest.frame_events.len(), 1);
+        assert_eq!(manifest.frame_events[0].start_frame, 0);
+        assert_eq!(manifest.frame_events[0].duration_frames, 24_000);
+        assert_eq!(manifest.frame_events[0].end_frame, 24_000);
+        assert_eq!(manifest.playback_options, PlaybackOptions::default());
         assert_eq!(
             manifest.provider_identity.as_deref(),
             Some("test-provider@1")
@@ -2550,6 +2735,114 @@ mod tests {
             build_offline_render_manifest(&score, &PlaybackOptions::default(), &request),
             Err(crate::Error::InvalidOfflineRenderRequest)
         ));
+    }
+
+    #[test]
+    fn offline_render_manifest_selection_keeps_source_address_and_release_tail() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::D, 4), Duration::Quarter),
+        ];
+        let events = to_playback_events(&score, &PlaybackOptions::default());
+        let request = OfflineRenderRequest {
+            sample_rate_hz: 8_000,
+            release_tail_millis: 125,
+            scope: OfflineRenderScope::Selection {
+                addresses: vec![events[1].source.clone().expect("source address")],
+            },
+            ..Default::default()
+        };
+        let manifest = build_offline_render_manifest(&score, &PlaybackOptions::default(), &request)
+            .expect("selection manifest");
+        assert_eq!(manifest.events.len(), 1);
+        assert_eq!(manifest.events[0].source, events[1].source);
+        assert_eq!(manifest.frame_events[0].start_frame, 0);
+        assert_eq!(manifest.release_tail_frames, 1_000);
+        assert_eq!(manifest.duration_frames, 5_000);
+    }
+
+    #[test]
+    fn offline_render_request_owned_options_override_legacy_argument() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0][0] =
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        let request_options = PlaybackOptions {
+            bpm_override: Some(60),
+            ..Default::default()
+        };
+        let manifest = build_offline_render_manifest(
+            &score,
+            &PlaybackOptions::default(),
+            &OfflineRenderRequest {
+                sample_rate_hz: 48_000,
+                playback_options: Some(request_options.clone()),
+                ..Default::default()
+            },
+        )
+        .expect("request-owned playback options");
+        assert_eq!(manifest.playback_options, request_options);
+        assert_eq!(manifest.frame_events[0].duration_frames, 48_000);
+    }
+
+    #[test]
+    fn offline_render_manifest_reports_unresolved_selection_address() {
+        let score = Score::new("T", 120, 4, 4, 0, 1);
+        let request = OfflineRenderRequest {
+            scope: OfflineRenderScope::Selection {
+                addresses: vec![NoteAddr {
+                    part: 0,
+                    staff: 0,
+                    measure: 0,
+                    voice: 0,
+                    note: 99,
+                }],
+            },
+            ..Default::default()
+        };
+        let manifest = build_offline_render_manifest(&score, &PlaybackOptions::default(), &request)
+            .expect("empty selection is representable");
+        assert_eq!(manifest.events.len(), 0);
+        assert_eq!(
+            manifest.diagnostics,
+            vec![
+                OfflineRenderDiagnostic {
+                    kind: OfflineRenderDiagnosticKind::UnresolvedSelectionAddress,
+                    source: Some(NoteAddr {
+                        part: 0,
+                        staff: 0,
+                        measure: 0,
+                        voice: 0,
+                        note: 99,
+                    }),
+                },
+                OfflineRenderDiagnostic {
+                    kind: OfflineRenderDiagnosticKind::EmptySelection,
+                    source: None,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn offline_render_manifest_v1_json_migrates_with_v2_defaults() {
+        let legacy = serde_json::json!({
+            "contract_version": 1,
+            "playback_contract_version": 2,
+            "format": "Wav",
+            "sample_rate_hz": 48_000,
+            "channels": 2,
+            "duration_frames": 0,
+            "events": []
+        });
+        let manifest: OfflineRenderManifest =
+            serde_json::from_value(legacy).expect("v1 manifest remains readable");
+        assert_eq!(manifest.contract_version, 1);
+        assert_eq!(manifest.scope, OfflineRenderScope::FullScore);
+        assert_eq!(manifest.release_tail_frames, 0);
+        assert_eq!(manifest.playback_options, PlaybackOptions::default());
+        assert!(manifest.frame_events.is_empty());
+        assert!(manifest.diagnostics.is_empty());
     }
 
     #[test]

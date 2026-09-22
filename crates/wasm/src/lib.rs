@@ -368,6 +368,30 @@ pub fn to_playback_events_ex(score_json: &str, options_json: &str) -> Result<Str
         .map_err(|e| js_err(format!("playback serialization failed: {e}")))
 }
 
+/// Build the provider-neutral offline-render timing manifest as JSON.
+///
+/// This produces semantic scheduling data only; audio synthesis, sample assets and
+/// encoding remain responsibilities of the calling host.
+#[wasm_bindgen]
+pub fn build_offline_render_manifest(
+    score_json: &str,
+    options_json: &str,
+    request_json: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::PlaybackOptions =
+        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
+    let request: acorde_core::OfflineRenderRequest = parse_json(
+        request_json,
+        "offline render request",
+        MAX_OPTIONS_JSON_BYTES,
+    )?;
+    let manifest =
+        acorde_core::build_offline_render_manifest(&score, &options, &request).map_err(js_err)?;
+    serde_json::to_string(&manifest)
+        .map_err(|e| js_err(format!("offline render manifest serialization failed: {e}")))
+}
+
 /// Compare a host/backend playback event trace with an expected trace.
 ///
 /// `expected_json` is normally produced by `to_playback_events_ex`; `actual_json` is supplied
@@ -515,6 +539,39 @@ pub fn compute_print_layout(score_json: &str, config_json: &str) -> Result<Strin
     let result = acorde_layout::compute_print_layout(&score, &config).map_err(js_err)?;
     serde_json::to_string(&result)
         .map_err(|e| js_err(format!("print layout serialization failed: {e}")))
+}
+
+/// Export page-scoped semantic render trees using the same print configuration.
+///
+/// The result carries canonical score addresses for notes/rests plus page-owned
+/// spanner and publication nodes; PDF/SVG encoding remains host-owned.
+#[wasm_bindgen]
+pub fn export_page_render_trees(score_json: &str, config_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let config: acorde_layout::PrintConfig =
+        parse_json(config_json, "print config", MAX_OPTIONS_JSON_BYTES)?;
+    let layout = acorde_layout::compute_print_layout(&score, &config).map_err(js_err)?;
+    let trees = layout.export_page_render_trees(&score).map_err(js_err)?;
+    serde_json::to_string(&trees)
+        .map_err(|e| js_err(format!("page render tree serialization failed: {e}")))
+}
+
+/// Export page-scoped semantic nodes for one named linked score view.
+#[wasm_bindgen]
+pub fn export_page_render_trees_for_view(
+    score_json: &str,
+    config_json: &str,
+    view_id: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let config: acorde_layout::PrintConfig =
+        parse_json(config_json, "print config", MAX_OPTIONS_JSON_BYTES)?;
+    let layout = acorde_layout::compute_print_layout(&score, &config).map_err(js_err)?;
+    let trees = layout
+        .export_page_render_trees_for_view(&score, view_id)
+        .map_err(js_err)?;
+    serde_json::to_string(&trees)
+        .map_err(|e| js_err(format!("page render tree serialization failed: {e}")))
 }
 
 // ── SVG rendering ────────────────────────────────────────────────────────────
@@ -2465,6 +2522,9 @@ mod wasm_tests {
         let print_layout = compute_print_layout(&score_json, "{}").unwrap();
         assert!(print_layout.contains("contract_version"));
         assert!(print_layout.contains("pages"));
+        let page_trees = export_page_render_trees(&score_json, "{}").unwrap();
+        assert!(page_trees.contains("contract_version"));
+        assert!(page_trees.contains("nodes"));
         assert!(compute_print_layout(&score_json, "not-json").is_err());
         assert!(render_score_svg_with_layout("{}", &layout_json, "{}").is_err());
         assert!(render_score_svg_row(&score_json, &layout_json, 99, "{}").is_err());
