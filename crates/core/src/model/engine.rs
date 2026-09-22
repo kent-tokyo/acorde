@@ -1322,6 +1322,72 @@ mod tests {
     }
 
     #[test]
+    fn score_fragment_replace_preserves_measure_attributes_and_accepts_v2() {
+        use crate::model::fragment::{
+            ScoreFragmentMeasureAttributes, ScoreFragmentSelection, extract_score_fragment,
+        };
+        use crate::{Duration, KeySignature, Note, Pitch, Step};
+
+        let mut engine = ScoreEngine::new();
+        let source_measure = &mut engine.score.parts[0].staves[0].measures[0];
+        source_measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        source_measure.key_sig = Some(KeySignature {
+            fifths: 2,
+            mode: "major".into(),
+        });
+        source_measure.tempo = Some(96);
+        source_measure.navigation = Some("Segno".into());
+        let source = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
+        let fragment = extract_score_fragment(
+            &engine.score,
+            &[ScoreFragmentSelection {
+                start: source.clone(),
+                end: source.clone(),
+            }],
+        )
+        .unwrap();
+        assert!(fragment.voices[0].measures[0].attributes.present);
+        engine
+            .paste_score_fragment(
+                fragment.clone(),
+                NoteAddr {
+                    measure: 1,
+                    ..source.clone()
+                },
+            )
+            .unwrap();
+        let pasted = &engine.score.parts[0].staves[0].measures[1];
+        assert_eq!(pasted.key_sig.as_ref().map(|key| key.fifths), Some(2));
+        assert_eq!(pasted.tempo, Some(96));
+        assert_eq!(pasted.navigation.as_deref(), Some("Segno"));
+
+        let mut legacy = fragment;
+        legacy.contract_version = 2;
+        for measure in &mut legacy.voices[0].measures {
+            measure.attributes = ScoreFragmentMeasureAttributes::default();
+        }
+        engine
+            .paste_score_fragment(
+                legacy,
+                NoteAddr {
+                    measure: 2,
+                    ..source
+                },
+            )
+            .unwrap();
+        let legacy_paste = &engine.score.parts[0].staves[0].measures[2];
+        assert_eq!(legacy_paste.key_sig, None);
+        assert_eq!(legacy_paste.tempo, None);
+        assert_eq!(legacy_paste.navigation, None);
+    }
+
+    #[test]
     fn exchange_voices_preserves_source_numbers_spans_and_undo() {
         use crate::model::score::{NotationSpanner, NotationSpannerKind};
         use crate::{Duration, Note, Pitch, Step};
