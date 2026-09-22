@@ -1324,10 +1324,18 @@ impl PageRenderTree {
             })
             .transpose()?;
         for (node_index, node) in self.nodes.iter().enumerate() {
-            if node
-                .system
-                .is_some_and(|system| system.page_index != self.page.page_index)
-            {
+            let system = node.system.and_then(|address| {
+                self.page
+                    .layout
+                    .systems
+                    .iter()
+                    .find(|system| system.address == address)
+            });
+            let score_owned = matches!(
+                &node.address,
+                PageRenderAddress::Note(_) | PageRenderAddress::Spanner { .. }
+            );
+            if score_owned != node.system.is_some() || node.system.is_some() && system.is_none() {
                 return Err(PrintLayoutError::InvalidRenderTreeNode { node_index });
             }
             let valid = match &node.address {
@@ -1338,15 +1346,22 @@ impl PageRenderTree {
                     .and_then(|staff| staff.measures.get(address.measure))
                     .and_then(|measure| measure.voices.get(address.voice))
                     .and_then(|voice| voice.get(address.note))
-                    .is_some(),
+                    .is_some_and(|note| {
+                        matches!(
+                            (&node.kind, note.is_rest),
+                            (PageRenderNodeKind::Note, false) | (PageRenderNodeKind::Rest, true)
+                        )
+                    }),
                 PageRenderAddress::Spanner { id } => {
-                    score.spanners.iter().any(|span| span.id == *id)
+                    matches!(&node.kind, PageRenderNodeKind::Spanner { .. })
+                        && score.spanners.iter().any(|span| span.id == *id)
                 }
                 PageRenderAddress::Publication {
                     page_index,
                     block_index,
                 } => {
-                    *page_index == self.page.page_index
+                    matches!(&node.kind, PageRenderNodeKind::PublicationBlock)
+                        && *page_index == self.page.page_index
                         && self
                             .page
                             .layout
@@ -1359,7 +1374,8 @@ impl PageRenderTree {
                     page_index,
                     resource_key,
                 } => {
-                    *page_index == self.page.page_index
+                    matches!(&node.kind, PageRenderNodeKind::Resource)
+                        && *page_index == self.page.page_index
                         && self
                             .page
                             .layout
@@ -1372,7 +1388,8 @@ impl PageRenderTree {
                     page_index,
                     frame_index,
                 } => {
-                    *page_index == self.page.page_index
+                    matches!(&node.kind, PageRenderNodeKind::Frame)
+                        && *page_index == self.page.page_index
                         && self
                             .page
                             .layout
@@ -5202,6 +5219,20 @@ mod tests {
             .page_index = 99;
         assert!(matches!(
             invalid.validate(&score),
+            Err(PrintLayoutError::InvalidRenderTreeNode { node_index: 0 })
+        ));
+
+        let mut wrong_note_kind = restored[0].clone();
+        wrong_note_kind.nodes[0].kind = PageRenderNodeKind::Rest;
+        assert!(matches!(
+            wrong_note_kind.validate(&score),
+            Err(PrintLayoutError::InvalidRenderTreeNode { node_index: 0 })
+        ));
+
+        let mut missing_system = restored[0].clone();
+        missing_system.nodes[0].system = None;
+        assert!(matches!(
+            missing_system.validate(&score),
             Err(PrintLayoutError::InvalidRenderTreeNode { node_index: 0 })
         ));
     }
