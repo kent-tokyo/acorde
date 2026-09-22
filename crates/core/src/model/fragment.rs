@@ -101,6 +101,11 @@ pub fn extract_score_fragment(
         .map(|selection| selection.start.measure.min(selection.end.measure))
         .min()
         .ok_or_else(|| Error::InvalidCommand("score fragment requires selections".into()))?;
+    let base_voice = selections
+        .iter()
+        .map(|selection| selection.start.voice)
+        .min()
+        .ok_or_else(|| Error::InvalidCommand("score fragment requires selections".into()))?;
 
     let mut seen_lanes = BTreeSet::new();
     let mut source_to_relative = Vec::new();
@@ -147,7 +152,7 @@ pub fn extract_score_fragment(
                 part: selection.start.part - base_part,
                 staff: selection.start.staff - base_staff,
                 measure: measure_index - base_measure,
-                voice: selection.start.voice,
+                voice: selection.start.voice - base_voice,
                 note: 0,
             };
             for note_index in 0..measure.voices[selection.start.voice].len() {
@@ -174,7 +179,7 @@ pub fn extract_score_fragment(
         voices.push(ScoreFragmentVoice {
             relative_part: selection.start.part - base_part,
             relative_staff: selection.start.staff - base_staff,
-            relative_voice: selection.start.voice,
+            relative_voice: selection.start.voice - base_voice,
             measures,
         });
     }
