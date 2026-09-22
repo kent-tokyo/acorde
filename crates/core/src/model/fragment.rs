@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
 /// Current schema version for [`ScoreFragment`].
-pub const SCORE_FRAGMENT_CONTRACT_VERSION: u16 = 1;
+pub const SCORE_FRAGMENT_CONTRACT_VERSION: u16 = 2;
 
 /// One inclusive, whole-measure voice range to extract.
 ///
@@ -60,6 +60,18 @@ pub struct ScoreFragmentMeasure {
     pub source_voice_number: Option<u32>,
     #[serde(default)]
     pub notes: Vec<Note>,
+    /// Cross-staff targets expressed relative to this lane's source staff.
+    /// An empty vector denotes a v1 fragment with no remappable targets.
+    #[serde(default)]
+    pub cross_staff_targets: Vec<Option<ScoreFragmentCrossStaffTarget>>,
+}
+
+/// A cross-staff target carried independently from renderer-oriented note data.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScoreFragmentCrossStaffTarget {
+    pub staff_offset: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_voice: Option<usize>,
 }
 
 /// Loss or policy decision made while extracting a fragment.
@@ -170,10 +182,24 @@ pub fn extract_score_fragment(
                     },
                 ));
             }
+            let notes = measure.voices[selection.start.voice].clone();
+            let cross_staff_targets = notes
+                .iter()
+                .map(|note| {
+                    note.cross_staff
+                        .as_ref()
+                        .map(|cross_staff| ScoreFragmentCrossStaffTarget {
+                            staff_offset: cross_staff.target_staff as i64
+                                - selection.start.staff as i64,
+                            target_voice: cross_staff.target_voice,
+                        })
+                })
+                .collect();
             measures.push(ScoreFragmentMeasure {
                 relative_measure: measure_index - base_measure,
                 source_voice_number: measure.source_voice_numbers[selection.start.voice],
-                notes: measure.voices[selection.start.voice].clone(),
+                notes,
+                cross_staff_targets,
             });
         }
         voices.push(ScoreFragmentVoice {

@@ -3265,6 +3265,31 @@ fn apply_paste_score_fragment(cmd: &PasteScoreFragmentCmd, score: &mut Score) ->
             if measure_index >= staff.measures.len() {
                 return Err(Error::MeasureNotFound(measure_index));
             }
+            if !measure.cross_staff_targets.is_empty()
+                && measure.cross_staff_targets.len() != measure.notes.len()
+            {
+                return Err(Error::InvalidCommand(
+                    "fragment cross-staff targets do not match note count".into(),
+                ));
+            }
+            for cross_staff in measure.cross_staff_targets.iter().flatten() {
+                let target_staff = staff_index as i64 + cross_staff.staff_offset;
+                if target_staff < 0
+                    || score.parts[part_index]
+                        .staves
+                        .get(target_staff as usize)
+                        .is_none()
+                {
+                    return Err(Error::InvalidCommand(
+                        "fragment cross-staff target is outside destination part".into(),
+                    ));
+                }
+                if cross_staff.target_voice.is_some_and(|voice| voice >= 4) {
+                    return Err(Error::InvalidCommand(
+                        "fragment cross-staff target voice is outside editable range".into(),
+                    ));
+                }
+            }
             replaced.insert((part_index, staff_index, measure_index, voice_index));
         }
     }
@@ -3296,6 +3321,14 @@ fn apply_paste_score_fragment(cmd: &PasteScoreFragmentCmd, score: &mut Score) ->
             let mut notes = measure.notes.clone();
             for note in &mut notes {
                 note.id = Uuid::new_v4().to_string();
+            }
+            if !measure.cross_staff_targets.is_empty() {
+                for (note, cross_staff) in notes.iter_mut().zip(&measure.cross_staff_targets) {
+                    note.cross_staff = cross_staff.as_ref().map(|cross_staff| CrossStaff {
+                        target_staff: (staff_index as i64 + cross_staff.staff_offset) as usize,
+                        target_voice: cross_staff.target_voice,
+                    });
+                }
             }
             target.voices[voice_index] = notes;
             target.source_voice_numbers[voice_index] = measure.source_voice_number;
