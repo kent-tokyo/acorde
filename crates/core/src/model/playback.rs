@@ -258,6 +258,35 @@ pub struct OfflineRenderFrameEvent {
     pub end_frame: u64,
 }
 
+/// A non-note semantic action expressed on the same sample-frame clock as
+/// [`OfflineRenderFrameEvent`].  Audio providers can consume these without
+/// reverse-engineering notation from a note schedule.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum OfflineRenderSemanticEventKind {
+    Pedal {
+        down: bool,
+    },
+    Articulation {
+        articulation: Articulation,
+    },
+    GuitarBend {
+        points: Vec<GuitarBendPoint>,
+    },
+    /// A semantic release boundary.  It intentionally has no synthesis
+    /// parameters: providers decide how a release tail is rendered.
+    ReleaseTail,
+}
+
+/// A source-addressable non-note action in an offline render manifest.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OfflineRenderSemanticFrameEvent {
+    pub kind: OfflineRenderSemanticEventKind,
+    pub frame: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<NoteAddr>,
+}
+
 /// Machine-readable condition observed while deriving an offline schedule.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
@@ -379,6 +408,10 @@ pub struct OfflineRenderManifest {
     /// seconds schedule so v1 clients can migrate without losing semantics.
     #[serde(default)]
     pub frame_events: Vec<OfflineRenderFrameEvent>,
+    /// Pedal, articulation, bend and release semantics on the exact output
+    /// sample clock.  Note attacks remain in [`Self::frame_events`].
+    #[serde(default)]
+    pub semantic_events: Vec<OfflineRenderSemanticFrameEvent>,
     #[serde(default)]
     pub diagnostics: Vec<OfflineRenderDiagnostic>,
 }
@@ -672,7 +705,59 @@ pub fn build_offline_render_manifest(
                 end_frame,
             }
         })
-        .collect();
+        .collect::<Vec<_>>();
+    let mut semantic_events = Vec::new();
+    for event in &frame_events {
+        let source = event.event.source.clone();
+        if event.event.pedal {
+            semantic_events.push(OfflineRenderSemanticFrameEvent {
+                kind: OfflineRenderSemanticEventKind::Pedal { down: true },
+                frame: event.start_frame,
+                source: source.clone(),
+            });
+        }
+        if source.as_ref().is_some_and(|address| {
+            resolved_score
+                .parts
+                .get(address.part)
+                .and_then(|part| part.staves.get(address.staff))
+                .and_then(|staff| staff.measures.get(address.measure))
+                .and_then(|measure| measure.voices.get(address.voice))
+                .and_then(|voice| voice.get(address.note))
+                .is_some_and(|note| note.pedal_end)
+        }) {
+            semantic_events.push(OfflineRenderSemanticFrameEvent {
+                kind: OfflineRenderSemanticEventKind::Pedal { down: false },
+                frame: event.start_frame,
+                source: source.clone(),
+            });
+        }
+        for articulation in &event.event.articulations {
+            semantic_events.push(OfflineRenderSemanticFrameEvent {
+                kind: OfflineRenderSemanticEventKind::Articulation {
+                    articulation: articulation.clone(),
+                },
+                frame: event.start_frame,
+                source: source.clone(),
+            });
+        }
+        if !event.event.pitch_bend_curve.is_empty() {
+            semantic_events.push(OfflineRenderSemanticFrameEvent {
+                kind: OfflineRenderSemanticEventKind::GuitarBend {
+                    points: event.event.pitch_bend_curve.clone(),
+                },
+                frame: event.start_frame,
+                source,
+            });
+        }
+    }
+    if release_tail_frames > 0.0 {
+        semantic_events.push(OfflineRenderSemanticFrameEvent {
+            kind: OfflineRenderSemanticEventKind::ReleaseTail,
+            frame: duration_frames as u64,
+            source: None,
+        });
+    }
     Ok(OfflineRenderManifest {
         contract_version: OFFLINE_RENDER_CONTRACT_VERSION,
         playback_contract_version: PLAYBACK_COMPARISON_CONTRACT_VERSION,
@@ -689,6 +774,7 @@ pub fn build_offline_render_manifest(
         duration_frames: duration_frames as u64 + release_tail_frames as u64,
         events,
         frame_events,
+        semantic_events,
         diagnostics,
     })
 }
@@ -2800,8 +2886,9 @@ mod tests {
             super::super::notation::Barline::RepeatStart;
         score.parts[0].staves[0].measures[0].tempo_ramp_to = Some(60);
 
-        score.parts[0].staves[0].measures[1].voices[0] =
-            vec![Note::new(Pitch::new(Step::D, 4), Duration::Quarter)];
+        let mut second = Note::new(Pitch::new(Step::D, 4), Duration::Quarter);
+        second.pedal_end = true;
+        score.parts[0].staves[0].measures[1].voices[0] = vec![second];
         score.parts[0].staves[0].measures[1].barline_right =
             super::super::notation::Barline::RepeatEnd;
         let mut flute = crate::InstrumentDefinition::new("flute", "Flute");
@@ -2835,6 +2922,26 @@ mod tests {
             Some("flute")
         );
         assert_eq!(manifest.frame_events[3].event.program, 73);
+        assert!(manifest.semantic_events.iter().any(|event| matches!(
+            event.kind,
+            OfflineRenderSemanticEventKind::Pedal { down: true }
+        ) && event.frame
+            == manifest.frame_events[0].start_frame));
+        assert!(manifest.semantic_events.iter().any(|event| matches!(
+            event.kind,
+            OfflineRenderSemanticEventKind::Pedal { down: false }
+        ) && event.frame
+            == manifest.frame_events[1].start_frame));
+        assert!(manifest.semantic_events.iter().any(|event| matches!(
+            event.kind,
+            OfflineRenderSemanticEventKind::Articulation {
+                articulation: Articulation::Fermata
+            }
+        )));
+        assert!(manifest.semantic_events.iter().any(|event| matches!(
+            event.kind,
+            OfflineRenderSemanticEventKind::GuitarBend { .. }
+        )));
 
         let ramp_duration = tempo_ramp_seconds(120.0, Some(60.0), 4.0, 4.0);
         let expected_starts = [0.0, ramp_duration, ramp_duration + 4.0, ramp_duration + 8.0];
