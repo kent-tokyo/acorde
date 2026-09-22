@@ -54,7 +54,7 @@ pub enum PlaybackRealizationProfile {
 ///
 /// Metronome events are tagged with `PlaybackEvent.is_metronome = true` and can be
 /// routed separately by checking `channel` (default 9 = GM drums).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MetronomeConfig {
     /// MIDI channel for the click track. Default 9 (GM drum channel).
     #[serde(default = "default_metronome_channel")]
@@ -86,7 +86,7 @@ impl Default for MetronomeConfig {
 }
 
 /// Options for [`to_playback_events`].
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PlaybackOptions {
     /// Replaces the score's tempo when `Some`; `None` uses `score.settings.tempo_bpm`.
     pub bpm_override: Option<u16>,
@@ -271,7 +271,7 @@ pub enum OfflineRenderFormat {
 }
 
 /// Host-neutral parameters for an offline render operation.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct OfflineRenderRequest {
     /// Requested encoded format. The host reports unsupported formats explicitly.
     #[serde(default)]
@@ -298,6 +298,10 @@ pub struct OfflineRenderRequest {
     /// Extra release tail after the final sounding event, in milliseconds.
     #[serde(default)]
     pub release_tail_millis: u32,
+    /// Full reproducible playback policy. When omitted, the legacy function
+    /// argument is used and copied into the manifest for migration clarity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub playback_options: Option<PlaybackOptions>,
 }
 
 fn default_offline_render_sample_rate() -> u32 {
@@ -320,6 +324,7 @@ impl Default for OfflineRenderRequest {
             scope: OfflineRenderScope::FullScore,
             navigation_policy: OfflineRenderNavigationPolicy::Authored,
             release_tail_millis: 0,
+            playback_options: None,
         }
     }
 }
@@ -347,6 +352,8 @@ pub struct OfflineRenderManifest {
     pub navigation_policy: OfflineRenderNavigationPolicy,
     #[serde(default)]
     pub release_tail_frames: u64,
+    /// The exact timing policy that produced this manifest.
+    pub playback_options: PlaybackOptions,
     pub duration_frames: u64,
     pub events: Vec<PlaybackEvent>,
     /// Frame-quantized equivalents of `events`; retained alongside the legacy
@@ -560,7 +567,10 @@ pub fn build_offline_render_manifest(
         Some(view_id) => score.resolve_view(view_id)?,
         None => score.clone(),
     };
-    let mut effective_options = playback_options.clone();
+    let mut effective_options = request
+        .playback_options
+        .clone()
+        .unwrap_or_else(|| playback_options.clone());
     if let OfflineRenderScope::MeasureRange { start, end } = request.scope {
         if start > end {
             return Err(crate::Error::InvalidOfflineRenderRequest);
@@ -636,6 +646,7 @@ pub fn build_offline_render_manifest(
         scope: request.scope.clone(),
         navigation_policy: request.navigation_policy,
         release_tail_frames: release_tail_frames as u64,
+        playback_options: effective_options,
         duration_frames: duration_frames as u64 + release_tail_frames as u64,
         events,
         frame_events,
@@ -2666,6 +2677,7 @@ mod tests {
         assert_eq!(manifest.frame_events[0].start_frame, 0);
         assert_eq!(manifest.frame_events[0].duration_frames, 24_000);
         assert_eq!(manifest.frame_events[0].end_frame, 24_000);
+        assert_eq!(manifest.playback_options, PlaybackOptions::default());
         assert_eq!(
             manifest.provider_identity.as_deref(),
             Some("test-provider@1")
@@ -2708,6 +2720,29 @@ mod tests {
         assert_eq!(manifest.frame_events[0].start_frame, 0);
         assert_eq!(manifest.release_tail_frames, 1_000);
         assert_eq!(manifest.duration_frames, 5_000);
+    }
+
+    #[test]
+    fn offline_render_request_owned_options_override_legacy_argument() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0][0] =
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        let request_options = PlaybackOptions {
+            bpm_override: Some(60),
+            ..Default::default()
+        };
+        let manifest = build_offline_render_manifest(
+            &score,
+            &PlaybackOptions::default(),
+            &OfflineRenderRequest {
+                sample_rate_hz: 48_000,
+                playback_options: Some(request_options.clone()),
+                ..Default::default()
+            },
+        )
+        .expect("request-owned playback options");
+        assert_eq!(manifest.playback_options, request_options);
+        assert_eq!(manifest.frame_events[0].duration_frames, 48_000);
     }
 
     #[test]
