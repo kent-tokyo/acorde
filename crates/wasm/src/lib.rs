@@ -906,6 +906,20 @@ pub fn apply_score_command(score_json: &str, command_json: &str) -> Result<Strin
     .map_err(|e| js_err(format!("command result serialization failed: {e}")))
 }
 
+/// Preview a structural command without changing the supplied score.
+///
+/// The returned `StructuralChangePlan` reports whether the command can apply,
+/// affected note addresses, resulting voice structure, and conflict or
+/// validation diagnostics. Only score-structural commands are accepted.
+#[wasm_bindgen]
+pub fn plan_structural_change(score_json: &str, command_json: &str) -> Result<String, JsValue> {
+    let score = validated_score_from_json(score_json)?;
+    let command: Command = parse_json(command_json, "command", MAX_SMALL_JSON_BYTES)?;
+    let plan = acorde_core::plan_structural_change(&score, &command).map_err(js_err)?;
+    serde_json::to_string(&plan)
+        .map_err(|e| js_err(format!("structural change plan serialization failed: {e}")))
+}
+
 /// Compute statistics for a score (JSON string).
 ///
 /// Returns a `ScoreStats` JSON object with fields:
@@ -2515,6 +2529,32 @@ mod tests {
             8.0
         );
         assert_eq!(value["hint"]["layout_dirty"], true);
+    }
+
+    #[test]
+    fn structural_change_plan_is_available_to_wasm_hosts() {
+        use acorde_core::{Duration, ImplodeStavesCmd, Note, Pitch, ScoreTemplate, Step};
+
+        let mut score = Score::template(ScoreTemplate::Piano);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 5), Duration::Whole)];
+        score.parts[0].staves[1].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::E, 3), Duration::Whole)];
+        let command = Command::ImplodeStaves(ImplodeStavesCmd {
+            part_index: 0,
+            source_staves: vec![0, 1],
+            target_staff: 0,
+            start_measure: 0,
+            end_measure: 0,
+        });
+        let result = plan_structural_change(
+            &serde_json::to_string(&score).unwrap(),
+            &serde_json::to_string(&command).unwrap(),
+        )
+        .unwrap();
+        let plan: acorde_core::StructuralChangePlan = serde_json::from_str(&result).unwrap();
+        assert!(plan.can_apply);
+        assert_eq!(plan.command_key, "ImplodeStaves");
     }
 }
 

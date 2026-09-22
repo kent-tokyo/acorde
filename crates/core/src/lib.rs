@@ -80,6 +80,11 @@ pub use model::score::{
     score_duration_secs, score_duration_secs_region, score_patch, suggested_stem_up, transpose,
     transpose_checked, transpose_staff_region_checked,
 };
+pub use model::structural_plan::{
+    STRUCTURAL_CHANGE_PLAN_CONTRACT_VERSION, StructuralChangeDiagnostic,
+    StructuralChangeDiagnosticKind, StructuralChangePlan, StructuralMeasureStructure,
+    plan_structural_change,
+};
 pub use model::validate::{
     GuitarBendCurveValidationReason, InstrumentDefinitionValidationReason, InstrumentRangeKind,
     ObjectStyleValidationReason, PercussionInstrumentValidationReason, ScoreViewValidationReason,

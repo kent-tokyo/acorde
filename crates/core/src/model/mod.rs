@@ -13,4 +13,5 @@ pub mod playback;
 pub mod repeat;
 pub mod scale;
 pub mod score;
+pub mod structural_plan;
 pub mod validate;
