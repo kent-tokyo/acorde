@@ -45,6 +45,7 @@ pub use model::playback::{
     OFFLINE_RENDER_CONTRACT_VERSION, OfflineRenderDiagnostic, OfflineRenderDiagnosticKind,
     OfflineRenderFormat, OfflineRenderFrameEvent, OfflineRenderManifest,
     OfflineRenderNavigationPolicy, OfflineRenderRequest, OfflineRenderResult, OfflineRenderScope,
+    OfflineRenderSemanticEventKind, OfflineRenderSemanticFrameEvent,
     PLAYBACK_COMPARISON_CONTRACT_VERSION, PLAYBACK_ROUTING_CONTRACT_VERSION,
     PLAYBACK_TIMING_CORPUS_CONTRACT_VERSION, PlaybackAuxSend, PlaybackBusRoute,
     PlaybackEffectRoute, PlaybackEvent, PlaybackOptions, PlaybackPosition,
