@@ -1,10 +1,10 @@
 use super::change_hint::{ChangeHint, ChangeScope};
 use super::commands::{
-    AddStaffCmd, Command, CommandStack, DeleteStaffCmd, PasteRangeCmd, PasteScoreFragmentCmd,
-    PasteVoiceCmd, RespellScoreCmd, RespellScoreToKeyCmd, SetArpeggioCmd, SetCueCmd,
-    SetDurationCmd, SetInstrumentIdCmd, SetNoteHeadCmd, SetNotePlacementCmd, SetPartGroupCmd,
-    SetStemCmd, SetTupletCmd, SetUnpitchedCmd, ToggleSlurCmd, ToggleTrillLineCmd, command_hint,
-    command_key,
+    AddStaffCmd, Command, CommandStack, DeleteStaffCmd, ExchangeVoicesCmd, PasteRangeCmd,
+    PasteScoreFragmentCmd, PasteVoiceCmd, RespellScoreCmd, RespellScoreToKeyCmd, SetArpeggioCmd,
+    SetCueCmd, SetDurationCmd, SetInstrumentIdCmd, SetNoteHeadCmd, SetNotePlacementCmd,
+    SetPartGroupCmd, SetStemCmd, SetTupletCmd, SetUnpitchedCmd, ToggleSlurCmd, ToggleTrillLineCmd,
+    command_hint, command_key,
 };
 use super::duration::Duration;
 use super::fragment::ScoreFragment;
@@ -354,6 +354,27 @@ impl ScoreEngine {
         self.apply(Command::PasteScoreFragment(PasteScoreFragmentCmd {
             fragment,
             target,
+        }))
+    }
+
+    /// Exchange two voices over an inclusive measure range as one undoable
+    /// operation, retaining source MusicXML voice numbers and typed spans.
+    pub fn exchange_voices(
+        &mut self,
+        part_index: usize,
+        staff_index: usize,
+        start_measure: usize,
+        end_measure: usize,
+        first_voice: usize,
+        second_voice: usize,
+    ) -> Result<ChangeHint, Error> {
+        self.apply(Command::ExchangeVoices(ExchangeVoicesCmd {
+            part_index,
+            staff_index,
+            start_measure,
+            end_measure,
+            first_voice,
+            second_voice,
         }))
     }
 
@@ -1147,6 +1168,55 @@ mod tests {
             engine.commands.history_commands().len(),
             history_before.len()
         );
+    }
+
+    #[test]
+    fn exchange_voices_preserves_source_numbers_spans_and_undo() {
+        use crate::model::score::{NotationSpanner, NotationSpannerKind};
+        use crate::{Duration, Note, Pitch, Step};
+
+        let mut engine = ScoreEngine::new();
+        let measure = &mut engine.score.parts[0].staves[0].measures[0];
+        measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        measure.voices[1] = vec![Note::new(Pitch::new(Step::D, 4), Duration::Whole)];
+        measure.source_voice_numbers = [Some(1), Some(5), None, None];
+        engine.score.spanners.push(NotationSpanner {
+            id: "between-voices".into(),
+            kind: NotationSpannerKind::Slur,
+            start: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+            end: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 1,
+                note: 0,
+            },
+            number: None,
+            line_type: None,
+            text: None,
+            placement: None,
+            ottava_size: None,
+            ottava_type: None,
+        });
+
+        engine.exchange_voices(0, 0, 0, 0, 0, 1).unwrap();
+        let measure = &engine.score.parts[0].staves[0].measures[0];
+        assert_eq!(measure.voices[0][0].pitches[0].step, Step::D);
+        assert_eq!(measure.voices[1][0].pitches[0].step, Step::C);
+        assert_eq!(measure.source_voice_numbers, [Some(5), Some(1), None, None]);
+        assert_eq!(engine.score.spanners[0].start.voice, 1);
+        assert_eq!(engine.score.spanners[0].end.voice, 0);
+
+        engine.undo().unwrap();
+        let measure = &engine.score.parts[0].staves[0].measures[0];
+        assert_eq!(measure.voices[0][0].pitches[0].step, Step::C);
+        assert_eq!(measure.source_voice_numbers, [Some(1), Some(5), None, None]);
     }
 
     #[test]
