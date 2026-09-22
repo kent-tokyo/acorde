@@ -464,6 +464,59 @@ pub struct OfflineRenderManifest {
     pub diagnostics: Vec<OfflineRenderDiagnostic>,
 }
 
+impl OfflineRenderManifest {
+    /// Validate a persisted provider-neutral schedule before a host hands it to
+    /// a synthesizer. Legacy v1/v2 manifests remain readable; current manifests
+    /// additionally require a one-to-one frame schedule for every note event.
+    pub fn validate(&self) -> Result<(), crate::Error> {
+        if !(1..=OFFLINE_RENDER_CONTRACT_VERSION).contains(&self.contract_version)
+            || !(8_000..=384_000).contains(&self.sample_rate_hz)
+            || !(1..=8).contains(&self.channels)
+            || self.release_tail_frames > self.duration_frames
+        {
+            return Err(crate::Error::InvalidOfflineRenderRequest);
+        }
+
+        if self.contract_version >= 2 && self.frame_events.len() != self.events.len() {
+            return Err(crate::Error::InvalidOfflineRenderRequest);
+        }
+        let mut latest_event_end = 0_u64;
+        for (index, frame_event) in self.frame_events.iter().enumerate() {
+            let Some(expected_event) = self.events.get(index) else {
+                return Err(crate::Error::InvalidOfflineRenderRequest);
+            };
+            if frame_event.event != *expected_event
+                || frame_event
+                    .start_frame
+                    .checked_add(frame_event.duration_frames)
+                    != Some(frame_event.end_frame)
+                || frame_event.end_frame > self.duration_frames
+            {
+                return Err(crate::Error::InvalidOfflineRenderRequest);
+            }
+            latest_event_end = latest_event_end.max(frame_event.end_frame);
+        }
+        let latest_semantic_frame = self
+            .semantic_events
+            .iter()
+            .map(|event| event.frame)
+            .max()
+            .unwrap_or(0);
+        if latest_semantic_frame > self.duration_frames {
+            return Err(crate::Error::InvalidOfflineRenderRequest);
+        }
+        if self.contract_version >= 2
+            && latest_event_end
+                .max(latest_semantic_frame)
+                .checked_add(self.release_tail_frames)
+                != Some(self.duration_frames)
+        {
+            return Err(crate::Error::InvalidOfflineRenderRequest);
+        }
+        Ok(())
+    }
+}
+
 /// Host-reported result metadata for an [`OfflineRenderManifest`].
 ///
 /// This is a result contract, not proof of audio quality or device-independent equivalence.
@@ -813,15 +866,24 @@ pub fn build_offline_render_manifest(
         selection_origin_secs,
         &mut semantic_events,
     );
+    // Automation can outlive the final sounding note (for example an imported
+    // program change on an otherwise silent measure). The manifest duration
+    // must retain those actions before adding any host release tail.
+    let semantic_end_frame = semantic_events
+        .iter()
+        .map(|event| event.frame)
+        .max()
+        .unwrap_or(0);
+    let content_duration_frames = (duration_frames as u64).max(semantic_end_frame);
     if release_tail_frames > 0.0 {
         semantic_events.push(OfflineRenderSemanticFrameEvent {
             kind: OfflineRenderSemanticEventKind::ReleaseTail,
-            frame: duration_frames as u64,
+            frame: content_duration_frames,
             source: None,
             measure: None,
         });
     }
-    Ok(OfflineRenderManifest {
+    let manifest = OfflineRenderManifest {
         contract_version: OFFLINE_RENDER_CONTRACT_VERSION,
         playback_contract_version: PLAYBACK_COMPARISON_CONTRACT_VERSION,
         format: request.format,
@@ -834,12 +896,14 @@ pub fn build_offline_render_manifest(
         navigation_policy: request.navigation_policy,
         release_tail_frames: release_tail_frames as u64,
         playback_options: effective_options,
-        duration_frames: duration_frames as u64 + release_tail_frames as u64,
+        duration_frames: content_duration_frames + release_tail_frames as u64,
         events,
         frame_events,
         semantic_events,
         diagnostics,
-    })
+    };
+    manifest.validate()?;
+    Ok(manifest)
 }
 
 #[derive(Clone, Copy)]
@@ -3082,6 +3146,7 @@ mod tests {
         let manifest = build_offline_render_manifest(&score, &PlaybackOptions::default(), &request)
             .expect("valid render manifest");
         assert_eq!(manifest.contract_version, OFFLINE_RENDER_CONTRACT_VERSION);
+        assert!(manifest.validate().is_ok());
         assert_eq!(manifest.format, OfflineRenderFormat::Flac);
         assert_eq!(manifest.duration_frames, 24_000);
         assert_eq!(manifest.events.len(), 1);
@@ -3425,6 +3490,40 @@ mod tests {
         assert_eq!(manifest.playback_options, PlaybackOptions::default());
         assert!(manifest.frame_events.is_empty());
         assert!(manifest.diagnostics.is_empty());
+        assert!(manifest.validate().is_ok());
+    }
+
+    #[test]
+    fn offline_render_manifest_validation_rejects_tampered_frame_and_tail_boundaries() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        let manifest = build_offline_render_manifest(
+            &score,
+            &PlaybackOptions::default(),
+            &OfflineRenderRequest {
+                sample_rate_hz: 48_000,
+                release_tail_millis: 100,
+                ..Default::default()
+            },
+        )
+        .expect("manifest builds");
+        assert!(manifest.validate().is_ok());
+
+        let mut invalid_tail = manifest.clone();
+        invalid_tail.duration_frames = invalid_tail.duration_frames.saturating_sub(1);
+        assert!(matches!(
+            invalid_tail.validate(),
+            Err(crate::Error::InvalidOfflineRenderRequest)
+        ));
+
+        let mut invalid_frame = manifest;
+        invalid_frame.frame_events[0].end_frame =
+            invalid_frame.frame_events[0].end_frame.saturating_add(1);
+        assert!(matches!(
+            invalid_frame.validate(),
+            Err(crate::Error::InvalidOfflineRenderRequest)
+        ));
     }
 
     #[test]
