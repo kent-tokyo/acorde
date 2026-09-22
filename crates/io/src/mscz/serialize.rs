@@ -315,6 +315,13 @@ fn write_staff(
             write!(xml, "<string>{tuning}</string>").map_err(fmt_error)?;
         }
         xml.push_str("</StringData></StaffType>");
+    } else if staff.presentation.lines != 5 {
+        write!(
+            xml,
+            "<StaffType group=\"pitched\"><lines>{}</lines></StaffType>",
+            staff.presentation.lines
+        )
+        .map_err(fmt_error)?;
     }
     for (measure_index, measure) in staff.measures.iter().enumerate() {
         let number = if measure.number == 0 {

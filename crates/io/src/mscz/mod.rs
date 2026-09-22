@@ -2,7 +2,7 @@ use crate::{Diagnostic, Error};
 use acorde_core::{
     Articulation, Barline, BeamState, ChordDegree, ChordSymbol, Clef, Duration, Dynamic,
     FiguredBassFigure, GuitarTechnique, KeySignature, Lyric, Measure, Note, NoteHead, Part,
-    PartGroupSymbol, Pitch, Score, Staff, StaffGroup, Step, StyledText, TabPosition,
+    PartGroupSymbol, Pitch, Score, Staff, StaffGroup, StaffKind, Step, StyledText, TabPosition,
     TablatureConfig, TextStyle, TimeSignature, TupletInfo, VoltaBracket,
 };
 use quick_xml::events::Event;
@@ -113,6 +113,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut staff_measures: HashMap<usize, Vec<Measure>> = HashMap::new();
     let mut staff_clefs: HashMap<usize, Clef> = HashMap::new();
     let mut staff_tablature: HashMap<usize, TablatureConfig> = HashMap::new();
+    let mut staff_presentation_lines: HashMap<usize, u8> = HashMap::new();
 
     // Score metadata
     let mut in_meta_tag = false;
@@ -145,7 +146,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     // MuseScore tab staff metadata (3.x/4.x use StaffType/StringData).
     let mut in_staff_type = false;
     let mut staff_type_is_tab = false;
-    let mut staff_tab_lines: u8 = 6;
+    let mut staff_type_lines: u8 = 5;
     let mut staff_tuning: Vec<i16> = Vec::new();
     let mut in_string_data = false;
 
@@ -306,7 +307,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         cur_measure_num = 0;
                         in_staff_type = false;
                         staff_type_is_tab = false;
-                        staff_tab_lines = 6;
+                        staff_type_lines = 5;
                         staff_tuning.clear();
                     }
                     "VBox" if current_staff_id.is_some() && !in_measure => {
@@ -321,6 +322,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "StaffType" if current_staff_id.is_some() => {
                         in_staff_type = true;
                         staff_type_is_tab = attr_str(e, b"group").as_deref() == Some("tab");
+                        staff_type_lines = if staff_type_is_tab { 6 } else { 5 };
+                        staff_tuning.clear();
                     }
                     "StringData" if in_staff_type => {
                         in_string_data = true;
@@ -608,7 +611,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "Staff" if current_staff_id.is_some() && !in_measure => {
                         let sid = current_staff_id.unwrap_or(1);
                         if staff_type_is_tab {
-                            let lines = staff_tab_lines.max(1);
+                            let lines = staff_type_lines.max(1);
                             let mut tuning = std::mem::take(&mut staff_tuning);
                             tuning.truncate(lines as usize);
                             if tuning.len() < lines as usize {
@@ -928,9 +931,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             note_fingerings.push(fingering);
                         }
                     }
-                    "lines" if in_staff_type && staff_type_is_tab => {
+                    "lines" if in_staff_type => {
                         if let Ok(lines) = t.parse::<u8>() {
-                            staff_tab_lines = lines;
+                            staff_type_lines = lines;
                         }
                     }
                     "string" if in_string_data && in_staff_type && staff_type_is_tab => {
@@ -943,8 +946,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "StaffType" if in_staff_type => {
                         let sid = current_staff_id.unwrap_or(1);
+                        let lines = staff_type_lines.max(1);
+                        staff_presentation_lines.insert(sid, lines);
                         if staff_type_is_tab {
-                            let lines = staff_tab_lines.max(1);
                             let mut tuning = std::mem::take(&mut staff_tuning);
                             tuning.truncate(lines as usize);
                             if tuning.len() < lines as usize {
@@ -1293,7 +1297,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
         parts_meta,
         staff_measures,
         staff_clefs,
-        staff_tablature,
+        (staff_tablature, staff_presentation_lines),
     )
 }
 
@@ -1828,23 +1832,31 @@ fn assemble_score(
     parts_meta: Vec<PartMeta>,
     mut staff_measures: HashMap<usize, Vec<Measure>>,
     staff_clefs: HashMap<usize, Clef>,
-    staff_tablature: HashMap<usize, TablatureConfig>,
+    staff_formats: (HashMap<usize, TablatureConfig>, HashMap<usize, u8>),
 ) -> Result<Score, Error> {
     // Replace the default Score parts with the parsed content.
     score.parts.clear();
     score.metadata = metadata;
     score.texts = score_texts;
+    let (staff_tablature, staff_presentation_lines) = staff_formats;
 
     let build_staves = |ids: &[usize],
                         staff_measures: &mut HashMap<usize, Vec<Measure>>,
                         staff_clefs: &HashMap<usize, Clef>,
-                        staff_tablature: &HashMap<usize, TablatureConfig>|
+                        staff_tablature: &HashMap<usize, TablatureConfig>,
+                        staff_presentation_lines: &HashMap<usize, u8>|
      -> Vec<Staff> {
         ids.iter()
             .map(|&sid| {
                 let clef = staff_clefs.get(&sid).cloned().unwrap_or(Clef::Treble);
                 let mut s = Staff::new(clef);
                 s.tablature = staff_tablature.get(&sid).cloned();
+                if let Some(&lines) = staff_presentation_lines.get(&sid) {
+                    s.presentation.lines = lines;
+                }
+                if s.tablature.is_some() {
+                    s.presentation.kind = StaffKind::Tablature;
+                }
                 s.measures = staff_measures.remove(&sid).unwrap_or_default();
                 s
             })
@@ -1860,6 +1872,7 @@ fn assemble_score(
             &mut staff_measures,
             &staff_clefs,
             &staff_tablature,
+            &staff_presentation_lines,
         );
         score.parts.push(part);
     } else {
@@ -1884,7 +1897,13 @@ fn assemble_score(
             } else {
                 meta.staff_ids
             };
-            part.staves = build_staves(&ids, &mut staff_measures, &staff_clefs, &staff_tablature);
+            part.staves = build_staves(
+                &ids,
+                &mut staff_measures,
+                &staff_clefs,
+                &staff_tablature,
+                &staff_presentation_lines,
+            );
             let mut group_start = 0usize;
             for spec in meta.staff_group_specs {
                 if spec.span >= 2 && group_start.saturating_add(spec.span) <= part.staves.len() {
@@ -2539,6 +2558,28 @@ mod tests {
         assert_eq!(note.tab_positions, vec![TabPosition { string: 1, fret: 3 }]);
         assert_eq!(note.fingering, Some(2));
         assert_eq!(note.guitar_technique, Some(GuitarTechnique::Bend));
+    }
+
+    #[test]
+    fn mscx_standard_staff_type_lines_roundtrip_without_tablature() {
+        let xml = simple_mscx(
+            r#"
+      <StaffType group="pitched"><lines>1</lines></StaffType>
+      <Measure number="1"><Rest><durationType>whole</durationType></Rest></Measure>"#,
+        );
+        let score = parse_mscx(&xml).expect("MSCX parses");
+        let staff = &score.parts[0].staves[0];
+        assert_eq!(staff.presentation.lines, 1);
+        assert_eq!(staff.presentation.kind, StaffKind::Standard);
+        assert!(staff.tablature.is_none());
+
+        let serialized = serialize_mscx(&score).expect("MSCX serializes");
+        assert!(serialized.contains("<StaffType group=\"pitched\"><lines>1</lines>"));
+        let restored = parse_mscx(&serialized).expect("serialized MSCX parses");
+        let restored_staff = &restored.parts[0].staves[0];
+        assert_eq!(restored_staff.presentation.lines, 1);
+        assert_eq!(restored_staff.presentation.kind, StaffKind::Standard);
+        assert!(restored_staff.tablature.is_none());
     }
 
     #[test]
