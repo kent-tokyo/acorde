@@ -1,5 +1,6 @@
 use super::change_hint::{ChangeHint, ChangeScope};
 use super::duration::Duration;
+use super::fragment::{SCORE_FRAGMENT_CONTRACT_VERSION, ScoreFragment};
 use super::notation::{
     Articulation, Barline, ChordSymbol, Clef, CrossStaff, Dynamic, FiguredBassFigure,
     GuitarTechnique, HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind, StyledText,
@@ -16,6 +17,8 @@ use super::score::{
 use super::validate::validate;
 use crate::Error;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -66,6 +69,7 @@ pub enum Command {
     SetTempoRampAtMeasure(SetTempoRampAtMeasureCmd),
     PasteVoice(PasteVoiceCmd),
     PasteRange(PasteRangeCmd),
+    PasteScoreFragment(PasteScoreFragmentCmd),
     SetSystemBreak(SetSystemBreakCmd),
     SetPageBreak(SetPageBreakCmd),
     ToggleSlur(ToggleSlurCmd),
@@ -548,6 +552,17 @@ pub struct PasteRangeCmd {
     pub target_measure: usize,
     /// One note list per measure, in order.
     pub measures: Vec<Vec<Note>>,
+}
+
+/// Paste a versioned, multi-lane score fragment at a canonical destination.
+///
+/// The destination is the origin for every relative fragment address.  This
+/// command uses replace semantics: each mapped voice measure is replaced as a
+/// single atomic operation and the command stack retains a full undo snapshot.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PasteScoreFragmentCmd {
+    pub fragment: ScoreFragment,
+    pub target: NoteAddr,
 }
 
 /// Toggle slur_start on `start` note and slur_end on `end` note (cross-measure aware).
@@ -1151,6 +1166,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
             false,
             true
         ),
+        Command::PasteScoreFragment(_) => hint!(Global, true, true),
         Command::AddHairpin(c) => hint!(meas!(c), false, true),
         Command::ToggleTie(c) => hint!(meas!(c), false, true),
         Command::SetDynamic(c) => hint!(meas!(c), false, true),
@@ -1263,6 +1279,7 @@ pub fn command_label(cmd: &Command) -> String {
         Command::SetTempoRampAtMeasure(_) => "Set Tempo Ramp".to_string(),
         Command::PasteVoice(_) => "Paste Voice".to_string(),
         Command::PasteRange(_) => "Paste Range".to_string(),
+        Command::PasteScoreFragment(_) => "Paste Score Fragment".to_string(),
         Command::SetSystemBreak(_) => "Set System Break".to_string(),
         Command::SetPageBreak(_) => "Set Page Break".to_string(),
         Command::ToggleSlur(_) => "Toggle Slur".to_string(),
@@ -1388,6 +1405,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetTempoRampAtMeasure(_) => "SetTempoRampAtMeasure".to_string(),
         Command::PasteVoice(_) => "PasteVoice".to_string(),
         Command::PasteRange(_) => "PasteRange".to_string(),
+        Command::PasteScoreFragment(_) => "PasteScoreFragment".to_string(),
         Command::SetSystemBreak(_) => "SetSystemBreak".to_string(),
         Command::SetPageBreak(_) => "SetPageBreak".to_string(),
         Command::ToggleSlur(_) => "ToggleSlur".to_string(),
@@ -1654,6 +1672,7 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         }
         Command::PasteVoice(c) => apply_paste_voice(c, score),
         Command::PasteRange(c) => apply_paste_range(c, score),
+        Command::PasteScoreFragment(c) => apply_paste_score_fragment(c, score),
         Command::SetSystemBreak(c) => {
             for_each_measure_at(score, c.measure_index, |m| {
                 m.system_break = c.value;
@@ -3186,6 +3205,160 @@ fn apply_paste_range(cmd: &PasteRangeCmd, score: &mut Score) -> Result<(), Error
     }
     remap_replaced_spanner_endpoints(score, &endpoint_ids);
     Ok(())
+}
+
+fn apply_paste_score_fragment(cmd: &PasteScoreFragmentCmd, score: &mut Score) -> Result<(), Error> {
+    if cmd.fragment.contract_version != SCORE_FRAGMENT_CONTRACT_VERSION {
+        return Err(Error::InvalidCommand(format!(
+            "unsupported score fragment contract version {}",
+            cmd.fragment.contract_version
+        )));
+    }
+    if cmd.fragment.voices.is_empty() {
+        return Err(Error::InvalidCommand(
+            "cannot paste an empty score fragment".into(),
+        ));
+    }
+
+    // Resolve every target before mutating the score. CommandStack then also
+    // validates the complete candidate before adding history, preserving
+    // score/history atomicity for invalid destinations.
+    let mut lanes = BTreeSet::new();
+    let mut replaced = BTreeSet::new();
+    for lane in &cmd.fragment.voices {
+        let part_index = cmd
+            .target
+            .part
+            .checked_add(lane.relative_part)
+            .ok_or_else(|| Error::InvalidCommand("fragment part target overflows".into()))?;
+        let staff_index = cmd
+            .target
+            .staff
+            .checked_add(lane.relative_staff)
+            .ok_or_else(|| Error::InvalidCommand("fragment staff target overflows".into()))?;
+        let voice_index = cmd
+            .target
+            .voice
+            .checked_add(lane.relative_voice)
+            .ok_or_else(|| Error::InvalidCommand("fragment voice target overflows".into()))?;
+        if voice_index >= 4 {
+            return Err(Error::VoiceOutOfRange(voice_index));
+        }
+        let staff = score
+            .parts
+            .get(part_index)
+            .ok_or(Error::PartNotFound(part_index))?
+            .staves
+            .get(staff_index)
+            .ok_or(Error::StaffNotFound(staff_index))?;
+        if !lanes.insert((part_index, staff_index, voice_index)) {
+            return Err(Error::InvalidCommand(
+                "fragment contains duplicate destination voice lanes".into(),
+            ));
+        }
+        for measure in &lane.measures {
+            let measure_index = cmd
+                .target
+                .measure
+                .checked_add(measure.relative_measure)
+                .ok_or_else(|| Error::InvalidCommand("fragment measure target overflows".into()))?;
+            if measure_index >= staff.measures.len() {
+                return Err(Error::MeasureNotFound(measure_index));
+            }
+            replaced.insert((part_index, staff_index, measure_index, voice_index));
+        }
+    }
+
+    // Replacing a lane invalidates its former typed-span endpoints. Remove
+    // those spans explicitly rather than allowing legacy endpoint flags to
+    // leave dangling canonical addresses.
+    score.spanners.retain(|spanner| {
+        !replaced.contains(&(
+            spanner.start.part,
+            spanner.start.staff,
+            spanner.start.measure,
+            spanner.start.voice,
+        )) && !replaced.contains(&(
+            spanner.end.part,
+            spanner.end.staff,
+            spanner.end.measure,
+            spanner.end.voice,
+        ))
+    });
+    for lane in &cmd.fragment.voices {
+        let part_index = cmd.target.part + lane.relative_part;
+        let staff_index = cmd.target.staff + lane.relative_staff;
+        let voice_index = cmd.target.voice + lane.relative_voice;
+        let staff = &mut score.parts[part_index].staves[staff_index];
+        for measure in &lane.measures {
+            let measure_index = cmd.target.measure + measure.relative_measure;
+            let target = &mut staff.measures[measure_index];
+            let mut notes = measure.notes.clone();
+            for note in &mut notes {
+                note.id = Uuid::new_v4().to_string();
+            }
+            target.voices[voice_index] = notes;
+            target.source_voice_numbers[voice_index] = measure.source_voice_number;
+        }
+    }
+
+    let mut used_spanner_ids = score
+        .spanners
+        .iter()
+        .map(|spanner| spanner.id.clone())
+        .collect::<BTreeSet<_>>();
+    for source in &cmd.fragment.spanners {
+        let mut copied = source.clone();
+        copied.start = fragment_destination_address(&cmd.target, &source.start)?;
+        copied.end = fragment_destination_address(&cmd.target, &source.end)?;
+        if note_at(score, &copied.start).is_none() {
+            return Err(Error::NoteNotFound(copied.start.note));
+        }
+        if note_at(score, &copied.end).is_none() {
+            return Err(Error::NoteNotFound(copied.end.note));
+        }
+        copied.id = unique_fragment_spanner_id(&used_spanner_ids, &source.id);
+        used_spanner_ids.insert(copied.id.clone());
+        score.spanners.push(copied);
+    }
+    Ok(())
+}
+
+fn fragment_destination_address(target: &NoteAddr, relative: &NoteAddr) -> Result<NoteAddr, Error> {
+    Ok(NoteAddr {
+        part: target
+            .part
+            .checked_add(relative.part)
+            .ok_or_else(|| Error::InvalidCommand("fragment part target overflows".into()))?,
+        staff: target
+            .staff
+            .checked_add(relative.staff)
+            .ok_or_else(|| Error::InvalidCommand("fragment staff target overflows".into()))?,
+        measure: target
+            .measure
+            .checked_add(relative.measure)
+            .ok_or_else(|| Error::InvalidCommand("fragment measure target overflows".into()))?,
+        voice: target
+            .voice
+            .checked_add(relative.voice)
+            .ok_or_else(|| Error::InvalidCommand("fragment voice target overflows".into()))?,
+        note: relative.note,
+    })
+}
+
+fn unique_fragment_spanner_id(used: &BTreeSet<String>, source_id: &str) -> String {
+    let base = format!("{source_id}-copy");
+    if !used.contains(&base) {
+        return base;
+    }
+    let mut suffix = 2usize;
+    loop {
+        let candidate = format!("{base}-{suffix}");
+        if !used.contains(&candidate) {
+            return candidate;
+        }
+        suffix += 1;
+    }
 }
 
 fn apply_toggle_slur(cmd: &ToggleSlurCmd, score: &mut Score) -> Result<(), Error> {

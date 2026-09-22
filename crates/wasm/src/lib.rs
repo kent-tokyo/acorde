@@ -1655,6 +1655,26 @@ impl ScoreEngine {
         serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
     }
 
+    /// Paste a versioned ScoreFragment at `target_json` as one undoable command.
+    ///
+    /// The fragment and target use the same JSON schema as the native core
+    /// API. System clipboard access remains a host responsibility.
+    pub fn paste_score_fragment(
+        &mut self,
+        fragment_json: &str,
+        target_json: &str,
+    ) -> Result<String, JsValue> {
+        let fragment: acorde_core::ScoreFragment =
+            parse_json(fragment_json, "score fragment", MAX_SCORE_JSON_BYTES)?;
+        let target: acorde_core::NoteAddr =
+            parse_json(target_json, "score fragment target", MAX_SMALL_JSON_BYTES)?;
+        let hint = self
+            .inner
+            .paste_score_fragment(fragment, target)
+            .map_err(js_err)?;
+        serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
+    }
+
     /// Export the command history as a JSON string for crash recovery or replay.
     ///
     /// The result can be stored and later restored with [`restore_history`].

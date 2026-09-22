@@ -1,11 +1,13 @@
 use super::change_hint::{ChangeHint, ChangeScope};
 use super::commands::{
-    AddStaffCmd, Command, CommandStack, DeleteStaffCmd, PasteRangeCmd, PasteVoiceCmd,
-    RespellScoreCmd, RespellScoreToKeyCmd, SetArpeggioCmd, SetCueCmd, SetDurationCmd,
-    SetInstrumentIdCmd, SetNoteHeadCmd, SetNotePlacementCmd, SetPartGroupCmd, SetStemCmd,
-    SetTupletCmd, SetUnpitchedCmd, ToggleSlurCmd, ToggleTrillLineCmd, command_hint, command_key,
+    AddStaffCmd, Command, CommandStack, DeleteStaffCmd, PasteRangeCmd, PasteScoreFragmentCmd,
+    PasteVoiceCmd, RespellScoreCmd, RespellScoreToKeyCmd, SetArpeggioCmd, SetCueCmd,
+    SetDurationCmd, SetInstrumentIdCmd, SetNoteHeadCmd, SetNotePlacementCmd, SetPartGroupCmd,
+    SetStemCmd, SetTupletCmd, SetUnpitchedCmd, ToggleSlurCmd, ToggleTrillLineCmd, command_hint,
+    command_key,
 };
 use super::duration::Duration;
+use super::fragment::ScoreFragment;
 use super::notation::{Clef, NoteHead, TupletInfo};
 use super::score::PartGroup;
 use super::score::{Note, NoteAddr, Score};
@@ -339,6 +341,19 @@ impl ScoreEngine {
             voice_index: rc.voice,
             target_measure: target.measure,
             measures: rc.measures,
+        }))
+    }
+
+    /// Paste a versioned multi-lane score fragment at `target` as one undoable
+    /// operation. Relative fragment addresses are resolved from `target`.
+    pub fn paste_score_fragment(
+        &mut self,
+        fragment: ScoreFragment,
+        target: NoteAddr,
+    ) -> Result<ChangeHint, Error> {
+        self.apply(Command::PasteScoreFragment(PasteScoreFragmentCmd {
+            fragment,
+            target,
         }))
     }
 
@@ -983,6 +998,143 @@ mod tests {
         engine.undo().unwrap();
         assert!(engine.undo_label().is_none());
         assert_eq!(engine.redo_label(), Some("Set Tempo".to_string()));
+    }
+
+    #[test]
+    fn score_fragment_paste_is_undoable_and_assigns_fresh_spanner_ids() {
+        use crate::model::fragment::{ScoreFragmentSelection, extract_score_fragment};
+        use crate::model::score::{NotationSpanner, NotationSpannerKind};
+        use crate::{Duration, Note, Pitch, Step};
+
+        let mut engine = ScoreEngine::new();
+        engine.score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        engine.score.spanners.push(NotationSpanner {
+            id: "source-slur".into(),
+            kind: NotationSpannerKind::Slur,
+            start: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+            end: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+            number: None,
+            line_type: None,
+            text: None,
+            placement: None,
+            ottava_size: None,
+            ottava_type: None,
+        });
+        let selection = ScoreFragmentSelection {
+            start: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+            end: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+        };
+        let fragment = extract_score_fragment(&engine.score, &[selection]).unwrap();
+        let source_id = engine.score.parts[0].staves[0].measures[0].voices[0][0]
+            .id
+            .clone();
+        let target = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 1,
+            voice: 0,
+            note: 0,
+        };
+        engine
+            .paste_score_fragment(fragment.clone(), target.clone())
+            .unwrap();
+        let pasted_id = engine.score.parts[0].staves[0].measures[1].voices[0][0]
+            .id
+            .clone();
+        assert_ne!(pasted_id, source_id);
+        assert!(
+            engine
+                .score
+                .spanners
+                .iter()
+                .any(|span| span.id == "source-slur-copy")
+        );
+
+        engine
+            .paste_score_fragment(
+                fragment,
+                NoteAddr {
+                    measure: 2,
+                    ..target.clone()
+                },
+            )
+            .unwrap();
+        assert!(
+            engine
+                .score
+                .spanners
+                .iter()
+                .any(|span| span.id == "source-slur-copy-2")
+        );
+
+        engine.undo().unwrap();
+        assert!(
+            engine.score.parts[0].staves[0].measures[2].voices[0]
+                .iter()
+                .all(|note| note.is_rest)
+        );
+        engine.redo().unwrap();
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[2].voices[0][0].pitches[0].step,
+            Step::C
+        );
+
+        let before = engine.score.clone();
+        let history_before = engine.commands.history_commands();
+        assert!(
+            engine
+                .paste_score_fragment(
+                    extract_score_fragment(
+                        &engine.score,
+                        &[ScoreFragmentSelection {
+                            start: target.clone(),
+                            end: target,
+                        }]
+                    )
+                    .unwrap(),
+                    NoteAddr {
+                        part: 99,
+                        staff: 0,
+                        measure: 0,
+                        voice: 0,
+                        note: 0,
+                    },
+                )
+                .is_err()
+        );
+        assert_eq!(
+            serde_json::to_value(&engine.score).unwrap(),
+            serde_json::to_value(before).unwrap()
+        );
+        assert_eq!(
+            engine.commands.history_commands().len(),
+            history_before.len()
+        );
     }
 
     #[test]
