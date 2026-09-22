@@ -125,6 +125,12 @@ pub enum GlyphCollisionClass {
 /// annotation owners without loading a font or assuming a renderer coordinate system.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum GlyphCollisionDirection {
+    /// Keep the placement at its authored or previously resolved coordinate.
+    ///
+    /// Fixed placements act as collision obstacles for later, lower-priority entries. They make
+    /// it possible for renderers to extend an already resolved skyline without reflowing emitted
+    /// content.
+    Fixed,
     /// Move toward increasing x coordinates.
     Right,
     /// Move toward decreasing x coordinates.
@@ -387,6 +393,7 @@ fn resolve_glyph_collisions_constrained_ordered(
                 continue;
             }
             match directions[index] {
+                GlyphCollisionDirection::Fixed => {}
                 GlyphCollisionDirection::Right => {
                     next.x_mm = previous_right + gap_mm - next.metrics.left_mm;
                 }
@@ -4851,6 +4858,48 @@ mod tests {
             })
         );
         assert_eq!(placements, before);
+    }
+
+    #[test]
+    fn constrained_collision_pass_keeps_fixed_obstacles_in_place() {
+        let metrics = GlyphMetrics {
+            advance_mm: 4.0,
+            left_mm: -1.0,
+            top_mm: -2.0,
+            width_mm: 2.0,
+            height_mm: 4.0,
+        };
+        let mut placements = vec![
+            GlyphPlacement {
+                resource_key: "resolved-annotation".into(),
+                metrics,
+                x_mm: 10.0,
+                y_mm: 20.0,
+                priority: 2,
+            },
+            GlyphPlacement {
+                resource_key: "measure-text".into(),
+                metrics,
+                x_mm: 10.0,
+                y_mm: 20.0,
+                priority: 1,
+            },
+        ];
+        let classes = [
+            GlyphCollisionClass::Critical,
+            GlyphCollisionClass::Annotation,
+        ];
+        let directions = [
+            GlyphCollisionDirection::Fixed,
+            GlyphCollisionDirection::Down,
+        ];
+
+        assert_eq!(
+            resolve_glyph_collisions_constrained(&mut placements, &classes, &directions, 1.0),
+            Ok(1)
+        );
+        assert_eq!((placements[0].x_mm, placements[0].y_mm), (10.0, 20.0));
+        assert_eq!((placements[1].x_mm, placements[1].y_mm), (10.0, 25.0));
     }
 
     #[test]
