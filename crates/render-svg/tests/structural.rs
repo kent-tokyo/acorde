@@ -749,7 +749,7 @@ fn precomputed_row_and_metadata_contracts_are_stable() {
     let layout = compute_layout(&score, &LayoutConfig::default());
     let row = acorde_render_svg::render_svg_row(&score, &layout, 0, &opts()).unwrap();
     let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts()).unwrap();
-    assert_eq!(metadata.contract_version, 21);
+    assert_eq!(metadata.contract_version, 22);
     assert_eq!(metadata.part_count, 1);
     assert_eq!(metadata.staff_count, 2);
     assert_eq!(metadata.measure_count, 1);
@@ -934,6 +934,36 @@ fn metadata_exposes_small_cutaway_and_hidden_staff_presentation() {
         presentation.presentation.notehead_scheme,
         StaffNoteheadScheme::PitchNames
     );
+}
+
+#[test]
+fn staff_presentation_line_count_and_distance_drive_svg_staff_lines() {
+    use acorde_core::{Score, StaffPresentation};
+
+    let mut score = Score::new("staff geometry", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].presentation = StaffPresentation {
+        lines: 3,
+        line_distance: 1.5,
+        ..StaffPresentation::default()
+    };
+    let svg =
+        acorde_render_svg::render_svg(&score, &opts()).expect("staff presentation should render");
+
+    assert_eq!(svg.matches("acorde-staff-line").count(), 3);
+    let line_ys: Vec<f32> = svg
+        .split(r#"<line class="acorde-staff-line""#)
+        .skip(1)
+        .map(|line| {
+            line.split(r#"y1=""#)
+                .nth(1)
+                .and_then(|value| value.split('"').next())
+                .expect("staff line has a y coordinate")
+                .parse()
+                .expect("staff line coordinate is numeric")
+        })
+        .collect();
+    // Consecutive lines use the authored 1.5 staff-space distance at 24 px.
+    assert_eq!(line_ys, vec![288.0, 252.0, 216.0]);
 }
 
 #[test]

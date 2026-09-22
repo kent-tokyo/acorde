@@ -227,10 +227,8 @@ pub(crate) fn build_svg_with_metadata(
                 options.width - right_margin_u * space,
                 bottom_y,
                 space,
-                score.parts[pi].staves[si]
-                    .tablature
-                    .as_ref()
-                    .map(|tab| tab.lines),
+                staff_line_count(&score.parts[pi].staves[si]),
+                score.parts[pi].staves[si].presentation.line_distance,
             );
             let state = &staff_states[si_idx];
             let mut hx = left_margin_u * space;
@@ -1673,11 +1671,20 @@ fn apply_note_horizontal_offsets(notes: &[Note], xs: &mut [f32], space: f32) {
 /// from overlapping the following staff or their system barline.
 fn staff_height_u(score: &Score, part: usize, staff: usize) -> f32 {
     let staff_ref = &score.parts[part].staves[staff];
-    let Some(tab) = staff_ref.tablature.as_ref() else {
-        return STAFF_HEIGHT_U;
-    };
-    f32::from(tab.lines.clamp(1, 64).saturating_sub(1)).max(STAFF_HEIGHT_U)
-        + tablature_top_clearance_u(staff_ref)
+    let line_height = f32::from(staff_line_count(staff_ref).saturating_sub(1))
+        * staff_ref.presentation.line_distance;
+    line_height.max(STAFF_HEIGHT_U) + tablature_top_clearance_u(staff_ref)
+}
+
+/// Resolve the visible line count without making a renderer infer tablature
+/// semantics. Tablature's string configuration is the source of truth for its
+/// physical line count; every other staff uses its presentation setting.
+fn staff_line_count(staff: &acorde_core::Staff) -> u8 {
+    staff
+        .tablature
+        .as_ref()
+        .map_or(staff.presentation.lines, |tab| tab.lines)
+        .clamp(1, 64)
 }
 
 /// Reserve space above a tablature staff for annotations that are intentionally drawn above
@@ -2154,12 +2161,12 @@ fn write_staff_lines(
     x2: f32,
     bottom_y: f32,
     space: f32,
-    tab_lines: Option<u8>,
+    line_count: u8,
+    line_distance: f32,
 ) {
     body.push_str(r#"<g class="acorde-staff">"#);
-    let line_count = tab_lines.map_or(5, usize::from).clamp(1, 64);
-    for line in 0..line_count {
-        let y = bottom_y - line as f32 * space;
+    for line in 0..usize::from(line_count) {
+        let y = bottom_y - line as f32 * line_distance * space;
         let _ = write!(
             body,
             r#"<line class="acorde-staff-line" x1="{x1}" y1="{y}" x2="{x2}" y2="{y}" stroke="black" stroke-width="{sw}"/>"#,
