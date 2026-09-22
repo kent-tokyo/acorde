@@ -1312,6 +1312,17 @@ impl PageRenderTree {
                 found: self.contract_version,
             });
         }
+        let view = self
+            .view_id
+            .as_deref()
+            .map(|view_id| {
+                score
+                    .views
+                    .iter()
+                    .find(|view| view.id == view_id)
+                    .ok_or(PrintLayoutError::InvalidView)
+            })
+            .transpose()?;
         for (node_index, node) in self.nodes.iter().enumerate() {
             if node
                 .system
@@ -1372,6 +1383,34 @@ impl PageRenderTree {
                 }
             };
             if !valid {
+                return Err(PrintLayoutError::InvalidRenderTreeNode { node_index });
+            }
+            let visible_in_view = match (&node.address, view) {
+                (PageRenderAddress::Note(address), Some(view)) => {
+                    view.parts.contains(&address.part)
+                        && !view.layout.hidden_staves.iter().any(|hidden| {
+                            hidden.part == address.part && hidden.staff == address.staff
+                        })
+                }
+                (PageRenderAddress::Spanner { id }, Some(view)) => score
+                    .spanners
+                    .iter()
+                    .find(|spanner| spanner.id == *id)
+                    .is_some_and(|spanner| {
+                        let endpoint_is_visible = |part: usize, staff: usize| {
+                            view.parts.contains(&part)
+                                && !view
+                                    .layout
+                                    .hidden_staves
+                                    .iter()
+                                    .any(|hidden| hidden.part == part && hidden.staff == staff)
+                        };
+                        endpoint_is_visible(spanner.start.part, spanner.start.staff)
+                            && endpoint_is_visible(spanner.end.part, spanner.end.staff)
+                    }),
+                _ => true,
+            };
+            if !visible_in_view {
                 return Err(PrintLayoutError::InvalidRenderTreeNode { node_index });
             }
         }
@@ -5219,6 +5258,24 @@ mod tests {
             .collect::<Vec<_>>();
         assert!(!note_staves.is_empty());
         assert!(note_staves.iter().all(|&staff| staff == 0));
+        assert!(trees.iter().all(|tree| tree.validate(&score).is_ok()));
+
+        let mut invalid = trees[0].clone();
+        invalid.nodes.push(PageRenderNode {
+            address: PageRenderAddress::Note(NoteAddr {
+                part: 0,
+                staff: 1,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            }),
+            kind: PageRenderNodeKind::Note,
+            system: None,
+        });
+        assert!(matches!(
+            invalid.validate(&score),
+            Err(PrintLayoutError::InvalidRenderTreeNode { .. })
+        ));
     }
 
     #[test]
