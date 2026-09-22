@@ -2370,6 +2370,26 @@ mod tests {
     }
 
     #[test]
+    fn section_break_command_is_available_through_json_boundary() {
+        let score = Score::new("sections", 120, 4, 4, 0, 3);
+        let command = acorde_core::Command::SetSectionBreak(acorde_core::SetSectionBreakCmd {
+            measure_index: 1,
+            value: true,
+        });
+        let result = apply_score_command(
+            &serde_json::to_string(&score).unwrap(),
+            &serde_json::to_string(&command).unwrap(),
+        )
+        .unwrap();
+        let result: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(
+            result["score"]["parts"][0]["staves"][0]["measures"][1]["section_break"],
+            true
+        );
+        assert_eq!(result["hint"]["scope"], "Global");
+    }
+
+    #[test]
     fn typed_tablature_config_engine_api_supports_clear_and_undo() {
         let mut engine = ScoreEngine::new();
         engine
