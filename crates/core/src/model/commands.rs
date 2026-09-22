@@ -5008,7 +5008,7 @@ mod tests {
     fn typed_spanners_remap_only_the_edited_endpoint_across_staff_and_voice() {
         use crate::model::score::{NotationSpanner, NotationSpannerKind, ScoreTemplate};
 
-        let mut score = Score::template(ScoreTemplate::Piano);
+        let mut score = Score::template(ScoreTemplate::StringQuartet);
         for staff in &mut score.parts[0].staves {
             let notes: Vec<Note> = (0..4)
                 .map(|offset| Note::new(Pitch::new(Step::C, 4 + offset), Duration::Quarter))
@@ -6936,9 +6936,10 @@ mod tests {
             )
             .expect("section break applies");
         assert!(
-            score.parts[0]
-                .staves
+            score
+                .parts
                 .iter()
+                .flat_map(|part| part.staves.iter())
                 .all(|staff| staff.measures[2].section_break)
         );
         stack.undo(&mut score).expect("section break undoes");

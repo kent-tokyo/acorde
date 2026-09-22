@@ -4814,13 +4814,16 @@ mod tests {
     #[test]
     fn section_range_uses_semantic_boundaries_not_layout_breaks() {
         let mut score = Score::new("sections", 120, 4, 4, 0, 6);
+        score.parts[0].staves[0].measures[0].section_break = true;
         score.parts[0].staves[0].measures[2].section_break = true;
         score.parts[0].staves[0].measures[4].section_break = true;
+        score.parts[0].staves[0].measures[5].section_break = true;
         score.parts[0].staves[0].measures[1].system_break = true;
         score.parts[0].staves[0].measures[3].page_break = true;
         assert_eq!(score.section_range(0).unwrap(), 0..=1);
         assert_eq!(score.section_range(3).unwrap(), 2..=3);
-        assert_eq!(score.section_range(5).unwrap(), 4..=5);
+        assert_eq!(score.section_range(4).unwrap(), 4..=4);
+        assert_eq!(score.section_range(5).unwrap(), 5..=5);
         assert!(score.section_range(6).is_err());
     }
 
