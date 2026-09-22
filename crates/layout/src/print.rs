@@ -3095,6 +3095,56 @@ pub fn compute_print_layout(
     })
 }
 
+/// Compute print layout for one linked score view without mutating the canonical score.
+///
+/// The view selects its source parts and may override measures per system plus explicit
+/// system/page boundaries. The result describes the projected view; callers that need
+/// canonical note addresses can pass it to
+/// [`PrintLayoutResult::export_page_render_trees_for_view`] together with the source score.
+pub fn compute_print_layout_for_view(
+    score: &Score,
+    config: &PrintConfig,
+    view_id: &str,
+) -> Result<PrintLayoutResult, PrintLayoutError> {
+    let view = score
+        .views
+        .iter()
+        .find(|view| view.id == view_id)
+        .ok_or(PrintLayoutError::InvalidView)?;
+    let mut view_config = config.clone();
+    if let Some(measures_per_row) = view.layout.measures_per_row {
+        view_config.measures_per_system = measures_per_row;
+    }
+
+    let mut projected = score
+        .resolve_view(view_id)
+        .map_err(|_| PrintLayoutError::InvalidView)?;
+    for (indices, is_page_break) in [
+        (&view.layout.system_breaks, false),
+        (&view.layout.page_breaks, true),
+    ] {
+        for &measure_index in indices {
+            let mut found = false;
+            for part in &mut projected.parts {
+                for staff in &mut part.staves {
+                    if let Some(measure) = staff.measures.get_mut(measure_index) {
+                        found = true;
+                        if is_page_break {
+                            measure.page_break = true;
+                        } else {
+                            measure.system_break = true;
+                        }
+                    }
+                }
+            }
+            if !found {
+                return Err(PrintLayoutError::InvalidView);
+            }
+        }
+    }
+    compute_print_layout(&projected, &view_config)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -5169,6 +5219,31 @@ mod tests {
             .collect::<Vec<_>>();
         assert!(!note_staves.is_empty());
         assert!(note_staves.iter().all(|&staff| staff == 0));
+    }
+
+    #[test]
+    fn print_layout_for_linked_view_applies_local_breaks_without_mutating_score() {
+        let mut score = score_with_measures(4);
+        let mut view = ScoreView::linked_part("part", "Part", 0);
+        view.layout.measures_per_row = Some(3);
+        view.layout.system_breaks.push(1);
+        score.views.push(view);
+
+        let layout = compute_print_layout_for_view(&score, &PrintConfig::default(), "part")
+            .expect("view layout");
+        let systems = layout
+            .pages
+            .iter()
+            .flat_map(|page| page.systems.iter())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            systems
+                .iter()
+                .map(|system| system.measure_indices.clone())
+                .collect::<Vec<_>>(),
+            vec![vec![0, 1], vec![2, 3]]
+        );
+        assert!(!score.parts[0].staves[0].measures[1].system_break);
     }
 
     #[test]

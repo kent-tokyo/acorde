@@ -20,11 +20,12 @@ pub use print::{
     PublicationConfig, PublicationFrame, PublicationFramePlacement, PublicationImagePlacement,
     PublicationImageResource, PublicationPageTemplate, PublicationSection, PublicationSpacer,
     PublicationTextAlignment, PublicationTextBlock, PublicationTextRole, SpanSegment,
-    SystemAddress, SystemLayout, compute_print_layout, distribute_glyph_spacing, glyph_extents,
-    resolve_glyph_collisions, resolve_glyph_collisions_checked,
-    resolve_glyph_collisions_constrained, resolve_glyph_collisions_with_classes,
-    resolve_glyph_horizontal_collisions, resolve_glyph_horizontal_collisions_checked,
-    resolve_glyph_horizontal_collisions_with_classes, validate_glyph_placements,
+    SystemAddress, SystemLayout, compute_print_layout, compute_print_layout_for_view,
+    distribute_glyph_spacing, glyph_extents, resolve_glyph_collisions,
+    resolve_glyph_collisions_checked, resolve_glyph_collisions_constrained,
+    resolve_glyph_collisions_with_classes, resolve_glyph_horizontal_collisions,
+    resolve_glyph_horizontal_collisions_checked, resolve_glyph_horizontal_collisions_with_classes,
+    validate_glyph_placements,
 };
 
 use acorde_core::{HairpinKind, NotationSpanner, OttavaKind};

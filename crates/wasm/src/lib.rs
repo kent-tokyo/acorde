@@ -558,6 +558,25 @@ pub fn compute_print_layout(score_json: &str, config_json: &str) -> Result<Strin
         .map_err(|e| js_err(format!("print layout serialization failed: {e}")))
 }
 
+/// Compute the host-neutral physical print layout for one named linked score view.
+///
+/// View-local measure capacity and explicit system/page boundaries are applied without
+/// changing the canonical score JSON.
+#[wasm_bindgen]
+pub fn compute_print_layout_for_view(
+    score_json: &str,
+    config_json: &str,
+    view_id: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let config: acorde_layout::PrintConfig =
+        parse_json(config_json, "print config", MAX_OPTIONS_JSON_BYTES)?;
+    let result =
+        acorde_layout::compute_print_layout_for_view(&score, &config, view_id).map_err(js_err)?;
+    serde_json::to_string(&result)
+        .map_err(|e| js_err(format!("view print layout serialization failed: {e}")))
+}
+
 /// Export page-scoped semantic render trees using the same print configuration.
 ///
 /// The result carries canonical score addresses for notes/rests plus page-owned
@@ -595,7 +614,8 @@ pub fn export_page_render_trees_for_view(
     let score = score_from_json(score_json)?;
     let config: acorde_layout::PrintConfig =
         parse_json(config_json, "print config", MAX_OPTIONS_JSON_BYTES)?;
-    let layout = acorde_layout::compute_print_layout(&score, &config).map_err(js_err)?;
+    let layout =
+        acorde_layout::compute_print_layout_for_view(&score, &config, view_id).map_err(js_err)?;
     let trees = layout
         .export_page_render_trees_for_view(&score, view_id)
         .map_err(js_err)?;
@@ -2641,6 +2661,16 @@ mod wasm_tests {
         assert!(render_score_svg_with_layout("{}", &layout_json, "{}").is_err());
         assert!(render_score_svg_row(&score_json, &layout_json, 99, "{}").is_err());
         assert!(render_score_metadata(&score_json, "not-json", "{}").is_err());
+
+        let mut view_score = Score::default();
+        let mut view = acorde_core::ScoreView::linked_part("part", "Part", 0);
+        view.layout.measures_per_row = Some(1);
+        view_score.views.push(view);
+        let view_score_json = serde_json::to_string(&view_score).unwrap();
+        let view_layout = compute_print_layout_for_view(&view_score_json, "{}", "part").unwrap();
+        assert!(view_layout.contains("systems"));
+        let view_trees = export_page_render_trees_for_view(&view_score_json, "{}", "part").unwrap();
+        assert!(validate_page_render_trees(&view_score_json, &view_trees).is_ok());
     }
 
     #[wasm_bindgen_test]
