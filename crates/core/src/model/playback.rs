@@ -1616,7 +1616,9 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                             let transpose = if channel == 9 {
                                 0i8
                             } else {
-                                staff.transpose_semitones
+                                staff.transpose_semitones.saturating_add(
+                                    instrument.map_or(0, |value| value.transpose_semitones),
+                                )
                             };
                             for pitch in &note.pitches {
                                 let midi = (pitch.to_midi() + transpose as i16).clamp(0, 127) as u8;
@@ -3476,6 +3478,7 @@ mod tests {
         let mut change = crate::InstrumentDefinition::new("flute", "Flute");
         change.midi_channel = 2;
         change.midi_program = 73;
+        change.transpose_semitones = -2;
         score.parts[0].staves[0].measures[1].instrument_change = Some(change);
         for measure in &mut score.parts[0].staves[0].measures {
             measure.voices[0] = vec![crate::Note::new(
@@ -3502,6 +3505,8 @@ mod tests {
             ),
             (2, 73, Some("flute"))
         );
+        assert_eq!(events[0].pitch_midi, 60);
+        assert_eq!(events[1].pitch_midi, 58);
     }
 
     #[test]
