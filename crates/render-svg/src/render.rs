@@ -140,6 +140,7 @@ pub(crate) fn build_svg_with_metadata(
 
     let mut body = String::new();
     let mut note_points: HashMap<NoteKey, NotePoint> = HashMap::new();
+    let mut resolved_annotation_obstacles = Vec::new();
 
     for (row_idx, row) in layout.rows.iter().enumerate() {
         if row.measure_indices.is_empty() {
@@ -306,6 +307,7 @@ pub(crate) fn build_svg_with_metadata(
                     &mandatory,
                     &courtesy,
                     &mut note_points,
+                    &mut resolved_annotation_obstacles,
                 )?;
             }
             // Barline spans the whole system, drawn once per column (not per staff).
@@ -356,6 +358,7 @@ pub(crate) fn build_svg_with_metadata(
         right_margin_u,
         space,
         options.interactive,
+        &resolved_annotation_obstacles,
     );
 
     let svg = format_svg(score, layout, &body, options.width, total_height);
@@ -2338,6 +2341,7 @@ fn render_measure(
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
     note_points: &mut HashMap<NoteKey, NotePoint>,
+    resolved_annotation_obstacles: &mut Vec<acorde_layout::GlyphPlacement>,
 ) -> Result<(), RenderError> {
     let measure = &score.parts[part].staves[staff].measures[measure_idx];
     let tablature = score.parts[part].staves[staff].tablature_at(measure_idx);
@@ -2451,6 +2455,7 @@ fn render_measure(
         space,
         MeasureSemanticAnnotationKinds::ALL,
     )?;
+    resolved_annotation_obstacles.extend(semantic_placements.iter().cloned());
 
     render_measure_text(
         body,
@@ -3804,9 +3809,17 @@ fn render_all_spans(
     right_margin_u: f32,
     space: f32,
     interactive: bool,
+    resolved_annotation_obstacles: &[acorde_layout::GlyphPlacement],
 ) {
-    let lane_offsets =
-        resolve_span_lane_offsets(layout, points, width, left_margin_u, right_margin_u, space);
+    let lane_offsets = resolve_span_lane_offsets(
+        layout,
+        points,
+        width,
+        left_margin_u,
+        right_margin_u,
+        space,
+        resolved_annotation_obstacles,
+    );
     render_ties(
         body,
         score,
@@ -3957,12 +3970,17 @@ fn resolve_span_lane_offsets(
     left_margin_u: f32,
     right_margin_u: f32,
     space: f32,
+    resolved_annotation_obstacles: &[acorde_layout::GlyphPlacement],
 ) -> HashMap<(usize, usize), f32> {
     let mut keys = Vec::new();
     let mut original_y = Vec::new();
-    let mut placements = Vec::new();
-    let mut classes = Vec::new();
-    let mut directions = Vec::new();
+    let obstacle_count = resolved_annotation_obstacles.len();
+    let mut placements = resolved_annotation_obstacles.to_vec();
+    let mut classes = vec![acorde_layout::GlyphCollisionClass::Critical; obstacle_count];
+    let mut directions = vec![acorde_layout::GlyphCollisionDirection::Fixed; obstacle_count];
+    for placement in &mut placements {
+        placement.priority = u8::MAX;
+    }
 
     for (span_index, span) in layout.spans.iter().enumerate() {
         let (start, end) = match span {
@@ -4017,7 +4035,7 @@ fn resolve_span_lane_offsets(
             add_segment(row2, left_margin_u * space, x2, y2, up2);
         }
     }
-    if placements.len() < 2 {
+    if keys.is_empty() {
         return HashMap::new();
     }
     if acorde_layout::resolve_glyph_collisions_constrained(
@@ -4032,7 +4050,7 @@ fn resolve_span_lane_offsets(
     }
     keys.into_iter()
         .zip(original_y)
-        .zip(placements)
+        .zip(placements.into_iter().skip(obstacle_count))
         .map(|((key, original_y), placement)| (key, placement.y_mm - original_y))
         .collect()
 }
@@ -6679,9 +6697,40 @@ mod tests {
             ((0, 0, 0, 0, 0), (30.0, 100.0, true, 0)),
             ((0, 0, 0, 0, 1), (90.0, 100.0, true, 0)),
         ]);
-        let offsets = resolve_span_lane_offsets(&layout, &points, 200.0, 1.0, 1.0, 10.0);
+        let offsets = resolve_span_lane_offsets(&layout, &points, 200.0, 1.0, 1.0, 10.0, &[]);
         assert_eq!(offsets.len(), 2);
         assert_ne!(offsets[&(0, 0)], offsets[&(1, 0)]);
+    }
+
+    #[test]
+    fn span_lane_escapes_resolved_annotation_obstacle() {
+        let mut score = Score::new("Span obstacle", 120, 2, 4, 0, 1);
+        let mut start = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        start.hairpin_start = Some(HairpinKind::Crescendo);
+        let mut end = Note::new(Pitch::new(Step::D, 4), Duration::Quarter);
+        end.hairpin_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![start, end];
+        let layout = compute_layout(&score, &LayoutConfig::default());
+        let points = HashMap::from([
+            ((0, 0, 0, 0, 0), (30.0, 100.0, true, 0)),
+            ((0, 0, 0, 0, 1), (90.0, 100.0, true, 0)),
+        ]);
+        let obstacle = acorde_layout::GlyphPlacement {
+            resource_key: "resolved-dynamic".into(),
+            metrics: acorde_layout::GlyphMetrics {
+                advance_mm: 0.0,
+                left_mm: 30.0,
+                top_mm: -4.0,
+                width_mm: 60.0,
+                height_mm: 8.0,
+            },
+            x_mm: 0.0,
+            y_mm: 120.0,
+            priority: 1,
+        };
+        let offsets =
+            resolve_span_lane_offsets(&layout, &points, 200.0, 1.0, 1.0, 10.0, &[obstacle]);
+        assert_ne!(offsets[&(0, 0)], 0.0);
     }
 
     #[test]
