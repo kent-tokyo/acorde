@@ -5511,4 +5511,45 @@ mod tests {
         stack.undo(&mut score).unwrap();
         assert_eq!(score.spanners.len(), 1);
     }
+
+    #[test]
+    fn string_quartet_linked_views_roundtrip_and_undo_redo_as_one_contract() {
+        let mut score = Score::template(ScoreTemplate::StringQuartet);
+        let mut stack = CommandStack::new(16);
+        for (part, id, name) in [
+            (0, "violin-1", "Violin I"),
+            (1, "violin-2", "Violin II"),
+            (2, "viola", "Viola"),
+            (3, "cello", "Cello"),
+        ] {
+            stack
+                .execute(
+                    Command::UpsertScoreView(UpsertScoreViewCmd {
+                        view: ScoreView::linked_part(id, name, part),
+                    }),
+                    &mut score,
+                )
+                .expect("linked part view applies");
+        }
+        assert_eq!(score.parts.len(), 4);
+        assert_eq!(score.views.len(), 4);
+        for (part, view) in score.views.iter().enumerate() {
+            assert_eq!(view.parts, vec![part]);
+            assert_eq!(score.resolve_view(&view.id).unwrap().parts.len(), 1);
+        }
+
+        let restored: Score =
+            serde_json::from_str(&serde_json::to_string(&score).expect("quartet score serializes"))
+                .expect("quartet score deserializes");
+        assert_eq!(restored.views, score.views);
+
+        for _ in 0..4 {
+            stack.undo(&mut score).expect("view undo applies");
+        }
+        assert!(score.views.is_empty());
+        for _ in 0..4 {
+            stack.redo(&mut score).expect("view redo applies");
+        }
+        assert_eq!(score.views, restored.views);
+    }
 }
