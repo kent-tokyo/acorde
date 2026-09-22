@@ -13,6 +13,8 @@ static SIMPLE_XML: &str = include_str!("../../../tests/fixtures/simple.musicxml"
 static MULTIPART_XML: &str = include_str!("../../../tests/fixtures/multipart.musicxml");
 static MULTIVOICE_XML: &str = include_str!("../../../tests/fixtures/multivoice.musicxml");
 static FRAGMENT_RICH_XML: &str = include_str!("../../../tests/fixtures/fragment_rich.musicxml");
+static CROSS_STAFF_FRAGMENT_XML: &str =
+    include_str!("../../../tests/fixtures/cross_staff_fragment.musicxml");
 static FIXTURE_MANIFEST: &str = include_str!("../../../tests/fixtures/manifest.json");
 static INTERCHANGE_REPORT: &str = include_str!("../../../docs/interchange-report.json");
 static WORKSPACE_MANIFEST: &str = include_str!("../../../Cargo.toml");
@@ -413,6 +415,71 @@ fn musicxml_section_break_roundtrips_without_becoming_a_layout_break() {
     assert!(measure.section_break);
     assert!(!measure.system_break);
     assert!(!measure.page_break);
+}
+
+#[test]
+fn cross_staff_musicxml_fragment_pastes_into_piano_without_losing_voice_identity() {
+    let parsed = parse_musicxml(CROSS_STAFF_FRAGMENT_XML).expect("cross-staff fixture parses");
+    let xml = serialize_musicxml(&parsed).expect("cross-staff fixture serializes");
+    assert!(xml.contains("<staff>2</staff>"));
+    let parsed = parse_musicxml(&xml).expect("cross-staff fixture reparses");
+    let source = &parsed.parts[0].staves[0].measures[0];
+    assert_eq!(source.source_voice_numbers, [Some(5), None, None, None]);
+    assert_eq!(
+        source.voices[0][0]
+            .cross_staff
+            .as_ref()
+            .map(|value| value.target_staff),
+        Some(1)
+    );
+    let fragment = extract_score_fragment(
+        &parsed,
+        &[ScoreFragmentSelection {
+            start: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+            end: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+        }],
+    )
+    .expect("cross-staff fragment extracts");
+
+    let mut engine = ScoreEngine::new();
+    engine
+        .try_replace_score(acorde_core::Score::template(
+            acorde_core::ScoreTemplate::Piano,
+        ))
+        .expect("piano target validates");
+    engine
+        .paste_score_fragment(
+            fragment,
+            NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 1,
+                voice: 0,
+                note: 0,
+            },
+        )
+        .expect("cross-staff fragment pastes");
+    let pasted = &engine.score.parts[0].staves[0].measures[1];
+    assert_eq!(pasted.source_voice_numbers, [Some(5), None, None, None]);
+    assert_eq!(
+        pasted.voices[0][0]
+            .cross_staff
+            .as_ref()
+            .map(|value| value.target_staff),
+        Some(1)
+    );
 }
 
 #[test]
