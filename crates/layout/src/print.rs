@@ -1721,18 +1721,25 @@ impl PrintLayoutResult {
             .find(|view| view.id == view_id)
             .ok_or(PrintLayoutError::InvalidView)?;
         let selected_parts = &view.parts;
+        let hidden_staves = &view.layout.hidden_staves;
+        let staff_is_visible = |part: usize, staff: usize| {
+            selected_parts.contains(&part)
+                && !hidden_staves
+                    .iter()
+                    .any(|hidden| hidden.part == part && hidden.staff == staff)
+        };
         let mut trees = self.export_page_render_trees(score)?;
         for tree in &mut trees {
             tree.view_id = Some(view.id.clone());
             tree.nodes.retain(|node| match &node.address {
-                PageRenderAddress::Note(address) => selected_parts.contains(&address.part),
+                PageRenderAddress::Note(address) => staff_is_visible(address.part, address.staff),
                 PageRenderAddress::Spanner { id } => score
                     .spanners
                     .iter()
                     .find(|spanner| spanner.id == *id)
                     .is_some_and(|spanner| {
-                        selected_parts.contains(&spanner.start.part)
-                            || selected_parts.contains(&spanner.end.part)
+                        staff_is_visible(spanner.start.part, spanner.start.staff)
+                            && staff_is_visible(spanner.end.part, spanner.end.staff)
                     }),
                 PageRenderAddress::Publication { .. } => true,
                 PageRenderAddress::Resource { .. } => true,
@@ -3092,8 +3099,8 @@ pub fn compute_print_layout(
 mod tests {
     use super::*;
     use acorde_core::{
-        Clef, Duration, Measure, Note, Part, PartGroup, PartGroupSymbol, Pitch, Score, ScoreView,
-        Staff, Step,
+        Clef, Duration, Measure, Note, Part, PartGroup, PartGroupSymbol, Pitch, Score,
+        ScoreTemplate, ScoreView, Staff, Step, ViewStaffRef,
     };
 
     fn score_with_measures(count: usize) -> Score {
@@ -5132,6 +5139,36 @@ mod tests {
                 .export_page_render_trees_for_view(&score, "missing")
                 .is_err()
         );
+    }
+
+    #[test]
+    fn page_render_tree_for_linked_view_omits_hidden_staff_nodes() {
+        let mut score = Score::template(ScoreTemplate::Piano);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        score.parts[0].staves[1].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 3), Duration::Quarter)];
+        let mut view = ScoreView::linked_part("piano", "Piano", 0);
+        view.layout
+            .hidden_staves
+            .push(ViewStaffRef { part: 0, staff: 1 });
+        score.views.push(view);
+
+        let layout = compute_print_layout(&score, &PrintConfig::default()).expect("layout");
+        let trees = layout
+            .export_page_render_trees_for_view(&score, "piano")
+            .expect("view trees");
+
+        let note_staves = trees
+            .iter()
+            .flat_map(|tree| tree.nodes.iter())
+            .filter_map(|node| match &node.address {
+                PageRenderAddress::Note(address) => Some(address.staff),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(!note_staves.is_empty());
+        assert!(note_staves.iter().all(|&staff| staff == 0));
     }
 
     #[test]
