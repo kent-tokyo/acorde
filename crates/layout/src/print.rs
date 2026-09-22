@@ -1,5 +1,5 @@
 use crate::{LayoutConfig, SpanMark, compute_layout};
-use acorde_core::{Barline, PartGroupSymbol, Score, StyledText, TextStyle};
+use acorde_core::{Barline, NoteAddr, PartGroupSymbol, Score, StyledText, TextStyle};
 use serde::{Deserialize, Serialize};
 
 /// Font-independent metrics for one print glyph, expressed in millimetres.
@@ -1246,6 +1246,50 @@ pub struct PageArtifact {
     pub layout: PageLayout,
 }
 
+/// Version of the serializable page-render tree contract.
+pub const PAGE_RENDER_TREE_CONTRACT_VERSION: u16 = 1;
+
+/// Canonical score address or page-owned publication address for one render node.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum PageRenderAddress {
+    Note(NoteAddr),
+    Spanner {
+        id: String,
+    },
+    Publication {
+        page_index: usize,
+        block_index: usize,
+    },
+}
+
+/// Backend-neutral semantic node in a page render tree.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum PageRenderNodeKind {
+    Note,
+    Rest,
+    Spanner { starts_here: bool, ends_here: bool },
+    PublicationBlock,
+}
+
+/// One node with its physical page and system ownership.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PageRenderNode {
+    pub address: PageRenderAddress,
+    pub kind: PageRenderNodeKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub system: Option<SystemAddress>,
+}
+
+/// Deterministic semantic tree for one physical page.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PageRenderTree {
+    pub contract_version: u16,
+    pub page: PageArtifact,
+    pub nodes: Vec<PageRenderNode>,
+}
+
 /// Typed, host-neutral diagnostics attached to a page export descriptor.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PageArtifactDiagnostic {
@@ -1471,6 +1515,86 @@ impl PrintLayoutResult {
                 measure_span: page.measure_span(),
                 diagnostics: page.artifact_diagnostics(None),
                 layout: page.clone(),
+            })
+            .collect())
+    }
+
+    /// Project this validated pagination and score into page-owned semantic nodes.
+    ///
+    /// Nodes keep canonical score addresses so a host never has to reverse-engineer
+    /// ownership from SVG groups or page-local indices.
+    pub fn export_page_render_trees(
+        &self,
+        score: &Score,
+    ) -> Result<Vec<PageRenderTree>, PrintLayoutError> {
+        let artifacts = self.export_page_artifacts()?;
+        Ok(self
+            .pages
+            .iter()
+            .zip(artifacts)
+            .map(|(page, artifact)| {
+                let mut nodes = Vec::new();
+                for system in &page.systems {
+                    for span in &system.measure_spans {
+                        for (part_index, part) in score.parts.iter().enumerate() {
+                            for (staff_index, staff) in part.staves.iter().enumerate() {
+                                for measure_index in span.first_measure..=span.last_measure {
+                                    let Some(measure) = staff.measures.get(measure_index) else {
+                                        continue;
+                                    };
+                                    for (voice, notes) in measure.voices.iter().enumerate() {
+                                        for (note, value) in notes.iter().enumerate() {
+                                            nodes.push(PageRenderNode {
+                                                address: PageRenderAddress::Note(NoteAddr {
+                                                    part: part_index,
+                                                    staff: staff_index,
+                                                    measure: measure_index,
+                                                    voice,
+                                                    note,
+                                                }),
+                                                kind: if value.is_rest {
+                                                    PageRenderNodeKind::Rest
+                                                } else {
+                                                    PageRenderNodeKind::Note
+                                                },
+                                                system: Some(system.address),
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    for segment in &system.span_segments {
+                        if let Some(spanner) = score.spanners.get(segment.span_index) {
+                            nodes.push(PageRenderNode {
+                                address: PageRenderAddress::Spanner {
+                                    id: spanner.id.clone(),
+                                },
+                                kind: PageRenderNodeKind::Spanner {
+                                    starts_here: segment.starts_here,
+                                    ends_here: segment.ends_here,
+                                },
+                                system: Some(system.address),
+                            });
+                        }
+                    }
+                }
+                for (block_index, _) in page.publication.text_blocks.iter().enumerate() {
+                    nodes.push(PageRenderNode {
+                        address: PageRenderAddress::Publication {
+                            page_index: page.page_index,
+                            block_index,
+                        },
+                        kind: PageRenderNodeKind::PublicationBlock,
+                        system: None,
+                    });
+                }
+                PageRenderTree {
+                    contract_version: PAGE_RENDER_TREE_CONTRACT_VERSION,
+                    page: artifact,
+                    nodes,
+                }
             })
             .collect())
     }
@@ -4794,5 +4918,30 @@ mod tests {
             glyph_extents(&placements),
             Err(GlyphPlacementError::NonFinite { index: 0 })
         );
+    }
+
+    #[test]
+    fn page_render_tree_preserves_canonical_note_and_rest_addresses() {
+        let mut score = score_with_measures(1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            Note::rest(Duration::Quarter),
+        ];
+        let layout = compute_print_layout(&score, &PrintConfig::default()).expect("layout");
+        let trees = layout
+            .export_page_render_trees(&score)
+            .expect("render trees");
+        assert_eq!(trees.len(), 1);
+        assert_eq!(trees[0].contract_version, PAGE_RENDER_TREE_CONTRACT_VERSION);
+        assert!(trees[0].nodes.iter().any(|node| matches!(
+            (&node.address, &node.kind),
+            (PageRenderAddress::Note(address), PageRenderNodeKind::Note)
+                if address.part == 0 && address.staff == 0 && address.measure == 0 && address.note == 0
+        )));
+        assert!(trees[0].nodes.iter().any(|node| matches!(
+            (&node.address, &node.kind),
+            (PageRenderAddress::Note(address), PageRenderNodeKind::Rest)
+                if address.part == 0 && address.staff == 0 && address.measure == 0 && address.note == 1
+        )));
     }
 }
