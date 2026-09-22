@@ -258,6 +258,24 @@ pub struct OfflineRenderFrameEvent {
     pub end_frame: u64,
 }
 
+/// Machine-readable condition observed while deriving an offline schedule.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum OfflineRenderDiagnosticKind {
+    /// A selected canonical note address did not yield a sounding event.
+    UnresolvedSelectionAddress,
+    /// A valid selection contained no sounding events after scheduling.
+    EmptySelection,
+}
+
+/// Source-located diagnostic for a provider-neutral offline manifest.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct OfflineRenderDiagnostic {
+    pub kind: OfflineRenderDiagnosticKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<NoteAddr>,
+}
+
 /// Encoded audio format requested from a host-side offline renderer.
 ///
 /// acorde does not encode audio; this keeps the requested output explicit in the deterministic
@@ -353,6 +371,7 @@ pub struct OfflineRenderManifest {
     #[serde(default)]
     pub release_tail_frames: u64,
     /// The exact timing policy that produced this manifest.
+    #[serde(default)]
     pub playback_options: PlaybackOptions,
     pub duration_frames: u64,
     pub events: Vec<PlaybackEvent>,
@@ -360,6 +379,8 @@ pub struct OfflineRenderManifest {
     /// seconds schedule so v1 clients can migrate without losing semantics.
     #[serde(default)]
     pub frame_events: Vec<OfflineRenderFrameEvent>,
+    #[serde(default)]
+    pub diagnostics: Vec<OfflineRenderDiagnostic>,
 }
 
 /// Host-reported result metadata for an [`OfflineRenderManifest`].
@@ -578,9 +599,21 @@ pub fn build_offline_render_manifest(
         effective_options.loop_region = Some((start, end));
     }
     let mut events = to_playback_events_bounded(&resolved_score, &effective_options)?;
+    let mut diagnostics = Vec::new();
     if let OfflineRenderScope::Selection { ref addresses } = request.scope {
         if addresses.is_empty() {
             return Err(crate::Error::InvalidOfflineRenderRequest);
+        }
+        for address in addresses {
+            if !events
+                .iter()
+                .any(|event| event.source.as_ref() == Some(address))
+            {
+                diagnostics.push(OfflineRenderDiagnostic {
+                    kind: OfflineRenderDiagnosticKind::UnresolvedSelectionAddress,
+                    source: Some(address.clone()),
+                });
+            }
         }
         events.retain(|event| {
             event
@@ -596,6 +629,12 @@ pub fn build_offline_render_manifest(
             for event in &mut events {
                 event.time_secs -= origin_secs;
             }
+        }
+        if events.is_empty() {
+            diagnostics.push(OfflineRenderDiagnostic {
+                kind: OfflineRenderDiagnosticKind::EmptySelection,
+                source: None,
+            });
         }
     }
     let duration_secs = events
@@ -650,6 +689,7 @@ pub fn build_offline_render_manifest(
         duration_frames: duration_frames as u64 + release_tail_frames as u64,
         events,
         frame_events,
+        diagnostics,
     })
 }
 
@@ -2743,6 +2783,66 @@ mod tests {
         .expect("request-owned playback options");
         assert_eq!(manifest.playback_options, request_options);
         assert_eq!(manifest.frame_events[0].duration_frames, 48_000);
+    }
+
+    #[test]
+    fn offline_render_manifest_reports_unresolved_selection_address() {
+        let score = Score::new("T", 120, 4, 4, 0, 1);
+        let request = OfflineRenderRequest {
+            scope: OfflineRenderScope::Selection {
+                addresses: vec![NoteAddr {
+                    part: 0,
+                    staff: 0,
+                    measure: 0,
+                    voice: 0,
+                    note: 99,
+                }],
+            },
+            ..Default::default()
+        };
+        let manifest = build_offline_render_manifest(&score, &PlaybackOptions::default(), &request)
+            .expect("empty selection is representable");
+        assert_eq!(manifest.events.len(), 0);
+        assert_eq!(
+            manifest.diagnostics,
+            vec![
+                OfflineRenderDiagnostic {
+                    kind: OfflineRenderDiagnosticKind::UnresolvedSelectionAddress,
+                    source: Some(NoteAddr {
+                        part: 0,
+                        staff: 0,
+                        measure: 0,
+                        voice: 0,
+                        note: 99,
+                    }),
+                },
+                OfflineRenderDiagnostic {
+                    kind: OfflineRenderDiagnosticKind::EmptySelection,
+                    source: None,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn offline_render_manifest_v1_json_migrates_with_v2_defaults() {
+        let legacy = serde_json::json!({
+            "contract_version": 1,
+            "playback_contract_version": 2,
+            "format": "Wav",
+            "sample_rate_hz": 48_000,
+            "channels": 2,
+            "duration_frames": 0,
+            "events": []
+        });
+        let manifest: OfflineRenderManifest =
+            serde_json::from_value(legacy).expect("v1 manifest remains readable");
+        assert_eq!(manifest.contract_version, 1);
+        assert_eq!(manifest.scope, OfflineRenderScope::FullScore);
+        assert_eq!(manifest.release_tail_frames, 0);
+        assert_eq!(manifest.playback_options, PlaybackOptions::default());
+        assert!(manifest.frame_events.is_empty());
+        assert!(manifest.diagnostics.is_empty());
     }
 
     #[test]
