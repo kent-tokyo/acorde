@@ -1261,6 +1261,10 @@ pub enum PageRenderAddress {
         page_index: usize,
         block_index: usize,
     },
+    Resource {
+        page_index: usize,
+        resource_key: String,
+    },
 }
 
 /// Backend-neutral semantic node in a page render tree.
@@ -1271,6 +1275,7 @@ pub enum PageRenderNodeKind {
     Rest,
     Spanner { starts_here: bool, ends_here: bool },
     PublicationBlock,
+    Resource,
 }
 
 /// One node with its physical page and system ownership.
@@ -1592,6 +1597,16 @@ impl PrintLayoutResult {
                         system: None,
                     });
                 }
+                for image in &page.publication.image_resources {
+                    nodes.push(PageRenderNode {
+                        address: PageRenderAddress::Resource {
+                            page_index: page.page_index,
+                            resource_key: image.resource_key.clone(),
+                        },
+                        kind: PageRenderNodeKind::Resource,
+                        system: None,
+                    });
+                }
                 PageRenderTree {
                     contract_version: PAGE_RENDER_TREE_CONTRACT_VERSION,
                     view_id: None,
@@ -1628,6 +1643,7 @@ impl PrintLayoutResult {
                             || selected_parts.contains(&spanner.end.part)
                     }),
                 PageRenderAddress::Publication { .. } => true,
+                PageRenderAddress::Resource { .. } => true,
             });
         }
         Ok(trees)
@@ -5008,5 +5024,55 @@ mod tests {
                 .export_page_render_trees_for_view(&score, "missing")
                 .is_err()
         );
+    }
+
+    #[test]
+    fn page_render_tree_keeps_page_scoped_resource_addresses() {
+        let score = score_with_measures(1);
+        let config = PrintConfig {
+            publication: PublicationConfig {
+                title_page: true,
+                image_resources: vec![
+                    PublicationImageResource {
+                        resource_key: "cover-art-v1".into(),
+                        alt_text: "Cover".into(),
+                        placement: PublicationImagePlacement::TitlePage,
+                        x_mm: 10.0,
+                        y_mm: 10.0,
+                        width_mm: 30.0,
+                        height_mm: 20.0,
+                    },
+                    PublicationImageResource {
+                        resource_key: "publisher-mark".into(),
+                        alt_text: "Mark".into(),
+                        placement: PublicationImagePlacement::MusicPages,
+                        x_mm: 160.0,
+                        y_mm: 10.0,
+                        width_mm: 20.0,
+                        height_mm: 10.0,
+                    },
+                ],
+                ..PublicationConfig::default()
+            },
+            ..PrintConfig::default()
+        };
+        let layout = compute_print_layout(&score, &config).expect("layout");
+        let trees = layout
+            .export_page_render_trees(&score)
+            .expect("render trees");
+        assert!(trees[0].nodes.iter().any(|node| matches!(
+            (&node.address, &node.kind),
+            (
+                PageRenderAddress::Resource { page_index: 0, resource_key },
+                PageRenderNodeKind::Resource,
+            ) if resource_key == "cover-art-v1"
+        )));
+        assert!(trees[1].nodes.iter().any(|node| matches!(
+            (&node.address, &node.kind),
+            (
+                PageRenderAddress::Resource { page_index: 1, resource_key },
+                PageRenderNodeKind::Resource,
+            ) if resource_key == "publisher-mark"
+        )));
     }
 }
