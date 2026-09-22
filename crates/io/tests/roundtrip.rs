@@ -733,6 +733,7 @@ fn musicxml_structured_figured_bass_roundtrips_without_loss() {
     assert_eq!(restored.parts[0].staves[0].measures[0].texts[0].text, "+6b");
 }
 
+#[cfg(feature = "mei")]
 #[test]
 fn figured_bass_semantics_match_between_mei_and_musicxml() {
     let mei = r#"<mei><music><body><mdiv><score><section><measure n="1"><fb><f>#6+</f></fb><staff n="1"><layer n="1"><note pname="c" oct="4" dur="4"/></layer></staff></measure></section></score></mdiv></body></music></mei>"#;
@@ -768,6 +769,7 @@ fn figured_bass_semantics_match_between_mei_and_musicxml() {
     assert_eq!(mei_projection, musicxml_projection);
 }
 
+#[cfg(feature = "mei")]
 #[test]
 fn harmony_function_semantics_match_between_mei_and_musicxml() {
     let mei = r##"<mei><music><body><mdiv><score><section><measure n="1"><harm startid="#n1" deg="V7" func="D" type="roman">C7</harm><staff n="1"><layer n="1"><note xml:id="n1" pname="c" oct="4" dur="4"/></layer></staff></measure></section></score></mdiv></body></music></mei>"##;
