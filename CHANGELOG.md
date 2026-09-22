@@ -18,7 +18,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   behavior.
 - Same-measure tablature slide, hammer-on, and pull-off connections are now collected across
   voices before SVG emission and receive deterministic collision lanes. Cross-measure technique
-  continuations retain their existing edge-owned rendering policy.
+  continuations now use the same lane assignment while retaining their edge-owned rendering
+  policy.
 
 ## [1.2.0] - 2026-09-21
 

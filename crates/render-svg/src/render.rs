@@ -5178,6 +5178,7 @@ fn render_cross_measure_tab_technique_connections(
     right_margin_u: f32,
     space: f32,
 ) {
+    let mut segments = Vec::new();
     for (part_index, part) in score.parts.iter().enumerate() {
         for (staff_index, staff) in part.staves.iter().enumerate() {
             if staff.tablature.is_none() {
@@ -5265,39 +5266,62 @@ fn render_cross_measure_tab_technique_connections(
                             + (i16::from(current_position.string) - i16::from(current_anchor))
                                 as f32
                                 * space;
-                        let render_segment =
-                            |body: &mut String, start: f32, start_y: f32, end: f32, end_y: f32| {
-                                render_tab_technique_segment(
-                                    body,
-                                    technique,
-                                    TabTechniqueSegment {
-                                        string: current_position.string,
-                                        start_addr: &start_addr,
-                                        end_addr: &end_addr,
-                                        start,
-                                        y1: start_y,
-                                        end,
-                                        y2: end_y,
-                                        space,
-                                    },
-                                );
-                            };
                         if row1 == row2 {
-                            render_segment(body, x1 + 0.2 * space, y1, x2 - 0.2 * space, y2);
+                            segments.push(OwnedTabTechniqueSegment {
+                                technique: technique.clone(),
+                                string: current_position.string,
+                                start_addr: start_addr.clone(),
+                                end_addr: end_addr.clone(),
+                                start: x1 + 0.2 * space,
+                                y1,
+                                end: x2 - 0.2 * space,
+                                y2,
+                            });
                         } else {
-                            render_segment(
-                                body,
-                                x1 + 0.2 * space,
+                            segments.push(OwnedTabTechniqueSegment {
+                                technique: technique.clone(),
+                                string: current_position.string,
+                                start_addr: start_addr.clone(),
+                                end_addr: end_addr.clone(),
+                                start: x1 + 0.2 * space,
                                 y1,
-                                width - right_margin_u * space,
-                                y1,
-                            );
-                            render_segment(body, left_margin_u * space, y2, x2 - 0.2 * space, y2);
+                                end: width - right_margin_u * space,
+                                y2: y1,
+                            });
+                            segments.push(OwnedTabTechniqueSegment {
+                                technique: technique.clone(),
+                                string: current_position.string,
+                                start_addr: start_addr.clone(),
+                                end_addr: end_addr.clone(),
+                                start: left_margin_u * space,
+                                y1: y2,
+                                end: x2 - 0.2 * space,
+                                y2,
+                            });
                         }
                     }
                 }
             }
         }
+    }
+    let Ok(offsets) = resolve_tab_technique_lane_offsets(&segments, space) else {
+        return;
+    };
+    for (segment, offset) in segments.into_iter().zip(offsets) {
+        render_tab_technique_segment(
+            body,
+            &segment.technique,
+            TabTechniqueSegment {
+                string: segment.string,
+                start_addr: &segment.start_addr,
+                end_addr: &segment.end_addr,
+                start: segment.start,
+                y1: segment.y1 + offset,
+                end: segment.end,
+                y2: segment.y2 + offset,
+                space,
+            },
+        );
     }
 }
 
