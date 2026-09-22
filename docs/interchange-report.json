@@ -35,7 +35,7 @@
     "MSCX and MusicXML Fingering values map to ordered Note.fingerings with the first value mirrored by Note.fingering; deterministic alternate selection is available and external glyph fidelity remains partial",
     "MusicXML note-level instrument@id maps to Note.instrument_id and round-trips without guessing a concrete percussion sound",
     "Interactive SVG note elements expose preserved instrument IDs through data-acorde-instrument-id for host-side percussion sound resolution",
-    "SVG metadata contract version 15 exposes score-level VBox text, typed note semantics, ordered articulation names, authored tie start/end flags, canonical beat durations, exact pitch MIDI cents, common note annotations, tablature tuning/capo, source identity, unpitched status, instrument IDs, per-pitch microtone cents, typed guitar techniques with bend amounts, and explicit tablature technique connections",
+    "SVG metadata contract version 22 exposes typed note semantics, score/measure text, tablature positions/tuning/changes and technique connections, harmony ranges, object-style overrides, harp-pedal diagrams, semantic section breaks, and staff presentation; standard staff line count/distance and tablature string-line count render deterministically, while cutaway staffs omit implicit-rest-only systems without changing cross-staff coordinates",
     "Note serde defaults and SetUnpitched/SetInstrumentId command JSON round-trips are covered for backwards-compatible score editing",
     "MusicXML figured-bass figure number/alter/prefix/suffix values round-trip structurally and regenerate deterministic display text",
     "MusicXML standard figure-alter values flatten to visible accidental markers with diagnostic coverage",

@@ -22,8 +22,13 @@ notation glyphs. Tablature staffs render their configured line count, explicit s
 positions, and guitar bend/slide/hammer-on/pull-off technique labels; missing positions are shown
 as an explicit `?` marker rather than inferred silently.
 Authored ties are emitted only between pitched note endpoints; a tie start adjacent to a rest is
-not drawn across silence. Metadata contract version 15 exposes `tie_start` and `tie_end` so browser
-hosts can preserve that distinction without parsing SVG geometry.
+not drawn across silence. Metadata contract version 22 exposes typed note semantics (including
+`tie_start` and `tie_end`), score and measure text, tablature positions and technique connections,
+object-style overrides, harp-pedal diagrams, semantic section breaks, and staff presentation
+without requiring hosts to parse SVG geometry. Standard staves use the authored line count and
+line distance; tablature uses its configured string-line count. A cutaway staff is omitted from a
+system containing only implicit rests while retaining its vertical coordinate slot for stable
+cross-staff addresses.
 `render_preflight()` reports the renderer's unsupported staff or measure clef, accidental, and
 tablature-position boundaries with stable score source locations before SVG emission. This also
 covers clef changes represented on individual measures rather than only the staff default.
