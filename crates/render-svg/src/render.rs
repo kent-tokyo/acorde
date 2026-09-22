@@ -6150,7 +6150,7 @@ mod tests {
     use super::{
         MeasureSemanticAnnotationKinds, Note, OwnedTabTechniqueSegment, accidental_footprint_u,
         build_svg, content_horizontal_margins, measure_text_width_u, note_anchor_y,
-        note_notation_footprint_u, render_measure_semantic_annotations,
+        note_notation_footprint_u, render_measure_semantic_annotations, render_measure_text,
         resolve_adjacent_event_spacing, resolve_cross_voice_event_spacing,
         resolve_span_lane_offsets, resolve_tab_technique_lane_offsets, span_lane_baseline,
         tab_note_y, tab_technique_control_y,
@@ -6159,7 +6159,7 @@ mod tests {
     use acorde_core::{
         Articulation, ChordSymbol, Duration, Dynamic, GuitarTechnique, HairpinKind, Lyric, Measure,
         NotationSpanner, NotationSpannerKind, NoteAddr, NoteHead, OttavaKind, Pitch, Score, Step,
-        TabPosition, TablatureConfig,
+        StyledText, TabPosition, TablatureConfig, TextStyle,
     };
     use acorde_layout::{LayoutConfig, SpanMark, compute_layout};
     use std::collections::HashMap;
@@ -6327,6 +6327,58 @@ mod tests {
             .and_then(|value| value.parse::<f32>().ok())
             .expect("articulation y");
         assert!((dynamic_y - articulation_y).abs() >= 23.0, "{body}");
+    }
+
+    #[test]
+    fn measure_text_escapes_resolved_annotation_obstacle() {
+        let mut measure = Measure::empty(4, 4);
+        measure.texts.push(StyledText {
+            style: TextStyle::Expression,
+            text: "dolce".into(),
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        });
+        let obstacle = acorde_layout::GlyphPlacement {
+            resource_key: "resolved-dynamic".into(),
+            metrics: acorde_layout::GlyphMetrics {
+                advance_mm: 0.0,
+                left_mm: 0.0,
+                top_mm: -18.72,
+                width_mm: 60.0,
+                height_mm: 21.6,
+            },
+            x_mm: 10.0,
+            y_mm: 51.2,
+            priority: 1,
+        };
+        let mut body = String::new();
+        render_measure_text(
+            &mut body,
+            &measure,
+            0,
+            0,
+            0,
+            10.0,
+            0.0,
+            200.0,
+            100.0,
+            24.0,
+            false,
+            &HashMap::new(),
+            &[obstacle],
+        )
+        .expect("measure text renders");
+        let text_y = body
+            .split("class=\"acorde-measure-text")
+            .nth(1)
+            .and_then(|value| value.split(" y=\"").nth(1))
+            .and_then(|value| value.split('"').next())
+            .and_then(|value| value.parse::<f32>().ok())
+            .expect("measure text y");
+        assert!(text_y < 51.2, "{body}");
     }
 
     #[test]
