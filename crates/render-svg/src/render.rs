@@ -2429,6 +2429,18 @@ fn render_measure(
         )?;
     }
 
+    if tablature.is_some() {
+        render_measure_tab_technique_connections(
+            body,
+            measure,
+            part,
+            staff,
+            measure_idx,
+            space,
+            note_points,
+        )?;
+    }
+
     render_measure_lyrics(body, measure, part, staff, measure_idx, note_points, space)?;
     render_measure_dynamic_and_chords(body, measure, part, staff, measure_idx, note_points, space)?;
     render_measure_articulations(body, measure, part, staff, measure_idx, note_points, space)?;
@@ -2873,20 +2885,6 @@ fn render_measure_voice_notes(
             *tablature_rhythm_display,
             *tablature_fret_mark_style,
         )?;
-        if let Some(tab) = tablature {
-            let context = TabTechniqueConnectionContext {
-                part: *part,
-                staff: *staff,
-                measure_idx: *measure_idx,
-                voice_idx: *voice_idx,
-                notes,
-                xs,
-                tab,
-                bottom_y: *bottom_y,
-                space: *space,
-            };
-            render_tab_technique_connection(body, &context, note_idx);
-        }
         if matches!(
             note.lyric.as_ref().map(|lyric| lyric.syllabic.as_str()),
             Some("begin" | "middle")
@@ -4995,121 +4993,178 @@ fn guitar_technique_label(note: &Note) -> Option<String> {
         })
 }
 
-/// Connect adjacent tablature events for techniques whose meaning spans two notes. The
-/// technique remains authored data on the destination note; this path only supplies a stable
-/// visual hook for host selection and does not infer playback or pitch semantics.
-struct TabTechniqueConnectionContext<'a> {
+/// Connect adjacent tablature events after every voice has produced stable note anchors. This
+/// lets simultaneous voice connections share one deterministic collision pass instead of being
+/// emitted independently while each voice is traversed.
+#[allow(clippy::too_many_arguments)]
+fn render_measure_tab_technique_connections(
+    body: &mut String,
+    measure: &Measure,
     part: usize,
     staff: usize,
     measure_idx: usize,
-    voice_idx: usize,
-    notes: &'a [Note],
-    xs: &'a [f32],
-    tab: &'a acorde_core::TablatureConfig,
-    bottom_y: f32,
     space: f32,
-}
-
-fn render_tab_technique_connection(
-    body: &mut String,
-    context: &TabTechniqueConnectionContext<'_>,
-    note_index: usize,
-) {
-    let TabTechniqueConnectionContext {
-        part,
-        staff,
-        measure_idx,
-        voice_idx,
-        notes,
-        xs,
-        tab,
-        bottom_y,
-        space,
-    } = context;
-    if note_index == 0 || note_index >= notes.len() || note_index >= xs.len() {
-        return;
+    note_points: &HashMap<NoteKey, NotePoint>,
+) -> Result<(), RenderError> {
+    let mut segments = Vec::new();
+    for (voice_idx, notes) in measure.voices.iter().enumerate() {
+        for note_index in 1..notes.len() {
+            let previous = &notes[note_index - 1];
+            let current = &notes[note_index];
+            if previous.is_rest
+                || current.is_rest
+                || !has_tab_position(previous)
+                || !has_tab_position(current)
+            {
+                continue;
+            }
+            let Some(technique) = current.guitar_technique.as_ref() else {
+                continue;
+            };
+            if !matches!(
+                technique,
+                acorde_core::GuitarTechnique::Slide
+                    | acorde_core::GuitarTechnique::HammerOn
+                    | acorde_core::GuitarTechnique::PullOff
+            ) {
+                continue;
+            }
+            let Some(&(x1, anchor_y1, _, _)) =
+                note_points.get(&(part, staff, measure_idx, voice_idx, note_index - 1))
+            else {
+                continue;
+            };
+            let Some(&(x2, anchor_y2, _, _)) =
+                note_points.get(&(part, staff, measure_idx, voice_idx, note_index))
+            else {
+                continue;
+            };
+            let start = x1 + 0.2 * space;
+            let end = x2 - 0.2 * space;
+            if !start.is_finite() || !end.is_finite() || end <= start {
+                continue;
+            }
+            let previous_positions = tab_positions(previous);
+            let current_positions = tab_positions(current);
+            let previous_anchor = tab_anchor_string(previous);
+            let current_anchor = tab_anchor_string(current);
+            for (index, current_position) in current_positions.iter().enumerate() {
+                let Some(previous_position) = previous_positions
+                    .iter()
+                    .find(|candidate| candidate.string == current_position.string)
+                    .or_else(|| {
+                        (previous_positions.len() == current_positions.len())
+                            .then(|| previous_positions.get(index))
+                            .flatten()
+                    })
+                else {
+                    continue;
+                };
+                let y1 = anchor_y1
+                    + (i16::from(previous_position.string) - i16::from(previous_anchor)) as f32
+                        * space;
+                let y2 = anchor_y2
+                    + (i16::from(current_position.string) - i16::from(current_anchor)) as f32
+                        * space;
+                segments.push(OwnedTabTechniqueSegment {
+                    technique: technique.clone(),
+                    string: current_position.string,
+                    start_addr: format!(
+                        "{part}:{staff}:{measure_idx}:{voice_idx}:{}",
+                        note_index - 1
+                    ),
+                    end_addr: format!("{part}:{staff}:{measure_idx}:{voice_idx}:{note_index}"),
+                    start,
+                    y1,
+                    end,
+                    y2,
+                });
+            }
+        }
     }
-    if notes[note_index - 1].is_rest
-        || notes[note_index].is_rest
-        || !has_tab_position(&notes[note_index - 1])
-        || !has_tab_position(&notes[note_index])
-    {
-        return;
-    }
-    let Some(technique) = notes[note_index].guitar_technique.as_ref() else {
-        return;
-    };
-    if !matches!(
-        technique,
-        acorde_core::GuitarTechnique::Slide
-            | acorde_core::GuitarTechnique::HammerOn
-            | acorde_core::GuitarTechnique::PullOff
-    ) {
-        return;
-    }
-    let x1 = xs[note_index - 1];
-    let x2 = xs[note_index];
-    if !x1.is_finite() || !x2.is_finite() || x2 <= x1 {
-        return;
-    }
-    let previous_positions = if !notes[note_index - 1].tab_positions.is_empty() {
-        notes[note_index - 1].tab_positions.as_slice()
-    } else {
-        notes[note_index - 1].tab_position.as_slice()
-    };
-    let current_positions = if !notes[note_index].tab_positions.is_empty() {
-        notes[note_index].tab_positions.as_slice()
-    } else {
-        notes[note_index].tab_position.as_slice()
-    };
-    let y_pairs: Vec<_> = current_positions
-        .iter()
-        .enumerate()
-        .filter_map(|(index, current)| {
-            let previous = previous_positions
-                .iter()
-                .find(|candidate| candidate.string == current.string)
-                .or_else(|| {
-                    (previous_positions.len() == current_positions.len())
-                        .then(|| previous_positions.get(index))
-                        .flatten()
-                })?;
-            Some((
-                current.string,
-                *bottom_y - f32::from(tab.lines.saturating_sub(previous.string)) * *space,
-                *bottom_y - f32::from(tab.lines.saturating_sub(current.string)) * *space,
-            ))
-        })
-        .collect();
-    if y_pairs.is_empty() {
-        return;
-    }
-    let start = x1 + 0.2 * space;
-    let end = x2 - 0.2 * space;
-    if end <= start {
-        return;
-    }
-    let start_addr = format!(
-        "{part}:{staff}:{measure_idx}:{voice_idx}:{}",
-        note_index - 1
-    );
-    let end_addr = format!("{part}:{staff}:{measure_idx}:{voice_idx}:{note_index}");
-    for (string, y1, y2) in y_pairs {
+    let offsets = resolve_tab_technique_lane_offsets(&segments, space)?;
+    for (segment, offset) in segments.into_iter().zip(offsets) {
         render_tab_technique_segment(
             body,
-            technique,
+            &segment.technique,
             TabTechniqueSegment {
-                string,
-                start_addr: &start_addr,
-                end_addr: &end_addr,
-                start,
-                y1,
-                end,
-                y2,
-                space: *space,
+                string: segment.string,
+                start_addr: &segment.start_addr,
+                end_addr: &segment.end_addr,
+                start: segment.start,
+                y1: segment.y1 + offset,
+                end: segment.end,
+                y2: segment.y2 + offset,
+                space,
             },
         );
     }
+    Ok(())
+}
+
+fn tab_positions(note: &Note) -> &[acorde_core::TabPosition] {
+    if note.tab_positions.is_empty() {
+        note.tab_position.as_slice()
+    } else {
+        note.tab_positions.as_slice()
+    }
+}
+
+struct OwnedTabTechniqueSegment {
+    technique: acorde_core::GuitarTechnique,
+    string: u8,
+    start_addr: String,
+    end_addr: String,
+    start: f32,
+    y1: f32,
+    end: f32,
+    y2: f32,
+}
+
+fn resolve_tab_technique_lane_offsets(
+    segments: &[OwnedTabTechniqueSegment],
+    space: f32,
+) -> Result<Vec<f32>, RenderError> {
+    if segments.len() < 2 {
+        return Ok(vec![0.0; segments.len()]);
+    }
+    let original_y: Vec<f32> = segments
+        .iter()
+        .map(|segment| (segment.y1 + segment.y2) / 2.0)
+        .collect();
+    let mut placements: Vec<_> = segments
+        .iter()
+        .enumerate()
+        .map(|(index, segment)| acorde_layout::GlyphPlacement {
+            resource_key: format!("tab-technique:{index}"),
+            metrics: acorde_layout::GlyphMetrics {
+                advance_mm: 0.0,
+                left_mm: segment.start,
+                top_mm: -0.35 * space,
+                width_mm: (segment.end - segment.start).abs().max(0.1 * space),
+                height_mm: 0.7 * space,
+            },
+            x_mm: 0.0,
+            y_mm: original_y[index],
+            priority: 1,
+        })
+        .collect();
+    let classes = vec![acorde_layout::GlyphCollisionClass::Annotation; placements.len()];
+    let directions = vec![acorde_layout::GlyphCollisionDirection::Up; placements.len()];
+    acorde_layout::resolve_glyph_collisions_constrained(
+        &mut placements,
+        &classes,
+        &directions,
+        SVG_ANNOTATION_COLLISION_GAP_PX,
+    )
+    .map_err(|_| RenderError::InvalidNotePlacement {
+        field: "tablature technique collision",
+    })?;
+    Ok(placements
+        .into_iter()
+        .zip(original_y)
+        .map(|(placement, original_y)| placement.y_mm - original_y)
+        .collect())
 }
 
 /// Render tab techniques between the last note of one measure and the first note of the next.
@@ -6065,16 +6120,18 @@ fn courtesy_wrapped(alter: i8, cx: f32, cy: f32, space: f32) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        Note, accidental_footprint_u, build_svg, content_horizontal_margins, measure_text_width_u,
-        note_anchor_y, note_notation_footprint_u, render_measure_articulations,
-        render_measure_dynamic_and_chords, render_measure_lyrics, resolve_adjacent_event_spacing,
-        resolve_cross_voice_event_spacing, resolve_span_lane_offsets, tab_note_y,
+        Note, OwnedTabTechniqueSegment, accidental_footprint_u, build_svg,
+        content_horizontal_margins, measure_text_width_u, note_anchor_y, note_notation_footprint_u,
+        render_measure_articulations, render_measure_dynamic_and_chords, render_measure_lyrics,
+        resolve_adjacent_event_spacing, resolve_cross_voice_event_spacing,
+        resolve_span_lane_offsets, resolve_tab_technique_lane_offsets, tab_note_y,
         tab_technique_control_y,
     };
     use crate::SvgRenderOptions;
     use acorde_core::{
-        Articulation, ChordSymbol, Duration, Dynamic, HairpinKind, Lyric, Measure, NotationSpanner,
-        NotationSpannerKind, NoteAddr, NoteHead, Pitch, Score, Step, TabPosition, TablatureConfig,
+        Articulation, ChordSymbol, Duration, Dynamic, GuitarTechnique, HairpinKind, Lyric, Measure,
+        NotationSpanner, NotationSpannerKind, NoteAddr, NoteHead, Pitch, Score, Step, TabPosition,
+        TablatureConfig,
     };
     use acorde_layout::{LayoutConfig, compute_layout};
     use std::collections::HashMap;
@@ -6462,5 +6519,34 @@ mod tests {
         let offsets = resolve_span_lane_offsets(&layout, &points, 200.0, 1.0, 1.0, 10.0);
         assert_eq!(offsets.len(), 2);
         assert_ne!(offsets[&(0, 0)], offsets[&(1, 0)]);
+    }
+
+    #[test]
+    fn overlapping_tab_connections_receive_stable_separate_collision_lanes() {
+        let segments = vec![
+            OwnedTabTechniqueSegment {
+                technique: GuitarTechnique::Slide,
+                string: 2,
+                start_addr: "0:0:0:0:0".to_owned(),
+                end_addr: "0:0:0:0:1".to_owned(),
+                start: 30.0,
+                y1: 100.0,
+                end: 90.0,
+                y2: 100.0,
+            },
+            OwnedTabTechniqueSegment {
+                technique: GuitarTechnique::HammerOn,
+                string: 2,
+                start_addr: "0:0:0:1:0".to_owned(),
+                end_addr: "0:0:0:1:1".to_owned(),
+                start: 30.0,
+                y1: 100.0,
+                end: 90.0,
+                y2: 100.0,
+            },
+        ];
+        let offsets = resolve_tab_technique_lane_offsets(&segments, 10.0).expect("lanes resolve");
+        assert_eq!(offsets.len(), 2);
+        assert_ne!(offsets[0], offsets[1]);
     }
 }

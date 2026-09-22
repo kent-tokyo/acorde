@@ -16,6 +16,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   collision resolver as SVG text and annotation lanes. Each system segment receives a stable
   up/down escape lane while retaining its authored endpoints and cross-system continuation
   behavior.
+- Same-measure tablature slide, hammer-on, and pull-off connections are now collected across
+  voices before SVG emission and receive deterministic collision lanes. Cross-measure technique
+  continuations retain their existing edge-owned rendering policy.
 
 ## [1.2.0] - 2026-09-21
 
