@@ -556,6 +556,24 @@ pub fn export_page_render_trees(score_json: &str, config_json: &str) -> Result<S
         .map_err(|e| js_err(format!("page render tree serialization failed: {e}")))
 }
 
+/// Export page-scoped semantic nodes for one named linked score view.
+#[wasm_bindgen]
+pub fn export_page_render_trees_for_view(
+    score_json: &str,
+    config_json: &str,
+    view_id: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let config: acorde_layout::PrintConfig =
+        parse_json(config_json, "print config", MAX_OPTIONS_JSON_BYTES)?;
+    let layout = acorde_layout::compute_print_layout(&score, &config).map_err(js_err)?;
+    let trees = layout
+        .export_page_render_trees_for_view(&score, view_id)
+        .map_err(js_err)?;
+    serde_json::to_string(&trees)
+        .map_err(|e| js_err(format!("page render tree serialization failed: {e}")))
+}
+
 // ── SVG rendering ────────────────────────────────────────────────────────────
 
 /// Inspect SVG renderer capability boundaries and return source-located issues as JSON.

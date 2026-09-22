@@ -1286,6 +1286,8 @@ pub struct PageRenderNode {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PageRenderTree {
     pub contract_version: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub view_id: Option<String>,
     pub page: PageArtifact,
     pub nodes: Vec<PageRenderNode>,
 }
@@ -1592,16 +1594,50 @@ impl PrintLayoutResult {
                 }
                 PageRenderTree {
                     contract_version: PAGE_RENDER_TREE_CONTRACT_VERSION,
+                    view_id: None,
                     page: artifact,
                     nodes,
                 }
             })
             .collect())
     }
+
+    /// Export page trees for a linked view without rewriting canonical source addresses.
+    pub fn export_page_render_trees_for_view(
+        &self,
+        score: &Score,
+        view_id: &str,
+    ) -> Result<Vec<PageRenderTree>, PrintLayoutError> {
+        let view = score
+            .views
+            .iter()
+            .find(|view| view.id == view_id)
+            .ok_or(PrintLayoutError::InvalidView)?;
+        let selected_parts = &view.parts;
+        let mut trees = self.export_page_render_trees(score)?;
+        for tree in &mut trees {
+            tree.view_id = Some(view.id.clone());
+            tree.nodes.retain(|node| match &node.address {
+                PageRenderAddress::Note(address) => selected_parts.contains(&address.part),
+                PageRenderAddress::Spanner { id } => score
+                    .spanners
+                    .iter()
+                    .find(|spanner| spanner.id == *id)
+                    .is_some_and(|spanner| {
+                        selected_parts.contains(&spanner.start.part)
+                            || selected_parts.contains(&spanner.end.part)
+                    }),
+                PageRenderAddress::Publication { .. } => true,
+            });
+        }
+        Ok(trees)
+    }
 }
 
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum PrintLayoutError {
+    #[error("unknown score view")]
+    InvalidView,
     #[error("paper dimensions must be finite and greater than zero")]
     InvalidPaperDimensions,
     #[error("margins must be finite and non-negative")]
@@ -2943,7 +2979,8 @@ pub fn compute_print_layout(
 mod tests {
     use super::*;
     use acorde_core::{
-        Clef, Duration, Measure, Note, Part, PartGroup, PartGroupSymbol, Pitch, Score, Staff, Step,
+        Clef, Duration, Measure, Note, Part, PartGroup, PartGroupSymbol, Pitch, Score, ScoreView,
+        Staff, Step,
     };
 
     fn score_with_measures(count: usize) -> Score {
@@ -4943,5 +4980,29 @@ mod tests {
             (PageRenderAddress::Note(address), PageRenderNodeKind::Rest)
                 if address.part == 0 && address.staff == 0 && address.measure == 0 && address.note == 1
         )));
+    }
+
+    #[test]
+    fn page_render_tree_for_linked_view_keeps_source_part_addresses() {
+        let mut score = score_with_measures(1);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        score
+            .views
+            .push(ScoreView::linked_part("piano", "Piano", 0));
+        let layout = compute_print_layout(&score, &PrintConfig::default()).expect("layout");
+        let trees = layout
+            .export_page_render_trees_for_view(&score, "piano")
+            .expect("view trees");
+        assert_eq!(trees[0].view_id.as_deref(), Some("piano"));
+        assert!(trees[0].nodes.iter().all(|node| match &node.address {
+            PageRenderAddress::Note(address) => address.part == 0,
+            _ => true,
+        }));
+        assert!(
+            layout
+                .export_page_render_trees_for_view(&score, "missing")
+                .is_err()
+        );
     }
 }
