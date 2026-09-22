@@ -1879,6 +1879,236 @@ mod tests {
     }
 
     #[test]
+    fn wasm_json_preserves_dense_editing_semantics_and_sparse_voice_playback() {
+        use acorde_core::{
+            CrossStaff, Duration, NotationSpanner, NotationSpannerKind, Note, NoteAddr, Pitch, Step,
+        };
+        let mut score = Score::new("WASM semantics", 120, 4, 4, 0, 1);
+        let mut chord = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        chord.pitches.push(Pitch::new(Step::E, 4));
+        chord.cross_staff = Some(CrossStaff {
+            target_staff: 1,
+            target_voice: Some(0),
+        });
+        let mut grace = Note::new(Pitch::new(Step::D, 4), Duration::Eighth);
+        grace.is_grace = true;
+        score.parts[0].staves[0].measures[0].voices[2] = vec![grace, chord];
+        score.parts[0].staves[0].measures[0].source_voice_numbers[2] = Some(7);
+        score.spanners.push(NotationSpanner {
+            id: "cross-staff-slur".into(),
+            kind: NotationSpannerKind::Slur,
+            start: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 2,
+                note: 1,
+            },
+            end: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 2,
+                note: 1,
+            },
+            number: None,
+            line_type: None,
+            text: None,
+            placement: None,
+            ottava_size: None,
+            ottava_type: None,
+        });
+
+        let json = score_to_json(&score).expect("score serializes");
+        let restored: Score = serde_json::from_str(&json).expect("score deserializes");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].source_voice_numbers[2],
+            Some(7)
+        );
+        assert_eq!(restored.spanners, score.spanners);
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[2][1].cross_staff,
+            score.parts[0].staves[0].measures[0].voices[2][1].cross_staff
+        );
+
+        let events =
+            acorde_core::to_playback_events(&restored, &acorde_core::PlaybackOptions::default());
+        assert_eq!(events.len(), 2, "grace note is excluded and chord expands");
+        assert!(
+            events
+                .iter()
+                .all(|event| event.source_voice_number == Some(7))
+        );
+    }
+
+    #[test]
+    fn expressive_edit_commands_roundtrip_through_wasm_json_and_history() {
+        use acorde_core::{
+            ChordSymbol, CrossStaff, ScoreTemplate, SetChordSymbolCmd, SetCrossStaffCmd,
+            SetGraceCmd,
+        };
+
+        let mut engine = ScoreEngine::new();
+        let mut score = Score::template(ScoreTemplate::Piano);
+        for staff in &mut score.parts[0].staves {
+            staff.measures[0].voices[0] = vec![acorde_core::Note::new(
+                acorde_core::Pitch::new(acorde_core::Step::C, 4),
+                acorde_core::Duration::Quarter,
+            )];
+        }
+        engine
+            .replace_score(&serde_json::to_string(&score).unwrap())
+            .unwrap();
+        let chord = Command::SetChordSymbol(SetChordSymbolCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            note_index: 0,
+            chord: Some(ChordSymbol {
+                root: "C".into(),
+                kind: "major".into(),
+                bass: None,
+                placement: Some("above".into()),
+                extender: false,
+                harmonic_degree: None,
+                harmony_function: None,
+                harmony_type: None,
+                chord_ref: None,
+                range_end: None,
+                degrees: Vec::new(),
+            }),
+        });
+        let grace = Command::SetGrace(SetGraceCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            note_index: 0,
+            is_grace: true,
+            slash: true,
+        });
+        let cross_staff = Command::SetCrossStaff(SetCrossStaffCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            note_index: 0,
+            placement: Some(CrossStaff {
+                target_staff: 1,
+                target_voice: Some(1),
+            }),
+        });
+
+        for command in [chord, grace, cross_staff] {
+            engine
+                .apply(&serde_json::to_string(&command).unwrap())
+                .unwrap();
+        }
+        let changed: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        let note = &changed.parts[0].staves[0].measures[0].voices[0][0];
+        assert_eq!(
+            note.chord_symbol
+                .as_ref()
+                .map(|symbol| symbol.root.as_str()),
+            Some("C")
+        );
+        assert!(note.is_grace && note.grace_slash);
+        assert_eq!(
+            note.cross_staff
+                .as_ref()
+                .map(|placement| placement.target_staff),
+            Some(1)
+        );
+
+        engine.undo().unwrap();
+        engine.undo().unwrap();
+        engine.undo().unwrap();
+        let restored: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        let note = &restored.parts[0].staves[0].measures[0].voices[0][0];
+        assert!(note.chord_symbol.is_none());
+        assert!(!note.is_grace && note.cross_staff.is_none());
+    }
+
+    #[test]
+    fn wasm_json_remaps_cross_staff_spanner_through_sparse_voice_insertion() {
+        use acorde_core::{
+            AddNoteCmd, AddSpannerCmd, Duration, NotationSpanner, NotationSpannerKind, Note,
+            NoteAddr, Pitch, ScoreTemplate, Step,
+        };
+
+        let mut score = Score::template(ScoreTemplate::Piano);
+        for staff in &mut score.parts[0].staves {
+            staff.measures[0].voices[0] =
+                vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        }
+        score.parts[0].staves[0].measures[0].source_voice_numbers[0] = Some(7);
+
+        let spanner = NotationSpanner {
+            id: "wasm-cross-staff".into(),
+            kind: NotationSpannerKind::Slur,
+            start: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+            end: NoteAddr {
+                part: 0,
+                staff: 1,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+            number: Some(1),
+            line_type: None,
+            text: None,
+            placement: None,
+            ottava_size: None,
+            ottava_type: None,
+        };
+        let insertion = Command::AddNote(AddNoteCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            position: 0,
+            pitch: Some(Pitch::new(Step::D, 4)),
+            duration: Duration::Quarter,
+            dot_count: 0,
+            is_rest: false,
+            tuplet: None,
+        });
+
+        let mut engine = ScoreEngine::new();
+        engine
+            .replace_score(&serde_json::to_string(&score).unwrap())
+            .unwrap();
+        for command in [Command::AddSpanner(AddSpannerCmd { spanner }), insertion] {
+            engine
+                .apply(&serde_json::to_string(&command).unwrap())
+                .unwrap();
+        }
+
+        let changed: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert_eq!(
+            changed.parts[0].staves[0].measures[0].source_voice_numbers[0],
+            Some(7)
+        );
+        let span = &changed.spanners[0];
+        assert_eq!(span.start.note, 1);
+        assert_eq!((span.end.staff, span.end.voice, span.end.note), (1, 0, 0));
+
+        engine.undo().unwrap();
+        let undone: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert_eq!(undone.spanners[0].start.note, 0);
+        engine.redo().unwrap();
+        let redone: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert_eq!(redone.spanners[0].start.note, 1);
+    }
+
+    #[test]
     fn tab_position_command_roundtrips_through_json() {
         let command = acorde_core::Command::SetTabPosition(acorde_core::SetTabPositionCmd {
             part_index: 0,
@@ -1891,6 +2121,65 @@ mod tests {
         let json = serde_json::to_string(&command).unwrap();
         let decoded: acorde_core::Command = serde_json::from_str(&json).unwrap();
         assert_eq!(acorde_core::command_key(&decoded), "SetTabPosition");
+    }
+
+    #[test]
+    fn part_reorder_command_is_available_through_json_engine_api() {
+        let mut engine = ScoreEngine::new();
+        let add = acorde_core::Command::AddPart(acorde_core::AddPartCmd {
+            name: "Flute".into(),
+            short_name: "Fl.".into(),
+            clefs: vec!["Treble".into()],
+            midi_channel: 1,
+            midi_program: 73,
+        });
+        engine.apply(&serde_json::to_string(&add).unwrap()).unwrap();
+        let reorder =
+            acorde_core::Command::ReorderParts(acorde_core::ReorderPartsCmd { order: vec![1, 0] });
+        engine
+            .apply(&serde_json::to_string(&reorder).unwrap())
+            .unwrap();
+        let score: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert_eq!(score.parts[0].name, "Flute");
+    }
+
+    #[test]
+    fn object_style_override_command_is_available_through_json_engine_api() {
+        let mut engine = ScoreEngine::new();
+        let score_text = acorde_core::Command::SetScoreText(acorde_core::SetScoreTextCmd {
+            text_index: 0,
+            text: Some(acorde_core::StyledText {
+                style: acorde_core::TextStyle::Expression,
+                text: "dolce".into(),
+                placement: None,
+                offset_x: None,
+                offset_y: None,
+                relative_x: None,
+                relative_y: None,
+            }),
+        });
+        engine
+            .apply(&serde_json::to_string(&score_text).unwrap())
+            .unwrap();
+
+        let styles = acorde_core::Command::SetObjectStyleOverrides(
+            acorde_core::SetObjectStyleOverridesCmd {
+                overrides: vec![acorde_core::ObjectStyleOverride {
+                    target: acorde_core::ObjectStyleTarget::ScoreText { text_index: 0 },
+                    property: acorde_core::ViewStyleProperty::TextScale,
+                    value: 1.25,
+                    provenance: None,
+                }],
+            },
+        );
+        engine
+            .apply(&serde_json::to_string(&styles).unwrap())
+            .unwrap();
+        let score: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert_eq!(score.object_style_overrides.len(), 1);
+        engine.undo().unwrap();
+        let restored: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert!(restored.object_style_overrides.is_empty());
     }
 
     #[test]

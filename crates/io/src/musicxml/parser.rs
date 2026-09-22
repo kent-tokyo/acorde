@@ -1,10 +1,10 @@
 use crate::Error;
 use acorde_core::{
     Articulation, Barline, ChordDegree, ChordSymbol, Clef, Duration, FiguredBassFigure,
-    GuitarTechnique, HairpinKind, KeySignature, Lyric, Measure, NotationSpanner,
-    NotationSpannerKind, Note, NoteAddr, NoteHead, OttavaKind, Part, PartGroup, PartGroupSymbol,
-    PercussionInstrument, Pitch, Score, Staff, Step, StyledText, TextStyle, TimeSignature,
-    TupletInfo, VoltaBracket,
+    GuitarTechnique, HairpinKind, HarpPedalDiagram, HarpPedalPosition, KeySignature, Lyric,
+    Measure, NotationSpanner, NotationSpannerKind, Note, NoteAddr, NoteHead, OttavaKind, Part,
+    PartGroup, PartGroupSymbol, PercussionInstrument, Pitch, Score, Staff, Step, StyledText,
+    TextStyle, TimeSignature, TupletInfo, VoltaBracket,
 };
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
@@ -245,6 +245,12 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut pending_direction_offset_y: Option<f64> = None;
     let mut pending_direction_relative_x: Option<f64> = None;
     let mut pending_direction_relative_y: Option<f64> = None;
+    let mut pending_harp_pedal_diagrams: Vec<HarpPedalDiagram> = Vec::new();
+    let mut pending_harp_pedal_diagram: Option<HarpPedalDiagram> = None;
+    let mut in_harp_pedals = false;
+    let mut in_harp_pedal_tuning = false;
+    let mut harp_pedal_step = Step::C;
+    let mut harp_pedal_alter = 0i8;
     let mut in_work = false;
     let mut in_backup = false;
     let mut in_forward = false;
@@ -396,6 +402,15 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             .filter(|value| value.is_finite());
                     }
                     "direction-type" => in_direction_type = true,
+                    "harp-pedals" if in_direction_type => {
+                        in_harp_pedals = true;
+                        pending_harp_pedal_diagram = Some(HarpPedalDiagram::default());
+                    }
+                    "pedal-tuning" if in_harp_pedals => {
+                        in_harp_pedal_tuning = true;
+                        harp_pedal_step = Step::C;
+                        harp_pedal_alter = 0;
+                    }
                     "measure-style" => in_measure_style = true,
                     "staff-details" => {
                         in_staff_details = true;
@@ -995,6 +1010,10 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                     id: score_instrument_id.clone(),
                                     name: score_instrument_name.take(),
                                     midi_unpitched: score_instrument_key,
+                                    staff_position: None,
+                                    notehead: None,
+                                    preferred_voice: None,
+                                    techniques: Vec::new(),
                                 });
                         }
                         in_score_instrument = false;
@@ -1215,6 +1234,32 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     }
                     "work" => in_work = false,
                     "barline" => in_barline = false,
+                    "pedal-tuning" if in_harp_pedal_tuning => {
+                        in_harp_pedal_tuning = false;
+                        let index = match harp_pedal_step {
+                            Step::D => 0,
+                            Step::C => 1,
+                            Step::B => 2,
+                            Step::E => 3,
+                            Step::F => 4,
+                            Step::G => 5,
+                            Step::A => 6,
+                        };
+                        let position = match harp_pedal_alter {
+                            -1 => HarpPedalPosition::Flat,
+                            1 => HarpPedalPosition::Sharp,
+                            _ => HarpPedalPosition::Natural,
+                        };
+                        if let Some(diagram) = pending_harp_pedal_diagram.as_mut() {
+                            diagram.positions[index] = position;
+                        }
+                    }
+                    "harp-pedals" if in_harp_pedals => {
+                        in_harp_pedals = false;
+                        if let Some(diagram) = pending_harp_pedal_diagram.take() {
+                            pending_harp_pedal_diagrams.push(diagram);
+                        }
+                    }
                     "direction-type" => in_direction_type = false,
                     "direction" => {
                         if let Some(pi) = part_index
@@ -1269,6 +1314,10 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             }
                             if let Some(bpm) = pending_sound_tempo.take() {
                                 m.tempo = Some(bpm);
+                            }
+                            for mut diagram in std::mem::take(&mut pending_harp_pedal_diagrams) {
+                                diagram.placement = pending_direction_placement.clone();
+                                m.harp_pedal_diagrams.push(diagram);
                             }
                         }
                         pending_sound_tempo = None;
@@ -1377,6 +1426,21 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             _ => Step::C,
                         };
                     }
+                    "pedal-step" if in_harp_pedal_tuning => {
+                        harp_pedal_step = match current_text.trim() {
+                            "C" => Step::C,
+                            "D" => Step::D,
+                            "E" => Step::E,
+                            "F" => Step::F,
+                            "G" => Step::G,
+                            "A" => Step::A,
+                            "B" => Step::B,
+                            _ => Step::C,
+                        };
+                    }
+                    "pedal-alter" if in_harp_pedal_tuning => {
+                        harp_pedal_alter = current_text.trim().parse().unwrap_or(0).clamp(-1, 1);
+                    }
                     "octave" if in_pitch => {
                         note_octave = current_text.parse().unwrap_or(4);
                     }
@@ -1457,16 +1521,21 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             && (1..=64).contains(&lines)
                             && let Some(pi) = part_index
                         {
-                            score.parts[pi].staves[0].tablature =
-                                Some(acorde_core::TablatureConfig {
-                                    lines,
-                                    tuning_midi: staff_tunings
-                                        .iter()
-                                        .filter(|(line, _)| *line <= lines)
-                                        .map(|(_, midi)| *midi)
-                                        .collect(),
-                                    capo: 0,
-                                });
+                            let config = acorde_core::TablatureConfig {
+                                lines,
+                                tuning_midi: staff_tunings
+                                    .iter()
+                                    .filter(|(line, _)| *line <= lines)
+                                    .map(|(_, midi)| *midi)
+                                    .collect(),
+                                capo: 0,
+                            };
+                            let staff = &mut score.parts[pi].staves[0];
+                            if staff.measures.len() <= 1 {
+                                staff.tablature = Some(config);
+                            } else if let Some(measure) = staff.measures.last_mut() {
+                                measure.tablature_change = Some(config);
+                            }
                         }
                     }
                     "syllabic" if in_lyric => lyric_syllabic = current_text.trim().to_string(),
@@ -2516,5 +2585,15 @@ mod tests {
         let notes = &score.parts[0].staves[0].measures[0].voices[0];
         let note = notes.iter().find(|n| !n.is_rest).unwrap();
         assert_eq!(note.arpeggiate, Some(true));
+    }
+
+    #[test]
+    fn harp_pedals_are_parsed_in_conventional_order() {
+        let xml = r#"<score-partwise><part-list><score-part id="P1"/></part-list><part id="P1"><measure number="1"><direction placement="below"><direction-type><harp-pedals><pedal-tuning><pedal-step>D</pedal-step><pedal-alter>-1</pedal-alter></pedal-tuning><pedal-tuning><pedal-step>C</pedal-step><pedal-alter>1</pedal-alter></pedal-tuning></harp-pedals></direction-type></direction></measure></part></score-partwise>"#;
+        let score = parse_musicxml(xml).unwrap();
+        let diagram = &score.parts[0].staves[0].measures[0].harp_pedal_diagrams[0];
+        assert_eq!(diagram.positions[0], HarpPedalPosition::Flat);
+        assert_eq!(diagram.positions[1], HarpPedalPosition::Sharp);
+        assert_eq!(diagram.placement.as_deref(), Some("below"));
     }
 }

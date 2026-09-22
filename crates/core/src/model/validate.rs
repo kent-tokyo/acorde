@@ -1,5 +1,9 @@
 use super::gm::instrument_range;
-use super::score::{NotationSpannerKind, NoteAddr, Score};
+use super::notation::GuitarTechnique;
+use super::score::{
+    InstrumentDefinition, InstrumentRange, NotationSpannerKind, NoteAddr, PercussionInstrument,
+    Score, ScoreView, StaffKind,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -51,6 +55,39 @@ pub enum ValidationError {
         staff: usize,
         reason: TablatureValidationReason,
     },
+    /// Renderer-independent staff presentation is internally inconsistent.
+    InvalidStaffPresentation {
+        part: usize,
+        staff: usize,
+        reason: StaffPresentationValidationReason,
+    },
+    /// A part's stable instrument semantics are internally inconsistent.
+    InvalidInstrumentDefinition {
+        part: usize,
+        reason: InstrumentDefinitionValidationReason,
+    },
+    /// An editable percussion-kit entry is internally inconsistent.
+    InvalidPercussionInstrument {
+        part: usize,
+        instrument: usize,
+        id: String,
+        reason: PercussionInstrumentValidationReason,
+    },
+    InvalidScoreView {
+        index: usize,
+        id: String,
+        reason: ScoreViewValidationReason,
+    },
+    /// A score-wide presentation default is outside the portable style range.
+    InvalidScoreStyleOverride {
+        property: super::score::ViewStyleProperty,
+        value: f32,
+    },
+    /// An object-attached presentation override has an invalid target, value, or provenance.
+    InvalidObjectStyleOverride {
+        index: usize,
+        reason: ObjectStyleValidationReason,
+    },
     /// A note's explicit string is not present on its tablature staff.
     TabPositionOutOfRange {
         part: usize,
@@ -70,6 +107,14 @@ pub enum ValidationError {
         note: usize,
         pitch: usize,
         microtone_cents: i16,
+    },
+    InvalidGuitarBendCurve {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        voice: usize,
+        note: usize,
+        reason: GuitarBendCurveValidationReason,
     },
     /// A harmony continuation points to a note address that does not exist.
     InvalidHarmonyRange {
@@ -107,9 +152,124 @@ pub enum SpannerEndpoint {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TablatureValidationReason {
+    InvalidLineCount {
+        lines: u8,
+    },
+    TooManyTunings {
+        tuning_count: usize,
+        lines: u8,
+    },
+    TuningOutOfMidiRange {
+        index: usize,
+        midi: i16,
+    },
+    ChangeWithoutBase {
+        measure: usize,
+    },
+    ChangeLineCountMismatch {
+        measure: usize,
+        base_lines: u8,
+        changed_lines: u8,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum StaffPresentationValidationReason {
     InvalidLineCount { lines: u8 },
-    TooManyTunings { tuning_count: usize, lines: u8 },
-    TuningOutOfMidiRange { index: usize, midi: i16 },
+    InvalidLineDistance { line_distance: f32 },
+    TablatureWithoutConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum InstrumentDefinitionValidationReason {
+    EmptyId,
+    InvalidStaffCount {
+        staff_count: u8,
+    },
+    InvalidMidiChannel {
+        midi_channel: u8,
+    },
+    InvalidRange {
+        kind: InstrumentRangeKind,
+        range: InstrumentRange,
+    },
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum InstrumentRangeKind {
+    Written,
+    Sounding,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum PercussionInstrumentValidationReason {
+    EmptyId,
+    DuplicateId { first: usize },
+    InvalidStaffPosition { staff_position: i8 },
+    InvalidPreferredVoice { preferred_voice: u8 },
+    InvalidTechnique { technique: String },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ScoreViewValidationReason {
+    EmptyIdOrName,
+    DuplicateId {
+        first: usize,
+    },
+    EmptyPartSelection,
+    InvalidPart {
+        part: usize,
+    },
+    DuplicatePart {
+        part: usize,
+    },
+    InvalidStaff {
+        part: usize,
+        staff: usize,
+    },
+    HiddenStaffOutsideSelection {
+        part: usize,
+        staff: usize,
+    },
+    DuplicateStaffKindOverride {
+        part: usize,
+        staff: usize,
+    },
+    StaffKindOverrideOutsideSelection {
+        part: usize,
+        staff: usize,
+    },
+    TablatureOverrideWithoutConfig {
+        part: usize,
+        staff: usize,
+    },
+    InvalidMeasuresPerRow,
+    InvalidTypedStyleOverride {
+        property: super::score::ViewStyleProperty,
+        value: f32,
+    },
+    BreakOutOfRange {
+        measure: usize,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ObjectStyleValidationReason {
+    InvalidValue {
+        property: super::score::ViewStyleProperty,
+        value: f32,
+    },
+    MissingTarget,
+    InvalidProvenance,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum GuitarBendCurveValidationReason {
+    TooManyPoints { count: usize },
+    RequiresBendTechnique,
+    RequiresStartAtZero,
+    RequiresEndAtFullDuration,
+    PositionsNotStrictlyIncreasing,
 }
 
 /// A non-fatal advisory warning found by [`validate`].
@@ -164,6 +324,42 @@ pub fn validate(score: &Score) -> ValidationReport {
         errors.push(ValidationError::EmptyScore);
     }
 
+    for override_ in &score.style_overrides {
+        if !valid_typed_style_value(override_.value) {
+            errors.push(ValidationError::InvalidScoreStyleOverride {
+                property: override_.property,
+                value: override_.value,
+            });
+        }
+    }
+    for (index, override_) in score.object_style_overrides.iter().enumerate() {
+        let reason = if !valid_typed_style_value(override_.value) {
+            Some(ObjectStyleValidationReason::InvalidValue {
+                property: override_.property,
+                value: override_.value,
+            })
+        } else if !object_style_target_exists(score, &override_.target) {
+            Some(ObjectStyleValidationReason::MissingTarget)
+        } else if override_.provenance.as_ref().is_some_and(|provenance| {
+            provenance.format.trim().is_empty()
+                || provenance.format.len() > 64
+                || provenance.source_location.trim().is_empty()
+                || provenance.source_location.len() > 2048
+        }) {
+            Some(ObjectStyleValidationReason::InvalidProvenance)
+        } else {
+            None
+        };
+        if let Some(reason) = reason {
+            errors.push(ValidationError::InvalidObjectStyleOverride { index, reason });
+        }
+    }
+
+    let mut view_ids: HashMap<String, usize> = HashMap::new();
+    for (index, view) in score.views.iter().enumerate() {
+        validate_score_view(index, view, score, &mut view_ids, &mut errors);
+    }
+
     let mut spanner_ids: HashMap<&str, usize> = HashMap::new();
     for (index, spanner) in score.spanners.iter().enumerate() {
         if spanner.id.trim().is_empty() {
@@ -204,6 +400,11 @@ pub fn validate(score: &Score) -> ValidationReport {
             continue;
         }
 
+        if let Some(definition) = &part.instrument {
+            validate_instrument_definition(pi, definition, &mut errors);
+        }
+        validate_percussion_kit(pi, &part.percussion_instruments, &mut errors);
+
         let expected_measure_count = part.staves[0].measures.len();
 
         for (si, staff) in part.staves.iter().enumerate() {
@@ -220,6 +421,34 @@ pub fn validate(score: &Score) -> ValidationReport {
                     staff: si,
                     expected: expected_measure_count,
                     found: staff.measures.len(),
+                });
+            }
+
+            if !(1..=64).contains(&staff.presentation.lines) {
+                errors.push(ValidationError::InvalidStaffPresentation {
+                    part: pi,
+                    staff: si,
+                    reason: StaffPresentationValidationReason::InvalidLineCount {
+                        lines: staff.presentation.lines,
+                    },
+                });
+            }
+            if !staff.presentation.line_distance.is_finite()
+                || !(0.1..=16.0).contains(&staff.presentation.line_distance)
+            {
+                errors.push(ValidationError::InvalidStaffPresentation {
+                    part: pi,
+                    staff: si,
+                    reason: StaffPresentationValidationReason::InvalidLineDistance {
+                        line_distance: staff.presentation.line_distance,
+                    },
+                });
+            }
+            if staff.presentation.kind == StaffKind::Tablature && staff.tablature.is_none() {
+                errors.push(ValidationError::InvalidStaffPresentation {
+                    part: pi,
+                    staff: si,
+                    reason: StaffPresentationValidationReason::TablatureWithoutConfig,
                 });
             }
 
@@ -255,6 +484,57 @@ pub fn validate(score: &Score) -> ValidationReport {
             let mut volta_numbers_seen: Vec<u8> = Vec::new();
 
             for (mi, measure) in staff.measures.iter().enumerate() {
+                if let Some(change) = &measure.tablature_change {
+                    match &staff.tablature {
+                        None => errors.push(ValidationError::InvalidTablature {
+                            part: pi,
+                            staff: si,
+                            reason: TablatureValidationReason::ChangeWithoutBase { measure: mi },
+                        }),
+                        Some(base) if base.lines != change.lines => {
+                            errors.push(ValidationError::InvalidTablature {
+                                part: pi,
+                                staff: si,
+                                reason: TablatureValidationReason::ChangeLineCountMismatch {
+                                    measure: mi,
+                                    base_lines: base.lines,
+                                    changed_lines: change.lines,
+                                },
+                            });
+                        }
+                        Some(_) => {}
+                    }
+                    if !(1..=64).contains(&change.lines) {
+                        errors.push(ValidationError::InvalidTablature {
+                            part: pi,
+                            staff: si,
+                            reason: TablatureValidationReason::InvalidLineCount {
+                                lines: change.lines,
+                            },
+                        });
+                    } else if change.tuning_midi.len() > usize::from(change.lines) {
+                        errors.push(ValidationError::InvalidTablature {
+                            part: pi,
+                            staff: si,
+                            reason: TablatureValidationReason::TooManyTunings {
+                                tuning_count: change.tuning_midi.len(),
+                                lines: change.lines,
+                            },
+                        });
+                    }
+                    for (index, &midi) in change.tuning_midi.iter().enumerate() {
+                        if !(0..=127).contains(&midi) {
+                            errors.push(ValidationError::InvalidTablature {
+                                part: pi,
+                                staff: si,
+                                reason: TablatureValidationReason::TuningOutOfMidiRange {
+                                    index,
+                                    midi,
+                                },
+                            });
+                        }
+                    }
+                }
                 if let Some(ts) = &measure.time_sig {
                     current_ts = ts.clone();
                 }
@@ -349,6 +629,47 @@ pub fn validate(score: &Score) -> ValidationReport {
                                 });
                             }
                         }
+                        if !note.guitar_bend_curve.is_empty() {
+                            let reason = if note.guitar_bend_curve.len() > 32 {
+                                Some(GuitarBendCurveValidationReason::TooManyPoints {
+                                    count: note.guitar_bend_curve.len(),
+                                })
+                            } else if note.guitar_technique != Some(GuitarTechnique::Bend) {
+                                Some(GuitarBendCurveValidationReason::RequiresBendTechnique)
+                            } else if note
+                                .guitar_bend_curve
+                                .first()
+                                .map(|point| point.position_per_mille)
+                                != Some(0)
+                            {
+                                Some(GuitarBendCurveValidationReason::RequiresStartAtZero)
+                            } else if note
+                                .guitar_bend_curve
+                                .last()
+                                .map(|point| point.position_per_mille)
+                                != Some(1000)
+                            {
+                                Some(GuitarBendCurveValidationReason::RequiresEndAtFullDuration)
+                            } else if note.guitar_bend_curve.windows(2).any(|points| {
+                                points[0].position_per_mille >= points[1].position_per_mille
+                            }) {
+                                Some(
+                                    GuitarBendCurveValidationReason::PositionsNotStrictlyIncreasing,
+                                )
+                            } else {
+                                None
+                            };
+                            if let Some(reason) = reason {
+                                errors.push(ValidationError::InvalidGuitarBendCurve {
+                                    part: pi,
+                                    staff: si,
+                                    measure: mi,
+                                    voice: vi,
+                                    note: ni,
+                                    reason,
+                                });
+                            }
+                        }
                     }
 
                     if !is_percussion {
@@ -405,6 +726,247 @@ pub fn validate(score: &Score) -> ValidationReport {
     }
 
     ValidationReport { errors, warnings }
+}
+
+fn validate_instrument_definition(
+    part: usize,
+    definition: &InstrumentDefinition,
+    errors: &mut Vec<ValidationError>,
+) {
+    if definition.id.trim().is_empty() {
+        errors.push(ValidationError::InvalidInstrumentDefinition {
+            part,
+            reason: InstrumentDefinitionValidationReason::EmptyId,
+        });
+    }
+    if !(1..=64).contains(&definition.staff_count) {
+        errors.push(ValidationError::InvalidInstrumentDefinition {
+            part,
+            reason: InstrumentDefinitionValidationReason::InvalidStaffCount {
+                staff_count: definition.staff_count,
+            },
+        });
+    }
+    if definition.midi_channel > 15 {
+        errors.push(ValidationError::InvalidInstrumentDefinition {
+            part,
+            reason: InstrumentDefinitionValidationReason::InvalidMidiChannel {
+                midi_channel: definition.midi_channel,
+            },
+        });
+    }
+    for (kind, range) in [
+        (InstrumentRangeKind::Written, definition.written_range),
+        (InstrumentRangeKind::Sounding, definition.sounding_range),
+    ] {
+        if let Some(range) = range
+            && range.lowest > range.highest
+        {
+            errors.push(ValidationError::InvalidInstrumentDefinition {
+                part,
+                reason: InstrumentDefinitionValidationReason::InvalidRange { kind, range },
+            });
+        }
+    }
+}
+
+fn validate_percussion_kit(
+    part: usize,
+    instruments: &[PercussionInstrument],
+    errors: &mut Vec<ValidationError>,
+) {
+    let mut ids: HashMap<&str, usize> = HashMap::new();
+    for (instrument_index, instrument) in instruments.iter().enumerate() {
+        let invalid = |reason| ValidationError::InvalidPercussionInstrument {
+            part,
+            instrument: instrument_index,
+            id: instrument.id.clone(),
+            reason,
+        };
+        if instrument.id.trim().is_empty() {
+            errors.push(invalid(PercussionInstrumentValidationReason::EmptyId));
+        } else if let Some(first) = ids.insert(instrument.id.as_str(), instrument_index) {
+            errors.push(invalid(PercussionInstrumentValidationReason::DuplicateId {
+                first,
+            }));
+        }
+        if let Some(staff_position) = instrument.staff_position
+            && !(-32..=32).contains(&staff_position)
+        {
+            errors.push(invalid(
+                PercussionInstrumentValidationReason::InvalidStaffPosition { staff_position },
+            ));
+        }
+        if let Some(preferred_voice) = instrument.preferred_voice
+            && !(1..=4).contains(&preferred_voice)
+        {
+            errors.push(invalid(
+                PercussionInstrumentValidationReason::InvalidPreferredVoice { preferred_voice },
+            ));
+        }
+        for technique in &instrument.techniques {
+            if technique.trim().is_empty() || technique.len() > 128 {
+                errors.push(invalid(
+                    PercussionInstrumentValidationReason::InvalidTechnique {
+                        technique: technique.clone(),
+                    },
+                ));
+            }
+        }
+    }
+}
+
+fn validate_score_view(
+    index: usize,
+    view: &ScoreView,
+    score: &Score,
+    ids: &mut HashMap<String, usize>,
+    errors: &mut Vec<ValidationError>,
+) {
+    let invalid = |reason| ValidationError::InvalidScoreView {
+        index,
+        id: view.id.clone(),
+        reason,
+    };
+    if view.id.trim().is_empty() || view.name.trim().is_empty() {
+        errors.push(invalid(ScoreViewValidationReason::EmptyIdOrName));
+    } else if let Some(first) = ids.insert(view.id.clone(), index) {
+        errors.push(invalid(ScoreViewValidationReason::DuplicateId { first }));
+    }
+    if view.parts.is_empty() {
+        errors.push(invalid(ScoreViewValidationReason::EmptyPartSelection));
+        return;
+    }
+    let mut selected = vec![false; score.parts.len()];
+    for &part_index in &view.parts {
+        if part_index >= score.parts.len() {
+            errors.push(invalid(ScoreViewValidationReason::InvalidPart {
+                part: part_index,
+            }));
+        } else if std::mem::replace(&mut selected[part_index], true) {
+            errors.push(invalid(ScoreViewValidationReason::DuplicatePart {
+                part: part_index,
+            }));
+        }
+    }
+    if view.layout.measures_per_row.is_some_and(|value| value == 0) {
+        errors.push(invalid(ScoreViewValidationReason::InvalidMeasuresPerRow));
+    }
+    for override_ in &view.layout.typed_style_overrides {
+        if !valid_typed_style_value(override_.value) {
+            errors.push(invalid(
+                ScoreViewValidationReason::InvalidTypedStyleOverride {
+                    property: override_.property,
+                    value: override_.value,
+                },
+            ));
+        }
+    }
+    for reference in &view.layout.hidden_staves {
+        let Some(part) = score.parts.get(reference.part) else {
+            errors.push(invalid(ScoreViewValidationReason::InvalidPart {
+                part: reference.part,
+            }));
+            continue;
+        };
+        if reference.staff >= part.staves.len() {
+            errors.push(invalid(ScoreViewValidationReason::InvalidStaff {
+                part: reference.part,
+                staff: reference.staff,
+            }));
+        } else if !selected[reference.part] {
+            errors.push(invalid(
+                ScoreViewValidationReason::HiddenStaffOutsideSelection {
+                    part: reference.part,
+                    staff: reference.staff,
+                },
+            ));
+        }
+    }
+    let mut overridden = HashMap::new();
+    for override_ in &view.staff_kind_overrides {
+        let reference = override_.staff;
+        let Some(part) = score.parts.get(reference.part) else {
+            errors.push(invalid(ScoreViewValidationReason::InvalidPart {
+                part: reference.part,
+            }));
+            continue;
+        };
+        if reference.staff >= part.staves.len() {
+            errors.push(invalid(ScoreViewValidationReason::InvalidStaff {
+                part: reference.part,
+                staff: reference.staff,
+            }));
+        } else if !selected[reference.part] {
+            errors.push(invalid(
+                ScoreViewValidationReason::StaffKindOverrideOutsideSelection {
+                    part: reference.part,
+                    staff: reference.staff,
+                },
+            ));
+        } else if overridden
+            .insert((reference.part, reference.staff), ())
+            .is_some()
+        {
+            errors.push(invalid(
+                ScoreViewValidationReason::DuplicateStaffKindOverride {
+                    part: reference.part,
+                    staff: reference.staff,
+                },
+            ));
+        } else if override_.kind == StaffKind::Tablature
+            && part.staves[reference.staff].tablature.is_none()
+        {
+            errors.push(invalid(
+                ScoreViewValidationReason::TablatureOverrideWithoutConfig {
+                    part: reference.part,
+                    staff: reference.staff,
+                },
+            ));
+        }
+    }
+    let measure_count = score.measure_count();
+    for &measure in view
+        .layout
+        .system_breaks
+        .iter()
+        .chain(view.layout.page_breaks.iter())
+    {
+        if measure >= measure_count {
+            errors.push(invalid(ScoreViewValidationReason::BreakOutOfRange {
+                measure,
+            }));
+        }
+    }
+}
+
+fn valid_typed_style_value(value: f32) -> bool {
+    value.is_finite() && (0.05..=64.0).contains(&value)
+}
+
+fn object_style_target_exists(score: &Score, target: &super::score::ObjectStyleTarget) -> bool {
+    use super::score::ObjectStyleTarget;
+    match target {
+        ObjectStyleTarget::ScoreText { text_index } => *text_index < score.texts.len(),
+        ObjectStyleTarget::MeasureText {
+            part,
+            staff,
+            measure,
+            text_index,
+        } => score
+            .parts
+            .get(*part)
+            .and_then(|part| part.staves.get(*staff))
+            .and_then(|staff| staff.measures.get(*measure))
+            .is_some_and(|measure| *text_index < measure.texts.len()),
+        ObjectStyleTarget::Note { address } => score
+            .parts
+            .get(address.part)
+            .and_then(|part| part.staves.get(address.staff))
+            .and_then(|staff| staff.measures.get(address.measure))
+            .and_then(|measure| measure.voices.get(address.voice))
+            .is_some_and(|voice| address.note < voice.len()),
+    }
 }
 
 fn valid_time_signature(time: &super::notation::TimeSignature) -> bool {
@@ -533,6 +1095,110 @@ mod tests {
         score.parts[0].staves[0].measures[0].multi_rest_count = Some(4);
         score.parts[0].staves[0].measures[0].voices[0].clear();
         assert!(validate(&score).errors.is_empty());
+    }
+
+    #[test]
+    fn validate_rejects_tablature_view_override_without_tablature_configuration() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        score
+            .views
+            .push(ScoreView::linked_tablature_staff("tab", "Tab", 0, 0));
+
+        assert!(validate(&score).errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidScoreView {
+                reason: ScoreViewValidationReason::TablatureOverrideWithoutConfig {
+                    part: 0,
+                    staff: 0,
+                },
+                ..
+            }
+        )));
+    }
+
+    #[test]
+    fn validate_rejects_non_finite_typed_view_style_override() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        let mut view = ScoreView::linked_part("part", "Part", 0);
+        view.layout
+            .typed_style_overrides
+            .push(super::super::score::ViewStyleOverride {
+                property: super::super::score::ViewStyleProperty::TextScale,
+                value: f32::NAN,
+            });
+        score.views.push(view);
+        assert!(validate(&score).errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidScoreView {
+                reason: ScoreViewValidationReason::InvalidTypedStyleOverride { .. },
+                ..
+            }
+        )));
+    }
+
+    #[test]
+    fn validate_rejects_out_of_range_score_style_override() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        score
+            .style_overrides
+            .push(super::super::score::ViewStyleOverride {
+                property: super::super::score::ViewStyleProperty::StaffSpace,
+                value: 0.01,
+            });
+
+        assert!(validate(&score).errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidScoreStyleOverride {
+                property: super::super::score::ViewStyleProperty::StaffSpace,
+                value,
+            } if (*value - 0.01).abs() < f32::EPSILON
+        )));
+    }
+
+    #[test]
+    fn validate_rejects_object_style_override_with_missing_target() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        score
+            .object_style_overrides
+            .push(super::super::score::ObjectStyleOverride {
+                target: super::super::score::ObjectStyleTarget::ScoreText { text_index: 0 },
+                property: super::super::score::ViewStyleProperty::TextScale,
+                value: 1.1,
+                provenance: None,
+            });
+        assert!(validate(&score).errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidObjectStyleOverride {
+                reason: ObjectStyleValidationReason::MissingTarget,
+                ..
+            }
+        )));
+    }
+
+    #[test]
+    fn validate_rejects_non_normalized_guitar_bend_curve() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::E, 4), Duration::Whole)];
+        let note = &mut score.parts[0].staves[0].measures[0].voices[0][0];
+        note.guitar_technique = Some(GuitarTechnique::Bend);
+        note.guitar_bend_curve = vec![
+            crate::GuitarBendPoint {
+                position_per_mille: 100,
+                alter_cents: 0,
+            },
+            crate::GuitarBendPoint {
+                position_per_mille: 1000,
+                alter_cents: 200,
+            },
+        ];
+        assert!(validate(&score).errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidGuitarBendCurve {
+                reason: GuitarBendCurveValidationReason::RequiresStartAtZero,
+                ..
+            }
+        )));
     }
 
     #[test]
@@ -750,6 +1416,181 @@ mod tests {
                 .count(),
             2
         );
+    }
+
+    #[test]
+    fn validate_rejects_invalid_staff_presentation() {
+        let mut score = Score::new("Presentation", 120, 4, 4, 0, 1);
+        let presentation = &mut score.parts[0].staves[0].presentation;
+        presentation.kind = StaffKind::Tablature;
+        presentation.lines = 0;
+        presentation.line_distance = f32::NAN;
+
+        let report = validate(&score);
+        assert!(report.errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidStaffPresentation {
+                reason: StaffPresentationValidationReason::InvalidLineCount { lines: 0 },
+                ..
+            }
+        )));
+        assert!(report.errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidStaffPresentation {
+                reason: StaffPresentationValidationReason::InvalidLineDistance { .. },
+                ..
+            }
+        )));
+        assert!(report.errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidStaffPresentation {
+                reason: StaffPresentationValidationReason::TablatureWithoutConfig,
+                ..
+            }
+        )));
+    }
+
+    #[test]
+    fn validate_rejects_tablature_change_without_matching_base_geometry() {
+        let mut score = Score::new("Tab change", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].tablature_change =
+            Some(super::super::notation::TablatureConfig {
+                lines: 6,
+                tuning_midi: vec![40, 45, 50, 55, 59, 64],
+                capo: 2,
+            });
+        let report = validate(&score);
+        assert!(report.errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidTablature {
+                reason: TablatureValidationReason::ChangeWithoutBase { measure: 0 },
+                ..
+            }
+        )));
+
+        score.parts[0].staves[0].tablature = Some(super::super::notation::TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![40, 45, 50, 55, 59, 64],
+            capo: 0,
+        });
+        score.parts[0].staves[0].measures[0]
+            .tablature_change
+            .as_mut()
+            .expect("change exists")
+            .lines = 7;
+        let report = validate(&score);
+        assert!(report.errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidTablature {
+                reason: TablatureValidationReason::ChangeLineCountMismatch {
+                    measure: 0,
+                    base_lines: 6,
+                    changed_lines: 7
+                },
+                ..
+            }
+        )));
+    }
+
+    #[test]
+    fn validate_rejects_invalid_percussion_kit_entries() {
+        let mut score = Score::new("Kit", 120, 4, 4, 0, 1);
+        score.parts[0].percussion_instruments = vec![
+            PercussionInstrument {
+                id: "snare".to_string(),
+                name: None,
+                midi_unpitched: Some(38),
+                staff_position: Some(40),
+                notehead: None,
+                preferred_voice: Some(5),
+                techniques: vec!["".to_string()],
+            },
+            PercussionInstrument {
+                id: "snare".to_string(),
+                name: None,
+                midi_unpitched: Some(38),
+                staff_position: None,
+                notehead: None,
+                preferred_voice: None,
+                techniques: Vec::new(),
+            },
+        ];
+
+        let report = validate(&score);
+        assert!(report.errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidPercussionInstrument {
+                reason: PercussionInstrumentValidationReason::DuplicateId { first: 0 },
+                ..
+            }
+        )));
+        assert!(report.errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidPercussionInstrument {
+                reason: PercussionInstrumentValidationReason::InvalidStaffPosition {
+                    staff_position: 40
+                },
+                ..
+            }
+        )));
+        assert!(report.errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidPercussionInstrument {
+                reason: PercussionInstrumentValidationReason::InvalidPreferredVoice {
+                    preferred_voice: 5
+                },
+                ..
+            }
+        )));
+    }
+
+    #[test]
+    fn validate_rejects_invalid_instrument_definition() {
+        let mut score = Score::new("Instrument", 120, 4, 4, 0, 1);
+        score.parts[0].instrument = Some(InstrumentDefinition {
+            id: String::new(),
+            name: "Broken".to_string(),
+            short_name: String::new(),
+            family: None,
+            transpose_semitones: 0,
+            written_range: Some(InstrumentRange {
+                lowest: 80,
+                highest: 40,
+            }),
+            sounding_range: None,
+            default_clefs: Vec::new(),
+            staff_count: 0,
+            staff_kind: StaffKind::Standard,
+            midi_channel: 16,
+            midi_program: 0,
+            percussion_map_id: None,
+        });
+
+        let report = validate(&score);
+        assert!(report.errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidInstrumentDefinition {
+                reason: InstrumentDefinitionValidationReason::EmptyId,
+                ..
+            }
+        )));
+        assert!(report.errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidInstrumentDefinition {
+                reason: InstrumentDefinitionValidationReason::InvalidStaffCount { staff_count: 0 },
+                ..
+            }
+        )));
+        assert!(report.errors.iter().any(|error| matches!(
+            error,
+            ValidationError::InvalidInstrumentDefinition {
+                reason: InstrumentDefinitionValidationReason::InvalidRange {
+                    kind: InstrumentRangeKind::Written,
+                    ..
+                },
+                ..
+            }
+        )));
     }
 
     #[test]

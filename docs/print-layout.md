@@ -53,6 +53,19 @@ With `page_number_in_footer`, the final logical page number is emitted as a foot
 `PublicationTextAlignment` records left, center, or right alignment within each block's width.
 `PublicationConfig::line_height_mm` supplies the validated line-box height carried by every text
 block; non-finite or non-positive values return a typed layout error.
+`PublicationConfig::image_resources` carries optional `PublicationImageResource` values. Each
+resource uses an opaque, path- and URL-free key plus non-empty alternative text, finite positive
+page-bounded geometry, and a title-page, music-page, or every-page scope. The selected resources
+are copied into `PageLayout::publication`; hosts resolve, decode, license-check, and sanitize the
+actual image bytes themselves.
+`PublicationConfig::sections` supplies ordered headings at zero-based physical measure starts.
+Layout splits a system at each section start. A section may request a new page; the preceding page
+then records `SectionBreak`, while the new page exposes that section in
+`PageLayout::publication.sections`. Sections cannot start outside the score, duplicate/reverse
+their order, or split a keep-together range.
+`PublicationConfig::frames` carries page-bounded physical rectangles with a positive stroke width
+and title-page, music-page, or every-page scope. The selected `PublicationFrame` values are copied
+to `PageLayout::publication.frames`; hosts choose color, dash policy, and actual SVG/PDF drawing.
 Publication page metadata is serde-defaulted so older serialized page objects remain readable.
 Full-score pages also carry `PartGroupMark` bracket/brace metadata; extracted-part pages omit
 cross-part connectors.
@@ -62,7 +75,7 @@ the running-title header unless configured.
 dimensions, stable page/system addresses, physical measure indices, and typed break reasons (`MeasureCapacity`, `ExplicitSystemBreak`,
 `ExplicitPageBreak`, `PageCapacity`, `TitlePage`, or `EndOfScore`). Layout honors existing `system_break` and
 `page_break` decisions and produces stable output for the same score and configuration. Its
-`contract_version` is `27` for this address/diagnostic, publication, title-page, part-group, page-number footer, alignment, line-box height, copyright block, bleed/safe-area, scale, page-numbering,
+`contract_version` is `32` for this address/diagnostic, publication, title-page, part-group, page-number footer, alignment, line-box height, copyright block, safe image-resource references, publication sections, frames, and spacers, bleed/safe-area, scale, page-numbering,
 color, crop-mark, and glyph-resource shape. `GlyphResourcePolicy::HostProvided` is only a stable
 resource key; resource lookup, font loading, and glyph metrics remain host/provider work. Hosts
 that resolve a resource should also transport a `GlyphResourceDescriptor`: it records the
@@ -87,7 +100,10 @@ overflow directions from host-computed glyph bounds. The resource entry marks pa
 `GlyphResourcePolicy::HostProvided` key still requires host/provider resolution. It emits no file bytes and has no PDF, font,
 filesystem, or printer dependency; those concerns remain in the host exporter.
 Hosts that persist or transport a complete result can call `PrintLayoutResult::validate()` to
-check page indices, global system indices, and page-local system positions before reuse.
+check page indices, global system indices, page-local system positions, and page-scoped image,
+frame, section, and spacer metadata before reuse. A `PublicationSpacer` splits the affected
+system at its physical measure, consumes its declared height, and moves that system to a fresh
+page when the remaining content area cannot contain both; it does not alter score notation.
 It also rejects mixed numbered/unnumbered pages, zero page numbers, non-monotonic numbering,
 and numbered pages that do not match the current `page_index + 1` policy.
 It also requires `TitlePage` to be page zero with no systems and rejects title metadata on

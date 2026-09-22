@@ -2714,3 +2714,28 @@ fn musicxml_guitar_pull_off_roundtrip() {
         Some(GuitarTechnique::PullOff)
     );
 }
+
+#[test]
+fn musicxml_measure_local_tablature_tuning_roundtrip() {
+    use acorde_core::{Score, TablatureConfig};
+    let mut score = Score::new("Scordatura", 120, 4, 4, 0, 2);
+    score.parts[0].staves[0].tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![40, 45, 50, 55, 59, 64],
+        capo: 0,
+    });
+    let changed = TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![38, 45, 50, 55, 59, 64],
+        capo: 0,
+    };
+    score.parts[0].staves[0].measures[1].tablature_change = Some(changed.clone());
+
+    let xml = serialize_musicxml(&score).expect("serialize");
+    assert_eq!(xml.matches("<staff-details>").count(), 2);
+    let restored = parse_musicxml(&xml).expect("parse");
+    assert_eq!(
+        restored.parts[0].staves[0].measures[1].tablature_change,
+        Some(changed)
+    );
+}

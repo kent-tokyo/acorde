@@ -31,19 +31,26 @@ mod glyphs;
 mod render;
 mod tuplets;
 
-use acorde_core::{NoteAddr, NoteHead, Score, TextStyle};
-use acorde_layout::{LayoutConfig, LayoutResult, compute_layout};
+use acorde_core::{
+    HarpPedalDiagram, NoteAddr, NoteHead, ObjectStyleOverride, Score, ScoreView, TextStyle,
+    ValidationError, ViewStyle, ViewStyleOverride,
+};
+use acorde_layout::{
+    GlyphCollisionClass, GlyphCollisionDirection, LayoutConfig, LayoutResult, compute_layout,
+};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Version of the browser-facing [`RenderMetadata`] contract.
-pub const SVG_CONTRACT_VERSION: u32 = 15;
+pub const SVG_CONTRACT_VERSION: u32 = 21;
 /// Version of the built-in glyph coverage contract.
 pub const GLYPH_COVERAGE_CONTRACT_VERSION: u32 = 3;
 /// Stable identifier for the renderer's font-independent vector glyph set.
 pub const BUILTIN_GLYPH_RESOURCE_ID: &str = "acorde-vector-glyphs-v1";
 /// Version of the deterministic tablature metric contract.
 pub const TAB_METRICS_CONTRACT_VERSION: u32 = 1;
+/// Fixed separation used by the deterministic SVG annotation collision pass.
+pub const SVG_ANNOTATION_COLLISION_GAP_PX: f32 = 2.0;
 
 /// Font-independent metrics for one rendered tablature fret label.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -121,6 +128,10 @@ pub struct RenderMetadata {
     pub staff_count: usize,
     pub measure_count: usize,
     pub note_count: usize,
+    /// Resolved linked-view context when the caller used [`render_svg_view_metadata`].
+    /// `None` means the source score was rendered directly.
+    #[serde(default)]
+    pub view: Option<RenderedViewMetadata>,
     /// Human-readable fallback text for hosts that cannot expose the SVG semantics.
     pub accessible_text: String,
     pub address_bounds: Vec<AddressBounds>,
@@ -136,6 +147,9 @@ pub struct RenderMetadata {
     /// Tuning and capo metadata for each rendered tablature staff.
     #[serde(default)]
     pub tablature_staves: Vec<TablatureStaffMetadata>,
+    /// Measure-local tuning or capo changes for tablature hosts.
+    #[serde(default)]
+    pub tablature_changes: Vec<TablatureChangeMetadata>,
     /// Chord labels whose continuation range is exposed with typed note addresses.
     #[serde(default)]
     pub harmony_ranges: Vec<HarmonyRangeMetadata>,
@@ -145,6 +159,21 @@ pub struct RenderMetadata {
     /// Note-level semantic fields needed by browser playback and editing hosts.
     #[serde(default)]
     pub note_semantics: Vec<NoteSemanticMetadata>,
+    /// Typed object-level presentation overrides, preserved for browser hosts without SVG parsing.
+    #[serde(default)]
+    pub object_style_overrides: Vec<ObjectStyleOverride>,
+    /// Harp pedal diagrams in the conventional D-C-B / E-F-G-A order.
+    #[serde(default)]
+    pub harp_pedal_diagrams: Vec<HarpPedalDiagramMetadata>,
+}
+
+/// Browser-facing identity and effective style for a resolved linked view.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RenderedViewMetadata {
+    pub id: String,
+    pub name: String,
+    pub measures_per_system: usize,
+    pub style: ViewStyle,
 }
 
 /// Stable note-level semantic metadata that avoids forcing browser hosts to parse SVG elements.
@@ -193,6 +222,9 @@ pub struct NoteSemanticMetadata {
     /// Authored bend amount in cents, when present.
     #[serde(default)]
     pub guitar_bend_alter_cents: Option<i16>,
+    /// Authored multi-point bend/hold/release curve, when present.
+    #[serde(default)]
+    pub guitar_bend_curve: Vec<acorde_core::GuitarBendPoint>,
     #[serde(default)]
     pub fingerings: Vec<u8>,
     #[serde(default)]
@@ -232,6 +264,22 @@ pub struct TablatureStaffMetadata {
     #[serde(default)]
     pub tuning_midi: Vec<i16>,
     pub capo: u8,
+    #[serde(default)]
+    pub rhythm_display: acorde_core::TablatureRhythmDisplay,
+    #[serde(default)]
+    pub fret_mark_style: acorde_core::TablatureFretMarkStyle,
+}
+
+/// A tablature tuning or capo configuration that takes effect at a physical measure.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TablatureChangeMetadata {
+    pub part: usize,
+    pub staff: usize,
+    pub measure: usize,
+    pub lines: u8,
+    #[serde(default)]
+    pub tuning_midi: Vec<i16>,
+    pub capo: u8,
 }
 
 /// A typed tablature connection for browser editing and playback hosts.
@@ -264,6 +312,15 @@ pub struct TextAnnotation {
     pub relative_x: Option<f64>,
     #[serde(default)]
     pub relative_y: Option<f64>,
+}
+
+/// A harp pedal diagram with its stable staff-local measure location.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct HarpPedalDiagramMetadata {
+    pub part: usize,
+    pub staff: usize,
+    pub measure: usize,
+    pub diagram: HarpPedalDiagram,
 }
 
 /// A score-level styled text entry exposed without requiring hosts to parse SVG or interchange XML.
@@ -566,6 +623,27 @@ pub struct SvgAnnotation {
     pub text: String,
 }
 
+/// Font-independent SVG-pixel bounds relative to an annotation's `(x, y)` anchor.
+///
+/// A provider supplies these when it wants the renderer to route its annotation through the
+/// shared collision pass. The renderer does not measure fonts or shape text on its own.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SvgAnnotationMetrics {
+    pub left_px: f32,
+    pub top_px: f32,
+    pub width_px: f32,
+    pub height_px: f32,
+}
+
+/// Collision ownership and permitted escape lane for one host annotation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SvgAnnotationCollisionPolicy {
+    pub class: GlyphCollisionClass,
+    pub direction: GlyphCollisionDirection,
+    /// Higher-priority annotations retain their requested position where possible.
+    pub priority: u8,
+}
+
 /// Extension point for deterministic, host-defined SVG annotations.
 pub trait RenderAnnotation {
     /// Stable provider identifier. Providers are executed in lexicographic ID order.
@@ -578,6 +656,18 @@ pub trait RenderAnnotation {
         layout: &LayoutResult,
         metadata: &RenderMetadata,
     ) -> Vec<SvgAnnotation>;
+
+    /// Optionally place one annotation in the shared deterministic collision pass.
+    ///
+    /// Returning `None` preserves the annotation's requested coordinates. A provider must supply
+    /// its own font-independent bounds through [`SvgAnnotationMetrics`]; this renderer never
+    /// infers text metrics from a host font.
+    fn collision_policy(
+        &self,
+        _annotation: &SvgAnnotation,
+    ) -> Option<(SvgAnnotationMetrics, SvgAnnotationCollisionPolicy)> {
+        None
+    }
 }
 
 /// Errors returned while validating host-provided render annotations.
@@ -591,6 +681,8 @@ pub enum RenderAnnotationError {
     TooManyAnnotations { count: usize },
     AnnotationTextTooLarge { id: String, size: usize },
     InvalidXmlCharacter { id: String, codepoint: u32 },
+    InvalidCollisionMetrics { id: String },
+    CollisionResolution { id: String },
 }
 
 impl fmt::Display for RenderAnnotationError {
@@ -615,6 +707,12 @@ impl fmt::Display for RenderAnnotationError {
                 f,
                 "render annotation {id} contains invalid XML character U+{codepoint:04X}"
             ),
+            Self::InvalidCollisionMetrics { id } => {
+                write!(f, "render annotation {id} has invalid collision metrics")
+            }
+            Self::CollisionResolution { id } => {
+                write!(f, "render annotation {id} could not be collision-resolved")
+            }
         }
     }
 }
@@ -643,6 +741,8 @@ pub enum RenderError {
     EmptyScore,
     /// A requested system row does not exist in the supplied layout.
     InvalidRow { row: usize },
+    /// A linked score view could not be resolved to a renderable score snapshot.
+    ViewResolution { view_id: String, reason: String },
     /// The score and precomputed layout do not have compatible indices.
     InvalidLayout { reason: String },
     /// Rendering dimensions or system settings are not finite and positive.
@@ -672,6 +772,9 @@ impl std::fmt::Display for RenderError {
         match self {
             RenderError::EmptyScore => write!(f, "score has no staves to render"),
             RenderError::InvalidRow { row } => write!(f, "layout row {row} does not exist"),
+            RenderError::ViewResolution { view_id, reason } => {
+                write!(f, "cannot resolve score view '{view_id}': {reason}")
+            }
             RenderError::InvalidLayout { reason } => write!(f, "invalid layout: {reason}"),
             RenderError::InvalidOptions { reason } => write!(f, "invalid render options: {reason}"),
             RenderError::UnsupportedClef => write!(
@@ -725,6 +828,120 @@ pub fn render_svg(score: &Score, options: &SvgRenderOptions) -> Result<String, R
     render_svg_with_layout(score, &layout, options)
 }
 
+/// Render one linked [`ScoreView`] without mutating the source [`Score`].
+///
+/// The view's selected parts, written/concert-pitch projection, and staff-kind overrides are
+/// resolved by `acorde-core`. Its `measures_per_row` override takes precedence over
+/// [`SvgRenderOptions::measures_per_system`]. `ViewStyleProperty::StaffSpace` scales the
+/// renderer's base staff size; the remaining typed style values stay available to hosts through
+/// [`ScoreView::layout`] because they describe text and page-system policy rather than SVG glyph
+/// geometry.
+pub fn render_svg_view(
+    score: &Score,
+    view_id: &str,
+    options: &SvgRenderOptions,
+) -> Result<String, RenderError> {
+    let view = score
+        .views
+        .iter()
+        .find(|view| view.id == view_id)
+        .ok_or_else(|| RenderError::ViewResolution {
+            view_id: view_id.to_owned(),
+            reason: "view does not exist".into(),
+        })?;
+    let projected = score
+        .resolve_view(view_id)
+        .map_err(|error| RenderError::ViewResolution {
+            view_id: view_id.to_owned(),
+            reason: error.to_string(),
+        })?;
+    let options = options_for_view(options, view)?;
+    render_svg(&projected, &options)
+}
+
+/// Return browser metadata for a resolved linked view without requiring a host to duplicate its
+/// layout/style resolution rules.
+pub fn render_svg_view_metadata(
+    score: &Score,
+    view_id: &str,
+    options: &SvgRenderOptions,
+) -> Result<RenderMetadata, RenderError> {
+    let view = score
+        .views
+        .iter()
+        .find(|view| view.id == view_id)
+        .ok_or_else(|| RenderError::ViewResolution {
+            view_id: view_id.to_owned(),
+            reason: "view does not exist".into(),
+        })?;
+    let projected = score
+        .resolve_view(view_id)
+        .map_err(|error| RenderError::ViewResolution {
+            view_id: view_id.to_owned(),
+            reason: error.to_string(),
+        })?;
+    let options = options_for_view(options, view)?;
+    let layout = compute_layout(
+        &projected,
+        &LayoutConfig {
+            measures_per_row: options.measures_per_system,
+            ..Default::default()
+        },
+    );
+    let mut metadata = render_svg_metadata(&projected, &layout, &options)?;
+    metadata.view = Some(RenderedViewMetadata {
+        id: view.id.clone(),
+        name: view.name.clone(),
+        measures_per_system: options.measures_per_system,
+        style: score.resolved_view_style(&view.layout),
+    });
+    Ok(metadata)
+}
+
+fn options_for_view(
+    options: &SvgRenderOptions,
+    view: &ScoreView,
+) -> Result<SvgRenderOptions, RenderError> {
+    validate_style_overrides(&view.layout.typed_style_overrides)?;
+    let mut resolved = options.clone();
+    if let Some(measures_per_row) = view.layout.measures_per_row {
+        resolved.measures_per_system = measures_per_row;
+    }
+    resolved.staff_size *= view.layout.resolved_style().staff_space;
+    Ok(resolved)
+}
+
+fn options_for_score(
+    options: &SvgRenderOptions,
+    score: &Score,
+) -> Result<SvgRenderOptions, RenderError> {
+    validate_style_overrides(&score.style_overrides)?;
+    if acorde_core::validate(score)
+        .errors
+        .iter()
+        .any(|error| matches!(error, ValidationError::InvalidObjectStyleOverride { .. }))
+    {
+        return Err(RenderError::InvalidOptions {
+            reason: "object style overrides must target an existing object and use valid values and provenance".into(),
+        });
+    }
+    let mut resolved = options.clone();
+    resolved.staff_size *= score.resolved_view_style(&Default::default()).staff_space;
+    Ok(resolved)
+}
+
+fn validate_style_overrides(overrides: &[ViewStyleOverride]) -> Result<(), RenderError> {
+    if overrides
+        .iter()
+        .any(|override_| !override_.value.is_finite() || !(0.05..=64.0).contains(&override_.value))
+    {
+        return Err(RenderError::InvalidOptions {
+            reason: "typed style override values must be finite and within 0.05..=64".into(),
+        });
+    }
+    Ok(())
+}
+
 /// Render `score` to an SVG string using an already-computed [`LayoutResult`].
 ///
 /// `layout` must have been computed from `score` (or a structurally identical score) —
@@ -734,7 +951,8 @@ pub fn render_svg_with_layout(
     layout: &LayoutResult,
     options: &SvgRenderOptions,
 ) -> Result<String, RenderError> {
-    render::build_svg(score, layout, options)
+    let options = options_for_score(options, score)?;
+    render::build_svg(score, layout, &options)
 }
 
 /// Render a score and append deterministic, host-provided annotations.
@@ -748,7 +966,8 @@ pub fn render_svg_with_annotations(
     options: &SvgRenderOptions,
     providers: &[&dyn RenderAnnotation],
 ) -> Result<String, RenderError> {
-    let (mut svg, metadata) = render::build_svg_with_metadata(score, layout, options)?;
+    let options = options_for_score(options, score)?;
+    let (mut svg, metadata) = render::build_svg_with_metadata(score, layout, &options)?;
     let annotations = render::collect_annotations(score, layout, &metadata, providers)
         .map_err(RenderError::Annotation)?;
     if annotations.is_empty() {
@@ -801,5 +1020,6 @@ pub fn render_svg_metadata(
     layout: &LayoutResult,
     options: &SvgRenderOptions,
 ) -> Result<RenderMetadata, RenderError> {
-    render::build_svg_with_metadata(score, layout, options).map(|(_, metadata)| metadata)
+    let options = options_for_score(options, score)?;
+    render::build_svg_with_metadata(score, layout, &options).map(|(_, metadata)| metadata)
 }

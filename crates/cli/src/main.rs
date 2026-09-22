@@ -1210,6 +1210,56 @@ fn cmd_validate(input: &Path) -> Result<(), String> {
                     staff + 1,
                     reason
                 ),
+                acorde_core::ValidationError::InvalidStaffPresentation {
+                    part,
+                    staff,
+                    reason,
+                } => eprintln!(
+                    "part {} staff {}: invalid staff presentation: {:?}",
+                    part + 1,
+                    staff + 1,
+                    reason
+                ),
+                acorde_core::ValidationError::InvalidInstrumentDefinition { part, reason } => {
+                    eprintln!(
+                        "part {}: invalid instrument definition: {:?}",
+                        part + 1,
+                        reason
+                    )
+                }
+                acorde_core::ValidationError::InvalidPercussionInstrument {
+                    part,
+                    instrument,
+                    id,
+                    reason,
+                } => eprintln!(
+                    "part {} percussion instrument {} ('{}'): invalid definition: {:?}",
+                    part + 1,
+                    instrument + 1,
+                    id,
+                    reason
+                ),
+                acorde_core::ValidationError::InvalidScoreView { index, id, reason } => {
+                    eprintln!(
+                        "score view {} ('{}'): invalid definition: {:?}",
+                        index + 1,
+                        id,
+                        reason
+                    )
+                }
+                acorde_core::ValidationError::InvalidScoreStyleOverride { property, value } => {
+                    eprintln!(
+                        "score style default {:?}: value {} must be finite and within 0.05..=64",
+                        property, value
+                    )
+                }
+                acorde_core::ValidationError::InvalidObjectStyleOverride { index, reason } => {
+                    eprintln!(
+                        "object style override {}: invalid definition: {:?}",
+                        index + 1,
+                        reason
+                    )
+                }
                 acorde_core::ValidationError::TabPositionOutOfRange {
                     part,
                     staff,
@@ -1245,6 +1295,21 @@ fn cmd_validate(input: &Path) -> Result<(), String> {
                     note + 1,
                     pitch + 1,
                     microtone_cents
+                ),
+                acorde_core::ValidationError::InvalidGuitarBendCurve {
+                    part,
+                    staff,
+                    measure,
+                    voice,
+                    note,
+                    reason,
+                } => eprintln!(
+                    "part {} staff {} measure {} voice {} note {}: invalid guitar bend curve ({reason:?})",
+                    part + 1,
+                    staff + 1,
+                    measure + 1,
+                    voice + 1,
+                    note + 1
                 ),
                 acorde_core::ValidationError::InvalidHarmonyRange {
                     part,
@@ -1764,13 +1829,24 @@ fn cmd_export_report(input: &Path, output: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Version of the machine-readable compatibility-report envelope.
+const COMPATIBILITY_REPORT_CONTRACT_VERSION: u16 = 1;
+
 #[derive(Debug, Serialize)]
 struct CompatibilityReport {
+    contract_version: u16,
+    tool_version: String,
     schema_version: u32,
     source_format: String,
     candidate_format: String,
     source_path: String,
     candidate_path: String,
+    /// Stable local evidence identifier for the exact source bytes. This is not a
+    /// cryptographic publication hash.
+    source_fingerprint: String,
+    /// Stable local evidence identifier for the exact candidate bytes. This is not a
+    /// cryptographic publication hash.
+    candidate_fingerprint: String,
     change_count: usize,
     semantic_equivalent: bool,
     analysis_changed_categories: Vec<acorde_analysis::AnalysisCategory>,
@@ -1793,36 +1869,7 @@ fn cmd_compatibility_report(
     fail_on_differences: bool,
     fail_on_loss: bool,
 ) -> Result<(), String> {
-    let source_report = parse_report(source)?;
-    let candidate_report = parse_report(candidate)?;
-    let changes = acorde_core::diff(&source_report.score, &candidate_report.score);
-    let source_analysis = acorde_analysis::analyze_score(&source_report.score);
-    let candidate_analysis = acorde_analysis::analyze_score(&candidate_report.score);
-    let analysis_diff = acorde_analysis::diff_analysis(&source_analysis, &candidate_analysis);
-    let analysis_equivalent = analysis_diff.is_empty();
-    let analysis_changed_categories = analysis_diff.changed_categories;
-    let report = CompatibilityReport {
-        schema_version: source_report.schema_version,
-        source_format: source_report.format.clone(),
-        candidate_format: candidate_report.format.clone(),
-        source_path: source.display().to_string(),
-        candidate_path: candidate.display().to_string(),
-        change_count: changes.len(),
-        semantic_equivalent: changes.is_empty(),
-        analysis_changed_categories,
-        analysis_equivalent,
-        lossless: changes.is_empty()
-            && source_report.loss_count() + candidate_report.loss_count() == 0,
-        changes,
-        source_warning_count: source_report.warning_count(),
-        source_error_count: source_report.error_count(),
-        source_loss_count: source_report.loss_count(),
-        source_diagnostics: source_report.diagnostics,
-        candidate_warning_count: candidate_report.warning_count(),
-        candidate_error_count: candidate_report.error_count(),
-        candidate_loss_count: candidate_report.loss_count(),
-        candidate_diagnostics: candidate_report.diagnostics,
-    };
+    let report = build_compatibility_report(source, candidate)?;
     println!(
         "{}",
         serde_json::to_string_pretty(&report)
@@ -1842,6 +1889,54 @@ fn cmd_compatibility_report(
         ));
     }
     Ok(())
+}
+
+fn build_compatibility_report(
+    source: &Path,
+    candidate: &Path,
+) -> Result<CompatibilityReport, String> {
+    let source_fingerprint = file_fingerprint(source)?;
+    let candidate_fingerprint = file_fingerprint(candidate)?;
+    let source_report = parse_report(source)?;
+    let candidate_report = parse_report(candidate)?;
+    let changes = acorde_core::diff(&source_report.score, &candidate_report.score);
+    let source_analysis = acorde_analysis::analyze_score(&source_report.score);
+    let candidate_analysis = acorde_analysis::analyze_score(&candidate_report.score);
+    let analysis_diff = acorde_analysis::diff_analysis(&source_analysis, &candidate_analysis);
+    let analysis_equivalent = analysis_diff.is_empty();
+    let analysis_changed_categories = analysis_diff.changed_categories;
+    Ok(CompatibilityReport {
+        contract_version: COMPATIBILITY_REPORT_CONTRACT_VERSION,
+        tool_version: env!("CARGO_PKG_VERSION").to_string(),
+        schema_version: source_report.schema_version,
+        source_format: source_report.format.clone(),
+        candidate_format: candidate_report.format.clone(),
+        source_path: source.display().to_string(),
+        candidate_path: candidate.display().to_string(),
+        source_fingerprint,
+        candidate_fingerprint,
+        change_count: changes.len(),
+        semantic_equivalent: changes.is_empty(),
+        analysis_changed_categories,
+        analysis_equivalent,
+        lossless: changes.is_empty()
+            && source_report.loss_count() + candidate_report.loss_count() == 0,
+        changes,
+        source_warning_count: source_report.warning_count(),
+        source_error_count: source_report.error_count(),
+        source_loss_count: source_report.loss_count(),
+        source_diagnostics: source_report.diagnostics,
+        candidate_warning_count: candidate_report.warning_count(),
+        candidate_error_count: candidate_report.error_count(),
+        candidate_loss_count: candidate_report.loss_count(),
+        candidate_diagnostics: candidate_report.diagnostics,
+    })
+}
+
+fn file_fingerprint(path: &Path) -> Result<String, String> {
+    let bytes =
+        std::fs::read(path).map_err(|e| format!("cannot read '{}': {e}", path.display()))?;
+    Ok(bytes_fingerprint(&bytes))
 }
 
 #[cfg(test)]
@@ -2020,6 +2115,21 @@ mod tests {
         assert!(!report.within_tolerance);
         assert_eq!(report.matched_events, expected.len() - 1);
         assert!(playback_comparison_report(&expected, &actual, -0.001, 0.005).is_err());
+    }
+
+    #[test]
+    fn compatibility_report_records_tool_and_input_evidence() {
+        let input = fixture("simple.musicxml");
+        let report = build_compatibility_report(&input, &input)
+            .expect("identical fixture compatibility report succeeds");
+        assert_eq!(
+            report.contract_version,
+            COMPATIBILITY_REPORT_CONTRACT_VERSION
+        );
+        assert_eq!(report.tool_version, env!("CARGO_PKG_VERSION"));
+        assert!(report.source_fingerprint.starts_with("fnv1a64-"));
+        assert_eq!(report.source_fingerprint, report.candidate_fingerprint);
+        assert!(report.semantic_equivalent);
     }
 
     #[test]

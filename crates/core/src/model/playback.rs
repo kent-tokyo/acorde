@@ -1,11 +1,15 @@
 use super::duration::Duration;
-use super::notation::{Articulation, GuitarTechnique, TabPosition};
+use super::notation::{Articulation, ChordSymbol, GuitarTechnique, TabPosition};
 use super::repeat::measure_sequence;
-use super::score::{NoteAddr, Score};
+use super::score::{GuitarBendPoint, NoteAddr, Score};
 use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, BTreeSet};
 
 fn default_fermata_multiplier() -> f64 {
     1.5
+}
+fn default_fermata_hold_beats() -> f64 {
+    0.0
 }
 fn default_swing_unit() -> Duration {
     Duration::Eighth
@@ -24,6 +28,26 @@ fn default_accent_velocity() -> u8 {
 }
 fn default_beat_velocity() -> u8 {
     70
+}
+
+/// Explicit opt-in event realization policy.
+///
+/// [`Authored`](Self::Authored) is the default: ornaments and arpeggiation remain notation
+/// semantics on one event. The versioned realization profile is deliberately opt-in so hosts
+/// never receive invented attacks merely by upgrading acorde.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum PlaybackRealizationProfile {
+    /// Preserve authored event semantics without generating auxiliary attacks.
+    #[default]
+    Authored,
+    /// Deterministic chromatic ornament attacks and chord arpeggiation for preview providers.
+    ///
+    /// Trills and shakes alternate the written pitch with one chromatic semitone above; mordents
+    /// and turns use a fixed four-attack figure. Chord tones marked `arpeggiate` are staggered
+    /// low-to-high (or high-to-low) by at most 0.18 beats. This is a reproducible preview policy,
+    /// not a claim about historical performance practice.
+    OrnamentArpeggioV1,
 }
 
 /// Click-track injected into [`to_playback_events`] output.
@@ -76,6 +100,10 @@ pub struct PlaybackOptions {
     /// Duration multiplier for notes with `Fermata` articulation. Default 1.5.
     #[serde(default = "default_fermata_multiplier")]
     pub fermata_multiplier: f64,
+    /// Additional beat-domain hold requested after a fermata note. Default 0 keeps legacy
+    /// multiplier-only behavior; hosts decide how to realize the resulting silence.
+    #[serde(default = "default_fermata_hold_beats")]
+    pub fermata_hold_beats: f64,
     /// Swing ratio for pairs of plain notes of [`swing_unit`] duration. `None` = straight.
     /// `0.67` ≈ triplet swing (2:1). Valid range: (0.5, 1.0).
     /// Applied only to notes matching `swing_unit`, no tuplet, no dot.
@@ -89,6 +117,10 @@ pub struct PlaybackOptions {
     /// Clicks are tagged with `PlaybackEvent.is_metronome = true`.
     #[serde(default)]
     pub metronome: Option<MetronomeConfig>,
+    /// Optional realization policy. The default retains authored ornament and arpeggio marks
+    /// without synthesizing extra events.
+    #[serde(default)]
+    pub realization_profile: PlaybackRealizationProfile,
 }
 
 impl Default for PlaybackOptions {
@@ -98,9 +130,11 @@ impl Default for PlaybackOptions {
             muted_parts: Vec::new(),
             loop_region: None,
             fermata_multiplier: 1.5,
+            fermata_hold_beats: 0.0,
             swing: None,
             swing_unit: Duration::Eighth,
             metronome: None,
+            realization_profile: PlaybackRealizationProfile::Authored,
         }
     }
 }
@@ -133,6 +167,27 @@ pub struct PlaybackEvent {
     /// microtonal-capable hosts should use this field.
     #[serde(default)]
     pub pitch_midi_cents: i32,
+    /// Authored normalized pitch-bend curve for a bend-capable host. Each point is relative to
+    /// `pitch_midi_cents` and positioned within this event's sounding duration. Empty means the
+    /// event has no authored continuous bend.
+    #[serde(default)]
+    pub pitch_bend_curve: Vec<GuitarBendPoint>,
+    /// Authored pause requested after this note by a breath mark or caesura. The host decides
+    /// how to realize the silence while preserving this deterministic beat-domain contract.
+    #[serde(default)]
+    pub post_note_pause_beats: f64,
+    /// Authored articulation and ornament marks for a provider to interpret. The core schedule
+    /// deliberately does not invent auxiliary pitches for trill, mordent, or turn.
+    #[serde(default)]
+    pub articulations: Vec<Articulation>,
+    /// Authored chord symbol at this note position. It is a semantic cue for accompaniment or
+    /// harmonic playback providers; acorde does not invent accompaniment notes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chord_symbol: Option<ChordSymbol>,
+    /// Authored guitar playing technique, when present. Providers may map this stable semantic
+    /// value to keyswitches or synthesis behavior without score re-parsing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub guitar_technique: Option<GuitarTechnique>,
     /// MIDI velocity (1–127). Derived from [`Dynamic`](crate::Dynamic); defaults to 64.
     /// Boosted by +20 for Accent / Marcato articulations (clamped to 127).
     pub velocity: u8,
@@ -146,19 +201,318 @@ pub struct PlaybackEvent {
     pub part_index: usize,
     /// MIDI channel of the originating part (`part.midi_channel`). For Tone.js channel routing.
     pub channel: u8,
+    /// Effective General MIDI program after applying any measure-local instrument change.
+    #[serde(default)]
+    pub program: u8,
+    /// Stable effective instrument ID when the part or measure declares one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instrument_id: Option<String>,
     /// `true` for metronome click events injected via [`MetronomeConfig`].
     #[serde(default)]
     pub is_metronome: bool,
 }
 
 /// Version of the host-neutral playback timing comparison contract.
-pub const PLAYBACK_COMPARISON_CONTRACT_VERSION: u16 = 1;
+pub const PLAYBACK_COMPARISON_CONTRACT_VERSION: u16 = 2;
 /// Maximum number of events accepted by one comparison operation.
 pub const MAX_PLAYBACK_COMPARISON_EVENTS: usize = 1_000_000;
 const MAX_PLAYBACK_MISMATCHES: usize = 256;
 /// Maximum number of projected tablature events retained in one report.
 pub const MAX_TAB_PERFORMANCE_EVENTS: usize = 1_000_000;
 const MAX_TAB_PERFORMANCE_DIAGNOSTICS: usize = 1_024;
+
+/// Version of the host-neutral offline rendering manifest contract.
+pub const OFFLINE_RENDER_CONTRACT_VERSION: u16 = 1;
+
+/// Encoded audio format requested from a host-side offline renderer.
+///
+/// acorde does not encode audio; this keeps the requested output explicit in the deterministic
+/// schedule handed to a Composer or other host.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub enum OfflineRenderFormat {
+    #[default]
+    Wav,
+    Flac,
+    Mp3,
+}
+
+/// Host-neutral parameters for an offline render operation.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct OfflineRenderRequest {
+    /// Requested encoded format. The host reports unsupported formats explicitly.
+    #[serde(default)]
+    pub format: OfflineRenderFormat,
+    /// PCM sample rate used to convert event seconds to exact sample frames.
+    #[serde(default = "default_offline_render_sample_rate")]
+    pub sample_rate_hz: u32,
+    /// Requested interleaved output channel count.
+    #[serde(default = "default_offline_render_channels")]
+    pub channels: u8,
+    /// Stable name/version of the selected host provider, when already chosen.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_identity: Option<String>,
+}
+
+fn default_offline_render_sample_rate() -> u32 {
+    48_000
+}
+
+fn default_offline_render_channels() -> u8 {
+    2
+}
+
+impl Default for OfflineRenderRequest {
+    fn default() -> Self {
+        Self {
+            format: OfflineRenderFormat::Wav,
+            sample_rate_hz: default_offline_render_sample_rate(),
+            channels: default_offline_render_channels(),
+            provider_identity: None,
+        }
+    }
+}
+
+/// Sample-accurate event schedule for a host-side offline render.
+///
+/// `duration_frames` is derived from the final event's end time and deliberately excludes codec
+/// padding. A host owns synthesis, tail policy, file creation, and encoded bytes.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OfflineRenderManifest {
+    pub contract_version: u16,
+    pub playback_contract_version: u16,
+    pub format: OfflineRenderFormat,
+    pub sample_rate_hz: u32,
+    pub channels: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_identity: Option<String>,
+    pub duration_frames: u64,
+    pub events: Vec<PlaybackEvent>,
+}
+
+/// Host-reported result metadata for an [`OfflineRenderManifest`].
+///
+/// This is a result contract, not proof of audio quality or device-independent equivalence.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct OfflineRenderResult {
+    pub contract_version: u16,
+    pub format: OfflineRenderFormat,
+    pub sample_rate_hz: u32,
+    pub channels: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_identity: Option<String>,
+    pub duration_frames: u64,
+    pub output_bytes: u64,
+}
+
+/// A host-side auxiliary send between two logical playback buses.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PlaybackAuxSend {
+    pub source_bus: String,
+    pub destination_bus: String,
+    /// Gain applied before the destination effect chain, in dB.
+    pub gain_db: f64,
+}
+
+/// Identifies a host effect attached to a logical bus without carrying provider-specific settings.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PlaybackEffectRoute {
+    pub bus_id: String,
+    pub effect_id: String,
+    #[serde(default = "default_effect_enabled")]
+    pub enabled: bool,
+}
+
+fn default_effect_enabled() -> bool {
+    true
+}
+
+/// Host-neutral routing choices resolved after score playback events are generated.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PlaybackRoutingConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_identity: Option<String>,
+    #[serde(default = "default_master_bus")]
+    pub master_bus: String,
+    #[serde(default = "default_metronome_bus")]
+    pub metronome_bus: String,
+    /// Part-index routes, overridden by a matching stable instrument ID.
+    #[serde(default)]
+    pub part_buses: BTreeMap<usize, String>,
+    #[serde(default)]
+    pub instrument_buses: BTreeMap<String, String>,
+    #[serde(default)]
+    pub aux_sends: Vec<PlaybackAuxSend>,
+    #[serde(default)]
+    pub effect_routes: Vec<PlaybackEffectRoute>,
+}
+
+fn default_master_bus() -> String {
+    "master".into()
+}
+
+fn default_metronome_bus() -> String {
+    "metronome".into()
+}
+
+impl Default for PlaybackRoutingConfig {
+    fn default() -> Self {
+        Self {
+            provider_identity: None,
+            master_bus: default_master_bus(),
+            metronome_bus: default_metronome_bus(),
+            part_buses: BTreeMap::new(),
+            instrument_buses: BTreeMap::new(),
+            aux_sends: Vec::new(),
+            effect_routes: Vec::new(),
+        }
+    }
+}
+
+/// One unique event source route in a [`PlaybackRoutingManifest`].
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PlaybackBusRoute {
+    pub part_index: usize,
+    pub channel: u8,
+    pub program: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instrument_id: Option<String>,
+    pub is_metronome: bool,
+    pub bus_id: String,
+}
+
+/// Deterministic logical routing graph for score playback events.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PlaybackRoutingManifest {
+    pub contract_version: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_identity: Option<String>,
+    pub master_bus: String,
+    pub metronome_bus: String,
+    pub routes: Vec<PlaybackBusRoute>,
+    pub aux_sends: Vec<PlaybackAuxSend>,
+    pub effect_routes: Vec<PlaybackEffectRoute>,
+}
+
+/// Version of the host-neutral routing manifest contract.
+pub const PLAYBACK_ROUTING_CONTRACT_VERSION: u16 = 1;
+
+fn valid_routing_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+}
+
+fn validate_playback_routing(config: &PlaybackRoutingConfig) -> Result<(), crate::Error> {
+    if !valid_routing_id(&config.master_bus)
+        || !valid_routing_id(&config.metronome_bus)
+        || config.part_buses.values().any(|bus| !valid_routing_id(bus))
+        || config
+            .instrument_buses
+            .values()
+            .any(|bus| !valid_routing_id(bus))
+        || config.aux_sends.len() > 64
+        || config.effect_routes.len() > 128
+    {
+        return Err(crate::Error::InvalidPlaybackRouting);
+    }
+    for send in &config.aux_sends {
+        if !valid_routing_id(&send.source_bus)
+            || !valid_routing_id(&send.destination_bus)
+            || !send.gain_db.is_finite()
+            || !(-120.0..=24.0).contains(&send.gain_db)
+        {
+            return Err(crate::Error::InvalidPlaybackRouting);
+        }
+    }
+    if config
+        .effect_routes
+        .iter()
+        .any(|effect| !valid_routing_id(&effect.bus_id) || !valid_routing_id(&effect.effect_id))
+    {
+        return Err(crate::Error::InvalidPlaybackRouting);
+    }
+    Ok(())
+}
+
+/// Resolve a bounded, deterministic logical routing graph for a score schedule.
+pub fn build_playback_routing_manifest(
+    score: &Score,
+    playback_options: &PlaybackOptions,
+    config: &PlaybackRoutingConfig,
+) -> Result<PlaybackRoutingManifest, crate::Error> {
+    validate_playback_routing(config)?;
+    let events = to_playback_events_bounded(score, playback_options)?;
+    let mut routes = BTreeMap::new();
+    for event in events {
+        let bus_id = if event.is_metronome {
+            config.metronome_bus.clone()
+        } else if let Some(bus) = event
+            .instrument_id
+            .as_ref()
+            .and_then(|instrument_id| config.instrument_buses.get(instrument_id))
+        {
+            bus.clone()
+        } else if let Some(bus) = config.part_buses.get(&event.part_index) {
+            bus.clone()
+        } else {
+            config.master_bus.clone()
+        };
+        let route = PlaybackBusRoute {
+            part_index: event.part_index,
+            channel: event.channel,
+            program: event.program,
+            instrument_id: event.instrument_id,
+            is_metronome: event.is_metronome,
+            bus_id,
+        };
+        routes.insert(route.clone(), route);
+    }
+    Ok(PlaybackRoutingManifest {
+        contract_version: PLAYBACK_ROUTING_CONTRACT_VERSION,
+        provider_identity: config.provider_identity.clone(),
+        master_bus: config.master_bus.clone(),
+        metronome_bus: config.metronome_bus.clone(),
+        routes: routes.into_values().collect(),
+        aux_sends: config.aux_sends.clone(),
+        effect_routes: config.effect_routes.clone(),
+    })
+}
+
+/// Build a bounded sample-accurate schedule for a host-side offline render.
+pub fn build_offline_render_manifest(
+    score: &Score,
+    playback_options: &PlaybackOptions,
+    request: &OfflineRenderRequest,
+) -> Result<OfflineRenderManifest, crate::Error> {
+    if !(8_000..=384_000).contains(&request.sample_rate_hz) || !(1..=8).contains(&request.channels)
+    {
+        return Err(crate::Error::InvalidOfflineRenderRequest);
+    }
+    let events = to_playback_events_bounded(score, playback_options)?;
+    let duration_secs = events
+        .iter()
+        .map(|event| event.time_secs + event.duration_secs)
+        .fold(0.0_f64, f64::max);
+    if !duration_secs.is_finite() || duration_secs < 0.0 {
+        return Err(crate::Error::InvalidOfflineRenderRequest);
+    }
+    let duration_frames = (duration_secs * f64::from(request.sample_rate_hz)).ceil();
+    if !duration_frames.is_finite() || duration_frames > u64::MAX as f64 {
+        return Err(crate::Error::InvalidOfflineRenderRequest);
+    }
+    Ok(OfflineRenderManifest {
+        contract_version: OFFLINE_RENDER_CONTRACT_VERSION,
+        playback_contract_version: PLAYBACK_COMPARISON_CONTRACT_VERSION,
+        format: request.format,
+        sample_rate_hz: request.sample_rate_hz,
+        channels: request.channels,
+        provider_identity: request.provider_identity.clone(),
+        duration_frames: duration_frames as u64,
+        events,
+    })
+}
 
 /// Timing tolerances for comparing a host/backend event trace with acorde's schedule.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -240,6 +594,13 @@ pub fn compare_playback_timing(
             && expected_event.velocity == actual_event.velocity
             && expected_event.part_index == actual_event.part_index
             && expected_event.channel == actual_event.channel
+            && expected_event.program == actual_event.program
+            && expected_event.instrument_id == actual_event.instrument_id
+            && expected_event.pitch_bend_curve == actual_event.pitch_bend_curve
+            && expected_event.post_note_pause_beats == actual_event.post_note_pause_beats
+            && expected_event.articulations == actual_event.articulations
+            && expected_event.chord_symbol == actual_event.chord_symbol
+            && expected_event.guitar_technique == actual_event.guitar_technique
             && expected_event.is_metronome == actual_event.is_metronome;
         let start_error_secs = (expected_event.time_secs - actual_event.time_secs).abs();
         let duration_error_secs = (expected_event.duration_secs - actual_event.duration_secs).abs();
@@ -287,8 +648,75 @@ pub fn compare_playback_timing(
     })
 }
 
+/// Version of the score-schedule timing corpus contract.
+pub const PLAYBACK_TIMING_CORPUS_CONTRACT_VERSION: u16 = 1;
+const MAX_PLAYBACK_TIMING_CORPUS_CASES: usize = 256;
+
+/// One score-backed timing case, independent from an audio synthesis backend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlaybackTimingCase {
+    pub id: String,
+    pub score: Score,
+    #[serde(default)]
+    pub options: PlaybackOptions,
+    pub expected_events: Vec<PlaybackEvent>,
+    #[serde(default)]
+    pub tolerance: PlaybackTimingTolerance,
+}
+
+/// Result for one [`PlaybackTimingCase`].
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PlaybackTimingCaseReport {
+    pub id: String,
+    pub report: PlaybackTimingReport,
+}
+
+/// Deterministic aggregate result for a score-schedule timing corpus.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PlaybackTimingCorpusReport {
+    pub contract_version: u16,
+    pub total_cases: usize,
+    pub passed_cases: usize,
+    pub cases: Vec<PlaybackTimingCaseReport>,
+}
+
+/// Compare score-generated schedules against a bounded corpus of expected event traces.
+///
+/// The corpus verifies notation-to-event semantics only. It makes no assertion about synthesized
+/// PCM, codec output, browser scheduling, or real-time device latency.
+pub fn evaluate_playback_timing_corpus(
+    cases: &[PlaybackTimingCase],
+) -> Result<PlaybackTimingCorpusReport, crate::Error> {
+    if cases.is_empty() || cases.len() > MAX_PLAYBACK_TIMING_CORPUS_CASES {
+        return Err(crate::Error::InvalidPlaybackTimingCorpus);
+    }
+    let mut ids = BTreeSet::new();
+    let mut reports = Vec::with_capacity(cases.len());
+    let mut passed_cases = 0;
+    for case in cases {
+        if !valid_routing_id(&case.id) || !ids.insert(case.id.clone()) {
+            return Err(crate::Error::InvalidPlaybackTimingCorpus);
+        }
+        let actual = to_playback_events_bounded(&case.score, &case.options)?;
+        let report = compare_playback_timing(&case.expected_events, &actual, &case.tolerance)?;
+        if report.within_tolerance {
+            passed_cases += 1;
+        }
+        reports.push(PlaybackTimingCaseReport {
+            id: case.id.clone(),
+            report,
+        });
+    }
+    Ok(PlaybackTimingCorpusReport {
+        contract_version: PLAYBACK_TIMING_CORPUS_CONTRACT_VERSION,
+        total_cases: cases.len(),
+        passed_cases,
+        cases: reports,
+    })
+}
+
 /// Version of the host-neutral tablature performance projection contract.
-pub const TAB_PERFORMANCE_CONTRACT_VERSION: u16 = 3;
+pub const TAB_PERFORMANCE_CONTRACT_VERSION: u16 = 4;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TablaturePerformanceEvent {
@@ -301,6 +729,10 @@ pub struct TablaturePerformanceEvent {
     /// Authored bend alteration in cents, when the technique is `Bend`.
     #[serde(default)]
     pub bend_alter_cents: Option<i16>,
+    /// Normalized bend/hold/release curve for a bend-capable host. Positions are per-mille of
+    /// this event's sounding duration and values are cents relative to the written pitch.
+    #[serde(default)]
+    pub bend_curve: Vec<GuitarBendPoint>,
     pub expected_pitch_midi_cents: i32,
     pub pitch_error_cents: i32,
 }
@@ -498,7 +930,7 @@ pub fn project_tablature_performance(
         else {
             continue;
         };
-        let Some(tab) = staff.tablature.as_ref() else {
+        let Some(tab) = staff.tablature_at(measure_index) else {
             push_tab_diagnostic(
                 &mut diagnostics,
                 TablaturePerformanceDiagnostic::NoTablatureStaff {
@@ -572,6 +1004,7 @@ pub fn project_tablature_performance(
             fret: position.fret,
             technique: note.guitar_technique.clone(),
             bend_alter_cents: note.guitar_bend_alter_cents,
+            bend_curve: note.guitar_bend_curve.clone(),
             expected_pitch_midi_cents,
             pitch_error_cents,
         });
@@ -638,6 +1071,13 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                         Some(m) => m,
                         None => continue,
                     };
+                    let instrument = measure
+                        .instrument_change
+                        .as_ref()
+                        .or(part.instrument.as_ref());
+                    let channel = instrument.map_or(part.midi_channel, |value| value.midi_channel);
+                    let program = instrument.map_or(part.midi_program, |value| value.midi_program);
+                    let instrument_id = instrument.map(|value| value.id.clone());
                     if let Some(b) = measure.tempo {
                         current_bpm = b.max(1) as f64;
                     }
@@ -646,10 +1086,13 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                         .as_ref()
                         .unwrap_or(&score.settings.time_signature)
                         .total_beats();
+                    let ramp_end_bpm = measure
+                        .tempo_ramp_to
+                        .map(f64::from)
+                        .filter(|bpm| *bpm > 0.0);
                     let measure_start_beats = time_beats;
                     let measure_start_secs = time_secs_cursor;
                     let mut local_beats = 0.0f64;
-                    let mut local_secs = 0.0f64;
                     let mut swing_first = true;
                     for (note_index, note) in measure.voices[voice_idx].iter().enumerate() {
                         if note.is_grace {
@@ -698,7 +1141,23 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                                 }
                             }
                             let pedal = note.pedal_start;
-                            let transpose = if part.midi_channel == 9 {
+                            let fermata_hold_beats = if options.fermata_hold_beats.is_finite() {
+                                options.fermata_hold_beats.max(0.0)
+                            } else {
+                                0.0
+                            };
+                            let post_note_pause_beats =
+                                note.articulations
+                                    .iter()
+                                    .fold(0.0f64, |pause, articulation| {
+                                        pause.max(match articulation {
+                                            Articulation::BreathMark => 0.25,
+                                            Articulation::Caesura => 0.5,
+                                            Articulation::Fermata => fermata_hold_beats,
+                                            _ => 0.0,
+                                        })
+                                    });
+                            let transpose = if channel == 9 {
                                 0i8
                             } else {
                                 staff.transpose_semitones
@@ -718,28 +1177,59 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                                     }),
                                     source_voice_number: measure.source_voice_numbers[voice_idx],
                                     time_beats: measure_start_beats + local_beats,
-                                    time_secs: measure_start_secs + local_secs,
+                                    time_secs: measure_start_secs
+                                        + tempo_ramp_seconds(
+                                            current_bpm,
+                                            ramp_end_bpm,
+                                            measure_beats,
+                                            local_beats,
+                                        ),
                                     pitch_midi: midi,
                                     pitch_midi_cents: pitch.to_midi_cents()
                                         + transpose as i32 * 100,
+                                    pitch_bend_curve: note.guitar_bend_curve.clone(),
+                                    post_note_pause_beats,
+                                    articulations: note.articulations.clone(),
+                                    chord_symbol: note.chord_symbol.clone(),
+                                    guitar_technique: note.guitar_technique.clone(),
                                     velocity,
                                     duration_beats: sounding_dur,
-                                    duration_secs: sounding_dur / current_bpm * 60.0,
+                                    duration_secs: tempo_ramp_seconds(
+                                        current_bpm,
+                                        ramp_end_bpm,
+                                        measure_beats,
+                                        local_beats + sounding_dur,
+                                    ) - tempo_ramp_seconds(
+                                        current_bpm,
+                                        ramp_end_bpm,
+                                        measure_beats,
+                                        local_beats,
+                                    ),
                                     pedal,
                                     part_index,
-                                    channel: part.midi_channel,
+                                    channel,
+                                    program,
+                                    instrument_id: instrument_id.clone(),
                                     is_metronome: false,
                                 });
                             }
                         }
                         local_beats += dur;
-                        local_secs += dur / current_bpm * 60.0;
                     }
                     // A voice may omit rests, but the next measure still starts
                     // at the notated bar boundary. This also keeps sparse voices
                     // aligned with compute_playback_position and other voices.
                     time_beats = measure_start_beats + measure_beats;
-                    time_secs_cursor = measure_start_secs + measure_beats / current_bpm * 60.0;
+                    time_secs_cursor = measure_start_secs
+                        + tempo_ramp_seconds(
+                            current_bpm,
+                            ramp_end_bpm,
+                            measure_beats,
+                            measure_beats,
+                        );
+                    if let Some(end_bpm) = ramp_end_bpm {
+                        current_bpm = end_bpm;
+                    }
                 }
             }
         }
@@ -751,6 +1241,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
         let mut metro_bpm = bpm;
         for &idx in &seq {
             let first_staff = score.parts.first().and_then(|p| p.staves.first());
+            let measure = first_staff.and_then(|staff| staff.measures.get(idx));
             if let Some(t) = first_staff
                 .and_then(|s| s.measures.get(idx))
                 .and_then(|m| m.tempo)
@@ -761,11 +1252,18 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                 .and_then(|s| s.measures.get(idx))
                 .and_then(|m| m.time_sig.as_ref())
                 .unwrap_or(&score.settings.time_signature);
+            let measure_beats = ts.total_beats();
+            let ramp_end_bpm = measure
+                .and_then(|measure| measure.tempo_ramp_to)
+                .map(f64::from)
+                .filter(|bpm| *bpm > 0.0);
             let beat_unit = ts.beat_unit_beats();
             let num_beats = (ts.total_beats() / beat_unit).round() as u32;
             for b in 0..num_beats {
                 let is_accent = b == 0;
-                let beat_offset_secs = b as f64 * beat_unit / metro_bpm * 60.0;
+                let beat_offset_beats = b as f64 * beat_unit;
+                let beat_offset_secs =
+                    tempo_ramp_seconds(metro_bpm, ramp_end_bpm, measure_beats, beat_offset_beats);
                 events.push(PlaybackEvent {
                     address: None,
                     source: None,
@@ -782,32 +1280,189 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                     } else {
                         metro.beat_pitch
                     }) * 100,
+                    pitch_bend_curve: Vec::new(),
+                    post_note_pause_beats: 0.0,
+                    articulations: Vec::new(),
+                    chord_symbol: None,
+                    guitar_technique: None,
                     velocity: if is_accent {
                         metro.accent_velocity
                     } else {
                         metro.beat_velocity
                     },
                     duration_beats: beat_unit * 0.1,
-                    duration_secs: beat_unit * 0.1 / metro_bpm * 60.0,
+                    duration_secs: tempo_ramp_seconds(
+                        metro_bpm,
+                        ramp_end_bpm,
+                        measure_beats,
+                        beat_offset_beats + beat_unit * 0.1,
+                    ) - beat_offset_secs,
                     pedal: false,
                     part_index: usize::MAX,
                     channel: metro.channel,
+                    program: 0,
+                    instrument_id: None,
                     is_metronome: true,
                 });
             }
-            let measure_beats = ts.total_beats();
-            cursor_secs += measure_beats / metro_bpm * 60.0;
+            cursor_secs +=
+                tempo_ramp_seconds(metro_bpm, ramp_end_bpm, measure_beats, measure_beats);
             cursor_beats += measure_beats;
+            if let Some(end_bpm) = ramp_end_bpm {
+                metro_bpm = end_bpm;
+            }
         }
     }
 
     events = merge_tied_events(score, events);
+    events = apply_realization_profile(score, events, options.realization_profile);
     events.sort_by(|a, b| {
         a.time_beats
             .partial_cmp(&b.time_beats)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     events
+}
+
+const ORNAMENT_ATTACK_COUNT: usize = 4;
+const ARPEGGIO_MAX_SPREAD_BEATS: f64 = 0.18;
+
+fn apply_realization_profile(
+    score: &Score,
+    mut events: Vec<PlaybackEvent>,
+    profile: PlaybackRealizationProfile,
+) -> Vec<PlaybackEvent> {
+    if profile == PlaybackRealizationProfile::Authored {
+        return events;
+    }
+
+    let mut chord_groups: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+    for (index, event) in events.iter().enumerate() {
+        if !event.is_metronome {
+            if let Some(address) = &event.address {
+                chord_groups.entry(address.clone()).or_default().push(index);
+            }
+        }
+    }
+    for indices in chord_groups.into_values() {
+        let Some(source) = events[indices[0]].source.as_ref() else {
+            continue;
+        };
+        let Some(direction) = score
+            .parts
+            .get(source.part)
+            .and_then(|part| part.staves.get(source.staff))
+            .and_then(|staff| staff.measures.get(source.measure))
+            .and_then(|measure| measure.voices.get(source.voice))
+            .and_then(|voice| voice.get(source.note))
+            .and_then(|note| note.arpeggiate)
+        else {
+            continue;
+        };
+        if indices.len() < 2 {
+            continue;
+        }
+        let mut ordered = indices;
+        ordered.sort_by_key(|&index| events[index].pitch_midi_cents);
+        if !direction {
+            ordered.reverse();
+        }
+        let max_spread = events[ordered[0]]
+            .duration_beats
+            .max(0.0)
+            .mul_add(0.5, 0.0)
+            .min(ARPEGGIO_MAX_SPREAD_BEATS);
+        let step = max_spread / (ordered.len() - 1) as f64;
+        for (ordinal, index) in ordered.into_iter().enumerate() {
+            shift_event_time(&mut events[index], step * ordinal as f64);
+        }
+    }
+
+    let mut realized = Vec::with_capacity(events.len());
+    for event in events {
+        let offsets = ornament_offsets(&event.articulations);
+        if offsets.is_empty() || event.is_metronome || event.duration_beats <= 0.0 {
+            realized.push(event);
+            continue;
+        }
+        let attack_beats = event.duration_beats / ORNAMENT_ATTACK_COUNT as f64;
+        let attack_secs = event.duration_secs / ORNAMENT_ATTACK_COUNT as f64;
+        for (ordinal, semitones) in offsets.into_iter().enumerate() {
+            let mut attack = event.clone();
+            let displacement = i32::from(semitones) * 100;
+            attack.pitch_midi_cents = (attack.pitch_midi_cents + displacement).clamp(0, 12_700);
+            attack.pitch_midi =
+                ((i32::from(attack.pitch_midi) + i32::from(semitones)).clamp(0, 127)) as u8;
+            attack.time_beats += attack_beats * ordinal as f64;
+            attack.time_secs += attack_secs * ordinal as f64;
+            attack.duration_beats = attack_beats;
+            attack.duration_secs = attack_secs;
+            if ordinal > 0 {
+                attack.chord_symbol = None;
+            }
+            realized.push(attack);
+        }
+    }
+    realized
+}
+
+fn shift_event_time(event: &mut PlaybackEvent, offset_beats: f64) {
+    if offset_beats <= 0.0 || event.duration_beats <= 0.0 {
+        return;
+    }
+    event.time_beats += offset_beats;
+    event.time_secs += event.duration_secs * (offset_beats / event.duration_beats);
+}
+
+fn ornament_offsets(articulations: &[Articulation]) -> Vec<i8> {
+    if articulations
+        .iter()
+        .any(|articulation| matches!(articulation, Articulation::Trill | Articulation::Shake))
+    {
+        return vec![0, 1, 0, 1];
+    }
+    if articulations
+        .iter()
+        .any(|articulation| matches!(articulation, Articulation::Mordent))
+    {
+        return vec![0, 1, 0, 0];
+    }
+    if articulations
+        .iter()
+        .any(|articulation| matches!(articulation, Articulation::InvertedMordent))
+    {
+        return vec![0, -1, 0, 0];
+    }
+    if articulations
+        .iter()
+        .any(|articulation| matches!(articulation, Articulation::Turn))
+    {
+        return vec![1, 0, -1, 0];
+    }
+    if articulations
+        .iter()
+        .any(|articulation| matches!(articulation, Articulation::InvertedTurn))
+    {
+        return vec![-1, 0, 1, 0];
+    }
+    Vec::new()
+}
+
+/// Integrate seconds over `beats` while BPM changes linearly across a measure.
+fn tempo_ramp_seconds(start_bpm: f64, end_bpm: Option<f64>, measure_beats: f64, beats: f64) -> f64 {
+    let beats = beats.max(0.0);
+    let Some(end_bpm) = end_bpm else {
+        return beats / start_bpm * 60.0;
+    };
+    if measure_beats <= 0.0 || (end_bpm - start_bpm).abs() < f64::EPSILON {
+        return beats / start_bpm * 60.0;
+    }
+    let delta = end_bpm - start_bpm;
+    let bpm_at_beats = start_bpm + delta * beats / measure_beats;
+    if bpm_at_beats <= 0.0 {
+        return beats / start_bpm * 60.0;
+    }
+    60.0 * measure_beats / delta * (bpm_at_beats / start_bpm).ln()
 }
 
 /// Coalesce adjacent playback events that are connected by authored ties.
@@ -1116,6 +1771,106 @@ mod tests {
     }
 
     #[test]
+    fn playback_events_preserve_authored_chord_symbol_without_inventing_notes() {
+        let mut score = Score::new("Harmony", 120, 4, 4, 0, 1);
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        note.chord_symbol = Some(ChordSymbol {
+            root: "C".into(),
+            kind: "major-seventh".into(),
+            bass: Some("E".into()),
+            placement: None,
+            extender: false,
+            harmonic_degree: None,
+            harmony_function: None,
+            harmony_type: None,
+            chord_ref: None,
+            range_end: None,
+            degrees: Vec::new(),
+        });
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+
+        let events = to_playback_events(&score, &PlaybackOptions::default());
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].pitch_midi, 60);
+        assert_eq!(
+            events[0]
+                .chord_symbol
+                .as_ref()
+                .map(ChordSymbol::display_text),
+            Some("Cmaj7/E".into())
+        );
+    }
+
+    #[test]
+    fn authored_realization_default_keeps_ornament_as_one_semantic_event() {
+        let mut score = Score::new("authored ornament", 120, 4, 4, 0, 1);
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        note.articulations.push(Articulation::Trill);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+
+        let events = to_playback_events(&score, &PlaybackOptions::default());
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].pitch_midi, 60);
+        assert_eq!(events[0].articulations, vec![Articulation::Trill]);
+    }
+
+    #[test]
+    fn ornament_arpeggio_profile_realizes_trill_with_pinned_timing() {
+        let mut score = Score::new("realized ornament", 120, 4, 4, 0, 1);
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        note.articulations.push(Articulation::Trill);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+
+        let events = to_playback_events(
+            &score,
+            &PlaybackOptions {
+                realization_profile: PlaybackRealizationProfile::OrnamentArpeggioV1,
+                ..Default::default()
+            },
+        );
+        assert_eq!(events.len(), 4);
+        assert_eq!(
+            events
+                .iter()
+                .map(|event| event.pitch_midi)
+                .collect::<Vec<_>>(),
+            vec![60, 61, 60, 61]
+        );
+        for (index, event) in events.iter().enumerate() {
+            assert!((event.time_beats - index as f64 * 0.25).abs() < 1e-9);
+            assert!((event.duration_beats - 0.25).abs() < 1e-9);
+            assert!((event.time_secs - index as f64 * 0.125).abs() < 1e-9);
+            assert!((event.duration_secs - 0.125).abs() < 1e-9);
+        }
+    }
+
+    #[test]
+    fn ornament_arpeggio_profile_staggers_chord_in_authored_direction() {
+        let mut score = Score::new("realized arpeggio", 120, 4, 4, 0, 1);
+        let mut chord = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        chord.pitches.push(Pitch::new(Step::E, 4));
+        chord.pitches.push(Pitch::new(Step::G, 4));
+        chord.arpeggiate = Some(false);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![chord];
+
+        let events = to_playback_events(
+            &score,
+            &PlaybackOptions {
+                realization_profile: PlaybackRealizationProfile::OrnamentArpeggioV1,
+                ..Default::default()
+            },
+        );
+        assert_eq!(events.len(), 3);
+        let by_pitch: BTreeMap<_, _> = events
+            .iter()
+            .map(|event| (event.pitch_midi, event.time_beats))
+            .collect();
+        assert!((by_pitch[&67] - 0.0).abs() < 1e-9);
+        assert!((by_pitch[&64] - 0.09).abs() < 1e-9);
+        assert!((by_pitch[&60] - 0.18).abs() < 1e-9);
+    }
+
+    #[test]
     fn grace_notes_excluded() {
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         let mut grace = Note::new(Pitch::new(Step::D, 4), Duration::Eighth);
@@ -1396,6 +2151,40 @@ mod tests {
         let events = to_playback_events(&score, &PlaybackOptions::default());
         assert_eq!(events.len(), 1);
         assert!((events[0].duration_beats - 1.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn fermata_hold_is_an_explicit_post_note_request_separate_from_extension() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        note.articulations
+            .push(crate::model::notation::Articulation::Fermata);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let options = PlaybackOptions {
+            fermata_multiplier: 2.0,
+            fermata_hold_beats: 0.75,
+            ..Default::default()
+        };
+        let events = to_playback_events(&score, &options);
+        assert!((events[0].duration_beats - 2.0).abs() < 1e-9);
+        assert!((events[0].post_note_pause_beats - 0.75).abs() < 1e-9);
+    }
+
+    #[test]
+    fn invalid_fermata_hold_is_safely_ignored() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        note.articulations
+            .push(crate::model::notation::Articulation::Fermata);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let options = PlaybackOptions {
+            fermata_hold_beats: f64::NAN,
+            ..Default::default()
+        };
+        assert_eq!(
+            to_playback_events(&score, &options)[0].post_note_pause_beats,
+            0.0
+        );
     }
 
     #[test]
@@ -1687,6 +2476,28 @@ mod tests {
     }
 
     #[test]
+    fn metronome_integrates_measure_tempo_ramp_and_carries_ending_tempo() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 2);
+        score.parts[0].staves[0].measures[0].tempo_ramp_to = Some(60);
+        let options = PlaybackOptions {
+            metronome: Some(MetronomeConfig::default()),
+            ..Default::default()
+        };
+
+        let mut clicks: Vec<_> = to_playback_events(&score, &options)
+            .into_iter()
+            .filter(|event| event.is_metronome)
+            .collect();
+        clicks.sort_by(|left, right| left.time_beats.total_cmp(&right.time_beats));
+
+        let expected_second_beat = tempo_ramp_seconds(120.0, Some(60.0), 4.0, 1.0);
+        let expected_second_measure = tempo_ramp_seconds(120.0, Some(60.0), 4.0, 4.0);
+        assert!((clicks[1].time_secs - expected_second_beat).abs() < 1e-9);
+        assert!((clicks[4].time_secs - expected_second_measure).abs() < 1e-9);
+        assert!((clicks[5].time_secs - (expected_second_measure + 1.0)).abs() < 1e-9);
+    }
+
+    #[test]
     fn metronome_events_are_marked() {
         let score = Score::new("T", 120, 4, 4, 0, 1);
         let options = PlaybackOptions {
@@ -1704,6 +2515,159 @@ mod tests {
         assert!(events.iter().all(|e| !e.is_metronome));
     }
 
+    #[test]
+    fn offline_render_manifest_uses_event_end_as_exact_frame_length() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0][0] =
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        let request = OfflineRenderRequest {
+            format: OfflineRenderFormat::Flac,
+            sample_rate_hz: 48_000,
+            channels: 2,
+            provider_identity: Some("test-provider@1".into()),
+        };
+
+        let manifest = build_offline_render_manifest(&score, &PlaybackOptions::default(), &request)
+            .expect("valid render manifest");
+        assert_eq!(manifest.contract_version, OFFLINE_RENDER_CONTRACT_VERSION);
+        assert_eq!(manifest.format, OfflineRenderFormat::Flac);
+        assert_eq!(manifest.duration_frames, 24_000);
+        assert_eq!(manifest.events.len(), 1);
+        assert_eq!(
+            manifest.provider_identity.as_deref(),
+            Some("test-provider@1")
+        );
+    }
+
+    #[test]
+    fn offline_render_manifest_rejects_out_of_range_audio_shape() {
+        let score = Score::new("T", 120, 4, 4, 0, 1);
+        let request = OfflineRenderRequest {
+            sample_rate_hz: 0,
+            ..Default::default()
+        };
+        assert!(matches!(
+            build_offline_render_manifest(&score, &PlaybackOptions::default(), &request),
+            Err(crate::Error::InvalidOfflineRenderRequest)
+        ));
+    }
+
+    #[test]
+    fn routing_manifest_prefers_instrument_bus_and_isolates_metronome() {
+        let mut score = Score::new("routing", 120, 4, 4, 0, 1);
+        let mut instrument = crate::InstrumentDefinition::new("flute", "Flute");
+        instrument.midi_channel = 2;
+        instrument.midi_program = 73;
+        score.parts[0].instrument = Some(instrument);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        let options = PlaybackOptions {
+            metronome: Some(MetronomeConfig::default()),
+            ..Default::default()
+        };
+        let mut config = PlaybackRoutingConfig {
+            provider_identity: Some("sf2-host@1".into()),
+            ..Default::default()
+        };
+        config.part_buses.insert(0, "parts".into());
+        config
+            .instrument_buses
+            .insert("flute".into(), "winds".into());
+        config.aux_sends.push(PlaybackAuxSend {
+            source_bus: "winds".into(),
+            destination_bus: "reverb".into(),
+            gain_db: -12.0,
+        });
+        config.effect_routes.push(PlaybackEffectRoute {
+            bus_id: "reverb".into(),
+            effect_id: "convolution".into(),
+            enabled: true,
+        });
+
+        let manifest = build_playback_routing_manifest(&score, &options, &config)
+            .expect("valid routing manifest");
+        assert_eq!(manifest.contract_version, PLAYBACK_ROUTING_CONTRACT_VERSION);
+        assert_eq!(manifest.provider_identity.as_deref(), Some("sf2-host@1"));
+        assert!(manifest.routes.iter().any(|route| {
+            route.instrument_id.as_deref() == Some("flute") && route.bus_id == "winds"
+        }));
+        assert!(
+            manifest
+                .routes
+                .iter()
+                .any(|route| route.is_metronome && route.bus_id == "metronome")
+        );
+        assert_eq!(manifest.aux_sends.len(), 1);
+        assert_eq!(manifest.effect_routes.len(), 1);
+    }
+
+    #[test]
+    fn routing_manifest_rejects_unsafe_bus_and_non_finite_send_gain() {
+        let score = Score::new("routing", 120, 4, 4, 0, 1);
+        let config = PlaybackRoutingConfig {
+            master_bus: "not a bus".into(),
+            ..Default::default()
+        };
+        assert!(matches!(
+            build_playback_routing_manifest(&score, &PlaybackOptions::default(), &config),
+            Err(crate::Error::InvalidPlaybackRouting)
+        ));
+
+        let mut config = PlaybackRoutingConfig::default();
+        config.aux_sends.push(PlaybackAuxSend {
+            source_bus: "part".into(),
+            destination_bus: "master".into(),
+            gain_db: f64::NAN,
+        });
+        assert!(matches!(
+            build_playback_routing_manifest(&score, &PlaybackOptions::default(), &config),
+            Err(crate::Error::InvalidPlaybackRouting)
+        ));
+    }
+
+    #[test]
+    fn timing_corpus_reports_score_schedule_results_without_audio_claims() {
+        let mut score = Score::new("corpus", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        let expected_events = to_playback_events(&score, &PlaybackOptions::default());
+        let report = evaluate_playback_timing_corpus(&[PlaybackTimingCase {
+            id: "quarter-note".into(),
+            score,
+            options: PlaybackOptions::default(),
+            expected_events,
+            tolerance: PlaybackTimingTolerance::default(),
+        }])
+        .expect("valid timing corpus");
+        assert_eq!(
+            report.contract_version,
+            PLAYBACK_TIMING_CORPUS_CONTRACT_VERSION
+        );
+        assert_eq!(report.total_cases, 1);
+        assert_eq!(report.passed_cases, 1);
+        assert!(report.cases[0].report.within_tolerance);
+    }
+
+    #[test]
+    fn timing_corpus_rejects_empty_or_duplicate_case_ids() {
+        assert!(matches!(
+            evaluate_playback_timing_corpus(&[]),
+            Err(crate::Error::InvalidPlaybackTimingCorpus)
+        ));
+        let score = Score::new("corpus", 120, 4, 4, 0, 1);
+        let case = PlaybackTimingCase {
+            id: "duplicate".into(),
+            expected_events: to_playback_events(&score, &PlaybackOptions::default()),
+            score,
+            options: PlaybackOptions::default(),
+            tolerance: PlaybackTimingTolerance::default(),
+        };
+        assert!(matches!(
+            evaluate_playback_timing_corpus(&[case.clone(), case]),
+            Err(crate::Error::InvalidPlaybackTimingCorpus)
+        ));
+    }
+
     fn comparison_event(time_secs: f64, duration_secs: f64) -> PlaybackEvent {
         PlaybackEvent {
             address: Some("0:0:0:0:0".into()),
@@ -1719,14 +2683,128 @@ mod tests {
             time_secs,
             pitch_midi: 60,
             pitch_midi_cents: 6000,
+            pitch_bend_curve: Vec::new(),
+            post_note_pause_beats: 0.0,
+            articulations: Vec::new(),
+            chord_symbol: None,
+            guitar_technique: None,
             velocity: 64,
             duration_beats: 1.0,
             duration_secs,
             pedal: false,
             part_index: 0,
             channel: 0,
+            program: 0,
+            instrument_id: None,
             is_metronome: false,
         }
+    }
+
+    #[test]
+    fn legacy_playback_event_json_defaults_bend_curve() {
+        let event: PlaybackEvent = serde_json::from_str(
+            r#"{"address":null,"source":null,"source_voice_number":null,"time_beats":0.0,"time_secs":0.0,"pitch_midi":60,"pitch_midi_cents":6000,"velocity":64,"duration_beats":1.0,"duration_secs":0.5,"pedal":false,"part_index":0,"channel":0,"is_metronome":false}"#,
+        )
+        .expect("legacy playback event remains readable");
+        assert!(event.pitch_bend_curve.is_empty());
+        assert_eq!(event.guitar_technique, None);
+    }
+
+    #[test]
+    fn tempo_ramp_uses_integrated_event_timing_and_carries_target_forward() {
+        let mut score = Score::new("ramp", 120, 4, 4, 0, 2);
+        for measure in &mut score.parts[0].staves[0].measures {
+            measure.voices[0] = vec![
+                crate::Note::new(crate::Pitch::new(crate::Step::C, 4), crate::Duration::Half),
+                crate::Note::new(crate::Pitch::new(crate::Step::D, 4), crate::Duration::Half),
+            ];
+        }
+        score.parts[0].staves[0].measures[0].tempo_ramp_to = Some(60);
+        let events = to_playback_events(&score, &PlaybackOptions::default());
+        assert_eq!(events.len(), 4);
+        let expected_measure_secs = 4.0 * 60.0 / (60.0 - 120.0) * (60.0f64 / 120.0).ln();
+        assert!((events[2].time_secs - expected_measure_secs).abs() < 1e-9);
+        assert!((events[0].duration_secs - 1.1507282898).abs() < 1e-6);
+        assert!((events[2].duration_secs - 2.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn breath_and_caesura_expose_deterministic_post_note_pause() {
+        let mut score = Score::new("pause", 120, 4, 4, 0, 1);
+        let mut breath = crate::Note::new(
+            crate::Pitch::new(crate::Step::C, 4),
+            crate::Duration::Quarter,
+        );
+        breath.articulations.push(Articulation::BreathMark);
+        let mut caesura = crate::Note::new(
+            crate::Pitch::new(crate::Step::D, 4),
+            crate::Duration::Quarter,
+        );
+        caesura
+            .articulations
+            .extend([Articulation::BreathMark, Articulation::Caesura]);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![breath, caesura];
+
+        let events = to_playback_events(&score, &PlaybackOptions::default());
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].post_note_pause_beats, 0.25);
+        assert_eq!(events[1].post_note_pause_beats, 0.5);
+        assert_eq!(
+            events[1].articulations,
+            vec![Articulation::BreathMark, Articulation::Caesura]
+        );
+    }
+
+    #[test]
+    fn measure_instrument_change_resolves_on_playback_events() {
+        let mut score = Score::new("instrument", 120, 4, 4, 0, 2);
+        let mut base = crate::InstrumentDefinition::new("piano", "Piano");
+        base.midi_channel = 1;
+        base.midi_program = 0;
+        score.parts[0].instrument = Some(base);
+        let mut change = crate::InstrumentDefinition::new("flute", "Flute");
+        change.midi_channel = 2;
+        change.midi_program = 73;
+        score.parts[0].staves[0].measures[1].instrument_change = Some(change);
+        for measure in &mut score.parts[0].staves[0].measures {
+            measure.voices[0] = vec![crate::Note::new(
+                crate::Pitch::new(crate::Step::C, 4),
+                crate::Duration::Whole,
+            )];
+        }
+
+        let events = to_playback_events(&score, &PlaybackOptions::default());
+        assert_eq!(events.len(), 2);
+        assert_eq!(
+            (
+                events[0].channel,
+                events[0].program,
+                events[0].instrument_id.as_deref()
+            ),
+            (1, 0, Some("piano"))
+        );
+        assert_eq!(
+            (
+                events[1].channel,
+                events[1].program,
+                events[1].instrument_id.as_deref()
+            ),
+            (2, 73, Some("flute"))
+        );
+    }
+
+    #[test]
+    fn generic_playback_event_preserves_authored_guitar_technique() {
+        let mut score = Score::new("technique", 120, 4, 4, 0, 1);
+        let mut note = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+        note.guitar_technique = Some(GuitarTechnique::HammerOn);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+
+        let event = to_playback_events(&score, &PlaybackOptions::default())
+            .into_iter()
+            .next()
+            .expect("one note event");
+        assert_eq!(event.guitar_technique, Some(GuitarTechnique::HammerOn));
     }
 
     #[test]
@@ -1779,6 +2857,23 @@ mod tests {
     }
 
     #[test]
+    fn playback_timing_comparison_rejects_instrument_route_mismatch() {
+        let expected = comparison_event(0.0, 0.5);
+        let mut actual = expected.clone();
+        actual.program = 73;
+        assert!(
+            compare_playback_timing(&[expected], &[actual], &PlaybackTimingTolerance::default(),)
+                .expect("comparison")
+                .mismatches
+                .iter()
+                .any(|mismatch| matches!(
+                    mismatch,
+                    PlaybackTimingMismatch::EventIdentity { index: 0 }
+                ))
+        );
+    }
+
+    #[test]
     fn playback_timing_comparison_rejects_invalid_tolerance() {
         let error = compare_playback_timing(
             &[],
@@ -1813,6 +2908,20 @@ mod tests {
         });
         notes[0].guitar_technique = Some(super::super::notation::GuitarTechnique::Bend);
         notes[0].guitar_bend_alter_cents = Some(150);
+        notes[0].guitar_bend_curve = vec![
+            super::super::score::GuitarBendPoint {
+                position_per_mille: 0,
+                alter_cents: 0,
+            },
+            super::super::score::GuitarBendPoint {
+                position_per_mille: 500,
+                alter_cents: 150,
+            },
+            super::super::score::GuitarBendPoint {
+                position_per_mille: 1_000,
+                alter_cents: 0,
+            },
+        ];
         let report = project_tablature_performance(&score, &PlaybackOptions::default())
             .expect("tablature projection");
         assert_eq!(report.events.len(), 1);
@@ -1823,6 +2932,13 @@ mod tests {
             Some(super::super::notation::GuitarTechnique::Bend)
         );
         assert_eq!(report.events[0].bend_alter_cents, Some(150));
+        assert_eq!(report.events[0].bend_curve.len(), 3);
+        assert_eq!(report.events[0].bend_curve[1].position_per_mille, 500);
+        assert_eq!(report.events[0].bend_curve[1].alter_cents, 150);
+        assert_eq!(
+            report.events[0].playback.pitch_bend_curve,
+            report.events[0].bend_curve
+        );
         assert!(report.diagnostics.is_empty());
 
         score.parts[0].staves[0].measures[0].voices[0][0].tab_position =
@@ -1911,5 +3027,36 @@ mod tests {
         assert_eq!(report.checked_notes, 1);
         assert_eq!(report.positioned_notes, 1);
         assert!(report.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn tablature_performance_uses_measure_local_tuning_change() {
+        let mut score = Score::new("Local tuning", 120, 4, 4, 0, 2);
+        let staff = &mut score.parts[0].staves[0];
+        staff.tablature = Some(super::super::notation::TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![40, 45, 50, 55, 59, 64],
+            capo: 0,
+        });
+        staff.measures[1].tablature_change = Some(super::super::notation::TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![38, 45, 50, 55, 59, 64],
+            capo: 0,
+        });
+        let mut note = Note::new(Pitch::new(Step::C, 3), Duration::Quarter);
+        note.tab_position = Some(TabPosition {
+            string: 1,
+            fret: 10,
+        });
+        staff.measures[1].voices[0] = vec![note];
+
+        let report = project_tablature_performance(&score, &PlaybackOptions::default())
+            .expect("tablature projection");
+        assert_eq!(report.events.len(), 1);
+        assert_eq!(report.events[0].expected_pitch_midi_cents, 4_800);
+        assert!(!report.diagnostics.iter().any(|diagnostic| matches!(
+            diagnostic,
+            TablaturePerformanceDiagnostic::PitchMismatch { .. }
+        )));
     }
 }

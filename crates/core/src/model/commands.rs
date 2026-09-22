@@ -7,8 +7,11 @@ use super::notation::{
 };
 use super::pitch::Pitch;
 use super::score::{
-    Measure, NotationSpanner, NotationSpannerKind, Note, NoteAddr, Part, PartGroup, Score,
-    ScoreTemplate, Staff, respell_score, respell_score_to_key,
+    HarpPedalDiagram, InstrumentDefinition, InstrumentRange, Measure, NotationSpanner,
+    NotationSpannerKind, Note, NoteAddr, ObjectStyleOverride, Part, PartGroup,
+    PercussionInstrument, RegionalTranspositionTarget, Score, ScoreTemplate, ScoreView, Staff,
+    StaffKind, StaffPresentation, ViewStyleOverride, respell_score, respell_score_to_key,
+    transpose_staff_region_checked,
 };
 use super::validate::validate;
 use crate::Error;
@@ -34,12 +37,14 @@ pub enum Command {
     SetBarline(SetBarlineCmd),
     AddPart(AddPartCmd),
     DeletePart(DeletePartCmd),
+    ReorderParts(ReorderPartsCmd),
     SetMetadata(SetMetadataCmd),
     SetRehearsalMark(SetRehearsalMarkCmd),
     SetNavigationMark(SetNavigationMarkCmd),
     SetChordSymbol(SetChordSymbolCmd),
     SetHarmonyRange(SetHarmonyRangeCmd),
     SetFiguredBass(SetFiguredBassCmd),
+    SetHarpPedalDiagrams(SetHarpPedalDiagramsCmd),
     SetGrace(SetGraceCmd),
     SetOttava(SetOttavaCmd),
     SetLyric(SetLyricCmd),
@@ -49,8 +54,16 @@ pub enum Command {
     SetClef(SetClefCmd),
     SetPartName(SetPartNameCmd),
     SetMidiInstrument(SetMidiInstrumentCmd),
+    SetPercussionKit(SetPercussionKitCmd),
+    SetInstrumentDefinition(SetInstrumentDefinitionCmd),
+    SetMeasureInstrumentChange(SetMeasureInstrumentChangeCmd),
+    SetMeasureTablatureChange(SetMeasureTablatureChangeCmd),
+    UpsertScoreView(UpsertScoreViewCmd),
+    RemoveScoreView(RemoveScoreViewCmd),
     SetTranspose(SetTransposeCmd),
+    TransposeStaffRegion(TransposeStaffRegionCmd),
     SetTempoAtMeasure(SetTempoAtMeasureCmd),
+    SetTempoRampAtMeasure(SetTempoRampAtMeasureCmd),
     PasteVoice(PasteVoiceCmd),
     PasteRange(PasteRangeCmd),
     SetSystemBreak(SetSystemBreakCmd),
@@ -69,6 +82,7 @@ pub enum Command {
     SetStringNumber(SetStringNumberCmd),
     SetTabPosition(SetTabPositionCmd),
     SetTablatureConfig(SetTablatureConfigCmd),
+    SetStaffPresentation(SetStaffPresentationCmd),
     SetNoteHead(SetNoteHeadCmd),
     SetCue(SetCueCmd),
     SetUnpitched(SetUnpitchedCmd),
@@ -76,9 +90,12 @@ pub enum Command {
     SetNotePlacement(SetNotePlacementCmd),
     SetGuitarTechnique(SetGuitarTechniqueCmd),
     SetGuitarBendAlter(SetGuitarBendAlterCmd),
+    SetGuitarBendCurve(SetGuitarBendCurveCmd),
     SetExpressionText(SetExpressionTextCmd),
     SetMeasureText(SetMeasureTextCmd),
     SetScoreText(SetScoreTextCmd),
+    SetScoreStyleOverrides(SetScoreStyleOverridesCmd),
+    SetObjectStyleOverrides(SetObjectStyleOverridesCmd),
     ToggleTrillLine(ToggleTrillLineCmd),
     SetGlissando(SetGlissandoCmd),
     SetCrossStaff(SetCrossStaffCmd),
@@ -260,6 +277,15 @@ pub struct DeletePartCmd {
     pub part_index: usize,
 }
 
+/// Reorder every part by its current zero-based index.
+///
+/// `order` must be a permutation of every current part. Linked views, typed spanners, and
+/// contiguous part groups are remapped so they continue to identify the same musical parts.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReorderPartsCmd {
+    pub order: Vec<usize>,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SetMetadataCmd {
     pub title: Option<String>,
@@ -310,6 +336,15 @@ pub struct SetHarmonyRangeCmd {
 pub struct SetFiguredBassCmd {
     pub measure_index: usize,
     pub figures: Vec<FiguredBassFigure>,
+}
+
+/// Replace the MusicXML-compatible harp pedal diagrams on one staff-local measure.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetHarpPedalDiagramsCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub diagrams: Vec<HarpPedalDiagram>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -380,6 +415,50 @@ pub struct SetMidiInstrumentCmd {
     pub midi_program: u8,
 }
 
+/// Replace a part's editable percussion-kit map.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetPercussionKitCmd {
+    pub part_index: usize,
+    pub instruments: Vec<PercussionInstrument>,
+}
+
+/// Set or clear a part's stable instrument semantics.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetInstrumentDefinitionCmd {
+    pub part_index: usize,
+    pub definition: Option<InstrumentDefinition>,
+}
+
+/// Set or clear an instrument change beginning at a staff-local measure boundary.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetMeasureInstrumentChangeCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub definition: Option<InstrumentDefinition>,
+}
+
+/// Set or clear a tuning/capo change beginning at a staff-local measure boundary.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetMeasureTablatureChangeCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub config: Option<TablatureConfig>,
+}
+
+/// Create or replace a named linked-part view by stable ID.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpsertScoreViewCmd {
+    pub view: ScoreView,
+}
+
+/// Remove a named linked-part view by stable ID.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoveScoreViewCmd {
+    pub id: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetTransposeCmd {
     pub part_index: usize,
@@ -388,11 +467,31 @@ pub struct SetTransposeCmd {
     pub semitones: i8,
 }
 
+/// Transpose one contiguous staff range through the validated written/concert boundary.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransposeStaffRegionCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    /// Inclusive physical measure index.
+    pub start_measure: usize,
+    /// Exclusive physical measure index.
+    pub end_measure: usize,
+    pub semitones: i8,
+    pub target: RegionalTranspositionTarget,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetTempoAtMeasureCmd {
     pub measure_index: usize,
     /// New BPM at this measure. `None` clears any measure-level override.
     pub bpm: Option<u16>,
+}
+
+/// Set or clear the target BPM reached at the end of one physical measure.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetTempoRampAtMeasureCmd {
+    pub measure_index: usize,
+    pub target_bpm: Option<u16>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -614,6 +713,14 @@ pub struct SetTablatureConfigCmd {
     pub config: Option<TablatureConfig>,
 }
 
+/// Replace the renderer-independent presentation settings for one staff.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetStaffPresentationCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub presentation: StaffPresentation,
+}
+
 /// Set (or clear) the guitar playing technique on a note (bend, slide, hammer-on, pull-off).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetGuitarTechniqueCmd {
@@ -636,6 +743,18 @@ pub struct SetGuitarBendAlterCmd {
     pub note_index: usize,
     /// `None` clears the bend amount.
     pub alter_cents: Option<i16>,
+}
+
+/// Replace the authored bend/hold/release curve on a note.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetGuitarBendCurveCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub voice: usize,
+    pub note_index: usize,
+    #[serde(default)]
+    pub points: Vec<crate::GuitarBendPoint>,
 }
 
 /// Set (or clear) the expression/performance text on a measure ("dolce", "espressivo", etc.).
@@ -669,6 +788,20 @@ pub struct SetMeasureTextCmd {
 pub struct SetScoreTextCmd {
     pub text_index: usize,
     pub text: Option<StyledText>,
+}
+
+/// Replace the ordered score-wide typed presentation defaults.
+///
+/// Later entries for the same property take precedence when a view is resolved.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetScoreStyleOverridesCmd {
+    pub overrides: Vec<ViewStyleOverride>,
+}
+
+/// Replace every typed object-attached presentation override.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetObjectStyleOverridesCmd {
+    pub overrides: Vec<ObjectStyleOverride>,
 }
 
 /// Mark or unmark a note as a cue note (cue notes have zero beats).
@@ -940,6 +1073,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::NewScore(_)
         | Command::AddPart(_)
         | Command::DeletePart(_)
+        | Command::ReorderParts(_)
         | Command::AddMeasure(_)
         | Command::DeleteMeasure(_) => hint!(Global, true, true),
 
@@ -966,18 +1100,38 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
             false,
             false
         ),
-        Command::SetScoreText(_) => hint!(Global, false, false),
+        Command::SetScoreText(_)
+        | Command::SetScoreStyleOverrides(_)
+        | Command::SetObjectStyleOverrides(_) => hint!(Global, true, false),
 
         Command::SetMultiRest(_) => hint!(Global, true, false),
 
         Command::SetTempoAtMeasure(_) => hint!(Global, false, true),
+        Command::SetTempoRampAtMeasure(_) => hint!(Global, false, true),
 
         // Part scope
         Command::SetPartName(c) => hint!(Part(c.part_index), false, false),
 
         Command::SetMidiInstrument(c) => hint!(Part(c.part_index), false, true),
+        Command::SetPercussionKit(c) => hint!(Part(c.part_index), true, true),
+
+        Command::SetInstrumentDefinition(c) => hint!(Part(c.part_index), true, false),
+        Command::SetMeasureInstrumentChange(c) => hint!(meas!(c), true, true),
+        Command::SetMeasureTablatureChange(c) => hint!(meas!(c), true, true),
+
+        Command::UpsertScoreView(_) | Command::RemoveScoreView(_) => hint!(Global, true, false),
 
         Command::SetTranspose(c) => hint!(Part(c.part_index), false, true),
+        Command::TransposeStaffRegion(c) => hint!(
+            Measures {
+                part: c.part_index,
+                staff: c.staff_index,
+                start: c.start_measure,
+                end: c.end_measure
+            },
+            true,
+            true
+        ),
 
         Command::SetClef(c) => hint!(Part(c.part_index), true, false),
 
@@ -1008,6 +1162,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::SetChordSymbol(c) => hint!(meas!(c), false, true),
         Command::SetHarmonyRange(c) => hint!(meas!(c), false, true),
         Command::SetFiguredBass(_) => hint!(Global, false, true),
+        Command::SetHarpPedalDiagrams(c) => hint!(meas!(c), false, false),
 
         Command::SetSystemBreak(_) | Command::SetPageBreak(_) => hint!(Global, true, false),
 
@@ -1036,8 +1191,10 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::SetStringNumber(c) => hint!(meas!(c), false, false),
         Command::SetTabPosition(c) => hint!(meas!(c), false, false),
         Command::SetTablatureConfig(c) => hint!(Part(c.part_index), true, true),
+        Command::SetStaffPresentation(c) => hint!(Part(c.part_index), true, false),
         Command::SetGuitarTechnique(c) => hint!(meas!(c), false, false),
         Command::SetGuitarBendAlter(c) => hint!(meas!(c), false, false),
+        Command::SetGuitarBendCurve(c) => hint!(meas!(c), false, false),
         Command::SetNoteHead(c) => hint!(meas!(c), false, false),
         Command::SetCue(c) => hint!(meas!(c), false, true),
         Command::SetUnpitched(c) => hint!(meas!(c), false, true),
@@ -1077,11 +1234,13 @@ pub fn command_label(cmd: &Command) -> String {
         Command::SetBarline(_) => "Set Barline".to_string(),
         Command::AddPart(_) => "Add Part".to_string(),
         Command::DeletePart(_) => "Delete Part".to_string(),
+        Command::ReorderParts(_) => "Reorder Parts".to_string(),
         Command::SetMetadata(_) => "Set Metadata".to_string(),
         Command::SetRehearsalMark(_) => "Set Rehearsal Mark".to_string(),
         Command::SetNavigationMark(_) => "Set Navigation Mark".to_string(),
         Command::SetChordSymbol(_) => "Set Chord Symbol".to_string(),
         Command::SetHarmonyRange(_) => "Set Harmony Range".to_string(),
+        Command::SetHarpPedalDiagrams(_) => "Set Harp Pedal Diagrams".to_string(),
         Command::SetFiguredBass(_) => "Set Figured Bass".to_string(),
         Command::SetGrace(_) => "Set Grace Note".to_string(),
         Command::SetOttava(_) => "Set Ottava".to_string(),
@@ -1092,8 +1251,16 @@ pub fn command_label(cmd: &Command) -> String {
         Command::SetClef(_) => "Set Clef".to_string(),
         Command::SetPartName(_) => "Set Part Name".to_string(),
         Command::SetMidiInstrument(_) => "Set MIDI Instrument".to_string(),
+        Command::SetPercussionKit(_) => "Set Percussion Kit".to_string(),
+        Command::SetInstrumentDefinition(_) => "Set Instrument Definition".to_string(),
+        Command::SetMeasureInstrumentChange(_) => "Set Measure Instrument Change".to_string(),
+        Command::SetMeasureTablatureChange(_) => "Set Measure Tablature Change".to_string(),
+        Command::UpsertScoreView(_) => "Update Score View".to_string(),
+        Command::RemoveScoreView(_) => "Remove Score View".to_string(),
         Command::SetTranspose(_) => "Set Transpose".to_string(),
+        Command::TransposeStaffRegion(_) => "Transpose Staff Region".to_string(),
         Command::SetTempoAtMeasure(_) => "Set Tempo".to_string(),
+        Command::SetTempoRampAtMeasure(_) => "Set Tempo Ramp".to_string(),
         Command::PasteVoice(_) => "Paste Voice".to_string(),
         Command::PasteRange(_) => "Paste Range".to_string(),
         Command::SetSystemBreak(_) => "Set System Break".to_string(),
@@ -1130,8 +1297,10 @@ pub fn command_label(cmd: &Command) -> String {
         Command::SetStringNumber(_) => "Set String Number".to_string(),
         Command::SetTabPosition(_) => "Set Tablature Position".to_string(),
         Command::SetTablatureConfig(_) => "Set Tablature Configuration".to_string(),
+        Command::SetStaffPresentation(_) => "Set Staff Presentation".to_string(),
         Command::SetGuitarTechnique(_) => "Set Guitar Technique".to_string(),
         Command::SetGuitarBendAlter(_) => "Set Guitar Bend Alter".to_string(),
+        Command::SetGuitarBendCurve(_) => "Set Guitar Bend Curve".to_string(),
         Command::SetNoteHead(_) => "Set Note Head".to_string(),
         Command::SetCue(c) => if c.is_cue {
             "Set Cue Note"
@@ -1150,6 +1319,8 @@ pub fn command_label(cmd: &Command) -> String {
             None => "Remove Score Text",
         }
         .to_string(),
+        Command::SetScoreStyleOverrides(_) => "Set Score Style Defaults".to_string(),
+        Command::SetObjectStyleOverrides(_) => "Set Object Style Overrides".to_string(),
         Command::ToggleTrillLine(_) => "Toggle Trill Line".to_string(),
         Command::SetGlissando(_) => "Set Glissando".to_string(),
         Command::SetCrossStaff(_) => "Set Cross-Staff Placement".to_string(),
@@ -1188,12 +1359,14 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetBarline(_) => "SetBarline".to_string(),
         Command::AddPart(_) => "AddPart".to_string(),
         Command::DeletePart(_) => "DeletePart".to_string(),
+        Command::ReorderParts(_) => "ReorderParts".to_string(),
         Command::SetMetadata(_) => "SetMetadata".to_string(),
         Command::SetRehearsalMark(_) => "SetRehearsalMark".to_string(),
         Command::SetNavigationMark(_) => "SetNavigationMark".to_string(),
         Command::SetChordSymbol(_) => "SetChordSymbol".to_string(),
         Command::SetHarmonyRange(_) => "SetHarmonyRange".to_string(),
         Command::SetFiguredBass(_) => "SetFiguredBass".to_string(),
+        Command::SetHarpPedalDiagrams(_) => "SetHarpPedalDiagrams".to_string(),
         Command::SetGrace(_) => "SetGrace".to_string(),
         Command::SetOttava(_) => "SetOttava".to_string(),
         Command::SetLyric(_) => "SetLyric".to_string(),
@@ -1203,8 +1376,16 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetClef(_) => "SetClef".to_string(),
         Command::SetPartName(_) => "SetPartName".to_string(),
         Command::SetMidiInstrument(_) => "SetMidiInstrument".to_string(),
+        Command::SetPercussionKit(_) => "SetPercussionKit".to_string(),
+        Command::SetInstrumentDefinition(_) => "SetInstrumentDefinition".to_string(),
+        Command::SetMeasureInstrumentChange(_) => "SetMeasureInstrumentChange".to_string(),
+        Command::SetMeasureTablatureChange(_) => "SetMeasureTablatureChange".to_string(),
+        Command::UpsertScoreView(_) => "UpsertScoreView".to_string(),
+        Command::RemoveScoreView(_) => "RemoveScoreView".to_string(),
         Command::SetTranspose(_) => "SetTranspose".to_string(),
+        Command::TransposeStaffRegion(_) => "TransposeStaffRegion".to_string(),
         Command::SetTempoAtMeasure(_) => "SetTempoAtMeasure".to_string(),
+        Command::SetTempoRampAtMeasure(_) => "SetTempoRampAtMeasure".to_string(),
         Command::PasteVoice(_) => "PasteVoice".to_string(),
         Command::PasteRange(_) => "PasteRange".to_string(),
         Command::SetSystemBreak(_) => "SetSystemBreak".to_string(),
@@ -1223,8 +1404,10 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetStringNumber(_) => "SetStringNumber".to_string(),
         Command::SetTabPosition(_) => "SetTabPosition".to_string(),
         Command::SetTablatureConfig(_) => "SetTablatureConfig".to_string(),
+        Command::SetStaffPresentation(_) => "SetStaffPresentation".to_string(),
         Command::SetGuitarTechnique(_) => "SetGuitarTechnique".to_string(),
         Command::SetGuitarBendAlter(_) => "SetGuitarBendAlter".to_string(),
+        Command::SetGuitarBendCurve(_) => "SetGuitarBendCurve".to_string(),
         Command::SetNoteHead(_) => "SetNoteHead".to_string(),
         Command::SetCue(_) => "SetCue".to_string(),
         Command::SetUnpitched(_) => "SetUnpitched".to_string(),
@@ -1233,6 +1416,8 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetExpressionText(_) => "SetExpressionText".to_string(),
         Command::SetMeasureText(_) => "SetMeasureText".to_string(),
         Command::SetScoreText(_) => "SetScoreText".to_string(),
+        Command::SetScoreStyleOverrides(_) => "SetScoreStyleOverrides".to_string(),
+        Command::SetObjectStyleOverrides(_) => "SetObjectStyleOverrides".to_string(),
         Command::ToggleTrillLine(_) => "ToggleTrillLine".to_string(),
         Command::SetGlissando(_) => "SetGlissando".to_string(),
         Command::SetCrossStaff(_) => "SetCrossStaff".to_string(),
@@ -1309,6 +1494,7 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         Command::SetBarline(c) => apply_set_barline(c, score),
         Command::AddPart(c) => apply_add_part(c, score),
         Command::DeletePart(c) => apply_delete_part(c, score),
+        Command::ReorderParts(c) => apply_reorder_parts(c, score),
         Command::SetMetadata(c) => apply_set_metadata(c, score),
         Command::SetRehearsalMark(c) => {
             for_each_measure_at(score, c.measure_index, |m| {
@@ -1373,6 +1559,20 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
             }
             Ok(())
         }
+        Command::SetHarpPedalDiagrams(c) => {
+            let measure = score
+                .parts
+                .get_mut(c.part_index)
+                .ok_or(Error::PartNotFound(c.part_index))?
+                .staves
+                .get_mut(c.staff_index)
+                .ok_or(Error::StaffNotFound(c.staff_index))?
+                .measures
+                .get_mut(c.measure_index)
+                .ok_or(Error::MeasureNotFound(c.measure_index))?;
+            measure.harp_pedal_diagrams = c.diagrams.clone();
+            Ok(())
+        }
         Command::SetGrace(c) => {
             let note = get_note_mut(
                 score,
@@ -1432,10 +1632,23 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         Command::SetClef(c) => apply_set_clef(c, score),
         Command::SetPartName(c) => apply_set_part_name(c, score),
         Command::SetMidiInstrument(c) => apply_set_midi_instrument(c, score),
+        Command::SetPercussionKit(c) => apply_set_percussion_kit(c, score),
+        Command::SetInstrumentDefinition(c) => apply_set_instrument_definition(c, score),
+        Command::SetMeasureInstrumentChange(c) => apply_set_measure_instrument_change(c, score),
+        Command::SetMeasureTablatureChange(c) => apply_set_measure_tablature_change(c, score),
+        Command::UpsertScoreView(c) => apply_upsert_score_view(c, score),
+        Command::RemoveScoreView(c) => apply_remove_score_view(c, score),
         Command::SetTranspose(c) => apply_set_transpose(c, score),
+        Command::TransposeStaffRegion(c) => apply_transpose_staff_region(c, score),
         Command::SetTempoAtMeasure(c) => {
             for_each_measure_at(score, c.measure_index, |m| {
                 m.tempo = c.bpm;
+            });
+            Ok(())
+        }
+        Command::SetTempoRampAtMeasure(c) => {
+            for_each_measure_at(score, c.measure_index, |m| {
+                m.tempo_ramp_to = c.target_bpm;
             });
             Ok(())
         }
@@ -1631,6 +1844,18 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
             .guitar_bend_alter_cents = c.alter_cents;
             Ok(())
         }
+        Command::SetGuitarBendCurve(c) => {
+            get_note_mut(
+                score,
+                c.part_index,
+                c.staff_index,
+                c.measure_index,
+                c.voice,
+                c.note_index,
+            )?
+            .guitar_bend_curve = c.points.clone();
+            Ok(())
+        }
         Command::SetNoteHead(c) => {
             get_note_mut(
                 score,
@@ -1709,7 +1934,10 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         }
         Command::SetMeasureText(c) => apply_set_measure_text(c, score),
         Command::SetScoreText(c) => apply_set_score_text(c, score),
+        Command::SetScoreStyleOverrides(c) => apply_set_score_style_overrides(c, score),
+        Command::SetObjectStyleOverrides(c) => apply_set_object_style_overrides(c, score),
         Command::SetTablatureConfig(c) => apply_set_tablature_config(c, score),
+        Command::SetStaffPresentation(c) => apply_set_staff_presentation(c, score),
         Command::ToggleTrillLine(c) => apply_toggle_trill_line(c, score),
         Command::SetPartGroup(c) => {
             if let Some(group) = &c.group {
@@ -1786,6 +2014,49 @@ fn apply_set_tablature_config(cmd: &SetTablatureConfigCmd, score: &mut Score) ->
         .get_mut(cmd.staff_index)
         .ok_or_else(|| Error::InvalidCommand(format!("staff {} out of range", cmd.staff_index)))?;
     staff.tablature = cmd.config.clone();
+    if staff.tablature.is_some() {
+        staff.presentation.kind = StaffKind::Tablature;
+    } else if staff.presentation.kind == StaffKind::Tablature {
+        staff.presentation.kind = StaffKind::Standard;
+    }
+    if staff.tablature.is_none() {
+        for measure in &mut staff.measures {
+            measure.tablature_change = None;
+        }
+    }
+    Ok(())
+}
+
+fn apply_set_staff_presentation(
+    cmd: &SetStaffPresentationCmd,
+    score: &mut Score,
+) -> Result<(), Error> {
+    if !(1..=64).contains(&cmd.presentation.lines) {
+        return Err(Error::InvalidCommand(format!(
+            "staff line count {} is outside 1..=64",
+            cmd.presentation.lines
+        )));
+    }
+    if !cmd.presentation.line_distance.is_finite()
+        || !(0.1..=16.0).contains(&cmd.presentation.line_distance)
+    {
+        return Err(Error::InvalidCommand(
+            "staff line distance must be finite and within 0.1..=16.0".into(),
+        ));
+    }
+    let staff = score
+        .parts
+        .get_mut(cmd.part_index)
+        .ok_or(Error::PartNotFound(cmd.part_index))?
+        .staves
+        .get_mut(cmd.staff_index)
+        .ok_or_else(|| Error::InvalidCommand(format!("staff {} out of range", cmd.staff_index)))?;
+    if cmd.presentation.kind == StaffKind::Tablature && staff.tablature.is_none() {
+        return Err(Error::InvalidCommand(
+            "tablature staff presentation requires a tablature configuration".into(),
+        ));
+    }
+    staff.presentation = cmd.presentation.clone();
     Ok(())
 }
 
@@ -1875,6 +2146,43 @@ fn apply_set_score_text(cmd: &SetScoreTextCmd, score: &mut Score) -> Result<(), 
     } else {
         score.texts.remove(cmd.text_index);
     }
+    Ok(())
+}
+
+fn apply_set_score_style_overrides(
+    cmd: &SetScoreStyleOverridesCmd,
+    score: &mut Score,
+) -> Result<(), Error> {
+    if cmd
+        .overrides
+        .iter()
+        .any(|override_| !override_.value.is_finite() || !(0.05..=64.0).contains(&override_.value))
+    {
+        return Err(Error::InvalidCommand(
+            "score typed style override values must be finite and within 0.05..=64".into(),
+        ));
+    }
+    score.style_overrides = cmd.overrides.clone();
+    Ok(())
+}
+
+fn apply_set_object_style_overrides(
+    cmd: &SetObjectStyleOverridesCmd,
+    score: &mut Score,
+) -> Result<(), Error> {
+    let mut candidate = score.clone();
+    candidate.object_style_overrides = cmd.overrides.clone();
+    if validate(&candidate).errors.iter().any(|error| {
+        matches!(
+            error,
+            super::validate::ValidationError::InvalidObjectStyleOverride { .. }
+        )
+    }) {
+        return Err(Error::InvalidCommand(
+            "object style overrides require existing targets, finite values within 0.05..=64, and bounded provenance".into(),
+        ));
+    }
+    score.object_style_overrides = cmd.overrides.clone();
     Ok(())
 }
 
@@ -2373,6 +2681,92 @@ fn apply_delete_part(cmd: &DeletePartCmd, score: &mut Score) -> Result<(), Error
     Ok(())
 }
 
+fn apply_reorder_parts(cmd: &ReorderPartsCmd, score: &mut Score) -> Result<(), Error> {
+    let count = score.parts.len();
+    if cmd.order.len() != count {
+        return Err(Error::InvalidCommand(format!(
+            "part order must contain exactly {count} entries"
+        )));
+    }
+    let mut old_to_new = vec![usize::MAX; count];
+    for (new_index, &old_index) in cmd.order.iter().enumerate() {
+        if old_index >= count {
+            return Err(Error::PartNotFound(old_index));
+        }
+        if std::mem::replace(&mut old_to_new[old_index], new_index) != usize::MAX {
+            return Err(Error::InvalidCommand(format!(
+                "part order contains duplicate index {old_index}"
+            )));
+        }
+    }
+    for view in &score.views {
+        for &part in &view.parts {
+            if part >= count {
+                return Err(Error::PartNotFound(part));
+            }
+        }
+        for override_ in &view.staff_kind_overrides {
+            if override_.staff.part >= count {
+                return Err(Error::PartNotFound(override_.staff.part));
+            }
+        }
+    }
+    for spanner in &score.spanners {
+        for address in [&spanner.start, &spanner.end] {
+            if address.part >= count {
+                return Err(Error::PartNotFound(address.part));
+            }
+        }
+    }
+    for group in &score.part_groups {
+        if group.first_part > group.last_part || group.last_part >= count {
+            return Err(Error::InvalidCommand(
+                "part group references an invalid part range".into(),
+            ));
+        }
+        let mut remapped: Vec<_> = (group.first_part..=group.last_part)
+            .map(|part| old_to_new[part])
+            .collect();
+        remapped.sort_unstable();
+        if remapped
+            .windows(2)
+            .any(|pair| pair[1] != pair[0].saturating_add(1))
+        {
+            return Err(Error::InvalidCommand(
+                "part order would split an existing part group".into(),
+            ));
+        }
+    }
+
+    let existing = std::mem::take(&mut score.parts);
+    score.parts = cmd
+        .order
+        .iter()
+        .map(|&old_index| existing[old_index].clone())
+        .collect();
+    for view in &mut score.views {
+        for part in &mut view.parts {
+            *part = old_to_new[*part];
+        }
+        for override_ in &mut view.staff_kind_overrides {
+            override_.staff.part = old_to_new[override_.staff.part];
+        }
+    }
+    for group in &mut score.part_groups {
+        group.first_part = old_to_new[group.first_part];
+        group.last_part = old_to_new[group.last_part];
+        if group.first_part > group.last_part {
+            std::mem::swap(&mut group.first_part, &mut group.last_part);
+        }
+    }
+    remap_spanners(score, |address| {
+        let mut remapped = address.clone();
+        remapped.part = old_to_new[address.part];
+        Some(remapped)
+    });
+    Ok(())
+}
+
 fn apply_set_metadata(cmd: &SetMetadataCmd, score: &mut Score) -> Result<(), Error> {
     if let Some(v) = &cmd.title {
         score.metadata.title = v.clone();
@@ -2405,6 +2799,306 @@ fn apply_set_midi_instrument(cmd: &SetMidiInstrumentCmd, score: &mut Score) -> R
     Ok(())
 }
 
+fn apply_set_percussion_kit(cmd: &SetPercussionKitCmd, score: &mut Score) -> Result<(), Error> {
+    validate_percussion_kit(&cmd.instruments)?;
+    let part = score
+        .parts
+        .get_mut(cmd.part_index)
+        .ok_or(Error::PartNotFound(cmd.part_index))?;
+    part.percussion_instruments = cmd.instruments.clone();
+    Ok(())
+}
+
+fn apply_set_instrument_definition(
+    cmd: &SetInstrumentDefinitionCmd,
+    score: &mut Score,
+) -> Result<(), Error> {
+    if let Some(definition) = &cmd.definition {
+        validate_instrument_definition(definition)?;
+    }
+    let part = score
+        .parts
+        .get_mut(cmd.part_index)
+        .ok_or(Error::PartNotFound(cmd.part_index))?;
+    part.instrument = cmd.definition.clone();
+    Ok(())
+}
+
+fn apply_set_measure_instrument_change(
+    cmd: &SetMeasureInstrumentChangeCmd,
+    score: &mut Score,
+) -> Result<(), Error> {
+    if let Some(definition) = &cmd.definition {
+        validate_instrument_definition(definition)?;
+    }
+    score
+        .parts
+        .get_mut(cmd.part_index)
+        .ok_or(Error::PartNotFound(cmd.part_index))?
+        .staves
+        .get_mut(cmd.staff_index)
+        .ok_or(Error::StaffNotFound(cmd.staff_index))?
+        .measures
+        .get_mut(cmd.measure_index)
+        .ok_or(Error::MeasureNotFound(cmd.measure_index))?
+        .instrument_change = cmd.definition.clone();
+    Ok(())
+}
+
+fn apply_set_measure_tablature_change(
+    cmd: &SetMeasureTablatureChangeCmd,
+    score: &mut Score,
+) -> Result<(), Error> {
+    let staff = score
+        .parts
+        .get_mut(cmd.part_index)
+        .ok_or(Error::PartNotFound(cmd.part_index))?
+        .staves
+        .get_mut(cmd.staff_index)
+        .ok_or(Error::StaffNotFound(cmd.staff_index))?;
+    let base = staff.tablature.as_ref().ok_or_else(|| {
+        Error::InvalidCommand("tablature change requires a staff tablature configuration".into())
+    })?;
+    if let Some(config) = &cmd.config {
+        validate_tablature_config(config)?;
+        if config.lines != base.lines {
+            return Err(Error::InvalidCommand(format!(
+                "tablature change line count {} must match staff line count {}",
+                config.lines, base.lines
+            )));
+        }
+    }
+    staff
+        .measures
+        .get_mut(cmd.measure_index)
+        .ok_or(Error::MeasureNotFound(cmd.measure_index))?
+        .tablature_change = cmd.config.clone();
+    Ok(())
+}
+
+fn validate_tablature_config(config: &TablatureConfig) -> Result<(), Error> {
+    if !(1..=64).contains(&config.lines) {
+        return Err(Error::InvalidCommand(format!(
+            "tablature line count {} is outside 1..=64",
+            config.lines
+        )));
+    }
+    if config.tuning_midi.len() > usize::from(config.lines) {
+        return Err(Error::InvalidCommand(format!(
+            "tablature has {} tunings for {} lines",
+            config.tuning_midi.len(),
+            config.lines
+        )));
+    }
+    if let Some(midi) = config
+        .tuning_midi
+        .iter()
+        .copied()
+        .find(|midi| !(0..=127).contains(midi))
+    {
+        return Err(Error::InvalidCommand(format!(
+            "tablature tuning MIDI {midi} is outside 0..=127"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_percussion_kit(instruments: &[PercussionInstrument]) -> Result<(), Error> {
+    let mut ids = std::collections::HashSet::new();
+    for instrument in instruments {
+        if instrument.id.trim().is_empty() {
+            return Err(Error::InvalidCommand(
+                "percussion instrument id must not be empty".into(),
+            ));
+        }
+        if !ids.insert(instrument.id.as_str()) {
+            return Err(Error::InvalidCommand(format!(
+                "percussion instrument id '{}' is duplicated",
+                instrument.id
+            )));
+        }
+        if let Some(position) = instrument.staff_position
+            && !(-32..=32).contains(&position)
+        {
+            return Err(Error::InvalidCommand(format!(
+                "percussion staff position {position} is outside -32..=32"
+            )));
+        }
+        if let Some(voice) = instrument.preferred_voice
+            && !(1..=4).contains(&voice)
+        {
+            return Err(Error::InvalidCommand(format!(
+                "percussion preferred voice {voice} is outside 1..=4"
+            )));
+        }
+        if instrument
+            .techniques
+            .iter()
+            .any(|technique| technique.trim().is_empty() || technique.len() > 128)
+        {
+            return Err(Error::InvalidCommand(
+                "percussion techniques must be non-empty and at most 128 bytes".into(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_instrument_definition(definition: &InstrumentDefinition) -> Result<(), Error> {
+    if definition.id.trim().is_empty() {
+        return Err(Error::InvalidCommand(
+            "instrument definition id must not be empty".into(),
+        ));
+    }
+    if !(1..=64).contains(&definition.staff_count) {
+        return Err(Error::InvalidCommand(format!(
+            "instrument staff count {} is outside 1..=64",
+            definition.staff_count
+        )));
+    }
+    if definition.midi_channel > 15 {
+        return Err(Error::InvalidCommand(format!(
+            "instrument MIDI channel {} is outside 0..=15",
+            definition.midi_channel
+        )));
+    }
+    for (name, range) in [
+        ("written", definition.written_range),
+        ("sounding", definition.sounding_range),
+    ] {
+        if let Some(InstrumentRange { lowest, highest }) = range
+            && lowest > highest
+        {
+            return Err(Error::InvalidCommand(format!(
+                "instrument {name} range has lowest MIDI note {lowest} above highest {highest}"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn apply_upsert_score_view(cmd: &UpsertScoreViewCmd, score: &mut Score) -> Result<(), Error> {
+    validate_score_view(&cmd.view, score)?;
+    if let Some(index) = score.views.iter().position(|view| view.id == cmd.view.id) {
+        score.views[index] = cmd.view.clone();
+    } else {
+        score.views.push(cmd.view.clone());
+    }
+    Ok(())
+}
+
+fn apply_remove_score_view(cmd: &RemoveScoreViewCmd, score: &mut Score) -> Result<(), Error> {
+    let index = score
+        .views
+        .iter()
+        .position(|view| view.id == cmd.id)
+        .ok_or_else(|| Error::InvalidCommand(format!("score view '{}' does not exist", cmd.id)))?;
+    score.views.remove(index);
+    Ok(())
+}
+
+fn validate_score_view(view: &ScoreView, score: &Score) -> Result<(), Error> {
+    if view.id.trim().is_empty() || view.name.trim().is_empty() {
+        return Err(Error::InvalidCommand(
+            "score view id and name must not be empty".into(),
+        ));
+    }
+    if view.parts.is_empty() {
+        return Err(Error::InvalidCommand(
+            "score view must select at least one part".into(),
+        ));
+    }
+    let mut selected = vec![false; score.parts.len()];
+    for &part in &view.parts {
+        if part >= score.parts.len() {
+            return Err(Error::PartNotFound(part));
+        }
+        if std::mem::replace(&mut selected[part], true) {
+            return Err(Error::InvalidCommand(format!(
+                "score view '{}' selects part {part} more than once",
+                view.id
+            )));
+        }
+    }
+    if view.layout.measures_per_row.is_some_and(|value| value == 0) {
+        return Err(Error::InvalidCommand(
+            "score view measures per row must be greater than zero".into(),
+        ));
+    }
+    if view
+        .layout
+        .typed_style_overrides
+        .iter()
+        .any(|override_| !override_.value.is_finite() || !(0.05..=64.0).contains(&override_.value))
+    {
+        return Err(Error::InvalidCommand(
+            "score view typed style override values must be finite and within 0.05..=64".into(),
+        ));
+    }
+    for reference in &view.layout.hidden_staves {
+        let Some(part) = score.parts.get(reference.part) else {
+            return Err(Error::PartNotFound(reference.part));
+        };
+        if reference.staff >= part.staves.len() {
+            return Err(Error::StaffNotFound(reference.staff));
+        }
+        if !selected[reference.part] {
+            return Err(Error::InvalidCommand(
+                "score view cannot hide a staff outside its selected parts".into(),
+            ));
+        }
+    }
+    let mut overridden = std::collections::HashSet::new();
+    for override_ in &view.staff_kind_overrides {
+        let reference = override_.staff;
+        let Some(part) = score.parts.get(reference.part) else {
+            return Err(Error::PartNotFound(reference.part));
+        };
+        if reference.staff >= part.staves.len() {
+            return Err(Error::StaffNotFound(reference.staff));
+        }
+        if !selected[reference.part] {
+            return Err(Error::InvalidCommand(
+                "score view cannot override a staff outside its selected parts".into(),
+            ));
+        }
+        if !overridden.insert((reference.part, reference.staff)) {
+            return Err(Error::InvalidCommand(
+                "score view may override each staff kind at most once".into(),
+            ));
+        }
+        if override_.kind == StaffKind::Tablature
+            && part.staves[reference.staff].tablature.is_none()
+        {
+            return Err(Error::InvalidCommand(
+                "tablature score view requires a tablature configuration".into(),
+            ));
+        }
+    }
+    let measure_count = score.measure_count();
+    for &break_index in view
+        .layout
+        .system_breaks
+        .iter()
+        .chain(view.layout.page_breaks.iter())
+    {
+        if break_index >= measure_count {
+            return Err(Error::InvalidCommand(format!(
+                "score view break measure {break_index} is out of range"
+            )));
+        }
+    }
+    for (key, value) in &view.layout.style_overrides {
+        if key.trim().is_empty() || value.len() > 4096 {
+            return Err(Error::InvalidCommand(
+                "score view style overrides need a non-empty key and a value of at most 4096 bytes"
+                    .into(),
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn apply_set_transpose(cmd: &SetTransposeCmd, score: &mut Score) -> Result<(), Error> {
     score
         .parts
@@ -2414,6 +3108,22 @@ fn apply_set_transpose(cmd: &SetTransposeCmd, score: &mut Score) -> Result<(), E
         .get_mut(cmd.staff_index)
         .ok_or(Error::StaffNotFound(cmd.staff_index))?
         .transpose_semitones = cmd.semitones;
+    Ok(())
+}
+
+fn apply_transpose_staff_region(
+    cmd: &TransposeStaffRegionCmd,
+    score: &mut Score,
+) -> Result<(), Error> {
+    *score = transpose_staff_region_checked(
+        score,
+        cmd.part_index,
+        cmd.staff_index,
+        cmd.start_measure,
+        cmd.end_measure,
+        cmd.semitones,
+        cmd.target,
+    )?;
     Ok(())
 }
 
@@ -2645,8 +3355,9 @@ fn note_at_mut<'a>(score: &'a mut Score, address: &NoteAddr) -> Option<&'a mut N
         .and_then(|voice| voice.get_mut(address.note))
 }
 
-/// Typed spanners are authoritative once edited through the command engine. Parsers retain
-/// legacy endpoint flags for backwards-compatible JSON, but edits must not resurrect them.
+/// Typed spanners are authoritative once edited through the command engine.  Parsers retain
+/// legacy endpoint flags for backwards-compatible JSON, but a typed remove/update must not leave
+/// those flags able to resurrect stale MusicXML notation during serialization.
 fn clear_legacy_spanner_endpoints(score: &mut Score, spanner: &NotationSpanner) {
     let clear_start = |note: &mut Note| match spanner.kind {
         NotationSpannerKind::Slur => note.slur_start = false,
@@ -3182,6 +3893,88 @@ mod tests {
     }
 
     #[test]
+    fn set_score_style_overrides_is_undoable_and_rejects_invalid_values() {
+        let mut engine = crate::ScoreEngine::new();
+        let overrides = vec![ViewStyleOverride {
+            property: super::super::score::ViewStyleProperty::SystemGap,
+            value: 2.5,
+        }];
+        engine
+            .apply(Command::SetScoreStyleOverrides(SetScoreStyleOverridesCmd {
+                overrides: overrides.clone(),
+            }))
+            .unwrap();
+        assert_eq!(engine.score.style_overrides, overrides);
+        engine.undo().unwrap();
+        assert!(engine.score.style_overrides.is_empty());
+        engine.redo().unwrap();
+        assert_eq!(engine.score.style_overrides, overrides);
+
+        let before = engine.score.clone();
+        assert!(
+            engine
+                .apply(Command::SetScoreStyleOverrides(SetScoreStyleOverridesCmd {
+                    overrides: vec![ViewStyleOverride {
+                        property: super::super::score::ViewStyleProperty::TextScale,
+                        value: f32::NAN,
+                    }],
+                }))
+                .is_err()
+        );
+        assert_eq!(
+            serde_json::to_value(&engine.score).unwrap(),
+            serde_json::to_value(&before).unwrap()
+        );
+    }
+
+    #[test]
+    fn set_object_style_overrides_is_undoable_and_requires_existing_target() {
+        let mut engine = crate::ScoreEngine::new();
+        engine.score.texts.push(StyledText {
+            style: crate::TextStyle::Expression,
+            text: "Allegro".into(),
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        });
+        let overrides = vec![ObjectStyleOverride {
+            target: super::super::score::ObjectStyleTarget::ScoreText { text_index: 0 },
+            property: super::super::score::ViewStyleProperty::TextScale,
+            value: 1.2,
+            provenance: None,
+        }];
+        engine
+            .apply(Command::SetObjectStyleOverrides(
+                SetObjectStyleOverridesCmd {
+                    overrides: overrides.clone(),
+                },
+            ))
+            .unwrap();
+        assert_eq!(engine.score.object_style_overrides, overrides);
+        engine.undo().unwrap();
+        assert!(engine.score.object_style_overrides.is_empty());
+
+        assert!(
+            engine
+                .apply(Command::SetObjectStyleOverrides(
+                    SetObjectStyleOverridesCmd {
+                        overrides: vec![ObjectStyleOverride {
+                            target: super::super::score::ObjectStyleTarget::ScoreText {
+                                text_index: 1,
+                            },
+                            property: super::super::score::ViewStyleProperty::TextScale,
+                            value: 1.2,
+                            provenance: None,
+                        }],
+                    }
+                ))
+                .is_err()
+        );
+    }
+
+    #[test]
     fn set_harmony_range_is_undoable_and_json_compatible() {
         let mut score = default_engine_score();
         score.parts[0].staves[0].measures[0].voices[0] =
@@ -3231,6 +4024,33 @@ mod tests {
                 .chord_symbol
                 .as_ref()
                 .is_some_and(|chord| chord.range_end.is_none())
+        );
+    }
+
+    #[test]
+    fn set_harp_pedal_diagrams_is_undoable_and_json_compatible() {
+        let mut engine = ScoreEngine::new();
+        let mut diagram = HarpPedalDiagram::default();
+        diagram.positions[0] = super::super::score::HarpPedalPosition::Flat;
+        diagram.positions[6] = super::super::score::HarpPedalPosition::Sharp;
+        let command = Command::SetHarpPedalDiagrams(SetHarpPedalDiagramsCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            diagrams: vec![diagram.clone()],
+        });
+        let restored: Command =
+            serde_json::from_str(&serde_json::to_string(&command).unwrap()).unwrap();
+        engine.apply(restored).unwrap();
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].harp_pedal_diagrams,
+            vec![diagram]
+        );
+        engine.undo().unwrap();
+        assert!(
+            engine.score.parts[0].staves[0].measures[0]
+                .harp_pedal_diagrams
+                .is_empty()
         );
     }
 
@@ -3317,6 +4137,48 @@ mod tests {
         assert_eq!(
             score.parts[0].staves[0].measures[0].voices[0][0].guitar_bend_alter_cents,
             None
+        );
+    }
+
+    #[test]
+    fn set_guitar_bend_curve_is_undoable_and_json_compatible() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        let command = Command::SetGuitarBendCurve(SetGuitarBendCurveCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            note_index: 0,
+            points: vec![
+                crate::GuitarBendPoint {
+                    position_per_mille: 0,
+                    alter_cents: 0,
+                },
+                crate::GuitarBendPoint {
+                    position_per_mille: 500,
+                    alter_cents: 200,
+                },
+                crate::GuitarBendPoint {
+                    position_per_mille: 1000,
+                    alter_cents: 0,
+                },
+            ],
+        });
+        let decoded: Command =
+            serde_json::from_str(&serde_json::to_string(&command).unwrap()).unwrap();
+        let mut stack = CommandStack::new(16);
+        stack.execute(decoded, &mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0]
+                .guitar_bend_curve
+                .len(),
+            3
+        );
+        stack.undo(&mut score).unwrap();
+        assert!(
+            score.parts[0].staves[0].measures[0].voices[0][0]
+                .guitar_bend_curve
+                .is_empty()
         );
     }
 
@@ -3500,6 +4362,62 @@ mod tests {
         assert_eq!(score.parts.len(), before - 1);
         stack.undo(&mut score).unwrap();
         assert_eq!(score.parts.len(), before);
+    }
+
+    #[test]
+    fn reorder_parts_remaps_linked_views_and_preserves_undo() {
+        let mut engine = crate::ScoreEngine::new();
+        engine
+            .apply(Command::AddPart(AddPartCmd {
+                name: "Flute".into(),
+                short_name: "Fl.".into(),
+                clefs: vec!["Treble".into()],
+                midi_channel: 1,
+                midi_program: 73,
+            }))
+            .unwrap();
+        engine
+            .score
+            .views
+            .push(ScoreView::linked_part("flute", "Flute", 1));
+        engine.score.part_groups.push(PartGroup {
+            first_part: 0,
+            last_part: 1,
+            symbol: super::super::score::PartGroupSymbol::Bracket,
+            barlines_connect: false,
+        });
+
+        engine
+            .apply(Command::ReorderParts(ReorderPartsCmd { order: vec![1, 0] }))
+            .unwrap();
+        assert_eq!(engine.score.parts[0].name, "Flute");
+        assert_eq!(engine.score.views[0].parts, vec![0]);
+        engine.undo().unwrap();
+        assert_eq!(engine.score.parts[0].name, "Piano");
+        assert_eq!(engine.score.views[0].parts, vec![1]);
+    }
+
+    #[test]
+    fn reorder_parts_rejects_splitting_a_part_group_without_mutation() {
+        let mut score = Score::template(ScoreTemplate::StringQuartet);
+        score.part_groups.push(PartGroup {
+            first_part: 0,
+            last_part: 1,
+            symbol: super::super::score::PartGroupSymbol::Bracket,
+            barlines_connect: false,
+        });
+        let before = serde_json::to_value(&score).unwrap();
+
+        assert!(
+            apply_command(
+                &Command::ReorderParts(ReorderPartsCmd {
+                    order: vec![0, 2, 1, 3],
+                }),
+                &mut score,
+            )
+            .is_err()
+        );
+        assert_eq!(serde_json::to_value(&score).unwrap(), before);
     }
 
     #[test]
@@ -3761,6 +4679,40 @@ mod tests {
     }
 
     #[test]
+    fn transpose_staff_region_is_undoable_and_json_compatible() {
+        let mut stack = CommandStack::new(50);
+        let mut score = Score::new("Region", 120, 4, 4, 0, 2);
+        for measure in &mut score.parts[0].staves[0].measures {
+            measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        }
+        let command = Command::TransposeStaffRegion(TransposeStaffRegionCmd {
+            part_index: 0,
+            staff_index: 0,
+            start_measure: 1,
+            end_measure: 2,
+            semitones: 2,
+            target: RegionalTranspositionTarget::Written,
+        });
+        let json = serde_json::to_string(&command).expect("command serializes");
+        let decoded: Command = serde_json::from_str(&json).expect("command deserializes");
+        assert_eq!(command_key(&decoded), "TransposeStaffRegion");
+        stack.execute(decoded, &mut score).expect("region applies");
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].pitches[0].to_midi(),
+            60
+        );
+        assert_eq!(
+            score.parts[0].staves[0].measures[1].voices[0][0].pitches[0].to_midi(),
+            62
+        );
+        stack.undo(&mut score).expect("region undo applies");
+        assert_eq!(
+            score.parts[0].staves[0].measures[1].voices[0][0].pitches[0].to_midi(),
+            60
+        );
+    }
+
+    #[test]
     fn set_tempo_at_measure_sets_tempo() {
         let mut score = default_engine_score();
         apply_command(
@@ -3787,6 +4739,20 @@ mod tests {
         )
         .unwrap();
         assert!(score.parts[0].staves[0].measures[0].tempo.is_none());
+    }
+
+    #[test]
+    fn set_tempo_ramp_at_measure_applies() {
+        let mut score = default_engine_score();
+        apply_command(
+            &Command::SetTempoRampAtMeasure(SetTempoRampAtMeasureCmd {
+                measure_index: 0,
+                target_bpm: Some(72),
+            }),
+            &mut score,
+        )
+        .expect("tempo ramp applies");
+        assert_eq!(score.parts[0].staves[0].measures[0].tempo_ramp_to, Some(72));
     }
 
     // ── batch_execute ─────────────────────────────────────────────────────────
@@ -3901,8 +4867,16 @@ mod tests {
             .execute(decoded, &mut score)
             .expect("config should apply");
         assert_eq!(score.parts[0].staves[0].tablature, Some(config));
+        assert_eq!(
+            score.parts[0].staves[0].presentation.kind,
+            StaffKind::Tablature
+        );
         stack.undo(&mut score).expect("config undo should apply");
         assert!(score.parts[0].staves[0].tablature.is_none());
+        assert_eq!(
+            score.parts[0].staves[0].presentation.kind,
+            StaffKind::Standard
+        );
         stack.redo(&mut score).expect("config redo should apply");
         assert_eq!(
             score.parts[0].staves[0]
@@ -3911,6 +4885,252 @@ mod tests {
                 .map(|tab| tab.capo),
             Some(2)
         );
+    }
+
+    #[test]
+    fn set_staff_presentation_is_undoable_and_requires_tablature_config() {
+        let mut stack = CommandStack::new(50);
+        let mut score = default_engine_score();
+        let tab = StaffPresentation {
+            kind: StaffKind::Tablature,
+            lines: 6,
+            line_distance: 1.25,
+            small: true,
+            cutaway: false,
+            visible: true,
+            notehead_scheme: super::super::score::StaffNoteheadScheme::Standard,
+            tablature_rhythm_display: super::super::score::TablatureRhythmDisplay::FretOnly,
+            tablature_fret_mark_style: super::super::score::TablatureFretMarkStyle::Arabic,
+        };
+        let rejected = Command::SetStaffPresentation(SetStaffPresentationCmd {
+            part_index: 0,
+            staff_index: 0,
+            presentation: tab.clone(),
+        });
+        let before = score.clone();
+        assert!(stack.execute(rejected, &mut score).is_err());
+        assert_eq!(
+            score.parts[0].staves[0].presentation,
+            before.parts[0].staves[0].presentation
+        );
+        assert!(!stack.can_undo());
+
+        stack
+            .execute(
+                Command::SetTablatureConfig(SetTablatureConfigCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    config: Some(crate::TablatureConfig {
+                        lines: 6,
+                        tuning_midi: vec![40, 45, 50, 55, 59, 64],
+                        capo: 0,
+                    }),
+                }),
+                &mut score,
+            )
+            .expect("tablature configuration should apply");
+        stack
+            .execute(
+                Command::SetStaffPresentation(SetStaffPresentationCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    presentation: tab.clone(),
+                }),
+                &mut score,
+            )
+            .expect("staff presentation should apply");
+        assert_eq!(stack.undo_key().as_deref(), Some("SetStaffPresentation"));
+        assert_eq!(score.parts[0].staves[0].presentation, tab);
+        stack
+            .undo(&mut score)
+            .expect("presentation undo should apply");
+        assert_eq!(
+            score.parts[0].staves[0].presentation.kind,
+            StaffKind::Tablature
+        );
+        stack
+            .redo(&mut score)
+            .expect("presentation redo should apply");
+        assert_eq!(
+            score.parts[0].staves[0].presentation.kind,
+            StaffKind::Tablature
+        );
+    }
+
+    #[test]
+    fn set_instrument_definition_is_undoable_and_rejects_invalid_ranges() {
+        let mut stack = CommandStack::new(50);
+        let mut score = default_engine_score();
+        let mut invalid = InstrumentDefinition::new("violin", "Violin");
+        invalid.written_range = Some(InstrumentRange {
+            lowest: 100,
+            highest: 55,
+        });
+        let before = score.clone();
+        assert!(
+            stack
+                .execute(
+                    Command::SetInstrumentDefinition(SetInstrumentDefinitionCmd {
+                        part_index: 0,
+                        definition: Some(invalid),
+                    }),
+                    &mut score,
+                )
+                .is_err()
+        );
+        assert_eq!(score.parts[0].instrument, before.parts[0].instrument);
+
+        let mut definition = InstrumentDefinition::new("violin", "Violin");
+        definition.short_name = "Vln.".to_string();
+        definition.family = Some("strings".to_string());
+        definition.written_range = Some(InstrumentRange {
+            lowest: 55,
+            highest: 103,
+        });
+        definition.sounding_range = definition.written_range;
+        definition.default_clefs = vec![Clef::Treble];
+        definition.midi_program = 40;
+        let command = Command::SetInstrumentDefinition(SetInstrumentDefinitionCmd {
+            part_index: 0,
+            definition: Some(definition.clone()),
+        });
+        let json = serde_json::to_string(&command).expect("command should serialize");
+        let decoded: Command = serde_json::from_str(&json).expect("command should deserialize");
+        assert_eq!(command_key(&decoded), "SetInstrumentDefinition");
+        stack
+            .execute(decoded, &mut score)
+            .expect("definition applies");
+        assert_eq!(score.parts[0].instrument, Some(definition));
+        stack.undo(&mut score).expect("definition undo applies");
+        assert!(score.parts[0].instrument.is_none());
+        stack.redo(&mut score).expect("definition redo applies");
+        assert_eq!(
+            score.parts[0]
+                .instrument
+                .as_ref()
+                .map(|value| value.id.as_str()),
+            Some("violin")
+        );
+    }
+
+    #[test]
+    fn set_percussion_kit_is_undoable_and_rejects_invalid_entries() {
+        let mut stack = CommandStack::new(50);
+        let mut score = default_engine_score();
+        let invalid = Command::SetPercussionKit(SetPercussionKitCmd {
+            part_index: 0,
+            instruments: vec![PercussionInstrument {
+                id: "snare".to_string(),
+                name: None,
+                midi_unpitched: Some(38),
+                staff_position: Some(33),
+                notehead: None,
+                preferred_voice: None,
+                techniques: Vec::new(),
+            }],
+        });
+        assert!(stack.execute(invalid, &mut score).is_err());
+        assert!(score.parts[0].percussion_instruments.is_empty());
+
+        let kit = vec![PercussionInstrument {
+            id: "snare".to_string(),
+            name: Some("Acoustic Snare".to_string()),
+            midi_unpitched: Some(38),
+            staff_position: Some(0),
+            notehead: Some(NoteHead::Cross),
+            preferred_voice: Some(1),
+            techniques: vec!["rim-shot".to_string()],
+        }];
+        let command = Command::SetPercussionKit(SetPercussionKitCmd {
+            part_index: 0,
+            instruments: kit.clone(),
+        });
+        let json = serde_json::to_string(&command).expect("command serializes");
+        let decoded: Command = serde_json::from_str(&json).expect("command deserializes");
+        assert_eq!(command_key(&decoded), "SetPercussionKit");
+        stack.execute(decoded, &mut score).expect("kit applies");
+        assert_eq!(score.parts[0].percussion_instruments, kit);
+        stack.undo(&mut score).expect("kit undo applies");
+        assert!(score.parts[0].percussion_instruments.is_empty());
+        stack.redo(&mut score).expect("kit redo applies");
+        assert_eq!(score.parts[0].percussion_instruments, kit);
+    }
+
+    #[test]
+    fn set_measure_instrument_change_is_undoable_and_json_compatible() {
+        let mut stack = CommandStack::new(50);
+        let mut score = default_engine_score();
+        let mut definition = InstrumentDefinition::new("clarinet-bb", "B-flat Clarinet");
+        definition.transpose_semitones = -2;
+        definition.midi_program = 71;
+        let command = Command::SetMeasureInstrumentChange(SetMeasureInstrumentChangeCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 2,
+            definition: Some(definition.clone()),
+        });
+        let json = serde_json::to_string(&command).expect("command should serialize");
+        let decoded: Command = serde_json::from_str(&json).expect("command should deserialize");
+        assert_eq!(command_key(&decoded), "SetMeasureInstrumentChange");
+        stack.execute(decoded, &mut score).expect("change applies");
+        assert_eq!(
+            score.parts[0].staves[0].measures[2].instrument_change,
+            Some(definition)
+        );
+        stack.undo(&mut score).expect("undo applies");
+        assert!(
+            score.parts[0].staves[0].measures[2]
+                .instrument_change
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn set_measure_tablature_change_is_undoable_and_uses_base_line_count() {
+        let mut stack = CommandStack::new(50);
+        let mut score = default_engine_score();
+        let base = crate::TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![40, 45, 50, 55, 59, 64],
+            capo: 0,
+        };
+        score.parts[0].staves[0].tablature = Some(base.clone());
+        let mut changed = base;
+        changed.tuning_midi[0] = 38;
+        changed.capo = 2;
+        let command = Command::SetMeasureTablatureChange(SetMeasureTablatureChangeCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 2,
+            config: Some(changed.clone()),
+        });
+        let json = serde_json::to_string(&command).expect("command serializes");
+        let decoded: Command = serde_json::from_str(&json).expect("command deserializes");
+        assert_eq!(command_key(&decoded), "SetMeasureTablatureChange");
+        stack.execute(decoded, &mut score).expect("change applies");
+        assert_eq!(
+            score.parts[0].staves[0].tablature_at(1),
+            score.parts[0].staves[0].tablature
+        );
+        assert_eq!(score.parts[0].staves[0].tablature_at(2), Some(changed));
+        stack.undo(&mut score).expect("change undo applies");
+        assert!(
+            score.parts[0].staves[0].measures[2]
+                .tablature_change
+                .is_none()
+        );
+
+        let invalid = Command::SetMeasureTablatureChange(SetMeasureTablatureChangeCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 1,
+            config: Some(crate::TablatureConfig {
+                lines: 7,
+                tuning_midi: vec![40, 45, 50, 55, 59, 64, 69],
+                capo: 0,
+            }),
+        });
+        assert!(stack.execute(invalid, &mut score).is_err());
     }
 
     #[test]
