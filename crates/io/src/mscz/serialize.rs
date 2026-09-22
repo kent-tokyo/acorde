@@ -122,6 +122,30 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
                         measure.figured_bass.len().to_string(),
                         "MSCX subset export does not emit figured bass",
                     ),
+                    (
+                        "tablature-change",
+                        measure.tablature_change.is_some(),
+                        measure
+                            .tablature_change
+                            .as_ref()
+                            .map(|change| {
+                                format!(
+                                    "lines={},tuning_midi={:?},capo={}",
+                                    change.lines, change.tuning_midi, change.capo
+                                )
+                            })
+                            .unwrap_or_default(),
+                        "MSCX subset export does not emit measure-local tablature tuning or capo changes",
+                    ),
+                    (
+                        "tempo-ramp-to",
+                        measure.tempo_ramp_to.is_some(),
+                        measure
+                            .tempo_ramp_to
+                            .map(|target_bpm| target_bpm.to_string())
+                            .unwrap_or_default(),
+                        "MSCX subset export does not emit measure-local tempo ramps",
+                    ),
                 ] {
                     if present {
                         push(format!("{measure_path}/{field}"), value, reason);
@@ -180,6 +204,7 @@ fn note_has_unsupported_fields(note: &Note) -> bool {
         || note.trill_line_start
         || note.trill_line_end
         || note.guitar_bend_alter_cents.is_some()
+        || !note.guitar_bend_curve.is_empty()
         || !matches!(
             note.beam,
             BeamState::None | BeamState::Begin | BeamState::Continue | BeamState::End

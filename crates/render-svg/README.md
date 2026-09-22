@@ -5,6 +5,13 @@ Pure-Rust/WASM SVG renderer driven by acorde-core and acorde-layout.
 The crate provides render_svg, render_svg_with_layout, render_svg_row, render_svg_metadata, and
 render_svg_with_annotations. Host-defined `RenderAnnotation` providers can add safe text marks
 using viewport coordinates; provider and mark IDs are validated and serialized deterministically.
+Providers may additionally return `SvgAnnotationMetrics` and `SvgAnnotationCollisionPolicy` from
+`collision_policy()` to route selected marks through the same deterministic priority/class/direction
+collision pass as logical layout. Bounds are provider-supplied SVG-pixel geometry; the renderer does
+not load fonts or infer text metrics. Providers that return no policy retain their requested position.
+Native measure text (including rehearsal marks and figured bass), simultaneous note lyrics,
+dynamics, chord symbols, and articulations use that pass after existing note-annotation clearance
+calculation. Spans and tablature lanes remain separate.
 The renderer accepts at most 10,000 marks and 16 KiB of UTF-8 text per mark; excess input returns
 a typed error before SVG emission.
 Output is deterministic and may include stable data-note-addr hooks for host-side selection and

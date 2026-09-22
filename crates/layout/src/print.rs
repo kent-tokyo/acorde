@@ -117,6 +117,25 @@ pub enum GlyphCollisionClass {
     Decorative,
 }
 
+/// The permitted escape direction for a lower-priority placement in a unified collision pass.
+///
+/// The direction is semantic host input rather than an inferred writing direction: for example,
+/// a lyric lane generally moves down while a rehearsal mark lane moves up. Keeping that choice
+/// explicit lets one deterministic pass serve text, dynamics, spanners, tablature, and other
+/// annotation owners without loading a font or assuming a renderer coordinate system.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum GlyphCollisionDirection {
+    /// Move toward increasing x coordinates.
+    Right,
+    /// Move toward decreasing x coordinates.
+    Left,
+    /// Move toward increasing y coordinates.
+    #[default]
+    Down,
+    /// Move toward decreasing y coordinates.
+    Up,
+}
+
 /// The content bounds of a validated glyph placement collection, in millimetres.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct GlyphExtents {
@@ -153,6 +172,11 @@ pub enum GlyphPlacementError {
     NegativeAdvance { index: usize },
     #[error("collision class count {classes} does not match placement count {placements}")]
     CollisionClassCount { placements: usize, classes: usize },
+    #[error("collision direction count {directions} does not match placement count {placements}")]
+    CollisionDirectionCount {
+        placements: usize,
+        directions: usize,
+    },
 }
 
 /// Validate font-independent glyph geometry before collision resolution.
@@ -296,6 +320,95 @@ pub fn resolve_glyph_collisions_with_classes(
     glyph_extents(&candidate)?;
     placements.clone_from_slice(&candidate);
     Ok(moved)
+}
+
+/// Resolve a mixed collection of glyph placements in one deterministic constraint pass.
+///
+/// Higher-priority placements, then lower collision-class ranks, retain their requested
+/// positions. Every later placement moves only along its declared [`GlyphCollisionDirection`]
+/// until it no longer intersects an earlier placement. This is a host-neutral skyline primitive:
+/// it carries no font, SVG, CSS, or page-coordinate assumptions, but gives all annotation kinds
+/// the same ownership and tie-breaking contract.
+pub fn resolve_glyph_collisions_constrained(
+    placements: &mut [GlyphPlacement],
+    classes: &[GlyphCollisionClass],
+    directions: &[GlyphCollisionDirection],
+    gap_mm: f32,
+) -> Result<usize, GlyphPlacementError> {
+    validate_glyph_placements(placements)?;
+    if classes.len() != placements.len() {
+        return Err(GlyphPlacementError::CollisionClassCount {
+            placements: placements.len(),
+            classes: classes.len(),
+        });
+    }
+    if directions.len() != placements.len() {
+        return Err(GlyphPlacementError::CollisionDirectionCount {
+            placements: placements.len(),
+            directions: directions.len(),
+        });
+    }
+    if !gap_mm.is_finite() {
+        return Err(GlyphPlacementError::NonFiniteSpacing);
+    }
+    let mut candidate = placements.to_vec();
+    let order = collision_order(&candidate, Some(classes));
+    let moved = resolve_glyph_collisions_constrained_ordered(
+        &mut candidate,
+        directions,
+        gap_mm.max(0.0),
+        &order,
+    );
+    glyph_extents(&candidate)?;
+    placements.clone_from_slice(&candidate);
+    Ok(moved)
+}
+
+fn resolve_glyph_collisions_constrained_ordered(
+    placements: &mut [GlyphPlacement],
+    directions: &[GlyphCollisionDirection],
+    gap_mm: f32,
+    order: &[usize],
+) -> usize {
+    let mut moved = 0;
+    for (position, &index) in order.iter().enumerate() {
+        let original = placements[index].clone();
+        let mut next = original.clone();
+        for &previous in &order[..position] {
+            let (left, right) = horizontal_bounds(&next);
+            let (top, bottom) = vertical_bounds(&next);
+            let (previous_left, previous_right) = horizontal_bounds(&placements[previous]);
+            let (previous_top, previous_bottom) = vertical_bounds(&placements[previous]);
+            if right <= previous_left
+                || previous_right <= left
+                || bottom <= previous_top
+                || previous_bottom <= top
+            {
+                continue;
+            }
+            match directions[index] {
+                GlyphCollisionDirection::Right => {
+                    next.x_mm = previous_right + gap_mm - next.metrics.left_mm;
+                }
+                GlyphCollisionDirection::Left => {
+                    next.x_mm =
+                        previous_left - gap_mm - next.metrics.left_mm - next.metrics.width_mm;
+                }
+                GlyphCollisionDirection::Down => {
+                    next.y_mm = previous_bottom + gap_mm - next.metrics.top_mm;
+                }
+                GlyphCollisionDirection::Up => {
+                    next.y_mm =
+                        previous_top - gap_mm - next.metrics.top_mm - next.metrics.height_mm;
+                }
+            }
+        }
+        if next.x_mm != original.x_mm || next.y_mm != original.y_mm {
+            placements[index] = next;
+            moved += 1;
+        }
+    }
+    moved
 }
 
 fn resolve_glyph_collisions_ordered(
@@ -595,6 +708,109 @@ pub enum PartLayoutPolicy {
     ExtractedPart { part_index: usize },
 }
 
+/// Alternate running text for odd and even numbered music pages.
+///
+/// When either field is present, the template replaces the legacy single header/footer text for
+/// that role. A missing side intentionally emits no block, which supports mirror-page designs.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(default)]
+pub struct PublicationPageTemplate {
+    pub odd: Option<String>,
+    pub even: Option<String>,
+}
+
+/// The page scope in which a host should place a publication image resource.
+///
+/// The resource is identified by an opaque key; layout never reads a path, URL, or image bytes.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum PublicationImagePlacement {
+    /// Place the resource only on the generated title page.
+    TitlePage,
+    /// Place the resource on every non-title music page.
+    #[default]
+    MusicPages,
+    /// Place the resource on every page, including a title page when one is generated.
+    EveryPage,
+}
+
+/// A host-resolved image reference in physical print coordinates.
+///
+/// `resource_key` is deliberately an opaque identifier, not a filesystem path or URL. A host
+/// owns retrieval, decoding, licensing, and raster/SVG safety checks before it draws anything.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PublicationImageResource {
+    pub resource_key: String,
+    pub alt_text: String,
+    #[serde(default)]
+    pub placement: PublicationImagePlacement,
+    pub x_mm: f32,
+    pub y_mm: f32,
+    pub width_mm: f32,
+    pub height_mm: f32,
+}
+
+/// A named publication section beginning at one physical measure.
+///
+/// Sections belong to a `PrintConfig`, rather than the editable score, so a host can prepare
+/// editions or parts with different headings and page starts without changing notation data.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PublicationSection {
+    /// Zero-based physical measure at which this section begins.
+    pub first_measure: usize,
+    pub title: String,
+    /// When true, begin this section on a fresh physical page.
+    #[serde(default)]
+    pub start_on_new_page: bool,
+}
+
+/// Extra vertical space inserted before the system that begins at one physical measure.
+///
+/// Spacers are publication policy, not score notation. Their height is consumed by pagination
+/// and reflected in the following system's `top_mm`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PublicationSpacer {
+    /// Zero-based physical measure at which the following system receives extra space.
+    pub before_measure: usize,
+    pub height_mm: f32,
+}
+
+/// The page scope in which a host should draw a publication frame.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum PublicationFramePlacement {
+    TitlePage,
+    #[default]
+    MusicPages,
+    EveryPage,
+}
+
+/// A host-rendered rectangular publication frame in physical page coordinates.
+///
+/// This is geometry only. Stroke color, dashes, and PDF/SVG drawing remain a host policy.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PublicationFrame {
+    #[serde(default)]
+    pub placement: PublicationFramePlacement,
+    pub x_mm: f32,
+    pub y_mm: f32,
+    pub width_mm: f32,
+    pub height_mm: f32,
+    pub stroke_width_mm: f32,
+}
+
+impl PublicationPageTemplate {
+    fn is_configured(&self) -> bool {
+        self.odd.is_some() || self.even.is_some()
+    }
+
+    fn resolve(&self, page_number: Option<usize>) -> Option<&String> {
+        match page_number {
+            Some(number) if number % 2 == 0 => self.even.as_ref(),
+            Some(_) => self.odd.as_ref(),
+            None => None,
+        }
+    }
+}
+
 /// Host-neutral publication metadata policy carried into each page artifact.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
@@ -609,6 +825,10 @@ pub struct PublicationConfig {
     pub header_text: Option<String>,
     /// Optional text placed in the logical page footer.
     pub footer_text: Option<String>,
+    /// Odd/even header text. When configured, this supersedes `header_text` and `running_title`.
+    pub header_template: PublicationPageTemplate,
+    /// Odd/even footer text. When configured, this supersedes `footer_text`.
+    pub footer_template: PublicationPageTemplate,
     /// Add the logical page number as a footer text block when numbering is enabled.
     pub page_number_in_footer: bool,
     pub header_alignment: PublicationTextAlignment,
@@ -616,6 +836,18 @@ pub struct PublicationConfig {
     pub title_alignment: PublicationTextAlignment,
     /// Logical line-box height for publication text blocks, in millimetres.
     pub line_height_mm: f32,
+    /// Host-resolved publication images carried as safe opaque references.
+    #[serde(default)]
+    pub image_resources: Vec<PublicationImageResource>,
+    /// Publication-only section headings and optional forced page starts.
+    #[serde(default)]
+    pub sections: Vec<PublicationSection>,
+    /// Publication-only vertical gaps inserted before selected systems.
+    #[serde(default)]
+    pub spacers: Vec<PublicationSpacer>,
+    /// Host-rendered page frames with validated physical geometry.
+    #[serde(default)]
+    pub frames: Vec<PublicationFrame>,
 }
 
 impl Default for PublicationConfig {
@@ -627,11 +859,17 @@ impl Default for PublicationConfig {
             show_measure_numbers: true,
             header_text: None,
             footer_text: None,
+            header_template: PublicationPageTemplate::default(),
+            footer_template: PublicationPageTemplate::default(),
             page_number_in_footer: false,
             header_alignment: PublicationTextAlignment::Left,
             footer_alignment: PublicationTextAlignment::Left,
             title_alignment: PublicationTextAlignment::Center,
             line_height_mm: 4.0,
+            image_resources: Vec::new(),
+            sections: Vec::new(),
+            spacers: Vec::new(),
+            frames: Vec::new(),
         }
     }
 }
@@ -707,6 +945,18 @@ pub struct PagePublication {
     pub measure_numbers: Vec<u32>,
     #[serde(default)]
     pub text_blocks: Vec<PublicationTextBlock>,
+    /// Image references selected for this page. Hosts resolve the opaque keys safely.
+    #[serde(default)]
+    pub image_resources: Vec<PublicationImageResource>,
+    /// Publication sections that begin on this page, in physical measure order.
+    #[serde(default)]
+    pub sections: Vec<PublicationSection>,
+    /// Publication spacers applied before systems on this page.
+    #[serde(default)]
+    pub spacers: Vec<PublicationSpacer>,
+    /// Publication frames selected for this page.
+    #[serde(default)]
+    pub frames: Vec<PublicationFrame>,
 }
 
 /// A contiguous range of physical measures that must remain in one printed system.
@@ -812,7 +1062,7 @@ impl Default for PrintConfig {
 /// Version of the built-in host-neutral print preset data.
 pub const PRINT_PRESET_SCHEMA_VERSION: u16 = 1;
 /// Version of the serialized host-neutral print layout contract.
-pub const PRINT_LAYOUT_CONTRACT_VERSION: u16 = 27;
+pub const PRINT_LAYOUT_CONTRACT_VERSION: u16 = 32;
 
 /// Reproducible starting configurations for common publication workflows.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -940,6 +1190,7 @@ pub enum BreakReason {
     MeasureCapacity,
     ExplicitSystemBreak,
     ExplicitPageBreak,
+    SectionBreak,
     PageCapacity,
     EndOfScore,
     TitlePage,
@@ -1127,6 +1378,18 @@ impl PrintLayoutResult {
             {
                 return Err(PrintLayoutError::InvalidPageGeometry { page_index });
             }
+            if page.publication.image_resources.iter().any(|image| {
+                !publication_image_resource_is_valid(image, page.width_mm, page.height_mm)
+            }) || page
+                .publication
+                .frames
+                .iter()
+                .any(|frame| !publication_frame_is_valid(frame, page.width_mm, page.height_mm))
+                || !publication_page_sections_are_valid(&page.publication.sections)
+                || !publication_page_spacers_are_valid(&page.publication.spacers)
+            {
+                return Err(PrintLayoutError::InvalidPublicationMetadata { page_index });
+            }
             let is_title_break = page.break_reason == BreakReason::TitlePage;
             if is_title_break != page.publication.is_title_page
                 || (is_title_break && (page_index != 0 || !page.systems.is_empty()))
@@ -1239,6 +1502,16 @@ pub enum PrintLayoutError {
     InvalidPublicationLineHeight,
     #[error("host-provided glyph resource key must not be empty")]
     InvalidGlyphResourceKey,
+    #[error("publication image resource {index} is invalid")]
+    InvalidPublicationImageResource { index: usize },
+    #[error("publication section {index} is invalid")]
+    InvalidPublicationSection { index: usize },
+    #[error("publication section {index} starts inside a keep-together range")]
+    PublicationSectionConflictsWithKeepTogether { index: usize },
+    #[error("publication spacer {index} is invalid or cannot fit before one system")]
+    InvalidPublicationSpacer { index: usize },
+    #[error("publication frame {index} is invalid")]
+    InvalidPublicationFrame { index: usize },
     #[error("unsupported print layout contract version {found}")]
     UnsupportedContractVersion { found: u16 },
     #[error("page {page_index} has an inconsistent stable address")]
@@ -1257,6 +1530,8 @@ pub enum PrintLayoutError {
     },
     #[error("page {page_index} has invalid physical geometry")]
     InvalidPageGeometry { page_index: usize },
+    #[error("page {page_index} has invalid publication metadata")]
+    InvalidPublicationMetadata { page_index: usize },
     #[error("system at page {page_index}, position {index_on_page} has invalid physical geometry")]
     InvalidSystemGeometry {
         page_index: usize,
@@ -1706,13 +1981,16 @@ fn page_publication(
         (paper_width, paper_height)
     };
     let mut text_blocks = Vec::new();
-    if !is_title_page
-        && let Some(text) = config
+    let header_text = if config.publication.header_template.is_configured() {
+        config.publication.header_template.resolve(page_number)
+    } else {
+        config
             .publication
             .header_text
             .as_ref()
             .or(config.publication.running_title.as_ref())
-    {
+    };
+    if !is_title_page && let Some(text) = header_text {
         text_blocks.push(PublicationTextBlock {
             role: PublicationTextRole::Header,
             text: text.clone(),
@@ -1727,7 +2005,12 @@ fn page_publication(
             alignment: config.publication.header_alignment,
         });
     }
-    if let Some(text) = config.publication.footer_text.as_ref() {
+    let footer_text = if config.publication.footer_template.is_configured() {
+        config.publication.footer_template.resolve(page_number)
+    } else {
+        config.publication.footer_text.as_ref()
+    };
+    if let Some(text) = footer_text {
         text_blocks.push(PublicationTextBlock {
             role: PublicationTextRole::Footer,
             text: text.clone(),
@@ -1831,6 +2114,72 @@ fn page_publication(
             });
         }
     }
+    let image_resources = config
+        .publication
+        .image_resources
+        .iter()
+        .filter(|image| {
+            matches!(
+                (is_title_page, image.placement),
+                (
+                    true,
+                    PublicationImagePlacement::TitlePage | PublicationImagePlacement::EveryPage
+                ) | (
+                    false,
+                    PublicationImagePlacement::MusicPages | PublicationImagePlacement::EveryPage
+                )
+            )
+        })
+        .cloned()
+        .collect();
+    let sections = if is_title_page {
+        Vec::new()
+    } else {
+        config
+            .publication
+            .sections
+            .iter()
+            .filter(|section| {
+                systems
+                    .iter()
+                    .any(|system| system.measure_indices.contains(&section.first_measure))
+            })
+            .cloned()
+            .collect()
+    };
+    let spacers = if is_title_page {
+        Vec::new()
+    } else {
+        config
+            .publication
+            .spacers
+            .iter()
+            .filter(|spacer| {
+                systems
+                    .iter()
+                    .any(|system| system.measure_indices.contains(&spacer.before_measure))
+            })
+            .cloned()
+            .collect()
+    };
+    let frames = config
+        .publication
+        .frames
+        .iter()
+        .filter(|frame| {
+            matches!(
+                (is_title_page, frame.placement),
+                (
+                    true,
+                    PublicationFramePlacement::TitlePage | PublicationFramePlacement::EveryPage
+                ) | (
+                    false,
+                    PublicationFramePlacement::MusicPages | PublicationFramePlacement::EveryPage
+                )
+            )
+        })
+        .cloned()
+        .collect();
     PagePublication {
         is_title_page,
         title: metadata.title.clone(),
@@ -1844,6 +2193,10 @@ fn page_publication(
         part_groups,
         measure_numbers,
         text_blocks,
+        image_resources,
+        sections,
+        spacers,
+        frames,
     }
 }
 
@@ -1919,6 +2272,160 @@ fn score_for_part_layout(
     Ok(selected)
 }
 
+fn validate_publication_sections(
+    score: &Score,
+    sections: &[PublicationSection],
+    keep_together: &[KeepTogetherRange],
+) -> Result<(), PrintLayoutError> {
+    let measure_count = score
+        .parts
+        .first()
+        .and_then(|part| part.staves.first())
+        .map_or(0, |staff| staff.measures.len());
+    let mut previous_start = None;
+    for (index, section) in sections.iter().enumerate() {
+        if section.first_measure >= measure_count
+            || section.title.trim().is_empty()
+            || section.title.len() > 1024
+            || previous_start.is_some_and(|previous| previous >= section.first_measure)
+        {
+            return Err(PrintLayoutError::InvalidPublicationSection { index });
+        }
+        if keep_together.iter().any(|range| {
+            range.first_measure < section.first_measure
+                && section.first_measure <= range.last_measure
+        }) {
+            return Err(PrintLayoutError::PublicationSectionConflictsWithKeepTogether { index });
+        }
+        previous_start = Some(section.first_measure);
+    }
+    Ok(())
+}
+
+fn validate_publication_spacers(
+    score: &Score,
+    spacers: &[PublicationSpacer],
+    keep_together: &[KeepTogetherRange],
+    content_height_mm: f32,
+    scaled_system_height_mm: f32,
+) -> Result<(), PrintLayoutError> {
+    let measure_count = score
+        .parts
+        .first()
+        .and_then(|part| part.staves.first())
+        .map_or(0, |staff| staff.measures.len());
+    let mut previous_measure = None;
+    for (index, spacer) in spacers.iter().enumerate() {
+        if spacer.before_measure >= measure_count
+            || !spacer.height_mm.is_finite()
+            || spacer.height_mm <= 0.0
+            || spacer.height_mm + scaled_system_height_mm > content_height_mm
+            || previous_measure.is_some_and(|previous| previous >= spacer.before_measure)
+            || keep_together.iter().any(|range| {
+                range.first_measure < spacer.before_measure
+                    && spacer.before_measure <= range.last_measure
+            })
+        {
+            return Err(PrintLayoutError::InvalidPublicationSpacer { index });
+        }
+        previous_measure = Some(spacer.before_measure);
+    }
+    Ok(())
+}
+
+fn spacer_height_before_measure(spacers: &[PublicationSpacer], measure_index: usize) -> f32 {
+    spacers
+        .iter()
+        .find(|spacer| spacer.before_measure == measure_index)
+        .map_or(0.0, |spacer| spacer.height_mm)
+}
+
+fn split_rows_at_measure_starts(
+    rows: Vec<crate::RowLayout>,
+    starts: &[usize],
+) -> Vec<crate::RowLayout> {
+    if starts.is_empty() {
+        return rows;
+    }
+    let mut split_rows = Vec::with_capacity(rows.len() + starts.len());
+    for row in rows {
+        let mut cuts = vec![0, row.measure_indices.len()];
+        for start in starts {
+            if let Some(position) = row.measure_indices.iter().position(|index| index == start) {
+                cuts.push(position);
+            }
+        }
+        cuts.sort_unstable();
+        cuts.dedup();
+        for window in cuts.windows(2) {
+            if window[0] < window[1] {
+                split_rows.push(crate::RowLayout {
+                    measure_indices: row.measure_indices[window[0]..window[1]].to_vec(),
+                });
+            }
+        }
+    }
+    split_rows
+}
+
+fn publication_image_resource_is_valid(
+    image: &PublicationImageResource,
+    width_mm: f32,
+    height_mm: f32,
+) -> bool {
+    let safe_key = !image.resource_key.trim().is_empty()
+        && image.resource_key.len() <= 256
+        && !image.resource_key.contains("..")
+        && !image.resource_key.contains(['/', '\\', ':']);
+    let safe_alt_text = !image.alt_text.trim().is_empty() && image.alt_text.len() <= 4096;
+    let finite_geometry = [image.x_mm, image.y_mm, image.width_mm, image.height_mm]
+        .iter()
+        .all(|value| value.is_finite());
+    let fits_page = image.x_mm >= 0.0
+        && image.y_mm >= 0.0
+        && image.width_mm > 0.0
+        && image.height_mm > 0.0
+        && image.x_mm + image.width_mm <= width_mm
+        && image.y_mm + image.height_mm <= height_mm;
+    safe_key && safe_alt_text && finite_geometry && fits_page
+}
+
+fn publication_frame_is_valid(frame: &PublicationFrame, width_mm: f32, height_mm: f32) -> bool {
+    let finite_geometry = [
+        frame.x_mm,
+        frame.y_mm,
+        frame.width_mm,
+        frame.height_mm,
+        frame.stroke_width_mm,
+    ]
+    .iter()
+    .all(|value| value.is_finite());
+    let fits_page = frame.x_mm >= 0.0
+        && frame.y_mm >= 0.0
+        && frame.width_mm > 0.0
+        && frame.height_mm > 0.0
+        && frame.stroke_width_mm > 0.0
+        && frame.x_mm + frame.width_mm <= width_mm
+        && frame.y_mm + frame.height_mm <= height_mm;
+    finite_geometry && fits_page
+}
+
+fn publication_page_sections_are_valid(sections: &[PublicationSection]) -> bool {
+    sections.iter().enumerate().all(|(index, section)| {
+        !section.title.trim().is_empty()
+            && section.title.len() <= 1024
+            && (index == 0 || sections[index - 1].first_measure < section.first_measure)
+    })
+}
+
+fn publication_page_spacers_are_valid(spacers: &[PublicationSpacer]) -> bool {
+    spacers.iter().enumerate().all(|(index, spacer)| {
+        spacer.height_mm.is_finite()
+            && spacer.height_mm > 0.0
+            && (index == 0 || spacers[index - 1].before_measure < spacer.before_measure)
+    })
+}
+
 fn validate_print_config(config: &PrintConfig) -> Result<(f32, f32, f32), PrintLayoutError> {
     let (mut width_mm, mut height_mm) = config.paper_size.dimensions_mm();
     if !width_mm.is_finite() || !height_mm.is_finite() || width_mm <= 0.0 || height_mm <= 0.0 {
@@ -1960,6 +2467,16 @@ fn validate_print_config(config: &PrintConfig) -> Result<(f32, f32, f32), PrintL
     }
     if !config.publication.line_height_mm.is_finite() || config.publication.line_height_mm <= 0.0 {
         return Err(PrintLayoutError::InvalidPublicationLineHeight);
+    }
+    for (index, image) in config.publication.image_resources.iter().enumerate() {
+        if !publication_image_resource_is_valid(image, width_mm, height_mm) {
+            return Err(PrintLayoutError::InvalidPublicationImageResource { index });
+        }
+    }
+    for (index, frame) in config.publication.frames.iter().enumerate() {
+        if !publication_frame_is_valid(frame, width_mm, height_mm) {
+            return Err(PrintLayoutError::InvalidPublicationFrame { index });
+        }
     }
     if matches!(&config.glyph_resources, GlyphResourcePolicy::HostProvided(key) if key.trim().is_empty())
     {
@@ -2026,6 +2543,30 @@ pub fn compute_print_layout(
         &keep_together,
         config.measures_per_system.max(1),
     )?;
+    validate_publication_sections(&layout_score, &config.publication.sections, &keep_together)?;
+    validate_publication_spacers(
+        &layout_score,
+        &config.publication.spacers,
+        &keep_together,
+        content_height_mm,
+        scaled_system_height_mm,
+    )?;
+    let rows = split_rows_at_measure_starts(
+        rows,
+        &config
+            .publication
+            .sections
+            .iter()
+            .map(|section| section.first_measure)
+            .chain(
+                config
+                    .publication
+                    .spacers
+                    .iter()
+                    .map(|spacer| spacer.before_measure),
+            )
+            .collect::<Vec<_>>(),
+    );
 
     let has_explicit_page_break = rows.iter().any(|row| {
         row.measure_indices.last().is_some_and(|&measure_index| {
@@ -2056,6 +2597,12 @@ pub fn compute_print_layout(
         && systems_per_page > 1
         && rows.len() > systems_per_page
         && repeat_system_ranges.is_empty()
+        && !config
+            .publication
+            .sections
+            .iter()
+            .any(|section| section.start_on_new_page)
+        && config.publication.spacers.is_empty()
     {
         let page_count = rows.len().div_ceil(systems_per_page);
         let base = rows.len() / page_count;
@@ -2069,12 +2616,26 @@ pub fn compute_print_layout(
 
     let mut pages = Vec::new();
     let mut page_systems = Vec::new();
+    let mut page_used_height_mm = 0.0;
     let mut page_index = 0;
     for (system_index, row) in rows.iter().enumerate() {
         let repeat_starts_here = repeat_system_ranges
             .iter()
             .any(|(first, _)| *first == system_index);
-        if repeat_starts_here && !page_systems.is_empty() {
+        let section_starts_on_new_page =
+            row.measure_indices.first().is_some_and(|measure_index| {
+                config.publication.sections.iter().any(|section| {
+                    section.first_measure == *measure_index && section.start_on_new_page
+                })
+            });
+        let spacer_height_mm = row.measure_indices.first().map_or(0.0, |measure_index| {
+            spacer_height_before_measure(&config.publication.spacers, *measure_index)
+        });
+        let spacer_requires_new_page = !page_systems.is_empty()
+            && page_used_height_mm + spacer_height_mm + scaled_system_height_mm > content_height_mm;
+        if (repeat_starts_here || section_starts_on_new_page || spacer_requires_new_page)
+            && !page_systems.is_empty()
+        {
             let page_number = match config.page_numbering {
                 PageNumbering::None => None,
                 PageNumbering::OneBased => Some(page_index + 1),
@@ -2090,10 +2651,15 @@ pub fn compute_print_layout(
                 height_mm,
                 content_width_mm,
                 content_height_mm,
-                BreakReason::PageCapacity,
+                if section_starts_on_new_page {
+                    BreakReason::SectionBreak
+                } else {
+                    BreakReason::PageCapacity
+                },
                 false,
             ));
             page_index += 1;
+            page_used_height_mm = 0.0;
         }
         let explicit_page_break = row.measure_indices.last().is_some_and(|&measure_index| {
             layout_score
@@ -2135,11 +2701,13 @@ pub fn compute_print_layout(
             measure_marks: measure_marks(&layout_score, &row.measure_indices),
             top_mm: config.margin_top_mm
                 + config.safe_top_mm
-                + page_systems.len() as f32 * scaled_system_height_mm,
+                + page_used_height_mm
+                + spacer_height_mm,
             height_mm: scaled_system_height_mm,
             break_reason,
         };
         page_systems.push(system);
+        page_used_height_mm += spacer_height_mm + scaled_system_height_mm;
 
         let page_capacity = page_capacities
             .get(page_index)
@@ -2173,6 +2741,7 @@ pub fn compute_print_layout(
                 false,
             ));
             page_index += 1;
+            page_used_height_mm = 0.0;
         }
     }
     if !page_systems.is_empty() || pages.is_empty() {
@@ -2907,6 +3476,58 @@ mod tests {
     }
 
     #[test]
+    fn layout_validation_rejects_invalid_persisted_publication_metadata() {
+        let score = score_with_measures(1);
+        let mut result =
+            compute_print_layout(&score, &PrintConfig::default()).expect("valid print config");
+        result.pages[0]
+            .publication
+            .image_resources
+            .push(PublicationImageResource {
+                resource_key: "../unsafe".into(),
+                alt_text: "Unsafe resource".into(),
+                placement: PublicationImagePlacement::EveryPage,
+                x_mm: 0.0,
+                y_mm: 0.0,
+                width_mm: 1.0,
+                height_mm: 1.0,
+            });
+
+        assert_eq!(
+            result.validate(),
+            Err(PrintLayoutError::InvalidPublicationMetadata { page_index: 0 })
+        );
+
+        result.pages[0].publication.image_resources.clear();
+        result.pages[0].publication.frames.push(PublicationFrame {
+            placement: PublicationFramePlacement::EveryPage,
+            x_mm: 0.0,
+            y_mm: 0.0,
+            width_mm: 1.0,
+            height_mm: 1.0,
+            stroke_width_mm: f32::NAN,
+        });
+        assert_eq!(
+            result.validate(),
+            Err(PrintLayoutError::InvalidPublicationMetadata { page_index: 0 })
+        );
+
+        result.pages[0].publication.frames.clear();
+        result.pages[0]
+            .publication
+            .sections
+            .push(PublicationSection {
+                first_measure: 0,
+                title: " ".into(),
+                start_on_new_page: false,
+            });
+        assert_eq!(
+            result.validate(),
+            Err(PrintLayoutError::InvalidPublicationMetadata { page_index: 0 })
+        );
+    }
+
+    #[test]
     fn notation_policy_keeps_volta_range_in_one_system() {
         let mut score = score_with_measures(4);
         score.parts[0].staves[0].measures[1].volta = Some(acorde_core::VoltaBracket {
@@ -3158,6 +3779,210 @@ mod tests {
     }
 
     #[test]
+    fn publication_image_resources_are_safe_and_page_scoped() {
+        let score = score_with_measures(1);
+        let config = PrintConfig {
+            publication: PublicationConfig {
+                title_page: true,
+                image_resources: vec![
+                    PublicationImageResource {
+                        resource_key: "cover-art-v1".into(),
+                        alt_text: "Cover art".into(),
+                        placement: PublicationImagePlacement::TitlePage,
+                        x_mm: 10.0,
+                        y_mm: 10.0,
+                        width_mm: 30.0,
+                        height_mm: 20.0,
+                    },
+                    PublicationImageResource {
+                        resource_key: "publisher-mark".into(),
+                        alt_text: "Publisher mark".into(),
+                        placement: PublicationImagePlacement::MusicPages,
+                        x_mm: 160.0,
+                        y_mm: 10.0,
+                        width_mm: 20.0,
+                        height_mm: 10.0,
+                    },
+                ],
+                ..PublicationConfig::default()
+            },
+            ..PrintConfig::default()
+        };
+        let result = compute_print_layout(&score, &config).expect("valid image resources");
+        assert_eq!(result.pages[0].publication.image_resources.len(), 1);
+        assert_eq!(
+            result.pages[0].publication.image_resources[0].resource_key,
+            "cover-art-v1"
+        );
+        assert_eq!(result.pages[1].publication.image_resources.len(), 1);
+        assert_eq!(
+            result.pages[1].publication.image_resources[0].resource_key,
+            "publisher-mark"
+        );
+
+        let invalid = PrintConfig {
+            publication: PublicationConfig {
+                image_resources: vec![PublicationImageResource {
+                    resource_key: "../secret.png".into(),
+                    alt_text: "Unsafe path".into(),
+                    placement: PublicationImagePlacement::EveryPage,
+                    x_mm: 0.0,
+                    y_mm: 0.0,
+                    width_mm: 1.0,
+                    height_mm: 1.0,
+                }],
+                ..PublicationConfig::default()
+            },
+            ..PrintConfig::default()
+        };
+        assert_eq!(
+            compute_print_layout(&score, &invalid),
+            Err(PrintLayoutError::InvalidPublicationImageResource { index: 0 })
+        );
+    }
+
+    #[test]
+    fn publication_frames_are_validated_and_page_scoped() {
+        let score = score_with_measures(1);
+        let config = PrintConfig {
+            publication: PublicationConfig {
+                title_page: true,
+                frames: vec![
+                    PublicationFrame {
+                        placement: PublicationFramePlacement::TitlePage,
+                        x_mm: 8.0,
+                        y_mm: 8.0,
+                        width_mm: 194.0,
+                        height_mm: 281.0,
+                        stroke_width_mm: 0.4,
+                    },
+                    PublicationFrame {
+                        placement: PublicationFramePlacement::MusicPages,
+                        x_mm: 12.0,
+                        y_mm: 12.0,
+                        width_mm: 186.0,
+                        height_mm: 273.0,
+                        stroke_width_mm: 0.3,
+                    },
+                ],
+                ..PublicationConfig::default()
+            },
+            ..PrintConfig::default()
+        };
+        let result = compute_print_layout(&score, &config).expect("valid frames");
+        assert_eq!(result.pages[0].publication.frames.len(), 1);
+        assert_eq!(result.pages[1].publication.frames.len(), 1);
+        assert_eq!(result.pages[0].publication.frames[0].stroke_width_mm, 0.4);
+
+        let invalid = PrintConfig {
+            publication: PublicationConfig {
+                frames: vec![PublicationFrame {
+                    placement: PublicationFramePlacement::EveryPage,
+                    x_mm: 0.0,
+                    y_mm: 0.0,
+                    width_mm: 211.0,
+                    height_mm: 297.0,
+                    stroke_width_mm: 0.0,
+                }],
+                ..PublicationConfig::default()
+            },
+            ..PrintConfig::default()
+        };
+        assert_eq!(
+            compute_print_layout(&score, &invalid),
+            Err(PrintLayoutError::InvalidPublicationFrame { index: 0 })
+        );
+    }
+
+    #[test]
+    fn publication_spacers_consume_page_height_and_follow_systems() {
+        let score = score_with_measures(4);
+        let config = PrintConfig {
+            measures_per_system: 4,
+            systems_per_page: Some(2),
+            system_height_mm: 130.0,
+            publication: PublicationConfig {
+                spacers: vec![PublicationSpacer {
+                    before_measure: 2,
+                    height_mm: 20.0,
+                }],
+                ..PublicationConfig::default()
+            },
+            ..PrintConfig::default()
+        };
+        let result = compute_print_layout(&score, &config).expect("valid publication spacer");
+        assert_eq!(result.pages.len(), 2);
+        assert_eq!(result.pages[0].systems[0].measure_indices, vec![0, 1]);
+        assert_eq!(result.pages[1].systems[0].measure_indices, vec![2, 3]);
+        assert_eq!(result.pages[1].systems[0].top_mm, 36.0);
+        assert_eq!(result.pages[1].publication.spacers.len(), 1);
+        assert_eq!(result.pages[1].publication.spacers[0].before_measure, 2);
+        result
+            .validate()
+            .expect("persisted spacer metadata is valid");
+
+        let invalid = PrintConfig {
+            system_height_mm: 260.0,
+            publication: PublicationConfig {
+                spacers: vec![PublicationSpacer {
+                    before_measure: 0,
+                    height_mm: 10.0,
+                }],
+                ..PublicationConfig::default()
+            },
+            ..PrintConfig::default()
+        };
+        assert_eq!(
+            compute_print_layout(&score, &invalid),
+            Err(PrintLayoutError::InvalidPublicationSpacer { index: 0 })
+        );
+    }
+
+    #[test]
+    fn publication_sections_split_systems_and_can_start_a_page() {
+        let score = score_with_measures(5);
+        let config = PrintConfig {
+            measures_per_system: 4,
+            systems_per_page: Some(2),
+            publication: PublicationConfig {
+                sections: vec![PublicationSection {
+                    first_measure: 2,
+                    title: "Second movement".into(),
+                    start_on_new_page: true,
+                }],
+                ..PublicationConfig::default()
+            },
+            ..PrintConfig::default()
+        };
+        let result = compute_print_layout(&score, &config).expect("valid publication section");
+        assert_eq!(result.pages.len(), 2);
+        assert_eq!(result.pages[0].break_reason, BreakReason::SectionBreak);
+        assert_eq!(result.pages[0].systems[0].measure_indices, vec![0, 1]);
+        assert_eq!(result.pages[1].systems[0].measure_indices, vec![2, 3]);
+        assert_eq!(result.pages[1].publication.sections.len(), 1);
+        assert_eq!(
+            result.pages[1].publication.sections[0].title,
+            "Second movement"
+        );
+
+        let invalid = PrintConfig {
+            publication: PublicationConfig {
+                sections: vec![PublicationSection {
+                    first_measure: 5,
+                    title: "Outside score".into(),
+                    start_on_new_page: false,
+                }],
+                ..PublicationConfig::default()
+            },
+            ..PrintConfig::default()
+        };
+        assert_eq!(
+            compute_print_layout(&score, &invalid),
+            Err(PrintLayoutError::InvalidPublicationSection { index: 0 })
+        );
+    }
+
+    #[test]
     fn rejects_empty_host_glyph_resource_key() {
         let score = score_with_measures(1);
         let error = compute_print_layout(
@@ -3326,6 +4151,47 @@ mod tests {
                 .iter()
                 .all(|artifact| artifact.diagnostics.is_empty())
         );
+    }
+
+    #[test]
+    fn publication_templates_select_odd_even_text_and_can_omit_a_side() {
+        let score = score_with_measures(3);
+        let result = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 1,
+                systems_per_page: Some(1),
+                publication: PublicationConfig {
+                    header_text: Some("legacy header".into()),
+                    footer_text: Some("legacy footer".into()),
+                    header_template: PublicationPageTemplate {
+                        odd: Some("Odd header".into()),
+                        even: Some("Even header".into()),
+                    },
+                    footer_template: PublicationPageTemplate {
+                        odd: Some("Odd footer".into()),
+                        even: None,
+                    },
+                    ..PublicationConfig::default()
+                },
+                ..PrintConfig::default()
+            },
+        )
+        .expect("valid print layout");
+        let first_texts: Vec<_> = result.pages[0]
+            .publication
+            .text_blocks
+            .iter()
+            .map(|block| block.text.as_str())
+            .collect();
+        let second_texts: Vec<_> = result.pages[1]
+            .publication
+            .text_blocks
+            .iter()
+            .map(|block| block.text.as_str())
+            .collect();
+        assert_eq!(first_texts, vec!["Odd header", "Odd footer"]);
+        assert_eq!(second_texts, vec!["Even header"]);
     }
 
     #[test]
@@ -3521,6 +4387,83 @@ mod tests {
                 classes: 1,
             })
         );
+    }
+
+    #[test]
+    fn constrained_collision_pass_honors_annotation_escape_lanes() {
+        let metrics = GlyphMetrics {
+            advance_mm: 4.0,
+            left_mm: -1.0,
+            top_mm: -2.0,
+            width_mm: 2.0,
+            height_mm: 4.0,
+        };
+        let mut placements = vec![
+            GlyphPlacement {
+                resource_key: "notation".into(),
+                metrics,
+                x_mm: 10.0,
+                y_mm: 20.0,
+                priority: 1,
+            },
+            GlyphPlacement {
+                resource_key: "lyric".into(),
+                metrics,
+                x_mm: 10.0,
+                y_mm: 20.0,
+                priority: 1,
+            },
+            GlyphPlacement {
+                resource_key: "rehearsal".into(),
+                metrics,
+                x_mm: 10.0,
+                y_mm: 20.0,
+                priority: 1,
+            },
+            GlyphPlacement {
+                resource_key: "tab".into(),
+                metrics,
+                x_mm: 10.0,
+                y_mm: 20.0,
+                priority: 1,
+            },
+        ];
+        let classes = [
+            GlyphCollisionClass::Critical,
+            GlyphCollisionClass::Annotation,
+            GlyphCollisionClass::Annotation,
+            GlyphCollisionClass::Annotation,
+        ];
+        let directions = [
+            GlyphCollisionDirection::Down,
+            GlyphCollisionDirection::Down,
+            GlyphCollisionDirection::Up,
+            GlyphCollisionDirection::Right,
+        ];
+
+        assert_eq!(
+            resolve_glyph_collisions_constrained(&mut placements, &classes, &directions, 1.0),
+            Ok(3)
+        );
+        assert_eq!((placements[0].x_mm, placements[0].y_mm), (10.0, 20.0));
+        assert_eq!((placements[1].x_mm, placements[1].y_mm), (10.0, 25.0));
+        assert_eq!((placements[2].x_mm, placements[2].y_mm), (10.0, 15.0));
+        assert_eq!((placements[3].x_mm, placements[3].y_mm), (13.0, 20.0));
+
+        let before = placements.clone();
+        assert_eq!(
+            resolve_glyph_collisions_constrained(
+                &mut placements,
+                &classes,
+                &[GlyphCollisionDirection::Down],
+                1.0
+            ),
+            Err(GlyphPlacementError::CollisionDirectionCount {
+                placements: 4,
+                directions: 1,
+            })
+        );
+        assert_eq!(placements, before);
     }
 
     #[test]

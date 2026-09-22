@@ -28,10 +28,8 @@ HiDPI profile remains covered by the checked-in matrix.
 
 The legacy `wasm-pack test --headless --chrome` path uses a separately downloaded WebDriver.
 The CI job pins `wasm-pack` 0.15.0, installs the current Chrome, and has an explicit timeout so
-driver startup failures cannot hang the workflow. A local run on 2026-09-06 reached the headless
-test server with ChromeDriver 152 but did not produce completion evidence and was stopped. A
-repeat on 2026-09-12 with `wasm-pack` 0.15.0 built the WASM test binary and started ChromeDriver
-153 against the installed Chrome 152, but the runner still received HTTP 404 from the test-server
-endpoint and exited non-zero; this is runner/server infrastructure evidence, not a passing WASM
-browser test. The Playwright matrix remains the current cross-browser contract until the
-wasm-bindgen runner route or its browser-version pairing is repaired.
+driver startup failures cannot hang the workflow. Earlier local runs on 2026-09-06 and 2026-09-12
+reached the runner but did not complete successfully; those are retained as infrastructure history,
+not browser-test evidence. On 2026-09-22, the locally installed `wasm-pack` 0.13.1 and Chromium
+completed all 15 `acorde-wasm` headless Chrome tests. This is a local browser smoke result; the
+Playwright matrix remains the cross-browser visual-contract evidence.

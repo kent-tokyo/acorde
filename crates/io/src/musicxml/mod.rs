@@ -353,6 +353,21 @@ fn push_pitch_alter_diagnostic(
 /// Report canonical score fields that the MusicXML serializer cannot represent.
 pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<crate::Diagnostic> {
     let mut diagnostics = Vec::new();
+    for (override_index, override_) in score.object_style_overrides.iter().enumerate() {
+        let mut diagnostic = crate::Diagnostic::warning(
+            "musicxml.export-unsupported-object-style-override",
+            "object-attached typed style overrides are retained in acorde JSON but not represented by MusicXML export",
+        );
+        diagnostic.source_location = Some(format!(
+            "/score/object-style-overrides/{}",
+            override_index + 1
+        ));
+        diagnostic.preserved_value = Some(format!(
+            "target={:?};property={:?};value={}",
+            override_.target, override_.property, override_.value
+        ));
+        diagnostics.push(diagnostic);
+    }
     for (definition_index, definition) in score.chord_definitions.iter().enumerate() {
         let mut diagnostic = crate::Diagnostic::warning(
             "musicxml.export-unsupported-mei-chord-definition",
@@ -368,7 +383,53 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<crate::Diagnos
         diagnostics.push(diagnostic);
     }
     for (part_index, part) in score.parts.iter().enumerate() {
+        for (instrument_index, instrument) in part.percussion_instruments.iter().enumerate() {
+            let mut preserved = Vec::new();
+            if let Some(position) = instrument.staff_position {
+                preserved.push(format!("staff_position={position}"));
+            }
+            if let Some(notehead) = &instrument.notehead {
+                preserved.push(format!("notehead={notehead:?}"));
+            }
+            if let Some(voice) = instrument.preferred_voice {
+                preserved.push(format!("preferred_voice={voice}"));
+            }
+            if !instrument.techniques.is_empty() {
+                preserved.push(format!("techniques={}", instrument.techniques.join(",")));
+            }
+            if !preserved.is_empty() {
+                let mut diagnostic = crate::Diagnostic::warning(
+                    "musicxml.export-unsupported-percussion-kit-notation",
+                    "percussion-kit notation defaults are retained in acorde JSON but not represented by MusicXML score-instrument export",
+                );
+                diagnostic.source_location = Some(format!(
+                    "/score/part/{}/percussion-instrument/{}/notation",
+                    part_index + 1,
+                    instrument_index + 1
+                ));
+                diagnostic.preserved_value = Some(preserved.join(";"));
+                diagnostics.push(diagnostic);
+            }
+        }
         for (staff_index, staff) in part.staves.iter().enumerate() {
+            if staff.presentation.tablature_fret_mark_style
+                != acorde_core::TablatureFretMarkStyle::Arabic
+            {
+                let mut diagnostic = crate::Diagnostic::warning(
+                    "musicxml.export-unsupported-tablature-fret-mark-style",
+                    "non-Arabic tablature fret-mark styles are retained in acorde JSON but not represented by MusicXML export",
+                );
+                diagnostic.source_location = Some(format!(
+                    "/score/part/{}/staff/{}/presentation/tablature-fret-mark-style",
+                    part_index + 1,
+                    staff_index + 1
+                ));
+                diagnostic.preserved_value = Some(format!(
+                    "{:?}",
+                    staff.presentation.tablature_fret_mark_style
+                ));
+                diagnostics.push(diagnostic);
+            }
             for (measure_index, measure) in staff.measures.iter().enumerate() {
                 for (figure_index, figure) in measure
                     .figured_bass
@@ -525,6 +586,43 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<crate::Diagnos
             diagnostics.push(diagnostic);
         }
         for (staff_index, staff) in part.staves.iter().enumerate() {
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    for (note_index, note) in voice.iter().enumerate() {
+                        if note.guitar_bend_curve.is_empty() {
+                            continue;
+                        }
+                        let mut diagnostic = crate::Diagnostic::warning(
+                            "musicxml.export-unsupported-guitar-bend-curve",
+                            "multi-point guitar bend curves are retained in acorde JSON but cannot be represented by the MusicXML bend subset",
+                        );
+                        diagnostic.source_location = Some(format!(
+                            "/score/part/{}/staff/{}/measure/{}/voice/{}/note/{}/guitar-bend-curve",
+                            part_index + 1,
+                            staff_index + 1,
+                            measure_index + 1,
+                            voice_index + 1,
+                            note_index + 1
+                        ));
+                        diagnostic.preserved_value = Some(format!("{:?}", note.guitar_bend_curve));
+                        diagnostics.push(diagnostic);
+                    }
+                }
+                if let Some(target_bpm) = measure.tempo_ramp_to {
+                    let mut diagnostic = crate::Diagnostic::warning(
+                        "musicxml.export-unsupported-tempo-ramp",
+                        "measure-local tempo ramps are retained in acorde JSON but not represented by MusicXML export",
+                    );
+                    diagnostic.source_location = Some(format!(
+                        "/score/part/{}/staff/{}/measure/{}/tempo-ramp-to",
+                        part_index + 1,
+                        staff_index + 1,
+                        measure_index + 1
+                    ));
+                    diagnostic.preserved_value = Some(target_bpm.to_string());
+                    diagnostics.push(diagnostic);
+                }
+            }
             let Some(tab) = &staff.tablature else {
                 continue;
             };
@@ -549,7 +647,7 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<crate::Diagnos
 
 #[cfg(test)]
 mod tests {
-    use super::loss_diagnostics;
+    use super::{export_loss_diagnostics, loss_diagnostics};
 
     #[test]
     fn fractional_pitch_alter_is_diagnosed_when_not_exactly_representable() {
@@ -667,6 +765,82 @@ mod tests {
                 && diagnostic.source_location.as_deref()
                     == Some("/score-partwise/part/measure/direction@placement")
                 && diagnostic.preserved_value.as_deref() == Some("sideways")
+        }));
+    }
+
+    #[test]
+    fn percussion_kit_notation_defaults_are_export_diagnosed() {
+        let mut score = acorde_core::Score::new("Kit", 120, 4, 4, 0, 1);
+        score.parts[0]
+            .percussion_instruments
+            .push(acorde_core::PercussionInstrument {
+                id: "snare".to_string(),
+                name: Some("Acoustic Snare".to_string()),
+                midi_unpitched: Some(38),
+                staff_position: Some(0),
+                notehead: Some(acorde_core::NoteHead::Cross),
+                preferred_voice: Some(1),
+                techniques: vec!["rim-shot".to_string()],
+            });
+
+        let diagnostics = export_loss_diagnostics(&score);
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "musicxml.export-unsupported-percussion-kit-notation"
+                && diagnostic
+                    .source_location
+                    .as_deref()
+                    .is_some_and(|path| path.ends_with("/percussion-instrument/1/notation"))
+                && diagnostic
+                    .preserved_value
+                    .as_deref()
+                    .is_some_and(|value| value.contains("staff_position=0"))
+        }));
+    }
+
+    #[test]
+    fn tempo_ramp_is_export_diagnosed() {
+        let mut score = acorde_core::Score::new("Ramp", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].tempo_ramp_to = Some(72);
+        assert!(export_loss_diagnostics(&score).iter().any(|diagnostic| {
+            diagnostic.code == "musicxml.export-unsupported-tempo-ramp"
+                && diagnostic
+                    .source_location
+                    .as_deref()
+                    .is_some_and(|path| path.ends_with("/measure/1/tempo-ramp-to"))
+                && diagnostic.preserved_value.as_deref() == Some("72")
+        }));
+    }
+
+    #[test]
+    fn object_style_override_is_export_diagnosed() {
+        use acorde_core::{
+            ObjectStyleOverride, ObjectStyleTarget, StyledText, TextStyle, ViewStyleProperty,
+        };
+
+        let mut score = acorde_core::Score::new("Styled", 120, 4, 4, 0, 1);
+        score.texts.push(StyledText {
+            text: "dolce".into(),
+            style: TextStyle::Expression,
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        });
+        score.object_style_overrides.push(ObjectStyleOverride {
+            target: ObjectStyleTarget::ScoreText { text_index: 0 },
+            property: ViewStyleProperty::TextScale,
+            value: 1.25,
+            provenance: None,
+        });
+
+        assert!(export_loss_diagnostics(&score).iter().any(|diagnostic| {
+            diagnostic.code == "musicxml.export-unsupported-object-style-override"
+                && diagnostic.source_location.as_deref() == Some("/score/object-style-overrides/1")
+                && diagnostic
+                    .preserved_value
+                    .as_deref()
+                    .is_some_and(|value| value.contains("TextScale"))
         }));
     }
 }

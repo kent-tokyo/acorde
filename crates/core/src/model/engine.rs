@@ -633,7 +633,7 @@ fn command_bytes(command: &Command) -> Option<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::commands::{NewScoreCmd, SetTempoCmd};
+    use crate::model::commands::{NewScoreCmd, SetTempoCmd, SetTempoRampAtMeasureCmd};
 
     #[test]
     fn new_engine_has_default_score() {
@@ -649,6 +649,31 @@ mod tests {
             .apply(Command::SetTempo(SetTempoCmd { bpm: 140 }))
             .unwrap();
         assert_eq!(engine.version, 1);
+    }
+
+    #[test]
+    fn tempo_ramp_command_undo_redo_restores_measure_target() {
+        let mut engine = ScoreEngine::new();
+        engine
+            .apply(Command::SetTempoRampAtMeasure(SetTempoRampAtMeasureCmd {
+                measure_index: 0,
+                target_bpm: Some(84),
+            }))
+            .expect("tempo ramp applies");
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].tempo_ramp_to,
+            Some(84)
+        );
+        engine.undo().expect("tempo ramp undoes");
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].tempo_ramp_to,
+            None
+        );
+        engine.redo().expect("tempo ramp redoes");
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].tempo_ramp_to,
+            Some(84)
+        );
     }
 
     #[test]

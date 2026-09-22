@@ -27,8 +27,10 @@ font installation or embedding, file I/O, and OS printing belong to the consumin
   and physical placement. Hosts may convert it to paths only after recording the selected
   font/resource contract.
 - Structured figured-bass extender flags may be represented by a deterministic continuation-line
-  hook; ornament text hooks and beam geometry remain font-independent, while exact glyph shaping
-  and collision optimization stay with the host.
+  hook; measure text uses the renderer's bounded, font-independent priority/class/direction
+  collision pass after note-annotation clearance. Native lyrics, dynamics, chord symbols, and
+  articulations use the same pass; span, tablature, ornament hooks, beam geometry, and exact
+  glyph shaping remain host or later-renderer work.
 - No caller-provided SVG/XML fragments are accepted as annotations.
 
 ## Metadata and colors

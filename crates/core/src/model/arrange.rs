@@ -315,6 +315,7 @@ fn assemble_staff(
         measures,
         transpose_semitones: 0,
         tablature: None,
+        presentation: Default::default(),
     }
 }
 
@@ -468,8 +469,11 @@ pub fn arrange_for_accordion(
         parts: vec![accordion_part],
         part_groups: Vec::new(),
         texts: score.texts.clone(),
+        style_overrides: score.style_overrides.clone(),
+        object_style_overrides: score.object_style_overrides.clone(),
         chord_definitions: score.chord_definitions.clone(),
         spanners: score.spanners.clone(),
+        views: Vec::new(),
     };
 
     let (fitted, shift) = octave_fit(&merged);

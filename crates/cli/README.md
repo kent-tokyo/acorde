@@ -87,6 +87,9 @@ without embedding the binary/text artifact in the JSON response.
 compatibility-report parses two local score files and emits their deterministic positional semantic
 diff plus source-located import diagnostics from both sides. It reports differences and does not
 claim lossless interchange.
+Its envelope includes the CLI version and an `fnv1a64-*` fingerprint for each exact input byte
+stream, so an external-tool comparison can record the inputs it actually used. These are local
+evidence identifiers, not cryptographic publication hashes or external compatibility scores.
 `--fail-on-differences` preserves the JSON report and exits with status 1 when semantic changes
 are found, making the command suitable for a compatibility gate.
 `--fail-on-loss` independently fails when either side reports a typed information-loss diagnostic.

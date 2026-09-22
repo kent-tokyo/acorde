@@ -103,12 +103,228 @@ pub struct Score {
     /// Typed score-level text annotations retained independently of legacy text fields.
     #[serde(default)]
     pub texts: Vec<StyledText>,
+    /// Typed score-wide style defaults. A linked view may override each property locally.
+    #[serde(default)]
+    pub style_overrides: Vec<ViewStyleOverride>,
+    /// Typed presentation overrides attached to stable score objects rather than a renderer key.
+    #[serde(default)]
+    pub object_style_overrides: Vec<ObjectStyleOverride>,
     /// Reusable chord/tablature definitions imported from interchange formats.
     #[serde(default)]
     pub chord_definitions: Vec<ChordDefinition>,
     /// Typed notation spans. Legacy note-level boolean endpoints remain supported during migration.
     #[serde(default)]
     pub spanners: Vec<NotationSpanner>,
+    /// Named non-destructive projections used for linked parts and alternate layouts.
+    #[serde(default)]
+    pub views: Vec<ScoreView>,
+}
+
+/// A stable part/staff address used by a [`ScoreView`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ViewStaffRef {
+    pub part: usize,
+    pub staff: usize,
+}
+
+/// Whether a view presents written notation or concert pitch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ViewTranspositionPolicy {
+    #[default]
+    Written,
+    Concert,
+}
+
+/// Layout choices which may differ for a linked part without changing musical content.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct ScoreViewLayoutOverrides {
+    #[serde(default)]
+    pub measures_per_row: Option<usize>,
+    #[serde(default)]
+    pub hidden_staves: Vec<ViewStaffRef>,
+    #[serde(default)]
+    pub system_breaks: Vec<usize>,
+    #[serde(default)]
+    pub page_breaks: Vec<usize>,
+    /// Deterministic key/value style overrides interpreted by a renderer or host.
+    #[serde(default)]
+    pub style_overrides: Vec<(String, String)>,
+    /// Typed, bounded styling values preferred over the legacy string bridge.
+    #[serde(default)]
+    pub typed_style_overrides: Vec<ViewStyleOverride>,
+}
+
+/// A stable view-level style property with renderer-independent units.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ViewStyleProperty {
+    StaffSpace,
+    TextScale,
+    AnnotationGap,
+    SystemGap,
+}
+
+/// One typed style override. `StaffSpace` is a renderer scale multiplier; the remaining
+/// spacing values use staff-space units, while `TextScale` is dimensionless.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ViewStyleOverride {
+    pub property: ViewStyleProperty,
+    pub value: f32,
+}
+
+/// A stable score object to which a typed presentation override applies.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum ObjectStyleTarget {
+    ScoreText {
+        text_index: usize,
+    },
+    MeasureText {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        text_index: usize,
+    },
+    Note {
+        address: NoteAddr,
+    },
+}
+
+/// Bounded source information retained when an object style originated in interchange.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StyleImportProvenance {
+    pub format: String,
+    pub source_location: String,
+}
+
+/// A renderer-neutral typed style override attached to a score object.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ObjectStyleOverride {
+    pub target: ObjectStyleTarget,
+    pub property: ViewStyleProperty,
+    pub value: f32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provenance: Option<StyleImportProvenance>,
+}
+
+impl ScoreViewLayoutOverrides {
+    /// Return the last authored override for a property, preserving deterministic source order.
+    pub fn style_value(&self, property: ViewStyleProperty) -> Option<f32> {
+        self.typed_style_overrides
+            .iter()
+            .rev()
+            .find(|override_| override_.property == property)
+            .map(|override_| override_.value)
+    }
+
+    /// Resolve this view's typed style overrides onto the stable default style.
+    pub fn resolved_style(&self) -> ViewStyle {
+        let mut style = ViewStyle::default();
+        apply_style_overrides(&mut style, &self.typed_style_overrides);
+        style
+    }
+}
+
+fn apply_style_overrides(style: &mut ViewStyle, overrides: &[ViewStyleOverride]) {
+    for override_ in overrides {
+        match override_.property {
+            ViewStyleProperty::StaffSpace => style.staff_space = override_.value,
+            ViewStyleProperty::TextScale => style.text_scale = override_.value,
+            ViewStyleProperty::AnnotationGap => style.annotation_gap = override_.value,
+            ViewStyleProperty::SystemGap => style.system_gap = override_.value,
+        }
+    }
+}
+
+/// Renderer-independent effective style for a linked view.
+///
+/// `staff_space` and `text_scale` are dimensionless multipliers. Annotation and system gaps
+/// use staff-space units.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ViewStyle {
+    pub staff_space: f32,
+    pub text_scale: f32,
+    pub annotation_gap: f32,
+    pub system_gap: f32,
+}
+
+impl Default for ViewStyle {
+    fn default() -> Self {
+        Self {
+            staff_space: 1.0,
+            text_scale: 1.0,
+            annotation_gap: 1.0,
+            system_gap: 2.0,
+        }
+    }
+}
+
+/// A view-local staff-kind override which never changes the source score.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ViewStaffKindOverride {
+    pub staff: ViewStaffRef,
+    pub kind: StaffKind,
+}
+
+/// A linked, non-destructive score projection.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ScoreView {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub parts: Vec<usize>,
+    #[serde(default)]
+    pub transposition_policy: ViewTranspositionPolicy,
+    /// Presentation kinds applied only when this view is resolved.
+    #[serde(default)]
+    pub staff_kind_overrides: Vec<ViewStaffKindOverride>,
+    #[serde(default)]
+    pub layout: ScoreViewLayoutOverrides,
+}
+
+impl ScoreView {
+    /// Construct a linked part view for one source part.
+    pub fn linked_part(id: impl Into<String>, name: impl Into<String>, part: usize) -> Self {
+        Self {
+            id: id.into(),
+            name: name.into(),
+            parts: vec![part],
+            transposition_policy: ViewTranspositionPolicy::Written,
+            staff_kind_overrides: Vec::new(),
+            layout: ScoreViewLayoutOverrides::default(),
+        }
+    }
+
+    /// Construct a linked part view that presents one selected staff as tablature.
+    pub fn linked_tablature_staff(
+        id: impl Into<String>,
+        name: impl Into<String>,
+        part: usize,
+        staff: usize,
+    ) -> Self {
+        let mut view = Self::linked_part(id, name, part);
+        view.staff_kind_overrides.push(ViewStaffKindOverride {
+            staff: ViewStaffRef { part, staff },
+            kind: StaffKind::Tablature,
+        });
+        view
+    }
+
+    /// Construct a linked part view that presents one selected staff as standard notation.
+    pub fn linked_standard_staff(
+        id: impl Into<String>,
+        name: impl Into<String>,
+        part: usize,
+        staff: usize,
+    ) -> Self {
+        let mut view = Self::linked_part(id, name, part);
+        view.staff_kind_overrides.push(ViewStaffKindOverride {
+            staff: ViewStaffRef { part, staff },
+            kind: StaffKind::Standard,
+        });
+        view
+    }
 }
 
 /// Bounded notation span kinds with stable source identity.
@@ -158,8 +374,11 @@ impl Default for Score {
             parts: vec![part],
             part_groups: Vec::new(),
             texts: Vec::new(),
+            style_overrides: Vec::new(),
+            object_style_overrides: Vec::new(),
             chord_definitions: Vec::new(),
             spanners: Vec::new(),
+            views: Vec::new(),
         }
     }
 }
@@ -180,6 +399,14 @@ pub enum ScoreTemplate {
 }
 
 impl Score {
+    /// Resolve score-wide defaults followed by the supplied view's local overrides.
+    pub fn resolved_view_style(&self, layout: &ScoreViewLayoutOverrides) -> ViewStyle {
+        let mut style = ViewStyle::default();
+        apply_style_overrides(&mut style, &self.style_overrides);
+        apply_style_overrides(&mut style, &layout.typed_style_overrides);
+        style
+    }
+
     pub fn new(
         title: &str,
         tempo_bpm: u16,
@@ -240,8 +467,11 @@ impl Score {
             parts: Vec::new(),
             part_groups: Vec::new(),
             texts: Vec::new(),
+            style_overrides: Vec::new(),
+            object_style_overrides: Vec::new(),
             chord_definitions: Vec::new(),
             spanners: Vec::new(),
+            views: Vec::new(),
         };
 
         match kind {
@@ -359,6 +589,126 @@ impl Score {
         }
     }
 
+    /// Resolve a linked view to an independent score snapshot without mutating this score.
+    ///
+    /// The snapshot contains only the selected parts and notation spans whose endpoints remain
+    /// inside the projection. View-only layout settings are deliberately retained in the returned
+    /// view list so a layout consumer can apply them without changing the source score.
+    pub fn resolve_view(&self, view_id: &str) -> Result<Score, Error> {
+        let view = self
+            .views
+            .iter()
+            .find(|view| view.id == view_id)
+            .ok_or_else(|| {
+                Error::InvalidCommand(format!("score view '{view_id}' does not exist"))
+            })?;
+        let mut source_to_target = vec![None; self.parts.len()];
+        let mut parts = Vec::with_capacity(view.parts.len());
+        for &source_index in &view.parts {
+            let source = self
+                .parts
+                .get(source_index)
+                .ok_or(Error::PartNotFound(source_index))?;
+            if source_to_target[source_index].is_some() {
+                return Err(Error::InvalidCommand(format!(
+                    "score view '{}' selects part {} more than once",
+                    view.id, source_index
+                )));
+            }
+            source_to_target[source_index] = Some(parts.len());
+            parts.push(source.clone());
+        }
+        for override_ in &view.staff_kind_overrides {
+            let target_part = source_to_target
+                .get(override_.staff.part)
+                .copied()
+                .flatten()
+                .ok_or_else(|| {
+                    Error::InvalidCommand(
+                        "view overrides a staff outside its selected parts".into(),
+                    )
+                })?;
+            let target_staff = parts[target_part]
+                .staves
+                .get_mut(override_.staff.staff)
+                .ok_or_else(|| {
+                    Error::InvalidCommand(format!(
+                        "view overrides staff {} outside part {}",
+                        override_.staff.staff, override_.staff.part
+                    ))
+                })?;
+            if override_.kind == StaffKind::Tablature && target_staff.tablature.is_none() {
+                return Err(Error::InvalidCommand(
+                    "tablature view requires a tablature configuration on its source staff".into(),
+                ));
+            }
+            target_staff.presentation.kind = override_.kind;
+        }
+        let spanners = self
+            .spanners
+            .iter()
+            .filter_map(|spanner| {
+                let start = source_to_target
+                    .get(spanner.start.part)
+                    .copied()
+                    .flatten()?;
+                let end = source_to_target.get(spanner.end.part).copied().flatten()?;
+                let mut projected = spanner.clone();
+                projected.start.part = start;
+                projected.end.part = end;
+                Some(projected)
+            })
+            .collect();
+        let part_groups = self
+            .part_groups
+            .iter()
+            .filter_map(|group| {
+                let first = source_to_target.get(group.first_part).copied().flatten()?;
+                let last = source_to_target.get(group.last_part).copied().flatten()?;
+                Some(PartGroup {
+                    first_part: first,
+                    last_part: last,
+                    symbol: group.symbol.clone(),
+                    barlines_connect: group.barlines_connect,
+                })
+            })
+            .collect();
+        let mut projected_view = view.clone();
+        projected_view.parts = (0..parts.len()).collect();
+        for reference in &mut projected_view.layout.hidden_staves {
+            reference.part = source_to_target
+                .get(reference.part)
+                .copied()
+                .flatten()
+                .ok_or_else(|| {
+                    Error::InvalidCommand("view hides a part outside its selection".into())
+                })?;
+        }
+        for override_ in &mut projected_view.staff_kind_overrides {
+            override_.staff.part = source_to_target
+                .get(override_.staff.part)
+                .copied()
+                .flatten()
+                .ok_or_else(|| {
+                    Error::InvalidCommand("view overrides a staff outside its selection".into())
+                })?;
+        }
+        Ok(Score {
+            id: Uuid::new_v4().to_string(),
+            schema_version: self.schema_version,
+            metadata: self.metadata.clone(),
+            settings: self.settings.clone(),
+            parts,
+            part_groups,
+            texts: self.texts.clone(),
+            style_overrides: self.style_overrides.clone(),
+            object_style_overrides: self.object_style_overrides.clone(),
+            chord_definitions: self.chord_definitions.clone(),
+            spanners,
+            views: vec![projected_view],
+        })
+    }
+
     /// Return a new `Score` containing only the given part.
     /// Returns `None` if `part_index` is out of range.
     pub fn extract_part(&self, part_index: usize) -> Option<Score> {
@@ -382,8 +732,11 @@ impl Score {
             parts: vec![part],
             part_groups: Vec::new(),
             texts: self.texts.clone(),
+            style_overrides: self.style_overrides.clone(),
+            object_style_overrides: self.object_style_overrides.clone(),
             chord_definitions: self.chord_definitions.clone(),
             spanners,
+            views: Vec::new(),
         })
     }
 
@@ -446,8 +799,11 @@ impl Score {
             parts,
             part_groups: Vec::new(),
             texts: self.texts.clone(),
+            style_overrides: self.style_overrides.clone(),
+            object_style_overrides: self.object_style_overrides.clone(),
             chord_definitions: self.chord_definitions.clone(),
             spanners,
+            views: Vec::new(),
         }
     }
 
@@ -500,14 +856,17 @@ pub fn assign_tablature_positions(score: &mut Score) -> usize {
 
     for part in &mut score.parts {
         for staff in &mut part.staves {
-            let Some(tab) = &staff.tablature else {
+            if staff.tablature.is_none() {
                 continue;
-            };
-            let tuning = tab.tuning_midi.clone();
-            let lines = tab.lines as usize;
-            let capo = i16::from(tab.capo);
+            }
+            let configurations: Vec<Option<TablatureConfig>> = (0..staff.measures.len())
+                .map(|measure_index| staff.tablature_at(measure_index))
+                .collect();
 
-            for measure in &mut staff.measures {
+            for (measure_index, measure) in staff.measures.iter_mut().enumerate() {
+                let Some(tab) = configurations[measure_index].as_ref() else {
+                    continue;
+                };
                 for voice in &mut measure.voices {
                     for note in voice.iter_mut() {
                         if note.is_rest
@@ -518,9 +877,13 @@ pub fn assign_tablature_positions(score: &mut Score) -> usize {
                             continue;
                         }
                         let pitches: Vec<i16> = note.pitches.iter().map(Pitch::to_midi).collect();
-                        let Some(positions) =
-                            best_tablature_assignment(&pitches, &tuning, lines, capo, MAX_FRET)
-                        else {
+                        let Some(positions) = best_tablature_assignment(
+                            &pitches,
+                            &tab.tuning_midi,
+                            tab.lines as usize,
+                            i16::from(tab.capo),
+                            MAX_FRET,
+                        ) else {
                             continue;
                         };
 
@@ -549,12 +912,12 @@ pub fn optimize_tablature_positions(score: &mut Score) -> usize {
 
     for part in &mut score.parts {
         for staff in &mut part.staves {
-            let Some(tab) = &staff.tablature else {
+            if staff.tablature.is_none() {
                 continue;
-            };
-            let tuning = tab.tuning_midi.clone();
-            let lines = tab.lines as usize;
-            let capo = i16::from(tab.capo);
+            }
+            let configurations: Vec<Option<TablatureConfig>> = (0..staff.measures.len())
+                .map(|measure_index| staff.tablature_at(measure_index))
+                .collect();
             for voice in 0..4 {
                 // Work per measure/voice location so repeated note indices remain distinct.
                 let mut locations = Vec::new();
@@ -567,7 +930,7 @@ pub fn optimize_tablature_positions(score: &mut Score) -> usize {
                 }
                 let candidates: Vec<Vec<Vec<TabPosition>>> = locations
                     .iter()
-                    .map(|(_, _, note)| {
+                    .map(|(measure_index, _, note)| {
                         if let Some(positions) = if !note.tab_positions.is_empty() {
                             Some(note.tab_positions.clone())
                         } else {
@@ -575,11 +938,14 @@ pub fn optimize_tablature_positions(score: &mut Score) -> usize {
                         } {
                             vec![positions]
                         } else {
+                            let Some(tab) = configurations[*measure_index].as_ref() else {
+                                return Vec::new();
+                            };
                             tablature_assignments(
                                 &note.pitches.iter().map(Pitch::to_midi).collect::<Vec<_>>(),
-                                &tuning,
-                                lines,
-                                capo,
+                                &tab.tuning_midi,
+                                tab.lines as usize,
+                                i16::from(tab.capo),
                                 MAX_FRET,
                             )
                         }
@@ -879,6 +1245,76 @@ pub fn transpose_checked(score: &Score, semitones: i8) -> Result<Score, Error> {
     Ok(transposed)
 }
 
+/// Choose whether a regional transposition rewrites notation or concert sounding pitch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RegionalTranspositionTarget {
+    /// Rewrite written pitches and local key signatures in the selected measures.
+    Written,
+    /// Keep written notation unchanged and adjust the staff's concert-pitch offset.
+    Concert,
+}
+
+/// Transpose one inclusive-start, exclusive-end staff measure range through the validated
+/// transformation boundary. The source score is never mutated.
+pub fn transpose_staff_region_checked(
+    score: &Score,
+    part_index: usize,
+    staff_index: usize,
+    start_measure: usize,
+    end_measure: usize,
+    semitones: i8,
+    target: RegionalTranspositionTarget,
+) -> Result<Score, Error> {
+    if !super::validate::validate(score).is_valid() {
+        return Err(Error::InvalidScore);
+    }
+    let source_staff = score
+        .parts
+        .get(part_index)
+        .ok_or(Error::PartNotFound(part_index))?
+        .staves
+        .get(staff_index)
+        .ok_or(Error::StaffNotFound(staff_index))?;
+    if start_measure >= end_measure || end_measure > source_staff.measures.len() {
+        return Err(Error::InvalidCommand(format!(
+            "invalid measure range {start_measure}..{end_measure}"
+        )));
+    }
+    if target == RegionalTranspositionTarget::Concert
+        && (start_measure != 0 || end_measure != source_staff.measures.len())
+    {
+        return Err(Error::InvalidCommand(
+            "concert-pitch staff transposition requires the full staff range".into(),
+        ));
+    }
+    let mut transformed = score.clone();
+    let staff = &mut transformed.parts[part_index].staves[staff_index];
+    match target {
+        RegionalTranspositionTarget::Written => {
+            for measure in &mut staff.measures[start_measure..end_measure] {
+                if let Some(key) = &mut measure.key_sig {
+                    key.fifths = transpose_fifths(key.fifths, &key.mode, semitones);
+                }
+                for voice in &mut measure.voices {
+                    for note in voice {
+                        for pitch in &mut note.pitches {
+                            *pitch = transpose_pitch(pitch, semitones);
+                        }
+                    }
+                }
+            }
+        }
+        RegionalTranspositionTarget::Concert => {
+            staff.transpose_semitones = staff.transpose_semitones.saturating_add(semitones);
+        }
+    }
+    if !super::validate::validate(&transformed).is_valid() {
+        return Err(Error::InvalidScore);
+    }
+    Ok(transformed)
+}
+
 fn transpose_pitch(pitch: &Pitch, semitones: i8) -> Pitch {
     let new_midi = (pitch.to_midi() + semitones as i16).clamp(0, 127) as u8;
     let pc = new_midi % 12;
@@ -941,6 +1377,74 @@ fn transpose_fifths(fifths: i8, mode: &str, semitones: i8) -> i8 {
     if raw > 6 { raw - 12 } else { raw }
 }
 
+/// Inclusive MIDI note-number range declared by an instrument definition.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InstrumentRange {
+    pub lowest: u8,
+    pub highest: u8,
+}
+
+/// Stable, renderer-independent instrument semantics for a part.
+///
+/// This is deliberately separate from a part's current MIDI state: the latter
+/// records imported/performance values, while this definition supplies the
+/// instrument identity, notation defaults, and practical written/sounding
+/// ranges used by editors and layout clients.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InstrumentDefinition {
+    /// Stable source or application-defined identifier. It must be non-empty.
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub short_name: String,
+    #[serde(default)]
+    pub family: Option<String>,
+    #[serde(default)]
+    pub transpose_semitones: i8,
+    #[serde(default)]
+    pub written_range: Option<InstrumentRange>,
+    #[serde(default)]
+    pub sounding_range: Option<InstrumentRange>,
+    #[serde(default)]
+    pub default_clefs: Vec<Clef>,
+    #[serde(default = "default_instrument_staff_count")]
+    pub staff_count: u8,
+    #[serde(default)]
+    pub staff_kind: StaffKind,
+    #[serde(default)]
+    pub midi_channel: u8,
+    #[serde(default)]
+    pub midi_program: u8,
+    #[serde(default)]
+    pub percussion_map_id: Option<String>,
+}
+
+const fn default_instrument_staff_count() -> u8 {
+    1
+}
+
+impl InstrumentDefinition {
+    /// Construct a minimal single-staff instrument declaration.
+    pub fn new(id: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            id: id.into(),
+            name: name.into(),
+            short_name: String::new(),
+            family: None,
+            transpose_semitones: 0,
+            written_range: None,
+            sounding_range: None,
+            default_clefs: Vec::new(),
+            staff_count: 1,
+            staff_kind: StaffKind::Standard,
+            midi_channel: 0,
+            midi_program: 0,
+            percussion_map_id: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Part {
     pub id: String,
@@ -971,6 +1475,9 @@ pub struct Part {
     /// MEI/MuseScore staff-group structure within this part.
     #[serde(default)]
     pub staff_groups: Vec<StaffGroup>,
+    /// Optional named instrument semantics. Omitted in older score JSON.
+    #[serde(default)]
+    pub instrument: Option<InstrumentDefinition>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1009,13 +1516,32 @@ pub struct MidiAftertouch {
     pub value: u8,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// An editable percussion-kit mapping associated with a MusicXML score-instrument identity.
+///
+/// The MIDI key remains the playback fallback, while the remaining fields
+/// describe renderer-independent notation defaults. Individual notes may still
+/// override these defaults.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PercussionInstrument {
+    /// Stable MusicXML score-instrument identity.
     pub id: String,
     #[serde(default)]
     pub name: Option<String>,
+    /// General MIDI unpitched key used as the playback fallback.
     #[serde(default)]
     pub midi_unpitched: Option<u8>,
+    /// Diatonic staff position relative to the middle line.
+    #[serde(default)]
+    pub staff_position: Option<i8>,
+    /// Default glyph when a note does not supply a renderer-specific override.
+    #[serde(default)]
+    pub notehead: Option<NoteHead>,
+    /// Preferred one-based score voice for newly entered kit notes.
+    #[serde(default)]
+    pub preferred_voice: Option<u8>,
+    /// Named kit-specific variants such as rim-shot or open.
+    #[serde(default)]
+    pub techniques: Vec<String>,
 }
 
 impl Part {
@@ -1033,6 +1559,7 @@ impl Part {
             midi_aftertouch: Vec::new(),
             percussion_instruments: Vec::new(),
             staff_groups: Vec::new(),
+            instrument: None,
         }
     }
 
@@ -1060,6 +1587,114 @@ impl Part {
     }
 }
 
+/// The semantic notation mode of a staff, independent of renderer-specific styling.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum StaffKind {
+    #[default]
+    Standard,
+    Tablature,
+    Percussion,
+}
+
+/// A score-level notehead convention selected for an entire staff.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum StaffNoteheadScheme {
+    #[default]
+    Standard,
+    PitchNames,
+    ShapeNotes,
+}
+
+/// How a tablature staff exposes rhythmic duration in addition to fret numbers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TablatureRhythmDisplay {
+    /// Fret numbers only; duration remains available in the score model.
+    #[default]
+    FretOnly,
+    /// Add stems and flags to the tablature staff's fret numbers.
+    Stems,
+}
+
+/// Renderer-independent staff appearance and semantic settings.
+///
+/// Values are expressed in staff-space units, never pixels. Existing tablature
+/// tuning data remains in [`Staff::tablature`]; `kind` records how a renderer
+/// should interpret the staff.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StaffPresentation {
+    #[serde(default)]
+    pub kind: StaffKind,
+    #[serde(default = "default_staff_line_count")]
+    pub lines: u8,
+    #[serde(default = "default_staff_line_distance")]
+    pub line_distance: f32,
+    #[serde(default)]
+    pub small: bool,
+    #[serde(default)]
+    pub cutaway: bool,
+    #[serde(default = "default_staff_visible")]
+    pub visible: bool,
+    #[serde(default)]
+    pub notehead_scheme: StaffNoteheadScheme,
+    /// Tablature-only duration presentation. Ignored on non-tablature staves.
+    #[serde(default)]
+    pub tablature_rhythm_display: TablatureRhythmDisplay,
+    /// Tablature fret-label convention. Ignored on non-tablature staves.
+    #[serde(default)]
+    pub tablature_fret_mark_style: TablatureFretMarkStyle,
+}
+
+const fn default_staff_line_count() -> u8 {
+    5
+}
+
+const fn default_staff_line_distance() -> f32 {
+    1.0
+}
+
+const fn default_staff_visible() -> bool {
+    true
+}
+
+impl Default for StaffPresentation {
+    fn default() -> Self {
+        Self {
+            kind: StaffKind::Standard,
+            lines: default_staff_line_count(),
+            line_distance: default_staff_line_distance(),
+            small: false,
+            cutaway: false,
+            visible: true,
+            notehead_scheme: StaffNoteheadScheme::Standard,
+            tablature_rhythm_display: TablatureRhythmDisplay::FretOnly,
+            tablature_fret_mark_style: TablatureFretMarkStyle::Arabic,
+        }
+    }
+}
+
+/// Glyph convention used to label tablature frets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TablatureFretMarkStyle {
+    #[default]
+    Arabic,
+    RomanUpper,
+    RomanLower,
+}
+
+impl StaffPresentation {
+    fn for_clef(clef: &Clef) -> Self {
+        let mut presentation = Self::default();
+        if matches!(clef, Clef::Percussion) {
+            presentation.kind = StaffKind::Percussion;
+        }
+        presentation
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Staff {
     pub clef: Clef,
@@ -1070,16 +1705,34 @@ pub struct Staff {
     pub transpose_semitones: i8,
     #[serde(default)]
     pub tablature: Option<TablatureConfig>,
+    #[serde(default)]
+    pub presentation: StaffPresentation,
 }
 
 impl Staff {
     pub fn new(clef: Clef) -> Self {
         Self {
+            presentation: StaffPresentation::for_clef(&clef),
             clef,
             measures: Vec::new(),
             transpose_semitones: 0,
             tablature: None,
         }
+    }
+
+    /// Resolve the tablature tuning and capo active at a physical measure.
+    ///
+    /// A measure-local change starts at its own boundary and continues until
+    /// replaced or cleared. Line-count changes are rejected by validation so
+    /// the staff geometry remains stable within a system.
+    pub fn tablature_at(&self, measure_index: usize) -> Option<TablatureConfig> {
+        let mut active = self.tablature.clone();
+        for measure in self.measures.iter().take(measure_index.saturating_add(1)) {
+            if let Some(change) = &measure.tablature_change {
+                active = Some(change.clone());
+            }
+        }
+        active
     }
 }
 
@@ -1091,6 +1744,37 @@ pub struct VoltaBracket {
     pub kind: String,
 }
 
+/// One of the three mechanically available positions of a concert-harp pedal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum HarpPedalPosition {
+    Flat,
+    #[default]
+    Natural,
+    Sharp,
+}
+
+/// A MusicXML-compatible harp-pedal diagram attached to one measure.
+///
+/// Positions are always ordered D, C, B, E, F, G, A, which is the conventional two-row
+/// pedal-diagram order. The optional placement is retained without inventing pixel geometry.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HarpPedalDiagram {
+    #[serde(default)]
+    pub positions: [HarpPedalPosition; 7],
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placement: Option<String>,
+}
+
+impl Default for HarpPedalDiagram {
+    fn default() -> Self {
+        Self {
+            positions: [HarpPedalPosition::Natural; 7],
+            placement: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Measure {
     pub number: u32,
@@ -1098,6 +1782,16 @@ pub struct Measure {
     pub key_sig: Option<KeySignature>,
     pub clef: Option<Clef>,
     pub tempo: Option<u16>,
+    /// Optional target BPM at this measure's end. The playback contract linearly interpolates
+    /// BPM across the measure; `None` keeps a constant tempo until the next change.
+    #[serde(default)]
+    pub tempo_ramp_to: Option<u16>,
+    /// Instrument semantics beginning at this staff-local measure boundary.
+    #[serde(default)]
+    pub instrument_change: Option<InstrumentDefinition>,
+    /// Tablature tuning/capo beginning at this staff-local measure boundary.
+    #[serde(default)]
+    pub tablature_change: Option<TablatureConfig>,
     pub barline_left: Barline,
     pub barline_right: Barline,
     #[serde(default)]
@@ -1118,6 +1812,9 @@ pub struct Measure {
     /// Structured MusicXML figured-bass figures in source order.
     #[serde(default)]
     pub figured_bass: Vec<FiguredBassFigure>,
+    /// Concert-harp pedal diagrams declared by MusicXML `<harp-pedals>` directions.
+    #[serde(default)]
+    pub harp_pedal_diagrams: Vec<HarpPedalDiagram>,
     /// When ≥ 2, this measure is displayed as a multi-measure rest spanning N measures.
     #[serde(default)]
     pub multi_rest_count: Option<u8>,
@@ -1158,6 +1855,9 @@ impl Measure {
             key_sig: None,
             clef: None,
             tempo: None,
+            tempo_ramp_to: None,
+            instrument_change: None,
+            tablature_change: None,
             barline_left: Barline::Normal,
             barline_right: Barline::Normal,
             volta: None,
@@ -1167,6 +1867,7 @@ impl Measure {
             expression_text: None,
             texts: Vec::new(),
             figured_bass: Vec::new(),
+            harp_pedal_diagrams: Vec::new(),
             multi_rest_count: None,
             system_break: false,
             page_break: false,
@@ -1284,6 +1985,16 @@ pub struct Note {
     /// MusicXML bend amount in cents when supplied by the source.
     #[serde(default)]
     pub guitar_bend_alter_cents: Option<i16>,
+    /// Ordered bend curve points. Position is relative note time in per-mille (0..=1000).
+    #[serde(default)]
+    pub guitar_bend_curve: Vec<GuitarBendPoint>,
+}
+
+/// One point of an authored guitar bend curve.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GuitarBendPoint {
+    pub position_per_mille: u16,
+    pub alter_cents: i16,
 }
 
 impl Note {
@@ -1356,6 +2067,7 @@ impl Note {
             trill_line_end: false,
             guitar_technique: None,
             guitar_bend_alter_cents: None,
+            guitar_bend_curve: Vec::new(),
         }
     }
 
@@ -1407,6 +2119,7 @@ impl Note {
             trill_line_end: false,
             guitar_technique: None,
             guitar_bend_alter_cents: None,
+            guitar_bend_curve: Vec::new(),
         }
     }
 
@@ -1461,6 +2174,10 @@ pub struct NoteAddr {
 /// A single change between two [`Score`] values as reported by [`diff`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ScoreChange {
+    ScoreViewsChanged {
+        old: Vec<ScoreView>,
+        new: Vec<ScoreView>,
+    },
     ScoreTextChanged {
         old: Vec<StyledText>,
         new: Vec<StyledText>,
@@ -1478,6 +2195,13 @@ pub enum ScoreChange {
         measure: usize,
         old: Vec<FiguredBassFigure>,
         new: Vec<FiguredBassFigure>,
+    },
+    HarpPedalDiagramsChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old: Vec<HarpPedalDiagram>,
+        new: Vec<HarpPedalDiagram>,
     },
     ChordDefinitionsChanged {
         old: Vec<ChordDefinition>,
@@ -1497,6 +2221,11 @@ pub enum ScoreChange {
         old_program: u8,
         new_program: u8,
     },
+    InstrumentDefinitionChanged {
+        part: usize,
+        old: Option<InstrumentDefinition>,
+        new: Option<InstrumentDefinition>,
+    },
     PartMidiAutomationChanged {
         part: usize,
         old_pitch_bends: Vec<MidiPitchBend>,
@@ -1515,6 +2244,12 @@ pub enum ScoreChange {
         new_clef: Clef,
         old_transpose_semitones: i8,
         new_transpose_semitones: i8,
+    },
+    StaffPresentationChanged {
+        part: usize,
+        staff: usize,
+        old: StaffPresentation,
+        new: StaffPresentation,
     },
     MeasurePresentationChanged {
         part: usize,
@@ -1540,6 +2275,13 @@ pub enum ScoreChange {
     TablatureConfigChanged {
         part: usize,
         staff: usize,
+        old: Option<TablatureConfig>,
+        new: Option<TablatureConfig>,
+    },
+    TablatureChangeChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
         old: Option<TablatureConfig>,
         new: Option<TablatureConfig>,
     },
@@ -1607,6 +2349,13 @@ pub enum ScoreChange {
         old: Option<u16>,
         new: Option<u16>,
     },
+    MeasureTempoRampChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old: Option<u16>,
+        new: Option<u16>,
+    },
     BarlineChanged {
         part: usize,
         staff: usize,
@@ -1633,6 +2382,13 @@ pub enum ScoreChange {
 /// individually.
 pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
     let mut changes: Vec<ScoreChange> = Vec::new();
+
+    if a.views != b.views {
+        changes.push(ScoreChange::ScoreViewsChanged {
+            old: a.views.clone(),
+            new: b.views.clone(),
+        });
+    }
 
     if a.texts != b.texts {
         changes.push(ScoreChange::ScoreTextChanged {
@@ -1714,6 +2470,13 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                 new_program: bp.midi_program,
             });
         }
+        if ap.instrument != bp.instrument {
+            changes.push(ScoreChange::InstrumentDefinitionChanged {
+                part: pi,
+                old: ap.instrument.clone(),
+                new: bp.instrument.clone(),
+            });
+        }
         if ap.midi_pitch_bends != bp.midi_pitch_bends
             || ap.midi_control_changes != bp.midi_control_changes
             || ap.midi_program_changes != bp.midi_program_changes
@@ -1754,9 +2517,26 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                     new: b_staff.tablature.clone(),
                 });
             }
+            if a_staff.presentation != b_staff.presentation {
+                changes.push(ScoreChange::StaffPresentationChanged {
+                    part: pi,
+                    staff: si,
+                    old: a_staff.presentation.clone(),
+                    new: b_staff.presentation.clone(),
+                });
+            }
             for mi in 0..a_staff.measures.len().min(b_staff.measures.len()) {
                 let am = &a_staff.measures[mi];
                 let bm = &b_staff.measures[mi];
+                if am.tablature_change != bm.tablature_change {
+                    changes.push(ScoreChange::TablatureChangeChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.tablature_change.clone(),
+                        new: bm.tablature_change.clone(),
+                    });
+                }
                 if am.number != bm.number
                     || am.clef != bm.clef
                     || am.tempo_text != bm.tempo_text
@@ -1841,6 +2621,15 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                         new: bm.tempo,
                     });
                 }
+                if am.tempo_ramp_to != bm.tempo_ramp_to {
+                    changes.push(ScoreChange::MeasureTempoRampChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.tempo_ramp_to,
+                        new: bm.tempo_ramp_to,
+                    });
+                }
                 if am.barline_left != bm.barline_left || am.barline_right != bm.barline_right {
                     changes.push(ScoreChange::BarlineChanged {
                         part: pi,
@@ -1880,6 +2669,15 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                         measure: mi,
                         old: am.figured_bass.clone(),
                         new: bm.figured_bass.clone(),
+                    });
+                }
+                if am.harp_pedal_diagrams != bm.harp_pedal_diagrams {
+                    changes.push(ScoreChange::HarpPedalDiagramsChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.harp_pedal_diagrams.clone(),
+                        new: bm.harp_pedal_diagrams.clone(),
                     });
                 }
             }
@@ -1966,6 +2764,9 @@ fn first_unrepresented_measure_change(
 /// [`Score`] without needing the original score. Use [`apply_patch`] to apply a list.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ScorePatch {
+    SetScoreViews {
+        value: Vec<ScoreView>,
+    },
     SetScoreTexts {
         value: Vec<StyledText>,
     },
@@ -1981,6 +2782,12 @@ pub enum ScorePatch {
         measure: usize,
         value: Vec<FiguredBassFigure>,
     },
+    SetHarpPedalDiagrams {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        value: Vec<HarpPedalDiagram>,
+    },
     SetChordDefinitions {
         value: Vec<ChordDefinition>,
     },
@@ -1994,6 +2801,10 @@ pub enum ScorePatch {
         channel: u8,
         program: u8,
     },
+    SetInstrumentDefinition {
+        part: usize,
+        value: Option<InstrumentDefinition>,
+    },
     SetPartMidiAutomation {
         part: usize,
         pitch_bends: Vec<MidiPitchBend>,
@@ -2006,6 +2817,11 @@ pub enum ScorePatch {
         staff: usize,
         clef: Clef,
         transpose_semitones: i8,
+    },
+    SetStaffPresentation {
+        part: usize,
+        staff: usize,
+        value: StaffPresentation,
     },
     SetMeasurePresentation {
         part: usize,
@@ -2023,6 +2839,12 @@ pub enum ScorePatch {
     SetTablatureConfig {
         part: usize,
         staff: usize,
+        value: Option<TablatureConfig>,
+    },
+    SetMeasureTablatureChange {
+        part: usize,
+        staff: usize,
+        measure: usize,
         value: Option<TablatureConfig>,
     },
     SetMetadata {
@@ -2096,6 +2918,12 @@ pub enum ScorePatch {
         measure: usize,
         value: Option<u16>,
     },
+    SetMeasureTempoRamp {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        value: Option<u16>,
+    },
     /// Replace the complete score when a change cannot be represented safely by
     /// positional operations (for example, a part or measure was added).
     ReplaceScore {
@@ -2155,6 +2983,12 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
         }];
     }
 
+    if a.views != b.views {
+        patches.push(ScorePatch::SetScoreViews {
+            value: b.views.clone(),
+        });
+    }
+
     if a.texts != b.texts {
         patches.push(ScorePatch::SetScoreTexts {
             value: b.texts.clone(),
@@ -2206,6 +3040,12 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                 program: bp.midi_program,
             });
         }
+        if ap.instrument != bp.instrument {
+            patches.push(ScorePatch::SetInstrumentDefinition {
+                part: pi,
+                value: bp.instrument.clone(),
+            });
+        }
         if ap.midi_pitch_bends != bp.midi_pitch_bends
             || ap.midi_control_changes != bp.midi_control_changes
             || ap.midi_program_changes != bp.midi_program_changes
@@ -2239,9 +3079,25 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                     value: b_staff.tablature.clone(),
                 });
             }
+            if a_staff.presentation != b_staff.presentation {
+                patches.push(ScorePatch::SetStaffPresentation {
+                    part: pi,
+                    staff: si,
+                    value: b_staff.presentation.clone(),
+                });
+            }
             for mi in 0..a_staff.measures.len().min(b_staff.measures.len()) {
                 let am = &a_staff.measures[mi];
                 let bm = &b_staff.measures[mi];
+
+                if am.tablature_change != bm.tablature_change {
+                    patches.push(ScorePatch::SetMeasureTablatureChange {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: bm.tablature_change.clone(),
+                    });
+                }
 
                 if am.number != bm.number
                     || am.clef != bm.clef
@@ -2315,6 +3171,14 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                         value: bm.tempo,
                     });
                 }
+                if am.tempo_ramp_to != bm.tempo_ramp_to {
+                    patches.push(ScorePatch::SetMeasureTempoRamp {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: bm.tempo_ramp_to,
+                    });
+                }
                 if am.texts != bm.texts {
                     patches.push(ScorePatch::SetMeasureTexts {
                         part: pi,
@@ -2329,6 +3193,14 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                         staff: si,
                         measure: mi,
                         value: bm.figured_bass.clone(),
+                    });
+                }
+                if am.harp_pedal_diagrams != bm.harp_pedal_diagrams {
+                    patches.push(ScorePatch::SetHarpPedalDiagrams {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: bm.harp_pedal_diagrams.clone(),
                     });
                 }
 
@@ -2387,6 +3259,9 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
             ScorePatch::ReplaceScore { score } => {
                 s = (**score).clone();
             }
+            ScorePatch::SetScoreViews { value } => {
+                s.views = value.clone();
+            }
             ScorePatch::SetScoreTexts { value } => {
                 s.texts = value.clone();
             }
@@ -2424,6 +3299,23 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
                     .figured_bass = value.clone();
             }
+            ScorePatch::SetHarpPedalDiagrams {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .harp_pedal_diagrams = value.clone();
+            }
             ScorePatch::SetChordDefinitions { value } => {
                 s.chord_definitions = value.clone();
             }
@@ -2450,6 +3342,12 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                     .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?;
                 target.midi_channel = *channel;
                 target.midi_program = *program;
+            }
+            ScorePatch::SetInstrumentDefinition { part, value } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .instrument = value.clone();
             }
             ScorePatch::SetPartMidiAutomation {
                 part,
@@ -2482,6 +3380,16 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                     .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?;
                 target.clef = clef.clone();
                 target.transpose_semitones = *transpose_semitones;
+            }
+            ScorePatch::SetStaffPresentation { part, staff, value } => {
+                let target = s
+                    .parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?;
+                target.presentation = value.clone();
             }
             ScorePatch::SetMeasurePresentation {
                 part,
@@ -2525,6 +3433,23 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                     .get_mut(*staff)
                     .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
                     .tablature = value.clone();
+            }
+            ScorePatch::SetMeasureTablatureChange {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .tablature_change = value.clone();
             }
             ScorePatch::SetMetadata { field, value } => match field.as_str() {
                 "title" => s.metadata.title = value.clone(),
@@ -2737,6 +3662,23 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
                     .tempo = *value;
             }
+            ScorePatch::SetMeasureTempoRamp {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .tempo_ramp_to = *value;
+            }
         }
     }
     if !super::validate::validate(&s).is_valid() {
@@ -2793,7 +3735,10 @@ pub fn score_duration_secs(score: &Score) -> f64 {
                     continue;
                 }
                 let beats: f64 = m.voices[0].iter().map(|n| n.beats()).sum();
-                total_secs += beats / current_bpm * 60.0;
+                total_secs += tempo_ramp_duration_secs(current_bpm, m.tempo_ramp_to, beats);
+                if let Some(target) = m.tempo_ramp_to.filter(|target| *target > 0) {
+                    current_bpm = f64::from(target);
+                }
             }
         }
     }
@@ -2824,11 +3769,26 @@ pub fn score_duration_secs_region(score: &Score, region: (usize, usize)) -> f64 
                     continue;
                 }
                 let beats: f64 = m.voices[0].iter().map(|n| n.beats()).sum();
-                total_secs += beats / current_bpm * 60.0;
+                total_secs += tempo_ramp_duration_secs(current_bpm, m.tempo_ramp_to, beats);
+                if let Some(target) = m.tempo_ramp_to.filter(|target| *target > 0) {
+                    current_bpm = f64::from(target);
+                }
             }
         }
     }
     total_secs
+}
+
+fn tempo_ramp_duration_secs(start_bpm: f64, target_bpm: Option<u16>, beats: f64) -> f64 {
+    let Some(target_bpm) = target_bpm.filter(|target| *target > 0) else {
+        return beats / start_bpm * 60.0;
+    };
+    let end_bpm = f64::from(target_bpm);
+    let delta = end_bpm - start_bpm;
+    if delta.abs() < f64::EPSILON {
+        return beats / start_bpm * 60.0;
+    }
+    60.0 * beats / delta * (end_bpm / start_bpm).ln()
 }
 
 /// Return the number of beats available in a voice before it is full.
@@ -2978,6 +3938,7 @@ fn note_content_eq(a: &Note, b: &Note) -> bool {
         && a.tab_positions == b.tab_positions
         && a.guitar_technique == b.guitar_technique
         && a.guitar_bend_alter_cents == b.guitar_bend_alter_cents
+        && a.guitar_bend_curve == b.guitar_bend_curve
 }
 
 #[cfg(test)]
@@ -3044,6 +4005,29 @@ mod tests {
         assert_eq!(
             notes[2].tab_position,
             Some(TabPosition { string: 6, fret: 7 })
+        );
+    }
+
+    #[test]
+    fn assign_tablature_positions_uses_measure_local_capo_change() {
+        let mut score = Score::new("Guitar", 120, 4, 4, 0, 2);
+        score.parts[0].staves[0].tablature = Some(TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![40, 45, 50, 55, 59, 64],
+            capo: 0,
+        });
+        score.parts[0].staves[0].measures[1].tablature_change = Some(TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![40, 45, 50, 55, 59, 64],
+            capo: 2,
+        });
+        score.parts[0].staves[0].measures[1].voices[0]
+            .push(Note::new(Pitch::new(Step::E, 4), Duration::Quarter));
+
+        assert_eq!(assign_tablature_positions(&mut score), 1);
+        assert_eq!(
+            score.parts[0].staves[0].measures[1].voices[0][1].tab_position,
+            Some(TabPosition { string: 5, fret: 3 })
         );
     }
 
@@ -3147,6 +4131,15 @@ mod tests {
     }
 
     #[test]
+    fn score_duration_secs_integrates_measure_tempo_ramp() {
+        use super::score_duration_secs;
+        let mut score = Score::new("Ramp", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].tempo_ramp_to = Some(60);
+        let expected = 4.0 * 60.0 / (60.0 - 120.0) * (60.0f64 / 120.0).ln();
+        assert!((score_duration_secs(&score) - expected).abs() < 1e-9);
+    }
+
+    #[test]
     fn score_duration_secs_zero_bpm_returns_zero() {
         use super::score_duration_secs;
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
@@ -3247,6 +4240,53 @@ mod tests {
         let score = Score::new("T", 120, 4, 4, 0, 1);
         let t = transpose(&score, 0);
         assert_eq!(t.settings.key_signature.fifths, 0);
+    }
+
+    #[test]
+    fn transpose_staff_region_rewrites_only_selected_written_measures() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 2);
+        for measure in &mut score.parts[0].staves[0].measures {
+            measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        }
+        let transformed = transpose_staff_region_checked(
+            &score,
+            0,
+            0,
+            1,
+            2,
+            2,
+            RegionalTranspositionTarget::Written,
+        )
+        .expect("region should transpose");
+        assert_eq!(
+            transformed.parts[0].staves[0].measures[0].voices[0][0].pitches[0],
+            Pitch::new(Step::C, 4)
+        );
+        assert_eq!(
+            transformed.parts[0].staves[0].measures[1].voices[0][0].pitches[0],
+            Pitch::new(Step::D, 4)
+        );
+        assert_eq!(
+            score.parts[0].staves[0].measures[1].voices[0][0].pitches[0],
+            Pitch::new(Step::C, 4)
+        );
+    }
+
+    #[test]
+    fn regional_concert_transposition_requires_full_staff() {
+        let score = Score::new("T", 120, 4, 4, 0, 2);
+        assert!(
+            transpose_staff_region_checked(
+                &score,
+                0,
+                0,
+                1,
+                2,
+                -2,
+                RegionalTranspositionTarget::Concert,
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -3371,6 +4411,17 @@ mod tests {
         assert_eq!(s.transpose_semitones, 0);
     }
 
+    #[test]
+    fn staff_presentation_defaults_and_tracks_percussion_clef() {
+        let standard = Staff::new(Clef::Treble);
+        assert_eq!(standard.presentation, StaffPresentation::default());
+
+        let percussion = Staff::new(Clef::Percussion);
+        assert_eq!(percussion.presentation.kind, StaffKind::Percussion);
+        assert_eq!(percussion.presentation.lines, 5);
+        assert!(percussion.presentation.visible);
+    }
+
     // ── schema_version ────────────────────────────────────────────────────────
 
     #[test]
@@ -3405,6 +4456,149 @@ mod tests {
     }
 
     #[test]
+    fn legacy_staff_json_defaults_presentation() {
+        let score = Score::new("Legacy", 120, 4, 4, 0, 1);
+        let mut value = serde_json::to_value(score).expect("score serializes");
+        value["parts"][0]["staves"][0]
+            .as_object_mut()
+            .expect("staff is an object")
+            .remove("presentation");
+
+        let restored: Score = serde_json::from_value(value).expect("legacy score deserializes");
+        assert_eq!(
+            restored.parts[0].staves[0].presentation,
+            StaffPresentation::default()
+        );
+    }
+
+    #[test]
+    fn legacy_part_json_defaults_instrument_definition() {
+        let score = Score::new("Legacy", 120, 4, 4, 0, 1);
+        let mut value = serde_json::to_value(score).expect("score serializes");
+        value["parts"][0]
+            .as_object_mut()
+            .expect("part is an object")
+            .remove("instrument");
+
+        let restored: Score = serde_json::from_value(value).expect("legacy score deserializes");
+        assert!(restored.parts[0].instrument.is_none());
+    }
+
+    #[test]
+    fn resolve_view_projects_linked_part_without_mutating_source_score() {
+        let mut score = Score::template(ScoreTemplate::StringQuartet);
+        let mut view = ScoreView::linked_part("violin-2", "Violin II", 1);
+        view.layout.measures_per_row = Some(2);
+        score.views.push(view);
+
+        let projected = score.resolve_view("violin-2").expect("view resolves");
+        assert_eq!(projected.parts.len(), 1);
+        assert_eq!(projected.parts[0].name, "Violin II");
+        assert_eq!(projected.views.len(), 1);
+        assert_eq!(projected.views[0].parts, vec![0]);
+        assert_eq!(score.parts.len(), 4);
+        assert_eq!(score.views[0].parts, vec![1]);
+    }
+
+    #[test]
+    fn resolve_view_applies_linked_standard_and_tablature_presentations_non_destructively() {
+        let mut score = Score::new("Guitar", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].tablature = Some(TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![40, 45, 50, 55, 59, 64],
+            capo: 0,
+        });
+        score.parts[0].staves[0].presentation.kind = StaffKind::Standard;
+        score.views.push(ScoreView::linked_tablature_staff(
+            "guitar-tab",
+            "Guitar Tab",
+            0,
+            0,
+        ));
+
+        let projected = score.resolve_view("guitar-tab").expect("view resolves");
+        assert_eq!(
+            projected.parts[0].staves[0].presentation.kind,
+            StaffKind::Tablature
+        );
+        assert_eq!(
+            projected.views[0].staff_kind_overrides[0].staff,
+            ViewStaffRef { part: 0, staff: 0 }
+        );
+        assert_eq!(
+            score.parts[0].staves[0].presentation.kind,
+            StaffKind::Standard
+        );
+    }
+
+    #[test]
+    fn legacy_score_view_json_defaults_staff_kind_overrides() {
+        let mut score = Score::new("Legacy", 120, 4, 4, 0, 1);
+        score.views.push(ScoreView::linked_part("part", "Part", 0));
+        let mut value = serde_json::to_value(score).expect("score serializes");
+        value["views"][0]
+            .as_object_mut()
+            .expect("view is an object")
+            .remove("staff_kind_overrides");
+
+        let restored: Score = serde_json::from_value(value).expect("legacy score deserializes");
+        assert!(restored.views[0].staff_kind_overrides.is_empty());
+    }
+
+    #[test]
+    fn typed_view_style_overrides_are_ordered_and_json_compatible() {
+        let mut view = ScoreView::linked_part("part", "Part", 0);
+        view.layout.typed_style_overrides = vec![
+            ViewStyleOverride {
+                property: ViewStyleProperty::TextScale,
+                value: 0.9,
+            },
+            ViewStyleOverride {
+                property: ViewStyleProperty::TextScale,
+                value: 1.1,
+            },
+        ];
+        assert_eq!(
+            view.layout.style_value(ViewStyleProperty::TextScale),
+            Some(1.1)
+        );
+        let restored: ScoreView =
+            serde_json::from_str(&serde_json::to_string(&view).unwrap()).unwrap();
+        assert_eq!(
+            restored.layout.typed_style_overrides,
+            view.layout.typed_style_overrides
+        );
+        assert_eq!(view.layout.resolved_style().text_scale, 1.1);
+        assert_eq!(view.layout.resolved_style().system_gap, 2.0);
+    }
+
+    #[test]
+    fn score_style_defaults_are_inherited_then_overridden_by_view() {
+        let mut score = Score::new("Style", 120, 4, 4, 0, 1);
+        score.style_overrides = vec![
+            ViewStyleOverride {
+                property: ViewStyleProperty::StaffSpace,
+                value: 1.2,
+            },
+            ViewStyleOverride {
+                property: ViewStyleProperty::TextScale,
+                value: 0.9,
+            },
+        ];
+        let mut view = ScoreView::linked_part("part", "Part", 0);
+        view.layout.typed_style_overrides.push(ViewStyleOverride {
+            property: ViewStyleProperty::TextScale,
+            value: 1.1,
+        });
+        let style = score.resolved_view_style(&view.layout);
+        assert_eq!(style.staff_space, 1.2);
+        assert_eq!(style.text_scale, 1.1);
+        let restored: Score =
+            serde_json::from_str(&serde_json::to_string(&score).unwrap()).unwrap();
+        assert_eq!(restored.style_overrides, score.style_overrides);
+    }
+
+    #[test]
     fn legacy_measure_json_defaults_source_voice_numbers() {
         let score = Score::new("Legacy", 120, 4, 4, 0, 1);
         let mut value = serde_json::to_value(&score).expect("score serializes");
@@ -3418,6 +4612,15 @@ mod tests {
             restored.parts[0].staves[0].measures[0].source_voice_numbers,
             [None; 4]
         );
+    }
+
+    #[test]
+    fn legacy_measure_json_defaults_tempo_ramp() {
+        let measure: Measure = serde_json::from_str(
+            r#"{"number":1,"time_sig":null,"key_sig":null,"clef":null,"tempo":120,"barline_left":"Normal","barline_right":"Normal","voices":[[],[],[],[]]}"#,
+        )
+        .expect("legacy measure deserializes");
+        assert_eq!(measure.tempo_ramp_to, None);
     }
 
     #[test]
@@ -3440,11 +4643,19 @@ mod tests {
                 id: "snare".to_string(),
                 name: Some("Acoustic Snare".to_string()),
                 midi_unpitched: Some(38),
+                staff_position: None,
+                notehead: None,
+                preferred_voice: None,
+                techniques: Vec::new(),
             },
             PercussionInstrument {
                 id: "rim".to_string(),
                 name: Some("Side Stick".to_string()),
                 midi_unpitched: Some(37),
+                staff_position: None,
+                notehead: None,
+                preferred_voice: None,
+                techniques: Vec::new(),
             },
         ];
         let mut note = Note::new(Pitch::from_midi(38, false), Duration::Quarter);
@@ -3465,6 +4676,32 @@ mod tests {
         note.instrument_id = None;
         note.is_unpitched = false;
         assert!(part.percussion_instrument_for_note(&note).is_none());
+    }
+
+    #[test]
+    fn percussion_kit_extensions_are_json_backward_compatible() {
+        let mut instrument = PercussionInstrument {
+            id: "snare".to_string(),
+            name: Some("Acoustic Snare".to_string()),
+            midi_unpitched: Some(38),
+            staff_position: Some(0),
+            notehead: Some(NoteHead::Cross),
+            preferred_voice: Some(1),
+            techniques: vec!["rim-shot".to_string()],
+        };
+        let mut value = serde_json::to_value(&instrument).expect("instrument serializes");
+        let object = value
+            .as_object_mut()
+            .expect("percussion instrument is an object");
+        object.remove("staff_position");
+        object.remove("notehead");
+        object.remove("preferred_voice");
+        object.remove("techniques");
+        instrument = serde_json::from_value(value).expect("legacy instrument deserializes");
+        assert_eq!(instrument.staff_position, None);
+        assert_eq!(instrument.notehead, None);
+        assert_eq!(instrument.preferred_voice, None);
+        assert!(instrument.techniques.is_empty());
     }
 
     // ── ScoreTemplate ─────────────────────────────────────────────────────────
@@ -3585,6 +4822,18 @@ mod tests {
             suffix: None,
             extender: false,
         });
+        measure.harp_pedal_diagrams.push(HarpPedalDiagram {
+            positions: [
+                HarpPedalPosition::Flat,
+                HarpPedalPosition::Natural,
+                HarpPedalPosition::Sharp,
+                HarpPedalPosition::Natural,
+                HarpPedalPosition::Flat,
+                HarpPedalPosition::Sharp,
+                HarpPedalPosition::Natural,
+            ],
+            placement: Some("above".to_string()),
+        });
         measure.voices[0].insert(0, Note::new(Pitch::new(Step::C, 4), Duration::Quarter));
         let expected = b.parts[0].staves[0].measures[0].clone();
 
@@ -3619,6 +4868,11 @@ mod tests {
                 .iter()
                 .any(|p| matches!(p, ScorePatch::SetFiguredBass { .. }))
         );
+        assert!(
+            patches
+                .iter()
+                .any(|p| matches!(p, ScorePatch::SetHarpPedalDiagrams { .. }))
+        );
         let result = apply_patch(&a, &patches).expect("patch application failed");
         let result_measure = &result.parts[0].staves[0].measures[0];
         assert_eq!(result_measure.key_sig, expected.key_sig);
@@ -3629,6 +4883,10 @@ mod tests {
         assert_eq!(result_measure.volta, expected.volta);
         assert_eq!(result_measure.texts, expected.texts);
         assert_eq!(result_measure.figured_bass, expected.figured_bass);
+        assert_eq!(
+            result_measure.harp_pedal_diagrams,
+            expected.harp_pedal_diagrams
+        );
         assert_eq!(result_measure.voices[0].len(), expected.voices[0].len());
     }
 
@@ -4004,6 +5262,120 @@ mod tests {
         assert_eq!(
             apply_patch(&a, &patches).unwrap().parts[0].staves[0].tablature,
             b.parts[0].staves[0].tablature
+        );
+    }
+
+    #[test]
+    fn diff_reports_measure_tablature_changes_and_patches_them_locally() {
+        let mut a = Score::new("T", 120, 4, 4, 0, 2);
+        a.parts[0].staves[0].tablature = Some(TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![40, 45, 50, 55, 59, 64],
+            capo: 0,
+        });
+        let mut b = a.clone();
+        b.parts[0].staves[0].measures[1].tablature_change = Some(TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![40, 45, 50, 55, 59, 64],
+            capo: 3,
+        });
+
+        let changes = diff(&a, &b);
+        assert!(changes.iter().any(|change| matches!(
+            change,
+            ScoreChange::TablatureChangeChanged {
+                part: 0,
+                staff: 0,
+                measure: 1,
+                old: None,
+                new: Some(config),
+            } if config.capo == 3
+        )));
+        let patches = score_patch(&a, &b);
+        assert!(patches.iter().any(|patch| matches!(
+            patch,
+            ScorePatch::SetMeasureTablatureChange {
+                part: 0,
+                staff: 0,
+                measure: 1,
+                value: Some(config),
+            } if config.capo == 3
+        )));
+        assert_eq!(
+            apply_patch(&a, &patches).unwrap().parts[0].staves[0].measures[1].tablature_change,
+            b.parts[0].staves[0].measures[1].tablature_change
+        );
+    }
+
+    #[test]
+    fn diff_reports_measure_tempo_ramps_and_patches_them_locally() {
+        let a = Score::new("Ramp", 120, 4, 4, 0, 2);
+        let mut b = a.clone();
+        b.parts[0].staves[0].measures[1].tempo_ramp_to = Some(72);
+
+        assert!(diff(&a, &b).iter().any(|change| matches!(
+            change,
+            ScoreChange::MeasureTempoRampChanged {
+                part: 0,
+                staff: 0,
+                measure: 1,
+                old: None,
+                new: Some(72),
+            }
+        )));
+        let patches = score_patch(&a, &b);
+        assert!(patches.iter().any(|patch| matches!(
+            patch,
+            ScorePatch::SetMeasureTempoRamp {
+                part: 0,
+                staff: 0,
+                measure: 1,
+                value: Some(72),
+            }
+        )));
+        assert_eq!(
+            apply_patch(&a, &patches).expect("patch applies").parts[0].staves[0].measures[1]
+                .tempo_ramp_to,
+            b.parts[0].staves[0].measures[1].tempo_ramp_to
+        );
+    }
+
+    #[test]
+    fn diff_reports_staff_presentation_changes_and_patches_them_locally() {
+        let a = Score::new("T", 120, 4, 4, 0, 1);
+        let mut b = a.clone();
+        b.parts[0].staves[0].presentation = StaffPresentation {
+            kind: StaffKind::Percussion,
+            lines: 1,
+            line_distance: 1.5,
+            small: true,
+            cutaway: true,
+            visible: false,
+            notehead_scheme: StaffNoteheadScheme::PitchNames,
+            tablature_rhythm_display: TablatureRhythmDisplay::FretOnly,
+            tablature_fret_mark_style: TablatureFretMarkStyle::Arabic,
+        };
+
+        let changes = diff(&a, &b);
+        assert!(changes.iter().any(|change| matches!(
+            change,
+            ScoreChange::StaffPresentationChanged { part: 0, staff: 0, new, .. }
+                if new == &b.parts[0].staves[0].presentation
+        )));
+        let patches = score_patch(&a, &b);
+        assert!(patches.iter().any(|patch| matches!(
+            patch,
+            ScorePatch::SetStaffPresentation { part: 0, staff: 0, value }
+                if value == &b.parts[0].staves[0].presentation
+        )));
+        assert!(
+            !patches
+                .iter()
+                .any(|patch| matches!(patch, ScorePatch::ReplaceScore { .. }))
+        );
+        assert_eq!(
+            apply_patch(&a, &patches).unwrap().parts[0].staves[0].presentation,
+            b.parts[0].staves[0].presentation
         );
     }
 

@@ -2173,7 +2173,7 @@ pub enum SampleAction {
     Start {
         voice_id: u64,
         sample_id: u64,
-        event: PlaybackEvent,
+        event: Box<PlaybackEvent>,
         parameters: SampleVoiceParameters,
     },
     Stop {
@@ -2201,7 +2201,7 @@ pub fn schedule_sample_note_on(
     Ok(SampleAction::Start {
         voice_id,
         sample_id: region.sample_id,
-        event,
+        event: Box::new(event),
         parameters: SampleVoiceParameters {
             playback_rate_ratio,
             gain,
@@ -2269,9 +2269,17 @@ impl Default for PlaybackConfig {
 
 #[derive(Debug, Clone)]
 pub enum Action {
-    NoteOn { voice_id: u64, event: PlaybackEvent },
-    NoteOff { voice_id: u64, release_secs: f64 },
-    VoiceStolen { voice_id: u64 },
+    NoteOn {
+        voice_id: u64,
+        event: Box<PlaybackEvent>,
+    },
+    NoteOff {
+        voice_id: u64,
+        release_secs: f64,
+    },
+    VoiceStolen {
+        voice_id: u64,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -2334,7 +2342,7 @@ impl PlaybackBoundary {
         });
         actions.push(Action::NoteOn {
             voice_id: id,
-            event,
+            event: Box::new(event),
         });
         Ok(actions)
     }
@@ -2422,12 +2430,19 @@ mod tests {
             time_secs: 0.0,
             pitch_midi: 60,
             pitch_midi_cents: 6000,
+            pitch_bend_curve: Vec::new(),
+            post_note_pause_beats: 0.0,
+            articulations: Vec::new(),
+            chord_symbol: None,
+            guitar_technique: None,
             velocity,
             duration_beats: 1.0,
             duration_secs: 1.0,
             pedal: false,
             part_index: 0,
             channel: 0,
+            program: 0,
+            instrument_id: None,
             is_metronome: false,
         }
     }

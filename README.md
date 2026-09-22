@@ -30,6 +30,8 @@ rendering.
 
 See the [notation coverage matrix](docs/notation-coverage.md) for the supported interchange
 slices and known information-loss boundaries.
+The bounded, version- and checksum-pinned [external music21 analysis protocol](docs/external-analysis-evidence.md)
+records a smoke comparison without claiming general analysis parity.
 The host-neutral print page contract is described in [print-layout.md](docs/print-layout.md),
 and the page-level SVG requirements are in [print-svg-contract.md](docs/print-svg-contract.md);
 PDF conversion, font resolution, printer access, and preview UI remain host responsibilities.
@@ -131,8 +133,9 @@ for hosts that synchronize editing and playback without reparsing geometry.
 `render_svg_metadata`, plus `render_preflight` for source-located capability checks before SVG
 emission. It emits deterministic SVG with optional `data-note-addr` hooks and returns errors for
 unsupported clefs, accidentals, layouts, rows, or render options.
-`render_svg_metadata` also exposes contract-v4 `tablature_positions`, including stable note,
-position, string, and fret fields for browser-side tab editing without SVG parsing.
+`render_svg_metadata` exposes contract-v21 `tablature_positions`, typed note semantics,
+object-attached style overrides, and MusicXML harp-pedal diagrams with stable staff/measure
+locations. Browser hosts can consume those contracts without reparsing SVG geometry.
 
 For a deterministic cross-format comparison, use `acorde compatibility-report source candidate`.
 It reports positional semantic changes and import diagnostics for both files without claiming
@@ -169,6 +172,16 @@ MusicXML/MEI/ABC/MIDI export. It keeps audio synthesis, font selection, PDF, and
 the host.
 See [the browser contract](docs/browser-rendering.md) and the
 [browser fixture](examples/browser/README.md).
+
+`PlaybackOptions::realization_profile` defaults to `Authored`, preserving ornaments and
+arpeggiation as source semantics. Select `OrnamentArpeggioV1` only when a deterministic preview
+schedule with generated ornament attacks and chord staggering is wanted; it is not a claim of
+historical-performance or synthesis parity.
+
+For host-neutral print pagination, `PublicationConfig` supports the legacy single running text as
+well as `PublicationPageTemplate` values for odd/even headers and footers. The layout result
+contains the selected text blocks and their physical boxes; rendering, font selection, and PDF
+generation remain host-owned.
 
 ## CLI
 
@@ -244,6 +257,8 @@ the JSON; the WASM schedule API applies the same limit.
 tolerances and can act as a CI gate with `--fail-on-mismatch`. Input JSON is bounded to 64 MiB.
 
 ## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for model, fixture, and capability-boundary rules.
 
 ```bash
 cargo test --all-features --locked

@@ -254,9 +254,10 @@ deterministic reports, malformed-input checks, and source-located loss diagnosti
 in and test-validated. This does not promote partial format cells to complete interchange.
 `docs/interchange-report.json` also records a machine-checked BUILD/MEASURE/GATE contract for
 each phase; the integration test rejects a phase whose three evidence descriptions are absent.
-The WASM Node runner compiles successfully but skips the browser-only tests; the Chrome runner
-currently cannot produce completion evidence because the available ChromeDriver run did not
-complete.
+The WASM Node runner compiles successfully but skips the browser-only tests. Earlier Chrome-runner
+attempts did not complete; on 2026-09-22, `wasm-pack test --headless --chrome crates/wasm`
+completed all 15 browser tests locally. This validates the WASM browser smoke boundary, not
+cross-browser visual or external-application equivalence.
 Independent held-out corpus comparison and host/backend audio equivalence remain external gates;
 their absence is recorded in `docs/interchange-report.json` and must remain visible in release
 notes until separately measured. The same report explicitly lists complex MEI/MSCX harmony,

@@ -1,8 +1,8 @@
 use crate::Error;
 use acorde_core::{
-    Articulation, Barline, Duration, GuitarTechnique, HairpinKind, NotationSpanner,
-    NotationSpannerKind, Note, NoteAddr, NoteHead, PartGroup, PartGroupSymbol, Score, TextStyle,
-    TimeSignature,
+    Articulation, Barline, Duration, GuitarTechnique, HairpinKind, HarpPedalPosition,
+    NotationSpanner, NotationSpannerKind, Note, NoteAddr, NoteHead, PartGroup, PartGroupSymbol,
+    Score, TextStyle, TimeSignature,
 };
 
 const DIVISIONS: u32 = 480;
@@ -168,6 +168,7 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 || measure.key_sig.is_some()
                 || measure.time_sig.is_some()
                 || measure.clef.is_some()
+                || measure.tablature_change.is_some()
             {
                 xml.push_str("      <attributes>\n");
                 if i == 0 {
@@ -227,9 +228,14 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     ));
                     }
                 }
-                if i == 0
-                    && let Some(tab) = &staff.tablature
-                {
+                let tablature = if let Some(change) = measure.tablature_change.as_ref() {
+                    Some(change)
+                } else if i == 0 {
+                    staff.tablature.as_ref()
+                } else {
+                    None
+                };
+                if let Some(tab) = tablature {
                     xml.push_str("        <staff-details>\n");
                     xml.push_str(&format!(
                         "          <staff-lines>{}</staff-lines>\n",
@@ -355,6 +361,33 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 xml.push_str(&format!("          <words>{}</words>\n", escape_xml(text)));
                 xml.push_str("        </direction-type>\n");
                 xml.push_str("      </direction>\n");
+            }
+
+            for diagram in &measure.harp_pedal_diagrams {
+                let placement = diagram
+                    .placement
+                    .as_deref()
+                    .filter(|placement| matches!(*placement, "above" | "below"))
+                    .map(|placement| format!(" placement=\"{placement}\""))
+                    .unwrap_or_default();
+                xml.push_str(&format!("      <direction{placement}>\n"));
+                xml.push_str("        <direction-type>\n          <harp-pedals>\n");
+                for (step, position) in ["D", "C", "B", "E", "F", "G", "A"]
+                    .iter()
+                    .zip(diagram.positions.iter())
+                {
+                    let alter = match position {
+                        HarpPedalPosition::Flat => -1,
+                        HarpPedalPosition::Natural => 0,
+                        HarpPedalPosition::Sharp => 1,
+                    };
+                    xml.push_str(&format!(
+                        "            <pedal-tuning><pedal-step>{step}</pedal-step><pedal-alter>{alter}</pedal-alter></pedal-tuning>\n"
+                    ));
+                }
+                xml.push_str(
+                    "          </harp-pedals>\n        </direction-type>\n      </direction>\n",
+                );
             }
 
             if !measure.figured_bass.is_empty() {
@@ -1777,5 +1810,25 @@ mod tests {
         );
         assert_eq!(parsed_note.pitches[0].microtone_cents, 50);
         assert_eq!(parsed_note.tab_position.as_ref().map(|p| p.fret), Some(3));
+    }
+
+    #[test]
+    fn harp_pedals_serialize_and_reparse() {
+        let mut score = Score::new("Harp", 120, 4, 4, 0, 1);
+        let mut diagram = acorde_core::HarpPedalDiagram::default();
+        diagram.positions[0] = acorde_core::HarpPedalPosition::Flat;
+        diagram.positions[6] = acorde_core::HarpPedalPosition::Sharp;
+        diagram.placement = Some("below".into());
+        score.parts[0].staves[0].measures[0]
+            .harp_pedal_diagrams
+            .push(diagram);
+
+        let xml = serialize_musicxml(&score).unwrap();
+        assert!(xml.contains("<harp-pedals>"));
+        assert!(xml.contains("<pedal-step>D</pedal-step><pedal-alter>-1</pedal-alter>"));
+        let parsed = crate::musicxml::parser::parse_musicxml(&xml).unwrap();
+        let diagram = &parsed.parts[0].staves[0].measures[0].harp_pedal_diagrams[0];
+        assert_eq!(diagram.positions[0], acorde_core::HarpPedalPosition::Flat);
+        assert_eq!(diagram.positions[6], acorde_core::HarpPedalPosition::Sharp);
     }
 }

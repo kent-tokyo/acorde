@@ -4,7 +4,11 @@
 
 mod common;
 
-use acorde_render_svg::{RenderPreflightKind, SvgRenderOptions, render_preflight, render_svg};
+use acorde_layout::{LayoutConfig, compute_layout};
+use acorde_render_svg::{
+    RenderError, RenderPreflightKind, SvgRenderOptions, render_preflight, render_svg,
+    render_svg_metadata, render_svg_view, render_svg_view_metadata,
+};
 use std::collections::BTreeMap;
 
 fn opts() -> SvgRenderOptions {
@@ -81,6 +85,61 @@ fn svg_root_present_and_well_formed() {
     assert!(svg.starts_with("<svg"));
     assert!(svg.trim_end().ends_with("</svg>"));
     assert_well_formed_xml(&svg);
+}
+
+#[test]
+fn linked_view_uses_its_projection_and_layout_overrides() {
+    use acorde_core::{Score, ViewStyleOverride, ViewStyleProperty};
+
+    let mut score = Score::new("view", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0]
+        .measures
+        .push(acorde_core::Measure::empty(4, 4));
+    let mut view = acorde_core::ScoreView::linked_part("part", "Part", 0);
+    view.layout.measures_per_row = Some(1);
+    view.layout.typed_style_overrides.push(ViewStyleOverride {
+        property: ViewStyleProperty::StaffSpace,
+        value: 1.5,
+    });
+    score.views.push(view);
+
+    let svg = render_svg_view(&score, "part", &opts()).expect("linked view renders");
+    let expected = render_svg(
+        &score.resolve_view("part").expect("view resolves"),
+        &SvgRenderOptions {
+            staff_size: 36.0,
+            measures_per_system: 1,
+            ..opts()
+        },
+    )
+    .expect("equivalent explicit settings render");
+    assert_eq!(svg.matches("data-row=\"0\"").count(), 1);
+    assert_eq!(svg.matches("data-row=\"1\"").count(), 1);
+    assert_eq!(svg, expected);
+    let metadata = render_svg_view_metadata(&score, "part", &opts()).expect("view metadata");
+    assert_eq!(
+        metadata.view,
+        Some(acorde_render_svg::RenderedViewMetadata {
+            id: "part".into(),
+            name: "Part".into(),
+            measures_per_system: 1,
+            style: acorde_core::ViewStyle {
+                staff_space: 1.5,
+                ..Default::default()
+            },
+        })
+    );
+    assert_well_formed_xml(&svg);
+}
+
+#[test]
+fn linked_view_reports_missing_view() {
+    let error = render_svg_view(&common::satb_major(), "missing", &opts())
+        .expect_err("unknown linked view is rejected");
+    assert!(matches!(
+        error,
+        acorde_render_svg::RenderError::ViewResolution { .. }
+    ));
 }
 
 #[test]
@@ -690,7 +749,7 @@ fn precomputed_row_and_metadata_contracts_are_stable() {
     let layout = compute_layout(&score, &LayoutConfig::default());
     let row = acorde_render_svg::render_svg_row(&score, &layout, 0, &opts()).unwrap();
     let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts()).unwrap();
-    assert_eq!(metadata.contract_version, 15);
+    assert_eq!(metadata.contract_version, 21);
     assert_eq!(metadata.part_count, 1);
     assert_eq!(metadata.staff_count, 2);
     assert_eq!(metadata.measure_count, 1);
@@ -701,6 +760,7 @@ fn precomputed_row_and_metadata_contracts_are_stable() {
     assert_eq!(metadata.address_bounds.len(), 16);
     assert!(metadata.tablature_positions.is_empty());
     assert!(metadata.tablature_staves.is_empty());
+    assert!(metadata.tablature_changes.is_empty());
     assert!(metadata.harmony_ranges.is_empty());
     assert!(metadata.tablature_technique_connections.is_empty());
     assert_eq!(metadata.note_semantics.len(), 16);
@@ -839,6 +899,44 @@ fn metadata_exposes_tablature_tuning_and_capo_without_svg_parsing() {
             lines: 6,
             tuning_midi: vec![64, 59, 55, 50, 45, 40],
             capo: 3,
+            rhythm_display: acorde_core::TablatureRhythmDisplay::FretOnly,
+            fret_mark_style: acorde_core::TablatureFretMarkStyle::Arabic,
+        }]
+    );
+    assert!(metadata.tablature_changes.is_empty());
+}
+
+#[test]
+fn metadata_exposes_measure_local_tablature_changes_without_svg_parsing() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step, TablatureConfig};
+    use acorde_layout::{LayoutConfig, compute_layout};
+
+    let mut score = Score::new("local tab metadata", 120, 4, 4, 0, 2);
+    score.parts[0].staves[0].tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![40, 45, 50, 55, 59, 64],
+        capo: 0,
+    });
+    score.parts[0].staves[0].measures[1].tablature_change = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![38, 43, 48, 53, 57, 62],
+        capo: 2,
+    });
+    score.parts[0].staves[0].measures[1].voices[0] =
+        vec![Note::new(Pitch::new(Step::E, 4), Duration::Whole)];
+
+    let layout = compute_layout(&score, &LayoutConfig::default());
+    let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts())
+        .expect("tablature metadata should render");
+    assert_eq!(
+        metadata.tablature_changes,
+        vec![acorde_render_svg::TablatureChangeMetadata {
+            part: 0,
+            staff: 0,
+            measure: 1,
+            lines: 6,
+            tuning_midi: vec![38, 43, 48, 53, 57, 62],
+            capo: 2,
         }]
     );
 }
@@ -981,6 +1079,48 @@ fn measure_text_moves_outside_note_annotation_lane() {
     assert!(
         y_for_class("acorde-measure-text acorde-measure-text-expression")
             < y_for_class("acorde-chord-symbol")
+    );
+    assert_well_formed_xml(&svg);
+}
+
+#[test]
+fn measure_text_uses_shared_priority_collision_lanes() {
+    use acorde_core::{StyledText, TextStyle};
+
+    let mut score = common::satb_major();
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.texts = vec![
+        StyledText {
+            style: TextStyle::Generic,
+            text: "tempo".to_string(),
+            placement: None,
+            offset_x: None,
+            offset_y: Some(-10.0),
+            relative_x: None,
+            relative_y: None,
+        },
+        StyledText {
+            style: TextStyle::RehearsalMark,
+            text: "A".to_string(),
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        },
+    ];
+    let svg = render_svg(&score, &opts()).expect("shared text collision renders");
+    let y_for_class = |class: &str| {
+        svg.split(&format!("class=\"{class}\""))
+            .nth(1)
+            .and_then(|fragment| fragment.split(" y=\"").nth(1))
+            .and_then(|value| value.split('"').next())
+            .and_then(|value| value.parse::<f32>().ok())
+            .expect("measure text has y coordinate")
+    };
+    assert!(
+        y_for_class("acorde-measure-text acorde-measure-text-generic")
+            < y_for_class("acorde-measure-text acorde-measure-text-rehearsal-mark")
     );
     assert_well_formed_xml(&svg);
 }
@@ -1598,7 +1738,10 @@ fn glyph_coverage_is_explicit_and_stable() {
 
 #[test]
 fn tablature_renders_lines_frets_and_techniques() {
-    use acorde_core::{Duration, GuitarTechnique, Note, Pitch, Staff, Step, TablatureConfig};
+    use acorde_core::{
+        Duration, GuitarTechnique, Note, Pitch, Staff, Step, TablatureConfig,
+        TablatureRhythmDisplay,
+    };
     let mut score = acorde_core::Score::new("Tab", 120, 4, 4, 0, 1);
     let mut staff = Staff::new(acorde_core::Clef::Treble);
     staff.tablature = Some(TablatureConfig {
@@ -1606,8 +1749,9 @@ fn tablature_renders_lines_frets_and_techniques() {
         tuning_midi: vec![64, 59, 55, 50, 45, 40],
         capo: 0,
     });
+    staff.presentation.tablature_rhythm_display = TablatureRhythmDisplay::Stems;
     staff.measures.push(acorde_core::Measure::empty(4, 4));
-    let mut note = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+    let mut note = Note::new(Pitch::new(Step::E, 4), Duration::Eighth);
     note.tab_position = Some(acorde_core::TabPosition { string: 2, fret: 3 });
     note.tab_positions = vec![
         acorde_core::TabPosition { string: 2, fret: 3 },
@@ -1630,6 +1774,8 @@ fn tablature_renders_lines_frets_and_techniques() {
     let svg = render_svg(&score, &opts()).expect("tablature renders");
     assert_eq!(svg.matches("acorde-staff-line").count(), 6);
     assert!(svg.contains("acorde-tab-fret"));
+    assert!(svg.contains("acorde-tab-rhythm-stem"));
+    assert!(svg.contains("acorde-tab-rhythm-flag"));
     assert!(svg.contains(">3</text>"));
     assert!(svg.contains("data-acorde-kind=\"tab-fret\" data-string=\"2\" data-fret=\"3\""));
     assert!(svg.contains("data-acorde-kind=\"tab-fret\" data-string=\"3\" data-fret=\"2\""));
@@ -1678,6 +1824,80 @@ fn tablature_renders_lines_frets_and_techniques() {
             .tablature_technique_connections
             .iter()
             .all(|connection| !connection.cross_measure)
+    );
+}
+
+#[test]
+fn tablature_renders_multi_point_bend_curve_and_exposes_it_in_metadata() {
+    use acorde_core::{
+        Duration, GuitarBendPoint, GuitarTechnique, Note, Pitch, Score, Step, TablatureConfig,
+    };
+    use acorde_layout::{LayoutConfig, compute_layout};
+
+    let mut score = Score::new("bend curve", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![40, 45, 50, 55, 59, 64],
+        capo: 0,
+    });
+    let mut note = Note::new(Pitch::new(Step::E, 4), Duration::Whole);
+    note.tab_position = Some(acorde_core::TabPosition { string: 1, fret: 0 });
+    note.guitar_technique = Some(GuitarTechnique::Bend);
+    note.guitar_bend_curve = vec![
+        GuitarBendPoint {
+            position_per_mille: 0,
+            alter_cents: 0,
+        },
+        GuitarBendPoint {
+            position_per_mille: 500,
+            alter_cents: 200,
+        },
+        GuitarBendPoint {
+            position_per_mille: 1000,
+            alter_cents: 0,
+        },
+    ];
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+    let layout = compute_layout(&score, &LayoutConfig::default());
+    let svg = acorde_render_svg::render_svg(&score, &opts()).unwrap();
+    let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts()).unwrap();
+
+    assert!(svg.contains("acorde-tab-bend-curve"));
+    assert!(svg.contains("data-bend-curve=\"multi-point\""));
+    assert_eq!(metadata.note_semantics[0].guitar_bend_curve.len(), 3);
+}
+
+#[test]
+fn tablature_renders_roman_fret_marks_and_exposes_the_convention() {
+    use acorde_core::{
+        Duration, Note, Pitch, Score, Step, TabPosition, TablatureConfig, TablatureFretMarkStyle,
+    };
+    use acorde_layout::{LayoutConfig, compute_layout};
+
+    let mut score = Score::new("roman tab", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![40, 45, 50, 55, 59, 64],
+        capo: 0,
+    });
+    score.parts[0].staves[0]
+        .presentation
+        .tablature_fret_mark_style = TablatureFretMarkStyle::RomanLower;
+    let mut note = Note::new(Pitch::new(Step::E, 5), Duration::Whole);
+    note.tab_position = Some(TabPosition {
+        string: 1,
+        fret: 12,
+    });
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+
+    let layout = compute_layout(&score, &LayoutConfig::default());
+    let svg = acorde_render_svg::render_svg(&score, &opts()).unwrap();
+    let metadata = acorde_render_svg::render_svg_metadata(&score, &layout, &opts()).unwrap();
+
+    assert!(svg.contains(">xii</text>"));
+    assert_eq!(
+        metadata.tablature_staves[0].fret_mark_style,
+        TablatureFretMarkStyle::RomanLower
     );
 }
 
@@ -2178,4 +2398,86 @@ fn accidental_columns_at_measure_origin_stay_inside_svg_viewbox() {
         .collect();
     assert!(accidental_xs.len() >= 2);
     assert!(accidental_xs.iter().all(|&x| x > 0.0));
+}
+
+#[test]
+fn score_style_defaults_apply_to_direct_svg_entry_points_and_are_validated() {
+    use acorde_core::{Score, ViewStyleOverride, ViewStyleProperty};
+
+    let score = Score::new("styled", 120, 4, 4, 0, 1);
+    let layout = compute_layout(&score, &LayoutConfig::default());
+    let baseline = render_svg_metadata(&score, &layout, &opts()).unwrap();
+
+    let mut styled = score.clone();
+    styled.style_overrides.push(ViewStyleOverride {
+        property: ViewStyleProperty::StaffSpace,
+        value: 1.5,
+    });
+    let styled_layout = compute_layout(&styled, &LayoutConfig::default());
+    let metadata = render_svg_metadata(&styled, &styled_layout, &opts()).unwrap();
+    assert!(metadata.height > baseline.height);
+
+    styled.style_overrides[0].value = f32::NAN;
+    assert!(matches!(
+        render_svg(&styled, &opts()),
+        Err(RenderError::InvalidOptions { .. })
+    ));
+}
+
+#[test]
+fn metadata_exposes_validated_object_style_overrides() {
+    use acorde_core::{
+        ObjectStyleOverride, ObjectStyleTarget, Score, StyledText, TextStyle, ViewStyleProperty,
+    };
+
+    let mut score = Score::new("object style", 120, 4, 4, 0, 1);
+    score.texts.push(StyledText {
+        text: "dolce".into(),
+        style: TextStyle::Expression,
+        placement: None,
+        offset_x: None,
+        offset_y: None,
+        relative_x: None,
+        relative_y: None,
+    });
+    score.object_style_overrides.push(ObjectStyleOverride {
+        target: ObjectStyleTarget::ScoreText { text_index: 0 },
+        property: ViewStyleProperty::TextScale,
+        value: 1.25,
+        provenance: None,
+    });
+
+    let layout = compute_layout(&score, &LayoutConfig::default());
+    let metadata = render_svg_metadata(&score, &layout, &opts()).unwrap();
+    assert_eq!(
+        metadata.object_style_overrides,
+        score.object_style_overrides
+    );
+
+    score.object_style_overrides[0].value = f32::NAN;
+    assert!(matches!(
+        render_svg(&score, &opts()),
+        Err(RenderError::InvalidOptions { .. })
+    ));
+}
+
+#[test]
+fn metadata_exposes_harp_pedal_diagram_without_svg_parsing() {
+    use acorde_core::{HarpPedalDiagram, HarpPedalPosition, Score};
+
+    let mut score = Score::new("harp", 120, 4, 4, 0, 1);
+    let mut diagram = HarpPedalDiagram::default();
+    diagram.positions[0] = HarpPedalPosition::Flat;
+    diagram.positions[6] = HarpPedalPosition::Sharp;
+    diagram.placement = Some("below".into());
+    score.parts[0].staves[0].measures[0]
+        .harp_pedal_diagrams
+        .push(diagram.clone());
+
+    let layout = compute_layout(&score, &LayoutConfig::default());
+    let metadata = render_svg_metadata(&score, &layout, &opts()).unwrap();
+    assert_eq!(metadata.harp_pedal_diagrams.len(), 1);
+    assert_eq!(metadata.harp_pedal_diagrams[0].part, 0);
+    assert_eq!(metadata.harp_pedal_diagrams[0].measure, 0);
+    assert_eq!(metadata.harp_pedal_diagrams[0].diagram, diagram);
 }
