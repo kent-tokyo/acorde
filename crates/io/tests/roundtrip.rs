@@ -483,6 +483,36 @@ fn cross_staff_musicxml_fragment_pastes_into_piano_without_losing_voice_identity
 }
 
 #[test]
+fn exchange_voices_preserves_sparse_musicxml_voice_identity_and_backup_structure() {
+    let score = parse_musicxml(MULTIVOICE_XML).expect("multivoice fixture parses");
+    let mut engine = ScoreEngine::new();
+    engine.try_replace_score(score).expect("fixture validates");
+    engine
+        .exchange_voices(0, 0, 0, 0, 0, 1)
+        .expect("voices exchange");
+    let measure = &engine.score.parts[0].staves[0].measures[0];
+    assert_eq!(measure.source_voice_numbers, [Some(2), Some(1), None, None]);
+    assert_eq!(measure.voices[0][0].pitches[0].octave, 3);
+    assert_eq!(measure.voices[1][0].pitches[0].octave, 4);
+
+    let xml = serialize_musicxml(&engine.score).expect("exchanged score serializes");
+    assert!(xml.contains("<backup>"));
+    let restored = parse_musicxml(&xml).expect("exchanged score reparses");
+    let restored = &restored.parts[0].staves[0].measures[0];
+    let voice_octaves: std::collections::BTreeMap<u32, i8> = restored
+        .source_voice_numbers
+        .iter()
+        .enumerate()
+        .filter_map(|(slot, source_voice)| {
+            source_voice
+                .map(|source_voice| (source_voice, restored.voices[slot][0].pitches[0].octave))
+        })
+        .collect();
+    assert_eq!(voice_octaves.get(&1), Some(&4));
+    assert_eq!(voice_octaves.get(&2), Some(&3));
+}
+
+#[test]
 fn fixture_scores_have_deterministic_json_and_roundtrip_identity() {
     for fixture in [SIMPLE_XML, MULTIPART_XML, MULTIVOICE_XML] {
         let score = parse_musicxml(fixture).expect("fixture parses");
