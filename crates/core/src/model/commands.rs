@@ -566,13 +566,27 @@ pub struct PasteRangeCmd {
 
 /// Paste a versioned, multi-lane score fragment at a canonical destination.
 ///
-/// The destination is the origin for every relative fragment address.  This
-/// command uses replace semantics: each mapped voice measure is replaced as a
-/// single atomic operation and the command stack retains a full undo snapshot.
+/// The destination is the origin for every relative fragment address. The
+/// policy determines whether mapped voice measures are replaced, or only
+/// pasted into empty/rest-only lanes. CommandStack retains a full undo snapshot.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PasteScoreFragmentCmd {
     pub fragment: ScoreFragment,
     pub target: NoteAddr,
+    #[serde(default)]
+    pub policy: ScoreFragmentPastePolicy,
+}
+
+/// Collision policy for a score-fragment paste.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScoreFragmentPastePolicy {
+    /// Replace every mapped destination lane, matching the v1/v2 behavior.
+    #[default]
+    Replace,
+    /// Preserve any sounding destination lane; paste only into empty or
+    /// rest-only lanes, otherwise reject the complete command atomically.
+    Merge,
 }
 
 /// Exchange two editable voices across an inclusive measure range.
@@ -3480,6 +3494,7 @@ fn apply_move_or_copy_voice_range(
         &PasteScoreFragmentCmd {
             fragment,
             target: cmd.target.clone(),
+            policy: ScoreFragmentPastePolicy::Replace,
         },
         score,
     )?;
@@ -4293,6 +4308,16 @@ fn apply_paste_score_fragment(cmd: &PasteScoreFragmentCmd, score: &mut Score) ->
                     "fragment cross-staff targets do not match note count".into(),
                 ));
             }
+            if cmd.policy == ScoreFragmentPastePolicy::Merge
+                && !measure.notes.is_empty()
+                && staff.measures[measure_index].voices[voice_index]
+                    .iter()
+                    .any(|note| !note.is_rest)
+            {
+                return Err(Error::InvalidCommand(
+                    "fragment merge would overwrite a sounding destination lane".into(),
+                ));
+            }
             for cross_staff in measure.cross_staff_targets.iter().flatten() {
                 let target_staff = staff_index as i64 + cross_staff.staff_offset;
                 if target_staff < 0
@@ -4339,6 +4364,9 @@ fn apply_paste_score_fragment(cmd: &PasteScoreFragmentCmd, score: &mut Score) ->
         for measure in &lane.measures {
             let measure_index = cmd.target.measure + measure.relative_measure;
             let target = &mut staff.measures[measure_index];
+            if cmd.policy == ScoreFragmentPastePolicy::Merge && measure.notes.is_empty() {
+                continue;
+            }
             let mut notes = measure.notes.clone();
             for note in &mut notes {
                 note.id = Uuid::new_v4().to_string();

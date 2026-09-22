@@ -3,9 +3,9 @@ use super::commands::{
     AddStaffCmd, Command, CommandStack, DeleteStaffCmd, DurationScale, ExchangeVoicesCmd,
     ExplodeChordPitchesCmd, ExplodeVoicesCmd, ImplodeStavesCmd, PasteRangeCmd,
     PasteScoreFragmentCmd, PasteVoiceCmd, RespellScoreCmd, RespellScoreToKeyCmd,
-    ScaleVoiceRangeCmd, SetArpeggioCmd, SetCueCmd, SetDurationCmd, SetInstrumentIdCmd,
-    SetNoteHeadCmd, SetNotePlacementCmd, SetPartGroupCmd, SetStemCmd, SetTupletCmd,
-    SetUnpitchedCmd, ToggleSlurCmd, ToggleTrillLineCmd, command_hint, command_key,
+    ScaleVoiceRangeCmd, ScoreFragmentPastePolicy, SetArpeggioCmd, SetCueCmd, SetDurationCmd,
+    SetInstrumentIdCmd, SetNoteHeadCmd, SetNotePlacementCmd, SetPartGroupCmd, SetStemCmd,
+    SetTupletCmd, SetUnpitchedCmd, ToggleSlurCmd, ToggleTrillLineCmd, command_hint, command_key,
 };
 use super::duration::Duration;
 use super::fragment::ScoreFragment;
@@ -355,6 +355,21 @@ impl ScoreEngine {
         self.apply(Command::PasteScoreFragment(PasteScoreFragmentCmd {
             fragment,
             target,
+            policy: ScoreFragmentPastePolicy::Replace,
+        }))
+    }
+
+    /// Paste a versioned multi-lane fragment with an explicit collision policy.
+    pub fn paste_score_fragment_with_policy(
+        &mut self,
+        fragment: ScoreFragment,
+        target: NoteAddr,
+        policy: ScoreFragmentPastePolicy,
+    ) -> Result<ChangeHint, Error> {
+        self.apply(Command::PasteScoreFragment(PasteScoreFragmentCmd {
+            fragment,
+            target,
+            policy,
         }))
     }
 
@@ -1247,6 +1262,63 @@ mod tests {
             engine.commands.history_commands().len(),
             history_before.len()
         );
+    }
+
+    #[test]
+    fn score_fragment_merge_preserves_sounding_destination_lanes() {
+        use crate::model::fragment::{ScoreFragmentSelection, extract_score_fragment};
+        use crate::{Duration, Note, Pitch, ScoreFragmentPastePolicy, Step};
+
+        let mut engine = ScoreEngine::new();
+        engine.score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        let source = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
+        let fragment = extract_score_fragment(
+            &engine.score,
+            &[ScoreFragmentSelection {
+                start: source.clone(),
+                end: source.clone(),
+            }],
+        )
+        .unwrap();
+        let rest_target = NoteAddr {
+            measure: 1,
+            ..source.clone()
+        };
+        engine
+            .paste_score_fragment_with_policy(
+                fragment.clone(),
+                rest_target,
+                ScoreFragmentPastePolicy::Merge,
+            )
+            .unwrap();
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[1].voices[0][0].pitches[0].step,
+            Step::C
+        );
+
+        engine.score.parts[0].staves[0].measures[2].voices[0] =
+            vec![Note::new(Pitch::new(Step::D, 4), Duration::Whole)];
+        let before = serde_json::to_value(&engine.score).unwrap();
+        assert!(
+            engine
+                .paste_score_fragment_with_policy(
+                    fragment,
+                    NoteAddr {
+                        measure: 2,
+                        ..source
+                    },
+                    ScoreFragmentPastePolicy::Merge,
+                )
+                .is_err()
+        );
+        assert_eq!(serde_json::to_value(&engine.score).unwrap(), before);
     }
 
     #[test]
