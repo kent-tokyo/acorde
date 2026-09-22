@@ -2130,6 +2130,20 @@ fn render_measure(
     }
     body.push_str(&opened);
 
+    // Keep a full staff-height rectangle as the first child so interactive hosts can target an
+    // empty measure without reconstructing geometry from staff lines and system layout. The
+    // transparent fill preserves pointer events while the following notation elements remain on
+    // top in SVG paint order.
+    if interactive {
+        let line_count = tablature.map(|config| config.lines).unwrap_or(5).max(1);
+        let hit_height = (line_count.saturating_sub(1) as f32 * space).max(space);
+        let hit_y = bottom_y - hit_height;
+        let _ = write!(
+            body,
+            r#"<rect class="acorde-measure-hit-region" data-acorde-kind="measure-hit-region" data-part="{part}" data-staff="{staff}" data-measure="{measure_idx}" data-system-row="{row_idx}" x="{x:.2}" y="{hit_y:.2}" width="{width:.2}" height="{hit_height:.2}" fill="transparent" pointer-events="all"/>"#
+        );
+    }
+
     for (voice_idx, notes) in measure.voices.iter().enumerate() {
         render_measure_voice(
             body,
