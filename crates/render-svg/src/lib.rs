@@ -32,8 +32,8 @@ mod render;
 mod tuplets;
 
 use acorde_core::{
-    HarpPedalDiagram, NoteAddr, NoteHead, ObjectStyleOverride, Score, ScoreView, TextStyle,
-    ValidationError, ViewStyle, ViewStyleOverride,
+    HarpPedalDiagram, NoteAddr, NoteHead, ObjectStyleOverride, Score, ScoreView, StaffPresentation,
+    TextStyle, ValidationError, ViewStyle, ViewStyleOverride,
 };
 use acorde_layout::{
     GlyphCollisionClass, GlyphCollisionDirection, LayoutConfig, LayoutResult, compute_layout,
@@ -42,7 +42,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Version of the browser-facing [`RenderMetadata`] contract.
-pub const SVG_CONTRACT_VERSION: u32 = 21;
+pub const SVG_CONTRACT_VERSION: u32 = 22;
 /// Version of the built-in glyph coverage contract.
 pub const GLYPH_COVERAGE_CONTRACT_VERSION: u32 = 3;
 /// Stable identifier for the renderer's font-independent vector glyph set.
@@ -168,6 +168,16 @@ pub struct RenderMetadata {
     /// Semantic section boundaries by physical measure; unrelated to page or system breaks.
     #[serde(default)]
     pub section_breaks: Vec<usize>,
+    /// Renderer-independent presentation selected for every rendered staff.
+    #[serde(default)]
+    pub staff_presentations: Vec<StaffPresentationMetadata>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StaffPresentationMetadata {
+    pub part: usize,
+    pub staff: usize,
+    pub presentation: StaffPresentation,
 }
 
 /// Browser-facing identity and effective style for a resolved linked view.

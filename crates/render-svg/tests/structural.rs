@@ -907,6 +907,35 @@ fn metadata_exposes_tablature_tuning_and_capo_without_svg_parsing() {
 }
 
 #[test]
+fn metadata_exposes_small_cutaway_and_hidden_staff_presentation() {
+    use acorde_core::{Score, StaffNoteheadScheme, StaffPresentation};
+
+    let mut score = Score::new("staff presentation metadata", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].presentation = StaffPresentation {
+        lines: 1,
+        line_distance: 1.25,
+        small: true,
+        cutaway: true,
+        visible: false,
+        notehead_scheme: StaffNoteheadScheme::PitchNames,
+        ..StaffPresentation::default()
+    };
+    let layout = compute_layout(&score, &LayoutConfig::default());
+    let metadata = render_svg_metadata(&score, &layout, &opts()).expect("metadata renders");
+    assert_eq!(metadata.staff_presentations.len(), 1);
+    let presentation = &metadata.staff_presentations[0];
+    assert_eq!((presentation.part, presentation.staff), (0, 0));
+    assert_eq!(presentation.presentation.lines, 1);
+    assert!(presentation.presentation.small);
+    assert!(presentation.presentation.cutaway);
+    assert!(!presentation.presentation.visible);
+    assert_eq!(
+        presentation.presentation.notehead_scheme,
+        StaffNoteheadScheme::PitchNames
+    );
+}
+
+#[test]
 fn metadata_exposes_measure_local_tablature_changes_without_svg_parsing() {
     use acorde_core::{Duration, Note, Pitch, Score, Step, TablatureConfig};
     use acorde_layout::{LayoutConfig, compute_layout};

@@ -411,6 +411,14 @@ fn build_render_metadata(
     let note_semantics = collect_note_semantics(score);
     let object_style_overrides = score.object_style_overrides.clone();
     let harp_pedal_diagrams = collect_harp_pedal_diagrams(score);
+    let staff_presentations = staff_refs
+        .iter()
+        .map(|&(part, staff)| crate::StaffPresentationMetadata {
+            part,
+            staff,
+            presentation: score.parts[part].staves[staff].presentation.clone(),
+        })
+        .collect();
     let section_breaks = score
         .parts
         .first()
@@ -454,6 +462,7 @@ fn build_render_metadata(
         object_style_overrides,
         harp_pedal_diagrams,
         section_breaks,
+        staff_presentations,
     }
 }
 
