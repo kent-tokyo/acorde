@@ -347,6 +347,7 @@ pub(crate) fn build_svg_with_metadata(
         left_margin_u,
         right_margin_u,
         space,
+        &resolved_annotation_obstacles,
     );
     render_all_spans(
         &mut body,
@@ -5104,7 +5105,7 @@ fn render_measure_tab_technique_connections(
             }
         }
     }
-    let offsets = resolve_tab_technique_lane_offsets(&segments, space)?;
+    let offsets = resolve_tab_technique_lane_offsets(&segments, space, &[])?;
     for (segment, offset) in segments.into_iter().zip(offsets) {
         render_tab_technique_segment(
             body,
@@ -5146,33 +5147,49 @@ struct OwnedTabTechniqueSegment {
 fn resolve_tab_technique_lane_offsets(
     segments: &[OwnedTabTechniqueSegment],
     space: f32,
+    obstacles: &[acorde_layout::GlyphPlacement],
 ) -> Result<Vec<f32>, RenderError> {
-    if segments.len() < 2 {
+    if segments.len() < 2 && obstacles.is_empty() {
         return Ok(vec![0.0; segments.len()]);
     }
     let original_y: Vec<f32> = segments
         .iter()
         .map(|segment| (segment.y1 + segment.y2) / 2.0)
         .collect();
-    let mut placements: Vec<_> = segments
-        .iter()
-        .enumerate()
-        .map(|(index, segment)| acorde_layout::GlyphPlacement {
-            resource_key: format!("tab-technique:{index}"),
-            metrics: acorde_layout::GlyphMetrics {
-                advance_mm: 0.0,
-                left_mm: segment.start,
-                top_mm: -0.35 * space,
-                width_mm: (segment.end - segment.start).abs().max(0.1 * space),
-                height_mm: 0.7 * space,
-            },
-            x_mm: 0.0,
-            y_mm: original_y[index],
-            priority: 1,
-        })
-        .collect();
-    let classes = vec![acorde_layout::GlyphCollisionClass::Annotation; placements.len()];
-    let directions = vec![acorde_layout::GlyphCollisionDirection::Up; placements.len()];
+    let obstacle_count = obstacles.len();
+    let mut placements = obstacles.to_vec();
+    for placement in &mut placements {
+        placement.priority = u8::MAX;
+    }
+    placements.extend(
+        segments
+            .iter()
+            .enumerate()
+            .map(|(index, segment)| acorde_layout::GlyphPlacement {
+                resource_key: format!("tab-technique:{index}"),
+                metrics: acorde_layout::GlyphMetrics {
+                    advance_mm: 0.0,
+                    left_mm: segment.start,
+                    top_mm: -0.35 * space,
+                    width_mm: (segment.end - segment.start).abs().max(0.1 * space),
+                    height_mm: 0.7 * space,
+                },
+                x_mm: 0.0,
+                y_mm: original_y[index],
+                priority: 1,
+            })
+            .collect::<Vec<_>>(),
+    );
+    let mut classes = vec![acorde_layout::GlyphCollisionClass::Critical; obstacle_count];
+    classes.extend(vec![
+        acorde_layout::GlyphCollisionClass::Annotation;
+        segments.len()
+    ]);
+    let mut directions = vec![acorde_layout::GlyphCollisionDirection::Fixed; obstacle_count];
+    directions.extend(vec![
+        acorde_layout::GlyphCollisionDirection::Up;
+        segments.len()
+    ]);
     acorde_layout::resolve_glyph_collisions_constrained(
         &mut placements,
         &classes,
@@ -5184,6 +5201,7 @@ fn resolve_tab_technique_lane_offsets(
     })?;
     Ok(placements
         .into_iter()
+        .skip(obstacle_count)
         .zip(original_y)
         .map(|(placement, original_y)| placement.y_mm - original_y)
         .collect())
@@ -5191,6 +5209,7 @@ fn resolve_tab_technique_lane_offsets(
 
 /// Render tab techniques between the last note of one measure and the first note of the next.
 /// System breaks use the same edge-owned continuation policy as ties and other score spans.
+#[allow(clippy::too_many_arguments)]
 fn render_cross_measure_tab_technique_connections(
     body: &mut String,
     score: &Score,
@@ -5199,6 +5218,7 @@ fn render_cross_measure_tab_technique_connections(
     left_margin_u: f32,
     right_margin_u: f32,
     space: f32,
+    obstacles: &[acorde_layout::GlyphPlacement],
 ) {
     let mut segments = Vec::new();
     for (part_index, part) in score.parts.iter().enumerate() {
@@ -5326,7 +5346,7 @@ fn render_cross_measure_tab_technique_connections(
             }
         }
     }
-    let Ok(offsets) = resolve_tab_technique_lane_offsets(&segments, space) else {
+    let Ok(offsets) = resolve_tab_technique_lane_offsets(&segments, space, obstacles) else {
         return;
     };
     for (segment, offset) in segments.into_iter().zip(offsets) {
@@ -6775,7 +6795,8 @@ mod tests {
                 y2: 100.0,
             },
         ];
-        let offsets = resolve_tab_technique_lane_offsets(&segments, 10.0).expect("lanes resolve");
+        let offsets =
+            resolve_tab_technique_lane_offsets(&segments, 10.0, &[]).expect("lanes resolve");
         assert_eq!(offsets.len(), 2);
         assert_ne!(offsets[0], offsets[1]);
     }
