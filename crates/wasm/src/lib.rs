@@ -2532,6 +2532,33 @@ mod wasm_tests {
     }
 
     #[wasm_bindgen_test]
+    fn offline_manifest_matches_native_core_contract() {
+        let mut score = Score::new("offline", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(
+            acorde_core::Pitch::new(acorde_core::Step::C, 4),
+            acorde_core::Duration::Quarter,
+        )];
+        let options = acorde_core::PlaybackOptions::default();
+        let request = acorde_core::OfflineRenderRequest {
+            sample_rate_hz: 48_000,
+            release_tail_millis: 100,
+            ..Default::default()
+        };
+        let score_json = serde_json::to_string(&score).unwrap();
+        let options_json = serde_json::to_string(&options).unwrap();
+        let request_json = serde_json::to_string(&request).unwrap();
+        let wasm: serde_json::Value = serde_json::from_str(
+            &build_offline_render_manifest(&score_json, &options_json, &request_json).unwrap(),
+        )
+        .unwrap();
+        let native = serde_json::to_value(
+            acorde_core::build_offline_render_manifest(&score, &options, &request).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(wasm, native);
+    }
+
+    #[wasm_bindgen_test]
     fn browser_render_preflight_accepts_percussion_clef() {
         let mut score = Score::new("preflight", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].clef = acorde_core::Clef::Percussion;
