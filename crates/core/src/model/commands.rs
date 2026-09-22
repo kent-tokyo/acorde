@@ -74,6 +74,7 @@ pub enum Command {
     PasteScoreFragment(PasteScoreFragmentCmd),
     ExchangeVoices(ExchangeVoicesCmd),
     MoveOrCopyVoiceRange(MoveOrCopyVoiceRangeCmd),
+    SplitMeasure(SplitMeasureCmd),
     SetSystemBreak(SetSystemBreakCmd),
     SetPageBreak(SetPageBreakCmd),
     ToggleSlur(ToggleSlurCmd),
@@ -594,6 +595,13 @@ pub struct MoveOrCopyVoiceRangeCmd {
     pub target: NoteAddr,
     #[serde(default)]
     pub move_source: bool,
+}
+
+/// Split one physical measure across every part and staff at an exact beat boundary.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SplitMeasureCmd {
+    pub measure_index: usize,
+    pub split_at_beats: f64,
 }
 
 /// Toggle slur_start on `start` note and slur_end on `end` note (cross-measure aware).
@@ -1209,6 +1217,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
             true
         ),
         Command::MoveOrCopyVoiceRange(_) => hint!(Global, true, true),
+        Command::SplitMeasure(_) => hint!(Global, true, true),
         Command::AddHairpin(c) => hint!(meas!(c), false, true),
         Command::ToggleTie(c) => hint!(meas!(c), false, true),
         Command::SetDynamic(c) => hint!(meas!(c), false, true),
@@ -1329,6 +1338,7 @@ pub fn command_label(cmd: &Command) -> String {
             "Copy Voice Range"
         }
         .to_string(),
+        Command::SplitMeasure(_) => "Split Measure".to_string(),
         Command::SetSystemBreak(_) => "Set System Break".to_string(),
         Command::SetPageBreak(_) => "Set Page Break".to_string(),
         Command::ToggleSlur(_) => "Toggle Slur".to_string(),
@@ -1457,6 +1467,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::PasteScoreFragment(_) => "PasteScoreFragment".to_string(),
         Command::ExchangeVoices(_) => "ExchangeVoices".to_string(),
         Command::MoveOrCopyVoiceRange(_) => "MoveOrCopyVoiceRange".to_string(),
+        Command::SplitMeasure(_) => "SplitMeasure".to_string(),
         Command::SetSystemBreak(_) => "SetSystemBreak".to_string(),
         Command::SetPageBreak(_) => "SetPageBreak".to_string(),
         Command::ToggleSlur(_) => "ToggleSlur".to_string(),
@@ -1726,6 +1737,7 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         Command::PasteScoreFragment(c) => apply_paste_score_fragment(c, score),
         Command::ExchangeVoices(c) => apply_exchange_voices(c, score),
         Command::MoveOrCopyVoiceRange(c) => apply_move_or_copy_voice_range(c, score),
+        Command::SplitMeasure(c) => apply_split_measure(c, score),
         Command::SetSystemBreak(c) => {
             for_each_measure_at(score, c.measure_index, |m| {
                 m.system_break = c.value;
@@ -3384,6 +3396,102 @@ fn apply_move_or_copy_voice_range(
         measure.source_voice_numbers[cmd.source_start.voice] = None;
     }
     prune_orphaned_spanners(score);
+    Ok(())
+}
+
+fn apply_split_measure(cmd: &SplitMeasureCmd, score: &mut Score) -> Result<(), Error> {
+    if !cmd.split_at_beats.is_finite() || cmd.split_at_beats <= 0.0 {
+        return Err(Error::InvalidCommand("split point must be positive".into()));
+    }
+    let mut boundaries = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            let measure = staff
+                .measures
+                .get(cmd.measure_index)
+                .ok_or(Error::MeasureNotFound(cmd.measure_index))?;
+            let expected = measure
+                .time_sig
+                .as_ref()
+                .unwrap_or(&score.settings.time_signature)
+                .total_beats();
+            if cmd.split_at_beats >= expected - 1e-9 {
+                return Err(Error::InvalidCommand(
+                    "split point must be inside measure".into(),
+                ));
+            }
+            let mut indices = [0usize; 4];
+            for (voice_index, voice) in measure.voices.iter().enumerate() {
+                if voice.iter().any(|note| note.tuplet.is_some()) {
+                    return Err(Error::InvalidCommand(
+                        "splitting measures containing tuplets is not yet supported".into(),
+                    ));
+                }
+                let mut beats = 0.0;
+                let mut found = false;
+                for (index, note) in voice.iter().enumerate() {
+                    beats += note.beats();
+                    if (beats - cmd.split_at_beats).abs() < 1e-9 {
+                        indices[voice_index] = index + 1;
+                        found = true;
+                        break;
+                    }
+                    if beats > cmd.split_at_beats {
+                        break;
+                    }
+                }
+                if !voice.is_empty() && !found {
+                    return Err(Error::InvalidCommand(
+                        "split point must align with every voice note boundary".into(),
+                    ));
+                }
+            }
+            boundaries.push((part_index, staff_index, indices));
+        }
+    }
+    for (part_index, staff_index, indices) in &boundaries {
+        let measure =
+            &mut score.parts[*part_index].staves[*staff_index].measures[cmd.measure_index];
+        let mut right = measure.clone();
+        for (voice_index, split_index) in indices.iter().enumerate() {
+            right.voices[voice_index] = measure.voices[voice_index].split_off(*split_index);
+        }
+        measure.barline_right = Barline::Normal;
+        right.barline_left = Barline::Normal;
+        score.parts[*part_index].staves[*staff_index]
+            .measures
+            .insert(cmd.measure_index + 1, right);
+        for (index, measure) in score.parts[*part_index].staves[*staff_index]
+            .measures
+            .iter_mut()
+            .enumerate()
+        {
+            measure.number = index as u32 + 1;
+        }
+    }
+    remap_spanners(score, |address| {
+        if address.measure < cmd.measure_index {
+            return Some(address.clone());
+        }
+        if address.measure > cmd.measure_index {
+            let mut shifted = address.clone();
+            shifted.measure += 1;
+            return Some(shifted);
+        }
+        let split = boundaries
+            .iter()
+            .find(|(part, staff, _)| *part == address.part && *staff == address.staff)?
+            .2[address.voice];
+        if address.note >= split {
+            Some(NoteAddr {
+                measure: cmd.measure_index + 1,
+                note: address.note - split,
+                ..address.clone()
+            })
+        } else {
+            Some(address.clone())
+        }
+    });
     Ok(())
 }
 

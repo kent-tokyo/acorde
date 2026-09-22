@@ -1296,6 +1296,63 @@ mod tests {
     }
 
     #[test]
+    fn split_measure_remaps_spanners_and_is_undoable() {
+        use crate::model::score::{NotationSpanner, NotationSpannerKind};
+        use crate::{Duration, Note, Pitch, SplitMeasureCmd, Step};
+
+        let mut engine = ScoreEngine::new();
+        engine.score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Half),
+            Note::new(Pitch::new(Step::D, 4), Duration::Half),
+        ];
+        engine.score.spanners.push(NotationSpanner {
+            id: "across-split".into(),
+            kind: NotationSpannerKind::Slur,
+            start: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+            end: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 1,
+            },
+            number: None,
+            line_type: None,
+            text: None,
+            placement: None,
+            ottava_size: None,
+            ottava_type: None,
+        });
+        engine
+            .apply(Command::SplitMeasure(SplitMeasureCmd {
+                measure_index: 0,
+                split_at_beats: 2.0,
+            }))
+            .unwrap();
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].voices[0].len(),
+            1
+        );
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[1].voices[0][0].pitches[0].step,
+            Step::D
+        );
+        assert_eq!(engine.score.spanners[0].end.measure, 1);
+        assert_eq!(engine.score.spanners[0].end.note, 0);
+        engine.undo().unwrap();
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].voices[0].len(),
+            2
+        );
+    }
+
+    #[test]
     fn copy_range_paste_range_roundtrip() {
         use crate::model::duration::Duration;
         use crate::model::pitch::{Pitch, Step};
