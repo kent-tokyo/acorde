@@ -154,6 +154,18 @@ pub(crate) fn build_svg_with_metadata(
         for &(pi, si) in &staff_refs {
             staff_states.push(effective_state(score, pi, si, row_start_measure)?);
         }
+        // A cutaway staff keeps its vertical slot to preserve cross-staff coordinates, but
+        // deliberately has no visual system representation when that system contains only
+        // implicit rests. This lets hosts use stable addresses while still producing the
+        // conventional empty-staff cutaway.
+        let row_staff_visible: Vec<bool> = staff_refs
+            .iter()
+            .map(|&(pi, si)| {
+                let staff = &score.parts[pi].staves[si];
+                !staff.presentation.cutaway
+                    || staff_has_visible_content(staff, &row.measure_indices)
+            })
+            .collect();
 
         // Header (clef + key + time) width — same for every staff of this system, keyed off
         // the tallest header among the staves so measures still line up across staves.
@@ -213,6 +225,9 @@ pub(crate) fn build_svg_with_metadata(
 
         // Staff lines + headers for every staff in the system.
         for (si_idx, &(pi, si)) in staff_refs.iter().enumerate() {
+            if !row_staff_visible[si_idx] {
+                continue;
+            }
             let bottom_y = staff_y[si_idx] + staff_heights_u[si_idx] * space;
             if options.interactive {
                 let _ = write!(
@@ -269,6 +284,9 @@ pub(crate) fn build_svg_with_metadata(
         for (col, &measure_idx) in row.measure_indices.iter().enumerate() {
             let mwidth = measure_widths[col];
             for (si_idx, &(pi, si)) in staff_refs.iter().enumerate() {
+                if !row_staff_visible[si_idx] {
+                    continue;
+                }
                 let bottom_y = staff_y[si_idx] + staff_heights_u[si_idx] * space;
                 let clef = &staff_states[si_idx].clef;
                 render_measure(
@@ -1967,6 +1985,25 @@ fn collect_staff_refs(score: &Score) -> Vec<(usize, usize)> {
         }
     }
     out
+}
+
+/// Whether a cutaway staff needs a visual representation in a given system.
+/// Plain rests are intentionally omitted; all authored visual content remains visible.
+fn staff_has_visible_content(staff: &acorde_core::Staff, measure_indices: &[usize]) -> bool {
+    measure_indices.iter().any(|&measure_index| {
+        let Some(measure) = staff.measures.get(measure_index) else {
+            return false;
+        };
+        measure.voices.iter().flatten().any(|note| !note.is_rest)
+            || !measure.texts.is_empty()
+            || !measure.figured_bass.is_empty()
+            || !measure.harp_pedal_diagrams.is_empty()
+            || measure.tempo_text.is_some()
+            || measure.rehearsal.is_some()
+            || measure.navigation.is_some()
+            || measure.expression_text.is_some()
+            || measure.multi_rest_count.is_some()
+    })
 }
 
 struct EffectiveState {

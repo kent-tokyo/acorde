@@ -967,6 +967,39 @@ fn staff_presentation_line_count_and_distance_drive_svg_staff_lines() {
 }
 
 #[test]
+fn cutaway_staff_is_omitted_from_empty_systems_but_kept_for_authored_content() {
+    use acorde_core::{Duration, Note, Pitch, Score, ScoreTemplate, StaffPresentation, Step};
+
+    let mut score = Score::template(ScoreTemplate::Piano);
+    for staff in &mut score.parts[0].staves {
+        for _ in 1..5 {
+            staff.measures.push(acorde_core::Measure::empty(4, 4));
+        }
+    }
+    score.parts[0].staves[1].presentation = StaffPresentation {
+        cutaway: true,
+        ..StaffPresentation::default()
+    };
+    score.parts[0].staves[1].measures[0].voices[0] =
+        vec![Note::new(Pitch::new(Step::C, 3), Duration::Whole)];
+
+    let svg = acorde_render_svg::render_svg(&score, &opts()).expect("cutaway score renders");
+
+    // Row 0 has both staves; row 1 has only the non-cutaway staff.
+    assert_eq!(svg.matches("acorde-staff-line").count(), 15);
+    assert_eq!(
+        svg.matches("data-acorde-kind=\"staff-group\" data-part=\"0\" data-staff=\"1\"")
+            .count(),
+        1
+    );
+    assert_eq!(
+        svg.matches("data-acorde-kind=\"staff-group\" data-part=\"0\" data-staff=\"0\"")
+            .count(),
+        2
+    );
+}
+
+#[test]
 fn metadata_exposes_measure_local_tablature_changes_without_svg_parsing() {
     use acorde_core::{Duration, Note, Pitch, Score, Step, TablatureConfig};
     use acorde_layout::{LayoutConfig, compute_layout};
