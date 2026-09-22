@@ -411,12 +411,18 @@ fn build_render_metadata(
     let note_semantics = collect_note_semantics(score);
     let object_style_overrides = score.object_style_overrides.clone();
     let harp_pedal_diagrams = collect_harp_pedal_diagrams(score);
-    let staff_presentations = staff_refs
+    let staff_presentations = score
+        .parts
         .iter()
-        .map(|&(part, staff)| crate::StaffPresentationMetadata {
-            part,
-            staff,
-            presentation: score.parts[part].staves[staff].presentation.clone(),
+        .enumerate()
+        .flat_map(|(part, value)| {
+            value.staves.iter().enumerate().map(move |(staff, value)| {
+                crate::StaffPresentationMetadata {
+                    part,
+                    staff,
+                    presentation: value.presentation.clone(),
+                }
+            })
         })
         .collect();
     let section_breaks = score
@@ -1947,8 +1953,10 @@ fn figured_bass_display_text(measure: &Measure) -> Option<String> {
 fn collect_staff_refs(score: &Score) -> Vec<(usize, usize)> {
     let mut out = Vec::new();
     for (pi, part) in score.parts.iter().enumerate() {
-        for si in 0..part.staves.len() {
-            out.push((pi, si));
+        for (si, staff) in part.staves.iter().enumerate() {
+            if staff.presentation.visible {
+                out.push((pi, si));
+            }
         }
     }
     out
