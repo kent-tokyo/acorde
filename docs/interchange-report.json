@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "version_policy": "workspace version is 1.2.0",
+  "version_policy": "workspace version is 1.2.1",
   "generated_on": "2026-09-21",
   "phase_7_policy": {
     "status": "local-slices-available-external-gates-open",

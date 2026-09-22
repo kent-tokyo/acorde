@@ -10,6 +10,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-09-22
+
 ### SVG engraving
 
 - Overlapping legacy span segments now use the same deterministic, class-aware constrained
