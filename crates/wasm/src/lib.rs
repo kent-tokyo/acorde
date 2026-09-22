@@ -541,6 +541,21 @@ pub fn compute_print_layout(score_json: &str, config_json: &str) -> Result<Strin
         .map_err(|e| js_err(format!("print layout serialization failed: {e}")))
 }
 
+/// Export page-scoped semantic render trees using the same print configuration.
+///
+/// The result carries canonical score addresses for notes/rests plus page-owned
+/// spanner and publication nodes; PDF/SVG encoding remains host-owned.
+#[wasm_bindgen]
+pub fn export_page_render_trees(score_json: &str, config_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let config: acorde_layout::PrintConfig =
+        parse_json(config_json, "print config", MAX_OPTIONS_JSON_BYTES)?;
+    let layout = acorde_layout::compute_print_layout(&score, &config).map_err(js_err)?;
+    let trees = layout.export_page_render_trees(&score).map_err(js_err)?;
+    serde_json::to_string(&trees)
+        .map_err(|e| js_err(format!("page render tree serialization failed: {e}")))
+}
+
 // ── SVG rendering ────────────────────────────────────────────────────────────
 
 /// Inspect SVG renderer capability boundaries and return source-located issues as JSON.
@@ -2489,6 +2504,9 @@ mod wasm_tests {
         let print_layout = compute_print_layout(&score_json, "{}").unwrap();
         assert!(print_layout.contains("contract_version"));
         assert!(print_layout.contains("pages"));
+        let page_trees = export_page_render_trees(&score_json, "{}").unwrap();
+        assert!(page_trees.contains("contract_version"));
+        assert!(page_trees.contains("nodes"));
         assert!(compute_print_layout(&score_json, "not-json").is_err());
         assert!(render_score_svg_with_layout("{}", &layout_json, "{}").is_err());
         assert!(render_score_svg_row(&score_json, &layout_json, 99, "{}").is_err());
