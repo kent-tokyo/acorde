@@ -310,7 +310,7 @@ mod tests {
     use super::*;
     use crate::{
         Duration, DurationScale, ExplodeChordPitchesCmd, ExplodeVoicesCmd, ImplodeStavesCmd, Note,
-        Pitch, ScaleVoiceRangeCmd, ScoreTemplate, Step, TupletInfo,
+        Pitch, ScaleVoiceRangeCmd, ScoreTemplate, Step, TupletInfo, TupletScalePolicy,
     };
 
     fn piano_score() -> Score {
@@ -388,7 +388,7 @@ mod tests {
     }
 
     #[test]
-    fn scale_plan_reports_tuplet_limit_without_mutation() {
+    fn scale_plan_supports_tuplets_with_preserved_ratio() {
         let mut score = piano_score();
         score.parts[0].staves[0].measures[0].voices[0][0].tuplet = Some(TupletInfo {
             actual_notes: 3,
@@ -404,14 +404,12 @@ mod tests {
                 start_measure: 0,
                 end_measure: 0,
                 scale: DurationScale::Half,
+                tuplet_policy: TupletScalePolicy::PreserveRatio,
             }),
         )
         .unwrap();
-        assert!(!plan.can_apply);
-        assert_eq!(
-            plan.diagnostics[0].kind,
-            StructuralChangeDiagnosticKind::Unsupported
-        );
+        assert!(plan.can_apply);
+        assert!(plan.diagnostics.is_empty());
         assert_eq!(serde_json::to_value(&score).unwrap(), before);
     }
 
@@ -427,6 +425,7 @@ mod tests {
                 start_measure: 0,
                 end_measure: 0,
                 scale: DurationScale::Half,
+                tuplet_policy: TupletScalePolicy::PreserveRatio,
             }),
         )
         .unwrap();

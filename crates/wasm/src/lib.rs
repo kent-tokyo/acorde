@@ -2701,6 +2701,58 @@ mod wasm_tests {
     }
 
     #[wasm_bindgen_test]
+    fn tuplet_duration_scaling_matches_native_core_contract() {
+        let mut score = Score::new("tuplet scaling", 120, 4, 4, 0, 1);
+        let mut note = acorde_core::Note::new(
+            acorde_core::Pitch::new(acorde_core::Step::C, 4),
+            acorde_core::Duration::Quarter,
+        );
+        note.tuplet = Some(acorde_core::TupletInfo {
+            actual_notes: 3,
+            normal_notes: 2,
+        });
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let command = acorde_core::Command::ScaleVoiceRange(acorde_core::ScaleVoiceRangeCmd {
+            part_index: 0,
+            staff_index: 0,
+            voice: 0,
+            start_measure: 0,
+            end_measure: 0,
+            scale: acorde_core::DurationScale::Half,
+            tuplet_policy: acorde_core::TupletScalePolicy::PreserveRatio,
+        });
+        let score_json = serde_json::to_string(&score).unwrap();
+        let command_json = serde_json::to_string(&command).unwrap();
+        let mut wasm: serde_json::Value =
+            serde_json::from_str(&apply_score_command(&score_json, &command_json).unwrap())
+                .unwrap();
+
+        let mut native = acorde_core::ScoreEngine::new();
+        native.try_replace_score(score).unwrap();
+        let hint = native.apply(command).unwrap();
+        let mut native = serde_json::json!({ "score": native.score, "hint": hint });
+        fn remove_generated_ids(value: &mut serde_json::Value) {
+            match value {
+                serde_json::Value::Array(items) => {
+                    for item in items {
+                        remove_generated_ids(item);
+                    }
+                }
+                serde_json::Value::Object(object) => {
+                    object.remove("id");
+                    for value in object.values_mut() {
+                        remove_generated_ids(value);
+                    }
+                }
+                _ => {}
+            }
+        }
+        remove_generated_ids(&mut wasm);
+        remove_generated_ids(&mut native);
+        assert_eq!(wasm, native);
+    }
+
+    #[wasm_bindgen_test]
     fn score_fragment_matches_native_core_contract() {
         let mut score = Score::new("fragment", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(

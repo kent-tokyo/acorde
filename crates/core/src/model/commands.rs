@@ -684,12 +684,21 @@ pub enum DurationScale {
     Double,
 }
 
+/// How duration scaling treats the notation ratio of existing tuplets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TupletScalePolicy {
+    /// Keep each `actual-notes:normal-notes` ratio while scaling written duration.
+    #[default]
+    PreserveRatio,
+}
+
 /// Scale every note in one voice across an inclusive measure range.
 ///
-/// Tuplets are rejected because scaling their displayed and performed duration
-/// requires a separate ratio policy. Underfilled scaled measures receive
-/// explicit trailing rests; overflow rejects the complete command before any
-/// score or history mutation.
+/// Tuplets preserve their `actual-notes:normal-notes` ratio, so their written
+/// and performed durations change by the same factor. Underfilled scaled
+/// measures receive explicit trailing rests; overflow rejects the complete
+/// command before any score or history mutation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScaleVoiceRangeCmd {
     pub part_index: usize,
@@ -698,6 +707,8 @@ pub struct ScaleVoiceRangeCmd {
     pub start_measure: usize,
     pub end_measure: usize,
     pub scale: DurationScale,
+    #[serde(default)]
+    pub tuplet_policy: TupletScalePolicy,
 }
 
 /// Toggle slur_start on `start` note and slur_end on `end` note (cross-measure aware).
@@ -4176,6 +4187,63 @@ fn scaled_duration(duration: &Duration, scale: DurationScale) -> Option<Duration
     }
 }
 
+fn uniform_tuplet_ratio(voice: &[Note]) -> Result<Option<TupletInfo>, Error> {
+    let mut ratio: Option<TupletInfo> = None;
+    for note in voice {
+        let Some(tuplet) = &note.tuplet else {
+            continue;
+        };
+        if tuplet.actual_notes == 0 || tuplet.normal_notes == 0 {
+            return Err(Error::InvalidCommand(
+                "duration scaling requires a non-zero tuplet ratio".into(),
+            ));
+        }
+        if let Some(existing) = &ratio {
+            if existing != tuplet {
+                return Err(Error::InvalidCommand(
+                    "duration scaling requires one shared tuplet ratio per voice".into(),
+                ));
+            }
+        } else {
+            ratio = Some(tuplet.clone());
+        }
+    }
+    Ok(ratio)
+}
+
+fn pad_voice_to_measure_with_tuplet_ratio(
+    voice: &mut Vec<Note>,
+    max_beats: f64,
+    ratio: &TupletInfo,
+) -> Result<(), Error> {
+    let mut used: f64 = voice.iter().map(Note::beats).sum();
+    let ratio_scale = f64::from(ratio.normal_notes) / f64::from(ratio.actual_notes);
+    while max_beats - used > 1e-9 {
+        let remaining = max_beats - used;
+        let duration = [
+            Duration::Whole,
+            Duration::Half,
+            Duration::Quarter,
+            Duration::Eighth,
+            Duration::Sixteenth,
+            Duration::ThirtySecond,
+            Duration::SixtyFourth,
+        ]
+        .into_iter()
+        .find(|duration| duration.beats(0) * ratio_scale <= remaining + 1e-9)
+        .ok_or_else(|| {
+            Error::InvalidCommand(
+                "duration scaling cannot represent the remaining tuplet duration".into(),
+            )
+        })?;
+        let mut rest = Note::rest(duration);
+        rest.tuplet = Some(ratio.clone());
+        used += rest.beats();
+        voice.push(rest);
+    }
+    Ok(())
+}
+
 fn apply_scale_voice_range(cmd: &ScaleVoiceRangeCmd, score: &mut Score) -> Result<(), Error> {
     if cmd.voice >= 4 {
         return Err(Error::VoiceOutOfRange(cmd.voice));
@@ -4196,10 +4264,10 @@ fn apply_scale_voice_range(cmd: &ScaleVoiceRangeCmd, score: &mut Score) -> Resul
         let expected =
             effective_staff_measure_beats(staff, &score.settings.time_signature, measure_index)?;
         let voice = &measure.voices[cmd.voice];
-        if voice.iter().any(|note| note.tuplet.is_some()) {
-            return Err(Error::InvalidCommand(
-                "duration scaling does not support tuplets".into(),
-            ));
+        match cmd.tuplet_policy {
+            TupletScalePolicy::PreserveRatio => {
+                uniform_tuplet_ratio(voice)?;
+            }
         }
         let mut scaled_beats = 0.0;
         for note in voice {
@@ -4234,12 +4302,19 @@ fn apply_scale_voice_range(cmd: &ScaleVoiceRangeCmd, score: &mut Score) -> Resul
         if voice.is_empty() {
             continue;
         }
+        let tuplet_ratio = match cmd.tuplet_policy {
+            TupletScalePolicy::PreserveRatio => uniform_tuplet_ratio(voice)?,
+        };
         for note in voice.iter_mut() {
             note.duration = scaled_duration(&note.duration, cmd.scale).ok_or_else(|| {
                 Error::InvalidCommand("duration scaling exceeds the portable duration range".into())
             })?;
         }
-        pad_voice_to_measure(voice, expected);
+        if let Some(ratio) = tuplet_ratio {
+            pad_voice_to_measure_with_tuplet_ratio(voice, expected, &ratio)?;
+        } else {
+            pad_voice_to_measure(voice, expected);
+        }
     }
     Ok(())
 }
@@ -4766,6 +4841,18 @@ mod tests {
             }
         }
         s
+    }
+
+    #[test]
+    fn legacy_scale_voice_range_command_defaults_to_preserve_tuplet_ratio() {
+        let command: Command = serde_json::from_str(
+            r#"{"type":"scale_voice_range","part_index":0,"staff_index":0,"voice":0,"start_measure":0,"end_measure":0,"scale":"half"}"#,
+        )
+        .expect("legacy scale command deserializes");
+        let Command::ScaleVoiceRange(command) = command else {
+            panic!("expected scale command");
+        };
+        assert_eq!(command.tuplet_policy, TupletScalePolicy::PreserveRatio);
     }
 
     fn score_with_typed_spanner() -> Score {

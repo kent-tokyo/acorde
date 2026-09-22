@@ -469,6 +469,7 @@ impl ScoreEngine {
             start_measure,
             end_measure,
             scale,
+            tuplet_policy: super::commands::TupletScalePolicy::PreserveRatio,
         }))
     }
 
@@ -1759,7 +1760,7 @@ mod tests {
     }
 
     #[test]
-    fn scale_voice_range_rejects_tuplets_without_mutation() {
+    fn scale_voice_range_preserves_tuplet_ratio_and_undoes() {
         use crate::{Duration, DurationScale, Note, Pitch, Step, TupletInfo};
 
         let mut engine = ScoreEngine::new();
@@ -1770,10 +1771,48 @@ mod tests {
         });
         engine.score.parts[0].staves[0].measures[0].voices[0] = vec![note];
         let before = serde_json::to_value(&engine.score).unwrap();
+        engine
+            .scale_voice_range(0, 0, 0, 0, 0, DurationScale::Half)
+            .unwrap();
+        let voice = &engine.score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(voice[0].duration, Duration::Eighth);
+        assert_eq!(
+            voice[0].tuplet,
+            Some(TupletInfo {
+                actual_notes: 3,
+                normal_notes: 2,
+            })
+        );
+        assert!(voice.iter().skip(1).all(|note| note.is_rest));
+        engine.undo().unwrap();
+        assert_eq!(serde_json::to_value(&engine.score).unwrap(), before);
+    }
+
+    #[test]
+    fn scale_voice_range_rejects_mixed_tuplet_ratios_without_mutation() {
+        use crate::{Duration, DurationScale, Note, Pitch, Step, TupletInfo};
+
+        let mut engine = ScoreEngine::new();
+        let mut triplet = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        triplet.tuplet = Some(TupletInfo {
+            actual_notes: 3,
+            normal_notes: 2,
+        });
+        let mut quintuplet = Note::new(Pitch::new(Step::D, 4), Duration::Quarter);
+        quintuplet.tuplet = Some(TupletInfo {
+            actual_notes: 5,
+            normal_notes: 4,
+        });
+        engine.score.parts[0].staves[0].measures[0].voices[0] = vec![triplet, quintuplet];
+        let before = serde_json::to_value(&engine.score).unwrap();
+
+        let error = engine
+            .scale_voice_range(0, 0, 0, 0, 0, DurationScale::Half)
+            .expect_err("mixed tuplet ratios must be rejected");
         assert!(
-            engine
-                .scale_voice_range(0, 0, 0, 0, 0, DurationScale::Half)
-                .is_err()
+            error
+                .to_string()
+                .contains("one shared tuplet ratio per voice")
         );
         assert_eq!(serde_json::to_value(&engine.score).unwrap(), before);
     }
