@@ -2873,6 +2873,7 @@ pub enum ScorePatch {
         multi_rest_count: Option<u8>,
         system_break: bool,
         page_break: bool,
+        #[serde(default)]
         section_break: bool,
     },
     SetTablatureConfig {
@@ -5048,6 +5049,23 @@ mod tests {
         let json = serde_json::to_string(&patches).expect("measure presentation patch JSON");
         let decoded: Vec<ScorePatch> =
             serde_json::from_str(&json).expect("measure presentation patch should decode");
+        let mut legacy_json: serde_json::Value =
+            serde_json::from_str(&json).expect("patch JSON value");
+        for patch in legacy_json.as_array_mut().expect("patch JSON array") {
+            patch
+                .as_object_mut()
+                .expect("patch JSON object")
+                .remove("section_break");
+        }
+        let legacy: Vec<ScorePatch> =
+            serde_json::from_value(legacy_json).expect("legacy patch should decode");
+        assert!(matches!(
+            legacy.first(),
+            Some(ScorePatch::SetMeasurePresentation {
+                section_break: false,
+                ..
+            })
+        ));
         let result = apply_patch(&a, &decoded).expect("measure presentation patch failed");
         assert_eq!(result.parts[0].staves[0].measures[0].number, 8);
         assert_eq!(result.parts[0].staves[0].measures[0].clef, Some(Clef::Bass));
