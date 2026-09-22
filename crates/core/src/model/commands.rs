@@ -75,6 +75,7 @@ pub enum Command {
     ExchangeVoices(ExchangeVoicesCmd),
     MoveOrCopyVoiceRange(MoveOrCopyVoiceRangeCmd),
     SplitMeasure(SplitMeasureCmd),
+    JoinMeasures(JoinMeasuresCmd),
     SetSystemBreak(SetSystemBreakCmd),
     SetPageBreak(SetPageBreakCmd),
     ToggleSlur(ToggleSlurCmd),
@@ -602,6 +603,12 @@ pub struct MoveOrCopyVoiceRangeCmd {
 pub struct SplitMeasureCmd {
     pub measure_index: usize,
     pub split_at_beats: f64,
+}
+
+/// Join one physical measure with its following measure across every part and staff.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JoinMeasuresCmd {
+    pub measure_index: usize,
 }
 
 /// Toggle slur_start on `start` note and slur_end on `end` note (cross-measure aware).
@@ -1218,6 +1225,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         ),
         Command::MoveOrCopyVoiceRange(_) => hint!(Global, true, true),
         Command::SplitMeasure(_) => hint!(Global, true, true),
+        Command::JoinMeasures(_) => hint!(Global, true, true),
         Command::AddHairpin(c) => hint!(meas!(c), false, true),
         Command::ToggleTie(c) => hint!(meas!(c), false, true),
         Command::SetDynamic(c) => hint!(meas!(c), false, true),
@@ -1339,6 +1347,7 @@ pub fn command_label(cmd: &Command) -> String {
         }
         .to_string(),
         Command::SplitMeasure(_) => "Split Measure".to_string(),
+        Command::JoinMeasures(_) => "Join Measures".to_string(),
         Command::SetSystemBreak(_) => "Set System Break".to_string(),
         Command::SetPageBreak(_) => "Set Page Break".to_string(),
         Command::ToggleSlur(_) => "Toggle Slur".to_string(),
@@ -1468,6 +1477,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::ExchangeVoices(_) => "ExchangeVoices".to_string(),
         Command::MoveOrCopyVoiceRange(_) => "MoveOrCopyVoiceRange".to_string(),
         Command::SplitMeasure(_) => "SplitMeasure".to_string(),
+        Command::JoinMeasures(_) => "JoinMeasures".to_string(),
         Command::SetSystemBreak(_) => "SetSystemBreak".to_string(),
         Command::SetPageBreak(_) => "SetPageBreak".to_string(),
         Command::ToggleSlur(_) => "ToggleSlur".to_string(),
@@ -1738,6 +1748,7 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         Command::ExchangeVoices(c) => apply_exchange_voices(c, score),
         Command::MoveOrCopyVoiceRange(c) => apply_move_or_copy_voice_range(c, score),
         Command::SplitMeasure(c) => apply_split_measure(c, score),
+        Command::JoinMeasures(c) => apply_join_measures(c, score),
         Command::SetSystemBreak(c) => {
             for_each_measure_at(score, c.measure_index, |m| {
                 m.system_break = c.value;
@@ -3491,6 +3502,66 @@ fn apply_split_measure(cmd: &SplitMeasureCmd, score: &mut Score) -> Result<(), E
         } else {
             Some(address.clone())
         }
+    });
+    Ok(())
+}
+
+fn apply_join_measures(cmd: &JoinMeasuresCmd, score: &mut Score) -> Result<(), Error> {
+    let mut offsets = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            let left = staff
+                .measures
+                .get(cmd.measure_index)
+                .ok_or(Error::MeasureNotFound(cmd.measure_index))?;
+            let right = staff
+                .measures
+                .get(cmd.measure_index + 1)
+                .ok_or(Error::MeasureNotFound(cmd.measure_index + 1))?;
+            let mut counts = [0usize; 4];
+            for (voice, notes) in left.voices.iter().enumerate() {
+                counts[voice] = notes.len();
+                if notes.iter().any(|note| note.tuplet.is_some())
+                    || right.voices[voice].iter().any(|note| note.tuplet.is_some())
+                {
+                    return Err(Error::InvalidCommand(
+                        "joining measures containing tuplets is not yet supported".into(),
+                    ));
+                }
+            }
+            offsets.push((part_index, staff_index, counts));
+        }
+    }
+    for (part, staff, _) in &offsets {
+        let measures = &mut score.parts[*part].staves[*staff].measures;
+        let right = measures.remove(cmd.measure_index + 1);
+        let left = &mut measures[cmd.measure_index];
+        for voice in 0..4 {
+            left.voices[voice].extend(right.voices[voice].clone());
+        }
+        left.barline_right = right.barline_right;
+        for (index, measure) in measures.iter_mut().enumerate() {
+            measure.number = index as u32 + 1;
+        }
+    }
+    remap_spanners(score, |address| {
+        if address.measure < cmd.measure_index + 1 {
+            return Some(address.clone());
+        }
+        if address.measure > cmd.measure_index + 1 {
+            let mut shifted = address.clone();
+            shifted.measure -= 1;
+            return Some(shifted);
+        }
+        let offset = offsets
+            .iter()
+            .find(|(part, staff, _)| *part == address.part && *staff == address.staff)?
+            .2[address.voice];
+        Some(NoteAddr {
+            measure: cmd.measure_index,
+            note: address.note + offset,
+            ..address.clone()
+        })
     });
     Ok(())
 }

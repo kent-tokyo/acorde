@@ -1298,7 +1298,7 @@ mod tests {
     #[test]
     fn split_measure_remaps_spanners_and_is_undoable() {
         use crate::model::score::{NotationSpanner, NotationSpannerKind};
-        use crate::{Duration, Note, Pitch, SplitMeasureCmd, Step};
+        use crate::{Duration, JoinMeasuresCmd, Note, Pitch, SplitMeasureCmd, Step};
 
         let mut engine = ScoreEngine::new();
         engine.score.parts[0].staves[0].measures[0].voices[0] = vec![
@@ -1350,6 +1350,21 @@ mod tests {
             engine.score.parts[0].staves[0].measures[0].voices[0].len(),
             2
         );
+        engine
+            .apply(Command::SplitMeasure(SplitMeasureCmd {
+                measure_index: 0,
+                split_at_beats: 2.0,
+            }))
+            .unwrap();
+        engine
+            .apply(Command::JoinMeasures(JoinMeasuresCmd { measure_index: 0 }))
+            .unwrap();
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].voices[0].len(),
+            2
+        );
+        assert_eq!(engine.score.spanners[0].end.measure, 0);
+        assert_eq!(engine.score.spanners[0].end.note, 1);
     }
 
     #[test]
