@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-09-23
+
 - Consolidated English/Japanese entry points, print guidance, release notes, and evidence links.
 - Added Phase 18 external-observation and Phase 19 logical print-corpus documentation. These are
   evidence and contract improvements, not a new compatibility or publication-quality claim.

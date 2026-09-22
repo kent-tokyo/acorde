@@ -1,6 +1,6 @@
 # Notation coverage matrix
 
-This matrix is versioned with the library. It describes the v1.2.2 capability slices and is
+This matrix is versioned with the library. It describes the v1.2.3 capability slices and is
 intended to make information loss explicit. MEI import reports now identify supported-subset
 losses for known unsupported elements; other partial-format losses remain documented here until
 their parser-specific diagnostics are implemented.
@@ -170,7 +170,7 @@ interactive hosts; font shaping remains outside the core renderer.
 
 ## Versioning and evidence
 
-The matrix applies to v1.2.2. Each `yes` slice must have a fixture or focused round-trip test in
+The matrix applies to v1.2.3. Each `yes` slice must have a fixture or focused round-trip test in
 the repository. The fixture provenance and evidence mode are pinned in
 [`tests/fixtures/manifest.json`](../tests/fixtures/manifest.json); the evaluation rules are in
 [`interchange-evidence.md`](interchange-evidence.md). Known losses are tracked here until `ImportReport` and `ExportReport` expose source

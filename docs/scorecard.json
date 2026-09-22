@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "release": "1.2.2",
+  "release": "1.2.3",
   "contracts": {
     "svg_render_metadata": 22,
     "analysis_result": 13,
@@ -10,7 +10,6 @@
   },
   "policy": {
     "claims_require_fixture_or_focused_test": true,
-    "external_publication_verified": true,
     "phase_6_local_gates_complete": true,
     "benchmark_latency_is_host_measured": true
   },

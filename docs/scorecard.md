@@ -25,5 +25,5 @@ workflow, including formatting, all-feature/all-target validation, and workspace
 Browser E2E, cross-browser raster fidelity, and host-measured latency require their respective
 environments and are not claimed by native Rust test results alone.
 
-Release v1.2.2 is published on 2026-09-22; `external_publication_verified` records that release
-state only, not ecosystem compatibility or downstream adoption.
+Release publication is verified separately from this checked-in source inventory. It does not
+establish ecosystem compatibility or downstream adoption.
