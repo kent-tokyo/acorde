@@ -301,6 +301,14 @@ fn rich_musicxml_fragment_fixture_roundtrips_and_pastes_undoably() {
         [Some(1), Some(5), None, None]
     );
     assert_eq!(score.spanners.len(), 1);
+    assert!(
+        score.parts[0].staves[0].measures[0].voices[0][..3]
+            .iter()
+            .all(|note| note
+                .tuplet
+                .as_ref()
+                .is_some_and(|tuplet| { (tuplet.actual_notes, tuplet.normal_notes) == (3, 2) }))
+    );
     assert_eq!(
         score.parts[0].staves[0].measures[0].voices[0][0]
             .lyric
@@ -310,6 +318,14 @@ fn rich_musicxml_fragment_fixture_roundtrips_and_pastes_undoably() {
     );
     let restored = parse_musicxml(&serialize_musicxml(&score).expect("rich fixture serializes"))
         .expect("rich fixture reparses");
+    assert!(
+        restored.parts[0].staves[0].measures[0].voices[0][..3]
+            .iter()
+            .all(|note| note
+                .tuplet
+                .as_ref()
+                .is_some_and(|tuplet| { (tuplet.actual_notes, tuplet.normal_notes) == (3, 2) }))
+    );
 
     let mut engine = ScoreEngine::new();
     engine.try_replace_score(restored).expect("score is valid");
@@ -360,6 +376,21 @@ fn rich_musicxml_fragment_fixture_roundtrips_and_pastes_undoably() {
         )
         .expect("fragment pastes");
     assert_eq!(engine.score.spanners.len(), 2);
+    assert!(
+        engine.score.parts[0].staves[0].measures[2].voices[0][..3]
+            .iter()
+            .all(|note| note
+                .tuplet
+                .as_ref()
+                .is_some_and(|tuplet| { (tuplet.actual_notes, tuplet.normal_notes) == (3, 2) }))
+    );
+    let pasted_slur = engine
+        .score
+        .spanners
+        .iter()
+        .find(|spanner| spanner.start.measure == 2)
+        .expect("pasted cross-measure slur");
+    assert_eq!((pasted_slur.start.measure, pasted_slur.end.measure), (2, 3));
     assert_eq!(
         engine.score.parts[0].staves[0].measures[2].source_voice_numbers,
         [Some(1), Some(5), None, None]

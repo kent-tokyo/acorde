@@ -14,14 +14,25 @@
       <direction placement="above"><direction-type><words>dolce</words></direction-type></direction>
       <note>
         <pitch><step>C</step><octave>4</octave></pitch>
-        <duration>480</duration><voice>1</voice><type>quarter</type>
+        <duration>160</duration><voice>1</voice><type>eighth</type>
+        <time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>
         <lyric><syllabic>begin</syllabic><text>frag</text></lyric>
       </note>
       <note>
         <pitch><step>D</step><octave>4</octave></pitch>
-        <duration>480</duration><voice>1</voice><type>quarter</type>
-        <notations><slur number="1" type="start"/></notations>
+        <duration>160</duration><voice>1</voice><type>eighth</type>
+        <time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>
         <lyric><syllabic>end</syllabic><text>ment</text></lyric>
+      </note>
+      <note>
+        <pitch><step>E</step><octave>4</octave></pitch>
+        <duration>160</duration><voice>1</voice><type>eighth</type>
+        <time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>
+        <notations><slur number="1" type="start"/></notations>
+      </note>
+      <note>
+        <pitch><step>F</step><octave>4</octave></pitch>
+        <duration>480</duration><voice>1</voice><type>quarter</type>
       </note>
       <backup><duration>960</duration></backup>
       <note>
