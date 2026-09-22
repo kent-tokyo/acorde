@@ -304,8 +304,9 @@ fn rich_musicxml_fragment_fixture_roundtrips_and_pastes_undoably() {
         [Some(1), Some(5), None, None]
     );
     assert_eq!(score.spanners.len(), 1);
+    assert!(score.parts[0].staves[0].measures[0].voices[0][0].is_rest);
     assert!(
-        score.parts[0].staves[0].measures[0].voices[0][..3]
+        score.parts[0].staves[0].measures[0].voices[0][1..4]
             .iter()
             .all(|note| note
                 .tuplet
@@ -313,7 +314,7 @@ fn rich_musicxml_fragment_fixture_roundtrips_and_pastes_undoably() {
                 .is_some_and(|tuplet| { (tuplet.actual_notes, tuplet.normal_notes) == (3, 2) }))
     );
     assert_eq!(
-        score.parts[0].staves[0].measures[0].voices[0][0]
+        score.parts[0].staves[0].measures[0].voices[0][1]
             .lyric
             .as_ref()
             .map(|lyric| lyric.text.as_str()),
@@ -321,8 +322,9 @@ fn rich_musicxml_fragment_fixture_roundtrips_and_pastes_undoably() {
     );
     let restored = parse_musicxml(&serialize_musicxml(&score).expect("rich fixture serializes"))
         .expect("rich fixture reparses");
+    assert!(restored.parts[0].staves[0].measures[0].voices[0][0].is_rest);
     assert!(
-        restored.parts[0].staves[0].measures[0].voices[0][..3]
+        restored.parts[0].staves[0].measures[0].voices[0][1..4]
             .iter()
             .all(|note| note
                 .tuplet
@@ -369,6 +371,10 @@ fn rich_musicxml_fragment_fixture_roundtrips_and_pastes_undoably() {
         ],
     )
     .expect("fragment extracts");
+    let fragment = serde_json::from_str(
+        &serde_json::to_string(&fragment).expect("fragment serializes as JSON"),
+    )
+    .expect("fragment reparses from JSON");
     engine
         .paste_score_fragment(
             fragment,
@@ -379,8 +385,9 @@ fn rich_musicxml_fragment_fixture_roundtrips_and_pastes_undoably() {
         )
         .expect("fragment pastes");
     assert_eq!(engine.score.spanners.len(), 2);
+    assert!(engine.score.parts[0].staves[0].measures[2].voices[0][0].is_rest);
     assert!(
-        engine.score.parts[0].staves[0].measures[2].voices[0][..3]
+        engine.score.parts[0].staves[0].measures[2].voices[0][1..4]
             .iter()
             .all(|note| note
                 .tuplet

@@ -12,6 +12,7 @@
         <clef><sign>G</sign><line>2</line></clef>
       </attributes>
       <direction placement="above"><direction-type><words>dolce</words></direction-type></direction>
+      <forward><duration>480</duration></forward>
       <note>
         <pitch><step>C</step><octave>4</octave></pitch>
         <duration>160</duration><voice>1</voice><type>eighth</type>
@@ -29,10 +30,6 @@
         <duration>160</duration><voice>1</voice><type>eighth</type>
         <time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>
         <notations><slur number="1" type="start"/></notations>
-      </note>
-      <note>
-        <pitch><step>F</step><octave>4</octave></pitch>
-        <duration>480</duration><voice>1</voice><type>quarter</type>
       </note>
       <backup><duration>960</duration></backup>
       <note>
