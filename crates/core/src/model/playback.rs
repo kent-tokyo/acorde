@@ -222,7 +222,7 @@ pub const MAX_TAB_PERFORMANCE_EVENTS: usize = 1_000_000;
 const MAX_TAB_PERFORMANCE_DIAGNOSTICS: usize = 1_024;
 
 /// Version of the host-neutral offline rendering manifest contract.
-pub const OFFLINE_RENDER_CONTRACT_VERSION: u16 = 2;
+pub const OFFLINE_RENDER_CONTRACT_VERSION: u16 = 3;
 
 /// Score material selected for an offline render.  Addresses remain those of the
 /// source score even when a view or a range is selected.
@@ -264,6 +264,14 @@ pub struct OfflineRenderFrameEvent {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub enum OfflineRenderSemanticEventKind {
+    /// A measure-local instrument routing change. Providers apply this before
+    /// attacks at the same frame rather than inferring it from note events.
+    InstrumentChange {
+        instrument_id: String,
+        channel: u8,
+        program: u8,
+        transpose_semitones: i8,
+    },
     Controller {
         channel: u8,
         controller: u8,
@@ -944,6 +952,19 @@ fn append_measure_semantic_events(
                     measure: Some(address.clone()),
                 });
             }
+            if let Some(instrument) = &measure.instrument_change {
+                events.push(OfflineRenderSemanticFrameEvent {
+                    kind: OfflineRenderSemanticEventKind::InstrumentChange {
+                        instrument_id: instrument.id.clone(),
+                        channel: instrument.midi_channel,
+                        program: instrument.midi_program,
+                        transpose_semitones: instrument.transpose_semitones,
+                    },
+                    frame,
+                    source: None,
+                    measure: Some(address.clone()),
+                });
+            }
             let start_tick = tick_starts[time.measure];
             let end_tick = start_tick.saturating_add((time.beats * 480.0).round() as u64);
             for control in &part.midi_control_changes {
@@ -1616,7 +1637,9 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                             let transpose = if channel == 9 {
                                 0i8
                             } else {
-                                staff.transpose_semitones
+                                staff.transpose_semitones.saturating_add(
+                                    instrument.map_or(0, |value| value.transpose_semitones),
+                                )
                             };
                             for pitch in &note.pitches {
                                 let midi = (pitch.to_midi() + transpose as i16).clamp(0, 127) as u8;
@@ -3134,6 +3157,21 @@ mod tests {
             Some("flute")
         );
         assert_eq!(manifest.frame_events[3].event.program, 73);
+        assert!(manifest.semantic_events.iter().any(|event| {
+            matches!(
+                &event.kind,
+                OfflineRenderSemanticEventKind::InstrumentChange {
+                    instrument_id,
+                    channel: 2,
+                    program: 73,
+                    transpose_semitones: 0,
+                } if instrument_id == "flute"
+            ) && event
+                .measure
+                .as_ref()
+                .is_some_and(|address| address.measure == 1)
+                && event.frame == manifest.frame_events[1].start_frame
+        }));
         assert!(manifest.semantic_events.iter().any(|event| matches!(
             event.kind,
             OfflineRenderSemanticEventKind::Pedal { down: true }
@@ -3476,6 +3514,7 @@ mod tests {
         let mut change = crate::InstrumentDefinition::new("flute", "Flute");
         change.midi_channel = 2;
         change.midi_program = 73;
+        change.transpose_semitones = -2;
         score.parts[0].staves[0].measures[1].instrument_change = Some(change);
         for measure in &mut score.parts[0].staves[0].measures {
             measure.voices[0] = vec![crate::Note::new(
@@ -3502,6 +3541,8 @@ mod tests {
             ),
             (2, 73, Some("flute"))
         );
+        assert_eq!(events[0].pitch_midi, 60);
+        assert_eq!(events[1].pitch_midi, 58);
     }
 
     #[test]
