@@ -3803,6 +3803,8 @@ fn render_all_spans(
     space: f32,
     interactive: bool,
 ) {
+    let lane_offsets =
+        resolve_span_lane_offsets(layout, points, width, left_margin_u, right_margin_u, space);
     render_ties(
         body,
         score,
@@ -3812,7 +3814,7 @@ fn render_all_spans(
         right_margin_u,
         space,
     );
-    for span in &layout.spans {
+    for (span_index, span) in layout.spans.iter().enumerate() {
         let (start, end) = match span {
             SpanMark::Hairpin { start, end, .. }
             | SpanMark::Ottava { start, end, .. }
@@ -3861,23 +3863,54 @@ fn render_all_spans(
             );
         }
         if row1 != row2 {
+            let start_offset = lane_offsets
+                .get(&(span_index, row1))
+                .copied()
+                .unwrap_or_default();
+            let end_offset = lane_offsets
+                .get(&(span_index, row2))
+                .copied()
+                .unwrap_or_default();
             render_span_segment(
                 body,
                 span,
                 x1,
-                y1,
+                y1 + start_offset,
                 up1,
                 width - right_margin_u * space,
                 space,
                 true,
             );
-            render_span_segment(body, span, left_margin_u * space, y2, up2, x2, space, false);
+            render_span_segment(
+                body,
+                span,
+                left_margin_u * space,
+                y2 + end_offset,
+                up2,
+                x2,
+                space,
+                false,
+            );
             if interactive {
                 body.push_str("</g>");
             }
             continue;
         }
-        render_same_row_span(body, span, x1, y1, up1, x2, y2, up2, space);
+        let offset = lane_offsets
+            .get(&(span_index, row1))
+            .copied()
+            .unwrap_or_default();
+        render_same_row_span(
+            body,
+            span,
+            x1,
+            y1 + offset,
+            up1,
+            x2,
+            y2 + offset,
+            up2,
+            space,
+        );
         if interactive {
             body.push_str("</g>");
         }
@@ -3907,6 +3940,115 @@ fn render_all_spans(
                 span.end.voice,
                 span.end.note,
             );
+        }
+    }
+}
+
+/// Allocate deterministic escape lanes for spans sharing a system.  This uses the same
+/// class-aware constrained resolver as text and annotation lanes, while keeping each span's
+/// endpoint ownership and horizontal geometry unchanged.  A cross-system span receives one
+/// independently resolved lane per visible segment.
+fn resolve_span_lane_offsets(
+    layout: &LayoutResult,
+    points: &HashMap<NoteKey, NotePoint>,
+    width: f32,
+    left_margin_u: f32,
+    right_margin_u: f32,
+    space: f32,
+) -> HashMap<(usize, usize), f32> {
+    let mut keys = Vec::new();
+    let mut original_y = Vec::new();
+    let mut placements = Vec::new();
+    let mut classes = Vec::new();
+    let mut directions = Vec::new();
+
+    for (span_index, span) in layout.spans.iter().enumerate() {
+        let (start, end) = match span {
+            SpanMark::Hairpin { start, end, .. }
+            | SpanMark::Ottava { start, end, .. }
+            | SpanMark::Pedal { start, end }
+            | SpanMark::Slur { start, end }
+            | SpanMark::TrillLine { start, end }
+            | SpanMark::Glissando { start, end }
+            | SpanMark::Harmony { start, end, .. } => (start, end),
+        };
+        let (Some(&(x1, y1, up1, row1)), Some(&(x2, y2, up2, row2))) = (
+            points.get(&(
+                start.part,
+                start.staff,
+                start.measure,
+                start.voice,
+                start.note,
+            )),
+            points.get(&(end.part, end.staff, end.measure, end.voice, end.note)),
+        ) else {
+            continue;
+        };
+        let mut add_segment = |row: usize, left: f32, right: f32, anchor_y: f32, stem_up: bool| {
+            let (baseline, above) = span_lane_baseline(span, anchor_y, stem_up, space);
+            keys.push((span_index, row));
+            original_y.push(baseline);
+            placements.push(acorde_layout::GlyphPlacement {
+                resource_key: format!("span:{span_index}:{row}"),
+                metrics: acorde_layout::GlyphMetrics {
+                    advance_mm: 0.0,
+                    left_mm: left.min(right),
+                    top_mm: -0.4 * space,
+                    width_mm: (right - left).abs().max(0.1 * space),
+                    height_mm: 0.8 * space,
+                },
+                x_mm: 0.0,
+                y_mm: baseline,
+                priority: 1,
+            });
+            classes.push(acorde_layout::GlyphCollisionClass::Annotation);
+            directions.push(if above {
+                acorde_layout::GlyphCollisionDirection::Up
+            } else {
+                acorde_layout::GlyphCollisionDirection::Down
+            });
+        };
+        if row1 == row2 {
+            add_segment(row1, x1, x2, (y1 + y2) / 2.0, up1 || up2);
+        } else {
+            add_segment(row1, x1, width - right_margin_u * space, y1, up1);
+            add_segment(row2, left_margin_u * space, x2, y2, up2);
+        }
+    }
+    if placements.len() < 2 {
+        return HashMap::new();
+    }
+    if acorde_layout::resolve_glyph_collisions_constrained(
+        &mut placements,
+        &classes,
+        &directions,
+        SVG_ANNOTATION_COLLISION_GAP_PX,
+    )
+    .is_err()
+    {
+        return HashMap::new();
+    }
+    keys.into_iter()
+        .zip(original_y)
+        .zip(placements)
+        .map(|((key, original_y), placement)| (key, placement.y_mm - original_y))
+        .collect()
+}
+
+fn span_lane_baseline(span: &SpanMark, anchor_y: f32, stem_up: bool, space: f32) -> (f32, bool) {
+    match span {
+        SpanMark::Hairpin { .. } => (anchor_y + (if stem_up { 2.0 } else { -4.0 }) * space, false),
+        SpanMark::Pedal { .. } => (anchor_y + 2.0 * space, false),
+        SpanMark::Ottava { kind, .. } => {
+            let above = matches!(
+                kind,
+                acorde_core::OttavaKind::Va8 | acorde_core::OttavaKind::Ma15
+            );
+            (anchor_y + if above { -5.8 } else { 1.5 } * space, above)
+        }
+        SpanMark::Harmony { .. } => (anchor_y - 6.8 * space, true),
+        SpanMark::Slur { .. } | SpanMark::TrillLine { .. } | SpanMark::Glissando { .. } => {
+            (anchor_y, stem_up)
         }
     }
 }
@@ -5926,11 +6068,12 @@ mod tests {
         Note, accidental_footprint_u, build_svg, content_horizontal_margins, measure_text_width_u,
         note_anchor_y, note_notation_footprint_u, render_measure_articulations,
         render_measure_dynamic_and_chords, render_measure_lyrics, resolve_adjacent_event_spacing,
-        resolve_cross_voice_event_spacing, tab_note_y, tab_technique_control_y,
+        resolve_cross_voice_event_spacing, resolve_span_lane_offsets, tab_note_y,
+        tab_technique_control_y,
     };
     use crate::SvgRenderOptions;
     use acorde_core::{
-        Articulation, ChordSymbol, Duration, Dynamic, Lyric, Measure, NotationSpanner,
+        Articulation, ChordSymbol, Duration, Dynamic, HairpinKind, Lyric, Measure, NotationSpanner,
         NotationSpannerKind, NoteAddr, NoteHead, Pitch, Score, Step, TabPosition, TablatureConfig,
     };
     use acorde_layout::{LayoutConfig, compute_layout};
@@ -6297,5 +6440,27 @@ mod tests {
         let svg = build_svg(&score, &layout, &SvgRenderOptions::default()).expect("renders");
         assert!(svg.contains("data-acorde-span-id=\"svg-slur-2\""));
         assert!(svg.contains("data-acorde-span=\"slur\""));
+    }
+
+    #[test]
+    fn overlapping_span_segments_receive_stable_separate_collision_lanes() {
+        let mut score = Score::new("Span lanes", 120, 2, 4, 0, 1);
+        let mut start = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        start.hairpin_start = Some(HairpinKind::Crescendo);
+        start.pedal_start = true;
+        let mut end = Note::new(Pitch::new(Step::D, 4), Duration::Quarter);
+        end.hairpin_end = true;
+        end.pedal_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![start, end];
+        let layout = compute_layout(&score, &LayoutConfig::default());
+        assert_eq!(layout.spans.len(), 2);
+
+        let points = HashMap::from([
+            ((0, 0, 0, 0, 0), (30.0, 100.0, true, 0)),
+            ((0, 0, 0, 0, 1), (90.0, 100.0, true, 0)),
+        ]);
+        let offsets = resolve_span_lane_offsets(&layout, &points, 200.0, 1.0, 1.0, 10.0);
+        assert_eq!(offsets.len(), 2);
+        assert_ne!(offsets[&(0, 0)], offsets[&(1, 0)]);
     }
 }

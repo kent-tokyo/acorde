@@ -8,6 +8,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### SVG engraving
+
+- Overlapping legacy span segments now use the same deterministic, class-aware constrained
+  collision resolver as SVG text and annotation lanes. Each system segment receives a stable
+  up/down escape lane while retaining its authored endpoints and cross-system continuation
+  behavior.
+
 ## [1.2.0] - 2026-09-21
 
 ### SoundFont materialization and SF3 decoding
