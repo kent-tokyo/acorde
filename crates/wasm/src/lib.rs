@@ -2707,6 +2707,17 @@ mod wasm_tests {
         assert!(page_trees.contains("contract_version"));
         assert!(page_trees.contains("nodes"));
         assert!(validate_page_render_trees(&score_json, &page_trees).is_ok());
+        let native_trees = acorde_layout::compute_print_layout(
+            &Score::default(),
+            &acorde_layout::PrintConfig::default(),
+        )
+        .unwrap()
+        .export_page_render_trees(&Score::default())
+        .unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&page_trees).unwrap(),
+            serde_json::to_value(native_trees).unwrap()
+        );
         assert!(compute_print_layout(&score_json, "not-json").is_err());
         assert!(render_score_svg_with_layout("{}", &layout_json, "{}").is_err());
         assert!(render_score_svg_row(&score_json, &layout_json, 99, "{}").is_err());
@@ -2730,6 +2741,36 @@ mod wasm_tests {
             acorde_core::Pitch::new(acorde_core::Step::C, 4),
             acorde_core::Duration::Quarter,
         )];
+        score.parts[0]
+            .midi_control_changes
+            .push(acorde_core::MidiControlChange {
+                tick: 480,
+                channel: 2,
+                controller: 64,
+                value: 127,
+            });
+        score.parts[0]
+            .midi_pitch_bends
+            .push(acorde_core::MidiPitchBend {
+                tick: 480,
+                channel: 2,
+                value: -512,
+            });
+        score.parts[0]
+            .midi_program_changes
+            .push(acorde_core::MidiProgramChange {
+                tick: 480,
+                channel: 2,
+                program: 41,
+            });
+        score.parts[0]
+            .midi_aftertouch
+            .push(acorde_core::MidiAftertouch {
+                tick: 480,
+                channel: 2,
+                key: Some(64),
+                value: 88,
+            });
         let options = acorde_core::PlaybackOptions::default();
         let request = acorde_core::OfflineRenderRequest {
             sample_rate_hz: 48_000,
