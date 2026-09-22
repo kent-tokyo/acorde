@@ -1265,6 +1265,10 @@ pub enum PageRenderAddress {
         page_index: usize,
         resource_key: String,
     },
+    Frame {
+        page_index: usize,
+        frame_index: usize,
+    },
 }
 
 /// Backend-neutral semantic node in a page render tree.
@@ -1276,6 +1280,7 @@ pub enum PageRenderNodeKind {
     Spanner { starts_here: bool, ends_here: bool },
     PublicationBlock,
     Resource,
+    Frame,
 }
 
 /// One node with its physical page and system ownership.
@@ -1607,6 +1612,16 @@ impl PrintLayoutResult {
                         system: None,
                     });
                 }
+                for (frame_index, _) in page.publication.frames.iter().enumerate() {
+                    nodes.push(PageRenderNode {
+                        address: PageRenderAddress::Frame {
+                            page_index: page.page_index,
+                            frame_index,
+                        },
+                        kind: PageRenderNodeKind::Frame,
+                        system: None,
+                    });
+                }
                 PageRenderTree {
                     contract_version: PAGE_RENDER_TREE_CONTRACT_VERSION,
                     view_id: None,
@@ -1644,6 +1659,7 @@ impl PrintLayoutResult {
                     }),
                 PageRenderAddress::Publication { .. } => true,
                 PageRenderAddress::Resource { .. } => true,
+                PageRenderAddress::Frame { .. } => true,
             });
         }
         Ok(trees)
@@ -5052,6 +5068,14 @@ mod tests {
                         height_mm: 10.0,
                     },
                 ],
+                frames: vec![PublicationFrame {
+                    placement: PublicationFramePlacement::EveryPage,
+                    x_mm: 5.0,
+                    y_mm: 5.0,
+                    width_mm: 200.0,
+                    height_mm: 287.0,
+                    stroke_width_mm: 0.5,
+                }],
                 ..PublicationConfig::default()
             },
             ..PrintConfig::default()
@@ -5074,5 +5098,17 @@ mod tests {
                 PageRenderNodeKind::Resource,
             ) if resource_key == "publisher-mark"
         )));
+        assert!(
+            trees
+                .iter()
+                .enumerate()
+                .all(|(page_index, tree)| tree.nodes.iter().any(|node| matches!(
+                    (&node.address, &node.kind),
+                    (
+                        PageRenderAddress::Frame { page_index: address_page, frame_index: 0 },
+                        PageRenderNodeKind::Frame,
+                    ) if *address_page == page_index
+                )))
+        );
     }
 }
