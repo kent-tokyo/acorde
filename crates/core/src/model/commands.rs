@@ -76,6 +76,8 @@ pub enum Command {
     MoveOrCopyVoiceRange(MoveOrCopyVoiceRangeCmd),
     SplitMeasure(SplitMeasureCmd),
     JoinMeasures(JoinMeasuresCmd),
+    ImplodeStaves(ImplodeStavesCmd),
+    ExplodeVoices(ExplodeVoicesCmd),
     SetSystemBreak(SetSystemBreakCmd),
     SetPageBreak(SetPageBreakCmd),
     ToggleSlur(ToggleSlurCmd),
@@ -609,6 +611,36 @@ pub struct SplitMeasureCmd {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JoinMeasuresCmd {
     pub measure_index: usize,
+}
+
+/// Move the primary voice from compatible staves into voices of one staff.
+///
+/// `source_staves` is ordered: its position becomes the destination voice index.
+/// It must contain `target_staff` exactly once and contain two to four staves.
+/// Every source secondary voice must be empty; this makes the operation lossless
+/// and gives a deterministic conflict policy.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImplodeStavesCmd {
+    pub part_index: usize,
+    pub source_staves: Vec<usize>,
+    pub target_staff: usize,
+    pub start_measure: usize,
+    pub end_measure: usize,
+}
+
+/// Move voices from one staff into the primary voices of compatible staves.
+///
+/// `target_staves[voice]` receives the corresponding source voice. The first
+/// target must equal `source_staff`, so the command does not discard voice zero.
+/// Non-source targets must contain only rests in their primary voice and no
+/// secondary voices; otherwise the command fails before changing the score.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExplodeVoicesCmd {
+    pub part_index: usize,
+    pub source_staff: usize,
+    pub target_staves: Vec<usize>,
+    pub start_measure: usize,
+    pub end_measure: usize,
 }
 
 /// Toggle slur_start on `start` note and slur_end on `end` note (cross-measure aware).
@@ -1226,6 +1258,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::MoveOrCopyVoiceRange(_) => hint!(Global, true, true),
         Command::SplitMeasure(_) => hint!(Global, true, true),
         Command::JoinMeasures(_) => hint!(Global, true, true),
+        Command::ImplodeStaves(_) | Command::ExplodeVoices(_) => hint!(Global, true, true),
         Command::AddHairpin(c) => hint!(meas!(c), false, true),
         Command::ToggleTie(c) => hint!(meas!(c), false, true),
         Command::SetDynamic(c) => hint!(meas!(c), false, true),
@@ -1348,6 +1381,8 @@ pub fn command_label(cmd: &Command) -> String {
         .to_string(),
         Command::SplitMeasure(_) => "Split Measure".to_string(),
         Command::JoinMeasures(_) => "Join Measures".to_string(),
+        Command::ImplodeStaves(_) => "Implode Staves".to_string(),
+        Command::ExplodeVoices(_) => "Explode Voices".to_string(),
         Command::SetSystemBreak(_) => "Set System Break".to_string(),
         Command::SetPageBreak(_) => "Set Page Break".to_string(),
         Command::ToggleSlur(_) => "Toggle Slur".to_string(),
@@ -1478,6 +1513,8 @@ pub fn command_key(cmd: &Command) -> String {
         Command::MoveOrCopyVoiceRange(_) => "MoveOrCopyVoiceRange".to_string(),
         Command::SplitMeasure(_) => "SplitMeasure".to_string(),
         Command::JoinMeasures(_) => "JoinMeasures".to_string(),
+        Command::ImplodeStaves(_) => "ImplodeStaves".to_string(),
+        Command::ExplodeVoices(_) => "ExplodeVoices".to_string(),
         Command::SetSystemBreak(_) => "SetSystemBreak".to_string(),
         Command::SetPageBreak(_) => "SetPageBreak".to_string(),
         Command::ToggleSlur(_) => "ToggleSlur".to_string(),
@@ -1749,6 +1786,8 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         Command::MoveOrCopyVoiceRange(c) => apply_move_or_copy_voice_range(c, score),
         Command::SplitMeasure(c) => apply_split_measure(c, score),
         Command::JoinMeasures(c) => apply_join_measures(c, score),
+        Command::ImplodeStaves(c) => apply_implode_staves(c, score),
+        Command::ExplodeVoices(c) => apply_explode_voices(c, score),
         Command::SetSystemBreak(c) => {
             for_each_measure_at(score, c.measure_index, |m| {
                 m.system_break = c.value;
@@ -3560,6 +3599,293 @@ fn apply_join_measures(cmd: &JoinMeasuresCmd, score: &mut Score) -> Result<(), E
         Some(NoteAddr {
             measure: cmd.measure_index,
             note: address.note + offset,
+            ..address.clone()
+        })
+    });
+    Ok(())
+}
+
+fn effective_staff_measure_beats(
+    staff: &Staff,
+    default_time_signature: &TimeSignature,
+    measure_index: usize,
+) -> Result<f64, Error> {
+    let mut time_signature = default_time_signature.clone();
+    for measure in staff.measures.iter().take(measure_index.saturating_add(1)) {
+        if let Some(signature) = &measure.time_sig {
+            time_signature = signature.clone();
+        }
+    }
+    if staff.measures.get(measure_index).is_none() {
+        return Err(Error::MeasureNotFound(measure_index));
+    }
+    Ok(time_signature.total_beats())
+}
+
+fn normalized_structural_measure_range(start: usize, end: usize) -> (usize, usize) {
+    (start.min(end), start.max(end))
+}
+
+fn apply_implode_staves(cmd: &ImplodeStavesCmd, score: &mut Score) -> Result<(), Error> {
+    if !(2..=4).contains(&cmd.source_staves.len()) {
+        return Err(Error::InvalidCommand(
+            "implode requires two to four source staves".into(),
+        ));
+    }
+    let mut unique_staves = BTreeSet::new();
+    for &staff_index in &cmd.source_staves {
+        if !unique_staves.insert(staff_index) {
+            return Err(Error::InvalidCommand(
+                "implode source staves must be distinct".into(),
+            ));
+        }
+    }
+    if !unique_staves.contains(&cmd.target_staff) {
+        return Err(Error::InvalidCommand(
+            "implode target staff must be included in source staves".into(),
+        ));
+    }
+    let (start, end) = normalized_structural_measure_range(cmd.start_measure, cmd.end_measure);
+    let part = score
+        .parts
+        .get(cmd.part_index)
+        .ok_or(Error::PartNotFound(cmd.part_index))?;
+    for &staff_index in &cmd.source_staves {
+        if part.staves.get(staff_index).is_none() {
+            return Err(Error::StaffNotFound(staff_index));
+        }
+    }
+
+    // Validate all ranges before mutation.  This is intentionally stricter than
+    // layout validation: a source secondary voice or a cross-staff placement
+    // would otherwise need a policy that risks silently changing semantics.
+    for measure_index in start..=end {
+        let mut expected_beats: Option<f64> = None;
+        for &staff_index in &cmd.source_staves {
+            let staff = &part.staves[staff_index];
+            let measure = staff
+                .measures
+                .get(measure_index)
+                .ok_or(Error::MeasureNotFound(measure_index))?;
+            let beats = effective_staff_measure_beats(
+                staff,
+                &score.settings.time_signature,
+                measure_index,
+            )?;
+            if let Some(expected) = expected_beats
+                && (expected - beats).abs() > 1e-9
+            {
+                return Err(Error::InvalidCommand(
+                    "implode source staves must have matching measure durations".into(),
+                ));
+            }
+            expected_beats = Some(beats);
+            if measure.voices[1..].iter().any(|voice| !voice.is_empty()) {
+                return Err(Error::InvalidCommand(
+                    "implode requires empty secondary source voices".into(),
+                ));
+            }
+            if measure.voices[0]
+                .iter()
+                .any(|note| note.cross_staff.is_some())
+            {
+                return Err(Error::InvalidCommand(
+                    "implode does not support cross-staff source notes".into(),
+                ));
+            }
+            let total: f64 = measure.voices[0].iter().map(Note::beats).sum();
+            if total > beats + 1e-9 {
+                return Err(Error::InvalidCommand(
+                    "implode source voice exceeds its measure duration".into(),
+                ));
+            }
+        }
+    }
+
+    for measure_index in start..=end {
+        let transferred: Vec<(Vec<Note>, Option<u32>)> = cmd
+            .source_staves
+            .iter()
+            .map(|&staff_index| {
+                let measure =
+                    &score.parts[cmd.part_index].staves[staff_index].measures[measure_index];
+                (measure.voices[0].clone(), measure.source_voice_numbers[0])
+            })
+            .collect();
+        {
+            let target =
+                &mut score.parts[cmd.part_index].staves[cmd.target_staff].measures[measure_index];
+            target.voices = [Vec::new(), Vec::new(), Vec::new(), Vec::new()];
+            target.source_voice_numbers = [None; 4];
+            for (voice_index, (notes, source_voice_number)) in transferred.into_iter().enumerate() {
+                target.voices[voice_index] = notes;
+                target.source_voice_numbers[voice_index] = source_voice_number;
+            }
+        }
+        for &staff_index in &cmd.source_staves {
+            if staff_index == cmd.target_staff {
+                continue;
+            }
+            let beats = effective_staff_measure_beats(
+                &score.parts[cmd.part_index].staves[staff_index],
+                &score.settings.time_signature,
+                measure_index,
+            )?;
+            let mut rest_voice = Vec::new();
+            pad_voice_to_measure(&mut rest_voice, beats);
+            let measure =
+                &mut score.parts[cmd.part_index].staves[staff_index].measures[measure_index];
+            measure.voices = [rest_voice, Vec::new(), Vec::new(), Vec::new()];
+            measure.source_voice_numbers = [None; 4];
+        }
+    }
+    remap_spanners(score, |address| {
+        if address.part != cmd.part_index || address.measure < start || address.measure > end {
+            return Some(address.clone());
+        }
+        let voice = cmd
+            .source_staves
+            .iter()
+            .position(|&staff| staff == address.staff);
+        if address.voice != 0 {
+            return Some(address.clone());
+        }
+        voice
+            .map(|voice| NoteAddr {
+                staff: cmd.target_staff,
+                voice,
+                ..address.clone()
+            })
+            .or_else(|| Some(address.clone()))
+    });
+    Ok(())
+}
+
+fn apply_explode_voices(cmd: &ExplodeVoicesCmd, score: &mut Score) -> Result<(), Error> {
+    if !(2..=4).contains(&cmd.target_staves.len()) {
+        return Err(Error::InvalidCommand(
+            "explode requires two to four target staves".into(),
+        ));
+    }
+    if cmd.target_staves.first() != Some(&cmd.source_staff) {
+        return Err(Error::InvalidCommand(
+            "explode target staves must begin with the source staff".into(),
+        ));
+    }
+    let mut unique_staves = BTreeSet::new();
+    for &staff_index in &cmd.target_staves {
+        if !unique_staves.insert(staff_index) {
+            return Err(Error::InvalidCommand(
+                "explode target staves must be distinct".into(),
+            ));
+        }
+    }
+    let (start, end) = normalized_structural_measure_range(cmd.start_measure, cmd.end_measure);
+    let part = score
+        .parts
+        .get(cmd.part_index)
+        .ok_or(Error::PartNotFound(cmd.part_index))?;
+    let source = part
+        .staves
+        .get(cmd.source_staff)
+        .ok_or(Error::StaffNotFound(cmd.source_staff))?;
+    for &staff_index in &cmd.target_staves {
+        if part.staves.get(staff_index).is_none() {
+            return Err(Error::StaffNotFound(staff_index));
+        }
+    }
+
+    for measure_index in start..=end {
+        let expected =
+            effective_staff_measure_beats(source, &score.settings.time_signature, measure_index)?;
+        let source_measure = source
+            .measures
+            .get(measure_index)
+            .ok_or(Error::MeasureNotFound(measure_index))?;
+        for voice_index in cmd.target_staves.len()..4 {
+            if !source_measure.voices[voice_index].is_empty() {
+                return Err(Error::InvalidCommand(
+                    "explode would discard a source voice without a target staff".into(),
+                ));
+            }
+        }
+        for voice_index in 0..cmd.target_staves.len() {
+            if source_measure.voices[voice_index]
+                .iter()
+                .any(|note| note.cross_staff.is_some())
+            {
+                return Err(Error::InvalidCommand(
+                    "explode does not support cross-staff source notes".into(),
+                ));
+            }
+            let total: f64 = source_measure.voices[voice_index]
+                .iter()
+                .map(Note::beats)
+                .sum();
+            if total > expected + 1e-9 {
+                return Err(Error::InvalidCommand(
+                    "explode source voice exceeds its measure duration".into(),
+                ));
+            }
+        }
+        for &staff_index in cmd.target_staves.iter().skip(1) {
+            let target = &part.staves[staff_index];
+            let target_beats = effective_staff_measure_beats(
+                target,
+                &score.settings.time_signature,
+                measure_index,
+            )?;
+            if (target_beats - expected).abs() > 1e-9 {
+                return Err(Error::InvalidCommand(
+                    "explode target staves must have matching measure durations".into(),
+                ));
+            }
+            let measure = target
+                .measures
+                .get(measure_index)
+                .ok_or(Error::MeasureNotFound(measure_index))?;
+            if measure.voices[0].iter().any(|note| !note.is_rest)
+                || measure.voices[1..].iter().any(|voice| !voice.is_empty())
+                || measure.source_voice_numbers.iter().any(Option::is_some)
+            {
+                return Err(Error::InvalidCommand(
+                    "explode destination staff must contain only an unnumbered rest voice".into(),
+                ));
+            }
+        }
+    }
+
+    for measure_index in start..=end {
+        let transferred: Vec<(Vec<Note>, Option<u32>)> = (0..cmd.target_staves.len())
+            .map(|voice_index| {
+                let measure =
+                    &score.parts[cmd.part_index].staves[cmd.source_staff].measures[measure_index];
+                (
+                    measure.voices[voice_index].clone(),
+                    measure.source_voice_numbers[voice_index],
+                )
+            })
+            .collect();
+        for (voice_index, &staff_index) in cmd.target_staves.iter().enumerate() {
+            let (notes, source_voice_number) = &transferred[voice_index];
+            let target =
+                &mut score.parts[cmd.part_index].staves[staff_index].measures[measure_index];
+            target.voices = [notes.clone(), Vec::new(), Vec::new(), Vec::new()];
+            target.source_voice_numbers = [*source_voice_number, None, None, None];
+        }
+    }
+    remap_spanners(score, |address| {
+        if address.part != cmd.part_index
+            || address.staff != cmd.source_staff
+            || address.measure < start
+            || address.measure > end
+            || address.voice >= cmd.target_staves.len()
+        {
+            return Some(address.clone());
+        }
+        Some(NoteAddr {
+            staff: cmd.target_staves[address.voice],
+            voice: 0,
             ..address.clone()
         })
     });
