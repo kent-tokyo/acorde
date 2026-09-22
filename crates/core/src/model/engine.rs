@@ -1,10 +1,11 @@
 use super::change_hint::{ChangeHint, ChangeScope};
 use super::commands::{
-    AddStaffCmd, Command, CommandStack, DeleteStaffCmd, ExchangeVoicesCmd, ExplodeVoicesCmd,
-    ImplodeStavesCmd, PasteRangeCmd, PasteScoreFragmentCmd, PasteVoiceCmd, RespellScoreCmd,
-    RespellScoreToKeyCmd, SetArpeggioCmd, SetCueCmd, SetDurationCmd, SetInstrumentIdCmd,
-    SetNoteHeadCmd, SetNotePlacementCmd, SetPartGroupCmd, SetStemCmd, SetTupletCmd,
-    SetUnpitchedCmd, ToggleSlurCmd, ToggleTrillLineCmd, command_hint, command_key,
+    AddStaffCmd, Command, CommandStack, DeleteStaffCmd, DurationScale, ExchangeVoicesCmd,
+    ExplodeVoicesCmd, ImplodeStavesCmd, PasteRangeCmd, PasteScoreFragmentCmd, PasteVoiceCmd,
+    RespellScoreCmd, RespellScoreToKeyCmd, ScaleVoiceRangeCmd, SetArpeggioCmd, SetCueCmd,
+    SetDurationCmd, SetInstrumentIdCmd, SetNoteHeadCmd, SetNotePlacementCmd, SetPartGroupCmd,
+    SetStemCmd, SetTupletCmd, SetUnpitchedCmd, ToggleSlurCmd, ToggleTrillLineCmd, command_hint,
+    command_key,
 };
 use super::duration::Duration;
 use super::fragment::ScoreFragment;
@@ -413,6 +414,27 @@ impl ScoreEngine {
             target_staves,
             start_measure,
             end_measure,
+        }))
+    }
+
+    /// Scale every note in a voice range by one half or double while keeping
+    /// each affected measure rhythmically complete.
+    pub fn scale_voice_range(
+        &mut self,
+        part_index: usize,
+        staff_index: usize,
+        voice: usize,
+        start_measure: usize,
+        end_measure: usize,
+        scale: DurationScale,
+    ) -> Result<ChangeHint, Error> {
+        self.apply(Command::ScaleVoiceRange(ScaleVoiceRangeCmd {
+            part_index,
+            staff_index,
+            voice,
+            start_measure,
+            end_measure,
+            scale,
         }))
     }
 
@@ -1489,6 +1511,57 @@ mod tests {
                     start_measure: 0,
                     end_measure: 0,
                 }))
+                .is_err()
+        );
+        assert_eq!(serde_json::to_value(&engine.score).unwrap(), before);
+    }
+
+    #[test]
+    fn scale_voice_range_is_undoable_and_rejects_measure_overflow() {
+        use crate::{Duration, DurationScale, Note, Pitch, Step};
+
+        let mut engine = ScoreEngine::new();
+        engine.score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Half),
+            Note::new(Pitch::new(Step::D, 4), Duration::Half),
+        ];
+        let before = serde_json::to_value(&engine.score).unwrap();
+
+        engine
+            .scale_voice_range(0, 0, 0, 0, 0, DurationScale::Half)
+            .unwrap();
+        let voice = &engine.score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(voice.len(), 3);
+        assert_eq!(voice[0].duration, Duration::Quarter);
+        assert_eq!(voice[1].duration, Duration::Quarter);
+        assert!(voice[2].is_rest);
+        assert_eq!(voice[2].duration, Duration::Half);
+        engine.undo().unwrap();
+        assert_eq!(serde_json::to_value(&engine.score).unwrap(), before);
+
+        assert!(
+            engine
+                .scale_voice_range(0, 0, 0, 0, 0, DurationScale::Double)
+                .is_err()
+        );
+        assert_eq!(serde_json::to_value(&engine.score).unwrap(), before);
+    }
+
+    #[test]
+    fn scale_voice_range_rejects_tuplets_without_mutation() {
+        use crate::{Duration, DurationScale, Note, Pitch, Step, TupletInfo};
+
+        let mut engine = ScoreEngine::new();
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        note.tuplet = Some(TupletInfo {
+            actual_notes: 3,
+            normal_notes: 2,
+        });
+        engine.score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let before = serde_json::to_value(&engine.score).unwrap();
+        assert!(
+            engine
+                .scale_voice_range(0, 0, 0, 0, 0, DurationScale::Half)
                 .is_err()
         );
         assert_eq!(serde_json::to_value(&engine.score).unwrap(), before);
