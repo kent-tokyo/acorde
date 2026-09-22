@@ -1586,6 +1586,103 @@ mod tests {
     }
 
     #[test]
+    fn split_and_join_preserve_tuplet_tie_lyric_span_and_source_voice() {
+        use crate::model::score::{NotationSpanner, NotationSpannerKind};
+        use crate::{
+            Duration, JoinMeasuresCmd, Lyric, Note, Pitch, SplitMeasureCmd, Step, TupletInfo,
+        };
+
+        let mut engine = ScoreEngine::new();
+        let ratio = TupletInfo {
+            actual_notes: 3,
+            normal_notes: 2,
+        };
+        let mut third = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+        third.tuplet = Some(ratio.clone());
+        third.tie_start = true;
+        third.lyric = Some(Lyric {
+            text: "tri".into(),
+            syllabic: "begin".into(),
+        });
+        let mut fourth = Note::new(Pitch::new(Step::F, 4), Duration::Half);
+        fourth.tie_end = true;
+        fourth.lyric = Some(Lyric {
+            text: "plet".into(),
+            syllabic: "end".into(),
+        });
+        let mut first = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        first.tuplet = Some(ratio.clone());
+        let mut second = Note::new(Pitch::new(Step::D, 4), Duration::Quarter);
+        second.tuplet = Some(ratio.clone());
+        engine.score.parts[0].staves[0].measures[0].voices[0] = vec![first, second, third, fourth];
+        engine.score.parts[0].staves[0].measures[0].source_voice_numbers[0] = Some(7);
+        engine.score.spanners.push(NotationSpanner {
+            id: "tuplet-split-span".into(),
+            kind: NotationSpannerKind::Slur,
+            start: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+            end: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 3,
+            },
+            number: None,
+            line_type: None,
+            text: None,
+            placement: None,
+            ottava_size: None,
+            ottava_type: None,
+        });
+
+        engine
+            .apply(Command::SplitMeasure(SplitMeasureCmd {
+                measure_index: 0,
+                split_at_beats: 2.0,
+            }))
+            .unwrap();
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].voices[0].len(),
+            3
+        );
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[1].voices[0].len(),
+            1
+        );
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[1].source_voice_numbers[0],
+            Some(7)
+        );
+        assert_eq!(engine.score.spanners[0].end.measure, 1);
+        assert_eq!(engine.score.spanners[0].end.note, 0);
+
+        engine
+            .apply(Command::JoinMeasures(JoinMeasuresCmd { measure_index: 0 }))
+            .unwrap();
+        let voice = &engine.score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(voice.len(), 4);
+        assert_eq!(voice[2].tuplet, Some(ratio));
+        assert!(voice[2].tie_start);
+        assert!(voice[3].tie_end);
+        assert_eq!(
+            voice[2].lyric.as_ref().map(|lyric| lyric.text.as_str()),
+            Some("tri")
+        );
+        assert_eq!(
+            voice[3].lyric.as_ref().map(|lyric| lyric.text.as_str()),
+            Some("plet")
+        );
+        assert_eq!(engine.score.spanners[0].end.measure, 0);
+        assert_eq!(engine.score.spanners[0].end.note, 3);
+    }
+
+    #[test]
     fn implode_then_explode_preserves_voices_spans_and_source_numbers() {
         use crate::model::score::{NotationSpanner, NotationSpannerKind, ScoreTemplate};
         use crate::{Duration, Note, Pitch, Step};

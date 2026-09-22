@@ -3562,11 +3562,6 @@ fn apply_split_measure(cmd: &SplitMeasureCmd, score: &mut Score) -> Result<(), E
             }
             let mut indices = [0usize; 4];
             for (voice_index, voice) in measure.voices.iter().enumerate() {
-                if voice.iter().any(|note| note.tuplet.is_some()) {
-                    return Err(Error::InvalidCommand(
-                        "splitting measures containing tuplets is not yet supported".into(),
-                    ));
-                }
                 let mut beats = 0.0;
                 let mut found = false;
                 for (index, note) in voice.iter().enumerate() {
@@ -3643,20 +3638,13 @@ fn apply_join_measures(cmd: &JoinMeasuresCmd, score: &mut Score) -> Result<(), E
                 .measures
                 .get(cmd.measure_index)
                 .ok_or(Error::MeasureNotFound(cmd.measure_index))?;
-            let right = staff
+            let _right = staff
                 .measures
                 .get(cmd.measure_index + 1)
                 .ok_or(Error::MeasureNotFound(cmd.measure_index + 1))?;
             let mut counts = [0usize; 4];
             for (voice, notes) in left.voices.iter().enumerate() {
                 counts[voice] = notes.len();
-                if notes.iter().any(|note| note.tuplet.is_some())
-                    || right.voices[voice].iter().any(|note| note.tuplet.is_some())
-                {
-                    return Err(Error::InvalidCommand(
-                        "joining measures containing tuplets is not yet supported".into(),
-                    ));
-                }
             }
             offsets.push((part_index, staff_index, counts));
         }

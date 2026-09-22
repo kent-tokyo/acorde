@@ -2753,6 +2753,50 @@ mod wasm_tests {
     }
 
     #[wasm_bindgen_test]
+    fn tuplet_measure_split_matches_native_core_contract() {
+        let mut score = Score::new("tuplet split", 120, 4, 4, 0, 1);
+        let ratio = acorde_core::TupletInfo {
+            actual_notes: 3,
+            normal_notes: 2,
+        };
+        let mut first = acorde_core::Note::new(
+            acorde_core::Pitch::new(acorde_core::Step::C, 4),
+            acorde_core::Duration::Quarter,
+        );
+        first.tuplet = Some(ratio.clone());
+        let mut second = acorde_core::Note::new(
+            acorde_core::Pitch::new(acorde_core::Step::D, 4),
+            acorde_core::Duration::Quarter,
+        );
+        second.tuplet = Some(ratio.clone());
+        let mut third = acorde_core::Note::new(
+            acorde_core::Pitch::new(acorde_core::Step::E, 4),
+            acorde_core::Duration::Quarter,
+        );
+        third.tuplet = Some(ratio);
+        let fourth = acorde_core::Note::new(
+            acorde_core::Pitch::new(acorde_core::Step::F, 4),
+            acorde_core::Duration::Half,
+        );
+        score.parts[0].staves[0].measures[0].voices[0] = vec![first, second, third, fourth];
+        let command = acorde_core::Command::SplitMeasure(acorde_core::SplitMeasureCmd {
+            measure_index: 0,
+            split_at_beats: 2.0,
+        });
+        let score_json = serde_json::to_string(&score).unwrap();
+        let command_json = serde_json::to_string(&command).unwrap();
+        let wasm: serde_json::Value =
+            serde_json::from_str(&apply_score_command(&score_json, &command_json).unwrap())
+                .unwrap();
+
+        let mut native = acorde_core::ScoreEngine::new();
+        native.try_replace_score(score).unwrap();
+        let hint = native.apply(command).unwrap();
+        let native = serde_json::json!({ "score": native.score, "hint": hint });
+        assert_eq!(wasm, native);
+    }
+
+    #[wasm_bindgen_test]
     fn score_fragment_matches_native_core_contract() {
         let mut score = Score::new("fragment", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(
