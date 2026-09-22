@@ -78,6 +78,7 @@ pub enum Command {
     JoinMeasures(JoinMeasuresCmd),
     ImplodeStaves(ImplodeStavesCmd),
     ExplodeVoices(ExplodeVoicesCmd),
+    ExplodeChordPitches(ExplodeChordPitchesCmd),
     ScaleVoiceRange(ScaleVoiceRangeCmd),
     SetSystemBreak(SetSystemBreakCmd),
     SetPageBreak(SetPageBreakCmd),
@@ -637,6 +638,22 @@ pub struct ImplodeStavesCmd {
 /// secondary voices; otherwise the command fails before changing the score.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExplodeVoicesCmd {
+    pub part_index: usize,
+    pub source_staff: usize,
+    pub target_staves: Vec<usize>,
+    pub start_measure: usize,
+    pub end_measure: usize,
+}
+
+/// Distribute pitches from primary-voice chords to the primary voices of
+/// compatible staves.
+///
+/// `target_staves[0]` must be `source_staff`. The original note identity and
+/// all note-attached notation remain with that first pitch; derived pitches get
+/// fresh note identities and only pitch-local tablature placement. This avoids
+/// duplicating directions, lyrics, or typed span endpoints during export.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExplodeChordPitchesCmd {
     pub part_index: usize,
     pub source_staff: usize,
     pub target_staves: Vec<usize>,
@@ -1284,6 +1301,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::SplitMeasure(_) => hint!(Global, true, true),
         Command::JoinMeasures(_) => hint!(Global, true, true),
         Command::ImplodeStaves(_) | Command::ExplodeVoices(_) => hint!(Global, true, true),
+        Command::ExplodeChordPitches(_) => hint!(Global, true, true),
         Command::ScaleVoiceRange(c) => hint!(
             Measures {
                 part: c.part_index,
@@ -1418,6 +1436,7 @@ pub fn command_label(cmd: &Command) -> String {
         Command::JoinMeasures(_) => "Join Measures".to_string(),
         Command::ImplodeStaves(_) => "Implode Staves".to_string(),
         Command::ExplodeVoices(_) => "Explode Voices".to_string(),
+        Command::ExplodeChordPitches(_) => "Explode Chord Pitches".to_string(),
         Command::ScaleVoiceRange(c) => match c.scale {
             DurationScale::Half => "Halve Voice Durations",
             DurationScale::Double => "Double Voice Durations",
@@ -1555,6 +1574,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::JoinMeasures(_) => "JoinMeasures".to_string(),
         Command::ImplodeStaves(_) => "ImplodeStaves".to_string(),
         Command::ExplodeVoices(_) => "ExplodeVoices".to_string(),
+        Command::ExplodeChordPitches(_) => "ExplodeChordPitches".to_string(),
         Command::ScaleVoiceRange(_) => "ScaleVoiceRange".to_string(),
         Command::SetSystemBreak(_) => "SetSystemBreak".to_string(),
         Command::SetPageBreak(_) => "SetPageBreak".to_string(),
@@ -1829,6 +1849,7 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         Command::JoinMeasures(c) => apply_join_measures(c, score),
         Command::ImplodeStaves(c) => apply_implode_staves(c, score),
         Command::ExplodeVoices(c) => apply_explode_voices(c, score),
+        Command::ExplodeChordPitches(c) => apply_explode_chord_pitches(c, score),
         Command::ScaleVoiceRange(c) => apply_scale_voice_range(c, score),
         Command::SetSystemBreak(c) => {
             for_each_measure_at(score, c.measure_index, |m| {
@@ -3931,6 +3952,187 @@ fn apply_explode_voices(cmd: &ExplodeVoicesCmd, score: &mut Score) -> Result<(),
             ..address.clone()
         })
     });
+    Ok(())
+}
+
+fn clear_derived_chord_note_notation(note: &mut Note) {
+    note.articulations.clear();
+    note.dynamic = None;
+    note.stem_up = None;
+    note.hairpin_start = None;
+    note.hairpin_end = false;
+    note.chord_symbol = None;
+    note.ottava_start = None;
+    note.ottava_end = false;
+    note.lyric = None;
+    note.pedal_start = false;
+    note.pedal_end = false;
+    note.slur_start = false;
+    note.slur_end = false;
+    note.arpeggiate = None;
+    note.technique_text = None;
+    note.glissando_start = false;
+    note.glissando_end = false;
+    note.cross_staff = None;
+    note.fingering = None;
+    note.fingerings.clear();
+    note.string_number = None;
+    note.trill_line_start = false;
+    note.trill_line_end = false;
+    note.guitar_technique = None;
+    note.guitar_bend_alter_cents = None;
+    note.guitar_bend_curve.clear();
+}
+
+fn exploded_chord_note(source: &Note, pitch_index: usize) -> Note {
+    if pitch_index == 0 {
+        let mut retained = source.clone();
+        if !retained.is_rest {
+            retained.pitches = vec![source.pitches[0].clone()];
+            retained.tab_positions = source.tab_positions.first().cloned().into_iter().collect();
+            retained.tab_position = retained.tab_positions.first().cloned();
+        }
+        return retained;
+    }
+    let mut derived = source.clone();
+    derived.id = Uuid::new_v4().to_string();
+    clear_derived_chord_note_notation(&mut derived);
+    if derived.is_rest || pitch_index >= source.pitches.len() {
+        derived.is_rest = true;
+        derived.is_unpitched = false;
+        derived.pitches.clear();
+        derived.tab_position = None;
+        derived.tab_positions.clear();
+    } else {
+        derived.pitches = vec![source.pitches[pitch_index].clone()];
+        derived.tab_positions = source
+            .tab_positions
+            .get(pitch_index)
+            .cloned()
+            .into_iter()
+            .collect();
+        derived.tab_position = derived.tab_positions.first().cloned();
+    }
+    derived
+}
+
+fn apply_explode_chord_pitches(
+    cmd: &ExplodeChordPitchesCmd,
+    score: &mut Score,
+) -> Result<(), Error> {
+    if !(2..=4).contains(&cmd.target_staves.len()) {
+        return Err(Error::InvalidCommand(
+            "chord explode requires two to four target staves".into(),
+        ));
+    }
+    if cmd.target_staves.first() != Some(&cmd.source_staff) {
+        return Err(Error::InvalidCommand(
+            "chord explode target staves must begin with the source staff".into(),
+        ));
+    }
+    let mut unique_staves = BTreeSet::new();
+    for &staff_index in &cmd.target_staves {
+        if !unique_staves.insert(staff_index) {
+            return Err(Error::InvalidCommand(
+                "chord explode target staves must be distinct".into(),
+            ));
+        }
+    }
+    let (start, end) = normalized_structural_measure_range(cmd.start_measure, cmd.end_measure);
+    let part = score
+        .parts
+        .get(cmd.part_index)
+        .ok_or(Error::PartNotFound(cmd.part_index))?;
+    let source = part
+        .staves
+        .get(cmd.source_staff)
+        .ok_or(Error::StaffNotFound(cmd.source_staff))?;
+    for &staff_index in &cmd.target_staves {
+        if part.staves.get(staff_index).is_none() {
+            return Err(Error::StaffNotFound(staff_index));
+        }
+    }
+    for measure_index in start..=end {
+        let expected =
+            effective_staff_measure_beats(source, &score.settings.time_signature, measure_index)?;
+        let source_measure = source
+            .measures
+            .get(measure_index)
+            .ok_or(Error::MeasureNotFound(measure_index))?;
+        for note in &source_measure.voices[0] {
+            if note.tuplet.is_some() {
+                return Err(Error::InvalidCommand(
+                    "chord explode does not support tuplets".into(),
+                ));
+            }
+            if note.cross_staff.is_some() {
+                return Err(Error::InvalidCommand(
+                    "chord explode does not support cross-staff source notes".into(),
+                ));
+            }
+            if note.is_unpitched || note.is_grace || note.is_cue {
+                return Err(Error::InvalidCommand(
+                    "chord explode does not support unpitched, grace, or cue notes".into(),
+                ));
+            }
+            if !note.is_rest
+                && (note.pitches.is_empty() || note.pitches.len() > cmd.target_staves.len())
+            {
+                return Err(Error::InvalidCommand(
+                    "chord explode pitch count must fit target staves".into(),
+                ));
+            }
+        }
+        let total: f64 = source_measure.voices[0].iter().map(Note::beats).sum();
+        if total > expected + 1e-9 {
+            return Err(Error::InvalidCommand(
+                "chord explode source voice exceeds its measure duration".into(),
+            ));
+        }
+        for &staff_index in cmd.target_staves.iter().skip(1) {
+            let target = &part.staves[staff_index];
+            let target_beats = effective_staff_measure_beats(
+                target,
+                &score.settings.time_signature,
+                measure_index,
+            )?;
+            if (target_beats - expected).abs() > 1e-9 {
+                return Err(Error::InvalidCommand(
+                    "chord explode target staves must have matching measure durations".into(),
+                ));
+            }
+            let measure = target
+                .measures
+                .get(measure_index)
+                .ok_or(Error::MeasureNotFound(measure_index))?;
+            if measure.voices[0].iter().any(|note| !note.is_rest)
+                || measure.voices[1..].iter().any(|voice| !voice.is_empty())
+                || measure.source_voice_numbers.iter().any(Option::is_some)
+            {
+                return Err(Error::InvalidCommand(
+                    "chord explode destination staff must contain only an unnumbered rest voice"
+                        .into(),
+                ));
+            }
+        }
+    }
+    for measure_index in start..=end {
+        let source_measure =
+            &score.parts[cmd.part_index].staves[cmd.source_staff].measures[measure_index];
+        let source_voice_number = source_measure.source_voice_numbers[0];
+        let mut exploded = vec![Vec::new(); cmd.target_staves.len()];
+        for note in &source_measure.voices[0] {
+            for (pitch_index, voice) in exploded.iter_mut().enumerate() {
+                voice.push(exploded_chord_note(note, pitch_index));
+            }
+        }
+        for (index, &staff_index) in cmd.target_staves.iter().enumerate() {
+            let target =
+                &mut score.parts[cmd.part_index].staves[staff_index].measures[measure_index];
+            target.voices = [exploded[index].clone(), Vec::new(), Vec::new(), Vec::new()];
+            target.source_voice_numbers = [source_voice_number, None, None, None];
+        }
+    }
     Ok(())
 }
 
