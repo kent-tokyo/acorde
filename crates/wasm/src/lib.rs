@@ -392,6 +392,23 @@ pub fn build_offline_render_manifest(
         .map_err(|e| js_err(format!("offline render manifest serialization failed: {e}")))
 }
 
+/// Extract a versioned, host-neutral score fragment as JSON.
+///
+/// Selections are JSON-encoded `ScoreFragmentSelection` values. Clipboard
+/// transport and pasteboard access remain responsibilities of the calling host.
+#[wasm_bindgen]
+pub fn extract_score_fragment(score_json: &str, selections_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let selections: Vec<acorde_core::ScoreFragmentSelection> = parse_json(
+        selections_json,
+        "score fragment selections",
+        MAX_SMALL_JSON_BYTES,
+    )?;
+    let fragment = acorde_core::extract_score_fragment(&score, &selections).map_err(js_err)?;
+    serde_json::to_string(&fragment)
+        .map_err(|e| js_err(format!("score fragment serialization failed: {e}")))
+}
+
 /// Compare a host/backend playback event trace with an expected trace.
 ///
 /// `expected_json` is normally produced by `to_playback_events_ex`; `actual_json` is supplied
@@ -2555,6 +2572,40 @@ mod wasm_tests {
             acorde_core::build_offline_render_manifest(&score, &options, &request).unwrap(),
         )
         .unwrap();
+        assert_eq!(wasm, native);
+    }
+
+    #[wasm_bindgen_test]
+    fn score_fragment_matches_native_core_contract() {
+        let mut score = Score::new("fragment", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(
+            acorde_core::Pitch::new(acorde_core::Step::C, 4),
+            acorde_core::Duration::Quarter,
+        )];
+        let selections = vec![acorde_core::ScoreFragmentSelection {
+            start: acorde_core::NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+            end: acorde_core::NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+        }];
+        let score_json = serde_json::to_string(&score).unwrap();
+        let selections_json = serde_json::to_string(&selections).unwrap();
+        let wasm: serde_json::Value =
+            serde_json::from_str(&extract_score_fragment(&score_json, &selections_json).unwrap())
+                .unwrap();
+        let native =
+            serde_json::to_value(acorde_core::extract_score_fragment(&score, &selections).unwrap())
+                .unwrap();
         assert_eq!(wasm, native);
     }
 

@@ -3,6 +3,7 @@ pub mod change_hint;
 pub mod commands;
 pub mod duration;
 pub mod engine;
+pub mod fragment;
 pub mod gm;
 pub mod harmony;
 pub mod interval;
