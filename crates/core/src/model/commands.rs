@@ -70,6 +70,7 @@ pub enum Command {
     PasteVoice(PasteVoiceCmd),
     PasteRange(PasteRangeCmd),
     PasteScoreFragment(PasteScoreFragmentCmd),
+    ExchangeVoices(ExchangeVoicesCmd),
     SetSystemBreak(SetSystemBreakCmd),
     SetPageBreak(SetPageBreakCmd),
     ToggleSlur(ToggleSlurCmd),
@@ -563,6 +564,20 @@ pub struct PasteRangeCmd {
 pub struct PasteScoreFragmentCmd {
     pub fragment: ScoreFragment,
     pub target: NoteAddr,
+}
+
+/// Exchange two editable voices across an inclusive measure range.
+///
+/// Both note vectors and their imported MusicXML source voice numbers move
+/// together, preserving sparse-voice cursor semantics for later serialization.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExchangeVoicesCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub start_measure: usize,
+    pub end_measure: usize,
+    pub first_voice: usize,
+    pub second_voice: usize,
 }
 
 /// Toggle slur_start on `start` note and slur_end on `end` note (cross-measure aware).
@@ -1167,6 +1182,16 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
             true
         ),
         Command::PasteScoreFragment(_) => hint!(Global, true, true),
+        Command::ExchangeVoices(c) => hint!(
+            Measures {
+                part: c.part_index,
+                staff: c.staff_index,
+                start: c.start_measure.min(c.end_measure),
+                end: c.start_measure.max(c.end_measure) + 1,
+            },
+            true,
+            true
+        ),
         Command::AddHairpin(c) => hint!(meas!(c), false, true),
         Command::ToggleTie(c) => hint!(meas!(c), false, true),
         Command::SetDynamic(c) => hint!(meas!(c), false, true),
@@ -1280,6 +1305,7 @@ pub fn command_label(cmd: &Command) -> String {
         Command::PasteVoice(_) => "Paste Voice".to_string(),
         Command::PasteRange(_) => "Paste Range".to_string(),
         Command::PasteScoreFragment(_) => "Paste Score Fragment".to_string(),
+        Command::ExchangeVoices(_) => "Exchange Voices".to_string(),
         Command::SetSystemBreak(_) => "Set System Break".to_string(),
         Command::SetPageBreak(_) => "Set Page Break".to_string(),
         Command::ToggleSlur(_) => "Toggle Slur".to_string(),
@@ -1406,6 +1432,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::PasteVoice(_) => "PasteVoice".to_string(),
         Command::PasteRange(_) => "PasteRange".to_string(),
         Command::PasteScoreFragment(_) => "PasteScoreFragment".to_string(),
+        Command::ExchangeVoices(_) => "ExchangeVoices".to_string(),
         Command::SetSystemBreak(_) => "SetSystemBreak".to_string(),
         Command::SetPageBreak(_) => "SetPageBreak".to_string(),
         Command::ToggleSlur(_) => "ToggleSlur".to_string(),
@@ -1673,6 +1700,7 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         Command::PasteVoice(c) => apply_paste_voice(c, score),
         Command::PasteRange(c) => apply_paste_range(c, score),
         Command::PasteScoreFragment(c) => apply_paste_score_fragment(c, score),
+        Command::ExchangeVoices(c) => apply_exchange_voices(c, score),
         Command::SetSystemBreak(c) => {
             for_each_measure_at(score, c.measure_index, |m| {
                 m.system_break = c.value;
@@ -3204,6 +3232,55 @@ fn apply_paste_range(cmd: &PasteRangeCmd, score: &mut Score) -> Result<(), Error
         measure.voices[cmd.voice_index] = notes.clone();
     }
     remap_replaced_spanner_endpoints(score, &endpoint_ids);
+    Ok(())
+}
+
+fn apply_exchange_voices(cmd: &ExchangeVoicesCmd, score: &mut Score) -> Result<(), Error> {
+    if cmd.first_voice >= 4 {
+        return Err(Error::VoiceOutOfRange(cmd.first_voice));
+    }
+    if cmd.second_voice >= 4 {
+        return Err(Error::VoiceOutOfRange(cmd.second_voice));
+    }
+    if cmd.first_voice == cmd.second_voice {
+        return Err(Error::InvalidCommand(
+            "exchange voices requires two distinct voices".into(),
+        ));
+    }
+    let start = cmd.start_measure.min(cmd.end_measure);
+    let end = cmd.start_measure.max(cmd.end_measure);
+    let staff = score
+        .parts
+        .get_mut(cmd.part_index)
+        .ok_or(Error::PartNotFound(cmd.part_index))?
+        .staves
+        .get_mut(cmd.staff_index)
+        .ok_or(Error::StaffNotFound(cmd.staff_index))?;
+    if end >= staff.measures.len() {
+        return Err(Error::MeasureNotFound(end));
+    }
+    for measure in &mut staff.measures[start..=end] {
+        measure.voices.swap(cmd.first_voice, cmd.second_voice);
+        measure
+            .source_voice_numbers
+            .swap(cmd.first_voice, cmd.second_voice);
+    }
+    remap_spanners(score, |address| {
+        if address.part != cmd.part_index
+            || address.staff != cmd.staff_index
+            || address.measure < start
+            || address.measure > end
+        {
+            return Some(address.clone());
+        }
+        let mut remapped = address.clone();
+        if address.voice == cmd.first_voice {
+            remapped.voice = cmd.second_voice;
+        } else if address.voice == cmd.second_voice {
+            remapped.voice = cmd.first_voice;
+        }
+        Some(remapped)
+    });
     Ok(())
 }
 
