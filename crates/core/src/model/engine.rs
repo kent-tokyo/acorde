@@ -1338,6 +1338,7 @@ mod tests {
         });
         source_measure.tempo = Some(96);
         source_measure.navigation = Some("Segno".into());
+        source_measure.section_break = true;
         let source = NoteAddr {
             part: 0,
             staff: 0,
@@ -1367,6 +1368,7 @@ mod tests {
         assert_eq!(pasted.key_sig.as_ref().map(|key| key.fifths), Some(2));
         assert_eq!(pasted.tempo, Some(96));
         assert_eq!(pasted.navigation.as_deref(), Some("Segno"));
+        assert!(pasted.section_break);
 
         let mut legacy = fragment;
         legacy.contract_version = 2;
@@ -1386,6 +1388,7 @@ mod tests {
         assert_eq!(legacy_paste.key_sig, None);
         assert_eq!(legacy_paste.tempo, None);
         assert_eq!(legacy_paste.navigation, None);
+        assert!(!legacy_paste.section_break);
     }
 
     #[test]

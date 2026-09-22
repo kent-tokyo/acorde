@@ -129,6 +129,8 @@ pub struct ScoreFragmentMeasureAttributes {
     pub system_break: bool,
     #[serde(default)]
     pub page_break: bool,
+    #[serde(default)]
+    pub section_break: bool,
 }
 
 impl ScoreFragmentMeasureAttributes {
@@ -155,6 +157,7 @@ impl ScoreFragmentMeasureAttributes {
             multi_rest_count: measure.multi_rest_count,
             system_break: measure.system_break,
             page_break: measure.page_break,
+            section_break: measure.section_break,
         }
     }
 
@@ -188,6 +191,7 @@ impl ScoreFragmentMeasureAttributes {
         measure.multi_rest_count = self.multi_rest_count;
         measure.system_break = self.system_break;
         measure.page_break = self.page_break;
+        measure.section_break = self.section_break;
     }
 }
 
