@@ -64,6 +64,7 @@ fn is_structural_command(command: &Command) -> bool {
             | Command::JoinMeasures(_)
             | Command::ImplodeStaves(_)
             | Command::ExplodeVoices(_)
+            | Command::ExplodeChordPitches(_)
             | Command::ScaleVoiceRange(_)
     )
 }
@@ -308,8 +309,8 @@ pub fn plan_structural_change(
 mod tests {
     use super::*;
     use crate::{
-        Duration, DurationScale, ExplodeVoicesCmd, ImplodeStavesCmd, Note, Pitch,
-        ScaleVoiceRangeCmd, ScoreTemplate, Step, TupletInfo,
+        Duration, DurationScale, ExplodeChordPitchesCmd, ExplodeVoicesCmd, ImplodeStavesCmd, Note,
+        Pitch, ScaleVoiceRangeCmd, ScoreTemplate, Step, TupletInfo,
     };
 
     fn piano_score() -> Score {
@@ -442,6 +443,34 @@ mod tests {
                 && measure.staff == 0
                 && measure.measure == 0
                 && measure.voice_note_counts == [2, 0, 0, 0]
+        }));
+    }
+
+    #[test]
+    fn chord_explode_plan_is_available_before_mutation() {
+        let mut score = piano_score();
+        score.parts[0].staves[0].measures[0].voices[0][0]
+            .pitches
+            .push(Pitch::new(Step::E, 4));
+        score.parts[0].staves[1].measures[0].voices[0] = vec![Note::rest(Duration::Whole)];
+        let plan = plan_structural_change(
+            &score,
+            &Command::ExplodeChordPitches(ExplodeChordPitchesCmd {
+                part_index: 0,
+                source_staff: 0,
+                target_staves: vec![0, 1],
+                start_measure: 0,
+                end_measure: 0,
+            }),
+        )
+        .unwrap();
+        assert!(plan.can_apply);
+        assert!(plan.affected_addresses.iter().any(|address| {
+            address.part == 0
+                && address.staff == 1
+                && address.measure == 0
+                && address.voice == 0
+                && address.note == 0
         }));
     }
 }

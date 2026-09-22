@@ -1,11 +1,11 @@
 use super::change_hint::{ChangeHint, ChangeScope};
 use super::commands::{
     AddStaffCmd, Command, CommandStack, DeleteStaffCmd, DurationScale, ExchangeVoicesCmd,
-    ExplodeVoicesCmd, ImplodeStavesCmd, PasteRangeCmd, PasteScoreFragmentCmd, PasteVoiceCmd,
-    RespellScoreCmd, RespellScoreToKeyCmd, ScaleVoiceRangeCmd, SetArpeggioCmd, SetCueCmd,
-    SetDurationCmd, SetInstrumentIdCmd, SetNoteHeadCmd, SetNotePlacementCmd, SetPartGroupCmd,
-    SetStemCmd, SetTupletCmd, SetUnpitchedCmd, ToggleSlurCmd, ToggleTrillLineCmd, command_hint,
-    command_key,
+    ExplodeChordPitchesCmd, ExplodeVoicesCmd, ImplodeStavesCmd, PasteRangeCmd,
+    PasteScoreFragmentCmd, PasteVoiceCmd, RespellScoreCmd, RespellScoreToKeyCmd,
+    ScaleVoiceRangeCmd, SetArpeggioCmd, SetCueCmd, SetDurationCmd, SetInstrumentIdCmd,
+    SetNoteHeadCmd, SetNotePlacementCmd, SetPartGroupCmd, SetStemCmd, SetTupletCmd,
+    SetUnpitchedCmd, ToggleSlurCmd, ToggleTrillLineCmd, command_hint, command_key,
 };
 use super::duration::Duration;
 use super::fragment::ScoreFragment;
@@ -409,6 +409,25 @@ impl ScoreEngine {
         end_measure: usize,
     ) -> Result<ChangeHint, Error> {
         self.apply(Command::ExplodeVoices(ExplodeVoicesCmd {
+            part_index,
+            source_staff,
+            target_staves,
+            start_measure,
+            end_measure,
+        }))
+    }
+
+    /// Split pitches in primary-voice chords across compatible staves while
+    /// retaining all chord-attached notation on the first source pitch.
+    pub fn explode_chord_pitches(
+        &mut self,
+        part_index: usize,
+        source_staff: usize,
+        target_staves: Vec<usize>,
+        start_measure: usize,
+        end_measure: usize,
+    ) -> Result<ChangeHint, Error> {
+        self.apply(Command::ExplodeChordPitches(ExplodeChordPitchesCmd {
             part_index,
             source_staff,
             target_staves,
@@ -1511,6 +1530,60 @@ mod tests {
                     start_measure: 0,
                     end_measure: 0,
                 }))
+                .is_err()
+        );
+        assert_eq!(serde_json::to_value(&engine.score).unwrap(), before);
+    }
+
+    #[test]
+    fn explode_chord_pitches_distributes_pitches_and_is_undoable() {
+        use crate::model::score::ScoreTemplate;
+        use crate::{Duration, Note, Pitch, Step};
+
+        let mut engine = ScoreEngine::new();
+        engine.score = Score::template(ScoreTemplate::Piano);
+        let mut chord = Note::new(Pitch::new(Step::C, 5), Duration::Whole);
+        chord.pitches.push(Pitch::new(Step::E, 4));
+        let source_id = chord.id.clone();
+        engine.score.parts[0].staves[0].measures[0].voices[0] = vec![chord];
+        let before = serde_json::to_value(&engine.score).unwrap();
+
+        engine
+            .explode_chord_pitches(0, 0, vec![0, 1], 0, 0)
+            .unwrap();
+        let upper = &engine.score.parts[0].staves[0].measures[0].voices[0][0];
+        let lower = &engine.score.parts[0].staves[1].measures[0].voices[0][0];
+        assert_eq!(upper.id, source_id);
+        assert_eq!(upper.pitches, vec![Pitch::new(Step::C, 5)]);
+        assert_eq!(lower.pitches, vec![Pitch::new(Step::E, 4)]);
+        assert_ne!(lower.id, source_id);
+
+        engine.undo().unwrap();
+        assert_eq!(serde_json::to_value(&engine.score).unwrap(), before);
+        engine.redo().unwrap();
+        assert_eq!(
+            engine.score.parts[0].staves[1].measures[0].voices[0][0].pitches,
+            vec![Pitch::new(Step::E, 4)]
+        );
+    }
+
+    #[test]
+    fn explode_chord_pitches_rejects_occupied_destination_without_mutation() {
+        use crate::model::score::ScoreTemplate;
+        use crate::{Duration, Note, Pitch, Step};
+
+        let mut engine = ScoreEngine::new();
+        engine.score = Score::template(ScoreTemplate::Piano);
+        let mut chord = Note::new(Pitch::new(Step::C, 5), Duration::Whole);
+        chord.pitches.push(Pitch::new(Step::E, 4));
+        engine.score.parts[0].staves[0].measures[0].voices[0] = vec![chord];
+        engine.score.parts[0].staves[1].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::G, 3), Duration::Whole)];
+        let before = serde_json::to_value(&engine.score).unwrap();
+
+        assert!(
+            engine
+                .explode_chord_pitches(0, 0, vec![0, 1], 0, 0)
                 .is_err()
         );
         assert_eq!(serde_json::to_value(&engine.score).unwrap(), before);
