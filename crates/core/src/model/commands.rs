@@ -1,7 +1,8 @@
 use super::change_hint::{ChangeHint, ChangeScope};
 use super::duration::Duration;
 use super::fragment::{
-    SCORE_FRAGMENT_CONTRACT_VERSION, ScoreFragment, ScoreFragmentSelection, extract_score_fragment,
+    MIN_SUPPORTED_SCORE_FRAGMENT_CONTRACT_VERSION, SCORE_FRAGMENT_CONTRACT_VERSION, ScoreFragment,
+    ScoreFragmentSelection, extract_score_fragment,
 };
 use super::notation::{
     Articulation, Barline, ChordSymbol, Clef, CrossStaff, Dynamic, FiguredBassFigure,
@@ -4244,7 +4245,9 @@ fn apply_scale_voice_range(cmd: &ScaleVoiceRangeCmd, score: &mut Score) -> Resul
 }
 
 fn apply_paste_score_fragment(cmd: &PasteScoreFragmentCmd, score: &mut Score) -> Result<(), Error> {
-    if cmd.fragment.contract_version != SCORE_FRAGMENT_CONTRACT_VERSION {
+    if !(MIN_SUPPORTED_SCORE_FRAGMENT_CONTRACT_VERSION..=SCORE_FRAGMENT_CONTRACT_VERSION)
+        .contains(&cmd.fragment.contract_version)
+    {
         return Err(Error::InvalidCommand(format!(
             "unsupported score fragment contract version {}",
             cmd.fragment.contract_version
@@ -4318,6 +4321,17 @@ fn apply_paste_score_fragment(cmd: &PasteScoreFragmentCmd, score: &mut Score) ->
                     "fragment merge would overwrite a sounding destination lane".into(),
                 ));
             }
+            if cmd.policy == ScoreFragmentPastePolicy::Merge
+                && measure.attributes.present
+                && measure.attributes
+                    != super::fragment::ScoreFragmentMeasureAttributes::from_measure(
+                        &staff.measures[measure_index],
+                    )
+            {
+                return Err(Error::InvalidCommand(
+                    "fragment merge would overwrite destination measure attributes".into(),
+                ));
+            }
             for cross_staff in measure.cross_staff_targets.iter().flatten() {
                 let target_staff = staff_index as i64 + cross_staff.staff_offset;
                 if target_staff < 0
@@ -4381,6 +4395,9 @@ fn apply_paste_score_fragment(cmd: &PasteScoreFragmentCmd, score: &mut Score) ->
             }
             target.voices[voice_index] = notes;
             target.source_voice_numbers[voice_index] = measure.source_voice_number;
+            if cmd.policy == ScoreFragmentPastePolicy::Replace {
+                measure.attributes.apply_to_measure(target);
+            }
         }
     }
 

@@ -33,8 +33,9 @@ pub use model::commands::{
 pub use model::duration::Duration;
 pub use model::engine::{EngineHistory, HistoryConflict, HistoryRelation, ScoreEngine};
 pub use model::fragment::{
-    SCORE_FRAGMENT_CONTRACT_VERSION, ScoreFragment, ScoreFragmentCrossStaffTarget,
-    ScoreFragmentDiagnostic, ScoreFragmentMeasure, ScoreFragmentSelection, ScoreFragmentVoice,
+    MIN_SUPPORTED_SCORE_FRAGMENT_CONTRACT_VERSION, SCORE_FRAGMENT_CONTRACT_VERSION, ScoreFragment,
+    ScoreFragmentCrossStaffTarget, ScoreFragmentDiagnostic, ScoreFragmentMeasure,
+    ScoreFragmentMeasureAttributes, ScoreFragmentSelection, ScoreFragmentVoice,
     extract_score_fragment,
 };
 pub use model::gm::{drum_name, program_name};

@@ -5,13 +5,21 @@
 //! the score model so a host does not need to flatten notation into renderer
 //! objects before copying it.
 
-use super::score::{NotationSpanner, Note, NoteAddr, Score};
+use super::notation::{
+    Barline, Clef, FiguredBassFigure, KeySignature, StyledText, TablatureConfig, TimeSignature,
+};
+use super::score::{
+    HarpPedalDiagram, InstrumentDefinition, Measure, NotationSpanner, Note, NoteAddr, Score,
+    VoltaBracket,
+};
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
 /// Current schema version for [`ScoreFragment`].
-pub const SCORE_FRAGMENT_CONTRACT_VERSION: u16 = 2;
+pub const SCORE_FRAGMENT_CONTRACT_VERSION: u16 = 3;
+/// Oldest fragment version accepted by the current paste contract.
+pub const MIN_SUPPORTED_SCORE_FRAGMENT_CONTRACT_VERSION: u16 = 1;
 
 /// One inclusive, whole-measure voice range to extract.
 ///
@@ -64,6 +72,123 @@ pub struct ScoreFragmentMeasure {
     /// An empty vector denotes a v1 fragment with no remappable targets.
     #[serde(default)]
     pub cross_staff_targets: Vec<Option<ScoreFragmentCrossStaffTarget>>,
+    /// Staff-local measure attributes captured alongside this voice lane.
+    /// v1/v2 payloads deserialize with `present: false` and therefore retain
+    /// their historical notes-only paste behavior.
+    #[serde(default)]
+    pub attributes: ScoreFragmentMeasureAttributes,
+}
+
+/// Measure-level semantics carried by a v3 score fragment.
+///
+/// Measure numbers are deliberately not copied: the destination physical
+/// position owns numbering. All other fields map directly to `Measure` so a
+/// host does not need to rebuild staff-local time, key, instrument, or text
+/// state around the pasted music.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct ScoreFragmentMeasureAttributes {
+    #[serde(default)]
+    pub present: bool,
+    #[serde(default)]
+    pub time_sig: Option<TimeSignature>,
+    #[serde(default)]
+    pub key_sig: Option<KeySignature>,
+    #[serde(default)]
+    pub clef: Option<Clef>,
+    #[serde(default)]
+    pub tempo: Option<u16>,
+    #[serde(default)]
+    pub tempo_ramp_to: Option<u16>,
+    #[serde(default)]
+    pub instrument_change: Option<InstrumentDefinition>,
+    #[serde(default)]
+    pub tablature_change: Option<TablatureConfig>,
+    #[serde(default)]
+    pub barline_left: Option<Barline>,
+    #[serde(default)]
+    pub barline_right: Option<Barline>,
+    #[serde(default)]
+    pub volta: Option<VoltaBracket>,
+    #[serde(default)]
+    pub tempo_text: Option<String>,
+    #[serde(default)]
+    pub rehearsal: Option<String>,
+    #[serde(default)]
+    pub navigation: Option<String>,
+    #[serde(default)]
+    pub expression_text: Option<String>,
+    #[serde(default)]
+    pub texts: Vec<StyledText>,
+    #[serde(default)]
+    pub figured_bass: Vec<FiguredBassFigure>,
+    #[serde(default)]
+    pub harp_pedal_diagrams: Vec<HarpPedalDiagram>,
+    #[serde(default)]
+    pub multi_rest_count: Option<u8>,
+    #[serde(default)]
+    pub system_break: bool,
+    #[serde(default)]
+    pub page_break: bool,
+}
+
+impl ScoreFragmentMeasureAttributes {
+    pub(crate) fn from_measure(measure: &Measure) -> Self {
+        Self {
+            present: true,
+            time_sig: measure.time_sig.clone(),
+            key_sig: measure.key_sig.clone(),
+            clef: measure.clef.clone(),
+            tempo: measure.tempo,
+            tempo_ramp_to: measure.tempo_ramp_to,
+            instrument_change: measure.instrument_change.clone(),
+            tablature_change: measure.tablature_change.clone(),
+            barline_left: Some(measure.barline_left.clone()),
+            barline_right: Some(measure.barline_right.clone()),
+            volta: measure.volta.clone(),
+            tempo_text: measure.tempo_text.clone(),
+            rehearsal: measure.rehearsal.clone(),
+            navigation: measure.navigation.clone(),
+            expression_text: measure.expression_text.clone(),
+            texts: measure.texts.clone(),
+            figured_bass: measure.figured_bass.clone(),
+            harp_pedal_diagrams: measure.harp_pedal_diagrams.clone(),
+            multi_rest_count: measure.multi_rest_count,
+            system_break: measure.system_break,
+            page_break: measure.page_break,
+        }
+    }
+
+    /// Apply captured attributes without changing the destination's physical
+    /// measure number, voices, or source voice-number slots.
+    pub fn apply_to_measure(&self, measure: &mut Measure) {
+        if !self.present {
+            return;
+        }
+        measure.time_sig = self.time_sig.clone();
+        measure.key_sig = self.key_sig.clone();
+        measure.clef = self.clef.clone();
+        measure.tempo = self.tempo;
+        measure.tempo_ramp_to = self.tempo_ramp_to;
+        measure.instrument_change = self.instrument_change.clone();
+        measure.tablature_change = self.tablature_change.clone();
+        if let Some(barline) = &self.barline_left {
+            measure.barline_left = barline.clone();
+        }
+        if let Some(barline) = &self.barline_right {
+            measure.barline_right = barline.clone();
+        }
+        measure.volta = self.volta.clone();
+        measure.tempo_text = self.tempo_text.clone();
+        measure.rehearsal = self.rehearsal.clone();
+        measure.navigation = self.navigation.clone();
+        measure.expression_text = self.expression_text.clone();
+        measure.texts = self.texts.clone();
+        measure.figured_bass = self.figured_bass.clone();
+        measure.harp_pedal_diagrams = self.harp_pedal_diagrams.clone();
+        measure.multi_rest_count = self.multi_rest_count;
+        measure.system_break = self.system_break;
+        measure.page_break = self.page_break;
+    }
 }
 
 /// A cross-staff target carried independently from renderer-oriented note data.
@@ -200,6 +325,7 @@ pub fn extract_score_fragment(
                 source_voice_number: measure.source_voice_numbers[selection.start.voice],
                 notes,
                 cross_staff_targets,
+                attributes: ScoreFragmentMeasureAttributes::from_measure(measure),
             });
         }
         voices.push(ScoreFragmentVoice {
