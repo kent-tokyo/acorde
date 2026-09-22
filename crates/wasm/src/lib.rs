@@ -573,6 +573,18 @@ pub fn export_page_render_trees(score_json: &str, config_json: &str) -> Result<S
         .map_err(|e| js_err(format!("page render tree serialization failed: {e}")))
 }
 
+/// Validate serialized page render trees against canonical score addresses.
+#[wasm_bindgen]
+pub fn validate_page_render_trees(score_json: &str, trees_json: &str) -> Result<(), JsValue> {
+    let score = score_from_json(score_json)?;
+    let trees: Vec<acorde_layout::PageRenderTree> =
+        parse_json(trees_json, "page render trees", MAX_LAYOUT_JSON_BYTES)?;
+    for tree in &trees {
+        tree.validate(&score).map_err(js_err)?;
+    }
+    Ok(())
+}
+
 /// Export page-scoped semantic nodes for one named linked score view.
 #[wasm_bindgen]
 pub fn export_page_render_trees_for_view(
@@ -2562,6 +2574,7 @@ mod wasm_tests {
         let page_trees = export_page_render_trees(&score_json, "{}").unwrap();
         assert!(page_trees.contains("contract_version"));
         assert!(page_trees.contains("nodes"));
+        assert!(validate_page_render_trees(&score_json, &page_trees).is_ok());
         assert!(compute_print_layout(&score_json, "not-json").is_err());
         assert!(render_score_svg_with_layout("{}", &layout_json, "{}").is_err());
         assert!(render_score_svg_row(&score_json, &layout_json, 99, "{}").is_err());
