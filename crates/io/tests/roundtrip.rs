@@ -599,6 +599,15 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
         let bytes: &[u8] = match path {
             "simple.musicxml" => include_bytes!("../../../tests/fixtures/simple.musicxml"),
             "multipart.musicxml" => include_bytes!("../../../tests/fixtures/multipart.musicxml"),
+            "fragment_rich.musicxml" => {
+                include_bytes!("../../../tests/fixtures/fragment_rich.musicxml")
+            }
+            "external_tab.musicxml" => {
+                include_bytes!("../../../tests/fixtures/external_tab.musicxml")
+            }
+            "section_breaks.musicxml" => {
+                include_bytes!("../../../tests/fixtures/section_breaks.musicxml")
+            }
             "multivoice.musicxml" => include_bytes!("../../../tests/fixtures/multivoice.musicxml"),
             "render_preflight_unsupported.musicxml" => {
                 include_bytes!("../../../tests/fixtures/render_preflight_unsupported.musicxml")

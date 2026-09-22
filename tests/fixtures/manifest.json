@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_on": "2026-09-04",
+  "generated_on": "2026-09-22",
   "purpose": "Pinned fixture provenance and interchange evidence baseline",
   "fixtures": [
     {
@@ -16,6 +16,30 @@
       "format": "musicxml",
       "license": "self-authored",
       "sha256": "4e5dc67066ecfcb7258e4342f3cdc4a6be62411301030d4009b7d2fb45a8e1b0",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
+      "path": "fragment_rich.musicxml",
+      "format": "musicxml",
+      "license": "self-authored",
+      "sha256": "d3d9524f2b39ae94837feb82fe7a88d64b3f4d770d023ea1309a6f8c0b35c447",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
+      "path": "external_tab.musicxml",
+      "format": "musicxml",
+      "license": "self-authored",
+      "sha256": "3cce8d2f100e3b68a3430c4ccaa0ad737318179ba74ddf47bd31bc41b3ff37df",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
+      "path": "section_breaks.musicxml",
+      "format": "musicxml",
+      "license": "self-authored",
+      "sha256": "0694ccf851ffc4fd00f92bf2e6f91afd83cfb4616574950cbe7ce2efe9f363e4",
       "round_trip": "semantic",
       "expected_losses": []
     },

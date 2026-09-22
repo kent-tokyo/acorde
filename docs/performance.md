@@ -16,13 +16,13 @@ The row renderer is the intended unit for host-side viewport caching and increme
 
 ## Latest local measurement
 
-Recorded 2026-09-11 from the current `v1.1.7` working tree with the release renderer benchmark:
+Recorded 2026-09-23 from the v1.2.2 working tree with the release renderer benchmark:
 
 | Case | Layout | Render | SVG | Result |
 |---|---:|---:|---:|---|
-| small (8 measures) | 22 µs | 362 µs | 18,697 bytes | pass |
-| medium (32 measures) | 5 µs | 828 µs | 72,320 bytes | pass |
-| large (128 measures) | 21 µs | 2,258 µs | 287,781 bytes | pass |
+| small (8 measures) | 11 µs | 298 µs | 20,593 bytes | pass |
+| medium (32 measures) | 3 µs | 431 µs | 79,946 bytes | pass |
+| large (128 measures) | 10 µs | 1,489 µs | 318,467 bytes | pass |
 
 The analysis benchmark also passed its pinned local gate: 2/2 cases, 100% precision, 100% recall,
 and 100% explanation completeness. These are same-host local measurements, not competitor speed

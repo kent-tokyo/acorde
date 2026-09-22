@@ -1,0 +1,49 @@
+{
+  "contract_version": 1,
+  "name": "phase18a-external-interoperability",
+  "fixture_manifest": "tests/fixtures/manifest.json",
+  "rules": {
+    "fixture": "A checked-in fixture must have a matching SHA-256 and reviewed provenance.",
+    "candidate": "An external artifact must retain its SHA-256, format, tool version, and options.",
+    "comparison": "Use acorde compatibility-report; semantic changes, analysis changes, and typed losses remain distinct."
+  },
+  "cases": [
+    {
+      "id": "musescore-4-mscz-to-musicxml",
+      "comparison_kind": "semantic-score",
+      "source": "tests/fixtures/openscore_omr_score_1003.mscz",
+      "source_format": "mscz",
+      "candidate_format": "musicxml",
+      "tool": "MuseScore Studio 4.x",
+      "required_projection": [
+        "semantic_equivalent",
+        "analysis_equivalent",
+        "lossless",
+        "changes",
+        "source_diagnostics",
+        "candidate_diagnostics"
+      ],
+      "claim_boundary": "This is a semantic/interchange observation, not a visual engraving, playback, or lossless-compatibility claim."
+    },
+    {
+      "id": "verovio-6-mei-to-svg",
+      "comparison_kind": "svg-structure",
+      "source": "tests/fixtures/interchange_subset.mei",
+      "source_format": "mei",
+      "candidate_format": "svg",
+      "tool": "Verovio 6.x",
+      "required_projection": ["svg_byte_count", "element_counts", "text_content"],
+      "claim_boundary": "This records structural SVG evidence only; it does not compare visual engraving or MEI semantics."
+    },
+    {
+      "id": "mido-midi-event-projection",
+      "comparison_kind": "midi-events",
+      "source": "tests/fixtures/just_perfect_fifth_on_c.mid",
+      "source_format": "midi",
+      "candidate_format": "midi-event-projection",
+      "tool": "Mido 1.3.x",
+      "required_projection": ["mido", "acorde", "comparison"],
+      "claim_boundary": "This compares selected MIDI event and initial-score mappings, not synthesis, timing modification, or complete MIDI interchange."
+    }
+  ]
+}

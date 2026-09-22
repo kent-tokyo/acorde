@@ -43,7 +43,7 @@ MIDI tuning, and capo, plus note articulation names and typed tablature techniqu
 preserving compatibility with older generated WASM bindings.
 `noteSemanticAt(address)` provides the complete typed semantic entry for one stable note address,
 including articulation names, without requiring hosts to scan the metadata array.
-The current metadata contract is version 15. Its note semantics include authored `tie_start` and
+The current metadata contract is version 22. Its note semantics include authored `tie_start` and
 `tie_end`; SVG tie geometry is suppressed when either endpoint is a rest, so hosts should use the
 typed flags and source addresses rather than infer ties from curve presence.
 The adapter also types the analysis result's interval observations; each interval exposes both the

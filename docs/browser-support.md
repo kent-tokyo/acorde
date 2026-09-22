@@ -2,7 +2,7 @@
 
 The reusable renderer has no browser or DOM dependency. The WASM package is built for
 `wasm32-unknown-unknown` and the checked-in fixture is served as a plain ES module page.
-The current render metadata contract is version 15 and includes score-level `score_texts`, note-level MusicXML placement
+The current render metadata contract is version 22 and includes score-level `score_texts`, note-level MusicXML placement
 offsets and typed guitar techniques in addition to position-aware measure-level
 `text_annotations` with source placement and offset fields, plus deterministic `tablature_positions`,
 in addition to note `address_bounds`. Note semantics also expose ordered stable articulation names,

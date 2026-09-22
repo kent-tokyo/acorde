@@ -1,148 +1,62 @@
 # Print layout contract
 
-`acorde` owns reusable score semantics and deterministic logical placement. The current
-`acorde-layout::compute_print_layout` API is the neutral boundary between a `Score` and a
-print-capable host:
+`acorde-layout::compute_print_layout` converts a score and a `PrintConfig` into deterministic,
+host-neutral page and system metadata in millimetres.
 
 ```text
-Score → PrintConfig → PrintLayoutResult (pages/systems in mm) → SVG/PDF/print host
+Score → PrintConfig → PrintLayoutResult → SVG/PDF/print host
 ```
 
-`PrintConfig` defines paper size, orientation, margins, bleed/safe areas, system height, scale,
-page-numbering, color, crop-mark, and glyph-resource policies, measures per system, and optional
-`keep_together` ranges, an optional `first_system_measures` capacity for pickup/title systems,
-an automatic or explicit `pickup_policy` that detects a partial first measure, and a `final_page_policy` that
-can deterministically balance automatic pagination.
-`PrintPreset` provides versioned A4/Letter score and extracted-part starting configurations;
-the preset data does not read host preferences or installed resources. Use
-`PrintPreset::config_with_title_page` to opt into a title page without changing the default
-preset configuration.
-A keep-together range uses zero-based inclusive physical measure indices
-and is placed in one system when it fits the configured capacity. Invalid ranges, ranges larger
-than a system, and ranges containing an explicit system/page break return typed errors. Scale applies to system content geometry while
-paper dimensions remain the selected physical page size. Safe-area values reduce the usable
-content rectangle; bleed values, the optional one-based page number, color intent, and crop-mark
-intent, and glyph-resource policy are carried as explicit page metadata for a host exporter.
-`SystemLayout::measure_spans` records the physical inclusive interval represented by each visual
-measure slot, including the hidden extent of multirests. `SystemLayout::span_segments` identifies
-cross-system span intersections and whether each segment starts or ends on that system.
-Multirests consume their full visual width when systems are broken and are never split between
-systems; a multirest wider than the configured capacity occupies one system by itself.
-`SystemLayout::measure_marks` carries repeat barlines, volta endings, navigation marks, rehearsal
-labels, and normalized explicit/legacy `StyledText` annotations for each physical measure in the
-system; playback expansion remains in core. Explicit styled entries precede legacy fields, and
-identical style/text pairs are emitted once. The marks are based on the primary score staff, as
-with the existing measure-level publication metadata.
-`NotationBreakPolicy::KeepVoltaTogether` is an opt-in system-breaking policy that keeps a
-contiguous volta begin/end range in one system when it fits; the default `Preserve` policy
-does not infer notation-aware breaks. `NotationBreakPolicy::KeepRepeatsTogether` is an opt-in
-page policy that starts a repeat section on a fresh page and keeps it together when it fits the
-configured systems-per-page capacity; repeat sections that exceed that capacity return a typed
-error. It disables final-page balancing so the repeat boundary remains deterministic.
-`PageLayout::span_segments` aggregates cross-system span ownership at page boundaries, so a host
-can emit continuation marks without reconstructing spans from adjacent systems.
-`PrintConfig::publication` carries an optional running title, header/footer text, and policies
-for part labels and measure numbers, plus an opt-in metadata-only title page. Each
-`PageLayout::publication` contains copied score metadata and score-level styled text, deterministic
-part labels, and only the measure numbers belonging to that page, so a host can render headers
-and labels without reconstructing page ownership. `PartLayoutPolicy::ExtractedPart` is an
-explicit opt-in that scopes pagination and notation spans to one selected part; the default
-`FullScore` policy preserves existing score-level behavior. Publication text is exposed as
-`PublicationTextBlock` values with semantic roles and physical x/y/width in millimetres.
-With `page_number_in_footer`, the final logical page number is emitted as a footer block.
-`PublicationTextAlignment` records left, center, or right alignment within each block's width.
-`PublicationConfig::line_height_mm` supplies the validated line-box height carried by every text
-block; non-finite or non-positive values return a typed layout error.
-`PublicationConfig::image_resources` carries optional `PublicationImageResource` values. Each
-resource uses an opaque, path- and URL-free key plus non-empty alternative text, finite positive
-page-bounded geometry, and a title-page, music-page, or every-page scope. The selected resources
-are copied into `PageLayout::publication`; hosts resolve, decode, license-check, and sanitize the
-actual image bytes themselves.
-`PublicationConfig::sections` supplies ordered headings at zero-based physical measure starts.
-Layout splits a system at each section start. A section may request a new page; the preceding page
-then records `SectionBreak`, while the new page exposes that section in
-`PageLayout::publication.sections`. Sections cannot start outside the score, duplicate/reverse
-their order, or split a keep-together range.
-`PublicationConfig::frames` carries page-bounded physical rectangles with a positive stroke width
-and title-page, music-page, or every-page scope. The selected `PublicationFrame` values are copied
-to `PageLayout::publication.frames`; hosts choose color, dash policy, and actual SVG/PDF drawing.
-Publication page metadata is serde-defaulted so older serialized page objects remain readable.
-Full-score pages also carry `PartGroupMark` bracket/brace metadata; extracted-part pages omit
-cross-part connectors.
-Title pages additionally expose title, subtitle, credit, and copyright blocks; ordinary pages do not receive
-the running-title header unless configured.
-`PrintLayoutResult` records page
-dimensions, stable page/system addresses, physical measure indices, and typed break reasons (`MeasureCapacity`, `ExplicitSystemBreak`,
-`ExplicitPageBreak`, `PageCapacity`, `TitlePage`, or `EndOfScore`). Layout honors existing `system_break` and
-`page_break` decisions and produces stable output for the same score and configuration. Its
-`contract_version` is `32` for this address/diagnostic, publication, title-page, part-group, page-number footer, alignment, line-box height, copyright block, safe image-resource references, publication sections, frames, and spacers, bleed/safe-area, scale, page-numbering,
-color, crop-mark, and glyph-resource shape. `GlyphResourcePolicy::HostProvided` is only a stable
-resource key; resource lookup, font loading, and glyph metrics remain host/provider work. Hosts
-that resolve a resource should also transport a `GlyphResourceDescriptor`: it records the
-versioned resource key, metrics-contract version, non-empty license notice, and explicit
-fallback policy. `GlyphResourceDescriptor::validate()` rejects missing licensing metadata,
-unknown contract versions, invalid metrics versions, empty fallback keys, and self-fallbacks
-before export configuration is accepted. This is metadata validation, not a license or font
-embedding check.
-`PRINT_LAYOUT_CONTRACT_VERSION` identifies this serialized page contract, and `validate()` rejects
-results from another contract version before host reuse.
-An empty `GlyphResourcePolicy::HostProvided` key is rejected before page layout is produced.
-Hosts can retrieve a page artifact with `PrintLayoutResult::page(PageAddress)`, inspect its
-physical range with `PageLayout::measure_span()`, and detect cross-page continuations with
-`PageLayout::has_span_continuation()`. Page lookup verifies both the vector index and the
-serialized page address, returning no artifact for a mismatched or corrupted address.
-For page-oriented export, `PrintLayoutResult::export_page_artifacts()` validates the complete
-result and returns one `PageArtifact` per page in physical order. Each artifact contains
-millimetre dimensions, its physical measure span, the copied `PageLayout`, and typed
-`PageArtifactDiagnostic::SpanContinuation` and `GlyphResourceRequired` entries. Hosts can call
-`PageLayout::artifact_diagnostics(Some(extents))` to add a `GlyphOverflow` entry with the exact
-overflow directions from host-computed glyph bounds. The resource entry marks pages whose
-`GlyphResourcePolicy::HostProvided` key still requires host/provider resolution. It emits no file bytes and has no PDF, font,
-filesystem, or printer dependency; those concerns remain in the host exporter.
-Hosts that persist or transport a complete result can call `PrintLayoutResult::validate()` to
-check page indices, global system indices, page-local system positions, and page-scoped image,
-frame, section, and spacer metadata before reuse. A `PublicationSpacer` splits the affected
-system at its physical measure, consumes its declared height, and moves that system to a fresh
-page when the remaining content area cannot contain both; it does not alter score notation.
-It also rejects mixed numbered/unnumbered pages, zero page numbers, non-monotonic numbering,
-and numbered pages that do not match the current `page_index + 1` policy.
-It also requires `TitlePage` to be page zero with no systems and rejects title metadata on
-ordinary pages.
-Physical page and system dimensions are checked for finite, positive values (with non-negative
-bleed and top offsets) before a persisted layout is reused; content dimensions must not exceed
-the physical page.
-Hosts that supply glyph geometry should call `validate_glyph_placements` before
-`resolve_glyph_collisions`; non-finite coordinates, empty resource keys, negative advances, and
-negative bounding-box extents are rejected with a typed error instead of being allowed into
-collision math.
-The `resolve_glyph_collisions_checked` and `resolve_glyph_horizontal_collisions_checked` variants
-combine that validation with mutation and are preferred for host preflight paths. They reject
-non-finite collision gaps and arithmetic overflow before mutation; unchecked variants sanitize
-non-finite gaps to zero.
-The class-aware `resolve_glyph_collisions_with_classes` and
-`resolve_glyph_horizontal_collisions_with_classes` variants additionally accept
-`GlyphCollisionClass` values. `Critical`, `Spacing`, `Annotation`, and `Decorative` form a stable
-semantic tie-break after priority; the class vector is validated before any mutation. The
-original resolvers remain available for older callers.
-After computing remaining system width, `distribute_glyph_spacing` can spread it evenly between
-ordered glyph placements without changing the first placement's anchor.
-`glyph_extents` aggregates validated placement bounds and returns `None` for empty content, allowing
-hosts to derive safe margins without fixed renderer assumptions. Its `GlyphExtents` result exposes
-`width_mm()` and `height_mm()` for the derived content spans.
-The SVG renderer exposes `glyph_coverage()` for its built-in vector resource and rejects notation
-outside the reported clef/accidental coverage with a typed error; it never silently emits a blank
-critical glyph.
+## What Acorde provides
 
-This API deliberately does not select or embed fonts, draw glyphs, generate PDF, open files,
-invoke OS printer APIs, or provide a preview UI. Those responsibilities belong to
-`acorde-render-svg` or the consuming application/backend. The CLI `print-report` command exposes
-the same layout contract for headless publication preflight. Its versioned report preserves the
-input format/schema, import diagnostics, and renderer preflight issues alongside the `layout`
-result, and `--fail-on-issues` provides a loss-aware CI gate; it does not add a PDF or printer
-dependency.
+- `PrintPreset`: deterministic A4/Letter full-score and extracted-part starting configurations.
+- `PrintConfig`: paper, margins, bleed/safe area, scale, measures/systems capacity, pickup,
+  keep-together, notation-break, final-page, color, crop-mark, glyph-resource, and publication
+  policies.
+- `PrintLayoutResult`: stable page/system addresses, physical measure spans, break reasons,
+  multirest ownership, page-scoped span continuations, and publication metadata.
+- `PublicationConfig`: title-page, running title, header/footer, page number, part label,
+  section, spacer, frame, and image-resource descriptors. Image bytes and drawing stay outside
+  the contract.
 
-The `Balance` final-page policy redistributes automatically paginated systems as evenly as
-possible and is disabled when explicit page breaks are present. The current contract is a
-foundation, not full engraving parity: font-aware collision optimization and final print SVG
-export remain host-side work. Unsupported or incomplete notation must continue to be
-reported through the format capability boundaries rather than treated as lossless.
+The serialized print-layout contract is version **32**. Consumers must validate a received
+`PrintLayoutResult` before reuse; incompatible contract versions, invalid page/system addresses,
+non-finite geometry, and invalid page metadata are rejected.
+
+## Deterministic layout rules
+
+Explicit system/page breaks are preserved. Keep-together ranges and notation-aware repeat/volta
+policies either fit a system/page or return a typed error; they are never silently split.
+Multirests retain their underlying physical extent. `FinalPagePolicy::Balance` balances automatic
+pagination, but does not override explicit breaks. Extracted-part layout is an explicit view and
+does not mutate the score.
+
+`PageLayout::span_segments` and `SystemLayout::span_segments` identify continuation ownership so
+a renderer does not reconstruct spans by index arithmetic. `measure_marks` carries repeats,
+voltas, navigation, rehearsal marks, and normalized text annotations for the primary score staff.
+
+## Host boundary
+
+acorde owns logical geometry, collision constraints, glyph-resource descriptors, and preflight.
+The host owns font lookup and metrics, shaping, embedding, raster output, PDF backend, save/preview
+UI, and OS printing. Built-in vector glyph coverage is checked before SVG output; unsupported
+critical glyphs are rejected rather than silently blanked.
+
+Therefore a successful layout or SVG preflight is not proof of shaped-font collision quality,
+PDF fidelity, font embedding, or printer output.
+
+## Phase 19A corpus gate
+
+[`benchmarks/print/phase19a.json`](../benchmarks/print/phase19a.json) pins self-authored fixtures
+for rich notation, multipart scores, tablature, and explicit system/page breaks.
+
+```bash
+python3 -B scripts/validate_print_corpus.py --acorde target/debug/acorde
+```
+
+The runner validates fixture provenance, repeats `print-report` and non-interactive SVG preflight,
+requires deterministic output with finite geometry, and rejects import or renderer issues. CI runs
+`--check-only`, which validates the fixture contract without requiring a built renderer.
+
+Use `acorde print-report --fail-on-issues` for a machine-readable local publication preflight.
+It deliberately does not create a PDF or contact a printer.

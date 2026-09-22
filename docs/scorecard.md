@@ -5,9 +5,9 @@ inventory of the current contracts, not a claim of parity with MuseScore, music2
 Verovio. Capability labels must remain aligned with the [notation coverage matrix](notation-coverage.md)
 and backed by a fixture or focused test.
 
-The current serialized contracts are SVG render metadata version 15, analysis result version 13,
-print layout version 27,
-glyph-resource metadata version 1, and tablature performance version 3; all values are recorded in
+The current serialized contracts are SVG render metadata version 22, analysis result version 13,
+print layout version 32, glyph-resource metadata version 1, and tablature performance version 4;
+all values are recorded in
 `scorecard.json` and must be updated together with their contract documentation and regression
 tests. The physical print layout is also exposed through WASM and the browser adapter; this does
 not include PDF, font embedding, or printer APIs.
@@ -24,3 +24,6 @@ The `evidence.security_checks` commands are local release gates and now match th
 workflow, including formatting, all-feature/all-target validation, and workspace packaging.
 Browser E2E, cross-browser raster fidelity, and host-measured latency require their respective
 environments and are not claimed by native Rust test results alone.
+
+Release v1.2.2 is published on 2026-09-22; `external_publication_verified` records that release
+state only, not ecosystem compatibility or downstream adoption.

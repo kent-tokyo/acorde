@@ -2,15 +2,15 @@
   "schema_version": 1,
   "release": "1.2.2",
   "contracts": {
-    "svg_render_metadata": 15,
+    "svg_render_metadata": 22,
     "analysis_result": 13,
-    "print_layout": 27,
+    "print_layout": 32,
     "glyph_resource": 1,
-    "tab_performance": 3
+    "tab_performance": 4
   },
   "policy": {
     "claims_require_fixture_or_focused_test": true,
-    "external_publication_verified": false,
+    "external_publication_verified": true,
     "phase_6_local_gates_complete": true,
     "benchmark_latency_is_host_measured": true
   },

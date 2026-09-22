@@ -48,6 +48,16 @@ jobs:
               -runs=100 -max_len=4096 -timeout=5 -rss_limit_mb=512
           done
 
+  interoperability-contract:
+    name: External interoperability contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate external-interoperability and print corpus contracts
+        run: |
+          python3 -B scripts/validate_interoperability_manifest.py
+          python3 -B scripts/validate_print_corpus.py --check-only
+
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

@@ -34,6 +34,13 @@ particular, a dataset's top-level license does not by itself establish that ever
 transcription is redistributable. Only individually reviewed Public Domain/CC0 or otherwise
 permission-cleared files may be promoted into the checked-in fixture corpus.
 
+The Phase 18 external-comparison corpus contract is
+[`benchmarks/interoperability/phase18a.json`](../../benchmarks/interoperability/phase18a.json).
+It reuses only registered fixtures and requires a separate output SHA-256, external-tool version,
+options, typed semantic changes, and source/candidate loss diagnostics. External artifacts are
+not added automatically: a nonzero producer exit or unreviewed provenance remains an observation,
+not a passing compatibility gate.
+
 `UprightPianoKW-small-20190703.sf2` is a real SF2 fixture from the FreePats Upright Piano KW
 sound bank. It is released under the CC0 1.0 public-domain dedication:
 [source and license](https://freepats.zenvoid.org/Piano/acoustic-grand-piano.html). It is used

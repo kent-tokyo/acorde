@@ -1,0 +1,52 @@
+{
+  "contract_version": 1,
+  "name": "phase19a-print-layout-corpus",
+  "fixture_manifest": "tests/fixtures/manifest.json",
+  "claim_boundary": "This validates deterministic logical print-layout reports and preflight diagnostics. It does not validate glyph rasterization, PDF generation, font embedding, or OS printing.",
+  "cases": [
+    {
+      "id": "rich-notation",
+      "source": "tests/fixtures/fragment_rich.musicxml",
+      "coverage": ["voice layers", "lyrics", "tuplet", "slur", "expression text"],
+      "preset": "a4-score",
+      "measures_per_system": 2,
+      "systems_per_page": 1,
+      "minimum_pages": 1,
+      "minimum_systems": 1,
+      "minimum_span_segments": 1
+    },
+    {
+      "id": "multipart-score",
+      "source": "tests/fixtures/multipart.musicxml",
+      "coverage": ["multiple parts", "multiple staves"],
+      "preset": "a4-score",
+      "measures_per_system": 2,
+      "systems_per_page": 1,
+      "minimum_pages": 1,
+      "minimum_systems": 1,
+      "minimum_span_segments": 0
+    },
+    {
+      "id": "tablature",
+      "source": "tests/fixtures/external_tab.musicxml",
+      "coverage": ["tablature staff", "string and fret notation"],
+      "preset": "a4-score",
+      "measures_per_system": 2,
+      "systems_per_page": 1,
+      "minimum_pages": 1,
+      "minimum_systems": 1,
+      "minimum_span_segments": 0
+    },
+    {
+      "id": "explicit-section-breaks",
+      "source": "tests/fixtures/section_breaks.musicxml",
+      "coverage": ["system break", "page break"],
+      "preset": "a4-score",
+      "measures_per_system": 2,
+      "systems_per_page": 1,
+      "minimum_pages": 2,
+      "minimum_systems": 2,
+      "minimum_span_segments": 0
+    }
+  ]
+}

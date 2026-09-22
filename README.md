@@ -1,86 +1,32 @@
 # acorde
 
-Platform-agnostic music score library for Rust and WebAssembly (v1.2.2).
+Platform-neutral Rust and WebAssembly score infrastructure (v1.2.2).
 
-acorde provides a serializable score model, undoable commands, format I/O, logical layout,
-deterministic SVG rendering, playback events, and WASM bindings. Core libraries are synchronous,
-UI-free, and do not access the filesystem.
-
-## Crates
-
-| Crate | Purpose |
-|---|---|
-| `acorde-core` | Score model, commands, validation, playback, and music-theory helpers |
-| `acorde-io` | MusicXML/MXL and MIDI I/O; optional ABC and MuseScore MSCZ/MSCX I/O |
-| `acorde-layout` | Pixel-free rows, spans, beams, tuplets, accidental marks, and logical print pages |
-| `acorde-render-svg` | Pure Rust/WASM SVG renderer; depends on core and layout |
-| `acorde-wasm` | JavaScript bindings for I/O, editing, layout, and SVG |
-| `acorde-cli` | File-based conversion and inspection commands |
-| `acorde-analysis` | Deterministic, explainable harmony and SATB analysis |
-| `acorde-soundfont` | Optional bounded SF2/SF3 metadata and provider-neutral playback boundary |
-| `acorde` | Umbrella crate re-exporting core, io, and layout |
+acorde provides a serializable score model, undoable edits, bounded notation I/O, logical layout,
+deterministic SVG, playback-event projection, analysis primitives, and WASM bindings. Library
+crates are synchronous, UI-free, and do not read or write files.
 
 ```text
 input bytes/text → acorde-io → Score → acorde-layout → LayoutResult
                                       └──────────────→ acorde-render-svg → SVG
 ```
 
-The umbrella crate does not re-export `acorde-render-svg`; depend on that crate directly when
-rendering.
+## Crates
 
-See the [notation coverage matrix](docs/notation-coverage.md) for the supported interchange
-slices and known information-loss boundaries.
-The bounded, version- and checksum-pinned [external music21 analysis protocol](docs/external-analysis-evidence.md)
-records a smoke comparison without claiming general analysis parity.
-The checksum-pinned [external interoperability evidence](docs/external-interoperability-evidence.md)
-records bounded Verovio, MuseScore, and alphaTab observations without claiming notation or engraving parity.
-The host-neutral print page contract is described in [print-layout.md](docs/print-layout.md),
-and the page-level SVG requirements are in [print-svg-contract.md](docs/print-svg-contract.md);
-PDF conversion, font resolution, printer access, and preview UI remain host responsibilities.
-The current conservative capability inventory is tracked in the [scorecard](docs/scorecard.md).
-Security boundaries and resource-limit ownership are documented in the [security contract](docs/security/threat-model.md).
+| Crate | Responsibility |
+|---|---|
+| `acorde-core` | Score model, commands, validation, playback, theory helpers |
+| `acorde-io` | MusicXML/MXL and MIDI; optional ABC, MEI, MSCZ/MSCX |
+| `acorde-layout` | Pixel-free logical layout and print-page metadata |
+| `acorde-render-svg` | Deterministic Rust/WASM SVG renderer |
+| `acorde-analysis` | Deterministic explainable harmony and SATB analysis |
+| `acorde-soundfont` | Optional bounded SF2/SF3/provider integration boundary |
+| `acorde-wasm` | JavaScript bindings |
+| `acorde-cli` | File-based conversion and inspection |
+| `acorde` | Umbrella re-export of core, I/O, and layout |
 
-For deterministic score analysis, add `acorde-analysis` directly. `AnalysisCache` supports bounded
-single-score and batch reuse, explicit editor snapshot invalidation, and hit/miss measurements;
-all cache keys include the analysis schema version and canonical score fingerprint.
-Analysis results also expose schema-versioned canonical chord names alongside structured chord
-data, so browser hosts do not need to duplicate notation formatting rules.
-
-```toml
-acorde-analysis = "1.2.2"
-```
-
-The optional `soundfont` feature exposes `acorde::soundfont`, a bounded SF2/SF3
-metadata and provider-neutral note lifecycle boundary. It consumes unchanged
-`PlaybackEvent` values; sample decoding, synthesis, and licensed asset ownership
-remain with the application renderer. The boundary also carries sample regions, deterministic
-zone selection, voice parameters, and bounded decoded-PCM validation. `SampleDecoder`,
-`SampleRenderer`, and the versioned `SoundFontProvider` contract provide the typed provider/host
-integration point. Providers advertise codec and synthesis capabilities; unsupported paths are
-rejected explicitly without bundling licensed codec code or sample assets.
-Malformed SoundFont zones are rejected before scheduling with typed diagnostics.
-The soundfont crate includes bounded SF2 PCM16 decoding and deterministic offline sample-action
-rendering; SF3 Vorbis is an opt-in feature requiring a separately licensed decoder.
-Its `SoundFontPresetZone` mapping API exposes bank/program/key/velocity selection and bounded
-sample frame ranges without requiring Composer to duplicate SoundFont parsing.
-The WASM binding `soundfont_preset_snapshot` exposes the same bounded, deterministic
-bank/program snapshot to browser hosts, including provider version, asset checksum, resolved
-zones, and typed materialization diagnostics; audio decoding and synthesis remain host-owned.
-SoundFont snapshots also expose source channel layout and decode channel count. Use the snapshot
-decode method for materialized SF3 regions so the host selects the matching Ogg stream rather than
-assuming the first payload; linked SF2 stereo remains an explicit pair of mono source regions.
-For the umbrella crate, enable `soundfont-sf3-vorbis` to forward that feature to the SoundFont
-adapter.
-
-Interchange APIs also provide typed `ImportReport` and `ExportReport` wrappers for structured
-conversion diagnostics. WASM exposes report-returning variants for supported import formats and
-MusicXML, MEI, MIDI, ABC, MSCX, and MSCZ exports.
-MIDI pitch-bend events retain their tick, channel, and signed 14-bit value through the score
-model and MIDI round-trip.
-MSCX import reports source-located diagnostics when malformed numeric fields require a safe
-canonical fallback; callers can distinguish invalid source data from an authored default.
-Pitch scientific-name formatting preserves extended accidental runs, while parsing rejects
-accidental input that would overflow the canonical alteration range.
+`acorde-render-svg` is intentionally not re-exported by the umbrella crate; add it directly when
+rendering SVG.
 
 ## Quick start
 
@@ -90,11 +36,10 @@ acorde = "1.2.2"
 acorde-render-svg = "1.2.2"
 ```
 
-The default I/O features are `musicxml` and `midi`; enable the optional `abc`, `mscz`, or `mei`
-features when needed:
+Default I/O features are MusicXML and MIDI. Enable optional formats explicitly:
 
 ```toml
-acorde = { version = "1.2.2", features = ["abc", "mscz", "mei"] }
+acorde = { version = "1.2.2", features = ["abc", "mei", "mscz"] }
 ```
 
 ```rust
@@ -107,177 +52,58 @@ let score: &Score = engine.score();
 # let _ = score;
 ```
 
-## Format support
+## Format and host boundaries
 
-`acorde-io` exposes `parse_musicxml`, `parse_mxl`, `serialize_musicxml`, `parse_midi`,
-`serialize_midi`, and `serialize_midi_region` with the default `musicxml` and `midi` features.
-The `abc` feature adds ABC parse/serialize; `mscz` adds MuseScore `.mscz`/`.mscx` parsing and
-canonical-subset serialization; `mei` adds the documented MEI subset import/export boundary.
-Parsers accept memory buffers and return typed errors. They do not read files.
-MSCX/MSCZ export also has report variants that identify fields omitted by the bounded subset.
-The WASM API also provides `parse_musicxml_render_svg`, `parse_mxl_render_svg`, `parse_mei_render_svg`,
-`parse_abc_render_svg`, and `parse_midi_render_svg` as bounded one-call paths from documented
-inputs to canonical SVG. MuseScore XML and archive inputs are also covered by
-`parse_mscx_render_svg` and `parse_mscz_render_svg`; use the corresponding `*_report` functions
-when import diagnostics are needed.
-MusicXML voice numbers are retained independently from the four canonical `Measure.voices`
-editing slots, so sparse source identifiers such as 1 and 5 survive a round-trip unchanged.
-Standard `backup`/`forward` cursor movement becomes explicit canonical rests, while malformed
-cursor underflow or measure overflow is rejected rather than silently reordered.
-Tablature string/fret positions and fractional MusicXML alterations are preserved in the score
-model; common ABC (`^/`, `_/`) and MEI (`qs`, `qf`) quarter-accidental subsets are also supported.
-Authored ties never render through rest endpoints; SVG metadata exposes typed tie start/end flags
-for hosts that synchronize editing and playback without reparsing geometry.
+MusicXML/MXL is the broadest supported interchange path. MIDI, ABC, MEI, and MSCZ/MSCX are
+documented subsets, not lossless-compatibility promises. Use typed `ImportReport`, `ExportReport`,
+or `compatibility-report` when a workflow must inspect omission, normalization, or semantic
+difference.
 
-## SVG and browser API
+acorde owns score semantics, logical geometry, deterministic SVG, and versioned browser/WASM
+contracts. Hosts own filesystem/UI, audio rendering, font discovery and embedding, PDF backends,
+print dialogs, and browser end-to-end presentation. A SoundFont provider can consume Acorde
+playback events, but synthesis and asset licensing remain host concerns.
 
-`acorde-render-svg` offers `render_svg`, `render_svg_with_layout`, `render_svg_row`, and
-`render_svg_metadata`, plus `render_preflight` for source-located capability checks before SVG
-emission. It emits deterministic SVG with optional `data-note-addr` hooks and returns errors for
-unsupported clefs, accidentals, layouts, rows, or render options.
-`render_svg_metadata` exposes contract-v21 `tablature_positions`, typed note semantics,
-object-attached style overrides, and MusicXML harp-pedal diagrams with stable staff/measure
-locations. Browser hosts can consume those contracts without reparsing SVG geometry.
-
-For a deterministic cross-format comparison, use `acorde compatibility-report source candidate`.
-It reports positional semantic changes and import diagnostics for both files without claiming
-lossless interchange.
-Add `--fail-on-differences` in CI when any semantic change should fail the gate.
-Use `--fail-on-loss` when typed conversion losses must also fail the gate.
-The report also includes explicit `semantic_equivalent` and `lossless` fields; `lossless` means
-that the score is equivalent and no typed conversion loss was reported.
-`analysis_changed_categories` reports which deterministic analysis categories changed.
-The difference gate covers both score and analysis changes, with the latter exposed as
-`analysis_equivalent`.
-
-Playback events include stable string and typed source note addresses for synchronizing audio
-cursors with notation selection. The WASM package exposes the same pipeline plus `ScoreEngine`, score diff/patch, validation,
-playback, theory helpers, deterministic tablature fingering selection, and explainable score analysis through
-`analyze_score`; its `AnalysisCache` class provides bounded repeated analysis and hit/miss stats.
-The WASM `diff_analysis` call identifies changed analysis categories between two result JSON
-payloads, while `AnalysisCache.analyze_after_edit_with_diff` returns the edited result and its
-category diff together for incremental editor updates.
-`affected_analysis_categories` maps a serialized `ChangeHint` to conservative analysis refresh
-categories for host-side incremental update planning.
-`AnalysisCache.analyze_after_edit_with_hint` combines that planning step with cached incremental
-analysis and the deterministic category diff.
-`analysis_refresh_plan` additionally separates measure-local categories from score-global
-dependencies and reports one-measure context on either side for boundary-sensitive passes.
-`analysis_provenance` returns the deterministic rule, confidence, source evidence, and canonical
-chord label (when applicable) attached to a selected `NoteAddr` without rerunning analysis.
-`explain_analysis_change` combines that lookup for before/after results with the category diff.
-`compatibility_report` combines canonical score differences with deterministic analysis-category
-changes for browser-side compatibility gates; format diagnostics remain in the `*_report` APIs.
-The framework-neutral browser adapter additionally provides transactional loading for MusicXML,
-MXL, MEI, ABC, MIDI, MSCX, and MSCZ, loss-aware import reports, renderer preflight, and
-MusicXML/MEI/ABC/MIDI export. It keeps audio synthesis, font selection, PDF, and OS printing in
-the host.
-See [the browser contract](docs/browser-rendering.md) and the
-[browser fixture](examples/browser/README.md).
-
-`PlaybackOptions::realization_profile` defaults to `Authored`, preserving ornaments and
-arpeggiation as source semantics. Select `OrnamentArpeggioV1` only when a deterministic preview
-schedule with generated ornament attacks and chord staggering is wanted; it is not a claim of
-historical-performance or synthesis parity.
-
-For host-neutral print pagination, `PublicationConfig` supports the legacy single running text as
-well as `PublicationPageTemplate` values for odd/even headers and footers. The layout result
-contains the selected text blocks and their physical boxes; rendering, font selection, and PDF
-generation remain host-owned.
+The detailed boundary and tested slices are in the [notation coverage matrix](docs/notation-coverage.md).
+The [scorecard](docs/scorecard.md) is a conservative inventory, and the
+[external evidence](docs/external-interoperability-evidence.md) records bounded observations only.
 
 ## CLI
 
 ```bash
 acorde convert input.mid output.musicxml
-acorde convert input.musicxml output.abc
-acorde convert input.musicxml output.mei
 acorde render input.musicxml output.svg
 acorde render-report input.musicxml output.svg --fail-on-issues
-acorde print-report input.musicxml --preset a4-score --measures-per-system 3 --systems-per-page 4 --title-page --fail-on-issues \
-  --final-page-policy balance --scale 1.05
-acorde print-report input.musicxml --preset letter-part --part 0 --measures-per-system 3 \
-  --running-title "Suite" --page-number-in-footer
-acorde info input.musicxml
+acorde print-report input.musicxml --preset a4-score --fail-on-issues
 acorde validate input.musicxml
-acorde preflight input.musicxml
-acorde preflight input.musicxml --fail-on-issues
-acorde validate guitar.musicxml       # includes tablature line/tuning/string checks
-acorde extract --part 0 input.musicxml part.musicxml
-acorde transpose --semitones 2 input.musicxml transposed.musicxml
-acorde normalize input.musicxml normalized.musicxml
-acorde export-report input.musicxml exported.musicxml
-acorde export-report input.musicxml exported.abc
-acorde export-report input.musicxml exported.mei
-acorde tab-position guitar.musicxml edited.musicxml --part 0 --measure 0 --note 1 --string 2 --fret 3
-acorde auto-tab guitar.musicxml guitar-tabbed.musicxml
-acorde auto-tab-report guitar.musicxml guitar-tabbed.musicxml
-acorde tab-performance-report guitar-tabbed.musicxml --bpm 120 --fail-on-diagnostics
-acorde playback-report input.musicxml --bpm 120 --loop-start 0 --loop-end 3
-acorde playback-compare expected.json actual.json --fail-on-mismatch
+acorde compatibility-report source.musicxml candidate.musicxml --fail-on-differences
+acorde playback-report input.musicxml --bpm 120
 ```
 
-The CLI supports `.musicxml`, `.mxl`, `.mid`/`.midi`, `.abc`, `.mei`, `.mscz`, and `.mscx` input.
-Conversion output is MusicXML, MIDI, ABC, MEI, or the deterministic canonical MSCX/MSCZ subset.
-`render` accepts the same score inputs and writes deterministic SVG through `acorde-render-svg`;
-use `--width`, `--staff-size`, and `--measures-per-system` to select the host-neutral render
-geometry. Address hooks remain enabled by default and can be omitted with `--no-interactive`.
-`render-report` additionally emits its own `render_report_schema_version`, import diagnostics,
-renderer preflight issues, render status, and
-a deterministic local `fnv1a64-*` `svg_fingerprint` as JSON; rejected renders contain
-`render_error` and do not write incomplete SVG. `--fail-on-issues` provides a deterministic CI gate.
-The fingerprint is evidence of local byte determinism, not a cryptographic publication hash.
-`print-report` emits a versioned JSON report containing input format/schema, import diagnostics,
-and renderer preflight issues,
-plus the host-neutral page/system plan under `layout`, including physical page geometry,
-break reasons, publication metadata, measure text annotations, and resource/span diagnostics.
-Use `--preset a4-score` or `--preset letter-score` for full scores, and
-`--preset a4-part`/`--preset letter-part` with `--part` for extracted parts. Other layout options
-override only the selected preset's deterministic starting configuration. `--fail-on-issues` makes
-any import or renderer issue a non-zero CI result while retaining the JSON report. It does not generate PDF
-or access a printer. `--running-title`, `--header-text`, `--footer-text`,
-`--page-number-in-footer`, and `--no-part-names` control publication metadata without selecting
-fonts or changing score semantics.
-`--scale`, `--first-system-measures`, `--final-page-policy`, `--notation-break-policy`, and
-`--pickup-policy` expose the existing deterministic system-breaking policies.
-`validate` performs the same local structural checks for tablature metadata and explicit string
-positions; it does not require a SoundFont or network access.
-`preflight` reports SVG renderer capability boundaries before rendering.
-With `--fail-on-issues`, it also returns status 1 when any issue is detected.
-`tab-position --clear` removes an explicit position; all indices are zero-based except the
-one-based `--string` value.
-`auto-tab` assigns missing single-note and chord positions while minimizing fret load and
-movement between successive notes.
-`auto-tab-report` additionally prints deterministic assignment and fret-load metrics as JSON.
-`tab-performance-report` projects authored string/fret positions onto the playback schedule and
-reports tuning, capo, and pitch mismatches as typed JSON diagnostics; it never invents positions.
-Use `--fail-on-diagnostics` as a local CI gate.
-`playback-report` emits the deterministic expected event schedule that a browser or Composer host
-can compare with its scheduled trace. `--loop-start` and `--loop-end` restrict the report to an
-inclusive physical-measure range. The CLI applies the core comparison event limit before emitting
-the JSON; the WASM schedule API applies the same limit.
-`playback-compare` compares that schedule with a host-produced JSON trace using explicit timing
-tolerances and can act as a CI gate with `--fail-on-mismatch`. Input JSON is bounded to 64 MiB.
+Additional commands cover `info`, `report`, `preflight`, `analyze`, `benchmark`, `extract`,
+`transpose`, `normalize`, tablature assignment/performance, playback comparison, and
+machine-readable export reports. Run `acorde --help` for the complete, versioned command surface.
+CLI owns file access; the underlying library APIs accept in-memory strings or bytes.
+
+## Documentation
+
+- [Japanese overview](README_ja.md)
+- [Notation coverage and known losses](docs/notation-coverage.md)
+- [Migration notes](docs/migrations.md)
+- [Print layout contract](docs/print-layout.md) and [page-SVG contract](docs/print-svg-contract.md)
+- [Browser contract](docs/browser-rendering.md) and [browser support checks](docs/browser-support.md)
+- [Performance evidence](docs/performance.md), [security contract](docs/security/threat-model.md), and [contribution guide](CONTRIBUTING.md)
 
 ## Development
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for model, fixture, and capability-boundary rules.
-
 ```bash
-cargo test --all-features --locked
-cargo clippy --all --all-features --locked -- -D warnings
+cargo fmt --all -- --check
+cargo test --workspace --all-features --locked
+cargo clippy --workspace --all-features --locked --all-targets -- -D warnings
 ```
 
-For the browser fixture:
-
-```bash
-wasm-pack build crates/wasm --target web
-python3 -m http.server 8000
-```
-
-See [browser support](docs/browser-support.md), [performance](docs/performance.md), and
-[visual regression](docs/visual-regression.md) for focused checks. The Score JSON schema is
-currently version 1. See [CHANGELOG.md](CHANGELOG.md) for release notes and [README_ja.md](README_ja.md)
-for a Japanese overview. Compatibility notes for older releases are in [migrations.md](docs/migrations.md).
+Run focused package, fuzz, WASM, browser, or external-tool checks when changing those surfaces.
+Fixture provenance and capability boundaries are part of the review contract.
 
 ## License
 
