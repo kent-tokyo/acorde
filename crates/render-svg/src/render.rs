@@ -2441,7 +2441,7 @@ fn render_measure(
         )?;
     }
 
-    render_measure_semantic_annotations(
+    let semantic_placements = render_measure_semantic_annotations(
         body,
         measure,
         part,
@@ -2465,6 +2465,7 @@ fn render_measure(
         space,
         interactive,
         note_points,
+        &semantic_placements,
     )?;
 
     body.push_str("</g>");
@@ -2514,7 +2515,7 @@ fn render_measure_semantic_annotations(
     note_points: &HashMap<NoteKey, NotePoint>,
     space: f32,
     kinds: MeasureSemanticAnnotationKinds,
-) -> Result<(), RenderError> {
+) -> Result<Vec<acorde_layout::GlyphPlacement>, RenderError> {
     let mut annotations = Vec::new();
     let mut placements = Vec::new();
     let mut classes = Vec::new();
@@ -2664,7 +2665,7 @@ fn render_measure_semantic_annotations(
     .map_err(|_| RenderError::InvalidNotePlacement {
         field: "semantic annotation collision",
     })?;
-    for (annotation, placement) in annotations.into_iter().zip(placements) {
+    for (annotation, placement) in annotations.into_iter().zip(placements.iter()) {
         match annotation {
             MeasureSemanticAnnotation::Text {
                 class,
@@ -2679,7 +2680,7 @@ fn render_measure_semantic_annotations(
             } => render_articulation(body, articulation, x, placement.y_mm, direction, space),
         }
     }
-    Ok(())
+    Ok(placements)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3253,13 +3254,21 @@ fn render_measure_text(
     space: f32,
     interactive: bool,
     note_points: &HashMap<NoteKey, NotePoint>,
+    resolved_annotations: &[acorde_layout::GlyphPlacement],
 ) -> Result<(), RenderError> {
     let mut above_texts = 0usize;
     let mut below_texts = 0usize;
     let entries = measure_text_entries(measure);
-    let mut placements = Vec::with_capacity(entries.len());
-    let mut classes = Vec::with_capacity(entries.len());
-    let mut directions = Vec::with_capacity(entries.len());
+    let annotation_count = resolved_annotations.len();
+    let mut placements = resolved_annotations.to_vec();
+    let mut classes = vec![acorde_layout::GlyphCollisionClass::Critical; annotation_count];
+    let mut directions = vec![acorde_layout::GlyphCollisionDirection::Fixed; annotation_count];
+    for placement in &mut placements {
+        placement.priority = u8::MAX;
+    }
+    placements.reserve(entries.len());
+    classes.reserve(entries.len());
+    directions.reserve(entries.len());
     for (text_index, styled) in entries.iter().enumerate() {
         let placement_below = styled
             .placement
@@ -3331,7 +3340,11 @@ fn render_measure_text(
     )
     .map_err(|_| RenderError::InvalidMeasureTextOffset { field: "collision" })?;
 
-    for ((text_index, styled), placement) in entries.into_iter().enumerate().zip(placements) {
+    for ((text_index, styled), placement) in entries
+        .into_iter()
+        .enumerate()
+        .zip(placements.into_iter().skip(annotation_count))
+    {
         let text_x = placement.x_mm;
         let y = placement.y_mm;
         let class = measure_text_class(styled.style);
