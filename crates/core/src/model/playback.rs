@@ -2786,6 +2786,67 @@ mod tests {
     }
 
     #[test]
+    fn offline_manifest_frames_cover_repeat_ramp_fermata_pedal_bend_and_instrument_change() {
+        let mut score = Score::new("fixture", 120, 4, 4, 0, 2);
+        let mut first = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        first.pedal_start = true;
+        first.articulations = vec![Articulation::Fermata, Articulation::BreathMark];
+        first.guitar_bend_curve = vec![GuitarBendPoint {
+            position_per_mille: 500,
+            alter_cents: 100,
+        }];
+        score.parts[0].staves[0].measures[0].voices[0] = vec![first];
+        score.parts[0].staves[0].measures[0].barline_left =
+            super::super::notation::Barline::RepeatStart;
+        score.parts[0].staves[0].measures[0].tempo_ramp_to = Some(60);
+
+        score.parts[0].staves[0].measures[1].voices[0] =
+            vec![Note::new(Pitch::new(Step::D, 4), Duration::Quarter)];
+        score.parts[0].staves[0].measures[1].barline_right =
+            super::super::notation::Barline::RepeatEnd;
+        let mut flute = crate::InstrumentDefinition::new("flute", "Flute");
+        flute.midi_channel = 2;
+        flute.midi_program = 73;
+        score.parts[0].staves[0].measures[1].instrument_change = Some(flute);
+
+        let request = OfflineRenderRequest {
+            sample_rate_hz: 48_000,
+            playback_options: Some(PlaybackOptions {
+                fermata_multiplier: 1.5,
+                fermata_hold_beats: 0.25,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let manifest = build_offline_render_manifest(&score, &PlaybackOptions::default(), &request)
+            .expect("fixture manifest");
+        assert_eq!(manifest.frame_events.len(), 4);
+        let measures: Vec<usize> = manifest
+            .frame_events
+            .iter()
+            .map(|event| event.event.source.as_ref().unwrap().measure)
+            .collect();
+        assert_eq!(measures, vec![0, 1, 0, 1]);
+        assert!(manifest.frame_events[0].event.pedal);
+        assert_eq!(manifest.frame_events[0].event.post_note_pause_beats, 0.25);
+        assert_eq!(manifest.frame_events[0].event.pitch_bend_curve.len(), 1);
+        assert_eq!(
+            manifest.frame_events[1].event.instrument_id.as_deref(),
+            Some("flute")
+        );
+        assert_eq!(manifest.frame_events[3].event.program, 73);
+
+        let ramp_duration = tempo_ramp_seconds(120.0, Some(60.0), 4.0, 4.0);
+        let expected_starts = [0.0, ramp_duration, ramp_duration + 4.0, ramp_duration + 8.0];
+        for (frame_event, expected_secs) in manifest.frame_events.iter().zip(expected_starts) {
+            assert_eq!(
+                frame_event.start_frame,
+                (expected_secs * 48_000.0).round() as u64
+            );
+        }
+    }
+
+    #[test]
     fn offline_render_manifest_reports_unresolved_selection_address() {
         let score = Score::new("T", 120, 4, 4, 0, 1);
         let request = OfflineRenderRequest {
