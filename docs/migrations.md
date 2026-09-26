@@ -25,6 +25,17 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
+### Unreleased — measure lengths and lyric verses
+
+`Measure.actual_length` and `Note.additional_lyrics` are optional, serde-defaulted fields: older
+JSON loads unchanged and omits them on save when empty. Rust code that builds `Measure` or `Note`
+with struct literals must add the fields (or use `..Measure::empty(..)` / `..Note::new(..)`).
+Consumers that exhaustively match `ValidationError` must handle `InvalidMeasureLength` and
+`InvalidLyricVerse`. Code that derives a measure's length from its time signature should call
+`Measure::duration_beats`, which honors a pickup or irregular length. `SetLyricCmd` gains an
+optional `verse`; omitting it keeps the verse-1 behavior. MusicXML measures whose content ends
+before the time signature now import at their authored length instead of being padded with rests.
+
 ### v1.2.0 — SoundFont materialized decoding
 
 `SoundFontPresetZone` is now constructed through `SoundFontPresetZone::new` or

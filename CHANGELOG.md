@@ -9,6 +9,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **[schema]** Added optional `Measure.actual_length` (`MeasureLength`, a fraction of a whole note)
+  for pickups, incomplete final bars, and other irregular measures. Validation, playback timing,
+  metronome clicks, editing capacity, time-signature changes, logical layout, and SVG spacing use
+  it instead of the time signature. MusicXML import keeps a measure whose content ends before the
+  time signature at its authored length instead of padding it with rests; export writes the
+  shorter content and marks a shortened first measure `implicit="yes"`. MSCX/MSCZ import and
+  export map it to MuseScore's `<Measure len="n/d">`. Invalid lengths are reported as
+  `ValidationError::InvalidMeasureLength`.
+- **[schema]** Added optional `Note.additional_lyrics` (`VerseLyric`) for lyric verses 2–32;
+  verse 1 remains `Note.lyric`. MusicXML `<lyric number>` and MuseScore `<Lyrics><no>` import and
+  export every verse instead of letting a later verse overwrite verse 1; unnumbered or duplicate
+  numbers take the lowest free verse. `SetLyric` gains an optional `verse` (legacy JSON still
+  targets verse 1), SVG draws each verse on its own line, and ABC, MEI, and MIDI export report
+  unwritten verses as `*.export-unsupported-lyric-verse` losses. Invalid or duplicate verse
+  numbers are reported as `ValidationError::InvalidLyricVerse`.
+
 ## [1.2.4] - 2026-09-27
 
 - MusicXML `<staves>` now materializes every declared staff, including staves without a numbered
