@@ -31,7 +31,10 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 `SnapPizzicato`; code that exhaustively matches `Articulation` must handle them, and SVG metadata
 consumers should accept the new articulation names. A voice containing only one plain whole rest
 now lasts its whole measure in every time signature, so code that sums note beats to measure a
-voice should call `voice_duration_beats`.
+voice should call `voice_duration_beats`. `Measure.measure_repeat` is an optional, serde-defaulted
+field; exhaustive matches must handle `ValidationError::InvalidMeasureRepeat` and
+`ValidationWarning::MeasureRepeatContentDiffers`, and Rust struct literals of `Measure` must add the
+field.
 
 ### Unreleased — measure lengths and lyric verses
 

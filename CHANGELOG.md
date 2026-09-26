@@ -21,8 +21,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and MSCX export writes them as `measure` rests of the bar's length.
 - Added `Articulation::{UpBow, DownBow, Harmonic, OpenString, Stopped, SnapPizzicato}` with
   MusicXML `<technical>`, MSCX, MEI, ABC, and SVG support (ABC reports the harmonic as a loss).
-- MusicXML measure/beat repeats and slash styles, lyric extend/elision, dashes, brackets,
-  non-arpeggiate, and harmony frames, and MSCX measure repeats, are now source-diagnosed.
+- **[schema]** Added optional `Measure.measure_repeat` for one-measure repeats. The measure stores a
+  playable copy of the repeated measure, so playback and validation need no special handling; SVG
+  draws the repeat sign instead of the copy. MusicXML `<measure-repeat>` start/stop and MuseScore
+  `RepeatMeasure`/`MeasureRepeat`/`measureRepeatCount` import and export. Validation reports
+  `InvalidMeasureRepeat` and warns with `MeasureRepeatContentDiffers` when the copy no longer
+  matches its source. Multi-measure repeats import as written notes and are diagnosed.
+- MusicXML beat repeats and slash styles, lyric extend/elision, dashes, brackets, non-arpeggiate,
+  and harmony frames are now source-diagnosed instead of silently dropped.
 
 ## [1.2.5] - 2026-09-27
 
