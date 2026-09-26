@@ -814,6 +814,12 @@ fn articulation_metadata_name(articulation: &acorde_core::Articulation) -> Strin
         acorde_core::Articulation::Tremolo(level) => format!("tremolo-{level}"),
         acorde_core::Articulation::BreathMark => "breath-mark".to_owned(),
         acorde_core::Articulation::Caesura => "caesura".to_owned(),
+        acorde_core::Articulation::UpBow => "up-bow".to_owned(),
+        acorde_core::Articulation::DownBow => "down-bow".to_owned(),
+        acorde_core::Articulation::Harmonic => "harmonic".to_owned(),
+        acorde_core::Articulation::OpenString => "open-string".to_owned(),
+        acorde_core::Articulation::Stopped => "stopped".to_owned(),
+        acorde_core::Articulation::SnapPizzicato => "snap-pizzicato".to_owned(),
     }
 }
 
@@ -5624,6 +5630,81 @@ pub(crate) fn render_articulation(
                 f(x + 0.28 * space),
                 f(y - dir * 0.45 * space),
                 f(0.1 * space)
+            );
+        }
+        acorde_core::Articulation::DownBow => {
+            // An open bracket whose closed edge faces away from the note.
+            let _ = write!(
+                body,
+                r#"<path class="acorde-articulation acorde-down-bow" d="M {},{} L {},{} L {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                f(x - 0.3 * space),
+                f(y + dir * 0.3 * space),
+                f(x - 0.3 * space),
+                f(y - dir * 0.25 * space),
+                f(x + 0.3 * space),
+                f(y - dir * 0.25 * space),
+                f(x + 0.3 * space),
+                f(y + dir * 0.3 * space),
+                f(0.12 * space)
+            );
+        }
+        acorde_core::Articulation::UpBow => {
+            let _ = write!(
+                body,
+                r#"<path class="acorde-articulation acorde-up-bow" d="M {},{} L {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                f(x - 0.25 * space),
+                f(y - dir * 0.35 * space),
+                f(x),
+                f(y + dir * 0.35 * space),
+                f(x + 0.25 * space),
+                f(y - dir * 0.35 * space),
+                f(0.09 * space)
+            );
+        }
+        acorde_core::Articulation::Harmonic | acorde_core::Articulation::OpenString => {
+            let (class, radius) = if matches!(articulation, acorde_core::Articulation::Harmonic) {
+                ("acorde-harmonic", 0.17)
+            } else {
+                ("acorde-open-string", 0.25)
+            };
+            let _ = write!(
+                body,
+                r#"<circle class="acorde-articulation {class}" cx="{}" cy="{}" r="{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                f(x),
+                f(y),
+                f(radius * space),
+                f(0.08 * space)
+            );
+        }
+        acorde_core::Articulation::Stopped => {
+            let _ = write!(
+                body,
+                r#"<path class="acorde-articulation acorde-stopped" d="M {},{} L {},{} M {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                f(x - 0.3 * space),
+                f(y),
+                f(x + 0.3 * space),
+                f(y),
+                f(x),
+                f(y - 0.3 * space),
+                f(x),
+                f(y + 0.3 * space),
+                f(0.1 * space)
+            );
+        }
+        acorde_core::Articulation::SnapPizzicato => {
+            // A circle with a stroke leaving it away from the note.
+            let _ = write!(
+                body,
+                r#"<g class="acorde-articulation acorde-snap-pizzicato"><circle cx="{}" cy="{}" r="{}" fill="none" stroke="black" stroke-width="{}"/><path d="M {},{} L {},{}" stroke="black" stroke-width="{}"/></g>"#,
+                f(x),
+                f(y),
+                f(0.22 * space),
+                f(0.08 * space),
+                f(x),
+                f(y),
+                f(x),
+                f(y - dir * 0.45 * space),
+                f(0.08 * space)
             );
         }
         acorde_core::Articulation::Fermata

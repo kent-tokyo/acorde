@@ -269,6 +269,12 @@ fn parse_articulation(value: &str) -> Option<Articulation> {
         "trill" | "trill-mark" => Articulation::Trill,
         "breath" => Articulation::BreathMark,
         "caesura" => Articulation::Caesura,
+        "upbow" => Articulation::UpBow,
+        "dnbow" => Articulation::DownBow,
+        "harm" => Articulation::Harmonic,
+        "open" => Articulation::OpenString,
+        "stop" => Articulation::Stopped,
+        "snap" => Articulation::SnapPizzicato,
         _ => return None,
     })
 }
@@ -2767,6 +2773,12 @@ fn append_mei_articulations(out: &mut String, note: &Note) {
             Articulation::Fermata => "fermata",
             Articulation::BreathMark => "breath",
             Articulation::Caesura => "caesura",
+            Articulation::UpBow => "upbow",
+            Articulation::DownBow => "dnbow",
+            Articulation::Harmonic => "harm",
+            Articulation::OpenString => "open",
+            Articulation::Stopped => "stop",
+            Articulation::SnapPizzicato => "snap",
             _ => continue,
         };
         out.push_str(&format!("<artic artic=\"{name}\"/>"));
@@ -3347,6 +3359,12 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                                     | Articulation::Shake
                                     | Articulation::BreathMark
                                     | Articulation::Caesura
+                                    | Articulation::UpBow
+                                    | Articulation::DownBow
+                                    | Articulation::Harmonic
+                                    | Articulation::OpenString
+                                    | Articulation::Stopped
+                                    | Articulation::SnapPizzicato
                             )
                         }) {
                             push(

@@ -266,6 +266,34 @@ pub enum Articulation {
     Tremolo(u8),
     BreathMark,
     Caesura,
+    /// String up-bow (MusicXML `<up-bow/>`).
+    UpBow,
+    /// String down-bow (MusicXML `<down-bow/>`).
+    DownBow,
+    /// Harmonic circle (MusicXML `<harmonic/>`).
+    Harmonic,
+    /// Open string / open mute circle (MusicXML `<open-string/>`).
+    OpenString,
+    /// Stopped note or closed mute "+" (MusicXML `<stopped/>`).
+    Stopped,
+    /// Snap (Bartók) pizzicato (MusicXML `<snap-pizzicato/>`).
+    SnapPizzicato,
+}
+
+impl Articulation {
+    /// String and brass techniques that MusicXML writes inside `<technical>` rather than
+    /// `<articulations>`.
+    pub fn is_technical_mark(&self) -> bool {
+        matches!(
+            self,
+            Self::UpBow
+                | Self::DownBow
+                | Self::Harmonic
+                | Self::OpenString
+                | Self::Stopped
+                | Self::SnapPizzicato
+        )
+    }
 }
 
 /// Guitar-specific playing technique attached to a note.

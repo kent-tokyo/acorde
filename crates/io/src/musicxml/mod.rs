@@ -52,6 +52,7 @@ pub fn loss_diagnostics(xml: &str) -> Vec<crate::Diagnostic> {
                 }
                 push_technique_detail_diagnostic(&name, &event, &path, &mut diagnostics);
                 push_advanced_attribute_diagnostics(&event, &path, &mut diagnostics);
+                push_unsupported_notation_diagnostic(&path, &mut diagnostics);
             }
             Ok(quick_xml::events::Event::Empty(event)) => {
                 let name = String::from_utf8_lossy(event.name().as_ref()).into_owned();
@@ -89,6 +90,7 @@ pub fn loss_diagnostics(xml: &str) -> Vec<crate::Diagnostic> {
                 let mut element_path = path.clone();
                 element_path.push(name);
                 push_advanced_attribute_diagnostics(&event, &element_path, &mut diagnostics);
+                push_unsupported_notation_diagnostic(&element_path, &mut diagnostics);
             }
             Ok(quick_xml::events::Event::End(event)) => {
                 if event.name().as_ref() == b"figured-bass"
@@ -183,6 +185,32 @@ pub fn loss_diagnostics(xml: &str) -> Vec<crate::Diagnostic> {
         }
     }
     diagnostics
+}
+
+/// Report notation that the parser does not model instead of dropping it silently: measure and
+/// beat repeats and slash notation (their measures would otherwise read as rests), lyric extender
+/// lines and elisions, dashed text lines and brackets, non-arpeggio brackets, and chord-diagram
+/// frames. `path` ends with the element itself.
+fn push_unsupported_notation_diagnostic(path: &[String], diagnostics: &mut Vec<crate::Diagnostic>) {
+    let [.., parent, name] = path else {
+        return;
+    };
+    let unsupported = matches!(
+        (parent.as_str(), name.as_str()),
+        ("measure-style", "measure-repeat" | "beat-repeat" | "slash")
+            | ("lyric", "extend" | "elision")
+            | ("direction-type", "dashes" | "bracket")
+            | ("notations", "non-arpeggiate")
+            | ("harmony", "frame")
+    );
+    if unsupported {
+        let mut diagnostic = crate::Diagnostic::warning(
+            format!("musicxml.unsupported-element.{name}"),
+            format!("MusicXML element '{name}' is outside acorde's supported subset"),
+        );
+        diagnostic.source_location = Some(format!("/{}", path.join("/")));
+        diagnostics.push(diagnostic);
+    }
 }
 
 /// Record a part's `<staves>` declaration and diagnose note staff references beyond it. Without a

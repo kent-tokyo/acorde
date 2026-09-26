@@ -47,7 +47,10 @@ pub use serialize::{export_loss_diagnostics, serialize_mscx, serialize_mscz};
 const MAX_ELEMENTS: usize = 500_000;
 const MAX_MSCZ_COMPRESSED: usize = 64 * 1024 * 1024;
 const MAX_MSCZ_ENTRIES: usize = 1024;
-const UNSUPPORTED_MSCX_ELEMENTS: &[&str] = &["Ottava", "Glissando"];
+/// MuseScore elements outside the imported subset. `RepeatMeasure` (3.x) and `MeasureRepeat`
+/// (4.x) mark measures whose repeated content is not stored and would otherwise read as rests.
+const UNSUPPORTED_MSCX_ELEMENTS: &[&str] =
+    &["Ottava", "Glissando", "RepeatMeasure", "MeasureRepeat"];
 const MIN_HARMONY_TPC: i32 = 6;
 const MAX_HARMONY_TPC: i32 = 26;
 
@@ -2465,6 +2468,13 @@ fn mscx_articulation(subtype: &str) -> Option<Articulation> {
         "Accent" => Some(Articulation::Accent),
         "Tenuto" => Some(Articulation::Tenuto),
         "Marcato" => Some(Articulation::Marcato),
+        // MuseScore symbol names for string and brass technique articulations.
+        "stringsUpBow" => Some(Articulation::UpBow),
+        "stringsDownBow" => Some(Articulation::DownBow),
+        "stringsHarmonic" => Some(Articulation::Harmonic),
+        "brassMuteOpen" => Some(Articulation::OpenString),
+        "brassMuteClosed" => Some(Articulation::Stopped),
+        "pluckedSnapPizzicato" => Some(Articulation::SnapPizzicato),
         _ => None,
     }
 }

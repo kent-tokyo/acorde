@@ -2614,3 +2614,33 @@ fn additional_lyric_verses_render_below_verse_one() {
     assert!(svg.contains(">second<"));
     assert!(svg.contains(">first<"));
 }
+
+#[test]
+fn string_technique_marks_render_as_distinct_articulations() {
+    use acorde_core::{Articulation, Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("bowings", 120, 4, 4, 0, 1);
+    let marks = [
+        Articulation::UpBow,
+        Articulation::DownBow,
+        Articulation::Harmonic,
+        Articulation::OpenString,
+    ];
+    score.parts[0].staves[0].measures[0].voices[0] = marks
+        .iter()
+        .map(|mark| {
+            let mut note = Note::new(Pitch::new(Step::A, 4), Duration::Quarter);
+            note.articulations = vec![mark.clone()];
+            note
+        })
+        .collect();
+    let svg = render_svg(&score, &opts()).expect("bowings render");
+    assert_well_formed_xml(&svg);
+    for class in [
+        "acorde-up-bow",
+        "acorde-down-bow",
+        "acorde-harmonic",
+        "acorde-open-string",
+    ] {
+        assert!(svg.contains(class), "missing {class}");
+    }
+}

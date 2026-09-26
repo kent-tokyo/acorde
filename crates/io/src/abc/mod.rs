@@ -905,6 +905,11 @@ fn abc_decoration_articulation(value: &str) -> Option<acorde_core::Articulation>
         "shake" => Some(acorde_core::Articulation::Shake),
         "breath" | "breathmark" | "breath-mark" => Some(acorde_core::Articulation::BreathMark),
         "caesura" => Some(acorde_core::Articulation::Caesura),
+        "upbow" => Some(acorde_core::Articulation::UpBow),
+        "downbow" => Some(acorde_core::Articulation::DownBow),
+        "open" => Some(acorde_core::Articulation::OpenString),
+        "plus" | "+" => Some(acorde_core::Articulation::Stopped),
+        "snap" => Some(acorde_core::Articulation::SnapPizzicato),
         _ => None,
     }
 }
@@ -925,7 +930,13 @@ fn abc_articulation_decoration(articulation: &acorde_core::Articulation) -> Opti
         acorde_core::Articulation::Shake => Some("shake"),
         acorde_core::Articulation::BreathMark => Some("breath"),
         acorde_core::Articulation::Caesura => Some("caesura"),
-        acorde_core::Articulation::Tremolo(_) => None,
+        acorde_core::Articulation::UpBow => Some("upbow"),
+        acorde_core::Articulation::DownBow => Some("downbow"),
+        acorde_core::Articulation::OpenString => Some("open"),
+        acorde_core::Articulation::Stopped => Some("+"),
+        acorde_core::Articulation::SnapPizzicato => Some("snap"),
+        // ABC 2.1 has no harmonic decoration.
+        acorde_core::Articulation::Harmonic | acorde_core::Articulation::Tremolo(_) => None,
     }
 }
 

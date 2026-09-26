@@ -711,6 +711,12 @@ fn articulation_subtype(articulation: &Articulation) -> Option<&'static str> {
         | Articulation::Shake
         | Articulation::BreathMark
         | Articulation::Caesura => None,
+        Articulation::UpBow => Some("stringsUpBow"),
+        Articulation::DownBow => Some("stringsDownBow"),
+        Articulation::Harmonic => Some("stringsHarmonic"),
+        Articulation::OpenString => Some("brassMuteOpen"),
+        Articulation::Stopped => Some("brassMuteClosed"),
+        Articulation::SnapPizzicato => Some("pluckedSnapPizzicatoAbove"),
     }
 }
 

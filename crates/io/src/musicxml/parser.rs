@@ -490,6 +490,10 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "articulations" if in_notations => in_artic_block = true,
                     "ornaments" if in_notations => in_ornament_block = true,
                     "technical" if in_notations => in_technical_block = true,
+                    // `<harmonic>` may carry `<natural/>` or `<artificial/>` children.
+                    "harmonic" if in_technical_block => {
+                        pending_articulations.push(Articulation::Harmonic)
+                    }
                     "glissando" if in_notations => match attr_str(e, b"type").as_deref() {
                         Some("start") => {
                             note_glissando_start = true;
@@ -749,6 +753,24 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     }
                     "pull-off" if in_technical_block => {
                         pending_guitar_technique = Some(GuitarTechnique::PullOff);
+                    }
+                    "up-bow" if in_technical_block => {
+                        pending_articulations.push(Articulation::UpBow)
+                    }
+                    "down-bow" if in_technical_block => {
+                        pending_articulations.push(Articulation::DownBow)
+                    }
+                    "harmonic" if in_technical_block => {
+                        pending_articulations.push(Articulation::Harmonic)
+                    }
+                    "open-string" if in_technical_block => {
+                        pending_articulations.push(Articulation::OpenString)
+                    }
+                    "stopped" if in_technical_block => {
+                        pending_articulations.push(Articulation::Stopped)
+                    }
+                    "snap-pizzicato" if in_technical_block => {
+                        pending_articulations.push(Articulation::SnapPizzicato)
                     }
                     "fermata" if in_notations => pending_articulations.push(Articulation::Fermata),
                     "breath-mark" if in_notations => {

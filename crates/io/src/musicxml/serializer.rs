@@ -1177,7 +1177,11 @@ fn serialize_notations(
         note.trill_line_start || note.trill_line_end || typed_has(NotationSpannerKind::TrillLine);
     let has_artic = !note.articulations.is_empty();
     let has_arp = note.arpeggiate.is_some();
-    let has_technical = note.fingering.is_some()
+    let has_technical = note
+        .articulations
+        .iter()
+        .any(Articulation::is_technical_mark)
+        || note.fingering.is_some()
         || !note.fingerings.is_empty()
         || note.string_number.is_some()
         || note.tab_position.is_some()
@@ -1288,6 +1292,13 @@ fn serialize_notations(
                 Articulation::Tremolo(n) => tremolo_n = Some(*n),
                 Articulation::BreathMark => breath_mark = true,
                 Articulation::Caesura => caesura = true,
+                // Written inside <technical> below.
+                Articulation::UpBow
+                | Articulation::DownBow
+                | Articulation::Harmonic
+                | Articulation::OpenString
+                | Articulation::Stopped
+                | Articulation::SnapPizzicato => {}
             }
         }
         if !tags.is_empty() {
@@ -1348,6 +1359,18 @@ fn serialize_notations(
     }
     if has_technical {
         xml.push_str("          <technical>\n");
+        for articulation in &note.articulations {
+            let tag = match articulation {
+                Articulation::UpBow => "up-bow",
+                Articulation::DownBow => "down-bow",
+                Articulation::Harmonic => "harmonic",
+                Articulation::OpenString => "open-string",
+                Articulation::Stopped => "stopped",
+                Articulation::SnapPizzicato => "snap-pizzicato",
+                _ => continue,
+            };
+            xml.push_str(&format!("            <{tag}/>\n"));
+        }
         if note.fingerings.is_empty() {
             if let Some(f) = note.fingering {
                 xml.push_str(&format!("            <fingering>{}</fingering>\n", f));

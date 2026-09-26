@@ -3509,3 +3509,105 @@ fn mscx_breaks_barlines_and_measure_rests_round_trip() {
     ));
     assert!(measures[2].voices[0][0].is_plain_whole_rest());
 }
+
+fn technique_note_xml(technical: &str) -> String {
+    format!(
+        r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Violin</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>A</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>whole</type><notations><technical>{technical}</technical></notations></note></measure></part></score-partwise>"#
+    )
+}
+
+#[test]
+fn string_technique_marks_round_trip_through_musicxml() {
+    use acorde_core::Articulation;
+    let xml = technique_note_xml(
+        "<up-bow/><down-bow/><harmonic><natural/></harmonic><open-string/><stopped/><snap-pizzicato/>",
+    );
+    let parsed = parse_musicxml(&xml).expect("technique marks parse");
+    let expected = vec![
+        Articulation::UpBow,
+        Articulation::DownBow,
+        Articulation::Harmonic,
+        Articulation::OpenString,
+        Articulation::Stopped,
+        Articulation::SnapPizzicato,
+    ];
+    let note = &parsed.parts[0].staves[0].measures[0].voices[0][0];
+    assert_eq!(note.articulations, expected);
+    let report = acorde_io::serialize_musicxml_with_report(&parsed).expect("marks serialize");
+    assert!(report.output.contains("<technical>"));
+    assert!(report.output.contains("<snap-pizzicato/>"));
+    assert!(!report.output.contains("<articulations>"));
+    let restored = parse_musicxml(&report.output).expect("marks reparse");
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].voices[0][0].articulations,
+        expected
+    );
+}
+
+#[cfg(all(feature = "mscz", feature = "mei", feature = "abc"))]
+#[test]
+fn string_technique_marks_round_trip_through_mscx_mei_and_abc() {
+    use acorde_core::Articulation;
+    let parsed = parse_musicxml(&technique_note_xml("<up-bow/><down-bow/><harmonic/>"))
+        .expect("technique marks parse");
+    let marks = |score: &acorde_core::Score| {
+        score.parts[0].staves[0].measures[0].voices[0][0]
+            .articulations
+            .clone()
+    };
+    let expected = vec![
+        Articulation::UpBow,
+        Articulation::DownBow,
+        Articulation::Harmonic,
+    ];
+    let mscx = acorde_io::serialize_mscx(&parsed).expect("MSCX export");
+    assert!(mscx.contains("stringsUpBow"));
+    assert_eq!(
+        marks(&acorde_io::parse_mscx(&mscx).expect("MSCX reparse")),
+        expected
+    );
+    let mei = acorde_io::serialize_mei(&parsed).expect("MEI export");
+    assert!(mei.contains("artic=\"dnbow\""));
+    assert_eq!(
+        marks(&acorde_io::parse_mei(&mei).expect("MEI reparse")),
+        expected
+    );
+    // ABC has no harmonic decoration: the bowings survive and the harmonic is a reported loss.
+    let abc = acorde_io::serialize_abc_with_report(&parsed).expect("ABC export");
+    assert!(abc.output.contains("!upbow!"));
+    assert_eq!(
+        marks(&acorde_io::parse_abc(&abc.output).expect("ABC reparse")),
+        vec![Articulation::UpBow, Articulation::DownBow]
+    );
+    assert!(!abc.diagnostics.is_empty());
+}
+
+#[test]
+fn unmodeled_musicxml_repeats_and_lines_are_source_diagnosed() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Drums</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><measure-style><measure-repeat type="start">1</measure-repeat></measure-style></attributes><direction><direction-type><dashes type="start"/></direction-type></direction><note><rest measure="yes"/><duration>4</duration><voice>1</voice><lyric><text>la</text><extend/></lyric></note></measure></part></score-partwise>"#;
+    let report = acorde_io::parse_musicxml_with_report(xml).expect("fixture parses");
+    let codes: Vec<(&str, &str)> = report
+        .diagnostics
+        .iter()
+        .map(|diagnostic| {
+            (
+                diagnostic.code.as_str(),
+                diagnostic.source_location.as_deref().unwrap_or_default(),
+            )
+        })
+        .collect();
+    assert!(codes.contains(&(
+        "musicxml.unsupported-element.measure-repeat",
+        "/score-partwise/part/measure/attributes/measure-style/measure-repeat"
+    )));
+    assert!(
+        codes
+            .iter()
+            .any(|(code, _)| *code == "musicxml.unsupported-element.dashes")
+    );
+    assert!(
+        codes
+            .iter()
+            .any(|(code, _)| *code == "musicxml.unsupported-element.extend")
+    );
+}
