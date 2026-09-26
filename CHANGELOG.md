@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.6] - 2026-09-27
+
 - MuseScore (MSCX/MSCZ) import now keeps voice-level hairpins, pedal lines, and 3.x slurs, slur
   ends, `<LayoutBreak>` system/page/section breaks, and `<BarLine>` double/final/dashed/dotted
   subtypes, which were previously dropped without a diagnostic. Hidden (`visible=0`) hairpins,
