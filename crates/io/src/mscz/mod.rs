@@ -10,6 +10,16 @@ use quick_xml::reader::Reader;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+/// Parse MuseScore's measure `len` fraction (`"1/4"` = one quarter note).
+fn parse_mscx_measure_len(value: &str) -> Option<acorde_core::MeasureLength> {
+    let (numerator, denominator) = value.trim().split_once('/')?;
+    let length = acorde_core::MeasureLength {
+        numerator: numerator.trim().parse().ok()?,
+        denominator: denominator.trim().parse().ok()?,
+    };
+    length.beats().map(|_| length)
+}
+
 mod serialize;
 pub use serialize::{export_loss_diagnostics, serialize_mscx, serialize_mscz};
 
@@ -123,6 +133,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut current_staff_id: Option<usize> = None;
     let mut in_measure = false;
     let mut cur_measure_num = 0u32;
+    // MuseScore `<Measure len="n/d">`: authored length of a pickup or irregular bar.
+    let mut cur_measure_len: Option<acorde_core::MeasureLength> = None;
 
     // Per-measure state
     let mut cur_key: Option<KeySignature> = None;
@@ -253,6 +265,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut in_lyrics_elem = false;
     let mut lyrics_text = String::new();
     let mut lyrics_syllabic = String::new();
+    // MuseScore `<Lyrics><no>` is the zero-based verse; completed lyrics of the current chord.
+    let mut lyrics_no: Option<u8> = None;
+    let mut chord_lyrics: Vec<(Option<u8>, Lyric)> = Vec::new();
 
     // Accumulated text for the current element
     let mut text = String::new();
@@ -338,6 +353,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             .and_then(|value| value.parse::<u32>().ok())
                             .filter(|number| *number > 0)
                             .unwrap_or(sequential_number);
+                        cur_measure_len =
+                            attr_str(e, b"len").and_then(|value| parse_mscx_measure_len(&value));
                         cur_key = None;
                         cur_time = None;
                         cur_clef_in_measure = None;
@@ -546,6 +563,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         in_lyrics_elem = true;
                         lyrics_text.clear();
                         lyrics_syllabic.clear();
+                        lyrics_no = None;
                     }
                     _ => {}
                 }
@@ -658,6 +676,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             system_break: false,
                             page_break: false,
                             section_break: false,
+                            actual_length: cur_measure_len,
                             voices: [
                                 std::mem::take(&mut cur_voices[0]),
                                 std::mem::take(&mut cur_voices[1]),
@@ -1026,8 +1045,29 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "syllabic" if in_lyrics_elem => {
                         lyrics_syllabic = t.to_string();
                     }
+                    "no" if in_lyrics_elem => {
+                        lyrics_no = t
+                            .trim()
+                            .parse::<u8>()
+                            .ok()
+                            .and_then(|index| index.checked_add(1))
+                            .filter(|verse| *verse <= acorde_core::VerseLyric::MAX_VERSE);
+                    }
                     "Lyrics" if in_lyrics_elem => {
                         in_lyrics_elem = false;
+                        if !lyrics_text.is_empty() {
+                            chord_lyrics.push((
+                                Some(lyrics_no.unwrap_or(1)),
+                                Lyric {
+                                    text: std::mem::take(&mut lyrics_text),
+                                    syllabic: if lyrics_syllabic.is_empty() {
+                                        "single".to_string()
+                                    } else {
+                                        lyrics_syllabic.clone()
+                                    },
+                                },
+                            ));
+                        }
                     }
                     "subtype" if in_arpeggio => {
                         chord_arpeggiate = Some(!matches!(
@@ -1157,17 +1197,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             if let Some(dyn_val) = pending_dynamic.take() {
                                 note.dynamic = Some(dyn_val);
                             }
-                            if !lyrics_text.is_empty() {
-                                note.lyric = Some(Lyric {
-                                    text: lyrics_text.clone(),
-                                    syllabic: if lyrics_syllabic.is_empty() {
-                                        "single".to_string()
-                                    } else {
-                                        lyrics_syllabic.clone()
-                                    },
-                                });
-                                lyrics_text.clear();
-                            }
+                            crate::assign_note_verses(&mut note, std::mem::take(&mut chord_lyrics));
                             let v = chord_voice.min(3);
                             cur_voices[v].push(note);
                         }

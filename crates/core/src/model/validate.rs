@@ -31,6 +31,23 @@ pub enum ValidationError {
         numerator: u8,
         denominator: u8,
     },
+    /// A measure's authored actual length is zero or larger than the supported maximum.
+    InvalidMeasureLength {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        numerator: u32,
+        denominator: u32,
+    },
+    /// A note's additional lyric verses are outside 2..=32 or not strictly ascending.
+    InvalidLyricVerse {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        voice: usize,
+        note: usize,
+        verse: u8,
+    },
     /// Beat-count mismatch: the notes in a voice don't fill the time signature.
     BeatCount {
         part: usize,
@@ -570,7 +587,21 @@ pub fn validate(score: &Score) -> ValidationReport {
                     }
                 }
 
-                let expected = current_ts.total_beats();
+                if let Some(length) = measure.actual_length
+                    && length.beats().is_none()
+                {
+                    errors.push(ValidationError::InvalidMeasureLength {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        numerator: length.numerator,
+                        denominator: length.denominator,
+                    });
+                }
+                let expected = measure
+                    .actual_length
+                    .and_then(|length| length.beats())
+                    .unwrap_or_else(|| current_ts.total_beats());
                 for (vi, voice) in measure.voices.iter().enumerate() {
                     if voice.is_empty() {
                         continue;
@@ -600,6 +631,22 @@ pub fn validate(score: &Score) -> ValidationReport {
                     }
 
                     for (ni, note) in voice.iter().enumerate() {
+                        let mut previous_verse = 1u8;
+                        for entry in &note.additional_lyrics {
+                            if entry.verse <= previous_verse
+                                || entry.verse > crate::VerseLyric::MAX_VERSE
+                            {
+                                errors.push(ValidationError::InvalidLyricVerse {
+                                    part: pi,
+                                    staff: si,
+                                    measure: mi,
+                                    voice: vi,
+                                    note: ni,
+                                    verse: entry.verse,
+                                });
+                            }
+                            previous_verse = previous_verse.max(entry.verse);
+                        }
                         if note.is_rest || note.is_grace {
                             continue;
                         }

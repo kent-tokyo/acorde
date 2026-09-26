@@ -154,6 +154,47 @@ pub(crate) fn render_measure_semantic_annotations(
                     GlyphCollisionDirection::Down,
                 );
             }
+            if kinds.lyrics {
+                let lyric_offset = if !stem_up && note.dynamic.is_some() {
+                    5.9
+                } else {
+                    4.8
+                };
+                // Verse n sits (n - 1) lyric lines below verse 1, so each verse keeps one line
+                // across notes even when an earlier verse is absent on a note.
+                for entry in &note.additional_lyrics {
+                    let text = entry.lyric.text.clone();
+                    annotations.push(SemanticAnnotation::Text {
+                        class: "acorde-lyric-verse",
+                        text: text.clone(),
+                        x,
+                        italic: false,
+                    });
+                    let width = text.chars().count() as f32 * 0.42 * space + 0.6 * space;
+                    let verse_offset =
+                        crate::render::LYRIC_VERSE_SPACING * f32::from(entry.verse - 1);
+                    owner.push(
+                        GlyphPlacement {
+                            resource_key: format!(
+                                "lyric:{part}:{staff}:{measure_idx}:{voice_idx}:{note_idx}:verse{}",
+                                entry.verse
+                            ),
+                            metrics: GlyphMetrics {
+                                advance_mm: 0.0,
+                                left_mm: -width / 2.0,
+                                top_mm: -0.72 * space,
+                                width_mm: width,
+                                height_mm: 0.9 * space,
+                            },
+                            x_mm: x,
+                            y_mm: anchor_y + (lyric_offset + verse_offset) * space,
+                            priority: 1,
+                        },
+                        GlyphCollisionClass::Annotation,
+                        GlyphCollisionDirection::Down,
+                    );
+                }
+            }
             if kinds.articulations {
                 for (articulation_idx, articulation) in note.articulations.iter().enumerate() {
                     let distance = 1.2 + articulation_idx as f32;

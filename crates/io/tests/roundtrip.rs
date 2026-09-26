@@ -3185,3 +3185,143 @@ fn musicxml_time_local_capo_change_round_trips() {
         Some(3)
     );
 }
+
+const PICKUP_XML: &str = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="0" implicit="yes"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note></measure><measure number="1"><note><pitch><step>C</step><octave>5</octave></pitch><duration>4</duration><voice>1</voice><type>whole</type></note></measure><measure number="2"><note><pitch><step>B</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>half</type></note><note><rest/><duration>1</duration><voice>1</voice><type>quarter</type></note></measure></part></score-partwise>"#;
+
+#[test]
+fn musicxml_pickup_and_incomplete_final_bar_keep_their_length() {
+    use acorde_core::MeasureLength;
+    let parsed = parse_musicxml(PICKUP_XML).expect("pickup fixture parses");
+    assert!(acorde_core::validate(&parsed).is_valid());
+    let measures = &parsed.parts[0].staves[0].measures;
+    let quarter = MeasureLength {
+        numerator: 1,
+        denominator: 4,
+    };
+    let three_quarters = MeasureLength {
+        numerator: 3,
+        denominator: 4,
+    };
+    assert_eq!(measures[0].actual_length, Some(quarter));
+    assert_eq!(measures[0].voices[0].len(), 1, "no padding rests");
+    assert_eq!(measures[1].actual_length, None);
+    assert_eq!(measures[2].actual_length, Some(three_quarters));
+    // 1 + 4 + 3 beats at the default 120 BPM.
+    assert!((acorde_core::score_duration_secs(&parsed) - 4.0).abs() < 1e-9);
+
+    let xml = serialize_musicxml(&parsed).expect("pickup serializes");
+    assert!(xml.contains("<measure number=\"0\" implicit=\"yes\">"));
+    assert_eq!(xml.matches("implicit=").count(), 1);
+    let restored = parse_musicxml(&xml).expect("pickup reparses");
+    let restored = &restored.parts[0].staves[0].measures;
+    assert_eq!(restored[0].actual_length, Some(quarter));
+    assert_eq!(restored[2].actual_length, Some(three_quarters));
+    assert_eq!(restored[0].voices[0].len(), 1);
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_measure_len_round_trips_as_actual_length() {
+    use acorde_core::MeasureLength;
+    let parsed = parse_musicxml(PICKUP_XML).expect("pickup fixture parses");
+    let mscx = acorde_io::serialize_mscx(&parsed).expect("pickup serializes as MSCX");
+    assert!(mscx.contains("len=\"1/4\""));
+    assert!(mscx.contains("len=\"3/4\""));
+    let restored = acorde_io::parse_mscx(&mscx).expect("MSCX pickup reparses");
+    let measures = &restored.parts[0].staves[0].measures;
+    assert_eq!(
+        measures[0].actual_length,
+        Some(MeasureLength {
+            numerator: 1,
+            denominator: 4
+        })
+    );
+    assert_eq!(measures[1].actual_length, None);
+    assert!(acorde_core::validate(&restored).is_valid());
+}
+
+const VERSES_XML: &str = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><lyric number="1"><syllabic>begin</syllabic><text>Hal</text></lyric><lyric number="2"><syllabic>single</syllabic><text>Sing</text></lyric><lyric number="3"><syllabic>single</syllabic><text>Joy</text></lyric></note><note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><lyric number="1"><syllabic>end</syllabic><text>le</text></lyric><lyric><syllabic>single</syllabic><text>now</text></lyric></note></measure></part></score-partwise>"#;
+
+fn verse_texts(note: &acorde_core::Note) -> Vec<(u8, String)> {
+    note.lyric
+        .iter()
+        .map(|lyric| (1, lyric.text.clone()))
+        .chain(
+            note.additional_lyrics
+                .iter()
+                .map(|entry| (entry.verse, entry.lyric.text.clone())),
+        )
+        .collect()
+}
+
+#[test]
+fn musicxml_lyric_verses_are_kept_and_round_trip() {
+    let parsed = parse_musicxml(VERSES_XML).expect("verses parse");
+    assert!(acorde_core::validate(&parsed).is_valid());
+    let voice = &parsed.parts[0].staves[0].measures[0].voices[0];
+    assert_eq!(
+        verse_texts(&voice[0]),
+        vec![(1, "Hal".into()), (2, "Sing".into()), (3, "Joy".into())]
+    );
+    // An unnumbered lyric takes the lowest free verse instead of overwriting verse 1.
+    assert_eq!(
+        verse_texts(&voice[1]),
+        vec![(1, "le".into()), (2, "now".into())]
+    );
+
+    let xml = serialize_musicxml(&parsed).expect("verses serialize");
+    assert!(xml.contains("<lyric number=\"3\">"));
+    let restored = parse_musicxml(&xml).expect("verses reparse");
+    let restored = &restored.parts[0].staves[0].measures[0].voices[0];
+    assert_eq!(verse_texts(&restored[0]), verse_texts(&voice[0]));
+    assert_eq!(verse_texts(&restored[1]), verse_texts(&voice[1]));
+    assert_eq!(restored[0].additional_lyrics, voice[0].additional_lyrics);
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_lyric_verses_round_trip_with_zero_based_numbers() {
+    let parsed = parse_musicxml(VERSES_XML).expect("verses parse");
+    let mscx = acorde_io::serialize_mscx(&parsed).expect("verses serialize as MSCX");
+    assert!(mscx.contains("<Lyrics><no>2</no>"));
+    let restored = acorde_io::parse_mscx(&mscx).expect("MSCX verses reparse");
+    let original = &parsed.parts[0].staves[0].measures[0].voices[0];
+    let restored = &restored.parts[0].staves[0].measures[0].voices[0];
+    assert_eq!(verse_texts(&restored[0]), verse_texts(&original[0]));
+    assert_eq!(verse_texts(&restored[1]), verse_texts(&original[1]));
+}
+
+#[cfg(all(feature = "abc", feature = "mei", feature = "midi"))]
+#[test]
+fn formats_without_verse_export_report_additional_verses_as_loss() {
+    let parsed = parse_musicxml(VERSES_XML).expect("verses parse");
+    let located = |diagnostics: &[acorde_io::Diagnostic], code: &str| {
+        diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code == code)
+            .map(|diagnostic| {
+                (
+                    diagnostic.source_location.clone().unwrap_or_default(),
+                    diagnostic.preserved_value.clone().unwrap_or_default(),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let abc = acorde_io::serialize_abc_with_report(&parsed).expect("ABC export");
+    let losses = located(&abc.diagnostics, "abc.export-unsupported-lyric-verse");
+    assert_eq!(losses.len(), 3);
+    assert!(losses.contains(&(
+        "/score/part/1/staff/1/measure/1/voice/1/note/1/lyric/3".into(),
+        "Joy".into()
+    )));
+    let mei = acorde_io::serialize_mei_with_report(&parsed).expect("MEI export");
+    assert_eq!(
+        located(&mei.diagnostics, "mei.export-unsupported-lyric-verse").len(),
+        3
+    );
+    let midi = acorde_io::serialize_midi_with_report(&parsed).expect("MIDI export");
+    assert_eq!(
+        located(&midi.diagnostics, "midi.export-unsupported-lyric-verse").len(),
+        3
+    );
+}

@@ -946,11 +946,7 @@ fn offline_measure_times(
         if let Some(tempo) = measure.tempo {
             bpm = tempo.max(1) as f64;
         }
-        let beats = measure
-            .time_sig
-            .as_ref()
-            .unwrap_or(&score.settings.time_signature)
-            .total_beats();
+        let beats = measure.duration_beats(&score.settings.time_signature);
         let ramp_to_bpm = measure
             .tempo_ramp_to
             .map(f64::from)
@@ -987,11 +983,7 @@ fn append_measure_semantic_events(
         let mut tick = 0u64;
         for measure in &staff.measures {
             tick_starts.push(tick);
-            let beats = measure
-                .time_sig
-                .as_ref()
-                .unwrap_or(&score.settings.time_signature)
-                .total_beats();
+            let beats = measure.duration_beats(&score.settings.time_signature);
             tick = tick.saturating_add((beats * 480.0).round() as u64);
         }
         for time in timeline {
@@ -1694,11 +1686,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                     if let Some(b) = measure.tempo {
                         current_bpm = b.max(1) as f64;
                     }
-                    let measure_beats = measure
-                        .time_sig
-                        .as_ref()
-                        .unwrap_or(&score.settings.time_signature)
-                        .total_beats();
+                    let measure_beats = measure.duration_beats(&score.settings.time_signature);
                     let ramp_end_bpm = measure
                         .tempo_ramp_to
                         .map(f64::from)
@@ -1867,13 +1855,15 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                 .and_then(|s| s.measures.get(idx))
                 .and_then(|m| m.time_sig.as_ref())
                 .unwrap_or(&score.settings.time_signature);
-            let measure_beats = ts.total_beats();
+            let measure_beats = first_staff
+                .and_then(|s| s.measures.get(idx))
+                .map_or_else(|| ts.total_beats(), |m| m.duration_beats(ts));
             let ramp_end_bpm = measure
                 .and_then(|measure| measure.tempo_ramp_to)
                 .map(f64::from)
                 .filter(|bpm| *bpm > 0.0);
             let beat_unit = ts.beat_unit_beats();
-            let num_beats = (ts.total_beats() / beat_unit).round() as u32;
+            let num_beats = (measure_beats / beat_unit).round() as u32;
             for b in 0..num_beats {
                 let is_accent = b == 0;
                 let beat_offset_beats = b as f64 * beat_unit;
@@ -2203,7 +2193,7 @@ fn build_measure_segments(score: &Score, options: &PlaybackOptions) -> Vec<Measu
         let ts = first_measure
             .and_then(|m| m.time_sig.as_ref())
             .unwrap_or(&score.settings.time_signature);
-        let beats = ts.total_beats();
+        let beats = first_measure.map_or_else(|| ts.total_beats(), |m| m.duration_beats(ts));
         let duration_secs = beats / current_bpm * 60.0;
 
         segments.push(MeasureSegment {

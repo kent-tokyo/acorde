@@ -14,11 +14,7 @@ pub(super) fn apply_split_measure(cmd: &SplitMeasureCmd, score: &mut Score) -> R
                 .measures
                 .get(cmd.measure_index)
                 .ok_or(Error::MeasureNotFound(cmd.measure_index))?;
-            let expected = measure
-                .time_sig
-                .as_ref()
-                .unwrap_or(&score.settings.time_signature)
-                .total_beats();
+            let expected = measure.duration_beats(&score.settings.time_signature);
             if cmd.split_at_beats >= expected - 1e-9 {
                 return Err(Error::InvalidCommand(
                     "split point must be inside measure".into(),

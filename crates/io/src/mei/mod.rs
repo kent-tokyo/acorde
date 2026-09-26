@@ -3363,6 +3363,7 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
             }
         }
     }
+    diagnostics.extend(crate::additional_verse_loss_diagnostics(score, "mei"));
     diagnostics
 }
 

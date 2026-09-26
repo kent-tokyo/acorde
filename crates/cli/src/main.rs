@@ -1167,6 +1167,36 @@ fn cmd_validate(input: &Path) -> Result<(), String> {
                     numerator,
                     denominator
                 ),
+                acorde_core::ValidationError::InvalidLyricVerse {
+                    part,
+                    staff,
+                    measure,
+                    voice,
+                    note,
+                    verse,
+                } => eprintln!(
+                    "part {} staff {} measure {} voice {} note {}: invalid lyric verse {}",
+                    part + 1,
+                    staff + 1,
+                    measure + 1,
+                    voice + 1,
+                    note + 1,
+                    verse
+                ),
+                acorde_core::ValidationError::InvalidMeasureLength {
+                    part,
+                    staff,
+                    measure,
+                    numerator,
+                    denominator,
+                } => eprintln!(
+                    "part {} staff {} measure {}: invalid measure length {}/{}",
+                    part + 1,
+                    staff + 1,
+                    measure + 1,
+                    numerator,
+                    denominator
+                ),
                 acorde_core::ValidationError::BeatCount {
                     part,
                     staff,

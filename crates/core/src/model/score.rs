@@ -3,7 +3,7 @@ use super::{
     notation::{
         Articulation, Barline, BeamState, ChordDefinition, ChordSymbol, Clef, CrossStaff, Dynamic,
         FiguredBassFigure, GuitarTechnique, HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind,
-        StyledText, TabPosition, TablatureConfig, TimeSignature, TupletInfo,
+        StyledText, TabPosition, TablatureConfig, TimeSignature, TupletInfo, VerseLyric,
     },
     pitch::Pitch,
 };
@@ -1803,6 +1803,50 @@ impl Default for HarpPedalDiagram {
     }
 }
 
+/// Authored length of a measure that differs from its time signature: a pickup (anacrusis), an
+/// incomplete final bar, or any irregular bar, as MuseScore's measure `len="1/4"`. The value is a
+/// fraction of a whole note, so `1/4` lasts one quarter-note beat.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MeasureLength {
+    pub numerator: u32,
+    pub denominator: u32,
+}
+
+impl MeasureLength {
+    /// Largest supported measure length, in quarter-note beats.
+    pub const MAX_BEATS: f64 = 256.0;
+
+    /// Length in quarter-note beats, or `None` for a zero, non-finite, or oversized fraction.
+    pub fn beats(&self) -> Option<f64> {
+        if self.numerator == 0 || self.denominator == 0 {
+            return None;
+        }
+        let beats = 4.0 * f64::from(self.numerator) / f64::from(self.denominator);
+        (beats.is_finite() && beats <= Self::MAX_BEATS).then_some(beats)
+    }
+
+    /// Exact fraction for `ticks` at `divisions` ticks per quarter note, in lowest terms.
+    pub fn from_ticks(ticks: u32, divisions: u32) -> Option<Self> {
+        let numerator = u64::from(ticks);
+        let denominator = u64::from(divisions).checked_mul(4)?;
+        if numerator == 0 || denominator == 0 {
+            return None;
+        }
+        let gcd = {
+            let (mut a, mut b) = (numerator, denominator);
+            while b != 0 {
+                (a, b) = (b, a % b);
+            }
+            a
+        };
+        let length = Self {
+            numerator: u32::try_from(numerator / gcd).ok()?,
+            denominator: u32::try_from(denominator / gcd).ok()?,
+        };
+        length.beats().map(|_| length)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Measure {
     pub number: u32,
@@ -1865,6 +1909,10 @@ pub struct Measure {
     /// changing the established fixed-slot editing API.
     #[serde(default)]
     pub source_voice_numbers: [Option<u32>; 4],
+    /// Authored length when it differs from the time signature (pickup or irregular bar).
+    /// `None` means the measure lasts exactly one bar of its time signature.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub actual_length: Option<MeasureLength>,
 }
 
 impl Measure {
@@ -1906,7 +1954,21 @@ impl Measure {
             section_break: false,
             voices: [voice0, vec![], vec![], vec![]],
             source_voice_numbers: [None; 4],
+            actual_length: None,
         }
+    }
+
+    /// Beats this measure lasts: its [`actual_length`](Self::actual_length) when present and
+    /// valid, otherwise its own time signature, otherwise `time_signature` (the one in effect).
+    pub fn duration_beats(&self, time_signature: &TimeSignature) -> f64 {
+        self.actual_length
+            .and_then(|length| length.beats())
+            .unwrap_or_else(|| {
+                self.time_sig
+                    .as_ref()
+                    .unwrap_or(time_signature)
+                    .total_beats()
+            })
     }
 
     pub fn renumber(&mut self, n: u32) {
@@ -1971,6 +2033,9 @@ pub struct Note {
     pub ottava_end: bool,
     #[serde(default)]
     pub lyric: Option<Lyric>,
+    /// Lyrics for verse 2 and later, in ascending verse order; verse 1 is [`lyric`](Self::lyric).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub additional_lyrics: Vec<VerseLyric>,
     #[serde(default)]
     pub pedal_start: bool,
     #[serde(default)]
@@ -2082,6 +2147,7 @@ impl Note {
             ottava_start: None,
             ottava_end: false,
             lyric: None,
+            additional_lyrics: Vec::new(),
             pedal_start: false,
             pedal_end: false,
             slur_start: false,
@@ -2134,6 +2200,7 @@ impl Note {
             ottava_start: None,
             ottava_end: false,
             lyric: None,
+            additional_lyrics: Vec::new(),
             pedal_start: false,
             pedal_end: false,
             slur_start: false,
@@ -4027,12 +4094,8 @@ pub fn measure_beats_remaining(
         .voices
         .get(voice_index)
         .ok_or(Error::VoiceOutOfRange(voice_index))?;
-    let ts = measure
-        .time_sig
-        .as_ref()
-        .unwrap_or(&score.settings.time_signature);
     let used: f64 = voice.iter().map(|n| n.beats()).sum();
-    Ok((ts.total_beats() - used).max(0.0))
+    Ok((measure.duration_beats(&score.settings.time_signature) - used).max(0.0))
 }
 
 /// Suggest whether the stem should point up for the given pitches and clef.
@@ -4138,6 +4201,7 @@ fn note_content_eq(a: &Note, b: &Note) -> bool {
         && a.ottava_start == b.ottava_start
         && a.ottava_end == b.ottava_end
         && a.lyric == b.lyric
+        && a.additional_lyrics == b.additional_lyrics
         && a.pedal_start == b.pedal_start
         && a.pedal_end == b.pedal_end
         && a.slur_start == b.slur_start

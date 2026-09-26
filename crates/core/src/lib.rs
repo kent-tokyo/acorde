@@ -49,6 +49,7 @@ pub use model::notation::{
     ChordDegree, ChordSymbol, Clef, CrossStaff, Dynamic, FiguredBassFigure,
     FingeringSelectionPolicy, GuitarTechnique, HairpinKind, KeySignature, Lyric, NoteHead,
     OttavaKind, StyledText, TabPosition, TablatureConfig, TextStyle, TimeSignature, TupletInfo,
+    VerseLyric,
 };
 pub use model::pitch::{Pitch, Step};
 pub use model::playback::{
@@ -73,17 +74,18 @@ pub use model::repeat::measure_sequence;
 pub use model::scale::{Scale, ScaleKind};
 pub use model::score::{
     GuitarBendPoint, HarpPedalDiagram, HarpPedalPosition, InstrumentDefinition, InstrumentRange,
-    Measure, MidiAftertouch, MidiControlChange, MidiPitchBend, MidiProgramChange, NotationSpanner,
-    NotationSpannerKind, Note, NoteAddr, ObjectStyleOverride, ObjectStyleTarget, Part, PartGroup,
-    PartGroupSymbol, PercussionInstrument, RegionalTranspositionTarget, RespellPolicy, Score,
-    ScoreChange, ScoreMetadata, ScorePatch, ScoreSettings, ScoreStats, ScoreTemplate, ScoreView,
-    ScoreViewLayoutOverrides, Staff, StaffGroup, StaffKind, StaffNoteheadScheme, StaffPresentation,
-    StyleImportProvenance, TablatureFretMarkStyle, TablatureRhythmDisplay, ViewStaffKindOverride,
-    ViewStaffRef, ViewStyle, ViewStyleOverride, ViewStyleProperty, ViewTranspositionPolicy,
-    VoltaBracket, apply_patch, assign_tablature_positions, compute_beams, diff,
-    measure_beats_remaining, optimize_tablature_positions, respell_score, respell_score_to_key,
-    respell_staff_region, score_duration_secs, score_duration_secs_region, score_patch,
-    suggested_stem_up, transpose, transpose_checked, transpose_staff_region_checked,
+    Measure, MeasureLength, MidiAftertouch, MidiControlChange, MidiPitchBend, MidiProgramChange,
+    NotationSpanner, NotationSpannerKind, Note, NoteAddr, ObjectStyleOverride, ObjectStyleTarget,
+    Part, PartGroup, PartGroupSymbol, PercussionInstrument, RegionalTranspositionTarget,
+    RespellPolicy, Score, ScoreChange, ScoreMetadata, ScorePatch, ScoreSettings, ScoreStats,
+    ScoreTemplate, ScoreView, ScoreViewLayoutOverrides, Staff, StaffGroup, StaffKind,
+    StaffNoteheadScheme, StaffPresentation, StyleImportProvenance, TablatureFretMarkStyle,
+    TablatureRhythmDisplay, ViewStaffKindOverride, ViewStaffRef, ViewStyle, ViewStyleOverride,
+    ViewStyleProperty, ViewTranspositionPolicy, VoltaBracket, apply_patch,
+    assign_tablature_positions, compute_beams, diff, measure_beats_remaining,
+    optimize_tablature_positions, respell_score, respell_score_to_key, respell_staff_region,
+    score_duration_secs, score_duration_secs_region, score_patch, suggested_stem_up, transpose,
+    transpose_checked, transpose_staff_region_checked,
 };
 pub use model::structural_plan::{
     STRUCTURAL_CHANGE_PLAN_CONTRACT_VERSION, StructuralChangeDiagnostic,

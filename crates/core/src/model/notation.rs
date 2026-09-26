@@ -380,6 +380,19 @@ pub struct Lyric {
     pub syllabic: String,
 }
 
+/// A lyric syllable for verse 2 or later. Verse 1 stays in `Note.lyric`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VerseLyric {
+    /// Verse number, from 2 to [`VerseLyric::MAX_VERSE`].
+    pub verse: u8,
+    pub lyric: Lyric,
+}
+
+impl VerseLyric {
+    /// Highest supported verse number.
+    pub const MAX_VERSE: u8 = 32;
+}
+
 /// A typed score text annotation. The text itself is kept separate from its
 /// presentation role so consumers do not need to infer semantics from prose.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

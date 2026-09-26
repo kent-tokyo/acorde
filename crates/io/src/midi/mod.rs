@@ -335,6 +335,7 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<Diagnostic> {
             }
         }
     }
+    diagnostics.extend(crate::additional_verse_loss_diagnostics(score, "midi"));
     diagnostics
 }
 

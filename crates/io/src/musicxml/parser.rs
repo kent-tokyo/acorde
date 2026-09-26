@@ -2,9 +2,9 @@ use crate::Error;
 use acorde_core::{
     Articulation, Barline, ChordDegree, ChordSymbol, Clef, Duration, FiguredBassFigure,
     GuitarTechnique, HairpinKind, HarpPedalDiagram, HarpPedalPosition, KeySignature, Lyric,
-    Measure, NotationSpanner, NotationSpannerKind, Note, NoteAddr, NoteHead, OttavaKind, Part,
-    PartGroup, PartGroupSymbol, PercussionInstrument, Pitch, Score, Staff, StaffKind, Step,
-    StyledText, TextStyle, TimeSignature, TupletInfo, VoltaBracket,
+    Measure, MeasureLength, NotationSpanner, NotationSpannerKind, Note, NoteAddr, NoteHead,
+    OttavaKind, Part, PartGroup, PartGroupSymbol, PercussionInstrument, Pitch, Score, Staff,
+    StaffKind, Step, StyledText, TextStyle, TimeSignature, TupletInfo, VerseLyric, VoltaBracket,
 };
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
@@ -261,6 +261,9 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut in_lyric = false;
     let mut lyric_text = String::new();
     let mut lyric_syllabic = String::new();
+    // Source `<lyric number>` of the lyric being read, and the note's completed lyrics.
+    let mut lyric_number: Option<u8> = None;
+    let mut note_lyrics: Vec<(Option<u8>, Lyric)> = Vec::new();
     let mut in_measure_style = false;
     let mut in_staff_details = false;
     let mut staff_details_number = 1usize;
@@ -298,6 +301,8 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut in_backup = false;
     let mut in_forward = false;
     let mut measure_cursor_ticks = 0u32;
+    // Furthest cursor position reached in the current measure (notes and `<forward>`).
+    let mut measure_content_ticks = 0u32;
     let mut voice_cursor_ticks: HashMap<(usize, usize), u32> = HashMap::new();
     let mut source_voice_slots: HashMap<(usize, u32), usize> = HashMap::new();
     let mut last_note_start: Option<(usize, usize, u32)> = None;
@@ -519,6 +524,9 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         in_lyric = true;
                         lyric_text.clear();
                         lyric_syllabic = "single".to_string();
+                        lyric_number = attr_str(e, b"number")
+                            .and_then(|value| value.trim().parse::<u8>().ok())
+                            .filter(|verse| (1..=VerseLyric::MAX_VERSE).contains(verse));
                     }
                     "time-modification" if in_note => {
                         in_time_modification = true;
@@ -527,6 +535,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     }
                     "note" => {
                         in_note = true;
+                        note_lyrics.clear();
                         note_offset_x = attr_str(e, b"default-x")
                             .and_then(|value| value.parse().ok())
                             .filter(|value: &f64| value.is_finite());
@@ -636,6 +645,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             score.parts[pi].staves[0].measures.push(m);
                         }
                         measure_cursor_ticks = 0;
+                        measure_content_ticks = 0;
                         voice_cursor_ticks.clear();
                         last_note_start = None;
                         last_note_cross_home = None;
@@ -1620,7 +1630,23 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     }
                     "syllabic" if in_lyric => lyric_syllabic = current_text.trim().to_string(),
                     "text" if in_lyric => lyric_text = current_text.trim().to_string(),
-                    "lyric" if in_lyric => in_lyric = false,
+                    "lyric" if in_lyric => {
+                        in_lyric = false;
+                        if !lyric_text.is_empty() {
+                            note_lyrics.push((
+                                lyric_number,
+                                Lyric {
+                                    text: std::mem::take(&mut lyric_text),
+                                    syllabic: if lyric_syllabic.is_empty() {
+                                        "single".to_string()
+                                    } else {
+                                        lyric_syllabic.clone()
+                                    },
+                                },
+                            ));
+                        }
+                        lyric_syllabic = "single".to_string();
+                    }
                     "duration" if in_backup => {
                         let duration = current_text
                             .trim()
@@ -1643,6 +1669,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             .checked_add(duration)
                             .filter(|cursor| *cursor <= measure_ticks)
                             .ok_or_else(|| Error::Xml("MusicXML forward cursor overflow".into()))?;
+                        measure_content_ticks = measure_content_ticks.max(measure_cursor_ticks);
                         last_note_start = None;
                         last_note_cross_home = None;
                     }
@@ -1760,10 +1787,36 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         });
                     }
                     "measure" => {
+                        // Content shorter than the time signature is an authored pickup or
+                        // irregular bar: keep its length instead of padding it with rests.
+                        let actual_length =
+                            musicxml_measure_ticks(&current_time, current_divisions)
+                                .ok()
+                                .filter(|bar_ticks| {
+                                    measure_content_ticks > 0 && measure_content_ticks < *bar_ticks
+                                })
+                                .and_then(|_| {
+                                    MeasureLength::from_ticks(
+                                        measure_content_ticks,
+                                        current_divisions,
+                                    )
+                                });
+                        if let Some(pi) = part_index {
+                            let bar_index = score.parts[pi].staves[0].measures.len();
+                            for staff in &mut score.parts[pi].staves {
+                                if staff.measures.len() == bar_index
+                                    && let Some(measure) = staff.measures.last_mut()
+                                {
+                                    measure.actual_length = actual_length;
+                                }
+                            }
+                        }
                         if let Some(pi) = part_index
                             && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
                         {
-                            let total_beats = current_time.total_beats();
+                            let total_beats = actual_length
+                                .and_then(|length| length.beats())
+                                .unwrap_or_else(|| current_time.total_beats());
                             for voice in &mut m.voices {
                                 if voice.is_empty() {
                                     continue;
@@ -2046,18 +2099,10 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                         note.articulations =
                                             std::mem::take(&mut pending_articulations);
                                     }
-                                    if !lyric_text.is_empty() {
-                                        note.lyric = Some(Lyric {
-                                            text: lyric_text.clone(),
-                                            syllabic: if lyric_syllabic.is_empty() {
-                                                "single".to_string()
-                                            } else {
-                                                lyric_syllabic.clone()
-                                            },
-                                        });
-                                        lyric_text.clear();
-                                        lyric_syllabic = "single".to_string();
-                                    }
+                                    crate::assign_note_verses(
+                                        &mut note,
+                                        std::mem::take(&mut note_lyrics),
+                                    );
                                     voice.push(note);
                                     let address = NoteAddr {
                                         part: pi,
@@ -2069,6 +2114,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                     voice_cursor_ticks
                                         .insert((target_staff_index, voice_index), next_cursor);
                                     measure_cursor_ticks = next_cursor;
+                                    measure_content_ticks = measure_content_ticks.max(next_cursor);
                                     last_note_start =
                                         Some((target_staff_index, voice_index, note_start));
                                     last_note_cross_home = cross_home;
@@ -2163,21 +2209,22 @@ fn pad_declared_staff_measures(part: &mut Part) {
         return;
     };
     let mut time = TimeSignature::default();
-    let bars: Vec<(u32, TimeSignature)> = first
+    let bars: Vec<(u32, TimeSignature, Option<MeasureLength>)> = first
         .measures
         .iter()
         .map(|measure| {
             if let Some(changed) = &measure.time_sig {
                 time = changed.clone();
             }
-            (measure.number, time.clone())
+            (measure.number, time.clone(), measure.actual_length)
         })
         .collect();
     for staff in extra_staves {
         while staff.measures.len() < bars.len() {
-            let (number, time) = &bars[staff.measures.len()];
+            let (number, time, actual_length) = &bars[staff.measures.len()];
             let mut measure = Measure::empty(time.numerator, time.denominator);
             measure.number = *number;
+            measure.actual_length = *actual_length;
             measure.voices[0].clear();
             staff.measures.push(measure);
         }
@@ -2461,9 +2508,12 @@ mod tests {
 
     #[test]
     fn forwards_and_backups_preserve_voice_onsets_with_explicit_rests() {
-        let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><forward><duration>1</duration></forward><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note><backup><duration>2</duration></backup><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>2</voice><type>quarter</type></note></measure></part></score-partwise>"#;
+        let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><forward><duration>1</duration></forward><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note><backup><duration>2</duration></backup><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>2</voice><type>quarter</type></note><forward><duration>3</duration></forward></measure></part></score-partwise>"#;
+        // The trailing forward reaches the bar line; without it the content would be a
+        // two-beat irregular measure rather than a padded 4/4 bar.
         let score = parse_musicxml(xml).expect("cursor fixture parses");
         let measure = &score.parts[0].staves[0].measures[0];
+        assert!(measure.actual_length.is_none());
         assert_eq!(measure.voices[0].len(), 3);
         assert!(measure.voices[0][0].is_rest);
         assert_eq!(measure.voices[0][1].pitches[0].step, Step::C);

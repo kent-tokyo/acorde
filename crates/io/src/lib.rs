@@ -192,6 +192,83 @@ pub fn parse_mscz_with_report(data: &[u8]) -> Result<ImportReport, Error> {
     })
 }
 
+/// Place a note's imported lyrics by verse number: verse 1 becomes `Note.lyric` and higher verses
+/// `Note.additional_lyrics`. A missing, invalid, or repeated number takes the lowest unused verse,
+/// so no syllable overwrites another.
+#[allow(dead_code)]
+pub(crate) fn assign_note_verses(
+    note: &mut acorde_core::Note,
+    lyrics: Vec<(Option<u8>, acorde_core::Lyric)>,
+) {
+    let mut used = std::collections::BTreeSet::new();
+    let mut placed: Vec<(u8, acorde_core::Lyric)> = Vec::new();
+    let mut unnumbered = Vec::new();
+    for (number, lyric) in lyrics {
+        match number {
+            Some(verse) if used.insert(verse) => placed.push((verse, lyric)),
+            _ => unnumbered.push(lyric),
+        }
+    }
+    for lyric in unnumbered {
+        if let Some(verse) =
+            (1..=acorde_core::VerseLyric::MAX_VERSE).find(|verse| !used.contains(verse))
+        {
+            used.insert(verse);
+            placed.push((verse, lyric));
+        }
+    }
+    placed.sort_by_key(|(verse, _)| *verse);
+    for (verse, lyric) in placed {
+        if verse == 1 {
+            note.lyric = Some(lyric);
+        } else {
+            note.additional_lyrics
+                .push(acorde_core::VerseLyric { verse, lyric });
+        }
+    }
+}
+
+/// Export-loss diagnostics for lyric verses 2 and later, for formats whose exporter only writes
+/// verse 1. `format` prefixes the stable diagnostic code (for example `mei`).
+#[allow(dead_code)]
+pub(crate) fn additional_verse_loss_diagnostics(
+    score: &acorde_core::Score,
+    format: &str,
+) -> Vec<Diagnostic> {
+    let mut diagnostics = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    for (note_index, note) in voice.iter().enumerate() {
+                        for entry in &note.additional_lyrics {
+                            let mut diagnostic = Diagnostic::warning(
+                                format!("{format}.export-unsupported-lyric-verse"),
+                                format!(
+                                    "lyric verse {} is not written by the {format} exporter",
+                                    entry.verse
+                                ),
+                            );
+                            diagnostic.source_location = Some(format!(
+                                "/score/part/{}/staff/{}/measure/{}/voice/{}/note/{}/lyric/{}",
+                                part_index + 1,
+                                staff_index + 1,
+                                measure_index + 1,
+                                voice_index + 1,
+                                note_index + 1,
+                                entry.verse
+                            ));
+                            diagnostic.preserved_value = Some(entry.lyric.text.clone());
+                            diagnostics.push(diagnostic);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    diagnostics
+}
+
 #[cfg(test)]
 mod security_tests {
     use super::Error;

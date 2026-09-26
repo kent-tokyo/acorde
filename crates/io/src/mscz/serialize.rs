@@ -329,7 +329,19 @@ fn write_staff(
         } else {
             measure.number
         };
-        write!(xml, "<Measure number=\"{number}\">").map_err(fmt_error)?;
+        match measure
+            .actual_length
+            .filter(|length| length.beats().is_some())
+        {
+            // MuseScore stores a pickup or irregular bar length as `len="n/d"`.
+            Some(length) => write!(
+                xml,
+                "<Measure number=\"{number}\" len=\"{}/{}\">",
+                length.numerator, length.denominator
+            )
+            .map_err(fmt_error)?,
+            None => write!(xml, "<Measure number=\"{number}\">").map_err(fmt_error)?,
+        }
         if let Some(key) = &measure.key_sig {
             write!(
                 xml,
@@ -548,6 +560,17 @@ fn write_note(xml: &mut String, note: &Note) -> Result<(), Error> {
             "<Lyrics><syllabic>{}</syllabic><text>{}</text></Lyrics>",
             escape(&lyric.syllabic),
             escape(&lyric.text)
+        )
+        .map_err(fmt_error)?;
+    }
+    for entry in &note.additional_lyrics {
+        // MuseScore numbers verses from zero in `<no>`.
+        write!(
+            xml,
+            "<Lyrics><no>{}</no><syllabic>{}</syllabic><text>{}</text></Lyrics>",
+            entry.verse - 1,
+            escape(&entry.lyric.syllabic),
+            escape(&entry.lyric.text)
         )
         .map_err(fmt_error)?;
     }

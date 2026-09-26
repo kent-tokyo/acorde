@@ -7,7 +7,7 @@ use super::fragment::{
 use super::notation::{
     Articulation, Barline, ChordSymbol, Clef, CrossStaff, Dynamic, FiguredBassFigure,
     GuitarTechnique, HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind, StyledText,
-    TablatureConfig, TimeSignature, TupletInfo,
+    TablatureConfig, TimeSignature, TupletInfo, VerseLyric,
 };
 use super::pitch::Pitch;
 use super::score::{
@@ -409,6 +409,9 @@ pub struct SetLyricCmd {
     pub voice: usize,
     pub note_index: usize,
     pub lyric: Option<Lyric>,
+    /// Verse to set or clear; `None` or 1 addresses verse 1 (`Note.lyric`).
+    #[serde(default)]
+    pub verse: Option<u8>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1936,16 +1939,38 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
             Ok(())
         }
         Command::SetLyric(c) => {
-            get_note_mut(
+            let note = get_note_mut(
                 score,
                 c.part_index,
                 c.staff_index,
                 c.measure_index,
                 c.voice,
                 c.note_index,
-            )?
-            .lyric = c.lyric.clone();
-            Ok(())
+            )?;
+            match c.verse.unwrap_or(1) {
+                0 => Err(Error::InvalidCommand(
+                    "lyric verse numbers start at 1".into(),
+                )),
+                1 => {
+                    note.lyric = c.lyric.clone();
+                    Ok(())
+                }
+                verse if verse > VerseLyric::MAX_VERSE => Err(Error::InvalidCommand(format!(
+                    "lyric verse {verse} exceeds {}",
+                    VerseLyric::MAX_VERSE
+                ))),
+                verse => {
+                    note.additional_lyrics.retain(|entry| entry.verse != verse);
+                    if let Some(lyric) = &c.lyric {
+                        note.additional_lyrics.push(VerseLyric {
+                            verse,
+                            lyric: lyric.clone(),
+                        });
+                        note.additional_lyrics.sort_by_key(|entry| entry.verse);
+                    }
+                    Ok(())
+                }
+            }
         }
         Command::SetMultiRest(c) => {
             for_each_measure_at(score, c.measure_index, |m| {
@@ -2578,8 +2603,21 @@ fn apply_set_object_style_overrides(
     Ok(())
 }
 
+/// Capacity used by note-editing commands: a measure's authored actual length (pickup or
+/// irregular bar) when present, otherwise the score time signature.
+fn editing_measure_beats(score: &Score, part: usize, staff: usize, measure: usize) -> f64 {
+    score
+        .parts
+        .get(part)
+        .and_then(|part| part.staves.get(staff))
+        .and_then(|staff| staff.measures.get(measure))
+        .and_then(|measure| measure.actual_length)
+        .and_then(|length| length.beats())
+        .unwrap_or_else(|| score.settings.time_signature.total_beats())
+}
+
 fn apply_add_note(cmd: &AddNoteCmd, score: &mut Score) -> Result<(), Error> {
-    let ts_beats = score.settings.time_signature.total_beats();
+    let ts_beats = editing_measure_beats(score, cmd.part_index, cmd.staff_index, cmd.measure_index);
     let note = if cmd.is_rest {
         let mut n = Note::rest(cmd.duration.clone());
         n.dot_count = cmd.dot_count;
@@ -2665,7 +2703,7 @@ fn apply_add_pitch(cmd: &AddPitchCmd, score: &mut Score) -> Result<(), Error> {
 }
 
 fn apply_set_duration(cmd: &SetDurationCmd, score: &mut Score) -> Result<(), Error> {
-    let ts_beats = score.settings.time_signature.total_beats();
+    let ts_beats = editing_measure_beats(score, cmd.part_index, cmd.staff_index, cmd.measure_index);
     {
         let voice = score
             .parts
@@ -2692,7 +2730,7 @@ fn apply_set_duration(cmd: &SetDurationCmd, score: &mut Score) -> Result<(), Err
 }
 
 fn apply_delete_note(cmd: &DeleteNoteCmd, score: &mut Score) -> Result<(), Error> {
-    let ts_beats = score.settings.time_signature.total_beats();
+    let ts_beats = editing_measure_beats(score, cmd.part_index, cmd.staff_index, cmd.measure_index);
     let deleted_position = {
         let voice = score
             .parts
@@ -3179,9 +3217,14 @@ fn apply_set_time_signature(cmd: &SetTimeSignatureCmd, score: &mut Score) -> Res
     for part in &mut score.parts {
         for staff in &mut part.staves {
             for measure in &mut staff.measures {
+                // A pickup or irregular bar keeps its authored length.
+                let beats = measure
+                    .actual_length
+                    .and_then(|length| length.beats())
+                    .unwrap_or(max_beats);
                 for voice in &mut measure.voices {
-                    trim_voice_to_measure(voice, max_beats);
-                    pad_voice_to_measure(voice, max_beats);
+                    trim_voice_to_measure(voice, beats);
+                    pad_voice_to_measure(voice, beats);
                 }
             }
         }
@@ -4154,6 +4197,7 @@ fn clear_derived_chord_note_notation(note: &mut Note) {
     note.ottava_start = None;
     note.ottava_end = false;
     note.lyric = None;
+    note.additional_lyrics.clear();
     note.pedal_start = false;
     note.pedal_end = false;
     note.slur_start = false;
@@ -6941,6 +6985,154 @@ mod tests {
             respell_staff_region(&mut score, 0, 0, 0, 5, RespellPolicy::Sharp),
             Err(Error::InvalidCommand(_))
         ));
+    }
+
+    #[test]
+    fn pickup_measure_length_limits_editing_and_survives_time_signature_changes() {
+        use crate::model::score::MeasureLength;
+        let mut score = Score::new("Pickup", 120, 4, 4, 0, 2);
+        score.parts[0].staves[0].measures[0].actual_length = Some(MeasureLength {
+            numerator: 1,
+            denominator: 4,
+        });
+        score.parts[0].staves[0].measures[0].voices[0] = vec![Note::rest(Duration::Quarter)];
+        assert!(validate(&score).is_valid());
+        assert_eq!(
+            crate::measure_beats_remaining(&score, 0, 0, 0, 0).expect("capacity"),
+            0.0
+        );
+        let mut stack = CommandStack::new(50);
+        stack
+            .execute(
+                Command::AddNote(AddNoteCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    voice: 0,
+                    position: 0,
+                    pitch: Some(Pitch::new(Step::G, 4)),
+                    duration: Duration::Quarter,
+                    dot_count: 0,
+                    is_rest: false,
+                    tuplet: None,
+                }),
+                &mut score,
+            )
+            .expect("note fits the pickup after trimming");
+        let pickup = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(pickup.len(), 1);
+        assert!(!pickup[0].is_rest);
+
+        stack
+            .execute(
+                Command::SetTimeSignature(SetTimeSignatureCmd {
+                    numerator: 3,
+                    denominator: 4,
+                }),
+                &mut score,
+            )
+            .expect("time signature changes");
+        let beats: f64 = score.parts[0].staves[0].measures[0].voices[0]
+            .iter()
+            .map(|note| note.beats())
+            .sum();
+        assert!((beats - 1.0).abs() < 1e-9, "the pickup keeps one beat");
+
+        score.parts[0].staves[0].measures[1].actual_length = Some(MeasureLength {
+            numerator: 0,
+            denominator: 4,
+        });
+        assert!(validate(&score).errors.iter().any(|error| matches!(
+            error,
+            crate::ValidationError::InvalidMeasureLength { measure: 1, .. }
+        )));
+    }
+
+    #[test]
+    fn set_lyric_addresses_verses_without_touching_verse_one() {
+        use crate::model::notation::VerseLyric;
+        let mut score = Score::new("Verses", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        let lyric = |text: &str| Lyric {
+            text: text.into(),
+            syllabic: "single".into(),
+        };
+        let set = |verse: Option<u8>, text: Option<&str>| {
+            Command::SetLyric(SetLyricCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                note_index: 0,
+                lyric: text.map(lyric),
+                verse,
+            })
+        };
+        let mut stack = CommandStack::new(50);
+        stack
+            .execute(set(None, Some("one")), &mut score)
+            .expect("verse 1");
+        stack
+            .execute(set(Some(3), Some("three")), &mut score)
+            .expect("verse 3");
+        stack
+            .execute(set(Some(2), Some("two")), &mut score)
+            .expect("verse 2");
+        stack
+            .execute(set(Some(2), Some("TWO")), &mut score)
+            .expect("replace verse 2");
+        let note = |score: &Score| score.parts[0].staves[0].measures[0].voices[0][0].clone();
+        assert_eq!(note(&score).lyric, Some(lyric("one")));
+        assert_eq!(
+            note(&score).additional_lyrics,
+            vec![
+                VerseLyric {
+                    verse: 2,
+                    lyric: lyric("TWO")
+                },
+                VerseLyric {
+                    verse: 3,
+                    lyric: lyric("three")
+                }
+            ]
+        );
+        stack
+            .execute(set(Some(3), None), &mut score)
+            .expect("clear verse 3");
+        assert_eq!(note(&score).additional_lyrics.len(), 1);
+        stack.undo(&mut score).expect("clear undoes");
+        assert_eq!(note(&score).additional_lyrics.len(), 2);
+
+        // Legacy JSON without `verse` still targets verse 1.
+        let current = serde_json::to_string(&set(None, None)).expect("SetLyric serializes");
+        assert!(current.contains("\"verse\":null"));
+        let legacy: Command = serde_json::from_str(&current.replace(",\"verse\":null", ""))
+            .expect("legacy SetLyric JSON");
+        stack
+            .execute(legacy, &mut score)
+            .expect("legacy clears verse 1");
+        assert_eq!(note(&score).lyric, None);
+        assert_eq!(note(&score).additional_lyrics.len(), 2);
+
+        assert!(matches!(
+            apply_command(&set(Some(0), Some("zero")), &mut score),
+            Err(Error::InvalidCommand(_))
+        ));
+        assert!(matches!(
+            apply_command(&set(Some(33), Some("too far")), &mut score),
+            Err(Error::InvalidCommand(_))
+        ));
+        score.parts[0].staves[0].measures[0].voices[0][0]
+            .additional_lyrics
+            .push(VerseLyric {
+                verse: 2,
+                lyric: lyric("duplicate"),
+            });
+        assert!(validate(&score).errors.iter().any(|error| matches!(
+            error,
+            crate::ValidationError::InvalidLyricVerse { verse: 2, .. }
+        )));
     }
 
     #[test]

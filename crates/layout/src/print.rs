@@ -2016,6 +2016,15 @@ fn has_first_measure_pickup(score: &Score) -> bool {
     let Some(measure) = staff.measures.first() else {
         return false;
     };
+    // An authored pickup length is explicit evidence; otherwise infer it from underfull content.
+    if let Some(length) = measure.actual_length.and_then(|length| length.beats()) {
+        let bar = measure
+            .time_sig
+            .as_ref()
+            .unwrap_or(&score.settings.time_signature)
+            .total_beats();
+        return length < bar - 1e-9;
+    }
     let expected = measure
         .time_sig
         .as_ref()

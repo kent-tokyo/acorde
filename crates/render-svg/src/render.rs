@@ -30,6 +30,8 @@ use crate::{
 };
 use crate::{spans, tab_technique};
 
+/// Vertical distance between lyric verse lines, in staff spaces.
+pub(crate) const LYRIC_VERSE_SPACING: f32 = 1.6;
 const LEFT_MARGIN_U: f32 = 1.0;
 const RIGHT_MARGIN_U: f32 = 1.0;
 // Minimum breathing room; content_margins() expands these values for extreme pitches and
@@ -1110,6 +1112,9 @@ fn validate_score_content(score: &Score) -> Result<(), RenderError> {
                         if let Some(lyric) = &note.lyric {
                             validate_score_text(&lyric.text)?;
                         }
+                        for entry in &note.additional_lyrics {
+                            validate_score_text(&entry.lyric.text)?;
+                        }
                         if let Some(technique) = &note.technique_text {
                             validate_score_text(technique)?;
                         }
@@ -1490,11 +1495,7 @@ fn content_margins(
         if valid_indices.len() < 2 {
             continue;
         }
-        let total_beats = measure
-            .time_sig
-            .as_ref()
-            .unwrap_or(&score.settings.time_signature)
-            .total_beats();
+        let total_beats = measure.duration_beats(&score.settings.time_signature);
         if !total_beats.is_finite() || total_beats <= 0.0 {
             continue;
         }
@@ -1557,6 +1558,9 @@ fn note_annotation_margins(note: &Note, voice_stem_up: bool) -> (f32, f32) {
     }
     if note.lyric.is_some() {
         bottom = bottom.max(6.7);
+    }
+    if let Some(last) = note.additional_lyrics.last() {
+        bottom = bottom.max(6.7 + LYRIC_VERSE_SPACING * f32::from(last.verse - 1));
     }
     if note.technique_text.is_some()
         || note.guitar_technique.is_some()
@@ -2053,10 +2057,7 @@ fn effective_state(
 
 fn measure_total_beats(score: &Score, staff_ref: &(usize, usize), measure_idx: usize) -> f64 {
     let m = &score.parts[staff_ref.0].staves[staff_ref.1].measures[measure_idx];
-    m.time_sig
-        .as_ref()
-        .unwrap_or(&score.settings.time_signature)
-        .total_beats()
+    m.duration_beats(&score.settings.time_signature)
 }
 
 // ── header widths ──────────────────────────────────────────────────────────────
@@ -2358,11 +2359,7 @@ fn render_measure(
     let tablature_fret_mark_style = score.parts[part].staves[staff]
         .presentation
         .tablature_fret_mark_style;
-    let total_beats = measure
-        .time_sig
-        .as_ref()
-        .unwrap_or(&score.settings.time_signature)
-        .total_beats();
+    let total_beats = measure.duration_beats(&score.settings.time_signature);
     let content_x0 = x + MEASURE_PAD_U * space;
     let content_w = (width - 2.0 * MEASURE_PAD_U * space).max(space);
     let clef_bottom = geometry::clef_bottom_line(clef)?;
@@ -2602,12 +2599,43 @@ fn render_measure_semantic_annotations(
                 }
             }
             if kinds.lyrics {
+                let lyric_offset = if !stem_up && note.dynamic.is_some() {
+                    5.9
+                } else {
+                    4.8
+                };
+                // Verse n sits (n - 1) lyric lines below verse 1, so a verse keeps one line
+                // across notes even when an earlier verse is absent on a note.
+                for entry in &note.additional_lyrics {
+                    let text = entry.lyric.text.clone();
+                    let width = text.chars().count() as f32 * 0.42 * space + 0.6 * space;
+                    let verse_offset = LYRIC_VERSE_SPACING * f32::from(entry.verse - 1);
+                    annotations.push(MeasureSemanticAnnotation::Text {
+                        class: "acorde-lyric-verse",
+                        text,
+                        x,
+                        italic: false,
+                    });
+                    placements.push(acorde_layout::GlyphPlacement {
+                        resource_key: format!(
+                            "lyric:{part}:{staff}:{measure_idx}:{voice_idx}:{note_idx}:verse{}",
+                            entry.verse
+                        ),
+                        metrics: acorde_layout::GlyphMetrics {
+                            advance_mm: 0.0,
+                            left_mm: -width / 2.0,
+                            top_mm: -0.72 * space,
+                            width_mm: width,
+                            height_mm: 0.9 * space,
+                        },
+                        x_mm: x,
+                        y_mm: anchor_y + (lyric_offset + verse_offset) * space,
+                        priority: 1,
+                    });
+                    classes.push(acorde_layout::GlyphCollisionClass::Annotation);
+                    directions.push(acorde_layout::GlyphCollisionDirection::Down);
+                }
                 if let Some(lyric) = &note.lyric {
-                    let lyric_offset = if !stem_up && note.dynamic.is_some() {
-                        5.9
-                    } else {
-                        4.8
-                    };
                     let text = lyric.text.clone();
                     let width = text.chars().count() as f32 * 0.42 * space + 0.6 * space;
                     annotations.push(MeasureSemanticAnnotation::Text {

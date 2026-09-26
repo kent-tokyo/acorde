@@ -518,6 +518,13 @@ pub fn render_preflight(score: &Score) -> Vec<RenderPreflightIssue> {
                                 &lyric.text,
                             );
                         }
+                        for entry in &note.additional_lyrics {
+                            push_text_preflight_issue(
+                                &mut issues,
+                                &format!("{note_path}/lyric/{}", entry.verse),
+                                &entry.lyric.text,
+                            );
+                        }
                         if let Some(technique) = &note.technique_text {
                             push_text_preflight_issue(
                                 &mut issues,

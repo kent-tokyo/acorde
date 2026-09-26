@@ -116,12 +116,25 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 continue;
             }
 
-            xml.push_str(&format!("    <measure number=\"{}\">\n", measure.number));
             let measure_time = measure
                 .time_sig
                 .as_ref()
                 .unwrap_or(&score.settings.time_signature);
-            let measure_ticks = time_signature_ticks(measure_time).unwrap_or(DIVISIONS * 4);
+            let bar_ticks = time_signature_ticks(measure_time).unwrap_or(DIVISIONS * 4);
+            let measure_ticks = measure
+                .actual_length
+                .and_then(measure_length_ticks)
+                .unwrap_or(bar_ticks);
+            // A shortened first bar is a pickup: MusicXML marks it as not counted.
+            let implicit = if i == 0 && measure_ticks < bar_ticks {
+                " implicit=\"yes\""
+            } else {
+                ""
+            };
+            xml.push_str(&format!(
+                "    <measure number=\"{}\"{implicit}>\n",
+                measure.number
+            ));
 
             // System / page break (written before barlines, as a print element)
             if measure.system_break || measure.page_break {
@@ -888,8 +901,13 @@ fn serialize_note(
             xml.push_str(&format!("        <notehead>{}</notehead>\n", nh_str));
         }
         serialize_notations(xml, note, &typed_spanners, address, tab_lines);
-        if let Some(lyric) = &note.lyric {
-            xml.push_str("        <lyric number=\"1\">\n");
+        let verses = note.lyric.iter().map(|lyric| (1, lyric)).chain(
+            note.additional_lyrics
+                .iter()
+                .map(|entry| (entry.verse, &entry.lyric)),
+        );
+        for (verse, lyric) in verses {
+            xml.push_str(&format!("        <lyric number=\"{verse}\">\n"));
             xml.push_str(&format!(
                 "          <syllabic>{}</syllabic>\n",
                 escape_xml(&lyric.syllabic)
@@ -1047,6 +1065,17 @@ fn duration_notation_for_ticks(ticks: u32) -> Option<(&'static str, u8)> {
         .find_map(|(candidate, duration_type, dots)| {
             (*candidate == ticks).then_some((*duration_type, *dots))
         })
+}
+
+/// Exact tick length of an authored measure length at [`DIVISIONS`] per quarter note.
+fn measure_length_ticks(length: acorde_core::MeasureLength) -> Option<u32> {
+    length.beats()?;
+    let whole_note_ticks = u64::from(length.numerator).checked_mul(u64::from(DIVISIONS) * 4)?;
+    let denominator = u64::from(length.denominator);
+    if whole_note_ticks % denominator != 0 {
+        return None;
+    }
+    u32::try_from(whole_note_ticks / denominator).ok()
 }
 
 fn time_signature_ticks(time: &TimeSignature) -> Option<u32> {

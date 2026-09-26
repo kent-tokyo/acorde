@@ -2574,3 +2574,43 @@ fn metadata_exposes_harp_pedal_diagram_without_svg_parsing() {
     assert_eq!(metadata.harp_pedal_diagrams[0].measure, 0);
     assert_eq!(metadata.harp_pedal_diagrams[0].diagram, diagram);
 }
+
+#[test]
+fn pickup_measure_renders_its_authored_length() {
+    use acorde_core::{Duration, MeasureLength, Note, Pitch, Score, Step};
+    let mut score = Score::new("pickup", 120, 4, 4, 0, 2);
+    score.parts[0].staves[0].measures[0].actual_length = Some(MeasureLength {
+        numerator: 1,
+        denominator: 4,
+    });
+    score.parts[0].staves[0].measures[0].voices[0] =
+        vec![Note::new(Pitch::new(Step::G, 4), Duration::Quarter)];
+    assert!(acorde_core::validate(&score).is_valid());
+    let svg = render_svg(&score, &opts()).expect("pickup score renders");
+    assert_well_formed_xml(&svg);
+    assert!(render_preflight(&score).is_empty());
+}
+
+#[test]
+fn additional_lyric_verses_render_below_verse_one() {
+    use acorde_core::{Duration, Lyric, Note, Pitch, Score, Step, VerseLyric};
+    let mut score = Score::new("verses", 120, 4, 4, 0, 1);
+    let mut note = Note::new(Pitch::new(Step::C, 5), Duration::Whole);
+    note.lyric = Some(Lyric {
+        text: "first".into(),
+        syllabic: "single".into(),
+    });
+    note.additional_lyrics = vec![VerseLyric {
+        verse: 2,
+        lyric: Lyric {
+            text: "second".into(),
+            syllabic: "single".into(),
+        },
+    }];
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+    let svg = render_svg(&score, &opts()).expect("verses render");
+    assert_well_formed_xml(&svg);
+    assert!(svg.contains("acorde-lyric-verse"));
+    assert!(svg.contains(">second<"));
+    assert!(svg.contains(">first<"));
+}
