@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.4] - 2026-09-27
+
 - MusicXML `<staves>` now materializes every declared staff, including staves without a numbered
   clef or notes, and export writes it back, so staff count and note staff ownership survive a
   round-trip (#81). A note that continues its voice on another declared staff imports as a
