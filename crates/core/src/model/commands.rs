@@ -4889,6 +4889,10 @@ fn same_voice(address: &NoteAddr, part: usize, staff: usize, measure: usize, voi
 }
 
 fn trim_voice_to_measure(voice: &mut Vec<Note>, max_beats: f64) {
+    // A lone plain whole rest is a measure rest and already fills any measure.
+    if matches!(voice.as_slice(), [only] if only.is_plain_whole_rest()) {
+        return;
+    }
     let mut total = 0.0f64;
     let mut cutoff = voice.len();
     for (i, n) in voice.iter().enumerate() {
@@ -4903,7 +4907,7 @@ fn trim_voice_to_measure(voice: &mut Vec<Note>, max_beats: f64) {
 }
 
 fn pad_voice_to_measure(voice: &mut Vec<Note>, max_beats: f64) {
-    let mut used: f64 = voice.iter().map(|n| n.beats()).sum();
+    let mut used = crate::voice_duration_beats(voice, max_beats);
     while max_beats - used > 1e-9 {
         let remaining = max_beats - used;
         let rest = Note::rest(Duration::whole_filling_beats(remaining));

@@ -151,12 +151,11 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
                         push(format!("{measure_path}/{field}"), value, reason);
                     }
                 }
-                if measure.multi_rest_count.is_some() || measure.system_break || measure.page_break
-                {
+                if measure.multi_rest_count.is_some() {
                     push(
                         format!("{measure_path}/layout"),
                         "present".to_string(),
-                        "MSCX subset export does not emit multi-rest or explicit layout breaks",
+                        "MSCX subset export does not emit multi-measure rests",
                     );
                 }
                 for (voice_index, voice) in measure.voices.iter().enumerate() {
@@ -263,7 +262,13 @@ pub fn serialize_mscx(score: &Score) -> Result<String, Error> {
     for part in &score.parts {
         for staff in &part.staves {
             let score_texts = score_texts_pending.take().unwrap_or_default();
-            write_staff(&mut xml, staff_id, staff, score_texts)?;
+            write_staff(
+                &mut xml,
+                staff_id,
+                staff,
+                score_texts,
+                &score.settings.time_signature,
+            )?;
             staff_id = staff_id.saturating_add(1);
         }
     }
@@ -295,7 +300,9 @@ fn write_staff(
     id: usize,
     staff: &Staff,
     score_texts: &[acorde_core::StyledText],
+    default_time: &acorde_core::TimeSignature,
 ) -> Result<(), Error> {
+    let mut running_time = default_time.clone();
     write!(xml, "<Staff id=\"{id}\">").map_err(fmt_error)?;
     if !score_texts.is_empty() {
         xml.push_str("<VBox>");
@@ -342,6 +349,33 @@ fn write_staff(
             .map_err(fmt_error)?,
             None => write!(xml, "<Measure number=\"{number}\">").map_err(fmt_error)?,
         }
+        for (present, subtype) in [
+            (measure.system_break, "line"),
+            (measure.page_break, "page"),
+            (measure.section_break, "section"),
+        ] {
+            if present {
+                write!(
+                    xml,
+                    "<LayoutBreak><subtype>{subtype}</subtype></LayoutBreak>"
+                )
+                .map_err(fmt_error)?;
+            }
+        }
+        if let Some(time) = &measure.time_sig {
+            running_time = time.clone();
+        }
+        // A measure rest is written as MuseScore's `measure` duration of the bar's length.
+        let (bar_numerator, bar_denominator) = measure
+            .actual_length
+            .filter(|length| length.beats().is_some())
+            .map_or(
+                (
+                    u32::from(running_time.numerator),
+                    u32::from(running_time.denominator),
+                ),
+                |length| (length.numerator, length.denominator),
+            );
         if let Some(key) = &measure.key_sig {
             write!(
                 xml,
@@ -385,8 +419,18 @@ fn write_staff(
             if voice_index > 0 {
                 write!(xml, "<voice>{}", voice_index + 1).map_err(fmt_error)?;
             }
-            for note in voice {
-                write_note(xml, note)?;
+            if let [only] = voice.as_slice()
+                && only.is_plain_whole_rest()
+            {
+                write!(
+                    xml,
+                    "<Rest><durationType>measure</durationType><duration>{bar_numerator}/{bar_denominator}</duration></Rest>"
+                )
+                .map_err(fmt_error)?;
+            } else {
+                for note in voice {
+                    write_note(xml, note)?;
+                }
             }
             if voice_index > 0 {
                 xml.push_str("</voice>");
@@ -394,6 +438,16 @@ fn write_staff(
         }
         if matches!(measure.barline_right, acorde_core::Barline::RepeatEnd) {
             xml.push_str("<endRepeat/>");
+        }
+        let barline = match measure.barline_right {
+            acorde_core::Barline::Double => Some("double"),
+            acorde_core::Barline::Final => Some("end"),
+            acorde_core::Barline::Dashed => Some("dashed"),
+            acorde_core::Barline::Dotted => Some("dotted"),
+            _ => None,
+        };
+        if let Some(subtype) = barline {
+            write!(xml, "<BarLine><subtype>{subtype}</subtype></BarLine>").map_err(fmt_error)?;
         }
         xml.push_str("</Measure>");
     }

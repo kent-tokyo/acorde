@@ -1496,7 +1496,47 @@ fn musicxml_chord_symbol_placement_roundtrips() {
 fn openscore_lieder_cc0_fixture_parses_as_external_smoke_corpus() {
     let report = acorde_io::parse_mscx_with_report(OPENSCORE_LIEDER_MSCX)
         .expect("OpenScore Lieder MSCX fixture parses");
-    assert!(report.diagnostics.is_empty());
+    // OpenScore keeps playback hairpins, pedal lines, and most dynamics hidden; they import as
+    // visible marks and each hidden flag is reported rather than silently dropped.
+    assert_eq!(report.diagnostics.len(), 61);
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code == "mscx.unsupported-visibility")
+    );
+    assert!(acorde_core::validate(&report.score).is_valid());
+    let notes: Vec<&acorde_core::Note> = report
+        .score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .flat_map(|staff| &staff.measures)
+        .flat_map(|measure| measure.voices.iter().flatten())
+        .collect();
+    let count =
+        |test: fn(&acorde_core::Note) -> bool| notes.iter().filter(|note| test(note)).count();
+    assert_eq!(count(|note| note.hairpin_start.is_some()), 16);
+    assert_eq!(count(|note| note.hairpin_end), 16);
+    assert_eq!(count(|note| note.pedal_start), 27);
+    assert_eq!(count(|note| note.pedal_end), 27);
+    assert_eq!(count(|note| note.slur_start), 5);
+    assert_eq!(count(|note| note.slur_end), 5);
+    let first_staff = &report.score.parts[0].staves[0].measures;
+    assert_eq!(first_staff.iter().filter(|m| m.system_break).count(), 4);
+    assert_eq!(first_staff.iter().filter(|m| m.page_break).count(), 1);
+    // One `<BarLine><subtype>double</subtype>` per staff that carries it in the source.
+    assert_eq!(
+        report
+            .score
+            .parts
+            .iter()
+            .flat_map(|part| &part.staves)
+            .flat_map(|staff| &staff.measures)
+            .filter(|m| matches!(m.barline_right, acorde_core::Barline::Double))
+            .count(),
+        5
+    );
     assert_eq!(report.score.parts.len(), 4);
     assert_eq!(report.score.parts[0].staves[0].measures.len(), 23);
     assert_eq!(report.score.metadata.title, "Aloha Oe");
@@ -3324,4 +3364,148 @@ fn formats_without_verse_export_report_additional_verses_as_loss() {
         located(&midi.diagnostics, "midi.export-unsupported-lyric-verse").len(),
         3
     );
+}
+
+#[cfg(feature = "mscz")]
+const MSCX_LINES: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<museScore version="4.20"><Score><Division>480</Division>
+<Part id="1"><Staff id="1"/><trackName>Piano</trackName><Instrument id="piano"><longName>Piano</longName></Instrument></Part>
+<Staff id="1">
+<Measure><LayoutBreak><subtype>section</subtype></LayoutBreak><voice>
+<TimeSig><sigN>3</sigN><sigD>4</sigD></TimeSig>
+<Spanner type="HairPin"><HairPin><subtype>1</subtype></HairPin><next><location><fractions>3/4</fractions></location></next></Spanner>
+<Spanner type="Pedal"><Pedal><visible>0</visible></Pedal><next><location><fractions>3/4</fractions></location></next></Spanner>
+<Chord><durationType>half</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord>
+<Chord><durationType>quarter</durationType><Note><pitch>62</pitch><tpc>16</tpc></Note></Chord>
+</voice></Measure>
+<Measure><voice>
+<Spanner type="HairPin"><prev><location><fractions>-1/4</fractions></location></prev></Spanner>
+<Spanner type="Pedal"><prev><location><fractions>-1/4</fractions></location></prev></Spanner>
+<Rest><durationType>measure</durationType><duration>3/4</duration></Rest>
+<BarLine><subtype>end</subtype></BarLine>
+</voice></Measure>
+<Measure><voice><Rest><durationType>measure</durationType><duration>3/4</duration></Rest><BarLine><subtype>heavy</subtype></BarLine></voice></Measure>
+</Staff></Score></museScore>"#;
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_voice_level_lines_breaks_barlines_and_measure_rests_import() {
+    let report = acorde_io::parse_mscx_with_report(MSCX_LINES).expect("MSCX lines parse");
+    let score = &report.score;
+    assert!(
+        acorde_core::validate(score).is_valid(),
+        "{:?}",
+        acorde_core::validate(score).errors
+    );
+    let measures = &score.parts[0].staves[0].measures;
+    let first = &measures[0].voices[0];
+    assert_eq!(
+        first[0].hairpin_start,
+        Some(acorde_core::HairpinKind::Decrescendo)
+    );
+    assert!(first[0].pedal_start);
+    // The end markers open the next measure, so they close the previous measure's last chord.
+    assert!(first[1].hairpin_end);
+    assert!(first[1].pedal_end);
+    assert!(measures[0].section_break);
+    assert!(matches!(
+        measures[1].barline_right,
+        acorde_core::Barline::Final
+    ));
+    assert!(matches!(
+        measures[2].barline_right,
+        acorde_core::Barline::Normal
+    ));
+    // A 3/4 measure rest imports as a plain whole rest that fills the bar.
+    assert!(measures[1].voices[0][0].is_plain_whole_rest());
+    assert_eq!(
+        acorde_core::measure_beats_remaining(score, 0, 0, 1, 0).expect("capacity"),
+        0.0
+    );
+    let codes: Vec<(&str, Option<&str>)> = report
+        .diagnostics
+        .iter()
+        .map(|diagnostic| {
+            (
+                diagnostic.code.as_str(),
+                diagnostic.preserved_value.as_deref(),
+            )
+        })
+        .collect();
+    assert!(codes.contains(&("mscx.unsupported-visibility", Some("0"))));
+    assert!(codes.contains(&("mscx.unsupported-barline", Some("heavy"))));
+}
+
+#[test]
+fn musicxml_measure_rest_fills_any_time_signature() {
+    use acorde_core::{Command, CommandStack, SetTimeSignatureCmd};
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>V</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>2</divisions><time><beats>6</beats><beat-type>8</beat-type></time></attributes><note><rest measure="yes"/><duration>6</duration><voice>1</voice></note></measure><measure number="2"><note><pitch><step>C</step><octave>5</octave></pitch><duration>6</duration><voice>1</voice><type>half</type><dot/></note></measure></part></score-partwise>"#;
+    let mut score = parse_musicxml(xml).expect("6/8 measure rest parses");
+    assert!(
+        acorde_core::validate(&score).is_valid(),
+        "{:?}",
+        acorde_core::validate(&score).errors
+    );
+    // 3 + 3 quarter-note beats at 120 BPM.
+    assert!((acorde_core::score_duration_secs(&score) - 3.0).abs() < 1e-9);
+    let serialized = serialize_musicxml(&score).expect("measure rest serializes");
+    assert!(serialized.contains("<rest measure=\"yes\"/>"));
+    let restored = parse_musicxml(&serialized).expect("measure rest reparses");
+    assert!(restored.parts[0].staves[0].measures[0].voices[0][0].is_plain_whole_rest());
+
+    let mut stack = CommandStack::new(10);
+    stack
+        .execute(
+            Command::SetTimeSignature(SetTimeSignatureCmd {
+                numerator: 3,
+                denominator: 4,
+            }),
+            &mut score,
+        )
+        .expect("time signature changes");
+    assert!(score.parts[0].staves[0].measures[0].voices[0][0].is_plain_whole_rest());
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_breaks_barlines_and_measure_rests_round_trip() {
+    let parsed = acorde_io::parse_mscx(MSCX_LINES).expect("MSCX lines parse");
+    let report = acorde_io::serialize_mscx_with_report(&parsed).expect("MSCX export");
+    assert!(
+        report
+            .output
+            .contains("<LayoutBreak><subtype>section</subtype></LayoutBreak>")
+    );
+    assert!(
+        report
+            .output
+            .contains("<BarLine><subtype>end</subtype></BarLine>")
+    );
+    assert!(
+        report
+            .output
+            .contains("<durationType>measure</durationType><duration>3/4</duration>")
+    );
+    assert!(!report.diagnostics.iter().any(|diagnostic| {
+        diagnostic
+            .source_location
+            .as_deref()
+            .is_some_and(|path| path.ends_with("/layout"))
+    }));
+    // Hairpins and pedal lines are not written by the MSCX subset exporter yet; they stay reported.
+    assert!(report.diagnostics.iter().any(|diagnostic| {
+        diagnostic
+            .source_location
+            .as_deref()
+            .is_some_and(|path| path.ends_with("/measure/1/voice/1/note/1"))
+    }));
+    let restored = acorde_io::parse_mscx(&report.output).expect("MSCX export reparses");
+    assert!(acorde_core::validate(&restored).is_valid());
+    let measures = &restored.parts[0].staves[0].measures;
+    assert!(measures[0].section_break);
+    assert!(matches!(
+        measures[1].barline_right,
+        acorde_core::Barline::Final
+    ));
+    assert!(measures[2].voices[0][0].is_plain_whole_rest());
 }

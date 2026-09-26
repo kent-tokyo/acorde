@@ -85,7 +85,7 @@ pub use model::score::{
     assign_tablature_positions, compute_beams, diff, measure_beats_remaining,
     optimize_tablature_positions, respell_score, respell_score_to_key, respell_staff_region,
     score_duration_secs, score_duration_secs_region, score_patch, suggested_stem_up, transpose,
-    transpose_checked, transpose_staff_region_checked,
+    transpose_checked, transpose_staff_region_checked, voice_duration_beats,
 };
 pub use model::structural_plan::{
     STRUCTURAL_CHANGE_PLAN_CONTRACT_VERSION, StructuralChangeDiagnostic,

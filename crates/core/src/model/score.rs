@@ -2223,6 +2223,18 @@ impl Note {
         }
     }
 
+    /// A plain whole rest, the form MusicXML `<rest measure="yes"/>` and MuseScore
+    /// `durationType=measure` import to. Alone in a voice it is a measure rest; see
+    /// [`voice_duration_beats`].
+    pub fn is_plain_whole_rest(&self) -> bool {
+        self.is_rest
+            && matches!(self.duration, Duration::Whole)
+            && self.dot_count == 0
+            && self.tuplet.is_none()
+            && !self.is_grace
+            && !self.is_cue
+    }
+
     pub fn beats(&self) -> f64 {
         if self.is_grace || self.is_cue {
             return 0.0;
@@ -3798,6 +3810,16 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
     Ok(s)
 }
 
+/// Beats a voice occupies in a measure lasting `measure_beats`. A voice holding only one plain
+/// whole rest is a measure rest and lasts exactly the measure in any time signature (as in
+/// MusicXML and MuseScore); otherwise the voice lasts the sum of its notes.
+pub fn voice_duration_beats(voice: &[Note], measure_beats: f64) -> f64 {
+    match voice {
+        [only] if only.is_plain_whole_rest() => measure_beats,
+        _ => voice.iter().map(Note::beats).sum(),
+    }
+}
+
 /// Respell all pitches in the score to prefer flats or sharps.
 ///
 /// Applies [`Pitch::respell`] to every note in every part, staff, measure, and voice.
@@ -4010,7 +4032,10 @@ pub fn score_duration_secs(score: &Score) -> f64 {
                 if current_bpm == 0.0 {
                     continue;
                 }
-                let beats: f64 = m.voices[0].iter().map(|n| n.beats()).sum();
+                let beats = voice_duration_beats(
+                    &m.voices[0],
+                    m.duration_beats(&score.settings.time_signature),
+                );
                 total_secs += tempo_ramp_duration_secs(current_bpm, m.tempo_ramp_to, beats);
                 if let Some(target) = m.tempo_ramp_to.filter(|target| *target > 0) {
                     current_bpm = f64::from(target);
@@ -4044,7 +4069,10 @@ pub fn score_duration_secs_region(score: &Score, region: (usize, usize)) -> f64 
                 if current_bpm == 0.0 {
                     continue;
                 }
-                let beats: f64 = m.voices[0].iter().map(|n| n.beats()).sum();
+                let beats = voice_duration_beats(
+                    &m.voices[0],
+                    m.duration_beats(&score.settings.time_signature),
+                );
                 total_secs += tempo_ramp_duration_secs(current_bpm, m.tempo_ramp_to, beats);
                 if let Some(target) = m.tempo_ramp_to.filter(|target| *target > 0) {
                     current_bpm = f64::from(target);
@@ -4094,8 +4122,8 @@ pub fn measure_beats_remaining(
         .voices
         .get(voice_index)
         .ok_or(Error::VoiceOutOfRange(voice_index))?;
-    let used: f64 = voice.iter().map(|n| n.beats()).sum();
-    Ok((measure.duration_beats(&score.settings.time_signature) - used).max(0.0))
+    let capacity = measure.duration_beats(&score.settings.time_signature);
+    Ok((capacity - voice_duration_beats(voice, capacity)).max(0.0))
 }
 
 /// Suggest whether the stem should point up for the given pitches and clef.

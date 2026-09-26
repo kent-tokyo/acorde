@@ -1,4 +1,5 @@
 use crate::{Diagnostic, Error};
+use acorde_core::HairpinKind;
 use acorde_core::{
     Articulation, Barline, BeamState, ChordDegree, ChordSymbol, Clef, Duration, Dynamic,
     FiguredBassFigure, GuitarTechnique, KeySignature, Lyric, Measure, Note, NoteHead, Part,
@@ -9,6 +10,26 @@ use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use std::collections::HashMap;
 use std::collections::HashSet;
+
+/// Voice-level MuseScore line spanners mapped onto note-level start/end flags.
+#[derive(Clone, Copy)]
+enum MscxLineKind {
+    HairPin,
+    Pedal,
+    Slur,
+}
+
+/// Map a MuseScore `<BarLine><subtype>` to a canonical right barline. `normal` and unknown
+/// subtypes return `None` (unknown ones are reported by `loss_diagnostics`).
+fn mscx_barline(subtype: &str) -> Option<Barline> {
+    match subtype.trim() {
+        "double" => Some(Barline::Double),
+        "end" | "final" => Some(Barline::Final),
+        "dashed" => Some(Barline::Dashed),
+        "dotted" => Some(Barline::Dotted),
+        _ => None,
+    }
+}
 
 /// Parse MuseScore's measure `len` fraction (`"1/4"` = one quarter note).
 fn parse_mscx_measure_len(value: &str) -> Option<acorde_core::MeasureLength> {
@@ -251,6 +272,28 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     // Feature L: Slur Spanner state (Chord level)
     let mut in_chord_slur_spanner = false;
     let mut chord_slur_has_next = false;
+    let mut chord_slur_has_prev = false;
+    let mut chord_slur_end = false;
+
+    // Voice-level line spanners (HairPin, Pedal, and MuseScore 3.x Slur). A `<next>` marker
+    // starts the line at the following chord of that voice; a `<prev>` marker ends it at the
+    // voice's preceding chord or rest.
+    let mut line_spanner: Option<MscxLineKind> = None;
+    let mut in_line_body = false;
+    let mut in_line_segment = false;
+    let mut line_subtype: Option<String> = None;
+    let mut line_has_next = false;
+    let mut line_has_prev = false;
+    let mut pending_hairpin: [Option<HairpinKind>; 4] = [None; 4];
+    let mut pending_pedal: [bool; 4] = [false; 4];
+    let mut pending_slur: [bool; 4] = [false; 4];
+
+    // MuseScore `<LayoutBreak>` and `<BarLine>` measure presentation.
+    let mut in_layout_break = false;
+    let mut cur_system_break = false;
+    let mut cur_page_break = false;
+    let mut cur_section_break = false;
+    let mut in_barline_elem = false;
 
     // Feature J: Volta Spanner state (Measure level)
     let mut in_volta_spanner = false;
@@ -362,6 +405,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         cur_voices = [vec![], vec![], vec![], vec![]];
                         cur_barline_left = Barline::Normal;
                         cur_barline_right = Barline::Normal;
+                        cur_system_break = false;
+                        cur_page_break = false;
+                        cur_section_break = false;
                         cur_volta = None;
                         cur_texts.clear();
                         cur_figured_bass.clear();
@@ -449,6 +495,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         chord_tie_start = false;
                         chord_tie_end = false;
                         chord_slur_start = false;
+                        chord_slur_end = false;
                         chord_is_grace = false;
                         chord_grace_slash = false;
                         chord_arpeggiate = None;
@@ -535,11 +582,44 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     // Feature J: Volta Spanner at Measure level
                     "Spanner" if in_measure && !in_chord && !in_rest_elem => {
-                        if attr_str(e, b"type").as_deref() == Some("Volta") {
-                            in_volta_spanner = true;
-                            volta_text.clear();
-                            volta_has_next = false;
+                        match attr_str(e, b"type").as_deref() {
+                            Some("Volta") => {
+                                in_volta_spanner = true;
+                                volta_text.clear();
+                                volta_has_next = false;
+                            }
+                            Some(kind @ ("HairPin" | "Pedal" | "Slur")) => {
+                                line_spanner = Some(match kind {
+                                    "HairPin" => MscxLineKind::HairPin,
+                                    "Pedal" => MscxLineKind::Pedal,
+                                    _ => MscxLineKind::Slur,
+                                });
+                                in_line_body = false;
+                                in_line_segment = false;
+                                line_subtype = None;
+                                line_has_next = false;
+                                line_has_prev = false;
+                            }
+                            _ => {}
                         }
+                    }
+                    "HairPin" | "Pedal" | "Slur" if line_spanner.is_some() => {
+                        in_line_body = true;
+                    }
+                    "Segment" if in_line_body => {
+                        in_line_segment = true;
+                    }
+                    "next" if line_spanner.is_some() && !in_line_body => {
+                        line_has_next = true;
+                    }
+                    "prev" if line_spanner.is_some() && !in_line_body => {
+                        line_has_prev = true;
+                    }
+                    "LayoutBreak" if in_measure => {
+                        in_layout_break = true;
+                    }
+                    "BarLine" if in_measure && !in_chord && !in_rest_elem => {
+                        in_barline_elem = true;
                     }
                     "next" if in_volta_spanner => {
                         volta_has_next = true;
@@ -549,10 +629,15 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         if attr_str(e, b"type").as_deref() == Some("Slur") {
                             in_chord_slur_spanner = true;
                             chord_slur_has_next = false;
+                            chord_slur_has_prev = false;
                         }
                     }
                     "next" if in_chord_slur_spanner => {
                         chord_slur_has_next = true;
+                    }
+                    // The `<prev>` marker sits in the chord where the slur ends.
+                    "prev" if in_chord_slur_spanner => {
+                        chord_slur_has_prev = true;
                     }
                     // Feature K: Dynamic at Measure level
                     "Dynamic" if in_measure && !in_chord => {
@@ -576,6 +661,70 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                 let t = t.trim();
 
                 match name.as_str() {
+                    // Voice-level line spanners (HairPin, Pedal, MuseScore 3.x Slur)
+                    "subtype" if in_line_body && !in_line_segment => {
+                        line_subtype = Some(t.to_string());
+                    }
+                    "Segment" if in_line_segment => {
+                        in_line_segment = false;
+                    }
+                    "HairPin" | "Pedal" | "Slur" if in_line_body => {
+                        in_line_body = false;
+                    }
+                    "Spanner" if line_spanner.is_some() && !in_line_body => {
+                        let voice = if in_measure_voice_wrapper {
+                            measure_voice_index.min(3)
+                        } else {
+                            0
+                        };
+                        let kind = line_spanner.take().unwrap_or(MscxLineKind::Slur);
+                        if line_has_next {
+                            match kind {
+                                MscxLineKind::HairPin => {
+                                    // MuseScore subtypes 1 and 3 are decrescendo hairpins/lines.
+                                    pending_hairpin[voice] =
+                                        Some(match line_subtype.as_deref().map(str::trim) {
+                                            Some("1" | "3") => HairpinKind::Decrescendo,
+                                            _ => HairpinKind::Crescendo,
+                                        });
+                                }
+                                MscxLineKind::Pedal => pending_pedal[voice] = true,
+                                MscxLineKind::Slur => pending_slur[voice] = true,
+                            }
+                        }
+                        if line_has_prev {
+                            let previous = cur_voices[voice].last_mut().or_else(|| {
+                                staff_measures
+                                    .get_mut(&current_staff_id.unwrap_or(1))
+                                    .and_then(|measures| measures.last_mut())
+                                    .and_then(|measure| measure.voices[voice].last_mut())
+                            });
+                            if let Some(note) = previous {
+                                match kind {
+                                    MscxLineKind::HairPin => note.hairpin_end = true,
+                                    MscxLineKind::Pedal => note.pedal_end = true,
+                                    MscxLineKind::Slur => note.slur_end = true,
+                                }
+                            }
+                        }
+                    }
+                    "subtype" if in_layout_break => match t {
+                        "line" => cur_system_break = true,
+                        "page" => cur_page_break = true,
+                        "section" => cur_section_break = true,
+                        _ => {}
+                    },
+                    "LayoutBreak" if in_layout_break => {
+                        in_layout_break = false;
+                    }
+                    "subtype" if in_barline_elem => {
+                        if let Some(barline) = mscx_barline(t) {
+                            cur_barline_right = barline;
+                        }
+                    }
+                    "BarLine" if in_barline_elem => {
+                        in_barline_elem = false;
+                    }
                     // Metadata
                     "metaTag" if in_meta_tag => {
                         match meta_tag_name.as_str() {
@@ -673,9 +822,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             figured_bass: std::mem::take(&mut cur_figured_bass),
                             harp_pedal_diagrams: Vec::new(),
                             multi_rest_count: None,
-                            system_break: false,
-                            page_break: false,
-                            section_break: false,
+                            system_break: cur_system_break,
+                            page_break: cur_page_break,
+                            section_break: cur_section_break,
                             actual_length: cur_measure_len,
                             voices: [
                                 std::mem::take(&mut cur_voices[0]),
@@ -1008,6 +1157,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         if chord_slur_has_next {
                             chord_slur_start = true;
                         }
+                        if chord_slur_has_prev {
+                            chord_slur_end = true;
+                        }
                         in_chord_slur_spanner = false;
                     }
 
@@ -1175,6 +1327,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             note.tie_start = chord_tie_start;
                             note.tie_end = chord_tie_end;
                             note.slur_start = chord_slur_start;
+                            note.slur_end = chord_slur_end;
                             note.pitches = chord_pitches.clone();
                             note.tab_positions = chord_tab_positions.clone();
                             note.tab_position = note.tab_positions.first().cloned();
@@ -1199,6 +1352,13 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             }
                             crate::assign_note_verses(&mut note, std::mem::take(&mut chord_lyrics));
                             let v = chord_voice.min(3);
+                            if !note.is_grace {
+                                if let Some(kind) = pending_hairpin[v].take() {
+                                    note.hairpin_start = Some(kind);
+                                }
+                                note.pedal_start |= std::mem::take(&mut pending_pedal[v]);
+                                note.slur_start |= std::mem::take(&mut pending_slur[v]);
+                            }
                             cur_voices[v].push(note);
                         }
                         in_chord = false;
@@ -1796,6 +1956,61 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
             diagnostic.source_location = Some(location);
             diagnostic.preserved_value = Some(id);
             diagnostics.push(diagnostic);
+        }
+    }
+    diagnostics.extend(presentation_loss_diagnostics(xml));
+    diagnostics
+}
+
+/// Report MuseScore presentation that the canonical score cannot keep: hidden (`visible=0`)
+/// hairpins, pedal lines, and dynamics are imported as visible marks, and barline subtypes
+/// outside the supported set stay normal barlines.
+fn presentation_loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
+    let mut reader = Reader::from_str(xml);
+    let mut path: Vec<String> = Vec::new();
+    let mut text = String::new();
+    let mut diagnostics = Vec::new();
+    loop {
+        match reader.read_event() {
+            Ok(Event::Start(event)) => {
+                path.push(local_name_str(event.local_name().as_ref()));
+                text.clear();
+            }
+            Ok(Event::Text(event)) => text.push_str(&String::from_utf8_lossy(event.as_ref())),
+            Ok(Event::End(_)) => {
+                if let [.., parent, name] = path.as_slice() {
+                    let value = text.trim();
+                    if name == "visible"
+                        && value == "0"
+                        && matches!(parent.as_str(), "HairPin" | "Pedal" | "Dynamic")
+                    {
+                        let mut diagnostic = Diagnostic::warning(
+                            "mscx.unsupported-visibility",
+                            format!("hidden MuseScore {parent} is imported as a visible mark"),
+                        );
+                        diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                        diagnostic.preserved_value = Some(value.to_string());
+                        diagnostics.push(diagnostic);
+                    }
+                    if name == "subtype"
+                        && parent == "BarLine"
+                        && value != "normal"
+                        && mscx_barline(value).is_none()
+                    {
+                        let mut diagnostic = Diagnostic::warning(
+                            "mscx.unsupported-barline",
+                            "MuseScore barline subtype is outside the canonical barline set",
+                        );
+                        diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                        diagnostic.preserved_value = Some(value.to_string());
+                        diagnostics.push(diagnostic);
+                    }
+                }
+                path.pop();
+                text.clear();
+            }
+            Ok(Event::Eof) | Err(_) => break,
+            _ => {}
         }
     }
     diagnostics

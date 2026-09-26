@@ -115,7 +115,9 @@
       "source_revision": "6b2dc542ce2e8aa4b78c8ee62103b210efc07015",
       "sha256": "f588fc91a36629d6aa079721571ce6e2afb8c8dfafa77935c8198b2d3ec5fd51",
       "round_trip": "import-only",
-      "expected_losses": []
+      "expected_losses": [
+        "Hidden MuseScore hairpins, pedal lines, and dynamics import as visible marks (mscx.unsupported-visibility)"
+      ]
     },
     {
       "path": "openscore_omr_score_1003.mscz",

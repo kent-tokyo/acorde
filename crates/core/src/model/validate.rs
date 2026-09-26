@@ -610,7 +610,7 @@ pub fn validate(score: &Score) -> ValidationReport {
                     if non_rest_count > 0 {
                         part_has_notes = true;
                     }
-                    let total: f64 = voice.iter().map(|n| n.beats()).sum();
+                    let total = crate::voice_duration_beats(voice, expected);
                     if total > expected + 0.02 {
                         errors.push(ValidationError::BeatCount {
                             part: pi,
