@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.5] - 2026-09-27
+
 - **[schema]** Added optional `Measure.actual_length` (`MeasureLength`, a fraction of a whole note)
   for pickups, incomplete final bars, and other irregular measures. Validation, playback timing,
   metronome clicks, editing capacity, time-signature changes, logical layout, and SVG spacing use
