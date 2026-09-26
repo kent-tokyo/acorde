@@ -3750,6 +3750,171 @@ pub fn respell_score(score: &mut Score, prefer_flat: bool) {
     }
 }
 
+/// Spelling policy for [`respell_staff_region`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RespellPolicy {
+    /// Spell black-key pitches with flats.
+    Flat,
+    /// Spell black-key pitches with sharps.
+    Sharp,
+    /// Follow the key signature in effect at each measure: flat keys use flats, others sharps.
+    Key,
+}
+
+/// Respell the pitched notes of one staff in the measure range `start_measure..end_measure`
+/// (end exclusive), the selection form of [`respell_score`].
+///
+/// With [`RespellPolicy::Key`], each measure uses its own key change, then the part's first-staff
+/// key change, then the score key. Rests and unpitched notes are left unchanged, because an
+/// unpitched note's pitch is its staff position. Sounding pitch and microtones never change.
+///
+/// A tie never joins two spellings: a tied chain takes the spelling of its first note inside the
+/// range, including chain members before or after the range. Returns the inclusive measure span
+/// that changed, which is wider than the range when a tie crosses its boundary.
+pub fn respell_staff_region(
+    score: &mut Score,
+    part_index: usize,
+    staff_index: usize,
+    start_measure: usize,
+    end_measure: usize,
+    policy: RespellPolicy,
+) -> Result<(usize, usize), Error> {
+    let score_key_flat = score.settings.key_signature.fifths < 0;
+    let part = score
+        .parts
+        .get_mut(part_index)
+        .ok_or(Error::PartNotFound(part_index))?;
+    let staff_count = part.staves.len();
+    if staff_index >= staff_count {
+        return Err(Error::StaffNotFound(staff_index));
+    }
+    let measure_count = part.staves[staff_index].measures.len();
+    if start_measure >= end_measure || end_measure > measure_count {
+        return Err(Error::InvalidCommand(format!(
+            "invalid measure range {start_measure}..{end_measure}"
+        )));
+    }
+    let mut prefer_flat = Vec::with_capacity(end_measure);
+    let mut running_flat = score_key_flat;
+    for index in 0..end_measure {
+        let key = part.staves[staff_index].measures[index]
+            .key_sig
+            .as_ref()
+            .or_else(|| {
+                part.staves[0]
+                    .measures
+                    .get(index)
+                    .and_then(|measure| measure.key_sig.as_ref())
+            });
+        if let Some(key) = key {
+            running_flat = key.fifths < 0;
+        }
+        prefer_flat.push(match policy {
+            RespellPolicy::Flat => true,
+            RespellPolicy::Sharp => false,
+            RespellPolicy::Key => running_flat,
+        });
+    }
+
+    let measures = &mut part.staves[staff_index].measures;
+    for (index, measure) in measures
+        .iter_mut()
+        .enumerate()
+        .take(end_measure)
+        .skip(start_measure)
+    {
+        for voice in &mut measure.voices {
+            for note in voice
+                .iter_mut()
+                .filter(|note| !note.is_rest && !note.is_unpitched)
+            {
+                for pitch in &mut note.pitches {
+                    *pitch = pitch.respell(prefer_flat[index]);
+                }
+            }
+        }
+    }
+
+    let mut changed = (start_measure, end_measure - 1);
+    for voice in 0..4 {
+        for measure in start_measure..end_measure {
+            for note in 0..measures[measure].voices[voice].len() {
+                if measures[measure].voices[voice][note].tie_start {
+                    let last = propagate_tied_spelling(measures, voice, (measure, note), true);
+                    changed.1 = changed.1.max(last);
+                }
+            }
+        }
+        if !measures[start_measure].voices[voice].is_empty() {
+            let first = propagate_tied_spelling(measures, voice, (start_measure, 0), false);
+            changed.0 = changed.0.min(first);
+        }
+    }
+    Ok(changed)
+}
+
+/// Copy one note's spelling along its tie chain (forward through `tie_start`, or backward through
+/// `tie_end`), matching chord members by sounding pitch. Returns the last measure reached.
+fn propagate_tied_spelling(
+    measures: &mut [Measure],
+    voice: usize,
+    from: (usize, usize),
+    forward: bool,
+) -> usize {
+    let mut current = from;
+    loop {
+        let note = &measures[current.0].voices[voice][current.1];
+        if !(if forward {
+            note.tie_start
+        } else {
+            note.tie_end
+        }) {
+            return current.0;
+        }
+        let neighbor = if forward {
+            if current.1 + 1 < measures[current.0].voices[voice].len() {
+                Some((current.0, current.1 + 1))
+            } else {
+                measures
+                    .get(current.0 + 1)
+                    .filter(|measure| !measure.voices[voice].is_empty())
+                    .map(|_| (current.0 + 1, 0))
+            }
+        } else if current.1 > 0 {
+            Some((current.0, current.1 - 1))
+        } else {
+            current.0.checked_sub(1).and_then(|previous| {
+                measures[previous].voices[voice]
+                    .len()
+                    .checked_sub(1)
+                    .map(|last| (previous, last))
+            })
+        };
+        let Some(next) = neighbor else {
+            return current.0;
+        };
+        let next_note = &measures[next.0].voices[voice][next.1];
+        if !(if forward {
+            next_note.tie_end
+        } else {
+            next_note.tie_start
+        }) {
+            return current.0;
+        }
+        let source = measures[current.0].voices[voice][current.1].pitches.clone();
+        for pitch in &mut measures[next.0].voices[voice][next.1].pitches {
+            if let Some(spelled) = source.iter().find(|candidate| {
+                candidate.to_midi() == pitch.to_midi()
+                    && candidate.microtone_cents == pitch.microtone_cents
+            }) {
+                *pitch = spelled.clone();
+            }
+        }
+        current = next;
+    }
+}
+
 /// Respell all pitches to match the score's key signature spelling convention.
 ///
 /// Flat-key signatures (fifths < 0) use flat spellings; sharp-key and C major use sharps.

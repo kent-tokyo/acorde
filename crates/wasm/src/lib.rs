@@ -1851,6 +1851,29 @@ impl ScoreEngine {
         serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
     }
 
+    /// Respell one staff's measure range `start_measure..end_measure` (end exclusive, undo-able).
+    /// Returns a [`ChangeHint`] JSON string.
+    ///
+    /// `policy`: `"flat"`, `"sharp"`, or `"key"` (the key signature in effect at each measure).
+    /// Tie chains crossing the range boundary keep one spelling.
+    pub fn respell_staff_region(
+        &mut self,
+        part_index: usize,
+        staff_index: usize,
+        start_measure: usize,
+        end_measure: usize,
+        policy: &str,
+    ) -> Result<String, JsValue> {
+        let policy: acorde_core::RespellPolicy =
+            serde_json::from_value(serde_json::Value::String(policy.to_string()))
+                .map_err(|e| js_err(format!("invalid respell policy: {e}")))?;
+        let hint = self
+            .inner
+            .respell_staff_region(part_index, staff_index, start_measure, end_measure, policy)
+            .map_err(js_err)?;
+        serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
+    }
+
     /// Set or clear the stem direction on a note (undo-able). Returns a [`ChangeHint`] JSON string.
     ///
     /// `addr_json`: JSON-encoded `NoteAddr`.
@@ -2003,6 +2026,28 @@ mod tests {
         // score_to_json calls serde but not JsValue, safe on native
         let json = serde_json::to_string(&engine.inner.score).unwrap();
         assert!(json.contains("parts"));
+    }
+
+    #[test]
+    fn engine_respells_one_staff_region_with_typed_policy() {
+        let mut score = Score::new("Respell", 120, 4, 4, 0, 2);
+        for measure in &mut score.parts[0].staves[0].measures {
+            measure.voices[0] = vec![acorde_core::Note::new(
+                acorde_core::Pitch::with_alter(acorde_core::Step::C, 4, 1),
+                acorde_core::Duration::Whole,
+            )];
+        }
+        let mut engine = ScoreEngine::new();
+        engine.inner.try_replace_score(score).unwrap();
+        let hint = engine.respell_staff_region(0, 0, 1, 2, "flat").unwrap();
+        assert!(hint.contains("\"playback_dirty\":true"));
+        let spelling = |engine: &ScoreEngine, measure: usize| {
+            let pitch =
+                &engine.inner.score.parts[0].staves[0].measures[measure].voices[0][0].pitches[0];
+            (pitch.step.clone(), pitch.alter)
+        };
+        assert_eq!(spelling(&engine, 0), (acorde_core::Step::C, 1));
+        assert_eq!(spelling(&engine, 1), (acorde_core::Step::D, -1));
     }
 
     #[test]

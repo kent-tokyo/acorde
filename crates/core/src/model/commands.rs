@@ -13,9 +13,9 @@ use super::pitch::Pitch;
 use super::score::{
     HarpPedalDiagram, InstrumentDefinition, InstrumentRange, Measure, NotationSpanner,
     NotationSpannerKind, Note, NoteAddr, ObjectStyleOverride, Part, PartGroup,
-    PercussionInstrument, RegionalTranspositionTarget, Score, ScoreTemplate, ScoreView, Staff,
-    StaffKind, StaffPresentation, ViewStyleOverride, respell_score, respell_score_to_key,
-    transpose_staff_region_checked,
+    PercussionInstrument, RegionalTranspositionTarget, RespellPolicy, Score, ScoreTemplate,
+    ScoreView, Staff, StaffKind, StaffPresentation, ViewStyleOverride, respell_score,
+    respell_score_to_key, respell_staff_region, transpose_staff_region_checked,
 };
 use super::validate::validate;
 use crate::Error;
@@ -100,6 +100,10 @@ pub enum Command {
     SetTuplet(SetTupletCmd),
     RespellScore(RespellScoreCmd),
     RespellScoreToKey(RespellScoreToKeyCmd),
+    RespellStaffRegion(RespellStaffRegionCmd),
+    ResequenceRehearsalMarks(ResequenceRehearsalMarksCmd),
+    SetSystemBreakInterval(SetSystemBreakIntervalCmd),
+    RemoveTrailingEmptyMeasures(RemoveTrailingEmptyMeasuresCmd),
     SetStem(SetStemCmd),
     SetArpeggio(SetArpeggioCmd),
     SetTechniqueText(SetTechniqueTextCmd),
@@ -1055,6 +1059,54 @@ pub struct RespellScoreCmd {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RespellScoreToKeyCmd {}
 
+/// Respell the pitched notes of one staff range, like MuseScore's "Respell pitches" applied to a
+/// selection. Tie chains crossing the range boundary keep one spelling; see
+/// [`respell_staff_region`].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RespellStaffRegionCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    /// Inclusive physical measure index.
+    pub start_measure: usize,
+    /// Exclusive physical measure index.
+    pub end_measure: usize,
+    pub policy: RespellPolicy,
+}
+
+/// Renumber rehearsal marks in score order, continuing the sequence started by the first mark
+/// (MuseScore's "Resequence rehearsal marks"). Supported sequences are upper- or lower-case
+/// letters (`A`…`Z`, `AA`, `AB`, …), numbers, and measure numbers (when the first mark equals its
+/// measure number). Without a range the whole score is resequenced.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ResequenceRehearsalMarksCmd {
+    /// Inclusive physical measure index; defaults to the first measure.
+    #[serde(default)]
+    pub start_measure: Option<usize>,
+    /// Exclusive physical measure index; defaults to the measure count.
+    #[serde(default)]
+    pub end_measure: Option<usize>,
+}
+
+/// Replace system (line) breaks with one after every `interval` measures, or remove them when
+/// `interval` is 0 (MuseScore's "Add/remove line breaks"). Page and section breaks are kept, and
+/// no break is added after the final measure of the score.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetSystemBreakIntervalCmd {
+    pub interval: u32,
+    /// Inclusive physical measure index; defaults to the first measure.
+    #[serde(default)]
+    pub start_measure: Option<usize>,
+    /// Exclusive physical measure index; defaults to the measure count.
+    #[serde(default)]
+    pub end_measure: Option<usize>,
+}
+
+/// Delete trailing measures that contain nothing but plain rests in every part and staff
+/// (MuseScore's "Remove empty trailing measures"). At least one measure is always kept. A final
+/// barline on a removed measure moves to the new last measure.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RemoveTrailingEmptyMeasuresCmd {}
+
 struct UndoEntry {
     command: Command,
     snapshot: Score,
@@ -1387,6 +1439,12 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::SetTuplet(c) => hint!(meas!(c), false, true),
 
         Command::RespellScore(_) | Command::RespellScoreToKey(_) => hint!(Global, true, true),
+        // A tie crossing the range boundary may respell neighbouring measures of the same staff.
+        Command::RespellStaffRegion(c) => hint!(Part(c.part_index), true, true),
+        Command::ResequenceRehearsalMarks(_) | Command::SetSystemBreakInterval(_) => {
+            hint!(Global, true, false)
+        }
+        Command::RemoveTrailingEmptyMeasures(_) => hint!(Global, true, true),
 
         Command::SetStem(c) => hint!(meas!(c), false, false),
 
@@ -1515,6 +1573,21 @@ pub fn command_label(cmd: &Command) -> String {
         }
         .to_string(),
         Command::RespellScoreToKey(_) => "Respell Score to Key".to_string(),
+        Command::RespellStaffRegion(c) => match c.policy {
+            RespellPolicy::Flat => "Respell Pitches (flat)",
+            RespellPolicy::Sharp => "Respell Pitches (sharp)",
+            RespellPolicy::Key => "Respell Pitches to Key",
+        }
+        .to_string(),
+        Command::ResequenceRehearsalMarks(_) => "Resequence Rehearsal Marks".to_string(),
+        Command::SetSystemBreakInterval(c) => {
+            if c.interval == 0 {
+                "Remove System Breaks".to_string()
+            } else {
+                format!("System Break Every {} Measures", c.interval)
+            }
+        }
+        Command::RemoveTrailingEmptyMeasures(_) => "Remove Empty Trailing Measures".to_string(),
         Command::SetStem(_) => "Set Stem".to_string(),
         Command::SetArpeggio(_) => "Set Arpeggio".to_string(),
         Command::SetTechniqueText(_) => "Set Technique Text".to_string(),
@@ -1632,6 +1705,10 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetTuplet(_) => "SetTuplet".to_string(),
         Command::RespellScore(_) => "RespellScore".to_string(),
         Command::RespellScoreToKey(_) => "RespellScoreToKey".to_string(),
+        Command::RespellStaffRegion(_) => "RespellStaffRegion".to_string(),
+        Command::ResequenceRehearsalMarks(_) => "ResequenceRehearsalMarks".to_string(),
+        Command::SetSystemBreakInterval(_) => "SetSystemBreakInterval".to_string(),
+        Command::RemoveTrailingEmptyMeasures(_) => "RemoveTrailingEmptyMeasures".to_string(),
         Command::SetStem(_) => "SetStem".to_string(),
         Command::SetArpeggio(_) => "SetArpeggio".to_string(),
         Command::SetTechniqueText(_) => "SetTechniqueText".to_string(),
@@ -1941,6 +2018,20 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         }
         Command::RespellScoreToKey(_) => {
             respell_score_to_key(score);
+            Ok(())
+        }
+        Command::ResequenceRehearsalMarks(c) => apply_resequence_rehearsal_marks(c, score),
+        Command::SetSystemBreakInterval(c) => apply_system_break_interval(c, score),
+        Command::RemoveTrailingEmptyMeasures(_) => apply_remove_trailing_empty_measures(score),
+        Command::RespellStaffRegion(c) => {
+            respell_staff_region(
+                score,
+                c.part_index,
+                c.staff_index,
+                c.start_measure,
+                c.end_measure,
+                c.policy,
+            )?;
             Ok(())
         }
         Command::SetStem(c) => {
@@ -2624,6 +2715,216 @@ fn apply_add_measure(cmd: &AddMeasureCmd, score: &mut Score) -> Result<(), Error
             Some(address.clone())
         }
     });
+    Ok(())
+}
+
+/// Resolve an optional measure range against the first staff of the first part.
+fn score_measure_range(
+    score: &Score,
+    start: Option<usize>,
+    end: Option<usize>,
+) -> Result<(usize, usize), Error> {
+    let count = score
+        .parts
+        .first()
+        .and_then(|part| part.staves.first())
+        .map_or(0, |staff| staff.measures.len());
+    let start_measure = start.unwrap_or(0);
+    let end_measure = end.unwrap_or(count);
+    if start_measure >= end_measure || end_measure > count {
+        return Err(Error::InvalidCommand(format!(
+            "invalid measure range {start_measure}..{end_measure}"
+        )));
+    }
+    Ok((start_measure, end_measure))
+}
+
+/// A rehearsal-mark sequence recognised from its first mark.
+enum RehearsalSequence {
+    MeasureNumber,
+    Number(u64),
+    Letters { first: u64, lower: bool },
+}
+
+impl RehearsalSequence {
+    fn detect(text: &str, measure_number: u32) -> Option<Self> {
+        if !text.is_empty() && text.bytes().all(|byte| byte.is_ascii_digit()) {
+            let value = text.parse::<u64>().ok()?;
+            return Some(if value == u64::from(measure_number) {
+                Self::MeasureNumber
+            } else {
+                Self::Number(value)
+            });
+        }
+        let lower = text.bytes().all(|byte| byte.is_ascii_lowercase());
+        let upper = text.bytes().all(|byte| byte.is_ascii_uppercase());
+        if text.is_empty() || text.len() > 6 || !(lower || upper) {
+            return None;
+        }
+        // Bijective base 26: A = 0, Z = 25, AA = 26, AB = 27, …
+        let first = text.bytes().fold(0u64, |value, byte| {
+            value * 26 + u64::from(byte.to_ascii_uppercase() - b'A') + 1
+        }) - 1;
+        Some(Self::Letters { first, lower })
+    }
+
+    fn nth(&self, offset: u64, measure_number: u32) -> String {
+        match self {
+            Self::MeasureNumber => measure_number.to_string(),
+            Self::Number(first) => (first + offset).to_string(),
+            Self::Letters { first, lower } => {
+                let mut value = first + offset + 1;
+                let mut letters = Vec::new();
+                while value > 0 {
+                    value -= 1;
+                    letters.push(b'A' + (value % 26) as u8);
+                    value /= 26;
+                }
+                letters.reverse();
+                let text = String::from_utf8(letters).unwrap_or_default();
+                if *lower {
+                    text.to_ascii_lowercase()
+                } else {
+                    text
+                }
+            }
+        }
+    }
+}
+
+fn apply_resequence_rehearsal_marks(
+    cmd: &ResequenceRehearsalMarksCmd,
+    score: &mut Score,
+) -> Result<(), Error> {
+    let (start, end) = score_measure_range(score, cmd.start_measure, cmd.end_measure)?;
+    let reference = &score.parts[0].staves[0].measures;
+    let marks: Vec<(usize, u32)> = (start..end)
+        .filter(|&index| {
+            reference[index]
+                .rehearsal
+                .as_deref()
+                .is_some_and(|text| !text.trim().is_empty())
+        })
+        .map(|index| (index, reference[index].number))
+        .collect();
+    let Some(&(first_index, first_number)) = marks.first() else {
+        return Ok(());
+    };
+    let first_text = reference[first_index]
+        .rehearsal
+        .as_deref()
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    let sequence = RehearsalSequence::detect(&first_text, first_number).ok_or_else(|| {
+        Error::InvalidCommand(format!(
+            "rehearsal mark '{first_text}' does not start a letter or number sequence"
+        ))
+    })?;
+    for (offset, (index, number)) in marks.into_iter().enumerate() {
+        let text = sequence.nth(offset as u64, number);
+        for_each_measure_at(score, index, |measure| {
+            measure.rehearsal = Some(text.clone());
+        });
+    }
+    Ok(())
+}
+
+fn apply_system_break_interval(
+    cmd: &SetSystemBreakIntervalCmd,
+    score: &mut Score,
+) -> Result<(), Error> {
+    let (start, end) = score_measure_range(score, cmd.start_measure, cmd.end_measure)?;
+    let last_measure = score.parts[0].staves[0].measures.len() - 1;
+    let interval = usize::try_from(cmd.interval).unwrap_or(usize::MAX);
+    for index in start..end {
+        let value = interval > 0 && index < last_measure && (index - start + 1) % interval == 0;
+        for_each_measure_at(score, index, |measure| measure.system_break = value);
+    }
+    Ok(())
+}
+
+/// A trailing measure is empty when it only carries plain rests and no measure-level content.
+/// Only the right barline may differ, so a final barline does not keep an empty measure alive.
+fn is_empty_trailing_measure(measure: &Measure) -> bool {
+    let strip = |value: serde_json::Value| -> serde_json::Value {
+        let mut value = value;
+        if let Some(object) = value.as_object_mut() {
+            for field in ["number", "voices", "source_voice_numbers", "barline_right"] {
+                object.remove(field);
+            }
+        }
+        value
+    };
+    let (Ok(actual), Ok(blank)) = (
+        serde_json::to_value(measure),
+        serde_json::to_value(Measure::empty(4, 4)),
+    ) else {
+        return false;
+    };
+    if strip(actual) != strip(blank) {
+        return false;
+    }
+    measure.voices.iter().flatten().all(|note| {
+        if !note.is_rest {
+            return false;
+        }
+        let mut plain = Note::rest(note.duration.clone());
+        plain.dot_count = note.dot_count;
+        plain.tuplet = note.tuplet.clone();
+        plain.id = note.id.clone();
+        matches!(
+            (serde_json::to_value(note), serde_json::to_value(&plain)),
+            (Ok(actual), Ok(plain)) if actual == plain
+        )
+    })
+}
+
+fn apply_remove_trailing_empty_measures(score: &mut Score) -> Result<(), Error> {
+    let count = score
+        .parts
+        .first()
+        .and_then(|part| part.staves.first())
+        .map_or(0, |staff| staff.measures.len());
+    let mut keep = count;
+    while keep > 1
+        && score.parts.iter().all(|part| {
+            part.staves.iter().all(|staff| {
+                staff
+                    .measures
+                    .get(keep - 1)
+                    .is_some_and(is_empty_trailing_measure)
+            })
+        })
+    {
+        keep -= 1;
+    }
+    if keep == count {
+        return Ok(());
+    }
+    let final_barline = score.parts.iter().any(|part| {
+        part.staves.iter().any(|staff| {
+            staff
+                .measures
+                .last()
+                .is_some_and(|measure| matches!(measure.barline_right, Barline::Final))
+        })
+    });
+    for index in (keep..count).rev() {
+        apply_delete_measure(
+            &DeleteMeasureCmd {
+                measure_index: index,
+            },
+            score,
+        )?;
+    }
+    if final_barline {
+        for_each_measure_at(score, keep - 1, |measure| {
+            if matches!(measure.barline_right, Barline::Normal) {
+                measure.barline_right = Barline::Final;
+            }
+        });
+    }
     Ok(())
 }
 
@@ -6494,6 +6795,255 @@ mod tests {
         let pitch = &score.parts[0].staves[0].measures[0].voices[0][0].pitches[0];
         assert_eq!(pitch.step, Step::D);
         assert_eq!(pitch.alter, -1); // Db4
+    }
+
+    fn respell_fixture(measures: u32) -> Score {
+        use crate::model::pitch::Step;
+        let mut score = Score::new("Respell", 120, 4, 4, 0, measures);
+        for measure in &mut score.parts[0].staves[0].measures {
+            measure.voices[0] = vec![Note::new(Pitch::with_alter(Step::C, 4, 1), Duration::Whole)];
+        }
+        score
+    }
+
+    fn spelled(score: &Score, measure: usize) -> (crate::model::pitch::Step, i8) {
+        let pitch = &score.parts[0].staves[0].measures[measure].voices[0][0].pitches[0];
+        (pitch.step.clone(), pitch.alter)
+    }
+
+    #[test]
+    fn respell_staff_region_changes_only_the_selection_and_is_undoable() {
+        use crate::model::pitch::Step;
+        let mut score = respell_fixture(4);
+        let mut stack = CommandStack::new(50);
+        let command = Command::RespellStaffRegion(RespellStaffRegionCmd {
+            part_index: 0,
+            staff_index: 0,
+            start_measure: 1,
+            end_measure: 3,
+            policy: RespellPolicy::Flat,
+        });
+        let json = serde_json::to_string(&command).expect("command serializes");
+        assert!(json.contains("\"policy\":\"flat\""));
+        let decoded: Command = serde_json::from_str(&json).expect("command deserializes");
+        assert_eq!(command_key(&decoded), "RespellStaffRegion");
+        assert_eq!(command_label(&decoded), "Respell Pitches (flat)");
+        stack.execute(decoded, &mut score).expect("region respells");
+        assert_eq!(spelled(&score, 0), (Step::C, 1));
+        assert_eq!(spelled(&score, 1), (Step::D, -1));
+        assert_eq!(spelled(&score, 2), (Step::D, -1));
+        assert_eq!(spelled(&score, 3), (Step::C, 1));
+        stack.undo(&mut score).expect("region respell undoes");
+        assert!((0..4).all(|measure| spelled(&score, measure) == (Step::C, 1)));
+        stack.redo(&mut score).expect("region respell redoes");
+        assert_eq!(spelled(&score, 2), (Step::D, -1));
+    }
+
+    #[test]
+    fn respell_staff_region_keeps_ties_across_the_boundary_in_one_spelling() {
+        use crate::model::pitch::Step;
+        let mut score = respell_fixture(4);
+        {
+            let measures = &mut score.parts[0].staves[0].measures;
+            measures[0].voices[0][0].tie_start = true;
+            measures[1].voices[0][0].tie_end = true;
+            measures[1].voices[0][0].tie_start = true;
+            measures[2].voices[0][0].tie_end = true;
+        }
+        let changed = respell_staff_region(&mut score, 0, 0, 1, 2, RespellPolicy::Flat)
+            .expect("tied region respells");
+        assert_eq!(changed, (0, 2));
+        assert_eq!(spelled(&score, 0), (Step::D, -1));
+        assert_eq!(spelled(&score, 1), (Step::D, -1));
+        assert_eq!(spelled(&score, 2), (Step::D, -1));
+        assert_eq!(spelled(&score, 3), (Step::C, 1));
+    }
+
+    #[test]
+    fn respell_staff_region_follows_local_keys_and_skips_unpitched_notes() {
+        use crate::model::notation::KeySignature;
+        use crate::model::pitch::Step;
+        let mut score = respell_fixture(4);
+        for measure in &mut score.parts[0].staves[0].measures {
+            measure.voices[0][0].pitches[0] = Pitch::with_alter(Step::D, 4, -1);
+        }
+        score.parts[0].staves[0].measures[2].key_sig = Some(KeySignature {
+            fifths: -3,
+            mode: "major".into(),
+        });
+        score.parts[0].staves[0].measures[1].voices[0][0].is_unpitched = true;
+        respell_staff_region(&mut score, 0, 0, 0, 4, RespellPolicy::Key).expect("key respell");
+        assert_eq!(spelled(&score, 0), (Step::C, 1));
+        assert_eq!(
+            spelled(&score, 1),
+            (Step::D, -1),
+            "unpitched staff position is kept"
+        );
+        assert_eq!(spelled(&score, 2), (Step::D, -1));
+        assert_eq!(spelled(&score, 3), (Step::D, -1));
+
+        assert!(matches!(
+            respell_staff_region(&mut score, 0, 0, 2, 2, RespellPolicy::Sharp),
+            Err(Error::InvalidCommand(_))
+        ));
+        assert!(matches!(
+            respell_staff_region(&mut score, 0, 5, 0, 1, RespellPolicy::Sharp),
+            Err(Error::StaffNotFound(5))
+        ));
+        assert!(matches!(
+            respell_staff_region(&mut score, 0, 0, 0, 5, RespellPolicy::Sharp),
+            Err(Error::InvalidCommand(_))
+        ));
+    }
+
+    #[test]
+    fn resequence_rehearsal_marks_continues_the_first_sequence() {
+        let mut score = Score::new("Marks", 120, 4, 4, 0, 30);
+        let mut stack = CommandStack::new(50);
+        for (index, text) in [(0, "A"), (4, "C"), (9, "C"), (12, "Q")] {
+            for_each_measure_at(&mut score, index, |measure| {
+                measure.rehearsal = Some(text.into())
+            });
+        }
+        let command = Command::ResequenceRehearsalMarks(ResequenceRehearsalMarksCmd::default());
+        let json = serde_json::to_string(&command).expect("command serializes");
+        let decoded: Command = serde_json::from_str(&json).expect("command deserializes");
+        assert_eq!(command_key(&decoded), "ResequenceRehearsalMarks");
+        stack
+            .execute(decoded, &mut score)
+            .expect("marks resequence");
+        let marks = |score: &Score| -> Vec<Option<String>> {
+            [0, 4, 9, 12]
+                .iter()
+                .map(|&index| score.parts[0].staves[0].measures[index].rehearsal.clone())
+                .collect()
+        };
+        assert_eq!(
+            marks(&score),
+            ["A", "B", "C", "D"].map(|text| Some(text.to_string()))
+        );
+        stack.undo(&mut score).expect("resequence undoes");
+        assert_eq!(marks(&score)[1].as_deref(), Some("C"));
+
+        let sequence = RehearsalSequence::detect("Z", 1).expect("letters");
+        assert_eq!(sequence.nth(1, 1), "AA");
+        assert_eq!(sequence.nth(2, 1), "AB");
+        let lower = RehearsalSequence::detect("y", 1).expect("lower letters");
+        assert_eq!(lower.nth(2, 1), "aa");
+        assert_eq!(
+            RehearsalSequence::detect("7", 3)
+                .expect("numbers")
+                .nth(2, 9),
+            "9"
+        );
+        assert_eq!(
+            RehearsalSequence::detect("5", 5)
+                .expect("measure numbers")
+                .nth(3, 17),
+            "17"
+        );
+        assert!(RehearsalSequence::detect("Intro", 1).is_none());
+
+        for_each_measure_at(&mut score, 0, |measure| {
+            measure.rehearsal = Some("Intro".into())
+        });
+        assert!(matches!(
+            apply_command(&command, &mut score),
+            Err(Error::InvalidCommand(_))
+        ));
+    }
+
+    #[test]
+    fn system_break_interval_replaces_line_breaks_only() {
+        let mut score = Score::new("Breaks", 120, 4, 4, 0, 10);
+        score.parts[0].staves[0].measures[1].system_break = true;
+        score.parts[0].staves[0].measures[2].page_break = true;
+        apply_command(
+            &Command::SetSystemBreakInterval(SetSystemBreakIntervalCmd {
+                interval: 4,
+                start_measure: None,
+                end_measure: None,
+            }),
+            &mut score,
+        )
+        .expect("breaks every four measures");
+        let breaks: Vec<usize> = score.parts[0].staves[0]
+            .measures
+            .iter()
+            .enumerate()
+            .filter(|(_, measure)| measure.system_break)
+            .map(|(index, _)| index)
+            .collect();
+        assert_eq!(breaks, vec![3, 7]);
+        assert!(score.parts[0].staves[0].measures[2].page_break);
+
+        let mut exact = Score::new("Exact", 120, 4, 4, 0, 8);
+        apply_command(
+            &Command::SetSystemBreakInterval(SetSystemBreakIntervalCmd {
+                interval: 4,
+                start_measure: None,
+                end_measure: None,
+            }),
+            &mut exact,
+        )
+        .expect("no break after the final measure");
+        assert!(!exact.parts[0].staves[0].measures[7].system_break);
+        assert!(exact.parts[0].staves[0].measures[3].system_break);
+
+        apply_command(
+            &Command::SetSystemBreakInterval(SetSystemBreakIntervalCmd {
+                interval: 0,
+                start_measure: Some(0),
+                end_measure: Some(6),
+            }),
+            &mut score,
+        )
+        .expect("breaks removed in range");
+        assert!(!score.parts[0].staves[0].measures[3].system_break);
+        assert!(score.parts[0].staves[0].measures[7].system_break);
+        assert!(matches!(
+            apply_command(
+                &Command::SetSystemBreakInterval(SetSystemBreakIntervalCmd {
+                    interval: 2,
+                    start_measure: Some(4),
+                    end_measure: Some(11),
+                }),
+                &mut score,
+            ),
+            Err(Error::InvalidCommand(_))
+        ));
+    }
+
+    #[test]
+    fn remove_trailing_empty_measures_keeps_content_and_final_barline() {
+        let mut score = Score::new("Trailing", 120, 4, 4, 0, 6);
+        let mut stack = CommandStack::new(50);
+        score.parts[0].staves[0].measures[1].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        score.parts[0].staves[0].measures[5].barline_right = Barline::Final;
+        let mut fermata_rest = Note::rest(Duration::Whole);
+        fermata_rest.articulations = vec![Articulation::Fermata];
+        score.parts[0].staves[0].measures[3].voices[0] = vec![fermata_rest];
+        stack
+            .execute(
+                Command::RemoveTrailingEmptyMeasures(RemoveTrailingEmptyMeasuresCmd {}),
+                &mut score,
+            )
+            .expect("trailing measures removed");
+        let staff = &score.parts[0].staves[0];
+        assert_eq!(staff.measures.len(), 4, "a rest with a fermata is content");
+        assert!(matches!(staff.measures[3].barline_right, Barline::Final));
+        assert_eq!(staff.measures[3].number, 4);
+        stack.undo(&mut score).expect("removal undoes");
+        assert_eq!(score.parts[0].staves[0].measures.len(), 6);
+
+        let mut empty = Score::new("Empty", 120, 4, 4, 0, 3);
+        apply_command(
+            &Command::RemoveTrailingEmptyMeasures(RemoveTrailingEmptyMeasuresCmd {}),
+            &mut empty,
+        )
+        .expect("empty score keeps one measure");
+        assert_eq!(empty.parts[0].staves[0].measures.len(), 1);
     }
 
     #[test]

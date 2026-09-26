@@ -3,15 +3,16 @@ use super::commands::{
     AddStaffCmd, Command, CommandStack, DeleteStaffCmd, DurationScale, ExchangeVoicesCmd,
     ExplodeChordPitchesCmd, ExplodeVoicesCmd, ImplodeStavesCmd, PasteRangeCmd,
     PasteScoreFragmentCmd, PasteVoiceCmd, RespellScoreCmd, RespellScoreToKeyCmd,
-    ScaleVoiceRangeCmd, ScoreFragmentPastePolicy, SetArpeggioCmd, SetCueCmd, SetDurationCmd,
-    SetInstrumentIdCmd, SetNoteHeadCmd, SetNotePlacementCmd, SetPartGroupCmd, SetStemCmd,
-    SetTupletCmd, SetUnpitchedCmd, ToggleSlurCmd, ToggleTrillLineCmd, command_hint, command_key,
+    RespellStaffRegionCmd, ScaleVoiceRangeCmd, ScoreFragmentPastePolicy, SetArpeggioCmd, SetCueCmd,
+    SetDurationCmd, SetInstrumentIdCmd, SetNoteHeadCmd, SetNotePlacementCmd, SetPartGroupCmd,
+    SetStemCmd, SetTupletCmd, SetUnpitchedCmd, ToggleSlurCmd, ToggleTrillLineCmd, command_hint,
+    command_key,
 };
 use super::duration::Duration;
 use super::fragment::ScoreFragment;
 use super::notation::{Clef, NoteHead, TupletInfo};
 use super::score::PartGroup;
-use super::score::{Note, NoteAddr, Score};
+use super::score::{Note, NoteAddr, RespellPolicy, Score};
 use crate::Error;
 use serde::{Deserialize, Serialize};
 
@@ -663,6 +664,24 @@ impl ScoreEngine {
     /// Respell all pitches to match the score's key signature (undo-able).
     pub fn respell_score_to_key(&mut self) -> Result<ChangeHint, Error> {
         self.apply(Command::RespellScoreToKey(RespellScoreToKeyCmd {}))
+    }
+
+    /// Respell one staff's measure range `start_measure..end_measure` (undo-able).
+    pub fn respell_staff_region(
+        &mut self,
+        part_index: usize,
+        staff_index: usize,
+        start_measure: usize,
+        end_measure: usize,
+        policy: RespellPolicy,
+    ) -> Result<ChangeHint, Error> {
+        self.apply(Command::RespellStaffRegion(RespellStaffRegionCmd {
+            part_index,
+            staff_index,
+            start_measure,
+            end_measure,
+            policy,
+        }))
     }
 
     /// Begin a two-step slur: record `start` and wait for [`end_slur`](Self::end_slur).
