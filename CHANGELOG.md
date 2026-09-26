@@ -9,6 +9,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- MuseScore (MSCX/MSCZ) import now keeps voice-level hairpins, pedal lines, and 3.x slurs, slur
+  ends, `<LayoutBreak>` system/page/section breaks, and `<BarLine>` double/final/dashed/dotted
+  subtypes, which were previously dropped without a diagnostic. Hidden (`visible=0`) hairpins,
+  pedals, and dynamics import as visible marks and report `mscx.unsupported-visibility`; unknown
+  barline subtypes report `mscx.unsupported-barline`. MSCX export now writes layout breaks and
+  those barline subtypes.
+- A voice holding one plain whole rest is a measure rest that fills its bar in any time signature
+  (`voice_duration_beats`, `Note::is_plain_whole_rest`). MusicXML `<rest measure="yes"/>` and
+  MuseScore `durationType=measure` rests in 3/4, 6/8, and other meters no longer fail validation,
+  and MSCX export writes them as `measure` rests of the bar's length.
+- Added `Articulation::{UpBow, DownBow, Harmonic, OpenString, Stopped, SnapPizzicato}` with
+  MusicXML `<technical>`, MSCX, MEI, ABC, and SVG support (ABC reports the harmonic as a loss).
+- MusicXML measure/beat repeats and slash styles, lyric extend/elision, dashes, brackets,
+  non-arpeggiate, and harmony frames, and MSCX measure repeats, are now source-diagnosed.
+
 ## [1.2.5] - 2026-09-27
 
 - **[schema]** Added optional `Measure.actual_length` (`MeasureLength`, a fraction of a whole note)

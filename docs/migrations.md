@@ -25,6 +25,14 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
+### Unreleased — measure rests and string techniques
+
+`Articulation` gains `UpBow`, `DownBow`, `Harmonic`, `OpenString`, `Stopped`, and
+`SnapPizzicato`; code that exhaustively matches `Articulation` must handle them, and SVG metadata
+consumers should accept the new articulation names. A voice containing only one plain whole rest
+now lasts its whole measure in every time signature, so code that sums note beats to measure a
+voice should call `voice_duration_beats`.
+
 ### Unreleased — measure lengths and lyric verses
 
 `Measure.actual_length` and `Note.additional_lyrics` are optional, serde-defaulted fields: older
