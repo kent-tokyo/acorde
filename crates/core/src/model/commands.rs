@@ -101,6 +101,7 @@ pub enum Command {
     RespellScore(RespellScoreCmd),
     RespellScoreToKey(RespellScoreToKeyCmd),
     RespellStaffRegion(RespellStaffRegionCmd),
+    CycleEnharmonicSpelling(CycleEnharmonicSpellingCmd),
     ResequenceRehearsalMarks(ResequenceRehearsalMarksCmd),
     SetSystemBreakInterval(SetSystemBreakIntervalCmd),
     RemoveTrailingEmptyMeasures(RemoveTrailingEmptyMeasuresCmd),
@@ -1073,6 +1074,20 @@ pub struct RespellStaffRegionCmd {
     pub policy: RespellPolicy,
 }
 
+/// Move a note to its next enharmonic spelling (MuseScore's "Change enharmonic spelling", J);
+/// see [`Pitch::next_enharmonic`]. Sounding pitch, microtones, and tablature positions are kept.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CycleEnharmonicSpellingCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub voice: usize,
+    pub note_index: usize,
+    /// Chord member to respell; `None` respells every member of the chord.
+    #[serde(default)]
+    pub pitch_index: Option<usize>,
+}
+
 /// Renumber rehearsal marks in score order, continuing the sequence started by the first mark
 /// (MuseScore's "Resequence rehearsal marks"). Supported sequences are upper- or lower-case
 /// letters (`A`…`Z`, `AA`, `AB`, …), numbers, and measure numbers (when the first mark equals its
@@ -1441,6 +1456,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::RespellScore(_) | Command::RespellScoreToKey(_) => hint!(Global, true, true),
         // A tie crossing the range boundary may respell neighbouring measures of the same staff.
         Command::RespellStaffRegion(c) => hint!(Part(c.part_index), true, true),
+        Command::CycleEnharmonicSpelling(c) => hint!(meas!(c), true, true),
         Command::ResequenceRehearsalMarks(_) | Command::SetSystemBreakInterval(_) => {
             hint!(Global, true, false)
         }
@@ -1579,6 +1595,7 @@ pub fn command_label(cmd: &Command) -> String {
             RespellPolicy::Key => "Respell Pitches to Key",
         }
         .to_string(),
+        Command::CycleEnharmonicSpelling(_) => "Change Enharmonic Spelling".to_string(),
         Command::ResequenceRehearsalMarks(_) => "Resequence Rehearsal Marks".to_string(),
         Command::SetSystemBreakInterval(c) => {
             if c.interval == 0 {
@@ -1706,6 +1723,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::RespellScore(_) => "RespellScore".to_string(),
         Command::RespellScoreToKey(_) => "RespellScoreToKey".to_string(),
         Command::RespellStaffRegion(_) => "RespellStaffRegion".to_string(),
+        Command::CycleEnharmonicSpelling(_) => "CycleEnharmonicSpelling".to_string(),
         Command::ResequenceRehearsalMarks(_) => "ResequenceRehearsalMarks".to_string(),
         Command::SetSystemBreakInterval(_) => "SetSystemBreakInterval".to_string(),
         Command::RemoveTrailingEmptyMeasures(_) => "RemoveTrailingEmptyMeasures".to_string(),
@@ -2018,6 +2036,35 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         }
         Command::RespellScoreToKey(_) => {
             respell_score_to_key(score);
+            Ok(())
+        }
+        Command::CycleEnharmonicSpelling(c) => {
+            let note = get_note_mut(
+                score,
+                c.part_index,
+                c.staff_index,
+                c.measure_index,
+                c.voice,
+                c.note_index,
+            )?;
+            if note.is_rest || note.is_unpitched || note.pitches.is_empty() {
+                return Err(Error::InvalidCommand(
+                    "enharmonic spelling requires a pitched note".into(),
+                ));
+            }
+            match c.pitch_index {
+                Some(index) => {
+                    let pitch = note.pitches.get_mut(index).ok_or_else(|| {
+                        Error::InvalidCommand(format!("pitch index {index} out of range"))
+                    })?;
+                    *pitch = pitch.next_enharmonic();
+                }
+                None => {
+                    for pitch in &mut note.pitches {
+                        *pitch = pitch.next_enharmonic();
+                    }
+                }
+            }
             Ok(())
         }
         Command::ResequenceRehearsalMarks(c) => apply_resequence_rehearsal_marks(c, score),
@@ -6892,6 +6939,48 @@ mod tests {
         ));
         assert!(matches!(
             respell_staff_region(&mut score, 0, 0, 0, 5, RespellPolicy::Sharp),
+            Err(Error::InvalidCommand(_))
+        ));
+    }
+
+    #[test]
+    fn cycle_enharmonic_spelling_targets_one_chord_member_and_undoes() {
+        let mut score = Score::new("Enharmonic", 120, 4, 4, 0, 1);
+        let mut chord = Note::new(Pitch::with_alter(Step::C, 4, 1), Duration::Whole);
+        chord.pitches.push(Pitch::with_alter(Step::G, 4, 1));
+        score.parts[0].staves[0].measures[0].voices[0] = vec![chord];
+        let mut stack = CommandStack::new(50);
+        let command = Command::CycleEnharmonicSpelling(CycleEnharmonicSpellingCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            note_index: 0,
+            pitch_index: Some(1),
+        });
+        let json = serde_json::to_string(&command).expect("command serializes");
+        let decoded: Command = serde_json::from_str(&json).expect("command deserializes");
+        assert_eq!(command_key(&decoded), "CycleEnharmonicSpelling");
+        stack.execute(decoded, &mut score).expect("spelling cycles");
+        let pitches = |score: &Score| {
+            score.parts[0].staves[0].measures[0].voices[0][0]
+                .pitches
+                .clone()
+        };
+        assert_eq!(
+            pitches(&score),
+            vec![
+                Pitch::with_alter(Step::C, 4, 1),
+                Pitch::with_alter(Step::A, 4, -1)
+            ]
+        );
+        stack.undo(&mut score).expect("spelling undoes");
+        assert_eq!(pitches(&score)[1], Pitch::with_alter(Step::G, 4, 1));
+
+        let mut rest_score = Score::new("Rest", 120, 4, 4, 0, 1);
+        rest_score.parts[0].staves[0].measures[0].voices[0] = vec![Note::rest(Duration::Whole)];
+        assert!(matches!(
+            apply_command(&command, &mut rest_score),
             Err(Error::InvalidCommand(_))
         ));
     }

@@ -185,6 +185,50 @@ impl Pitch {
     /// When `false`, they use a sharp spelling (C#, D#, F#, G#, A#).
     /// Natural pitches and edge cases (E#→F, B#→C, Cb→B, Fb→E) are always resolved to the
     /// simplest diatonic form regardless of the flag.
+    /// The next enharmonic spelling of this pitch, as MuseScore's "Change enharmonic spelling"
+    /// cycles it: among the spellings of the same semitone, in the order natural, sharp, flat,
+    /// double sharp, double flat. Microtone cents are kept. A spelling outside that set (for
+    /// example a triple sharp) moves to the first available spelling.
+    pub fn next_enharmonic(&self) -> Pitch {
+        let target = (i16::from(self.octave) + 1) * 12
+            + i16::from(self.step.to_semitone())
+            + i16::from(self.alter);
+        let mut candidates = Vec::new();
+        for alter in [0i8, 1, -1, 2, -2] {
+            for step in [
+                Step::C,
+                Step::D,
+                Step::E,
+                Step::F,
+                Step::G,
+                Step::A,
+                Step::B,
+            ] {
+                let offset = target - i16::from(step.to_semitone()) - i16::from(alter);
+                if offset.rem_euclid(12) != 0 {
+                    continue;
+                }
+                if let Ok(octave) = i8::try_from(offset / 12 - 1) {
+                    candidates.push(Pitch::with_microtone(
+                        step,
+                        octave,
+                        alter,
+                        self.microtone_cents,
+                    ));
+                }
+            }
+        }
+        let current = candidates.iter().position(|candidate| {
+            candidate.step == self.step
+                && candidate.octave == self.octave
+                && candidate.alter == self.alter
+        });
+        match current {
+            Some(index) => candidates[(index + 1) % candidates.len()].clone(),
+            None => candidates.first().cloned().unwrap_or_else(|| self.clone()),
+        }
+    }
+
     pub fn respell(&self, prefer_flat: bool) -> Pitch {
         let mut pitch = Pitch::from_midi(self.to_midi().clamp(0, 127) as u8, prefer_flat);
         pitch.microtone_cents = self.microtone_cents;
@@ -222,6 +266,34 @@ impl std::str::FromStr for Pitch {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn next_enharmonic_cycles_spellings_of_one_semitone() {
+        use super::{Pitch, Step};
+        let c_sharp = Pitch::with_alter(Step::C, 4, 1);
+        let d_flat = c_sharp.next_enharmonic();
+        assert_eq!(d_flat, Pitch::with_alter(Step::D, 4, -1));
+        let b_double_sharp = d_flat.next_enharmonic();
+        assert_eq!(b_double_sharp, Pitch::with_alter(Step::B, 3, 2));
+        assert_eq!(b_double_sharp.next_enharmonic(), c_sharp);
+
+        let c = Pitch::new(Step::C, 4);
+        assert_eq!(c.next_enharmonic(), Pitch::with_alter(Step::B, 3, 1));
+        assert_eq!(
+            c.next_enharmonic().next_enharmonic(),
+            Pitch::with_alter(Step::D, 4, -2)
+        );
+        // G#/Ab has only two spellings.
+        let g_sharp = Pitch::with_alter(Step::G, 4, 1);
+        assert_eq!(g_sharp.next_enharmonic().next_enharmonic(), g_sharp);
+        let quarter = Pitch::with_microtone(Step::F, 4, 1, 50);
+        let next = quarter.next_enharmonic();
+        assert_eq!(
+            (next.step.clone(), next.alter, next.microtone_cents),
+            (Step::G, -1, 50)
+        );
+        assert_eq!(next.to_midi_cents(), quarter.to_midi_cents());
+    }
+
     use super::*;
 
     #[test]

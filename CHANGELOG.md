@@ -21,6 +21,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added undoable `RespellStaffRegion` (Respell Pitches for a selection) with flat, sharp, and
   local-key policies. Tie chains crossing the range boundary keep one spelling, and unpitched notes
   keep their staff position. WASM `ScoreEngine.respell_staff_region` exposes it.
+- Added undoable `CycleEnharmonicSpelling` (MuseScore's "Change enharmonic spelling") for a note
+  or one chord member, cycling natural, sharp, flat, double sharp, and double flat spellings of
+  the same sounding pitch while keeping microtones.
 - Added undoable `ResequenceRehearsalMarks` (letters, numbers, or measure numbers continuing the
   first mark), `SetSystemBreakInterval` (a line break every N measures, or none), and
   `RemoveTrailingEmptyMeasures` (keeps rests with marks and moves a final barline).
