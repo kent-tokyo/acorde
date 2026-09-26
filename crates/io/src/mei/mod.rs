@@ -9,8 +9,8 @@ use crate::{Diagnostic, Error, ImportReport};
 use acorde_core::{
     Articulation, Barline, ChordBarre, ChordDefinition, ChordDefinitionMember, ChordDegree,
     ChordSymbol, Clef, Duration, Dynamic, FiguredBassFigure, KeySignature, Measure, Note, NoteAddr,
-    OttavaKind, Part, PartGroupSymbol, Pitch, Score, Staff, StaffGroup, Step, StyledText,
-    TextStyle, TimeSignature, TupletInfo,
+    OttavaKind, Part, PartGroup, PartGroupSymbol, Pitch, Score, Staff, StaffGroup, Step,
+    StyledText, TextStyle, TimeSignature, TupletInfo,
 };
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
@@ -1776,12 +1776,20 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut pending_pedals: Vec<(String, String)> = Vec::new();
     let mut pending_harm_symbols: Vec<PendingHarmSymbol> = Vec::new();
     let mut staff_grp_depth = 0usize;
-    let mut open_staff_groups: Vec<(Vec<usize>, PartGroupSymbol, bool)> = Vec::new();
+    let mut open_staff_groups: Vec<(Vec<usize>, PartGroupSymbol, bool, bool)> = Vec::new();
     let mut staff_groups: Vec<StaffGroup> = Vec::new();
+    let mut staff_group_explicit: Vec<bool> = Vec::new();
+    let mut layout_stack: Vec<MeiLayoutGroup> = Vec::new();
+    let mut layout_root: Option<MeiLayoutGroup> = None;
+    let mut in_layout_label = false;
+    let mut layout_label_in_staff_def = false;
+    let mut layout_label_text = String::new();
     let mut current_chord_definition: Option<ChordDefinition> = None;
     let mut buf = Vec::new();
     loop {
-        match reader.read_event_into(&mut buf) {
+        let read = reader.read_event_into(&mut buf);
+        let is_empty_event = matches!(read, Ok(Event::Empty(_)));
+        match read {
             Ok(Event::Start(event)) | Ok(Event::Empty(event)) => {
                 element_count += 1;
                 if element_count > MAX_MEI_ELEMENTS {
@@ -1789,13 +1797,25 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                 }
                 match event.name().as_ref() {
                     b"title" => in_title = true,
+                    b"label" if layout_root.is_none() && !layout_stack.is_empty() => {
+                        in_layout_label = true;
+                        layout_label_text.clear();
+                    }
                     b"staffGrp" => {
+                        if layout_root.is_none() && !is_empty_event {
+                            layout_stack.push(MeiLayoutGroup {
+                                label: attr(&event, b"label"),
+                                children: Vec::new(),
+                            });
+                        }
                         if staff_grp_depth > 0 {
                             open_staff_groups.push((
                                 Vec::new(),
                                 parse_staff_group_symbol(attr(&event, b"symbol")),
                                 attr(&event, b"bar.thru")
                                     .is_some_and(|value| value.eq_ignore_ascii_case("true")),
+                                attr(&event, b"symbol").is_some()
+                                    || attr(&event, b"bar.thru").is_some(),
                             ));
                         }
                         staff_grp_depth = staff_grp_depth.saturating_add(1);
@@ -1859,8 +1879,17 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             .and_then(|value| value.parse::<usize>().ok())
                             .filter(|number| (1..=MAX_MEI_STAVES).contains(number))
                             .map_or(0, |number| number - 1);
-                        for (members, _, _) in &mut open_staff_groups {
+                        for (members, _, _, _) in &mut open_staff_groups {
                             members.push(staff_index);
+                        }
+                        if layout_root.is_none()
+                            && let Some(group) = layout_stack.last_mut()
+                        {
+                            group.children.push(MeiLayoutNode::Staff {
+                                index: staff_index,
+                                label: attr(&event, b"label"),
+                            });
+                            layout_label_in_staff_def = !is_empty_event;
                         }
                         while score.parts[0].staves.len() <= staff_index {
                             score.parts[0].staves.push(Staff::new(Clef::Treble));
@@ -2075,6 +2104,9 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
             Ok(Event::DocType(_)) => {
                 return Err(Error::Xml("DOCTYPE declarations are not allowed".into()));
             }
+            Ok(Event::Text(event)) if in_layout_label => {
+                layout_label_text.push_str(&String::from_utf8_lossy(event.as_ref()));
+            }
             Ok(Event::Text(event)) if in_title => {
                 title.push_str(&String::from_utf8_lossy(event.as_ref()));
             }
@@ -2103,10 +2135,38 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                 direction_text.push_str(&String::from_utf8_lossy(event.as_ref()));
             }
             Ok(Event::End(event)) => match event.name().as_ref() {
+                b"label" if in_layout_label => {
+                    in_layout_label = false;
+                    let text = layout_label_text.trim().to_string();
+                    if !text.is_empty()
+                        && let Some(group) = layout_stack.last_mut()
+                    {
+                        match group.children.last_mut() {
+                            Some(MeiLayoutNode::Staff { label, .. })
+                                if layout_label_in_staff_def && label.is_none() =>
+                            {
+                                *label = Some(text);
+                            }
+                            _ if group.label.is_none() => group.label = Some(text),
+                            _ => {}
+                        }
+                    }
+                }
+                b"staffDef" => layout_label_in_staff_def = false,
                 b"staffGrp" => {
+                    if layout_root.is_none()
+                        && let Some(group) = layout_stack.pop()
+                    {
+                        if let Some(parent) = layout_stack.last_mut() {
+                            parent.children.push(MeiLayoutNode::Group(group));
+                        } else {
+                            layout_root = Some(group);
+                        }
+                    }
                     staff_grp_depth = staff_grp_depth.saturating_sub(1);
                     if staff_grp_depth > 0
-                        && let Some((members, symbol, barlines_connect)) = open_staff_groups.pop()
+                        && let Some((members, symbol, barlines_connect, explicit)) =
+                            open_staff_groups.pop()
                         && let (Some(first_staff), Some(last_staff)) =
                             (members.iter().min(), members.iter().max())
                         && first_staff < last_staff
@@ -2117,6 +2177,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             symbol,
                             barlines_connect,
                         });
+                        staff_group_explicit.push(explicit);
                     }
                 }
                 b"chordDef" => {
@@ -2295,7 +2356,191 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
         score.metadata.title = title.trim().to_string();
     }
     score.parts[0].staff_groups = staff_groups;
+    if let Some(root) = layout_root.as_ref() {
+        split_mei_parts(&mut score, root, &staff_group_explicit);
+    }
     Ok(score)
+}
+
+/// One `<staffGrp>` from the first MEI `<scoreDef>`, retained so part boundaries can be derived
+/// after the streaming reader has built the flat staff list.
+#[derive(Debug, Default)]
+struct MeiLayoutGroup {
+    label: Option<String>,
+    children: Vec<MeiLayoutNode>,
+}
+
+#[derive(Debug)]
+enum MeiLayoutNode {
+    Staff { index: usize, label: Option<String> },
+    Group(MeiLayoutGroup),
+}
+
+struct MeiPartUnit {
+    name: Option<String>,
+    staves: Vec<usize>,
+}
+
+fn mei_layout_staves(group: &MeiLayoutGroup, out: &mut Vec<usize>) {
+    for child in &group.children {
+        match child {
+            MeiLayoutNode::Staff { index, .. } => out.push(*index),
+            MeiLayoutNode::Group(inner) => mei_layout_staves(inner, out),
+        }
+    }
+}
+
+fn mei_first_staff_label(group: &MeiLayoutGroup) -> Option<String> {
+    group.children.iter().find_map(|child| match child {
+        MeiLayoutNode::Staff { label, .. } => label.clone(),
+        MeiLayoutNode::Group(inner) => inner.label.clone().or_else(|| mei_first_staff_label(inner)),
+    })
+}
+
+/// Count labelled children, treating a labelled group as one unit without descending into it.
+fn mei_labelled_units(group: &MeiLayoutGroup) -> usize {
+    group
+        .children
+        .iter()
+        .map(|child| match child {
+            MeiLayoutNode::Staff { label, .. } => usize::from(label.is_some()),
+            MeiLayoutNode::Group(inner) if inner.label.is_some() => 1,
+            MeiLayoutNode::Group(inner) => mei_labelled_units(inner),
+        })
+        .sum()
+}
+
+fn mei_has_label(group: &MeiLayoutGroup) -> bool {
+    group.children.iter().any(|child| match child {
+        MeiLayoutNode::Staff { label, .. } => label.is_some(),
+        MeiLayoutNode::Group(inner) => inner.label.is_some() || mei_has_label(inner),
+    })
+}
+
+fn mei_part_units(group: &MeiLayoutGroup, units: &mut Vec<MeiPartUnit>) {
+    for child in &group.children {
+        match child {
+            MeiLayoutNode::Staff { index, label } => units.push(MeiPartUnit {
+                name: label.clone(),
+                staves: vec![*index],
+            }),
+            MeiLayoutNode::Group(inner)
+                if inner.label.is_some() || mei_labelled_units(inner) < 2 =>
+            {
+                let mut staves = Vec::new();
+                mei_layout_staves(inner, &mut staves);
+                units.push(MeiPartUnit {
+                    name: inner.label.clone().or_else(|| mei_first_staff_label(inner)),
+                    staves,
+                });
+            }
+            MeiLayoutNode::Group(inner) => mei_part_units(inner, units),
+        }
+    }
+}
+
+/// Split the flat MEI staff list into parts when the first `<scoreDef>` names instruments.
+///
+/// MEI has no `<part>` element in score-based encoding; instruments are expressed as labelled
+/// `<staffDef>`s or labelled `<staffGrp>`s (the form Verovio, MuseScore and acorde itself write).
+/// Unlabelled layouts keep the historical single-part import so existing documents do not change
+/// shape. A group spanning whole parts becomes a [`PartGroup`]; a group inside one part stays a
+/// [`StaffGroup`]; an implicit (symbol-less) wrapper around exactly one part is dropped because it
+/// only encodes the part boundary.
+fn split_mei_parts(score: &mut Score, root: &MeiLayoutGroup, staff_group_explicit: &[bool]) {
+    if !mei_has_label(root) {
+        return;
+    }
+    let mut units = Vec::new();
+    mei_part_units(root, &mut units);
+    let staff_count = score.parts[0].staves.len();
+    let mut expected = 0usize;
+    for unit in &units {
+        for &staff in &unit.staves {
+            if staff != expected {
+                return;
+            }
+            expected += 1;
+        }
+    }
+    if expected != staff_count || units.iter().any(|unit| unit.staves.is_empty()) {
+        return;
+    }
+    if units.len() == 1 {
+        if let Some(name) = units[0].name.clone() {
+            score.parts[0].name = name;
+        }
+        return;
+    }
+    let starts = units.iter().map(|unit| unit.staves[0]).collect::<Vec<_>>();
+    let unit_of = |staff: usize| {
+        starts
+            .iter()
+            .rposition(|&start| start <= staff)
+            .unwrap_or(0)
+    };
+    // Re-address harmony ranges from flat staff numbers to (part, local staff).
+    for staff in &mut score.parts[0].staves {
+        for measure in &mut staff.measures {
+            for voice in &mut measure.voices {
+                for note in voice {
+                    if let Some(end) = note
+                        .chord_symbol
+                        .as_mut()
+                        .and_then(|chord| chord.range_end.as_mut())
+                    {
+                        let part = unit_of(end.staff);
+                        end.part = part;
+                        end.staff -= starts[part];
+                    }
+                }
+            }
+        }
+    }
+    let mut staves = std::mem::take(&mut score.parts[0].staves).into_iter();
+    let groups = std::mem::take(&mut score.parts[0].staff_groups);
+    let mut parts = Vec::with_capacity(units.len());
+    for (index, unit) in units.iter().enumerate() {
+        let name = unit
+            .name
+            .clone()
+            .unwrap_or_else(|| format!("Part {}", index + 1));
+        let mut part = Part::new(&name, "");
+        part.staves = staves.by_ref().take(unit.staves.len()).collect();
+        parts.push(part);
+    }
+    for (group, explicit) in groups.into_iter().zip(
+        staff_group_explicit
+            .iter()
+            .copied()
+            .chain(std::iter::repeat(true)),
+    ) {
+        let first = unit_of(group.first_staff);
+        let last = unit_of(group.last_staff);
+        if first == last {
+            let start = starts[first];
+            let whole = group.first_staff == start
+                && group.last_staff + 1 == start + units[first].staves.len();
+            if whole && !explicit {
+                continue;
+            }
+            parts[first].staff_groups.push(StaffGroup {
+                first_staff: group.first_staff - start,
+                last_staff: group.last_staff - start,
+                ..group
+            });
+        } else if group.first_staff == starts[first]
+            && group.last_staff + 1 == starts[last] + units[last].staves.len()
+        {
+            score.part_groups.push(PartGroup {
+                first_part: first,
+                last_part: last,
+                symbol: group.symbol,
+                barlines_connect: group.barlines_connect,
+            });
+        }
+    }
+    score.parts = parts;
 }
 
 /// Attach deferred MEI harmony elements after all notes and timestamp context exist.
@@ -2794,6 +3039,18 @@ fn mei_staff_group_symbol(symbol: &PartGroupSymbol) -> &'static str {
 }
 
 fn append_mei_staff_defs(out: &mut String, staves: &[Staff], groups: &[StaffGroup]) {
+    append_mei_staff_defs_at(out, staves, groups, 0, None);
+}
+
+/// Emit `<staffDef>`s for one staff list whose global MEI numbers start after `offset`.
+/// `single_label` attaches an instrument label to a lone staff as `<staffDef><label/>`.
+fn append_mei_staff_defs_at(
+    out: &mut String,
+    staves: &[Staff],
+    groups: &[StaffGroup],
+    offset: usize,
+    single_label: Option<&str>,
+) {
     for staff_index in 0..staves.len() {
         let mut openings = groups
             .iter()
@@ -2813,11 +3070,15 @@ fn append_mei_staff_defs(out: &mut String, staves: &[Staff], groups: &[StaffGrou
         }
         let (clef_shape, clef_line) = mei_clef(staves[staff_index].clef.clone());
         out.push_str(&format!(
-            "<staffDef n=\"{}\" clef.shape=\"{}\" clef.line=\"{}\"/>",
-            staff_index + 1,
+            "<staffDef n=\"{}\" clef.shape=\"{}\" clef.line=\"{}\"",
+            offset + staff_index + 1,
             clef_shape,
             clef_line
         ));
+        match single_label {
+            Some(label) => out.push_str(&format!("><label>{}</label></staffDef>", escape(label))),
+            None => out.push_str("/>"),
+        }
         let mut closings = groups
             .iter()
             .filter(|group| group.last_staff == staff_index && group.first_staff < group.last_staff)
@@ -2827,6 +3088,135 @@ fn append_mei_staff_defs(out: &mut String, staves: &[Staff], groups: &[StaffGrou
             out.push_str("</staffGrp>");
         }
     }
+}
+
+fn mei_part_label(part: &Part, index: usize) -> String {
+    if !part.name.trim().is_empty() {
+        part.name.trim().to_string()
+    } else if !part.short_name.trim().is_empty() {
+        part.short_name.trim().to_string()
+    } else {
+        format!("Part {}", index + 1)
+    }
+}
+
+fn mei_group_open(out: &mut String, symbol: &PartGroupSymbol, barlines_connect: bool) {
+    out.push_str(&format!(
+        "<staffGrp symbol=\"{}\"{}>",
+        mei_staff_group_symbol(symbol),
+        if barlines_connect {
+            " bar.thru=\"true\""
+        } else {
+            ""
+        }
+    ));
+}
+
+/// Emit one labelled unit per part (Verovio/MuseScore form): a lone staff becomes
+/// `<staffDef><label/></staffDef>`, a multi-staff part a labelled `<staffGrp>`. Part groups
+/// become enclosing `<staffGrp>`s.
+fn append_mei_part_staff_defs(out: &mut String, score: &Score) {
+    let mut offset = 0usize;
+    let part_count = score.parts.len();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        let mut openings = score
+            .part_groups
+            .iter()
+            .filter(|group| {
+                group.first_part == part_index
+                    && group.first_part < group.last_part
+                    && group.last_part < part_count
+            })
+            .collect::<Vec<_>>();
+        openings.sort_by_key(|group| std::cmp::Reverse(group.last_part));
+        for group in openings {
+            mei_group_open(out, &group.symbol, group.barlines_connect);
+        }
+        let label = mei_part_label(part, part_index);
+        if part.staves.len() == 1 {
+            append_mei_staff_defs_at(out, &part.staves, &[], offset, Some(&label));
+        } else {
+            let whole = part.staff_groups.iter().position(|group| {
+                group.first_staff == 0 && group.last_staff + 1 == part.staves.len()
+            });
+            match whole {
+                Some(index) => mei_group_open(
+                    out,
+                    &part.staff_groups[index].symbol,
+                    part.staff_groups[index].barlines_connect,
+                ),
+                None => out.push_str("<staffGrp>"),
+            }
+            out.push_str(&format!("<label>{}</label>", escape(&label)));
+            let inner = part
+                .staff_groups
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| Some(*index) != whole)
+                .map(|(_, group)| group.clone())
+                .collect::<Vec<_>>();
+            append_mei_staff_defs_at(out, &part.staves, &inner, offset, None);
+            out.push_str("</staffGrp>");
+        }
+        let closings = score
+            .part_groups
+            .iter()
+            .filter(|group| {
+                group.last_part == part_index
+                    && group.first_part < group.last_part
+                    && group.last_part < part_count
+            })
+            .count();
+        for _ in 0..closings {
+            out.push_str("</staffGrp>");
+        }
+        offset += part.staves.len();
+    }
+}
+
+/// Flatten every part into one staff list with global MEI staff numbering. Harmony ranges are
+/// re-addressed to the flattened staff index so `@endid` stays resolvable across parts.
+fn mei_flatten_parts(score: &Score) -> Score {
+    let mut flat = score.clone();
+    let offsets = score
+        .parts
+        .iter()
+        .scan(0usize, |offset, part| {
+            let start = *offset;
+            *offset += part.staves.len();
+            Some(start)
+        })
+        .collect::<Vec<_>>();
+    let mut merged = Part::new(&score.parts[0].name, &score.parts[0].short_name);
+    for (part_index, part) in flat.parts.drain(..).enumerate() {
+        let offset = offsets[part_index];
+        merged
+            .staff_groups
+            .extend(part.staff_groups.into_iter().map(|group| StaffGroup {
+                first_staff: group.first_staff + offset,
+                last_staff: group.last_staff + offset,
+                ..group
+            }));
+        merged.staves.extend(part.staves);
+    }
+    for staff in &mut merged.staves {
+        for measure in &mut staff.measures {
+            for voice in &mut measure.voices {
+                for note in voice {
+                    if let Some(end) = note
+                        .chord_symbol
+                        .as_mut()
+                        .and_then(|chord| chord.range_end.as_mut())
+                    {
+                        end.staff += offsets.get(end.part).copied().unwrap_or(0);
+                        end.part = 0;
+                    }
+                }
+            }
+        }
+    }
+    flat.parts = vec![merged];
+    flat
 }
 
 fn append_mei_chord_definitions(out: &mut String, definitions: &[ChordDefinition]) {
@@ -3015,9 +3405,18 @@ fn append_mei_measure_staves(
 
 /// Serialize the score subset understood by [`parse_mei`].
 pub fn serialize_mei(score: &Score) -> Result<String, Error> {
-    if score.parts.is_empty() || score.parts[0].staves.is_empty() {
+    if score.parts.is_empty() || score.parts.iter().all(|part| part.staves.is_empty()) {
         return Err(Error::Empty);
     }
+    let multi_part = score.parts.len() > 1;
+    let flattened;
+    let original = score;
+    let score = if multi_part {
+        flattened = mei_flatten_parts(score);
+        &flattened
+    } else {
+        score
+    };
     let mut out = String::from("<mei xmlns=\"http://www.music-encoding.org/ns/mei\"><meiHead>");
     out.push_str("<fileDesc><titleStmt><title>");
     out.push_str(&escape(&score.metadata.title));
@@ -3030,7 +3429,11 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
         "<scoreDef meter.count=\"{}\" meter.unit=\"{}\" key.sig=\"{}\"><staffGrp>",
         time.numerator, time.denominator, key
     ));
-    append_mei_staff_defs(&mut out, staves, &score.parts[0].staff_groups);
+    if multi_part {
+        append_mei_part_staff_defs(&mut out, original);
+    } else {
+        append_mei_staff_defs(&mut out, staves, &score.parts[0].staff_groups);
+    }
     out.push_str("</staffGrp></scoreDef><section>");
     let measure_count = staves
         .iter()
@@ -3932,6 +4335,63 @@ mod tests {
             report.score.parts[0].staves[1].measures[0].voices[0][0].pitches[0].octave,
             3
         );
+    }
+
+    #[test]
+    fn labelled_mei_staff_defs_import_as_parts_and_round_trip() {
+        let xml = r##"<mei><music><body><mdiv><score><scoreDef meter.count="4" meter.unit="4"><staffGrp><staffGrp symbol="bracket" bar.thru="true"><staffDef n="1" clef.shape="G" clef.line="2" label="Flute"/><staffDef n="2" clef.shape="G" clef.line="2"><label>Oboe</label></staffDef></staffGrp><staffGrp symbol="brace"><label>Piano</label><staffDef n="3" clef.shape="G" clef.line="2"/><staffDef n="4" clef.shape="F" clef.line="4"/></staffGrp></staffGrp></scoreDef><section><measure n="1"><staff n="1"><layer n="1"><note pname="c" oct="5" dur="1"/></layer></staff><staff n="2"><layer n="1"><note pname="e" oct="4" dur="1"/></layer></staff><staff n="3"><layer n="1"><note xml:id="rh" pname="g" oct="4" dur="1"/></layer></staff><staff n="4"><layer n="1"><note xml:id="lh" pname="c" oct="3" dur="1"/></layer></staff><harm startid="#rh" endid="#lh">C</harm></measure></section></score></mdiv></body></music></mei>"##;
+        let report = parse_mei_with_report(xml).expect("labelled MEI parses");
+        let check = |score: &Score| {
+            let names = score
+                .parts
+                .iter()
+                .map(|part| (part.name.as_str(), part.staves.len()))
+                .collect::<Vec<_>>();
+            assert_eq!(names, vec![("Flute", 1), ("Oboe", 1), ("Piano", 2)]);
+            assert_eq!(score.part_groups.len(), 1);
+            let group = &score.part_groups[0];
+            assert_eq!((group.first_part, group.last_part), (0, 1));
+            assert_eq!(group.symbol, PartGroupSymbol::Bracket);
+            assert!(group.barlines_connect);
+            assert!(score.parts[0].staff_groups.is_empty());
+            assert_eq!(score.parts[2].staff_groups.len(), 1);
+            assert_eq!(
+                score.parts[2].staff_groups[0].symbol,
+                PartGroupSymbol::Brace
+            );
+            assert_eq!(score.parts[2].staves[1].clef, Clef::Bass);
+            let rh = &score.parts[2].staves[0].measures[0].voices[0][0];
+            let end = rh
+                .chord_symbol
+                .as_ref()
+                .and_then(|chord| chord.range_end.as_ref())
+                .expect("harmony range survives the part split");
+            assert_eq!((end.part, end.staff, end.measure), (2, 1, 0));
+        };
+        check(&report.score);
+        let serialized = serialize_mei(&report.score).expect("multi-part MEI serializes");
+        assert!(serialized.contains("<label>Piano</label>"));
+        assert!(serialized.contains("<staffDef n=\"4\""));
+        let restored = parse_mei(&serialized).expect("multi-part MEI reparses");
+        check(&restored);
+    }
+
+    #[test]
+    fn multi_part_score_exports_every_part_to_mei() {
+        let mut score = Score::new("parts", 120, 4, 4, 0, 1);
+        let mut second = score.parts[0].clone();
+        second.name = String::new();
+        second.short_name = String::new();
+        second.staves[0].clef = Clef::Bass;
+        score.parts[0].name = "Violin".into();
+        score.parts.push(second);
+        let serialized = serialize_mei(&score).expect("two parts serialize");
+        assert!(serialized.contains("<label>Violin</label>"));
+        assert!(serialized.contains("<label>Part 2</label>"));
+        assert!(serialized.contains("<staff n=\"2\">"));
+        let restored = parse_mei(&serialized).expect("two parts reparse");
+        assert_eq!(restored.parts.len(), 2);
+        assert_eq!(restored.parts[1].staves[0].clef, Clef::Bass);
     }
 
     #[test]
