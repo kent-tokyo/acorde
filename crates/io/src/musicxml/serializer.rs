@@ -200,6 +200,11 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     ));
                     xml.push_str("        </time>\n");
                 }
+                if i == 0 && part.staves.len() > 1 {
+                    // Declare every canonical staff, including an empty one, so the staff
+                    // count and note staff ownership survive a MusicXML round-trip.
+                    xml.push_str(&format!("        <staves>{}</staves>\n", part.staves.len()));
+                }
                 if i == 0 || measure.clef.is_some() {
                     let clef = measure.clef.as_ref().unwrap_or(&staff.clef);
                     xml.push_str("        <clef>\n");
@@ -215,14 +220,6 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 }
                 if i == 0 {
                     for (staff_number, extra_staff) in part.staves.iter().enumerate().skip(1) {
-                        let has_content = extra_staff
-                            .measures
-                            .iter()
-                            .flat_map(|measure| measure.voices.iter())
-                            .any(|voice| !voice.is_empty());
-                        if !has_content {
-                            continue;
-                        }
                         xml.push_str(&format!(
                         "        <clef number=\"{}\">\n          <sign>{}</sign>\n          <line>{}</line>\n        </clef>\n",
                         staff_number + 1,
@@ -252,6 +249,7 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                                         octave
                                     ));
                                 }
+                                push_capo(&mut xml, tab.capo);
                             }
                             xml.push_str("        </staff-details>\n");
                         }
@@ -283,6 +281,7 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                             octave
                         ));
                     }
+                    push_capo(&mut xml, tab.capo);
                     xml.push_str("        </staff-details>\n");
                 } else if i == 0 && staff.presentation.lines != 5 {
                     xml.push_str("        <staff-details>\n");
@@ -552,7 +551,7 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                         serialize_note(
                             &mut xml,
                             note,
-                            musicxml_voice_number(extra_measure, voice_index),
+                            musicxml_staff_voice_number(extra_measure, staff_index, voice_index),
                             staff_index + 1,
                             measure_ticks,
                             score,
@@ -991,8 +990,26 @@ fn serialized_voice_ticks(voice: &[Note], measure_ticks: u32) -> u32 {
     })
 }
 
+/// MusicXML `<capo>` follows `<staff-tuning>` inside `<staff-details>`: the tuning stays the open
+/// tuning and the capo raises it by the given number of semitones, as in `TablatureConfig`.
+fn push_capo(xml: &mut String, capo: u8) {
+    if capo > 0 {
+        xml.push_str(&format!("          <capo>{capo}</capo>\n"));
+    }
+}
+
 fn musicxml_voice_number(measure: &acorde_core::Measure, slot: usize) -> u32 {
     measure.source_voice_numbers[slot].unwrap_or((slot + 1) as u32)
+}
+
+/// Voice number for a slot on a given staff. Without a retained source number, staff `n` uses the
+/// conventional per-staff range (1–4, 5–8, …) so a cross-staff note still names its owning staff.
+fn musicxml_staff_voice_number(
+    measure: &acorde_core::Measure,
+    staff_index: usize,
+    slot: usize,
+) -> u32 {
+    measure.source_voice_numbers[slot].unwrap_or((staff_index * 4 + slot + 1) as u32)
 }
 
 fn serialized_note_timing(note: &Note, measure_ticks: u32) -> (u32, &'static str, u8, bool) {

@@ -44,6 +44,14 @@
       "expected_losses": []
     },
     {
+      "path": "declared_staves_cross_staff.musicxml",
+      "format": "musicxml",
+      "license": "self-authored",
+      "sha256": "af9e90a46f76d8a230b70cdfffd6f6586d176c617a29942fde90c8c3ac5f8f9b",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
       "path": "multivoice.musicxml",
       "format": "musicxml",
       "license": "self-authored",

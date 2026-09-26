@@ -17,11 +17,16 @@ pub fn loss_diagnostics(xml: &str) -> Vec<crate::Diagnostic> {
     let mut diagnostics = Vec::new();
     let mut figured_bass: Option<(Vec<String>, bool, bool)> = None;
     let mut degree_context: Option<(Vec<String>, Option<String>, Option<String>)> = None;
+    // Staff count declared by `<staves>` for the current part, if any.
+    let mut declared_staves: Option<u16> = None;
     loop {
         match reader.read_event() {
             Ok(quick_xml::events::Event::Start(event)) => {
                 let name = String::from_utf8_lossy(event.name().as_ref()).into_owned();
                 path.push(name.clone());
+                if name == "part" {
+                    declared_staves = None;
+                }
                 if name == "figured-bass" {
                     figured_bass = Some((path.clone(), false, false));
                 } else if let Some((_, has_number, has_unsupported_child)) = figured_bass.as_mut() {
@@ -133,6 +138,12 @@ pub fn loss_diagnostics(xml: &str) -> Vec<crate::Diagnostic> {
             Ok(quick_xml::events::Event::Text(event)) => {
                 let value = String::from_utf8_lossy(event.as_ref());
                 push_invalid_numeric_value_diagnostic(&path, value.trim(), &mut diagnostics);
+                push_staff_reference_diagnostic(
+                    &path,
+                    value.trim(),
+                    &mut declared_staves,
+                    &mut diagnostics,
+                );
                 if let Some(field @ ("string" | "fret")) = path.last().map(String::as_str) {
                     push_tablature_value_diagnostic(field, value.trim(), &path, &mut diagnostics);
                 }
@@ -174,6 +185,43 @@ pub fn loss_diagnostics(xml: &str) -> Vec<crate::Diagnostic> {
     diagnostics
 }
 
+/// Record a part's `<staves>` declaration and diagnose note staff references beyond it. Without a
+/// declaration, a note on an undeclared staff keeps the legacy cross-staff placement path.
+fn push_staff_reference_diagnostic(
+    path: &[String],
+    value: &str,
+    declared_staves: &mut Option<u16>,
+    diagnostics: &mut Vec<crate::Diagnostic>,
+) {
+    let parent = path.iter().rev().nth(1).map(String::as_str);
+    match (path.last().map(String::as_str), parent) {
+        (Some("staves"), Some("attributes")) => {
+            if let Ok(count) = value.parse::<u16>()
+                && (1..=32).contains(&count)
+            {
+                *declared_staves = Some(count);
+            }
+        }
+        (Some("staff"), Some("note")) => {
+            let (Some(declared), Ok(staff)) = (*declared_staves, value.parse::<u16>()) else {
+                return;
+            };
+            if staff > declared {
+                let mut diagnostic = crate::Diagnostic::warning(
+                    "musicxml.undeclared-staff-reference",
+                    format!(
+                        "MusicXML note references staff {staff}, but the part declares {declared} staves"
+                    ),
+                );
+                diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                diagnostic.preserved_value = Some(value.to_string());
+                diagnostics.push(diagnostic);
+            }
+        }
+        _ => {}
+    }
+}
+
 fn push_invalid_numeric_value_diagnostic(
     path: &[String],
     value: &str,
@@ -187,7 +235,7 @@ fn push_invalid_numeric_value_diagnostic(
         "voice" => value
             .parse::<u32>()
             .is_ok_and(|number| (1..=1_000_000).contains(&number)),
-        "staff" => value
+        "staff" | "staves" => value
             .parse::<u16>()
             .is_ok_and(|number| (1..=32).contains(&number)),
         "octave" | "tuning-octave" => value.parse::<i8>().is_ok(),
@@ -195,6 +243,7 @@ fn push_invalid_numeric_value_diagnostic(
             .parse::<i8>()
             .is_ok_and(|alter| (-2..=2).contains(&alter)),
         "multiple-rest" => value.parse::<u16>().is_ok_and(|number| number > 0),
+        "capo" => value.parse::<u8>().is_ok(),
         _ => true,
     };
     if valid {
@@ -632,23 +681,6 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<crate::Diagnos
                     diagnostics.push(diagnostic);
                 }
             }
-            let Some(tab) = &staff.tablature else {
-                continue;
-            };
-            if tab.capo == 0 {
-                continue;
-            }
-            let mut diagnostic = crate::Diagnostic::warning(
-                "musicxml.export-unsupported-capo",
-                "tablature capo is not represented by MusicXML staff-details",
-            );
-            diagnostic.source_location = Some(format!(
-                "/score/part/{}/staff/{}/tablature/capo",
-                part_index + 1,
-                staff_index + 1
-            ));
-            diagnostic.preserved_value = Some(tab.capo.to_string());
-            diagnostics.push(diagnostic);
         }
     }
     diagnostics
@@ -677,6 +709,33 @@ mod tests {
             diagnostic.preserved_value.as_deref(),
             Some("id=piano;name=Piano")
         );
+    }
+
+    #[test]
+    fn note_staff_beyond_declared_staves_is_source_diagnosed() {
+        let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><staves>2</staves></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>whole</type><staff>3</staff></note></measure></part></score-partwise>"#;
+        let diagnostics = loss_diagnostics(xml);
+        let diagnostic = diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code == "musicxml.undeclared-staff-reference")
+            .expect("undeclared staff reference is diagnosed");
+        assert_eq!(diagnostic.preserved_value.as_deref(), Some("3"));
+        assert_eq!(
+            diagnostic.source_location.as_deref(),
+            Some("/score-partwise/part/measure/note/staff")
+        );
+
+        let undeclared = xml.replace("<staves>2</staves>", "");
+        assert!(
+            !loss_diagnostics(&undeclared)
+                .iter()
+                .any(|diagnostic| diagnostic.code == "musicxml.undeclared-staff-reference")
+        );
+        let invalid = xml.replace("<staves>2</staves>", "<staves>0</staves>");
+        assert!(loss_diagnostics(&invalid).iter().any(|diagnostic| {
+            diagnostic.code == "musicxml.invalid-numeric-value"
+                && diagnostic.preserved_value.as_deref() == Some("0")
+        }));
     }
 
     #[test]

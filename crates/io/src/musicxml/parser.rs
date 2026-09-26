@@ -271,6 +271,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut staff_tuning_alter = 0i8;
     let mut staff_tuning_octave = 4i8;
     let mut staff_tunings: Vec<(u8, i16)> = Vec::new();
+    let mut staff_capo: Option<u8> = None;
     let mut in_multiple_rest = false;
     let mut in_barline = false;
     let mut barline_location = String::new();
@@ -300,6 +301,9 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut voice_cursor_ticks: HashMap<(usize, usize), u32> = HashMap::new();
     let mut source_voice_slots: HashMap<(usize, u32), usize> = HashMap::new();
     let mut last_note_start: Option<(usize, usize, u32)> = None;
+    // Owning staff of the previous note when it was a cross-staff placement, so chord members
+    // follow their chord head.
+    let mut last_note_cross_home: Option<usize> = None;
     let mut last_note_address: Option<NoteAddr> = None;
     let mut current_text = String::new();
 
@@ -467,6 +471,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         }
                         staff_lines = None;
                         staff_tunings.clear();
+                        staff_capo = None;
                     }
                     "staff-tuning" if in_staff_details => {
                         in_staff_tuning = true;
@@ -633,6 +638,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         measure_cursor_ticks = 0;
                         voice_cursor_ticks.clear();
                         last_note_start = None;
+                        last_note_cross_home = None;
                         last_note_address = None;
                     }
                     "backup" => in_backup = true,
@@ -1579,6 +1585,9 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             staff_tunings.push((line, pitch));
                         }
                     }
+                    "capo" if in_staff_details => {
+                        staff_capo = current_text.trim().parse::<u8>().ok();
+                    }
                     "staff-details" => {
                         in_staff_details = false;
                         if let Some(lines) = staff_lines
@@ -1596,7 +1605,9 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                         .filter(|(line, _)| *line <= lines)
                                         .map(|(_, midi)| *midi)
                                         .collect(),
-                                    capo: 0,
+                                    // MusicXML tuning is the open tuning before the capo, and
+                                    // frets count from the capo, matching TablatureConfig.
+                                    capo: staff_capo.unwrap_or(0),
                                 };
                                 staff.presentation.kind = StaffKind::Tablature;
                                 if staff.measures.len() <= 1 {
@@ -1619,6 +1630,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             .checked_sub(duration)
                             .ok_or_else(|| Error::Xml("MusicXML backup cursor underflow".into()))?;
                         last_note_start = None;
+                        last_note_cross_home = None;
                     }
                     "duration" if in_forward => {
                         let duration = current_text
@@ -1632,6 +1644,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             .filter(|cursor| *cursor <= measure_ticks)
                             .ok_or_else(|| Error::Xml("MusicXML forward cursor overflow".into()))?;
                         last_note_start = None;
+                        last_note_cross_home = None;
                     }
                     "duration" if in_note => {
                         note_duration_ticks = Some(
@@ -1660,6 +1673,21 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             return Err(Error::Xml(format!(
                                 "MusicXML voice number must be between 1 and {MAX_SOURCE_VOICE_NUMBER}"
                             )));
+                        }
+                    }
+                    "staves" if !in_note => {
+                        // A declared staff count materializes every canonical staff, even
+                        // when a staff has no numbered clef or no notes in the first measure.
+                        if let Some(pi) = part_index
+                            && let Some(count) = current_text
+                                .trim()
+                                .parse::<usize>()
+                                .ok()
+                                .filter(|number| (1..=MAX_STAVES).contains(number))
+                        {
+                            while score.parts[pi].staves.len() < count {
+                                score.parts[pi].staves.push(Staff::new(Clef::Treble));
+                            }
                         }
                     }
                     "staff" if in_note => {
@@ -1753,12 +1781,28 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "note" => {
                         if let Some(pi) = part_index {
                             let requested_staff_index = note_staff.saturating_sub(1);
-                            let route_to_declared_staff = requested_staff_index > 0
-                                && score.parts[pi].staves.len() > requested_staff_index;
-                            let target_staff_index = if route_to_declared_staff {
-                                requested_staff_index
+                            let staff_count = score.parts[pi].staves.len();
+                            let cross_home = if note_chord {
+                                last_note_cross_home
                             } else {
-                                0
+                                declared_cross_staff_home(
+                                    requested_staff_index,
+                                    staff_count,
+                                    note_voice,
+                                    measure_cursor_ticks,
+                                    &source_voice_slots,
+                                    &voice_cursor_ticks,
+                                )
+                            };
+                            let (target_staff_index, cross_target) = if let Some(home) = cross_home
+                            {
+                                (home, Some(requested_staff_index))
+                            } else if requested_staff_index < staff_count {
+                                (requested_staff_index, None)
+                            } else {
+                                // Legacy boundary: an undeclared staff stays a placement on the
+                                // first staff (diagnosed when the part declares `<staves>`).
+                                (0, Some(requested_staff_index))
                             };
                             let tab_lines = score.parts[pi].staves[target_staff_index]
                                 .tablature
@@ -1992,9 +2036,9 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                     if note_trill_line_end {
                                         note.trill_line_end = true;
                                     }
-                                    if note_staff > 1 && !route_to_declared_staff {
+                                    if let Some(target_staff) = cross_target {
                                         note.cross_staff = Some(acorde_core::CrossStaff {
-                                            target_staff: requested_staff_index,
+                                            target_staff,
                                             target_voice: None,
                                         });
                                     }
@@ -2027,6 +2071,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                     measure_cursor_ticks = next_cursor;
                                     last_note_start =
                                         Some((target_staff_index, voice_index, note_start));
+                                    last_note_cross_home = cross_home;
                                     last_note_address = Some(address.clone());
                                     completed_note_address = Some(address);
                                 }
@@ -2068,10 +2113,75 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     if score.parts.is_empty() {
         return Err(Error::Empty);
     }
+    for part in &mut score.parts {
+        pad_declared_staff_measures(part);
+    }
     score.settings.time_signature = current_time;
     score.settings.key_signature = current_key;
 
     Ok(score)
+}
+
+/// Give every declared staff the same measure count as the first staff. MusicXML may declare a
+/// staff that has no notes in some (or any) measures; the canonical model still requires one
+/// measure per staff and bar, so missing bars become empty measures with the bar's number and
+/// running time signature.
+/// Staves conventionally own four source voice numbers each (1–4 on staff 1, 5–8 on staff 2, …),
+/// the numbering MuseScore and acorde's serializer emit. A note written on another declared staff
+/// is a cross-staff placement owned by its voice's conventional staff when it continues that
+/// voice's timeline: it must not start before the voice's existing content on the owning staff,
+/// and its own staff must not already carry an independent layer with the same voice number in
+/// this measure (the per-staff voice reuse some exporters write after `<backup>`).
+fn declared_cross_staff_home(
+    requested_staff: usize,
+    staff_count: usize,
+    source_voice: u32,
+    note_start: u32,
+    source_slots: &HashMap<(usize, u32), usize>,
+    voice_cursors: &HashMap<(usize, usize), u32>,
+) -> Option<usize> {
+    let home = usize::try_from(source_voice.checked_sub(1)? / 4).ok()?;
+    if home == requested_staff || home >= staff_count || requested_staff >= staff_count {
+        return None;
+    }
+    let own_layer_active = source_slots
+        .get(&(requested_staff, source_voice))
+        .is_some_and(|slot| voice_cursors.contains_key(&(requested_staff, *slot)));
+    if own_layer_active {
+        return None;
+    }
+    let home_cursor = source_slots
+        .get(&(home, source_voice))
+        .and_then(|slot| voice_cursors.get(&(home, *slot)))
+        .copied()
+        .unwrap_or(0);
+    (home_cursor <= note_start).then_some(home)
+}
+
+fn pad_declared_staff_measures(part: &mut Part) {
+    let Some((first, extra_staves)) = part.staves.split_first_mut() else {
+        return;
+    };
+    let mut time = TimeSignature::default();
+    let bars: Vec<(u32, TimeSignature)> = first
+        .measures
+        .iter()
+        .map(|measure| {
+            if let Some(changed) = &measure.time_sig {
+                time = changed.clone();
+            }
+            (measure.number, time.clone())
+        })
+        .collect();
+    for staff in extra_staves {
+        while staff.measures.len() < bars.len() {
+            let (number, time) = &bars[staff.measures.len()];
+            let mut measure = Measure::empty(time.numerator, time.denominator);
+            measure.number = *number;
+            measure.voices[0].clear();
+            staff.measures.push(measure);
+        }
+    }
 }
 
 fn musicxml_measure_ticks(time: &TimeSignature, divisions: u32) -> Result<u32, Error> {
@@ -2116,7 +2226,14 @@ fn musicxml_voice_slot(
                 mapped_staff == staff_index && mapped_slot == slot
             })
     };
-    let preferred = usize::try_from(source_voice.saturating_sub(1)).ok();
+    let zero_based = source_voice.saturating_sub(1);
+    // Per-staff numbering (5–8 on staff 2, …) keeps its slot within the owning staff.
+    let preferred = if staff_index > 0 && usize::try_from(zero_based / 4).ok() == Some(staff_index)
+    {
+        usize::try_from(zero_based % 4).ok()
+    } else {
+        usize::try_from(zero_based).ok()
+    };
     let slot = preferred
         .filter(|slot| *slot < measure.voices.len() && !occupied(*slot))
         .or_else(|| (0..measure.voices.len()).find(|slot| !occupied(*slot)))

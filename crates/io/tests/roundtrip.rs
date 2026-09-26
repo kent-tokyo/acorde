@@ -16,6 +16,8 @@ static FRAGMENT_RICH_XML: &str = include_str!("../../../tests/fixtures/fragment_
 static CROSS_STAFF_FRAGMENT_XML: &str =
     include_str!("../../../tests/fixtures/cross_staff_fragment.musicxml");
 static SECTION_BREAKS_XML: &str = include_str!("../../../tests/fixtures/section_breaks.musicxml");
+static DECLARED_STAVES_XML: &str =
+    include_str!("../../../tests/fixtures/declared_staves_cross_staff.musicxml");
 static FIXTURE_MANIFEST: &str = include_str!("../../../tests/fixtures/manifest.json");
 static INTERCHANGE_REPORT: &str = include_str!("../../../docs/interchange-report.json");
 static WORKSPACE_MANIFEST: &str = include_str!("../../../Cargo.toml");
@@ -609,6 +611,9 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
                 include_bytes!("../../../tests/fixtures/section_breaks.musicxml")
             }
             "multivoice.musicxml" => include_bytes!("../../../tests/fixtures/multivoice.musicxml"),
+            "declared_staves_cross_staff.musicxml" => {
+                include_bytes!("../../../tests/fixtures/declared_staves_cross_staff.musicxml")
+            }
             "render_preflight_unsupported.musicxml" => {
                 include_bytes!("../../../tests/fixtures/render_preflight_unsupported.musicxml")
             }
@@ -2399,15 +2404,8 @@ fn musicxml_tablature_tuning_and_techniques_roundtrip() {
 
     let xml = serialize_musicxml(&score).expect("tablature serializes");
     let report = acorde_io::serialize_musicxml_with_report(&score).expect("tab export reports");
-    assert_eq!(report.diagnostics.len(), 1);
-    assert_eq!(
-        report.diagnostics[0].code,
-        "musicxml.export-unsupported-capo"
-    );
-    assert_eq!(
-        report.diagnostics[0].source_location.as_deref(),
-        Some("/score/part/1/staff/1/tablature/capo")
-    );
+    assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+    assert!(xml.contains("<capo>2</capo>"));
     assert!(xml.contains("<staff-tuning line=\"1\"><tuning-step>E</tuning-step>"));
     assert!(xml.contains(
         "<staff-tuning line=\"2\"><tuning-step>C</tuning-step><tuning-alter>1</tuning-alter>"
@@ -2420,10 +2418,7 @@ fn musicxml_tablature_tuning_and_techniques_roundtrip() {
         .expect("tab staff");
     assert_eq!(tab.lines, 6);
     assert_eq!(tab.tuning_midi, vec![64, 61, 55, 50, 45, 40]);
-    assert_eq!(
-        tab.capo, 0,
-        "capo is intentionally outside MusicXML staff-details"
-    );
+    assert_eq!(tab.capo, 2, "MusicXML staff-details capo round-trips");
     let restored_note = &restored.parts[0].staves[0].measures[0].voices[0][0];
     assert_eq!(
         restored_note
@@ -3042,4 +3037,151 @@ fn musicxml_extra_staff_lines_roundtrip_to_matching_staff() {
     assert_eq!(staff.presentation.lines, 4);
     assert_eq!(staff.presentation.kind, StaffKind::Standard);
     assert!(staff.tablature.is_none());
+}
+
+fn cross_staff_target(score: &acorde_core::Score, staff: usize, note: usize) -> Option<usize> {
+    score.parts[0].staves[staff].measures[0].voices[0][note]
+        .cross_staff
+        .as_ref()
+        .map(|placement| placement.target_staff)
+}
+
+#[test]
+fn declared_musicxml_staves_materialize_and_round_trip() {
+    let parsed = parse_musicxml(DECLARED_STAVES_XML).expect("declared-staves fixture parses");
+    assert!(acorde_core::validate(&parsed).is_valid());
+    let part = &parsed.parts[0];
+    assert_eq!(part.staves.len(), 2);
+    assert!(part.staves.iter().all(|staff| staff.measures.len() == 2));
+
+    // Voice 1 continues its timeline on staff 2 for one note: a placement owned by staff 1.
+    let upper = &part.staves[0].measures[0].voices[0];
+    assert_eq!(upper.len(), 4);
+    assert_eq!(upper[2].pitches[0].step, Step::E);
+    assert_eq!(cross_staff_target(&parsed, 0, 2), Some(1));
+    assert_eq!(cross_staff_target(&parsed, 0, 1), None);
+    // Voice 5 is owned by the declared second staff.
+    let lower = &part.staves[1].measures[0];
+    assert_eq!(lower.source_voice_numbers[0], Some(5));
+    assert_eq!(lower.voices[0].len(), 2);
+    assert!(
+        lower.voices[0]
+            .iter()
+            .all(|note| note.cross_staff.is_none())
+    );
+
+    let xml = serialize_musicxml(&parsed).expect("declared-staves fixture serializes");
+    assert!(xml.contains("<staves>2</staves>"));
+    let restored = parse_musicxml(&xml).expect("declared-staves fixture reparses");
+    assert_eq!(restored.parts[0].staves.len(), 2);
+    for (original, restored) in part.staves.iter().zip(&restored.parts[0].staves) {
+        assert_eq!(original.measures.len(), restored.measures.len());
+        for (left, right) in original.measures.iter().zip(&restored.measures) {
+            assert_eq!(left.source_voice_numbers, right.source_voice_numbers);
+            for (left, right) in left.voices.iter().zip(&right.voices) {
+                assert_eq!(left.len(), right.len());
+                for (left, right) in left.iter().zip(right) {
+                    assert_eq!(left.is_rest, right.is_rest);
+                    assert_eq!(left.pitches, right.pitches);
+                    assert_eq!(left.duration, right.duration);
+                    assert_eq!(left.cross_staff, right.cross_staff);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn empty_declared_musicxml_staff_is_preserved() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>whole</type><staff>1</staff></note></measure><measure number="2"><note><rest/><duration>4</duration><voice>1</voice><type>whole</type><staff>1</staff></note></measure></part></score-partwise>"#;
+    let parsed = parse_musicxml(xml).expect("empty declared staff parses");
+    assert!(acorde_core::validate(&parsed).is_valid());
+    assert_eq!(parsed.parts[0].staves.len(), 2);
+    assert_eq!(parsed.parts[0].staves[1].measures.len(), 2);
+    assert_eq!(parsed.parts[0].staves[1].measures[1].number, 2);
+
+    let serialized = serialize_musicxml(&parsed).expect("empty declared staff serializes");
+    assert!(serialized.contains("<staves>2</staves>"));
+    assert!(serialized.contains("<clef number=\"2\">"));
+    let restored = parse_musicxml(&serialized).expect("empty declared staff reparses");
+    assert_eq!(restored.parts[0].staves.len(), 2);
+    assert!(acorde_core::validate(&restored).is_valid());
+}
+
+#[test]
+fn imported_declared_staves_accept_undoable_cross_staff_edit() {
+    use acorde_core::{CrossStaff, SetCrossStaffCmd};
+
+    let parsed = parse_musicxml(DECLARED_STAVES_XML).expect("declared-staves fixture parses");
+    let mut engine = ScoreEngine::new();
+    engine
+        .try_replace_score(parsed)
+        .expect("imported two-staff score validates");
+    engine
+        .apply(Command::SetCrossStaff(SetCrossStaffCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            note_index: 1,
+            placement: Some(CrossStaff {
+                target_staff: 1,
+                target_voice: None,
+            }),
+        }))
+        .expect("imported note accepts a live target staff");
+    assert_eq!(cross_staff_target(&engine.score, 0, 1), Some(1));
+    engine.undo().expect("cross-staff edit undoes");
+    assert_eq!(cross_staff_target(&engine.score, 0, 1), None);
+    engine.redo().expect("cross-staff edit redoes");
+    assert_eq!(cross_staff_target(&engine.score, 0, 1), Some(1));
+
+    let json = serde_json::to_string(&engine.score).expect("score saves as JSON");
+    let reloaded: acorde_core::Score = serde_json::from_str(&json).expect("JSON reloads");
+    assert_eq!(cross_staff_target(&reloaded, 0, 1), Some(1));
+
+    let xml = serialize_musicxml(&engine.score).expect("score saves as MusicXML");
+    let reparsed = parse_musicxml(&xml).expect("MusicXML reloads");
+    assert_eq!(reparsed.parts[0].staves.len(), 2);
+    assert_eq!(cross_staff_target(&reparsed, 0, 1), Some(1));
+    assert_eq!(cross_staff_target(&reparsed, 0, 2), Some(1));
+    assert_eq!(reparsed.parts[0].staves[1].measures[0].voices[0].len(), 2);
+}
+
+#[test]
+fn musicxml_time_local_capo_change_round_trips() {
+    use acorde_core::{Duration, Measure, Note, Pitch, Score, Staff, Step, TablatureConfig};
+    let mut score = Score::new("Capo change", 120, 4, 4, 0, 1);
+    let mut staff = Staff::new(acorde_core::Clef::Treble);
+    staff.tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![64, 59, 55, 50, 45, 40],
+        capo: 0,
+    });
+    for _ in 0..2 {
+        let mut measure = Measure::empty(4, 4);
+        let mut note = Note::new(Pitch::new(Step::E, 4), Duration::Whole);
+        note.tab_position = Some(acorde_core::TabPosition { string: 1, fret: 0 });
+        measure.voices[0] = vec![note];
+        staff.measures.push(measure);
+    }
+    staff.measures[1].tablature_change = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![64, 59, 55, 50, 45, 40],
+        capo: 3,
+    });
+    score.parts[0].staves = vec![staff];
+
+    let xml = serialize_musicxml(&score).expect("capo change serializes");
+    assert_eq!(xml.matches("<capo>").count(), 1);
+    let restored = parse_musicxml(&xml).expect("capo change reparses");
+    let staff = &restored.parts[0].staves[0];
+    assert_eq!(staff.tablature.as_ref().map(|tab| tab.capo), Some(0));
+    assert_eq!(
+        staff.measures[1]
+            .tablature_change
+            .as_ref()
+            .map(|tab| tab.capo),
+        Some(3)
+    );
 }
