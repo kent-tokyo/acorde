@@ -176,6 +176,20 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 xml.push_str("      </barline>\n");
             }
 
+            // A run of one-measure repeats opens with a start marker and closes with a stop marker
+            // in the first measure after it.
+            let previous_repeat = i > 0 && staff.measures[i - 1].measure_repeat.is_some();
+            let repeat_marker = match (measure.measure_repeat, previous_repeat) {
+                (Some(count), false) => Some(format!(
+                    "        <measure-style>\n          <measure-repeat type=\"start\">{count}</measure-repeat>\n        </measure-style>\n"
+                )),
+                (None, true) => Some(
+                    "        <measure-style>\n          <measure-repeat type=\"stop\"/>\n        </measure-style>\n"
+                        .to_string(),
+                ),
+                _ => None,
+            };
+
             // Attributes. MusicXML attributes persist until changed, so emit the
             // score defaults in the first measure and measure-local overrides
             // wherever they occur. Omitting a later time signature makes a
@@ -323,6 +337,9 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     xml.push_str("        </measure-style>\n");
                     skip_until = i + count as usize;
                 }
+                if let Some(marker) = &repeat_marker {
+                    xml.push_str(marker);
+                }
                 xml.push_str("      </attributes>\n");
                 xml.push_str("      <direction placement=\"above\">\n");
                 xml.push_str("        <direction-type>\n");
@@ -346,8 +363,15 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     count
                 ));
                 xml.push_str("        </measure-style>\n");
+                if let Some(marker) = &repeat_marker {
+                    xml.push_str(marker);
+                }
                 xml.push_str("      </attributes>\n");
                 skip_until = i + count as usize;
+            } else if let Some(marker) = &repeat_marker {
+                xml.push_str("      <attributes>\n");
+                xml.push_str(marker);
+                xml.push_str("      </attributes>\n");
             }
 
             // Per-measure tempo change (measures after the first)

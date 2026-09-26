@@ -31,6 +31,13 @@ pub enum ValidationError {
         numerator: u8,
         denominator: u8,
     },
+    /// A measure repeat names 0 or more than 4 measures, or more measures than precede it.
+    InvalidMeasureRepeat {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        count: u8,
+    },
     /// A measure's authored actual length is zero or larger than the supported maximum.
     InvalidMeasureLength {
         part: usize,
@@ -304,6 +311,14 @@ pub enum ValidationWarning {
     OverlappingVolta { part: usize, staff: usize },
     /// A part has no notes across all measures.
     EmptyPart { part: usize },
+    /// A measure repeat's stored copy no longer sounds like the measure it repeats, for example
+    /// after the original was edited.
+    MeasureRepeatContentDiffers {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        source: usize,
+    },
     /// The same rehearsal mark text appears more than once.
     DuplicateRehearsalMark { mark: String },
 }
@@ -587,6 +602,27 @@ pub fn validate(score: &Score) -> ValidationReport {
                     }
                 }
 
+                if let Some(count) = measure.measure_repeat {
+                    let source = mi.checked_sub(usize::from(count));
+                    match source.filter(|_| (1..=4).contains(&count)) {
+                        None => errors.push(ValidationError::InvalidMeasureRepeat {
+                            part: pi,
+                            staff: si,
+                            measure: mi,
+                            count,
+                        }),
+                        Some(source) => {
+                            if !measure.same_sounding_content(&staff.measures[source]) {
+                                warnings.push(ValidationWarning::MeasureRepeatContentDiffers {
+                                    part: pi,
+                                    staff: si,
+                                    measure: mi,
+                                    source,
+                                });
+                            }
+                        }
+                    }
+                }
                 if let Some(length) = measure.actual_length
                     && length.beats().is_none()
                 {

@@ -140,6 +140,17 @@ pub fn loss_diagnostics(xml: &str) -> Vec<crate::Diagnostic> {
             Ok(quick_xml::events::Event::Text(event)) => {
                 let value = String::from_utf8_lossy(event.as_ref());
                 push_invalid_numeric_value_diagnostic(&path, value.trim(), &mut diagnostics);
+                if path.last().map(String::as_str) == Some("measure-repeat")
+                    && value.trim().parse::<u8>().is_ok_and(|count| count > 1)
+                {
+                    let mut diagnostic = crate::Diagnostic::warning(
+                        "musicxml.unsupported-multi-measure-repeat",
+                        "multi-measure repeat content is imported as written notes without the repeat sign",
+                    );
+                    diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                    diagnostic.preserved_value = Some(value.trim().to_string());
+                    diagnostics.push(diagnostic);
+                }
                 push_staff_reference_diagnostic(
                     &path,
                     value.trim(),
@@ -197,7 +208,7 @@ fn push_unsupported_notation_diagnostic(path: &[String], diagnostics: &mut Vec<c
     };
     let unsupported = matches!(
         (parent.as_str(), name.as_str()),
-        ("measure-style", "measure-repeat" | "beat-repeat" | "slash")
+        ("measure-style", "beat-repeat" | "slash")
             | ("lyric", "extend" | "elision")
             | ("direction-type", "dashes" | "bracket")
             | ("notations", "non-arpeggiate")

@@ -1913,6 +1913,11 @@ pub struct Measure {
     /// `None` means the measure lasts exactly one bar of its time signature.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub actual_length: Option<MeasureLength>,
+    /// Display this measure as a repeat of the previous `n` measures (MuseScore measure repeat,
+    /// MusicXML `<measure-repeat>`). Its voices hold a copy of the repeated content, so playback,
+    /// validation, and editing see real notes; renderers draw the repeat sign instead.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub measure_repeat: Option<u8>,
 }
 
 impl Measure {
@@ -1955,7 +1960,33 @@ impl Measure {
             voices: [voice0, vec![], vec![], vec![]],
             source_voice_numbers: [None; 4],
             actual_length: None,
+            measure_repeat: None,
         }
+    }
+
+    /// Replace this measure's voices with a playable copy of `source`, as a measure repeat
+    /// stores its repeated content; see [`Note::repeated_copy`].
+    pub fn repeat_content_from(&mut self, source: &Measure) {
+        for (target, voice) in self.voices.iter_mut().zip(&source.voices) {
+            *target = voice.iter().map(Note::repeated_copy).collect();
+        }
+        self.source_voice_numbers = source.source_voice_numbers;
+    }
+
+    /// Whether this measure's voices sound like `other`'s: the same rests, pitches, durations,
+    /// dots, and tuplets in every voice.
+    pub fn same_sounding_content(&self, other: &Measure) -> bool {
+        self.voices.iter().zip(&other.voices).all(|(left, right)| {
+            left.len() == right.len()
+                && left.iter().zip(right).all(|(a, b)| {
+                    a.is_rest == b.is_rest
+                        && a.pitches == b.pitches
+                        && a.duration == b.duration
+                        && a.dot_count == b.dot_count
+                        && a.tuplet == b.tuplet
+                        && a.is_grace == b.is_grace
+                })
+        })
     }
 
     /// Beats this measure lasts: its [`actual_length`](Self::actual_length) when present and
@@ -2221,6 +2252,32 @@ impl Note {
             guitar_bend_alter_cents: None,
             guitar_bend_curve: Vec::new(),
         }
+    }
+
+    /// Copy for a repeated measure: a fresh id and the same sounding content, without ties,
+    /// slurs, lines, lyrics, chord symbol, or dynamic, which belong to the written original.
+    pub fn repeated_copy(&self) -> Note {
+        let mut copy = self.clone();
+        copy.id = Uuid::new_v4().to_string();
+        copy.tie_start = false;
+        copy.tie_end = false;
+        copy.slur_start = false;
+        copy.slur_end = false;
+        copy.hairpin_start = None;
+        copy.hairpin_end = false;
+        copy.pedal_start = false;
+        copy.pedal_end = false;
+        copy.ottava_start = None;
+        copy.ottava_end = false;
+        copy.glissando_start = false;
+        copy.glissando_end = false;
+        copy.trill_line_start = false;
+        copy.trill_line_end = false;
+        copy.lyric = None;
+        copy.additional_lyrics.clear();
+        copy.chord_symbol = None;
+        copy.dynamic = None;
+        copy
     }
 
     /// A plain whole rest, the form MusicXML `<rest measure="yes"/>` and MuseScore

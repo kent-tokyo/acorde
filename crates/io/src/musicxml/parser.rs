@@ -265,6 +265,10 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut lyric_number: Option<u8> = None;
     let mut note_lyrics: Vec<(Option<u8>, Lyric)> = Vec::new();
     let mut in_measure_style = false;
+    // `<measure-repeat type="start">n</measure-repeat>` repeats the previous n measures until a
+    // `type="stop"` marker; the start element's text is read at its end tag.
+    let mut measure_repeat_active: Option<u8> = None;
+    let mut measure_repeat_start_pending = false;
     let mut in_staff_details = false;
     let mut staff_details_number = 1usize;
     let mut staff_lines: Option<u8> = None;
@@ -486,6 +490,10 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         staff_tuning_octave = 4;
                     }
                     "multiple-rest" if in_measure_style => in_multiple_rest = true,
+                    "measure-repeat" if in_measure_style => match attr_str(e, b"type").as_deref() {
+                        Some("stop") => measure_repeat_active = None,
+                        _ => measure_repeat_start_pending = true,
+                    },
                     "notations" if in_note => in_notations = true,
                     "articulations" if in_notations => in_artic_block = true,
                     "ornaments" if in_notations => in_ornament_block = true,
@@ -628,6 +636,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         current_clef = Clef::Treble;
                         current_measure_number = 0;
                         source_voice_slots.clear();
+                        measure_repeat_active = None;
                     }
                     "measure" => {
                         current_measure_number = attr_str(e, b"number")
@@ -666,6 +675,13 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     .unwrap_or("")
                     .to_string();
                 match tag.as_str() {
+                    "measure-repeat" if attr_str(e, b"type").as_deref() == Some("stop") => {
+                        measure_repeat_active = None;
+                    }
+                    "measure-repeat" => {
+                        // An empty start marker repeats one measure.
+                        measure_repeat_active = Some(1);
+                    }
                     "print" => {
                         if let Some(pi) = part_index
                             && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
@@ -1572,6 +1588,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     }
                     "unpitched" if in_unpitched => in_unpitched = false,
                     "measure-style" => in_measure_style = false,
+                    "measure-repeat" if measure_repeat_start_pending => {
+                        measure_repeat_start_pending = false;
+                        measure_repeat_active =
+                            Some(current_text.trim().parse::<u8>().unwrap_or(1).max(1));
+                    }
                     "multiple-rest" if in_multiple_rest => {
                         in_multiple_rest = false;
                         let count: u8 = current_text.parse().unwrap_or(1);
@@ -1849,6 +1870,24 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                     let rest = Note::rest(Duration::whole_filling_beats(remaining));
                                     used += rest.beats();
                                     voice.push(rest);
+                                }
+                            }
+                        }
+                        if let (Some(pi), Some(count)) = (part_index, measure_repeat_active) {
+                            // The measure's written content (typically a rest) stands for the
+                            // repeated measures: store a playable copy of them instead.
+                            let bar_index = score.parts[pi].staves[0].measures.len();
+                            let back = usize::from(count);
+                            for staff in &mut score.parts[pi].staves {
+                                if staff.measures.len() != bar_index || bar_index <= back {
+                                    continue;
+                                }
+                                let source = staff.measures[bar_index - 1 - back].clone();
+                                if let Some(target) = staff.measures.last_mut() {
+                                    target.repeat_content_from(&source);
+                                    if count == 1 {
+                                        target.measure_repeat = Some(1);
+                                    }
                                 }
                             }
                         }

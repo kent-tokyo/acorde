@@ -412,8 +412,16 @@ fn write_staff(
         for styled in &measure.texts {
             write_styled_text(xml, styled)?;
         }
+        if let Some(count) = measure.measure_repeat {
+            // MuseScore stores the repeat sign instead of the repeated notes.
+            write!(
+                xml,
+                "<measureRepeatCount>{count}</measureRepeatCount><MeasureRepeat><subtype>{count}</subtype><durationType>measure</durationType><duration>{bar_numerator}/{bar_denominator}</duration></MeasureRepeat>"
+            )
+            .map_err(fmt_error)?;
+        }
         for (voice_index, voice) in measure.voices.iter().enumerate() {
-            if voice.is_empty() {
+            if voice.is_empty() || measure.measure_repeat.is_some() {
                 continue;
             }
             if voice_index > 0 {

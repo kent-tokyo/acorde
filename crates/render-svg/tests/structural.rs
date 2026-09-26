@@ -2644,3 +2644,24 @@ fn string_technique_marks_render_as_distinct_articulations() {
         assert!(svg.contains(class), "missing {class}");
     }
 }
+
+#[test]
+fn measure_repeat_draws_the_repeat_sign_instead_of_the_copied_notes() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("repeat", 120, 4, 4, 0, 2);
+    let bar = vec![
+        Note::new(Pitch::new(Step::E, 4), Duration::Half),
+        Note::new(Pitch::new(Step::G, 4), Duration::Half),
+    ];
+    score.parts[0].staves[0].measures[0].voices[0] = bar;
+    let source = score.parts[0].staves[0].measures[0].clone();
+    score.parts[0].staves[0].measures[1].repeat_content_from(&source);
+    let written = render_svg(&score, &opts()).expect("written repeat renders");
+    score.parts[0].staves[0].measures[1].measure_repeat = Some(1);
+    assert!(acorde_core::validate(&score).is_valid());
+    let repeated = render_svg(&score, &opts()).expect("measure repeat renders");
+    assert_well_formed_xml(&repeated);
+    assert!(repeated.contains(r#"class="acorde-measure-repeat""#));
+    assert!(!written.contains("acorde-measure-repeat"));
+    assert!(repeated.matches("data-note=").count() < written.matches("data-note=").count());
+}

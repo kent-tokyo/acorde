@@ -1124,6 +1124,18 @@ fn cmd_validate(input: &Path) -> Result<(), String> {
             acorde_core::ValidationWarning::DuplicateRehearsalMark { mark } => {
                 eprintln!("warning: rehearsal mark '{}' appears more than once", mark)
             }
+            acorde_core::ValidationWarning::MeasureRepeatContentDiffers {
+                part,
+                staff,
+                measure,
+                source,
+            } => eprintln!(
+                "warning: part {} staff {} measure {}: measure repeat differs from measure {}",
+                part + 1,
+                staff + 1,
+                measure + 1,
+                source + 1
+            ),
         }
     }
     if report.errors.is_empty() {
@@ -1182,6 +1194,18 @@ fn cmd_validate(input: &Path) -> Result<(), String> {
                     voice + 1,
                     note + 1,
                     verse
+                ),
+                acorde_core::ValidationError::InvalidMeasureRepeat {
+                    part,
+                    staff,
+                    measure,
+                    count,
+                } => eprintln!(
+                    "part {} staff {} measure {}: invalid {}-measure repeat",
+                    part + 1,
+                    staff + 1,
+                    measure + 1,
+                    count
                 ),
                 acorde_core::ValidationError::InvalidMeasureLength {
                     part,

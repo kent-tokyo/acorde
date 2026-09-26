@@ -3584,7 +3584,7 @@ fn string_technique_marks_round_trip_through_mscx_mei_and_abc() {
 
 #[test]
 fn unmodeled_musicxml_repeats_and_lines_are_source_diagnosed() {
-    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Drums</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><measure-style><measure-repeat type="start">1</measure-repeat></measure-style></attributes><direction><direction-type><dashes type="start"/></direction-type></direction><note><rest measure="yes"/><duration>4</duration><voice>1</voice><lyric><text>la</text><extend/></lyric></note></measure></part></score-partwise>"#;
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Drums</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><measure-style><measure-repeat type="start">2</measure-repeat></measure-style></attributes><direction><direction-type><dashes type="start"/></direction-type></direction><note><rest measure="yes"/><duration>4</duration><voice>1</voice><lyric><text>la</text><extend/></lyric></note></measure></part></score-partwise>"#;
     let report = acorde_io::parse_musicxml_with_report(xml).expect("fixture parses");
     let codes: Vec<(&str, &str)> = report
         .diagnostics
@@ -3597,7 +3597,7 @@ fn unmodeled_musicxml_repeats_and_lines_are_source_diagnosed() {
         })
         .collect();
     assert!(codes.contains(&(
-        "musicxml.unsupported-element.measure-repeat",
+        "musicxml.unsupported-multi-measure-repeat",
         "/score-partwise/part/measure/attributes/measure-style/measure-repeat"
     )));
     assert!(
@@ -3610,4 +3610,96 @@ fn unmodeled_musicxml_repeats_and_lines_are_source_diagnosed() {
             .iter()
             .any(|(code, _)| *code == "musicxml.unsupported-element.extend")
     );
+}
+
+const MEASURE_REPEAT_XML: &str = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Guitar</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>E</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>half</type></note><note><pitch><step>G</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>half</type></note></measure><measure number="2"><attributes><measure-style><measure-repeat type="start">1</measure-repeat></measure-style></attributes><note><rest measure="yes"/><duration>4</duration><voice>1</voice></note></measure><measure number="3"><note><rest measure="yes"/><duration>4</duration><voice>1</voice></note></measure><measure number="4"><attributes><measure-style><measure-repeat type="stop"/></measure-style></attributes><note><pitch><step>C</step><octave>5</octave></pitch><duration>4</duration><voice>1</voice><type>whole</type></note></measure></part></score-partwise>"#;
+
+#[test]
+fn musicxml_measure_repeats_play_the_repeated_measure_and_round_trip() {
+    let parsed = parse_musicxml(MEASURE_REPEAT_XML).expect("measure repeats parse");
+    let report = acorde_core::validate(&parsed);
+    assert!(report.is_valid(), "{:?}", report.errors);
+    assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+    let measures = &parsed.parts[0].staves[0].measures;
+    assert_eq!(measures[1].measure_repeat, Some(1));
+    assert_eq!(measures[2].measure_repeat, Some(1));
+    assert_eq!(measures[3].measure_repeat, None);
+    assert!(measures[1].same_sounding_content(&measures[0]));
+    assert!(measures[2].same_sounding_content(&measures[0]));
+    assert_ne!(measures[1].voices[0][0].id, measures[0].voices[0][0].id);
+    // Two notes in the written bar, two in each repeat, one in the last bar.
+    let events = acorde_core::to_playback_events(&parsed, &acorde_core::PlaybackOptions::default());
+    assert_eq!(events.len(), 7);
+
+    let xml = serialize_musicxml(&parsed).expect("measure repeats serialize");
+    assert_eq!(
+        xml.matches("<measure-repeat type=\"start\">1</measure-repeat>")
+            .count(),
+        1
+    );
+    assert_eq!(xml.matches("<measure-repeat type=\"stop\"/>").count(), 1);
+    let restored = parse_musicxml(&xml).expect("measure repeats reparse");
+    let restored = &restored.parts[0].staves[0].measures;
+    assert_eq!(
+        restored
+            .iter()
+            .map(|m| m.measure_repeat)
+            .collect::<Vec<_>>(),
+        vec![None, Some(1), Some(1), None]
+    );
+    assert!(restored[2].same_sounding_content(&restored[0]));
+}
+
+#[test]
+fn edited_repeat_source_is_reported_as_differing() {
+    let mut parsed = parse_musicxml(MEASURE_REPEAT_XML).expect("measure repeats parse");
+    parsed.parts[0].staves[0].measures[0].voices[0][0].pitches[0].octave = 3;
+    let report = acorde_core::validate(&parsed);
+    assert!(report.is_valid());
+    assert!(report.warnings.iter().any(|warning| matches!(
+        warning,
+        acorde_core::ValidationWarning::MeasureRepeatContentDiffers {
+            measure: 1,
+            source: 0,
+            ..
+        }
+    )));
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_measure_repeats_import_and_round_trip() {
+    let mscx = r#"<?xml version="1.0" encoding="UTF-8"?>
+<museScore version="3.02"><Score><Division>480</Division>
+<Part><Staff id="1"/><trackName>Guitar</trackName><Instrument><longName>Guitar</longName></Instrument></Part>
+<Staff id="1">
+<Measure><voice><TimeSig><sigN>4</sigN><sigD>4</sigD></TimeSig>
+<Chord><durationType>half</durationType><Note><pitch>64</pitch><tpc>18</tpc></Note></Chord>
+<Chord><durationType>half</durationType><Note><pitch>67</pitch><tpc>15</tpc></Note></Chord>
+</voice></Measure>
+<Measure><voice><RepeatMeasure><durationType>measure</durationType><duration>4/4</duration></RepeatMeasure></voice></Measure>
+<Measure><measureRepeatCount>2</measureRepeatCount><voice><MeasureRepeat><subtype>2</subtype><durationType>measure</durationType><duration>4/4</duration></MeasureRepeat></voice></Measure>
+</Staff></Score></museScore>"#;
+    let report = acorde_io::parse_mscx_with_report(mscx).expect("MSCX repeats parse");
+    let score = &report.score;
+    assert!(acorde_core::validate(score).is_valid());
+    let measures = &score.parts[0].staves[0].measures;
+    assert_eq!(measures[1].measure_repeat, Some(1));
+    assert!(measures[1].same_sounding_content(&measures[0]));
+    // A two-measure repeat keeps its playable copy but not the sign, and says so.
+    assert_eq!(measures[2].measure_repeat, None);
+    assert!(measures[2].same_sounding_content(&measures[0]));
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "mscx.unsupported-multi-measure-repeat")
+    );
+
+    let exported = acorde_io::serialize_mscx(score).expect("MSCX repeats export");
+    assert!(exported.contains("<measureRepeatCount>1</measureRepeatCount>"));
+    let restored = acorde_io::parse_mscx(&exported).expect("MSCX repeats reparse");
+    let restored = &restored.parts[0].staves[0].measures;
+    assert_eq!(restored[1].measure_repeat, Some(1));
+    assert!(restored[1].same_sounding_content(&restored[0]));
 }

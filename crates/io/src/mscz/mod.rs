@@ -47,10 +47,8 @@ pub use serialize::{export_loss_diagnostics, serialize_mscx, serialize_mscz};
 const MAX_ELEMENTS: usize = 500_000;
 const MAX_MSCZ_COMPRESSED: usize = 64 * 1024 * 1024;
 const MAX_MSCZ_ENTRIES: usize = 1024;
-/// MuseScore elements outside the imported subset. `RepeatMeasure` (3.x) and `MeasureRepeat`
-/// (4.x) mark measures whose repeated content is not stored and would otherwise read as rests.
-const UNSUPPORTED_MSCX_ELEMENTS: &[&str] =
-    &["Ottava", "Glissando", "RepeatMeasure", "MeasureRepeat"];
+/// MuseScore elements outside the imported subset.
+const UNSUPPORTED_MSCX_ELEMENTS: &[&str] = &["Ottava", "Glissando"];
 const MIN_HARMONY_TPC: i32 = 6;
 const MAX_HARMONY_TPC: i32 = 26;
 
@@ -291,6 +289,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut pending_pedal: [bool; 4] = [false; 4];
     let mut pending_slur: [bool; 4] = [false; 4];
 
+    // MuseScore measure repeats: 3.x `<RepeatMeasure>`, 4.x `<measureRepeatCount>` plus
+    // `<MeasureRepeat><subtype>n</subtype>`. MuseScore stores no notes for them.
+    let mut cur_measure_repeat: Option<u8> = None;
+    let mut in_measure_repeat_elem = false;
+
     // MuseScore `<LayoutBreak>` and `<BarLine>` measure presentation.
     let mut in_layout_break = false;
     let mut cur_system_break = false;
@@ -411,6 +414,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         cur_system_break = false;
                         cur_page_break = false;
                         cur_section_break = false;
+                        cur_measure_repeat = None;
                         cur_volta = None;
                         cur_texts.clear();
                         cur_figured_bass.clear();
@@ -621,6 +625,10 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "LayoutBreak" if in_measure => {
                         in_layout_break = true;
                     }
+                    "RepeatMeasure" | "MeasureRepeat" if in_measure => {
+                        in_measure_repeat_elem = true;
+                        cur_measure_repeat.get_or_insert(1);
+                    }
                     "BarLine" if in_measure && !in_chord && !in_rest_elem => {
                         in_barline_elem = true;
                     }
@@ -709,6 +717,19 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                     MscxLineKind::Slur => note.slur_end = true,
                                 }
                             }
+                        }
+                    }
+                    "subtype" if in_measure_repeat_elem => {
+                        if let Ok(count) = t.parse::<u8>() {
+                            cur_measure_repeat = Some(count);
+                        }
+                    }
+                    "RepeatMeasure" | "MeasureRepeat" if in_measure_repeat_elem => {
+                        in_measure_repeat_elem = false;
+                    }
+                    "measureRepeatCount" if in_measure => {
+                        if let Ok(count) = t.parse::<u8>() {
+                            cur_measure_repeat = Some(count);
                         }
                     }
                     "subtype" if in_layout_break => match t {
@@ -829,6 +850,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             page_break: cur_page_break,
                             section_break: cur_section_break,
                             actual_length: cur_measure_len,
+                            measure_repeat: None,
                             voices: [
                                 std::mem::take(&mut cur_voices[0]),
                                 std::mem::take(&mut cur_voices[1]),
@@ -837,7 +859,20 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             ],
                             source_voice_numbers: [None; 4],
                         };
-                        staff_measures.entry(sid).or_default().push(meas);
+                        let mut meas = meas;
+                        let staff_list = staff_measures.entry(sid).or_default();
+                        if let Some(count) = cur_measure_repeat.filter(|count| *count > 0)
+                            && let Some(source) = staff_list.len().checked_sub(usize::from(count))
+                        {
+                            // MuseScore stores no notes: copy the repeated content so playback
+                            // and validation see it. Only one-measure repeats keep the sign.
+                            let source = staff_list[source].clone();
+                            meas.repeat_content_from(&source);
+                            if count == 1 {
+                                meas.measure_repeat = Some(1);
+                            }
+                        }
+                        staff_list.push(meas);
                         in_measure = false;
                     }
 
@@ -1990,6 +2025,15 @@ fn presentation_loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                         let mut diagnostic = Diagnostic::warning(
                             "mscx.unsupported-visibility",
                             format!("hidden MuseScore {parent} is imported as a visible mark"),
+                        );
+                        diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                        diagnostic.preserved_value = Some(value.to_string());
+                        diagnostics.push(diagnostic);
+                    }
+                    if name == "measureRepeatCount" && value.parse::<u8>().is_ok_and(|n| n > 1) {
+                        let mut diagnostic = Diagnostic::warning(
+                            "mscx.unsupported-multi-measure-repeat",
+                            "multi-measure repeat content is imported as written notes without the repeat sign",
                         );
                         diagnostic.source_location = Some(format!("/{}", path.join("/")));
                         diagnostic.preserved_value = Some(value.to_string());

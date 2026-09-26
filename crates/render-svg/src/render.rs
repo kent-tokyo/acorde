@@ -2412,35 +2412,40 @@ fn render_measure(
         );
     }
 
-    for (voice_idx, notes) in measure.voices.iter().enumerate() {
-        render_measure_voice(
-            body,
-            measure,
-            layout,
-            part,
-            staff,
-            measure_idx,
-            row_idx,
-            voice_idx,
-            notes,
-            voice_slots.as_slice(),
-            active_voices,
-            total_beats,
-            content_x0,
-            content_w,
-            clef,
-            clef_bottom,
-            bottom_y,
-            space,
-            interactive,
-            mandatory,
-            courtesy,
-            tablature.as_ref(),
-            tablature_rhythm_display,
-            tablature_fret_mark_style,
-            &mut prior_voice_events,
-            note_points,
-        )?;
+    if let Some(count) = measure.measure_repeat {
+        // The stored copy of the repeated notes plays back; the page shows the repeat sign.
+        render_measure_repeat_sign(body, count, content_x0 + content_w / 2.0, bottom_y, space);
+    } else {
+        for (voice_idx, notes) in measure.voices.iter().enumerate() {
+            render_measure_voice(
+                body,
+                measure,
+                layout,
+                part,
+                staff,
+                measure_idx,
+                row_idx,
+                voice_idx,
+                notes,
+                voice_slots.as_slice(),
+                active_voices,
+                total_beats,
+                content_x0,
+                content_w,
+                clef,
+                clef_bottom,
+                bottom_y,
+                space,
+                interactive,
+                mandatory,
+                courtesy,
+                tablature.as_ref(),
+                tablature_rhythm_display,
+                tablature_fret_mark_style,
+                &mut prior_voice_events,
+                note_points,
+            )?;
+        }
     }
 
     let semantic_placements = annotations::render_measure_semantic_annotations(
@@ -5548,6 +5553,37 @@ fn render_note_annotations(
             false,
         );
     }
+}
+
+/// MuseScore-style measure repeat sign: a slanted bar between two dots, centered in the measure
+/// on the middle staff line, with the repeated measure count above it when more than one.
+fn render_measure_repeat_sign(body: &mut String, count: u8, cx: f32, bottom_y: f32, space: f32) {
+    let cy = bottom_y - 2.0 * space;
+    let _ = write!(
+        body,
+        r#"<g class="acorde-measure-repeat" data-acorde-kind="measure-repeat" data-count="{count}"><path d="M {},{} L {},{}" stroke="black" stroke-width="{}" stroke-linecap="butt"/><circle cx="{}" cy="{}" r="{}" fill="black"/><circle cx="{}" cy="{}" r="{}" fill="black"/>"#,
+        f(cx - 0.75 * space),
+        f(cy + 0.9 * space),
+        f(cx + 0.75 * space),
+        f(cy - 0.9 * space),
+        f(0.4 * space),
+        f(cx - 0.65 * space),
+        f(cy - 0.45 * space),
+        f(0.22 * space),
+        f(cx + 0.65 * space),
+        f(cy + 0.45 * space),
+        f(0.22 * space)
+    );
+    if count > 1 {
+        let _ = write!(
+            body,
+            r#"<text x="{}" y="{}" font-size="{}" text-anchor="middle">{count}</text>"#,
+            f(cx),
+            f(bottom_y - 5.2 * space),
+            f(1.4 * space)
+        );
+    }
+    body.push_str("</g>");
 }
 
 pub(crate) fn render_articulation(
