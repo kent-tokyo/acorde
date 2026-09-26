@@ -9,6 +9,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- MusicXML `<staves>` now materializes every declared staff, including staves without a numbered
+  clef or notes, and export writes it back, so staff count and note staff ownership survive a
+  round-trip (#81). A note that continues its voice on another declared staff imports as a
+  cross-staff placement owned by the voice's staff (voices 1–4 on staff 1, 5–8 on staff 2, …);
+  export numbers voices on additional staves the same way when no source number is retained.
+  Note staff references beyond a `<staves>` declaration are source-diagnosed as
+  `musicxml.undeclared-staff-reference`.
+- MusicXML `<staff-details><capo>` now imports and exports for tablature staves and time-local
+  tablature changes; the former `musicxml.export-unsupported-capo` loss is removed.
+- Added undoable `RespellStaffRegion` (Respell Pitches for a selection) with flat, sharp, and
+  local-key policies. Tie chains crossing the range boundary keep one spelling, and unpitched notes
+  keep their staff position. WASM `ScoreEngine.respell_staff_region` exposes it.
+- Added undoable `ResequenceRehearsalMarks` (letters, numbers, or measure numbers continuing the
+  first mark), `SetSystemBreakInterval` (a line break every N measures, or none), and
+  `RemoveTrailingEmptyMeasures` (keeps rests with marks and moves a final barline).
+
 ## [1.2.3] - 2026-09-23
 
 - Consolidated English/Japanese entry points, print guidance, release notes, and evidence links.
