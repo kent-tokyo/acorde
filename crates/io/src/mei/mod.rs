@@ -49,7 +49,6 @@ fn step(value: &str) -> Option<Step> {
 
 const UNSUPPORTED_ELEMENTS: &[&str] = &[
     "beam",
-    "chord",
     "figuredBass",
     "pedal",
     "facsimile",
@@ -537,7 +536,7 @@ fn collect_mei_note_ids(text: &str) -> HashSet<String> {
     loop {
         match reader.read_event() {
             Ok(Event::Start(event)) | Ok(Event::Empty(event))
-                if event.name().as_ref() == b"note" =>
+                if matches!(event.name().as_ref(), b"note" | b"chord") =>
             {
                 if let Some(id) = attr(&event, b"xml:id") {
                     ids.insert(id.trim_start_matches('#').to_string());
@@ -612,7 +611,7 @@ fn collect_mei_note_scopes(text: &str) -> HashMap<String, (usize, usize, usize)>
                         .and_then(|value| value.parse().ok())
                         .unwrap_or(1);
                 }
-                b"note" => {
+                b"note" | b"chord" => {
                     if let (Some(measure), Some(id)) = (current_measure, attr(&event, b"xml:id")) {
                         scopes.insert(
                             id.trim_start_matches('#').to_string(),
@@ -1620,6 +1619,41 @@ struct MeiNoteContext<'a> {
     pending_articulations: &'a mut Vec<Articulation>,
     current_tuplet: &'a Option<TupletInfo>,
     note_ids: &'a mut HashMap<String, (usize, usize, usize, usize)>,
+    /// The enclosing `<chord>` start tag, whose timing attributes the member notes inherit.
+    chord: Option<&'a BytesStart<'static>>,
+    /// True once the enclosing chord already produced its note; later members add pitches.
+    chord_started: bool,
+}
+
+fn parse_mei_pitch(event: &BytesStart<'_>) -> Result<Pitch, Error> {
+    let pitch_step = attr(event, b"pname")
+        .as_deref()
+        .and_then(step)
+        .ok_or_else(|| Error::Xml("MEI note is missing pname".into()))?;
+    let octave = attr(event, b"oct")
+        .and_then(|value| value.parse::<i8>().ok())
+        .ok_or_else(|| Error::Xml("MEI note is missing oct".into()))?;
+    let (alter, microtone_cents) = match attr(event, b"accid.ges")
+        .or_else(|| attr(event, b"accid"))
+        .as_deref()
+    {
+        Some("s") => (1, 0),
+        Some("f") => (-1, 0),
+        Some("ss") | Some("x") => (2, 0),
+        Some("ff") => (-2, 0),
+        Some("n") | None => (0, 0),
+        Some("qs") => (0, 50),
+        Some("qf") => (0, -50),
+        Some(value) => {
+            return Err(Error::Xml(format!("unsupported MEI accid '{value}'")));
+        }
+    };
+    Ok(Pitch::with_microtone(
+        pitch_step,
+        octave,
+        alter,
+        microtone_cents,
+    ))
 }
 
 fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> Result<(), Error> {
@@ -1634,6 +1668,8 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
         pending_articulations,
         current_tuplet,
         note_ids,
+        chord,
+        chord_started,
     } = context;
     if *note_count >= MAX_MEI_NOTES {
         return Err(Error::Xml("MEI document has too many notes".into()));
@@ -1641,15 +1677,42 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
     let Some(measure_index) = current_measure else {
         return Err(Error::Xml("MEI note is outside a measure".into()));
     };
-    let dur = duration(attr(event, b"dur").as_deref())
+    let is_rest = event.name().as_ref() == b"rest";
+    if chord_started && !is_rest {
+        // A later chord member: extend the chord note created by the first member.
+        let pitch = parse_mei_pitch(event)?;
+        let voice =
+            &mut score.parts[0].staves[current_staff].measures[measure_index].voices[current_layer];
+        let note_index = voice.len().saturating_sub(1);
+        if let Some(note) = voice.last_mut() {
+            note.pitches.push(pitch);
+            match attr(event, b"tie").as_deref() {
+                Some("i") => note.tie_start = true,
+                Some("t") => note.tie_end = true,
+                Some("m") => {
+                    note.tie_start = true;
+                    note.tie_end = true;
+                }
+                _ => {}
+            }
+            if let Some(id) = attr(event, b"xml:id").or_else(|| attr(event, b"id")) {
+                note_ids.insert(
+                    id.trim_start_matches('#').to_string(),
+                    (current_staff, measure_index, current_layer, note_index),
+                );
+            }
+        }
+        return Ok(());
+    }
+    let inherited = |name: &[u8]| attr(event, name).or_else(|| chord.and_then(|c| attr(c, name)));
+    let dur = duration(inherited(b"dur").as_deref())
         .ok_or_else(|| Error::Xml("MEI note has unsupported duration".into()))?;
-    let dots = attr(event, b"dots")
+    let dots = inherited(b"dots")
         .and_then(|value| value.parse::<u8>().ok())
         .unwrap_or(0);
-    let is_rest = event.name().as_ref() == b"rest";
-    let grace_value = attr(event, b"grace");
+    let grace_value = inherited(b"grace");
     let grace_slash =
-        attr(event, b"stem.mod").is_some_and(|value| value.to_ascii_lowercase().contains("slash"));
+        inherited(b"stem.mod").is_some_and(|value| value.to_ascii_lowercase().contains("slash"));
     if let Some(value) = grace_value.as_deref()
         && parse_grace(value).is_none()
     {
@@ -1658,29 +1721,7 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
     let mut note = if is_rest {
         Note::rest(dur)
     } else {
-        let pitch_step = attr(event, b"pname")
-            .as_deref()
-            .and_then(step)
-            .ok_or_else(|| Error::Xml("MEI note is missing pname".into()))?;
-        let octave = attr(event, b"oct")
-            .and_then(|value| value.parse::<i8>().ok())
-            .ok_or_else(|| Error::Xml("MEI note is missing oct".into()))?;
-        let (alter, microtone_cents) = match attr(event, b"accid").as_deref() {
-            Some("s") => (1, 0),
-            Some("f") => (-1, 0),
-            Some("ss") => (2, 0),
-            Some("ff") => (-2, 0),
-            Some("n") | None => (0, 0),
-            Some("qs") => (0, 50),
-            Some("qf") => (0, -50),
-            Some(value) => {
-                return Err(Error::Xml(format!("unsupported MEI accid '{value}'")));
-            }
-        };
-        Note::new(
-            Pitch::with_microtone(pitch_step, octave, alter, microtone_cents),
-            dur,
-        )
+        Note::new(parse_mei_pitch(event)?, dur)
     };
     note.dot_count = dots;
     if !is_rest {
@@ -1694,18 +1735,26 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
     note.lyric = pending_lyric.take();
     note.articulations.append(pending_articulations);
     note.tuplet = (*current_tuplet).clone();
-    match attr(event, b"tie").as_deref() {
-        Some("i") => note.tie_start = true,
-        Some("t") => note.tie_end = true,
-        Some("m") => {
-            note.tie_start = true;
-            note.tie_end = true;
+    for tie in [attr(event, b"tie"), chord.and_then(|c| attr(c, b"tie"))] {
+        match tie.as_deref() {
+            Some("i") => note.tie_start = true,
+            Some("t") => note.tie_end = true,
+            Some("m") => {
+                note.tie_start = true;
+                note.tie_end = true;
+            }
+            _ => {}
         }
-        _ => {}
     }
     let note_index =
         score.parts[0].staves[current_staff].measures[measure_index].voices[current_layer].len();
-    if let Some(id) = attr(event, b"xml:id").or_else(|| attr(event, b"id")) {
+    for id in [
+        attr(event, b"xml:id").or_else(|| attr(event, b"id")),
+        chord.and_then(|c| attr(c, b"xml:id").or_else(|| attr(c, b"id"))),
+    ]
+    .into_iter()
+    .flatten()
+    {
         note_ids.insert(
             id.trim_start_matches('#').to_string(),
             (current_staff, measure_index, current_layer, note_index),
@@ -1714,6 +1763,25 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
     score.parts[0].staves[current_staff].measures[measure_index].voices[current_layer].push(note);
     *note_count += 1;
     Ok(())
+}
+
+/// Attach an in-note MEI `<verse n>` syllable: verse 1 is the primary lyric, 2..=32 are
+/// additional verses kept in verse order. Out-of-range verse numbers fall back to verse 1 when
+/// it is free.
+fn attach_mei_verse(note: &mut Note, verse: u8, lyric: acorde_core::Lyric) {
+    if (2..=acorde_core::VerseLyric::MAX_VERSE).contains(&verse) {
+        if !note
+            .additional_lyrics
+            .iter()
+            .any(|entry| entry.verse == verse)
+        {
+            note.additional_lyrics
+                .push(acorde_core::VerseLyric { verse, lyric });
+            note.additional_lyrics.sort_by_key(|entry| entry.verse);
+        }
+    } else if note.lyric.is_none() {
+        note.lyric = Some(lyric);
+    }
 }
 
 pub fn parse_mei(text: &str) -> Result<Score, Error> {
@@ -1784,6 +1852,11 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut in_layout_label = false;
     let mut layout_label_in_staff_def = false;
     let mut layout_label_text = String::new();
+    let mut open_chord: Option<BytesStart<'static>> = None;
+    let mut chord_started = false;
+    let mut note_element_depth = 0usize;
+    let mut current_verse: u8 = 1;
+    let mut syllable_wordpos: Option<String> = None;
     let mut current_chord_definition: Option<ChordDefinition> = None;
     let mut buf = Vec::new();
     loop {
@@ -1982,6 +2055,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                     b"syl" if current_measure.is_some() => {
                         in_syllable = true;
                         syllable_text.clear();
+                        syllable_wordpos = attr(&event, b"wordpos");
                     }
                     b"ornam" if current_measure.is_some() => {
                         in_ornament = true;
@@ -2081,7 +2155,52 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 .multi_rest_count = Some(count);
                         }
                     }
+                    b"chord" if current_measure.is_some() && !is_empty_event => {
+                        open_chord = Some(event.to_owned());
+                        chord_started = false;
+                        note_element_depth += 1;
+                    }
+                    b"accid" if note_element_depth > 0 => {
+                        // `<accid>` child element: the form Verovio and MuseScore write.
+                        let alter = match attr(&event, b"accid.ges")
+                            .or_else(|| attr(&event, b"accid"))
+                            .as_deref()
+                        {
+                            Some("s") => Some((1, 0)),
+                            Some("f") => Some((-1, 0)),
+                            Some("ss") | Some("x") => Some((2, 0)),
+                            Some("ff") => Some((-2, 0)),
+                            Some("n") => Some((0, 0)),
+                            Some("qs") => Some((0, 50)),
+                            Some("qf") => Some((0, -50)),
+                            _ => None,
+                        };
+                        if let (Some((alter, cents)), Some(measure_index)) =
+                            (alter, current_measure)
+                            && let Some(pitch) = score.parts[0].staves[current_staff].measures
+                                [measure_index]
+                                .voices[current_layer]
+                                .last_mut()
+                                .and_then(|note| note.pitches.last_mut())
+                        {
+                            pitch.alter = alter;
+                            pitch.microtone_cents = cents;
+                        }
+                    }
+                    b"verse" => {
+                        current_verse = attr(&event, b"n")
+                            .and_then(|value| value.parse::<u8>().ok())
+                            .unwrap_or(1);
+                    }
                     b"note" | b"rest" => {
+                        if !is_empty_event {
+                            note_element_depth += 1;
+                        }
+                        let in_chord = open_chord.is_some();
+                        let started = chord_started;
+                        if in_chord {
+                            chord_started = true;
+                        }
                         parse_mei_note_event(
                             &event,
                             MeiNoteContext {
@@ -2095,6 +2214,8 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 pending_articulations: &mut pending_articulations,
                                 current_tuplet: &current_tuplet,
                                 note_ids: &mut note_ids,
+                                chord: open_chord.as_ref(),
+                                chord_started: started,
                             },
                         )?;
                     }
@@ -2192,12 +2313,39 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                 }
                 b"syl" => {
                     if !syllable_text.trim().is_empty() {
-                        pending_lyric = Some(acorde_core::Lyric {
+                        let lyric = acorde_core::Lyric {
                             text: syllable_text.trim().to_string(),
-                            syllabic: "single".to_string(),
-                        });
+                            syllabic: match syllable_wordpos.as_deref() {
+                                Some("i") => "begin",
+                                Some("m") => "middle",
+                                Some("t") => "end",
+                                _ => "single",
+                            }
+                            .to_string(),
+                        };
+                        let target = (note_element_depth > 0)
+                            .then_some(current_measure)
+                            .flatten()
+                            .and_then(|measure_index| {
+                                score.parts[0].staves[current_staff].measures[measure_index].voices
+                                    [current_layer]
+                                    .last_mut()
+                            });
+                        match target {
+                            Some(note) => attach_mei_verse(note, current_verse, lyric),
+                            None => pending_lyric = Some(lyric),
+                        }
                     }
                     in_syllable = false;
+                }
+                b"verse" => current_verse = 1,
+                b"chord" if open_chord.is_some() => {
+                    open_chord = None;
+                    chord_started = false;
+                    note_element_depth = note_element_depth.saturating_sub(1);
+                }
+                b"note" | b"rest" => {
+                    note_element_depth = note_element_depth.saturating_sub(1);
                 }
                 b"ornam" => {
                     if let Some(ornament) = parse_ornament(&ornament_text) {
@@ -2845,33 +2993,69 @@ fn mei_key_signature(key: &KeySignature) -> String {
     }
 }
 
+fn append_mei_pitch_attrs(out: &mut String, pitch: &Pitch) {
+    out.push_str(&format!(
+        " pname=\"{}\" oct=\"{}\"",
+        pitch.step.to_char().to_ascii_lowercase(),
+        pitch.octave
+    ));
+    let accid = match (pitch.alter, pitch.microtone_cents) {
+        (0, 50) => Some("qs"),
+        (0, -50) => Some("qf"),
+        (1, _) => Some("s"),
+        (-1, _) => Some("f"),
+        (2, _) => Some("ss"),
+        (-2, _) => Some("ff"),
+        _ => None,
+    };
+    if let Some(accid) = accid {
+        out.push_str(&format!(" accid=\"{accid}\""));
+    }
+}
+
+/// Write every lyric verse as standard MEI `<verse n><syl wordpos con>` note content.
+fn append_mei_verses(out: &mut String, note: &Note) {
+    let verses = note.lyric.iter().map(|lyric| (1u8, lyric)).chain(
+        note.additional_lyrics
+            .iter()
+            .map(|entry| (entry.verse, &entry.lyric)),
+    );
+    for (number, lyric) in verses {
+        let wordpos = match lyric.syllabic.as_str() {
+            "begin" => " wordpos=\"i\" con=\"d\"",
+            "middle" => " wordpos=\"m\" con=\"d\"",
+            "end" => " wordpos=\"t\"",
+            _ => "",
+        };
+        out.push_str(&format!(
+            "<verse n=\"{number}\"><syl{wordpos}>{}</syl></verse>",
+            escape(&lyric.text)
+        ));
+    }
+}
+
 fn append_mei_note(out: &mut String, note: &Note, id: &str) -> Result<(), Error> {
     let dur = note.duration.as_fraction().1.to_string();
+    let is_chord = !note.is_rest && note.pitches.len() > 1;
     if note.is_rest {
         out.push_str(&format!("<rest dur=\"{dur}\""));
-    } else if let Some(pitch) = note.pitches.first() {
-        out.push_str(&format!(
-            "<note xml:id=\"{id}\" pname=\"{}\" oct=\"{}\" dur=\"{dur}\"",
-            pitch.step.to_char().to_ascii_lowercase(),
-            pitch.octave
-        ));
+    } else if is_chord {
+        out.push_str(&format!("<chord xml:id=\"{id}\" dur=\"{dur}\""));
         if note.is_grace {
             out.push_str(" grace=\"acc\"");
             if note.grace_slash {
                 out.push_str(" stem.mod=\"1slash\"");
             }
         }
-        let accid = match (pitch.alter, pitch.microtone_cents) {
-            (0, 50) => Some("qs"),
-            (0, -50) => Some("qf"),
-            (1, _) => Some("s"),
-            (-1, _) => Some("f"),
-            (2, _) => Some("ss"),
-            (-2, _) => Some("ff"),
-            _ => None,
-        };
-        if let Some(accid) = accid {
-            out.push_str(&format!(" accid=\"{accid}\""));
+    } else if let Some(pitch) = note.pitches.first() {
+        out.push_str(&format!("<note xml:id=\"{id}\""));
+        append_mei_pitch_attrs(out, pitch);
+        out.push_str(&format!(" dur=\"{dur}\""));
+        if note.is_grace {
+            out.push_str(" grace=\"acc\"");
+            if note.grace_slash {
+                out.push_str(" stem.mod=\"1slash\"");
+            }
         }
     } else {
         return Err(Error::Xml("cannot serialize note without pitch".into()));
@@ -2891,7 +3075,23 @@ fn append_mei_note(out: &mut String, note: &Note, id: &str) -> Result<(), Error>
     if let Some(tie) = tie {
         out.push_str(&format!(" tie=\"{tie}\""));
     }
-    out.push_str("/>");
+    let has_verses = note.lyric.is_some() || !note.additional_lyrics.is_empty();
+    if is_chord {
+        out.push('>');
+        for (index, pitch) in note.pitches.iter().enumerate() {
+            out.push_str(&format!("<note xml:id=\"{id}_p{}\"", index + 1));
+            append_mei_pitch_attrs(out, pitch);
+            out.push_str("/>");
+        }
+        append_mei_verses(out, note);
+        out.push_str("</chord>");
+    } else if has_verses && !note.is_rest {
+        out.push('>');
+        append_mei_verses(out, note);
+        out.push_str("</note>");
+    } else {
+        out.push_str("/>");
+    }
     Ok(())
 }
 
@@ -2984,14 +3184,6 @@ fn append_mei_dynamic(out: &mut String, note: &Note) {
         out.push_str("<dynam>");
         out.push_str(dynamic.to_musicxml_str());
         out.push_str("</dynam>");
-    }
-}
-
-fn append_mei_lyric(out: &mut String, note: &Note) {
-    if let Some(lyric) = &note.lyric {
-        out.push_str("<verse><syl>");
-        out.push_str(&escape(&lyric.text));
-        out.push_str("</syl></verse>");
     }
 }
 
@@ -3346,7 +3538,6 @@ fn append_mei_measure_staves(
             out.push_str(&format!("<layer n=\"{}\">", voice_index + 1));
             for (note_index, note) in voice.iter().enumerate() {
                 append_mei_dynamic(out, note);
-                append_mei_lyric(out, note);
                 append_mei_articulations(out, note);
                 if let Some(tuplet) = &note.tuplet {
                     out.push_str(&format!(
@@ -3694,6 +3885,11 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                                     || note.relative_x.is_some()
                                     || note.relative_y.is_some(),
                             ),
+                            (
+                                "rest_lyric",
+                                note.is_rest
+                                    && (note.lyric.is_some() || !note.additional_lyrics.is_empty()),
+                            ),
                             ("tab_position", note.tab_position.is_some()),
                             ("tab_positions", !note.tab_positions.is_empty()),
                             ("ottava_start", note.ottava_start.is_some()),
@@ -3784,7 +3980,6 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
             }
         }
     }
-    diagnostics.extend(crate::additional_verse_loss_diagnostics(score, "mei"));
     diagnostics
 }
 
@@ -4392,6 +4587,52 @@ mod tests {
         let restored = parse_mei(&serialized).expect("two parts reparse");
         assert_eq!(restored.parts.len(), 2);
         assert_eq!(restored.parts[1].staves[0].clef, Clef::Bass);
+    }
+
+    #[test]
+    fn verovio_style_chords_accidentals_and_verses_import() {
+        let xml = r##"<mei><music><body><mdiv><score><scoreDef meter.count="2" meter.unit="4" key.sig="1f"><staffGrp><staffDef n="1" clef.shape="G" clef.line="2"/></staffGrp></scoreDef><section><measure n="1"><staff n="1"><layer n="1"><chord xml:id="c1" dur="4" dots="1" tie="i"><note xml:id="c1a" pname="c" oct="4"/><note pname="e" oct="4"><accid accid="f"/></note><note pname="b" oct="4" accid.ges="f"/><verse n="1"><syl wordpos="i" con="d">Hal</syl></verse><verse n="2"><syl>Sing</syl></verse></chord><note pname="d" oct="5" dur="8"><verse n="1"><syl wordpos="t">le</syl></verse></note></layer></staff><slur startid="#c1a" endid="#c1"/></measure></section></score></mdiv></body></music></mei>"##;
+        let report = parse_mei_with_report(xml).expect("Verovio-style chord parses");
+        assert!(
+            report
+                .diagnostics
+                .iter()
+                .all(|diagnostic| !diagnostic.code.contains("unsupported")),
+            "{:?}",
+            report.diagnostics
+        );
+        let check = |score: &Score| {
+            let voice = &score.parts[0].staves[0].measures[0].voices[0];
+            assert_eq!(voice.len(), 2);
+            let chord = &voice[0];
+            assert_eq!(chord.duration, Duration::Quarter);
+            assert_eq!(chord.dot_count, 1);
+            assert!(chord.tie_start);
+            let alters = chord
+                .pitches
+                .iter()
+                .map(|pitch| (pitch.step.clone(), pitch.alter))
+                .collect::<Vec<_>>();
+            assert_eq!(alters, vec![(Step::C, 0), (Step::E, -1), (Step::B, -1)]);
+            let lyric = chord.lyric.as_ref().expect("verse 1 on the chord");
+            assert_eq!(
+                (lyric.text.as_str(), lyric.syllabic.as_str()),
+                ("Hal", "begin")
+            );
+            assert_eq!(chord.additional_lyrics.len(), 1);
+            assert_eq!(chord.additional_lyrics[0].verse, 2);
+            assert_eq!(chord.additional_lyrics[0].lyric.text, "Sing");
+            let end = voice[1].lyric.as_ref().expect("verse 1 on the second note");
+            assert_eq!((end.text.as_str(), end.syllabic.as_str()), ("le", "end"));
+        };
+        check(&report.score);
+        let serialized = serialize_mei(&report.score).expect("chord serializes");
+        assert!(serialized.contains("<chord xml:id="));
+        assert!(serialized.contains("<verse n=\"2\"><syl>Sing</syl></verse>"));
+        let export = crate::serialize_mei_with_report(&report.score).expect("chord export report");
+        assert!(export.diagnostics.is_empty(), "{:?}", export.diagnostics);
+        let restored = parse_mei(&serialized).expect("chord reparses");
+        check(&restored);
     }
 
     #[test]

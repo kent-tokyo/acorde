@@ -3333,7 +3333,7 @@ fn mscx_lyric_verses_round_trip_with_zero_based_numbers() {
 
 #[cfg(all(feature = "abc", feature = "mei", feature = "midi"))]
 #[test]
-fn formats_without_verse_export_report_additional_verses_as_loss() {
+fn verse_exports_report_losses_or_round_trip_through_mei() {
     let parsed = parse_musicxml(VERSES_XML).expect("verses parse");
     let located = |diagnostics: &[acorde_io::Diagnostic], code: &str| {
         diagnostics
@@ -3354,11 +3354,15 @@ fn formats_without_verse_export_report_additional_verses_as_loss() {
         "/score/part/1/staff/1/measure/1/voice/1/note/1/lyric/3".into(),
         "Joy".into()
     )));
+    // MEI writes every verse as `<verse n>` note content, so it reports no verse loss.
     let mei = acorde_io::serialize_mei_with_report(&parsed).expect("MEI export");
-    assert_eq!(
-        located(&mei.diagnostics, "mei.export-unsupported-lyric-verse").len(),
-        3
-    );
+    assert!(located(&mei.diagnostics, "mei.export-unsupported-lyric-verse").is_empty());
+    assert!(mei.output.contains("<verse n=\"2\">"));
+    let restored = acorde_io::parse_mei(&mei.output).expect("MEI verses reparse");
+    let original = &parsed.parts[0].staves[0].measures[0].voices[0];
+    let restored = &restored.parts[0].staves[0].measures[0].voices[0];
+    assert_eq!(verse_texts(&restored[0]), verse_texts(&original[0]));
+    assert_eq!(verse_texts(&restored[1]), verse_texts(&original[1]));
     let midi = acorde_io::serialize_midi_with_report(&parsed).expect("MIDI export");
     assert_eq!(
         located(&midi.diagnostics, "midi.export-unsupported-lyric-verse").len(),
