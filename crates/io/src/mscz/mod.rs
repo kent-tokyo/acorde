@@ -235,6 +235,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     // MuseScore ties each note of a chord separately.
     let mut chord_tie_starts: Vec<bool> = Vec::new();
     let mut chord_accidentals: Vec<AccidentalDisplay> = Vec::new();
+    let mut chord_ghosts: Vec<bool> = Vec::new();
+    let mut note_ghost = false;
     let mut note_accidental_display = AccidentalDisplay::Auto;
     let mut chord_tie_ends: Vec<bool> = Vec::new();
     let mut note_tie_start = false;
@@ -555,6 +557,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         chord_tie_end = false;
                         chord_tie_starts.clear();
                         chord_accidentals.clear();
+                        chord_ghosts.clear();
                         chord_tie_ends.clear();
                         chord_slur_start = false;
                         chord_slur_end = false;
@@ -598,6 +601,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         note_head = NoteHead::Normal;
                         note_microtone_cents = 0;
                         note_accidental_display = AccidentalDisplay::Auto;
+                        note_ghost = false;
                         note_tab_string = None;
                         note_tab_fret = None;
                         note_fingerings.clear();
@@ -1304,6 +1308,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "tpc2" if in_note_elem => {
                         note_tpc2 = t.parse().ok();
                     }
+                    "ghost" if in_note_elem => {
+                        note_ghost = t.trim() == "1";
+                    }
                     "subtype" if in_accidental => {
                         note_microtone_cents = match t {
                             "quarter-sharp" | "quartersharp" | "qs" => 50,
@@ -1610,6 +1617,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         }
                         chord_tie_starts.push(note_tie_start);
                         chord_accidentals.push(note_accidental_display);
+                        chord_ghosts.push(note_ghost);
                         chord_tie_ends.push(note_tie_end);
                         chord_notes_hidden += usize::from(note_hidden);
                         in_note_elem = false;
@@ -1635,6 +1643,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 .any(|display| *display != AccidentalDisplay::Auto)
                             {
                                 note.pitch_accidentals = chord_accidentals.clone();
+                            }
+                            if chord_ghosts.contains(&true) {
+                                note.pitch_parentheses = chord_ghosts.clone();
                             }
                             note.tab_positions = chord_tab_positions.clone();
                             note.tab_position = note.tab_positions.first().cloned();

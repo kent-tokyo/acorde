@@ -2263,6 +2263,12 @@ pub struct Note {
     /// than `pitches` is ignored. See [`Note::accidental_display`].
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub pitch_accidentals: Vec<AccidentalDisplay>,
+    /// Per-pitch parenthesized noteheads (ghost notes), parallel to `pitches`: MusicXML
+    /// `<notehead parentheses="yes">`, MEI `@enclose="paren"`, MuseScore `<ghost>`, Guitar Pro
+    /// ghost notes. Empty (the usual case) means none; pitches past the end are not
+    /// parenthesized, and a vector longer than `pitches` is ignored.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pitch_parentheses: Vec<bool>,
     pub beam: BeamState,
     pub articulations: Vec<Articulation>,
     pub dynamic: Option<Dynamic>,
@@ -2395,6 +2401,7 @@ impl Note {
             pitch_tie_starts: Vec::new(),
             pitch_tie_ends: Vec::new(),
             pitch_accidentals: Vec::new(),
+            pitch_parentheses: Vec::new(),
             beam: BeamState::None,
             articulations: Vec::new(),
             dynamic: None,
@@ -2452,6 +2459,7 @@ impl Note {
             pitch_tie_starts: Vec::new(),
             pitch_tie_ends: Vec::new(),
             pitch_accidentals: Vec::new(),
+            pitch_parentheses: Vec::new(),
             beam: BeamState::None,
             articulations: Vec::new(),
             dynamic: None,
@@ -2589,6 +2597,28 @@ impl Note {
             .all(|display| *display == AccidentalDisplay::Auto)
         {
             self.pitch_accidentals.clear();
+        }
+    }
+
+    /// Whether the notehead of the pitch at `index` is in parentheses (a ghost note).
+    pub fn is_parenthesized(&self, index: usize) -> bool {
+        self.pitch_parentheses.len() <= self.pitches.len()
+            && self.pitch_parentheses.get(index).copied().unwrap_or(false)
+    }
+
+    /// Put the notehead of the pitch at `index` in parentheses or take it out. The vector is
+    /// dropped again when no pitch is parenthesized.
+    pub fn set_parenthesized(&mut self, index: usize, parenthesized: bool) {
+        if index >= self.pitches.len() {
+            return;
+        }
+        if self.pitch_parentheses.len() > self.pitches.len() {
+            self.pitch_parentheses.clear();
+        }
+        self.pitch_parentheses.resize(self.pitches.len(), false);
+        self.pitch_parentheses[index] = parenthesized;
+        if !self.pitch_parentheses.contains(&true) {
+            self.pitch_parentheses.clear();
         }
     }
 

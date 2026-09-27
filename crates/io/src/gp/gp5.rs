@@ -677,6 +677,10 @@ impl Reader<'_> {
         let all_emphasised = members.iter().all(|member| member.3.emphasised);
         for (midi, pitch, tab, read) in members {
             note.pitches.push(pitch);
+            if read.ghost {
+                let member = note.pitches.len() - 1;
+                note.set_parenthesized(member, true);
+            }
             if let Some(tab) = &tab {
                 if note.tab_position.is_none() {
                     note.tab_position = Some(tab.clone());
@@ -962,12 +966,7 @@ impl Reader<'_> {
             accent: flags & 0x40 != 0,
             ..NoteRead::default()
         };
-        if flags & 0x04 != 0 {
-            self.losses.add(
-                "gp.unsupported-ghost-note",
-                "ghost (parenthesised) notes import as ordinary notes",
-            );
-        }
+        read.ghost = flags & 0x04 != 0;
         if flags & 0x20 != 0 {
             match self.bin.u8()? {
                 2 => read.tie = true,
@@ -1400,6 +1399,8 @@ struct NoteRead {
     fret: u8,
     tie: bool,
     dead: bool,
+    /// A ghost note: its notehead is drawn in parentheses.
+    ghost: bool,
     heavy_accent: bool,
     accent: bool,
     dynamic: Option<i8>,

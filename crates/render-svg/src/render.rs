@@ -7580,7 +7580,9 @@ fn render_pitched_note_heads(
                 + 0.18
                 + glyphs::accidental_width_u(alter_for_width) / 2.0
                 + head_left_u
-                + accidental_offsets[pitch_idx])
+                + accidental_offsets[pitch_idx]
+                // Clear a ghost note's left parenthesis.
+                + if note.is_parenthesized(pitch_idx) { 0.4 } else { 0.0 })
                 * space;
         if let Some(&alter) = mandatory.get(&key) {
             if alter.unsigned_abs() > 2 {
@@ -7605,6 +7607,13 @@ fn render_pitched_note_heads(
             space,
             filled,
         ));
+        if note.is_parenthesized(pitch_index) {
+            body.push_str(&notehead_parentheses(
+                x + notehead_offsets[pitch_index] * space,
+                y,
+                space,
+            ));
+        }
     }
 
     // Preserve exact microtonal intent visibly instead of silently reducing it to the
@@ -7690,6 +7699,29 @@ fn chord_accidental_offsets(
         offsets[pitch_index] = offsets[pitch_index].max(column as f32 * 0.65);
     }
     offsets
+}
+
+/// Parentheses around a ghost note's notehead.
+fn notehead_parentheses(cx: f32, cy: f32, space: f32) -> String {
+    let half_w = (glyphs::NOTEHEAD_RX_U + 0.22) * space;
+    let half_h = 0.6 * space;
+    let bulge = 0.18 * space;
+    let sw = f(0.08 * space);
+    let arc = |x: f32, bow: f32| {
+        format!(
+            r#"<path d="M {x1},{y1} Q {xc},{yc} {x1},{y2}" fill="none" stroke="black" stroke-width="{sw}"/>"#,
+            x1 = f(x),
+            y1 = f(cy - half_h),
+            xc = f(x + bow),
+            yc = f(cy),
+            y2 = f(cy + half_h)
+        )
+    };
+    format!(
+        r#"<g class="acorde-ghost">{}{}</g>"#,
+        arc(cx - half_w, -bulge),
+        arc(cx + half_w, bulge)
+    )
 }
 
 fn courtesy_wrapped(alter: i8, cx: f32, cy: f32, space: f32) -> String {

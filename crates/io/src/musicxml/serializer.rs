@@ -1094,7 +1094,8 @@ fn serialize_note(
                     if up { "up" } else { "down" }
                 ));
             }
-            if note.note_head != NoteHead::Normal {
+            let parenthesized = note.is_parenthesized(pitch_index);
+            if note.note_head != NoteHead::Normal || parenthesized {
                 let nh_str = match note.note_head {
                     NoteHead::Diamond => "diamond",
                     NoteHead::X => "x",
@@ -1103,7 +1104,12 @@ fn serialize_note(
                     NoteHead::Triangle => "triangle",
                     NoteHead::Normal => "normal",
                 };
-                xml.push_str(&format!("        <notehead>{}</notehead>\n", nh_str));
+                let attrs = if parenthesized {
+                    " parentheses=\"yes\""
+                } else {
+                    ""
+                };
+                xml.push_str(&format!("        <notehead{attrs}>{nh_str}</notehead>\n"));
             }
             xml.push_str(&staff_element);
         };

@@ -9,6 +9,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Ghost notes (parenthesized noteheads).** `Note::pitch_parentheses` marks noteheads drawn
+  in parentheses, per chord member. Read and written as MusicXML `<notehead parentheses="yes">`,
+  MEI `@enclose="paren"` and MuseScore `<ghost>1</ghost>`; imported from Guitar Pro ghost notes
+  (GP7 `<AntiAccent>`, which was dropped silently, and GP3–5 note flags, which were reported
+  as lost — ghost notes in 16 alphaTab test files); drawn with parentheses in SVG.
+
 - **Guitar Pro chord names.** Chords attached to beats (GP7/GP6 `DiagramCollection` items,
   GP3–5 beat chords) were dropped whole; their names now become chord symbols (root, kind,
   degrees and slash bass, parsed like MEI chord labels) in 16 of alphaTab's test files. The

@@ -979,6 +979,14 @@ fn convert_beat(
             note.tab_positions.push(tab);
         }
         apply_note_effects(node, note, losses);
+        // `<AntiAccent>Normal</AntiAccent>` is a ghost note: its notehead in parentheses.
+        if node
+            .text_at("AntiAccent")
+            .is_some_and(|value| value.eq_ignore_ascii_case("normal"))
+        {
+            let member = note.pitches.len() - 1;
+            note.set_parenthesized(member, true);
+        }
         let tie = node.child("Tie");
         let flag = |name: &str| tie.and_then(|tie| tie.attr(name)) == Some("true");
         member_ties.push((flag("origin"), flag("destination")));

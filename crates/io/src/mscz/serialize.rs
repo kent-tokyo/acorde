@@ -987,6 +987,9 @@ fn write_note(
         if note.note_head != NoteHead::Normal {
             write!(xml, "<head>{}</head>", note_head_name(&note.note_head)).map_err(fmt_error)?;
         }
+        if note.is_parenthesized(pitch_index) {
+            xml.push_str("<ghost>1</ghost>");
+        }
         let display = note.accidental_display(pitch_index);
         if let Some(subtype) = microtone_subtype(pitch.microtone_cents) {
             write!(xml, "<Accidental>").map_err(fmt_error)?;

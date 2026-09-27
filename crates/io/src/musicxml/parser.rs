@@ -245,6 +245,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut note_duration_ticks: Option<u32> = None;
     let mut note_type = "quarter".to_string();
     let mut note_accidental_display = AccidentalDisplay::Auto;
+    let mut note_parenthesized = false;
     let mut note_dots: u8 = 0;
     let mut note_rest = false;
     let mut note_is_measure_rest = false;
@@ -428,6 +429,9 @@ pub(crate) fn parse_musicxml_collecting(
                 current_text.clear();
 
                 match tag.as_str() {
+                    "notehead" if in_note => {
+                        note_parenthesized = attr_str(e, b"parentheses").as_deref() == Some("yes");
+                    }
                     "accidental" if in_note => {
                         let yes = |name: &[u8]| attr_str(e, name).as_deref() == Some("yes");
                         note_accidental_display = if yes(b"parentheses") || yes(b"bracket") {
@@ -726,6 +730,7 @@ pub(crate) fn parse_musicxml_collecting(
                         note_trill_line_end = false;
                         note_type.clear();
                         note_accidental_display = AccidentalDisplay::Auto;
+                        note_parenthesized = false;
                         note_slur_start = false;
                         note_slur_end = false;
                         note_tie_start = false;
@@ -2503,6 +2508,9 @@ pub(crate) fn parse_musicxml_collecting(
                                 if !note.is_rest && !note.is_unpitched {
                                     note.set_accidental_display(0, note_accidental_display);
                                 }
+                                if !note.is_rest && note_parenthesized {
+                                    note.set_parenthesized(0, true);
+                                }
                                 if note_chord && drop_chord_member {
                                     // Reported above; the member cannot join a chord on another
                                     // staff or voice.
@@ -3076,6 +3084,10 @@ fn merge_musicxml_chord_note(last: &mut Note, note: &Note, details: MusicXmlChor
         starts.push(note.tie_start);
         ends.push(note.tie_end);
         accidentals.push(note.accidental_display(0));
+        let member = last.pitches.len() - 1;
+        if note.is_parenthesized(0) {
+            last.set_parenthesized(member, true);
+        }
     }
     last.pitch_accidentals = if accidentals
         .iter()

@@ -5578,3 +5578,39 @@ fn musicxml_transpose_keeps_its_octave_change() {
         );
     }
 }
+
+#[test]
+fn ghost_noteheads_round_trip_per_chord_member() {
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Guitar</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><chord/><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notehead parentheses="yes">normal</notehead></note></measure></part></score-partwise>"#;
+    let check = |score: &acorde_core::Score, format: &str| {
+        let note = &score.parts[0].staves[0].measures[0].voices[0][0];
+        assert!(!note.is_parenthesized(0), "{format}");
+        assert!(note.is_parenthesized(1), "{format}");
+    };
+    let score = parse_musicxml(xml).expect("parses");
+    check(&score, "MusicXML");
+    let written = serialize_musicxml(&score).expect("MusicXML");
+    assert_eq!(
+        written.matches(r#"<notehead parentheses="yes">"#).count(),
+        1
+    );
+    check(
+        &parse_musicxml(&written).expect("reparses"),
+        "MusicXML again",
+    );
+    let mei = acorde_io::serialize_mei(&score).expect("MEI");
+    check(&acorde_io::parse_mei(&mei).expect("MEI reparses"), "MEI");
+    let mscx = acorde_io::serialize_mscx(&score).expect("MSCX");
+    assert!(mscx.contains("<ghost>1</ghost>"));
+    let report = acorde_io::parse_mscx_with_report(&mscx).expect("MSCX reparses");
+    check(&report.score, "MSCX");
+    assert!(
+        report.diagnostics.iter().all(|d| !d
+            .source_location
+            .as_deref()
+            .unwrap_or("")
+            .contains("ghost")),
+        "{:?}",
+        report.diagnostics
+    );
+}

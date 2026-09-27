@@ -1687,6 +1687,10 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
             starts.push(start);
             ends.push(end);
             note.set_pitch_ties(&starts, &ends);
+            if attr(event, b"enclose").is_some() {
+                let member = note.pitches.len() - 1;
+                note.set_parenthesized(member, true);
+            }
             for articulation in attr(event, b"artic")
                 .iter()
                 .flat_map(|value| value.split_whitespace())
@@ -1772,6 +1776,10 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
             .and_then(parse_grace)
             .unwrap_or(false);
         note.grace_slash = note.is_grace && grace_slash;
+    }
+    // `@enclose` (parentheses or brackets) around the notehead: a ghost note.
+    if !is_rest && attr(event, b"enclose").is_some() {
+        note.set_parenthesized(0, true);
     }
     // `<space>` is an invisible rest.
     note.hidden = event.name().as_ref() == b"space"
@@ -4204,6 +4212,9 @@ fn append_mei_note(
         } else {
             append_mei_pitch_attrs(out, pitch, shown(0));
         }
+        if note.is_parenthesized(0) {
+            out.push_str(" enclose=\"paren\"");
+        }
         out.push_str(&format!(" dur=\"{dur}\""));
         append_mei_grace_and_stem(out, note);
     } else {
@@ -4245,6 +4256,9 @@ fn append_mei_note(
                 append_mei_pname_oct(out, pitch);
             } else {
                 append_mei_pitch_attrs(out, pitch, shown(index));
+            }
+            if note.is_parenthesized(index) {
+                out.push_str(" enclose=\"paren\"");
             }
             if has_per_pitch_ties(note)
                 && let Some(tie) = mei_tie(note.pitch_tie_start(index), note.pitch_tie_end(index))

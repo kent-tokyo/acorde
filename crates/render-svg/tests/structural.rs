@@ -3375,3 +3375,20 @@ fn octave_clef_draws_its_eight_and_places_notes_an_octave_down() {
     assert!(octave.contains("acorde-clef-octave"));
     assert!(!plain.contains("acorde-clef-octave"));
 }
+
+#[test]
+fn ghost_notes_draw_parentheses_around_their_notehead() {
+    use acorde_core::{Duration, Measure, Note, Part, Pitch, Score, Staff, Step};
+    let mut score = Score::new("ghost", 120, 4, 4, 1, 1);
+    let mut part = Part::new("P", "");
+    let mut staff = Staff::new(acorde_core::Clef::Treble);
+    let mut measure = Measure::empty(4, 4);
+    let mut note = Note::new(Pitch::new(Step::C, 5), Duration::Whole);
+    note.set_parenthesized(0, true);
+    measure.voices[0] = vec![note];
+    staff.measures.push(measure);
+    part.staves = vec![staff];
+    score.parts = vec![part];
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(svg.matches("acorde-ghost").count(), 1);
+}
