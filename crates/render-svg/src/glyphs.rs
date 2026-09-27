@@ -148,24 +148,32 @@ fn dot_at(cx: f32, cy: f32, ox: f32, oy: f32, space: f32) -> String {
 
 /// Notehead ellipse centered at `(cx, cy)` px. `filled` = quarter/eighth (solid); otherwise
 /// whole/half (hollow outline).
+///
+/// Proportions follow SMuFL's Bravura `noteheadBlack`: a tilted oval about 1.15 spaces wide and
+/// 0.9 spaces tall, so a head fills the space between two staff lines.
 pub(crate) fn notehead(cx: f32, cy: f32, space: f32, filled: bool) -> String {
-    let rx = f(0.62 * space * 0.5);
-    let ry = f(0.48 * space * 0.5);
+    let rx = f(NOTEHEAD_OVAL_RX_U * space);
+    let ry = f(NOTEHEAD_OVAL_RY_U * space);
+    let tilt = format!("rotate(-20 {} {})", f(cx), f(cy));
     if filled {
         format!(
-            r#"<ellipse class="acorde-notehead" cx="{x}" cy="{y}" rx="{rx}" ry="{ry}" fill="black"/>"#,
+            r#"<ellipse class="acorde-notehead" cx="{x}" cy="{y}" rx="{rx}" ry="{ry}" transform="{tilt}" fill="black"/>"#,
             x = f(cx),
             y = f(cy)
         )
     } else {
-        let sw = f(0.16 * space * 0.5);
+        let sw = f(0.13 * space);
         format!(
-            r#"<ellipse class="acorde-notehead" cx="{x}" cy="{y}" rx="{rx}" ry="{ry}" fill="none" stroke="black" stroke-width="{sw}"/>"#,
+            r#"<ellipse class="acorde-notehead" cx="{x}" cy="{y}" rx="{rx}" ry="{ry}" transform="{tilt}" fill="none" stroke="black" stroke-width="{sw}"/>"#,
             x = f(cx),
             y = f(cy)
         )
     }
 }
+
+/// Semi-axes of the (untilted) notehead oval, in staff spaces.
+const NOTEHEAD_OVAL_RX_U: f32 = 0.56;
+const NOTEHEAD_OVAL_RY_U: f32 = 0.4;
 
 /// Render the model-selected notehead without relying on a notation font.
 pub(crate) fn notehead_shape(
@@ -178,8 +186,8 @@ pub(crate) fn notehead_shape(
     match head {
         NoteHead::Normal => notehead(cx, cy, space, filled),
         NoteHead::Diamond => {
-            let w = 0.38 * space;
-            let h = 0.52 * space;
+            let w = 0.6 * space;
+            let h = 0.5 * space;
             let points = format!(
                 "{},{} {},{} {},{} {},{}",
                 f(cx),
@@ -201,11 +209,11 @@ pub(crate) fn notehead_shape(
             let points = format!(
                 "{},{} {},{} {},{}",
                 f(cx),
-                f(cy - 0.55 * space),
-                f(cx + 0.42 * space),
-                f(cy + 0.35 * space),
-                f(cx - 0.42 * space),
-                f(cy + 0.35 * space)
+                f(cy - 0.5 * space),
+                f(cx + 0.6 * space),
+                f(cy + 0.42 * space),
+                f(cx - 0.6 * space),
+                f(cy + 0.42 * space)
             );
             let fill = if filled { "black" } else { "none" };
             format!(
@@ -215,9 +223,9 @@ pub(crate) fn notehead_shape(
         }
         NoteHead::X | NoteHead::Cross => {
             let r = if matches!(head, NoteHead::X) {
-                0.34
+                0.45
             } else {
-                0.42
+                0.58
             } * space;
             let sw = f(0.16 * space);
             format!(
@@ -240,17 +248,18 @@ pub(crate) fn notehead_shape(
         NoteHead::Slash => {
             format!(
                 r#"<line class="acorde-notehead acorde-notehead-slash" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}" stroke-linecap="round"/>"#,
-                f(cx - 0.42 * space),
-                f(cy + 0.42 * space),
-                f(cx + 0.42 * space),
-                f(cy - 0.42 * space),
+                f(cx - 0.6 * space),
+                f(cy + 0.5 * space),
+                f(cx + 0.6 * space),
+                f(cy - 0.5 * space),
                 f(0.22 * space)
             )
         }
     }
 }
 
-pub(crate) const NOTEHEAD_RX_U: f32 = 0.31; // half of 0.62u, matches `notehead()`
+/// Half the horizontal extent of the tilted `notehead()` oval, in staff spaces.
+pub(crate) const NOTEHEAD_RX_U: f32 = 0.56;
 pub(crate) const DEFAULT_STEM_LEN_U: f32 = 3.0;
 
 /// Stem of the default fixed length (unbeamed notes). Returns `(svg, tip_y)`.
@@ -298,7 +307,8 @@ pub(crate) fn flag(stem_x: f32, tip_y: f32, space: f32, up: bool) -> String {
 // ── ledger lines / barlines ─────────────────────────────────────────────────────
 
 pub(crate) fn ledger_line(cx: f32, y: f32, space: f32) -> String {
-    let half_w = 0.5 * space;
+    // A ledger line extends a little beyond the notehead on both sides.
+    let half_w = (NOTEHEAD_RX_U + 0.22) * space;
     let sw = f(0.1 * space);
     format!(
         r#"<line class="acorde-ledger" x1="{x1}" y1="{y}" x2="{x2}" y2="{y}" stroke="black" stroke-width="{sw}"/>"#,

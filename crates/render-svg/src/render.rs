@@ -42,9 +42,11 @@ const STAFF_GAP_U: f32 = 10.0; // gap between consecutive staves within one syst
 const SYSTEM_GAP_U: f32 = 9.0; // extra gap between the last staff of a system and the next
 const STAFF_HEIGHT_U: f32 = 4.0; // top line to bottom line
 const HEADER_GAP_U: f32 = 0.4;
-const MEASURE_PAD_U: f32 = 0.6; // padding at each end of a measure's content area
+const MEASURE_PAD_U: f32 = 0.85; // padding at each end of a measure's content area (clears a notehead)
 const VOICE_SEPARATION_U: f32 = 0.65; // minimum center-to-center separation for simultaneous voices
-const CHORD_SECOND_SHIFT_U: f32 = 0.32; // standard notehead shift for adjacent chord tones
+// A second in a chord puts one head on the other side of the stem: one head width, less the
+// shared stem line.
+const CHORD_SECOND_SHIFT_U: f32 = 2.0 * glyphs::NOTEHEAD_RX_U * 0.92;
 
 /// Accidental lookup key: (part, staff, measure, voice, note_index, pitch_index).
 type AccKey = (usize, usize, usize, usize, usize, usize);
@@ -1989,8 +1991,13 @@ fn content_horizontal_margins(
                             continue;
                         }
                         let width = glyphs::accidental_width_u(note.pitches[pitch_index].alter);
-                        left =
-                            left.max(0.55 + accidental_offsets[pitch_index] + width / 2.0 + 0.35);
+                        left = left.max(
+                            glyphs::NOTEHEAD_RX_U
+                                + 0.18
+                                + accidental_offsets[pitch_index]
+                                + width
+                                + 0.35,
+                        );
                     }
                 }
             }
@@ -2493,8 +2500,31 @@ fn render_measure(
         .presentation
         .tablature_fret_mark_style;
     let total_beats = measure.duration_beats(&score.settings.time_signature);
-    let content_x0 = x + MEASURE_PAD_U * space;
-    let content_w = (width - 2.0 * MEASURE_PAD_U * space).max(space);
+    // Accidentals on the bar's first notes sit left of their heads: start the content far enough
+    // in that they clear the barline, clef or time signature before them.
+    let lead_u = measure
+        .voices
+        .iter()
+        .enumerate()
+        .filter_map(|(voice_idx, voice)| {
+            let note_idx = voice.iter().position(|note| !note.is_grace)?;
+            let note = &voice[note_idx];
+            (!note.is_rest).then(|| {
+                (0..note.pitches.len())
+                    .filter_map(|pitch_idx| {
+                        let key: AccKey =
+                            (part, staff, measure_idx, voice_idx, note_idx, pitch_idx);
+                        mandatory.get(&key).or_else(|| courtesy.get(&key)).copied()
+                    })
+                    .map(|alter| {
+                        glyphs::NOTEHEAD_RX_U + 0.18 + glyphs::accidental_width_u(alter) + 0.15
+                    })
+                    .fold(0.0_f32, f32::max)
+            })
+        })
+        .fold(MEASURE_PAD_U, f32::max);
+    let content_x0 = x + lead_u * space;
+    let content_w = (width - (lead_u + MEASURE_PAD_U) * space).max(space);
     let clef_bottom = geometry::clef_bottom_line(clef)?;
 
     let active_voices = measure
@@ -3816,16 +3846,24 @@ fn note_notation_footprint_u(note: &Note) -> f32 {
         0.42
     } else {
         match note.note_head {
-            acorde_core::NoteHead::Normal => 0.62,
-            acorde_core::NoteHead::Diamond => 0.76,
+            acorde_core::NoteHead::Normal => 2.0 * glyphs::NOTEHEAD_RX_U,
+            acorde_core::NoteHead::Diamond => 1.2,
             acorde_core::NoteHead::Triangle
             | acorde_core::NoteHead::Cross
-            | acorde_core::NoteHead::Slash => 0.84,
-            acorde_core::NoteHead::X => 0.68,
+            | acorde_core::NoteHead::Slash => 1.25,
+            acorde_core::NoteHead::X => 1.0,
         }
     };
     let accidental = accidental_footprint_u(note);
-    let notation_width = notehead + accidental;
+    // A second in the chord adds a displaced head column.
+    let mut steps: Vec<i32> = note
+        .pitches
+        .iter()
+        .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, 0))
+        .collect();
+    steps.sort_unstable();
+    let second = steps.windows(2).any(|pair| pair[1] - pair[0] <= 1);
+    let notation_width = notehead + accidental + if second { CHORD_SECOND_SHIFT_U } else { 0.0 };
     let tab_width = if !note.tab_positions.is_empty() {
         note.tab_positions
             .iter()
@@ -6276,7 +6314,7 @@ fn render_pitched_note(
     }
     let min_pos = *positions.iter().min().unwrap_or(&0);
     let max_pos = *positions.iter().max().unwrap_or(&0);
-    let notehead_offsets = chord_notehead_offsets(&positions);
+    let notehead_offsets = chord_notehead_offsets(&positions, stem_up);
     let has_accidentals: Vec<bool> = note
         .pitches
         .iter()
@@ -6385,7 +6423,7 @@ fn render_pitched_note_stem_and_flags(context: &mut PitchedNoteStemContext<'_>) 
             } else {
                 -(i as f32) * 0.35 * context.space
             };
-        let x_off = 0.31 * context.space * 0.92;
+        let x_off = glyphs::NOTEHEAD_RX_U * context.space * 0.92;
         let stem_x = if context.stem_up {
             context.x + x_off
         } else {
@@ -6409,7 +6447,7 @@ fn render_pitched_note_dots(
     if dot_count == 0 {
         return;
     }
-    let dot_x = x + 0.55 * space;
+    let dot_x = x + (glyphs::NOTEHEAD_RX_U + 0.35) * space;
     for &position in positions {
         let y = staff_bottom_y + geometry::position_y(position, space);
         // Dots sit in a space, never directly on a line — nudge up half a step if needed.
@@ -6462,6 +6500,8 @@ fn render_pitched_note_heads(
     }
 
     // Accidentals (mandatory takes precedence over courtesy; unsupported |alter|>2 errors).
+    // Heads displaced left of a down stem push the accidental column further left.
+    let head_left_u = -notehead_offsets.iter().copied().fold(0.0_f32, f32::min);
     for (pitch_idx, _pitch) in note.pitches.iter().enumerate() {
         if note.is_unpitched {
             // Unpitched display-step/display-octave values locate the notehead only; an
@@ -6470,7 +6510,19 @@ fn render_pitched_note_heads(
         }
         let key: AccKey = (part, staff, measure_idx, voice_idx, note_idx, pitch_idx);
         let y = staff_bottom_y + geometry::position_y(positions[pitch_idx], space);
-        let acc_x = x - (0.55 + accidental_offsets[pitch_idx]) * space;
+        // Centre the accidental half its width plus a small gap left of the notehead.
+        let alter_for_width = mandatory
+            .get(&key)
+            .or_else(|| courtesy.get(&key))
+            .copied()
+            .unwrap_or(0);
+        let acc_x = x
+            - (glyphs::NOTEHEAD_RX_U
+                + 0.18
+                + glyphs::accidental_width_u(alter_for_width) / 2.0
+                + head_left_u
+                + accidental_offsets[pitch_idx])
+                * space;
         if let Some(&alter) = mandatory.get(&key) {
             if alter.unsigned_abs() > 2 {
                 return Err(RenderError::UnsupportedAccidental { alter });
@@ -6519,15 +6571,26 @@ fn render_pitched_note_heads(
 /// Horizontally separate adjacent diatonic chord tones (seconds) while leaving wider intervals
 /// vertically aligned. The source pitch order is not trusted; offsets are assigned by sorted
 /// staff position and then mapped back to the original pitch indexes.
-fn chord_notehead_offsets(positions: &[i32]) -> Vec<f32> {
+///
+/// As engravers do, the stem side decides the direction: with the stem up the upper head of a
+/// second moves right of the stem; with the stem down the lower head moves left of it.
+fn chord_notehead_offsets(positions: &[i32], stem_up: bool) -> Vec<f32> {
     let mut offsets = vec![0.0; positions.len()];
     let mut ordered: Vec<usize> = (0..positions.len()).collect();
     ordered.sort_by_key(|&index| positions[index]);
+    if !stem_up {
+        ordered.reverse();
+    }
+    let shift = if stem_up {
+        CHORD_SECOND_SHIFT_U
+    } else {
+        -CHORD_SECOND_SHIFT_U
+    };
     let mut shifted = false;
     for pair in ordered.windows(2) {
         if (positions[pair[1]] - positions[pair[0]]).abs() <= 1 {
             shifted = !shifted;
-            offsets[pair[1]] = if shifted { CHORD_SECOND_SHIFT_U } else { 0.0 };
+            offsets[pair[1]] = if shifted { shift } else { 0.0 };
         } else {
             shifted = false;
         }
