@@ -343,7 +343,12 @@ pub(crate) fn build_svg_with_metadata(
             );
         }
 
-        // Measures.
+        // Measures. A clef change inside the row is drawn small at the start of its bar, and the
+        // bar's notes are placed against the new clef.
+        let mut row_clefs: Vec<Clef> = staff_states
+            .iter()
+            .map(|state| state.clef.clone())
+            .collect();
         let mut mx = left_margin_u * space + header_width_u * space;
         for (col, &measure_idx) in row.measure_indices.iter().enumerate() {
             let mwidth = measure_widths[col];
@@ -352,7 +357,29 @@ pub(crate) fn build_svg_with_metadata(
                     continue;
                 }
                 let bottom_y = staff_y[si_idx] + staff_heights_u[si_idx] * space;
-                let clef = &staff_states[si_idx].clef;
+                let staff_ref = &score.parts[pi].staves[si];
+                let mut clef_lead_u = 0.0;
+                if col > 0
+                    && staff_ref.tablature_at(measure_idx).is_none()
+                    && let Some(change) = staff_ref.measures[measure_idx].clef.as_ref()
+                    && *change != row_clefs[si_idx]
+                {
+                    geometry::clef_bottom_line(change)?;
+                    let clef_x = mx + 0.4 * space;
+                    let mut glyph = String::new();
+                    let width = write_clef(&mut glyph, change, clef_x, bottom_y, space)?;
+                    let _ = write!(
+                        body,
+                        r#"<g class="acorde-clef-change" transform="translate({x} {y}) scale(0.75) translate({nx} {ny})">{glyph}</g>"#,
+                        x = f(clef_x),
+                        y = f(bottom_y),
+                        nx = f(-clef_x),
+                        ny = f(-bottom_y)
+                    );
+                    clef_lead_u = 0.4 + width / space * 0.75;
+                    row_clefs[si_idx] = change.clone();
+                }
+                let clef = &row_clefs[si_idx];
                 render_measure(
                     &mut body,
                     score,
@@ -365,6 +392,7 @@ pub(crate) fn build_svg_with_metadata(
                     mx,
                     bottom_y,
                     mwidth,
+                    clef_lead_u,
                     space,
                     options.interactive,
                     &mandatory,
@@ -2484,6 +2512,7 @@ fn render_measure(
     x: f32,
     bottom_y: f32,
     width: f32,
+    clef_lead_u: f32,
     space: f32,
     interactive: bool,
     mandatory: &HashMap<AccKey, i8>,
@@ -2523,6 +2552,8 @@ fn render_measure(
             })
         })
         .fold(MEASURE_PAD_U, f32::max);
+    // A clef change drawn at the bar's start also pushes its content along.
+    let lead_u = lead_u + clef_lead_u;
     let content_x0 = x + lead_u * space;
     let content_w = (width - (lead_u + MEASURE_PAD_U) * space).max(space);
     let clef_bottom = geometry::clef_bottom_line(clef)?;

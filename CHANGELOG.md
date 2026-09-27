@@ -17,6 +17,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   string marks go outside the staff. Fermatas, mordents, turns and shakes are drawn as glyphs
   instead of words, and a tremolo is drawn as strokes across the stem.
 - MEI `<tie>` control events from or to one note of a chord tie that pitch only.
+- **Clef changes.** SVG rendering applied a clef only at the start of each system, so a clef
+  change inside a system left the rest of it drawn in the old clef; the change is now drawn
+  (small, at the start of its bar) and the notes follow it. MusicXML clef changes on a later
+  staff (a piano left hand moving to treble clef) were lost; they now land on that staff's bar,
+  or on the next bar when written after the staff's notes, and a C clef on line 4 imports as a
+  tenor clef.
+- **MusicXML staff placement.** A voice written wholly on another staff in a bar (Finale and
+  others number the left hand 3 or 2) now belongs to that staff instead of being imported as
+  cross-staff notes drawn on the upper staff (2997 → 73 cross-staff notes across 205 music21
+  files). Time signature changes now reach every staff of a part.
 
 ## [1.2.9] - 2026-09-27
 

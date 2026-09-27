@@ -2839,3 +2839,33 @@ fn chord_ties_are_drawn_per_tied_pitch() {
     assert_eq!(render(&[true, true, true]), 3, "one tie per notehead");
     assert_eq!(render(&[true, false, true]), 2, "the untied E has no tie");
 }
+
+#[test]
+fn a_clef_change_inside_a_row_is_drawn_and_moves_the_notes() {
+    use acorde_core::{Clef, Duration, Note, Pitch, Score, Step};
+
+    let render = |change: Option<Clef>| {
+        let mut score = Score::new("clef", 120, 4, 4, 0, 2);
+        for measure in &mut score.parts[0].staves[0].measures {
+            measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 3), Duration::Whole)];
+        }
+        score.parts[0].staves[0].measures[1].clef = change;
+        acorde_render_svg::render_svg(&score, &acorde_render_svg::SvgRenderOptions::default())
+            .expect("renders")
+    };
+    let head_y = |svg: &str, index: usize| -> f32 {
+        svg.split("class=\"acorde-notehead\"")
+            .nth(index + 1)
+            .and_then(|rest| rest.split("cy=\"").nth(1))
+            .and_then(|rest| rest.split('"').next())
+            .and_then(|value| value.parse().ok())
+            .expect("notehead y")
+    };
+    let plain = render(None);
+    let changed = render(Some(Clef::Bass));
+    assert!(!plain.contains("acorde-clef-change"));
+    assert!(changed.contains("acorde-clef-change"));
+    // C3 sits two ledger lines below the treble staff but inside the bass staff.
+    assert_eq!(head_y(&plain, 1), head_y(&plain, 0));
+    assert!(head_y(&changed, 1) < head_y(&changed, 0));
+}
