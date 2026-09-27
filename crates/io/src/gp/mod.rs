@@ -799,6 +799,7 @@ fn convert_beat(
 
     let note_ids = beat.text_at("Notes").map(ids).unwrap_or_default();
     let mut result: Option<Note> = None;
+    let mut member_ties: Vec<(bool, bool)> = Vec::new();
     for note_id in note_ids {
         let Some(node) = context.notes.get(&note_id.to_string()) else {
             continue;
@@ -860,6 +861,19 @@ fn convert_beat(
             note.tab_positions.push(tab);
         }
         apply_note_effects(node, note, losses);
+        let tie = node.child("Tie");
+        let flag = |name: &str| tie.and_then(|tie| tie.attr(name)) == Some("true");
+        member_ties.push((flag("origin"), flag("destination")));
+    }
+    if member_ties.len() > 1
+        && member_ties
+            .iter()
+            .any(|state| state.0 != member_ties[0].0 || state.1 != member_ties[0].1)
+    {
+        losses.add(
+            "gp.partial-chord-tie",
+            "a tie on only some notes of a chord is applied to the whole chord",
+        );
     }
 
     let mut note = match result {
@@ -1407,6 +1421,13 @@ mod tests {
                 .diagnostics
                 .iter()
                 .any(|diagnostic| diagnostic.code == "gp.unsupported-whammy")
+        );
+        // Only the A of the first chord is tied: the widening is reported, not silent.
+        assert!(
+            report
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "gp.partial-chord-tie")
         );
     }
 

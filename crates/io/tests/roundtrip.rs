@@ -3857,3 +3857,40 @@ fn musicxml_cue_notes_keep_timing_on_import_and_export() {
     assert!(written.contains("<backup><duration>960</duration></backup>"));
     check(&parse_musicxml(&written).expect("cue MusicXML reparses"));
 }
+
+#[cfg(feature = "musicxml")]
+#[test]
+fn musicxml_partial_chord_ties_are_reported() {
+    // Only the C of the C-E chord is tied into the next bar.
+    let note = |step: &str, chord: bool, tie: &str| {
+        format!(
+            "<note>{}<pitch><step>{step}</step><octave>4</octave></pitch><duration>4</duration>{tie}<voice>1</voice><type>whole</type></note>",
+            if chord { "<chord/>" } else { "" }
+        )
+    };
+    let xml = format!(
+        r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>P</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>{}{}</measure><measure number="2">{}</measure></part></score-partwise>"#,
+        note("C", false, r#"<tie type="start"/>"#),
+        note("E", true, ""),
+        note("C", false, r#"<tie type="stop"/>"#),
+    );
+    let report = acorde_io::parse_musicxml_with_report(&xml).expect("parses");
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "musicxml.partial-chord-tie")
+    );
+    // A fully tied chord is not reported.
+    let full = xml.replace(
+        r#"<duration>4</duration><voice>1</voice><type>whole</type></note></measure>"#,
+        r#"<duration>4</duration><tie type="start"/><voice>1</voice><type>whole</type></note></measure>"#,
+    );
+    let report = acorde_io::parse_musicxml_with_report(&full).expect("parses");
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "musicxml.partial-chord-tie")
+    );
+}

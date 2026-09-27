@@ -28,6 +28,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   past them, and export writes their duration followed by a `<backup>`. All 268 music21 corpus
   exports validate against the MusicXML XSD.
 - MusicXML `<slide>` is written in `<notations>` and read from either place.
+- A tie on only some notes of a chord is now reported (`musicxml.partial-chord-tie`,
+  `gp.partial-chord-tie`). The model ties whole chords, so such a tie is still applied to every
+  note of the chord; 26 of 205 music21 corpus files contain one.
 - MEI tablature course numbers now follow acorde's string order (string 1 = lowest), so tab
   exported to Verovio is no longer upside down.
 - GM instrument ranges widened to professional ranges (string quartet high positions, drop-D and
