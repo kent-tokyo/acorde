@@ -510,6 +510,16 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "direction-type" => in_direction_type = true,
                     "dynamics" if in_direction_type || in_notations => in_dynamics = true,
+                    "other-dynamics" if in_dynamics => {
+                        let mut diagnostic = crate::Diagnostic::warning(
+                            "musicxml.unsupported-dynamic",
+                            "a dynamic outside acorde's set (other-dynamics) is not imported",
+                        );
+                        diagnostic.source_location = Some(format!(
+                            "/score-partwise/measure[{current_measure_number}]/dynamics/other-dynamics"
+                        ));
+                        tolerated.push(diagnostic);
+                    }
                     // Print-style position attributes belong on the text element; they take
                     // precedence over the legacy acorde placement on <direction>.
                     "words" | "rehearsal" if in_direction_type => {
@@ -763,7 +773,7 @@ pub(crate) fn parse_musicxml_collecting(
                         None => {
                             let mut diagnostic = crate::Diagnostic::warning(
                                 "musicxml.unsupported-dynamic",
-                                "a dynamic outside acorde's set (fp, sfp, pf, n, other-dynamics) is not imported",
+                                "a dynamic outside acorde's set (other-dynamics) is not imported",
                             );
                             diagnostic.source_location = Some(format!(
                                 "/score-partwise/measure[{current_measure_number}]/dynamics/{tag}"
@@ -2845,23 +2855,7 @@ fn words_to_navigation(text: &str) -> Option<String> {
 
 /// MusicXML dynamic element names acorde's `Dynamic` holds (louder and softer extremes clamp).
 fn musicxml_dynamic(tag: &str) -> Option<Dynamic> {
-    Some(match tag {
-        "pppppp" | "ppppp" | "pppp" => Dynamic::Pppp,
-        "ppp" => Dynamic::Ppp,
-        "pp" => Dynamic::Pp,
-        "p" => Dynamic::P,
-        "mp" => Dynamic::Mp,
-        "mf" => Dynamic::Mf,
-        "f" => Dynamic::F,
-        "ff" => Dynamic::Ff,
-        "fff" => Dynamic::Fff,
-        "ffff" | "fffff" | "ffffff" => Dynamic::Ffff,
-        "sfz" | "sffz" => Dynamic::Sfz,
-        "rfz" | "rf" => Dynamic::Rfz,
-        "fz" => Dynamic::Fz,
-        "sf" => Dynamic::Sf,
-        _ => return None,
-    })
+    Dynamic::from_musicxml_str(tag)
 }
 
 #[cfg(test)]

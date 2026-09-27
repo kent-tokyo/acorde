@@ -237,9 +237,10 @@ fn build_part_track(
     }
 
     for staff in &part.staves {
+        let dynamics = acorde_core::DynamicTimeline::for_staff(staff, seq);
         for voice_idx in 0..4usize {
             let mut cursor: u64 = 0;
-            for &idx in seq {
+            for (seq_position, &idx) in seq.iter().enumerate() {
                 let measure = match staff.measures.get(idx) {
                     Some(m) => m,
                     None => continue,
@@ -249,14 +250,13 @@ fn build_part_track(
                 } else {
                     staff.transpose_semitones
                 };
+                let mut written_beats = 0.0f64;
                 for note in &measure.voices[voice_idx] {
                     let ticks = note_ticks(&note.duration, note.dot_count, note.tuplet.as_ref());
+                    let onset_beats = written_beats;
+                    written_beats += note.beats();
                     if !note.is_rest && !note.is_grace {
-                        let vel = note
-                            .dynamic
-                            .as_ref()
-                            .map(|d| d.to_velocity())
-                            .unwrap_or(64u8);
+                        let vel = dynamics.velocity(seq_position, onset_beats, note.dynamic);
                         for pitch in &note.pitches {
                             let midi = (pitch.to_midi() + transpose as i16).clamp(0, 127) as u8;
                             events.push(TimedEvent {

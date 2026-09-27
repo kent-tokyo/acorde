@@ -2539,23 +2539,7 @@ fn mscz_clef_type(s: &str) -> Clef {
 }
 
 fn parse_dynamic_str(s: &str) -> Option<Dynamic> {
-    match s {
-        "pppp" => Some(Dynamic::Pppp),
-        "ppp" => Some(Dynamic::Ppp),
-        "pp" => Some(Dynamic::Pp),
-        "p" => Some(Dynamic::P),
-        "mp" => Some(Dynamic::Mp),
-        "mf" => Some(Dynamic::Mf),
-        "f" => Some(Dynamic::F),
-        "ff" => Some(Dynamic::Ff),
-        "fff" => Some(Dynamic::Fff),
-        "ffff" => Some(Dynamic::Ffff),
-        "sfz" => Some(Dynamic::Sfz),
-        "rfz" => Some(Dynamic::Rfz),
-        "fz" => Some(Dynamic::Fz),
-        "sf" => Some(Dynamic::Sf),
-        _ => None,
-    }
+    Dynamic::from_musicxml_str(s)
 }
 
 /// Convert MuseScore's tremolo subtype to the canonical number of beams.

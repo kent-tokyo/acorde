@@ -244,23 +244,7 @@ fn parse_staff_group_symbol(value: Option<String>) -> PartGroupSymbol {
 }
 
 fn parse_dynamic(value: &str) -> Option<Dynamic> {
-    Some(match value.trim().to_ascii_lowercase().as_str() {
-        "pppp" => Dynamic::Pppp,
-        "ppp" => Dynamic::Ppp,
-        "pp" => Dynamic::Pp,
-        "p" => Dynamic::P,
-        "mp" => Dynamic::Mp,
-        "mf" => Dynamic::Mf,
-        "f" => Dynamic::F,
-        "ff" => Dynamic::Ff,
-        "fff" => Dynamic::Fff,
-        "ffff" => Dynamic::Ffff,
-        "sfz" => Dynamic::Sfz,
-        "rfz" => Dynamic::Rfz,
-        "fz" => Dynamic::Fz,
-        "sf" => Dynamic::Sf,
-        _ => return None,
-    })
+    Dynamic::from_musicxml_str(&value.trim().to_ascii_lowercase())
 }
 
 fn parse_articulation(value: &str) -> Option<Articulation> {

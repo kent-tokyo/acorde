@@ -188,7 +188,8 @@ pub struct PlaybackEvent {
     /// value to keyswitches or synthesis behavior without score re-parsing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub guitar_technique: Option<GuitarTechnique>,
-    /// MIDI velocity (1–127). Derived from [`Dynamic`](crate::Dynamic); defaults to 64.
+    /// MIDI velocity (1–127). Derived from the staff's [`Dynamic`](crate::Dynamic) in force
+    /// (see [`DynamicTimeline`]); 64 before the first marking.
     /// Boosted by +20 for Accent / Marcato articulations (clamped to 127).
     pub velocity: u8,
     /// Sounding duration in beats. Halved for Staccato / Staccatissimo.
@@ -1641,6 +1642,72 @@ fn push_tab_diagnostic(
     }
 }
 
+/// Dynamic levels of one staff along a played measure order, so a marking carries on until
+/// the next one as in engraved music: a level (p, f, …) holds, an accent (sf, sfz, fz, rfz,
+/// sffz) lifts only its own notes, and a compound (fp, sfp, pf, …) attacks at the first
+/// level and continues at the second. Before the first marking notes play at velocity 64.
+#[derive(Debug, Clone, Default)]
+pub struct DynamicTimeline {
+    /// (position in the measure order, beats into the measure, attack, level after).
+    changes: Vec<(usize, f64, u8, u8)>,
+}
+
+impl DynamicTimeline {
+    /// Velocity of a note before any dynamic marking.
+    pub const DEFAULT_VELOCITY: u8 = 64;
+
+    /// Collect the markings of every voice of `staff` along `order` (measure indices as
+    /// played, repeats expanded). Grace and cue notes take no time.
+    pub fn for_staff(staff: &crate::Staff, order: &[usize]) -> Self {
+        let mut marks: Vec<(usize, f64, crate::Dynamic)> = Vec::new();
+        for (position, &measure_index) in order.iter().enumerate() {
+            let Some(measure) = staff.measures.get(measure_index) else {
+                continue;
+            };
+            for voice in &measure.voices {
+                let mut beats = 0.0;
+                for note in voice {
+                    if let Some(dynamic) = note.dynamic
+                        && !note.is_rest
+                    {
+                        marks.push((position, beats, dynamic));
+                    }
+                    beats += note.beats();
+                }
+            }
+        }
+        marks.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.total_cmp(&b.1)));
+        let mut level = Self::DEFAULT_VELOCITY;
+        let changes = marks
+            .into_iter()
+            .map(|(position, beats, dynamic)| {
+                if let Some(next) = dynamic.sustained_level() {
+                    level = next.to_velocity();
+                }
+                (position, beats, dynamic.to_velocity(), level)
+            })
+            .collect();
+        Self { changes }
+    }
+
+    /// Velocity of a note at `beats` into the measure at `position` of the order: its own
+    /// marking's attack, the attack of a marking at the same moment in another voice, or the
+    /// level in force.
+    pub fn velocity(&self, position: usize, beats: f64, own: Option<crate::Dynamic>) -> u8 {
+        if let Some(dynamic) = own {
+            return dynamic.to_velocity();
+        }
+        let before = self.changes.partition_point(|&(p, b, _, _)| {
+            p < position || (p == position && b <= beats + 1e-9)
+        });
+        match before.checked_sub(1).map(|index| self.changes[index]) {
+            Some((p, b, attack, _)) if p == position && (b - beats).abs() <= 1e-9 => attack,
+            Some((_, _, _, level)) => level,
+            None => Self::DEFAULT_VELOCITY,
+        }
+    }
+}
+
 /// Convert a [`Score`] into a flat, time-ordered list of [`PlaybackEvent`]s.
 ///
 /// All parts, staves, and voices are included unless excluded via [`PlaybackOptions`].
@@ -1667,11 +1734,12 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
             continue;
         }
         for (staff_index, staff) in part.staves.iter().enumerate() {
+            let dynamics = DynamicTimeline::for_staff(staff, &seq);
             for voice_idx in 0..4usize {
                 let mut time_beats = 0.0f64;
                 let mut time_secs_cursor = 0.0f64;
                 let mut current_bpm = bpm;
-                for &idx in &seq {
+                for (seq_position, &idx) in seq.iter().enumerate() {
                     let measure = match staff.measures.get(idx) {
                         Some(m) => m,
                         None => continue,
@@ -1694,11 +1762,15 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                     let measure_start_beats = time_beats;
                     let measure_start_secs = time_secs_cursor;
                     let mut local_beats = 0.0f64;
+                    // Unswung position, which dynamic markings are keyed by.
+                    let mut written_beats = 0.0f64;
                     let mut swing_first = true;
                     for (note_index, note) in measure.voices[voice_idx].iter().enumerate() {
                         if note.is_grace {
                             continue;
                         }
+                        let onset_written_beats = written_beats;
+                        written_beats += note.beats();
                         let dur = match options.swing {
                             Some(ratio)
                                 if note.tuplet.is_none()
@@ -1721,11 +1793,8 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                             None => note.beats(),
                         };
                         if !note.is_rest {
-                            let mut velocity = note
-                                .dynamic
-                                .as_ref()
-                                .map(|d| d.to_velocity())
-                                .unwrap_or(64u8);
+                            let mut velocity =
+                                dynamics.velocity(seq_position, onset_written_beats, note.dynamic);
                             let mut sounding_dur = dur;
                             for art in &note.articulations {
                                 match art {
@@ -2644,6 +2713,67 @@ mod tests {
         let events = to_playback_events(&score, &opts(None));
         assert_eq!(events.len(), 2);
         assert!((events[1].time_beats - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn dynamics_hold_until_the_next_marking_across_voices_and_bars() {
+        use crate::model::notation::Dynamic;
+        let mut score = Score::new("T", 120, 4, 4, 0, 2);
+        let quarters = |dynamics: [Option<Dynamic>; 4]| -> Vec<Note> {
+            dynamics
+                .into_iter()
+                .map(|dynamic| {
+                    let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+                    note.dynamic = dynamic;
+                    note
+                })
+                .collect()
+        };
+        // Bar 1: p, (p), sf, (p) ; bar 2: fp, (p), pf, (f). Voice 2 in bar 1 holds a half
+        // note at beat 2, when voice 1's sf sounds, and one at beat 0.
+        score.parts[0].staves[0].measures[0].voices[0] =
+            quarters([Some(Dynamic::P), None, Some(Dynamic::Sf), None]);
+        score.parts[0].staves[0].measures[0].voices[1] = vec![
+            Note::new(Pitch::new(Step::C, 3), Duration::Half),
+            Note::new(Pitch::new(Step::C, 3), Duration::Half),
+        ];
+        score.parts[0].staves[0].measures[1].voices[0] =
+            quarters([Some(Dynamic::Fp), None, Some(Dynamic::Pf), None]);
+        let events = to_playback_events(&score, &opts(None));
+        let velocities = |pitch: u8| -> Vec<u8> {
+            events
+                .iter()
+                .filter(|event| event.pitch_midi == pitch)
+                .map(|event| event.velocity)
+                .collect()
+        };
+        let (p, f, sf) = (
+            Dynamic::P.to_velocity(),
+            Dynamic::F.to_velocity(),
+            Dynamic::Sf.to_velocity(),
+        );
+        assert_eq!(velocities(60), vec![p, p, sf, p, f, p, p, f]);
+        assert_eq!(velocities(48), vec![p, sf]);
+        // Before any marking, notes keep the historical default.
+        assert_eq!(
+            DynamicTimeline::default().velocity(0, 0.0, None),
+            DynamicTimeline::DEFAULT_VELOCITY
+        );
+    }
+
+    #[test]
+    fn dynamic_names_round_trip_and_compounds_continue_at_their_second_level() {
+        use crate::model::notation::Dynamic;
+        for dynamic in Dynamic::ALL {
+            assert_eq!(
+                Dynamic::from_musicxml_str(dynamic.to_musicxml_str()),
+                Some(dynamic)
+            );
+        }
+        assert_eq!(Dynamic::from_musicxml_str("fffff"), Some(Dynamic::Ffff));
+        assert_eq!(Dynamic::Sfpp.sustained_level(), Some(Dynamic::Pp));
+        assert_eq!(Dynamic::Sfz.sustained_level(), None);
+        assert_eq!(Dynamic::from_musicxml_str("other"), None);
     }
 
     #[test]

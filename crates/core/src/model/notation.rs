@@ -191,7 +191,7 @@ impl TimeSignature {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Dynamic {
     Pppp,
     Ppp,
@@ -207,9 +207,74 @@ pub enum Dynamic {
     Rfz,
     Fz,
     Sf,
+    /// Forte-piano: loud attack, then piano.
+    Fp,
+    /// Sforzando-piano: accented attack, then piano.
+    Sfp,
+    /// Sforzando-pianissimo: accented attack, then pianissimo.
+    Sfpp,
+    /// Piano-forte: soft attack, then forte.
+    Pf,
+    /// Sforzatissimo: a stronger sforzando.
+    Sffz,
+    /// Sforzato-piano: sforzato attack, then piano.
+    Sfzp,
+    /// Niente: fading to nothing.
+    N,
 }
 
 impl Dynamic {
+    /// Every dynamic, for exhaustive mapping tables.
+    pub const ALL: [Dynamic; 21] = [
+        Dynamic::Pppp,
+        Dynamic::Ppp,
+        Dynamic::Pp,
+        Dynamic::P,
+        Dynamic::Mp,
+        Dynamic::Mf,
+        Dynamic::F,
+        Dynamic::Ff,
+        Dynamic::Fff,
+        Dynamic::Ffff,
+        Dynamic::Sfz,
+        Dynamic::Rfz,
+        Dynamic::Fz,
+        Dynamic::Sf,
+        Dynamic::Fp,
+        Dynamic::Sfp,
+        Dynamic::Sfpp,
+        Dynamic::Pf,
+        Dynamic::Sffz,
+        Dynamic::Sfzp,
+        Dynamic::N,
+    ];
+
+    /// Parse a MusicXML dynamics element name (also MEI `<dynam>` and MuseScore dynamic
+    /// text), folding the extreme `ppppp`/`fffff` levels into the nearest supported one.
+    pub fn from_musicxml_str(name: &str) -> Option<Dynamic> {
+        Some(match name {
+            "pppppp" | "ppppp" => Dynamic::Pppp,
+            "ffffff" | "fffff" => Dynamic::Ffff,
+            "rf" => Dynamic::Rfz,
+            other => *Self::ALL
+                .iter()
+                .find(|dynamic| dynamic.to_musicxml_str() == other)?,
+        })
+    }
+
+    /// The level that continues after this marking, until the next one: itself for a level
+    /// (p, f, …), the second level for a compound (fp → p, pf → f), and `None` for an
+    /// accent on one note (sf, sfz, fz, rfz), after which the previous level resumes.
+    pub fn sustained_level(&self) -> Option<Dynamic> {
+        match self {
+            Dynamic::Sfz | Dynamic::Rfz | Dynamic::Fz | Dynamic::Sf | Dynamic::Sffz => None,
+            Dynamic::Fp | Dynamic::Sfp | Dynamic::Sfzp => Some(Dynamic::P),
+            Dynamic::Sfpp => Some(Dynamic::Pp),
+            Dynamic::Pf => Some(Dynamic::F),
+            level => Some(*level),
+        }
+    }
+
     pub fn to_musicxml_str(&self) -> &'static str {
         match self {
             Dynamic::Pppp => "pppp",
@@ -226,6 +291,13 @@ impl Dynamic {
             Dynamic::Rfz => "rfz",
             Dynamic::Fz => "fz",
             Dynamic::Sf => "sf",
+            Dynamic::Fp => "fp",
+            Dynamic::Sfp => "sfp",
+            Dynamic::Sfpp => "sfpp",
+            Dynamic::Pf => "pf",
+            Dynamic::Sffz => "sffz",
+            Dynamic::Sfzp => "sfzp",
+            Dynamic::N => "n",
         }
     }
 
@@ -245,6 +317,12 @@ impl Dynamic {
             Dynamic::Rfz => 104,
             Dynamic::Fz => 100,
             Dynamic::Sf => 96,
+            Dynamic::Fp => 84,
+            Dynamic::Sfp | Dynamic::Sfpp => 96,
+            Dynamic::Pf => 48,
+            Dynamic::Sffz => 120,
+            Dynamic::Sfzp => 112,
+            Dynamic::N => 8,
         }
     }
 }

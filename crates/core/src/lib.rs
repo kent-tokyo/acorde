@@ -53,7 +53,7 @@ pub use model::notation::{
 };
 pub use model::pitch::{Pitch, Step};
 pub use model::playback::{
-    MAX_PLAYBACK_COMPARISON_EVENTS, MAX_TAB_PERFORMANCE_EVENTS, MetronomeConfig,
+    DynamicTimeline, MAX_PLAYBACK_COMPARISON_EVENTS, MAX_TAB_PERFORMANCE_EVENTS, MetronomeConfig,
     OFFLINE_RENDER_CONTRACT_VERSION, OfflineRenderDiagnostic, OfflineRenderDiagnosticKind,
     OfflineRenderFormat, OfflineRenderFrameEvent, OfflineRenderManifest,
     OfflineRenderMeasureAddress, OfflineRenderNavigationPolicy, OfflineRenderRequest,
