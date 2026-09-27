@@ -15,6 +15,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   staff (they were thin seven-segment digits), centred when the numerator and denominator
   differ in width; treble, bass and C clefs are redrawn after the engraved shapes. Still plain
   vector paths with no font. Header widths, spacing and golden SVGs change.
+- SVG quarter rests are the engraved zigzag with a curled foot, and eighth and shorter rests a
+  slanted stem with one ball-ended hook per flag.
 
 ## [1.2.10] - 2026-09-27
 

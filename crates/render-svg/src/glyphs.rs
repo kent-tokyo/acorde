@@ -580,58 +580,59 @@ fn rest_block(cx: f32, line_y: f32, space: f32, hangs_below: bool) -> String {
 }
 
 pub(crate) fn rest_quarter(cx: f32, staff_mid_y: f32, space: f32) -> String {
-    // Simplified serpentine "squiggle", centered on the staff middle.
-    let pts: Vec<(f32, f32)> = vec![
-        (0.15, -1.1),
-        (-0.15, -0.55),
-        (0.2, -0.05),
-        (-0.2, 0.55),
-        (0.05, 0.75),
-        (-0.15, 1.1),
-    ];
-    let d = path_from_segments(&[pts], cx, staff_mid_y, space);
-    let sw = f(0.16 * space);
+    // Engraved quarter rest: a zigzag of two thick strokes with a curled foot, about three
+    // spaces tall and centred on the middle line.
+    let p = |x: f32, y: f32| format!("{},{}", f(cx + x * space), f(staff_mid_y + y * space));
+    let d = format!(
+        "M {} L {} C {} {} {} L {} C {} {} {}",
+        p(-0.08, -1.45),
+        p(0.38, -0.82),
+        p(0.14, -0.56),
+        p(0.04, -0.36),
+        p(0.0, -0.24),
+        p(0.42, 0.38),
+        p(0.02, 0.24),
+        p(-0.32, 0.56),
+        p(0.12, 1.18),
+    );
     format!(
-        r#"<path d="{d}" fill="none" stroke="black" stroke-width="{sw}" stroke-linecap="round" stroke-linejoin="round"/>"#
+        r#"<path class="acorde-rest-quarter" d="{d}" fill="none" stroke="black" stroke-width="{}" stroke-linecap="round" stroke-linejoin="round"/>"#,
+        f(0.21 * space)
     )
 }
 
-pub(crate) fn rest_eighth(cx: f32, staff_mid_y: f32, space: f32) -> String {
-    let stroke = format!(
-        r#"<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="black" stroke-width="{sw}" stroke-linecap="round"/>"#,
-        x1 = f(cx + 0.32 * space),
-        y1 = f(staff_mid_y - 0.75 * space),
-        x2 = f(cx - 0.28 * space),
-        y2 = f(staff_mid_y + 0.75 * space),
-        sw = f(0.13 * space),
-    );
-    let head = format!(
-        r#"<circle cx="{x}" cy="{y}" r="{r}" fill="black"/>"#,
-        x = f(cx + 0.32 * space),
-        y = f(staff_mid_y - 0.6 * space),
-        r = f(0.2 * space)
-    );
-    format!("{stroke}{head}")
-}
-
-/// Add the extra flags needed by shorter rests. The base eighth-rest mark is kept as the
-/// anchor so the output remains compact and deterministic.
+/// Eighth, sixteenth, … rests: a slanted stem with one ball-ended hook per flag, the hooks
+/// stepping down the stem (engraved `restEighth`/`rest16th` shapes).
 pub(crate) fn rest_short(cx: f32, staff_mid_y: f32, space: f32, flags: usize) -> String {
-    let mut out = rest_eighth(cx, staff_mid_y, space);
-    for i in 1..flags {
-        let y = staff_mid_y - (0.6 - i as f32 * 0.34) * space;
+    let flags = flags.max(1);
+    let slant = 0.27; // horizontal run per space of fall
+    let top = (0.4, -0.62);
+    let fall = 1.55 + 0.85 * (flags - 1) as f32;
+    let foot = (top.0 - slant * fall, top.1 + fall);
+    let p = |x: f32, y: f32| format!("{},{}", f(cx + x * space), f(staff_mid_y + y * space));
+    let mut out = format!(
+        r#"<g class="acorde-rest-short"><path d="M {} L {}" fill="none" stroke="black" stroke-width="{}" stroke-linecap="round"/>"#,
+        p(top.0, top.1),
+        p(foot.0, foot.1),
+        f(0.13 * space)
+    );
+    for index in 0..flags {
+        let drop = 0.85 * index as f32;
+        let (sx, sy) = (top.0 - slant * drop, top.1 + drop);
         let _ = write!(
             out,
-            r#"<path class="acorde-rest-flag" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}" stroke-linecap="round"/>"#,
-            f(cx + 0.32 * space),
-            f(y),
-            f(cx + 0.72 * space),
-            f(y + 0.18 * space),
-            f(cx + 0.16 * space),
-            f(y + 0.55 * space),
-            f(0.13 * space)
+            r#"<path class="acorde-rest-flag" d="M {} C {} {} {}" fill="none" stroke="black" stroke-width="{}" stroke-linecap="round"/><circle cx="{}" cy="{}" r="{}" fill="black"/>"#,
+            p(sx, sy),
+            p(sx - 0.2, sy + 0.32),
+            p(sx - 0.45, sy + 0.3),
+            p(sx - 0.62, sy + 0.12),
+            f(0.12 * space),
+            f(cx + (sx - 0.6) * space),
+            f(staff_mid_y + (sy + 0.05) * space),
+            f(0.19 * space)
         );
     }
+    out.push_str("</g>");
     out
 }
 
