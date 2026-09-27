@@ -199,14 +199,6 @@ fn note_has_unsupported_fields(note: &Note) -> bool {
             !matches!(articulation, Articulation::Tremolo(_))
                 && articulation_subtype(articulation).is_none()
         })
-        || note.hairpin_start.is_some()
-        || note.hairpin_end
-        || note.ottava_start.is_some()
-        || note.ottava_end
-        || note.pedal_start
-        || note.pedal_end
-        || note.slur_start
-        || note.slur_end
         || note.glissando_start
         || note.glissando_end
         || note.cross_staff.is_some()
@@ -252,10 +244,13 @@ pub fn serialize_mscx(score: &Score) -> Result<String, Error> {
                 .map_err(fmt_error)?;
         }
     }
+    // Staff ids run across the whole score, matching the `<Staff id>` elements written below.
+    let mut declared_staff_id = 1usize;
     for part in &score.parts {
         xml.push_str("<Part>");
-        for staff_index in 0..part.staves.len() {
-            write!(xml, "<Staff id=\"{}\"/>", staff_index + 1).map_err(fmt_error)?;
+        for _ in &part.staves {
+            write!(xml, "<Staff id=\"{declared_staff_id}\"/>").map_err(fmt_error)?;
+            declared_staff_id = declared_staff_id.saturating_add(1);
         }
         write!(xml, "<trackName>{}</trackName>", escape(&part.name)).map_err(fmt_error)?;
         if !part.short_name.is_empty() {
@@ -317,6 +312,7 @@ fn write_staff(
     default_time: &acorde_core::TimeSignature,
 ) -> Result<(), Error> {
     let mut running_time = default_time.clone();
+    let span_marks = staff_span_marks(staff);
     write!(xml, "<Staff id=\"{id}\">").map_err(fmt_error)?;
     if !score_texts.is_empty() {
         xml.push_str("<VBox>");
@@ -482,7 +478,19 @@ fn write_staff(
                                 .sum();
                             acorde_core::MeasureLength::from_beats(note.beats() + following)
                         });
-                    write_note(xml, note, melisma)?;
+                    let marks = span_marks.get(&(measure_index, voice_index, note_index));
+                    if let Some(marks) = marks {
+                        xml.push_str(&marks.before);
+                    }
+                    write_note(
+                        xml,
+                        note,
+                        melisma,
+                        marks.map_or("", |marks| marks.inside.as_str()),
+                    )?;
+                    if let Some(marks) = marks {
+                        xml.push_str(&marks.after);
+                    }
                     if !note.is_grace {
                         beats += note.beats();
                     }
@@ -511,6 +519,166 @@ fn write_staff(
     Ok(())
 }
 
+/// MuseScore spanner markup to write around one note: voice-level line starts before it,
+/// chord-level slur ends and starts inside its `<Chord>`, voice-level line ends after it.
+#[derive(Default)]
+struct SpanMarks {
+    before: String,
+    inside: String,
+    after: String,
+}
+
+/// A note of a staff by (measure, voice, note index), and a point by (measure, beats in it).
+type NoteKey = (usize, usize, usize);
+type StaffPoint = (usize, f64);
+/// A line waiting for its end: where it starts and its opening markup.
+type OpenLine = (NoteKey, StaffPoint, String);
+
+/// A MuseScore `<location>` from one point of a staff to another: the change in measure
+/// index and in position within the measure (whole-note fractions, possibly negative).
+fn mscx_location(from: (usize, f64), to: (usize, f64)) -> String {
+    let mut location = String::from("<location>");
+    let measures = to.0 as i64 - from.0 as i64;
+    if measures != 0 {
+        let _ = write!(location, "<measures>{measures}</measures>");
+    }
+    let beats = to.1 - from.1;
+    if let Some(length) = acorde_core::MeasureLength::from_beats(beats.abs()) {
+        let sign = if beats < 0.0 { "-" } else { "" };
+        let _ = write!(
+            location,
+            "<fractions>{sign}{}/{}</fractions>",
+            length.numerator, length.denominator
+        );
+    }
+    location.push_str("</location>");
+    location
+}
+
+/// Pair each voice's slur, hairpin, pedal and ottava flags (as layout does) and place their
+/// MuseScore spanner markup. Slurs are chord-level from the first to the last chord; lines
+/// run from their first note's start to their last note's end, at voice level.
+fn staff_span_marks(staff: &Staff) -> std::collections::HashMap<NoteKey, SpanMarks> {
+    use std::collections::HashMap;
+    let mut marks: HashMap<NoteKey, SpanMarks> = HashMap::new();
+    // The length of each bar: its longest voice.
+    let bar_beats: Vec<f64> = staff
+        .measures
+        .iter()
+        .map(|measure| {
+            measure
+                .voices
+                .iter()
+                .map(|voice| voice.iter().map(Note::beats).sum::<f64>())
+                .fold(0.0, f64::max)
+        })
+        .collect();
+    // A point at a bar's end is the next bar's start.
+    let normalize = |(measure, beats): (usize, f64)| {
+        if bar_beats
+            .get(measure)
+            .is_some_and(|&length| beats >= length - 1e-9)
+            && measure + 1 < bar_beats.len()
+        {
+            (measure + 1, 0.0)
+        } else {
+            (measure, beats)
+        }
+    };
+    for voice_index in 0..4 {
+        // (note key, start point) of the open span of each kind.
+        let mut open_slur: Option<(NoteKey, StaffPoint)> = None;
+        let mut open_lines: [Option<OpenLine>; 3] = [None, None, None];
+        for (measure_index, measure) in staff.measures.iter().enumerate() {
+            let mut beats = 0.0;
+            for (note_index, note) in measure.voices[voice_index].iter().enumerate() {
+                let key = (measure_index, voice_index, note_index);
+                let onset = (measure_index, beats);
+                let end = normalize((measure_index, beats + note.beats()));
+                if note.slur_end
+                    && let Some((start_key, start)) = open_slur.take()
+                {
+                    let location = mscx_location(start, onset);
+                    let back = mscx_location(onset, start);
+                    let _ = write!(
+                        marks.entry(start_key).or_default().inside,
+                        "<Spanner type=\"Slur\"><Slur></Slur><next>{location}</next></Spanner>"
+                    );
+                    let _ = write!(
+                        marks.entry(key).or_default().inside,
+                        "<Spanner type=\"Slur\"><prev>{back}</prev></Spanner>"
+                    );
+                }
+                if note.slur_start && !note.is_rest {
+                    open_slur = Some((key, onset));
+                }
+                let lines: [(bool, Option<String>, bool); 3] = [
+                    (
+                        true,
+                        note.hairpin_start.map(|kind| {
+                            let subtype = match kind {
+                                acorde_core::HairpinKind::Crescendo => 0,
+                                acorde_core::HairpinKind::Decrescendo => 1,
+                            };
+                            format!("<HairPin><subtype>{subtype}</subtype></HairPin>")
+                        }),
+                        note.hairpin_end,
+                    ),
+                    (
+                        true,
+                        note.pedal_start.then(|| "<Pedal></Pedal>".to_string()),
+                        note.pedal_end,
+                    ),
+                    (
+                        true,
+                        note.ottava_start.map(|kind| {
+                            let subtype = match kind {
+                                acorde_core::OttavaKind::Va8 => "8va",
+                                acorde_core::OttavaKind::Vb8 => "8vb",
+                                acorde_core::OttavaKind::Ma15 => "15ma",
+                                acorde_core::OttavaKind::Mb15 => "15mb",
+                            };
+                            format!("<Ottava><subtype>{subtype}</subtype></Ottava>")
+                        }),
+                        note.ottava_end,
+                    ),
+                ];
+                for (slot, (_, start_body, ends)) in lines.into_iter().enumerate() {
+                    let kind = ["HairPin", "Pedal", "Ottava"][slot];
+                    // A note can end one line and start the next: close the earlier first.
+                    let closes_earlier = ends && open_lines[slot].is_some();
+                    let close =
+                        |open: Option<OpenLine>, marks: &mut HashMap<NoteKey, SpanMarks>| {
+                            if let Some((start_key, start, body)) = open {
+                                let location = mscx_location(start, end);
+                                let back = mscx_location(end, start);
+                                let _ = write!(
+                                    marks.entry(start_key).or_default().before,
+                                    "<Spanner type=\"{kind}\">{body}<next>{location}</next></Spanner>"
+                                );
+                                let _ = write!(
+                                    marks.entry(key).or_default().after,
+                                    "<Spanner type=\"{kind}\"><prev>{back}</prev></Spanner>"
+                                );
+                            }
+                        };
+                    if closes_earlier {
+                        close(open_lines[slot].take(), &mut marks);
+                    }
+                    if let Some(body) = start_body {
+                        open_lines[slot] = Some((key, onset, body));
+                    }
+                    if ends && !closes_earlier {
+                        close(open_lines[slot].take(), &mut marks);
+                    }
+                }
+                beats += note.beats();
+            }
+        }
+    }
+    marks
+}
+
 fn write_styled_text(xml: &mut String, styled: &acorde_core::StyledText) -> Result<(), Error> {
     let has_offset = styled.offset_x.is_some() || styled.offset_y.is_some();
     let element = if has_offset { "StaffText" } else { "Text" };
@@ -533,6 +701,7 @@ fn write_note(
     xml: &mut String,
     note: &Note,
     melisma: Option<acorde_core::MeasureLength>,
+    chord_spanners: &str,
 ) -> Result<(), Error> {
     if note.is_rest {
         write!(
@@ -590,6 +759,7 @@ fn write_note(
     if let Some(mode) = beam_mode(note.beam) {
         write!(xml, "<BeamMode>{mode}</BeamMode>").map_err(fmt_error)?;
     }
+    xml.push_str(chord_spanners);
     if let Some(arpeggiate) = note.arpeggiate {
         write!(
             xml,

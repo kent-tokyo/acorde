@@ -17,6 +17,7 @@ enum MscxLineKind {
     HairPin,
     Pedal,
     Slur,
+    Ottava,
 }
 
 /// Map a MuseScore `<BarLine><subtype>` to a canonical right barline. `normal` and unknown
@@ -48,7 +49,7 @@ const MAX_ELEMENTS: usize = 500_000;
 const MAX_MSCZ_COMPRESSED: usize = 64 * 1024 * 1024;
 const MAX_MSCZ_ENTRIES: usize = 1024;
 /// MuseScore elements outside the imported subset.
-const UNSUPPORTED_MSCX_ELEMENTS: &[&str] = &["Ottava", "Glissando"];
+const UNSUPPORTED_MSCX_ELEMENTS: &[&str] = &["Glissando"];
 const MIN_HARMONY_TPC: i32 = 6;
 const MAX_HARMONY_TPC: i32 = 26;
 
@@ -302,6 +303,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut line_has_prev = false;
     let mut pending_hairpin: [Option<HairpinKind>; 4] = [None; 4];
     let mut pending_pedal: [bool; 4] = [false; 4];
+    let mut pending_ottava: [Option<acorde_core::OttavaKind>; 4] = [None; 4];
     let mut pending_slur: [bool; 4] = [false; 4];
 
     // MuseScore measure repeats: 3.x `<RepeatMeasure>`, 4.x `<measureRepeatCount>` plus
@@ -621,10 +623,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 volta_text.clear();
                                 volta_has_next = false;
                             }
-                            Some(kind @ ("HairPin" | "Pedal" | "Slur")) => {
+                            Some(kind @ ("HairPin" | "Pedal" | "Slur" | "Ottava")) => {
                                 line_spanner = Some(match kind {
                                     "HairPin" => MscxLineKind::HairPin,
                                     "Pedal" => MscxLineKind::Pedal,
+                                    "Ottava" => MscxLineKind::Ottava,
                                     _ => MscxLineKind::Slur,
                                 });
                                 in_line_body = false;
@@ -636,7 +639,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             _ => {}
                         }
                     }
-                    "HairPin" | "Pedal" | "Slur" if line_spanner.is_some() => {
+                    "HairPin" | "Pedal" | "Slur" | "Ottava" if line_spanner.is_some() => {
                         in_line_body = true;
                     }
                     "Segment" if in_line_body => {
@@ -706,7 +709,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "Segment" if in_line_segment => {
                         in_line_segment = false;
                     }
-                    "HairPin" | "Pedal" | "Slur" if in_line_body => {
+                    "HairPin" | "Pedal" | "Slur" | "Ottava" if in_line_body => {
                         in_line_body = false;
                     }
                     "Spanner" if line_spanner.is_some() && !in_line_body => {
@@ -728,6 +731,17 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 }
                                 MscxLineKind::Pedal => pending_pedal[voice] = true,
                                 MscxLineKind::Slur => pending_slur[voice] = true,
+                                // MuseScore names ottavas (8va, 8vb, 15ma, 15mb; older files
+                                // number them 0–3).
+                                MscxLineKind::Ottava => {
+                                    pending_ottava[voice] =
+                                        Some(match line_subtype.as_deref().map(str::trim) {
+                                            Some("8vb" | "1") => acorde_core::OttavaKind::Vb8,
+                                            Some("15ma" | "2") => acorde_core::OttavaKind::Ma15,
+                                            Some("15mb" | "3") => acorde_core::OttavaKind::Mb15,
+                                            _ => acorde_core::OttavaKind::Va8,
+                                        });
+                                }
                             }
                         }
                         if line_has_prev {
@@ -742,6 +756,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                     MscxLineKind::HairPin => note.hairpin_end = true,
                                     MscxLineKind::Pedal => note.pedal_end = true,
                                     MscxLineKind::Slur => note.slur_end = true,
+                                    MscxLineKind::Ottava => note.ottava_end = true,
                                 }
                             }
                         }
@@ -1500,6 +1515,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                     note.hairpin_start = Some(kind);
                                 }
                                 note.pedal_start |= std::mem::take(&mut pending_pedal[v]);
+                                if let Some(kind) = pending_ottava[v].take() {
+                                    note.ottava_start = Some(kind);
+                                }
                                 note.slur_start |= std::mem::take(&mut pending_slur[v]);
                             }
                             cur_voices[v].push(note);

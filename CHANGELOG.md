@@ -9,6 +9,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **MSCX export kept only the first part.** Every `<Part>` declared `<Staff id="1">`, so a
+  multi-part score (a string quartet, a band score) re-imported, in acorde and in MuseScore,
+  with its other parts empty. Staff ids now run across the score.
+- **MSCX slurs, hairpins, pedals and ottavas.** MSCX export wrote none of them (it reported
+  them); they are now written as MuseScore spanners — slurs inside their first and last
+  chords, lines around their notes, with `<next>`/`<prev>` locations — and MSCX import reads
+  ottavas. A MusicXML → MSCX → import round trip of the music21 corpus keeps all 15431 slurs
+  and 1219 of 1228 hairpins.
 ## [1.2.12] - 2026-09-27
 
 - **SVG stem directions.** A single voice drew every stem up unless the score fixed it. Stems

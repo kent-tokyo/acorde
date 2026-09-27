@@ -3505,14 +3505,30 @@ fn mscx_breaks_barlines_and_measure_rests_round_trip() {
             .as_deref()
             .is_some_and(|path| path.ends_with("/layout"))
     }));
-    // Hairpins and pedal lines are not written by the MSCX subset exporter yet; they stay reported.
-    assert!(report.diagnostics.iter().any(|diagnostic| {
+    // Hairpins and pedal lines are written as MuseScore spanners, so they are not reported.
+    assert!(!report.diagnostics.iter().any(|diagnostic| {
         diagnostic
             .source_location
             .as_deref()
             .is_some_and(|path| path.ends_with("/measure/1/voice/1/note/1"))
     }));
     let restored = acorde_io::parse_mscx(&report.output).expect("MSCX export reparses");
+    let lines = |score: &acorde_core::Score| -> Vec<(bool, bool, bool, bool)> {
+        score.parts[0].staves[0]
+            .measures
+            .iter()
+            .flat_map(|measure| measure.voices.iter().flatten())
+            .map(|note| {
+                (
+                    note.hairpin_start.is_some(),
+                    note.hairpin_end,
+                    note.pedal_start,
+                    note.pedal_end,
+                )
+            })
+            .collect()
+    };
+    assert_eq!(lines(&restored), lines(&parsed));
     assert!(acorde_core::validate(&restored).is_valid());
     let measures = &restored.parts[0].staves[0].measures;
     assert!(measures[0].section_break);
@@ -4281,8 +4297,10 @@ fn typed_direction_spanners_keep_their_end_note_and_reach_other_exporters() {
     {
         let report = acorde_io::serialize_mscx_with_report(&score).expect("MSCX export");
         assert!(
-            !report.diagnostics.is_empty(),
-            "unsupported spans are reported"
+            report.output.contains("<Spanner type=\"Slur\">")
+                && report.output.contains("<Spanner type=\"Pedal\">")
+                && report.output.contains("<Spanner type=\"Ottava\">"),
+            "typed-only spans are written as MuseScore spanners"
         );
     }
 }
@@ -4493,4 +4511,77 @@ fn musicxml_zero_length_forward_is_not_reported() {
             .iter()
             .any(|diagnostic| diagnostic.code == "musicxml.invalid-numeric-value")
     );
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_exports_slurs_hairpins_pedals_and_ottavas() {
+    use acorde_core::{Duration, HairpinKind, Note, OttavaKind, Pitch, Score, Step};
+    let mut score = Score::new("lines", 120, 4, 4, 0, 2);
+    for measure in &mut score.parts[0].staves[0].measures {
+        measure.voices[0] = (0..4)
+            .map(|_| Note::new(Pitch::new(Step::G, 4), Duration::Quarter))
+            .collect();
+    }
+    {
+        let first = &mut score.parts[0].staves[0].measures[0].voices[0];
+        first[0].slur_start = true;
+        first[2].slur_end = true;
+        first[1].hairpin_start = Some(HairpinKind::Decrescendo);
+        first[0].pedal_start = true;
+        first[2].ottava_start = Some(OttavaKind::Va8);
+    }
+    {
+        let second = &mut score.parts[0].staves[0].measures[1].voices[0];
+        second[1].hairpin_end = true;
+        second[3].pedal_end = true;
+        second[0].ottava_end = true;
+    }
+    let report = acorde_io::serialize_mscx_with_report(&score).expect("exports");
+    assert!(
+        report.diagnostics.is_empty(),
+        "spans are exported, not reported: {:?}",
+        report.diagnostics
+    );
+    let mscx = report.output;
+    assert!(mscx.contains("<Spanner type=\"Slur\"><Slur></Slur><next><location><fractions>1/2</fractions></location></next></Spanner>"));
+    assert!(mscx.contains("<Spanner type=\"HairPin\"><HairPin><subtype>1</subtype></HairPin><next><location><measures>1</measures><fractions>1/4</fractions></location></next></Spanner>"));
+    let back = acorde_io::parse_mscx(&mscx).expect("imports");
+    let voice = |measure: usize| &back.parts[0].staves[0].measures[measure].voices[0];
+    assert!(voice(0)[0].slur_start && voice(0)[2].slur_end);
+    assert_eq!(voice(0)[1].hairpin_start, Some(HairpinKind::Decrescendo));
+    assert!(voice(1)[1].hairpin_end);
+    assert!(voice(0)[0].pedal_start && voice(1)[3].pedal_end);
+    assert_eq!(voice(0)[2].ottava_start, Some(OttavaKind::Va8));
+    assert!(voice(1)[0].ottava_end);
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_keeps_every_part_of_a_multi_part_score() {
+    use acorde_core::{Clef, Duration, Measure, Note, Part, Pitch, Score, Staff, Step};
+    let mut score = Score::new("quartet", 120, 4, 4, 0, 1);
+    score.parts = [("Vn.", Clef::Treble, Step::E), ("Vc.", Clef::Bass, Step::C)]
+        .into_iter()
+        .map(|(name, clef, step)| {
+            let mut part = Part::new(name, name);
+            let mut staff = Staff::new(clef);
+            let mut measure = Measure::empty(4, 4);
+            measure.voices[0] = vec![Note::new(Pitch::new(step, 3), Duration::Whole)];
+            staff.measures.push(measure);
+            part.staves = vec![staff];
+            part
+        })
+        .collect();
+    let mscx = acorde_io::serialize_mscx(&score).expect("exports");
+    assert!(mscx.contains("<Part><Staff id=\"2\"/>"));
+    let back = acorde_io::parse_mscx(&mscx).expect("imports");
+    assert_eq!(back.parts.len(), 2);
+    for (part, step) in back.parts.iter().zip([Step::E, Step::C]) {
+        assert_eq!(part.staves[0].measures.len(), 1);
+        assert_eq!(
+            part.staves[0].measures[0].voices[0][0].pitches[0].step,
+            step
+        );
+    }
 }
