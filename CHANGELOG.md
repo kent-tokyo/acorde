@@ -9,6 +9,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **ABC verses.** Every `w:` line continued from where the previous one stopped, so a second
+  verse under a music line was sung over the following notes, and `hel-lo` was one syllable.
+  A `w:` line now belongs to the music line above it — the first is verse 1, the next verse 2,
+  and so on — `-` splits syllables, `_` holds one, `*` skips a note; export writes each verse as
+  its own `w:` line.
 - **MIDI import transcription.** Import laid a track's notes end to end — a note that began
   while another still sounded (any piano or chordal track) was pushed after it, a note that did
   not fit the bar was moved whole into the next one, and the whole file took the *last* time

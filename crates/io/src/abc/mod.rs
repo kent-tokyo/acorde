@@ -151,7 +151,10 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
     let mut current_measure_number = 0u32;
     let mut note_count = 0usize;
     let mut current_part_index = 0usize;
-    let mut lyric_lines = Vec::new();
+    let mut lyric_lines: Vec<AbcLyricLine> = Vec::new();
+    // Per voice: its first note on the latest music line, and the verse its next `w:` gives.
+    let mut line_starts: Vec<usize> = Vec::new();
+    let mut next_verse: Vec<u8> = Vec::new();
     let mut pending_tie_end = false;
     let mut pending_slur_start = false;
     let mut grace_group_active = false;
@@ -177,6 +180,27 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
             continue;
         }
 
+        // `w:` lines under a music line are its verses, in order.
+        if let Some(text) = line.strip_prefix("w:") {
+            if !in_header {
+                let part = current_part_index;
+                let first_note = line_starts.get(part).copied().unwrap_or(0);
+                let verse = next_verse.get(part).copied().unwrap_or(1);
+                lyric_lines.push(AbcLyricLine {
+                    part,
+                    first_note,
+                    verse,
+                    text: text.trim().to_string(),
+                });
+                if let Some(next) = next_verse.get_mut(part) {
+                    *next = next
+                        .saturating_add(1)
+                        .min(acorde_core::VerseLyric::MAX_VERSE);
+                }
+            }
+            continue;
+        }
+
         if parse_abc_header_line(
             line,
             AbcHeaderContext {
@@ -197,6 +221,25 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
         }
 
         if !in_header {
+            let part = current_part_index;
+            if line_starts.len() <= part {
+                line_starts.resize(part + 1, 0);
+                next_verse.resize(part + 1, 1);
+            }
+            line_starts[part] =
+                score
+                    .parts
+                    .get(part)
+                    .and_then(|p| p.staves.first())
+                    .map_or(0, |staff| {
+                        staff
+                            .measures
+                            .iter()
+                            .flat_map(|measure| measure.voices[0].iter())
+                            .filter(|note| !note.is_rest)
+                            .count()
+                    });
+            next_verse[part] = 1;
             parse_body_line(
                 line,
                 AbcBodyContext {
@@ -279,7 +322,7 @@ struct AbcHeaderContext<'a> {
     current_measure_number: &'a mut u32,
     current_part_index: &'a mut usize,
     in_header: &'a mut bool,
-    lyric_lines: &'a mut Vec<(usize, String)>,
+    lyric_lines: &'a mut Vec<AbcLyricLine>,
     pending_tie_end: &'a mut bool,
     pending_slur_start: &'a mut bool,
     grace_group_active: &'a mut bool,
@@ -310,7 +353,12 @@ fn parse_abc_header_line(line: &str, context: AbcHeaderContext<'_>) -> Result<bo
     let field = &line[0..1];
     let value = line[2..].trim();
     if field == "w" {
-        lyric_lines.push((*current_part_index, value.to_string()));
+        lyric_lines.push(AbcLyricLine {
+            part: *current_part_index,
+            first_note: 0,
+            verse: 1,
+            text: value.to_string(),
+        });
         return Ok(true);
     }
     match field {
@@ -1634,51 +1682,116 @@ fn abc_voice_property(value: &str, keys: &[&str]) -> Option<String> {
     })
 }
 
-fn apply_abc_lyrics(score: &mut Score, lyric_lines: &[(usize, String)]) {
-    let mut cursors = vec![0usize; score.parts.len()];
-    for (part_index, line) in lyric_lines {
-        let Some(part) = score.parts.get_mut(*part_index) else {
+/// One `w:` line: the voice, the first note of the music line it sits under, and its verse.
+struct AbcLyricLine {
+    part: usize,
+    first_note: usize,
+    verse: u8,
+    text: String,
+}
+
+/// Split a `w:` line into syllable tokens: `hel-lo` is `hel-` and `-lo`.
+fn abc_lyric_tokens(line: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    for word in line.split_whitespace() {
+        if matches!(word, "*" | "_" | "|") || !word.trim_matches('-').contains('-') {
+            tokens.push(word.to_string());
+            continue;
+        }
+        let pieces: Vec<&str> = word.split('-').filter(|piece| !piece.is_empty()).collect();
+        let last = pieces.len().saturating_sub(1);
+        for (index, piece) in pieces.iter().enumerate() {
+            let before = if index > 0 || word.starts_with('-') {
+                "-"
+            } else {
+                ""
+            };
+            let after = if index < last || word.ends_with('-') {
+                "-"
+            } else {
+                ""
+            };
+            tokens.push(format!("{before}{piece}{after}"));
+        }
+    }
+    tokens
+}
+
+fn apply_abc_lyrics(score: &mut Score, lyric_lines: &[AbcLyricLine]) {
+    for line in lyric_lines {
+        let Some(staff) = score
+            .parts
+            .get_mut(line.part)
+            .and_then(|part| part.staves.first_mut())
+        else {
             continue;
         };
-        let Some(staff) = part.staves.first_mut() else {
-            continue;
-        };
-        let Some(cursor) = cursors.get_mut(*part_index) else {
-            continue;
-        };
-        for token in line.split_whitespace() {
-            if token == "*" {
-                *cursor = cursor.saturating_add(1);
-                continue;
+        let mut notes: Vec<&mut Note> = staff
+            .measures
+            .iter_mut()
+            .flat_map(|measure| measure.voices[0].iter_mut())
+            .filter(|note| !note.is_rest)
+            .skip(line.first_note)
+            .collect();
+        let mut cursor = 0usize;
+        for token in abc_lyric_tokens(&line.text) {
+            match token.as_str() {
+                // A bar marker aligns nothing here; `*` skips a note; `_` holds the syllable.
+                "|" => continue,
+                "*" => {
+                    cursor += 1;
+                    continue;
+                }
+                "_" => {
+                    if let Some(previous) = cursor.checked_sub(1).and_then(|i| notes.get_mut(i)) {
+                        let lyric = if line.verse == 1 {
+                            previous.lyric.as_mut()
+                        } else {
+                            previous
+                                .additional_lyrics
+                                .iter_mut()
+                                .find(|entry| entry.verse == line.verse)
+                                .map(|entry| &mut entry.lyric)
+                        };
+                        if let Some(lyric) = lyric {
+                            lyric.extend = true;
+                        }
+                    }
+                    cursor += 1;
+                    continue;
+                }
+                _ => {}
             }
-            let Some(note) = staff
-                .measures
-                .iter_mut()
-                .flat_map(|measure| measure.voices[0].iter_mut())
-                .filter(|note| !note.is_rest)
-                .nth(*cursor)
-            else {
+            let Some(note) = notes.get_mut(cursor) else {
                 break;
             };
+            cursor += 1;
             let text = token.trim_matches('-').replace('~', " ");
             if text.is_empty() {
-                *cursor = cursor.saturating_add(1);
                 continue;
             }
-            let starts_with_hyphen = token.starts_with('-');
-            let ends_with_hyphen = token.ends_with('-');
-            let syllabic = match (starts_with_hyphen, ends_with_hyphen) {
+            let syllabic = match (token.starts_with('-'), token.ends_with('-')) {
                 (false, false) => "single",
                 (false, true) => "begin",
                 (true, false) => "end",
                 (true, true) => "middle",
             };
-            note.lyric = Some(acorde_core::Lyric {
+            let lyric = acorde_core::Lyric {
                 text,
                 syllabic: syllabic.to_string(),
                 extend: false,
-            });
-            *cursor = cursor.saturating_add(1);
+            };
+            if line.verse <= 1 {
+                note.lyric = Some(lyric);
+            } else {
+                note.additional_lyrics
+                    .retain(|entry| entry.verse != line.verse);
+                note.additional_lyrics.push(acorde_core::VerseLyric {
+                    verse: line.verse,
+                    lyric,
+                });
+                note.additional_lyrics.sort_by_key(|entry| entry.verse);
+            }
         }
     }
 }
@@ -1824,11 +1937,42 @@ fn write_abc_staff(out: &mut String, staff: &Staff, part_index: usize) -> Result
                 .map_or_else(|| "*".to_string(), abc_lyric_token)
         })
         .collect::<Vec<_>>();
-    if lyric_tokens.iter().any(|token| token != "*") {
+    // Further verses follow as further `w:` lines (after verse 1, even an empty one).
+    let last_verse = staff
+        .measures
+        .iter()
+        .filter_map(|measure| measure.voices.first())
+        .flat_map(|voice| voice.iter())
+        .flat_map(|note| note.additional_lyrics.iter().map(|entry| entry.verse))
+        .max()
+        .unwrap_or(1);
+    if last_verse > 1 || lyric_tokens.iter().any(|token| token != "*") {
         out.push_str("w:");
         for token in lyric_tokens {
             out.push(' ');
             out.push_str(&token);
+        }
+        out.push('\n');
+    }
+
+    for verse in 2..=last_verse {
+        out.push_str("w:");
+        for note in staff
+            .measures
+            .iter()
+            .filter_map(|measure| measure.voices.first())
+            .flat_map(|voice| voice.iter())
+            .filter(|note| !note.is_rest)
+        {
+            out.push(' ');
+            match note
+                .additional_lyrics
+                .iter()
+                .find(|entry| entry.verse == verse)
+            {
+                Some(entry) => out.push_str(&abc_lyric_token(&entry.lyric)),
+                None => out.push('*'),
+            }
         }
         out.push('\n');
     }

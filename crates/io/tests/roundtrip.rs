@@ -5135,7 +5135,7 @@ fn musicxml_reads_double_dots_and_notes_without_a_type() {
 #[test]
 fn abc_reads_and_writes_multi_line_tunes_with_chords_dynamics_voices_and_key_changes() {
     use acorde_core::{Clef, HairpinKind};
-    let abc = "X:1\nT:Reel\nM:4/4\nL:1/8\nK:D\nV:T1 name=\"Fiddle\"\n!p! \"D\"A>B !<(!c2 !<)!d2 !f!e2|\"G\"g4 \"A7\"a4|\nK:G\n[M:3/4]\"Em\"g2 \"^rit.\"a2 b2|]\nw: la la la la la la la la la la\nV:B clef=bass\nD,8|D,8|G,6|]\n";
+    let abc = "X:1\nT:Reel\nM:4/4\nL:1/8\nK:D\nV:T1 name=\"Fiddle\"\n!p! \"D\"A>B !<(!c2 !<)!d2 !f!e2|\"G\"g4 \"A7\"a4|\nw: la la la la la la la\nK:G\n[M:3/4]\"Em\"g2 \"^rit.\"a2 b2|]\nV:B clef=bass\nD,8|D,8|G,6|]\n";
     let score = acorde_io::parse_abc(abc).expect("parses");
     let check = |score: &acorde_core::Score, label: &str| {
         assert_eq!(score.parts.len(), 2, "{label}");
@@ -5384,4 +5384,41 @@ fn midi_import_splits_overlapping_notes_into_voices_and_ties_notes_across_barlin
     assert!(bar3[0].tie_end);
     assert_eq!(bar3[0].duration, Duration::Quarter);
     assert!(bar3[1].is_rest);
+}
+
+#[test]
+fn abc_verses_follow_their_music_lines() {
+    let abc = "X:1\nM:3/4\nL:1/4\nK:C\nC D E|\nw: hel-lo there\nw: sec-ond verse\nF G A|\nw: three four five\n";
+    let score = acorde_io::parse_abc(abc).expect("parses");
+    let words = |score: &acorde_core::Score, verse: u8| {
+        score.parts[0].staves[0]
+            .measures
+            .iter()
+            .flat_map(|m| m.voices[0].iter())
+            .map(|n| {
+                if verse == 1 {
+                    n.lyric.as_ref().map(|l| l.text.clone())
+                } else {
+                    n.additional_lyrics
+                        .iter()
+                        .find(|entry| entry.verse == verse)
+                        .map(|entry| entry.lyric.text.clone())
+                }
+            })
+            .collect::<Vec<_>>()
+    };
+    let some = |w: &[&str]| {
+        w.iter()
+            .map(|w| (!w.is_empty()).then(|| w.to_string()))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        words(&score, 1),
+        some(&["hel", "lo", "there", "three", "four", "five"])
+    );
+    assert_eq!(words(&score, 2), some(&["sec", "ond", "verse", "", "", ""]));
+    let text = acorde_io::serialize_abc(&score).expect("exports");
+    let back = acorde_io::parse_abc(&text).expect("re-imports");
+    assert_eq!(words(&back, 1), words(&score, 1), "{text}");
+    assert_eq!(words(&back, 2), words(&score, 2), "{text}");
 }
