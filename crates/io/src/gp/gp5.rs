@@ -846,10 +846,7 @@ impl Reader<'_> {
                 "fade-in/volume swells are not imported",
             );
         }
-        if (v < 400 && flags & 0x01 != 0) || flags & 0x02 != 0 {
-            self.losses
-                .add("gp.unsupported-vibrato", "note vibrato is not imported");
-        }
+        effects.vibrato = (v < 400 && flags & 0x01 != 0) || flags & 0x02 != 0;
         if flags2 & 0x01 != 0 {
             self.losses
                 .add("gp.unsupported-rasgueado", "rasgueado is not imported");
@@ -863,11 +860,14 @@ impl Reader<'_> {
                         .add("gp.unsupported-whammy", "whammy-bar dives are not imported");
                 }
             }
-            if kind > 0 {
-                self.losses.add(
+            // 1 tapping, 2 slapping, 3 popping.
+            match kind {
+                1 => effects.tap = true,
+                2 | 3 => self.losses.add(
                     "gp.unsupported-tapping",
-                    "tap, slap and pop marks are not imported",
-                );
+                    "slap and pop marks are not imported (tapping is)",
+                ),
+                _ => {}
             }
         }
         if flags2 & 0x04 != 0 {
@@ -1099,10 +1099,7 @@ impl Reader<'_> {
         }
         read.let_ring = flags & 0x08 != 0;
         read.hammer = flags & 0x02 != 0;
-        if flags2 & 0x40 != 0 {
-            self.losses
-                .add("gp.unsupported-vibrato", "note vibrato is not imported");
-        }
+        read.vibrato = flags2 & 0x40 != 0;
         read.palm_mute = flags2 & 0x02 != 0;
         read.staccato = flags2 & 0x01 != 0;
         Ok(())
@@ -1114,6 +1111,9 @@ impl Reader<'_> {
             push_articulation(note, Articulation::Marcato);
         } else if read.accent {
             push_articulation(note, Articulation::Accent);
+        }
+        if read.vibrato {
+            push_articulation(note, Articulation::Vibrato);
         }
         if read.staccato {
             push_articulation(note, Articulation::Staccato);
@@ -1365,6 +1365,8 @@ struct BeatEffects {
     pick_up: Option<bool>,
     natural_harmonic: bool,
     artificial_harmonic: bool,
+    vibrato: bool,
+    tap: bool,
 }
 
 impl BeatEffects {
@@ -1376,6 +1378,12 @@ impl BeatEffects {
             Some(true) => push_articulation(note, Articulation::UpBow),
             Some(false) => push_articulation(note, Articulation::DownBow),
             None => {}
+        }
+        if self.vibrato {
+            push_articulation(note, Articulation::Vibrato);
+        }
+        if self.tap {
+            push_articulation(note, Articulation::Tap);
         }
         if self.artificial_harmonic {
             losses.add(
@@ -1401,6 +1409,7 @@ struct NoteRead {
     dead: bool,
     /// A ghost note: its notehead is drawn in parentheses.
     ghost: bool,
+    vibrato: bool,
     heavy_accent: bool,
     accent: bool,
     dynamic: Option<i8>,

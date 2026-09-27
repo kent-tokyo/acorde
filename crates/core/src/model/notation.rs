@@ -443,6 +443,12 @@ pub enum Articulation {
     Stopped,
     /// Snap (Bartók) pizzicato (MusicXML `<snap-pizzicato/>`).
     SnapPizzicato,
+    /// Right-hand tapping, drawn "T" (MusicXML `<tap/>`, MEI `tap`, Guitar Pro tapping).
+    Tap,
+    /// Left-hand tapping (MusicXML `<tap hand="left"/>`, Guitar Pro left-hand tapping).
+    LeftHandTap,
+    /// Vibrato on one note, a short wavy line above it (Guitar Pro note vibrato).
+    Vibrato,
 }
 
 impl Articulation {
@@ -457,6 +463,9 @@ impl Articulation {
                 | Self::OpenString
                 | Self::Stopped
                 | Self::SnapPizzicato
+                | Self::Tap
+                | Self::LeftHandTap
+                | Self::Vibrato
         )
     }
 }

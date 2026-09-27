@@ -429,6 +429,14 @@ pub(crate) fn parse_musicxml_collecting(
                 current_text.clear();
 
                 match tag.as_str() {
+                    // `<tap>T</tap>`: tapping with its displayed text.
+                    "tap" if in_technical_block => pending_articulations.push(
+                        if attr_str(e, b"hand").as_deref() == Some("left") {
+                            Articulation::LeftHandTap
+                        } else {
+                            Articulation::Tap
+                        },
+                    ),
                     "notehead" if in_note => {
                         note_parenthesized = attr_str(e, b"parentheses").as_deref() == Some("yes");
                     }
@@ -960,6 +968,13 @@ pub(crate) fn parse_musicxml_collecting(
                     "snap-pizzicato" if in_technical_block => {
                         pending_articulations.push(Articulation::SnapPizzicato)
                     }
+                    "tap" if in_technical_block => pending_articulations.push(
+                        if attr_str(e, b"hand").as_deref() == Some("left") {
+                            Articulation::LeftHandTap
+                        } else {
+                            Articulation::Tap
+                        },
+                    ),
                     "fermata" if in_notations => pending_articulations.push(Articulation::Fermata),
                     "breath-mark" if in_notations => {
                         pending_articulations.push(Articulation::BreathMark)
@@ -2162,6 +2177,12 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "fret" if in_technical_block => {
                         pending_fret = current_text.trim().parse().ok();
+                    }
+                    "other-technical"
+                        if in_technical_block
+                            && current_text.trim().eq_ignore_ascii_case("vibrato") =>
+                    {
+                        pending_articulations.push(Articulation::Vibrato)
                     }
                     "other-technical" if in_technical_block => {
                         let t = current_text.trim().to_string();

@@ -1300,6 +1300,8 @@ fn articulation_subtype(articulation: &Articulation) -> Option<&'static str> {
         Articulation::InvertedMordent => Some("ornamentShortTrill"),
         Articulation::Turn => Some("ornamentTurn"),
         Articulation::InvertedTurn => Some("ornamentTurnInverted"),
+        // MuseScore 3 has no tapping or single-note vibrato articulation.
+        Articulation::Tap | Articulation::LeftHandTap | Articulation::Vibrato => None,
         Articulation::Tremolo(_)
         | Articulation::Fermata
         | Articulation::Shake

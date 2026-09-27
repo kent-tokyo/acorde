@@ -1290,34 +1290,22 @@ fn apply_note_effects_rest(node: &Node, note: &mut Note, losses: &mut Losses) {
             );
         }
     }
-    for (property, code, reason) in [
-        (
-            "Tapped",
-            "gp.unsupported-tapping",
-            "tapping marks are not imported",
-        ),
-        (
-            "LeftHandTapped",
-            "gp.unsupported-tapping",
-            "tapping marks are not imported",
-        ),
-    ] {
-        if node.property(property).is_some() {
-            losses.add(code, reason);
-        }
+    if node.property("Tapped").is_some() && !note.articulations.contains(&Articulation::Tap) {
+        note.articulations.push(Articulation::Tap);
     }
-    for (element, code, reason) in [
-        (
-            "Vibrato",
-            "gp.unsupported-vibrato",
-            "note vibrato is not imported",
-        ),
-        (
-            "RightFingering",
-            "gp.unsupported-right-hand-fingering",
-            "right-hand (p-i-m-a-c) fingering is not imported",
-        ),
-    ] {
+    if node.property("LeftHandTapped").is_some()
+        && !note.articulations.contains(&Articulation::LeftHandTap)
+    {
+        note.articulations.push(Articulation::LeftHandTap);
+    }
+    if node.child("Vibrato").is_some() && !note.articulations.contains(&Articulation::Vibrato) {
+        note.articulations.push(Articulation::Vibrato);
+    }
+    for (element, code, reason) in [(
+        "RightFingering",
+        "gp.unsupported-right-hand-fingering",
+        "right-hand (p-i-m-a-c) fingering is not imported",
+    )] {
         if node.child(element).is_some() {
             losses.add(code, reason);
         }
@@ -1710,6 +1698,30 @@ mod tests {
                 .iter()
                 .all(|d| d.code != "gp.unsupported-fermata"
                     && d.code != "gp.unsupported-beat-ottava")
+        );
+    }
+
+    #[test]
+    fn gp7_tapping_and_vibrato_become_articulations() {
+        let gpif = GPIF
+            .replace(
+                r#"<Property name="HopoOrigin"><Enable /></Property>"#,
+                r#"<Property name="HopoOrigin"><Enable /></Property><Property name="Tapped"><Enable /></Property>"#,
+            )
+            .replace(
+                r#"<Note id="3"><Properties>"#,
+                r#"<Note id="3"><Vibrato>Slight</Vibrato><Properties><Property name="LeftHandTapped"><Enable /></Property>"#,
+            );
+        let report = parse_gp_with_report(&archive(&gpif)).expect("GP7 archive parses");
+        let voice = &report.score.parts[0].staves[0].measures[0].voices[0];
+        assert!(voice[1].articulations.contains(&Articulation::Tap));
+        assert!(voice[2].articulations.contains(&Articulation::Vibrato));
+        assert!(voice[2].articulations.contains(&Articulation::LeftHandTap));
+        assert!(
+            report
+                .diagnostics
+                .iter()
+                .all(|d| d.code != "gp.unsupported-tapping" && d.code != "gp.unsupported-vibrato")
         );
     }
 

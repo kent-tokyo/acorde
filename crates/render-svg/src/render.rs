@@ -1029,6 +1029,9 @@ fn articulation_metadata_name(articulation: &acorde_core::Articulation) -> Strin
         acorde_core::Articulation::OpenString => "open-string".to_owned(),
         acorde_core::Articulation::Stopped => "stopped".to_owned(),
         acorde_core::Articulation::SnapPizzicato => "snap-pizzicato".to_owned(),
+        acorde_core::Articulation::Tap => "tap".to_owned(),
+        acorde_core::Articulation::LeftHandTap => "left-hand-tap".to_owned(),
+        acorde_core::Articulation::Vibrato => "vibrato".to_owned(),
     }
 }
 
@@ -6785,6 +6788,54 @@ pub(crate) fn render_articulation(
     space: f32,
 ) {
     match articulation {
+        // Tapping: a "T" (left-hand tapping in a circle, as Guitar Pro draws it).
+        acorde_core::Articulation::Tap | acorde_core::Articulation::LeftHandTap => {
+            let left = matches!(articulation, acorde_core::Articulation::LeftHandTap);
+            let class = if left {
+                "acorde-left-hand-tap"
+            } else {
+                "acorde-tap"
+            };
+            let _ = write!(
+                body,
+                r#"<g class="acorde-articulation {class}"><text x="{}" y="{}" font-family="sans-serif" font-weight="bold" font-size="{}" text-anchor="middle">T</text>"#,
+                f(x),
+                f(y + 0.4 * space),
+                f(1.1 * space)
+            );
+            if left {
+                let _ = write!(
+                    body,
+                    r#"<circle cx="{}" cy="{}" r="{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                    f(x),
+                    f(y),
+                    f(0.6 * space),
+                    f(0.07 * space)
+                );
+            }
+            body.push_str("</g>");
+        }
+        // Vibrato: a short wavy line centred over the note.
+        acorde_core::Articulation::Vibrato => {
+            let mut d = format!("M {},{}", f(x - 0.9 * space), f(y));
+            for index in 0..6 {
+                let x0 = x - 0.9 * space + index as f32 * 0.3 * space;
+                let bump = if index % 2 == 0 { -0.22 } else { 0.22 };
+                let _ = write!(
+                    d,
+                    " Q {},{} {},{}",
+                    f(x0 + 0.15 * space),
+                    f(y + bump * space),
+                    f(x0 + 0.3 * space),
+                    f(y)
+                );
+            }
+            let _ = write!(
+                body,
+                r#"<path class="acorde-articulation acorde-vibrato" d="{d}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                f(0.1 * space)
+            );
+        }
         acorde_core::Articulation::Staccato => {
             let _ = write!(
                 body,

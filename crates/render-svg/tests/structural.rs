@@ -3417,3 +3417,31 @@ fn breves_and_hundred_twenty_eighths_render() {
     assert_eq!(svg.matches("acorde-breve-bar").count(), 4);
     assert!(svg.contains("acorde-rest-breve"));
 }
+
+#[test]
+fn tapping_and_vibrato_marks_render() {
+    use acorde_core::{Articulation, Duration, Measure, Note, Part, Pitch, Score, Staff, Step};
+    let mut score = Score::new("marks", 120, 4, 4, 1, 1);
+    let mut part = Part::new("P", "");
+    let mut staff = Staff::new(acorde_core::Clef::Treble);
+    let mut measure = Measure::empty(4, 4);
+    let mut notes = Vec::new();
+    for articulation in [
+        Articulation::Tap,
+        Articulation::LeftHandTap,
+        Articulation::Vibrato,
+    ] {
+        let mut note = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+        note.articulations.push(articulation);
+        notes.push(note);
+    }
+    notes.push(Note::rest(Duration::Quarter));
+    measure.voices[0] = notes;
+    staff.measures.push(measure);
+    part.staves = vec![staff];
+    score.parts = vec![part];
+    let svg = render_svg(&score, &opts()).unwrap();
+    for class in ["acorde-tap", "acorde-left-hand-tap", "acorde-vibrato"] {
+        assert_eq!(svg.matches(&format!("{class}\"")).count(), 1, "{class}");
+    }
+}

@@ -1341,7 +1341,11 @@ fn abc_articulation_decoration(articulation: &acorde_core::Articulation) -> Opti
         acorde_core::Articulation::Stopped => Some("+"),
         acorde_core::Articulation::SnapPizzicato => Some("snap"),
         // ABC 2.1 has no harmonic decoration.
-        acorde_core::Articulation::Harmonic | acorde_core::Articulation::Tremolo(_) => None,
+        acorde_core::Articulation::Harmonic
+        | acorde_core::Articulation::Tremolo(_)
+        | acorde_core::Articulation::Tap
+        | acorde_core::Articulation::LeftHandTap
+        | acorde_core::Articulation::Vibrato => None,
     }
 }
 

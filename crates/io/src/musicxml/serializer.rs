@@ -1584,7 +1584,10 @@ fn serialize_notations(
                 | Articulation::Harmonic
                 | Articulation::OpenString
                 | Articulation::Stopped
-                | Articulation::SnapPizzicato => {}
+                | Articulation::SnapPizzicato
+                | Articulation::Tap
+                | Articulation::LeftHandTap
+                | Articulation::Vibrato => {}
             }
         }
         if !tags.is_empty() {
@@ -1650,6 +1653,13 @@ fn serialize_notations(
                 Articulation::OpenString => "open-string",
                 Articulation::Stopped => "stopped",
                 Articulation::SnapPizzicato => "snap-pizzicato",
+                Articulation::Tap => "tap",
+                Articulation::LeftHandTap => "tap hand=\"left\"",
+                // MusicXML has no vibrato mark; MuseScore shows the words.
+                Articulation::Vibrato => {
+                    xml.push_str("            <other-technical>vibrato</other-technical>\n");
+                    continue;
+                }
                 _ => continue,
             };
             xml.push_str(&format!("            <{tag}/>\n"));

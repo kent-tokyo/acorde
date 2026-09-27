@@ -9,6 +9,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Tapping and vibrato.** `Articulation` gains `Tap`, `LeftHandTap` and `Vibrato`: Guitar Pro
+  tapping (GP7 `Tapped`/`LeftHandTapped`, GP3–5 beat tapping) and note/beat vibrato — reported
+  as lost in 15 and 11 alphaTab test files — now import, draw in SVG ("T", a circled "T", a
+  short wavy line) and round-trip through MusicXML (`<tap>`, `<tap hand="left">`,
+  `<other-technical>vibrato</other-technical>`) and MEI (`@artic="tap"`). Slaps and pops
+  are still reported.
+
 - **Chord labels in other spellings.** MEI `<harm>` labels and Guitar Pro chord names are parsed
   from text; `C+`, `DMaj7`, `D7+`, `B♭6`, `F♯ø7`, `E°7`, `A-7`, `GΔ`, `Dsus` and grouped
   alterations (`G7(b9, #11)`) were not recognised and stayed plain text (MEI) or were lost (GP).

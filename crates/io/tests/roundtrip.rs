@@ -5661,3 +5661,21 @@ fn breves_and_hundred_twenty_eighths_round_trip() {
         "MSCX",
     );
 }
+
+#[test]
+fn tapping_and_vibrato_round_trip_through_musicxml() {
+    use acorde_core::Articulation;
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Guitar</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notations><technical><tap/></technical></notations></note><note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notations><technical><tap hand="left">T</tap></technical></notations></note><note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notations><technical><other-technical>vibrato</other-technical></technical></notations></note></measure></part></score-partwise>"#;
+    let check = |score: &acorde_core::Score| {
+        let voice = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(voice[0].articulations, vec![Articulation::Tap]);
+        assert_eq!(voice[1].articulations, vec![Articulation::LeftHandTap]);
+        assert_eq!(voice[2].articulations, vec![Articulation::Vibrato]);
+        assert!(voice[2].technique_text.is_none());
+    };
+    let score = parse_musicxml(xml).expect("parses");
+    check(&score);
+    let written = serialize_musicxml(&score).expect("serializes");
+    assert!(written.contains(r#"<tap hand="left"/>"#));
+    check(&parse_musicxml(&written).expect("reparses"));
+}
