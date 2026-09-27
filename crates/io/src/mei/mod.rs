@@ -1666,11 +1666,20 @@ fn parse_mei_tab_note(
     event: &BytesStart<'_>,
     tuning: Option<&[i16]>,
 ) -> Result<(Pitch, Option<acorde_core::TabPosition>), Error> {
+    // MEI counts courses from the highest string; acorde's string 1 and tuning[0] are the
+    // lowest string, so convert when the tuning (and hence the course count) is known.
+    let lines = tuning.map(|tuning| tuning.len() as u8);
     let tab = match (
         attr(event, b"tab.course").and_then(|value| value.parse::<u8>().ok()),
         attr(event, b"tab.fret").and_then(|value| value.parse::<u8>().ok()),
     ) {
-        (Some(string), Some(fret)) if string > 0 => Some(acorde_core::TabPosition { string, fret }),
+        (Some(course), Some(fret)) if course > 0 => Some(acorde_core::TabPosition {
+            string: match lines {
+                Some(lines) if course <= lines => lines + 1 - course,
+                _ => course,
+            },
+            fret,
+        }),
         _ => None,
     };
     if attr(event, b"pname").is_some() {
@@ -2728,7 +2737,8 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         && !staff_def_tuning.is_empty()
                         && let Some(staff) = score.parts[0].staves.get_mut(staff_index)
                     {
-                        staff_def_tuning.sort_by_key(|(course, _)| *course);
+                        // Course 1 is the highest string; acorde orders tuning low to high.
+                        staff_def_tuning.sort_by_key(|(course, _)| std::cmp::Reverse(*course));
                         let tuning_midi = staff_def_tuning
                             .drain(..)
                             .map(|(_, midi)| midi)
@@ -3819,9 +3829,12 @@ fn append_mei_note(
     note: &Note,
     id: &str,
     written: &[bool],
-    tab_staff: bool,
+    tab_courses: Option<u8>,
 ) -> Result<(), Error> {
-    if tab_staff && !note.is_rest && !note.pitches.is_empty() {
+    if let Some(courses) = tab_courses
+        && !note.is_rest
+        && !note.pitches.is_empty()
+    {
         // Tablature staves use <tabGrp> with string/fret on each note (pitch kept as well).
         let dur = note.duration.as_fraction().1;
         out.push_str(&format!("<tabGrp xml:id=\"{id}\" dur=\"{dur}\""));
@@ -3843,9 +3856,15 @@ fn append_mei_note(
                 .get(index)
                 .or_else(|| (index == 0).then_some(note.tab_position.as_ref()).flatten());
             if let Some(tab) = tab {
+                // acorde string 1 is the lowest; MEI course 1 is the highest.
+                let course = if tab.string >= 1 && tab.string <= courses {
+                    courses + 1 - tab.string
+                } else {
+                    tab.string
+                };
                 out.push_str(&format!(
-                    " tab.course=\"{}\" tab.fret=\"{}\"",
-                    tab.string, tab.fret
+                    " tab.course=\"{course}\" tab.fret=\"{}\"",
+                    tab.fret
                 ));
             }
             out.push_str("/>");
@@ -4196,11 +4215,13 @@ fn append_mei_staff_defs_at(
 /// `<tuning>` for a tablature staff, one `<course>` per string (course 1 = highest string).
 fn mei_tuning(tab: &acorde_core::TablatureConfig) -> String {
     let mut out = String::from("<tuning>");
+    let courses = tab.tuning_midi.len();
+    // acorde's tuning runs low to high; MEI course 1 is the highest string.
     for (index, midi) in tab.tuning_midi.iter().enumerate() {
         let Ok(midi) = u8::try_from(*midi) else {
             continue;
         };
-        out.push_str(&format!("<course n=\"{}\"", index + 1));
+        out.push_str(&format!("<course n=\"{}\"", courses - index));
         append_mei_pitch_attrs(&mut out, &Pitch::from_midi(midi.min(127), false), false);
         out.push_str("/>");
     }
@@ -4636,7 +4657,13 @@ fn append_mei_measure_staves(
                     written
                         .get(&(voice_index, note_index))
                         .map_or(&[][..], Vec::as_slice),
-                    staff.tablature.is_some(),
+                    staff.tablature.as_ref().map(|tab| {
+                        if tab.tuning_midi.is_empty() {
+                            tab.lines
+                        } else {
+                            tab.tuning_midi.len() as u8
+                        }
+                    }),
                 )?;
                 let mut closings = tuplets
                     .iter()
@@ -6117,7 +6144,7 @@ mod tests {
         let staff = &score.parts[0].staves[0];
         let tab = staff.tablature.as_ref().expect("tuning becomes tablature");
         assert_eq!(tab.lines, 6);
-        assert_eq!(tab.tuning_midi, vec![64, 59, 55, 50, 45, 40]);
+        assert_eq!(tab.tuning_midi, vec![40, 45, 50, 55, 59, 64]);
         let voice = &staff.measures[0].voices[0];
         assert_eq!(voice.len(), 2);
         let midis = voice[0]
@@ -6126,9 +6153,10 @@ mod tests {
             .map(Pitch::to_midi)
             .collect::<Vec<_>>();
         assert_eq!(midis, vec![43, 64]);
+        // Course 6 (the low E) is acorde's string 1.
         assert_eq!(
             voice[0].tab_position,
-            Some(acorde_core::TabPosition { string: 6, fret: 3 })
+            Some(acorde_core::TabPosition { string: 1, fret: 3 })
         );
         assert_eq!(voice[0].tab_positions.len(), 2);
         assert_eq!(voice[1].pitches[0].to_midi(), 52);
@@ -6142,6 +6170,13 @@ mod tests {
         assert!(export.diagnostics.is_empty(), "{:?}", export.diagnostics);
         assert!(export.output.contains("notationtype=\"tab.guitar\""));
         assert!(export.output.contains("<tabGrp "));
+        // MusicXML <string>6</string> (the low E) is MEI course 6; course 1 is the high E.
+        assert!(export.output.contains("tab.course=\"6\" tab.fret=\"3\""));
+        assert!(
+            export
+                .output
+                .contains("<course n=\"6\" pname=\"e\" oct=\"2\"/>")
+        );
         let restored = parse_mei(&export.output).expect("tab reparses");
         let tab = |score: &Score| {
             let staff = &score.parts[0].staves[0];
