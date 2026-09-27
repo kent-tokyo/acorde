@@ -9,6 +9,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **SVG stem directions.** A single voice drew every stem up unless the score fixed it. Stems
+  left open now follow the engraving rule: notes (or a beamed group, taken together) reaching
+  farther below the middle line stem up, the rest (on or above it) stem down. Authored stems,
+  grace, unpitched and cross-staff notes, and multi-voice staves are unchanged.
+- MusicXML `<forward>`/`<backup>` of zero duration are no longer reported as invalid values.
 - **[schema] Dashed text lines.** `NotationSpannerKind::Dashes` holds MusicXML `<dashes>`
   ("cresc. - - -"): imported (58 lines in 4 corpus files were dropped), exported, and drawn as a
   dashed line under (or over) the notes. MEI and MSCX export report them as unsupported.

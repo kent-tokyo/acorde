@@ -3269,6 +3269,21 @@ fn render_measure_voice<'a>(
     );
     prior_voice_events.extend(notes.iter().zip(xs.iter()).map(|(note, &x)| (x, note)));
 
+    // A lone voice's stems follow the engraving rule when the score does not fix them: the
+    // note (or beamed group) farthest below the middle line stems up, farthest above (or on
+    // it) stems down. Several voices keep up/down by voice.
+    let auto_stem_notes: Vec<Note>;
+    let notes: &[Note] = if active_voices <= 1 && tablature.is_none() {
+        auto_stem_notes = auto_stem_directions(
+            layout,
+            (part, staff, measure_idx, voice_idx),
+            notes,
+            &own_bottoms,
+        );
+        &auto_stem_notes
+    } else {
+        notes
+    };
     let (beam_tips, beam_svg, stem_dirs) = plan_measure_beams(
         layout,
         part,
@@ -3469,6 +3484,81 @@ struct VoicePositionContext<'a> {
     content_w: f32,
     space: f32,
     clef_gaps: &'a ClefGaps<'a>,
+}
+
+/// Stem up for staff positions (0 = bottom line) whose farthest note from the middle line
+/// (position 4) lies below it; a tie or the middle line itself stems down.
+fn stem_up_for_positions(positions: &[i32]) -> Option<bool> {
+    let highest = positions.iter().copied().max()?;
+    let lowest = positions.iter().copied().min()?;
+    Some(4 - lowest > highest - 4)
+}
+
+/// `notes` with each stem left open by the score set by [`stem_up_for_positions`], a beamed
+/// group taking one direction from all its notes. Rests, grace, unpitched and cross-staff notes, and
+/// groups with an authored stem, are left as they are.
+fn auto_stem_directions(
+    layout: &LayoutResult,
+    (part, staff, measure_idx, voice_idx): (usize, usize, usize, usize),
+    notes: &[Note],
+    own_bottoms: &[i32],
+) -> Vec<Note> {
+    let positions = |index: usize| -> Vec<i32> {
+        notes[index]
+            .pitches
+            .iter()
+            .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, own_bottoms[index]))
+            .collect()
+    };
+    let open = |note: &Note| {
+        note.stem_up.is_none()
+            && !note.is_rest
+            && !note.is_grace
+            && !note.is_unpitched
+            && note.cross_staff.is_none()
+            && !note.pitches.is_empty()
+    };
+    let mut directions: Vec<Option<bool>> = (0..notes.len())
+        .map(|index| {
+            if open(&notes[index]) {
+                stem_up_for_positions(&positions(index))
+            } else {
+                None
+            }
+        })
+        .collect();
+    for group in layout.beam_groups.iter().filter(|group| {
+        group.part == part
+            && group.staff == staff
+            && group.measure == measure_idx
+            && group.voice == voice_idx
+    }) {
+        let members: Vec<usize> = group
+            .note_indices
+            .iter()
+            .copied()
+            .filter(|&index| index < notes.len() && !notes[index].is_rest)
+            .collect();
+        if members.is_empty() || members.iter().any(|&index| !open(&notes[index])) {
+            continue;
+        }
+        let all: Vec<i32> = members.iter().flat_map(|&index| positions(index)).collect();
+        let direction = stem_up_for_positions(&all);
+        for index in members {
+            directions[index] = direction;
+        }
+    }
+    notes
+        .iter()
+        .zip(directions)
+        .map(|(note, direction)| {
+            let mut note = note.clone();
+            if let Some(up) = direction {
+                note.stem_up = Some(up);
+            }
+            note
+        })
+        .collect()
 }
 
 /// Display shift (diatonic steps) of every note under an ottava line, pairing each voice's

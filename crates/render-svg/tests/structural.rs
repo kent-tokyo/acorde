@@ -3290,3 +3290,35 @@ fn dashes_spanners_draw_a_dashed_line_under_their_notes() {
     assert_eq!(svg.matches(r#"class="acorde-dashes""#).count(), 1);
     assert!(svg.contains("stroke-dasharray"));
 }
+
+#[test]
+fn single_voice_stems_follow_the_middle_line_rule_unless_authored() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("stems", 120, 4, 4, 0, 1);
+    let mut notes: Vec<Note> = [(Step::G, 4), (Step::B, 4), (Step::D, 5), (Step::D, 5)]
+        .into_iter()
+        .map(|(step, octave)| Note::new(Pitch::new(step, octave), Duration::Quarter))
+        .collect();
+    notes[3].stem_up = Some(true);
+    score.parts[0].staves[0].measures[0].voices[0] = notes;
+    let svg = render_svg(&score, &opts()).unwrap();
+    let stems: Vec<bool> = svg
+        .split(r#"class="acorde-stem" x1=""#)
+        .skip(1)
+        .filter_map(|fragment| {
+            let value = |name: &str| -> Option<f32> {
+                fragment
+                    .split(&format!(r#"{name}=""#))
+                    .nth(1)?
+                    .split('"')
+                    .next()?
+                    .parse()
+                    .ok()
+            };
+            Some(value("y2")? < value("y1")?)
+        })
+        .collect();
+    // G4 below the middle line stems up; B4 on it and D5 above stem down; an authored stem
+    // is kept.
+    assert_eq!(stems, vec![true, false, false, true]);
+}

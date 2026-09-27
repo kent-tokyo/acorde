@@ -41,6 +41,11 @@ instrument now play that key (`Part::percussion_key`) instead of their display p
 
 `NotationSpannerKind` gains `Dashes`; exhaustive matches on it need an arm.
 
+SVG output changes: single-voice stems without an authored direction follow the middle-line
+rule; voltas, bar numbers on later systems, arpeggios, mid-system forward repeats, lyric
+extenders, dashed lines and ottava-shifted noteheads are drawn. Hosts comparing SVG snapshots
+should refresh them.
+
 `OttavaKind::musicxml_type` now returns MusicXML's meaning (`down` for 8va/15ma, `up` for
 8vb/15mb). Scores imported from MusicXML by earlier versions have 8va and 8vb swapped in
 `Note::ottava_start`; re-import them. `Note::pitches` under an ottava are the sounding pitch;
