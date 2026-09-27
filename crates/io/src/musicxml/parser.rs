@@ -202,6 +202,12 @@ pub(crate) fn parse_musicxml_collecting(
     let mut current_key = KeySignature::default();
     let mut current_clef = Clef::Treble;
     let mut current_clef_staff_number = 1usize;
+    // The <clef> being read (sign, line), and clef changes for staves after the first:
+    // (part, staff index, measure index, at the start of the measure, clef).
+    let mut in_clef = false;
+    let mut clef_sign = String::new();
+    let mut clef_line: Option<u8> = None;
+    let mut staff_clef_events: Vec<(usize, usize, usize, bool, Clef)> = Vec::new();
     let mut in_note = false;
     let mut note_slur_start = false;
     let mut note_slur_end = false;
@@ -398,6 +404,9 @@ pub(crate) fn parse_musicxml_collecting(
                         part_list_part_count += 1;
                     }
                     "clef" => {
+                        in_clef = true;
+                        clef_sign.clear();
+                        clef_line = None;
                         current_clef_staff_number = attr_str(e, b"number")
                             .and_then(|value| value.parse().ok())
                             .filter(|number: &usize| (1..=MAX_STAVES).contains(number))
@@ -1580,21 +1589,45 @@ pub(crate) fn parse_musicxml_collecting(
                     "mode" => {
                         current_key.mode = current_text.clone();
                     }
-                    "sign" => {
-                        current_clef = match current_text.as_str() {
-                            "G" => Clef::Treble,
-                            "F" => Clef::Bass,
-                            "C" => Clef::Alto,
-                            "percussion" => Clef::Percussion,
+                    "sign" if in_clef => {
+                        clef_sign = current_text.trim().to_string();
+                    }
+                    "line" if in_clef => {
+                        clef_line = current_text.trim().parse().ok();
+                    }
+                    "clef" if in_clef => {
+                        in_clef = false;
+                        let clef = match (clef_sign.as_str(), clef_line) {
+                            ("F", _) => Clef::Bass,
+                            ("C", Some(4)) => Clef::Tenor,
+                            ("C", _) => Clef::Alto,
+                            ("percussion", _) => Clef::Percussion,
                             _ => Clef::Treble,
                         };
-                        if current_clef_staff_number > 1
-                            && let Some(pi) = part_index
-                            && let Some(staff) = score.parts[pi]
-                                .staves
-                                .get_mut(current_clef_staff_number - 1)
-                        {
-                            staff.clef = current_clef.clone();
+                        if current_clef_staff_number > 1 {
+                            // Applied once every staff's bars exist; see below.
+                            if let Some(pi) = part_index {
+                                let measure_index =
+                                    score.parts[pi].staves[0].measures.len().saturating_sub(1);
+                                // Before any of that staff's notes in the bar, it governs the
+                                // whole bar.
+                                let staff_silent = score.parts[pi]
+                                    .staves
+                                    .get(current_clef_staff_number - 1)
+                                    .and_then(|staff| staff.measures.get(measure_index))
+                                    .is_none_or(|measure| {
+                                        measure.voices.iter().all(|voice| voice.is_empty())
+                                    });
+                                staff_clef_events.push((
+                                    pi,
+                                    current_clef_staff_number - 1,
+                                    measure_index,
+                                    measure_cursor_ticks == 0 || staff_silent,
+                                    clef,
+                                ));
+                            }
+                        } else {
+                            current_clef = clef;
                         }
                     }
                     "transpose" => {
@@ -2360,6 +2393,43 @@ pub(crate) fn parse_musicxml_collecting(
     }
     for part in &mut score.parts {
         pad_declared_staff_measures(part);
+        // The first staff's opening clef is read into its first bar; mirror it on the staff.
+        if let Some(staff) = part.staves.first_mut()
+            && let Some(clef) = staff
+                .measures
+                .first()
+                .and_then(|measure| measure.clef.clone())
+        {
+            staff.clef = clef;
+        }
+    }
+    // A clef for a later staff at the start of a bar changes that bar; one read partway through
+    // a bar (after that staff's notes, as a cue for the next system) takes effect at the next
+    // barline. The model keeps clef changes at barlines, and a pitch never depends on its clef.
+    let mut running: HashMap<(usize, usize), Clef> = HashMap::new();
+    for (part_index, staff_index, measure_index, at_start, clef) in staff_clef_events {
+        let Some(staff) = score
+            .parts
+            .get_mut(part_index)
+            .and_then(|part| part.staves.get_mut(staff_index))
+        else {
+            continue;
+        };
+        let target = if at_start {
+            measure_index
+        } else {
+            measure_index + 1
+        };
+        if target == 0 {
+            staff.clef = clef.clone();
+        } else if let Some(measure) = staff.measures.get_mut(target) {
+            let previous = running
+                .get(&(part_index, staff_index))
+                .cloned()
+                .unwrap_or_else(|| staff.clef.clone());
+            measure.clef = (clef != previous || measure.clef.is_some()).then(|| clef.clone());
+        }
+        running.insert((part_index, staff_index), clef);
     }
     score.settings.time_signature = current_time;
     score.settings.key_signature = current_key;
@@ -2395,11 +2465,13 @@ fn declared_cross_staff_home(
     if own_layer_active {
         return None;
     }
+    // Only a voice already sounding on its home staff in this measure crosses to another staff;
+    // a voice written wholly on the other staff (Finale and others number the left hand 3 or
+    // 2) belongs to that staff.
     let home_cursor = source_slots
         .get(&(home, source_voice))
         .and_then(|slot| voice_cursors.get(&(home, *slot)))
-        .copied()
-        .unwrap_or(0);
+        .copied()?;
     (home_cursor <= note_start).then_some(home)
 }
 
@@ -2426,6 +2498,19 @@ fn pad_declared_staff_measures(part: &mut Part) {
             measure.actual_length = *actual_length;
             measure.voices[0].clear();
             staff.measures.push(measure);
+        }
+        // Time signatures and bar lengths belong to the whole part: a staff whose bar was
+        // created before the part's <time> change must not keep the old meter.
+        for (index, measure) in staff.measures.iter_mut().enumerate() {
+            let Some(source) = first.measures.get(index) else {
+                break;
+            };
+            if measure.time_sig.is_none() && source.time_sig.is_some() {
+                measure.time_sig = source.time_sig.clone();
+            }
+            if measure.actual_length.is_none() {
+                measure.actual_length = source.actual_length;
+            }
         }
     }
 }

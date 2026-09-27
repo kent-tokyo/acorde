@@ -2236,12 +2236,15 @@ mod tests {
         score.parts[0]
             .staves
             .push(acorde_core::Staff::new(acorde_core::Clef::Bass));
-        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        // The voice sounds on its own staff first, then crosses: a voice written wholly on the
+        // other staff imports as that staff's own notes instead.
+        let home = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![home, note];
         let xml = serialize_musicxml(&score).unwrap();
         assert!(xml.contains("<staff>2</staff>"));
         assert!(xml.contains("<glissando number=\"1\" type=\"start\">"));
         let parsed = crate::musicxml::parser::parse_musicxml(&xml).unwrap();
-        let parsed_note = &parsed.parts[0].staves[0].measures[0].voices[0][0];
+        let parsed_note = &parsed.parts[0].staves[0].measures[0].voices[0][1];
         assert!(parsed_note.glissando_start);
         assert_eq!(
             parsed_note.cross_staff.as_ref().map(|c| c.target_staff),

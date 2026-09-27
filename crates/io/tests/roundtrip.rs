@@ -3921,3 +3921,65 @@ fn mei_partial_chord_ties_round_trip_per_note() {
     let chord = &back.parts[0].staves[0].measures[0].voices[0][0];
     assert_eq!(chord.pitch_tie_starts, vec![true, false]);
 }
+
+#[cfg(feature = "musicxml")]
+#[test]
+fn musicxml_voice_written_wholly_on_the_other_staff_belongs_to_that_staff() {
+    // Finale-style piano: the left hand is voice 3 but sits on staff 2 for the whole bar.
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Pno</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><note><pitch><step>C</step><octave>5</octave></pitch><duration>2</duration><voice>1</voice><type>half</type><staff>1</staff></note><backup><duration>2</duration></backup><note><pitch><step>C</step><octave>3</octave></pitch><duration>2</duration><voice>3</voice><type>half</type><staff>2</staff></note></measure></part></score-partwise>"#;
+    let score = parse_musicxml(xml).expect("parses");
+    let staves = &score.parts[0].staves;
+    let left_hand: Vec<_> = staves[1].measures[0].voices.iter().flatten().collect();
+    assert_eq!(left_hand.len(), 1, "voice 3 lands on staff 2");
+    assert!(left_hand[0].cross_staff.is_none());
+    assert!(
+        staves[0].measures[0]
+            .voices
+            .iter()
+            .flatten()
+            .all(|note| note.cross_staff.is_none())
+    );
+}
+
+#[cfg(feature = "musicxml")]
+#[test]
+fn musicxml_clef_changes_on_a_later_staff_are_kept() {
+    // Staff 2 starts in bass clef, switches to treble at the end of bar 1 (a cue for bar 2) and
+    // back to bass at the start of bar 3; staff 1 reads a C clef on line 4 (tenor).
+    let note = |step: &str, octave: u8, staff: u8| {
+        format!(
+            "<note><pitch><step>{step}</step><octave>{octave}</octave></pitch><duration>2</duration><voice>{}</voice><type>half</type><staff>{staff}</staff></note>",
+            if staff == 1 { 1 } else { 5 }
+        )
+    };
+    let bar = |number: u8, lead: &str, tail: &str, low: &str| {
+        format!(
+            "<measure number=\"{number}\">{lead}{}<backup><duration>2</duration></backup>{}{tail}</measure>",
+            note("D", 4, 1),
+            note(low, 3, 2)
+        )
+    };
+    let xml = format!(
+        r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Pno</part-name></score-part></part-list><part id="P1">{}{}{}</part></score-partwise>"#,
+        bar(
+            1,
+            r#"<attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>C</sign><line>4</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes>"#,
+            r#"<attributes><clef number="2"><sign>G</sign><line>2</line></clef></attributes>"#,
+            "C"
+        ),
+        bar(2, "", "", "A"),
+        bar(
+            3,
+            r#"<attributes><clef number="2"><sign>F</sign><line>4</line></clef></attributes>"#,
+            "",
+            "C"
+        ),
+    );
+    let score = parse_musicxml(&xml).expect("parses");
+    let staves = &score.parts[0].staves;
+    assert_eq!(staves[0].clef, acorde_core::Clef::Tenor);
+    assert_eq!(staves[1].clef, acorde_core::Clef::Bass);
+    assert_eq!(staves[1].measures[0].clef, None);
+    assert_eq!(staves[1].measures[1].clef, Some(acorde_core::Clef::Treble));
+    assert_eq!(staves[1].measures[2].clef, Some(acorde_core::Clef::Bass));
+}
