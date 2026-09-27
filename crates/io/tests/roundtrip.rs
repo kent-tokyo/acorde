@@ -5111,3 +5111,64 @@ fn musicxml_reads_double_dots_and_notes_without_a_type() {
         ]
     );
 }
+
+#[test]
+fn abc_reads_and_writes_multi_line_tunes_with_chords_dynamics_voices_and_key_changes() {
+    use acorde_core::{Clef, HairpinKind};
+    let abc = "X:1\nT:Reel\nM:4/4\nL:1/8\nK:D\nV:T1 name=\"Fiddle\"\n!p! \"D\"A>B !<(!c2 !<)!d2 !f!e2|\"G\"g4 \"A7\"a4|\nK:G\n[M:3/4]\"Em\"g2 \"^rit.\"a2 b2|]\nw: la la la la la la la la la la\nV:B clef=bass\nD,8|D,8|G,6|]\n";
+    let score = acorde_io::parse_abc(abc).expect("parses");
+    let check = |score: &acorde_core::Score, label: &str| {
+        assert_eq!(score.parts.len(), 2, "{label}");
+        assert_eq!(score.parts[0].name, "Fiddle", "{label}");
+        assert_eq!(score.parts[1].staves[0].clef, Clef::Bass, "{label}");
+        let measures = &score.parts[0].staves[0].measures;
+        assert_eq!(measures.len(), 3, "{label}");
+        let first = &measures[0].voices[0];
+        assert_eq!(
+            first[0].chord_symbol.as_ref().map(|c| c.display_text()),
+            Some("D".to_string()),
+            "{label}"
+        );
+        assert!(first[0].dynamic.is_some(), "{label}");
+        assert_eq!(first[0].dot_count, 1, "{label}");
+        assert_eq!(
+            first[2].hairpin_start,
+            Some(HairpinKind::Crescendo),
+            "{label}"
+        );
+        assert!(first[3].hairpin_end, "{label}");
+        assert_eq!(
+            measures[1].voices[0][1]
+                .chord_symbol
+                .as_ref()
+                .map(|c| c.kind.as_str()),
+            Some("dominant"),
+            "{label}"
+        );
+        assert_eq!(
+            measures[2].key_sig.as_ref().map(|k| k.fifths),
+            Some(1),
+            "{label}"
+        );
+        assert_eq!(
+            measures[2]
+                .time_sig
+                .as_ref()
+                .map(|t| (t.numerator, t.denominator)),
+            Some((3, 4)),
+            "{label}"
+        );
+        assert_eq!(
+            first[0].lyric.as_ref().map(|l| l.text.as_str()),
+            Some("la"),
+            "{label}"
+        );
+        assert_eq!(score.parts[1].staves[0].measures.len(), 3, "{label}");
+    };
+    check(&score, "import");
+    let text = acorde_io::serialize_abc(&score).expect("exports");
+    check(
+        &acorde_io::parse_abc(&text).expect("re-imports"),
+        "round trip",
+    );
+}

@@ -14,8 +14,8 @@ use crate::{Diagnostic, DiagnosticSeverity, Error, MAX_ABC_LINE_BYTES, MAX_INPUT
 ///
 /// Reference: <https://abcnotation.com/wiki/abc:standard:v2.1>
 use acorde_core::{
-    Barline, Clef, Duration, KeySignature, Measure, Note, Part, Pitch, Score, Staff, Step,
-    TimeSignature, TupletInfo,
+    Barline, ChordSymbol, Clef, Duration, Dynamic, HairpinKind, KeySignature, Measure, Note, Part,
+    Pitch, Score, Staff, Step, StyledText, TextStyle, TimeSignature, TupletInfo,
 };
 
 const MAX_LINES: usize = 10_000;
@@ -80,21 +80,6 @@ pub fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
                     continue;
                 }
             }
-            if matches!(delimiter, '<' | '>') {
-                let mut diagnostic = Diagnostic::warning(
-                    "abc.unsupported-rhythm-marker",
-                    "ABC broken-rhythm markers are outside the canonical duration subset",
-                );
-                diagnostic.source_location =
-                    Some(format!("/line/{line_number}/body/{}", index + 1));
-                diagnostic.preserved_value = Some(delimiter.to_string());
-                diagnostics.push(diagnostic);
-                index += 1;
-                if diagnostics.len() >= MAX_DIAGNOSTICS {
-                    return diagnostics;
-                }
-                continue;
-            }
             if delimiter != '!' && delimiter != '+' {
                 index += 1;
                 continue;
@@ -107,7 +92,20 @@ pub fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
                 break;
             };
             let value: String = chars[index + 1..end].iter().collect();
-            if abc_decoration_articulation(&value).is_none() {
+            if abc_decoration_articulation(&value).is_none()
+                && Dynamic::from_musicxml_str(value.trim()).is_none()
+                && !matches!(
+                    value.trim(),
+                    "crescendo("
+                        | "<("
+                        | "diminuendo("
+                        | ">("
+                        | "crescendo)"
+                        | "<)"
+                        | "diminuendo)"
+                        | ">)"
+                )
+            {
                 let mut diagnostic = Diagnostic::warning(
                     "abc.unsupported-decoration",
                     "ABC decoration is not represented by the canonical score model",
@@ -157,6 +155,7 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
     let mut pending_tie_end = false;
     let mut pending_slur_start = false;
     let mut grace_group_active = false;
+    let mut voice_ids: Vec<String> = Vec::new();
 
     for (line_idx, raw_line) in text.lines().enumerate() {
         if line_idx >= MAX_LINES {
@@ -191,6 +190,7 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
                 pending_tie_end: &mut pending_tie_end,
                 pending_slur_start: &mut pending_slur_start,
                 grace_group_active: &mut grace_group_active,
+                voice_ids: &mut voice_ids,
             },
         )? {
             continue;
@@ -202,7 +202,7 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
                 AbcBodyContext {
                     score: &mut score,
                     unit_den: &mut unit_den,
-                    time: &time,
+                    time: &mut time,
                     current_measure_number: &mut current_measure_number,
                     note_count: &mut note_count,
                     pending_tie_end: &mut pending_tie_end,
@@ -214,6 +214,19 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
         }
     }
 
+    // A barline opens the next bar even at the end of a line; the last one stays empty.
+    for part in &mut score.parts {
+        if let Some(staff) = part.staves.first_mut() {
+            while staff.measures.len() > 1
+                && staff
+                    .measures
+                    .last()
+                    .is_some_and(|m| m.voices.iter().all(Vec::is_empty))
+            {
+                staff.measures.pop();
+            }
+        }
+    }
     // Pad last measure
     let beats = time.total_beats();
     for part in &mut score.parts {
@@ -228,16 +241,17 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
 
     apply_abc_lyrics(&mut score, &lyric_lines);
 
-    // Renumber and annotate first measure
+    // Renumber and annotate first measure with the header's key and meter (body K:/M: fields
+    // are changes on their own bars).
     let key = score.settings.key_signature.clone();
-    let ts = time.clone();
+    let ts = score.settings.time_signature.clone();
     for part in &mut score.parts {
         if let Some(staff) = part.staves.first_mut() {
             for (i, m) in staff.measures.iter_mut().enumerate() {
                 m.number = i as u32 + 1;
                 if i == 0 {
-                    m.time_sig = Some(ts.clone());
-                    m.key_sig = Some(key.clone());
+                    m.time_sig.get_or_insert_with(|| ts.clone());
+                    m.key_sig.get_or_insert_with(|| key.clone());
                 }
             }
         }
@@ -269,6 +283,7 @@ struct AbcHeaderContext<'a> {
     pending_tie_end: &'a mut bool,
     pending_slur_start: &'a mut bool,
     grace_group_active: &'a mut bool,
+    voice_ids: &'a mut Vec<String>,
 }
 
 fn parse_abc_header_line(line: &str, context: AbcHeaderContext<'_>) -> Result<bool, Error> {
@@ -286,6 +301,7 @@ fn parse_abc_header_line(line: &str, context: AbcHeaderContext<'_>) -> Result<bo
         pending_tie_end,
         pending_slur_start,
         grace_group_active,
+        voice_ids,
     } = context;
     let field = &line[0..1];
     let value = line[2..].trim();
@@ -321,7 +337,11 @@ fn parse_abc_header_line(line: &str, context: AbcHeaderContext<'_>) -> Result<bo
                 numerator,
                 denominator,
             };
-            score.settings.time_signature = time.clone();
+            if *in_header {
+                score.settings.time_signature = time.clone();
+            } else {
+                apply_abc_body_change(score, *current_part_index, Some(time.clone()), None);
+            }
         }
         "L" => {
             if let Some(denominator) = value.split('/').nth(1) {
@@ -335,18 +355,40 @@ fn parse_abc_header_line(line: &str, context: AbcHeaderContext<'_>) -> Result<bo
             }
         }
         "K" => {
-            let (fifths, mode) = parse_key(value);
-            score.settings.key_signature = KeySignature { fifths, mode };
+            let (key_text, clef) = split_abc_clef(value);
+            let (fifths, mode) = parse_key(&key_text);
+            let key = KeySignature { fifths, mode };
+            if *in_header {
+                score.settings.key_signature = key;
+            } else {
+                apply_abc_body_change(score, *current_part_index, None, Some(key));
+            }
+            if let Some(clef) = clef
+                && let Some(staff) = score
+                    .parts
+                    .get_mut(*current_part_index)
+                    .and_then(|part| part.staves.first_mut())
+            {
+                staff.clef = clef;
+            }
             *in_header = false;
         }
         "V" => {
-            let voice_number = value
+            // Voices are named by any id (`V:1`, `V:T1`, `V:Tenor`); each becomes a part.
+            let id = value
                 .split_whitespace()
                 .next()
-                .and_then(|number| number.parse::<usize>().ok())
-                .filter(|&number| (1..=32).contains(&number))
+                .filter(|id| !id.is_empty())
                 .ok_or_else(|| Error::Abc(format!("invalid ABC voice: {value}")))?;
-            *current_part_index = voice_number - 1;
+            let index = match voice_ids.iter().position(|known| known == id) {
+                Some(index) => index,
+                None if voice_ids.len() < 32 => {
+                    voice_ids.push(id.to_string());
+                    voice_ids.len() - 1
+                }
+                None => return Err(Error::Abc(format!("too many ABC voices: {value}"))),
+            };
+            *current_part_index = index;
             *current_measure_number = 0;
             *pending_tie_end = false;
             *pending_slur_start = false;
@@ -357,6 +399,20 @@ fn parse_abc_header_line(line: &str, context: AbcHeaderContext<'_>) -> Result<bo
                 part.staves.push(Staff::new(Clef::Treble));
                 score.parts.push(part);
             }
+            let (_, clef) = split_abc_clef(value);
+            if let Some(part) = score.parts.get_mut(*current_part_index) {
+                if let Some(clef) = clef
+                    && let Some(staff) = part.staves.first_mut()
+                {
+                    staff.clef = clef;
+                }
+                if let Some(name) = abc_voice_property(value, &["name", "nm"]) {
+                    part.name = name;
+                }
+                if let Some(short) = abc_voice_property(value, &["subname", "snm"]) {
+                    part.short_name = short;
+                }
+            }
         }
         _ => {}
     }
@@ -366,7 +422,7 @@ fn parse_abc_header_line(line: &str, context: AbcHeaderContext<'_>) -> Result<bo
 struct AbcBodyContext<'a> {
     score: &'a mut Score,
     unit_den: &'a mut u32,
-    time: &'a TimeSignature,
+    time: &'a mut TimeSignature,
     current_measure_number: &'a mut u32,
     note_count: &'a mut usize,
     pending_tie_end: &'a mut bool,
@@ -423,9 +479,78 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
     let mut i = 0;
     let mut pending_articulations = Vec::new();
     let mut pending_tuplet: Option<(TupletInfo, usize)> = None;
+    // Marks written before a note (chord symbols, dynamics, hairpin starts and ends) attach to
+    // the next note or rest the line appends.
+    let mut marks = AbcPendingMarks::default();
+    let mut last_note = abc_last_note_position(staff);
 
-    while i < chars.len() {
+    loop {
+        let position = abc_last_note_position(staff);
+        if position != last_note {
+            last_note = position;
+            marks.apply(staff);
+        }
+        if i >= chars.len() {
+            break;
+        }
         let ch = chars[i];
+
+        // Quoted text: a chord symbol, or an annotation when it starts with ^ _ < > @.
+        if ch == '"' {
+            let Some(end) = chars[i + 1..]
+                .iter()
+                .position(|c| *c == '"')
+                .map(|offset| i + 1 + offset)
+            else {
+                break;
+            };
+            let text: String = chars[i + 1..end].iter().collect();
+            if let Some(annotation) = text.strip_prefix(['^', '_', '<', '>', '@']) {
+                if let Some(measure) = staff.measures.last_mut()
+                    && !annotation.trim().is_empty()
+                {
+                    measure.texts.push(StyledText {
+                        style: TextStyle::Expression,
+                        text: annotation.trim().to_string(),
+                        placement: Some(
+                            if text.starts_with('_') {
+                                "below"
+                            } else {
+                                "above"
+                            }
+                            .to_string(),
+                        ),
+                        offset_x: None,
+                        offset_y: None,
+                        relative_x: None,
+                        relative_y: None,
+                    });
+                }
+            } else if let Some(chord) = parse_abc_chord_symbol(&text) {
+                marks.chord_symbol = Some(chord);
+            }
+            i = end + 1;
+            continue;
+        }
+
+        // Broken rhythm: `a>b` dots the first note and halves the second, `a<b` the reverse;
+        // `>>`/`<<` double it.
+        if matches!(ch, '>' | '<') {
+            let mut count = 0u8;
+            while chars.get(i + usize::from(count)) == Some(&ch) {
+                count += 1;
+            }
+            if let Some(note) = staff
+                .measures
+                .last_mut()
+                .and_then(|measure| measure.voices[0].last_mut())
+            {
+                apply_abc_broken_rhythm(note, ch == '>', count);
+                marks.broken = Some((ch == '<', count));
+            }
+            i += usize::from(count);
+            continue;
+        }
 
         if ch == '%' {
             break;
@@ -468,6 +593,15 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
             let value: String = chars[i + 1..end].iter().collect();
             if let Some(articulation) = abc_decoration_articulation(&value) {
                 pending_articulations.push(articulation);
+            } else if let Some(dynamic) = Dynamic::from_musicxml_str(value.trim()) {
+                marks.dynamic = Some(dynamic);
+            } else {
+                match value.trim() {
+                    "crescendo(" | "<(" => marks.hairpin = Some(HairpinKind::Crescendo),
+                    "diminuendo(" | ">(" => marks.hairpin = Some(HairpinKind::Decrescendo),
+                    "crescendo)" | "<)" | "diminuendo)" | ">)" => marks.hairpin_end = true,
+                    _ => {}
+                }
             }
             i = end + 1;
             continue;
@@ -483,7 +617,9 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
                 m.barline_right = right_barline;
             }
             i = next_index;
-            if i < chars.len() && chars[i] != ']' {
+            // The next bar opens here even at the end of a line (a tune's next line continues
+            // in it); a trailing empty bar is dropped once the tune is read.
+            if chars.get(i) != Some(&']') {
                 let mut m = Measure::empty(time.numerator, time.denominator);
                 *current_measure_number += 1;
                 m.number = *current_measure_number;
@@ -528,10 +664,33 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
             let field: String = chars[i + 1..end].iter().collect();
             if let Some(colon) = field.find(':') {
                 let fval = field[colon + 1..].trim();
-                if &field[..colon] == "L"
-                    && let Some(d) = fval.split('/').nth(1)
-                {
-                    *unit_den = d.parse().unwrap_or(*unit_den);
+                match &field[..colon] {
+                    "L" => {
+                        if let Some(d) = fval.split('/').nth(1) {
+                            *unit_den = d.parse().unwrap_or(*unit_den);
+                        }
+                    }
+                    "M" => {
+                        let (numerator, denominator) = parse_meter(fval);
+                        *time = TimeSignature {
+                            numerator,
+                            denominator,
+                        };
+                        if let Some(measure) = staff.measures.last_mut() {
+                            measure.time_sig = Some(time.clone());
+                        }
+                    }
+                    "K" => {
+                        let (key_text, clef) = split_abc_clef(fval);
+                        let (fifths, mode) = parse_key(&key_text);
+                        if let Some(measure) = staff.measures.last_mut() {
+                            measure.key_sig = Some(KeySignature { fifths, mode });
+                        }
+                        if let Some(clef) = clef {
+                            staff.clef = clef;
+                        }
+                    }
+                    _ => {}
                 }
                 i = end + 1;
                 continue;
@@ -595,6 +754,123 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
     }
 
     Ok(())
+}
+
+/// Marks read before a note, waiting for the note they belong to.
+#[derive(Default)]
+struct AbcPendingMarks {
+    chord_symbol: Option<ChordSymbol>,
+    dynamic: Option<Dynamic>,
+    hairpin: Option<HairpinKind>,
+    hairpin_end: bool,
+    /// The second note of a broken-rhythm pair: (lengthen, count).
+    broken: Option<(bool, u8)>,
+}
+
+impl AbcPendingMarks {
+    fn apply(&mut self, staff: &mut Staff) {
+        let Some(note) = staff
+            .measures
+            .last_mut()
+            .and_then(|measure| measure.voices[0].last_mut())
+        else {
+            return;
+        };
+        if let Some(chord) = self.chord_symbol.take() {
+            note.chord_symbol = Some(chord);
+        }
+        if let Some(dynamic) = self.dynamic.take() {
+            note.dynamic = Some(dynamic);
+        }
+        if std::mem::take(&mut self.hairpin_end) {
+            note.hairpin_end = true;
+        }
+        if let Some(kind) = self.hairpin.take() {
+            note.hairpin_start = Some(kind);
+        }
+        if let Some((lengthen, count)) = self.broken.take() {
+            apply_abc_broken_rhythm(note, lengthen, count);
+        }
+    }
+}
+
+/// Where the staff's last note is (bar count, notes in its last bar's first voice).
+fn abc_last_note_position(staff: &Staff) -> (usize, usize) {
+    (
+        staff.measures.len(),
+        staff
+            .measures
+            .last()
+            .map_or(0, |measure| measure.voices[0].len()),
+    )
+}
+
+/// One note of a broken-rhythm pair: lengthened by `count` dots, or shortened by as many
+/// halvings (`a>b` is a dotted `a` and a halved `b`).
+fn apply_abc_broken_rhythm(note: &mut Note, lengthen: bool, count: u8) {
+    if lengthen {
+        note.dot_count = note.dot_count.saturating_add(count).min(3);
+    } else {
+        for _ in 0..count {
+            note.duration = match note.duration {
+                Duration::Whole => Duration::Half,
+                Duration::Half => Duration::Quarter,
+                Duration::Quarter => Duration::Eighth,
+                Duration::Eighth => Duration::Sixteenth,
+                Duration::Sixteenth => Duration::ThirtySecond,
+                Duration::ThirtySecond | Duration::SixtyFourth => Duration::SixtyFourth,
+            };
+        }
+    }
+}
+
+/// A quoted ABC chord symbol (`"Am7"`, `"G/B"`, `"F#dim"`); `None` for other text.
+fn parse_abc_chord_symbol(text: &str) -> Option<ChordSymbol> {
+    let text = text.trim();
+    let (label, bass) = match text.split_once('/') {
+        Some((label, bass)) => (label, Some(bass.trim())),
+        None => (text, None),
+    };
+    let mut chars = label.chars();
+    let step = chars.next().filter(|c| matches!(c, 'A'..='G'))?;
+    let accidental = match chars.clone().next() {
+        Some('#' | '♯') => "#",
+        Some('b' | '♭') => "b",
+        _ => "",
+    };
+    let suffix: String = if accidental.is_empty() {
+        chars.collect()
+    } else {
+        chars.skip(1).collect()
+    };
+    if let Some(bass) = bass
+        && !bass.chars().next().is_some_and(|c| matches!(c, 'A'..='G'))
+    {
+        return None;
+    }
+    let kind = ChordSymbol::kind_for_suffix(&suffix)
+        .map(str::to_string)
+        .unwrap_or_else(|| match suffix.as_str() {
+            "min" | "-" => "minor".to_string(),
+            "maj" => "major".to_string(),
+            "+" => "augmented".to_string(),
+            "o" => "diminished".to_string(),
+            "sus" => "suspended-fourth".to_string(),
+            other => other.to_string(),
+        });
+    Some(ChordSymbol {
+        root: format!("{step}{accidental}"),
+        kind,
+        bass: bass.map(|bass| bass.replace('♯', "#").replace('♭', "b")),
+        placement: None,
+        extender: false,
+        harmonic_degree: None,
+        harmony_function: None,
+        harmony_type: None,
+        chord_ref: None,
+        range_end: None,
+        degrees: Vec::new(),
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1180,6 +1456,71 @@ fn pad_voice(voice: &mut Vec<Note>, max_beats: f64) {
     }
 }
 
+/// Apply a body `M:`/`K:` field (or inline `[M:]`/`[K:]`) to the current voice's bar: the one
+/// being written, which a preceding barline has already opened.
+fn apply_abc_body_change(
+    score: &mut Score,
+    part_index: usize,
+    time: Option<TimeSignature>,
+    key: Option<KeySignature>,
+) {
+    let Some(measure) = score
+        .parts
+        .get_mut(part_index)
+        .and_then(|part| part.staves.first_mut())
+        .and_then(|staff| staff.measures.last_mut())
+    else {
+        return;
+    };
+    if let Some(time) = time {
+        measure.time_sig = Some(time);
+    }
+    if let Some(key) = key {
+        measure.key_sig = Some(key);
+    }
+}
+
+/// Split a `K:`/`V:` value into the part before its properties and a `clef=` (or bare clef
+/// word) it names.
+fn split_abc_clef(value: &str) -> (String, Option<Clef>) {
+    let mut rest = Vec::new();
+    let mut clef = None;
+    for token in value.split_whitespace() {
+        let explicit = token.strip_prefix("clef=");
+        let parsed = match explicit.unwrap_or(token).to_ascii_lowercase().as_str() {
+            "treble" => Some(Clef::Treble),
+            "bass" => Some(Clef::Bass),
+            "alto" => Some(Clef::Alto),
+            "tenor" => Some(Clef::Tenor),
+            "g" | "g2" if explicit.is_some() => Some(Clef::Treble),
+            "f" | "f4" if explicit.is_some() => Some(Clef::Bass),
+            "c3" if explicit.is_some() => Some(Clef::Alto),
+            "c4" if explicit.is_some() => Some(Clef::Tenor),
+            _ => None,
+        };
+        if parsed.is_some() {
+            clef = parsed;
+        } else if !token.contains('=') {
+            rest.push(token);
+        }
+    }
+    (rest.join(" "), clef)
+}
+
+/// A `key="value"` (or `key=value`) property of a `V:` field.
+fn abc_voice_property(value: &str, keys: &[&str]) -> Option<String> {
+    keys.iter().find_map(|key| {
+        let start = value.find(&format!("{key}="))? + key.len() + 1;
+        let tail = &value[start..];
+        let text = if let Some(quoted) = tail.strip_prefix('"') {
+            quoted.split('"').next()?
+        } else {
+            tail.split_whitespace().next()?
+        };
+        (!text.is_empty()).then(|| text.to_string())
+    })
+}
+
 fn apply_abc_lyrics(score: &mut Score, lyric_lines: &[(usize, String)]) {
     let mut cursors = vec![0usize; score.parts.len()];
     for (part_index, line) in lyric_lines {
@@ -1260,90 +1601,154 @@ pub fn serialize_abc(score: &Score) -> Result<String, Error> {
         return Ok(out);
     }
 
-    let multi_part = score.parts.len() > 1;
+    // Every staff is its own ABC voice; a single-staff score needs no `V:` field.
+    let voice_count: usize = score.parts.iter().map(|part| part.staves.len()).sum();
+    let mut voice_number = 0usize;
 
     for (i, part) in score.parts.iter().enumerate() {
-        if multi_part {
-            out.push_str(&format!("V:{}\n", i + 1));
-        }
-        let staff = match part.staves.first() {
-            Some(s) => s,
-            None => continue,
-        };
-        for (measure_index, measure) in staff.measures.iter().enumerate() {
-            if let Some(volta) = &measure.volta
-                && matches!(volta.kind.as_str(), "begin" | "begin_end")
-            {
-                out.push_str(&format!("[{} ", volta.number));
-            }
-            if measure_index == 0 && !matches!(measure.barline_left, Barline::Normal) {
-                out.push_str(barline_to_abc(&measure.barline_left));
-            }
-            let Some(notes) = measure.voices.first() else {
-                return Err(Error::Abc(format!(
-                    "part {} measure {} has no voice 1",
-                    i + 1,
-                    measure_index + 1
-                )));
-            };
-            let mut note_index = 0;
-            while note_index < notes.len() {
-                if let Some(tuplet) = &notes[note_index].tuplet {
-                    let mut group_len = 0usize;
-                    while note_index + group_len < notes.len()
-                        && notes[note_index + group_len].tuplet.as_ref() == Some(tuplet)
-                        && group_len < usize::from(tuplet.actual_notes)
-                    {
-                        group_len += 1;
-                    }
-                    if group_len == usize::from(tuplet.actual_notes) {
-                        out.push_str(&format!(
-                            "({}:{}:{}",
-                            tuplet.actual_notes, tuplet.normal_notes, group_len
-                        ));
-                    }
-                    let emit_len = if group_len == usize::from(tuplet.actual_notes) {
-                        group_len
-                    } else {
-                        1
-                    };
-                    for note in &notes[note_index..note_index + emit_len] {
-                        out.push_str(&note_to_abc(note));
-                    }
-                    note_index += emit_len;
-                } else {
-                    out.push_str(&note_to_abc(&notes[note_index]));
-                    note_index += 1;
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            voice_number += 1;
+            if voice_count > 1 || !matches!(staff.clef, Clef::Treble) {
+                out.push_str(&format!("V:{voice_number}"));
+                if staff_index == 0 && !part.name.trim().is_empty() {
+                    out.push_str(&format!(" name=\"{}\"", part.name.replace('"', "'")));
                 }
-            }
-            out.push_str(barline_to_abc(&measure.barline_right));
-        }
-        out.push('\n');
-        if i == 0 {
-            let lyric_tokens = staff
-                .measures
-                .iter()
-                .filter_map(|measure| measure.voices.first())
-                .flat_map(|voice| voice.iter())
-                .filter(|note| !note.is_rest)
-                .map(|note| {
-                    note.lyric
-                        .as_ref()
-                        .map_or_else(|| "*".to_string(), abc_lyric_token)
-                })
-                .collect::<Vec<_>>();
-            if !lyric_tokens.is_empty() {
-                out.push_str("w:");
-                for token in lyric_tokens {
-                    out.push(' ');
-                    out.push_str(&token);
+                match staff.clef {
+                    Clef::Bass => out.push_str(" clef=bass"),
+                    Clef::Alto => out.push_str(" clef=alto"),
+                    Clef::Tenor => out.push_str(" clef=tenor"),
+                    _ => {}
                 }
                 out.push('\n');
             }
+            write_abc_staff(&mut out, staff, i)?;
         }
     }
 
     Ok(out)
+}
+
+/// One staff's bars as an ABC voice line (voice 1 only), followed by its lyrics.
+fn write_abc_staff(out: &mut String, staff: &Staff, part_index: usize) -> Result<(), Error> {
+    let mut open_hairpin: Option<HairpinKind> = None;
+    for (measure_index, measure) in staff.measures.iter().enumerate() {
+        if let Some(volta) = &measure.volta
+            && matches!(volta.kind.as_str(), "begin" | "begin_end")
+        {
+            out.push_str(&format!("[{} ", volta.number));
+        }
+        if measure_index == 0 && !matches!(measure.barline_left, Barline::Normal) {
+            out.push_str(barline_to_abc(&measure.barline_left));
+        }
+        // Meter and key changes after the first bar are inline fields.
+        if measure_index > 0 {
+            if let Some(time) = &measure.time_sig {
+                out.push_str(&format!("[M:{}/{}]", time.numerator, time.denominator));
+            }
+            if let Some(key) = &measure.key_sig {
+                out.push_str(&format!("[K:{}]", fifths_to_abc_key(key.fifths, &key.mode)));
+            }
+        }
+        for text in &measure.texts {
+            if matches!(
+                text.style,
+                TextStyle::Expression | TextStyle::Technique | TextStyle::Generic
+            ) {
+                let place = if text.placement.as_deref() == Some("below") {
+                    '_'
+                } else {
+                    '^'
+                };
+                out.push_str(&format!("\"{place}{}\"", text.text.replace('"', "'")));
+            }
+        }
+        let Some(notes) = measure.voices.first() else {
+            return Err(Error::Abc(format!(
+                "part {} measure {} has no voice 1",
+                part_index + 1,
+                measure_index + 1
+            )));
+        };
+        let mut note_index = 0;
+        while note_index < notes.len() {
+            let emit_len = if let Some(tuplet) = &notes[note_index].tuplet {
+                let mut group_len = 0usize;
+                while note_index + group_len < notes.len()
+                    && notes[note_index + group_len].tuplet.as_ref() == Some(tuplet)
+                    && group_len < usize::from(tuplet.actual_notes)
+                {
+                    group_len += 1;
+                }
+                if group_len == usize::from(tuplet.actual_notes) {
+                    out.push_str(&format!(
+                        "({}:{}:{}",
+                        tuplet.actual_notes, tuplet.normal_notes, group_len
+                    ));
+                    group_len
+                } else {
+                    1
+                }
+            } else {
+                1
+            };
+            for note in &notes[note_index..note_index + emit_len] {
+                out.push_str(&abc_note_marks(note, &mut open_hairpin));
+                out.push_str(&note_to_abc(note));
+            }
+            note_index += emit_len;
+        }
+        out.push_str(barline_to_abc(&measure.barline_right));
+    }
+    out.push('\n');
+    let lyric_tokens = staff
+        .measures
+        .iter()
+        .filter_map(|measure| measure.voices.first())
+        .flat_map(|voice| voice.iter())
+        .filter(|note| !note.is_rest)
+        .map(|note| {
+            note.lyric
+                .as_ref()
+                .map_or_else(|| "*".to_string(), abc_lyric_token)
+        })
+        .collect::<Vec<_>>();
+    if lyric_tokens.iter().any(|token| token != "*") {
+        out.push_str("w:");
+        for token in lyric_tokens {
+            out.push(' ');
+            out.push_str(&token);
+        }
+        out.push('\n');
+    }
+    Ok(())
+}
+
+/// Marks ABC writes before a note: its chord symbol, a hairpin ending on it, its dynamic, and
+/// a hairpin starting on it.
+fn abc_note_marks(note: &Note, open_hairpin: &mut Option<HairpinKind>) -> String {
+    let mut marks = String::new();
+    if let Some(chord) = &note.chord_symbol {
+        marks.push_str(&format!("\"{}\"", chord.display_text().replace('"', "'")));
+    }
+    if note.hairpin_end
+        && let Some(kind) = open_hairpin.take()
+    {
+        marks.push_str(match kind {
+            HairpinKind::Crescendo => "!<)!",
+            _ => "!>)!",
+        });
+    }
+    if let Some(dynamic) = &note.dynamic {
+        marks.push_str(&format!("!{}!", dynamic.to_musicxml_str()));
+    }
+    if let Some(kind) = note.hairpin_start {
+        marks.push_str(match kind {
+            HairpinKind::Crescendo => "!<(!",
+            _ => "!>(!",
+        });
+        *open_hairpin = Some(kind);
+    }
+    marks
 }
 
 fn abc_lyric_token(lyric: &acorde_core::Lyric) -> String {
@@ -1425,23 +1830,6 @@ fn abc_note_export_losses(
                 note.offset_x, note.offset_y, note.relative_x, note.relative_y
             ),
             "ABC export does not emit MusicXML note placement offsets",
-        ),
-        (
-            "chord-symbol",
-            note.chord_symbol.is_some(),
-            note.chord_symbol
-                .as_ref()
-                .map_or_else(|| "present".to_string(), |chord| chord.display_text()),
-            "ABC export does not emit note chord-symbol annotations",
-        ),
-        (
-            "dynamic",
-            note.dynamic.is_some(),
-            note.dynamic.as_ref().map_or_else(
-                || "present".to_string(),
-                |dynamic| dynamic.to_musicxml_str().to_string(),
-            ),
-            "ABC export does not emit note dynamics",
         ),
         (
             "note_head",
@@ -1615,91 +2003,92 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                 push(format!("{part_path}/{field}"), value, reason);
             }
         }
-        if part.staves.len() > 1 {
-            push(
-                format!("/score/part/{}/staves", part_index + 1),
-                part.staves.len().to_string(),
-                "ABC export includes only the first staff of each part",
-            );
-        }
-        let Some(staff) = part.staves.first() else {
-            continue;
-        };
-        if staff.tablature.is_some() {
-            push(
-                format!("/score/part/{}/staff/1/tablature", part_index + 1),
-                "present".to_string(),
-                "ABC exporter has no canonical tablature staff representation",
-            );
-        }
-        for (measure_index, measure) in staff.measures.iter().enumerate() {
-            for (side, barline) in [
-                ("barline-left", &measure.barline_left),
-                ("barline-right", &measure.barline_right),
-            ] {
-                if !abc_barline_is_exact(barline) {
-                    push(
-                        format!(
-                            "/score/part/{}/staff/1/measure/{}/{}",
-                            part_index + 1,
-                            measure_index + 1,
-                            side
-                        ),
-                        format!("{barline:?}"),
-                        "ABC export cannot preserve this barline kind exactly",
-                    );
-                }
-            }
-            if let Some(volta) = &measure.volta
-                && volta.kind != "begin"
-            {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            if staff.tablature.is_some() {
                 push(
                     format!(
-                        "/score/part/{}/staff/1/measure/{}/volta",
+                        "/score/part/{}/staff/{}/tablature",
                         part_index + 1,
-                        measure_index + 1
+                        staff_index + 1
                     ),
-                    format!("{}:{}", volta.number, volta.kind),
-                    "ABC export preserves only volta begin markers",
+                    "present".to_string(),
+                    "ABC exporter has no canonical tablature staff representation",
                 );
             }
-            for (voice_index, voice) in measure.voices.iter().enumerate().skip(1) {
-                if !voice.is_empty() {
-                    push(
-                        format!(
-                            "/score/part/{}/staff/1/measure/{}/voice/{}",
-                            part_index + 1,
-                            measure_index + 1,
-                            voice_index + 1
-                        ),
-                        voice.len().to_string(),
-                        "ABC export emits only voice 1",
-                    );
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                for (side, barline) in [
+                    ("barline-left", &measure.barline_left),
+                    ("barline-right", &measure.barline_right),
+                ] {
+                    if !abc_barline_is_exact(barline) {
+                        push(
+                            format!(
+                                "/score/part/{}/staff/{}/measure/{}/{}",
+                                part_index + 1,
+                                staff_index + 1,
+                                measure_index + 1,
+                                side
+                            ),
+                            format!("{barline:?}"),
+                            "ABC export cannot preserve this barline kind exactly",
+                        );
+                    }
                 }
-            }
-            let Some(first_voice) = measure.voices.first() else {
-                push(
-                    format!(
-                        "/score/part/{}/staff/1/measure/{}/voice/1",
-                        part_index + 1,
-                        measure_index + 1
-                    ),
-                    "missing".to_string(),
-                    "ABC export requires voice 1 for every measure",
-                );
-                continue;
-            };
-            for (note_index, _note) in first_voice.iter().enumerate() {
-                let note_path = format!(
-                    "/score/part/{}/staff/1/measure/{}/voice/1/note/{}",
-                    part_index + 1,
-                    measure_index + 1,
-                    note_index + 1
-                );
-                for (path, value, reason) in
-                    abc_note_export_losses(first_voice, note_index, &note_path)
+                if let Some(volta) = &measure.volta
+                    && volta.kind != "begin"
                 {
-                    push(path, value, reason);
+                    push(
+                        format!(
+                            "/score/part/{}/staff/{}/measure/{}/volta",
+                            part_index + 1,
+                            staff_index + 1,
+                            measure_index + 1
+                        ),
+                        format!("{}:{}", volta.number, volta.kind),
+                        "ABC export preserves only volta begin markers",
+                    );
+                }
+                for (voice_index, voice) in measure.voices.iter().enumerate().skip(1) {
+                    if !voice.is_empty() {
+                        push(
+                            format!(
+                                "/score/part/{}/staff/{}/measure/{}/voice/{}",
+                                part_index + 1,
+                                staff_index + 1,
+                                measure_index + 1,
+                                voice_index + 1
+                            ),
+                            voice.len().to_string(),
+                            "ABC export emits only voice 1",
+                        );
+                    }
+                }
+                let Some(first_voice) = measure.voices.first() else {
+                    push(
+                        format!(
+                            "/score/part/{}/staff/{}/measure/{}/voice/1",
+                            part_index + 1,
+                            staff_index + 1,
+                            measure_index + 1
+                        ),
+                        "missing".to_string(),
+                        "ABC export requires voice 1 for every measure",
+                    );
+                    continue;
+                };
+                for (note_index, _note) in first_voice.iter().enumerate() {
+                    let note_path = format!(
+                        "/score/part/{}/staff/{}/measure/{}/voice/1/note/{}",
+                        part_index + 1,
+                        staff_index + 1,
+                        measure_index + 1,
+                        note_index + 1
+                    );
+                    for (path, value, reason) in
+                        abc_note_export_losses(first_voice, note_index, &note_path)
+                    {
+                        push(path, value, reason);
+                    }
                 }
             }
         }
@@ -1895,15 +2284,23 @@ C D E F | G A B c |";
     }
 
     #[test]
-    fn loss_report_locates_unsupported_broken_rhythm_markers() {
-        let diagnostics = loss_diagnostics("X:1\nT:Report\nM:2/4\nK:C\nC>D E|\n");
-        assert_eq!(diagnostics.len(), 1);
-        assert_eq!(diagnostics[0].code, "abc.unsupported-rhythm-marker");
+    fn broken_rhythm_markers_dot_and_halve_their_pair() {
+        let abc = "X:1\nT:Report\nM:2/4\nL:1/8\nK:C\nC>D E<F|\n";
+        assert!(loss_diagnostics(abc).is_empty());
+        let score = parse_abc(abc).expect("parses");
+        let notes: Vec<_> = score.parts[0].staves[0].measures[0].voices[0]
+            .iter()
+            .map(|n| (n.duration.clone(), n.dot_count))
+            .collect();
         assert_eq!(
-            diagnostics[0].source_location.as_deref(),
-            Some("/line/5/body/2")
+            notes,
+            vec![
+                (Duration::Eighth, 1),
+                (Duration::Sixteenth, 0),
+                (Duration::Sixteenth, 0),
+                (Duration::Eighth, 1),
+            ]
         );
-        assert_eq!(diagnostics[0].preserved_value.as_deref(), Some(">"));
     }
 
     #[test]
@@ -1980,7 +2377,6 @@ C D E F | G A B c |";
 
         let diagnostics = export_loss_diagnostics(&score);
         for field in [
-            "dynamic",
             "articulations",
             "note_head",
             "is_unpitched",
@@ -2726,8 +3122,11 @@ C D E F | G A B c |";
         p2.staves.push(staff);
         score.parts.push(p2);
         let abc = serialize_abc(&score).unwrap();
-        assert!(abc.contains("V:1\n"), "missing V:1");
-        assert!(abc.contains("V:2\n"), "missing V:2");
+        assert!(abc.contains("V:1 name=\"Piano\"\n"), "missing V:1: {abc}");
+        assert!(
+            abc.contains("V:2 name=\"Bass\" clef=bass\n"),
+            "missing V:2: {abc}"
+        );
     }
 
     #[test]

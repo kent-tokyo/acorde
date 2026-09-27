@@ -9,6 +9,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Playback order no longer loops on unpaired repeat marks.** Two repeat ends that each reset
+  the other's pass (a first ending that only ends, a later repeat with its own second ending),
+  or a coda placed before its D.C., sent `measure_sequence` round the same bars forever:
+  playback, MIDI export and every consumer of the sequence grew it until allocation failed
+  (4.5 GB for one Mozart quartet movement in the corpus). Each repeat end and each D.C./D.S.
+  now jumps back once, with a length backstop.
+- **ABC import and export.** Import put every line after the first into the bar the previous
+  line had closed (a tune written a line of bars at a time became one bar), read quoted chord
+  symbols (`"Am"`) as notes, rejected named voices (`V:T1`), ignored inline `[K:]`/`[M:]` and
+  body `K:`/`M:` fields (a later `K:` changed the key of the whole tune), clefs, dynamics,
+  hairpins and broken rhythm (`A>B`). All of these are now read — chord symbols, `"^text"`
+  annotations, `!p!`…`!sfz!`, `!<(!`/`!<)!`/`!>(!`/`!>)!`, `>`/`<`/`>>`, voice `name=` and
+  `clef=`. Export writes every staff as its own voice with its name and clef, chord symbols,
+  dynamics, hairpins, text, inline meter and key changes, and lyrics for every voice. In the
+  corpus MusicXML → ABC → import round trip, 6766 of 6961 dynamics, 102 chord symbols and
+  almost all key and meter changes that were lost now survive.
 - **MusicXML double dots and type-less notes.** Import counted `<dot/>` as a flag, so every
   double-dotted note (202 in the corpus) came in single-dotted and short; it now keeps the
   count. A note without `<type>` (the element is optional) was taken as a quarter; its value
