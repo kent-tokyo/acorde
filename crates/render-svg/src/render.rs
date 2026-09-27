@@ -256,16 +256,23 @@ pub(crate) fn build_svg_with_metadata(
             );
             let state = &staff_states[si_idx];
             let mut hx = left_margin_u * space;
-            hx += write_clef(&mut body, &state.clef, hx, bottom_y, space)?;
-            hx += HEADER_GAP_U * space;
-            hx += write_key_signature(
-                &mut body,
-                &state.clef,
-                state.key_fifths,
-                hx,
-                bottom_y,
-                space,
-            )?;
+            if let Some(tab) = score.parts[pi].staves[si].tablature.as_ref() {
+                // Tablature staves carry a TAB clef and no key signature, as in MuseScore and
+                // alphaTab; the key's space stays reserved so columns align across staves.
+                hx += write_tab_clef(&mut body, hx, bottom_y, space, tab.lines);
+                hx += HEADER_GAP_U * space;
+            } else {
+                hx += write_clef(&mut body, &state.clef, hx, bottom_y, space)?;
+                hx += HEADER_GAP_U * space;
+                hx += write_key_signature(
+                    &mut body,
+                    &state.clef,
+                    state.key_fifths,
+                    hx,
+                    bottom_y,
+                    space,
+                )?;
+            }
             hx += HEADER_GAP_U * space;
             if draw_time {
                 write_time_signature(&mut body, &state.time_sig, hx, bottom_y, space);
@@ -2084,6 +2091,27 @@ fn header_width_u(clef: &Clef, key_fifths: i8, time_sig: Option<&TimeSignature>)
         .map(|_| glyphs::DIGIT_WIDTH_U + HEADER_GAP_U)
         .unwrap_or(0.0);
     clef_w + key_w + time_w
+}
+
+/// "TAB" clef: the three letters stacked over the middle of a tablature staff.
+fn write_tab_clef(body: &mut String, x: f32, bottom_y: f32, space: f32, lines: u8) -> f32 {
+    let span = f32::from(lines.max(2) - 1) * space;
+    let letter = (span / 3.4).clamp(0.7 * space, 1.4 * space);
+    let top = bottom_y - span / 2.0 - 1.5 * letter;
+    let cx = x + 0.7 * space;
+    let _ = write!(body, r#"<g class="acorde-clef acorde-clef-tab">"#);
+    for (index, glyph) in ["T", "A", "B"].iter().enumerate() {
+        let _ = write!(
+            body,
+            r#"<text x="{}" y="{}" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="{}">{}</text>"#,
+            f(cx),
+            f(top + letter * (index as f32 + 1.0) - 0.1 * letter),
+            f(letter * 1.05),
+            glyph
+        );
+    }
+    body.push_str("</g>");
+    1.4 * space
 }
 
 fn write_clef(
@@ -5005,10 +5033,13 @@ fn write_tab_fret_text(
     };
     let _ = write!(
         body,
-        r#"<text class="acorde-tab-fret" x="{}" y="{}" text-anchor="middle" font-family="serif" font-size="{}"{}>{}</text>"#,
+        // A white halo (stroke painted under the fill) knocks the string line out behind the
+        // digits, as tablature engravers and alphaTab/MuseScore do.
+        r#"<text class="acorde-tab-fret" x="{}" y="{}" text-anchor="middle" font-family="serif" font-size="{}" stroke="white" stroke-width="{}" paint-order="stroke"{}>{}</text>"#,
         f(x),
         f(y),
         f(0.72 * space),
+        f(0.3 * space),
         attributes,
         escape_xml(&fret_label)
     );

@@ -2665,3 +2665,27 @@ fn measure_repeat_draws_the_repeat_sign_instead_of_the_copied_notes() {
     assert!(!written.contains("acorde-measure-repeat"));
     assert!(repeated.matches("data-note=").count() < written.matches("data-note=").count());
 }
+
+#[test]
+fn tablature_staff_draws_tab_clef_without_key_signature_and_masks_fret_digits() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step, TabPosition, TablatureConfig};
+
+    let mut score = Score::new("tab header", 120, 4, 4, 2, 1);
+    score.parts[0].staves[0].tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![40, 45, 50, 55, 59, 64],
+        capo: 0,
+    });
+    let mut note = Note::new(Pitch::new(Step::A, 2), Duration::Whole);
+    note.tab_position = Some(TabPosition { string: 2, fret: 0 });
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+    let svg =
+        acorde_render_svg::render_svg(&score, &acorde_render_svg::SvgRenderOptions::default())
+            .expect("tab staff renders");
+    assert!(svg.contains("acorde-clef-tab"));
+    assert!(!svg.contains("acorde-clef-treble"));
+    // Two sharps in the key, but a tab staff shows no key-signature accidentals.
+    assert!(!svg.contains("acorde-key-sig"), "{svg}");
+    assert!(svg.contains(r#"class="acorde-tab-fret""#));
+    assert!(svg.contains(r#"stroke="white""#) && svg.contains(r#"paint-order="stroke""#));
+}
