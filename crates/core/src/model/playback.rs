@@ -947,7 +947,7 @@ fn offline_measure_times(
         if let Some(tempo) = measure.tempo {
             bpm = tempo.max(1) as f64;
         }
-        let beats = measure.duration_beats(&score.settings.time_signature);
+        let beats = staff_ref.measure_beats(measure_index, &score.settings.time_signature);
         let ramp_to_bpm = measure
             .tempo_ramp_to
             .map(f64::from)
@@ -982,9 +982,9 @@ fn append_measure_semantic_events(
         };
         let mut tick_starts = Vec::with_capacity(staff.measures.len());
         let mut tick = 0u64;
-        for measure in &staff.measures {
+        for measure_index in 0..staff.measures.len() {
             tick_starts.push(tick);
-            let beats = measure.duration_beats(&score.settings.time_signature);
+            let beats = staff.measure_beats(measure_index, &score.settings.time_signature);
             tick = tick.saturating_add((beats * 480.0).round() as u64);
         }
         for time in timeline {
@@ -1857,7 +1857,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                     if let Some(b) = measure.tempo {
                         current_bpm = b.max(1) as f64;
                     }
-                    let measure_beats = measure.duration_beats(&score.settings.time_signature);
+                    let measure_beats = staff.measure_beats(idx, &score.settings.time_signature);
                     let ramp_end_bpm = measure
                         .tempo_ramp_to
                         .map(f64::from)
@@ -2032,13 +2032,13 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
             {
                 metro_bpm = t.max(1) as f64;
             }
-            let ts = first_staff
-                .and_then(|s| s.measures.get(idx))
-                .and_then(|m| m.time_sig.as_ref())
-                .unwrap_or(&score.settings.time_signature);
-            let measure_beats = first_staff
-                .and_then(|s| s.measures.get(idx))
-                .map_or_else(|| ts.total_beats(), |m| m.duration_beats(ts));
+            let ts = first_staff.map_or(&score.settings.time_signature, |s| {
+                s.meter_at(idx, &score.settings.time_signature)
+            });
+            let measure_beats = first_staff.map_or_else(
+                || ts.total_beats(),
+                |s| s.measure_beats(idx, &score.settings.time_signature),
+            );
             let ramp_end_bpm = measure
                 .and_then(|measure| measure.tempo_ramp_to)
                 .map(f64::from)
@@ -2382,10 +2382,11 @@ fn build_measure_segments(score: &Score, options: &PlaybackOptions) -> Vec<Measu
         if let Some(t) = first_measure.and_then(|m| m.tempo) {
             current_bpm = t.max(1) as f64;
         }
-        let ts = first_measure
-            .and_then(|m| m.time_sig.as_ref())
-            .unwrap_or(&score.settings.time_signature);
-        let beats = first_measure.map_or_else(|| ts.total_beats(), |m| m.duration_beats(ts));
+        let first_staff = score.parts.first().and_then(|p| p.staves.first());
+        let beats = match (first_staff, first_measure) {
+            (Some(staff), Some(_)) => staff.measure_beats(idx, &score.settings.time_signature),
+            _ => score.settings.time_signature.total_beats(),
+        };
         let duration_secs = beats / current_bpm * 60.0;
 
         segments.push(MeasureSegment {
@@ -2449,6 +2450,28 @@ mod tests {
         let unbounded = to_playback_events(&score, &options);
         let bounded = to_playback_events_bounded(&score, &options).expect("bounded schedule");
         assert_eq!(bounded, unbounded);
+    }
+
+    #[test]
+    fn bars_after_a_meter_change_keep_the_new_meter() {
+        use crate::model::duration::Duration;
+        use crate::{Note, Pitch, Step, TimeSignature};
+        let mut score = Score::new("meter", 120, 4, 4, 0, 3);
+        let staff = &mut score.parts[0].staves[0];
+        staff.measures[1].time_sig = Some(TimeSignature {
+            numerator: 3,
+            denominator: 4,
+        });
+        for measure in &mut staff.measures {
+            measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        }
+        let onsets: Vec<f64> = to_playback_events(&score, &opts(Some(120)))
+            .iter()
+            .filter(|event| event.address.is_some())
+            .map(|event| event.time_beats)
+            .collect();
+        // 4/4, then two bars of 3/4: the third bar starts at 4 + 3, not 4 + 4.
+        assert_eq!(onsets, vec![0.0, 4.0, 7.0]);
     }
 
     #[test]

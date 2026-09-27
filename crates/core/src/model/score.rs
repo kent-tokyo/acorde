@@ -1880,6 +1880,30 @@ pub struct Staff {
 }
 
 impl Staff {
+    /// The meter in force at `measure_index`: that bar's time signature or the last one before
+    /// it, else `default` (the score's). A bar without its own signature continues the meter
+    /// of the change before it, not the score's opening one.
+    pub fn meter_at<'a>(
+        &'a self,
+        measure_index: usize,
+        default: &'a TimeSignature,
+    ) -> &'a TimeSignature {
+        self.measures
+            .iter()
+            .take(measure_index.saturating_add(1))
+            .rev()
+            .find_map(|measure| measure.time_sig.as_ref())
+            .unwrap_or(default)
+    }
+
+    /// A bar's length in beats: its `actual_length`, else the meter in force there.
+    pub fn measure_beats(&self, measure_index: usize, default: &TimeSignature) -> f64 {
+        self.measures.get(measure_index).map_or_else(
+            || self.meter_at(measure_index, default).total_beats(),
+            |measure| measure.duration_beats(self.meter_at(measure_index, default)),
+        )
+    }
+
     pub fn new(clef: Clef) -> Self {
         Self {
             presentation: StaffPresentation::for_clef(&clef),
@@ -4401,7 +4425,7 @@ pub fn score_duration_secs(score: &Score) -> f64 {
                 }
                 let beats = voice_duration_beats(
                     &m.voices[0],
-                    m.duration_beats(&score.settings.time_signature),
+                    staff.measure_beats(idx, &score.settings.time_signature),
                 );
                 total_secs += tempo_ramp_duration_secs(current_bpm, m.tempo_ramp_to, beats);
                 if let Some(target) = m.tempo_ramp_to.filter(|target| *target > 0) {
@@ -4438,7 +4462,7 @@ pub fn score_duration_secs_region(score: &Score, region: (usize, usize)) -> f64 
                 }
                 let beats = voice_duration_beats(
                     &m.voices[0],
-                    m.duration_beats(&score.settings.time_signature),
+                    staff.measure_beats(idx, &score.settings.time_signature),
                 );
                 total_secs += tempo_ramp_duration_secs(current_bpm, m.tempo_ramp_to, beats);
                 if let Some(target) = m.tempo_ramp_to.filter(|target| *target > 0) {
@@ -4489,7 +4513,7 @@ pub fn measure_beats_remaining(
         .voices
         .get(voice_index)
         .ok_or(Error::VoiceOutOfRange(voice_index))?;
-    let capacity = measure.duration_beats(&score.settings.time_signature);
+    let capacity = staff.measure_beats(measure_index, &score.settings.time_signature);
     Ok((capacity - voice_duration_beats(voice, capacity)).max(0.0))
 }
 

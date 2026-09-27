@@ -9,6 +9,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Timing after a meter change.** A bar without its own time signature was timed with the
+  score's opening meter instead of the last change before it, so after a change from 4/4 to
+  3/4 every later bar gained a silent beat in playback, offline render timing, score duration,
+  MIDI export and several editing and SVG checks. `Staff::meter_at` and
+  `Staff::measure_beats` give the meter in force, and those paths use them.
+- **MIDI export timing and key signatures.** Each voice's notes followed straight on from its
+  previous notes, so a voice empty in one bar (a second voice that enters later) played its
+  later bars early, and tempo and meter events were placed with the opening bar length. Every
+  bar now starts at its own tick. Key signatures are written (at the start and at each change)
+  and read back.
 - **Playback order no longer loops on unpaired repeat marks.** Two repeat ends that each reset
   the other's pass (a first ending that only ends, a later repeat with its own second ending),
   or a coda placed before its D.C., sent `measure_sequence` round the same bars forever:

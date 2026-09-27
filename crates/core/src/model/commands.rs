@@ -3566,7 +3566,18 @@ fn apply_set_mid_measure_clefs(
     cmd: &SetMidMeasureClefsCmd,
     score: &mut Score,
 ) -> Result<(), Error> {
-    let time_signature = score.settings.time_signature.clone();
+    let time_signature = score
+        .parts
+        .get(cmd.part_index)
+        .and_then(|part| part.staves.get(cmd.staff_index))
+        .map_or_else(
+            || score.settings.time_signature.clone(),
+            |staff| {
+                staff
+                    .meter_at(cmd.measure_index, &score.settings.time_signature)
+                    .clone()
+            },
+        );
     let measure = score
         .parts
         .get_mut(cmd.part_index)

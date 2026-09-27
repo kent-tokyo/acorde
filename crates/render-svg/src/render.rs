@@ -1710,7 +1710,7 @@ fn content_margins(
         if valid_indices.len() < 2 {
             continue;
         }
-        let total_beats = measure.duration_beats(&score.settings.time_signature);
+        let total_beats = staff.measure_beats(group.measure, &score.settings.time_signature);
         if !total_beats.is_finite() || total_beats <= 0.0 {
             continue;
         }
@@ -2335,8 +2335,8 @@ fn effective_state(
 }
 
 fn measure_total_beats(score: &Score, staff_ref: &(usize, usize), measure_idx: usize) -> f64 {
-    let m = &score.parts[staff_ref.0].staves[staff_ref.1].measures[measure_idx];
-    m.duration_beats(&score.settings.time_signature)
+    score.parts[staff_ref.0].staves[staff_ref.1]
+        .measure_beats(measure_idx, &score.settings.time_signature)
 }
 
 // ── header widths ──────────────────────────────────────────────────────────────
@@ -2681,7 +2681,8 @@ fn render_measure(
     let tablature_fret_mark_style = score.parts[part].staves[staff]
         .presentation
         .tablature_fret_mark_style;
-    let total_beats = measure.duration_beats(&score.settings.time_signature);
+    let total_beats =
+        score.parts[part].staves[staff].measure_beats(measure_idx, &score.settings.time_signature);
     // Accidentals on the bar's first notes sit left of their heads: start the content far enough
     // in that they clear the barline, clef or time signature before them.
     let lead_u = measure
