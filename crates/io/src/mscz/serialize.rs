@@ -197,7 +197,10 @@ fn note_has_unsupported_fields(note: &Note) -> bool {
         || note.articulations.iter().any(|articulation| {
             !matches!(
                 articulation,
-                Articulation::Tremolo(_) | Articulation::Fermata
+                Articulation::Tremolo(_)
+                    | Articulation::Fermata
+                    | Articulation::BreathMark
+                    | Articulation::Caesura
             ) && articulation_subtype(articulation).is_none()
         })
         || note.glissando_start
@@ -207,8 +210,6 @@ fn note_has_unsupported_fields(note: &Note) -> bool {
             .as_ref()
             .is_some_and(|cross| cross.target_voice.is_some() || note.is_rest)
         || note.is_cue
-        || note.trill_line_start
-        || note.trill_line_end
         || note.guitar_bend_alter_cents.is_some()
         || !note.guitar_bend_curve.is_empty()
         || !matches!(
@@ -750,7 +751,7 @@ fn staff_span_marks(staff: &Staff) -> std::collections::HashMap<NoteKey, SpanMar
     for voice_index in 0..4 {
         // (note key, start point) of the open span of each kind.
         let mut open_slur: Option<(NoteKey, StaffPoint)> = None;
-        let mut open_lines: [Option<OpenLine>; 3] = [None, None, None];
+        let mut open_lines: [Option<OpenLine>; 4] = [None, None, None, None];
         for (measure_index, measure) in staff.measures.iter().enumerate() {
             let mut beats = 0.0;
             for (note_index, note) in measure.voices[voice_index].iter().enumerate() {
@@ -774,7 +775,7 @@ fn staff_span_marks(staff: &Staff) -> std::collections::HashMap<NoteKey, SpanMar
                 if note.slur_start && !note.is_rest {
                     open_slur = Some((key, onset));
                 }
-                let lines: [(bool, Option<String>, bool); 3] = [
+                let lines: [(bool, Option<String>, bool); 4] = [
                     (
                         true,
                         note.hairpin_start.map(|kind| {
@@ -804,9 +805,15 @@ fn staff_span_marks(staff: &Staff) -> std::collections::HashMap<NoteKey, SpanMar
                         }),
                         note.ottava_end,
                     ),
+                    (
+                        true,
+                        note.trill_line_start
+                            .then(|| "<Trill><subtype>trill</subtype></Trill>".to_string()),
+                        note.trill_line_end,
+                    ),
                 ];
                 for (slot, (_, start_body, ends)) in lines.into_iter().enumerate() {
-                    let kind = ["HairPin", "Pedal", "Ottava"][slot];
+                    let kind = ["HairPin", "Pedal", "Ottava", "Trill"][slot];
                     // A note can end one line and start the next: close the earlier first.
                     let closes_earlier = ends && open_lines[slot].is_some();
                     let close =
@@ -1074,6 +1081,8 @@ fn write_note(
                 )
                 .map_err(fmt_error)?;
             }
+            // A trill line draws its own "tr".
+            Articulation::Trill if note.trill_line_start => {}
             articulation => {
                 if let Some(subtype) = articulation_subtype(articulation) {
                     write!(

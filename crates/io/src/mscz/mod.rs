@@ -18,6 +18,7 @@ enum MscxLineKind {
     Pedal,
     Slur,
     Ottava,
+    Trill,
 }
 
 /// Map a MuseScore `<BarLine><subtype>` to a canonical right barline. `normal` and unknown
@@ -334,6 +335,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut line_has_prev = false;
     let mut pending_hairpin: [Option<HairpinKind>; 4] = [None; 4];
     let mut pending_pedal: [bool; 4] = [false; 4];
+    // A MuseScore trill line: the "tr" sign and its wavy line.
+    let mut pending_trill: [bool; 4] = [false; 4];
     let mut pending_ottava: [Option<acorde_core::OttavaKind>; 4] = [None; 4];
     let mut pending_slur: [bool; 4] = [false; 4];
 
@@ -537,10 +540,18 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         mscx_text_offset_x = None;
                         mscx_text_offset_y = None;
                     }
-                    "StaffText" if in_measure && !in_chord && !in_rest_elem => {
+                    // MuseScore 4 writes expression text (dolce, espressivo) as `<Expression>`
+                    // and system-wide text as `<SystemText>`.
+                    "StaffText" | "Expression" | "SystemText"
+                        if in_measure && !in_chord && !in_rest_elem =>
+                    {
                         in_text_element = true;
                         mscx_text_is_score_level = false;
-                        mscx_text_style = TextStyle::Generic;
+                        mscx_text_style = if name == "Expression" {
+                            TextStyle::Expression
+                        } else {
+                            TextStyle::Generic
+                        };
                         mscx_text_value.clear();
                         mscx_text_offset_x = None;
                         mscx_text_offset_y = None;
@@ -699,11 +710,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 volta_has_body = false;
                                 volta_endings.clear();
                             }
-                            Some(kind @ ("HairPin" | "Pedal" | "Slur" | "Ottava")) => {
+                            Some(kind @ ("HairPin" | "Pedal" | "Slur" | "Ottava" | "Trill")) => {
                                 line_spanner = Some(match kind {
                                     "HairPin" => MscxLineKind::HairPin,
                                     "Pedal" => MscxLineKind::Pedal,
                                     "Ottava" => MscxLineKind::Ottava,
+                                    "Trill" => MscxLineKind::Trill,
                                     _ => MscxLineKind::Slur,
                                 });
                                 in_line_body = false;
@@ -715,7 +727,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             _ => {}
                         }
                     }
-                    "HairPin" | "Pedal" | "Slur" | "Ottava" if line_spanner.is_some() => {
+                    "HairPin" | "Pedal" | "Slur" | "Ottava" | "Trill" if line_spanner.is_some() => {
                         in_line_body = true;
                     }
                     "Segment" if in_line_body => {
@@ -800,7 +812,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "Segment" if in_line_segment => {
                         in_line_segment = false;
                     }
-                    "HairPin" | "Pedal" | "Slur" | "Ottava" if in_line_body => {
+                    "HairPin" | "Pedal" | "Slur" | "Ottava" | "Trill" if in_line_body => {
                         in_line_body = false;
                     }
                     "Spanner" if line_spanner.is_some() && !in_line_body => {
@@ -821,6 +833,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                         });
                                 }
                                 MscxLineKind::Pedal => pending_pedal[voice] = true,
+                                MscxLineKind::Trill => pending_trill[voice] = true,
                                 MscxLineKind::Slur => pending_slur[voice] = true,
                                 // MuseScore names ottavas (8va, 8vb, 15ma, 15mb; older files
                                 // number them 0–3).
@@ -848,6 +861,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                     MscxLineKind::Pedal => note.pedal_end = true,
                                     MscxLineKind::Slur => note.slur_end = true,
                                     MscxLineKind::Ottava => note.ottava_end = true,
+                                    MscxLineKind::Trill => note.trill_line_end = true,
                                 }
                             }
                         }
@@ -1291,7 +1305,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         in_text_element = false;
                         mscx_text_is_score_level = false;
                     }
-                    "StaffText" if in_text_element => {
+                    "StaffText" | "Expression" | "SystemText" if in_text_element => {
                         if !mscx_text_value.trim().is_empty() {
                             let styled = StyledText {
                                 style: mscx_text_style,
@@ -1780,6 +1794,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                     note.ottava_start = Some(kind);
                                 }
                                 note.slur_start |= std::mem::take(&mut pending_slur[v]);
+                                if std::mem::take(&mut pending_trill[v]) {
+                                    note.trill_line_start = true;
+                                    if !note.articulations.contains(&Articulation::Trill) {
+                                        note.articulations.push(Articulation::Trill);
+                                    }
+                                }
                             }
                             cur_voices[v].push(note);
                         }
@@ -3446,6 +3466,32 @@ mod tests {
     }
 
     #[test]
+    fn mscx_trill_lines_round_trip() {
+        let mut score = Score::default();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        *voice = (0..4)
+            .map(|step| {
+                Note::new(
+                    Pitch::new([Step::C, Step::D, Step::E, Step::F][step].clone(), 5),
+                    Duration::Quarter,
+                )
+            })
+            .collect();
+        voice[0].trill_line_start = true;
+        voice[0].articulations.push(Articulation::Trill);
+        voice[2].trill_line_end = true;
+        let written = crate::mscz::serialize::serialize_mscx(&score).expect("serializes");
+        assert!(written.contains(r#"<Spanner type="Trill"><Trill><subtype>trill</subtype>"#));
+        assert!(!written.contains("ornamentTrill"));
+        let back = parse_mscx(&written).expect("reparses");
+        let voice = &back.parts[0].staves[0].measures[0].voices[0];
+        assert!(voice[0].trill_line_start);
+        assert!(voice[0].articulations.contains(&Articulation::Trill));
+        assert!(voice[2].trill_line_end);
+        assert!(!voice[1].trill_line_end && !voice[3].trill_line_end);
+    }
+
+    #[test]
     fn mscx_rehearsal_marks_navigation_and_breaths_round_trip() {
         let xml = r#"
         <museScore version="3.02"><Score>
@@ -3454,6 +3500,8 @@ mod tests {
             <Measure><voice>
               <TimeSig><sigN>1</sigN><sigD>4</sigD></TimeSig>
               <RehearsalMark><text>A</text></RehearsalMark>
+              <Expression><text>dolce</text></Expression>
+              <SystemText><text>Swing</text></SystemText>
               <Marker><style>Repeat Text Left</style><text><sym>segno</sym></text><label>segno</label></Marker>
               <Chord><durationType>quarter</durationType><Note><pitch>72</pitch><tpc>14</tpc></Note></Chord>
               <Breath><symbol>breathMarkComma</symbol></Breath>
@@ -3468,6 +3516,16 @@ mod tests {
         let check = |score: &Score| {
             let measures = &score.parts[0].staves[0].measures;
             assert_eq!(measures[0].rehearsal.as_deref(), Some("A"));
+            let texts: Vec<(&TextStyle, &str)> = measures[0]
+                .texts
+                .iter()
+                .map(|text| (&text.style, text.text.as_str()))
+                .collect();
+            assert!(
+                texts.contains(&(&TextStyle::Expression, "dolce")),
+                "{texts:?}"
+            );
+            assert!(texts.iter().any(|(_, text)| *text == "Swing"), "{texts:?}");
             assert_eq!(measures[0].navigation.as_deref(), Some("Segno"));
             assert_eq!(measures[1].navigation.as_deref(), Some("DalSegnoAlCoda"));
             assert!(

@@ -15,6 +15,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   navigation as not written and dropped breath marks silently. All four now read and write,
   so a D.S. al Coda plays back after a MuseScore round trip. The staff-transposition loss
   report is gone too (MSCX has written the part's transposition since the last release).
+- **MuseScore trill lines, expression and system text.** `<Spanner type="Trill">` (the "tr"
+  with its wavy line) was dropped on import and reported as lost on export; it now maps to the
+  trill line and trill mark both ways. MuseScore 4's `<Expression>` (dolce, espressivo…) and
+  `<SystemText>` were ignored; they import as expression and generic text.
 
 - **Breves and 128th notes.** `Duration` stopped at whole notes and 64ths: breves (MusicXML
   `breve`, MEI `dur="breve"`, MuseScore `breve`, GP7 `DoubleWhole`) became whole notes and
