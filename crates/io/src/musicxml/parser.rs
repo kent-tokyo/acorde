@@ -229,6 +229,8 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     let mut note_trill_line_start = false;
     let mut note_trill_line_end = false;
     let mut note_stem_up: Option<bool> = None;
+    let mut note_beam = acorde_core::BeamState::None;
+    let mut note_beam_level: u8 = 1;
     let mut pending_guitar_technique: Option<GuitarTechnique> = None;
     let mut pending_guitar_bend_alter_cents: Option<i16> = None;
     let mut pending_hairpin_start: Option<HairpinKind> = None;
@@ -566,6 +568,11 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         note_tuplet_actual = None;
                         note_tuplet_normal = None;
                     }
+                    "beam" if in_note => {
+                        note_beam_level = attr_str(e, b"number")
+                            .and_then(|value| value.parse::<u8>().ok())
+                            .unwrap_or(1);
+                    }
                     "note" => {
                         in_note = true;
                         note_lyrics.clear();
@@ -621,6 +628,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                         pending_guitar_technique = None;
                         pending_guitar_bend_alter_cents = None;
                         note_stem_up = None;
+                        note_beam = acorde_core::BeamState::None;
                         pending_note_head = None;
                     }
                     "tie" | "tied" if in_note => match attr_str(e, b"type").as_deref() {
@@ -1833,6 +1841,17 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                     "pull-off" if in_technical_block => {
                         pending_guitar_technique = Some(GuitarTechnique::PullOff);
                     }
+                    // Only the primary beam level defines the group; deeper levels are sub-beams.
+                    "beam" if in_note && note_beam_level == 1 => {
+                        note_beam = match current_text.trim() {
+                            "begin" => acorde_core::BeamState::Begin,
+                            "continue" => acorde_core::BeamState::Continue,
+                            "end" => acorde_core::BeamState::End,
+                            "forward hook" => acorde_core::BeamState::ForwardHook,
+                            "backward hook" => acorde_core::BeamState::BackwardHook,
+                            _ => acorde_core::BeamState::None,
+                        };
+                    }
                     "stem" if in_note => {
                         note_stem_up = match current_text.trim() {
                             "up" => Some(true),
@@ -2165,6 +2184,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                     if let Some(up) = note_stem_up {
                                         note.stem_up = Some(up);
                                     }
+                                    note.beam = note_beam;
                                     if note_trill_line_start {
                                         note.trill_line_start = true;
                                     }

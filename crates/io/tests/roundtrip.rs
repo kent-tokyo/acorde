@@ -3757,3 +3757,48 @@ fn cross_staff_notes_round_trip_through_mei_staff_attribute() {
     let restored = acorde_io::parse_mei(&export.output).expect("MEI reparse");
     assert_eq!(crossings(&restored), crossings(&parsed));
 }
+
+#[cfg(feature = "musicxml")]
+#[test]
+fn musicxml_explicit_beams_import_and_round_trip() {
+    use acorde_core::BeamState;
+    // One beam over all six eighths of a 6/8 bar, which default beat beaming would split 3+3.
+    let note = |step: &str, beam: &str| {
+        format!(
+            "<note><pitch><step>{step}</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type><beam number=\"1\">{beam}</beam></note>"
+        )
+    };
+    let notes = [
+        note("C", "begin"),
+        note("D", "continue"),
+        note("E", "continue"),
+        note("F", "continue"),
+        note("G", "continue"),
+        note("A", "end"),
+    ]
+    .concat();
+    let xml = format!(
+        r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Flute</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>2</divisions><time><beats>6</beats><beat-type>8</beat-type></time></attributes>{notes}</measure></part></score-partwise>"#
+    );
+    let expected = [
+        BeamState::Begin,
+        BeamState::Continue,
+        BeamState::Continue,
+        BeamState::Continue,
+        BeamState::Continue,
+        BeamState::End,
+    ];
+    let beams = |score: &acorde_core::Score| {
+        score.parts[0].staves[0].measures[0].voices[0]
+            .iter()
+            .map(|note| note.beam)
+            .collect::<Vec<_>>()
+    };
+    let parsed = parse_musicxml(&xml).expect("beamed MusicXML parses");
+    assert_eq!(beams(&parsed), expected);
+    let written = acorde_io::serialize_musicxml(&parsed).expect("beams serialize");
+    assert_eq!(
+        beams(&parse_musicxml(&written).expect("beams reparse")),
+        expected
+    );
+}
