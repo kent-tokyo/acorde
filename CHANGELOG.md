@@ -17,6 +17,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   alphaTab's test data import and export to schema-valid MusicXML and to MEI that Verovio loads.
   Accent and ghost velocities that GP5 stores as note dynamics are not read as dynamic marks.
 - Guitar Pro coda/segno/fine directions import as navigation marks (GPIF and GP5).
+- **Per-pitch chord ties.** `Note::pitch_tie_starts`/`pitch_tie_ends` (additive, omitted from
+  JSON when empty) record a tie on only some notes of a chord. MusicXML, MEI and Guitar Pro
+  import keep them, MusicXML and MEI export write each note's own tie, playback sustains only
+  the tied pitches, and the SVG renderer draws one tie per tied notehead (upper notes bow up,
+  lower notes down). The 1.2.8 `*.partial-chord-tie` diagnostics are no longer needed.
 
 ## [1.2.8] - 2026-09-27
 

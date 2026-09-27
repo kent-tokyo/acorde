@@ -2041,6 +2041,14 @@ pub struct Note {
     pub dot_count: u8,
     pub tie_start: bool,
     pub tie_end: bool,
+    /// Per-pitch tie starts, parallel to `pitches`, for a chord whose notes are not all tied.
+    /// Empty (the usual case) means `tie_start` applies to every pitch. A vector whose length
+    /// differs from `pitches` is ignored in favour of `tie_start`; see [`Note::pitch_tie_start`].
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pitch_tie_starts: Vec<bool>,
+    /// Per-pitch tie ends, parallel to `pitches`; empty means `tie_end` applies to every pitch.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pitch_tie_ends: Vec<bool>,
     pub beam: BeamState,
     pub articulations: Vec<Articulation>,
     pub dynamic: Option<Dynamic>,
@@ -2165,6 +2173,8 @@ impl Note {
             dot_count: 0,
             tie_start: false,
             tie_end: false,
+            pitch_tie_starts: Vec::new(),
+            pitch_tie_ends: Vec::new(),
             beam: BeamState::None,
             articulations: Vec::new(),
             dynamic: None,
@@ -2218,6 +2228,8 @@ impl Note {
             dot_count: 0,
             tie_start: false,
             tie_end: false,
+            pitch_tie_starts: Vec::new(),
+            pitch_tie_ends: Vec::new(),
             beam: BeamState::None,
             articulations: Vec::new(),
             dynamic: None,
@@ -2278,6 +2290,65 @@ impl Note {
         copy.chord_symbol = None;
         copy.dynamic = None;
         copy
+    }
+
+    /// Whether the pitch at `index` starts a tie: its own flag when per-pitch ties are recorded,
+    /// otherwise the chord-level `tie_start`.
+    pub fn pitch_tie_start(&self, index: usize) -> bool {
+        per_pitch_flag(
+            &self.pitch_tie_starts,
+            self.pitches.len(),
+            index,
+            self.tie_start,
+        )
+    }
+
+    /// Whether the pitch at `index` ends a tie; see [`Note::pitch_tie_start`].
+    pub fn pitch_tie_end(&self, index: usize) -> bool {
+        per_pitch_flag(
+            &self.pitch_tie_ends,
+            self.pitches.len(),
+            index,
+            self.tie_end,
+        )
+    }
+
+    /// Record which pitches of this note start (`starts`) and end (`ends`) a tie. The chord-level
+    /// flags become "any pitch", and per-pitch vectors are kept only when the pitches differ, so a
+    /// uniformly tied chord stays in the plain form. Slices whose length is not the pitch count
+    /// are ignored.
+    pub fn set_pitch_ties(&mut self, starts: &[bool], ends: &[bool]) {
+        let count = self.pitches.len();
+        if starts.len() == count {
+            self.tie_start = starts.iter().any(|tied| *tied);
+            self.pitch_tie_starts = if starts.iter().all(|tied| *tied == self.tie_start) {
+                Vec::new()
+            } else {
+                starts.to_vec()
+            };
+        }
+        if ends.len() == count {
+            self.tie_end = ends.iter().any(|tied| *tied);
+            self.pitch_tie_ends = if ends.iter().all(|tied| *tied == self.tie_end) {
+                Vec::new()
+            } else {
+                ends.to_vec()
+            };
+        }
+    }
+
+    /// Per-pitch tie starts as a full vector (chord-level flag repeated when not recorded).
+    pub fn pitch_tie_starts_or_uniform(&self) -> Vec<bool> {
+        (0..self.pitches.len())
+            .map(|index| self.pitch_tie_start(index))
+            .collect()
+    }
+
+    /// Per-pitch tie ends as a full vector (chord-level flag repeated when not recorded).
+    pub fn pitch_tie_ends_or_uniform(&self) -> Vec<bool> {
+        (0..self.pitches.len())
+            .map(|index| self.pitch_tie_end(index))
+            .collect()
     }
 
     /// A plain whole rest, the form MusicXML `<rest measure="yes"/>` and MuseScore
@@ -4297,6 +4368,14 @@ fn note_content_eq(a: &Note, b: &Note) -> bool {
         && a.guitar_technique == b.guitar_technique
         && a.guitar_bend_alter_cents == b.guitar_bend_alter_cents
         && a.guitar_bend_curve == b.guitar_bend_curve
+}
+
+fn per_pitch_flag(flags: &[bool], pitch_count: usize, index: usize, chord: bool) -> bool {
+    if flags.len() == pitch_count {
+        flags.get(index).copied().unwrap_or(chord)
+    } else {
+        chord
+    }
 }
 
 #[cfg(test)]

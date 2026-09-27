@@ -3860,7 +3860,7 @@ fn musicxml_cue_notes_keep_timing_on_import_and_export() {
 
 #[cfg(feature = "musicxml")]
 #[test]
-fn musicxml_partial_chord_ties_are_reported() {
+fn musicxml_partial_chord_ties_keep_their_pitch() {
     // Only the C of the C-E chord is tied into the next bar.
     let note = |step: &str, chord: bool, tie: &str| {
         format!(
@@ -3874,23 +3874,42 @@ fn musicxml_partial_chord_ties_are_reported() {
         note("E", true, ""),
         note("C", false, r#"<tie type="stop"/>"#),
     );
+    let check = |score: &acorde_core::Score| {
+        let chord = &score.parts[0].staves[0].measures[0].voices[0][0];
+        assert!(chord.tie_start);
+        assert!(chord.pitch_tie_start(0));
+        assert!(!chord.pitch_tie_start(1), "E is not tied");
+        assert!(score.parts[0].staves[0].measures[1].voices[0][0].tie_end);
+    };
     let report = acorde_io::parse_musicxml_with_report(&xml).expect("parses");
-    assert!(
-        report
-            .diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.code == "musicxml.partial-chord-tie")
+    check(&report.score);
+    let written = acorde_io::serialize_musicxml(&report.score).expect("exports");
+    assert_eq!(
+        written.matches(r#"<tie type="start"/>"#).count(),
+        1,
+        "{written}"
     );
-    // A fully tied chord is not reported.
+    check(&acorde_io::parse_musicxml(&written).expect("reparses"));
+    // A fully tied chord stays in the chord-level form.
     let full = xml.replace(
         r#"<duration>4</duration><voice>1</voice><type>whole</type></note></measure>"#,
         r#"<duration>4</duration><tie type="start"/><voice>1</voice><type>whole</type></note></measure>"#,
     );
-    let report = acorde_io::parse_musicxml_with_report(&full).expect("parses");
-    assert!(
-        !report
-            .diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.code == "musicxml.partial-chord-tie")
-    );
+    let score = acorde_io::parse_musicxml(&full).expect("parses");
+    let chord = &score.parts[0].staves[0].measures[0].voices[0][0];
+    assert!(chord.tie_start && chord.pitch_tie_starts.is_empty());
+}
+
+#[cfg(all(feature = "musicxml", feature = "mei"))]
+#[test]
+fn mei_partial_chord_ties_round_trip_per_note() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>P</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><tie type="start"/><voice>1</voice><type>whole</type></note><note><chord/><pitch><step>E</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>whole</type></note></measure><measure number="2"><note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><tie type="stop"/><voice>1</voice><type>whole</type></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).expect("parses");
+    let mei = acorde_io::serialize_mei(&score).expect("MEI exports");
+    // The tie sits on the C inside the chord, not on the whole chord.
+    assert!(mei.contains(r#"pname="c" oct="4" tie="i""#), "{mei}");
+    assert!(!mei.contains(r#"<chord xml:id="n1_1_1_1" dur="1" tie"#));
+    let back = acorde_io::parse_mei(&mei).expect("MEI reparses");
+    let chord = &back.parts[0].staves[0].measures[0].voices[0][0];
+    assert_eq!(chord.pitch_tie_starts, vec![true, false]);
 }

@@ -2086,16 +2086,27 @@ fn merge_tied_events(score: &Score, events: Vec<PlaybackEvent>) -> Vec<PlaybackE
             merged.push(event);
             continue;
         };
-        let tied_note = score
+        let tied_staff = score
             .parts
             .get(source.part)
-            .and_then(|part| part.staves.get(source.staff))
+            .and_then(|part| part.staves.get(source.staff));
+        let tied_note = tied_staff
             .and_then(|staff| staff.measures.get(source.measure))
             .and_then(|measure| measure.voices.get(source.voice))
             .and_then(|voice| voice.get(source.note));
-        let Some(note) = tied_note else {
+        let (Some(staff), Some(note)) = (tied_staff, tied_note) else {
             merged.push(event);
             continue;
+        };
+        // A chord may tie only some of its pitches: use the flags of the pitch that sounds here.
+        let transpose_cents = i32::from(staff.transpose_semitones) * 100;
+        let pitch_index = note
+            .pitches
+            .iter()
+            .position(|pitch| pitch.to_midi_cents() + transpose_cents == event.pitch_midi_cents);
+        let (tie_start, tie_end) = match pitch_index {
+            Some(index) => (note.pitch_tie_start(index), note.pitch_tie_end(index)),
+            None => (note.tie_start, note.tie_end),
         };
         let key = (
             source.part,
@@ -2103,7 +2114,7 @@ fn merge_tied_events(score: &Score, events: Vec<PlaybackEvent>) -> Vec<PlaybackE
             source.voice,
             event.pitch_midi_cents,
         );
-        if note.tie_end
+        if tie_end
             && pending.get(&key).is_some_and(|&index| {
                 merged.get(index).is_some_and(|previous| {
                     (previous.time_beats + previous.duration_beats - event.time_beats).abs() < 1e-9
@@ -2114,7 +2125,7 @@ fn merge_tied_events(score: &Score, events: Vec<PlaybackEvent>) -> Vec<PlaybackE
             let previous = &mut merged[index];
             previous.duration_beats += event.duration_beats;
             previous.duration_secs += event.duration_secs;
-            if !note.tie_start {
+            if !tie_start {
                 pending.remove(&key);
             }
             continue;
@@ -2122,7 +2133,7 @@ fn merge_tied_events(score: &Score, events: Vec<PlaybackEvent>) -> Vec<PlaybackE
 
         let index = merged.len();
         merged.push(event);
-        if note.tie_start {
+        if tie_start {
             pending.insert(key, index);
         } else {
             pending.remove(&key);
@@ -2308,6 +2319,34 @@ mod tests {
         assert!((events[0].time_beats).abs() < 1e-9);
         assert!((events[0].duration_beats - 2.0).abs() < 1e-9);
         assert!((events[0].duration_secs - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_tie_on_one_chord_pitch_holds_only_that_pitch() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        // C–G chord tied on C only into another C–G chord: G re-strikes, C sustains.
+        let chord = || {
+            let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+            note.pitches.push(Pitch::new(Step::G, 4));
+            note
+        };
+        let mut first = chord();
+        first.set_pitch_ties(&[true, false], &[false, false]);
+        let mut second = chord();
+        second.set_pitch_ties(&[false, false], &[true, false]);
+        assert!(first.tie_start && second.tie_end);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![first, second];
+
+        let events = to_playback_events(&score, &opts(None));
+        let durations = |midi: u8| {
+            events
+                .iter()
+                .filter(|event| event.pitch_midi == midi)
+                .map(|event| event.duration_beats)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(durations(60), vec![2.0]);
+        assert_eq!(durations(67), vec![1.0, 1.0]);
     }
 
     #[test]

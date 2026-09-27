@@ -25,6 +25,19 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
+### Unreleased — per-pitch chord ties and Guitar Pro 3/4/5
+
+`Note` gains `pitch_tie_starts` and `pitch_tie_ends`, parallel to `pitches`. They are empty
+unless a chord ties only some of its notes, and are omitted from JSON when empty, so existing
+score JSON is unchanged. `tie_start`/`tie_end` stay the chord-level summary ("any pitch"). Read
+per-pitch ties with `Note::pitch_tie_start(i)`/`pitch_tie_end(i)` and write them with
+`Note::set_pitch_ties`; a vector whose length no longer matches `pitches` (for example after
+code that pushes a pitch directly) is ignored in favour of the chord-level flag. MusicXML, MEI
+and Guitar Pro import keep per-note ties, MusicXML and MEI export write them per note, playback
+sustains only the tied pitches, and the SVG renderer draws one tie per tied notehead. The
+`musicxml.partial-chord-tie` and `gp.partial-chord-tie` diagnostics introduced in 1.2.8 are no
+longer emitted. `parse_gp` also reads `.gp3`, `.gp4` and `.gp5` files.
+
 ### v1.2.8 — Guitar Pro import and tablature rendering
 
 New optional `gp` feature; no existing API changes. The GM range table only widens, so no

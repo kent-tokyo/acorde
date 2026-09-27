@@ -2809,3 +2809,29 @@ fn continuing_technique_text_is_written_once_per_run() {
     assert_eq!(svg.matches(">let ring</text>").count(), 1, "{svg}");
     assert_eq!(svg.matches(">P.M.</text>").count(), 1);
 }
+
+#[test]
+fn chord_ties_are_drawn_per_tied_pitch() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+
+    let chord = || {
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Half);
+        note.pitches.push(Pitch::new(Step::E, 4));
+        note.pitches.push(Pitch::new(Step::G, 4));
+        note
+    };
+    let render = |starts: &[bool]| {
+        let mut score = Score::new("ties", 120, 4, 4, 0, 1);
+        let mut first = chord();
+        first.set_pitch_ties(starts, &[false, false, false]);
+        let mut second = chord();
+        second.set_pitch_ties(&[false, false, false], starts);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![first, second];
+        let svg =
+            acorde_render_svg::render_svg(&score, &acorde_render_svg::SvgRenderOptions::default())
+                .expect("renders");
+        svg.matches("class=\"acorde-tie\"").count()
+    };
+    assert_eq!(render(&[true, true, true]), 3, "one tie per notehead");
+    assert_eq!(render(&[true, false, true]), 2, "the untied E has no tie");
+}

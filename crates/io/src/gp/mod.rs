@@ -907,21 +907,17 @@ fn convert_beat(
         let flag = |name: &str| tie.and_then(|tie| tie.attr(name)) == Some("true");
         member_ties.push((flag("origin"), flag("destination")));
     }
-    if member_ties.len() > 1
-        && member_ties
-            .iter()
-            .any(|state| state.0 != member_ties[0].0 || state.1 != member_ties[0].1)
-    {
-        losses.add(
-            "gp.partial-chord-tie",
-            "a tie on only some notes of a chord is applied to the whole chord",
-        );
-    }
 
     let mut note = match result {
         Some(note) => note,
         None => Note::rest(duration),
     };
+    // Guitar Pro ties each note of a chord separately.
+    if member_ties.len() == note.pitches.len() && !note.is_rest {
+        let starts: Vec<bool> = member_ties.iter().map(|tie| tie.0).collect();
+        let ends: Vec<bool> = member_ties.iter().map(|tie| tie.1).collect();
+        note.set_pitch_ties(&starts, &ends);
+    }
     note.dot_count = dots;
     note.tuplet = tuplet;
     if let Some(grace) = beat.text_at("GraceNotes") {
@@ -1496,13 +1492,8 @@ mod tests {
                 .iter()
                 .any(|diagnostic| diagnostic.code == "gp.unsupported-whammy")
         );
-        // Only the A of the first chord is tied: the widening is reported, not silent.
-        assert!(
-            report
-                .diagnostics
-                .iter()
-                .any(|diagnostic| diagnostic.code == "gp.partial-chord-tie")
-        );
+        // Only the A of the first chord is tied.
+        assert_eq!(voice[0].pitch_tie_starts, vec![true, false]);
     }
 
     #[test]

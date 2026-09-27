@@ -4410,6 +4410,87 @@ fn render_same_row_span(
     }
 }
 
+/// Vertical offset of each pitch of `note` from its rendered anchor (the outer notehead on the
+/// stem side, or the first tab string), so each tied pitch gets its own tie.
+fn pitch_offsets_from_anchor(
+    note: &Note,
+    tablature: Option<&acorde_core::TablatureConfig>,
+    stem_up: bool,
+    space: f32,
+) -> Vec<f32> {
+    if tablature.is_some() {
+        let strings: Vec<u8> = (0..note.pitches.len())
+            .map(|index| {
+                note.tab_positions
+                    .get(index)
+                    .or(if index == 0 {
+                        note.tab_position.as_ref()
+                    } else {
+                        None
+                    })
+                    .map_or(0, |position| position.string)
+            })
+            .collect();
+        let first = note
+            .tab_positions
+            .first()
+            .or(note.tab_position.as_ref())
+            .map_or(0, |position| position.string);
+        return strings
+            .iter()
+            .map(|string| {
+                if *string == 0 {
+                    0.0
+                } else {
+                    (f32::from(*string) - f32::from(first)) * space
+                }
+            })
+            .collect();
+    }
+    // Staff positions differ by diatonic steps whatever the clef.
+    let positions: Vec<i32> = note
+        .pitches
+        .iter()
+        .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, 0))
+        .collect();
+    let outer = if stem_up {
+        positions.iter().copied().min().unwrap_or(0)
+    } else {
+        positions.iter().copied().max().unwrap_or(0)
+    };
+    positions
+        .iter()
+        .map(|position| geometry::position_y(*position - outer, space))
+        .collect()
+}
+
+/// The tied pitch pairs between two consecutive notes: every pitch of `current` that starts a
+/// tie, matched to the same pitch (on tablature, the same string first) of `next`.
+fn tied_pitch_pairs(current: &Note, next: &Note) -> Vec<(usize, usize)> {
+    (0..current.pitches.len())
+        .filter(|index| current.pitch_tie_start(*index))
+        .filter_map(|index| {
+            let string = current.tab_positions.get(index).map(|tab| tab.string);
+            let midi = current.pitches[index].to_midi();
+            let same_string = string.and_then(|string| {
+                next.tab_positions
+                    .iter()
+                    .position(|tab| tab.string == string)
+                    .filter(|other| {
+                        next.pitches.get(*other).map(acorde_core::Pitch::to_midi) == Some(midi)
+                    })
+            });
+            same_string
+                .or_else(|| {
+                    next.pitches
+                        .iter()
+                        .position(|pitch| pitch.to_midi() == midi)
+                })
+                .map(|other| (index, other))
+        })
+        .collect()
+}
+
 fn render_ties(
     body: &mut String,
     score: &Score,
@@ -4419,97 +4500,95 @@ fn render_ties(
     right_margin_u: f32,
     space: f32,
 ) {
+    let mut draw = |from: NotePoint, to: NotePoint, above: Option<bool>| {
+        let (x1, y1, up1, row1) = from;
+        let (x2, y2, up2, row2) = to;
+        let (up1, up2) = above.map_or((up1, up2), |above| (above, above));
+        if row1 == row2 {
+            render_curve(body, "acorde-tie", x1, y1, x2, y2, up1 || up2, space);
+        } else {
+            render_curve(
+                body,
+                "acorde-tie",
+                x1,
+                y1,
+                width - right_margin_u * space,
+                y1,
+                up1,
+                space,
+            );
+            render_curve(
+                body,
+                "acorde-tie",
+                left_margin_u * space,
+                y2,
+                x2,
+                y2,
+                up2,
+                space,
+            );
+        }
+    };
     for (part, p) in score.parts.iter().enumerate() {
         for (staff, s) in p.staves.iter().enumerate() {
+            let tablature = s.tablature.as_ref();
             for voice in 0..4 {
                 for measure in 0..s.measures.len() {
                     let notes = &s.measures[measure].voices[voice];
-                    for (note, current) in
-                        notes.iter().enumerate().take(notes.len().saturating_sub(1))
-                    {
-                        let Some(next) = notes.get(note + 1) else {
+                    for (note, current) in notes.iter().enumerate() {
+                        if !current.tie_start || current.is_rest {
+                            continue;
+                        }
+                        // The next note of the voice: in this bar, or the first of the next.
+                        let (next, next_key) = match notes.get(note + 1) {
+                            Some(next) => (next, (part, staff, measure, voice, note + 1)),
+                            None => match s
+                                .measures
+                                .get(measure + 1)
+                                .and_then(|next_measure| next_measure.voices[voice].first())
+                            {
+                                Some(next) => (next, (part, staff, measure + 1, voice, 0)),
+                                None => continue,
+                            },
+                        };
+                        if next.is_rest {
+                            continue;
+                        }
+                        let (Some(&a), Some(&b)) = (
+                            points.get(&(part, staff, measure, voice, note)),
+                            points.get(&next_key),
+                        ) else {
                             continue;
                         };
-                        if !current.tie_start || current.is_rest || next.is_rest {
+                        let from_offsets =
+                            pitch_offsets_from_anchor(current, tablature, a.2, space);
+                        let to_offsets = pitch_offsets_from_anchor(next, tablature, b.2, space);
+                        let pairs = tied_pitch_pairs(current, next);
+                        if pairs.is_empty() {
+                            // No matching pitch (a respelt or re-voiced chord): keep one tie.
+                            draw(a, b, None);
                             continue;
                         }
-                        let a = points.get(&(part, staff, measure, voice, note));
-                        let b = points.get(&(part, staff, measure, voice, note + 1));
-                        if let (Some(&(x1, y1, up1, row1)), Some(&(x2, y2, up2, row2))) = (a, b) {
-                            if row1 == row2 {
-                                render_curve(body, "acorde-tie", x1, y1, x2, y2, up1 || up2, space);
-                            } else {
-                                render_curve(
-                                    body,
-                                    "acorde-tie",
-                                    x1,
-                                    y1,
-                                    width - right_margin_u * space,
-                                    y1,
-                                    up1,
-                                    space,
-                                );
-                                render_curve(
-                                    body,
-                                    "acorde-tie",
-                                    left_margin_u * space,
-                                    y2,
-                                    x2,
-                                    y2,
-                                    up2,
-                                    space,
-                                );
-                            }
-                        }
-                    }
-                    if let Some(last) = notes.last() {
-                        if last.tie_start && !last.is_rest {
-                            let Some(next_measure) = s.measures.get(measure + 1) else {
-                                continue;
-                            };
-                            let next = &next_measure.voices[voice];
-                            if let (Some(a), Some(b)) = (
-                                points.get(&(part, staff, measure, voice, notes.len() - 1)),
-                                next.first().filter(|note| !note.is_rest).and_then(|_| {
-                                    points.get(&(part, staff, measure + 1, voice, 0))
-                                }),
-                            ) {
-                                let (x1, y1, up1, row1) = *a;
-                                let (x2, y2, up2, row2) = *b;
-                                if row1 == row2 {
-                                    render_curve(
-                                        body,
-                                        "acorde-tie",
-                                        x1,
-                                        y1,
-                                        x2,
-                                        y2,
-                                        up1 || up2,
-                                        space,
-                                    );
-                                } else {
-                                    render_curve(
-                                        body,
-                                        "acorde-tie",
-                                        x1,
-                                        y1,
-                                        width - right_margin_u * space,
-                                        y1,
-                                        up1,
-                                        space,
-                                    );
-                                    render_curve(
-                                        body,
-                                        "acorde-tie",
-                                        left_margin_u * space,
-                                        y2,
-                                        x2,
-                                        y2,
-                                        up2,
-                                        space,
-                                    );
-                                }
-                            }
+                        // In a chord, ties on the upper notes bow up and on the lower notes down.
+                        let count = current.pitches.len();
+                        let rank = |index: usize| {
+                            let midi = current.pitches[index].to_midi();
+                            current
+                                .pitches
+                                .iter()
+                                .filter(|pitch| pitch.to_midi() < midi)
+                                .count()
+                        };
+                        for (from, to) in pairs {
+                            let dy1 = from_offsets.get(from).copied().unwrap_or(0.0);
+                            let dy2 = to_offsets.get(to).copied().unwrap_or(0.0);
+                            let doubled = 2 * rank(from) + 1;
+                            let above = (count > 1 && doubled != count).then_some(doubled > count);
+                            draw(
+                                (a.0, a.1 + dy1, a.2, a.3),
+                                (b.0, b.1 + dy2, b.2, b.3),
+                                above,
+                            );
                         }
                     }
                 }

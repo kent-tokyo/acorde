@@ -2169,20 +2169,6 @@ pub(crate) fn parse_musicxml_collecting(
                                             "MusicXML chord cannot contain a rest".into(),
                                         ));
                                     }
-                                    if last.tie_start != note.tie_start
-                                        || last.tie_end != note.tie_end
-                                    {
-                                        // The model ties whole chords, so a tie on some members
-                                        // is applied to all of them; say so instead of silently.
-                                        let mut diagnostic = crate::Diagnostic::warning(
-                                            "musicxml.partial-chord-tie",
-                                            "a tie on only some notes of a chord is applied to the whole chord",
-                                        );
-                                        diagnostic.source_location = Some(format!(
-                                            "/score-partwise/measure[{current_measure_number}]/note"
-                                        ));
-                                        tolerated.push(diagnostic);
-                                    }
                                     merge_musicxml_chord_note(
                                         last,
                                         &note,
@@ -2568,11 +2554,15 @@ struct MusicXmlChordNoteDetails {
 }
 
 fn merge_musicxml_chord_note(last: &mut Note, note: &Note, details: MusicXmlChordNoteDetails) {
+    let mut starts = last.pitch_tie_starts_or_uniform();
+    let mut ends = last.pitch_tie_ends_or_uniform();
     if let Some(pitch) = note.pitches.first() {
         last.pitches.push(pitch.clone());
+        starts.push(note.tie_start);
+        ends.push(note.tie_end);
     }
-    last.tie_start |= note.tie_start;
-    last.tie_end |= note.tie_end;
+    // Each chord member keeps its own tie; a uniformly tied chord stays chord-level.
+    last.set_pitch_ties(&starts, &ends);
     last.is_unpitched |= details.is_unpitched;
     if details.instrument_id.is_some() {
         last.instrument_id = details.instrument_id;

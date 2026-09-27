@@ -1763,25 +1763,31 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
             &mut score.parts[0].staves[current_staff].measures[measure_index].voices[current_layer];
         let note_index = voice.len().saturating_sub(1);
         if let Some(note) = voice.last_mut() {
+            let mut starts = note.pitch_tie_starts_or_uniform();
+            let mut ends = note.pitch_tie_ends_or_uniform();
             note.pitches.push(pitch);
             if let Some(tab) = tab {
                 note.tab_positions.push(tab);
             }
+            // Each chord member keeps its own @tie (plus the chord's own, which covers all).
+            let (mut start, mut end) = (false, false);
+            for tie in [attr(event, b"tie"), chord.and_then(|c| attr(c, b"tie"))] {
+                match tie.as_deref() {
+                    Some("i") => start = true,
+                    Some("t") => end = true,
+                    Some("m") => (start, end) = (true, true),
+                    _ => {}
+                }
+            }
+            starts.push(start);
+            ends.push(end);
+            note.set_pitch_ties(&starts, &ends);
             for articulation in attr(event, b"artic")
                 .iter()
                 .flat_map(|value| value.split_whitespace())
                 .filter_map(parse_articulation)
             {
                 push_articulation(note, articulation);
-            }
-            match attr(event, b"tie").as_deref() {
-                Some("i") => note.tie_start = true,
-                Some("t") => note.tie_end = true,
-                Some("m") => {
-                    note.tie_start = true;
-                    note.tie_end = true;
-                }
-                _ => {}
             }
             if let Some(id) = attr(event, b"xml:id").or_else(|| attr(event, b"id")) {
                 note_ids.insert(
@@ -3824,6 +3830,23 @@ fn append_mei_verses(out: &mut String, note: &Note) {
     }
 }
 
+/// MEI `@tie` value for a tie start/end pair.
+fn mei_tie(start: bool, end: bool) -> Option<&'static str> {
+    match (start, end) {
+        (true, true) => Some("m"),
+        (true, false) => Some("i"),
+        (false, true) => Some("t"),
+        (false, false) => None,
+    }
+}
+
+/// Whether a chord ties only some of its pitches, so each `<note>` carries its own `@tie`.
+fn has_per_pitch_ties(note: &Note) -> bool {
+    note.pitches.len() > 1
+        && (note.pitch_tie_starts.len() == note.pitches.len()
+            || note.pitch_tie_ends.len() == note.pitches.len())
+}
+
 fn append_mei_note(
     out: &mut String,
     note: &Note,
@@ -3841,16 +3864,19 @@ fn append_mei_note(
         if note.dot_count > 0 {
             out.push_str(&format!(" dots=\"{}\"", note.dot_count));
         }
-        match (note.tie_start, note.tie_end) {
-            (true, true) => out.push_str(" tie=\"m\""),
-            (true, false) => out.push_str(" tie=\"i\""),
-            (false, true) => out.push_str(" tie=\"t\""),
-            (false, false) => {}
+        let per_pitch = has_per_pitch_ties(note);
+        if !per_pitch && let Some(tie) = mei_tie(note.tie_start, note.tie_end) {
+            out.push_str(&format!(" tie=\"{tie}\""));
         }
         out.push('>');
         for (index, pitch) in note.pitches.iter().enumerate() {
             out.push_str(&format!("<note xml:id=\"{id}_p{}\"", index + 1));
             append_mei_pitch_attrs(out, pitch, false);
+            if per_pitch
+                && let Some(tie) = mei_tie(note.pitch_tie_start(index), note.pitch_tie_end(index))
+            {
+                out.push_str(&format!(" tie=\"{tie}\""));
+            }
             let tab = note
                 .tab_positions
                 .get(index)
@@ -3904,11 +3930,10 @@ fn append_mei_note(
     if note.dot_count > 0 {
         out.push_str(&format!(" dots=\"{}\"", note.dot_count));
     }
-    let tie = match (note.tie_start, note.tie_end) {
-        (true, true) => Some("m"),
-        (true, false) => Some("i"),
-        (false, true) => Some("t"),
-        (false, false) => None,
+    let tie = if has_per_pitch_ties(note) {
+        None
+    } else {
+        mei_tie(note.tie_start, note.tie_end)
     };
     if let Some(tie) = tie {
         out.push_str(&format!(" tie=\"{tie}\""));
@@ -3932,6 +3957,11 @@ fn append_mei_note(
         for (index, pitch) in note.pitches.iter().enumerate() {
             out.push_str(&format!("<note xml:id=\"{id}_p{}\"", index + 1));
             append_mei_pitch_attrs(out, pitch, shown(index));
+            if has_per_pitch_ties(note)
+                && let Some(tie) = mei_tie(note.pitch_tie_start(index), note.pitch_tie_end(index))
+            {
+                out.push_str(&format!(" tie=\"{tie}\""));
+            }
             out.push_str("/>");
         }
         append_mei_verses(out, note);

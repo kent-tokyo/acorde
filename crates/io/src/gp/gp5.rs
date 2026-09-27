@@ -684,18 +684,36 @@ impl Reader<'_> {
             self.apply_note(&mut note, &read, &effects);
         }
         if ties.iter().any(|tie| *tie) {
-            note.tie_end = true;
-            if ties.iter().any(|tie| !*tie) {
-                self.losses.add(
-                    "gp.partial-chord-tie",
-                    "a tie on only some notes of a chord is applied to the whole chord",
-                );
-            }
+            // Ties are per string: end them on this chord's tied notes and start them on the
+            // matching notes (same string, or same pitch off tablature) of the previous beat.
+            let ends = ties.clone();
+            let starts = note.pitch_tie_starts_or_uniform();
+            note.set_pitch_ties(&starts, &ends);
             if let Some((m, n)) = state.previous
                 && let Some(previous) = measures[m].voices[voice_index].get_mut(n)
                 && !previous.is_rest
             {
-                previous.tie_start = true;
+                let mut previous_starts = previous.pitch_tie_starts_or_uniform();
+                let previous_ends = previous.pitch_tie_ends_or_uniform();
+                for (index, tied) in ties.iter().enumerate() {
+                    if !tied {
+                        continue;
+                    }
+                    let target = match note.tab_positions.get(index) {
+                        Some(tab) => previous
+                            .tab_positions
+                            .iter()
+                            .position(|previous| previous.string == tab.string),
+                        None => previous
+                            .pitches
+                            .iter()
+                            .position(|pitch| pitch.to_midi() == note.pitches[index].to_midi()),
+                    };
+                    if let Some(target) = target.filter(|target| *target < previous_starts.len()) {
+                        previous_starts[target] = true;
+                    }
+                }
+                previous.set_pitch_ties(&previous_starts, &previous_ends);
             }
         }
         if !note.is_rest {

@@ -957,7 +957,10 @@ fn serialize_note(
             }
         };
         // Everything up to and including <staff>, shared by the principal note and chord members.
-        let push_head = |xml: &mut String, pitch: &acorde_core::Pitch, chord_member: bool| {
+        let push_head = |xml: &mut String,
+                         pitch: &acorde_core::Pitch,
+                         pitch_index: usize,
+                         chord_member: bool| {
             xml.push_str(&format!("      <note{}>\n", note_placement_attrs(note)));
             if note.is_grace {
                 if note.grace_slash {
@@ -982,10 +985,10 @@ fn serialize_note(
                 xml.push_str(&format!("        <duration>{}</duration>\n", dur_ticks));
             }
             // The cue variant of <note> has no <tie> (the <tied> notation still is written).
-            if note.tie_end && !note.is_cue {
+            if note.pitch_tie_end(pitch_index) && !note.is_cue {
                 xml.push_str("        <tie type=\"stop\"/>\n");
             }
-            if note.tie_start && !note.is_cue {
+            if note.pitch_tie_start(pitch_index) && !note.is_cue {
                 xml.push_str("        <tie type=\"start\"/>\n");
             }
             if let Some(instrument_id) = &note.instrument_id {
@@ -1024,7 +1027,7 @@ fn serialize_note(
             }
             xml.push_str(&staff_element);
         };
-        push_head(xml, pitch, false);
+        push_head(xml, pitch, 0, false);
         if let Some(beam) = beam {
             xml.push_str(&format!("        <beam number=\"1\">{beam}</beam>\n"));
         }
@@ -1050,14 +1053,18 @@ fn serialize_note(
 
         // Additional chord pitches carry the chord's timing, ties and their own tab position.
         for (pitch_idx, extra) in note.pitches.iter().skip(1).enumerate() {
-            push_head(xml, extra, true);
+            push_head(xml, extra, pitch_idx + 1, true);
             let tab = note.tab_positions.get(pitch_idx + 1);
-            if note.tie_start || note.tie_end || tab.is_some() {
+            let (tie_start, tie_end) = (
+                note.pitch_tie_start(pitch_idx + 1),
+                note.pitch_tie_end(pitch_idx + 1),
+            );
+            if tie_start || tie_end || tab.is_some() {
                 xml.push_str("        <notations>\n");
-                if note.tie_end {
+                if tie_end {
                     xml.push_str("          <tied type=\"stop\"/>\n");
                 }
-                if note.tie_start {
+                if tie_start {
                     xml.push_str("          <tied type=\"start\"/>\n");
                 }
                 if let Some(tab) = tab {
@@ -1284,7 +1291,9 @@ fn serialize_notations(
 ) {
     let typed_has =
         |kind: NotationSpannerKind| typed_spanners.iter().any(|spanner| spanner.kind == kind);
-    let has_tie = note.tie_start || note.tie_end;
+    // The first (written) pitch's own ties; chord members write theirs separately.
+    let (first_tie_start, first_tie_end) = (note.pitch_tie_start(0), note.pitch_tie_end(0));
+    let has_tie = first_tie_start || first_tie_end;
     let has_glissando =
         note.glissando_start || note.glissando_end || typed_has(NotationSpannerKind::Glissando);
     let has_slur = note.slur_start || note.slur_end || typed_has(NotationSpannerKind::Slur);
@@ -1316,10 +1325,10 @@ fn serialize_notations(
     }
 
     xml.push_str("        <notations>\n");
-    if note.tie_end {
+    if first_tie_end {
         xml.push_str("          <tied type=\"stop\"/>\n");
     }
-    if note.tie_start {
+    if first_tie_start {
         xml.push_str("          <tied type=\"start\"/>\n");
     }
     if tuplet_marks.0 {
