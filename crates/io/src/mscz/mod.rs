@@ -221,6 +221,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut chord_tab_positions: Vec<TabPosition> = Vec::new();
     let mut chord_tie_start = false;
     let mut chord_tie_end = false;
+    // MuseScore ties each note of a chord separately.
+    let mut chord_tie_starts: Vec<bool> = Vec::new();
+    let mut chord_tie_ends: Vec<bool> = Vec::new();
+    let mut note_tie_start = false;
+    let mut note_tie_end = false;
     let mut chord_slur_start = false; // Feature L
     let mut chord_is_grace = false;
     let mut chord_grace_slash = false;
@@ -513,6 +518,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         chord_tab_positions.clear();
                         chord_tie_start = false;
                         chord_tie_end = false;
+                        chord_tie_starts.clear();
+                        chord_tie_ends.clear();
                         chord_slur_start = false;
                         chord_slur_end = false;
                         chord_is_grace = false;
@@ -538,6 +545,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "Note" if in_chord && !in_note_elem => {
                         in_note_elem = true;
+                        note_tie_start = false;
+                        note_tie_end = false;
                         note_midi = 60;
                         note_tpc = 14;
                         note_head = NoteHead::Normal;
@@ -1216,6 +1225,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         if spanner_is_tie {
                             chord_tie_start |= spanner_has_next;
                             chord_tie_end |= spanner_has_prev;
+                            note_tie_start |= spanner_has_next;
+                            note_tie_end |= spanner_has_prev;
                         }
                         in_spanner = false;
                         spanner_is_tie = false;
@@ -1386,6 +1397,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         if let (Some(string), Some(fret)) = (note_tab_string, note_tab_fret) {
                             chord_tab_positions.push(TabPosition { string, fret });
                         }
+                        chord_tie_starts.push(note_tie_start);
+                        chord_tie_ends.push(note_tie_end);
                         in_note_elem = false;
                     }
 
@@ -1400,6 +1413,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             note.slur_start = chord_slur_start;
                             note.slur_end = chord_slur_end;
                             note.pitches = chord_pitches.clone();
+                            note.set_pitch_ties(&chord_tie_starts, &chord_tie_ends);
                             note.tab_positions = chord_tab_positions.clone();
                             note.tab_position = note.tab_positions.first().cloned();
                             note.fingerings = note_fingerings.clone();

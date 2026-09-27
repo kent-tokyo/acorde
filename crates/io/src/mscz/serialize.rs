@@ -583,12 +583,16 @@ fn write_note(xml: &mut String, note: &Note) -> Result<(), Error> {
             Some(acorde_core::GuitarTechnique::PullOff) => xml.push_str("<PullOff/>"),
             None => {}
         }
-        if note.tie_start || note.tie_end {
+        let (tie_start, tie_end) = (
+            note.pitch_tie_start(pitch_index),
+            note.pitch_tie_end(pitch_index),
+        );
+        if tie_start || tie_end {
             xml.push_str("<Spanner type=\"Tie\">");
-            if note.tie_end {
+            if tie_end {
                 xml.push_str("<prev/>");
             }
-            if note.tie_start {
+            if tie_start {
                 xml.push_str("<next/>");
             }
             xml.push_str("</Spanner>");
@@ -824,6 +828,20 @@ mod tests {
         let mscz = serialize_mscz(&score).expect("MSCZ serializes");
         let restored_archive = super::super::parse_mscz(&mscz).expect("MSCZ reparses");
         assert_eq!(restored_archive.parts[0].name, "Export & Test");
+    }
+
+    #[test]
+    fn partial_chord_ties_round_trip_per_note() {
+        let mut score = Score::new("ties", 120, 4, 4, 0, 1);
+        let mut chord = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        chord.pitches.push(Pitch::new(Step::E, 4));
+        chord.set_pitch_ties(&[false, true], &[false, false]);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![chord];
+        let mscx = serialize_mscx(&score).expect("MSCX serializes");
+        assert_eq!(mscx.matches("<Spanner type=\"Tie\">").count(), 1);
+        let restored = super::super::parse_mscx(&mscx).expect("MSCX reparses");
+        let chord = &restored.parts[0].staves[0].measures[0].voices[0][0];
+        assert_eq!(chord.pitch_tie_starts, vec![false, true]);
     }
 
     #[test]

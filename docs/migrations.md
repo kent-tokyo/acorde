@@ -32,8 +32,8 @@ unless a chord ties only some of its notes, and are omitted from JSON when empty
 score JSON is unchanged. `tie_start`/`tie_end` stay the chord-level summary ("any pitch"). Read
 per-pitch ties with `Note::pitch_tie_start(i)`/`pitch_tie_end(i)` and write them with
 `Note::set_pitch_ties`; a vector whose length no longer matches `pitches` (for example after
-code that pushes a pitch directly) is ignored in favour of the chord-level flag. MusicXML, MEI
-and Guitar Pro import keep per-note ties, MusicXML and MEI export write them per note, playback
+code that pushes a pitch directly) is ignored in favour of the chord-level flag. MusicXML, MEI,
+MSCX and Guitar Pro import keep per-note ties, MusicXML, MEI and MSCX export write them per note, playback
 sustains only the tied pitches, and the SVG renderer draws one tie per tied notehead. The
 `musicxml.partial-chord-tie` and `gp.partial-chord-tie` diagnostics introduced in 1.2.8 are no
 longer emitted. `parse_gp` also reads `.gp3`, `.gp4` and `.gp5` files.
