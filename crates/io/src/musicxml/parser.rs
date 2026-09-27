@@ -1060,9 +1060,14 @@ pub(crate) fn parse_musicxml_collecting(
                             }
                             "stop" => {
                                 let number = parse_spanner_number(attr_str(e, b"number"))?;
-                                if let Some(pi) = part_index
-                                    && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
-                                    && let Some(n) = m.voices[0].last_mut()
+                                // The legacy flag marks the same note as the typed stop: the latest one read.
+                                if let Some(address) = last_note_address.as_ref()
+                                    && let Some(n) = score.parts[address.part]
+                                        .staves
+                                        .get_mut(address.staff)
+                                        .and_then(|staff| staff.measures.get_mut(address.measure))
+                                        .and_then(|measure| measure.voices.get_mut(address.voice))
+                                        .and_then(|voice| voice.get_mut(address.note))
                                 {
                                     n.ottava_end = true;
                                 }
@@ -1110,9 +1115,14 @@ pub(crate) fn parse_musicxml_collecting(
                             });
                         }
                         Some("stop") => {
-                            if let Some(pi) = part_index
-                                && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
-                                && let Some(n) = m.voices[0].last_mut()
+                            // The legacy flag marks the same note as the typed stop: the latest one read.
+                            if let Some(address) = last_note_address.as_ref()
+                                && let Some(n) = score.parts[address.part]
+                                    .staves
+                                    .get_mut(address.staff)
+                                    .and_then(|staff| staff.measures.get_mut(address.measure))
+                                    .and_then(|measure| measure.voices.get_mut(address.voice))
+                                    .and_then(|voice| voice.get_mut(address.note))
                             {
                                 n.pedal_end = true;
                             }

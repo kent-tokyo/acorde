@@ -4333,3 +4333,43 @@ fn musicxml_hairpins_stay_on_their_staff_and_voice() {
     check(&score);
     check(&parse_musicxml(&serialize_musicxml(&score).unwrap()).unwrap());
 }
+
+#[test]
+fn musicxml_left_hand_pedal_ends_on_its_own_staff() {
+    let note = |step: &str, octave: u8, voice: u8, staff: u8| {
+        format!(
+            "<note><pitch><step>{step}</step><octave>{octave}</octave></pitch><duration>1</duration><voice>{voice}</voice><type>quarter</type><staff>{staff}</staff></note>"
+        )
+    };
+    let pedal = |kind: &str| {
+        format!(
+            "<direction placement=\"below\"><direction-type><pedal type=\"{kind}\" line=\"yes\"/></direction-type><staff>2</staff></direction>"
+        )
+    };
+    let body = [
+        note("C", 5, 1, 1),
+        note("D", 5, 1, 1),
+        "<backup><duration>2</duration></backup>".to_string(),
+        pedal("start"),
+        note("C", 3, 5, 2),
+        note("D", 3, 5, 2),
+        pedal("stop"),
+    ]
+    .concat();
+    let xml = format!(
+        r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Pno</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes>{body}</measure></part></score-partwise>"#
+    );
+    let score = parse_musicxml(&xml).expect("parses");
+    let upper: Vec<_> = score.parts[0].staves[0].measures[0]
+        .voices
+        .iter()
+        .flatten()
+        .collect();
+    assert!(upper.iter().all(|n| !n.pedal_start && !n.pedal_end));
+    let lower: Vec<_> = score.parts[0].staves[1].measures[0]
+        .voices
+        .iter()
+        .flatten()
+        .collect();
+    assert!(lower[0].pedal_start && lower[1].pedal_end);
+}
