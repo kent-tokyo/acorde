@@ -2665,3 +2665,147 @@ fn measure_repeat_draws_the_repeat_sign_instead_of_the_copied_notes() {
     assert!(!written.contains("acorde-measure-repeat"));
     assert!(repeated.matches("data-note=").count() < written.matches("data-note=").count());
 }
+
+#[test]
+fn tablature_staff_draws_tab_clef_without_key_signature_and_masks_fret_digits() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step, TabPosition, TablatureConfig};
+
+    let mut score = Score::new("tab header", 120, 4, 4, 2, 1);
+    score.parts[0].staves[0].tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![40, 45, 50, 55, 59, 64],
+        capo: 0,
+    });
+    let mut note = Note::new(Pitch::new(Step::A, 2), Duration::Whole);
+    note.tab_position = Some(TabPosition { string: 2, fret: 0 });
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+    let svg =
+        acorde_render_svg::render_svg(&score, &acorde_render_svg::SvgRenderOptions::default())
+            .expect("tab staff renders");
+    assert!(svg.contains("acorde-clef-tab"));
+    assert!(!svg.contains("acorde-clef-treble"));
+    // Two sharps in the key, but a tab staff shows no key-signature accidentals.
+    assert!(!svg.contains("acorde-key-sig"), "{svg}");
+    assert!(svg.contains(r#"class="acorde-tab-fret""#));
+    assert!(svg.contains(r#"stroke="white""#) && svg.contains(r#"paint-order="stroke""#));
+}
+
+#[test]
+fn a_very_short_bar_takes_its_minimum_width_from_its_neighbours() {
+    use acorde_core::{Duration, MeasureLength, Note, Pitch, Score, Step};
+
+    let mut score = Score::new("short bar", 120, 4, 4, 0, 4);
+    let staff = &mut score.parts[0].staves[0];
+    staff.measures[0].actual_length = Some(MeasureLength {
+        numerator: 1,
+        denominator: 32,
+    });
+    staff.measures[0].voices[0] = vec![Note::new(Pitch::new(Step::C, 5), Duration::ThirtySecond)];
+    let options = acorde_render_svg::SvgRenderOptions {
+        width: 420.0,
+        ..acorde_render_svg::SvgRenderOptions::default()
+    };
+    let svg = acorde_render_svg::render_svg(&score, &options)
+        .expect("a pickup of a 32nd no longer overflows the row");
+    assert!(svg.contains("acorde-clef-treble"));
+}
+
+#[test]
+fn dead_notes_on_tablature_are_written_x() {
+    use acorde_core::{Duration, Note, NoteHead, Pitch, Score, Step, TabPosition, TablatureConfig};
+
+    let mut score = Score::new("dead note", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![40, 45, 50, 55, 59, 64],
+        capo: 0,
+    });
+    let mut note = Note::new(Pitch::new(Step::A, 2), Duration::Whole);
+    note.note_head = NoteHead::X;
+    note.tab_position = Some(TabPosition { string: 2, fret: 0 });
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+    let svg =
+        acorde_render_svg::render_svg(&score, &acorde_render_svg::SvgRenderOptions::default())
+            .expect("dead note renders");
+    assert!(svg.contains(r#"data-fret="0">X</text>"#), "{svg}");
+}
+
+#[test]
+fn tablature_staves_do_not_draw_pitch_positioned_beams() {
+    use acorde_core::{
+        BeamState, Duration, Note, Pitch, Score, Step, TabPosition, TablatureConfig,
+    };
+
+    let mut score = Score::new("tab beams", 120, 2, 4, 0, 1);
+    let eighths = |with_tab: bool| {
+        [
+            (Step::E, 0u8, BeamState::Begin),
+            (Step::G, 3, BeamState::Continue),
+            (Step::A, 5, BeamState::Continue),
+            (Step::B, 7, BeamState::End),
+        ]
+        .into_iter()
+        .map(|(step, fret, beam)| {
+            let mut note = Note::new(Pitch::new(step, 3), Duration::Eighth);
+            note.beam = beam;
+            if with_tab {
+                note.tab_position = Some(TabPosition { string: 1, fret });
+            }
+            note
+        })
+        .collect::<Vec<_>>()
+    };
+    score.parts[0].staves[0].measures[0].voices[0] = eighths(false);
+    let options = acorde_render_svg::SvgRenderOptions::default();
+    let standard = acorde_render_svg::render_svg(&score, &options).expect("standard renders");
+    assert!(standard.contains("acorde-beam"));
+    score.parts[0].staves[0].tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![40, 45, 50, 55, 59, 64],
+        capo: 0,
+    });
+    score.parts[0].staves[0].measures[0].voices[0] = eighths(true);
+    let tab = acorde_render_svg::render_svg(&score, &options).expect("tab renders");
+    assert!(!tab.contains("acorde-beam"));
+}
+
+#[test]
+fn inner_bar_annotations_do_not_widen_page_margins() {
+    use acorde_core::{Lyric, Score};
+
+    let staff_line = |svg: &str| {
+        let start = svg
+            .find(r#"class="acorde-staff-line""#)
+            .expect("staff line");
+        svg[start..start + 80].to_string()
+    };
+    let options = acorde_render_svg::SvgRenderOptions::default();
+    let mut score = Score::new("margins", 120, 4, 4, 0, 8);
+    let plain = staff_line(&acorde_render_svg::render_svg(&score, &options).unwrap());
+    // Bar 2 sits inside the first system; its long lyric cannot reach either page edge.
+    score.parts[0].staves[0].measures[1].voices[0][0].lyric = Some(Lyric {
+        text: "a-very-long-melisma-syllable-that-would-once-shrink-every-system".into(),
+        syllabic: "single".into(),
+    });
+    let with_lyric = staff_line(&acorde_render_svg::render_svg(&score, &options).unwrap());
+    assert_eq!(plain, with_lyric);
+}
+
+#[test]
+fn continuing_technique_text_is_written_once_per_run() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+
+    let mut score = Score::new("let ring", 120, 4, 4, 0, 1);
+    let mut notes = Vec::new();
+    for (index, step) in [Step::C, Step::D, Step::E, Step::F].into_iter().enumerate() {
+        let mut note = Note::new(Pitch::new(step, 4), Duration::Quarter);
+        note.technique_text = Some(if index < 3 { "let ring" } else { "P.M." }.to_string());
+        notes.push(note);
+    }
+    score.parts[0].staves[0].measures[0].voices[0] = notes;
+    let svg =
+        acorde_render_svg::render_svg(&score, &acorde_render_svg::SvgRenderOptions::default())
+            .expect("renders");
+    assert_eq!(svg.matches(">let ring</text>").count(), 1, "{svg}");
+    assert_eq!(svg.matches(">P.M.</text>").count(), 1);
+}

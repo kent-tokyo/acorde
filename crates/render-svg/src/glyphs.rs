@@ -450,8 +450,8 @@ fn double_flat(cx: f32, cy: f32, space: f32) -> String {
 /// Rest glyph for a duration, centered horizontally at `cx`. `staff_mid_y` is the y of the
 /// staff's middle line (position 4).
 pub(crate) fn rest_whole(cx: f32, staff_mid_y: f32, space: f32) -> String {
-    // Hangs below the 4th line (position 6): a filled block.
-    let y = staff_mid_y - 2.0 * space;
+    // Hangs below the 4th line, one space above the middle line: a filled block.
+    let y = staff_mid_y - space;
     rest_block(cx, y, space, true)
 }
 
@@ -461,8 +461,9 @@ pub(crate) fn rest_half(cx: f32, staff_mid_y: f32, space: f32) -> String {
 }
 
 fn rest_block(cx: f32, line_y: f32, space: f32, hangs_below: bool) -> String {
-    let w = 0.6 * space;
-    let h = 0.22 * space;
+    // SMuFL restWhole/restHalf proportions (Bravura): about 1.13 spaces wide, half a space tall.
+    let w = 1.13 * space;
+    let h = 0.5 * space;
     let y = if hangs_below { line_y } else { line_y - h };
     format!(
         r#"<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="black"/>"#,

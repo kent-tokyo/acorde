@@ -14,7 +14,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 acorde-core   = { path = "../core", version = "1.2.7" }
-acorde-io     = { path = "../io", version = "1.2.7", features = ["abc", "mscz", "mei"] }
+acorde-io     = { path = "../io", version = "1.2.7", features = ["abc", "gp", "mscz", "mei"] }
 acorde-layout = { path = "../layout", version = "1.2.7" }
 acorde-render-svg = { path = "../render-svg", version = "1.2.7" }
 acorde-analysis = { path = "../analysis", version = "1.2.7" }

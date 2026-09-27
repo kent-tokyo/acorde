@@ -820,7 +820,9 @@ pub(crate) fn parse_musicxml_collecting(
                     "tremolo" if in_ornament_block => {
                         pending_articulations.push(Articulation::Tremolo(1))
                     }
-                    "slide" if in_technical_block => {
+                    // Standard MusicXML puts <slide> in <notations>; older acorde output put it
+                    // in <technical>.
+                    "slide" if in_technical_block || in_notations => {
                         pending_guitar_technique = Some(GuitarTechnique::Slide);
                     }
                     "hammer-on" if in_technical_block => {
@@ -1888,7 +1890,9 @@ pub(crate) fn parse_musicxml_collecting(
                                 (value * 100.0).round().clamp(-32768.0, 32767.0) as i16
                             });
                     }
-                    "slide" if in_technical_block => {
+                    // Standard MusicXML puts <slide> in <notations>; older acorde output put it
+                    // in <technical>.
+                    "slide" if in_technical_block || in_notations => {
                         pending_guitar_technique = Some(GuitarTechnique::Slide);
                     }
                     "hammer-on" if in_technical_block => {
@@ -2044,8 +2048,13 @@ pub(crate) fn parse_musicxml_collecting(
                                     note_voice,
                                 )?;
                                 let mut drop_chord_member = false;
-                                let duration_ticks = if note_is_grace || note_is_cue {
+                                // Cue notes take time in MusicXML (their <duration> moves the
+                                // cursor, and a later <backup> counts it) even though the model
+                                // gives them none; see the voice cursor below.
+                                let duration_ticks = if note_is_grace {
                                     0
+                                } else if note_is_cue {
+                                    note_duration_ticks.unwrap_or(0)
                                 } else {
                                     note_duration_ticks.ok_or_else(|| {
                                         Error::Xml("MusicXML note is missing duration".into())
@@ -2159,6 +2168,20 @@ pub(crate) fn parse_musicxml_collecting(
                                         return Err(Error::Xml(
                                             "MusicXML chord cannot contain a rest".into(),
                                         ));
+                                    }
+                                    if last.tie_start != note.tie_start
+                                        || last.tie_end != note.tie_end
+                                    {
+                                        // The model ties whole chords, so a tie on some members
+                                        // is applied to all of them; say so instead of silently.
+                                        let mut diagnostic = crate::Diagnostic::warning(
+                                            "musicxml.partial-chord-tie",
+                                            "a tie on only some notes of a chord is applied to the whole chord",
+                                        );
+                                        diagnostic.source_location = Some(format!(
+                                            "/score-partwise/measure[{current_measure_number}]/note"
+                                        ));
+                                        tolerated.push(diagnostic);
                                     }
                                     merge_musicxml_chord_note(
                                         last,
@@ -2284,8 +2307,22 @@ pub(crate) fn parse_musicxml_collecting(
                                         voice: voice_index,
                                         note: voice.len() - 1,
                                     };
-                                    voice_cursor_ticks
-                                        .insert((target_staff_index, voice_index), next_cursor);
+                                    // A zero-time cue note leaves the model voice where it was, so
+                                    // the next note in this voice is placed after a gap rest at
+                                    // its real time instead of drifting earlier.
+                                    voice_cursor_ticks.insert(
+                                        (target_staff_index, voice_index),
+                                        if note_is_cue && !note_chord {
+                                            note_start
+                                        } else if note_is_cue {
+                                            voice_cursor_ticks
+                                                .get(&(target_staff_index, voice_index))
+                                                .copied()
+                                                .unwrap_or(note_start)
+                                        } else {
+                                            next_cursor
+                                        },
+                                    );
                                     measure_cursor_ticks = next_cursor;
                                     measure_content_ticks = measure_content_ticks.max(next_cursor);
                                     last_note_start =

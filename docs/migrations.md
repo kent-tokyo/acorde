@@ -25,6 +25,15 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
+### Unreleased — Guitar Pro import and tablature rendering
+
+New optional `gp` feature; no existing API changes. The GM range table only widens, so no
+previously valid score becomes invalid. MusicXML export now writes `<slide>` in `<notations>`
+(older acorde files with it in `<technical>` still import), and it follows cue notes with a
+`<backup>`. MEI tablature `tab.course` and `<course n>` now count from the highest string, as MEI
+defines: files written by acorde 1.2.7 have their tab strings reversed. SVG tablature headers
+change: they draw a TAB clef and no key signature.
+
 ### Unreleased — MEI parity with Verovio
 
 No Rust or JSON API changes. MEI output changes shape: every part is written, articulations

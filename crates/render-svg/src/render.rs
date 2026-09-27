@@ -125,8 +125,13 @@ pub(crate) fn build_svg_with_metadata(
         })
         .collect();
     let (top_margin_u, bottom_margin_u) = content_margins(score, layout, &staff_refs);
-    let (left_margin_u, right_margin_u) =
-        content_horizontal_margins(score, &staff_refs, &mandatory, &courtesy);
+    let (left_margin_u, right_margin_u) = content_horizontal_margins(
+        score,
+        &staff_refs,
+        &mandatory,
+        &courtesy,
+        Some(&RowEdges::from_layout(layout)),
+    );
 
     let staff_heights_u: Vec<f32> = staff_refs
         .iter()
@@ -208,13 +213,54 @@ pub(crate) fn build_svg_with_metadata(
             .map(|&m| measure_total_beats(score, &staff_refs[0], m))
             .collect();
         let total_beats: f64 = beats.iter().sum::<f64>().max(1e-6);
-        let measure_widths: Vec<f32> = beats
+        // Width follows beats, but every measure keeps at least one staff space; the space those
+        // minimums take is removed from the others instead of overflowing the row (a very short
+        // bar next to long ones previously failed the whole render).
+        let mut measure_widths: Vec<f32> = beats
             .iter()
             .map(|beat| (measure_area_width * (*beat / total_beats) as f32).max(space))
             .collect();
+        for _ in 0..measure_widths.len() {
+            let clamped: Vec<bool> = beats
+                .iter()
+                .zip(&measure_widths)
+                .map(|(_, width)| *width <= space + f32::EPSILON)
+                .collect();
+            let fixed = clamped.iter().filter(|c| **c).count() as f32 * space;
+            let free_beats: f64 = beats
+                .iter()
+                .zip(&clamped)
+                .filter(|(_, c)| !**c)
+                .map(|(beat, _)| *beat)
+                .sum();
+            let free_width = measure_area_width - fixed;
+            if free_beats <= 0.0 || free_width <= 0.0 {
+                break;
+            }
+            let next: Vec<f32> = beats
+                .iter()
+                .zip(&clamped)
+                .map(|(beat, c)| {
+                    if *c {
+                        space
+                    } else {
+                        (free_width * (*beat / free_beats) as f32).max(space)
+                    }
+                })
+                .collect();
+            if next == measure_widths {
+                break;
+            }
+            measure_widths = next;
+        }
         let allocated_measure_width: f32 = measure_widths.iter().sum();
+        // Proportional widths sum to the area up to f32 rounding, which grows with the width in
+        // pixels; f32::EPSILON alone rejected ordinary rows (for example a four-part Guitar Pro
+        // score at the default 900 px width). Only a real overflow from the one-space minimum
+        // should fail.
+        let rounding_tolerance = measure_area_width * 1e-4 + 1e-3;
         if !allocated_measure_width.is_finite()
-            || allocated_measure_width > measure_area_width + f32::EPSILON
+            || allocated_measure_width > measure_area_width + rounding_tolerance
         {
             return Err(RenderError::InvalidOptions {
                 reason: "minimum measure widths exceed the available system width".into(),
@@ -256,16 +302,23 @@ pub(crate) fn build_svg_with_metadata(
             );
             let state = &staff_states[si_idx];
             let mut hx = left_margin_u * space;
-            hx += write_clef(&mut body, &state.clef, hx, bottom_y, space)?;
-            hx += HEADER_GAP_U * space;
-            hx += write_key_signature(
-                &mut body,
-                &state.clef,
-                state.key_fifths,
-                hx,
-                bottom_y,
-                space,
-            )?;
+            if let Some(tab) = score.parts[pi].staves[si].tablature.as_ref() {
+                // Tablature staves carry a TAB clef and no key signature, as in MuseScore and
+                // alphaTab; the key's space stays reserved so columns align across staves.
+                hx += write_tab_clef(&mut body, hx, bottom_y, space, tab.lines);
+                hx += HEADER_GAP_U * space;
+            } else {
+                hx += write_clef(&mut body, &state.clef, hx, bottom_y, space)?;
+                hx += HEADER_GAP_U * space;
+                hx += write_key_signature(
+                    &mut body,
+                    &state.clef,
+                    state.key_fifths,
+                    hx,
+                    bottom_y,
+                    space,
+                )?;
+            }
             hx += HEADER_GAP_U * space;
             if draw_time {
                 write_time_signature(&mut body, &state.time_sig, hx, bottom_y, space);
@@ -1769,11 +1822,37 @@ fn tablature_top_clearance_u(staff: &acorde_core::Staff) -> f32 {
 /// Expand breathing room for measure-level annotations and first-system part labels. Font-width
 /// aware line breaking remains host work, but explicit offsets must not move text outside the
 /// renderer's own SVG viewBox.
+/// Measures that open (`first`) and close (`last`) a system row. Only content in those measures can
+/// reach past the system's left or right edge, so only they widen the page margins.
+struct RowEdges {
+    first: std::collections::HashSet<usize>,
+    last: std::collections::HashSet<usize>,
+}
+
+impl RowEdges {
+    fn from_layout(layout: &acorde_layout::LayoutResult) -> Self {
+        let mut edges = Self {
+            first: Default::default(),
+            last: Default::default(),
+        };
+        for row in &layout.rows {
+            if let (Some(first), Some(last)) =
+                (row.measure_indices.first(), row.measure_indices.last())
+            {
+                edges.first.insert(*first);
+                edges.last.insert(*last);
+            }
+        }
+        edges
+    }
+}
+
 fn content_horizontal_margins(
     score: &Score,
     staff_refs: &[(usize, usize)],
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
+    edges: Option<&RowEdges>,
 ) -> (f32, f32) {
     let mut left = LEFT_MARGIN_U;
     let mut right = RIGHT_MARGIN_U;
@@ -1789,24 +1868,39 @@ fn content_horizontal_margins(
         }
         for (measure_index, measure) in score.parts[part].staves[staff].measures.iter().enumerate()
         {
+            let row_first = edges.is_none_or(|edges| edges.first.contains(&measure_index));
+            let row_last = edges.is_none_or(|edges| edges.last.contains(&measure_index));
+            if !row_first && !row_last {
+                continue;
+            }
             let Ok(clef_bottom) = geometry::clef_bottom_line(&score.parts[part].staves[staff].clef)
             else {
                 continue;
             };
             for (voice_index, voice) in measure.voices.iter().enumerate() {
                 for (note_index, note) in voice.iter().enumerate() {
+                    // Only a bar's opening event can overhang a row's left edge, and only its
+                    // closing event the right edge.
+                    let at_left = row_first && note_index == 0;
+                    let at_right = row_last && note_index + 1 == voice.len();
                     let annotation_half_width = note_annotation_width_u(note) / 2.0;
                     let (offset_x, _) = note_placement_offsets_u(note);
                     let note_half_width = annotation_half_width.max(0.7);
                     if offset_x < 0.0 {
-                        left = left.max(-offset_x + note_half_width);
-                    } else {
+                        if at_left {
+                            left = left.max(-offset_x + note_half_width);
+                        }
+                    } else if at_right {
                         right = right.max(offset_x + note_half_width);
                     }
                     if annotation_half_width > 0.0 {
                         let annotation_extent = annotation_half_width + MEASURE_PAD_U;
-                        left = left.max(annotation_extent);
-                        right = right.max(annotation_extent);
+                        if at_left {
+                            left = left.max(annotation_extent);
+                        }
+                        if at_right {
+                            right = right.max(annotation_extent);
+                        }
                     }
                     if tablature.is_some() {
                         let positions = if !note.tab_positions.is_empty() {
@@ -1822,8 +1916,12 @@ fn content_horizontal_margins(
                                 + tab_fret_metrics(0).side_gap_units
                                     * positions.len().saturating_sub(1) as f32;
                             let half_width = width / 2.0 + 0.25;
-                            left = left.max(half_width);
-                            right = right.max(half_width);
+                            if at_left {
+                                left = left.max(half_width);
+                            }
+                            if at_right {
+                                right = right.max(half_width);
+                            }
                         }
                     }
                     let has_accidentals: Vec<bool> = note
@@ -1850,7 +1948,10 @@ fn content_horizontal_margins(
                                 ))
                         })
                         .collect();
-                    if note.pitches.is_empty() || !has_accidentals.iter().any(|&present| present) {
+                    if !at_left
+                        || note.pitches.is_empty()
+                        || !has_accidentals.iter().any(|&present| present)
+                    {
                         continue;
                     }
                     let positions: Vec<i32> = note
@@ -1898,12 +1999,17 @@ fn content_horizontal_margins(
                     as f32
                     / 10.0;
                 let text_width = measure_text_width_u(&styled.text);
-                left = left.max(MEASURE_PAD_U - offset_x);
-                right = right.max(MEASURE_PAD_U + text_width + offset_x);
-                if offset_x < 0.0 {
-                    left = left.max(LEFT_MARGIN_U - offset_x);
-                } else {
-                    right = right.max(RIGHT_MARGIN_U + offset_x);
+                if row_first {
+                    left = left.max(MEASURE_PAD_U - offset_x);
+                    if offset_x < 0.0 {
+                        left = left.max(LEFT_MARGIN_U - offset_x);
+                    }
+                }
+                if row_last {
+                    right = right.max(MEASURE_PAD_U + text_width + offset_x);
+                    if offset_x >= 0.0 {
+                        right = right.max(RIGHT_MARGIN_U + offset_x);
+                    }
                 }
             }
         }
@@ -2084,6 +2190,27 @@ fn header_width_u(clef: &Clef, key_fifths: i8, time_sig: Option<&TimeSignature>)
         .map(|_| glyphs::DIGIT_WIDTH_U + HEADER_GAP_U)
         .unwrap_or(0.0);
     clef_w + key_w + time_w
+}
+
+/// "TAB" clef: the three letters stacked over the middle of a tablature staff.
+fn write_tab_clef(body: &mut String, x: f32, bottom_y: f32, space: f32, lines: u8) -> f32 {
+    let span = f32::from(lines.max(2) - 1) * space;
+    let letter = (span / 3.4).clamp(0.7 * space, 1.4 * space);
+    let top = bottom_y - span / 2.0 - 1.5 * letter;
+    let cx = x + 0.7 * space;
+    let _ = write!(body, r#"<g class="acorde-clef acorde-clef-tab">"#);
+    for (index, glyph) in ["T", "A", "B"].iter().enumerate() {
+        let _ = write!(
+            body,
+            r#"<text x="{}" y="{}" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="{}">{}</text>"#,
+            f(cx),
+            f(top + letter * (index as f32 + 1.0) - 0.1 * letter),
+            f(letter * 1.05),
+            glyph
+        );
+    }
+    body.push_str("</g>");
+    1.4 * space
 }
 
 fn write_clef(
@@ -2782,6 +2909,18 @@ fn render_measure_voice<'a>(
         content_w,
         space,
     });
+    // A lone whole rest in an otherwise empty bar is a measure rest: engravers centre it in the
+    // bar whatever the time signature.
+    if let [only] = notes
+        && only.is_plain_whole_rest()
+        && measure
+            .voices
+            .iter()
+            .enumerate()
+            .all(|(index, voice)| index == voice_idx || voice.is_empty())
+    {
+        xs[0] = content_x0 + content_w / 2.0;
+    }
     apply_note_horizontal_offsets(notes, &mut xs, space);
     resolve_adjacent_event_spacing(notes, &mut xs, content_x0, content_w, space);
     resolve_cross_voice_event_spacing(
@@ -2832,7 +2971,11 @@ fn render_measure_voice<'a>(
             note_points,
         },
     )?;
-    body.push_str(&beam_svg);
+    // Beams follow standard-notation stem tips; a tablature staff shows fret numbers (and, when
+    // enabled, its own stems) instead, so pitch-positioned beams would land across the strings.
+    if tablature.is_none() {
+        body.push_str(&beam_svg);
+    }
 
     render_measure_voice_tuplets(
         body,
@@ -2904,7 +3047,25 @@ fn render_measure_voice_notes(
         tablature_fret_mark_style,
         note_points,
     } = context;
-    for (note_idx, note) in notes.iter().enumerate() {
+    let mut previous_technique: Option<&str> = None;
+    for (note_idx, original_note) in notes.iter().enumerate() {
+        // A technique text that simply continues from the previous sounding note of this voice
+        // (GP "let ring", "P.M." on every beat) is shown once, at its start in the measure.
+        let repeats_technique = !original_note.is_rest
+            && original_note.technique_text.is_some()
+            && original_note.technique_text.as_deref() == previous_technique;
+        if !original_note.is_rest {
+            previous_technique = original_note.technique_text.as_deref();
+        }
+        let suppressed;
+        let note = if repeats_technique {
+            let mut copy = original_note.clone();
+            copy.technique_text = None;
+            suppressed = copy;
+            &suppressed
+        } else {
+            original_note
+        };
         let stem_up = note.stem_up.unwrap_or(*voice_stem_up);
         let point_y = note_anchor_y(note, *clef_bottom, stem_up, *bottom_y, *space, *tablature);
         note_points.insert(
@@ -4666,6 +4827,7 @@ fn render_note_content(
             x,
             placed_staff_bottom_y,
             space,
+            tablature.map_or(5, |tab| tab.lines),
         );
     } else if let Some(tab) = tablature {
         validate_tab_note(note, tab, space)?;
@@ -4855,6 +5017,7 @@ fn render_tab_note(
                 space,
                 interactive,
                 fret_mark_style,
+                note.note_head == acorde_core::NoteHead::X,
             );
             cursor += glyph_width + gap;
         }
@@ -4985,6 +5148,7 @@ fn render_tab_bend(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn write_tab_fret_text(
     body: &mut String,
     position: &acorde_core::TabPosition,
@@ -4993,8 +5157,14 @@ fn write_tab_fret_text(
     space: f32,
     interactive: bool,
     fret_mark_style: acorde_core::TablatureFretMarkStyle,
+    dead_note: bool,
 ) {
-    let fret_label = tab_fret_label(position.fret, fret_mark_style);
+    // A dead (muted) note is written "X" on its string, as in Guitar Pro, alphaTab and MuseScore.
+    let fret_label = if dead_note {
+        "X".to_string()
+    } else {
+        tab_fret_label(position.fret, fret_mark_style)
+    };
     let attributes = if interactive {
         format!(
             " data-acorde-kind=\"tab-fret\" data-string=\"{}\" data-fret=\"{}\"",
@@ -5005,10 +5175,13 @@ fn write_tab_fret_text(
     };
     let _ = write!(
         body,
-        r#"<text class="acorde-tab-fret" x="{}" y="{}" text-anchor="middle" font-family="serif" font-size="{}"{}>{}</text>"#,
+        // A white halo (stroke painted under the fill) knocks the string line out behind the
+        // digits, as tablature engravers and alphaTab/MuseScore do.
+        r#"<text class="acorde-tab-fret" x="{}" y="{}" text-anchor="middle" font-family="serif" font-size="{}" stroke="white" stroke-width="{}" paint-order="stroke"{}>{}</text>"#,
         f(x),
         f(y),
         f(0.72 * space),
+        f(0.3 * space),
         attributes,
         escape_xml(&fret_label)
     );
@@ -5950,8 +6123,14 @@ fn render_rest(
     x: f32,
     staff_bottom_y: f32,
     space: f32,
+    lines: u8,
 ) {
-    let mid_y = staff_bottom_y - 2.0 * space;
+    // Rests centre on the staff: the whole rest hangs from the line above the central space (the
+    // 4th line of five), so `mid_y` is one space below that line. A six-line tab staff therefore
+    // keeps its rests in the middle space too.
+    let lines = lines.max(2);
+    let top_y = staff_bottom_y - f32::from(lines - 1) * space;
+    let mid_y = top_y + f32::from((lines - 2) / 2 + 1) * space;
     let (flags, glyph) = match duration {
         Duration::Whole => (0, glyphs::rest_whole(x, mid_y, space)),
         Duration::Half => (0, glyphs::rest_half(x, mid_y, space)),
@@ -6654,13 +6833,13 @@ mod tests {
         let refs = vec![(0, 0)];
         score.parts[0].short_name.clear();
         let empty = HashMap::new();
-        let plain = content_horizontal_margins(&score, &refs, &empty, &empty).0;
+        let plain = content_horizontal_margins(&score, &refs, &empty, &empty, None).0;
         let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
         voice.clear();
         let mut note = Note::new(Pitch::with_alter(Step::C, 5, 1), Duration::Quarter);
         note.pitches.push(Pitch::with_alter(Step::D, 5, 1));
         voice.push(note);
-        let expanded = content_horizontal_margins(&score, &refs, &empty, &empty).0;
+        let expanded = content_horizontal_margins(&score, &refs, &empty, &empty, None).0;
         assert!(expanded > plain);
     }
 

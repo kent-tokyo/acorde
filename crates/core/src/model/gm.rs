@@ -224,7 +224,10 @@ pub fn instrument_range(midi_program: u8) -> (u8, u8) {
         .unwrap_or((0, 127))
 }
 
-// Practical playing ranges per GM program (min_midi, max_midi).
+// Playing ranges per GM program (min_midi, max_midi), sounding pitch. Orchestral, band and guitar
+// entries follow professional ranges (extended-range guitars and basses, string quartet high
+// positions, altissimo) so authored repertoire does not fail validation; the table is only ever
+// widened, never narrowed.
 // Programs 120–127 (sound effects) use (0, 127) — no meaningful pitch restriction.
 static GM_RANGES: [(u8, u8); 128] = [
     // Piano (0–7): 21(A0)–108(C8) for grands; uprights similar
@@ -255,28 +258,28 @@ static GM_RANGES: [(u8, u8); 128] = [
     (24, 108),
     (24, 108),
     // Guitar (24–31)
-    (40, 88),
-    (40, 88),
-    (40, 88),
-    (40, 88),
-    (40, 88),
-    (40, 88),
-    (40, 88),
-    (40, 88),
+    (30, 91),
+    (30, 91),
+    (30, 91),
+    (30, 91),
+    (30, 91),
+    (30, 91),
+    (30, 91),
+    (30, 91),
     // Bass (32–39): low instruments
-    (28, 67),
-    (28, 67),
-    (28, 67),
-    (28, 67),
-    (28, 67),
-    (28, 67),
-    (28, 67),
-    (28, 67),
+    (23, 72),
+    (23, 72),
+    (23, 72),
+    (23, 72),
+    (23, 72),
+    (23, 72),
+    (23, 72),
+    (23, 72),
     // Strings (40–47)
-    (55, 103), // Violin: G3–B7
-    (48, 91),  // Viola: C3–G6
-    (36, 76),  // Cello: C2–E5
-    (28, 60),  // Contrabass: E1–C4
+    (55, 105), // Violin: G3–A7
+    (48, 93),  // Viola: C3–A6
+    (36, 93),  // Cello: C2–A6
+    (28, 67),  // Contrabass: E1–G4
     (55, 91),  // Tremolo Strings
     (55, 91),  // Pizzicato Strings
     (21, 108), // Orchestral Harp
@@ -291,32 +294,32 @@ static GM_RANGES: [(u8, u8); 128] = [
     (21, 108),
     (21, 108),
     // Brass (56–63)
-    (52, 82), // Trumpet: E3–Bb5
-    (36, 67), // Trombone: Bb1–G4
-    (28, 67), // Tuba: Bb0–G4
-    (52, 82), // Muted Trumpet
-    (43, 79), // French Horn: G2–G5
+    (52, 86), // Trumpet: E3–D6
+    (34, 77), // Trombone: Bb1–F5
+    (26, 67), // Tuba: Bb0–G4
+    (52, 86), // Muted Trumpet
+    (34, 79), // French Horn: Bb1–G5
     (52, 82), // Brass Section
     (52, 82), // Synth Brass 1
     (52, 82), // Synth Brass 2
     // Reed (64–71)
-    (56, 89), // Soprano Sax: Ab3–E6
-    (44, 80), // Alto Sax: Bb2–E5  (concert pitch)
-    (38, 75), // Tenor Sax: Ab1–Bb4
-    (32, 68), // Baritone Sax: Bb0–Eb4
-    (45, 84), // Oboe: A2–C6
-    (36, 77), // English Horn: B1–F5
+    (56, 91), // Soprano Sax: Ab3–E6
+    (44, 87), // Alto Sax: Bb2–E5  (concert pitch)
+    (38, 81), // Tenor Sax: Ab1–Bb4
+    (32, 72), // Baritone Sax: Bb0–Eb4
+    (45, 93), // Oboe: A2–C6
+    (36, 84), // English Horn: B1–F5
     (34, 77), // Bassoon: Bb1–Bb5
-    (52, 96), // Clarinet: E3–C7 (written, concert = -2)
+    (50, 96), // Clarinet: D3–C7
     // Pipe (72–79)
-    (60, 96), // Piccolo: C4–C7
-    (60, 96), // Flute: C4–C7
-    (55, 91), // Recorder
-    (55, 89), // Pan Flute
-    (48, 84), // Blown Bottle
-    (48, 84), // Shakuhachi
-    (48, 84), // Whistle
-    (48, 84), // Ocarina
+    (60, 108), // Piccolo: C4–C8
+    (59, 98),  // Flute: B3–D7
+    (55, 91),  // Recorder
+    (55, 89),  // Pan Flute
+    (48, 84),  // Blown Bottle
+    (48, 84),  // Shakuhachi
+    (48, 84),  // Whistle
+    (48, 84),  // Ocarina
     // Synth Lead (80–87): wide range
     (0, 127),
     (0, 127),
@@ -428,7 +431,7 @@ mod tests {
 
     #[test]
     fn instrument_range_flute() {
-        assert_eq!(instrument_range(73), (60, 96));
+        assert_eq!(instrument_range(73), (59, 98));
     }
 
     #[test]

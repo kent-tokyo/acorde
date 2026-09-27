@@ -5,6 +5,8 @@
 #[cfg(feature = "abc")]
 pub mod abc;
 mod error;
+#[cfg(feature = "gp")]
+pub mod gp;
 #[cfg(feature = "mei")]
 pub mod mei;
 #[cfg(feature = "midi")]
@@ -95,6 +97,9 @@ pub fn parse_mxl_with_report(data: &[u8]) -> Result<ImportReport, Error> {
         diagnostics,
     })
 }
+
+#[cfg(feature = "gp")]
+pub use gp::{parse_gp, parse_gp_with_report};
 
 #[cfg(feature = "mei")]
 pub use mei::{parse_mei, serialize_mei};

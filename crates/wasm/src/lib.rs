@@ -117,6 +117,20 @@ pub fn parse_mxl_report(data: &[u8]) -> Result<String, JsValue> {
     serde_json::to_string(&report).map_err(|e| js_err(format!("report serialization failed: {e}")))
 }
 
+/// Parse a Guitar Pro 6 (`.gpx`) or 7/8 (`.gp`) file (byte array) and return the score as JSON.
+#[wasm_bindgen]
+pub fn parse_gp(data: &[u8]) -> Result<String, JsValue> {
+    let score = acorde_io::parse_gp(data).map_err(js_err)?;
+    score_to_json(&score)
+}
+
+/// Parse a Guitar Pro 6/7/8 (`.gpx`/`.gp`) file and return an ImportReport JSON string.
+#[wasm_bindgen]
+pub fn parse_gp_report(data: &[u8]) -> Result<String, JsValue> {
+    let report = acorde_io::parse_gp_with_report(data).map_err(js_err)?;
+    serde_json::to_string(&report).map_err(|e| js_err(format!("report serialization failed: {e}")))
+}
+
 /// Parse a compressed MusicXML (MXL) archive and render its canonical score directly to SVG.
 #[wasm_bindgen]
 pub fn parse_mxl_render_svg(data: &[u8], options_json: &str) -> Result<String, JsValue> {
