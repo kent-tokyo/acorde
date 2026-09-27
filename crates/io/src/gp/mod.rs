@@ -1280,6 +1280,21 @@ fn finish_measures(score: &mut Score, master_bars: &[&Node]) {
                     continue;
                 };
                 measure.actual_length = length;
+                // Guitar Pro writes an empty bar as a lone placeholder rest beat (often a quarter)
+                // and shows it as a bar rest. A bar holding only rests becomes a measure rest.
+                if length.is_none()
+                    && measure
+                        .voices
+                        .iter()
+                        .flatten()
+                        .all(|note| note.is_rest && !note.is_grace)
+                {
+                    for voice in &mut measure.voices {
+                        voice.clear();
+                    }
+                    measure.voices[0].push(Note::rest(Duration::Whole));
+                    continue;
+                }
                 let filled = acorde_core::voice_duration_beats(&measure.voices[0], target);
                 if filled + 1e-9 < target {
                     pad_with_rests(&mut measure.voices[0], target - filled);
@@ -1313,9 +1328,10 @@ mod tests {
 <MasterBars>
 <MasterBar><Key><AccidentalCount>1</AccidentalCount><Mode>Minor</Mode></Key><Time>4/4</Time><Bars>0</Bars><Repeat start="true" end="false" count="0" /><Section><Letter>A</Letter><Text>Intro</Text></Section></MasterBar>
 <MasterBar><Key><AccidentalCount>1</AccidentalCount><Mode>Minor</Mode></Key><Time>3/4</Time><Bars>1</Bars><Repeat start="false" end="true" count="2" /></MasterBar>
+<MasterBar><Key><AccidentalCount>1</AccidentalCount><Mode>Minor</Mode></Key><Time>3/4</Time><Bars>2</Bars></MasterBar>
 </MasterBars>
-<Bars><Bar id="0"><Clef>G2</Clef><Voices>0 -1 -1 -1</Voices></Bar><Bar id="1"><Clef>G2</Clef><Voices>1 -1 -1 -1</Voices></Bar></Bars>
-<Voices><Voice id="0"><Beats>0 1 2 3</Beats></Voice><Voice id="1"><Beats>4</Beats></Voice></Voices>
+<Bars><Bar id="0"><Clef>G2</Clef><Voices>0 -1 -1 -1</Voices></Bar><Bar id="1"><Clef>G2</Clef><Voices>1 -1 -1 -1</Voices></Bar><Bar id="2"><Clef>G2</Clef><Voices>2 -1 -1 -1</Voices></Bar></Bars>
+<Voices><Voice id="0"><Beats>0 1 2 3</Beats></Voice><Voice id="1"><Beats>4</Beats></Voice><Voice id="2"><Beats>3</Beats></Voice></Voices>
 <Beats>
 <Beat id="0"><Dynamic>MF</Dynamic><Rhythm ref="0" /><Notes>0 1</Notes><Lyrics><Line>Hey</Line><Line /></Lyrics></Beat>
 <Beat id="1"><Dynamic>MF</Dynamic><Rhythm ref="0" /><Notes>2</Notes><Tremolo>1/4</Tremolo><Properties><Property name="PickStroke"><Direction>Up</Direction></Property><Property name="Brush"><Direction>Down</Direction></Property></Properties></Beat>
@@ -1411,6 +1427,10 @@ mod tests {
             acorde_core::validate(score).errors
         );
         let second = &staff.measures[1];
+        // A bar of only a placeholder rest beat is a measure rest, not a padded quarter rest.
+        let third = &staff.measures[2].voices[0];
+        assert_eq!(third.len(), 1);
+        assert!(third[0].is_plain_whole_rest());
         assert_eq!(second.time_sig.as_ref().map(|t| t.numerator), Some(3));
         assert_eq!(second.barline_right, Barline::RepeatEnd);
         assert_eq!(second.voices[0][0].note_head, NoteHead::X);

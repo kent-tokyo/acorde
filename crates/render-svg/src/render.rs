@@ -2909,6 +2909,18 @@ fn render_measure_voice<'a>(
         content_w,
         space,
     });
+    // A lone whole rest in an otherwise empty bar is a measure rest: engravers centre it in the
+    // bar whatever the time signature.
+    if let [only] = notes
+        && only.is_plain_whole_rest()
+        && measure
+            .voices
+            .iter()
+            .enumerate()
+            .all(|(index, voice)| index == voice_idx || voice.is_empty())
+    {
+        xs[0] = content_x0 + content_w / 2.0;
+    }
     apply_note_horizontal_offsets(notes, &mut xs, space);
     resolve_adjacent_event_spacing(notes, &mut xs, content_x0, content_w, space);
     resolve_cross_voice_event_spacing(
@@ -4815,6 +4827,7 @@ fn render_note_content(
             x,
             placed_staff_bottom_y,
             space,
+            tablature.map_or(5, |tab| tab.lines),
         );
     } else if let Some(tab) = tablature {
         validate_tab_note(note, tab, space)?;
@@ -6110,8 +6123,14 @@ fn render_rest(
     x: f32,
     staff_bottom_y: f32,
     space: f32,
+    lines: u8,
 ) {
-    let mid_y = staff_bottom_y - 2.0 * space;
+    // Rests centre on the staff: the whole rest hangs from the line above the central space (the
+    // 4th line of five), so `mid_y` is one space below that line. A six-line tab staff therefore
+    // keeps its rests in the middle space too.
+    let lines = lines.max(2);
+    let top_y = staff_bottom_y - f32::from(lines - 1) * space;
+    let mid_y = top_y + f32::from((lines - 2) / 2 + 1) * space;
     let (flags, glyph) = match duration {
         Duration::Whole => (0, glyphs::rest_whole(x, mid_y, space)),
         Duration::Half => (0, glyphs::rest_half(x, mid_y, space)),

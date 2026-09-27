@@ -22,6 +22,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   line behind them, and dead notes are written `X`.
   Tab staves no longer draw beams placed by pitch, and a technique text such as "let ring"
   that continues from note to note is written once per run within a bar.
+- SVG whole and half rests now use SMuFL proportions (about 1.1 × 0.5 spaces), the whole rest
+  hangs from the fourth line instead of the top line, and a measure rest is centred in its bar.
+  Rests on tablature staves sit in the middle space. Guitar Pro bars holding only a placeholder
+  rest import as measure rests.
 - Rendering no longer fails with "minimum measure widths exceed the available system width"
   because of f32 rounding, or when a very short bar sits next to long ones.
 - MusicXML cue notes now keep their written time at the I/O boundary. Import advances the cursor
