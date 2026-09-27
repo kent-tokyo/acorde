@@ -526,7 +526,13 @@ fn write_staff(
         for styled in &measure.texts {
             write_styled_text(xml, styled)?;
         }
-        if let Some(text) = &measure.expression_text {
+        // MusicXML import keeps the first words both as the bar's expression text and as a
+        // styled text; write them once.
+        if let Some(text) = measure
+            .expression_text
+            .as_ref()
+            .filter(|text| !measure.texts.iter().any(|styled| &styled.text == *text))
+        {
             write_styled_text(
                 xml,
                 &acorde_core::StyledText {
@@ -641,8 +647,7 @@ fn write_staff(
                         xml,
                         note,
                         melisma,
-                        marks.map_or("", |marks| marks.inside.as_str()),
-                        marks.map_or("", |marks| marks.note.as_str()),
+                        marks,
                         staff_in_part,
                         staff.transpose_semitones,
                     )?;
@@ -721,6 +726,8 @@ struct SpanMarks {
     after: String,
     /// Note-level spanners (glissandos), written in the chord's first `<Note>`.
     note: String,
+    /// A trill line starts here: its spanner draws the "tr", so the ornament is not repeated.
+    trill_line: bool,
 }
 
 /// A note of a staff by (measure, voice, note index), and a point by (measure, beats in it).
@@ -873,10 +880,12 @@ fn staff_span_marks(staff: &Staff) -> std::collections::HashMap<NoteKey, SpanMar
                             if let Some((start_key, start, body)) = open {
                                 let location = mscx_location(start, end);
                                 let back = mscx_location(end, start);
+                                let start_marks = marks.entry(start_key).or_default();
                                 let _ = write!(
-                                    marks.entry(start_key).or_default().before,
+                                    start_marks.before,
                                     "<Spanner type=\"{kind}\">{body}<next>{location}</next></Spanner>"
                                 );
+                                start_marks.trill_line |= kind == "Trill";
                                 let _ = write!(
                                     marks.entry(key).or_default().after,
                                     "<Spanner type=\"{kind}\"><prev>{back}</prev></Spanner>"
@@ -923,8 +932,7 @@ fn write_note(
     xml: &mut String,
     note: &Note,
     melisma: Option<acorde_core::MeasureLength>,
-    chord_spanners: &str,
-    note_spanners: &str,
+    marks: Option<&SpanMarks>,
     staff_in_part: usize,
     transpose: i8,
 ) -> Result<(), Error> {
@@ -1024,7 +1032,7 @@ fn write_note(
     if let Some(mode) = beam_mode(note.beam) {
         write!(xml, "<BeamMode>{mode}</BeamMode>").map_err(fmt_error)?;
     }
-    xml.push_str(chord_spanners);
+    xml.push_str(marks.map_or("", |marks| marks.inside.as_str()));
     if let Some(arpeggiate) = note.arpeggiate {
         write!(
             xml,
@@ -1122,7 +1130,7 @@ fn write_note(
             note.pitch_tie_end(pitch_index),
         );
         if pitch_index == 0 {
-            xml.push_str(note_spanners);
+            xml.push_str(marks.map_or("", |marks| marks.note.as_str()));
         }
         if tie_start || tie_end {
             xml.push_str("<Spanner type=\"Tie\">");
@@ -1152,7 +1160,7 @@ fn write_note(
                 .map_err(fmt_error)?;
             }
             // A trill line draws its own "tr".
-            Articulation::Trill if note.trill_line_start => {}
+            Articulation::Trill if marks.is_some_and(|marks| marks.trill_line) => {}
             articulation => {
                 if let Some(subtype) = articulation_subtype(articulation) {
                     write!(
