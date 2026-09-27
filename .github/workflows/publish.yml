@@ -77,6 +77,14 @@ jobs:
               echo "${crate_name} ${release_version} already published"
             else
               cargo publish --package "$crate_name" --locked
+              for _ in {1..24}; do
+                if cargo info "${crate_name}@${release_version}" --registry crates-io >/dev/null 2>&1; then
+                  return
+                fi
+                sleep 5
+              done
+              echo "${crate_name} ${release_version} did not become available in crates.io"
+              return 1
             fi
           }
 

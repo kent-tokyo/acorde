@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.8] - 2026-09-27
+
 - **Guitar Pro import.** New `gp` feature (`acorde_io::parse_gp`, `parse_gp_with_report`; enabled
   in the CLI and WASM builds, umbrella feature `acorde/gp`). It reads Guitar Pro 7/8 `.gp` and
   Guitar Pro 6 `.gpx` files: tracks become parts, staves keep tuning and capo, and notes keep

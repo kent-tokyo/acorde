@@ -25,7 +25,7 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
-### Unreleased — Guitar Pro import and tablature rendering
+### v1.2.8 — Guitar Pro import and tablature rendering
 
 New optional `gp` feature; no existing API changes. The GM range table only widens, so no
 previously valid score becomes invalid. MusicXML export now writes `<slide>` in `<notations>`
