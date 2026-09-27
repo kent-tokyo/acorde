@@ -71,7 +71,8 @@ pub enum ValidationError {
         expected_beats: f64,
         found_beats: f64,
     },
-    /// A note pitch lies outside the practical range for the part's GM instrument.
+    /// Not produced: an out-of-range pitch is [`ValidationWarning::OutOfRange`], so a part whose
+    /// instrument is misidentified stays editable. Kept so existing matches compile.
     OutOfRange {
         part_index: usize,
         staff_index: usize,
@@ -328,6 +329,17 @@ pub enum ValidationWarning {
     },
     /// The same rehearsal mark text appears more than once.
     DuplicateRehearsalMark { mark: String },
+    /// A note pitch lies outside the practical range for the part's GM instrument. Advisory, as
+    /// in MuseScore: the range comes from the part's MIDI program, which may not name the real
+    /// instrument.
+    OutOfRange {
+        part_index: usize,
+        staff_index: usize,
+        measure_index: usize,
+        note_index: usize,
+        pitch_midi: u8,
+        instrument_range: (u8, u8),
+    },
 }
 
 /// Combined result of [`validate`]: errors that indicate broken structure, plus advisory warnings.
@@ -347,9 +359,9 @@ impl ValidationReport {
 /// Check every voice in every measure for structural correctness.
 ///
 /// Checks performed:
-/// - **Errors**: beat-count mismatch, out-of-range pitch.
-/// - **Warnings**: incomplete bar (underfull voice), overlapping volta brackets,
-///   empty parts, duplicate rehearsal marks.
+/// - **Errors**: beat-count mismatch and other broken structure.
+/// - **Warnings**: out-of-range pitch, incomplete bar (underfull voice), overlapping volta
+///   brackets, empty parts, duplicate rehearsal marks.
 ///
 /// Multi-rest placeholder measures and empty voices are skipped.
 /// Percussion parts (MIDI channel 9) are exempt from pitch-range checks.
@@ -804,7 +816,7 @@ pub fn validate(score: &Score) -> ValidationReport {
                             for pitch in &note.pitches {
                                 let midi = (pitch.to_midi() + transpose as i16).clamp(0, 127) as u8;
                                 if midi < range.0 || midi > range.1 {
-                                    errors.push(ValidationError::OutOfRange {
+                                    warnings.push(ValidationWarning::OutOfRange {
                                         part_index: pi,
                                         staff_index: si,
                                         measure_index: mi,
@@ -1346,8 +1358,12 @@ mod tests {
         score.parts[0].staves[0].measures[0].voices[0] =
             vec![Note::new(Pitch::new(Step::C, 9), Duration::Whole)];
         let report = validate(&score);
-        assert!(report.errors.iter().any(
-            |e| matches!(e, ValidationError::OutOfRange { pitch_midi, .. } if *pitch_midi == 120)
+        assert!(
+            report.is_valid(),
+            "an out-of-range pitch does not block edits"
+        );
+        assert!(report.warnings.iter().any(
+            |w| matches!(w, ValidationWarning::OutOfRange { pitch_midi, .. } if *pitch_midi == 120)
         ));
     }
 
@@ -1362,9 +1378,9 @@ mod tests {
         let report = validate(&score);
         assert!(
             !report
-                .errors
+                .warnings
                 .iter()
-                .any(|e| matches!(e, ValidationError::OutOfRange { .. }))
+                .any(|w| matches!(w, ValidationWarning::OutOfRange { .. }))
         );
     }
 
@@ -1377,9 +1393,9 @@ mod tests {
             vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
         assert!(
             !validate(&score)
-                .errors
+                .warnings
                 .iter()
-                .any(|e| matches!(e, ValidationError::OutOfRange { .. }))
+                .any(|w| matches!(w, ValidationWarning::OutOfRange { .. }))
         );
     }
 

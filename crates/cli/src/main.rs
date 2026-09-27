@@ -1142,6 +1142,23 @@ fn cmd_validate(input: &Path) -> Result<(), String> {
                 measure + 1,
                 source + 1
             ),
+            acorde_core::ValidationWarning::OutOfRange {
+                part_index,
+                staff_index,
+                measure_index,
+                note_index,
+                pitch_midi,
+                instrument_range,
+            } => eprintln!(
+                "warning: part {} staff {} measure {} note {}: pitch MIDI {} out of instrument range {}–{}",
+                part_index + 1,
+                staff_index + 1,
+                measure_index + 1,
+                note_index + 1,
+                pitch_midi,
+                instrument_range.0,
+                instrument_range.1
+            ),
         }
     }
     if report.errors.is_empty() {

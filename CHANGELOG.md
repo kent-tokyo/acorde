@@ -9,6 +9,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Out-of-range pitches are warnings (user approved).** Validation reported a pitch outside
+  the part's instrument range as an error, and every edit command is refused on a score with
+  errors — so a part whose MIDI program names another instrument (a viola marked as violin)
+  could not be edited from the moment it was imported (4 of the 205 corpus scores). It is now
+  `ValidationWarning::OutOfRange`, as MuseScore flags such notes without blocking;
+  `ValidationError::OutOfRange` remains in the enum but is no longer produced.
 - **Unroll repeats** (`UnrollRepeatsCmd`, MuseScore's Tools → Unroll repeats): writes repeats,
   voltas and D.C./D.S./coda jumps out as bars in playing order, with undo. Repeat barlines,
   voltas and navigation marks go (a final barline stays on the last bar); a jump that changes
