@@ -1655,6 +1655,34 @@ fn gcd(mut a: u64, mut b: u64) -> u64 {
     a.max(1)
 }
 
+/// A note's pitch and tablature position. Tablature notes (`<tabGrp>` members) may carry only
+/// `@tab.course`/`@tab.fret`; their pitch then comes from the staff's `<tuning>`.
+fn parse_mei_tab_note(
+    event: &BytesStart<'_>,
+    tuning: Option<&[i16]>,
+) -> Result<(Pitch, Option<acorde_core::TabPosition>), Error> {
+    let tab = match (
+        attr(event, b"tab.course").and_then(|value| value.parse::<u8>().ok()),
+        attr(event, b"tab.fret").and_then(|value| value.parse::<u8>().ok()),
+    ) {
+        (Some(string), Some(fret)) if string > 0 => Some(acorde_core::TabPosition { string, fret }),
+        _ => None,
+    };
+    if attr(event, b"pname").is_some() {
+        return Ok((parse_mei_pitch(event)?, tab));
+    }
+    let midi = tab.as_ref().and_then(|tab| {
+        let open = *tuning?.get(usize::from(tab.string) - 1)?;
+        u8::try_from(open + i16::from(tab.fret))
+            .ok()
+            .filter(|midi| *midi <= 127)
+    });
+    match midi {
+        Some(midi) => Ok((Pitch::from_midi(midi, false), tab)),
+        None => parse_mei_pitch(event).map(|pitch| (pitch, tab)),
+    }
+}
+
 fn parse_mei_pitch(event: &BytesStart<'_>) -> Result<Pitch, Error> {
     let pitch_step = attr(event, b"pname")
         .as_deref()
@@ -1712,12 +1740,19 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
     let is_rest = matches!(event.name().as_ref(), b"rest" | b"space");
     if chord_started && !is_rest {
         // A later chord member: extend the chord note created by the first member.
-        let pitch = parse_mei_pitch(event)?;
+        let tuning = score.parts[0].staves[current_staff]
+            .tablature
+            .as_ref()
+            .map(|tab| tab.tuning_midi.clone());
+        let (pitch, tab) = parse_mei_tab_note(event, tuning.as_deref())?;
         let voice =
             &mut score.parts[0].staves[current_staff].measures[measure_index].voices[current_layer];
         let note_index = voice.len().saturating_sub(1);
         if let Some(note) = voice.last_mut() {
             note.pitches.push(pitch);
+            if let Some(tab) = tab {
+                note.tab_positions.push(tab);
+            }
             for articulation in attr(event, b"artic")
                 .iter()
                 .flat_map(|value| value.split_whitespace())
@@ -1760,7 +1795,19 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
     let mut note = if is_rest {
         Note::rest(dur)
     } else {
-        Note::new(parse_mei_pitch(event)?, dur)
+        let tuning = score.parts[0].staves[current_staff]
+            .tablature
+            .as_ref()
+            .map(|tab| tab.tuning_midi.clone());
+        let (pitch, tab) = parse_mei_tab_note(event, tuning.as_deref())?;
+        let mut note = Note::new(pitch, dur);
+        if let Some(tab) = tab {
+            // Tablature string doubles as the note's string number, as in MusicXML import.
+            note.string_number = Some(tab.string);
+            note.tab_position = Some(tab.clone());
+            note.tab_positions.push(tab);
+        }
+        note
     };
     note.dot_count = dots;
     if let Some(target) = inherited(b"staff")
@@ -1945,6 +1992,8 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut syllable_wordpos: Option<String> = None;
     let mut in_layer = false;
     let mut open_staff_def: Option<usize> = None;
+    let mut open_staff_def_lines: Option<u8> = None;
+    let mut staff_def_tuning: Vec<(u8, i16)> = Vec::new();
     let mut in_score_def = false;
     let mut staff_ppq: HashMap<usize, u32> = HashMap::new();
     let mut score_ppq: Option<u32> = None;
@@ -2144,6 +2193,9 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         }
                         if !is_empty_event {
                             open_staff_def = Some(staff_index);
+                            open_staff_def_lines =
+                                attr(&event, b"lines").and_then(|value| value.parse::<u8>().ok());
+                            staff_def_tuning.clear();
                         }
                         if let Some(clef) =
                             parse_clef(attr(&event, b"clef.shape"), attr(&event, b"clef.line"))
@@ -2174,6 +2226,14 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             } else if let Some(staff) = score.parts[0].staves.get_mut(staff_index) {
                                 staff.clef = clef;
                             }
+                        }
+                    }
+                    b"course" if open_staff_def.is_some() => {
+                        if let (Some(course), Ok(pitch)) = (
+                            attr(&event, b"n").and_then(|value| value.parse::<u8>().ok()),
+                            parse_mei_pitch(&event),
+                        ) {
+                            staff_def_tuning.push((course, pitch.to_midi()));
                         }
                     }
                     b"keySig" if !in_layer && (in_score_def || open_staff_def.is_some()) => {
@@ -2538,7 +2598,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 .multi_rest_count = Some(count);
                         }
                     }
-                    b"chord" if current_measure.is_some() && !is_empty_event => {
+                    b"chord" | b"tabGrp" if current_measure.is_some() && !is_empty_event => {
                         open_chord = Some(event.to_owned());
                         chord_started = false;
                         note_element_depth += 1;
@@ -2659,7 +2719,23 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                 }
                 b"staffDef" => {
                     layout_label_in_staff_def = false;
-                    open_staff_def = None;
+                    if let Some(staff_index) = open_staff_def.take()
+                        && !staff_def_tuning.is_empty()
+                        && let Some(staff) = score.parts[0].staves.get_mut(staff_index)
+                    {
+                        staff_def_tuning.sort_by_key(|(course, _)| *course);
+                        let tuning_midi = staff_def_tuning
+                            .drain(..)
+                            .map(|(_, midi)| midi)
+                            .collect::<Vec<_>>();
+                        staff.tablature = Some(acorde_core::TablatureConfig {
+                            lines: open_staff_def_lines
+                                .unwrap_or(tuning_midi.len() as u8)
+                                .max(1),
+                            tuning_midi,
+                            capo: 0,
+                        });
+                    }
                 }
                 b"scoreDef" => in_score_def = false,
                 b"staffGrp" => {
@@ -2758,7 +2834,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                     in_syllable = false;
                 }
                 b"verse" => current_verse = 1,
-                b"chord" if open_chord.is_some() => {
+                b"chord" | b"tabGrp" if open_chord.is_some() => {
                     open_chord = None;
                     chord_started = false;
                     note_element_depth = note_element_depth.saturating_sub(1);
@@ -3733,7 +3809,45 @@ fn append_mei_verses(out: &mut String, note: &Note) {
     }
 }
 
-fn append_mei_note(out: &mut String, note: &Note, id: &str, written: &[bool]) -> Result<(), Error> {
+fn append_mei_note(
+    out: &mut String,
+    note: &Note,
+    id: &str,
+    written: &[bool],
+    tab_staff: bool,
+) -> Result<(), Error> {
+    if tab_staff && !note.is_rest && !note.pitches.is_empty() {
+        // Tablature staves use <tabGrp> with string/fret on each note (pitch kept as well).
+        let dur = note.duration.as_fraction().1;
+        out.push_str(&format!("<tabGrp xml:id=\"{id}\" dur=\"{dur}\""));
+        if note.dot_count > 0 {
+            out.push_str(&format!(" dots=\"{}\"", note.dot_count));
+        }
+        match (note.tie_start, note.tie_end) {
+            (true, true) => out.push_str(" tie=\"m\""),
+            (true, false) => out.push_str(" tie=\"i\""),
+            (false, true) => out.push_str(" tie=\"t\""),
+            (false, false) => {}
+        }
+        out.push('>');
+        for (index, pitch) in note.pitches.iter().enumerate() {
+            out.push_str(&format!("<note xml:id=\"{id}_p{}\"", index + 1));
+            append_mei_pitch_attrs(out, pitch, false);
+            let tab = note
+                .tab_positions
+                .get(index)
+                .or_else(|| (index == 0).then_some(note.tab_position.as_ref()).flatten());
+            if let Some(tab) = tab {
+                out.push_str(&format!(
+                    " tab.course=\"{}\" tab.fret=\"{}\"",
+                    tab.string, tab.fret
+                ));
+            }
+            out.push_str("/>");
+        }
+        out.push_str("</tabGrp>");
+        return Ok(());
+    }
     let shown = |index: usize| written.get(index).copied().unwrap_or(true);
     let dur = note.duration.as_fraction().1.to_string();
     let is_chord = !note.is_rest && note.pitches.len() > 1;
@@ -4032,13 +4146,24 @@ fn append_mei_staff_defs_at(
             ));
         }
         let (clef_shape, clef_line) = mei_clef(staves[staff_index].clef.clone());
-        out.push_str(&format!(
-            "<staffDef n=\"{}\" clef.shape=\"{}\" clef.line=\"{}\"",
-            offset + staff_index + 1,
-            clef_shape,
-            clef_line
-        ));
-        let content = if staff_index == 0 { first_content } else { "" };
+        let tablature = staves[staff_index].tablature.as_ref();
+        match tablature {
+            Some(tab) => out.push_str(&format!(
+                "<staffDef n=\"{}\" notationtype=\"tab.guitar\" lines=\"{}\" clef.shape=\"TAB\" clef.line=\"5\"",
+                offset + staff_index + 1,
+                tab.lines
+            )),
+            None => out.push_str(&format!(
+                "<staffDef n=\"{}\" clef.shape=\"{}\" clef.line=\"{}\"",
+                offset + staff_index + 1,
+                clef_shape,
+                clef_line
+            )),
+        }
+        let tuning = tablature.map(mei_tuning).unwrap_or_default();
+        let first = if staff_index == 0 { first_content } else { "" };
+        let content = format!("{first}{tuning}");
+        let content = content.as_str();
         match single_label {
             Some(label) => out.push_str(&format!(
                 "><label>{}</label>{content}</staffDef>",
@@ -4056,6 +4181,21 @@ fn append_mei_staff_defs_at(
             out.push_str("</staffGrp>");
         }
     }
+}
+
+/// `<tuning>` for a tablature staff, one `<course>` per string (course 1 = highest string).
+fn mei_tuning(tab: &acorde_core::TablatureConfig) -> String {
+    let mut out = String::from("<tuning>");
+    for (index, midi) in tab.tuning_midi.iter().enumerate() {
+        let Ok(midi) = u8::try_from(*midi) else {
+            continue;
+        };
+        out.push_str(&format!("<course n=\"{}\"", index + 1));
+        append_mei_pitch_attrs(&mut out, &Pitch::from_midi(midi.min(127), false), false);
+        out.push_str("/>");
+    }
+    out.push_str("</tuning>");
+    out
 }
 
 /// `<instrDef>` carrying a part's MIDI channel and program, when either differs from the default.
@@ -4430,6 +4570,7 @@ fn append_mei_measure_staves(
                     written
                         .get(&(voice_index, note_index))
                         .map_or(&[][..], Vec::as_slice),
+                    staff.tablature.is_some(),
                 )?;
                 let mut closings = tuplets
                     .iter()
@@ -4838,8 +4979,25 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                                 note.is_rest
                                     && (note.lyric.is_some() || !note.additional_lyrics.is_empty()),
                             ),
-                            ("tab_position", note.tab_position.is_some()),
-                            ("tab_positions", !note.tab_positions.is_empty()),
+                            (
+                                "tab_position",
+                                note.tab_position.is_some() && staff.tablature.is_none(),
+                            ),
+                            (
+                                "tab_note_lyric_or_artic",
+                                staff.tablature.is_some()
+                                    && !note.is_rest
+                                    && (note.lyric.is_some()
+                                        || !note.additional_lyrics.is_empty()
+                                        || note
+                                            .articulations
+                                            .iter()
+                                            .any(|mark| mei_mark_element(mark).is_none())),
+                            ),
+                            (
+                                "tab_positions",
+                                !note.tab_positions.is_empty() && staff.tablature.is_none(),
+                            ),
                             (
                                 "ottava_start",
                                 note.ottava_start.is_some()
@@ -4899,7 +5057,13 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                                     .is_some_and(|cross| cross.target_voice.is_some()),
                             ),
                             ("fingering", note.fingering.is_some()),
-                            ("string_number", note.string_number.is_some()),
+                            (
+                                "string_number",
+                                note.string_number.is_some()
+                                    && !(staff.tablature.is_some()
+                                        && note.string_number
+                                            == note.tab_position.as_ref().map(|tab| tab.string)),
+                            ),
                             (
                                 "note_head",
                                 !matches!(note.note_head, acorde_core::NoteHead::Normal),
@@ -5883,6 +6047,52 @@ mod tests {
         assert_eq!(restored.parts[0].name, "Piano");
         assert_eq!(restored.parts[0].staff_groups, score.parts[0].staff_groups);
         assert_eq!(restored.parts[0].staves[1].clef, Clef::Bass);
+    }
+
+    #[test]
+    fn tablature_tab_groups_import_pitch_from_tuning() {
+        let xml = r##"<mei><music><body><mdiv><score><scoreDef><staffGrp><staffDef n="1" notationtype="tab.guitar" lines="6"><label>Guitar</label><clef shape="TAB" line="5"/><tuning><course n="6" oct="2" pname="e"/><course n="5" oct="2" pname="a"/><course n="4" oct="3" pname="d"/><course n="3" oct="3" pname="g"/><course n="2" oct="3" pname="b"/><course n="1" oct="4" pname="e"/></tuning><meterSig count="4" unit="4"/></staffDef></staffGrp></scoreDef><section><measure n="1"><staff n="1"><layer n="1"><tabGrp dur="2"><tabDurSym/><note tab.fret="3" tab.course="6"/><note tab.fret="0" tab.course="1"/></tabGrp><tabGrp dur="2"><note tab.fret="2" tab.course="4"/></tabGrp></layer></staff></measure></section></score></mdiv></body></music></mei>"##;
+        let score = parse_mei(xml).expect("tablature parses");
+        let staff = &score.parts[0].staves[0];
+        let tab = staff.tablature.as_ref().expect("tuning becomes tablature");
+        assert_eq!(tab.lines, 6);
+        assert_eq!(tab.tuning_midi, vec![64, 59, 55, 50, 45, 40]);
+        let voice = &staff.measures[0].voices[0];
+        assert_eq!(voice.len(), 2);
+        let midis = voice[0]
+            .pitches
+            .iter()
+            .map(Pitch::to_midi)
+            .collect::<Vec<_>>();
+        assert_eq!(midis, vec![43, 64]);
+        assert_eq!(
+            voice[0].tab_position,
+            Some(acorde_core::TabPosition { string: 6, fret: 3 })
+        );
+        assert_eq!(voice[0].tab_positions.len(), 2);
+        assert_eq!(voice[1].pitches[0].to_midi(), 52);
+    }
+
+    #[test]
+    fn tablature_round_trips_through_mei_tab_groups() {
+        let xml = include_str!("../../../../tests/fixtures/external_tab.musicxml");
+        let score = crate::parse_musicxml(xml).expect("tab MusicXML parses");
+        let export = crate::serialize_mei_with_report(&score).expect("tab exports");
+        assert!(export.diagnostics.is_empty(), "{:?}", export.diagnostics);
+        assert!(export.output.contains("notationtype=\"tab.guitar\""));
+        assert!(export.output.contains("<tabGrp "));
+        let restored = parse_mei(&export.output).expect("tab reparses");
+        let tab = |score: &Score| {
+            let staff = &score.parts[0].staves[0];
+            (
+                staff.tablature.as_ref().map(|tab| tab.tuning_midi.clone()),
+                staff.measures[0].voices[0]
+                    .iter()
+                    .map(|note| (note.pitches.clone(), note.tab_position.clone()))
+                    .collect::<Vec<_>>(),
+            )
+        };
+        assert_eq!(tab(&restored), tab(&score));
     }
 
     #[test]
