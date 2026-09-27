@@ -1022,13 +1022,15 @@ pub(crate) fn parse_musicxml_collecting(
                             .and_then(|s| s.parse().ok())
                             .unwrap_or(8);
                         match shift_type.as_str() {
+                            // Notes carry their sounding pitch; `up` displays them higher,
+                            // which is an 8vb (15mb), and `down` an 8va (15ma).
                             "up" => {
                                 let number = parse_spanner_number(attr_str(e, b"number"))?;
                                 open_ottava_types.insert(number, shift_type.clone());
                                 pending_ottava_start = Some(if shift_size >= 15 {
-                                    OttavaKind::Ma15
+                                    OttavaKind::Mb15
                                 } else {
-                                    OttavaKind::Va8
+                                    OttavaKind::Vb8
                                 });
                                 pending_direction_spanner_events.push(ParsedSpannerEvent {
                                     kind: NotationSpannerKind::Ottava,
@@ -1044,9 +1046,9 @@ pub(crate) fn parse_musicxml_collecting(
                                 let number = parse_spanner_number(attr_str(e, b"number"))?;
                                 open_ottava_types.insert(number, shift_type.clone());
                                 pending_ottava_start = Some(if shift_size >= 15 {
-                                    OttavaKind::Mb15
+                                    OttavaKind::Ma15
                                 } else {
-                                    OttavaKind::Vb8
+                                    OttavaKind::Va8
                                 });
                                 pending_direction_spanner_events.push(ParsedSpannerEvent {
                                     kind: NotationSpannerKind::Ottava,

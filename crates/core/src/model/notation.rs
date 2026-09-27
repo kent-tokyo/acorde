@@ -450,10 +450,22 @@ pub enum OttavaKind {
 }
 
 impl OttavaKind {
+    /// MusicXML `octave-shift@type`: the direction the notes are *displayed* shifted from
+    /// their (sounding) pitch, so an 8va — sounding higher than written — is `down`.
     pub fn musicxml_type(&self) -> &'static str {
         match self {
-            OttavaKind::Va8 | OttavaKind::Ma15 => "up",
-            OttavaKind::Vb8 | OttavaKind::Mb15 => "down",
+            OttavaKind::Va8 | OttavaKind::Ma15 => "down",
+            OttavaKind::Vb8 | OttavaKind::Mb15 => "up",
+        }
+    }
+
+    /// Diatonic steps by which notes under this mark are drawn from their sounding pitch.
+    pub fn display_shift_steps(&self) -> i32 {
+        match self {
+            OttavaKind::Va8 => -7,
+            OttavaKind::Ma15 => -14,
+            OttavaKind::Vb8 => 7,
+            OttavaKind::Mb15 => 14,
         }
     }
 

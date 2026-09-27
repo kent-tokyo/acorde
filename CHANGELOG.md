@@ -9,6 +9,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Ottava lines.** MusicXML `octave-shift` directions were read the wrong way round: `down`
+  (notes displayed an octave below their pitch, an 8va) became an 8vb, and export wrote the
+  mirror image, so interchange with MuseScore, Verovio and other tools flipped every octave
+  line. Note pitches stay the sounding pitch, as in MusicXML, and SVG now draws the notes under
+  an 8va/15ma (8vb/15mb) line one or two octaves lower (higher) instead of on ledger lines at
+  their sounding height. `OttavaKind::display_shift_steps` gives the shift.
 - **MusicXML hairpins on the right staff and voice.** A wedge stop always ended on the first
   staff's first voice, and a start went to whatever note came next in the file, so left-hand
   and second-voice hairpins lost their end or paired with the wrong notes. Wedges now follow

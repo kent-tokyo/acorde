@@ -443,8 +443,9 @@ impl Score {
                     NotationSpannerKind::Pedal => note.pedal_start = true,
                     NotationSpannerKind::Ottava if note.ottava_start.is_none() => {
                         let two = spanner.ottava_size.is_some_and(|size| size >= 15);
-                        let down = spanner.ottava_type.as_deref() == Some("down");
-                        note.ottava_start = Some(match (down, two) {
+                        // MusicXML `up` displays the notes higher: an 8vb.
+                        let up = spanner.ottava_type.as_deref() == Some("up");
+                        note.ottava_start = Some(match (up, two) {
                             (false, false) => OttavaKind::Va8,
                             (false, true) => OttavaKind::Ma15,
                             (true, false) => OttavaKind::Vb8,

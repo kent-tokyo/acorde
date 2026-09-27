@@ -4373,3 +4373,23 @@ fn musicxml_left_hand_pedal_ends_on_its_own_staff() {
         .collect();
     assert!(lower[0].pedal_start && lower[1].pedal_end);
 }
+
+#[test]
+fn musicxml_octave_shift_down_is_an_8va() {
+    // MusicXML pitches sound; `down` means they are displayed an octave lower: 8va.
+    let xml = SIMPLE_XML.replacen(
+        "<note>",
+        "<direction placement=\"above\"><direction-type><octave-shift type=\"down\" size=\"8\"/></direction-type></direction><note>",
+        1,
+    );
+    let score = parse_musicxml(&xml).expect("parses");
+    let first = &score.parts[0].staves[0].measures[0].voices[0][0];
+    assert_eq!(first.ottava_start, Some(acorde_core::OttavaKind::Va8));
+    let written = serialize_musicxml(&score).expect("exports");
+    assert!(written.contains("<octave-shift type=\"down\" size=\"8\""));
+    let back = parse_musicxml(&written).expect("reparses");
+    assert_eq!(
+        back.parts[0].staves[0].measures[0].voices[0][0].ottava_start,
+        Some(acorde_core::OttavaKind::Va8)
+    );
+}

@@ -3158,3 +3158,41 @@ fn spans_held_only_as_typed_spanners_are_drawn() {
     assert!(!plain.contains("acorde-slur") && svg.contains("acorde-slur"));
     assert!(!plain.contains("acorde-pedal") && svg.contains("acorde-pedal"));
 }
+
+#[test]
+fn notes_under_an_8va_line_are_drawn_an_octave_below_their_pitch() {
+    use acorde_core::{Duration, Note, OttavaKind, Pitch, Score, Step};
+    let render = |ottava: bool| {
+        let mut score = Score::new("8va", 120, 4, 4, 0, 1);
+        let mut notes: Vec<Note> = [Step::C, Step::E, Step::G, Step::B]
+            .into_iter()
+            .map(|step| Note::new(Pitch::new(step, 6), Duration::Quarter))
+            .collect();
+        if ottava {
+            notes[1].ottava_start = Some(OttavaKind::Va8);
+            notes[2].ottava_end = true;
+        }
+        score.parts[0].staves[0].measures[0].voices[0] = notes;
+        render_svg(&score, &opts()).unwrap()
+    };
+    let heads = |svg: &str| -> Vec<f32> {
+        svg.split(r#"class="acorde-notehead" cx=""#)
+            .skip(1)
+            .filter_map(|fragment| {
+                fragment
+                    .split(r#"cy=""#)
+                    .nth(1)?
+                    .split('"')
+                    .next()?
+                    .parse()
+                    .ok()
+            })
+            .collect()
+    };
+    let (plain, shifted) = (heads(&render(false)), heads(&render(true)));
+    let space = opts().staff_size;
+    assert!((shifted[0] - plain[0]).abs() < 0.01);
+    assert!((shifted[1] - (plain[1] + 3.5 * space)).abs() < 0.01);
+    assert!((shifted[2] - (plain[2] + 3.5 * space)).abs() < 0.01);
+    assert!((shifted[3] - plain[3]).abs() < 0.01);
+}

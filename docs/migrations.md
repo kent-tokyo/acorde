@@ -39,6 +39,11 @@ key (the MusicXML value minus one) and export adds one back; scores imported by 
 versions hold the raw MusicXML value, one higher. Unpitched notes with a resolvable kit
 instrument now play that key (`Part::percussion_key`) instead of their display pitch.
 
+`OttavaKind::musicxml_type` now returns MusicXML's meaning (`down` for 8va/15ma, `up` for
+8vb/15mb). Scores imported from MusicXML by earlier versions have 8va and 8vb swapped in
+`Note::ottava_start`; re-import them. `Note::pitches` under an ottava are the sounding pitch;
+SVG output draws them shifted by the ottava.
+
 ### v1.2.11 — mid-bar clef changes
 
 `Measure` gains `mid_clefs: Vec<MidMeasureClef>` (a `MeasureLength` offset from the bar's start

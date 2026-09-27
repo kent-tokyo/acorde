@@ -158,6 +158,7 @@ pub(crate) fn build_svg_with_metadata(
 
     let mut body = String::new();
     let mut note_points: HashMap<NoteKey, NotePoint> = HashMap::new();
+    let ottava_shifts = ottava_display_shifts(score);
     let mut resolved_annotation_obstacles = Vec::new();
 
     for (row_idx, row) in layout.rows.iter().enumerate() {
@@ -418,6 +419,7 @@ pub(crate) fn build_svg_with_metadata(
                     &courtesy,
                     &mut note_points,
                     &mut resolved_annotation_obstacles,
+                    &ottava_shifts,
                 )?;
                 if staff_ref.tablature_at(measure_idx).is_none()
                     && let Some(change) = staff_ref.measures[measure_idx].mid_clefs.last()
@@ -2574,6 +2576,7 @@ fn render_measure(
     courtesy: &HashMap<AccKey, i8>,
     note_points: &mut HashMap<NoteKey, NotePoint>,
     resolved_annotation_obstacles: &mut Vec<acorde_layout::GlyphPlacement>,
+    ottava_shifts: &HashMap<NoteKey, i32>,
 ) -> Result<(), RenderError> {
     let measure = &score.parts[part].staves[staff].measures[measure_idx];
     let tablature = score.parts[part].staves[staff].tablature_at(measure_idx);
@@ -2698,6 +2701,7 @@ fn render_measure(
                 clef,
                 clef_bottom,
                 &clef_gap_layout,
+                ottava_shifts,
                 bottom_y,
                 cross_frames,
                 space,
@@ -3073,6 +3077,7 @@ fn render_measure_voice<'a>(
     clef: &Clef,
     clef_bottom: i32,
     clef_gaps: &ClefGaps<'_>,
+    ottava_shifts: &HashMap<NoteKey, i32>,
     bottom_y: f32,
     cross_frames: &HashMap<usize, (i32, f32)>,
     space: f32,
@@ -3100,8 +3105,10 @@ fn render_measure_voice<'a>(
         space,
         clef_gaps,
     });
-    // Each note is read in the clef in effect at its beat (mid-bar changes included).
-    let own_bottoms: Vec<i32> = if measure.mid_clefs.is_empty() || tablature.is_some() {
+    // Each note is read in the clef in effect at its beat (mid-bar changes included), and
+    // drawn an octave (or two) from its sounding pitch under an 8va/8vb (15ma/15mb) line:
+    // shifting the note down by n steps is reading it against a bottom line n steps higher.
+    let mut own_bottoms: Vec<i32> = if measure.mid_clefs.is_empty() || tablature.is_some() {
         vec![clef_bottom; notes.len()]
     } else {
         let mut beat = 0.0;
@@ -3115,6 +3122,14 @@ fn render_measure_voice<'a>(
             })
             .collect()
     };
+    if tablature.is_none() {
+        for (note_idx, bottom) in own_bottoms.iter_mut().enumerate() {
+            if let Some(shift) = ottava_shifts.get(&(part, staff, measure_idx, voice_idx, note_idx))
+            {
+                *bottom -= shift;
+            }
+        }
+    }
     // A lone whole rest in an otherwise empty bar is a measure rest: engravers centre it in the
     // bar whatever the time signature.
     if let [only] = notes
@@ -3339,6 +3354,42 @@ struct VoicePositionContext<'a> {
     content_w: f32,
     space: f32,
     clef_gaps: &'a ClefGaps<'a>,
+}
+
+/// Display shift (diatonic steps) of every note under an ottava line, pairing each voice's
+/// start and end flags as layout does; the start and end notes are included.
+fn ottava_display_shifts(score: &Score) -> HashMap<NoteKey, i32> {
+    let mut shifts = HashMap::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            for voice_index in 0..4 {
+                let mut active: Option<i32> = None;
+                for (measure_index, measure) in staff.measures.iter().enumerate() {
+                    for (note_index, note) in measure.voices[voice_index].iter().enumerate() {
+                        if let Some(kind) = note.ottava_start {
+                            active = Some(kind.display_shift_steps());
+                        }
+                        if let Some(shift) = active {
+                            shifts.insert(
+                                (
+                                    part_index,
+                                    staff_index,
+                                    measure_index,
+                                    voice_index,
+                                    note_index,
+                                ),
+                                shift,
+                            );
+                        }
+                        if note.ottava_end {
+                            active = None;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    shifts
 }
 
 /// Mid-bar clef changes anywhere in a bar's column: each opens a gap of `width` px at its

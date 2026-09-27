@@ -4133,7 +4133,11 @@ fn append_mei_control_events(
                         "<octave staff=\"{n}\" startid=\"#{start_id}\" endid=\"#{}\" dis=\"{}\" dis.place=\"{}\"/>",
                         id_at(end_measure, voice_index, end_note),
                         kind.musicxml_size(),
-                        if kind.musicxml_type() == "up" { "above" } else { "below" }
+                        if matches!(kind, OttavaKind::Va8 | OttavaKind::Ma15) {
+                            "above"
+                        } else {
+                            "below"
+                        }
                     ));
                 }
                 if note.pedal_start
