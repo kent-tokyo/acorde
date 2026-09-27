@@ -121,12 +121,6 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
                         "MSCX export has no MuseScore marker or jump for this navigation mark",
                     ),
                     (
-                        "expression-text",
-                        measure.expression_text.is_some(),
-                        measure.expression_text.clone().unwrap_or_default(),
-                        "MSCX subset export does not emit expression text",
-                    ),
-                    (
                         "figured-bass",
                         !measure.figured_bass.is_empty(),
                         measure.figured_bass.len().to_string(),
@@ -203,8 +197,6 @@ fn note_has_unsupported_fields(note: &Note) -> bool {
                     | Articulation::Caesura
             ) && articulation_subtype(articulation).is_none()
         })
-        || note.glissando_start
-        || note.glissando_end
         || note
             .cross_staff
             .as_ref()
@@ -511,6 +503,20 @@ fn write_staff(
         for styled in &measure.texts {
             write_styled_text(xml, styled)?;
         }
+        if let Some(text) = &measure.expression_text {
+            write_styled_text(
+                xml,
+                &acorde_core::StyledText {
+                    style: acorde_core::TextStyle::Expression,
+                    text: text.clone(),
+                    placement: None,
+                    offset_x: None,
+                    offset_y: None,
+                    relative_x: None,
+                    relative_y: None,
+                },
+            )?;
+        }
         if let Some(count) = measure.measure_repeat {
             // MuseScore stores the repeat sign instead of the repeated notes.
             write!(
@@ -613,6 +619,7 @@ fn write_staff(
                         note,
                         melisma,
                         marks.map_or("", |marks| marks.inside.as_str()),
+                        marks.map_or("", |marks| marks.note.as_str()),
                         staff_in_part,
                         staff.transpose_semitones,
                     )?;
@@ -689,6 +696,8 @@ struct SpanMarks {
     before: String,
     inside: String,
     after: String,
+    /// Note-level spanners (glissandos), written in the chord's first `<Note>`.
+    note: String,
 }
 
 /// A note of a staff by (measure, voice, note index), and a point by (measure, beats in it).
@@ -751,6 +760,7 @@ fn staff_span_marks(staff: &Staff) -> std::collections::HashMap<NoteKey, SpanMar
     for voice_index in 0..4 {
         // (note key, start point) of the open span of each kind.
         let mut open_slur: Option<(NoteKey, StaffPoint)> = None;
+        let mut open_glissando: Option<(NoteKey, StaffPoint)> = None;
         let mut open_lines: [Option<OpenLine>; 4] = [None, None, None, None];
         for (measure_index, measure) in staff.measures.iter().enumerate() {
             let mut beats = 0.0;
@@ -774,6 +784,25 @@ fn staff_span_marks(staff: &Staff) -> std::collections::HashMap<NoteKey, SpanMar
                 }
                 if note.slur_start && !note.is_rest {
                     open_slur = Some((key, onset));
+                }
+                // Glissandos run from one note to another, held in their `<Note>`s.
+                if note.glissando_end
+                    && !note.is_rest
+                    && let Some((start_key, start)) = open_glissando.take()
+                {
+                    let location = mscx_location(start, onset);
+                    let back = mscx_location(onset, start);
+                    let _ = write!(
+                        marks.entry(start_key).or_default().note,
+                        "<Spanner type=\"Glissando\"><Glissando><subtype>0</subtype></Glissando><next>{location}</next></Spanner>"
+                    );
+                    let _ = write!(
+                        marks.entry(key).or_default().note,
+                        "<Spanner type=\"Glissando\"><prev>{back}</prev></Spanner>"
+                    );
+                }
+                if note.glissando_start && !note.is_rest {
+                    open_glissando = Some((key, onset));
                 }
                 let lines: [(bool, Option<String>, bool); 4] = [
                     (
@@ -871,6 +900,7 @@ fn write_note(
     note: &Note,
     melisma: Option<acorde_core::MeasureLength>,
     chord_spanners: &str,
+    note_spanners: &str,
     staff_in_part: usize,
     transpose: i8,
 ) -> Result<(), Error> {
@@ -1054,6 +1084,9 @@ fn write_note(
             note.pitch_tie_start(pitch_index),
             note.pitch_tie_end(pitch_index),
         );
+        if pitch_index == 0 {
+            xml.push_str(note_spanners);
+        }
         if tie_start || tie_end {
             xml.push_str("<Spanner type=\"Tie\">");
             if tie_end {
@@ -1576,6 +1609,7 @@ mod tests {
         score.parts[0].staves[0].transpose_semitones = 12;
         score.parts[0].staves[0].measures[0].rehearsal = Some("A".to_string());
         score.parts[0].staves[0].measures[0].expression_text = Some("dolce".to_string());
+        score.parts[0].staves[0].measures[0].tempo_text = Some("Allegro".to_string());
         let report = crate::serialize_mscx_with_report(&score).expect("report serializes");
         let located = |path: &str| {
             report
@@ -1587,6 +1621,7 @@ mod tests {
         // Transposition and rehearsal marks are written now.
         assert!(!located("/score/part/1/staff/1/transpose-semitones"));
         assert!(!located("/score/part/1/staff/1/measure/1/rehearsal"));
-        assert!(located("/score/part/1/staff/1/measure/1/expression-text"));
+        assert!(!located("/score/part/1/staff/1/measure/1/expression-text"));
+        assert!(located("/score/part/1/staff/1/measure/1/tempo-text"));
     }
 }

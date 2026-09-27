@@ -50,7 +50,7 @@ const MAX_ELEMENTS: usize = 500_000;
 const MAX_MSCZ_COMPRESSED: usize = 64 * 1024 * 1024;
 const MAX_MSCZ_ENTRIES: usize = 1024;
 /// MuseScore elements outside the imported subset.
-const UNSUPPORTED_MSCX_ELEMENTS: &[&str] = &["Glissando"];
+const UNSUPPORTED_MSCX_ELEMENTS: &[&str] = &[];
 const MIN_HARMONY_TPC: i32 = 6;
 const MAX_HARMONY_TPC: i32 = 26;
 
@@ -243,6 +243,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut chord_pitches: Vec<Pitch> = Vec::new();
     let mut chord_tab_positions: Vec<TabPosition> = Vec::new();
     let mut chord_tie_start = false;
+    // A glissando starting (`<next>`) or ending (`<prev>`) at a note of the chord.
+    let mut chord_glissando = (false, false);
+    let mut spanner_is_glissando = false;
     let mut chord_tie_end = false;
     // MuseScore ties each note of a chord separately.
     let mut chord_tie_starts: Vec<bool> = Vec::new();
@@ -594,6 +597,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         chord_pitches.clear();
                         chord_tab_positions.clear();
                         chord_tie_start = false;
+                        chord_glissando = (false, false);
                         chord_tie_end = false;
                         chord_tie_starts.clear();
                         chord_accidentals.clear();
@@ -686,6 +690,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "Spanner" if in_note_elem => {
                         in_spanner = true;
                         spanner_is_tie = attr_str(e, b"type").as_deref() == Some("Tie");
+                        spanner_is_glissando = attr_str(e, b"type").as_deref() == Some("Glissando");
                         spanner_has_next = false;
                         spanner_has_prev = false;
                     }
@@ -1492,6 +1497,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             note_tie_start |= spanner_has_next;
                             note_tie_end |= spanner_has_prev;
                         }
+                        if spanner_is_glissando {
+                            chord_glissando.0 |= spanner_has_next;
+                            chord_glissando.1 |= spanner_has_prev;
+                        }
+                        spanner_is_glissando = false;
                         in_spanner = false;
                         spanner_is_tie = false;
                         spanner_has_next = false;
@@ -1736,6 +1746,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 note.articulations.push(Articulation::Fermata);
                             }
                             note.tie_start = chord_tie_start;
+                            (note.glissando_start, note.glissando_end) = chord_glissando;
                             note.tie_end = chord_tie_end;
                             note.slur_start = chord_slur_start;
                             note.slur_end = chord_slur_end;
@@ -3466,7 +3477,7 @@ mod tests {
     }
 
     #[test]
-    fn mscx_trill_lines_round_trip() {
+    fn mscx_trill_lines_and_glissandos_round_trip() {
         let mut score = Score::default();
         let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
         *voice = (0..4)
@@ -3480,6 +3491,8 @@ mod tests {
         voice[0].trill_line_start = true;
         voice[0].articulations.push(Articulation::Trill);
         voice[2].trill_line_end = true;
+        voice[1].glissando_start = true;
+        voice[3].glissando_end = true;
         let written = crate::mscz::serialize::serialize_mscx(&score).expect("serializes");
         assert!(written.contains(r#"<Spanner type="Trill"><Trill><subtype>trill</subtype>"#));
         assert!(!written.contains("ornamentTrill"));
@@ -3489,6 +3502,15 @@ mod tests {
         assert!(voice[0].articulations.contains(&Articulation::Trill));
         assert!(voice[2].trill_line_end);
         assert!(!voice[1].trill_line_end && !voice[3].trill_line_end);
+        assert!(voice[1].glissando_start && voice[3].glissando_end);
+        assert!(!voice[0].glissando_start && !voice[2].glissando_end);
+        assert!(written.contains(r#"<Spanner type="Glissando"><Glissando>"#));
+        assert!(
+            loss_diagnostics(&written).is_empty()
+                || loss_diagnostics(&written)
+                    .iter()
+                    .all(|d| !d.code.contains("Glissando"))
+        );
     }
 
     #[test]
