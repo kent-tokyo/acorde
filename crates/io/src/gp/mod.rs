@@ -252,6 +252,32 @@ impl Losses {
 struct StaffInfo {
     tuning: Option<Vec<i16>>,
     capo: u8,
+    /// Chord names by id, from the staff's (or track's) diagram collection.
+    chords: HashMap<String, String>,
+}
+
+/// Chord names by id in a `DiagramCollection`/`ChordCollection` property (GP 7.5+ keeps it on
+/// the staff, earlier files on the track).
+fn gp_chord_names(nodes: &[&Node]) -> HashMap<String, String> {
+    let mut names = HashMap::new();
+    for node in nodes {
+        for collection in ["DiagramCollection", "ChordCollection"] {
+            let Some(items) = node
+                .property(collection)
+                .and_then(|property| property.child("Items"))
+            else {
+                continue;
+            };
+            for item in items.children_named("Item") {
+                if let (Some(id), Some(name)) = (item.attr("id"), item.attr("name")) {
+                    names
+                        .entry(id.to_string())
+                        .or_insert_with(|| name.trim().to_string());
+                }
+            }
+        }
+    }
+    names
 }
 
 fn ids(text: &str) -> Vec<i64> {
@@ -520,7 +546,15 @@ pub fn parse_gpif(xml: &str) -> Result<(Score, Vec<Diagnostic>), Error> {
                 staff.presentation.kind = StaffKind::Percussion;
             }
             part.staves.push(staff);
-            staff_infos.push((part_index, StaffInfo { tuning, capo }));
+            let chords = gp_chord_names(&[staff_node, *track]);
+            staff_infos.push((
+                part_index,
+                StaffInfo {
+                    tuning,
+                    capo,
+                    chords,
+                },
+            ));
         }
         score.parts.push(part);
     }
@@ -790,6 +824,7 @@ pub fn parse_gpif(xml: &str) -> Result<(Score, Vec<Diagnostic>), Error> {
                                 rhythms: &rhythms,
                                 notes: &notes,
                                 tuning: info.tuning.as_deref(),
+                                chords: &info.chords,
                                 drum_keys: drum_tracks
                                     .get(*part_index)
                                     .copied()
@@ -833,6 +868,7 @@ struct BeatContext<'a> {
     notes: &'a HashMap<String, &'a Node>,
     tuning: Option<&'a [i16]>,
     drum_keys: Option<&'a [u8]>,
+    chords: &'a HashMap<String, String>,
 }
 
 /// Marker kept in `technique_text` until the hammer-on/pull-off direction is known.
@@ -1015,11 +1051,6 @@ fn convert_beat(
             "whammy-bar dives are not imported",
         ),
         (
-            "Chord",
-            "gp.unsupported-chord-diagram",
-            "chord names/diagrams attached to beats are not imported",
-        ),
-        (
             "Wah",
             "gp.unsupported-wah",
             "wah pedal marks are not imported",
@@ -1040,6 +1071,27 @@ fn convert_beat(
     }
     if !note.is_rest {
         apply_beat_strokes(beat, &mut note, losses);
+    }
+    // A beat's chord: its name becomes the chord symbol; the diagram's fret grid is not kept.
+    if let Some(id) = beat.text_at("Chord") {
+        losses.add(
+            "gp.unsupported-chord-diagram",
+            "chord diagrams (fret grids) attached to beats are not imported; their names are",
+        );
+        match context
+            .chords
+            .get(id.trim())
+            .and_then(|name| crate::chord_label::parse_chord_label(name))
+        {
+            Some(mut chord) => {
+                chord.placement = Some("above".to_string());
+                note.chord_symbol = Some(chord);
+            }
+            None => losses.add(
+                "gp.unsupported-chord-name",
+                "a chord name that is not a chord symbol (root and kind) is not imported",
+            ),
+        }
     }
     // A beat's ottava is held per beat until `resolve_beat_ottavas` joins runs into spans.
     if let Some(value) = beat.text_at("Ottavia") {
@@ -1647,6 +1699,30 @@ mod tests {
                 .iter()
                 .all(|d| d.code != "gp.unsupported-fermata"
                     && d.code != "gp.unsupported-beat-ottava")
+        );
+    }
+
+    #[test]
+    fn gp7_beat_chords_become_chord_symbols() {
+        let gpif = GPIF
+            .replace(
+                r#"<Property name="Tuning">"#,
+                r#"<Property name="DiagramCollection"><Items><Item id="0" name="C#m7/E"><Diagram stringCount="6" fretCount="5" baseFret="3"/></Item></Items></Property><Property name="Tuning">"#,
+            )
+            .replace("<Notes>2</Notes>", "<Notes>2</Notes><Chord>0</Chord>");
+        let report = parse_gp_with_report(&archive(&gpif)).expect("GP7 archive parses");
+        let chord = report.score.parts[0].staves[0].measures[0].voices[0][1]
+            .chord_symbol
+            .as_ref()
+            .expect("chord symbol");
+        assert_eq!(chord.root, "C#");
+        assert_eq!(chord.kind, "minor-seventh");
+        assert_eq!(chord.bass.as_deref(), Some("E"));
+        assert!(
+            report
+                .diagnostics
+                .iter()
+                .all(|d| d.code != "gp.unsupported-chord-name")
         );
     }
 

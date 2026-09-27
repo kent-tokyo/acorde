@@ -9,6 +9,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Guitar Pro chord names.** Chords attached to beats (GP7/GP6 `DiagramCollection` items,
+  GP3–5 beat chords) were dropped whole; their names now become chord symbols (root, kind,
+  degrees and slash bass, parsed like MEI chord labels) in 16 of alphaTab's test files. The
+  fret-grid diagrams are still reported as not imported.
+
 - **Transposing instruments across formats.** MusicXML `<transpose>` kept only `<chromatic>`,
   so a guitar or double bass (`<octave-change>-1`) and a bass clarinet played an octave high;
   the octave now counts, a `number` applies it to one staff (it was always the first), and

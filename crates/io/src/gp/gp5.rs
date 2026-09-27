@@ -549,9 +549,11 @@ impl Reader<'_> {
                 });
             }
         }
-        if flags & 0x02 != 0 {
-            self.skip_chord(track.tuning.len())?;
-        }
+        let chord_name = if flags & 0x02 != 0 {
+            self.read_chord_name()?
+        } else {
+            None
+        };
         let text = if flags & 0x04 != 0 {
             Some(self.bin.int_byte_string_unused()?)
         } else {
@@ -658,6 +660,18 @@ impl Reader<'_> {
         note.dot_count = u8::from(dotted);
         note.tuplet = tuplet;
         note.ottava_start = beat_ottava;
+        if let Some(name) = chord_name {
+            match crate::chord_label::parse_chord_label(&name) {
+                Some(mut chord) => {
+                    chord.placement = Some("above".to_string());
+                    note.chord_symbol = Some(chord);
+                }
+                None => self.losses.add(
+                    "gp.unsupported-chord-name",
+                    "a chord name that is not a chord symbol (root and kind) is not imported",
+                ),
+            }
+        }
         let mut ties: Vec<bool> = Vec::new();
         let mut dynamic = None;
         let all_emphasised = members.iter().all(|member| member.3.emphasised);
@@ -775,40 +789,46 @@ impl Reader<'_> {
         Ok(())
     }
 
-    fn skip_chord(&mut self, strings: usize) -> Result<(), Error> {
+    /// A beat's chord: its name is kept (it becomes the note's chord symbol); the diagram is
+    /// skipped.
+    fn read_chord_name(&mut self) -> Result<Option<String>, Error> {
         let v = self.version;
         self.losses.add(
             "gp.unsupported-chord-diagram",
-            "chord names/diagrams attached to beats are not imported",
+            "chord diagrams (fret grids) attached to beats are not imported; their names are",
         );
-        let _ = strings;
-        if v >= 500 {
+        let name = if v >= 500 {
             self.bin.skip(17)?;
-            self.bin.fixed_string(21)?;
+            let name = self.bin.fixed_string(21)?;
             self.bin.skip(4)?;
             self.bin.skip(4 + 7 * 4)?;
             self.bin.skip(1 + 5 + 26)?;
+            name
         } else if self.bin.u8()? != 0 {
             if v >= 400 {
                 self.bin.skip(16)?;
-                self.bin.fixed_string(21)?;
+                let name = self.bin.fixed_string(21)?;
                 self.bin.skip(4)?;
                 self.bin.skip(4 + 7 * 4)?;
                 self.bin.skip(1 + 5 + 26)?;
+                name
             } else {
                 self.bin.skip(25)?;
-                self.bin.fixed_string(34)?;
+                let name = self.bin.fixed_string(34)?;
                 self.bin.skip(4 + 6 * 4)?;
                 self.bin.skip(36)?;
+                name
             }
         } else {
             let strings = if v >= 406 { 7 } else { 6 };
-            self.bin.int_byte_string()?;
+            let name = self.bin.int_byte_string()?;
             if self.bin.i32()? > 0 {
                 self.bin.skip(strings * 4)?;
             }
-        }
-        Ok(())
+            name
+        };
+        let name = name.trim().to_string();
+        Ok((!name.is_empty()).then_some(name))
     }
 
     fn read_beat_effects(&mut self) -> Result<BeatEffects, Error> {
