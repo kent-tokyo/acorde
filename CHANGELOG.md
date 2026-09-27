@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.14] - 2026-09-27
+
 - **MusicXML opening tempo (user approved).** Export wrote the score's default tempo as a
   visible ♩=120 metronome mark in the first bar of every part, even for a score with no tempo
   marking (a Guitar Pro → MusicXML → import round trip tripled the tempo marks). A marked

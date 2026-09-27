@@ -25,6 +25,19 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
+### v1.2.14 — hidden notation and interchange timing
+
+`Note` gains `hidden: bool`, serde-defaulted and omitted when false; old score JSON is unchanged.
+`Command` gains `SetHidden`, `ScoreEngine` gains undoable `set_hidden(NoteAddr, bool)`, and the
+WASM `ScoreEngine` exposes the matching `set_hidden(addr_json, hidden)` method. Exhaustive matches
+on `Command` need an arm. Hidden notes and rests retain timing and playback while SVG marks their
+groups hidden; hosts that inspect raw SVG can use `acorde-hidden` / `visibility="hidden"`.
+
+`Staff::meter_at` and `Staff::measure_beats` are public additive helpers. Playback, MIDI export,
+duration checks and measure-capacity helpers now apply the meter in force after an in-score time
+signature change. MusicXML default tempo without a visible marking exports as a bare `<sound>`;
+raw-MusicXML snapshot tests should update that expectation.
+
 ### v1.2.13 — MSCX/MEI interchange fidelity
 
 MSCX export now wraps every voice in MuseScore's required `<voice>` element; consumers that
