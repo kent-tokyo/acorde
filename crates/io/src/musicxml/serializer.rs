@@ -383,10 +383,24 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     xml.push_str(marker);
                 }
                 xml.push_str("      </attributes>\n");
-                // The opening tempo; later bars write only their own tempo changes (an
-                // attributes block for a key, time or clef change is no tempo mark).
-                if i == 0 {
-                    let bpm = measure.tempo.unwrap_or(score.settings.tempo_bpm);
+                // The opening tempo, once, in the first part: a marked tempo (any part's
+                // first bar) as a metronome mark, otherwise the playback tempo as a bare
+                // `<sound>` that draws nothing. Later bars write only their own tempo changes
+                // (an attributes block for a key, time or clef change is no tempo mark).
+                let opening_mark = score
+                    .parts
+                    .iter()
+                    .find_map(|part| part.staves.first()?.measures.first()?.tempo);
+                if i == 0 && pi == 0 && opening_mark.is_none() {
+                    xml.push_str(&format!(
+                        "      <sound tempo=\"{}\"/>\n",
+                        score.settings.tempo_bpm
+                    ));
+                }
+                if i == 0
+                    && pi == 0
+                    && let Some(bpm) = opening_mark
+                {
                     xml.push_str("      <direction placement=\"above\">\n");
                     xml.push_str("        <direction-type>\n");
                     xml.push_str(&format!(

@@ -1221,6 +1221,17 @@ pub(crate) fn parse_musicxml_collecting(
                             pending_sound_tempo = Some(bpm_u16);
                         }
                     }
+                    // A bare `<sound tempo>` in the first bar sets the playback tempo without a
+                    // visible metronome mark.
+                    "sound" if !in_direction && !in_note => {
+                        if let (Some(0), Some(bpm)) = (
+                            part_index,
+                            attr_str(e, b"tempo").and_then(|s| s.trim().parse::<f64>().ok()),
+                        ) && score.parts[0].staves[0].measures.len() == 1
+                        {
+                            score.settings.tempo_bpm = bpm.round().clamp(1.0, 65535.0) as u16;
+                        }
+                    }
                     "repeat" if in_barline => {
                         let dir = attr_str(e, b"direction").unwrap_or_default();
                         if let Some(pi) = part_index {

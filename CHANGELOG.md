@@ -9,6 +9,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **MusicXML opening tempo (user approved).** Export wrote the score's default tempo as a
+  visible ♩=120 metronome mark in the first bar of every part, even for a score with no tempo
+  marking (a Guitar Pro → MusicXML → import round trip tripled the tempo marks). A marked
+  opening tempo is now written once, in the first part; an unmarked one only as a bare
+  `<sound tempo>` that sets playback speed and draws nothing, which import reads back into
+  the score's tempo.
 - **Timing after a meter change.** A bar without its own time signature was timed with the
   score's opening meter instead of the last change before it, so after a change from 4/4 to
   3/4 every later bar gained a silent beat in playback, offline render timing, score duration,

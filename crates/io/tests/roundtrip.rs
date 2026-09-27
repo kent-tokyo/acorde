@@ -2258,14 +2258,16 @@ mod abc_tests {
 #[test]
 fn musicxml_per_measure_tempo_roundtrip() {
     use acorde_core::Score;
-    let mut score = Score::new("T", 120, 4, 4, 0, 2);
+    let mut score = Score::new("T", 96, 4, 4, 0, 2);
     score.parts[0].staves[0].measures[1].tempo = Some(60);
     let xml = serialize_musicxml(&score).expect("serialize failed");
     let score2 = parse_musicxml(&xml).expect("parse failed");
     // Measure 1 tempo override must survive the roundtrip
     assert_eq!(score2.parts[0].staves[0].measures[1].tempo, Some(60));
-    // Measure 0 gets the global tempo from <sound tempo> in the direction block
-    assert_eq!(score2.parts[0].staves[0].measures[0].tempo, Some(120));
+    // The unmarked opening tempo travels as a bare <sound tempo>: playback keeps it, and no
+    // metronome mark is invented for the first bar.
+    assert_eq!(score2.parts[0].staves[0].measures[0].tempo, None);
+    assert_eq!(score2.settings.tempo_bpm, 96);
 }
 
 #[test]
@@ -4717,7 +4719,25 @@ fn musicxml_export_writes_the_tempo_once_not_at_every_attributes_change() {
     });
     let xml = serialize_musicxml(&score).expect("exports");
     assert_eq!(xml.matches("<sound tempo=").count(), 1);
-    assert!(xml.contains("<per-minute>96</per-minute>"));
+    assert!(xml.contains("<sound tempo=\"96\"/>"));
+    assert!(!xml.contains("<metronome>"));
+}
+
+#[test]
+fn musicxml_writes_an_opening_tempo_mark_once_in_the_first_part() {
+    use acorde_core::Score;
+    let mut score = Score::new("marked", 120, 4, 4, 0, 1);
+    let mut second = acorde_core::Part::new("Cello", "Vc.");
+    second.staves = score.parts[0].staves.clone();
+    score.parts.push(second);
+    for part in &mut score.parts {
+        part.staves[0].measures[0].tempo = Some(72);
+    }
+    let xml = serialize_musicxml(&score).expect("exports");
+    assert_eq!(xml.matches("<metronome>").count(), 1);
+    assert_eq!(xml.matches("<sound tempo=").count(), 1);
+    let back = parse_musicxml(&xml).expect("imports");
+    assert_eq!(back.parts[0].staves[0].measures[0].tempo, Some(72));
 }
 
 #[test]
