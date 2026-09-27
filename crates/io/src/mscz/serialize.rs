@@ -203,7 +203,10 @@ fn note_has_unsupported_fields(note: &Note) -> bool {
         })
         || note.glissando_start
         || note.glissando_end
-        || note.cross_staff.is_some()
+        || note
+            .cross_staff
+            .as_ref()
+            .is_some_and(|cross| cross.target_voice.is_some() || note.is_rest)
         || note.is_cue
         || note.trill_line_start
         || note.trill_line_end
@@ -271,11 +274,11 @@ pub fn serialize_mscx(score: &Score) -> Result<String, Error> {
     let mut staff_id = 1usize;
     let mut score_texts_pending = Some(score.texts.as_slice());
     for part in &score.parts {
-        for staff in &part.staves {
+        for (staff_in_part, staff) in part.staves.iter().enumerate() {
             let score_texts = score_texts_pending.take().unwrap_or_default();
             write_staff(
                 &mut xml,
-                staff_id,
+                (staff_id, staff_in_part),
                 staff,
                 score_texts,
                 &score.settings.time_signature,
@@ -306,9 +309,10 @@ pub fn serialize_mscz(score: &Score) -> Result<Vec<u8>, Error> {
         .map_err(|error| Error::Zip(error.to_string()))
 }
 
+/// `ids` is the staff's score-wide `<Staff id>` and its index within its part.
 fn write_staff(
     xml: &mut String,
-    id: usize,
+    (id, staff_in_part): (usize, usize),
     staff: &Staff,
     score_texts: &[acorde_core::StyledText],
     default_time: &acorde_core::TimeSignature,
@@ -397,6 +401,12 @@ fn write_staff(
         ) {
             xml.push_str("<endRepeat>2</endRepeat>");
         }
+        if let Some(count) = measure.measure_repeat {
+            write!(xml, "<measureRepeatCount>{count}</measureRepeatCount>").map_err(fmt_error)?;
+        }
+        // MuseScore 3/4 reads a bar's content only inside `<voice>` elements, one per track:
+        // the first holds the bar's signatures, texts, spanners and barline as well.
+        xml.push_str("<voice>");
         // A volta opens where it begins and is closed by a `<prev>` marker at the start of the
         // bar after its last one.
         if volta_close_before.remove(&measure_index).is_some() {
@@ -481,16 +491,35 @@ fn write_staff(
             // MuseScore stores the repeat sign instead of the repeated notes.
             write!(
                 xml,
-                "<measureRepeatCount>{count}</measureRepeatCount><MeasureRepeat><subtype>{count}</subtype><durationType>measure</durationType><duration>{bar_numerator}/{bar_denominator}</duration></MeasureRepeat>"
+                "<MeasureRepeat><subtype>{count}</subtype><durationType>measure</durationType><duration>{bar_numerator}/{bar_denominator}</duration></MeasureRepeat>"
             )
             .map_err(fmt_error)?;
         }
-        for (voice_index, voice) in measure.voices.iter().enumerate() {
-            if voice.is_empty() || measure.measure_repeat.is_some() {
-                continue;
-            }
+        // Tracks after the last non-empty voice are left out; empty ones before it keep their
+        // place as empty `<voice>` elements.
+        let last_voice = if measure.measure_repeat.is_some() {
+            0
+        } else {
+            measure
+                .voices
+                .iter()
+                .rposition(|voice| !voice.is_empty())
+                .unwrap_or(0)
+        };
+        let first_voice_end = format!("{}</voice>", mscx_barline_markup(measure));
+        let mut first_voice_closed = false;
+        for (voice_index, voice) in measure.voices.iter().enumerate().take(last_voice + 1) {
             if voice_index > 0 {
-                write!(xml, "<voice>{}", voice_index + 1).map_err(fmt_error)?;
+                if !std::mem::replace(&mut first_voice_closed, true) {
+                    xml.push_str(&first_voice_end);
+                }
+                xml.push_str("<voice>");
+            }
+            if voice.is_empty() || measure.measure_repeat.is_some() {
+                if voice_index > 0 {
+                    xml.push_str("</voice>");
+                }
+                continue;
             }
             if let [only] = voice.as_slice()
                 && only.is_plain_whole_rest()
@@ -559,6 +588,7 @@ fn write_staff(
                         note,
                         melisma,
                         marks.map_or("", |marks| marks.inside.as_str()),
+                        staff_in_part,
                     )?;
                     if tuplets.iter().any(|&(_, end)| end == note_index) {
                         xml.push_str("<endTuplet/>");
@@ -575,22 +605,31 @@ fn write_staff(
                 xml.push_str("</voice>");
             }
         }
-        let barline = match measure.barline_right {
-            acorde_core::Barline::Double => Some("double"),
-            acorde_core::Barline::Final => Some("end"),
-            acorde_core::Barline::Dashed => Some("dashed"),
-            acorde_core::Barline::Dotted => Some("dotted"),
-            _ => None,
-        };
-        if let Some(subtype) = barline {
-            write!(xml, "<BarLine><subtype>{subtype}</subtype></BarLine>").map_err(fmt_error)?;
-        } else if matches!(measure.barline_right, acorde_core::Barline::Invisible) {
-            xml.push_str("<BarLine><subtype>normal</subtype><visible>0</visible></BarLine>");
+        if !first_voice_closed {
+            xml.push_str(&first_voice_end);
         }
         xml.push_str("</Measure>");
     }
     xml.push_str("</Staff>");
     Ok(())
+}
+
+/// The right barline MuseScore writes at the end of a bar's first voice.
+fn mscx_barline_markup(measure: &acorde_core::Measure) -> String {
+    let barline = match measure.barline_right {
+        acorde_core::Barline::Double => Some("double"),
+        acorde_core::Barline::Final => Some("end"),
+        acorde_core::Barline::Dashed => Some("dashed"),
+        acorde_core::Barline::Dotted => Some("dotted"),
+        _ => None,
+    };
+    if let Some(subtype) = barline {
+        format!("<BarLine><subtype>{subtype}</subtype></BarLine>")
+    } else if matches!(measure.barline_right, acorde_core::Barline::Invisible) {
+        "<BarLine><subtype>normal</subtype><visible>0</visible></BarLine>".to_string()
+    } else {
+        String::new()
+    }
 }
 
 /// Voltas of a staff as (first bar, last bar, number), from each bar's `volta` marking.
@@ -800,6 +839,7 @@ fn write_note(
     note: &Note,
     melisma: Option<acorde_core::MeasureLength>,
     chord_spanners: &str,
+    staff_in_part: usize,
 ) -> Result<(), Error> {
     // A fermata is its own element before the chord or rest it sits over.
     if note
@@ -864,6 +904,15 @@ fn write_note(
         dots(note.dot_count)
     )
     .map_err(fmt_error)?;
+    // A cross-staff chord moves by a signed staff count within its part.
+    if let Some(cross) = &note.cross_staff
+        && cross.target_voice.is_none()
+        && cross.target_staff != staff_in_part
+    {
+        let target = i64::try_from(cross.target_staff).unwrap_or(i64::MAX);
+        let current = i64::try_from(staff_in_part).unwrap_or(0);
+        write!(xml, "<staffMove>{}</staffMove>", target - current).map_err(fmt_error)?;
+    }
     if note.is_grace {
         // A slashed grace note is an acciaccatura, an unslashed one an appoggiatura.
         xml.push_str(if note.grace_slash {

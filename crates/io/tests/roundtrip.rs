@@ -4845,3 +4845,78 @@ fn mscx_keeps_invisible_barlines_and_a_volta_that_runs_to_the_last_bar() {
         ]
     );
 }
+
+#[test]
+fn mscx_round_trips_cross_staff_chords_as_staff_moves() {
+    use acorde_core::{CrossStaff, Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("cross", 120, 4, 4, 0, 1);
+    let mut piano = acorde_core::Part::new("Piano", "Pno.");
+    piano.staves = vec![score.parts[0].staves[0].clone(); 2];
+    score.parts.push(piano);
+    let mut down = Note::new(Pitch::new(Step::C, 3), Duration::Whole);
+    down.cross_staff = Some(CrossStaff {
+        target_staff: 1,
+        target_voice: None,
+    });
+    score.parts[1].staves[0].measures[0].voices[0] = vec![down];
+    let mut up = Note::new(Pitch::new(Step::G, 4), Duration::Whole);
+    up.cross_staff = Some(CrossStaff {
+        target_staff: 0,
+        target_voice: None,
+    });
+    score.parts[1].staves[1].measures[0].voices[0] = vec![up];
+    let mscx = acorde_io::serialize_mscx(&score).expect("exports");
+    assert!(mscx.contains("<staffMove>1</staffMove>"));
+    assert!(mscx.contains("<staffMove>-1</staffMove>"));
+    let back = acorde_io::parse_mscx(&mscx).expect("imports");
+    let staves = &back.parts[1].staves;
+    assert_eq!(
+        staves[0].measures[0].voices[0][0].cross_staff,
+        Some(CrossStaff {
+            target_staff: 1,
+            target_voice: None
+        })
+    );
+    assert_eq!(
+        staves[1].measures[0].voices[0][0].cross_staff,
+        Some(CrossStaff {
+            target_staff: 0,
+            target_voice: None
+        })
+    );
+}
+
+#[test]
+fn mscx_wraps_every_voice_so_second_voices_stay_apart() {
+    use acorde_core::{Barline, Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("voices", 120, 4, 4, 0, 2);
+    let measures = &mut score.parts[0].staves[0].measures;
+    measures[0].voices[0] = vec![Note::new(Pitch::new(Step::E, 5), Duration::Whole)];
+    measures[0].voices[1] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+    measures[1].voices[0] = vec![Note::new(Pitch::new(Step::D, 5), Duration::Whole)];
+    measures[1].voices[2] = vec![Note::new(Pitch::new(Step::G, 3), Duration::Whole)];
+    measures[1].barline_right = Barline::Final;
+    let mscx = acorde_io::serialize_mscx(&score).expect("exports");
+    // MuseScore reads a bar's chords only inside <voice>.
+    assert!(!mscx.contains("\"><Chord>"));
+    assert!(!mscx.contains("</voice><Chord>"));
+    assert!(
+        mscx.contains("<BarLine><subtype>end</subtype></BarLine></voice><voice></voice><voice>")
+    );
+    let back = acorde_io::parse_mscx(&mscx).expect("imports");
+    let steps = |m: usize, v: usize| {
+        back.parts[0].staves[0].measures[m].voices[v]
+            .iter()
+            .map(|n| n.pitches[0].step.clone())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(steps(0, 0), vec![Step::E]);
+    assert_eq!(steps(0, 1), vec![Step::C]);
+    assert_eq!(steps(1, 0), vec![Step::D]);
+    assert!(steps(1, 1).is_empty());
+    assert_eq!(steps(1, 2), vec![Step::G]);
+    assert_eq!(
+        back.parts[0].staves[0].measures[1].barline_right,
+        Barline::Final
+    );
+}

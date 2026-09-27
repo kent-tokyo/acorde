@@ -21,6 +21,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   tablature notes are still reported and not written, because Verovio 6.3 crashes on `@artic`
   inside a `<tabGrp>`. A Guitar Pro → MEI → import round trip of the alphaTab test files now
   keeps its 76 grace notes, 47 arpeggios and 27 tremolos.
+- **MSCX export wrote a bar's first voice where MuseScore does not read it.** Chords, rests,
+  signatures and barlines of voice 1 sat directly in `<Measure>` and later voices in a
+  `<voice>2…` element, but MuseScore 3/4 read a bar's content only inside `<voice>` elements —
+  and acorde's own import put the second voice's notes into the first. Every voice is now its
+  own `<voice>` (empty ones kept in place before a later voice), with the bar's signatures,
+  texts, spanners and barline in the first, as MuseScore writes them.
+- **MSCX cross-staff notes.** Chords moved to another staff of their part are written and read
+  as `<staffMove>` (73 of them were lost in the corpus round trip), and MSCX import keeps
+  hairpins, pedals and ottavas that start on a rest on that rest instead of the next chord.
 - MSCX export writes invisible barlines (`<visible>0</visible>`), and MSCX import closes a
   volta that runs to the last bar, which MuseScore gives no closing marker.
 - **MEI endings.** Voltas were neither written nor read by MEI; they are now `<ending n label>`

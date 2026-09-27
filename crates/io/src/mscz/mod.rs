@@ -235,6 +235,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut chord_is_grace = false;
     let mut chord_grace_slash = false;
     let mut chord_arpeggiate: Option<bool> = None;
+    // A chord's `<staffMove>`: a signed staff count within its part.
+    let mut chord_staff_move: i64 = 0;
     let mut in_arpeggio = false;
     let mut chord_tremolo: Option<u8> = None;
     let mut in_tremolo = false;
@@ -541,6 +543,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         chord_arpeggiate = None;
                         chord_tremolo = None;
                         chord_articulations.clear();
+                        chord_staff_move = 0;
                     }
                     "Fermata" if in_measure && !in_chord && !in_rest_elem => {
                         pending_fermata = true;
@@ -806,6 +809,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         if let Some(barline) = mscx_barline(t) {
                             cur_barline_right = barline;
                         }
+                    }
+                    "staffMove" | "move" if in_chord && !in_note_elem => {
+                        chord_staff_move = t.trim().parse::<i64>().unwrap_or(0).clamp(-8, 8);
                     }
                     "visible" if in_barline_elem && t.trim() == "0" => {
                         cur_barline_right = Barline::Invisible;
@@ -1555,6 +1561,17 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             note.is_grace = chord_is_grace;
                             note.grace_slash = chord_grace_slash;
                             note.arpeggiate = chord_arpeggiate;
+                            // Held as the target's score-wide staff id until the part's staves
+                            // are known (`assemble_score` maps it to an index in the part).
+                            note.cross_staff = current_staff_id
+                                .and_then(|id| i64::try_from(id).ok())
+                                .map(|id| id + chord_staff_move)
+                                .filter(|_| chord_staff_move != 0)
+                                .and_then(|target| usize::try_from(target).ok())
+                                .map(|target_staff| acorde_core::CrossStaff {
+                                    target_staff,
+                                    target_voice: None,
+                                });
                             note.stem_up = chord_stem_up;
                             note.beam = chord_beam;
                             note.note_head = note_head.clone();
@@ -1594,6 +1611,10 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             rest.articulations.push(Articulation::Fermata);
                         }
                         let v = chord_voice.min(3);
+                        // Lines may start on a rest (a hairpin under a rest before the entry).
+                        rest.hairpin_start = pending_hairpin[v].take();
+                        rest.pedal_start = std::mem::take(&mut pending_pedal[v]);
+                        rest.ottava_start = pending_ottava[v].take();
                         cur_voices[v].push(rest);
                         pending_chord_symbol = None;
                         in_rest_elem = false;
@@ -2363,6 +2384,21 @@ fn assemble_score(
                     s.presentation.kind = StaffKind::Tablature;
                 }
                 s.measures = staff_measures.remove(&sid).unwrap_or_default();
+                // Cross-staff targets were read as score-wide staff ids.
+                for note in s
+                    .measures
+                    .iter_mut()
+                    .flat_map(|measure| measure.voices.iter_mut().flatten())
+                {
+                    if let Some(cross) = note.cross_staff.take() {
+                        note.cross_staff = ids.iter().position(|&id| id == cross.target_staff).map(
+                            |target_staff| acorde_core::CrossStaff {
+                                target_staff,
+                                target_voice: None,
+                            },
+                        );
+                    }
+                }
                 s
             })
             .collect()
