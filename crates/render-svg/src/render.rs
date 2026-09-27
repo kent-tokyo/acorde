@@ -208,13 +208,54 @@ pub(crate) fn build_svg_with_metadata(
             .map(|&m| measure_total_beats(score, &staff_refs[0], m))
             .collect();
         let total_beats: f64 = beats.iter().sum::<f64>().max(1e-6);
-        let measure_widths: Vec<f32> = beats
+        // Width follows beats, but every measure keeps at least one staff space; the space those
+        // minimums take is removed from the others instead of overflowing the row (a very short
+        // bar next to long ones previously failed the whole render).
+        let mut measure_widths: Vec<f32> = beats
             .iter()
             .map(|beat| (measure_area_width * (*beat / total_beats) as f32).max(space))
             .collect();
+        for _ in 0..measure_widths.len() {
+            let clamped: Vec<bool> = beats
+                .iter()
+                .zip(&measure_widths)
+                .map(|(_, width)| *width <= space + f32::EPSILON)
+                .collect();
+            let fixed = clamped.iter().filter(|c| **c).count() as f32 * space;
+            let free_beats: f64 = beats
+                .iter()
+                .zip(&clamped)
+                .filter(|(_, c)| !**c)
+                .map(|(beat, _)| *beat)
+                .sum();
+            let free_width = measure_area_width - fixed;
+            if free_beats <= 0.0 || free_width <= 0.0 {
+                break;
+            }
+            let next: Vec<f32> = beats
+                .iter()
+                .zip(&clamped)
+                .map(|(beat, c)| {
+                    if *c {
+                        space
+                    } else {
+                        (free_width * (*beat / free_beats) as f32).max(space)
+                    }
+                })
+                .collect();
+            if next == measure_widths {
+                break;
+            }
+            measure_widths = next;
+        }
         let allocated_measure_width: f32 = measure_widths.iter().sum();
+        // Proportional widths sum to the area up to f32 rounding, which grows with the width in
+        // pixels; f32::EPSILON alone rejected ordinary rows (for example a four-part Guitar Pro
+        // score at the default 900 px width). Only a real overflow from the one-space minimum
+        // should fail.
+        let rounding_tolerance = measure_area_width * 1e-4 + 1e-3;
         if !allocated_measure_width.is_finite()
-            || allocated_measure_width > measure_area_width + f32::EPSILON
+            || allocated_measure_width > measure_area_width + rounding_tolerance
         {
             return Err(RenderError::InvalidOptions {
                 reason: "minimum measure widths exceed the available system width".into(),

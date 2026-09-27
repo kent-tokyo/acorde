@@ -2689,3 +2689,23 @@ fn tablature_staff_draws_tab_clef_without_key_signature_and_masks_fret_digits() 
     assert!(svg.contains(r#"class="acorde-tab-fret""#));
     assert!(svg.contains(r#"stroke="white""#) && svg.contains(r#"paint-order="stroke""#));
 }
+
+#[test]
+fn a_very_short_bar_takes_its_minimum_width_from_its_neighbours() {
+    use acorde_core::{Duration, MeasureLength, Note, Pitch, Score, Step};
+
+    let mut score = Score::new("short bar", 120, 4, 4, 0, 4);
+    let staff = &mut score.parts[0].staves[0];
+    staff.measures[0].actual_length = Some(MeasureLength {
+        numerator: 1,
+        denominator: 32,
+    });
+    staff.measures[0].voices[0] = vec![Note::new(Pitch::new(Step::C, 5), Duration::ThirtySecond)];
+    let options = acorde_render_svg::SvgRenderOptions {
+        width: 420.0,
+        ..acorde_render_svg::SvgRenderOptions::default()
+    };
+    let svg = acorde_render_svg::render_svg(&score, &options)
+        .expect("a pickup of a 32nd no longer overflows the row");
+    assert!(svg.contains("acorde-clef-treble"));
+}
