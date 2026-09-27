@@ -9,6 +9,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Octave clefs and C clefs on every line.** `Clef` had only treble, bass, alto, tenor and
+  percussion: a tenor voice's treble clef with an 8 below (86 of 205 corpus scores) lost its 8
+  and was drawn an octave too high with ledger lines, and soprano, mezzo-soprano and baritone
+  clefs became alto. `Clef` gains `Treble8vb`, `Treble8va`, `Bass8vb`, `Bass8va`, `Soprano`,
+  `MezzoSoprano` and `Baritone` (with `Clef::from_sign`, `octave_change`, `from_name`), read
+  and written as MusicXML `<clef-octave-change>`, MEI `@dis`/`@dis.place` (which Verovio
+  renders) and MuseScore `G8vb`/`C1`/`F_B`…, imported from ABC `soprano`/`mezzosoprano`/
+  `baritone` and from a Guitar Pro 7 bar's clef `<Ottavia>`. The SVG renderer draws the small 8
+  and places notes and key signatures on the new clefs. Pitches stay at sounding pitch.
+
 - **Cautionary, parenthesized and editorial accidentals.** Accidentals the source asks to show
   where the key and bar would not (MusicXML `<accidental cautionary|parentheses|bracket|
   editorial="yes">`, MEI `<accid func="caution|edit">`/`@enclose`, MuseScore `<Accidental>`

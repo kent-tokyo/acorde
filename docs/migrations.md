@@ -25,6 +25,13 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
+### Unreleased — octave and C clefs
+
+`Clef` gains `Treble8vb`, `Treble8va`, `Bass8vb`, `Bass8va`, `Soprano`, `MezzoSoprano` and
+`Baritone`. Existing score JSON is unchanged; exhaustive `Clef` matches need the new arms, and
+`Clef::without_octave()` gives the base clef for code that only cares about the glyph family.
+`AddPartCmd` and the WASM `add_staff` accept the new names.
+
 ### Unreleased — requested accidentals
 
 `Note` gains `pitch_accidentals: Vec<AccidentalDisplay>` (`Auto`, `Cautionary`, `Parenthesized`,

@@ -2342,11 +2342,11 @@ fn measure_total_beats(score: &Score, staff_ref: &(usize, usize), measure_idx: u
 // ── header widths ──────────────────────────────────────────────────────────────
 
 fn header_width_u(clef: &Clef, key_fifths: i8, time_sig: Option<&TimeSignature>) -> f32 {
-    let clef_w = match clef {
+    let clef_w = match clef.without_octave() {
         Clef::Treble => 2.2,
         Clef::Bass => 2.6,
-        Clef::Alto | Clef::Tenor => 2.1,
         Clef::Percussion => 1.6,
+        _ => 2.1,
     };
     let key_count = key_fifths.unsigned_abs().min(7) as f32;
     let key_w = if key_count > 0.0 {
@@ -2395,6 +2395,37 @@ fn write_clef(
     space: f32,
 ) -> Result<f32, RenderError> {
     match clef {
+        Clef::Treble8vb | Clef::Treble8va | Clef::Bass8vb | Clef::Bass8va => {
+            let advance = write_clef(body, &clef.without_octave(), x, bottom_y, space)?;
+            // The small 8 below or above the clef.
+            let treble = clef.without_octave() == Clef::Treble;
+            let y = match (treble, clef.octave_change() < 0) {
+                (true, true) => bottom_y + 2.45 * space,
+                (true, false) => bottom_y - STAFF_HEIGHT_U * space - 2.0 * space,
+                (false, true) => bottom_y + 1.35 * space,
+                (false, false) => bottom_y - STAFF_HEIGHT_U * space - 0.45 * space,
+            };
+            let _ = write!(
+                body,
+                r#"<text class="acorde-clef-octave" x="{}" y="{}" text-anchor="middle" font-family="serif" font-style="italic" font-size="{}">8</text>"#,
+                f(x + if treble { 1.05 } else { 0.9 } * space),
+                f(y),
+                f(1.25 * space)
+            );
+            Ok(advance)
+        }
+        Clef::Soprano => {
+            body.push_str(&glyphs::clef_c(x, bottom_y, space, 0.0));
+            Ok(1.95 * space)
+        }
+        Clef::MezzoSoprano => {
+            body.push_str(&glyphs::clef_c(x, bottom_y, space, 1.0));
+            Ok(1.95 * space)
+        }
+        Clef::Baritone => {
+            body.push_str(&glyphs::clef_c(x, bottom_y, space, 4.0));
+            Ok(1.95 * space)
+        }
         Clef::Treble => {
             body.push_str(&glyphs::clef_treble(x, bottom_y, space));
             Ok(2.0 * space)
@@ -2455,6 +2486,27 @@ fn key_signature_step_u(alter: i8) -> f32 {
 
 /// Staff positions (0 = bottom line) of the seven key-signature sharps or flats, in order.
 fn key_signature_positions(clef: &Clef, sharps: bool) -> [i32; 7] {
+    // C clefs on the outer lines: the treble zigzag moved to the clef, each sign kept on the
+    // staff.
+    let shift = match clef {
+        Clef::Soprano => Some(2),
+        Clef::MezzoSoprano => Some(-3),
+        Clef::Baritone => Some(3),
+        _ => None,
+    };
+    if let Some(shift) = shift {
+        let mut positions = key_signature_positions(&Clef::Treble, sharps);
+        for position in &mut positions {
+            *position += shift;
+            while *position > 8 {
+                *position -= 7;
+            }
+            while *position < 0 {
+                *position += 7;
+            }
+        }
+        return positions;
+    }
     match (clef, sharps) {
         (Clef::Alto, true) => [7, 4, 8, 5, 2, 6, 3],
         (Clef::Alto, false) => [3, 6, 2, 5, 1, 4, 0],

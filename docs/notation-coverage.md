@@ -14,7 +14,7 @@ the `Score` model; rendering and export can have narrower format-specific covera
 | Parts, staves, measures, voices | yes | partial | partial | partial | partial | yes | yes / yes / yes |
 | Pitch, rests, chords, duration | yes | partial | partial | partial | partial | yes | yes / yes / yes |
 | Tempo and time signature | yes | partial | yes | yes | partial | yes | yes / yes / yes |
-| Key signature and clef | yes | no | yes | yes | partial | yes | yes / yes / MusicXML |
+| Key signature and clef (G/F with 8va/8vb, C on lines 1–5, percussion) | yes (`<clef-octave-change>`) | no | yes (no octave clefs) | yes | partial (`@dis`) | yes | yes / yes / MusicXML |
 | Barlines, repeats, navigation | partial | partial | partial (common barlines/repeats) | partial | partial (barlines, common `dir` navigation marks) | yes | partial / partial / partial |
 | Dynamics and articulations | yes | no | partial (common decorations) | partial | partial (common articulations/ornaments) | yes | yes / yes / MusicXML |
 | Lyrics and expression text | partial | no | partial (`w:` lyrics) | partial | partial (single-syllable lyrics, `dir`) | yes | partial / partial / MusicXML, ABC |

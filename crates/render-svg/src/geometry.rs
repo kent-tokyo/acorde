@@ -32,6 +32,13 @@ pub(crate) fn clef_bottom_line(clef: &Clef) -> Result<i32, RenderError> {
         Clef::Bass => Ok(diatonic_index(&Step::G, 2)),
         Clef::Alto => Ok(diatonic_index(&Step::F, 3)),
         Clef::Tenor => Ok(diatonic_index(&Step::D, 3)),
+        Clef::Treble8vb => Ok(diatonic_index(&Step::E, 3)),
+        Clef::Treble8va => Ok(diatonic_index(&Step::E, 5)),
+        Clef::Bass8vb => Ok(diatonic_index(&Step::G, 1)),
+        Clef::Bass8va => Ok(diatonic_index(&Step::G, 3)),
+        Clef::Soprano => Ok(diatonic_index(&Step::C, 4)),
+        Clef::MezzoSoprano => Ok(diatonic_index(&Step::A, 3)),
+        Clef::Baritone => Ok(diatonic_index(&Step::B, 2)),
         // Unpitched display placement still uses the canonical five-line staff. The
         // instrument identity remains in the score's percussion metadata and is not inferred
         // from the display pitch.

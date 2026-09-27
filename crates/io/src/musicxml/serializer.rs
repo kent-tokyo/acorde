@@ -262,39 +262,20 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 }
                 if i == 0 || measure.clef.is_some() {
                     let clef = measure.clef.as_ref().unwrap_or(&staff.clef);
-                    xml.push_str("        <clef>\n");
-                    xml.push_str(&format!(
-                        "          <sign>{}</sign>\n",
-                        clef.to_musicxml_sign()
-                    ));
-                    xml.push_str(&format!(
-                        "          <line>{}</line>\n",
-                        clef.musicxml_line()
-                    ));
-                    xml.push_str("        </clef>\n");
+                    xml.push_str(&musicxml_clef(None, clef));
                 }
                 if i > 0 {
                     for (staff_number, extra_staff) in part.staves.iter().enumerate().skip(1) {
                         if let Some(clef) =
                             extra_staff.measures.get(i).and_then(|m| m.clef.as_ref())
                         {
-                            xml.push_str(&format!(
-                                "        <clef number=\"{}\">\n          <sign>{}</sign>\n          <line>{}</line>\n        </clef>\n",
-                                staff_number + 1,
-                                clef.to_musicxml_sign(),
-                                clef.musicxml_line()
-                            ));
+                            xml.push_str(&musicxml_clef(Some(staff_number + 1), clef));
                         }
                     }
                 }
                 if i == 0 {
                     for (staff_number, extra_staff) in part.staves.iter().enumerate().skip(1) {
-                        xml.push_str(&format!(
-                        "        <clef number=\"{}\">\n          <sign>{}</sign>\n          <line>{}</line>\n        </clef>\n",
-                        staff_number + 1,
-                        extra_staff.clef.to_musicxml_sign(),
-                        extra_staff.clef.musicxml_line()
-                    ));
+                        xml.push_str(&musicxml_clef(Some(staff_number + 1), &extra_staff.clef));
                         if extra_staff.tablature.is_some() || extra_staff.presentation.lines != 5 {
                             xml.push_str(&format!(
                                 "        <staff-details number=\"{}\">\n          <staff-lines>{}</staff-lines>\n",
@@ -1232,11 +1213,9 @@ fn push_due_mid_clefs<'a>(
             .beats()
             .is_some_and(|beats| (beats * f64::from(DIVISIONS)).round() <= f64::from(tick))
     }) {
-        xml.push_str(&format!(
-            "      <attributes>\n        <clef number=\"{staff_number}\">\n          <sign>{}</sign>\n          <line>{}</line>\n        </clef>\n      </attributes>\n",
-            change.clef.to_musicxml_sign(),
-            change.clef.musicxml_line()
-        ));
+        xml.push_str("      <attributes>\n");
+        xml.push_str(&musicxml_clef(Some(staff_number), &change.clef));
+        xml.push_str("      </attributes>\n");
     }
 }
 
@@ -1930,6 +1909,28 @@ fn escape_xml(s: &str) -> String {
         .replace('>', "&gt;")
         .replace('"', "&quot;")
         .replace('\'', "&apos;")
+}
+
+/// A `<clef>` element (numbered for a staff after the first), with `<clef-octave-change>` for
+/// octave clefs.
+fn musicxml_clef(number: Option<usize>, clef: &acorde_core::Clef) -> String {
+    let mut xml = match number {
+        Some(number) => format!("        <clef number=\"{number}\">\n"),
+        None => "        <clef>\n".to_string(),
+    };
+    xml.push_str(&format!(
+        "          <sign>{}</sign>\n          <line>{}</line>\n",
+        clef.to_musicxml_sign(),
+        clef.musicxml_line()
+    ));
+    if clef.octave_change() != 0 {
+        xml.push_str(&format!(
+            "          <clef-octave-change>{}</clef-octave-change>\n",
+            clef.octave_change()
+        ));
+    }
+    xml.push_str("        </clef>\n");
+    xml
 }
 
 /// An `<accidental>` for a pitch whose accidental the source asked to show: cautionary,

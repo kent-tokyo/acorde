@@ -2728,10 +2728,17 @@ fn mscz_duration_type(s: &str) -> Duration {
 
 fn mscz_clef_type(s: &str) -> Clef {
     match s {
-        "G" | "G8vb" | "G15ma" | "G8va" => Clef::Treble,
-        "F" | "F8vb" | "F15mb" | "F8va" => Clef::Bass,
+        "G8vb" | "G8vbo" | "G8vbp" => Clef::Treble8vb,
+        "G8va" => Clef::Treble8va,
+        "F8vb" => Clef::Bass8vb,
+        "F8va" => Clef::Bass8va,
+        "G" | "G15ma" | "G15mb" | "G1" => Clef::Treble,
+        "F" | "F15mb" | "F15ma" | "F_C" => Clef::Bass,
+        "C1" => Clef::Soprano,
+        "C2" => Clef::MezzoSoprano,
+        "C5" | "F_B" => Clef::Baritone,
         "C4" | "C4_8vb" => Clef::Tenor,
-        "C" | "C1" | "C2" | "C3" | "C5" => Clef::Alto,
+        "C" | "C3" => Clef::Alto,
         "TAB" | "TAB4" => Clef::Treble, // best approximation
         "PERC" | "PERC2" => Clef::Percussion,
         _ => Clef::Treble,

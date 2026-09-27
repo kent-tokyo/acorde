@@ -208,6 +208,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut in_clef = false;
     let mut clef_sign = String::new();
     let mut clef_line: Option<u8> = None;
+    let mut clef_octave_change: i8 = 0;
     // Clef changes as (part, staff, bar, beats into the bar, clef); 0 beats = at its start.
     let mut staff_clef_events: Vec<(usize, usize, usize, f64, Clef)> = Vec::new();
     // Set when the current `<attributes>` changes the first staff's clef at its bar's start;
@@ -447,6 +448,7 @@ pub(crate) fn parse_musicxml_collecting(
                         in_clef = true;
                         clef_sign.clear();
                         clef_line = None;
+                        clef_octave_change = 0;
                         current_clef_staff_number = attr_str(e, b"number")
                             .and_then(|value| value.parse().ok())
                             .filter(|number: &usize| (1..=MAX_STAVES).contains(number))
@@ -1773,15 +1775,16 @@ pub(crate) fn parse_musicxml_collecting(
                     "line" if in_clef => {
                         clef_line = current_text.trim().parse().ok();
                     }
+                    "clef-octave-change" if in_clef => {
+                        clef_octave_change = current_text.trim().parse().unwrap_or(0);
+                    }
                     "clef" if in_clef => {
                         in_clef = false;
-                        let clef = match (clef_sign.as_str(), clef_line) {
-                            ("F", _) => Clef::Bass,
-                            ("C", Some(4)) => Clef::Tenor,
-                            ("C", _) => Clef::Alto,
-                            ("percussion", _) => Clef::Percussion,
-                            _ => Clef::Treble,
-                        };
+                        // Clefs the model lacks (French violin, 15ma, sub-bass) keep their family.
+                        let clef = Clef::from_sign(&clef_sign, clef_line, clef_octave_change)
+                            .or_else(|| Clef::from_sign(&clef_sign, None, clef_octave_change))
+                            .or_else(|| Clef::from_sign(&clef_sign, None, 0))
+                            .unwrap_or(Clef::Treble);
                         if let Some(pi) = part_index {
                             let staff_index = current_clef_staff_number.max(1) - 1;
                             let measure_index =

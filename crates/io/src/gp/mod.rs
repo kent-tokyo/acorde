@@ -331,6 +331,20 @@ fn gp_clef(value: &str) -> Option<Clef> {
     })
 }
 
+fn gp_clef_ottava(clef: Clef, ottava: Option<&str>) -> Clef {
+    let octave_change = match ottava.map(str::trim) {
+        Some("8vb") => -1,
+        Some("8va") => 1,
+        _ => return clef,
+    };
+    Clef::from_sign(
+        clef.to_musicxml_sign(),
+        Some(clef.musicxml_line()),
+        octave_change,
+    )
+    .unwrap_or(clef)
+}
+
 fn step_semitone(step: &Step) -> i16 {
     match step {
         Step::C => 0,
@@ -737,7 +751,13 @@ pub fn parse_gpif(xml: &str) -> Result<(Score, Vec<Diagnostic>), Error> {
                 .filter(|id| **id >= 0)
                 .and_then(|id| bars.get(&id.to_string()));
             if let Some(bar) = bar {
-                if let Some(clef) = bar.text_at("Clef").and_then(gp_clef) {
+                // A bar's `<Ottavia>` next to its clef is the clef's octave mark (a guitar's
+                // treble clef with an 8 below).
+                if let Some(clef) = bar
+                    .text_at("Clef")
+                    .and_then(gp_clef)
+                    .map(|clef| gp_clef_ottava(clef, bar.text_at("Ottavia")))
+                {
                     if current_clefs[staff_index].is_none() {
                         score.parts[*part_index].staves[local_staff].clef = clef.clone();
                     } else if current_clefs[staff_index].as_ref() != Some(&clef) {

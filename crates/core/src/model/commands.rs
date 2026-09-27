@@ -776,7 +776,8 @@ pub struct ToggleTrillLineCmd {
 /// Add a new staff to an existing part with the given clef.
 ///
 /// The new staff is appended with empty measures matching the current measure count.
-/// Clef values: `"Treble"` | `"Bass"` | `"Alto"` | `"Tenor"` | `"Percussion"`.
+/// Clef values: `"Treble"` | `"Bass"` | `"Alto"` | `"Tenor"` | `"Percussion"`, or any other
+/// [`Clef`] variant name (`"Treble8vb"`, `"Soprano"`, …).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AddStaffCmd {
     pub part_index: usize,
@@ -3339,13 +3340,7 @@ fn apply_add_part(cmd: &AddPartCmd, score: &mut Score) -> Result<(), Error> {
     part.midi_channel = cmd.midi_channel.min(15);
     part.midi_program = cmd.midi_program;
     for clef_str in &cmd.clefs {
-        let clef = match clef_str.as_str() {
-            "Bass" => Clef::Bass,
-            "Alto" => Clef::Alto,
-            "Tenor" => Clef::Tenor,
-            "Percussion" => Clef::Percussion,
-            _ => Clef::Treble,
-        };
+        let clef = Clef::from_name(clef_str).unwrap_or(Clef::Treble);
         let mut staff = Staff::new(clef);
         for i in 0..measure_count {
             let mut m = Measure::empty(ts.numerator, ts.denominator);

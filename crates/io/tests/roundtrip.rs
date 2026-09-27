@@ -5514,3 +5514,37 @@ fn mei_import_reads_verovio_style_offsets_ppq_durations_words_and_tempo_units() 
         "on the staff it names"
     );
 }
+
+#[test]
+fn octave_and_c_clefs_round_trip_through_musicxml_mei_and_mscx() {
+    use acorde_core::Clef;
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Tenor</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line><clef-octave-change>-1</clef-octave-change></clef></attributes><note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><type>quarter</type></note></measure><measure number="2"><attributes><clef><sign>C</sign><line>1</line></clef></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure><measure number="3"><attributes><clef><sign>F</sign><line>4</line><clef-octave-change>-1</clef-octave-change></clef></attributes><note><pitch><step>C</step><octave>2</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#;
+    let check = |score: &acorde_core::Score, format: &str| {
+        let staff = &score.parts[0].staves[0];
+        assert_eq!(staff.clef, Clef::Treble8vb, "{format}");
+        assert_eq!(staff.measures[1].clef, Some(Clef::Soprano), "{format}");
+        assert_eq!(staff.measures[2].clef, Some(Clef::Bass8vb), "{format}");
+        // Pitches stay at sounding pitch; only the display follows the clef.
+        assert_eq!(
+            staff.measures[0].voices[0][0].pitches[0].octave, 3,
+            "{format}"
+        );
+    };
+    let score = parse_musicxml(xml).expect("parses");
+    check(&score, "MusicXML");
+    let written = serialize_musicxml(&score).expect("MusicXML");
+    assert!(written.contains("<clef-octave-change>-1</clef-octave-change>"));
+    check(
+        &parse_musicxml(&written).expect("MusicXML reparses"),
+        "MusicXML again",
+    );
+    let mei = acorde_io::serialize_mei(&score).expect("MEI");
+    assert!(mei.contains(r#"clef.dis="8" clef.dis.place="below""#));
+    check(&acorde_io::parse_mei(&mei).expect("MEI reparses"), "MEI");
+    let mscx = acorde_io::serialize_mscx(&score).expect("MSCX");
+    assert!(mscx.contains("G8vb"));
+    check(
+        &acorde_io::parse_mscx(&mscx).expect("MSCX reparses"),
+        "MSCX",
+    );
+}

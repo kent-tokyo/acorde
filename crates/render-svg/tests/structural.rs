@@ -3344,3 +3344,34 @@ fn hidden_notes_and_rests_keep_their_place_but_draw_nothing() {
     // The hidden eighth is left out of the beam with its visible neighbour.
     assert!(!svg.contains("acorde-beam"));
 }
+
+#[test]
+fn octave_clef_draws_its_eight_and_places_notes_an_octave_down() {
+    use acorde_core::{Clef, Duration, Measure, Note, Part, Pitch, Score, Staff, Step};
+    let head_ys = |clef: Clef, octave: i8| -> (String, f32) {
+        let mut score = Score::new("clef", 120, 4, 4, 1, 1);
+        let mut part = Part::new("P", "");
+        let mut staff = Staff::new(clef);
+        let mut measure = Measure::empty(4, 4);
+        measure.voices[0] = vec![Note::new(Pitch::new(Step::E, octave), Duration::Whole)];
+        staff.measures.push(measure);
+        part.staves = vec![staff];
+        score.parts = vec![part];
+        let svg = render_svg(&score, &opts()).unwrap();
+        let y = svg
+            .split("acorde-notehead")
+            .nth(1)
+            .and_then(|rest| rest.split("cy=\"").nth(1))
+            .and_then(|rest| rest.split('"').next())
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(f32::NAN);
+        (svg, y)
+    };
+    let (plain, treble_y) = head_ys(Clef::Treble, 4);
+    let (octave, tenor_y) = head_ys(Clef::Treble8vb, 3);
+    // E3 sits on the bottom line of a treble 8vb clef, where E4 sits in a treble clef.
+    assert!(treble_y.is_finite());
+    assert_eq!(treble_y, tenor_y);
+    assert!(octave.contains("acorde-clef-octave"));
+    assert!(!plain.contains("acorde-clef-octave"));
+}

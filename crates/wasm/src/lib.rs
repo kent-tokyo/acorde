@@ -1811,15 +1811,11 @@ impl ScoreEngine {
 
     /// Add a new staff to an existing part. Returns a [`ChangeHint`] JSON string.
     ///
-    /// `clef`: `"Treble"` / `"Bass"` / `"Alto"` / `"Tenor"` / `"Percussion"`.
+    /// `clef`: `"Treble"` / `"Bass"` / `"Alto"` / `"Tenor"` / `"Percussion"`, or an octave or C
+    /// clef (`"Treble8vb"`, `"Treble8va"`, `"Bass8vb"`, `"Bass8va"`, `"Soprano"`,
+    /// `"MezzoSoprano"`, `"Baritone"`).
     pub fn add_staff(&mut self, part_index: usize, clef: &str) -> Result<String, JsValue> {
-        let clef = match clef {
-            "Bass" => acorde_core::Clef::Bass,
-            "Alto" => acorde_core::Clef::Alto,
-            "Tenor" => acorde_core::Clef::Tenor,
-            "Percussion" => acorde_core::Clef::Percussion,
-            _ => acorde_core::Clef::Treble,
-        };
+        let clef = acorde_core::Clef::from_name(clef).unwrap_or(acorde_core::Clef::Treble);
         let hint = self.inner.add_staff(part_index, clef).map_err(js_err)?;
         serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
     }

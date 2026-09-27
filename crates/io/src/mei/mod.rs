@@ -254,21 +254,22 @@ fn mei_figured_bass_display_text(figure: &FiguredBassFigure) -> String {
     )
 }
 
-fn parse_clef(shape: Option<String>, line: Option<String>) -> Option<Clef> {
-    let shape = shape?.to_ascii_uppercase();
+/// A clef from `shape`/`line` and the octave mark `dis`/`dis.place` (`8` `below` is a tenor
+/// voice's treble clef). The same attributes carry a `clef.` prefix on `<staffDef>`.
+fn parse_clef(event: &BytesStart<'_>, prefix: &str) -> Option<Clef> {
+    let get = |name: &str| attr(event, format!("{prefix}{name}").as_bytes());
+    let shape = get("shape")?.to_ascii_uppercase();
     // MEI's percussion clef is `perc` (acorde once wrote `P`); it needs no line.
     if matches!(shape.as_str(), "PERC" | "P") {
         return Some(Clef::Percussion);
     }
-    let line = line?.parse::<u8>().ok()?;
-    match (shape.as_str(), line) {
-        ("G", 2) => Some(Clef::Treble),
-        ("F", 4) => Some(Clef::Bass),
-        ("C", 3) => Some(Clef::Alto),
-        ("C", 4) => Some(Clef::Tenor),
-        ("P", _) => Some(Clef::Percussion),
-        _ => None,
-    }
+    let line = get("line")?.parse::<u8>().ok()?;
+    let octave_change = match (get("dis").as_deref(), get("dis.place").as_deref()) {
+        (Some("8"), Some("below")) => -1,
+        (Some("8"), Some("above")) => 1,
+        _ => 0,
+    };
+    Clef::from_sign(&shape, Some(line), octave_change)
 }
 
 fn parse_staff_group_symbol(value: Option<String>) -> PartGroupSymbol {
@@ -2230,9 +2231,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         {
                             score.settings.key_signature = key_signature;
                         }
-                        if let Some(clef) =
-                            parse_clef(attr(&event, b"clef.shape"), attr(&event, b"clef.line"))
-                        {
+                        if let Some(clef) = parse_clef(&event, "clef.") {
                             score.parts[0].staves[0].clef = clef;
                         }
                     }
@@ -2305,9 +2304,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 attr(&event, b"lines").and_then(|value| value.parse::<u8>().ok());
                             staff_def_tuning.clear();
                         }
-                        if let Some(clef) =
-                            parse_clef(attr(&event, b"clef.shape"), attr(&event, b"clef.line"))
-                        {
+                        if let Some(clef) = parse_clef(&event, "clef.") {
                             if in_section {
                                 pending_clef_changes.push((staff_index, clef));
                             } else {
@@ -2337,10 +2334,9 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                     // MEI 5 / Verovio form: <clef>, <keySig>, <meterSig> as scoreDef/staffDef
                     // children instead of attributes.
                     b"clef" if !in_layer && open_staff_def.is_some() => {
-                        if let (Some(staff_index), Some(clef)) = (
-                            open_staff_def,
-                            parse_clef(attr(&event, b"shape"), attr(&event, b"line")),
-                        ) {
+                        if let (Some(staff_index), Some(clef)) =
+                            (open_staff_def, parse_clef(&event, ""))
+                        {
                             if in_section {
                                 pending_clef_changes.push((staff_index, clef));
                             } else if let Some(staff) = score.parts[0].staves.get_mut(staff_index) {
@@ -2393,10 +2389,9 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         }
                     }
                     b"clef" if in_layer => {
-                        if let (Some(clef), Some(measure_index)) = (
-                            parse_clef(attr(&event, b"shape"), attr(&event, b"line")),
-                            current_measure,
-                        ) {
+                        if let (Some(clef), Some(measure_index)) =
+                            (parse_clef(&event, ""), current_measure)
+                        {
                             let measure =
                                 &mut score.parts[0].staves[current_staff].measures[measure_index];
                             let offset: f64 = measure.voices[current_layer]
@@ -4059,14 +4054,20 @@ fn escape(value: &str) -> String {
         .replace('"', "&quot;")
 }
 
-fn mei_clef(clef: Clef) -> (&'static str, u8) {
-    match clef {
-        Clef::Treble => ("G", 2),
-        Clef::Bass => ("F", 4),
-        Clef::Alto => ("C", 3),
-        Clef::Tenor => ("C", 4),
+/// Clef attributes: `shape`, `line` and, for an octave clef, `dis`/`dis.place`, each written
+/// with `prefix` (`clef.` on `<staffDef>`, none on `<clef>`).
+fn mei_clef(clef: &Clef, prefix: &str) -> String {
+    let (shape, line) = match clef {
         Clef::Percussion => ("perc", 3),
+        other => (other.to_musicxml_sign(), other.musicxml_line()),
+    };
+    let mut out = format!(r#" {prefix}shape="{shape}" {prefix}line="{line}""#);
+    match clef.octave_change() {
+        -1 => out.push_str(&format!(r#" {prefix}dis="8" {prefix}dis.place="below""#)),
+        1 => out.push_str(&format!(r#" {prefix}dis="8" {prefix}dis.place="above""#)),
+        _ => {}
     }
+    out
 }
 
 fn mei_key_signature(key: &KeySignature) -> String {
@@ -4666,7 +4667,7 @@ fn append_mei_staff_defs_at(
                 }
             ));
         }
-        let (clef_shape, clef_line) = mei_clef(staves[staff_index].clef.clone());
+        let clef_attrs = mei_clef(&staves[staff_index].clef, "clef.");
         let tablature = staves[staff_index].tablature.as_ref();
         match tablature {
             Some(tab) => out.push_str(&format!(
@@ -4675,10 +4676,8 @@ fn append_mei_staff_defs_at(
                 tab.lines
             )),
             None => out.push_str(&format!(
-                "<staffDef n=\"{}\" clef.shape=\"{}\" clef.line=\"{}\"",
+                "<staffDef n=\"{}\"{clef_attrs}",
                 offset + staff_index + 1,
-                clef_shape,
-                clef_line
             )),
         }
         let tuning = tablature.map(mei_tuning).unwrap_or_default();
@@ -5104,8 +5103,7 @@ fn append_mei_measure_staves(
             }
             out.push_str(&format!("<layer n=\"{}\">", voice_index + 1));
             if let Some(clef) = clef_change.take() {
-                let (shape, line) = mei_clef(clef);
-                out.push_str(&format!("<clef shape=\"{shape}\" line=\"{line}\"/>"));
+                out.push_str(&format!("<clef{}/>", mei_clef(&clef, "")));
             }
             let last_start: f64 = voice
                 .iter()
@@ -5140,8 +5138,7 @@ fn append_mei_measure_staves(
                         .beats()
                         .is_some_and(|offset| offset <= note_start + 1e-9)
                 }) {
-                    let (shape, line) = mei_clef(change.clef.clone());
-                    out.push_str(&format!("<clef shape=\"{shape}\" line=\"{line}\"/>"));
+                    out.push_str(&format!("<clef{}/>", mei_clef(&change.clef, "")));
                 }
                 if !note.is_grace {
                     note_start += note.beats();

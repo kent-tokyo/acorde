@@ -1654,6 +1654,9 @@ fn split_abc_clef(value: &str) -> (String, Option<Clef>) {
             "bass" => Some(Clef::Bass),
             "alto" => Some(Clef::Alto),
             "tenor" => Some(Clef::Tenor),
+            "soprano" => Some(Clef::Soprano),
+            "mezzosoprano" => Some(Clef::MezzoSoprano),
+            "baritone" => Some(Clef::Baritone),
             "g" | "g2" if explicit.is_some() => Some(Clef::Treble),
             "f" | "f4" if explicit.is_some() => Some(Clef::Bass),
             "c3" if explicit.is_some() => Some(Clef::Alto),
@@ -1844,6 +1847,12 @@ pub fn serialize_abc(score: &Score) -> Result<String, Error> {
                     Clef::Bass => out.push_str(" clef=bass"),
                     Clef::Alto => out.push_str(" clef=alto"),
                     Clef::Tenor => out.push_str(" clef=tenor"),
+                    Clef::Soprano => out.push_str(" clef=soprano"),
+                    Clef::MezzoSoprano => out.push_str(" clef=mezzosoprano"),
+                    Clef::Baritone => out.push_str(" clef=baritone"),
+                    // ABC's `treble-8` does not agree between tools on whether it moves the
+                    // notes, so octave clefs are written plain (the pitches stay exact).
+                    Clef::Bass8vb | Clef::Bass8va => out.push_str(" clef=bass"),
                     _ => {}
                 }
                 out.push('\n');

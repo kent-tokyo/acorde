@@ -1103,6 +1103,13 @@ fn clef_name(clef: &Clef) -> &'static str {
         Clef::Alto => "C3",
         Clef::Tenor => "C4",
         Clef::Percussion => "PERC",
+        Clef::Treble8vb => "G8vb",
+        Clef::Treble8va => "G8va",
+        Clef::Bass8vb => "F8vb",
+        Clef::Bass8va => "F8va",
+        Clef::Soprano => "C1",
+        Clef::MezzoSoprano => "C2",
+        Clef::Baritone => "C5",
     }
 }
 

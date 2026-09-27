@@ -10,37 +10,124 @@ pub enum Clef {
     Alto,
     Tenor,
     Percussion,
+    /// Treble clef with an 8 below: sounds an octave lower (tenor voice, guitar).
+    Treble8vb,
+    /// Treble clef with an 8 above: sounds an octave higher.
+    Treble8va,
+    /// Bass clef with an 8 below: sounds an octave lower (contrabass, bass guitar).
+    Bass8vb,
+    /// Bass clef with an 8 above: sounds an octave higher.
+    Bass8va,
+    /// C clef on the bottom line.
+    Soprano,
+    /// C clef on the second line.
+    MezzoSoprano,
+    /// C clef on the top line.
+    Baritone,
 }
 
 impl Clef {
     pub fn to_musicxml_sign(&self) -> &'static str {
         match self {
-            Clef::Treble => "G",
-            Clef::Bass => "F",
-            Clef::Alto => "C",
-            Clef::Tenor => "C",
+            Clef::Treble | Clef::Treble8vb | Clef::Treble8va => "G",
+            Clef::Bass | Clef::Bass8vb | Clef::Bass8va => "F",
+            Clef::Alto | Clef::Tenor | Clef::Soprano | Clef::MezzoSoprano | Clef::Baritone => "C",
             Clef::Percussion => "percussion",
         }
     }
 
     pub fn musicxml_line(&self) -> u8 {
         match self {
-            Clef::Treble => 2,
-            Clef::Bass => 4,
+            Clef::Treble | Clef::Treble8vb | Clef::Treble8va => 2,
+            Clef::Bass | Clef::Bass8vb | Clef::Bass8va => 4,
             Clef::Alto => 3,
             Clef::Tenor => 4,
             Clef::Percussion => 2,
+            Clef::Soprano => 1,
+            Clef::MezzoSoprano => 2,
+            Clef::Baritone => 5,
         }
+    }
+
+    /// Octaves the music sounds above (+) or below (−) the written notes: the small 8 on the
+    /// clef (MusicXML `<clef-octave-change>`, MEI `@clef.dis`/`@dis.place`).
+    pub fn octave_change(&self) -> i8 {
+        match self {
+            Clef::Treble8vb | Clef::Bass8vb => -1,
+            Clef::Treble8va | Clef::Bass8va => 1,
+            _ => 0,
+        }
+    }
+
+    /// The clef without its octave mark.
+    pub fn without_octave(&self) -> Clef {
+        match self {
+            Clef::Treble8vb | Clef::Treble8va => Clef::Treble,
+            Clef::Bass8vb | Clef::Bass8va => Clef::Bass,
+            other => other.clone(),
+        }
+    }
+
+    /// The clef for a sign (`G`, `F`, `C`, `percussion`), a staff line (1 = bottom) and an
+    /// octave change (±1), as MusicXML, MEI and MuseScore describe clefs. `None` for
+    /// combinations the model does not have (French violin clef, a 15ma clef, sub-bass clef).
+    pub fn from_sign(sign: &str, line: Option<u8>, octave_change: i8) -> Option<Clef> {
+        let clef = match (sign.trim().to_ascii_uppercase().as_str(), line) {
+            ("G", None | Some(2)) => Clef::Treble,
+            ("F", None | Some(4)) => Clef::Bass,
+            ("C", Some(1)) => Clef::Soprano,
+            ("C", Some(2)) => Clef::MezzoSoprano,
+            ("C", None | Some(3)) => Clef::Alto,
+            ("C", Some(4)) => Clef::Tenor,
+            ("C", Some(5)) | ("F", Some(3)) => Clef::Baritone,
+            ("PERCUSSION", _) => Clef::Percussion,
+            _ => return None,
+        };
+        Some(match (clef, octave_change) {
+            (clef, 0) => clef,
+            (Clef::Treble, -1) => Clef::Treble8vb,
+            (Clef::Treble, 1) => Clef::Treble8va,
+            (Clef::Bass, -1) => Clef::Bass8vb,
+            (Clef::Bass, 1) => Clef::Bass8va,
+            (Clef::Percussion, _) => Clef::Percussion,
+            _ => return None,
+        })
+    }
+
+    /// The clef named as in score JSON (`"Treble"`, `"Treble8vb"`, `"MezzoSoprano"`, …).
+    pub fn from_name(name: &str) -> Option<Clef> {
+        Some(match name {
+            "Treble" => Clef::Treble,
+            "Bass" => Clef::Bass,
+            "Alto" => Clef::Alto,
+            "Tenor" => Clef::Tenor,
+            "Percussion" => Clef::Percussion,
+            "Treble8vb" => Clef::Treble8vb,
+            "Treble8va" => Clef::Treble8va,
+            "Bass8vb" => Clef::Bass8vb,
+            "Bass8va" => Clef::Bass8va,
+            "Soprano" => Clef::Soprano,
+            "MezzoSoprano" => Clef::MezzoSoprano,
+            "Baritone" => Clef::Baritone,
+            _ => return None,
+        })
     }
 
     /// MIDI note number of the middle staff line (used for stem direction heuristics).
     pub fn middle_line_midi(&self) -> u8 {
         match self {
-            Clef::Treble => 71,     // B4
-            Clef::Bass => 50,       // D3
-            Clef::Alto => 60,       // C4
-            Clef::Tenor => 57,      // A3
-            Clef::Percussion => 71, // B4 (same as Treble)
+            Clef::Treble => 71,       // B4
+            Clef::Bass => 50,         // D3
+            Clef::Alto => 60,         // C4
+            Clef::Tenor => 57,        // A3
+            Clef::Percussion => 71,   // B4 (same as Treble)
+            Clef::Treble8vb => 59,    // B3
+            Clef::Treble8va => 83,    // B5
+            Clef::Bass8vb => 38,      // D2
+            Clef::Bass8va => 62,      // D4
+            Clef::Soprano => 67,      // G4
+            Clef::MezzoSoprano => 64, // E4
+            Clef::Baritone => 53,     // F3
         }
     }
 }
