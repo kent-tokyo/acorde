@@ -1213,6 +1213,18 @@ fn cmd_validate(input: &Path) -> Result<(), String> {
                     measure + 1,
                     count
                 ),
+                acorde_core::ValidationError::InvalidMidMeasureClef {
+                    part,
+                    staff,
+                    measure,
+                    index,
+                } => eprintln!(
+                    "part {} staff {} measure {}: mid-bar clef change {} is outside the bar or out of order",
+                    part + 1,
+                    staff + 1,
+                    measure + 1,
+                    index + 1
+                ),
                 acorde_core::ValidationError::InvalidMeasureLength {
                     part,
                     staff,

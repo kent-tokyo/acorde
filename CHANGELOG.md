@@ -9,6 +9,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **[schema] Mid-bar clef changes.** `Measure.mid_clefs` (additive, omitted from JSON when
+  empty) holds clef changes inside a bar at their offset. MusicXML, MEI and MSCX import keep
+  them where they occur (MusicXML and MEI moved them to the next barline; MSCX applied them to
+  the whole bar) and export them before the note they precede; SVG draws a small clef there,
+  leaves the same room on every staff, and reads later notes in the new clef. Commands, diff,
+  patches, validation, split and join handle them. 78 changes in 22 music21 corpus files now
+  import in place and survive a MusicXML round trip.
+- MusicXML export wrote no bar clef changes for a part's second and later staves; they are now
+  written with their staff number. MusicXML import no longer marks every bar with an
+  `<attributes>` block as restating the first staff's clef.
+- MSCX export names alto and tenor clefs `C3`/`C4` (it wrote `C`, which MuseScore does not
+  define), and import reads `C4` as tenor.
 - **MusicXML dynamics import.** `<dynamics>` marks were not imported at all (exported ones did
   not survive a round trip). A direction's dynamic now attaches to the next sounding note of its
   staff and a `<notations>` dynamic to its own note; fp, sfp, pf, n and other-dynamics, which the

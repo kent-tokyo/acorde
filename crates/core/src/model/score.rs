@@ -1825,6 +1825,17 @@ impl MeasureLength {
         (beats.is_finite() && beats <= Self::MAX_BEATS).then_some(beats)
     }
 
+    /// Fraction for a length in quarter-note beats, exact for binary, triplet, quintuplet
+    /// and septuplet subdivisions; `None` for a zero, negative, or oversized length.
+    pub fn from_beats(beats: f64) -> Option<Self> {
+        const DIVISIONS: u32 = 3 * 5 * 7 * 64;
+        if !beats.is_finite() || beats <= 0.0 || beats > Self::MAX_BEATS {
+            return None;
+        }
+        let ticks = (beats * f64::from(DIVISIONS)).round();
+        (ticks >= 1.0).then(|| Self::from_ticks(ticks as u32, DIVISIONS))?
+    }
+
     /// Exact fraction for `ticks` at `divisions` ticks per quarter note, in lowest terms.
     pub fn from_ticks(ticks: u32, divisions: u32) -> Option<Self> {
         let numerator = u64::from(ticks);
@@ -1847,12 +1858,25 @@ impl MeasureLength {
     }
 }
 
+/// A clef change partway through a staff's measure. `offset` is the time from the start of
+/// the bar at which the new clef takes effect, as a fraction of a whole note (`1/4` = one
+/// quarter-note beat). A change at the barline itself is [`Measure::clef`] instead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MidMeasureClef {
+    pub offset: MeasureLength,
+    pub clef: Clef,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Measure {
     pub number: u32,
     pub time_sig: Option<TimeSignature>,
     pub key_sig: Option<KeySignature>,
     pub clef: Option<Clef>,
+    /// Clef changes inside the bar, in increasing `offset` order, each strictly after the
+    /// bar's start and before its end. Notes from an offset on are read in that clef.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mid_clefs: Vec<MidMeasureClef>,
     pub tempo: Option<u16>,
     /// Optional target BPM at this measure's end. The playback contract linearly interpolates
     /// BPM across the measure; `None` keeps a constant tempo until the next change.
@@ -1921,6 +1945,21 @@ pub struct Measure {
 }
 
 impl Measure {
+    /// The clef in effect `beats` quarter-note beats into this bar, given the clef in effect
+    /// at its start (after [`Measure::clef`]): the latest mid-bar change at or before `beats`.
+    pub fn clef_at(&self, start_clef: &Clef, beats: f64) -> Clef {
+        self.mid_clefs
+            .iter()
+            .take_while(|change| {
+                change
+                    .offset
+                    .beats()
+                    .is_some_and(|offset| offset <= beats + 1e-9)
+            })
+            .last()
+            .map_or_else(|| start_clef.clone(), |change| change.clef.clone())
+    }
+
     pub fn empty(numerator: u8, denominator: u8) -> Self {
         let total_beats = TimeSignature {
             numerator,
@@ -1939,6 +1978,7 @@ impl Measure {
             time_sig: None,
             key_sig: None,
             clef: None,
+            mid_clefs: Vec::new(),
             tempo: None,
             tempo_ramp_to: None,
             instrument_change: None,
@@ -2529,6 +2569,13 @@ pub enum ScoreChange {
         old: Option<TablatureConfig>,
         new: Option<TablatureConfig>,
     },
+    MidMeasureClefsChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old: Vec<MidMeasureClef>,
+        new: Vec<MidMeasureClef>,
+    },
     /// A semantic field changed without a dedicated positional diff variant.
     ///
     /// The stable path keeps compatibility reports honest while the complete score remains
@@ -2779,6 +2826,15 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                         measure: mi,
                         old: am.tablature_change.clone(),
                         new: bm.tablature_change.clone(),
+                    });
+                }
+                if am.mid_clefs != bm.mid_clefs {
+                    changes.push(ScoreChange::MidMeasureClefsChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.mid_clefs.clone(),
+                        new: bm.mid_clefs.clone(),
                     });
                 }
                 if am.number != bm.number
@@ -3096,6 +3152,12 @@ pub enum ScorePatch {
         measure: usize,
         value: Option<TablatureConfig>,
     },
+    SetMeasureMidClefs {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        value: Vec<MidMeasureClef>,
+    },
     SetMetadata {
         field: String,
         value: String,
@@ -3345,6 +3407,15 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                         staff: si,
                         measure: mi,
                         value: bm.tablature_change.clone(),
+                    });
+                }
+
+                if am.mid_clefs != bm.mid_clefs {
+                    patches.push(ScorePatch::SetMeasureMidClefs {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: bm.mid_clefs.clone(),
                     });
                 }
 
@@ -3703,6 +3774,23 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                     .get_mut(*measure)
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
                     .tablature_change = value.clone();
+            }
+            ScorePatch::SetMeasureMidClefs {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .mid_clefs = value.clone();
             }
             ScorePatch::SetMetadata { field, value } => match field.as_str() {
                 "title" => s.metadata.title = value.clone(),
@@ -6320,5 +6408,119 @@ mod tests {
         let notes = vec![eighth(c4.clone())];
         let beams = compute_beams(&notes, &ts);
         assert_eq!(beams[0], BeamState::None);
+    }
+}
+
+#[cfg(test)]
+mod mid_clef_tests {
+    use super::*;
+    use crate::{Command, JoinMeasuresCmd, ScoreEngine, SetMidMeasureClefsCmd, SplitMeasureCmd};
+
+    fn quarter_notes() -> Vec<Note> {
+        [Step::C, Step::D, Step::E, Step::F]
+            .into_iter()
+            .map(|step| Note::new(Pitch::new(step, 4), Duration::Quarter))
+            .collect()
+    }
+
+    fn change(beats: f64, clef: Clef) -> MidMeasureClef {
+        MidMeasureClef {
+            offset: MeasureLength::from_beats(beats).unwrap(),
+            clef,
+        }
+    }
+
+    #[test]
+    fn measure_length_from_beats_is_exact_for_tuplet_subdivisions() {
+        let third = MeasureLength::from_beats(1.0 / 3.0).unwrap();
+        assert_eq!((third.numerator, third.denominator), (1, 12));
+        let two = MeasureLength::from_beats(2.0).unwrap();
+        assert_eq!((two.numerator, two.denominator), (1, 2));
+        assert!(MeasureLength::from_beats(0.0).is_none());
+    }
+
+    #[test]
+    fn clef_at_follows_mid_bar_changes_and_json_omits_an_empty_list() {
+        let mut measure = Measure::empty(4, 4);
+        let json = serde_json::to_string(&measure).unwrap();
+        assert!(!json.contains("mid_clefs"));
+        measure.mid_clefs = vec![change(2.0, Clef::Bass)];
+        assert_eq!(measure.clef_at(&Clef::Treble, 1.0), Clef::Treble);
+        assert_eq!(measure.clef_at(&Clef::Treble, 2.0), Clef::Bass);
+        let restored: Measure =
+            serde_json::from_str(&serde_json::to_string(&measure).unwrap()).unwrap();
+        assert_eq!(restored.mid_clefs, measure.mid_clefs);
+    }
+
+    #[test]
+    fn validation_rejects_mid_bar_clefs_outside_the_bar_or_out_of_order() {
+        let mut score = Score::new("clefs", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = quarter_notes();
+        score.parts[0].staves[0].measures[0].mid_clefs =
+            vec![change(2.0, Clef::Bass), change(1.0, Clef::Treble)];
+        let errors = crate::validate(&score).errors;
+        assert!(errors.iter().any(|error| matches!(
+            error,
+            crate::ValidationError::InvalidMidMeasureClef { index: 1, .. }
+        )));
+        score.parts[0].staves[0].measures[0].mid_clefs = vec![change(4.0, Clef::Bass)];
+        assert!(!crate::validate(&score).errors.is_empty());
+    }
+
+    #[test]
+    fn command_split_join_diff_and_patch_keep_mid_bar_clefs() {
+        let mut engine = ScoreEngine::new();
+        engine.score.parts[0].staves[0].measures[0].voices[0] = quarter_notes();
+        engine
+            .apply(Command::SetMidMeasureClefs(SetMidMeasureClefsCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                clefs: vec![change(1.0, Clef::Bass), change(3.0, Clef::Alto)],
+            }))
+            .unwrap();
+        let with_clefs = engine.score.clone();
+        let plain = {
+            let mut score = with_clefs.clone();
+            score.parts[0].staves[0].measures[0].mid_clefs.clear();
+            score
+        };
+        assert!(diff(&plain, &with_clefs).iter().any(|change| matches!(
+            change,
+            ScoreChange::MidMeasureClefsChanged { measure: 0, .. }
+        )));
+        let patched = apply_patch(&plain, &score_patch(&plain, &with_clefs)).unwrap();
+        assert_eq!(
+            patched.parts[0].staves[0].measures[0].mid_clefs,
+            with_clefs.parts[0].staves[0].measures[0].mid_clefs
+        );
+
+        engine
+            .apply(Command::SplitMeasure(SplitMeasureCmd {
+                measure_index: 0,
+                split_at_beats: 1.0,
+            }))
+            .unwrap();
+        let measures = &engine.score.parts[0].staves[0].measures;
+        assert!(measures[0].mid_clefs.is_empty());
+        assert_eq!(measures[1].clef, Some(Clef::Bass));
+        assert_eq!(measures[1].mid_clefs, vec![change(2.0, Clef::Alto)]);
+
+        engine
+            .apply(Command::JoinMeasures(JoinMeasuresCmd { measure_index: 0 }))
+            .unwrap();
+        let measure = &engine.score.parts[0].staves[0].measures[0];
+        assert_eq!(
+            measure.mid_clefs,
+            vec![change(1.0, Clef::Bass), change(3.0, Clef::Alto)]
+        );
+
+        let invalid = engine.apply(Command::SetMidMeasureClefs(SetMidMeasureClefsCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            clefs: vec![change(0.0 + 5.0, Clef::Bass)],
+        }));
+        assert!(invalid.is_err());
     }
 }

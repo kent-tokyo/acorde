@@ -204,11 +204,19 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
             // score defaults in the first measure and measure-local overrides
             // wherever they occur. Omitting a later time signature makes a
             // valid score serialize with the wrong cursor length.
+            // A bar clef change on a later staff is written with that staff's number.
+            let extra_staff_clef_change = i > 0
+                && part
+                    .staves
+                    .iter()
+                    .skip(1)
+                    .any(|extra| extra.measures.get(i).is_some_and(|m| m.clef.is_some()));
             if i == 0
                 || measure.key_sig.is_some()
                 || measure.time_sig.is_some()
                 || measure.clef.is_some()
                 || measure.tablature_change.is_some()
+                || extra_staff_clef_change
             {
                 xml.push_str("      <attributes>\n");
                 if i == 0 {
@@ -254,6 +262,20 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                         clef.musicxml_line()
                     ));
                     xml.push_str("        </clef>\n");
+                }
+                if i > 0 {
+                    for (staff_number, extra_staff) in part.staves.iter().enumerate().skip(1) {
+                        if let Some(clef) =
+                            extra_staff.measures.get(i).and_then(|m| m.clef.as_ref())
+                        {
+                            xml.push_str(&format!(
+                                "        <clef number=\"{}\">\n          <sign>{}</sign>\n          <line>{}</line>\n        </clef>\n",
+                                staff_number + 1,
+                                clef.to_musicxml_sign(),
+                                clef.musicxml_line()
+                            ));
+                        }
+                    }
                 }
                 if i == 0 {
                     for (staff_number, extra_staff) in part.staves.iter().enumerate().skip(1) {
@@ -565,6 +587,8 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
             // measure cursor, so return to the measure start before every subsequent voice.
             let mut emitted_voice = false;
             let mut cursor_ticks = 0u32;
+            let mut staff_clefs: Vec<&acorde_core::MidMeasureClef> =
+                measure.mid_clefs.iter().collect();
             for (voice_index, voice) in measure.voices.iter().enumerate() {
                 if voice.is_empty() {
                     continue;
@@ -574,7 +598,13 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     xml.push_str(&format!("        <duration>{}</duration>\n", cursor_ticks));
                     xml.push_str("      </backup>\n");
                 }
+                let hosted = take_hostable_mid_clefs(&mut staff_clefs, voice, measure_ticks);
+                let mut clefs = hosted.iter().copied().peekable();
+                let mut note_tick = 0u32;
                 for (note_index, note) in voice.iter().enumerate() {
+                    push_due_mid_clefs(&mut xml, &mut clefs, note_tick, 1);
+                    note_tick =
+                        note_tick.saturating_add(serialized_note_timing(note, measure_ticks).0);
                     serialize_note(
                         &mut xml,
                         note,
@@ -608,6 +638,8 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     xml.push_str("      </backup>\n");
                 }
                 let mut extra_emitted_voice = false;
+                let mut staff_clefs: Vec<&acorde_core::MidMeasureClef> =
+                    extra_measure.mid_clefs.iter().collect();
                 for (voice_index, voice) in extra_measure.voices.iter().enumerate() {
                     if voice.is_empty() {
                         continue;
@@ -617,7 +649,13 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                         xml.push_str(&format!("        <duration>{}</duration>\n", cursor_ticks));
                         xml.push_str("      </backup>\n");
                     }
+                    let hosted = take_hostable_mid_clefs(&mut staff_clefs, voice, measure_ticks);
+                    let mut clefs = hosted.iter().copied().peekable();
+                    let mut note_tick = 0u32;
                     for (note_index, note) in voice.iter().enumerate() {
+                        push_due_mid_clefs(&mut xml, &mut clefs, note_tick, staff_index + 1);
+                        note_tick =
+                            note_tick.saturating_add(serialized_note_timing(note, measure_ticks).0);
                         serialize_note(
                             &mut xml,
                             note,
@@ -1120,6 +1158,49 @@ fn serialize_note(
         xml.push_str("        </direction-type>\n");
         xml.push_str("      </direction>\n");
     }
+}
+
+/// Write, as `<attributes>` before the next note, each mid-bar clef change of a staff that
+/// starts at or before `tick` (the next note's start). A change inside a note is written at
+/// the next note boundary.
+fn push_due_mid_clefs<'a>(
+    xml: &mut String,
+    clefs: &mut std::iter::Peekable<impl Iterator<Item = &'a acorde_core::MidMeasureClef>>,
+    tick: u32,
+    staff_number: usize,
+) {
+    while let Some(change) = clefs.next_if(|change| {
+        change
+            .offset
+            .beats()
+            .is_some_and(|beats| (beats * f64::from(DIVISIONS)).round() <= f64::from(tick))
+    }) {
+        xml.push_str(&format!(
+            "      <attributes>\n        <clef number=\"{staff_number}\">\n          <sign>{}</sign>\n          <line>{}</line>\n        </clef>\n      </attributes>\n",
+            change.clef.to_musicxml_sign(),
+            change.clef.musicxml_line()
+        ));
+    }
+}
+
+/// Remove from `pending` the mid-bar clefs this voice can carry — those at or before the start
+/// of its last note — so each is written once, in the first voice reaching it.
+fn take_hostable_mid_clefs<'a>(
+    pending: &mut Vec<&'a acorde_core::MidMeasureClef>,
+    voice: &[Note],
+    measure_ticks: u32,
+) -> Vec<&'a acorde_core::MidMeasureClef> {
+    let last_start = voice.iter().rev().skip(1).fold(0u32, |ticks, note| {
+        ticks.saturating_add(serialized_note_timing(note, measure_ticks).0)
+    });
+    let (hosted, rest): (Vec<_>, Vec<_>) = pending.drain(..).partition(|change| {
+        change
+            .offset
+            .beats()
+            .is_some_and(|beats| (beats * f64::from(DIVISIONS)).round() <= f64::from(last_start))
+    });
+    *pending = rest;
+    hosted
 }
 
 fn serialized_voice_ticks(voice: &[Note], measure_ticks: u32) -> u32 {

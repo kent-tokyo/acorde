@@ -25,6 +25,25 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
+### Unreleased — mid-bar clef changes
+
+`Measure` gains `mid_clefs: Vec<MidMeasureClef>` (a `MeasureLength` offset from the bar's start
+and a `Clef`), serde-defaulted and omitted from JSON when empty, so existing score JSON is
+unchanged. Code that builds `Measure` with a struct literal must add the field (or start from
+`Measure::empty`). `Measure::clef_at` gives the clef in effect at a beat, and
+`MeasureLength::from_beats` converts a beat offset. Validation reports `InvalidMidMeasureClef`
+for a change outside the bar or out of order. New `Command::SetMidMeasureClefs`,
+`ScoreChange::MidMeasureClefsChanged` and `ScorePatch::SetMeasureMidClefs` variants cover
+editing, diffing and patching; exhaustive matches on those enums need an arm. Split and join
+move mid-bar changes with their notes.
+
+MusicXML, MEI and MSCX import keep a clef read partway through a bar at that point (it used to
+move to the next barline), and a clef read after a bar's last note begins the next bar. Their
+exports write mid-bar changes before the note they precede. MusicXML import no longer restates
+the first staff's clef in every bar that has an `<attributes>` block, MusicXML export now
+writes bar clef changes on a part's second and later staves (they were dropped), and MSCX uses
+MuseScore's `C3`/`C4` names for the alto and tenor clefs.
+
 ### v1.2.10 — staff-relative SVG engraving and clef changes
 
 No Score JSON or Rust API changes. SVG output changes: beams now connect to stems; lyrics,

@@ -207,7 +207,11 @@ pub(crate) fn parse_musicxml_collecting(
     let mut in_clef = false;
     let mut clef_sign = String::new();
     let mut clef_line: Option<u8> = None;
-    let mut staff_clef_events: Vec<(usize, usize, usize, bool, Clef)> = Vec::new();
+    // Clef changes as (part, staff, bar, beats into the bar, clef); 0 beats = at its start.
+    let mut staff_clef_events: Vec<(usize, usize, usize, f64, Clef)> = Vec::new();
+    // Set when the current `<attributes>` changes the first staff's clef at its bar's start;
+    // other attributes (a key or time change, a mid-bar clef) leave the bar's clef alone.
+    let mut first_staff_bar_clef_read = false;
     let mut in_note = false;
     let mut note_slur_start = false;
     let mut note_slur_end = false;
@@ -1569,7 +1573,9 @@ pub(crate) fn parse_musicxml_collecting(
                         {
                             m.time_sig = Some(current_time.clone());
                             m.key_sig = Some(current_key.clone());
-                            m.clef = Some(current_clef.clone());
+                            if std::mem::take(&mut first_staff_bar_clef_read) {
+                                m.clef = Some(current_clef.clone());
+                            }
                         }
                     }
                     "words" if in_direction_type => {
@@ -1633,30 +1639,44 @@ pub(crate) fn parse_musicxml_collecting(
                             ("percussion", _) => Clef::Percussion,
                             _ => Clef::Treble,
                         };
-                        if current_clef_staff_number > 1 {
-                            // Applied once every staff's bars exist; see below.
-                            if let Some(pi) = part_index {
-                                let measure_index =
-                                    score.parts[pi].staves[0].measures.len().saturating_sub(1);
-                                // Before any of that staff's notes in the bar, it governs the
-                                // whole bar.
-                                let staff_silent = score.parts[pi]
-                                    .staves
-                                    .get(current_clef_staff_number - 1)
-                                    .and_then(|staff| staff.measures.get(measure_index))
-                                    .is_none_or(|measure| {
-                                        measure.voices.iter().all(|voice| voice.is_empty())
-                                    });
+                        if let Some(pi) = part_index {
+                            let staff_index = current_clef_staff_number.max(1) - 1;
+                            let measure_index =
+                                score.parts[pi].staves[0].measures.len().saturating_sub(1);
+                            // Before any of that staff's notes in the bar, it governs the
+                            // whole bar; otherwise it takes effect where it is read.
+                            let staff_silent = score.parts[pi]
+                                .staves
+                                .get(staff_index)
+                                .and_then(|staff| staff.measures.get(measure_index))
+                                .is_none_or(|measure| {
+                                    measure
+                                        .voices
+                                        .iter()
+                                        .all(|voice| voice.iter().all(|note| note.is_grace))
+                                });
+                            let offset = if measure_cursor_ticks == 0 || staff_silent {
+                                0.0
+                            } else {
+                                f64::from(measure_cursor_ticks)
+                                    / f64::from(current_divisions.max(1))
+                            };
+                            if staff_index == 0 && offset == 0.0 {
+                                current_clef = clef;
+                                first_staff_bar_clef_read = true;
+                            } else {
+                                // Applied once every staff's bars exist; see below.
+                                if staff_index == 0 {
+                                    current_clef = clef.clone();
+                                }
                                 staff_clef_events.push((
                                     pi,
-                                    current_clef_staff_number - 1,
+                                    staff_index,
                                     measure_index,
-                                    measure_cursor_ticks == 0 || staff_silent,
+                                    offset,
                                     clef,
                                 ));
                             }
-                        } else {
-                            current_clef = clef;
                         }
                     }
                     "transpose" => {
@@ -2445,19 +2465,50 @@ pub(crate) fn parse_musicxml_collecting(
             staff.clef = clef;
         }
     }
-    // A clef for a later staff at the start of a bar changes that bar; one read partway through
-    // a bar (after that staff's notes, as a cue for the next system) takes effect at the next
-    // barline. The model keeps clef changes at barlines, and a pitch never depends on its clef.
-    let mut running: HashMap<(usize, usize), Clef> = HashMap::new();
-    for (part_index, staff_index, measure_index, at_start, clef) in staff_clef_events {
-        let Some(staff) = score
-            .parts
-            .get_mut(part_index)
-            .and_then(|part| part.staves.get_mut(staff_index))
-        else {
+    // A clef read before a staff's notes in a bar changes that bar. One read partway through
+    // is a mid-bar change at that point, and one read after the bar's content (a cue for the
+    // next system) takes effect at the next barline. A pitch never depends on its clef.
+    for (part_index, staff_index, measure_index, offset, clef) in staff_clef_events {
+        let Some(part) = score.parts.get_mut(part_index) else {
             continue;
         };
-        let target = if at_start {
+        // The bar ends where its longest voice on any staff ends.
+        let bar_beats = part
+            .staves
+            .iter()
+            .filter_map(|staff| staff.measures.get(measure_index))
+            .flat_map(|measure| measure.voices.iter())
+            .map(|voice| {
+                voice
+                    .iter()
+                    .filter(|note| !note.is_grace)
+                    .map(Note::beats)
+                    .sum::<f64>()
+            })
+            .fold(0.0, f64::max);
+        let Some(staff) = part.staves.get_mut(staff_index) else {
+            continue;
+        };
+        let previous = clef_in_effect(staff, measure_index, offset);
+        if offset > 0.0 && offset < bar_beats - 1e-9 {
+            if let Some(measure) = staff.measures.get_mut(measure_index)
+                && let Some(offset) = acorde_core::MeasureLength::from_beats(offset)
+                && clef != previous
+            {
+                measure.mid_clefs.retain(|change| change.offset != offset);
+                measure.mid_clefs.push(acorde_core::MidMeasureClef {
+                    offset,
+                    clef: clef.clone(),
+                });
+                measure.mid_clefs.sort_by(|a, b| {
+                    let beats =
+                        |change: &acorde_core::MidMeasureClef| change.offset.beats().unwrap_or(0.0);
+                    beats(a).total_cmp(&beats(b))
+                });
+            }
+            continue;
+        }
+        let target = if offset == 0.0 {
             measure_index
         } else {
             measure_index + 1
@@ -2465,18 +2516,40 @@ pub(crate) fn parse_musicxml_collecting(
         if target == 0 {
             staff.clef = clef.clone();
         } else if let Some(measure) = staff.measures.get_mut(target) {
-            let previous = running
-                .get(&(part_index, staff_index))
-                .cloned()
-                .unwrap_or_else(|| staff.clef.clone());
             measure.clef = (clef != previous || measure.clef.is_some()).then(|| clef.clone());
         }
-        running.insert((part_index, staff_index), clef);
     }
     score.settings.time_signature = current_time;
     score.settings.key_signature = current_key;
 
     Ok(score)
+}
+
+/// The clef a staff is in `beats` into bar `measure_index` (before any change read there): its
+/// opening clef, then every bar clef and mid-bar change up to that point.
+fn clef_in_effect(staff: &acorde_core::Staff, measure_index: usize, beats: f64) -> Clef {
+    let mut clef = staff.clef.clone();
+    for (index, measure) in staff.measures.iter().enumerate().take(measure_index + 1) {
+        let at = if index == measure_index {
+            beats
+        } else {
+            f64::INFINITY
+        };
+        if let Some(bar_clef) = &measure.clef
+            && (index < measure_index || beats > 0.0)
+        {
+            clef = bar_clef.clone();
+        }
+        if let Some(change) = measure.mid_clefs.iter().rev().find(|change| {
+            change
+                .offset
+                .beats()
+                .is_some_and(|offset| offset < at - 1e-9)
+        }) {
+            clef = change.clef.clone();
+        }
+    }
+    clef
 }
 
 /// Give every declared staff the same measure count as the first staff. MusicXML may declare a

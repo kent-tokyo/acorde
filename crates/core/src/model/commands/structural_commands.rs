@@ -2,6 +2,32 @@
 
 use super::spanner_remap::remap_spanners;
 use super::{Barline, Error, JoinMeasuresCmd, NoteAddr, Score, SplitMeasureCmd};
+use crate::{Clef, MeasureLength, MidMeasureClef};
+
+/// Changes before `at` beats, and those after it re-based to `at` plus any change exactly at it.
+type SplitClefs = (Vec<MidMeasureClef>, (Vec<MidMeasureClef>, Option<Clef>));
+
+fn split_mid_clefs(changes: &[MidMeasureClef], at: f64) -> SplitClefs {
+    let mut left = Vec::new();
+    let mut right = Vec::new();
+    let mut at_split = None;
+    for change in changes {
+        let Some(offset) = change.offset.beats() else {
+            continue;
+        };
+        if offset < at - 1e-9 {
+            left.push(change.clone());
+        } else if offset <= at + 1e-9 {
+            at_split = Some(change.clef.clone());
+        } else if let Some(offset) = MeasureLength::from_beats(offset - at) {
+            right.push(MidMeasureClef {
+                offset,
+                clef: change.clef.clone(),
+            });
+        }
+    }
+    (left, (right, at_split))
+}
 
 pub(super) fn apply_split_measure(cmd: &SplitMeasureCmd, score: &mut Score) -> Result<(), Error> {
     if !cmd.split_at_beats.is_finite() || cmd.split_at_beats <= 0.0 {
@@ -51,6 +77,13 @@ pub(super) fn apply_split_measure(cmd: &SplitMeasureCmd, score: &mut Score) -> R
         for (voice_index, split_index) in indices.iter().enumerate() {
             right.voices[voice_index] = measure.voices[voice_index].split_off(*split_index);
         }
+        // Mid-bar clefs stay with their half; one at the split point begins the right bar,
+        // which otherwise continues in the clef in effect there (no restated clef).
+        let (left_clefs, (right_clefs, at_split)) =
+            split_mid_clefs(&measure.mid_clefs, cmd.split_at_beats);
+        measure.mid_clefs = left_clefs;
+        right.mid_clefs = right_clefs;
+        right.clef = at_split;
         measure.barline_right = Barline::Normal;
         right.barline_left = Barline::Normal;
         score.parts[*part_index].staves[*staff_index]
@@ -113,6 +146,30 @@ pub(super) fn apply_join_measures(cmd: &JoinMeasuresCmd, score: &mut Score) -> R
         let measures = &mut score.parts[*part].staves[*staff].measures;
         let right = measures.remove(cmd.measure_index + 1);
         let left = &mut measures[cmd.measure_index];
+        // The right bar's clef changes become mid-bar changes of the joined bar.
+        // Where the right bar begins: the end of the left bar's written content.
+        let left_beats = left
+            .voices
+            .iter()
+            .map(|voice| {
+                voice
+                    .iter()
+                    .filter(|note| !note.is_grace)
+                    .map(|note| note.beats())
+                    .sum::<f64>()
+            })
+            .fold(0.0, f64::max);
+        let joined = right.clef.iter().map(|clef| (0.0, clef.clone())).chain(
+            right
+                .mid_clefs
+                .iter()
+                .filter_map(|change| Some((change.offset.beats()?, change.clef.clone()))),
+        );
+        for (offset, clef) in joined {
+            if let Some(offset) = MeasureLength::from_beats(left_beats + offset) {
+                left.mid_clefs.push(MidMeasureClef { offset, clef });
+            }
+        }
         for voice in 0..4 {
             left.voices[voice].extend(right.voices[voice].clone());
         }

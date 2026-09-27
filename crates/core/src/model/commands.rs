@@ -11,8 +11,8 @@ use super::notation::{
 };
 use super::pitch::Pitch;
 use super::score::{
-    HarpPedalDiagram, InstrumentDefinition, InstrumentRange, Measure, NotationSpanner,
-    NotationSpannerKind, Note, NoteAddr, ObjectStyleOverride, Part, PartGroup,
+    HarpPedalDiagram, InstrumentDefinition, InstrumentRange, Measure, MidMeasureClef,
+    NotationSpanner, NotationSpannerKind, Note, NoteAddr, ObjectStyleOverride, Part, PartGroup,
     PercussionInstrument, RegionalTranspositionTarget, RespellPolicy, Score, ScoreTemplate,
     ScoreView, Staff, StaffKind, StaffPresentation, ViewStyleOverride, respell_score,
     respell_score_to_key, respell_staff_region, transpose_staff_region_checked,
@@ -74,6 +74,7 @@ pub enum Command {
     SetInstrumentDefinition(SetInstrumentDefinitionCmd),
     SetMeasureInstrumentChange(SetMeasureInstrumentChangeCmd),
     SetMeasureTablatureChange(SetMeasureTablatureChangeCmd),
+    SetMidMeasureClefs(SetMidMeasureClefsCmd),
     UpsertScoreView(UpsertScoreViewCmd),
     RemoveScoreView(RemoveScoreViewCmd),
     SetTranspose(SetTransposeCmd),
@@ -479,6 +480,15 @@ pub struct SetMeasureTablatureChangeCmd {
     pub staff_index: usize,
     pub measure_index: usize,
     pub config: Option<TablatureConfig>,
+}
+
+/// Replace a staff measure's clef changes inside the bar (see [`Measure::mid_clefs`]).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetMidMeasureClefsCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub clefs: Vec<MidMeasureClef>,
 }
 
 /// Create or replace a named linked-part view by stable ID.
@@ -1367,6 +1377,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::SetInstrumentDefinition(c) => hint!(Part(c.part_index), true, false),
         Command::SetMeasureInstrumentChange(c) => hint!(meas!(c), true, true),
         Command::SetMeasureTablatureChange(c) => hint!(meas!(c), true, true),
+        Command::SetMidMeasureClefs(c) => hint!(meas!(c), true, false),
 
         Command::UpsertScoreView(_) | Command::RemoveScoreView(_) => hint!(Global, true, false),
 
@@ -1539,6 +1550,7 @@ pub fn command_label(cmd: &Command) -> String {
         Command::SetInstrumentDefinition(_) => "Set Instrument Definition".to_string(),
         Command::SetMeasureInstrumentChange(_) => "Set Measure Instrument Change".to_string(),
         Command::SetMeasureTablatureChange(_) => "Set Measure Tablature Change".to_string(),
+        Command::SetMidMeasureClefs(_) => "Set Mid-Measure Clefs".to_string(),
         Command::UpsertScoreView(_) => "Update Score View".to_string(),
         Command::RemoveScoreView(_) => "Remove Score View".to_string(),
         Command::SetTranspose(_) => "Set Transpose".to_string(),
@@ -1699,6 +1711,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetInstrumentDefinition(_) => "SetInstrumentDefinition".to_string(),
         Command::SetMeasureInstrumentChange(_) => "SetMeasureInstrumentChange".to_string(),
         Command::SetMeasureTablatureChange(_) => "SetMeasureTablatureChange".to_string(),
+        Command::SetMidMeasureClefs(_) => "SetMidMeasureClefs".to_string(),
         Command::UpsertScoreView(_) => "UpsertScoreView".to_string(),
         Command::RemoveScoreView(_) => "RemoveScoreView".to_string(),
         Command::SetTranspose(_) => "SetTranspose".to_string(),
@@ -1992,6 +2005,7 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         Command::SetInstrumentDefinition(c) => apply_set_instrument_definition(c, score),
         Command::SetMeasureInstrumentChange(c) => apply_set_measure_instrument_change(c, score),
         Command::SetMeasureTablatureChange(c) => apply_set_measure_tablature_change(c, score),
+        Command::SetMidMeasureClefs(c) => apply_set_mid_measure_clefs(c, score),
         Command::UpsertScoreView(c) => apply_upsert_score_view(c, score),
         Command::RemoveScoreView(c) => apply_remove_score_view(c, score),
         Command::SetTranspose(c) => apply_set_transpose(c, score),
@@ -3518,6 +3532,40 @@ fn apply_set_measure_tablature_change(
         .get_mut(cmd.measure_index)
         .ok_or(Error::MeasureNotFound(cmd.measure_index))?
         .tablature_change = cmd.config.clone();
+    Ok(())
+}
+
+fn apply_set_mid_measure_clefs(
+    cmd: &SetMidMeasureClefsCmd,
+    score: &mut Score,
+) -> Result<(), Error> {
+    let time_signature = score.settings.time_signature.clone();
+    let measure = score
+        .parts
+        .get_mut(cmd.part_index)
+        .ok_or(Error::PartNotFound(cmd.part_index))?
+        .staves
+        .get_mut(cmd.staff_index)
+        .ok_or(Error::StaffNotFound(cmd.staff_index))?
+        .measures
+        .get_mut(cmd.measure_index)
+        .ok_or(Error::MeasureNotFound(cmd.measure_index))?;
+    let length = measure.duration_beats(&time_signature);
+    let mut previous = 0.0;
+    for change in &cmd.clefs {
+        match change.offset.beats() {
+            Some(offset) if offset > previous + 1e-9 && offset < length - 1e-9 => {
+                previous = offset;
+            }
+            _ => {
+                return Err(Error::InvalidCommand(
+                    "mid-measure clefs must lie strictly inside the measure in increasing order"
+                        .into(),
+                ));
+            }
+        }
+    }
+    measure.mid_clefs = cmd.clefs.clone();
     Ok(())
 }
 

@@ -436,8 +436,28 @@ fn write_staff(
                 )
                 .map_err(fmt_error)?;
             } else {
+                // Mid-bar clef changes go in the first voice before the note they precede.
+                let mut clefs = if voice_index == 0 {
+                    measure.mid_clefs.iter().peekable()
+                } else {
+                    [].iter().peekable()
+                };
+                let mut beats = 0.0;
                 for note in voice {
+                    while let Some(change) =
+                        clefs.next_if(|change| change.offset.beats().unwrap_or(0.0) <= beats + 1e-9)
+                    {
+                        write!(
+                            xml,
+                            "<Clef><concertClefType>{}</concertClefType></Clef>",
+                            clef_name(&change.clef)
+                        )
+                        .map_err(fmt_error)?;
+                    }
                     write_note(xml, note)?;
+                    if !note.is_grace {
+                        beats += note.beats();
+                    }
                 }
             }
             if voice_index > 0 {
@@ -668,7 +688,9 @@ fn clef_name(clef: &Clef) -> &'static str {
     match clef {
         Clef::Treble => "G",
         Clef::Bass => "F",
-        Clef::Alto | Clef::Tenor => "C",
+        // MuseScore names C clefs by line: C3 alto, C4 tenor.
+        Clef::Alto => "C3",
+        Clef::Tenor => "C4",
         Clef::Percussion => "PERC",
     }
 }

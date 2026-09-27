@@ -3006,3 +3006,63 @@ fn cross_staff_beam_group_is_kneed_between_the_staves() {
     assert!(stems[1].1 < stems[1].0);
     assert!((stems[0].1 - stems[1].1).abs() < 0.01);
 }
+
+#[test]
+fn mid_bar_clef_change_is_drawn_before_its_note_and_governs_later_notes() {
+    use acorde_core::{
+        Clef, Duration, Measure, MeasureLength, MidMeasureClef, Note, Part, Pitch, Score, Staff,
+        Step,
+    };
+    let render = |mid_clefs: Vec<MidMeasureClef>| {
+        let mut score = Score::new("mid clef", 120, 4, 4, 0, 1);
+        let mut staff = Staff::new(Clef::Bass);
+        let mut measure = Measure::empty(4, 4);
+        measure.voices[0] = [Step::C, Step::D, Step::E, Step::F]
+            .into_iter()
+            .map(|step| Note::new(Pitch::new(step, 4), Duration::Quarter))
+            .collect();
+        measure.mid_clefs = mid_clefs;
+        staff.measures.push(measure);
+        let mut part = Part::new("Vc.", "");
+        part.staves = vec![staff];
+        score.parts = vec![part];
+        render_svg(&score, &opts()).unwrap()
+    };
+    let heads = |svg: &str| -> Vec<(f32, f32)> {
+        svg.split(r#"class="acorde-notehead" cx=""#)
+            .skip(1)
+            .filter_map(|fragment| {
+                let cx = fragment.split('"').next()?.parse().ok()?;
+                let cy = fragment
+                    .split(r#"cy=""#)
+                    .nth(1)?
+                    .split('"')
+                    .next()?
+                    .parse()
+                    .ok()?;
+                Some((cx, cy))
+            })
+            .collect()
+    };
+    let plain = heads(&render(Vec::new()));
+    let svg = render(vec![MidMeasureClef {
+        offset: MeasureLength::from_beats(2.0).unwrap(),
+        clef: Clef::Treble,
+    }]);
+    let changed = heads(&svg);
+    let space = opts().staff_size;
+    assert_eq!(svg.matches("acorde-mid-clef").count(), 1);
+    // The first two notes keep their bass-clef positions; E4 in the treble clef sits twelve
+    // steps (six spaces) lower than in the bass clef.
+    assert!((changed[0].1 - plain[0].1).abs() < 0.01);
+    assert!((changed[1].1 - plain[1].1).abs() < 0.01);
+    assert!((changed[2].1 - (plain[2].1 + 6.0 * space)).abs() < 0.01);
+    // The clef sits between the second and third notes, which move apart to make room.
+    let clef_x: f32 = svg
+        .split(r#"acorde-mid-clef" transform="translate("#)
+        .nth(1)
+        .and_then(|value| value.split(' ').next()?.parse().ok())
+        .unwrap();
+    assert!(clef_x > changed[1].0 && clef_x < changed[2].0);
+    assert!(changed[2].0 - changed[1].0 > plain[2].0 - plain[1].0);
+}

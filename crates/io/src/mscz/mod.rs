@@ -167,7 +167,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     // Per-measure state
     let mut cur_key: Option<KeySignature> = None;
     let mut cur_time: Option<TimeSignature> = None;
-    let mut cur_clef_in_measure: Option<Clef> = None;
+    // Clefs read in this measure: (voice slot, beats into that voice, clef).
+    let mut cur_clef_events: Vec<(usize, f64, Clef)> = Vec::new();
+    // A clef written after the last note of a bar (where MuseScore keeps a change that
+    // begins the next bar, so its courtesy clef precedes the barline), per staff id.
+    let mut pending_next_clefs: HashMap<usize, Clef> = HashMap::new();
     let mut cur_tempo: Option<u16> = None;
     let mut cur_voices: [Vec<Note>; 4] = [vec![], vec![], vec![], vec![]];
 
@@ -423,7 +427,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             attr_str(e, b"len").and_then(|value| parse_mscx_measure_len(&value));
                         cur_key = None;
                         cur_time = None;
-                        cur_clef_in_measure = None;
+                        cur_clef_events.clear();
                         cur_tempo = None;
                         cur_voices = [vec![], vec![], vec![], vec![]];
                         cur_barline_left = Barline::Normal;
@@ -858,6 +862,37 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     // Measure close
                     "Measure" if in_measure => {
                         let sid = current_staff_id.unwrap_or(1);
+                        // Sort the bar's clefs: at its start, inside it (before a later note
+                        // of the same voice), or after its last note (the next bar's clef).
+                        let mut mid_clefs: Vec<acorde_core::MidMeasureClef> = Vec::new();
+                        let mut next_clef = None;
+                        let mut cur_clef_in_measure = pending_next_clefs.remove(&sid);
+                        for (voice, offset, clef) in cur_clef_events.drain(..) {
+                            let voice_beats = cur_voices[voice]
+                                .iter()
+                                .filter(|note| !note.is_grace)
+                                .map(Note::beats)
+                                .sum::<f64>();
+                            if offset <= 1e-9 {
+                                cur_clef_in_measure = Some(clef);
+                            } else if offset >= voice_beats - 1e-9 {
+                                next_clef = Some(clef);
+                            } else if let Some(offset) =
+                                acorde_core::MeasureLength::from_beats(offset)
+                            {
+                                mid_clefs.retain(|change| change.offset != offset);
+                                mid_clefs.push(acorde_core::MidMeasureClef { offset, clef });
+                            }
+                        }
+                        mid_clefs.sort_by(|a, b| {
+                            let beats = |change: &acorde_core::MidMeasureClef| {
+                                change.offset.beats().unwrap_or(0.0)
+                            };
+                            beats(a).total_cmp(&beats(b))
+                        });
+                        if let Some(clef) = next_clef {
+                            pending_next_clefs.insert(sid, clef);
+                        }
                         // Only a first-measure <Clef> is the staff's initial clef; a later one is a
                         // clef change and must not replace the Part default.
                         let is_first_measure = staff_measures
@@ -873,6 +908,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             time_sig: cur_time.clone(),
                             key_sig: cur_key.clone(),
                             clef: cur_clef_in_measure.clone(),
+                            mid_clefs,
                             tempo: cur_tempo,
                             tempo_ramp_to: None,
                             instrument_change: None,
@@ -958,7 +994,17 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         clef_type_str = t.to_string();
                     }
                     "Clef" if in_clef_elem => {
-                        cur_clef_in_measure = Some(mscz_clef_type(&clef_type_str));
+                        let voice = if in_measure_voice_wrapper {
+                            measure_voice_index.min(3)
+                        } else {
+                            0
+                        };
+                        let offset = cur_voices[voice]
+                            .iter()
+                            .filter(|note| !note.is_grace)
+                            .map(Note::beats)
+                            .sum::<f64>();
+                        cur_clef_events.push((voice, offset, mscz_clef_type(&clef_type_str)));
                         in_clef_elem = false;
                     }
 
@@ -2484,7 +2530,8 @@ fn mscz_clef_type(s: &str) -> Clef {
     match s {
         "G" | "G8vb" | "G15ma" | "G8va" => Clef::Treble,
         "F" | "F8vb" | "F15mb" | "F8va" => Clef::Bass,
-        "C" => Clef::Alto,
+        "C4" | "C4_8vb" => Clef::Tenor,
+        "C" | "C1" | "C2" | "C3" | "C5" => Clef::Alto,
         "TAB" | "TAB4" => Clef::Treble, // best approximation
         "PERC" | "PERC2" => Clef::Percussion,
         _ => Clef::Treble,

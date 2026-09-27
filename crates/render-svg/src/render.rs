@@ -416,6 +416,11 @@ pub(crate) fn build_svg_with_metadata(
                     &mut note_points,
                     &mut resolved_annotation_obstacles,
                 )?;
+                if staff_ref.tablature_at(measure_idx).is_none()
+                    && let Some(change) = staff_ref.measures[measure_idx].mid_clefs.last()
+                {
+                    row_clefs[si_idx] = change.clef.clone();
+                }
             }
             // Barline spans the whole system, drawn once per column (not per staff).
             let bar_x = mx + mwidth;
@@ -2206,9 +2211,14 @@ fn effective_state(
     let mut clef = s.clef.clone();
     let mut key_fifths = score.settings.key_signature.fifths;
     let mut time_sig = score.settings.time_signature.clone();
-    for measure in s.measures.iter().take(up_to_measure + 1) {
+    for (index, measure) in s.measures.iter().enumerate().take(up_to_measure + 1) {
         if let Some(c) = &measure.clef {
             clef = c.clone();
+        }
+        if index < up_to_measure
+            && let Some(change) = measure.mid_clefs.last()
+        {
+            clef = change.clef.clone();
         }
         if let Some(k) = &measure.key_sig {
             key_fifths = k.fifths;
@@ -2592,6 +2602,26 @@ fn render_measure(
     let content_x0 = x + lead_u * space;
     let content_w = (width - (lead_u + MEASURE_PAD_U) * space).max(space);
     let clef_bottom = geometry::clef_bottom_line(clef)?;
+    // Mid-bar clef changes, drawn small before the first note they govern. Every staff leaves
+    // the same room at each such point so the bar's columns stay aligned across the system.
+    let mid_clefs: Vec<(f64, Clef)> = if tablature.is_some() {
+        Vec::new()
+    } else {
+        measure
+            .mid_clefs
+            .iter()
+            .filter_map(|change| Some((change.offset.beats()?, change.clef.clone())))
+            .collect()
+    };
+    for (_, change) in &mid_clefs {
+        geometry::clef_bottom_line(change)?;
+    }
+    let clef_gaps = measure_clef_gap_offsets(score, measure_idx, total_beats);
+    let clef_gap_px = (MID_CLEF_GAP_U * space).min(0.4 * content_w / clef_gaps.len().max(1) as f32);
+    let clef_gap_layout = ClefGaps {
+        offsets: &clef_gaps,
+        width: clef_gap_px,
+    };
 
     let active_voices = measure
         .voices
@@ -2657,6 +2687,7 @@ fn render_measure(
                 content_w,
                 clef,
                 clef_bottom,
+                &clef_gap_layout,
                 bottom_y,
                 cross_frames,
                 space,
@@ -2669,6 +2700,45 @@ fn render_measure(
                 &mut prior_voice_events,
                 note_points,
             )?;
+        }
+        for (offset, change) in &mid_clefs {
+            // Right-align the small clef just clear of the first note at or after the change
+            // (and its accidentals); without such a note, at the change's own position.
+            let host = measure
+                .voices
+                .iter()
+                .enumerate()
+                .find_map(|(voice_idx, voice)| {
+                    let mut beat = 0.0;
+                    for (note_idx, note) in voice.iter().enumerate() {
+                        if beat >= offset - 1e-9 {
+                            return Some((voice_idx, note_idx, note));
+                        }
+                        beat += note.beats();
+                    }
+                    None
+                });
+            let right_x = host
+                .and_then(|(voice_idx, note_idx, note)| {
+                    let point =
+                        note_points.get(&(part, staff, measure_idx, voice_idx, note_idx))?;
+                    Some(
+                        point.0
+                            - (glyphs::NOTEHEAD_RX_U + 0.25 + accidental_footprint_u(note)) * space,
+                    )
+                })
+                .unwrap_or_else(|| clef_gap_layout.x(content_x0, content_w, total_beats, *offset));
+            let mut glyph = String::new();
+            let width = write_clef(&mut glyph, change, 0.0, bottom_y, space)?;
+            let clef_x = right_x - width * MID_CLEF_SCALE;
+            let _ = write!(
+                body,
+                r#"<g class="acorde-clef-change acorde-mid-clef" transform="translate({x} {y}) scale({scale}) translate(0 {ny})">{glyph}</g>"#,
+                x = f(clef_x),
+                y = f(bottom_y),
+                scale = MID_CLEF_SCALE,
+                ny = f(-bottom_y)
+            );
         }
     }
 
@@ -2992,6 +3062,7 @@ fn render_measure_voice<'a>(
     content_w: f32,
     clef: &Clef,
     clef_bottom: i32,
+    clef_gaps: &ClefGaps<'_>,
     bottom_y: f32,
     cross_frames: &HashMap<usize, (i32, f32)>,
     space: f32,
@@ -3017,7 +3088,23 @@ fn render_measure_voice<'a>(
         content_x0,
         content_w,
         space,
+        clef_gaps,
     });
+    // Each note is read in the clef in effect at its beat (mid-bar changes included).
+    let own_bottoms: Vec<i32> = if measure.mid_clefs.is_empty() || tablature.is_some() {
+        vec![clef_bottom; notes.len()]
+    } else {
+        let mut beat = 0.0;
+        notes
+            .iter()
+            .map(|note| {
+                let bottom =
+                    geometry::clef_bottom_line(&measure.clef_at(clef, beat)).unwrap_or(clef_bottom);
+                beat += note.beats();
+                bottom
+            })
+            .collect()
+    };
     // A lone whole rest in an otherwise empty bar is a measure rest: engravers centre it in the
     // bar whatever the time signature.
     if let [only] = notes
@@ -3051,7 +3138,7 @@ fn render_measure_voice<'a>(
         notes,
         &xs,
         up,
-        clef_bottom,
+        &own_bottoms,
         bottom_y,
         cross_frames,
         space,
@@ -3084,7 +3171,7 @@ fn render_measure_voice<'a>(
             notes,
             xs: &xs,
             clef,
-            clef_bottom,
+            own_bottoms: &own_bottoms,
             bottom_y,
             cross_frames,
             space,
@@ -3116,7 +3203,7 @@ fn render_measure_voice<'a>(
             notes,
             xs: &xs,
             voice_stem_up: up,
-            clef_bottom,
+            own_bottoms: &own_bottoms,
             bottom_y,
             space,
             beam_tips: &beam_tips,
@@ -3135,7 +3222,7 @@ struct VoiceNotesRenderContext<'a> {
     notes: &'a [Note],
     xs: &'a [f32],
     clef: &'a Clef,
-    clef_bottom: i32,
+    own_bottoms: &'a [i32],
     bottom_y: f32,
     cross_frames: &'a HashMap<usize, (i32, f32)>,
     space: f32,
@@ -3163,7 +3250,7 @@ fn render_measure_voice_notes(
         notes,
         xs,
         clef,
-        clef_bottom,
+        own_bottoms,
         bottom_y,
         cross_frames,
         space,
@@ -3199,7 +3286,7 @@ fn render_measure_voice_notes(
         let stem_up = note.stem_up.unwrap_or(*voice_stem_up);
         // A cross-staff note is drawn on the staff it is written across to.
         let (clef_bottom, bottom_y) =
-            note_staff_frame(note, (*clef_bottom, *bottom_y), cross_frames);
+            note_staff_frame(note, (own_bottoms[note_idx], *bottom_y), cross_frames);
         let (clef_bottom, bottom_y) = (&clef_bottom, &bottom_y);
         let point_y = note_anchor_y(note, *clef_bottom, stem_up, *bottom_y, *space, *tablature);
         note_points.insert(
@@ -3241,6 +3328,49 @@ struct VoicePositionContext<'a> {
     content_x0: f32,
     content_w: f32,
     space: f32,
+    clef_gaps: &'a ClefGaps<'a>,
+}
+
+/// Mid-bar clef changes anywhere in a bar's column: each opens a gap of `width` px at its
+/// offset (beats), taken from the rhythmic spacing of the whole bar.
+struct ClefGaps<'a> {
+    offsets: &'a [f64],
+    width: f32,
+}
+
+impl ClefGaps<'_> {
+    /// x of a beat in a bar whose content spans `x0..x0 + w`.
+    fn x(&self, x0: f32, w: f32, total_beats: f64, beat: f64) -> f32 {
+        let gaps = self.offsets.len() as f32 * self.width;
+        let before = self
+            .offsets
+            .iter()
+            .filter(|&&offset| offset <= beat + 1e-9)
+            .count() as f32;
+        x0 + (w - gaps) * (beat / total_beats) as f32 + before * self.width
+    }
+}
+
+/// Room left in a bar for a small mid-bar clef (u).
+const MID_CLEF_GAP_U: f32 = 2.4;
+/// Size of a mid-bar clef relative to the system clef.
+const MID_CLEF_SCALE: f32 = 0.75;
+
+/// Offsets (beats) of the mid-bar clef changes on any standard staff in bar `measure_idx`.
+fn measure_clef_gap_offsets(score: &Score, measure_idx: usize, total_beats: f64) -> Vec<f64> {
+    let mut offsets: Vec<f64> = score
+        .parts
+        .iter()
+        .flat_map(|part| part.staves.iter())
+        .filter(|staff| staff.tablature_at(measure_idx).is_none())
+        .filter_map(|staff| staff.measures.get(measure_idx))
+        .flat_map(|measure| measure.mid_clefs.iter())
+        .filter_map(|change| change.offset.beats())
+        .filter(|&offset| offset > 0.0 && offset < total_beats)
+        .collect();
+    offsets.sort_by(f64::total_cmp);
+    offsets.dedup_by(|a, b| (*a - *b).abs() < 1e-9);
+    offsets
 }
 
 fn initial_measure_voice_positions(context: &VoicePositionContext<'_>) -> Vec<f32> {
@@ -3253,6 +3383,7 @@ fn initial_measure_voice_positions(context: &VoicePositionContext<'_>) -> Vec<f3
         content_x0,
         content_w,
         space,
+        clef_gaps,
     } = context;
     let mut xs = Vec::with_capacity(notes.len());
     let mut beat_pos = 0.0f64;
@@ -3275,8 +3406,7 @@ fn initial_measure_voice_positions(context: &VoicePositionContext<'_>) -> Vec<f3
             0.0
         };
         xs.push(
-            *content_x0
-                + (*content_w * (beat_pos / *total_beats) as f32)
+            clef_gaps.x(*content_x0, *content_w, *total_beats, beat_pos)
                 + voice_offset
                 + grace_offset,
         );
@@ -3294,7 +3424,7 @@ struct TupletRenderContext<'a> {
     notes: &'a [Note],
     xs: &'a [f32],
     voice_stem_up: bool,
-    clef_bottom: i32,
+    own_bottoms: &'a [i32],
     bottom_y: f32,
     space: f32,
     beam_tips: &'a HashMap<usize, f32>,
@@ -3311,7 +3441,7 @@ fn render_measure_voice_tuplets(body: &mut String, context: &TupletRenderContext
         notes,
         xs,
         voice_stem_up,
-        clef_bottom,
+        own_bottoms,
         bottom_y,
         space,
         beam_tips,
@@ -3340,7 +3470,7 @@ fn render_measure_voice_tuplets(body: &mut String, context: &TupletRenderContext
             .map(|&i| {
                 let notehead_y = note_anchor_y(
                     &notes[i],
-                    *clef_bottom,
+                    own_bottoms[i],
                     group_stem_up,
                     *bottom_y,
                     *space,
@@ -3547,7 +3677,7 @@ fn plan_measure_beams(
     notes: &[Note],
     xs: &[f32],
     up: bool,
-    clef_bottom: i32,
+    own_bottoms: &[i32],
     bottom_y: f32,
     cross_frames: &HashMap<usize, (i32, f32)>,
     space: f32,
@@ -3580,7 +3710,7 @@ fn plan_measure_beams(
             .iter()
             .map(|&i| {
                 let (clef_bottom, bottom_y) =
-                    note_staff_frame(&notes[i], (clef_bottom, bottom_y), cross_frames);
+                    note_staff_frame(&notes[i], (own_bottoms[i], bottom_y), cross_frames);
                 note_attach_y(&notes[i], clef_bottom, group_stem_up, bottom_y, space)
                     + note_placement_offsets_u(&notes[i]).1 * space
             })
@@ -3589,7 +3719,7 @@ fn plan_measure_beams(
         // beam: upper-staff notes stem down, lower-staff notes up, to a beam between them.
         let frames: Vec<f32> = valid_indices
             .iter()
-            .map(|&i| note_staff_frame(&notes[i], (clef_bottom, bottom_y), cross_frames).1)
+            .map(|&i| note_staff_frame(&notes[i], (own_bottoms[i], bottom_y), cross_frames).1)
             .collect();
         let top_frame = frames.iter().copied().fold(f32::INFINITY, f32::min);
         let spans_staves = frames.iter().any(|&frame| (frame - top_frame).abs() > 0.5);
@@ -3611,7 +3741,7 @@ fn plan_measure_beams(
                 .zip(&stem_ups)
                 .map(|(&i, &stem_up)| {
                     let (clef_bottom, bottom_y) =
-                        note_staff_frame(&notes[i], (clef_bottom, bottom_y), cross_frames);
+                        note_staff_frame(&notes[i], (own_bottoms[i], bottom_y), cross_frames);
                     note_attach_y(&notes[i], clef_bottom, stem_up, bottom_y, space)
                         + note_placement_offsets_u(&notes[i]).1 * space
                 })

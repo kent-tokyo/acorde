@@ -46,6 +46,13 @@ pub enum ValidationError {
         numerator: u32,
         denominator: u32,
     },
+    /// A mid-bar clef change is not strictly inside its bar or not after the previous one.
+    InvalidMidMeasureClef {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        index: usize,
+    },
     /// A note's additional lyric verses are outside 2..=32 or not strictly ascending.
     InvalidLyricVerse {
         part: usize,
@@ -638,6 +645,22 @@ pub fn validate(score: &Score) -> ValidationReport {
                     .actual_length
                     .and_then(|length| length.beats())
                     .unwrap_or_else(|| current_ts.total_beats());
+                let mut previous_clef_offset = 0.0;
+                for (index, change) in measure.mid_clefs.iter().enumerate() {
+                    match change.offset.beats() {
+                        Some(offset)
+                            if offset > previous_clef_offset + 1e-9 && offset < expected - 1e-9 =>
+                        {
+                            previous_clef_offset = offset;
+                        }
+                        _ => errors.push(ValidationError::InvalidMidMeasureClef {
+                            part: pi,
+                            staff: si,
+                            measure: mi,
+                            index,
+                        }),
+                    }
+                }
                 for (vi, voice) in measure.voices.iter().enumerate() {
                     if voice.is_empty() {
                         continue;

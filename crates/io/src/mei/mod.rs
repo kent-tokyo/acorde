@@ -2300,8 +2300,21 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         ) {
                             let measure =
                                 &mut score.parts[0].staves[current_staff].measures[measure_index];
-                            if measure.voices[current_layer].is_empty() {
+                            let offset: f64 = measure.voices[current_layer]
+                                .iter()
+                                .filter(|note| !note.is_grace)
+                                .map(Note::beats)
+                                .sum();
+                            if offset <= 1e-9 {
                                 measure.clef = Some(clef);
+                            } else if let Some(offset) =
+                                acorde_core::MeasureLength::from_beats(offset)
+                            {
+                                // Settled once the bar is complete: see `settle_mei_mid_clefs`.
+                                measure.mid_clefs.retain(|change| change.offset != offset);
+                                measure
+                                    .mid_clefs
+                                    .push(acorde_core::MidMeasureClef { offset, clef });
                             }
                         }
                     }
@@ -3116,6 +3129,9 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
         }
     }
     apply_pending_harm_symbols(&mut score, &note_ids, pending_harm_symbols);
+    for staff in &mut score.parts[0].staves {
+        settle_mei_mid_clefs(staff);
+    }
     if !title.trim().is_empty() {
         score.metadata.title = title.trim().to_string();
     }
@@ -4658,6 +4674,9 @@ fn append_mei_measure_staves(
         cross_layers.sort_unstable();
         cross_layers.dedup();
         let mut clef_change = measure.clef.clone();
+        // Each mid-bar clef goes in the first layer with a note starting at or after it.
+        let mut pending_mid_clefs: Vec<&acorde_core::MidMeasureClef> =
+            measure.mid_clefs.iter().collect();
         for (voice_index, voice) in measure.voices.iter().enumerate() {
             if voice.is_empty() {
                 continue;
@@ -4667,6 +4686,23 @@ fn append_mei_measure_staves(
                 let (shape, line) = mei_clef(clef);
                 out.push_str(&format!("<clef shape=\"{shape}\" line=\"{line}\"/>"));
             }
+            let last_start: f64 = voice
+                .iter()
+                .rev()
+                .skip(1)
+                .filter(|note| !note.is_grace)
+                .map(Note::beats)
+                .sum();
+            let (hosted, rest): (Vec<_>, Vec<_>) =
+                pending_mid_clefs.drain(..).partition(|change| {
+                    change
+                        .offset
+                        .beats()
+                        .is_some_and(|offset| offset <= last_start + 1e-9)
+                });
+            pending_mid_clefs = rest;
+            let mut hosted = hosted.into_iter().peekable();
+            let mut note_start = 0.0;
             let tuplets = crate::tuplet_groups(voice);
             // Without explicit beaming, write the default beat grouping so renderers that do not
             // auto-beam (Verovio) show beams rather than flags.
@@ -4677,6 +4713,18 @@ fn append_mei_measure_staves(
             };
             let beams = mei_beam_groups(&beam_states, &tuplets);
             for (note_index, note) in voice.iter().enumerate() {
+                while let Some(change) = hosted.next_if(|change| {
+                    change
+                        .offset
+                        .beats()
+                        .is_some_and(|offset| offset <= note_start + 1e-9)
+                }) {
+                    let (shape, line) = mei_clef(change.clef.clone());
+                    out.push_str(&format!("<clef shape=\"{shape}\" line=\"{line}\"/>"));
+                }
+                if !note.is_grace {
+                    note_start += note.beats();
+                }
                 // Outer containers open first: a tuplet enclosing a beam, or a beam enclosing
                 // whole tuplets; identical ranges put the tuplet outside.
                 let mut openings = tuplets
@@ -4758,6 +4806,45 @@ fn append_mei_measure_staves(
         out.push_str("</staff>");
     }
     Ok(())
+}
+
+/// A layer `<clef>` read after notes is a mid-bar change at that point; one after the bar's
+/// last note begins the next bar. Changes are kept in time order.
+fn settle_mei_mid_clefs(staff: &mut Staff) {
+    for index in 0..staff.measures.len() {
+        if staff.measures[index].mid_clefs.is_empty() {
+            continue;
+        }
+        let bar_beats = staff.measures[index]
+            .voices
+            .iter()
+            .map(|voice| {
+                voice
+                    .iter()
+                    .filter(|note| !note.is_grace)
+                    .map(Note::beats)
+                    .sum::<f64>()
+            })
+            .fold(0.0, f64::max);
+        let changes = std::mem::take(&mut staff.measures[index].mid_clefs);
+        let (mut inside, after): (Vec<_>, Vec<_>) = changes.into_iter().partition(|change| {
+            change
+                .offset
+                .beats()
+                .is_some_and(|offset| offset < bar_beats - 1e-9)
+        });
+        inside.sort_by(|a, b| {
+            let beats = |change: &acorde_core::MidMeasureClef| change.offset.beats().unwrap_or(0.0);
+            beats(a).total_cmp(&beats(b))
+        });
+        staff.measures[index].mid_clefs = inside;
+        if let Some(last) = after.into_iter().last()
+            && let Some(next) = staff.measures.get_mut(index + 1)
+            && next.clef.is_none()
+        {
+            next.clef = Some(last.clef);
+        }
+    }
 }
 
 /// Serialize the score subset understood by [`parse_mei`].

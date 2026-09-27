@@ -9,8 +9,8 @@ use super::notation::{
     Barline, Clef, FiguredBassFigure, KeySignature, StyledText, TablatureConfig, TimeSignature,
 };
 use super::score::{
-    HarpPedalDiagram, InstrumentDefinition, Measure, NotationSpanner, Note, NoteAddr, Score,
-    VoltaBracket,
+    HarpPedalDiagram, InstrumentDefinition, Measure, MidMeasureClef, NotationSpanner, Note,
+    NoteAddr, Score, VoltaBracket,
 };
 use crate::Error;
 use serde::{Deserialize, Serialize};
@@ -95,6 +95,8 @@ pub struct ScoreFragmentMeasureAttributes {
     pub key_sig: Option<KeySignature>,
     #[serde(default)]
     pub clef: Option<Clef>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mid_clefs: Vec<MidMeasureClef>,
     #[serde(default)]
     pub tempo: Option<u16>,
     #[serde(default)]
@@ -140,6 +142,7 @@ impl ScoreFragmentMeasureAttributes {
             time_sig: measure.time_sig.clone(),
             key_sig: measure.key_sig.clone(),
             clef: measure.clef.clone(),
+            mid_clefs: measure.mid_clefs.clone(),
             tempo: measure.tempo,
             tempo_ramp_to: measure.tempo_ramp_to,
             instrument_change: measure.instrument_change.clone(),
@@ -170,6 +173,7 @@ impl ScoreFragmentMeasureAttributes {
         measure.time_sig = self.time_sig.clone();
         measure.key_sig = self.key_sig.clone();
         measure.clef = self.clef.clone();
+        measure.mid_clefs = self.mid_clefs.clone();
         measure.tempo = self.tempo;
         measure.tempo_ramp_to = self.tempo_ramp_to;
         measure.instrument_change = self.instrument_change.clone();

@@ -4017,3 +4017,126 @@ fn musicxml_dynamics_import_and_round_trip() {
         .collect();
     assert_eq!(back_lower[1].dynamic, Some(acorde_core::Dynamic::Pp));
 }
+
+#[test]
+fn musicxml_mid_bar_clef_changes_import_and_round_trip() {
+    use acorde_core::{Clef, MeasureLength, MidMeasureClef};
+    // Bar 1: staff 1 changes to bass after two quarters; staff 2 to treble after one. A clef
+    // after staff 2's last note of bar 1 (a courtesy clef) begins bar 2.
+    let note = |step: &str, octave: u8, voice: u8, staff: u8| {
+        format!(
+            "<note><pitch><step>{step}</step><octave>{octave}</octave></pitch><duration>1</duration><voice>{voice}</voice><type>quarter</type><staff>{staff}</staff></note>"
+        )
+    };
+    let clef = |number: u8, sign: &str, line: u8| {
+        format!(
+            "<attributes><clef number=\"{number}\"><sign>{sign}</sign><line>{line}</line></clef></attributes>"
+        )
+    };
+    let bar1 = [
+        note("C", 5, 1, 1),
+        note("D", 5, 1, 1),
+        clef(1, "F", 4),
+        note("E", 3, 1, 1),
+        note("F", 3, 1, 1),
+        "<backup><duration>4</duration></backup>".to_string(),
+        note("C", 3, 5, 2),
+        clef(2, "G", 2),
+        note("D", 4, 5, 2),
+        note("E", 4, 5, 2),
+        note("F", 4, 5, 2),
+        clef(2, "C", 3),
+    ]
+    .concat();
+    let bar2 = [
+        note("G", 3, 1, 1),
+        note("A", 3, 1, 1),
+        note("B", 3, 1, 1),
+        note("C", 4, 1, 1),
+        "<backup><duration>4</duration></backup>".to_string(),
+        note("C", 4, 5, 2),
+        note("D", 4, 5, 2),
+        note("E", 4, 5, 2),
+        note("F", 4, 5, 2),
+    ]
+    .concat();
+    let xml = format!(
+        r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Pno</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes>{bar1}</measure><measure number="2">{bar2}</measure></part></score-partwise>"#
+    );
+    let change = |beats: f64, clef: Clef| MidMeasureClef {
+        offset: MeasureLength::from_beats(beats).unwrap(),
+        clef,
+    };
+    let check = |score: &acorde_core::Score| {
+        let staves = &score.parts[0].staves;
+        assert_eq!(staves[0].clef, Clef::Treble);
+        assert_eq!(
+            staves[0].measures[0].mid_clefs,
+            vec![change(2.0, Clef::Bass)]
+        );
+        assert_ne!(staves[0].measures[0].clef, Some(Clef::Bass));
+        assert_eq!(staves[1].clef, Clef::Bass);
+        assert_eq!(
+            staves[1].measures[0].mid_clefs,
+            vec![change(1.0, Clef::Treble)]
+        );
+        assert_eq!(staves[1].measures[1].clef, Some(Clef::Alto));
+        assert!(acorde_core::validate(score).errors.is_empty());
+    };
+    let score = parse_musicxml(&xml).expect("parses");
+    check(&score);
+    let written = serialize_musicxml(&score).expect("exports");
+    check(&parse_musicxml(&written).expect("reparses"));
+}
+
+#[cfg(all(feature = "mei", feature = "mscz"))]
+#[test]
+fn mei_and_mscx_keep_mid_bar_clef_changes() {
+    use acorde_core::{
+        Clef, Duration, Measure, MeasureLength, MidMeasureClef, Note, Part, Pitch, Score, Staff,
+        Step,
+    };
+    let change = |beats: f64, clef: Clef| MidMeasureClef {
+        offset: MeasureLength::from_beats(beats).unwrap(),
+        clef,
+    };
+    let mut score = Score::new("clefs", 120, 4, 4, 0, 2);
+    let mut part = Part::new("Vc.", "");
+    let mut staff = Staff::new(Clef::Bass);
+    for index in 0..2 {
+        let mut measure = Measure::empty(4, 4);
+        measure.number = index + 1;
+        measure.voices[0] = [(Step::C, 3), (Step::E, 3), (Step::C, 4), (Step::E, 4)]
+            .into_iter()
+            .map(|(step, octave)| Note::new(Pitch::new(step, octave), Duration::Quarter))
+            .collect();
+        staff.measures.push(measure);
+    }
+    staff.measures[0].mid_clefs = vec![change(2.0, Clef::Tenor), change(3.0, Clef::Treble)];
+    staff.measures[1].clef = Some(Clef::Bass);
+    staff.measures[1].mid_clefs = vec![change(1.0, Clef::Alto)];
+    part.staves = vec![staff];
+    score.parts = vec![part];
+    assert!(acorde_core::validate(&score).errors.is_empty());
+    let expected: Vec<_> = score.parts[0].staves[0]
+        .measures
+        .iter()
+        .map(|measure| (measure.clef.clone(), measure.mid_clefs.clone()))
+        .collect();
+    let summary = |score: &Score| -> Vec<_> {
+        score.parts[0].staves[0]
+            .measures
+            .iter()
+            .map(|measure| (measure.clef.clone(), measure.mid_clefs.clone()))
+            .collect()
+    };
+    let mei = acorde_io::serialize_mei(&score).expect("MEI export");
+    assert_eq!(
+        summary(&acorde_io::parse_mei(&mei).expect("MEI import")),
+        expected
+    );
+    let mscx = acorde_io::serialize_mscx(&score).expect("MSCX export");
+    let from_mscx = acorde_io::parse_mscx(&mscx).expect("MSCX import");
+    assert_eq!(summary(&from_mscx)[0].1, expected[0].1);
+    assert_eq!(summary(&from_mscx)[1], expected[1]);
+}
