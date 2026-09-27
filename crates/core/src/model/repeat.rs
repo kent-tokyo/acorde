@@ -38,6 +38,13 @@ pub fn measure_sequence(score: &Score) -> Vec<usize> {
     }
 
     let mut seq = Vec::with_capacity(n + 4);
+    // Each repeat end and each D.C./D.S. mark jumps back once. Without this, marks that do not
+    // pair up (a stray first-ending end with its own repeat, a coda before its D.C.) sent
+    // playback round the same bars forever, growing the sequence until allocation failed.
+    let mut repeat_taken = vec![false; n];
+    let mut jump_taken = vec![false; n];
+    // Backstop for any other unforeseen cycle: no real score plays a bar this many times.
+    let limit = n.saturating_mul(16).max(64);
     let mut i = 0usize;
     let mut repeat_start = 0usize;
     let mut volta_pass: u8 = 1;
@@ -46,7 +53,7 @@ pub fn measure_sequence(score: &Score) -> Vec<usize> {
     let mut nav_fine = false; // stop at Fine
     let mut nav_coda = false; // jump to Coda at ToCoda
 
-    while i < n {
+    while i < n && seq.len() < limit {
         let m = &measures[i];
 
         // Volta / barline-repeat handling is suspended during a navigation pass.
@@ -101,7 +108,9 @@ pub fn measure_sequence(score: &Score) -> Vec<usize> {
                 Some("DalSegnoAlCoda") => segno_idx.map(|s| (s, false, true)),
                 _ => None,
             };
-            if let Some((target, fine, coda)) = jump {
+            if let Some((target, fine, coda)) = jump
+                && !std::mem::replace(&mut jump_taken[i], true)
+            {
                 in_nav_pass = true;
                 nav_fine = fine;
                 nav_coda = coda;
@@ -116,7 +125,7 @@ pub fn measure_sequence(score: &Score) -> Vec<usize> {
 
             match m.barline_right {
                 Barline::RepeatEnd | Barline::RepeatBoth => {
-                    if volta_pass == 1 {
+                    if !std::mem::replace(&mut repeat_taken[i], true) {
                         volta_pass = 2;
                         i = repeat_start;
                     } else {
@@ -160,6 +169,44 @@ mod tests {
         let mut m = plain(n);
         m.navigation = Some(nav.to_string());
         m
+    }
+
+    #[test]
+    fn unpaired_repeat_marks_play_each_repeat_once_instead_of_looping() {
+        // A first ending that only ends (its start is missing) with a repeat, a second ending,
+        // then a later repeat end with another second ending: the two repeat ends used to reset
+        // each other's pass and loop forever.
+        let volta = |number, kind: &str| {
+            Some(VoltaBracket {
+                number,
+                kind: kind.into(),
+            })
+        };
+        let mut m1 = plain(2);
+        m1.barline_right = Barline::RepeatEnd;
+        m1.volta = volta(1, "end");
+        let mut m2 = plain(3);
+        m2.volta = volta(2, "begin_end");
+        let mut m3 = plain(4);
+        m3.barline_right = Barline::RepeatEnd;
+        m3.volta = volta(2, "end");
+        let mut m4 = plain(5);
+        m4.volta = volta(2, "begin_end");
+        let score = score_with_measures(vec![plain(1), m1, m2, m3, m4]);
+        let sequence = measure_sequence(&score);
+        assert!(sequence.len() < 20, "{sequence:?}");
+        assert_eq!(sequence.iter().filter(|&&bar| bar == 3).count(), 2);
+    }
+
+    #[test]
+    fn a_coda_before_its_da_capo_does_not_loop() {
+        let score = score_with_measures(vec![
+            with_nav(1, "Coda"),
+            with_nav(2, "ToCoda"),
+            with_nav(3, "DaCapoAlCoda"),
+        ]);
+        let sequence = measure_sequence(&score);
+        assert!(sequence.len() < 20, "{sequence:?}");
     }
 
     #[test]
