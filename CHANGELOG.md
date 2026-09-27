@@ -9,6 +9,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- SVG beams now join the stems (they ran between notehead centres), and sixteenth and shorter
+  beams stack toward the noteheads instead of outward.
+- SVG lyrics, dynamics and chord symbols sit on lines measured from the staff, so verse 1
+  reads level across the bar; dynamics move above a staff that carries lyrics. Staccato,
+  tenuto and accent sit at the notehead opposite the stem; fermatas, ornaments, marcato and
+  string marks go outside the staff. Fermatas, mordents, turns and shakes are drawn as glyphs
+  instead of words, and a tremolo is drawn as strokes across the stem.
+- MEI `<tie>` control events from or to one note of a chord tie that pitch only.
+
 ## [1.2.9] - 2026-09-27
 
 - **Guitar Pro 3/4/5 import.** `acorde_io::parse_gp` now also reads `.gp3`, `.gp4` and `.gp5`

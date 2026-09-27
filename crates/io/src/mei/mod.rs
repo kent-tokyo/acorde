@@ -1645,6 +1645,8 @@ struct MeiNoteContext<'a> {
     pending_articulations: &'a mut Vec<Articulation>,
     current_tuplet: &'a Option<TupletInfo>,
     note_ids: &'a mut HashMap<String, (usize, usize, usize, usize)>,
+    /// `<note>` ids inside a chord, with the index of their pitch, for per-pitch `<tie>`s.
+    pitch_ids: &'a mut HashMap<String, usize>,
     /// The enclosing `<chord>` start tag, whose timing attributes the member notes inherit.
     chord: Option<&'a BytesStart<'static>>,
     /// True once the enclosing chord already produced its note; later members add pitches.
@@ -1740,6 +1742,7 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
         pending_articulations,
         current_tuplet,
         note_ids,
+        pitch_ids,
         chord,
         chord_started,
         ppq,
@@ -1793,6 +1796,10 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
                 note_ids.insert(
                     id.trim_start_matches('#').to_string(),
                     (current_staff, measure_index, current_layer, note_index),
+                );
+                pitch_ids.insert(
+                    id.trim_start_matches('#').to_string(),
+                    note.pitches.len() - 1,
                 );
             }
         }
@@ -1900,6 +1907,11 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
     }
     let note_index =
         score.parts[0].staves[current_staff].measures[measure_index].voices[current_layer].len();
+    if chord.is_some()
+        && let Some(id) = attr(event, b"xml:id").or_else(|| attr(event, b"id"))
+    {
+        pitch_ids.insert(id.trim_start_matches('#').to_string(), 0);
+    }
     for id in [
         attr(event, b"xml:id").or_else(|| attr(event, b"id")),
         chord.and_then(|c| attr(c, b"xml:id").or_else(|| attr(c, b"id"))),
@@ -1991,6 +2003,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut pending_articulations: Vec<Articulation> = Vec::new();
     let mut current_tuplet: Option<TupletInfo> = None;
     let mut note_ids: HashMap<String, (usize, usize, usize, usize)> = HashMap::new();
+    let mut pitch_ids: HashMap<String, usize> = HashMap::new();
     let mut pending_slurs: Vec<(String, String)> = Vec::new();
     let mut pending_ties: Vec<(String, String)> = Vec::new();
     let mut pending_ottavas: Vec<(String, String, OttavaKind)> = Vec::new();
@@ -2677,6 +2690,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 pending_articulations: &mut pending_articulations,
                                 current_tuplet: &current_tuplet,
                                 note_ids: &mut note_ids,
+                                pitch_ids: &mut pitch_ids,
                                 chord: open_chord.as_ref(),
                                 chord_started: started,
                                 ppq: staff_ppq.get(&current_staff).copied().or(score_ppq),
@@ -3036,14 +3050,25 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     apply_mei_slurs(&mut score, &note_ids, pending_slurs);
     for (start, end) in pending_ties {
         // `<tie>` control events (Verovio's form of @tie) set the note-level tie flags.
+        // A tie from or to one note of a chord ties that pitch only.
         for (id, is_start) in [(start, true), (end, false)] {
-            if let Some(&location) = note_ids.get(id.trim_start_matches('#'))
+            let id = id.trim_start_matches('#');
+            if let Some(&location) = note_ids.get(id)
                 && let Some(note) = mei_note_mut(&mut score, location)
             {
-                if is_start {
-                    note.tie_start = true;
-                } else {
-                    note.tie_end = true;
+                match pitch_ids.get(id) {
+                    Some(&index) if index < note.pitches.len() => {
+                        let mut starts = note.pitch_tie_starts_or_uniform();
+                        let mut ends = note.pitch_tie_ends_or_uniform();
+                        if is_start {
+                            starts[index] = true;
+                        } else {
+                            ends[index] = true;
+                        }
+                        note.set_pitch_ties(&starts, &ends);
+                    }
+                    _ if is_start => note.tie_start = true,
+                    _ => note.tie_end = true,
                 }
             }
         }
@@ -6073,6 +6098,8 @@ mod tests {
         let first = &staff.measures[0].voices[0];
         assert!(first[0].is_rest);
         assert!(first[1].tie_start);
+        // The <tie> starts on the chord's C only.
+        assert_eq!(first[1].pitch_tie_starts, vec![true, false]);
         assert_eq!(first[1].dynamic, Some(Dynamic::P));
         let second = &staff.measures[1].voices[0][0];
         assert!(second.tie_end);
