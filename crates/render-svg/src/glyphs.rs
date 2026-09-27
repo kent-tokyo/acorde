@@ -351,7 +351,7 @@ pub(crate) fn notehead_shape(
 
 /// Half the horizontal extent of the tilted `notehead()` oval, in staff spaces.
 pub(crate) const NOTEHEAD_RX_U: f32 = 0.56;
-pub(crate) const DEFAULT_STEM_LEN_U: f32 = 3.0;
+pub(crate) const DEFAULT_STEM_LEN_U: f32 = 3.5;
 /// Stem line width, in staff spaces.
 pub(crate) const STEM_WIDTH_U: f32 = 0.11;
 

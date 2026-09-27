@@ -1765,7 +1765,8 @@ fn note_vertical_margins(note: &Note, clef_bottom: i32, voice_stem_up: bool) -> 
             acorde_core::Duration::SixtyFourth => 4,
             _ => 0,
         };
-        let flag_extent = glyphs::DEFAULT_STEM_LEN_U + flag_count as f32 * 0.35 + 0.25;
+        // Matches the unbeamed stem: 3.5 spaces, plus 0.75 per flag beyond two.
+        let flag_extent = 3.5 + (flag_count as usize).saturating_sub(2) as f32 * 0.75 + 0.25;
         let beam_levels: u8 = match note.duration {
             acorde_core::Duration::Eighth => 1,
             acorde_core::Duration::Sixteenth => 2,
@@ -6714,7 +6715,23 @@ fn render_pitched_note_stem_and_flags(context: &mut PitchedNoteStemContext<'_>) 
         return;
     }
 
-    let (stem_svg, tip_y) = glyphs::stem(context.x, notehead_y, context.space, context.stem_up);
+    // An unbeamed stem runs 3.5 spaces past the chord's stem-side note, a further 0.75 per flag
+    // beyond two, and reaches the middle line from notes far outside the staff.
+    let (far_pos, dir) = if context.stem_up {
+        (context.max_pos, -1.0)
+    } else {
+        (context.min_pos, 1.0)
+    };
+    let length_u = 3.5 + 0.75 * (context.flag_count.saturating_sub(2)) as f32;
+    let far_y = context.staff_bottom_y + geometry::position_y(far_pos, context.space);
+    let middle_y = context.staff_bottom_y - 2.0 * context.space;
+    let mut tip_y = far_y + dir * length_u * context.space;
+    tip_y = if context.stem_up {
+        tip_y.min(middle_y)
+    } else {
+        tip_y.max(middle_y)
+    };
+    let stem_svg = glyphs::stem_to(context.x, notehead_y, tip_y, context.space, context.stem_up);
     context.body.push_str(&stem_svg);
     for i in 0..context.flag_count {
         let fy = tip_y

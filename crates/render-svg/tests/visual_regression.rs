@@ -218,7 +218,7 @@ fn middle_c_ledger_line_passes_through_notehead() {
 }
 
 #[test]
-fn stem_length_is_three_staff_spaces_regardless_of_pitch() {
+fn unbeamed_stems_are_three_and_a_half_staff_spaces_or_reach_the_middle_line() {
     let svg = render_svg(&common::vr_quarter_eighth_notes(), &opts()).unwrap();
     let stems = common::extract_elements(&svg, "acorde-stem");
     assert!(!stems.is_empty());
@@ -226,9 +226,11 @@ fn stem_length_is_three_staff_spaces_regardless_of_pitch() {
     for stem in &stems {
         let y1 = common::attr_f32(stem, "y1");
         let y2 = common::attr_f32(stem, "y2");
+        // Engraving standard (MuseScore/Verovio default): an octave, 3.5 spaces, longer only
+        // to reach the middle line from far outside the staff.
         assert!(
-            ((y1 - y2).abs() - 3.0 * staff_size).abs() < 0.01,
-            "stem length must be exactly 3 staff-spaces, got {}",
+            (y1 - y2).abs() >= 3.5 * staff_size - 0.01,
+            "stem length must be at least 3.5 staff-spaces, got {}",
             (y1 - y2).abs()
         );
     }
