@@ -1557,8 +1557,14 @@ fn note_attached_annotations_expand_content_height() {
     let annotation_y = |class: &str| {
         let start = svg.find(&format!("class=\"{class}\"")).expect("annotation");
         let fragment = &svg[start..];
+        // Drawn dynamics carry their baseline as data-baseline; text carries y.
+        let key = if class == "acorde-dynamic" {
+            " data-baseline=\""
+        } else {
+            " y=\""
+        };
         fragment
-            .split(" y=\"")
+            .split(key)
             .nth(1)
             .and_then(|value| value.split('"').next())
             .and_then(|value| value.parse::<f32>().ok())

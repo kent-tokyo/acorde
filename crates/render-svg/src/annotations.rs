@@ -311,7 +311,18 @@ pub(crate) fn render_measure_semantic_annotations(
                 text,
                 x,
                 italic,
-            } => write_annotation_text(body, class, &text, x, placement.y_mm, space, italic),
+            } => {
+                // Dynamics are drawn as engraved letter shapes when every letter has one.
+                let drawn = (class == "acorde-dynamic")
+                    .then(|| crate::glyphs::dynamic_mark(class, &text, x, placement.y_mm, space))
+                    .flatten();
+                match drawn {
+                    Some(svg) => body.push_str(&svg),
+                    None => {
+                        write_annotation_text(body, class, &text, x, placement.y_mm, space, italic)
+                    }
+                }
+            }
             SemanticAnnotation::Articulation {
                 articulation,
                 x,

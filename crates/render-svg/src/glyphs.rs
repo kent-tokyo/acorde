@@ -650,7 +650,7 @@ pub(crate) fn augmentation_dot(cx: f32, cy: f32, space: f32) -> String {
 
 /// Centre-line strokes of the digits 0–9 in a box 1.2 spaces wide and 2 spaces tall (origin
 /// top-left), drawn bold with round ends like engraved time-signature numerals.
-fn digit_strokes(d: u8) -> Vec<(char, Vec<(f32, f32)>)> {
+fn digit_strokes(d: u8) -> Strokes {
     let seg = |command: char, points: &[(f32, f32)]| (command, points.to_vec());
     match d {
         0 => vec![
@@ -845,6 +845,155 @@ pub(crate) fn tuplet_number(n: u8, cx: f32, cy: f32, space: f32) -> String {
     }
     out.push_str("</g>");
     out
+}
+
+// ── dynamics ─────────────────────────────────────────────────────────────────────
+
+/// Path commands with their points, in staff spaces.
+type Strokes = Vec<(char, Vec<(f32, f32)>)>;
+
+/// Centre-line strokes of a dynamic letter, in spaces from its baseline-left origin (y down,
+/// x-height 1 space), slanted like engraved bold-italic dynamics, and its advance width.
+fn dynamic_letter(letter: char) -> Option<(Strokes, f32)> {
+    let seg = |command: char, points: &[(f32, f32)]| (command, points.to_vec());
+    Some(match letter {
+        'p' => (
+            vec![
+                seg('M', &[(0.36, -1.0)]),
+                seg('L', &[(0.02, 0.62)]),
+                seg('M', &[(-0.14, 0.62)]),
+                seg('L', &[(0.26, 0.62)]),
+                seg('M', &[(0.3, -0.72)]),
+                seg(
+                    'C',
+                    &[
+                        (0.62, -1.08),
+                        (1.08, -1.0),
+                        (0.98, -0.6),
+                        (0.88, -0.14),
+                        (0.44, 0.06),
+                        (0.18, -0.12),
+                    ],
+                ),
+            ],
+            1.1,
+        ),
+        'f' => (
+            vec![
+                seg('M', &[(1.05, -1.62)]),
+                seg('C', &[(0.85, -1.84), (0.56, -1.7), (0.5, -1.3)]),
+                seg('L', &[(0.24, 0.32)]),
+                seg('C', &[(0.18, 0.64), (-0.08, 0.72), (-0.22, 0.52)]),
+                seg('M', &[(0.14, -0.95)]),
+                seg('L', &[(0.82, -0.95)]),
+            ],
+            0.95,
+        ),
+        'm' => (
+            vec![
+                seg('M', &[(0.0, 0.0)]),
+                seg('L', &[(0.22, -1.0)]),
+                seg('M', &[(0.18, -0.78)]),
+                seg('C', &[(0.36, -1.06), (0.68, -1.06), (0.62, -0.7)]),
+                seg('L', &[(0.46, 0.0)]),
+                seg('M', &[(0.6, -0.78)]),
+                seg('C', &[(0.78, -1.06), (1.1, -1.06), (1.04, -0.7)]),
+                seg('L', &[(0.9, -0.14)]),
+                seg('C', &[(0.87, 0.02), (0.98, 0.03), (1.1, -0.1)]),
+            ],
+            1.3,
+        ),
+        'n' => (
+            vec![
+                seg('M', &[(0.0, 0.0)]),
+                seg('L', &[(0.22, -1.0)]),
+                seg('M', &[(0.18, -0.78)]),
+                seg('C', &[(0.36, -1.06), (0.78, -1.06), (0.72, -0.7)]),
+                seg('L', &[(0.58, -0.14)]),
+                seg('C', &[(0.55, 0.02), (0.66, 0.03), (0.78, -0.1)]),
+            ],
+            0.95,
+        ),
+        'r' => (
+            vec![
+                seg('M', &[(0.04, 0.0)]),
+                seg('L', &[(0.25, -1.0)]),
+                seg('M', &[(0.2, -0.7)]),
+                seg('C', &[(0.36, -0.96), (0.66, -1.06), (0.82, -0.86)]),
+            ],
+            0.85,
+        ),
+        's' => (
+            vec![
+                seg('M', &[(0.86, -0.86)]),
+                seg(
+                    'C',
+                    &[
+                        (0.76, -1.06),
+                        (0.3, -1.06),
+                        (0.3, -0.75),
+                        (0.3, -0.45),
+                        (0.8, -0.5),
+                        (0.75, -0.2),
+                        (0.7, 0.06),
+                        (0.2, 0.06),
+                        (0.08, -0.16),
+                    ],
+                ),
+            ],
+            0.95,
+        ),
+        'z' => (
+            vec![
+                seg('M', &[(0.22, -1.0)]),
+                seg('L', &[(0.98, -1.0), (0.04, 0.0), (0.82, 0.0)]),
+            ],
+            1.0,
+        ),
+        _ => return None,
+    })
+}
+
+/// A dynamic mark (`p`, `mf`, `sfz`, …) drawn as bold slanted letter strokes centred on `cx`
+/// with its baseline at `baseline`, or `None` when it has a letter outside p, m, f, n, r, s, z.
+pub(crate) fn dynamic_mark(
+    class: &str,
+    text: &str,
+    cx: f32,
+    baseline: f32,
+    space: f32,
+) -> Option<String> {
+    let letters: Vec<_> = text
+        .chars()
+        .map(dynamic_letter)
+        .collect::<Option<Vec<_>>>()?;
+    if letters.is_empty() {
+        return None;
+    }
+    let total: f32 = letters.iter().map(|(_, advance)| advance).sum();
+    let mut x = cx - total * space / 2.0;
+    let mut out = format!(
+        r#"<g class="{class}" data-text="{text}" data-x="{}" data-baseline="{}">"#,
+        f(cx),
+        f(baseline)
+    );
+    for (strokes, advance) in &letters {
+        let borrowed: Vec<(char, &[(f32, f32)])> = strokes
+            .iter()
+            .map(|(command, points)| (*command, points.as_slice()))
+            .collect();
+        out.push_str(&stroked(
+            "acorde-dynamic-letter",
+            &borrowed,
+            x,
+            baseline,
+            space,
+            0.2,
+        ));
+        x += advance * space;
+    }
+    out.push_str("</g>");
+    Some(out)
 }
 
 #[cfg(test)]
