@@ -2017,10 +2017,12 @@ pub struct Note {
     /// Optional source instrument identifier (for example MusicXML note-level `instrument@id`).
     #[serde(default)]
     pub instrument_id: Option<String>,
-    /// MusicXML note-level horizontal placement in tenths, relative to the rhythmic anchor.
+    /// Horizontal nudge in tenths from the note's computed (rhythmic) position, set by hosts.
+    /// MusicXML import does not fill it from `default-x`, which is an absolute position in the
+    /// source engraver's layout; MusicXML export writes it as part of `relative-x`.
     #[serde(default)]
     pub offset_x: Option<f64>,
-    /// MusicXML note-level vertical placement in tenths, relative to the staff position.
+    /// Vertical nudge in tenths from the note's staff position; see `offset_x`.
     #[serde(default)]
     pub offset_y: Option<f64>,
     /// MusicXML note-level horizontal adjustment in tenths.

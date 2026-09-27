@@ -235,31 +235,39 @@ fn musicxml_direction_default_offsets_roundtrip_on_styled_text() {
 
 #[test]
 fn musicxml_note_placement_offsets_roundtrip_and_are_not_reported_as_loss() {
+    // default-x/default-y are the source engraver's absolute layout, not nudges: they are not
+    // imported (applying them to acorde's own layout pushed notes out of their bars).
     let xml = SIMPLE_XML.replacen(
         "<note",
         "<note default-x=\"12.5\" default-y=\"-3\" relative-x=\"1.25\" relative-y=\"-0.5\"",
         1,
     );
-    let score = parse_musicxml(&xml).expect("parse positioned note");
+    let mut score = parse_musicxml(&xml).expect("parse positioned note");
     let note = notes_in(&score, 0, 0)
         .iter()
         .find(|note| !note.is_rest)
         .expect("positioned note");
-    assert_eq!(note.offset_x, Some(12.5));
-    assert_eq!(note.offset_y, Some(-3.0));
+    assert_eq!(note.offset_x, None);
+    assert_eq!(note.offset_y, None);
     assert_eq!(note.relative_x, Some(1.25));
     assert_eq!(note.relative_y, Some(-0.5));
 
-    let restored = parse_musicxml(&serialize_musicxml(&score).expect("serialize positioned note"))
-        .expect("reparse positioned note");
+    // A host nudge in offset_* exports as part of relative-x/-y, so the note moves the same.
+    let index = notes_in(&score, 0, 0)
+        .iter()
+        .position(|note| !note.is_rest)
+        .expect("note index");
+    score.parts[0].staves[0].measures[0].voices[0][index].offset_x = Some(12.5);
+    score.parts[0].staves[0].measures[0].voices[0][index].offset_y = Some(-3.0);
+    let written = serialize_musicxml(&score).expect("serialize positioned note");
+    assert!(!written.contains("<note default-x"));
+    let restored = parse_musicxml(&written).expect("reparse positioned note");
     let restored_note = notes_in(&restored, 0, 0)
         .iter()
         .find(|note| !note.is_rest)
         .expect("reparsed positioned note");
-    assert_eq!(restored_note.offset_x, Some(12.5));
-    assert_eq!(restored_note.offset_y, Some(-3.0));
-    assert_eq!(restored_note.relative_x, Some(1.25));
-    assert_eq!(restored_note.relative_y, Some(-0.5));
+    assert_eq!(restored_note.relative_x, Some(13.75));
+    assert_eq!(restored_note.relative_y, Some(-3.5));
 }
 
 #[test]

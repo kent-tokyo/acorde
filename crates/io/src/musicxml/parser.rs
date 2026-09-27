@@ -606,12 +606,13 @@ pub(crate) fn parse_musicxml_collecting(
                     "note" => {
                         in_note = true;
                         note_lyrics.clear();
-                        note_offset_x = attr_str(e, b"default-x")
-                            .and_then(|value| value.parse().ok())
-                            .filter(|value: &f64| value.is_finite());
-                        note_offset_y = attr_str(e, b"default-y")
-                            .and_then(|value| value.parse().ok())
-                            .filter(|value: &f64| value.is_finite());
+                        // A note's default-x/default-y are absolute positions in the source
+                        // engraver's layout (from the measure's left barline and the staff's top
+                        // line). acorde lays measures out itself, and `offset_x`/`offset_y` are
+                        // nudges from the computed position, so those values are not imported;
+                        // relative-x/relative-y are.
+                        note_offset_x = None;
+                        note_offset_y = None;
                         note_relative_x = attr_str(e, b"relative-x")
                             .and_then(|value| value.parse().ok())
                             .filter(|value: &f64| value.is_finite());

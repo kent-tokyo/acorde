@@ -1739,13 +1739,18 @@ fn styled_text_position_attrs(styled: Option<&acorde_core::StyledText>) -> Strin
     attrs
 }
 
+/// A note's placement nudges. acorde's `offset_*` and `relative_*` both move the note from its
+/// computed position, which is MusicXML's `relative-x`/`relative-y`; `default-x`/`default-y`
+/// would be read as absolute positions in the reader's own layout.
 fn note_placement_attrs(note: &Note) -> String {
+    let sum = |a: Option<f64>, b: Option<f64>| match (a, b) {
+        (None, None) => None,
+        (a, b) => Some(a.unwrap_or(0.0) + b.unwrap_or(0.0)),
+    };
     let mut attrs = String::new();
     for (name, value) in [
-        ("default-x", note.offset_x),
-        ("default-y", note.offset_y),
-        ("relative-x", note.relative_x),
-        ("relative-y", note.relative_y),
+        ("relative-x", sum(note.offset_x, note.relative_x)),
+        ("relative-y", sum(note.offset_y, note.relative_y)),
     ] {
         if let Some(value) = value {
             if value.is_finite() {
