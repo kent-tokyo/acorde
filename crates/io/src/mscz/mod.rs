@@ -251,6 +251,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut chord_tie_starts: Vec<bool> = Vec::new();
     let mut chord_accidentals: Vec<AccidentalDisplay> = Vec::new();
     let mut chord_ghosts: Vec<bool> = Vec::new();
+    // Each chord note's own fingering (MuseScore puts `<Fingering>` in the `<Note>`).
+    let mut chord_pitch_fingerings: Vec<Option<u8>> = Vec::new();
+    let mut chord_fingerings: Vec<u8> = Vec::new();
+    let mut in_fingering = false;
+    let mut fingering_text = String::new();
     let mut note_ghost = false;
     let mut note_accidental_display = AccidentalDisplay::Auto;
     let mut chord_tie_ends: Vec<bool> = Vec::new();
@@ -605,6 +610,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         chord_tie_starts.clear();
                         chord_accidentals.clear();
                         chord_ghosts.clear();
+                        chord_pitch_fingerings.clear();
+                        chord_fingerings.clear();
                         chord_tie_ends.clear();
                         chord_slur_start = false;
                         chord_slur_end = false;
@@ -678,6 +685,10 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "Articulation" if in_chord && !in_note_elem => {
                         in_articulation = true;
                         articulation_subtype.clear();
+                    }
+                    "Fingering" if in_note_elem => {
+                        in_fingering = true;
+                        fingering_text.clear();
                     }
                     "Accidental" if in_note_elem => {
                         in_accidental = true;
@@ -1451,10 +1462,22 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "fret" if in_note_elem => {
                         note_tab_fret = t.parse::<u8>().ok();
                     }
+                    // MuseScore writes `<Fingering><text>2</text></Fingering>`; older acorde
+                    // files hold the digit directly.
+                    "text" if in_fingering => {
+                        fingering_text = t.to_string();
+                    }
                     "Fingering" if in_note_elem => {
-                        if let Ok(fingering) = t.parse::<u8>() {
+                        let value = if fingering_text.is_empty() {
+                            t
+                        } else {
+                            fingering_text.trim()
+                        };
+                        if let Ok(fingering) = value.parse::<u8>() {
                             note_fingerings.push(fingering);
                         }
+                        in_fingering = false;
+                        fingering_text.clear();
                     }
                     "lines" if in_staff_type => {
                         if let Ok(lines) = t.parse::<u8>() {
@@ -1754,6 +1777,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         chord_tie_starts.push(note_tie_start);
                         chord_accidentals.push(note_accidental_display);
                         chord_ghosts.push(note_ghost);
+                        chord_pitch_fingerings.push(note_fingerings.first().copied());
+                        chord_fingerings.extend(note_fingerings.iter().copied());
                         chord_tie_ends.push(note_tie_end);
                         chord_notes_hidden += usize::from(note_hidden);
                         in_note_elem = false;
@@ -1786,8 +1811,13 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             }
                             note.tab_positions = chord_tab_positions.clone();
                             note.tab_position = note.tab_positions.first().cloned();
-                            note.fingerings = note_fingerings.clone();
+                            note.fingerings = chord_fingerings.clone();
                             note.fingering = note.fingerings.first().copied();
+                            if chord_pitches.len() > 1
+                                && chord_pitch_fingerings.iter().any(Option::is_some)
+                            {
+                                note.pitch_fingerings = chord_pitch_fingerings.clone();
+                            }
                             note.guitar_technique = note_technique.clone();
                             note.tuplet = current_tuplet.clone();
                             note.is_grace = chord_is_grace;

@@ -2269,6 +2269,12 @@ pub struct Note {
     /// parenthesized, and a vector longer than `pitches` is ignored.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub pitch_parentheses: Vec<bool>,
+    /// Left-hand fingering per chord member, parallel to `pitches` (MusicXML `<fingering>` on
+    /// each `<chord/>` note, MuseScore `<Fingering>` in each `<Note>`, Guitar Pro fingering on
+    /// each string). Empty unless a chord's fingerings belong to particular notes;
+    /// `fingering`/`fingerings` still hold them all for display.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pitch_fingerings: Vec<Option<u8>>,
     pub beam: BeamState,
     pub articulations: Vec<Articulation>,
     pub dynamic: Option<Dynamic>,
@@ -2402,6 +2408,7 @@ impl Note {
             pitch_tie_ends: Vec::new(),
             pitch_accidentals: Vec::new(),
             pitch_parentheses: Vec::new(),
+            pitch_fingerings: Vec::new(),
             beam: BeamState::None,
             articulations: Vec::new(),
             dynamic: None,
@@ -2460,6 +2467,7 @@ impl Note {
             pitch_tie_ends: Vec::new(),
             pitch_accidentals: Vec::new(),
             pitch_parentheses: Vec::new(),
+            pitch_fingerings: Vec::new(),
             beam: BeamState::None,
             articulations: Vec::new(),
             dynamic: None,
@@ -2598,6 +2606,33 @@ impl Note {
         {
             self.pitch_accidentals.clear();
         }
+    }
+
+    /// The fingering of the chord member at `index`, when fingerings are recorded per pitch.
+    pub fn pitch_fingering(&self, index: usize) -> Option<u8> {
+        if self.pitch_fingerings.len() > self.pitches.len() {
+            return None;
+        }
+        self.pitch_fingerings.get(index).copied().flatten()
+    }
+
+    /// Record the fingering of the chord member at `index` (and add it to the displayed
+    /// fingerings).
+    pub fn set_pitch_fingering(&mut self, index: usize, fingering: u8) {
+        if index >= self.pitches.len() {
+            return;
+        }
+        if self.pitch_fingerings.len() > self.pitches.len() {
+            self.pitch_fingerings.clear();
+        }
+        if self.pitch_fingerings.len() <= index {
+            self.pitch_fingerings.resize(index + 1, None);
+        }
+        self.pitch_fingerings[index] = Some(fingering);
+        if self.fingering.is_none() {
+            self.fingering = Some(fingering);
+        }
+        self.fingerings.push(fingering);
     }
 
     /// Whether the notehead of the pitch at `index` is in parentheses (a ghost note).

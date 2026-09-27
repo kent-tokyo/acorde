@@ -380,6 +380,7 @@ impl Reader<'_> {
         finish_measures(&mut score, false);
         resolve_hammer_pull(&mut score);
         super::resolve_beat_ottavas(&mut score);
+        super::drop_single_pitch_fingerings(&mut score);
         Ok(score)
     }
 
@@ -1171,11 +1172,15 @@ impl Reader<'_> {
             note.guitar_technique = Some(GuitarTechnique::Slide);
         }
         if read.left_finger >= 0 {
+            // 0 is the thumb, 1–4 the fingers, kept per string of a chord.
             match read.left_finger {
-                1..=4 if note.pitches.len() == 1 => note.fingering = Some(read.left_finger as u8),
+                0..=4 => {
+                    let member = note.pitches.len().saturating_sub(1);
+                    note.set_pitch_fingering(member, read.left_finger as u8);
+                }
                 _ => self.losses.add(
                     "gp.unsupported-fingering",
-                    "thumb fingering and fingering on chord members are not imported",
+                    "fingering beyond the thumb and four fingers is not imported",
                 ),
             }
         }

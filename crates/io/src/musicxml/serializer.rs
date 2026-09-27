@@ -1154,7 +1154,8 @@ fn serialize_note(
                 note.pitch_tie_start(pitch_idx + 1),
                 note.pitch_tie_end(pitch_idx + 1),
             );
-            if tie_start || tie_end || tab.is_some() {
+            let fingering = note.pitch_fingering(pitch_idx + 1);
+            if tie_start || tie_end || tab.is_some() || fingering.is_some() {
                 xml.push_str("        <notations>\n");
                 if tie_end {
                     xml.push_str("          <tied type=\"stop\"/>\n");
@@ -1162,13 +1163,18 @@ fn serialize_note(
                 if tie_start {
                     xml.push_str("          <tied type=\"start\"/>\n");
                 }
-                if let Some(tab) = tab {
+                if tab.is_some() || fingering.is_some() {
                     xml.push_str("          <technical>\n");
-                    xml.push_str(&format!(
-                        "            <string>{}</string>\n",
-                        musicxml_tab_string(tab.string)
-                    ));
-                    xml.push_str(&format!("            <fret>{}</fret>\n", tab.fret));
+                    if let Some(fingering) = fingering {
+                        xml.push_str(&format!("            <fingering>{fingering}</fingering>\n"));
+                    }
+                    if let Some(tab) = tab {
+                        xml.push_str(&format!(
+                            "            <string>{}</string>\n",
+                            musicxml_tab_string(tab.string)
+                        ));
+                        xml.push_str(&format!("            <fret>{}</fret>\n", tab.fret));
+                    }
                     xml.push_str("          </technical>\n");
                 }
                 xml.push_str("        </notations>\n");
@@ -1668,7 +1674,12 @@ fn serialize_notations(
             };
             xml.push_str(&format!("            <{tag}/>\n"));
         }
-        if note.fingerings.is_empty() {
+        if note.pitches.len() > 1 && !note.pitch_fingerings.is_empty() {
+            // Per-member fingerings: this note's own; the others go on their chord notes.
+            if let Some(f) = note.pitch_fingering(0) {
+                xml.push_str(&format!("            <fingering>{}</fingering>\n", f));
+            }
+        } else if note.fingerings.is_empty() {
             if let Some(f) = note.fingering {
                 xml.push_str(&format!("            <fingering>{}</fingering>\n", f));
             }

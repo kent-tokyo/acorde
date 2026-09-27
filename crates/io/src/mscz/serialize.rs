@@ -1075,8 +1075,21 @@ fn write_note(
             )
             .map_err(fmt_error)?;
         }
-        for fingering in &note.fingerings {
-            write!(xml, "<Fingering>{fingering}</Fingering>").map_err(fmt_error)?;
+        // Each note's own fingering; a single note (or a chord without per-note fingerings)
+        // carries the note's list on its first note.
+        let own: Vec<u8> = if note.pitches.len() > 1 && !note.pitch_fingerings.is_empty() {
+            note.pitch_fingering(pitch_index).into_iter().collect()
+        } else if pitch_index == 0 {
+            if note.fingerings.is_empty() {
+                note.fingering.into_iter().collect()
+            } else {
+                note.fingerings.clone()
+            }
+        } else {
+            Vec::new()
+        };
+        for fingering in own {
+            write!(xml, "<Fingering><text>{fingering}</text></Fingering>").map_err(fmt_error)?;
         }
         match note.guitar_technique {
             Some(acorde_core::GuitarTechnique::Bend) => xml.push_str("<Bend/>"),

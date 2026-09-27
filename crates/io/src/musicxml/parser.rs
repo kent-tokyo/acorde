@@ -3137,6 +3137,15 @@ fn merge_musicxml_chord_note(last: &mut Note, note: &Note, details: MusicXmlChor
     last.relative_x = details.relative_x;
     last.relative_y = details.relative_y;
     if !details.fingerings.is_empty() {
+        // The member's own fingering, kept per pitch so export puts it back on its note.
+        let member = last.pitches.len() - 1;
+        if last.pitch_fingerings.is_empty() {
+            last.pitch_fingerings
+                .push(last.fingerings.first().copied().or(last.fingering));
+        }
+        last.pitch_fingerings.resize(member, None);
+        last.pitch_fingerings
+            .push(details.fingerings.first().copied());
         if last.fingering.is_none() {
             last.fingering = details.fingerings.first().copied();
         }

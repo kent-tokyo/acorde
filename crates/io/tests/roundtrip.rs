@@ -5717,3 +5717,31 @@ fn scoops_plops_doits_and_falloffs_round_trip() {
     assert!(mscx.contains("<ChordLine><subtype>4</subtype></ChordLine>"));
     check(&acorde_io::parse_mscx(&mscx).expect("MSCX"), "MSCX");
 }
+
+#[test]
+fn chord_member_fingerings_stay_on_their_notes() {
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notations><technical><fingering>1</fingering></technical></notations></note><note><chord/><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><chord/><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notations><technical><fingering>5</fingering></technical></notations></note></measure></part></score-partwise>"#;
+    let check = |score: &acorde_core::Score, format: &str| {
+        let note = &score.parts[0].staves[0].measures[0].voices[0][0];
+        assert_eq!(note.pitch_fingering(0), Some(1), "{format}");
+        assert_eq!(note.pitch_fingering(1), None, "{format}");
+        assert_eq!(note.pitch_fingering(2), Some(5), "{format}");
+        assert_eq!(note.fingerings, vec![1, 5], "{format}");
+    };
+    let score = parse_musicxml(xml).expect("parses");
+    check(&score, "MusicXML");
+    let written = serialize_musicxml(&score).expect("MusicXML");
+    // One fingering per note element, not both on the chord's first note.
+    assert_eq!(written.matches("<fingering>").count(), 2);
+    check(
+        &parse_musicxml(&written).expect("reparses"),
+        "MusicXML again",
+    );
+    let mscx = acorde_io::serialize_mscx(&score).expect("MSCX");
+    assert!(mscx.contains("<Fingering><text>5</text></Fingering>"));
+    assert_eq!(mscx.matches("<Fingering>").count(), 2);
+    check(
+        &acorde_io::parse_mscx(&mscx).expect("MSCX reparses"),
+        "MSCX",
+    );
+}

@@ -863,6 +863,7 @@ pub fn parse_gpif(xml: &str) -> Result<(Score, Vec<Diagnostic>), Error> {
     finish_measures(&mut score, pickup);
     resolve_hammer_pull(&mut score);
     resolve_beat_ottavas(&mut score);
+    drop_single_pitch_fingerings(&mut score);
     Ok((score, losses.into_diagnostics()))
 }
 
@@ -1330,9 +1331,11 @@ fn apply_note_effects_rest(node: &Node, note: &mut Note, losses: &mut Losses) {
             losses.add(code, reason);
         }
     }
-    // Left-hand fingering: GPIF letters I/M/A/C are fingers 1–4; the thumb (P) has no number.
+    // Left-hand fingering: GPIF letters I/M/A/C are fingers 1–4 and P the thumb (0), kept
+    // per string of a chord.
     if let Some(finger) = node.text_at("LeftFingering") {
         let number = match finger {
+            "P" => Some(0),
             "I" => Some(1),
             "M" => Some(2),
             "A" => Some(3),
@@ -1340,10 +1343,13 @@ fn apply_note_effects_rest(node: &Node, note: &mut Note, losses: &mut Losses) {
             _ => None,
         };
         match number {
-            Some(number) if note.pitches.len() == 1 => note.fingering = Some(number),
-            _ => losses.add(
+            Some(number) => {
+                let member = note.pitches.len().saturating_sub(1);
+                note.set_pitch_fingering(member, number);
+            }
+            None => losses.add(
                 "gp.unsupported-fingering",
-                "thumb fingering and fingering on chord members are not imported",
+                "fingering beyond the thumb and four fingers is not imported",
             ),
         }
     }
@@ -1402,6 +1408,22 @@ fn gp_ottava(value: &str) -> Option<acorde_core::OttavaKind> {
         "15mb" => acorde_core::OttavaKind::Mb15,
         _ => return None,
     })
+}
+
+/// Fingerings are recorded per string while a chord is read; a single note keeps only its
+/// plain fingering.
+pub(super) fn drop_single_pitch_fingerings(score: &mut Score) {
+    for note in score
+        .parts
+        .iter_mut()
+        .flat_map(|part| part.staves.iter_mut())
+        .flat_map(|staff| staff.measures.iter_mut())
+        .flat_map(|measure| measure.voices.iter_mut().flatten())
+    {
+        if note.pitches.len() <= 1 {
+            note.pitch_fingerings.clear();
+        }
+    }
 }
 
 /// An ottava over consecutive beats: its kind and the (measure, note) of its first and last note.

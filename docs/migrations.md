@@ -25,6 +25,13 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
+### Unreleased — chord-note fingerings
+
+`Note` gains `pitch_fingerings: Vec<Option<u8>>`: the fingering of each chord note, parallel to
+`pitches` (the chord's `fingering`/`fingerings` still list them all for display). It is empty for
+single notes and omitted from JSON when empty. Read it with `Note::pitch_fingering(i)` and write
+it with `Note::set_pitch_fingering`.
+
 ### Unreleased — tapping, vibrato and jazz slides
 
 `Articulation` gains `Tap`, `LeftHandTap` and `Vibrato` (all three are MusicXML technical

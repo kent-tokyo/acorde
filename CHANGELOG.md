@@ -9,6 +9,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Fingerings of chord notes.** `Note::pitch_fingerings` keeps which chord note a fingering
+  belongs to. MusicXML wrote every fingering of a chord on its first note; MuseScore import kept
+  only the last note's fingering and export repeated the chord's fingerings in every note, as
+  bare digits MuseScore does not read (it expects `<Fingering><text>`). Each note now carries
+  its own. Guitar Pro thumb fingering (0) and fingerings on chord strings import instead of
+  being reported as lost.
+
 - **Tapping and vibrato.** `Articulation` gains `Tap`, `LeftHandTap` and `Vibrato`: Guitar Pro
   tapping (GP7 `Tapped`/`LeftHandTapped`, GP3–5 beat tapping) and note/beat vibrato — reported
   as lost in 15 and 11 alphaTab test files — now import, draw in SVG ("T", a circled "T", a
