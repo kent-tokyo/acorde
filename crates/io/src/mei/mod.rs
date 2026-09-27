@@ -261,6 +261,8 @@ fn parse_dynamic(value: &str) -> Option<Dynamic> {
 fn parse_articulation(value: &str) -> Option<Articulation> {
     Some(match value.trim().to_ascii_lowercase().as_str() {
         "stacc" | "staccato" => Articulation::Staccato,
+        "stacciss" => Articulation::Staccatissimo,
+        "shake" => Articulation::Shake,
         "ten" | "tenuto" => Articulation::Tenuto,
         "acc" | "accent" => Articulation::Accent,
         "marc" | "marcato" => Articulation::Marcato,
@@ -1692,6 +1694,13 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
         let note_index = voice.len().saturating_sub(1);
         if let Some(note) = voice.last_mut() {
             note.pitches.push(pitch);
+            for articulation in attr(event, b"artic")
+                .iter()
+                .flat_map(|value| value.split_whitespace())
+                .filter_map(parse_articulation)
+            {
+                push_articulation(note, articulation);
+            }
             match attr(event, b"tie").as_deref() {
                 Some("i") => note.tie_start = true,
                 Some("t") => note.tie_end = true,
@@ -1740,6 +1749,14 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
     note.dynamic = pending_dynamic.take();
     note.lyric = pending_lyric.take();
     note.articulations.append(pending_articulations);
+    for value in [attr(event, b"artic"), chord.and_then(|c| attr(c, b"artic"))]
+        .into_iter()
+        .flatten()
+    {
+        for articulation in value.split_whitespace().filter_map(parse_articulation) {
+            push_articulation(&mut note, articulation);
+        }
+    }
     note.tuplet = (*current_tuplet).clone();
     for tie in [attr(event, b"tie"), chord.and_then(|c| attr(c, b"tie"))] {
         match tie.as_deref() {
@@ -1872,6 +1889,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut dynam_anchor: Option<PendingMeiAnchor> = None;
     let mut pending_dynams: Vec<(PendingMeiAnchor, Dynamic)> = Vec::new();
     let mut pending_hairpins: Vec<(PendingMeiAnchor, HairpinKind)> = Vec::new();
+    let mut pending_marks: Vec<(PendingMeiAnchor, Articulation)> = Vec::new();
     let mut current_chord_definition: Option<ChordDefinition> = None;
     let mut buf = Vec::new();
     loop {
@@ -2244,10 +2262,41 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         }
                     }
                     b"artic" if current_measure.is_some() => {
-                        if let Some(value) =
-                            attr(&event, b"artic").and_then(|value| parse_articulation(&value))
-                        {
-                            pending_articulations.push(value);
+                        let values = attr(&event, b"artic")
+                            .iter()
+                            .flat_map(|value| value.split_whitespace())
+                            .filter_map(parse_articulation)
+                            .collect::<Vec<_>>();
+                        let target = (note_element_depth > 0)
+                            .then_some(current_measure)
+                            .flatten()
+                            .and_then(|measure_index| {
+                                score.parts[0].staves[current_staff].measures[measure_index].voices
+                                    [current_layer]
+                                    .last_mut()
+                            });
+                        match target {
+                            Some(note) => {
+                                for value in values {
+                                    push_articulation(note, value);
+                                }
+                            }
+                            None => pending_articulations.extend(values),
+                        }
+                    }
+                    element @ (b"fermata" | b"trill" | b"mordent" | b"turn" | b"breath"
+                    | b"caesura")
+                        if current_measure.is_some() && !in_layer =>
+                    {
+                        if let (Some(mark), Some(measure)) = (
+                            parse_mei_mark(element, attr(&event, b"form").as_deref()),
+                            current_measure,
+                        ) {
+                            let anchor =
+                                PendingMeiAnchor::from_event(&event, current_staff, measure);
+                            if anchor.is_anchored() {
+                                pending_marks.push((anchor, mark));
+                            }
                         }
                     }
                     b"tuplet" if current_measure.is_some() => {
@@ -2635,6 +2684,13 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     apply_mei_ottavas(&mut score, &note_ids, pending_ottavas);
     apply_mei_pedals(&mut score, &note_ids, pending_pedals);
     apply_mei_control_events(&mut score, &note_ids, pending_dynams, pending_hairpins);
+    for (anchor, mark) in pending_marks {
+        if let Some(location) = anchor.start(&score, &note_ids)
+            && let Some(note) = mei_note_mut(&mut score, location)
+        {
+            push_articulation(note, mark);
+        }
+    }
     for measure_index in measure_changes {
         let Some((time, key)) = score.parts[0].staves[0]
             .measures
@@ -3361,6 +3417,16 @@ fn append_mei_note(out: &mut String, note: &Note, id: &str) -> Result<(), Error>
     if let Some(tie) = tie {
         out.push_str(&format!(" tie=\"{tie}\""));
     }
+    if !note.is_rest {
+        let artic = note
+            .articulations
+            .iter()
+            .filter_map(mei_artic_value)
+            .collect::<Vec<_>>();
+        if !artic.is_empty() {
+            out.push_str(&format!(" artic=\"{}\"", artic.join(" ")));
+        }
+    }
     let has_verses = note.lyric.is_some() || !note.additional_lyrics.is_empty();
     if is_chord {
         out.push('>');
@@ -3488,6 +3554,13 @@ fn append_mei_control_events(out: &mut String, staves: &[Staff], measure_index: 
                         dynamic.to_musicxml_str()
                     ));
                 }
+                for (element, form) in note.articulations.iter().filter_map(mei_mark_element) {
+                    out.push_str(&format!("<{element} staff=\"{n}\" startid=\"#{start_id}\""));
+                    if let Some(form) = form {
+                        out.push_str(&format!(" form=\"{form}\""));
+                    }
+                    out.push_str("/>");
+                }
                 if let Some(kind) = note.hairpin_start
                     && let Some((end_measure, end_note)) =
                         mei_span_end(staff, measure_index, voice_index, note_index, |note| {
@@ -3530,38 +3603,57 @@ fn append_mei_control_events(out: &mut String, staves: &[Staff], measure_index: 
     }
 }
 
-fn append_mei_articulations(out: &mut String, note: &Note) {
-    for articulation in &note.articulations {
-        let ornament = match articulation {
-            Articulation::Trill => Some("trill"),
-            Articulation::Mordent => Some("mordent"),
-            Articulation::InvertedMordent => Some("inverted-mordent"),
-            Articulation::Turn => Some("turn"),
-            Articulation::InvertedTurn => Some("inverted-turn"),
-            Articulation::Shake => Some("shake"),
-            _ => None,
-        };
-        if let Some(name) = ornament {
-            out.push_str(&format!("<ornam>{name}</ornam>"));
-            continue;
-        }
-        let name = match articulation {
-            Articulation::Staccato => "stacc",
-            Articulation::Tenuto => "ten",
-            Articulation::Accent => "acc",
-            Articulation::Marcato => "marc",
-            Articulation::Fermata => "fermata",
-            Articulation::BreathMark => "breath",
-            Articulation::Caesura => "caesura",
-            Articulation::UpBow => "upbow",
-            Articulation::DownBow => "dnbow",
-            Articulation::Harmonic => "harm",
-            Articulation::OpenString => "open",
-            Articulation::Stopped => "stop",
-            Articulation::SnapPizzicato => "snap",
-            _ => continue,
-        };
-        out.push_str(&format!("<artic artic=\"{name}\"/>"));
+/// MEI `@artic` value for marks written on the note or chord itself.
+fn mei_artic_value(articulation: &Articulation) -> Option<&'static str> {
+    Some(match articulation {
+        Articulation::Staccato => "stacc",
+        Articulation::Staccatissimo => "stacciss",
+        Articulation::Tenuto => "ten",
+        Articulation::Accent => "acc",
+        Articulation::Marcato => "marc",
+        Articulation::Shake => "shake",
+        Articulation::UpBow => "upbow",
+        Articulation::DownBow => "dnbow",
+        Articulation::Harmonic => "harm",
+        Articulation::OpenString => "open",
+        Articulation::Stopped => "stop",
+        Articulation::SnapPizzicato => "snap",
+        _ => return None,
+    })
+}
+
+/// MEI control element (and `@form`) for marks that MEI encodes outside the note.
+fn mei_mark_element(articulation: &Articulation) -> Option<(&'static str, Option<&'static str>)> {
+    Some(match articulation {
+        Articulation::Fermata => ("fermata", None),
+        Articulation::Trill => ("trill", None),
+        Articulation::Mordent => ("mordent", Some("lower")),
+        Articulation::InvertedMordent => ("mordent", Some("upper")),
+        Articulation::Turn => ("turn", Some("upper")),
+        Articulation::InvertedTurn => ("turn", Some("lower")),
+        Articulation::BreathMark => ("breath", None),
+        Articulation::Caesura => ("caesura", None),
+        _ => return None,
+    })
+}
+
+fn parse_mei_mark(element: &[u8], form: Option<&str>) -> Option<Articulation> {
+    Some(match (element, form) {
+        (b"fermata", _) => Articulation::Fermata,
+        (b"trill", _) => Articulation::Trill,
+        (b"mordent", Some("upper")) => Articulation::InvertedMordent,
+        (b"mordent", _) => Articulation::Mordent,
+        (b"turn", Some("lower")) => Articulation::InvertedTurn,
+        (b"turn", _) => Articulation::Turn,
+        (b"breath", _) => Articulation::BreathMark,
+        (b"caesura", _) => Articulation::Caesura,
+        _ => return None,
+    })
+}
+
+fn push_articulation(note: &mut Note, articulation: Articulation) {
+    if !note.articulations.contains(&articulation) {
+        note.articulations.push(articulation);
     }
 }
 
@@ -3897,7 +3989,6 @@ fn append_mei_measure_staves(
                 out.push_str(&format!("<clef shape=\"{shape}\" line=\"{line}\"/>"));
             }
             for (note_index, note) in voice.iter().enumerate() {
-                append_mei_articulations(out, note);
                 if let Some(tuplet) = &note.tuplet {
                     out.push_str(&format!(
                         "<tuplet num=\"{}\" numbase=\"{}\">",
@@ -4342,28 +4433,9 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                             );
                         }
                         if note.articulations.iter().any(|articulation| {
-                            !matches!(
-                                articulation,
-                                Articulation::Staccato
-                                    | Articulation::Tenuto
-                                    | Articulation::Accent
-                                    | Articulation::Marcato
-                                    | Articulation::Fermata
-                                    | Articulation::Trill
-                                    | Articulation::Mordent
-                                    | Articulation::InvertedMordent
-                                    | Articulation::Turn
-                                    | Articulation::InvertedTurn
-                                    | Articulation::Shake
-                                    | Articulation::BreathMark
-                                    | Articulation::Caesura
-                                    | Articulation::UpBow
-                                    | Articulation::DownBow
-                                    | Articulation::Harmonic
-                                    | Articulation::OpenString
-                                    | Articulation::Stopped
-                                    | Articulation::SnapPizzicato
-                            )
+                            let on_note = mei_artic_value(articulation).is_some();
+                            let control = mei_mark_element(articulation).is_some();
+                            !(control || on_note && !note.is_rest)
                         }) {
                             push(
                                 &mut diagnostics,
@@ -5118,6 +5190,41 @@ mod tests {
     }
 
     #[test]
+    fn verovio_articulations_and_ornament_control_events_round_trip() {
+        let xml = r##"<mei><music><body><mdiv><score><scoreDef meter.count="2" meter.unit="4"><staffGrp><staffDef n="1" clef.shape="G" clef.line="2"/></staffGrp></scoreDef><section><measure n="1"><staff n="1"><layer n="1"><note xml:id="a" pname="c" oct="5" dur="4" artic="stacc acc"/><note xml:id="b" pname="d" oct="5" dur="8"><artic artic="ten"/></note><rest xml:id="r" dur="8"/></layer></staff><fermata staff="1" startid="#r"/><mordent staff="1" startid="#a" form="upper"/><turn staff="1" tstamp="2"/><breath staff="1" startid="#b"/></measure></section></score></mdiv></body></music></mei>"##;
+        let report = parse_mei_with_report(xml).expect("articulations parse");
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let check = |score: &Score| {
+            let voice = &score.parts[0].staves[0].measures[0].voices[0];
+            assert_eq!(
+                voice[0].articulations,
+                vec![
+                    Articulation::Staccato,
+                    Articulation::Accent,
+                    Articulation::InvertedMordent
+                ]
+            );
+            let mut second = voice[1].articulations.clone();
+            second.sort_by_key(|articulation| format!("{articulation:?}"));
+            assert_eq!(
+                second,
+                vec![
+                    Articulation::BreathMark,
+                    Articulation::Tenuto,
+                    Articulation::Turn
+                ]
+            );
+            assert_eq!(voice[2].articulations, vec![Articulation::Fermata]);
+        };
+        check(&report.score);
+        let export = crate::serialize_mei_with_report(&report.score).expect("articulations export");
+        assert!(export.diagnostics.is_empty(), "{:?}", export.diagnostics);
+        assert!(export.output.contains("artic=\"stacc acc\""));
+        assert!(!export.output.contains("<artic "));
+        check(&parse_mei(&export.output).expect("articulations reparse"));
+    }
+
+    #[test]
     fn nested_mei_staff_group_round_trips_without_becoming_part_group() {
         let xml = r#"<mei><music><body><mdiv><score><scoreDef><staffGrp><staffGrp symbol="brace" bar.thru="true"><staffDef n="1" clef.shape="G" clef.line="2"/><staffDef n="2" clef.shape="F" clef.line="4"/></staffGrp><staffDef n="3" clef.shape="G" clef.line="2"/></staffGrp></scoreDef><section><measure n="1"><staff n="1"><layer n="1"><note pname="c" oct="4" dur="4"/></layer></staff><staff n="2"><layer n="1"><note pname="c" oct="3" dur="4"/></layer></staff><staff n="3"><layer n="1"><note pname="g" oct="4" dur="4"/></layer></staff></measure></section></score></mdiv></body></music></mei>"#;
         let report = parse_mei_with_report(xml).expect("MEI staff group parses");
@@ -5195,7 +5302,7 @@ mod tests {
             vec![Articulation::Staccato]
         );
         let serialized = serialize_mei(&report.score).expect("MEI articulation serializes");
-        assert!(serialized.contains("<artic artic=\"stacc\"/>"));
+        assert!(serialized.contains(" artic=\"stacc\""));
         let restored = parse_mei(&serialized).expect("serialized MEI articulation parses");
         assert_eq!(
             restored.parts[0].staves[0].measures[0].voices[0][0].articulations,
@@ -5628,7 +5735,8 @@ mod tests {
             vec![Articulation::Mordent]
         );
         let serialized = serialize_mei(&report.score).expect("MEI ornament serializes");
-        assert!(serialized.contains("<ornam>mordent</ornam>"));
+        assert!(serialized.contains("<mordent staff=\"1\" startid=\"#n"));
+        assert!(serialized.contains(" form=\"lower\"/>"));
         let restored = parse_mei(&serialized).expect("serialized MEI ornament parses");
         assert_eq!(
             restored.parts[0].staves[0].measures[0].voices[0][0].articulations,

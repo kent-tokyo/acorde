@@ -3571,7 +3571,7 @@ fn string_technique_marks_round_trip_through_mscx_mei_and_abc() {
         expected
     );
     let mei = acorde_io::serialize_mei(&parsed).expect("MEI export");
-    assert!(mei.contains("artic=\"dnbow\""));
+    assert!(mei.contains("artic=\"") && mei.contains("dnbow"));
     assert_eq!(
         marks(&acorde_io::parse_mei(&mei).expect("MEI reparse")),
         expected
