@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.16] - 2026-09-28
+
 - **Ghost notes (parenthesized noteheads).** `Note::pitch_parentheses` marks noteheads drawn
   in parentheses, per chord member. Read and written as MusicXML `<notehead parentheses="yes">`,
   MEI `@enclose="paren"` and MuseScore `<ghost>1</ghost>`; imported from Guitar Pro ghost notes
