@@ -2172,12 +2172,33 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "measure" => {
                         // Content shorter than the time signature is an authored pickup or
-                        // irregular bar: keep its length instead of padding it with rests.
+                        // irregular bar: keep its length instead of padding it with rests. Notes
+                        // whose written values fill the bar exactly keep it regular even when
+                        // their durations add up differently (durations rounded to a coarse
+                        // `divisions`, such as sixteenths of 4 ticks when a quarter has 17).
+                        let written_fill = part_index.is_some_and(|pi| {
+                            let bar_beats = current_time.total_beats();
+                            let bars = score.parts[pi].staves[0].measures.len();
+                            let mut longest: f64 = 0.0;
+                            for staff in &score.parts[pi].staves {
+                                if staff.measures.len() != bars {
+                                    continue;
+                                }
+                                if let Some(measure) = staff.measures.last() {
+                                    for voice in &measure.voices {
+                                        longest = longest.max(voice.iter().map(Note::beats).sum());
+                                    }
+                                }
+                            }
+                            (longest - bar_beats).abs() < 1e-6
+                        });
                         let actual_length =
                             musicxml_measure_ticks(&current_time, current_divisions)
                                 .ok()
                                 .filter(|bar_ticks| {
-                                    measure_content_ticks > 0 && measure_content_ticks != *bar_ticks
+                                    measure_content_ticks > 0
+                                        && measure_content_ticks != *bar_ticks
+                                        && !written_fill
                                 })
                                 .and_then(|_| {
                                     MeasureLength::from_ticks(
@@ -2379,6 +2400,10 @@ pub(crate) fn parse_musicxml_collecting(
                                             current_divisions,
                                             note_tuplet_actual.zip(note_tuplet_normal),
                                         )
+                                        // Shorter than any note value (a playback-only run of
+                                        // 1/17 quarters): the shortest value, not a quarter.
+                                        .or((duration_ticks > 0)
+                                            .then_some((Duration::SixtyFourth, 0)))
                                     })
                                     .flatten();
                                 let dur = if note_is_measure_rest {
@@ -3496,6 +3521,37 @@ mod tests {
         assert_eq!(measure.voices[0].len(), 2);
         assert_eq!(measure.duration_beats(&score.settings.time_signature), 3.0);
         assert!(acorde_core::validate(&score).errors.is_empty());
+    }
+
+    #[test]
+    fn rounded_durations_keep_a_bar_its_written_meter() {
+        // 17 divisions per quarter: sixteenths are rounded to 4 ticks, so the bar adds up to 32
+        // ticks instead of 34, but its written values fill 2/4 exactly.
+        let sixteenth = r#"<note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>16th</type></note>"#;
+        let xml = format!(
+            r#"<score-partwise><part-list><score-part id="P1"/></part-list><part id="P1"><measure number="1"><attributes><divisions>17</divisions><time><beats>2</beats><beat-type>4</beat-type></time></attributes>{}</measure></part></score-partwise>"#,
+            sixteenth.repeat(8)
+        );
+        let score = parse_musicxml(&xml).expect("parses");
+        let measure = &score.parts[0].staves[0].measures[0];
+        assert!(measure.actual_length.is_none());
+        assert!(acorde_core::validate(&score).errors.is_empty());
+    }
+
+    #[test]
+    fn untyped_notes_shorter_than_any_value_take_the_shortest() {
+        let tick = r#"<note print-object="no"><pitch><step>F</step><octave>3</octave></pitch><duration>1</duration></note>"#;
+        let xml = format!(
+            r#"<score-partwise><part-list><score-part id="P1"/></part-list><part id="P1"><measure number="1"><attributes><divisions>17</divisions><time><beats>1</beats><beat-type>4</beat-type></time></attributes>{}</measure></part></score-partwise>"#,
+            tick.repeat(4)
+        );
+        let score = parse_musicxml(&xml).expect("parses");
+        let voice = &score.parts[0].staves[0].measures[0].voices[0];
+        assert!(
+            voice[..4]
+                .iter()
+                .all(|note| note.duration == Duration::SixtyFourth)
+        );
     }
 
     #[test]

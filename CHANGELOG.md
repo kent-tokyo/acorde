@@ -9,6 +9,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **MusicXML bars with rounded durations.** A bar whose durations add up differently from its
+  meter only through rounding (17 divisions per quarter, sixteenths written as 4 ticks) became
+  an irregular bar of the rounded length, so its correctly written notes overfilled it — 353
+  validation errors in one corpus score. A bar whose written values fill the meter exactly now
+  keeps the meter. Untyped notes shorter than any note value (a hidden run of 1/17-quarter
+  notes) import as sixty-fourths instead of quarters. 203 of 205 corpus scores now validate.
+
 - **Guitar Pro ottavas and bar fermatas.** Beat ottavas (GP7 `<Ottavia>`, GP5 beat flags) were
   reported as lost; consecutive beats with the same mark now become one `8va`/`8vb`/`15ma`/`15mb`
   span in each voice (pitches stay at sounding pitch, as with every ottava in the model). GP7 bar
