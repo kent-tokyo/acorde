@@ -125,8 +125,13 @@ pub(crate) fn build_svg_with_metadata(
         })
         .collect();
     let (top_margin_u, bottom_margin_u) = content_margins(score, layout, &staff_refs);
-    let (left_margin_u, right_margin_u) =
-        content_horizontal_margins(score, &staff_refs, &mandatory, &courtesy);
+    let (left_margin_u, right_margin_u) = content_horizontal_margins(
+        score,
+        &staff_refs,
+        &mandatory,
+        &courtesy,
+        Some(&RowEdges::from_layout(layout)),
+    );
 
     let staff_heights_u: Vec<f32> = staff_refs
         .iter()
@@ -1817,11 +1822,37 @@ fn tablature_top_clearance_u(staff: &acorde_core::Staff) -> f32 {
 /// Expand breathing room for measure-level annotations and first-system part labels. Font-width
 /// aware line breaking remains host work, but explicit offsets must not move text outside the
 /// renderer's own SVG viewBox.
+/// Measures that open (`first`) and close (`last`) a system row. Only content in those measures can
+/// reach past the system's left or right edge, so only they widen the page margins.
+struct RowEdges {
+    first: std::collections::HashSet<usize>,
+    last: std::collections::HashSet<usize>,
+}
+
+impl RowEdges {
+    fn from_layout(layout: &acorde_layout::LayoutResult) -> Self {
+        let mut edges = Self {
+            first: Default::default(),
+            last: Default::default(),
+        };
+        for row in &layout.rows {
+            if let (Some(first), Some(last)) =
+                (row.measure_indices.first(), row.measure_indices.last())
+            {
+                edges.first.insert(*first);
+                edges.last.insert(*last);
+            }
+        }
+        edges
+    }
+}
+
 fn content_horizontal_margins(
     score: &Score,
     staff_refs: &[(usize, usize)],
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
+    edges: Option<&RowEdges>,
 ) -> (f32, f32) {
     let mut left = LEFT_MARGIN_U;
     let mut right = RIGHT_MARGIN_U;
@@ -1837,24 +1868,39 @@ fn content_horizontal_margins(
         }
         for (measure_index, measure) in score.parts[part].staves[staff].measures.iter().enumerate()
         {
+            let row_first = edges.is_none_or(|edges| edges.first.contains(&measure_index));
+            let row_last = edges.is_none_or(|edges| edges.last.contains(&measure_index));
+            if !row_first && !row_last {
+                continue;
+            }
             let Ok(clef_bottom) = geometry::clef_bottom_line(&score.parts[part].staves[staff].clef)
             else {
                 continue;
             };
             for (voice_index, voice) in measure.voices.iter().enumerate() {
                 for (note_index, note) in voice.iter().enumerate() {
+                    // Only a bar's opening event can overhang a row's left edge, and only its
+                    // closing event the right edge.
+                    let at_left = row_first && note_index == 0;
+                    let at_right = row_last && note_index + 1 == voice.len();
                     let annotation_half_width = note_annotation_width_u(note) / 2.0;
                     let (offset_x, _) = note_placement_offsets_u(note);
                     let note_half_width = annotation_half_width.max(0.7);
                     if offset_x < 0.0 {
-                        left = left.max(-offset_x + note_half_width);
-                    } else {
+                        if at_left {
+                            left = left.max(-offset_x + note_half_width);
+                        }
+                    } else if at_right {
                         right = right.max(offset_x + note_half_width);
                     }
                     if annotation_half_width > 0.0 {
                         let annotation_extent = annotation_half_width + MEASURE_PAD_U;
-                        left = left.max(annotation_extent);
-                        right = right.max(annotation_extent);
+                        if at_left {
+                            left = left.max(annotation_extent);
+                        }
+                        if at_right {
+                            right = right.max(annotation_extent);
+                        }
                     }
                     if tablature.is_some() {
                         let positions = if !note.tab_positions.is_empty() {
@@ -1870,8 +1916,12 @@ fn content_horizontal_margins(
                                 + tab_fret_metrics(0).side_gap_units
                                     * positions.len().saturating_sub(1) as f32;
                             let half_width = width / 2.0 + 0.25;
-                            left = left.max(half_width);
-                            right = right.max(half_width);
+                            if at_left {
+                                left = left.max(half_width);
+                            }
+                            if at_right {
+                                right = right.max(half_width);
+                            }
                         }
                     }
                     let has_accidentals: Vec<bool> = note
@@ -1898,7 +1948,10 @@ fn content_horizontal_margins(
                                 ))
                         })
                         .collect();
-                    if note.pitches.is_empty() || !has_accidentals.iter().any(|&present| present) {
+                    if !at_left
+                        || note.pitches.is_empty()
+                        || !has_accidentals.iter().any(|&present| present)
+                    {
                         continue;
                     }
                     let positions: Vec<i32> = note
@@ -1946,12 +1999,17 @@ fn content_horizontal_margins(
                     as f32
                     / 10.0;
                 let text_width = measure_text_width_u(&styled.text);
-                left = left.max(MEASURE_PAD_U - offset_x);
-                right = right.max(MEASURE_PAD_U + text_width + offset_x);
-                if offset_x < 0.0 {
-                    left = left.max(LEFT_MARGIN_U - offset_x);
-                } else {
-                    right = right.max(RIGHT_MARGIN_U + offset_x);
+                if row_first {
+                    left = left.max(MEASURE_PAD_U - offset_x);
+                    if offset_x < 0.0 {
+                        left = left.max(LEFT_MARGIN_U - offset_x);
+                    }
+                }
+                if row_last {
+                    right = right.max(MEASURE_PAD_U + text_width + offset_x);
+                    if offset_x >= 0.0 {
+                        right = right.max(RIGHT_MARGIN_U + offset_x);
+                    }
                 }
             }
         }
@@ -2901,7 +2959,11 @@ fn render_measure_voice<'a>(
             note_points,
         },
     )?;
-    body.push_str(&beam_svg);
+    // Beams follow standard-notation stem tips; a tablature staff shows fret numbers (and, when
+    // enabled, its own stems) instead, so pitch-positioned beams would land across the strings.
+    if tablature.is_none() {
+        body.push_str(&beam_svg);
+    }
 
     render_measure_voice_tuplets(
         body,
@@ -6734,13 +6796,13 @@ mod tests {
         let refs = vec![(0, 0)];
         score.parts[0].short_name.clear();
         let empty = HashMap::new();
-        let plain = content_horizontal_margins(&score, &refs, &empty, &empty).0;
+        let plain = content_horizontal_margins(&score, &refs, &empty, &empty, None).0;
         let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
         voice.clear();
         let mut note = Note::new(Pitch::with_alter(Step::C, 5, 1), Duration::Quarter);
         note.pitches.push(Pitch::with_alter(Step::D, 5, 1));
         voice.push(note);
-        let expanded = content_horizontal_margins(&score, &refs, &empty, &empty).0;
+        let expanded = content_horizontal_margins(&score, &refs, &empty, &empty, None).0;
         assert!(expanded > plain);
     }
 

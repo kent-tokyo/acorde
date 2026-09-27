@@ -2729,3 +2729,64 @@ fn dead_notes_on_tablature_are_written_x() {
             .expect("dead note renders");
     assert!(svg.contains(r#"data-fret="0">X</text>"#), "{svg}");
 }
+
+#[test]
+fn tablature_staves_do_not_draw_pitch_positioned_beams() {
+    use acorde_core::{
+        BeamState, Duration, Note, Pitch, Score, Step, TabPosition, TablatureConfig,
+    };
+
+    let mut score = Score::new("tab beams", 120, 2, 4, 0, 1);
+    let eighths = |with_tab: bool| {
+        [
+            (Step::E, 0u8, BeamState::Begin),
+            (Step::G, 3, BeamState::Continue),
+            (Step::A, 5, BeamState::Continue),
+            (Step::B, 7, BeamState::End),
+        ]
+        .into_iter()
+        .map(|(step, fret, beam)| {
+            let mut note = Note::new(Pitch::new(step, 3), Duration::Eighth);
+            note.beam = beam;
+            if with_tab {
+                note.tab_position = Some(TabPosition { string: 1, fret });
+            }
+            note
+        })
+        .collect::<Vec<_>>()
+    };
+    score.parts[0].staves[0].measures[0].voices[0] = eighths(false);
+    let options = acorde_render_svg::SvgRenderOptions::default();
+    let standard = acorde_render_svg::render_svg(&score, &options).expect("standard renders");
+    assert!(standard.contains("acorde-beam"));
+    score.parts[0].staves[0].tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![40, 45, 50, 55, 59, 64],
+        capo: 0,
+    });
+    score.parts[0].staves[0].measures[0].voices[0] = eighths(true);
+    let tab = acorde_render_svg::render_svg(&score, &options).expect("tab renders");
+    assert!(!tab.contains("acorde-beam"));
+}
+
+#[test]
+fn inner_bar_annotations_do_not_widen_page_margins() {
+    use acorde_core::{Lyric, Score};
+
+    let staff_line = |svg: &str| {
+        let start = svg
+            .find(r#"class="acorde-staff-line""#)
+            .expect("staff line");
+        svg[start..start + 80].to_string()
+    };
+    let options = acorde_render_svg::SvgRenderOptions::default();
+    let mut score = Score::new("margins", 120, 4, 4, 0, 8);
+    let plain = staff_line(&acorde_render_svg::render_svg(&score, &options).unwrap());
+    // Bar 2 sits inside the first system; its long lyric cannot reach either page edge.
+    score.parts[0].staves[0].measures[1].voices[0][0].lyric = Some(Lyric {
+        text: "a-very-long-melisma-syllable-that-would-once-shrink-every-system".into(),
+        syllabic: "single".into(),
+    });
+    let with_lyric = staff_line(&acorde_render_svg::render_svg(&score, &options).unwrap());
+    assert_eq!(plain, with_lyric);
+}
