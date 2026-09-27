@@ -497,6 +497,9 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
     // the next note or rest the line appends.
     let mut marks = AbcPendingMarks::default();
     let mut last_note = abc_last_note_position(staff);
+    // `&` overlays another voice on the bar. The voice being written is kept in slot 0 (where
+    // the note readers append) and swapped back into its own slot at the barline.
+    let mut overlay = 0usize;
 
     loop {
         let position = abc_last_note_position(staff);
@@ -508,6 +511,19 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
             break;
         }
         let ch = chars[i];
+
+        if ch == '&' {
+            if let Some(measure) = staff.measures.last_mut()
+                && overlay + 1 < measure.voices.len()
+            {
+                measure.voices.swap(0, overlay);
+                overlay += 1;
+                measure.voices.swap(0, overlay);
+            }
+            last_note = abc_last_note_position(staff);
+            i += 1;
+            continue;
+        }
 
         // Quoted text: a chord symbol, or an annotation when it starts with ^ _ < > @.
         if ch == '"' {
@@ -627,6 +643,10 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
             && let Some((right_barline, left_barline, next_index)) = parse_barline(&chars, i)
         {
             i = next_index;
+            if let Some(measure) = staff.measures.last_mut() {
+                measure.voices.swap(0, std::mem::take(&mut overlay));
+            }
+            last_note = abc_last_note_position(staff);
             // A barline before any note of the bar (a voice opening with `|:`, a line
             // starting with the barline the last one ended with) only marks the bar's start.
             let bar_count = staff.measures.len();
@@ -783,6 +803,9 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
             continue;
         }
         i += 1;
+    }
+    if let Some(measure) = staff.measures.last_mut() {
+        measure.voices.swap(0, overlay);
     }
 
     Ok(())
@@ -1684,6 +1707,7 @@ pub fn serialize_abc(score: &Score) -> Result<String, Error> {
 /// One staff's bars as an ABC voice line (voice 1 only), followed by its lyrics.
 fn write_abc_staff(out: &mut String, staff: &Staff, part_index: usize) -> Result<(), Error> {
     let mut open_hairpin: Option<HairpinKind> = None;
+    let mut overlay_hairpins: [Option<HairpinKind>; 4] = [None; 4];
     for (measure_index, measure) in staff.measures.iter().enumerate() {
         if let Some(volta) = &measure.volta
             && matches!(volta.kind.as_str(), "begin" | "begin_end")
@@ -1726,33 +1750,13 @@ fn write_abc_staff(out: &mut String, staff: &Staff, part_index: usize) -> Result
         if notes.is_empty() {
             out.push('X');
         }
-        let mut note_index = 0;
-        while note_index < notes.len() {
-            let emit_len = if let Some(tuplet) = &notes[note_index].tuplet {
-                let mut group_len = 0usize;
-                while note_index + group_len < notes.len()
-                    && notes[note_index + group_len].tuplet.as_ref() == Some(tuplet)
-                    && group_len < usize::from(tuplet.actual_notes)
-                {
-                    group_len += 1;
-                }
-                if group_len == usize::from(tuplet.actual_notes) {
-                    out.push_str(&format!(
-                        "({}:{}:{}",
-                        tuplet.actual_notes, tuplet.normal_notes, group_len
-                    ));
-                    group_len
-                } else {
-                    1
-                }
-            } else {
-                1
-            };
-            for note in &notes[note_index..note_index + emit_len] {
-                out.push_str(&abc_note_marks(note, &mut open_hairpin));
-                out.push_str(&note_to_abc(note));
+        write_abc_notes(out, notes, &mut open_hairpin);
+        // Further voices of the bar are ABC voice overlays (`&`).
+        for (voice_index, voice) in measure.voices.iter().enumerate().skip(1) {
+            if !voice.is_empty() {
+                out.push_str(" & ");
+                write_abc_notes(out, voice, &mut overlay_hairpins[voice_index]);
             }
-            note_index += emit_len;
         }
         // A repeat starting on the next bar is written in this bar's closing barline.
         let next_opens_repeat = staff.measures.get(measure_index + 1).is_some_and(|next| {
@@ -1789,6 +1793,38 @@ fn write_abc_staff(out: &mut String, staff: &Staff, part_index: usize) -> Result
         out.push('\n');
     }
     Ok(())
+}
+
+/// A voice's notes in ABC, tuplets bracketed, each with the marks written before it.
+fn write_abc_notes(out: &mut String, notes: &[Note], open_hairpin: &mut Option<HairpinKind>) {
+    let mut note_index = 0;
+    while note_index < notes.len() {
+        let emit_len = if let Some(tuplet) = &notes[note_index].tuplet {
+            let mut group_len = 0usize;
+            while note_index + group_len < notes.len()
+                && notes[note_index + group_len].tuplet.as_ref() == Some(tuplet)
+                && group_len < usize::from(tuplet.actual_notes)
+            {
+                group_len += 1;
+            }
+            if group_len == usize::from(tuplet.actual_notes) {
+                out.push_str(&format!(
+                    "({}:{}:{}",
+                    tuplet.actual_notes, tuplet.normal_notes, group_len
+                ));
+                group_len
+            } else {
+                1
+            }
+        } else {
+            1
+        };
+        for note in &notes[note_index..note_index + emit_len] {
+            out.push_str(&abc_note_marks(note, open_hairpin));
+            out.push_str(&note_to_abc(note));
+        }
+        note_index += emit_len;
+    }
 }
 
 /// Marks ABC writes before a note: its chord symbol, a hairpin ending on it, its dynamic, and
@@ -2114,21 +2150,6 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                         "ABC export preserves only volta begin markers",
                     );
                 }
-                for (voice_index, voice) in measure.voices.iter().enumerate().skip(1) {
-                    if !voice.is_empty() {
-                        push(
-                            format!(
-                                "/score/part/{}/staff/{}/measure/{}/voice/{}",
-                                part_index + 1,
-                                staff_index + 1,
-                                measure_index + 1,
-                                voice_index + 1
-                            ),
-                            voice.len().to_string(),
-                            "ABC export emits only voice 1",
-                        );
-                    }
-                }
                 let Some(first_voice) = measure.voices.first() else {
                     push(
                         format!(
@@ -2389,13 +2410,8 @@ C D E F | G A B c |";
         score.parts[0].staves[0].measures[0].voices[0].push(note);
         score.parts[0].staves[0].measures[0].voices[1].push(Note::rest(Duration::Quarter));
         let diagnostics = export_loss_diagnostics(&score);
-        assert_eq!(diagnostics.len(), 2);
-        assert!(diagnostics.iter().any(|diagnostic| {
-            diagnostic
-                .source_location
-                .as_deref()
-                .is_some_and(|path| path.ends_with("/voice/2"))
-        }));
+        // The second voice is written as an overlay; only the microtone is lost.
+        assert_eq!(diagnostics.len(), 1);
         assert!(diagnostics.iter().any(|diagnostic| {
             diagnostic
                 .source_location

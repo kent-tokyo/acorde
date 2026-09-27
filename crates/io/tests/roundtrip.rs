@@ -5214,3 +5214,25 @@ fn abc_keeps_pickups_line_opening_repeats_double_dots_empty_bars_and_final_barli
         2
     );
 }
+
+#[test]
+fn abc_voice_overlays_keep_second_voices() {
+    let abc = "X:1\nM:4/4\nL:1/4\nK:C\ne f g a & c4|b4 & x2 G2|\n";
+    let score = acorde_io::parse_abc(abc).expect("parses");
+    let measures = &score.parts[0].staves[0].measures;
+    assert_eq!(measures.len(), 2);
+    assert_eq!(measures[0].voices[0].len(), 4);
+    assert_eq!(measures[0].voices[1].len(), 1);
+    assert_eq!(measures[1].voices[1].len(), 2);
+    assert!(measures[1].voices[1][0].hidden);
+    let text = acorde_io::serialize_abc(&score).expect("exports");
+    let back = acorde_io::parse_abc(&text).expect("re-imports");
+    let counts = |s: &acorde_core::Score| {
+        s.parts[0].staves[0]
+            .measures
+            .iter()
+            .map(|m| (m.voices[0].len(), m.voices[1].len()))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(counts(&back), counts(&score), "{text}");
+}

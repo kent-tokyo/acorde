@@ -32,6 +32,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the preceding barline; music before the first `V:` stays the first voice. The corpus ABC
   round trip no longer fails on any file (4 did), and files whose barlines change drop from
   173 to 8.
+- **ABC voice overlays.** Voices 2–4 of a bar were not exported and `&` was not read; they are
+  now written and read as ABC voice overlays. Files whose notes change in the corpus ABC round
+  trip drop from 42 to 2.
 - **MusicXML double dots and type-less notes.** Import counted `<dot/>` as a flag, so every
   double-dotted note (202 in the corpus) came in single-dotted and short; it now keeps the
   count. A note without `<type>` (the element is optional) was taken as a quarter; its value
