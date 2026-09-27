@@ -655,12 +655,28 @@ pub fn parse_gpif(xml: &str) -> Result<(Score, Vec<Diagnostic>), Error> {
             };
             Some(label)
         });
-        if master_bar.child("Fermatas").is_some() {
-            losses.add(
-                "gp.unsupported-fermata",
-                "bar fermatas (positioned by offset) are not imported",
-            );
-        }
+        // Bar fermatas sit at an offset in quarter notes; they land on the note sounding there.
+        let fermata_offsets: Vec<f64> = master_bar
+            .child("Fermatas")
+            .map(|fermatas| {
+                fermatas
+                    .children
+                    .iter()
+                    .filter(|fermata| fermata.name == "Fermata")
+                    .map(|fermata| {
+                        fermata
+                            .text_at("Offset")
+                            .and_then(|offset| {
+                                let (numerator, denominator) = offset.trim().split_once('/')?;
+                                let numerator: f64 = numerator.trim().parse().ok()?;
+                                let denominator: f64 = denominator.trim().parse().ok()?;
+                                (denominator > 0.0).then(|| numerator / denominator)
+                            })
+                            .unwrap_or(0.0)
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
         let mut navigation = None;
         if let Some(directions) = master_bar.child("Directions") {
             for direction in &directions.children {
@@ -769,6 +785,9 @@ pub fn parse_gpif(xml: &str) -> Result<(Score, Vec<Diagnostic>), Error> {
                     }
                 }
             }
+            for &offset in &fermata_offsets {
+                place_bar_fermata(&mut measure, offset);
+            }
             let _ = info.capo;
             score.parts[*part_index].staves[local_staff]
                 .measures
@@ -785,6 +804,7 @@ pub fn parse_gpif(xml: &str) -> Result<(Score, Vec<Diagnostic>), Error> {
         .is_some_and(|bar| bar.child("Anacrusis").is_some());
     finish_measures(&mut score, pickup);
     resolve_hammer_pull(&mut score);
+    resolve_beat_ottavas(&mut score);
     Ok((score, losses.into_diagnostics()))
 }
 
@@ -989,11 +1009,6 @@ fn convert_beat(
             "gp.unsupported-volume-swell",
             "fade-in/volume swells are not imported",
         ),
-        (
-            "Ottavia",
-            "gp.unsupported-beat-ottava",
-            "beat ottava marks are not imported",
-        ),
     ] {
         if beat.child(element).is_some() {
             losses.add(code, reason);
@@ -1005,6 +1020,13 @@ fn convert_beat(
     }
     if !note.is_rest {
         apply_beat_strokes(beat, &mut note, losses);
+    }
+    // A beat's ottava is held per beat until `resolve_beat_ottavas` joins runs into spans.
+    if let Some(value) = beat.text_at("Ottavia") {
+        match gp_ottava(value) {
+            Some(kind) => note.ottava_start = Some(kind),
+            None => losses.add("gp.unsupported-beat-ottava", "unknown beat ottava mark"),
+        }
     }
     Some(note)
 }
@@ -1243,6 +1265,84 @@ fn apply_note_effects_rest(node: &Node, note: &mut Note, losses: &mut Losses) {
 }
 
 /// Decide hammer-on versus pull-off from the next note in the same voice, and clear the marker.
+/// Put a bar fermata on the first voice's note or rest sounding at `offset` quarter notes.
+fn place_bar_fermata(measure: &mut Measure, offset: f64) {
+    let voice = &mut measure.voices[0];
+    let mut onset = 0.0;
+    let mut target = None;
+    for (index, note) in voice.iter().enumerate() {
+        if note.is_grace || note.is_cue {
+            continue;
+        }
+        if onset > offset + 1e-6 {
+            break;
+        }
+        target = Some(index);
+        onset += note.beats();
+    }
+    if let Some(note) = target.and_then(|index| voice.get_mut(index))
+        && !note.articulations.contains(&Articulation::Fermata)
+    {
+        note.articulations.push(Articulation::Fermata);
+    }
+}
+
+/// A Guitar Pro 7 `<Ottavia>` value.
+fn gp_ottava(value: &str) -> Option<acorde_core::OttavaKind> {
+    Some(match value.trim() {
+        "8va" => acorde_core::OttavaKind::Va8,
+        "8vb" => acorde_core::OttavaKind::Vb8,
+        "15ma" => acorde_core::OttavaKind::Ma15,
+        "15mb" => acorde_core::OttavaKind::Mb15,
+        _ => return None,
+    })
+}
+
+/// An ottava over consecutive beats: its kind and the (measure, note) of its first and last note.
+type OttavaRun = (acorde_core::OttavaKind, (usize, usize), (usize, usize));
+
+/// Guitar Pro marks an ottava on every beat it covers; the model spans it from the first note
+/// of a run of beats with the same mark to the last.
+pub(super) fn resolve_beat_ottavas(score: &mut Score) {
+    for staff in score
+        .parts
+        .iter_mut()
+        .flat_map(|part| part.staves.iter_mut())
+    {
+        for voice_index in 0..4 {
+            let mut run: Option<OttavaRun> = None;
+            let mut runs = Vec::new();
+            for (measure_index, measure) in staff.measures.iter_mut().enumerate() {
+                for (note_index, note) in measure.voices[voice_index].iter_mut().enumerate() {
+                    let kind = note.ottava_start.take();
+                    let here = (measure_index, note_index);
+                    match (&mut run, kind) {
+                        (Some((current, _, last)), Some(kind)) if *current == kind => {
+                            if !note.is_rest {
+                                *last = here;
+                            }
+                        }
+                        (_, kind) => {
+                            if let Some(done) = run.take() {
+                                runs.push(done);
+                            }
+                            run = kind
+                                .filter(|_| !note.is_rest)
+                                .map(|kind| (kind, here, here));
+                        }
+                    }
+                }
+            }
+            runs.extend(run);
+            for (kind, (start_measure, start_note), (end_measure, end_note)) in runs {
+                staff.measures[start_measure].voices[voice_index][start_note].ottava_start =
+                    Some(kind);
+                staff.measures[end_measure].voices[voice_index][end_note].ottava_end = true;
+            }
+        }
+    }
+}
+
 fn resolve_hammer_pull(score: &mut Score) {
     for part in &mut score.parts {
         for staff in &mut part.staves {
@@ -1495,6 +1595,39 @@ mod tests {
         );
         // Only the A of the first chord is tied.
         assert_eq!(voice[0].pitch_tie_starts, vec![true, false]);
+    }
+
+    #[test]
+    fn gp7_beat_ottavas_become_spans_and_bar_fermatas_land_on_notes() {
+        let gpif = GPIF
+            .replace(
+                "<Section><Letter>A</Letter>",
+                "<Fermatas><Fermata><Type>Medium</Type><Length>0.5</Length><Offset>1/1</Offset></Fermata></Fermatas><Section><Letter>A</Letter>",
+            )
+            .replace("<Notes>0 1</Notes>", "<Notes>0 1</Notes><Ottavia>8va</Ottavia>")
+            .replace("<Notes>2</Notes>", "<Notes>2</Notes><Ottavia>8va</Ottavia>")
+            .replace("<Notes>3</Notes>", "<Notes>3</Notes><Ottavia>8va</Ottavia>")
+            .replace("<Notes>4</Notes>", "<Notes>4</Notes><Ottavia>15mb</Ottavia>");
+        let report = parse_gp_with_report(&archive(&gpif)).expect("GP7 archive parses");
+        let staff = &report.score.parts[0].staves[0];
+        let first = &staff.measures[0].voices[0];
+        assert_eq!(first[0].ottava_start, Some(acorde_core::OttavaKind::Va8));
+        assert!(!first[0].ottava_end);
+        assert_eq!(first[1].ottava_start, None);
+        assert!(!first[1].ottava_end);
+        assert!(first[2].ottava_end);
+        let second = &staff.measures[1].voices[0][0];
+        assert_eq!(second.ottava_start, Some(acorde_core::OttavaKind::Mb15));
+        assert!(second.ottava_end);
+        assert!(first[1].articulations.contains(&Articulation::Fermata));
+        assert!(!first[0].articulations.contains(&Articulation::Fermata));
+        assert!(
+            report
+                .diagnostics
+                .iter()
+                .all(|d| d.code != "gp.unsupported-fermata"
+                    && d.code != "gp.unsupported-beat-ottava")
+        );
     }
 
     #[test]

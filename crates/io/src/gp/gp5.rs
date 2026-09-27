@@ -379,6 +379,7 @@ impl Reader<'_> {
         );
         finish_measures(&mut score, false);
         resolve_hammer_pull(&mut score);
+        super::resolve_beat_ottavas(&mut score);
         Ok(score)
     }
 
@@ -607,17 +608,23 @@ impl Reader<'_> {
                 read,
             ));
         }
+        let mut beat_ottava = None;
         if v >= 500 {
             let flags2 = self.bin.i16()?;
             if flags2 & 0x800 != 0 {
                 self.bin.u8()?;
             }
-            if flags2 & (0x10 | 0x20 | 0x40 | 0x100) != 0 {
-                self.losses.add(
-                    "gp.unsupported-beat-ottava",
-                    "beat ottava marks are not imported",
-                );
-            }
+            beat_ottava = if flags2 & 0x10 != 0 {
+                Some(acorde_core::OttavaKind::Va8)
+            } else if flags2 & 0x20 != 0 {
+                Some(acorde_core::OttavaKind::Vb8)
+            } else if flags2 & 0x40 != 0 {
+                Some(acorde_core::OttavaKind::Ma15)
+            } else if flags2 & 0x100 != 0 {
+                Some(acorde_core::OttavaKind::Mb15)
+            } else {
+                None
+            };
         }
         if empty {
             return Ok(());
@@ -650,6 +657,7 @@ impl Reader<'_> {
         };
         note.dot_count = u8::from(dotted);
         note.tuplet = tuplet;
+        note.ottava_start = beat_ottava;
         let mut ties: Vec<bool> = Vec::new();
         let mut dynamic = None;
         let all_emphasised = members.iter().all(|member| member.3.emphasised);

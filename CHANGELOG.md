@@ -9,6 +9,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Guitar Pro ottavas and bar fermatas.** Beat ottavas (GP7 `<Ottavia>`, GP5 beat flags) were
+  reported as lost; consecutive beats with the same mark now become one `8va`/`8vb`/`15ma`/`15mb`
+  span in each voice (pitches stay at sounding pitch, as with every ottava in the model). GP7 bar
+  fermatas, placed by an offset in the bar, land as a fermata on the first voice's note or rest
+  sounding at that offset in every staff. Checked against alphaTab's `ottavia.gp`/`ottavia.gp5`.
+
 ## [1.2.15] - 2026-09-28
 
 - **MEI import of Verovio-written files.** Checked against 30 corpus scores converted to MEI by
