@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.10] - 2026-09-27
+
 - SVG beams now join the stems (they ran between notehead centres), and sixteenth and shorter
   beams stack toward the noteheads instead of outward.
 - SVG lyrics, dynamics and chord symbols sit on lines measured from the staff, so verse 1

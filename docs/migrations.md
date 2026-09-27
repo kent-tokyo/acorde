@@ -25,6 +25,16 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
+### v1.2.10 — staff-relative SVG engraving and clef changes
+
+No Score JSON or Rust API changes. SVG output changes: beams now connect to stems; lyrics,
+dynamics, and chord symbols use staff-relative baselines; articulations and ornaments use engraved
+glyphs and staff-aware placement; tremolos, lyric hyphens, and flags have new geometry. Hosts that
+compare SVG snapshots should refresh them. MusicXML clef changes on later staves now import at the
+correct measure, C clef line 4 imports as tenor, and a wholly other-staff voice is no longer
+mistaken for cross-staff notation. MEI `<tie>` control events can now preserve a tie on one pitch
+of a chord.
+
 ### v1.2.9 — per-pitch chord ties and Guitar Pro 3/4/5
 
 `Note` gains `pitch_tie_starts` and `pitch_tie_ends`, parallel to `pitches`. They are empty
