@@ -25,7 +25,7 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
-### Unreleased — per-pitch chord ties and Guitar Pro 3/4/5
+### v1.2.9 — per-pitch chord ties and Guitar Pro 3/4/5
 
 `Note` gains `pitch_tie_starts` and `pitch_tie_ends`, parallel to `pitches`. They are empty
 unless a chord ties only some of its notes, and are omitted from JSON when empty, so existing
@@ -38,7 +38,7 @@ sustains only the tied pitches, and the SVG renderer draws one tie per tied note
 `musicxml.partial-chord-tie` and `gp.partial-chord-tie` diagnostics introduced in 1.2.8 are no
 longer emitted. `parse_gp` also reads `.gp3`, `.gp4` and `.gp5` files.
 
-### Unreleased — MusicXML note positions and notehead size
+### v1.2.9 — MusicXML note positions and notehead size
 
 MusicXML import no longer fills `Note::offset_x`/`offset_y` from a note's `default-x`/
 `default-y`; those are absolute positions in the source engraver's layout, and the renderer

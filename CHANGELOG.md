@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.9] - 2026-09-27
+
 - **Guitar Pro 3/4/5 import.** `acorde_io::parse_gp` now also reads `.gp3`, `.gp4` and `.gp5`
   binary files (detected from their bytes; the CLI accepts the extensions). They share the GPIF
   path's mapping and `gp.*` diagnostics: tuning and capo, string/fret, bends, hammer/pull,
