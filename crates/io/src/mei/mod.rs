@@ -214,8 +214,13 @@ fn mei_figured_bass_display_text(figure: &FiguredBassFigure) -> String {
 }
 
 fn parse_clef(shape: Option<String>, line: Option<String>) -> Option<Clef> {
+    let shape = shape?.to_ascii_uppercase();
+    // MEI's percussion clef is `perc` (acorde once wrote `P`); it needs no line.
+    if matches!(shape.as_str(), "PERC" | "P") {
+        return Some(Clef::Percussion);
+    }
     let line = line?.parse::<u8>().ok()?;
-    match (shape?.to_ascii_uppercase().as_str(), line) {
+    match (shape.as_str(), line) {
         ("G", 2) => Some(Clef::Treble),
         ("F", 4) => Some(Clef::Bass),
         ("C", 3) => Some(Clef::Alto),
@@ -3692,7 +3697,7 @@ fn mei_clef(clef: Clef) -> (&'static str, u8) {
         Clef::Bass => ("F", 4),
         Clef::Alto => ("C", 3),
         Clef::Tenor => ("C", 4),
-        Clef::Percussion => ("P", 1),
+        Clef::Percussion => ("perc", 3),
     }
 }
 
@@ -4544,6 +4549,38 @@ fn append_mei_measure_staves(
         let written =
             mei_written_accidentals(measure, staff_fifths.get(staff_index).copied().unwrap_or(0));
         out.push_str(&format!("<staff n=\"{}\">", staff_index + 1));
+        // Verovio resolves a cross-staff note through the layer with the same @n on the target
+        // staff, so make sure that layer exists (empty when this staff has nothing in it).
+        let mut cross_layers = staves
+            .iter()
+            .enumerate()
+            .filter(|(other, _)| *other != staff_index)
+            .filter_map(|(_, other)| other.measures.get(measure_index))
+            .flat_map(|other| {
+                other
+                    .voices
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(voice_index, voice)| {
+                        voice
+                            .iter()
+                            .any(|note| {
+                                note.cross_staff
+                                    .as_ref()
+                                    .is_some_and(|cross| cross.target_staff == staff_index)
+                            })
+                            .then_some(voice_index)
+                    })
+            })
+            .filter(|voice_index| {
+                measure
+                    .voices
+                    .get(*voice_index)
+                    .is_none_or(|voice| voice.is_empty())
+            })
+            .collect::<Vec<_>>();
+        cross_layers.sort_unstable();
+        cross_layers.dedup();
         let mut clef_change = measure.clef.clone();
         for (voice_index, voice) in measure.voices.iter().enumerate() {
             if voice.is_empty() {
@@ -4618,6 +4655,9 @@ fn append_mei_measure_staves(
                 }
             }
             out.push_str("</layer>");
+        }
+        for voice_index in cross_layers {
+            out.push_str(&format!("<layer n=\"{}\"/>", voice_index + 1));
         }
         if let Some(count) = measure.multi_rest_count {
             let rest = if count == 1 {
