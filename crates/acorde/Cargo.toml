@@ -20,6 +20,7 @@ midi = ["acorde-io/midi"]
 abc = ["acorde-io/abc"]
 mscz = ["acorde-io/mscz"]
 mei = ["acorde-io/mei"]
+gp = ["acorde-io/gp"]
 soundfont = ["dep:acorde-soundfont"]
 soundfont-sf3-vorbis = ["soundfont", "acorde-soundfont/sf3-vorbis"]
 

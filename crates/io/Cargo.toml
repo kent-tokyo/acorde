@@ -20,6 +20,8 @@ midi = ["dep:midly"]
 abc = []
 mscz = ["dep:quick-xml", "dep:zip"]
 mei = ["dep:quick-xml"]
+# Guitar Pro 7/8 (.gp) import.
+gp = ["dep:quick-xml", "dep:zip"]
 
 [dependencies]
 acorde-core = { path = "../core", version = "1.2.7" }

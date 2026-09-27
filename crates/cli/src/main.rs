@@ -99,14 +99,14 @@ struct Cli {
 enum Commands {
     /// Convert a score file between formats
     Convert {
-        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx)
+        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx, .gp)
         input: PathBuf,
         /// Output file (.musicxml, .mid, .midi, .abc, .mei)
         output: PathBuf,
     },
     /// Render a score file to deterministic SVG
     Render {
-        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx)
+        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx, .gp)
         input: PathBuf,
         /// Output SVG file
         output: PathBuf,
@@ -125,7 +125,7 @@ enum Commands {
     },
     /// Render a score file to SVG and print import/renderer diagnostics as JSON
     RenderReport {
-        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx)
+        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx, .gp)
         input: PathBuf,
         /// Output SVG file
         output: PathBuf,
@@ -223,7 +223,7 @@ enum Commands {
     },
     /// Analyze chords, melodic intervals, and key candidates as JSON
     Analyze {
-        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx)
+        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx, .gp)
         input: PathBuf,
     },
     /// Run a local analysis benchmark manifest and print its JSON report
@@ -249,7 +249,7 @@ enum Commands {
     },
     /// Transpose every pitched note and key signature by semitones
     Transpose {
-        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx)
+        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx, .gp)
         input: PathBuf,
         /// Output file (.musicxml, .mid, .midi)
         output: PathBuf,
@@ -551,6 +551,7 @@ fn parse_score(path: &Path) -> Result<Score, String> {
             acorde_io::parse_musicxml(&xml).map_err(|e| e.to_string())
         }
         "mxl" => acorde_io::parse_mxl(&data).map_err(|e| e.to_string()),
+        "gp" => acorde_io::parse_gp(&data).map_err(|e| e.to_string()),
         "mid" | "midi" => acorde_io::parse_midi(&data).map_err(|e| e.to_string()),
         "abc" => {
             let text = acorde_io::decode_xml_text(&data)
@@ -585,6 +586,7 @@ fn parse_report(path: &Path) -> Result<ImportReport, String> {
             acorde_io::parse_musicxml_with_report(&text).map_err(|e| e.to_string())
         }
         "mxl" => acorde_io::parse_mxl_with_report(&data).map_err(|e| e.to_string()),
+        "gp" => acorde_io::parse_gp_with_report(&data).map_err(|e| e.to_string()),
         "mid" | "midi" => acorde_io::parse_midi_with_report(&data).map_err(|e| e.to_string()),
         "abc" => {
             let text = acorde_io::decode_xml_text(&data).map_err(|e| e.to_string())?;
