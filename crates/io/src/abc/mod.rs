@@ -1345,7 +1345,11 @@ fn abc_articulation_decoration(articulation: &acorde_core::Articulation) -> Opti
         | acorde_core::Articulation::Tremolo(_)
         | acorde_core::Articulation::Tap
         | acorde_core::Articulation::LeftHandTap
-        | acorde_core::Articulation::Vibrato => None,
+        | acorde_core::Articulation::Vibrato
+        | acorde_core::Articulation::Scoop
+        | acorde_core::Articulation::Plop
+        | acorde_core::Articulation::Doit
+        | acorde_core::Articulation::Falloff => None,
     }
 }
 

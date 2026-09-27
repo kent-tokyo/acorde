@@ -195,6 +195,10 @@ fn note_has_unsupported_fields(note: &Note) -> bool {
                     | Articulation::Fermata
                     | Articulation::BreathMark
                     | Articulation::Caesura
+                    | Articulation::Scoop
+                    | Articulation::Plop
+                    | Articulation::Doit
+                    | Articulation::Falloff
             ) && articulation_subtype(articulation).is_none()
         })
         || note
@@ -1154,6 +1158,16 @@ fn write_note(
         )
         .map_err(fmt_error)?;
     }
+    for articulation in &note.articulations {
+        let subtype = match articulation {
+            Articulation::Falloff => 1,
+            Articulation::Doit => 2,
+            Articulation::Plop => 3,
+            Articulation::Scoop => 4,
+            _ => continue,
+        };
+        write!(xml, "<ChordLine><subtype>{subtype}</subtype></ChordLine>").map_err(fmt_error)?;
+    }
     xml.push_str("</Chord>");
     // Breath marks and caesuras follow the chord they come after.
     for articulation in &note.articulations {
@@ -1301,7 +1315,14 @@ fn articulation_subtype(articulation: &Articulation) -> Option<&'static str> {
         Articulation::Turn => Some("ornamentTurn"),
         Articulation::InvertedTurn => Some("ornamentTurnInverted"),
         // MuseScore 3 has no tapping or single-note vibrato articulation.
-        Articulation::Tap | Articulation::LeftHandTap | Articulation::Vibrato => None,
+        // Written as `<ChordLine>` instead.
+        Articulation::Tap
+        | Articulation::LeftHandTap
+        | Articulation::Vibrato
+        | Articulation::Scoop
+        | Articulation::Plop
+        | Articulation::Doit
+        | Articulation::Falloff => None,
         Articulation::Tremolo(_)
         | Articulation::Fermata
         | Articulation::Shake

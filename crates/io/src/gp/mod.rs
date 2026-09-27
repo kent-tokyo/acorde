@@ -1283,10 +1283,15 @@ fn apply_note_effects_rest(node: &Node, note: &mut Note, losses: &mut Losses) {
         if flags & 0x03 != 0 && note.guitar_technique.is_none() {
             note.guitar_technique = Some(GuitarTechnique::Slide);
         }
-        if flags & !0x03 != 0 {
+        for articulation in gp_slide_marks(flags) {
+            if !note.articulations.contains(&articulation) {
+                note.articulations.push(articulation);
+            }
+        }
+        if flags & !0x3f != 0 {
             losses.add(
                 "gp.unsupported-slide-type",
-                "slide-in/out and pick slides are not imported (shift and legato slides are)",
+                "pick slides are not imported (shift, legato and in/out slides are)",
             );
         }
     }
@@ -1356,6 +1361,21 @@ fn place_bar_fermata(measure: &mut Measure, offset: f64) {
     {
         note.articulations.push(Articulation::Fermata);
     }
+}
+
+/// Slides into and out of a note (Guitar Pro 5+ slide flags): out downwards is a fall-off, out
+/// upwards a doit, in from below a scoop, in from above a plop.
+pub(super) fn gp_slide_marks(flags: u32) -> Vec<Articulation> {
+    [
+        (0x04, Articulation::Falloff),
+        (0x08, Articulation::Doit),
+        (0x10, Articulation::Scoop),
+        (0x20, Articulation::Plop),
+    ]
+    .into_iter()
+    .filter(|(bit, _)| flags & bit != 0)
+    .map(|(_, articulation)| articulation)
+    .collect()
 }
 
 /// A Guitar Pro 7 `<Ottavia>` value.

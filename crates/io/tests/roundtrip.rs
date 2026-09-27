@@ -5679,3 +5679,41 @@ fn tapping_and_vibrato_round_trip_through_musicxml() {
     assert!(written.contains(r#"<tap hand="left"/>"#));
     check(&parse_musicxml(&written).expect("reparses"));
 }
+
+#[test]
+fn scoops_plops_doits_and_falloffs_round_trip() {
+    use acorde_core::Articulation;
+    let marks = ["scoop", "plop", "doit", "falloff"];
+    let notes: String = marks
+        .iter()
+        .map(|mark| format!(r#"<note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notations><articulations><{mark}/></articulations></notations></note>"#))
+        .collect();
+    let xml = format!(
+        r#"<score-partwise><part-list><score-part id="P1"><part-name>Tpt</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>{notes}</measure></part></score-partwise>"#
+    );
+    let expected = [
+        Articulation::Scoop,
+        Articulation::Plop,
+        Articulation::Doit,
+        Articulation::Falloff,
+    ];
+    let check = |score: &acorde_core::Score, format: &str| {
+        let voice = &score.parts[0].staves[0].measures[0].voices[0];
+        for (note, articulation) in voice.iter().zip(&expected) {
+            assert_eq!(note.articulations, vec![articulation.clone()], "{format}");
+        }
+    };
+    let score = parse_musicxml(&xml).expect("parses");
+    check(&score, "MusicXML");
+    check(
+        &parse_musicxml(&serialize_musicxml(&score).expect("MusicXML")).expect("reparses"),
+        "MusicXML again",
+    );
+    check(
+        &acorde_io::parse_mei(&acorde_io::serialize_mei(&score).expect("MEI")).expect("MEI"),
+        "MEI",
+    );
+    let mscx = acorde_io::serialize_mscx(&score).expect("MSCX");
+    assert!(mscx.contains("<ChordLine><subtype>4</subtype></ChordLine>"));
+    check(&acorde_io::parse_mscx(&mscx).expect("MSCX"), "MSCX");
+}

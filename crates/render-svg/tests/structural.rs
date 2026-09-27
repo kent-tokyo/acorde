@@ -3430,18 +3430,23 @@ fn tapping_and_vibrato_marks_render() {
         Articulation::Tap,
         Articulation::LeftHandTap,
         Articulation::Vibrato,
+        Articulation::Scoop,
     ] {
         let mut note = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
         note.articulations.push(articulation);
         notes.push(note);
     }
-    notes.push(Note::rest(Duration::Quarter));
     measure.voices[0] = notes;
     staff.measures.push(measure);
     part.staves = vec![staff];
     score.parts = vec![part];
     let svg = render_svg(&score, &opts()).unwrap();
-    for class in ["acorde-tap", "acorde-left-hand-tap", "acorde-vibrato"] {
+    for class in [
+        "acorde-tap",
+        "acorde-left-hand-tap",
+        "acorde-vibrato",
+        "acorde-scoop",
+    ] {
         assert_eq!(svg.matches(&format!("{class}\"")).count(), 1, "{class}");
     }
 }

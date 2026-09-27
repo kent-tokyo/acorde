@@ -1032,6 +1032,10 @@ fn articulation_metadata_name(articulation: &acorde_core::Articulation) -> Strin
         acorde_core::Articulation::Tap => "tap".to_owned(),
         acorde_core::Articulation::LeftHandTap => "left-hand-tap".to_owned(),
         acorde_core::Articulation::Vibrato => "vibrato".to_owned(),
+        acorde_core::Articulation::Scoop => "scoop".to_owned(),
+        acorde_core::Articulation::Plop => "plop".to_owned(),
+        acorde_core::Articulation::Doit => "doit".to_owned(),
+        acorde_core::Articulation::Falloff => "falloff".to_owned(),
     }
 }
 
@@ -6788,6 +6792,11 @@ pub(crate) fn render_articulation(
     space: f32,
 ) {
     match articulation {
+        // Slides into and out of the note are drawn at the notehead (`render_chord_lines`).
+        acorde_core::Articulation::Scoop
+        | acorde_core::Articulation::Plop
+        | acorde_core::Articulation::Doit
+        | acorde_core::Articulation::Falloff => {}
         // Tapping: a "T" (left-hand tapping in a circle, as Guitar Pro draws it).
         acorde_core::Articulation::Tap | acorde_core::Articulation::LeftHandTap => {
             let left = matches!(articulation, acorde_core::Articulation::LeftHandTap);
@@ -7680,6 +7689,9 @@ fn render_pitched_note_heads(
             space,
             filled,
         ));
+        if pitch_index == 0 {
+            render_chord_lines(body, note, x + notehead_offsets[0] * space, y, space);
+        }
         if note.duration == Duration::Breve {
             // A breve is a whole-note head between two pairs of vertical bars.
             let cx = x + notehead_offsets[pitch_index] * space;
@@ -7789,6 +7801,44 @@ fn chord_accidental_offsets(
         offsets[pitch_index] = offsets[pitch_index].max(column as f32 * 0.65);
     }
     offsets
+}
+
+/// Jazz slides at a notehead: a scoop or plop curving in from the left (below or above), a
+/// doit or fall-off curving out to the right (up or down).
+fn render_chord_lines(body: &mut String, note: &Note, cx: f32, cy: f32, space: f32) {
+    for articulation in &note.articulations {
+        let (class, from_left, rise) = match articulation {
+            acorde_core::Articulation::Scoop => ("acorde-scoop", true, 1.0_f32),
+            acorde_core::Articulation::Plop => ("acorde-plop", true, -1.0),
+            acorde_core::Articulation::Doit => ("acorde-doit", false, -1.0),
+            acorde_core::Articulation::Falloff => ("acorde-falloff", false, 1.0),
+            _ => continue,
+        };
+        let edge = (glyphs::NOTEHEAD_RX_U + 0.2) * space;
+        let (near_x, far_x) = if from_left {
+            (cx - edge, cx - edge - 1.6 * space)
+        } else {
+            (cx + edge, cx + edge + 1.6 * space)
+        };
+        // SVG y grows downward: a scoop starts below, a doit ends above.
+        let far_y = cy + rise * 1.3 * space;
+        let (control_x, control_y) = if from_left {
+            (near_x - 0.4 * space, cy + rise * 0.1 * space)
+        } else {
+            (near_x + 0.9 * space, cy)
+        };
+        let _ = write!(
+            body,
+            r#"<path class="acorde-articulation {class}" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+            f(far_x),
+            f(far_y),
+            f(control_x),
+            f(control_y),
+            f(near_x),
+            f(cy),
+            f(0.1 * space)
+        );
+    }
 }
 
 /// Parentheses around a ghost note's notehead.

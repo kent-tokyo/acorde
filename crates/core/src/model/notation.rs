@@ -449,6 +449,14 @@ pub enum Articulation {
     LeftHandTap,
     /// Vibrato on one note, a short wavy line above it (Guitar Pro note vibrato).
     Vibrato,
+    /// A slide into the note from below (MusicXML `<scoop/>`, Guitar Pro slide in from below).
+    Scoop,
+    /// A slide into the note from above (MusicXML `<plop/>`, Guitar Pro slide in from above).
+    Plop,
+    /// A slide up out of the note (MusicXML `<doit/>`, Guitar Pro slide out upwards).
+    Doit,
+    /// A slide down out of the note (MusicXML `<falloff/>`, Guitar Pro slide out downwards).
+    Falloff,
 }
 
 impl Articulation {

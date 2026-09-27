@@ -321,6 +321,10 @@ fn parse_articulation(value: &str) -> Option<Articulation> {
         "stop" => Articulation::Stopped,
         "snap" => Articulation::SnapPizzicato,
         "tap" => Articulation::Tap,
+        "scoop" => Articulation::Scoop,
+        "plop" => Articulation::Plop,
+        "doit" => Articulation::Doit,
+        "fall" | "longfall" => Articulation::Falloff,
         _ => return None,
     })
 }
@@ -4563,6 +4567,10 @@ fn mei_artic_value(articulation: &Articulation) -> Option<&'static str> {
         Articulation::Stopped => "stop",
         Articulation::SnapPizzicato => "snap",
         Articulation::Tap | Articulation::LeftHandTap => "tap",
+        Articulation::Scoop => "scoop",
+        Articulation::Plop => "plop",
+        Articulation::Doit => "doit",
+        Articulation::Falloff => "fall",
         _ => return None,
     })
 }

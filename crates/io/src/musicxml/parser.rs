@@ -980,6 +980,10 @@ pub(crate) fn parse_musicxml_collecting(
                         pending_articulations.push(Articulation::BreathMark)
                     }
                     "caesura" if in_notations => pending_articulations.push(Articulation::Caesura),
+                    "scoop" if in_notations => pending_articulations.push(Articulation::Scoop),
+                    "plop" if in_notations => pending_articulations.push(Articulation::Plop),
+                    "doit" if in_notations => pending_articulations.push(Articulation::Doit),
+                    "falloff" if in_notations => pending_articulations.push(Articulation::Falloff),
                     "arpeggiate" if in_notations => {
                         let dir = attr_str(e, b"direction");
                         note_arpeggiate = Some(!matches!(dir.as_deref(), Some("down")));

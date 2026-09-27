@@ -25,10 +25,11 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
-### Unreleased — tapping and vibrato
+### Unreleased — tapping, vibrato and jazz slides
 
 `Articulation` gains `Tap`, `LeftHandTap` and `Vibrato` (all three are MusicXML technical
-marks, so `is_technical_mark` is true for them). Exhaustive `Articulation` matches need the arms.
+marks, so `is_technical_mark` is true for them) and `Scoop`, `Plop`, `Doit` and `Falloff`.
+Exhaustive `Articulation` matches need the arms.
 
 ### Unreleased — breves and 128th notes
 

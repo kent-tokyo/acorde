@@ -1062,10 +1062,22 @@ impl Reader<'_> {
             if shift_or_legato {
                 read.slide = true;
             }
-            let other = if v >= 500 {
-                kind & !0x03 != 0
+            // GP3/4 number the in/out slides; GP5 sets the same bits as GP7.
+            read.slide_marks = if v >= 500 {
+                super::gp_slide_marks(u32::from(kind as u8))
             } else {
-                !(0..=2).contains(&kind)
+                super::gp_slide_marks(match kind {
+                    3 => 0x04,
+                    4 => 0x08,
+                    -1 => 0x10,
+                    -2 => 0x20,
+                    _ => 0,
+                })
+            };
+            let other = if v >= 500 {
+                kind as u8 & !0x3f != 0
+            } else {
+                !(-2..=4).contains(&kind)
             };
             if other {
                 self.losses.add(
@@ -1114,6 +1126,9 @@ impl Reader<'_> {
         }
         if read.vibrato {
             push_articulation(note, Articulation::Vibrato);
+        }
+        for mark in &read.slide_marks {
+            push_articulation(note, mark.clone());
         }
         if read.staccato {
             push_articulation(note, Articulation::Staccato);
@@ -1410,6 +1425,7 @@ struct NoteRead {
     /// A ghost note: its notehead is drawn in parentheses.
     ghost: bool,
     vibrato: bool,
+    slide_marks: Vec<Articulation>,
     heavy_accent: bool,
     accent: bool,
     dynamic: Option<i8>,

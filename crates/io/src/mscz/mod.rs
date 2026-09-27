@@ -274,6 +274,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut in_tremolo = false;
     let mut chord_articulations: Vec<Articulation> = Vec::new();
     let mut in_articulation = false;
+    // `<ChordLine>`: a fall (1), doit (2), plop (3) or scoop (4) on the chord.
+    let mut in_chord_line = false;
+    let mut chord_line_subtype = String::new();
     let mut articulation_subtype = String::new();
     let mut in_beam = false;
     let mut beam_stem_up: Option<bool> = None;
@@ -667,6 +670,10 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "Tremolo" if in_chord && !in_note_elem => {
                         in_tremolo = true;
                         chord_tremolo = Some(1);
+                    }
+                    "ChordLine" if in_chord && !in_note_elem => {
+                        in_chord_line = true;
+                        chord_line_subtype.clear();
                     }
                     "Articulation" if in_chord && !in_note_elem => {
                         in_articulation = true;
@@ -1634,6 +1641,22 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "Tremolo" if in_tremolo => {
                         in_tremolo = false;
+                    }
+                    "subtype" if in_chord_line => {
+                        chord_line_subtype = t.trim().to_string();
+                    }
+                    "ChordLine" if in_chord_line => {
+                        let articulation = match chord_line_subtype.as_str() {
+                            "1" | "fall" => Some(Articulation::Falloff),
+                            "2" | "doit" => Some(Articulation::Doit),
+                            "3" | "plop" => Some(Articulation::Plop),
+                            "4" | "scoop" => Some(Articulation::Scoop),
+                            _ => None,
+                        };
+                        if let Some(articulation) = articulation {
+                            chord_articulations.push(articulation);
+                        }
+                        in_chord_line = false;
                     }
                     "subtype" if in_articulation => {
                         articulation_subtype = t.to_string();

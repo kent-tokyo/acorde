@@ -1578,6 +1578,10 @@ fn serialize_notations(
                 Articulation::Tremolo(n) => tremolo_n = Some(*n),
                 Articulation::BreathMark => tags.push("breath-mark"),
                 Articulation::Caesura => tags.push("caesura"),
+                Articulation::Scoop => tags.push("scoop"),
+                Articulation::Plop => tags.push("plop"),
+                Articulation::Doit => tags.push("doit"),
+                Articulation::Falloff => tags.push("falloff"),
                 // Written inside <technical> below.
                 Articulation::UpBow
                 | Articulation::DownBow
