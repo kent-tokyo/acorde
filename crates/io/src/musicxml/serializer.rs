@@ -1,8 +1,8 @@
 use crate::Error;
 use acorde_core::{
-    Articulation, Barline, Duration, GuitarTechnique, HairpinKind, HarpPedalPosition,
+    Articulation, Barline, BeamState, Duration, GuitarTechnique, HairpinKind, HarpPedalPosition,
     NotationSpanner, NotationSpannerKind, Note, NoteAddr, NoteHead, PartGroup, PartGroupSymbol,
-    Score, TextStyle, TimeSignature,
+    Score, TextStyle, TimeSignature, compute_beams,
 };
 
 const DIVISIONS: u32 = 480;
@@ -55,7 +55,7 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
         }
         xml.push_str(&format!(
             "    <score-part id=\"{}\">\n",
-            escape_xml(&part.id)
+            escape_xml(&musicxml_part_id(&part.id))
         ));
         xml.push_str(&format!(
             "      <part-name>{}</part-name>\n",
@@ -79,7 +79,7 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
         }
         xml.push_str(&format!(
             "      <midi-instrument id=\"{}-I1\">\n",
-            escape_xml(&part.id)
+            escape_xml(&musicxml_part_id(&part.id))
         ));
         xml.push_str(&format!(
             "        <midi-channel>{}</midi-channel>\n",
@@ -101,7 +101,10 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
     xml.push_str("  </part-list>\n");
 
     for (pi, part) in score.parts.iter().enumerate() {
-        xml.push_str(&format!("  <part id=\"{}\">\n", escape_xml(&part.id)));
+        xml.push_str(&format!(
+            "  <part id=\"{}\">\n",
+            escape_xml(&musicxml_part_id(&part.id))
+        ));
         let staff = match part.staves.first() {
             Some(s) => s,
             None => {
@@ -408,7 +411,12 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 xml.push_str(&format!("      <direction{}>\n", attrs));
                 xml.push_str("        <direction-type>\n");
                 xml.push_str(&format!(
-                    "          <rehearsal>{}</rehearsal>\n",
+                    "          <rehearsal{}>{}</rehearsal>\n",
+                    styled_text_position_attrs(measure_styled_text(
+                        measure,
+                        TextStyle::RehearsalMark,
+                        reh
+                    )),
                     escape_xml(reh)
                 ));
                 xml.push_str("        </direction-type>\n");
@@ -420,7 +428,15 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 let attrs = measure_text_direction_attrs(measure, TextStyle::Generic, text);
                 xml.push_str(&format!("      <direction{}>\n", attrs));
                 xml.push_str("        <direction-type>\n");
-                xml.push_str(&format!("          <words>{}</words>\n", escape_xml(text)));
+                xml.push_str(&format!(
+                    "          <words{}>{}</words>\n",
+                    styled_text_position_attrs(measure_styled_text(
+                        measure,
+                        TextStyle::Generic,
+                        text
+                    )),
+                    escape_xml(text)
+                ));
                 xml.push_str("        </direction-type>\n");
                 xml.push_str("      </direction>\n");
             }
@@ -430,7 +446,15 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 let attrs = measure_text_direction_attrs(measure, TextStyle::Expression, text);
                 xml.push_str(&format!("      <direction{}>\n", attrs));
                 xml.push_str("        <direction-type>\n");
-                xml.push_str(&format!("          <words>{}</words>\n", escape_xml(text)));
+                xml.push_str(&format!(
+                    "          <words{}>{}</words>\n",
+                    styled_text_position_attrs(measure_styled_text(
+                        measure,
+                        TextStyle::Expression,
+                        text
+                    )),
+                    escape_xml(text)
+                ));
                 xml.push_str("        </direction-type>\n");
                 xml.push_str("      </direction>\n");
             }
@@ -512,8 +536,9 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 if styled.style == TextStyle::RehearsalMark {
                     let attrs = styled_direction_attrs(styled);
                     xml.push_str(&format!(
-                        "      <direction{}><direction-type><rehearsal>",
-                        attrs
+                        "      <direction{}><direction-type><rehearsal{}>",
+                        attrs,
+                        styled_text_position_attrs(Some(styled))
                     ));
                     xml.push_str(&escape_xml(&styled.text));
                     xml.push_str("</rehearsal></direction-type></direction>\n");
@@ -521,8 +546,9 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 }
                 let attrs = styled_direction_attrs(styled);
                 xml.push_str(&format!(
-                    "      <direction{}><direction-type><words>",
-                    attrs
+                    "      <direction{}><direction-type><words{}>",
+                    attrs,
+                    styled_text_position_attrs(Some(styled))
                 ));
                 xml.push_str(&escape_xml(&styled.text));
                 xml.push_str("</words></direction-type></direction>\n");
@@ -794,14 +820,55 @@ fn serialize_note(
     let (dur_ticks, duration_type, dot_count, is_measure_rest) =
         serialized_note_timing(note, measure_ticks);
 
-    if note.is_rest {
-        xml.push_str(&format!("      <note{}>\n", note_placement_attrs(note)));
-        if is_measure_rest {
-            xml.push_str("        <rest measure=\"yes\"/>\n");
+    let voice_notes = score
+        .parts
+        .get(address.part)
+        .and_then(|part| part.staves.get(address.staff))
+        .and_then(|staff| staff.measures.get(address.measure))
+        .map(|measure| {
+            (
+                measure.voices.get(address.voice).map(Vec::as_slice),
+                measure
+                    .time_sig
+                    .clone()
+                    .unwrap_or_else(|| score.settings.time_signature.clone()),
+            )
+        });
+    // Beams: explicit states when the voice has any, otherwise the default beat grouping so
+    // readers that do not auto-beam (Verovio) still show beams.
+    let beam = voice_notes.as_ref().and_then(|(voice, time)| {
+        let voice = (*voice)?;
+        let state = if voice.iter().all(|note| note.beam == BeamState::None) {
+            compute_beams(voice, time).get(address.note).copied()?
         } else {
-            xml.push_str("        <rest/>\n");
+            voice.get(address.note)?.beam
+        };
+        match state {
+            BeamState::Begin => Some("begin"),
+            BeamState::Continue => Some("continue"),
+            BeamState::End => Some("end"),
+            BeamState::ForwardHook => Some("forward hook"),
+            BeamState::BackwardHook => Some("backward hook"),
+            BeamState::None | BeamState::BeginEnd => None,
         }
-        xml.push_str(&format!("        <duration>{}</duration>\n", dur_ticks));
+    });
+    let tuplet_marks =
+        voice_notes
+            .as_ref()
+            .and_then(|(voice, _)| *voice)
+            .map_or((false, false), |voice| {
+                crate::tuplet_groups(voice).iter().fold(
+                    (false, false),
+                    |(start, stop), &(first, last)| {
+                        (start || first == address.note, stop || last == address.note)
+                    },
+                )
+            });
+
+    // Elements follow the MusicXML <note> content order: grace/cue, chord, pitch|rest, duration,
+    // tie, instrument, voice, type, dot, time-modification, stem, notehead, staff, beam,
+    // notations, lyric.
+    let push_time_modification = |xml: &mut String| {
         if let Some(tuplet) = &note.tuplet {
             xml.push_str("        <time-modification>\n");
             xml.push_str(&format!(
@@ -814,117 +881,122 @@ fn serialize_note(
             ));
             xml.push_str("        </time-modification>\n");
         }
-        xml.push_str(&format!("        <voice>{voice_number}</voice>\n"));
-        if let Some(cross) = &note.cross_staff {
-            xml.push_str(&format!(
-                "        <staff>{}</staff>\n",
-                cross.target_staff + 1
-            ));
+    };
+    let staff_element = match &note.cross_staff {
+        Some(cross) => format!("        <staff>{}</staff>\n", cross.target_staff + 1),
+        None => format!("        <staff>{staff_number}</staff>\n"),
+    };
+
+    if note.is_rest {
+        xml.push_str(&format!("      <note{}>\n", note_placement_attrs(note)));
+        if is_measure_rest {
+            xml.push_str("        <rest measure=\"yes\"/>\n");
         } else {
-            xml.push_str(&format!("        <staff>{staff_number}</staff>\n"));
+            xml.push_str("        <rest/>\n");
         }
+        xml.push_str(&format!("        <duration>{}</duration>\n", dur_ticks));
+        xml.push_str(&format!("        <voice>{voice_number}</voice>\n"));
         xml.push_str(&format!("        <type>{}</type>\n", duration_type));
         for _ in 0..dot_count {
             xml.push_str("        <dot/>\n");
         }
+        push_time_modification(xml);
+        xml.push_str(&staff_element);
         xml.push_str("      </note>\n");
     } else if let Some(pitch) = note.pitches.first() {
-        xml.push_str(&format!("      <note{}>\n", note_placement_attrs(note)));
-        if note.is_grace {
-            if note.grace_slash {
-                xml.push_str("        <grace slash=\"yes\"/>\n");
+        let push_pitch = |xml: &mut String, pitch: &acorde_core::Pitch| {
+            if note.is_unpitched {
+                xml.push_str("        <unpitched>\n");
+                xml.push_str(&format!(
+                    "          <display-step>{}</display-step>\n",
+                    pitch.step.to_char()
+                ));
+                xml.push_str(&format!(
+                    "          <display-octave>{}</display-octave>\n",
+                    pitch.octave
+                ));
+                xml.push_str("        </unpitched>\n");
             } else {
-                xml.push_str("        <grace/>\n");
-            }
-        }
-        if note.is_cue {
-            xml.push_str("        <cue/>\n");
-        }
-        if note.is_unpitched {
-            xml.push_str("        <unpitched>\n");
-            xml.push_str(&format!(
-                "          <display-step>{}</display-step>\n",
-                pitch.step.to_char()
-            ));
-            xml.push_str(&format!(
-                "          <display-octave>{}</display-octave>\n",
-                pitch.octave
-            ));
-            xml.push_str("        </unpitched>\n");
-        } else {
-            xml.push_str("        <pitch>\n");
-            xml.push_str(&format!(
-                "          <step>{}</step>\n",
-                pitch.step.to_char()
-            ));
-            if pitch.alter != 0 || pitch.microtone_cents != 0 {
-                let alter = pitch.alter as f32 + pitch.microtone_cents as f32 / 100.0;
-                xml.push_str(&format!("          <alter>{alter}</alter>\n"));
-            }
-            xml.push_str(&format!("          <octave>{}</octave>\n", pitch.octave));
-            xml.push_str("        </pitch>\n");
-        }
-        if let Some(instrument_id) = &note.instrument_id {
-            xml.push_str(&format!(
-                "        <instrument id=\"{}\"/>\n",
-                escape_xml(instrument_id)
-            ));
-        }
-        if !note.is_grace {
-            xml.push_str(&format!("        <duration>{}</duration>\n", dur_ticks));
-            if let Some(tuplet) = &note.tuplet {
-                xml.push_str("        <time-modification>\n");
+                xml.push_str("        <pitch>\n");
                 xml.push_str(&format!(
-                    "          <actual-notes>{}</actual-notes>\n",
-                    tuplet.actual_notes
+                    "          <step>{}</step>\n",
+                    pitch.step.to_char()
                 ));
-                xml.push_str(&format!(
-                    "          <normal-notes>{}</normal-notes>\n",
-                    tuplet.normal_notes
-                ));
-                xml.push_str("        </time-modification>\n");
+                if pitch.alter != 0 || pitch.microtone_cents != 0 {
+                    let alter = pitch.alter as f32 + pitch.microtone_cents as f32 / 100.0;
+                    xml.push_str(&format!("          <alter>{alter}</alter>\n"));
+                }
+                xml.push_str(&format!("          <octave>{}</octave>\n", pitch.octave));
+                xml.push_str("        </pitch>\n");
             }
-        }
-        if note.tie_end {
-            xml.push_str("        <tie type=\"stop\"/>\n");
-        }
-        if note.tie_start {
-            xml.push_str("        <tie type=\"start\"/>\n");
-        }
-        xml.push_str(&format!("        <voice>{voice_number}</voice>\n"));
-        if let Some(cross) = &note.cross_staff {
+        };
+        // Everything up to and including <staff>, shared by the principal note and chord members.
+        let push_head = |xml: &mut String, pitch: &acorde_core::Pitch, chord_member: bool| {
+            xml.push_str(&format!("      <note{}>\n", note_placement_attrs(note)));
+            if note.is_grace {
+                if note.grace_slash {
+                    xml.push_str("        <grace slash=\"yes\"/>\n");
+                } else {
+                    xml.push_str("        <grace/>\n");
+                }
+            }
+            if note.is_cue {
+                xml.push_str("        <cue/>\n");
+            }
+            if chord_member {
+                xml.push_str("        <chord/>\n");
+            }
+            push_pitch(xml, pitch);
+            if !note.is_grace {
+                xml.push_str(&format!("        <duration>{}</duration>\n", dur_ticks));
+            }
+            if note.tie_end {
+                xml.push_str("        <tie type=\"stop\"/>\n");
+            }
+            if note.tie_start {
+                xml.push_str("        <tie type=\"start\"/>\n");
+            }
+            if let Some(instrument_id) = &note.instrument_id {
+                xml.push_str(&format!(
+                    "        <instrument id=\"{}\"/>\n",
+                    escape_xml(instrument_id)
+                ));
+            }
+            xml.push_str(&format!("        <voice>{voice_number}</voice>\n"));
             xml.push_str(&format!(
-                "        <staff>{}</staff>\n",
-                cross.target_staff + 1
+                "        <type>{}</type>\n",
+                note.duration.to_musicxml_type()
             ));
-        } else {
-            xml.push_str(&format!("        <staff>{staff_number}</staff>\n"));
+            for _ in 0..note.dot_count {
+                xml.push_str("        <dot/>\n");
+            }
+            if !note.is_grace {
+                push_time_modification(xml);
+            }
+            if let Some(up) = note.stem_up {
+                xml.push_str(&format!(
+                    "        <stem>{}</stem>\n",
+                    if up { "up" } else { "down" }
+                ));
+            }
+            if note.note_head != NoteHead::Normal {
+                let nh_str = match note.note_head {
+                    NoteHead::Diamond => "diamond",
+                    NoteHead::X => "x",
+                    NoteHead::Slash => "slash",
+                    NoteHead::Cross => "cross",
+                    NoteHead::Triangle => "triangle",
+                    NoteHead::Normal => "normal",
+                };
+                xml.push_str(&format!("        <notehead>{}</notehead>\n", nh_str));
+            }
+            xml.push_str(&staff_element);
+        };
+        push_head(xml, pitch, false);
+        if let Some(beam) = beam {
+            xml.push_str(&format!("        <beam number=\"1\">{beam}</beam>\n"));
         }
-        xml.push_str(&format!(
-            "        <type>{}</type>\n",
-            note.duration.to_musicxml_type()
-        ));
-        for _ in 0..note.dot_count {
-            xml.push_str("        <dot/>\n");
-        }
-        if let Some(up) = note.stem_up {
-            xml.push_str(&format!(
-                "        <stem>{}</stem>\n",
-                if up { "up" } else { "down" }
-            ));
-        }
-        if note.note_head != NoteHead::Normal {
-            let nh_str = match note.note_head {
-                NoteHead::Diamond => "diamond",
-                NoteHead::X => "x",
-                NoteHead::Slash => "slash",
-                NoteHead::Cross => "cross",
-                NoteHead::Triangle => "triangle",
-                NoteHead::Normal => "normal",
-            };
-            xml.push_str(&format!("        <notehead>{}</notehead>\n", nh_str));
-        }
-        serialize_notations(xml, note, &typed_spanners, address, tab_lines);
+        serialize_notations(xml, note, &typed_spanners, address, tab_lines, tuplet_marks);
         let verses = note.lyric.iter().map(|lyric| (1, lyric)).chain(
             note.additional_lyrics
                 .iter()
@@ -944,55 +1016,28 @@ fn serialize_note(
         }
         xml.push_str("      </note>\n");
 
-        // Additional chord pitches
+        // Additional chord pitches carry the chord's timing, ties and their own tab position.
         for (pitch_idx, extra) in note.pitches.iter().skip(1).enumerate() {
-            xml.push_str(&format!("      <note{}>\n", note_placement_attrs(note)));
-            xml.push_str("        <chord/>\n");
-            if note.is_unpitched {
-                xml.push_str("        <unpitched>\n");
-                xml.push_str(&format!(
-                    "          <display-step>{}</display-step>\n",
-                    extra.step.to_char()
-                ));
-                xml.push_str(&format!(
-                    "          <display-octave>{}</display-octave>\n",
-                    extra.octave
-                ));
-                xml.push_str("        </unpitched>\n");
-            } else {
-                xml.push_str("        <pitch>\n");
-                xml.push_str(&format!(
-                    "          <step>{}</step>\n",
-                    extra.step.to_char()
-                ));
-                if extra.alter != 0 || extra.microtone_cents != 0 {
-                    let alter = extra.alter as f32 + extra.microtone_cents as f32 / 100.0;
-                    xml.push_str(&format!("          <alter>{alter}</alter>\n"));
+            push_head(xml, extra, true);
+            let tab = note.tab_positions.get(pitch_idx + 1);
+            if note.tie_start || note.tie_end || tab.is_some() {
+                xml.push_str("        <notations>\n");
+                if note.tie_end {
+                    xml.push_str("          <tied type=\"stop\"/>\n");
                 }
-                xml.push_str(&format!("          <octave>{}</octave>\n", extra.octave));
-                xml.push_str("        </pitch>\n");
-            }
-            if let Some(instrument_id) = &note.instrument_id {
-                xml.push_str(&format!(
-                    "        <instrument id=\"{}\"/>\n",
-                    escape_xml(instrument_id)
-                ));
-            }
-            xml.push_str(&format!("        <duration>{}</duration>\n", dur_ticks));
-            xml.push_str(&format!("        <voice>{voice_number}</voice>\n"));
-            xml.push_str(&format!("        <staff>{staff_number}</staff>\n"));
-            xml.push_str(&format!(
-                "        <type>{}</type>\n",
-                note.duration.to_musicxml_type()
-            ));
-            if let Some(tab) = note.tab_positions.get(pitch_idx + 1) {
-                xml.push_str("        <technical>\n");
-                xml.push_str(&format!(
-                    "          <string>{}</string>\n",
-                    musicxml_tab_string(tab.string)
-                ));
-                xml.push_str(&format!("          <fret>{}</fret>\n", tab.fret));
-                xml.push_str("        </technical>\n");
+                if note.tie_start {
+                    xml.push_str("          <tied type=\"start\"/>\n");
+                }
+                if let Some(tab) = tab {
+                    xml.push_str("          <technical>\n");
+                    xml.push_str(&format!(
+                        "            <string>{}</string>\n",
+                        musicxml_tab_string(tab.string)
+                    ));
+                    xml.push_str(&format!("            <fret>{}</fret>\n", tab.fret));
+                    xml.push_str("          </technical>\n");
+                }
+                xml.push_str("        </notations>\n");
             }
             xml.push_str("      </note>\n");
         }
@@ -1190,6 +1235,7 @@ fn serialize_notations(
     typed_spanners: &[&NotationSpanner],
     address: &NoteAddr,
     tab_lines: Option<u8>,
+    tuplet_marks: (bool, bool),
 ) {
     let typed_has =
         |kind: NotationSpannerKind| typed_spanners.iter().any(|spanner| spanner.kind == kind);
@@ -1211,7 +1257,9 @@ fn serialize_notations(
         || note.tab_position.is_some()
         || note.technique_text.is_some()
         || note.guitar_technique.is_some();
+    let has_tuplet = tuplet_marks.0 || tuplet_marks.1;
     if !has_tie
+        && !has_tuplet
         && !has_glissando
         && !has_slur
         && !has_trill_line
@@ -1228,6 +1276,12 @@ fn serialize_notations(
     }
     if note.tie_start {
         xml.push_str("          <tied type=\"start\"/>\n");
+    }
+    if tuplet_marks.0 {
+        xml.push_str("          <tuplet type=\"start\" bracket=\"yes\"/>\n");
+    }
+    if tuplet_marks.1 {
+        xml.push_str("          <tuplet type=\"stop\"/>\n");
     }
     for spanner in typed_spanners {
         let endpoint = if spanner.start == *address {
@@ -1513,25 +1567,66 @@ fn split_note_name(name: &str) -> (&str, i8) {
     }
 }
 
+/// MusicXML part ids are `xs:ID` (an XML name). Generated UUID ids can start with a digit, so
+/// those get a letter prefix; ids that are already valid names are written unchanged.
+fn musicxml_part_id(id: &str) -> String {
+    let mut chars = id.chars();
+    let valid = chars
+        .next()
+        .is_some_and(|first| first.is_ascii_alphabetic() || first == '_')
+        && chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'));
+    if valid {
+        id.to_string()
+    } else {
+        let cleaned = id
+            .chars()
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.') {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect::<String>();
+        format!("P-{cleaned}")
+    }
+}
+
+fn measure_styled_text<'a>(
+    measure: &'a acorde_core::Measure,
+    style: TextStyle,
+    text: &str,
+) -> Option<&'a acorde_core::StyledText> {
+    measure
+        .texts
+        .iter()
+        .find(|styled| styled.style == style && styled.text == text)
+}
+
 fn measure_text_direction_attrs(
     measure: &acorde_core::Measure,
     style: TextStyle,
     text: &str,
 ) -> String {
-    let styled = measure
-        .texts
-        .iter()
-        .find(|styled| styled.style == style && styled.text == text);
-    styled
+    measure_styled_text(measure, style, text)
         .map(styled_direction_attrs)
         .unwrap_or_else(|| " placement=\"above\"".to_string())
 }
 
 fn styled_direction_attrs(styled: &acorde_core::StyledText) -> String {
-    let mut attrs = format!(
+    format!(
         " placement=\"{}\"",
         escape_xml(styled.placement.as_deref().unwrap_or("above"))
-    );
+    )
+}
+
+/// Print-style position attributes, which MusicXML allows on `<words>`/`<rehearsal>` but not on
+/// `<direction>`.
+fn styled_text_position_attrs(styled: Option<&acorde_core::StyledText>) -> String {
+    let Some(styled) = styled else {
+        return String::new();
+    };
+    let mut attrs = String::new();
     if let Some(offset_x) = styled.offset_x {
         attrs.push_str(&format!(" default-x=\"{}\"", offset_x));
     }
@@ -1857,6 +1952,60 @@ mod tests {
         let xml = serialize_musicxml(&score).unwrap();
         assert!(xml.contains("<step>G</step>"));
         assert!(xml.contains("<octave>4</octave>"));
+    }
+
+    #[test]
+    fn note_children_follow_musicxml_schema_order() {
+        let mut score = Score::new("order", 120, 4, 4, 0, 1);
+        score.parts[0].id = "0f8e-uuid-like".into();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        for step in [Step::C, Step::D, Step::E] {
+            let mut note = Note::new(Pitch::new(step, 5), Duration::Eighth);
+            note.tuplet = Some(TupletInfo {
+                actual_notes: 3,
+                normal_notes: 2,
+            });
+            voice.push(note);
+        }
+        let mut chord = Note::new(Pitch::new(Step::C, 4), Duration::Half);
+        chord.pitches.push(Pitch::new(Step::E, 4));
+        chord.dot_count = 1;
+        chord.tie_start = true;
+        voice.push(chord);
+        let xml = serialize_musicxml(&score).expect("serializes");
+        assert!(xml.contains("<score-part id=\"P-0f8e-uuid-like\">"));
+        assert!(xml.contains("<part id=\"P-0f8e-uuid-like\">"));
+        let first = &xml[xml.find("<note").unwrap()..];
+        let first = &first[..first.find("</note>").unwrap()];
+        let order = [
+            "<pitch>",
+            "<duration>",
+            "<voice>",
+            "<type>",
+            "<time-modification>",
+            "<staff>",
+            "<beam number=\"1\">begin</beam>",
+            "<tuplet type=\"start\" bracket=\"yes\"/>",
+        ];
+        let positions = order
+            .iter()
+            .map(|tag| {
+                first
+                    .find(tag)
+                    .unwrap_or_else(|| panic!("{tag} missing in {first}"))
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            positions.windows(2).all(|pair| pair[0] < pair[1]),
+            "{first}"
+        );
+        // Chord members repeat the chord's dots and ties.
+        let member = &xml[xml.find("<chord/>").unwrap()..];
+        let member = &member[..member.find("</note>").unwrap()];
+        assert!(member.contains("<dot/>"));
+        assert!(member.contains("<tie type=\"start\"/>"));
+        assert!(member.contains("<tied type=\"start\"/>"));
     }
 
     #[test]

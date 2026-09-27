@@ -4307,50 +4307,6 @@ fn append_mei_chord_definitions(out: &mut String, definitions: &[ChordDefinition
     out.push_str("</chordTable>");
 }
 
-/// Written duration in 1/4096 of a whole note, including dots.
-fn mei_written_ticks(note: &Note) -> u64 {
-    let (numerator, denominator) = note.duration.as_fraction();
-    let base = 4096 * u64::from(numerator) / u64::from(denominator.max(1));
-    let dots = u32::from(note.dot_count.min(4));
-    base * ((1u64 << (dots + 1)) - 1) / (1u64 << dots)
-}
-
-/// Group consecutive notes sharing a tuplet ratio into `<tuplet>` ranges (inclusive indices).
-/// A group closes once its written length equals `num` notes of one plain note value, so a
-/// triplet of eighths or a quarter+eighth triplet each form one bracket. Timing never depends on
-/// the grouping: every member keeps its own ratio.
-fn mei_tuplet_groups(voice: &[Note]) -> Vec<(usize, usize)> {
-    let mut groups = Vec::new();
-    let mut open: Option<(usize, TupletInfo, u64)> = None;
-    for (index, note) in voice.iter().enumerate() {
-        match (&mut open, &note.tuplet) {
-            (Some((_, current, written)), Some(tuplet)) if current == tuplet => {
-                *written += mei_written_ticks(note);
-            }
-            (_, tuplet) => {
-                if let Some((start, _, _)) = open.take() {
-                    groups.push((start, index - 1));
-                }
-                open = tuplet
-                    .clone()
-                    .map(|tuplet| (index, tuplet, mei_written_ticks(note)));
-            }
-        }
-        if let Some((start, tuplet, written)) = &open {
-            let count = u64::from(tuplet.actual_notes.max(1));
-            let unit = *written / count;
-            if *written % count == 0 && unit > 0 && unit.is_power_of_two() && unit <= 4096 {
-                groups.push((*start, index));
-                open = None;
-            }
-        }
-    }
-    if let Some((start, _, _)) = open {
-        groups.push((start, voice.len() - 1));
-    }
-    groups
-}
-
 /// Explicit beam runs (`Begin` … `End`) that nest cleanly with the tuplet ranges.
 fn mei_beam_groups(states: &[BeamState], tuplets: &[(usize, usize)]) -> Vec<(usize, usize)> {
     let mut groups = Vec::new();
@@ -4429,7 +4385,7 @@ fn append_mei_measure_staves(
                 let (shape, line) = mei_clef(clef);
                 out.push_str(&format!("<clef shape=\"{shape}\" line=\"{line}\"/>"));
             }
-            let tuplets = mei_tuplet_groups(voice);
+            let tuplets = crate::tuplet_groups(voice);
             // Without explicit beaming, write the default beat grouping so renderers that do not
             // auto-beam (Verovio) show beams rather than flags.
             let beam_states = if voice.iter().all(|note| note.beam == BeamState::None) {

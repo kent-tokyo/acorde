@@ -457,6 +457,27 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             .filter(|value| value.is_finite());
                     }
                     "direction-type" => in_direction_type = true,
+                    // Print-style position attributes belong on the text element; they take
+                    // precedence over the legacy acorde placement on <direction>.
+                    "words" | "rehearsal" if in_direction_type => {
+                        let position = |name: &[u8]| {
+                            attr_str(e, name)
+                                .and_then(|value| value.parse::<f64>().ok())
+                                .filter(|value| value.is_finite())
+                        };
+                        if let Some(value) = position(b"default-x") {
+                            pending_direction_offset_x = Some(value);
+                        }
+                        if let Some(value) = position(b"default-y") {
+                            pending_direction_offset_y = Some(value);
+                        }
+                        if let Some(value) = position(b"relative-x") {
+                            pending_direction_relative_x = Some(value);
+                        }
+                        if let Some(value) = position(b"relative-y") {
+                            pending_direction_relative_y = Some(value);
+                        }
+                    }
                     "harp-pedals" if in_direction_type => {
                         in_harp_pedals = true;
                         pending_harp_pedal_diagram = Some(HarpPedalDiagram::default());
