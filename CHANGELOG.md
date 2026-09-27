@@ -9,6 +9,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Unroll repeats** (`UnrollRepeatsCmd`, MuseScore's Tools → Unroll repeats): writes repeats,
+  voltas and D.C./D.S./coda jumps out as bars in playing order, with undo. Repeat barlines,
+  voltas and navigation marks go (a final barline stays on the last bar); a jump that changes
+  key, meter or clef restates it, and restatements a jump does not need are dropped; typed
+  spanners, chord-symbol ranges, object style overrides and MIDI automation follow their bars
+  to every place they are played; linked views' break lists are cleared. On the 198 corpus
+  scores that validate, the unrolled score plays exactly the notes of the original.
 - **MEI per-part meters.** Like keys before, MEI export wrote the first staff's time signature
   for all staves, so a part in another meter (polymeter in early music, a 6/8 line against
   3/4) came back in the wrong one. Staves whose meters differ now get their own

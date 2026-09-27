@@ -26,6 +26,7 @@ use uuid::Uuid;
 mod range_commands;
 mod spanner_remap;
 mod structural_commands;
+mod unroll;
 
 use self::range_commands::{apply_paste_range, apply_paste_voice};
 use self::spanner_remap::{
@@ -106,6 +107,7 @@ pub enum Command {
     ResequenceRehearsalMarks(ResequenceRehearsalMarksCmd),
     SetSystemBreakInterval(SetSystemBreakIntervalCmd),
     RemoveTrailingEmptyMeasures(RemoveTrailingEmptyMeasuresCmd),
+    UnrollRepeats(UnrollRepeatsCmd),
     SetStem(SetStemCmd),
     SetArpeggio(SetArpeggioCmd),
     SetTechniqueText(SetTechniqueTextCmd),
@@ -1147,6 +1149,13 @@ pub struct SetSystemBreakIntervalCmd {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RemoveTrailingEmptyMeasuresCmd {}
 
+/// Write repeats, voltas and D.C./D.S./coda jumps out as bars in playing order (MuseScore's
+/// "Unroll repeats"). Repeat barlines, voltas and navigation marks go; a jump that changes
+/// key, meter or clef restates it; spanners, chord ranges, style overrides and MIDI
+/// automation follow their bars to every place they are played.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct UnrollRepeatsCmd {}
+
 struct UndoEntry {
     command: Command,
     snapshot: Score,
@@ -1487,6 +1496,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
             hint!(Global, true, false)
         }
         Command::RemoveTrailingEmptyMeasures(_) => hint!(Global, true, true),
+        Command::UnrollRepeats(_) => hint!(Global, true, true),
 
         Command::SetStem(c) => hint!(meas!(c), false, false),
 
@@ -1633,6 +1643,7 @@ pub fn command_label(cmd: &Command) -> String {
             }
         }
         Command::RemoveTrailingEmptyMeasures(_) => "Remove Empty Trailing Measures".to_string(),
+        Command::UnrollRepeats(_) => "Unroll Repeats".to_string(),
         Command::SetStem(_) => "Set Stem".to_string(),
         Command::SetArpeggio(_) => "Set Arpeggio".to_string(),
         Command::SetTechniqueText(_) => "Set Technique Text".to_string(),
@@ -1757,6 +1768,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::ResequenceRehearsalMarks(_) => "ResequenceRehearsalMarks".to_string(),
         Command::SetSystemBreakInterval(_) => "SetSystemBreakInterval".to_string(),
         Command::RemoveTrailingEmptyMeasures(_) => "RemoveTrailingEmptyMeasures".to_string(),
+        Command::UnrollRepeats(_) => "UnrollRepeats".to_string(),
         Command::SetStem(_) => "SetStem".to_string(),
         Command::SetArpeggio(_) => "SetArpeggio".to_string(),
         Command::SetTechniqueText(_) => "SetTechniqueText".to_string(),
@@ -2124,6 +2136,7 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         Command::ResequenceRehearsalMarks(c) => apply_resequence_rehearsal_marks(c, score),
         Command::SetSystemBreakInterval(c) => apply_system_break_interval(c, score),
         Command::RemoveTrailingEmptyMeasures(_) => apply_remove_trailing_empty_measures(score),
+        Command::UnrollRepeats(_) => unroll::apply_unroll_repeats(score),
         Command::RespellStaffRegion(c) => {
             respell_staff_region(
                 score,

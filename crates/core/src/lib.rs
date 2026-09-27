@@ -30,8 +30,8 @@ pub use model::commands::{
     SetSystemBreakIntervalCmd, SetTabPositionCmd, SetTablatureConfigCmd, SetTechniqueTextCmd,
     SetTempoAtMeasureCmd, SetTempoCmd, SetTimeSignatureCmd, SetTransposeCmd, SetTupletCmd,
     SetUnpitchedCmd, SetVoltaCmd, SplitMeasureCmd, ToggleArticulationCmd, ToggleSlurCmd,
-    ToggleTieCmd, ToggleTrillLineCmd, TransposeStaffRegionCmd, TupletScalePolicy, UpdateSpannerCmd,
-    UpsertScoreViewCmd, command_key, command_label,
+    ToggleTieCmd, ToggleTrillLineCmd, TransposeStaffRegionCmd, TupletScalePolicy, UnrollRepeatsCmd,
+    UpdateSpannerCmd, UpsertScoreViewCmd, command_key, command_label,
 };
 pub use model::duration::Duration;
 pub use model::engine::{EngineHistory, HistoryConflict, HistoryRelation, ScoreEngine};
