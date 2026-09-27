@@ -9,6 +9,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **MuseScore multi-measure rests.** MuseScore draws multi-measure rests from the
+  `createMultiMeasureRests` style rather than per bar, so they were lost on import and reported
+  as lost on export. Import now groups runs of bars empty in every staff (broken, as in
+  MuseScore, by signatures, tempo, rehearsal marks, texts, special barlines and repeats) when
+  the style is on, and export turns it on when the score has multi-measure rests.
+
 - **Fingerings of chord notes.** `Note::pitch_fingerings` keeps which chord note a fingering
   belongs to. MusicXML wrote every fingering of a chord on its first note; MuseScore import kept
   only the last note's fingering and export repeated the chord's fingerings in every note, as

@@ -155,13 +155,7 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
                         push(format!("{measure_path}/{field}"), value, reason);
                     }
                 }
-                if measure.multi_rest_count.is_some() {
-                    push(
-                        format!("{measure_path}/layout"),
-                        "present".to_string(),
-                        "MSCX subset export does not emit multi-measure rests",
-                    );
-                }
+
                 for (voice_index, voice) in measure.voices.iter().enumerate() {
                     for (note_index, note) in voice.iter().enumerate() {
                         let note_path = format!(
@@ -232,6 +226,16 @@ pub fn serialize_mscx(score: &Score) -> Result<String, Error> {
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <museScore version="3.02"><Score>"#,
     );
+    // MuseScore draws multi-measure rests from a style setting rather than per bar.
+    if score
+        .parts
+        .iter()
+        .flat_map(|part| part.staves.iter())
+        .flat_map(|staff| staff.measures.iter())
+        .any(|measure| measure.multi_rest_count.is_some())
+    {
+        xml.push_str("<Style><createMultiMeasureRests>1</createMultiMeasureRests></Style>");
+    }
     for (name, value) in [
         ("workTitle", score.metadata.title.as_str()),
         ("composer", score.metadata.composer.as_str()),

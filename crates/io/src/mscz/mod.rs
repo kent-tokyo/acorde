@@ -250,6 +250,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     // MuseScore ties each note of a chord separately.
     let mut chord_tie_starts: Vec<bool> = Vec::new();
     let mut chord_accidentals: Vec<AccidentalDisplay> = Vec::new();
+    // `<Style><createMultiMeasureRests>`: empty bars draw as multi-measure rests.
+    let mut create_multi_measure_rests = false;
     let mut chord_ghosts: Vec<bool> = Vec::new();
     // Each chord note's own fingering (MuseScore puts `<Fingering>` in the `<Note>`).
     let mut chord_pitch_fingerings: Vec<Option<u8>> = Vec::new();
@@ -1431,6 +1433,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "tpc" if in_note_elem => {
                         note_tpc = t.parse().unwrap_or(14);
                     }
+                    "createMultiMeasureRests" => {
+                        create_multi_measure_rests = t.trim() == "1";
+                    }
                     "tpc2" if in_note_elem => {
                         note_tpc2 = t.parse().ok();
                     }
@@ -2001,7 +2006,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
         close_final_volta(measures);
     }
 
-    assemble_score(
+    let mut score = assemble_score(
         base_score,
         metadata,
         score_texts,
@@ -2009,7 +2014,79 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
         staff_measures,
         staff_clefs,
         (staff_tablature, staff_presentation_lines, staff_transpose),
-    )
+    )?;
+    if create_multi_measure_rests {
+        mark_multi_measure_rests(&mut score);
+    }
+    Ok(score)
+}
+
+/// MuseScore's `createMultiMeasureRests` style: runs of two or more bars that are empty in every
+/// staff draw as one multi-measure rest. A run breaks where a bar carries anything to read — a
+/// signature, tempo, rehearsal mark, text, special barline, repeat, volta or navigation mark.
+fn mark_multi_measure_rests(score: &mut Score) {
+    let count = score.measure_count();
+    let quiet = |measure_index: usize, first: bool| -> bool {
+        score
+            .parts
+            .iter()
+            .flat_map(|part| part.staves.iter())
+            .all(|staff| {
+                let Some(measure) = staff.measures.get(measure_index) else {
+                    return false;
+                };
+                let rests_only = measure
+                    .voices
+                    .iter()
+                    .flatten()
+                    .all(|note| note.is_rest && note.articulations.is_empty());
+                let plain = measure.rehearsal.is_none()
+                    && measure.navigation.is_none()
+                    && measure.texts.is_empty()
+                    && measure.tempo.is_none()
+                    && measure.tempo_text.is_none()
+                    && measure.expression_text.is_none()
+                    && measure.volta.is_none()
+                    && measure.clef.is_none()
+                    && matches!(measure.barline_right, Barline::Normal);
+                // A new key, meter or left repeat may open a run but not sit inside one.
+                let opening = measure.key_sig.is_none()
+                    && measure.time_sig.is_none()
+                    && matches!(measure.barline_left, Barline::Normal);
+                rests_only && plain && (first || opening)
+            })
+    };
+    let mut runs = Vec::new();
+    let mut index = 0;
+    while index < count {
+        if !quiet(index, true) {
+            index += 1;
+            continue;
+        }
+        let mut end = index + 1;
+        while end < count && quiet(end, false) {
+            end += 1;
+        }
+        // A multi-measure rest counts at most 255 bars; a longer run continues in the next.
+        let mut start = index;
+        while end - start >= 2 {
+            let length = (end - start).min(usize::from(u8::MAX));
+            runs.push((start, length as u8));
+            start += length;
+        }
+        index = end;
+    }
+    for (start, length) in runs {
+        for staff in score
+            .parts
+            .iter_mut()
+            .flat_map(|part| part.staves.iter_mut())
+        {
+            if let Some(measure) = staff.measures.get_mut(start) {
+                measure.multi_rest_count = Some(length);
+            }
+        }
+    }
 }
 
 fn push_invalid_numeric_diagnostic(
@@ -3527,6 +3604,35 @@ mod tests {
         assert!(written.contains("<transposeChromatic>-2</transposeChromatic>"));
         assert!(written.contains("<pitch>72</pitch><tpc>14</tpc><tpc2>16</tpc2>"));
         check(&parse_mscx(&written).expect("reparses"));
+    }
+
+    #[test]
+    fn mscx_multi_measure_rests_round_trip_as_the_style_setting() {
+        let mut score = Score::default();
+        let staff = &mut score.parts[0].staves[0];
+        staff.measures[0].voices[0] = vec![Note::new(Pitch::new(Step::C, 5), Duration::Whole)];
+        staff.measures[1].multi_rest_count = Some(3);
+        let written = crate::mscz::serialize::serialize_mscx(&score).expect("serializes");
+        assert!(written.contains("<createMultiMeasureRests>1</createMultiMeasureRests>"));
+        let back = parse_mscx(&written).expect("reparses");
+        let counts: Vec<Option<u8>> = back.parts[0].staves[0]
+            .measures
+            .iter()
+            .map(|measure| measure.multi_rest_count)
+            .collect();
+        assert_eq!(counts, vec![None, Some(3), None, None]);
+        // Without the setting MuseScore draws every bar.
+        let plain = parse_mscx(&written.replace(
+            "<Style><createMultiMeasureRests>1</createMultiMeasureRests></Style>",
+            "",
+        ))
+        .expect("parses");
+        assert!(
+            plain.parts[0].staves[0]
+                .measures
+                .iter()
+                .all(|measure| measure.multi_rest_count.is_none())
+        );
     }
 
     #[test]
