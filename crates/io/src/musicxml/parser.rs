@@ -270,7 +270,15 @@ pub(crate) fn parse_musicxml_collecting(
     let mut note_beam_level: u8 = 1;
     let mut pending_guitar_technique: Option<GuitarTechnique> = None;
     let mut pending_guitar_bend_alter_cents: Option<i16> = None;
-    let mut pending_hairpin_start: Option<HairpinKind> = None;
+    // A `<wedge>` in the current direction: Some(Some(kind)) starts a hairpin, Some(None)
+    // stops one. Settled at the direction's end, when its `<staff>` is known.
+    let mut pending_direction_wedge: Option<Option<HairpinKind>> = None;
+    // Hairpins waiting for the next note of their staff, and the voice each one began in.
+    let mut staff_hairpin_starts: HashMap<usize, HairpinKind> = HashMap::new();
+    let mut open_hairpin_voices: HashMap<usize, usize> = HashMap::new();
+    // The latest note of each (staff, voice), where a wedge stop lands.
+    let mut last_voice_notes: HashMap<(usize, usize), NoteAddr> = HashMap::new();
+    let mut last_staff_voice: HashMap<usize, usize> = HashMap::new();
     let mut in_harmony = false;
     let mut in_harmony_root = false;
     let mut in_harmony_bass = false;
@@ -999,18 +1007,13 @@ pub(crate) fn parse_musicxml_collecting(
                         _ => {}
                     },
                     "wedge" => match attr_str(e, b"type").as_deref() {
-                        Some("crescendo") => pending_hairpin_start = Some(HairpinKind::Crescendo),
+                        Some("crescendo") => {
+                            pending_direction_wedge = Some(Some(HairpinKind::Crescendo));
+                        }
                         Some("diminuendo") | Some("decrescendo") => {
-                            pending_hairpin_start = Some(HairpinKind::Decrescendo);
+                            pending_direction_wedge = Some(Some(HairpinKind::Decrescendo));
                         }
-                        Some("stop") => {
-                            if let Some(pi) = part_index
-                                && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
-                                && let Some(n) = m.voices[0].last_mut()
-                            {
-                                n.hairpin_end = true;
-                            }
-                        }
+                        Some("stop") => pending_direction_wedge = Some(None),
                         _ => {}
                     },
                     "octave-shift" => {
@@ -1583,6 +1586,32 @@ pub(crate) fn parse_musicxml_collecting(
                         pending_section_break = false;
                         if let Some(dynamic) = pending_direction_dynamic.take() {
                             staff_dynamics.insert(pending_direction_staff, dynamic);
+                        }
+                        match pending_direction_wedge.take() {
+                            Some(Some(kind)) => {
+                                staff_hairpin_starts.insert(pending_direction_staff, kind);
+                            }
+                            // A stop ends the hairpin on the latest note of the voice it began
+                            // in (or of the staff), where layout pairs the two.
+                            Some(None) => {
+                                let staff = pending_direction_staff;
+                                let voice = open_hairpin_voices
+                                    .remove(&staff)
+                                    .or_else(|| last_staff_voice.get(&staff).copied());
+                                if let (Some(pi), Some(address)) = (
+                                    part_index,
+                                    voice.and_then(|voice| last_voice_notes.get(&(staff, voice))),
+                                ) && let Some(note) = score.parts[pi]
+                                    .staves
+                                    .get_mut(address.staff)
+                                    .and_then(|staff| staff.measures.get_mut(address.measure))
+                                    .and_then(|measure| measure.voices.get_mut(address.voice))
+                                    .and_then(|voice| voice.get_mut(address.note))
+                                {
+                                    note.hairpin_end = true;
+                                }
+                            }
+                            None => {}
                         }
                         pending_direction_staff = 0;
                         in_direction = false;
@@ -2370,8 +2399,12 @@ pub(crate) fn parse_musicxml_collecting(
                                             normal_notes,
                                         });
                                     }
-                                    if let Some(kind) = pending_hairpin_start.take() {
+                                    if !note.is_grace
+                                        && let Some(kind) =
+                                            staff_hairpin_starts.remove(&target_staff_index)
+                                    {
                                         note.hairpin_start = Some(kind);
+                                        open_hairpin_voices.insert(target_staff_index, voice_index);
                                     }
                                     if let Some(cs) = pending_chord.take() {
                                         note.chord_symbol = Some(cs);
@@ -2479,6 +2512,9 @@ pub(crate) fn parse_musicxml_collecting(
                                     last_note_start =
                                         Some((target_staff_index, voice_index, note_start));
                                     last_note_cross_home = cross_home;
+                                    last_voice_notes
+                                        .insert((target_staff_index, voice_index), address.clone());
+                                    last_staff_voice.insert(target_staff_index, voice_index);
                                     last_note_address = Some(address.clone());
                                     completed_note_address = Some(address);
                                 }

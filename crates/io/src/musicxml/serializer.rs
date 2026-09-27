@@ -865,6 +865,14 @@ fn serialize_note(
         xml.push_str("      </direction>\n");
     }
 
+    // A hairpin belongs to this note's staff (a cross-staff note's written staff).
+    let direction_staff = format!(
+        "        <staff>{}</staff>\n",
+        note.cross_staff
+            .as_ref()
+            .map_or(staff_number, |cross| cross.target_staff + 1)
+    );
+
     // Hairpin start
     if let Some(hp) = &note.hairpin_start {
         let wedge_type = match hp {
@@ -875,6 +883,7 @@ fn serialize_note(
         xml.push_str("        <direction-type>\n");
         xml.push_str(&format!("          <wedge type=\"{}\"/>\n", wedge_type));
         xml.push_str("        </direction-type>\n");
+        xml.push_str(&direction_staff);
         xml.push_str("      </direction>\n");
     }
 
@@ -1171,6 +1180,7 @@ fn serialize_note(
         xml.push_str("        <direction-type>\n");
         xml.push_str("          <wedge type=\"stop\"/>\n");
         xml.push_str("        </direction-type>\n");
+        xml.push_str(&direction_staff);
         xml.push_str("      </direction>\n");
     }
 }

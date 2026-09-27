@@ -4285,3 +4285,51 @@ fn typed_direction_spanners_keep_their_end_note_and_reach_other_exporters() {
         );
     }
 }
+
+#[test]
+fn musicxml_hairpins_stay_on_their_staff_and_voice() {
+    // A left-hand hairpin: the wedge directions name staff 2, and the stop comes after the
+    // right hand's notes in the file.
+    let note = |step: &str, octave: u8, voice: u8, staff: u8| {
+        format!(
+            "<note><pitch><step>{step}</step><octave>{octave}</octave></pitch><duration>1</duration><voice>{voice}</voice><type>quarter</type><staff>{staff}</staff></note>"
+        )
+    };
+    let wedge = |kind: &str, staff: u8| {
+        format!(
+            "<direction placement=\"below\"><direction-type><wedge type=\"{kind}\"/></direction-type><staff>{staff}</staff></direction>"
+        )
+    };
+    let body = [
+        note("C", 5, 1, 1),
+        note("D", 5, 1, 1),
+        "<backup><duration>2</duration></backup>".to_string(),
+        wedge("crescendo", 2),
+        note("C", 3, 5, 2),
+        note("D", 3, 5, 2),
+        wedge("stop", 2),
+    ]
+    .concat();
+    let xml = format!(
+        r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Pno</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes>{body}</measure></part></score-partwise>"#
+    );
+    let check = |score: &acorde_core::Score| {
+        let upper = &score.parts[0].staves[0].measures[0].voices;
+        assert!(
+            upper
+                .iter()
+                .flatten()
+                .all(|n| n.hairpin_start.is_none() && !n.hairpin_end)
+        );
+        let lower: Vec<_> = score.parts[0].staves[1].measures[0]
+            .voices
+            .iter()
+            .flatten()
+            .collect();
+        assert!(lower[0].hairpin_start.is_some());
+        assert!(lower[1].hairpin_end);
+    };
+    let score = parse_musicxml(&xml).expect("parses");
+    check(&score);
+    check(&parse_musicxml(&serialize_musicxml(&score).unwrap()).unwrap());
+}

@@ -205,10 +205,21 @@ fn resolve_spans(score: &Score) -> Vec<SpanMark> {
                             note: ni,
                         };
 
+                        // A note can end one hairpin and start the next (cresc. into
+                        // dim.): close the earlier one first.
+                        let ends_earlier = note.hairpin_end && open_hairpin.is_some();
+                        if ends_earlier && let Some((start, kind)) = open_hairpin.take() {
+                            spans.push(SpanMark::Hairpin {
+                                kind,
+                                start,
+                                end: addr.clone(),
+                            });
+                        }
                         if let Some(kind) = note.hairpin_start {
                             open_hairpin = Some((addr.clone(), kind));
                         }
                         if note.hairpin_end
+                            && !ends_earlier
                             && let Some((start, kind)) = open_hairpin.take()
                         {
                             spans.push(SpanMark::Hairpin {

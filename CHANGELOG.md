@@ -9,6 +9,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **MusicXML hairpins on the right staff and voice.** A wedge stop always ended on the first
+  staff's first voice, and a start went to whatever note came next in the file, so left-hand
+  and second-voice hairpins lost their end or paired with the wrong notes. Wedges now follow
+  their direction's `<staff>` (written on export) and end in the voice they began in; layout
+  also closes a hairpin before one starting on the same note. Paired hairpins in the music21
+  corpus: 1165 → 1228.
 - **Typed spanners are no longer dropped.** A slur, glissando, trill line, pedal or ottava held
   only in `Score::spanners` (as `AddSpanner`/`UpdateSpanner` leave it: they clear the note
   flags) was not drawn in SVG, played (pedal), or exported to MEI, MSCX or ABC, and was not
