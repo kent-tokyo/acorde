@@ -9,6 +9,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **MuseScore rehearsal marks, repeat navigation and breath marks.** MSCX import ignored
+  `<RehearsalMark>`, `<Marker>` (segno, coda, fine, to coda), `<Jump>` (D.C./D.S. al Fine/al
+  Coda) and `<Breath>` (breath marks, caesuras), and export reported rehearsal marks and
+  navigation as not written and dropped breath marks silently. All four now read and write,
+  so a D.S. al Coda plays back after a MuseScore round trip. The staff-transposition loss
+  report is gone too (MSCX has written the part's transposition since the last release).
+
 - **Breves and 128th notes.** `Duration` stopped at whole notes and 64ths: breves (MusicXML
   `breve`, MEI `dur="breve"`, MuseScore `breve`, GP7 `DoubleWhole`) became whole notes and
   128ths became 64ths, so the bars that held them over- or under-filled and played out of time.

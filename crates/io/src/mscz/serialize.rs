@@ -94,11 +94,12 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
         }
         for (staff_index, staff) in part.staves.iter().enumerate() {
             let staff_path = format!("{part_path}/staff/{}", staff_index + 1);
-            if staff.transpose_semitones != 0 {
+            // MuseScore transposes a whole instrument: the part's first staff sets it.
+            if staff.transpose_semitones != part.staves[0].transpose_semitones {
                 push(
                     format!("{staff_path}/transpose-semitones"),
                     staff.transpose_semitones.to_string(),
-                    "MSCX subset export does not emit staff transposition",
+                    "MSCX transposes the whole part by its first staff's interval",
                 );
             }
             for (measure_index, measure) in staff.measures.iter().enumerate() {
@@ -111,16 +112,13 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
                         "MSCX subset export does not emit tempo text",
                     ),
                     (
-                        "rehearsal",
-                        measure.rehearsal.is_some(),
-                        measure.rehearsal.clone().unwrap_or_default(),
-                        "MSCX subset export does not emit rehearsal marks",
-                    ),
-                    (
                         "navigation",
-                        measure.navigation.is_some(),
+                        measure
+                            .navigation
+                            .as_deref()
+                            .is_some_and(|mark| mscx_navigation(mark).is_empty()),
                         measure.navigation.clone().unwrap_or_default(),
-                        "MSCX subset export does not emit navigation text",
+                        "MSCX export has no MuseScore marker or jump for this navigation mark",
                     ),
                     (
                         "expression-text",
@@ -497,6 +495,17 @@ fn write_staff(
                 bpm as f64 / 60.0
             )
             .map_err(fmt_error)?;
+        }
+        if let Some(label) = &measure.rehearsal {
+            write!(
+                xml,
+                "<RehearsalMark><text>{}</text></RehearsalMark>",
+                escape(label)
+            )
+            .map_err(fmt_error)?;
+        }
+        if let Some(mark) = measure.navigation.as_deref() {
+            xml.push_str(&mscx_navigation(mark));
         }
         for styled in &measure.texts {
             write_styled_text(xml, styled)?;
@@ -1103,6 +1112,15 @@ fn write_note(
         .map_err(fmt_error)?;
     }
     xml.push_str("</Chord>");
+    // Breath marks and caesuras follow the chord they come after.
+    for articulation in &note.articulations {
+        let symbol = match articulation {
+            Articulation::BreathMark => "breathMarkComma",
+            Articulation::Caesura => "caesura",
+            _ => continue,
+        };
+        write!(xml, "<Breath><symbol>{symbol}</symbol></Breath>").map_err(fmt_error)?;
+    }
     Ok(())
 }
 
@@ -1294,6 +1312,34 @@ fn write_accidental_role(xml: &mut String, display: AccidentalDisplay) -> Result
         AccidentalDisplay::Cautionary | AccidentalDisplay::Editorial => {
             write!(xml, "<role>1</role>").map_err(fmt_error)
         }
+    }
+}
+
+/// A navigation mark as MuseScore's `<Marker>` (segno, coda, fine, to coda) or `<Jump>`
+/// (D.C./D.S. with where it plays until and continues). Unknown marks write nothing.
+fn mscx_navigation(mark: &str) -> String {
+    let marker = |label: &str, text: &str| {
+        format!(
+            "<Marker><style>Repeat Text Left</style><text>{text}</text><label>{label}</label></Marker>"
+        )
+    };
+    let jump = |text: &str, to: &str, until: &str, continue_at: &str| {
+        format!(
+            "<Jump><style>Repeat Text Right</style><text>{text}</text><jumpTo>{to}</jumpTo><playUntil>{until}</playUntil><continueAt>{continue_at}</continueAt></Jump>"
+        )
+    };
+    match mark {
+        "Segno" => marker("segno", "<sym>segno</sym>"),
+        "Coda" => marker("codab", "<sym>coda</sym>"),
+        "Fine" => marker("fine", "Fine"),
+        "ToCoda" => marker("coda", "To Coda"),
+        "DaCapo" => jump("D.C.", "start", "end", ""),
+        "DaCapoAlFine" => jump("D.C. al Fine", "start", "fine", ""),
+        "DaCapoAlCoda" => jump("D.C. al Coda", "start", "coda", "codab"),
+        "DalSegno" => jump("D.S.", "segno", "end", ""),
+        "DalSegnoAlFine" => jump("D.S. al Fine", "segno", "fine", ""),
+        "DalSegnoAlCoda" => jump("D.S. al Coda", "segno", "coda", "codab"),
+        _ => String::new(),
     }
 }
 
@@ -1520,23 +1566,18 @@ mod tests {
         score.parts[0].short_name = "Pno.".to_string();
         score.parts[0].staves[0].transpose_semitones = 12;
         score.parts[0].staves[0].measures[0].rehearsal = Some("A".to_string());
+        score.parts[0].staves[0].measures[0].expression_text = Some("dolce".to_string());
         let report = crate::serialize_mscx_with_report(&score).expect("report serializes");
-        assert!(!report.diagnostics.iter().any(|diagnostic| {
-            diagnostic.source_location.as_deref() == Some("/score/metadata/composer")
-        }));
-        assert!(
+        let located = |path: &str| {
             report
                 .diagnostics
                 .iter()
-                .any(|diagnostic| diagnostic.source_location.as_deref()
-                    == Some("/score/part/1/staff/1/transpose-semitones"))
-        );
-        assert!(
-            report
-                .diagnostics
-                .iter()
-                .any(|diagnostic| diagnostic.source_location.as_deref()
-                    == Some("/score/part/1/staff/1/measure/1/rehearsal"))
-        );
+                .any(|diagnostic| diagnostic.source_location.as_deref() == Some(path))
+        };
+        assert!(!located("/score/metadata/composer"));
+        // Transposition and rehearsal marks are written now.
+        assert!(!located("/score/part/1/staff/1/transpose-semitones"));
+        assert!(!located("/score/part/1/staff/1/measure/1/rehearsal"));
+        assert!(located("/score/part/1/staff/1/measure/1/expression-text"));
     }
 }

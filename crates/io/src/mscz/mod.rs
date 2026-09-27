@@ -185,6 +185,17 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut cur_barline_right = Barline::Normal;
     let mut cur_volta: Option<VoltaBracket> = None;
     let mut cur_texts: Vec<StyledText> = Vec::new();
+    // Rehearsal marks, markers and jumps of the bar being read, and a breath mark's symbol.
+    let mut cur_rehearsal: Option<String> = None;
+    let mut cur_navigation: Option<String> = None;
+    let mut in_rehearsal = false;
+    let mut in_marker = false;
+    let mut in_jump = false;
+    let mut in_breath = false;
+    let mut mark_text = String::new();
+    let mut marker_label = String::new();
+    let mut jump_fields: [String; 3] = Default::default();
+    let mut breath_symbol = String::new();
     let mut score_texts: Vec<StyledText> = Vec::new();
     let mut cur_figured_bass: Vec<FiguredBassFigure> = Vec::new();
 
@@ -468,6 +479,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         cur_page_break = false;
                         cur_section_break = false;
                         cur_measure_repeat = None;
+                        cur_rehearsal = None;
+                        cur_navigation = None;
                         cur_volta = None;
                         cur_texts.clear();
                         cur_figured_bass.clear();
@@ -491,6 +504,22 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "Tempo" if in_measure => {
                         in_tempo_elem = true;
+                    }
+                    "RehearsalMark" if in_measure => {
+                        in_rehearsal = true;
+                        mark_text.clear();
+                    }
+                    "Marker" if in_measure => {
+                        in_marker = true;
+                        marker_label.clear();
+                    }
+                    "Jump" if in_measure => {
+                        in_jump = true;
+                        jump_fields = Default::default();
+                    }
+                    "Breath" if in_measure => {
+                        in_breath = true;
+                        breath_symbol.clear();
                     }
                     "Harmony" if in_measure && !in_chord && !in_rest_elem => {
                         in_harmony = true;
@@ -1010,8 +1039,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             barline_right: cur_barline_right.clone(),
                             volta: cur_volta.clone(),
                             tempo_text: None,
-                            rehearsal: None,
-                            navigation: None,
+                            rehearsal: cur_rehearsal.take(),
+                            navigation: cur_navigation.take(),
                             expression_text: None,
                             texts: std::mem::take(&mut cur_texts),
                             figured_bass: std::mem::take(&mut cur_figured_bass),
@@ -1111,6 +1140,66 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "Tempo" if in_tempo_elem => {
                         in_tempo_elem = false;
+                    }
+                    "text" if in_rehearsal => {
+                        mark_text = t.trim().to_string();
+                    }
+                    "RehearsalMark" if in_rehearsal => {
+                        if !mark_text.is_empty() {
+                            cur_rehearsal = Some(std::mem::take(&mut mark_text));
+                        }
+                        in_rehearsal = false;
+                    }
+                    "label" if in_marker => {
+                        marker_label = t.trim().to_ascii_lowercase();
+                    }
+                    "Marker" if in_marker => {
+                        let mark = match marker_label.as_str() {
+                            "segno" | "varsegno" => Some("Segno"),
+                            "codab" | "varcoda" | "codetta" => Some("Coda"),
+                            "fine" => Some("Fine"),
+                            "coda" | "tocoda" | "tocodasym" => Some("ToCoda"),
+                            _ => None,
+                        };
+                        if let Some(mark) = mark {
+                            cur_navigation.get_or_insert_with(|| mark.to_string());
+                        }
+                        in_marker = false;
+                    }
+                    "jumpTo" if in_jump => jump_fields[0] = t.trim().to_ascii_lowercase(),
+                    "playUntil" if in_jump => jump_fields[1] = t.trim().to_ascii_lowercase(),
+                    "continueAt" if in_jump => jump_fields[2] = t.trim().to_ascii_lowercase(),
+                    "Jump" if in_jump => {
+                        // A jump back to the start or a segno, playing until the end, the fine or
+                        // a coda (then continuing at the coda).
+                        let from_segno = jump_fields[0].contains("segno");
+                        let mark = match (from_segno, jump_fields[1].as_str()) {
+                            (false, "fine") => "DaCapoAlFine",
+                            (false, until) if until.contains("coda") => "DaCapoAlCoda",
+                            (false, _) => "DaCapo",
+                            (true, "fine") => "DalSegnoAlFine",
+                            (true, until) if until.contains("coda") => "DalSegnoAlCoda",
+                            (true, _) => "DalSegno",
+                        };
+                        cur_navigation.get_or_insert_with(|| mark.to_string());
+                        in_jump = false;
+                    }
+                    "symbol" if in_breath => {
+                        breath_symbol = t.trim().to_string();
+                    }
+                    "Breath" if in_breath => {
+                        let articulation = if breath_symbol.to_ascii_lowercase().contains("caesura")
+                        {
+                            Articulation::Caesura
+                        } else {
+                            Articulation::BreathMark
+                        };
+                        if let Some(note) = cur_voices[measure_voice_index.min(3)].last_mut()
+                            && !note.articulations.contains(&articulation)
+                        {
+                            note.articulations.push(articulation);
+                        }
+                        in_breath = false;
                     }
 
                     // MuseScore harmony labels remain available as display text while the
@@ -3353,6 +3442,48 @@ mod tests {
         let written = crate::mscz::serialize::serialize_mscx(&score).expect("serializes");
         assert!(written.contains("<transposeChromatic>-2</transposeChromatic>"));
         assert!(written.contains("<pitch>72</pitch><tpc>14</tpc><tpc2>16</tpc2>"));
+        check(&parse_mscx(&written).expect("reparses"));
+    }
+
+    #[test]
+    fn mscx_rehearsal_marks_navigation_and_breaths_round_trip() {
+        let xml = r#"
+        <museScore version="3.02"><Score>
+          <Part><Staff id="1"/><trackName>Flute</trackName></Part>
+          <Staff id="1">
+            <Measure><voice>
+              <TimeSig><sigN>1</sigN><sigD>4</sigD></TimeSig>
+              <RehearsalMark><text>A</text></RehearsalMark>
+              <Marker><style>Repeat Text Left</style><text><sym>segno</sym></text><label>segno</label></Marker>
+              <Chord><durationType>quarter</durationType><Note><pitch>72</pitch><tpc>14</tpc></Note></Chord>
+              <Breath><symbol>breathMarkComma</symbol></Breath>
+            </voice></Measure>
+            <Measure><voice>
+              <Jump><text>D.S. al Coda</text><jumpTo>segno</jumpTo><playUntil>coda</playUntil><continueAt>codab</continueAt></Jump>
+              <Chord><durationType>quarter</durationType><Note><pitch>74</pitch><tpc>16</tpc></Note></Chord>
+              <Breath><symbol>caesura</symbol></Breath>
+            </voice></Measure>
+          </Staff>
+        </Score></museScore>"#;
+        let check = |score: &Score| {
+            let measures = &score.parts[0].staves[0].measures;
+            assert_eq!(measures[0].rehearsal.as_deref(), Some("A"));
+            assert_eq!(measures[0].navigation.as_deref(), Some("Segno"));
+            assert_eq!(measures[1].navigation.as_deref(), Some("DalSegnoAlCoda"));
+            assert!(
+                measures[0].voices[0][0]
+                    .articulations
+                    .contains(&Articulation::BreathMark)
+            );
+            assert!(
+                measures[1].voices[0][0]
+                    .articulations
+                    .contains(&Articulation::Caesura)
+            );
+        };
+        let score = parse_mscx(xml).expect("parses");
+        check(&score);
+        let written = crate::mscz::serialize::serialize_mscx(&score).expect("serializes");
         check(&parse_mscx(&written).expect("reparses"));
     }
 
