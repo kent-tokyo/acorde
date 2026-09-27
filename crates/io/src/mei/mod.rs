@@ -8,7 +8,7 @@
 use crate::{Diagnostic, Error, ImportReport};
 use acorde_core::{
     Articulation, Barline, ChordBarre, ChordDefinition, ChordDefinitionMember, ChordDegree,
-    ChordSymbol, Clef, Duration, Dynamic, FiguredBassFigure, HairpinKind, KeySignature, Measure,
+    BeamState, ChordSymbol, Clef, Duration, Dynamic, FiguredBassFigure, HairpinKind, KeySignature, Measure,
     Note, NoteAddr, OttavaKind, Part, PartGroup, PartGroupSymbol, Pitch, Score, Staff, StaffGroup,
     Step, StyledText, TextStyle, TimeSignature, TupletInfo,
 };
@@ -48,7 +48,6 @@ fn step(value: &str) -> Option<Step> {
 }
 
 const UNSUPPORTED_ELEMENTS: &[&str] = &[
-    "beam",
     "figuredBass",
     "pedal",
     "facsimile",
@@ -1890,6 +1889,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut pending_dynams: Vec<(PendingMeiAnchor, Dynamic)> = Vec::new();
     let mut pending_hairpins: Vec<(PendingMeiAnchor, HairpinKind)> = Vec::new();
     let mut pending_marks: Vec<(PendingMeiAnchor, Articulation)> = Vec::new();
+    let mut beam_starts: Vec<usize> = Vec::new();
     let mut current_chord_definition: Option<ChordDefinition> = None;
     let mut buf = Vec::new();
     loop {
@@ -2299,6 +2299,15 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             }
                         }
                     }
+                    b"beam" if current_measure.is_some() && in_layer && !is_empty_event => {
+                        if let Some(measure_index) = current_measure {
+                            beam_starts.push(
+                                score.parts[0].staves[current_staff].measures[measure_index].voices
+                                    [current_layer]
+                                    .len(),
+                            );
+                        }
+                    }
                     b"tuplet" if current_measure.is_some() => {
                         current_tuplet = Some(parse_tuplet(&event).ok_or_else(|| {
                             Error::Xml("MEI tuplet requires positive num and numbase".into())
@@ -2493,7 +2502,33 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                     }
                     in_dynamic = false;
                 }
-                b"layer" => in_layer = false,
+                b"layer" => {
+                    in_layer = false;
+                    beam_starts.clear();
+                }
+                b"beam" => {
+                    // Only the outermost <beam> defines the group; inner ones are sub-beams.
+                    if let Some(first) = beam_starts.pop()
+                        && beam_starts.is_empty()
+                        && let Some(measure_index) = current_measure
+                    {
+                        let voice = &mut score.parts[0].staves[current_staff].measures
+                            [measure_index]
+                            .voices[current_layer];
+                        let last = voice.len();
+                        if last >= first + 2 {
+                            for (offset, note) in voice[first..last].iter_mut().enumerate() {
+                                note.beam = if offset == 0 {
+                                    BeamState::Begin
+                                } else if first + offset + 1 == last {
+                                    BeamState::End
+                                } else {
+                                    BeamState::Continue
+                                };
+                            }
+                        }
+                    }
+                }
                 b"syl" => {
                     if !syllable_text.trim().is_empty() {
                         let lyric = acorde_core::Lyric {
@@ -3963,6 +3998,76 @@ fn append_mei_chord_definitions(out: &mut String, definitions: &[ChordDefinition
     out.push_str("</chordTable>");
 }
 
+/// Written duration in 1/4096 of a whole note, including dots.
+fn mei_written_ticks(note: &Note) -> u64 {
+    let (numerator, denominator) = note.duration.as_fraction();
+    let base = 4096 * u64::from(numerator) / u64::from(denominator.max(1));
+    let dots = u32::from(note.dot_count.min(4));
+    base * ((1u64 << (dots + 1)) - 1) / (1u64 << dots)
+}
+
+/// Group consecutive notes sharing a tuplet ratio into `<tuplet>` ranges (inclusive indices).
+/// A group closes once its written length equals `num` notes of one plain note value, so a
+/// triplet of eighths or a quarter+eighth triplet each form one bracket. Timing never depends on
+/// the grouping: every member keeps its own ratio.
+fn mei_tuplet_groups(voice: &[Note]) -> Vec<(usize, usize)> {
+    let mut groups = Vec::new();
+    let mut open: Option<(usize, TupletInfo, u64)> = None;
+    for (index, note) in voice.iter().enumerate() {
+        match (&mut open, &note.tuplet) {
+            (Some((_, current, written)), Some(tuplet)) if current == tuplet => {
+                *written += mei_written_ticks(note);
+            }
+            (_, tuplet) => {
+                if let Some((start, _, _)) = open.take() {
+                    groups.push((start, index - 1));
+                }
+                open = tuplet
+                    .clone()
+                    .map(|tuplet| (index, tuplet, mei_written_ticks(note)));
+            }
+        }
+        if let Some((start, tuplet, written)) = &open {
+            let count = u64::from(tuplet.actual_notes.max(1));
+            let unit = *written / count;
+            if *written % count == 0 && unit > 0 && unit.is_power_of_two() && unit <= 4096 {
+                groups.push((*start, index));
+                open = None;
+            }
+        }
+    }
+    if let Some((start, _, _)) = open {
+        groups.push((start, voice.len() - 1));
+    }
+    groups
+}
+
+/// Explicit beam runs (`Begin` … `End`) that nest cleanly with the tuplet ranges.
+fn mei_beam_groups(voice: &[Note], tuplets: &[(usize, usize)]) -> Vec<(usize, usize)> {
+    let mut groups = Vec::new();
+    let mut start = None;
+    for (index, note) in voice.iter().enumerate() {
+        match note.beam {
+            BeamState::Begin => start = Some(index),
+            BeamState::Continue | BeamState::ForwardHook | BeamState::BackwardHook => {}
+            BeamState::End => {
+                if let Some(first) = start.take()
+                    && first < index
+                {
+                    groups.push((first, index));
+                }
+            }
+            BeamState::None | BeamState::BeginEnd => start = None,
+        }
+    }
+    groups.retain(|&(first, last)| {
+        tuplets.iter().all(|&(a, b)| {
+            last < a || b < first || (first <= a && b <= last) || (a <= first && last <= b)
+        })
+    });
+    groups
+}
+
 fn mei_note_id(number: u32, staff: usize, voice: usize, note: usize) -> String {
     format!("n{}_{}_{}_{}", number, staff + 1, voice + 1, note + 1)
 }
@@ -3988,17 +4093,48 @@ fn append_mei_measure_staves(
                 let (shape, line) = mei_clef(clef);
                 out.push_str(&format!("<clef shape=\"{shape}\" line=\"{line}\"/>"));
             }
+            let tuplets = mei_tuplet_groups(voice);
+            let beams = mei_beam_groups(voice, &tuplets);
             for (note_index, note) in voice.iter().enumerate() {
-                if let Some(tuplet) = &note.tuplet {
-                    out.push_str(&format!(
-                        "<tuplet num=\"{}\" numbase=\"{}\">",
-                        tuplet.actual_notes, tuplet.normal_notes
-                    ));
+                // Outer containers open first: a tuplet enclosing a beam, or a beam enclosing
+                // whole tuplets; identical ranges put the tuplet outside.
+                let mut openings = tuplets
+                    .iter()
+                    .filter(|group| group.0 == note_index)
+                    .map(|group| (group.1, true))
+                    .chain(
+                        beams
+                            .iter()
+                            .filter(|group| group.0 == note_index)
+                            .map(|group| (group.1, false)),
+                    )
+                    .collect::<Vec<_>>();
+                openings.sort_by_key(|(end, is_tuplet)| (std::cmp::Reverse(*end), !is_tuplet));
+                for (_, is_tuplet) in &openings {
+                    match (is_tuplet, &note.tuplet) {
+                        (true, Some(tuplet)) => out.push_str(&format!(
+                            "<tuplet num=\"{}\" numbase=\"{}\">",
+                            tuplet.actual_notes, tuplet.normal_notes
+                        )),
+                        _ => out.push_str("<beam>"),
+                    }
                 }
                 let id = mei_note_id(number, staff_index, voice_index, note_index);
                 append_mei_note(out, note, &id)?;
-                if note.tuplet.is_some() {
-                    out.push_str("</tuplet>");
+                let mut closings = tuplets
+                    .iter()
+                    .filter(|group| group.1 == note_index)
+                    .map(|group| (group.0, true))
+                    .chain(
+                        beams
+                            .iter()
+                            .filter(|group| group.1 == note_index)
+                            .map(|group| (group.0, false)),
+                    )
+                    .collect::<Vec<_>>();
+                closings.sort_by_key(|(start, is_tuplet)| (std::cmp::Reverse(*start), *is_tuplet));
+                for (_, is_tuplet) in closings {
+                    out.push_str(if is_tuplet { "</tuplet>" } else { "</beam>" });
                 }
             }
             append_mei_ottava_spans(out, voice, number, staff_index, voice_index);
@@ -5222,6 +5358,37 @@ mod tests {
         assert!(export.output.contains("artic=\"stacc acc\""));
         assert!(!export.output.contains("<artic "));
         check(&parse_mei(&export.output).expect("articulations reparse"));
+    }
+
+    #[test]
+    fn beams_and_tuplet_groups_round_trip() {
+        let xml = r##"<mei><music><body><mdiv><score><scoreDef meter.count="2" meter.unit="4"><staffGrp><staffDef n="1" clef.shape="G" clef.line="2"/></staffGrp></scoreDef><section><measure n="1"><staff n="1"><layer n="1"><beam><tuplet num="3" numbase="2"><note pname="c" oct="5" dur="8"/><note pname="d" oct="5" dur="8"/><note pname="e" oct="5" dur="8"/></tuplet></beam><beam><note pname="f" oct="5" dur="16"/><beam><note pname="g" oct="5" dur="32"/><note pname="a" oct="5" dur="32"/></beam><note pname="b" oct="5" dur="8"/></beam></layer></staff></measure></section></score></mdiv></body></music></mei>"##;
+        let report = parse_mei_with_report(xml).expect("beams parse");
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let check = |score: &Score| {
+            let voice = &score.parts[0].staves[0].measures[0].voices[0];
+            let beams = voice.iter().map(|note| note.beam).collect::<Vec<_>>();
+            assert_eq!(
+                beams,
+                vec![
+                    BeamState::Begin,
+                    BeamState::Continue,
+                    BeamState::End,
+                    BeamState::Begin,
+                    BeamState::Continue,
+                    BeamState::Continue,
+                    BeamState::End,
+                ]
+            );
+            assert!(voice[..3].iter().all(|note| note.tuplet.is_some()));
+            assert!(voice[3..].iter().all(|note| note.tuplet.is_none()));
+        };
+        check(&report.score);
+        let serialized = serialize_mei(&report.score).expect("beams serialize");
+        assert_eq!(serialized.matches("<tuplet ").count(), 1, "{serialized}");
+        assert_eq!(serialized.matches("<beam>").count(), 2);
+        assert!(serialized.contains("<beam><tuplet num=\"3\" numbase=\"2\">") || serialized.contains("<tuplet num=\"3\" numbase=\"2\"><beam>"));
+        check(&parse_mei(&serialized).expect("beams reparse"));
     }
 
     #[test]
