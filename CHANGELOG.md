@@ -17,6 +17,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   string marks go outside the staff. Fermatas, mordents, turns and shakes are drawn as glyphs
   instead of words, and a tremolo is drawn as strokes across the stem.
 - MEI `<tie>` control events from or to one note of a chord tie that pitch only.
+- SVG lyric hyphens are short dashes centred between syllables on the lyric line (they were long
+  lines drawn about a line above the text), and flags have an engraved S-shape on the right of
+  the stem, spaced for sixteenths and shorter.
 - **Clef changes.** SVG rendering applied a clef only at the start of each system, so a clef
   change inside a system left the rest of it drawn in the old clef; the change is now drawn
   (small, at the start of its bar) and the notes follow it. MusicXML clef changes on a later

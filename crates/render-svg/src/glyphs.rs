@@ -289,21 +289,23 @@ pub(crate) fn stem_to(cx: f32, cy: f32, tip_y: f32, space: f32, up: bool) -> Str
     )
 }
 
-/// Eighth-note flag at the stem tip: a small filled wedge curling toward the notehead side.
+/// Eighth-note flag at the stem tip: an S-shaped hook that leaves the stem on its right and
+/// sweeps back toward the notehead (down from an up-stem, up from a down-stem), after the
+/// engraved `flag8thUp`/`flag8thDown` shapes.
 pub(crate) fn flag(stem_x: f32, tip_y: f32, space: f32, up: bool) -> String {
-    let s = if up { 1.0 } else { -1.0 };
-    let d = format!(
-        "M {ox},{oy} Q {cx1},{cy1} {ex},{ey} Q {cx2},{cy2} {ox},{oy} Z",
-        ox = f(stem_x),
-        oy = f(tip_y),
-        cx1 = f(stem_x + 0.65 * space),
-        cy1 = f(tip_y + 0.35 * space * s),
-        ex = f(stem_x + 0.12 * space),
-        ey = f(tip_y + 1.05 * space * s),
-        cx2 = f(stem_x - 0.05 * space),
-        cy2 = f(tip_y + 0.55 * space * s),
+    let d = if up { 1.0 } else { -1.0 };
+    let p = |dx: f32, dy: f32| format!("{},{}", f(stem_x + dx * space), f(tip_y + dy * d * space));
+    let path = format!(
+        "M {} C {} {} {} C {} {} {} Z",
+        p(0.0, 0.0),
+        p(0.05, 0.9),
+        p(1.05, 1.25),
+        p(0.8, 2.7),
+        p(0.9, 1.7),
+        p(0.35, 1.45),
+        p(0.0, 1.2),
     );
-    format!(r#"<path d="{d}" fill="black" stroke="none"/>"#)
+    format!(r#"<path class="acorde-flag" d="{path}" fill="black" stroke="none"/>"#)
 }
 
 // ── ledger lines / barlines ─────────────────────────────────────────────────────

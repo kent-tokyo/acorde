@@ -429,7 +429,13 @@ pub(crate) fn build_svg_with_metadata(
         }
     }
 
-    render_cross_measure_lyric_hyphens(&mut body, score, &note_points, space);
+    render_cross_measure_lyric_hyphens(
+        &mut body,
+        score,
+        &note_points,
+        &resolved_annotation_obstacles,
+        space,
+    );
     render_cross_measure_tab_technique_connections(
         &mut body,
         score,
@@ -3166,39 +3172,6 @@ fn render_measure_voice_notes(
             *tablature_rhythm_display,
             *tablature_fret_mark_style,
         )?;
-        if matches!(
-            note.lyric.as_ref().map(|lyric| lyric.syllabic.as_str()),
-            Some("begin" | "middle")
-        ) {
-            if let Some(next_note_idx) =
-                ((note_idx + 1)..notes.len()).find(|&index| !notes[index].is_rest)
-            {
-                let next_anchor_y = note_anchor_y(
-                    &notes[next_note_idx],
-                    *clef_bottom,
-                    notes[next_note_idx].stem_up.unwrap_or(*voice_stem_up),
-                    *bottom_y,
-                    *space,
-                    *tablature,
-                );
-                render_lyric_hyphen(
-                    body,
-                    &LyricHyphenContext {
-                        part: *part,
-                        staff: *staff,
-                        voice_idx: *voice_idx,
-                        start_note_idx: note_idx,
-                        end_note_idx: next_note_idx,
-                        start_measure_idx: *measure_idx,
-                        end_measure_idx: *measure_idx,
-                        start_x: xs[note_idx],
-                        end_x: xs[next_note_idx],
-                        y: (point_y + next_anchor_y) * 0.5 + 4.55 * *space,
-                        space: *space,
-                    },
-                );
-            }
-        }
     }
     Ok(())
 }
@@ -3364,11 +3337,15 @@ fn render_lyric_hyphen(body: &mut String, context: &LyricHyphenContext) {
         y,
         space,
     } = *context;
-    let x1 = start_x + 0.7 * space;
-    let x2 = end_x - 0.7 * space;
-    if !x1.is_finite() || !x2.is_finite() || !y.is_finite() || x2 <= x1 {
+    // A short hyphen centred between the two syllables, as engravers set it.
+    let gap_start = start_x + 0.7 * space;
+    let gap_end = end_x - 0.7 * space;
+    if !gap_start.is_finite() || !gap_end.is_finite() || !y.is_finite() || gap_end <= gap_start {
         return;
     }
+    let centre = (gap_start + gap_end) / 2.0;
+    let half = (0.4 * space).min((gap_end - gap_start) / 2.0);
+    let (x1, x2) = (centre - half, centre + half);
     let _ = write!(
         body,
         r#"<line class="acorde-lyric-hyphen" data-start-note-addr="{part}:{staff}:{start_measure_idx}:{voice_idx}:{start_note_idx}" data-end-note-addr="{part}:{staff}:{end_measure_idx}:{voice_idx}:{end_note_idx}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
@@ -3376,7 +3353,7 @@ fn render_lyric_hyphen(body: &mut String, context: &LyricHyphenContext) {
         f(y),
         f(x2),
         f(y),
-        f(0.06 * space)
+        f(0.1 * space)
     );
 }
 
@@ -3384,8 +3361,21 @@ fn render_cross_measure_lyric_hyphens(
     body: &mut String,
     score: &Score,
     points: &HashMap<NoteKey, NotePoint>,
+    placements: &[acorde_layout::GlyphPlacement],
     space: f32,
 ) {
+    // Hyphens sit on the line where each syllable was finally placed.
+    let lyric_ys: HashMap<&str, f32> = placements
+        .iter()
+        .filter(|placement| placement.resource_key.starts_with("lyric:"))
+        .map(|placement| (placement.resource_key.as_str(), placement.y_mm))
+        .collect();
+    let lyric_y = |key: NoteKey| {
+        let (part, staff, measure, voice, note) = key;
+        lyric_ys
+            .get(format!("lyric:{part}:{staff}:{measure}:{voice}:{note}").as_str())
+            .copied()
+    };
     for (part_index, part) in score.parts.iter().enumerate() {
         for (staff_index, staff) in part.staves.iter().enumerate() {
             for (measure_index, measure) in staff.measures.iter().enumerate() {
@@ -3420,9 +3410,6 @@ fn render_cross_measure_lyric_hyphens(
                         let Some((next_measure_index, next_note_index)) = next else {
                             continue;
                         };
-                        if next_measure_index == measure_index {
-                            continue;
-                        }
                         let Some(&(start_x, start_y, _, start_row)) = points.get(&(
                             part_index,
                             staff_index,
@@ -3456,7 +3443,15 @@ fn render_cross_measure_lyric_hyphens(
                                 end_measure_idx: next_measure_index,
                                 start_x,
                                 end_x,
-                                y: (start_y + end_y) * 0.5 + 4.55 * space,
+                                y: lyric_y((
+                                    part_index,
+                                    staff_index,
+                                    measure_index,
+                                    voice_index,
+                                    note_index,
+                                ))
+                                .map(|baseline| baseline - 0.3 * space)
+                                .unwrap_or((start_y + end_y) * 0.5 + 4.55 * space),
                                 space,
                             },
                         );
@@ -6612,9 +6607,9 @@ fn render_pitched_note_stem_and_flags(context: &mut PitchedNoteStemContext<'_>) 
     for i in 0..context.flag_count {
         let fy = tip_y
             + if context.stem_up {
-                i as f32 * 0.35 * context.space
+                i as f32 * 0.75 * context.space
             } else {
-                -(i as f32) * 0.35 * context.space
+                -(i as f32) * 0.75 * context.space
             };
         let x_off = glyphs::NOTEHEAD_RX_U * context.space * 0.92;
         let stem_x = if context.stem_up {
