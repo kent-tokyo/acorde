@@ -1923,6 +1923,8 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut current_measure: Option<usize> = None;
     // An open `<ending>`: its number, and the first bar read inside it.
     let mut open_ending: Option<u8> = None;
+    // An ending played on several passes (`@label="1., 2."`, `@n="1-2"`).
+    let mut open_ending_passes: Vec<u8> = Vec::new();
     let mut ending_first_measure: Option<usize> = None;
     let mut ending_last_measure: Option<usize> = None;
     let mut current_staff: usize = 0;
@@ -2392,6 +2394,18 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                     .ok()
                             })
                             .or(Some(1));
+                        let passes = attr(&event, b"label")
+                            .map(|label| acorde_core::VoltaBracket::parse_passes(&label))
+                            .filter(|passes| !passes.is_empty())
+                            .or_else(|| {
+                                attr(&event, b"n")
+                                    .map(|n| acorde_core::VoltaBracket::parse_passes(&n))
+                            })
+                            .unwrap_or_default();
+                        open_ending_passes = if passes.len() > 1 { passes } else { Vec::new() };
+                        if let Some(first) = open_ending_passes.first() {
+                            open_ending = Some(*first);
+                        }
                         ending_first_measure = None;
                         ending_last_measure = None;
                     }
@@ -3219,9 +3233,11 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         ending_last_measure,
                     ) && let Some(staff) = score.parts[0].staves.first_mut()
                     {
+                        let passes = std::mem::take(&mut open_ending_passes);
                         let kind = |value: &str| acorde_core::VoltaBracket {
                             number,
                             kind: value.to_string(),
+                            numbers: passes.clone(),
                         };
                         if first == last {
                             if let Some(measure) = staff.measures.get_mut(first) {
@@ -5432,11 +5448,27 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
                 out.push_str("/>");
             }
         }
-        if let Some(&(_, _, ending)) = volta_spans
+        if let Some(&(start, _, ending)) = volta_spans
             .iter()
             .find(|(start, _, _)| *start == measure_index)
         {
-            out.push_str(&format!("<ending n=\"{ending}\" label=\"{ending}.\">"));
+            // Several passes: `@n="1-2"` (a token) and `@label="1., 2."`.
+            let passes = staves
+                .first()
+                .and_then(|staff| staff.measures.get(start))
+                .and_then(|measure| measure.volta.as_ref())
+                .map_or_else(|| vec![ending], acorde_core::VoltaBracket::passes);
+            let consecutive = passes.windows(2).all(|pair| pair[1] == pair[0] + 1);
+            let n = match passes.as_slice() {
+                [first, .., last] if consecutive => format!("{first}-{last}"),
+                _ => ending.to_string(),
+            };
+            let label = passes
+                .iter()
+                .map(|pass| format!("{pass}."))
+                .collect::<Vec<_>>()
+                .join(", ");
+            out.push_str(&format!("<ending n=\"{n}\" label=\"{label}\">"));
         }
         out.push_str(&format!("<measure n=\"{number}\""));
         if let Some(first) = staves

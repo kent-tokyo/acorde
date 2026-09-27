@@ -447,9 +447,24 @@ fn write_staff(
                     end + 1 - start
                 )
             };
+            // An ending for several passes: `1.–3.` over `<endings>1,2,3</endings>`.
+            let passes = staff.measures[start]
+                .volta
+                .as_ref()
+                .map_or_else(|| vec![number], acorde_core::VoltaBracket::passes);
+            let endings = passes
+                .iter()
+                .map(u8::to_string)
+                .collect::<Vec<_>>()
+                .join(",");
+            let text = passes
+                .iter()
+                .map(|pass| format!("{pass}."))
+                .collect::<Vec<_>>()
+                .join(" ");
             write!(
                 xml,
-                "<Spanner type=\"Volta\"><Volta><endHookType>1</endHookType><beginText>{number}.</beginText><endings>{number}</endings></Volta>{next}</Spanner>"
+                "<Spanner type=\"Volta\"><Volta><endHookType>1</endHookType><beginText>{text}</beginText><endings>{endings}</endings></Volta>{next}</Spanner>"
             )
             .map_err(fmt_error)?;
         }

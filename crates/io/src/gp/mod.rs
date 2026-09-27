@@ -673,14 +673,11 @@ pub fn parse_gpif(xml: &str) -> Result<(Score, Vec<Diagnostic>), Error> {
             .and_then(|next| next.text_at("AlternateEndings"))
             .filter(|value| !value.is_empty());
         let volta = ending.as_ref().and_then(|ending| {
-            let numbers = ids(ending);
-            if numbers.len() > 1 {
-                losses.add(
-                    "gp.multi-number-ending",
-                    "an ending shared by several passes keeps only its first number",
-                );
-            }
-            let number = u8::try_from(*numbers.first()?).ok()?;
+            let numbers: Vec<u8> = ids(ending)
+                .into_iter()
+                .filter_map(|number| u8::try_from(number).ok())
+                .collect();
+            let number = *numbers.first()?;
             let starts = previous_ending.as_deref() != Some(ending.as_str());
             let ends = next_ending != Some(ending.as_str());
             Some(VoltaBracket {
@@ -692,6 +689,11 @@ pub fn parse_gpif(xml: &str) -> Result<(Score, Vec<Diagnostic>), Error> {
                     (false, false) => "mid",
                 }
                 .to_string(),
+                numbers: if numbers.len() > 1 {
+                    numbers
+                } else {
+                    Vec::new()
+                },
             })
         });
         previous_ending = ending;

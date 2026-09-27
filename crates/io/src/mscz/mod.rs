@@ -373,6 +373,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut volta_has_prev = false;
     let mut volta_has_body = false;
     let mut volta_endings = String::new();
+    let mut open_volta_numbers: Vec<u8> = Vec::new();
     let mut open_volta_number: Option<u8> = None;
     // A `<Fermata>` written before the chord or rest it sits over.
     let mut pending_fermata = false;
@@ -1581,6 +1582,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 previous.volta = Some(VoltaBracket {
                                     number: open_volta_number.unwrap_or(1),
                                     kind: "end".to_string(),
+                                    numbers: std::mem::take(&mut open_volta_numbers),
                                 });
                             }
                             open_volta_number = None;
@@ -1591,11 +1593,17 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 volta_text.as_str()
                             };
                             let number = parse_volta_number(label);
+                            // `<endings>1,2</endings>`: the passes the ending is played on.
+                            let passes = VoltaBracket::parse_passes(&volta_endings);
+                            let numbers = if passes.len() > 1 { passes } else { Vec::new() };
+                            let number = numbers.first().copied().unwrap_or(number);
                             let kind = if volta_has_next { "begin" } else { "begin_end" };
                             open_volta_number = volta_has_next.then_some(number);
+                            open_volta_numbers = numbers.clone();
                             cur_volta = Some(VoltaBracket {
                                 number,
                                 kind: kind.to_string(),
+                                numbers,
                             });
                         }
                         in_volta_spanner = false;
@@ -2694,6 +2702,7 @@ fn close_final_volta(measures: &mut [Measure]) {
         measures[last].volta = Some(VoltaBracket {
             number,
             kind: "end".to_string(),
+            numbers: Vec::new(),
         });
     }
 }

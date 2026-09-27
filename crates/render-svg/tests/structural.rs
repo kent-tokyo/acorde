@@ -3212,15 +3212,18 @@ fn voltas_repeat_starts_and_system_bar_numbers_are_drawn() {
     measures[2].volta = Some(VoltaBracket {
         number: 1,
         kind: "begin".into(),
+        numbers: Vec::new(),
     });
     measures[3].volta = Some(VoltaBracket {
         number: 1,
         kind: "end".into(),
+        numbers: Vec::new(),
     });
     measures[3].barline_right = Barline::RepeatEnd;
     measures[4].volta = Some(VoltaBracket {
         number: 2,
         kind: "begin_end".into(),
+        numbers: Vec::new(),
     });
     let svg = render_svg(&score, &opts()).unwrap();
     assert_eq!(svg.matches(r#"class="acorde-volta""#).count(), 2);

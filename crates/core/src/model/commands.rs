@@ -6016,6 +6016,7 @@ mod tests {
         let volta = VoltaBracket {
             number: 1,
             kind: "begin_end".into(),
+            numbers: Vec::new(),
         };
         apply_command(
             &Command::SetVolta(SetVoltaCmd {
@@ -6035,6 +6036,7 @@ mod tests {
         score.parts[0].staves[0].measures[0].volta = Some(VoltaBracket {
             number: 1,
             kind: "begin_end".into(),
+            numbers: Vec::new(),
         });
         apply_command(
             &Command::SetVolta(SetVoltaCmd {
@@ -6059,6 +6061,7 @@ mod tests {
                     volta: Some(VoltaBracket {
                         number: 1,
                         kind: "begin_end".into(),
+                        numbers: Vec::new(),
                     }),
                 }),
                 &mut score,

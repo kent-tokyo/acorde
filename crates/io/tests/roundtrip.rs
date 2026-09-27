@@ -4628,11 +4628,13 @@ fn mscx_round_trips_tuplets_graces_fermatas_ornaments_repeats_voltas_and_chords(
         measures[1].volta = Some(VoltaBracket {
             number: 1,
             kind: "begin_end".into(),
+            numbers: Vec::new(),
         });
         measures[2].voices[0] = vec![Note::new(Pitch::new(Step::G, 4), Duration::Half)];
         measures[2].volta = Some(VoltaBracket {
             number: 2,
             kind: "begin_end".into(),
+            numbers: Vec::new(),
         });
     }
     let report = acorde_io::serialize_mscx_with_report(&score).expect("exports");
@@ -4683,14 +4685,17 @@ fn mei_writes_and_reads_endings() {
     measures[1].volta = Some(VoltaBracket {
         number: 1,
         kind: "begin".into(),
+        numbers: Vec::new(),
     });
     measures[2].volta = Some(VoltaBracket {
         number: 1,
         kind: "end".into(),
+        numbers: Vec::new(),
     });
     measures[3].volta = Some(VoltaBracket {
         number: 2,
         kind: "begin_end".into(),
+        numbers: Vec::new(),
     });
     let mei = acorde_io::serialize_mei(&score).expect("exports");
     assert_eq!(mei.matches("<ending ").count(), 2);
@@ -4844,10 +4849,12 @@ fn mscx_keeps_invisible_barlines_and_a_volta_that_runs_to_the_last_bar() {
     measures[2].volta = Some(VoltaBracket {
         number: 2,
         kind: "begin".into(),
+        numbers: Vec::new(),
     });
     measures[3].volta = Some(VoltaBracket {
         number: 2,
         kind: "end".into(),
+        numbers: Vec::new(),
     });
     measures[3].barline_right = Barline::Final;
     let mscx = acorde_io::serialize_mscx(&score).expect("exports");
@@ -5744,4 +5751,52 @@ fn chord_member_fingerings_stay_on_their_notes() {
         &acorde_io::parse_mscx(&mscx).expect("MSCX reparses"),
         "MSCX",
     );
+}
+
+#[test]
+fn endings_for_several_passes_round_trip_and_play() {
+    // |: A | 1, 2. B :| 3. C |
+    let bar = |content: &str| {
+        format!(
+            r#"<measure>{content}<note><pitch><step>C</step><octave>5</octave></pitch><duration>4</duration><type>whole</type></note></measure>"#
+        )
+    };
+    let xml = format!(
+        r#"<score-partwise><part-list><score-part id="P1"><part-name>V</part-name></score-part></part-list><part id="P1">{}{}{}</part></score-partwise>"#,
+        bar(r#"<attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><barline location="left"><repeat direction="forward"/></barline>"#)
+            .replacen("<measure>", r#"<measure number="1">"#, 1),
+        bar(r#"<barline location="left"><ending number="1, 2" type="start"/></barline>"#)
+            .replacen("</measure>", r#"<barline location="right"><ending number="1, 2" type="stop"/><repeat direction="backward"/></barline></measure>"#, 1)
+            .replacen("<measure>", r#"<measure number="2">"#, 1),
+        bar(r#"<barline location="left"><ending number="3" type="start"/></barline>"#)
+            .replacen("</measure>", r#"<barline location="right"><ending number="3" type="discontinue"/></barline></measure>"#, 1)
+            .replacen("<measure>", r#"<measure number="3">"#, 1),
+    );
+    let check = |score: &acorde_core::Score, format: &str| {
+        let volta = score.parts[0].staves[0].measures[1]
+            .volta
+            .as_ref()
+            .unwrap_or_else(|| panic!("{format}: ending"));
+        assert_eq!(volta.passes(), vec![1, 2], "{format}");
+        assert_eq!(
+            acorde_core::measure_sequence(score),
+            vec![0, 1, 0, 1, 0, 2],
+            "{format}"
+        );
+    };
+    let score = parse_musicxml(&xml).expect("parses");
+    check(&score, "MusicXML");
+    let written = serialize_musicxml(&score).expect("MusicXML");
+    assert!(written.contains(r#"<ending number="1, 2" type="start"/>"#));
+    check(
+        &parse_musicxml(&written).expect("reparses"),
+        "MusicXML again",
+    );
+    check(
+        &acorde_io::parse_mei(&acorde_io::serialize_mei(&score).expect("MEI")).expect("MEI"),
+        "MEI",
+    );
+    let mscx = acorde_io::serialize_mscx(&score).expect("MSCX");
+    assert!(mscx.contains("<endings>1,2</endings>"));
+    check(&acorde_io::parse_mscx(&mscx).expect("MSCX"), "MSCX");
 }

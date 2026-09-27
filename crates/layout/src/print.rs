@@ -3486,6 +3486,7 @@ mod tests {
         measures[2].volta = Some(acorde_core::VoltaBracket {
             number: 1,
             kind: "begin".to_string(),
+            numbers: Vec::new(),
         });
         measures[2].navigation = Some("ToCoda".to_string());
         measures[2].rehearsal = Some("B".to_string());
@@ -3936,10 +3937,12 @@ mod tests {
         score.parts[0].staves[0].measures[1].volta = Some(acorde_core::VoltaBracket {
             number: 1,
             kind: "begin".to_string(),
+            numbers: Vec::new(),
         });
         score.parts[0].staves[0].measures[2].volta = Some(acorde_core::VoltaBracket {
             number: 1,
             kind: "end".to_string(),
+            numbers: Vec::new(),
         });
         let result = compute_print_layout(
             &score,

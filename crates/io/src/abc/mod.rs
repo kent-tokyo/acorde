@@ -741,20 +741,25 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
         // Volta ending marker ([1, [2, ...). ABC commonly places it at the
         // beginning of the ending measure, after the preceding barline.
         if ch == '[' && chars.get(i + 1).is_some_and(char::is_ascii_digit) {
+            // `[1`, or `[1,2` / `[1-3` for an ending played on several passes.
             let mut cursor = i + 1;
-            while chars.get(cursor).is_some_and(char::is_ascii_digit) {
+            while chars
+                .get(cursor)
+                .is_some_and(|ch| ch.is_ascii_digit() || matches!(ch, ',' | '-'))
+            {
                 cursor += 1;
             }
-            if let Ok(number) = chars[i + 1..cursor]
-                .iter()
-                .collect::<String>()
-                .parse::<u8>()
+            let passes = acorde_core::VoltaBracket::parse_passes(
+                &chars[i + 1..cursor].iter().collect::<String>(),
+            );
+            if let Some(&number) = passes.first()
                 && number > 0
             {
                 if let Some(measure) = staff.measures.last_mut() {
                     measure.volta = Some(acorde_core::VoltaBracket {
                         number,
                         kind: "begin".to_string(),
+                        numbers: if passes.len() > 1 { passes } else { Vec::new() },
                     });
                 }
                 i = cursor;
@@ -1885,7 +1890,13 @@ fn write_abc_staff(out: &mut String, staff: &Staff, part_index: usize) -> Result
         if let Some(volta) = &measure.volta
             && matches!(volta.kind.as_str(), "begin" | "begin_end")
         {
-            out.push_str(&format!("[{} ", volta.number));
+            let passes = volta
+                .passes()
+                .iter()
+                .map(u8::to_string)
+                .collect::<Vec<_>>()
+                .join(",");
+            out.push_str(&format!("[{passes} "));
         }
         if measure_index == 0 && !matches!(measure.barline_left, Barline::Normal) {
             out.push_str(barline_to_abc(&measure.barline_left));
@@ -2707,6 +2718,7 @@ C D E F | G A B c |";
         score.parts[0].staves[0].measures[0].volta = Some(acorde_core::VoltaBracket {
             number: 1,
             kind: "begin_end".to_string(),
+            numbers: Vec::new(),
         });
 
         let diagnostics = export_loss_diagnostics(&score);

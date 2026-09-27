@@ -9,6 +9,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Endings for several passes.** `VoltaBracket` gains `numbers` (with `passes`, `plays_on`,
+  `label` and `parse_passes`) for an ending played on several passes (`1, 2.`, `1.–3.`), and
+  playback repeats the section until the last ending's pass — `|: A |1, 2. B :|3. C` plays A B
+  A B A C (it played A B A and stopped: the second pass found no ending). MusicXML `<ending
+  number="1, 2">`, MEI `<ending label="1., 2.">`, MuseScore `<endings>1,2</endings>`, ABC `[1,2`
+  and Guitar Pro multi-pass endings (reported as lost in 4 alphaTab files) all keep every pass.
+
 - **MuseScore multi-measure rests.** MuseScore draws multi-measure rests from the
   `createMultiMeasureRests` style rather than per bar, so they were lost on import and reported
   as lost on export. Import now groups runs of bars empty in every staff (broken, as in

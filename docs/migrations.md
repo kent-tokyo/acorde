@@ -25,6 +25,12 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
+### Unreleased — endings for several passes
+
+`VoltaBracket` gains `numbers: Vec<u8>` (omitted from JSON when empty; `number` stays the first
+pass). Code that builds `VoltaBracket` with a struct literal needs the field (`Vec::new()` for a
+single-pass ending). `measure_sequence` now repeats a section once per ending pass.
+
 ### Unreleased — chord-note fingerings
 
 `Note` gains `pitch_fingerings: Vec<Option<u8>>`: the fingering of each chord note, parallel to

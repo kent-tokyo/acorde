@@ -132,6 +132,8 @@ struct Header {
     repeat_start: bool,
     repeat_end: bool,
     endings: u8,
+    /// Every pass the ending is played on (GP5's bit mask), when it serves several.
+    ending_passes: Vec<u8>,
     marker: Option<String>,
     key: Option<(i8, bool)>,
     double_bar: bool,
@@ -432,13 +434,13 @@ impl Reader<'_> {
                 self.bin.skip(4)?; // beam grouping
             }
             let mask = self.bin.u8()?;
-            // GP5 stores the endings as a bit mask; acorde keeps the lowest pass number.
+            // GP5 stores the endings as a bit mask: bit n is pass n + 1.
             if mask != 0 {
                 if mask.count_ones() > 1 {
-                    self.losses.add(
-                        "gp.multi-number-ending",
-                        "an ending shared by several passes keeps only its first number",
-                    );
+                    header.ending_passes = (0..8)
+                        .filter(|bit| mask & (1 << bit) != 0)
+                        .map(|bit| bit + 1)
+                        .collect();
                 }
                 header.endings = mask.trailing_zeros() as u8 + 1;
             }
@@ -1236,6 +1238,7 @@ impl Reader<'_> {
                         (false, false) => "mid",
                     }
                     .to_string(),
+                    numbers: header.ending_passes.clone(),
                 }
             });
             previous_ending = header.endings;

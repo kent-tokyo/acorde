@@ -1933,10 +1933,73 @@ impl Staff {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VoltaBracket {
-    /// Ending number (1, 2, …)
+    /// Ending number (1, 2, …); the first when the ending serves several passes.
     pub number: u8,
     /// "begin" | "mid" | "end" | "begin_end"
     pub kind: String,
+    /// Every pass the ending is played on when it serves several (`1, 2` or `1-3`); empty
+    /// (the usual case) means `number` alone.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub numbers: Vec<u8>,
+}
+
+impl VoltaBracket {
+    /// The passes this ending is played on, in order.
+    pub fn passes(&self) -> Vec<u8> {
+        if self.numbers.is_empty() {
+            vec![self.number]
+        } else {
+            self.numbers.clone()
+        }
+    }
+
+    /// Whether the ending is played on repeat pass `pass` (1 = first time through).
+    pub fn plays_on(&self, pass: u8) -> bool {
+        if self.numbers.is_empty() {
+            self.number == pass
+        } else {
+            self.numbers.contains(&pass)
+        }
+    }
+
+    /// The ending's label as scores print it: `1`, `1, 2`, `1-3` (a run of three or more).
+    pub fn label(&self) -> String {
+        let passes = self.passes();
+        match passes.as_slice() {
+            [first, .., last]
+                if passes.len() >= 3 && passes.windows(2).all(|pair| pair[1] == pair[0] + 1) =>
+            {
+                format!("{first}-{last}")
+            }
+            _ => passes
+                .iter()
+                .map(u8::to_string)
+                .collect::<Vec<_>>()
+                .join(", "),
+        }
+    }
+
+    /// Pass numbers from a label such as `1`, `1, 2`, `1.2.` or `1-3`.
+    pub fn parse_passes(label: &str) -> Vec<u8> {
+        let mut passes = Vec::new();
+        for part in label
+            .split([',', ' ', '.', '+', '/'])
+            .filter(|part| !part.is_empty())
+        {
+            if let Some((from, to)) = part.split_once(['-', '–'])
+                && let (Ok(from), Ok(to)) = (from.trim().parse::<u8>(), to.trim().parse::<u8>())
+                && from <= to
+                && to - from < 32
+            {
+                passes.extend(from..=to);
+            } else if let Ok(pass) = part.trim().parse::<u8>() {
+                passes.push(pass);
+            }
+        }
+        passes.sort_unstable();
+        passes.dedup();
+        passes
+    }
 }
 
 /// One of the three mechanically available positions of a concert-harp pedal.
@@ -5630,6 +5693,7 @@ mod tests {
         measure.volta = Some(VoltaBracket {
             number: 1,
             kind: "begin_end".to_string(),
+            numbers: Vec::new(),
         });
         measure.texts.push(StyledText {
             style: TextStyle::RehearsalMark,
@@ -6361,6 +6425,7 @@ mod tests {
         b.parts[0].staves[0].measures[0].volta = Some(VoltaBracket {
             number: 1,
             kind: "begin_end".into(),
+            numbers: Vec::new(),
         });
         let changes = diff(&a, &b);
         assert!(

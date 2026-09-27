@@ -184,7 +184,7 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 {
                     xml.push_str(&format!(
                         "        <ending number=\"{}\" type=\"start\"/>\n",
-                        v.number
+                        musicxml_ending_number(v)
                     ));
                 }
                 if matches!(
@@ -718,7 +718,7 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 {
                     xml.push_str(&format!(
                         "        <ending number=\"{}\" type=\"stop\"/>\n",
-                        v.number
+                        musicxml_ending_number(v)
                     ));
                 }
                 if matches!(
@@ -1950,6 +1950,16 @@ fn escape_xml(s: &str) -> String {
         .replace('>', "&gt;")
         .replace('"', "&quot;")
         .replace('\'', "&apos;")
+}
+
+/// An `<ending number>`: the passes it is played on, comma-separated (`1, 2`).
+fn musicxml_ending_number(volta: &acorde_core::VoltaBracket) -> String {
+    volta
+        .passes()
+        .iter()
+        .map(u8::to_string)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// A `<clef>` element (numbered for a staff after the first), with `<clef-octave-change>` for

@@ -41,7 +41,7 @@ pub fn measure_sequence(score: &Score) -> Vec<usize> {
     // Each repeat end and each D.C./D.S. mark jumps back once. Without this, marks that do not
     // pair up (a stray first-ending end with its own repeat, a coda before its D.C.) sent
     // playback round the same bars forever, growing the sequence until allocation failed.
-    let mut repeat_taken = vec![false; n];
+    let mut repeat_jumps = vec![0u8; n];
     let mut jump_taken = vec![false; n];
     // Backstop for any other unforeseen cycle: no real score plays a bar this many times.
     let limit = n.saturating_mul(16).max(64);
@@ -60,7 +60,7 @@ pub fn measure_sequence(score: &Score) -> Vec<usize> {
         if !in_nav_pass {
             // Skip volta blocks that don't belong to the current pass.
             if let Some(volta) = &m.volta
-                && volta.number != volta_pass
+                && !volta.plays_on(volta_pass)
                 && (volta.kind == "begin" || volta.kind == "begin_end")
             {
                 if volta.kind == "begin_end" {
@@ -125,8 +125,32 @@ pub fn measure_sequence(score: &Score) -> Vec<usize> {
 
             match m.barline_right {
                 Barline::RepeatEnd | Barline::RepeatBoth => {
-                    if !std::mem::replace(&mut repeat_taken[i], true) {
-                        volta_pass = 2;
+                    // Inside an ending, repeat until the last ending's pass is reached: a
+                    // `1, 2.` ending before a `3.` one plays the section three times.
+                    let last_pass = if m.volta.is_some() {
+                        let mut last = volta_pass;
+                        let mut j = repeat_start;
+                        while j < n && (j <= i || measures[j].volta.is_some()) {
+                            if let Some(volta) = &measures[j].volta {
+                                last = last.max(volta.passes().into_iter().max().unwrap_or(1));
+                            }
+                            j += 1;
+                        }
+                        last
+                    } else {
+                        2
+                    };
+                    // Each repeat end jumps back at most once per extra pass, so marks that do
+                    // not pair up cannot loop.
+                    let again = if m.volta.is_some() {
+                        volta_pass < last_pass
+                            && usize::from(repeat_jumps[i]) + 1 < usize::from(last_pass)
+                    } else {
+                        repeat_jumps[i] == 0
+                    };
+                    if again {
+                        repeat_jumps[i] = repeat_jumps[i].saturating_add(1);
+                        volta_pass = volta_pass.saturating_add(1).min(last_pass);
                         i = repeat_start;
                     } else {
                         volta_pass = 1;
@@ -172,6 +196,36 @@ mod tests {
     }
 
     #[test]
+    fn an_ending_for_several_passes_repeats_the_section_that_many_times() {
+        // |: A | 1, 2. B :| 3. C |
+        let mut a = plain(1);
+        a.barline_left = Barline::RepeatStart;
+        let mut b = plain(2);
+        b.barline_right = Barline::RepeatEnd;
+        b.volta = Some(VoltaBracket {
+            number: 1,
+            kind: "begin_end".into(),
+            numbers: vec![1, 2],
+        });
+        let mut c = plain(3);
+        c.volta = Some(VoltaBracket {
+            number: 3,
+            kind: "begin_end".into(),
+            numbers: Vec::new(),
+        });
+        let score = score_with_measures(vec![a, b, c]);
+        assert_eq!(measure_sequence(&score), vec![0, 1, 0, 1, 0, 2]);
+        assert_eq!(VoltaBracket::parse_passes("1, 2"), vec![1, 2]);
+        assert_eq!(VoltaBracket::parse_passes("1-3"), vec![1, 2, 3]);
+        let three = VoltaBracket {
+            number: 1,
+            kind: "begin".into(),
+            numbers: vec![1, 2, 3],
+        };
+        assert_eq!(three.label(), "1-3");
+    }
+
+    #[test]
     fn unpaired_repeat_marks_play_each_repeat_once_instead_of_looping() {
         // A first ending that only ends (its start is missing) with a repeat, a second ending,
         // then a later repeat end with another second ending: the two repeat ends used to reset
@@ -180,6 +234,7 @@ mod tests {
             Some(VoltaBracket {
                 number,
                 kind: kind.into(),
+                numbers: Vec::new(),
             })
         };
         let mut m1 = plain(2);
@@ -237,12 +292,14 @@ mod tests {
         m2.volta = Some(VoltaBracket {
             number: 1,
             kind: "begin_end".into(),
+            numbers: Vec::new(),
         });
         m2.barline_right = Barline::RepeatEnd;
         let mut m3 = plain(4);
         m3.volta = Some(VoltaBracket {
             number: 2,
             kind: "begin_end".into(),
+            numbers: Vec::new(),
         });
 
         let score = score_with_measures(vec![m0, m1, m2, m3]);
@@ -258,12 +315,14 @@ mod tests {
         m2.volta = Some(VoltaBracket {
             number: 1,
             kind: "begin_end".into(),
+            numbers: Vec::new(),
         });
         m2.barline_right = Barline::RepeatEnd;
         let mut m3 = plain(4);
         m3.volta = Some(VoltaBracket {
             number: 2,
             kind: "begin_end".into(),
+            numbers: Vec::new(),
         });
         let m4 = plain(5);
 

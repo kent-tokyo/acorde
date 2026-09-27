@@ -324,11 +324,13 @@ mod tests {
         staff.measures[1].volta = Some(VoltaBracket {
             number: 1,
             kind: "begin_end".into(),
+            numbers: Vec::new(),
         });
         staff.measures[1].barline_right = Barline::RepeatEnd;
         staff.measures[2].volta = Some(VoltaBracket {
             number: 2,
             kind: "begin_end".into(),
+            numbers: Vec::new(),
         });
         staff.measures[2].key_sig = Some(KeySignature {
             fifths: 1,

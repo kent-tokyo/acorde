@@ -3267,9 +3267,13 @@ fn apply_musicxml_ending(
     number: Option<String>,
     ending_type: Option<String>,
 ) {
-    let ending_num: u8 = number
-        .and_then(|value| value.split(',').next()?.trim().parse().ok())
-        .unwrap_or(1);
+    // `1, 2` (or `1-3`): an ending played on several passes.
+    let passes = number
+        .as_deref()
+        .map(VoltaBracket::parse_passes)
+        .unwrap_or_default();
+    let ending_num: u8 = passes.first().copied().unwrap_or(1);
+    let numbers = if passes.len() > 1 { passes } else { Vec::new() };
     let kind = match ending_type.as_deref().unwrap_or_default() {
         "start" if barline_location == "left" => "begin",
         "stop" | "discontinue" => "end",
@@ -3285,6 +3289,7 @@ fn apply_musicxml_ending(
         m.volta = Some(VoltaBracket {
             number: ending_num,
             kind: kind.to_string(),
+            numbers,
         });
     }
 }
