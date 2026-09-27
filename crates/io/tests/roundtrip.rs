@@ -4920,3 +4920,42 @@ fn mscx_wraps_every_voice_so_second_voices_stay_apart() {
         Barline::Final
     );
 }
+
+#[test]
+fn mei_keeps_a_part_whose_key_signature_differs_from_the_others() {
+    use acorde_core::{KeySignature, Score};
+    let mut score = Score::new("keys", 120, 4, 4, -1, 3);
+    let mut second = acorde_core::Part::new("Tenor", "T.");
+    second.staves = score.parts[0].staves.clone();
+    score.parts.push(second);
+    let key = |fifths| {
+        Some(KeySignature {
+            fifths,
+            mode: "major".into(),
+        })
+    };
+    score.parts[0].staves[0].measures[0].key_sig = key(-1);
+    score.parts[1].staves[0].measures[0].key_sig = key(0);
+    // A later change the parts share is still one score-wide change.
+    score.parts[0].staves[0].measures[2].key_sig = key(2);
+    score.parts[1].staves[0].measures[2].key_sig = key(2);
+    let mei = acorde_io::serialize_mei(&score).expect("exports");
+    assert!(mei.contains("<staffDef n=\"2\" keysig=\"0\"/>"));
+    assert!(mei.contains("<scoreDef keysig=\"2s\"/>"));
+    let back = acorde_io::parse_mei(&mei).expect("imports");
+    let keys = |part: usize| {
+        let mut running = back.settings.key_signature.fifths;
+        back.parts[part].staves[0]
+            .measures
+            .iter()
+            .map(|m| {
+                if let Some(key) = &m.key_sig {
+                    running = key.fifths;
+                }
+                running
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(keys(0), vec![-1, -1, 2]);
+    assert_eq!(keys(1), vec![0, 0, 2]);
+}

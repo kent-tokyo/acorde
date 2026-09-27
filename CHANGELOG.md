@@ -30,6 +30,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **MSCX cross-staff notes.** Chords moved to another staff of their part are written and read
   as `<staffMove>` (73 of them were lost in the corpus round trip), and MSCX import keeps
   hairpins, pedals and ottavas that start on a rest on that rest instead of the next chord.
+- **MEI per-part key signatures.** MEI export wrote the first staff's key for every staff, so a
+  part in a different key (a transposing part, an early-music voice without the flat) came
+  back in the wrong key; staves that disagree now get their own `<staffDef keysig>`, and MEI
+  import reads a `<staffDef>` key (attribute or `<keySig>` child) for that staff only. 32 of
+  the 205 corpus files lost a part's key this way.
 - MSCX export writes invisible barlines (`<visible>0</visible>`), and MSCX import closes a
   volta that runs to the last bar, which MuseScore gives no closing marker.
 - **MEI endings.** Voltas were neither written nor read by MEI; they are now `<ending n label>`

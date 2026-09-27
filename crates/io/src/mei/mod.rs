@@ -2036,6 +2036,10 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut in_section = false;
     let mut pending_time_change: Option<TimeSignature> = None;
     let mut pending_key_change: Option<KeySignature> = None;
+    // Keys a `<staffDef>` gives one staff (from its next measure on), and the bars where one
+    // staff's key differs from the others' (not copied from the first staff).
+    let mut pending_staff_keys: HashMap<usize, KeySignature> = HashMap::new();
+    let mut staff_key_measures: HashSet<usize> = HashSet::new();
     let mut pending_clef_changes: Vec<(usize, Clef)> = Vec::new();
     let mut measure_changes: Vec<usize> = Vec::new();
     let mut dynam_anchor: Option<PendingMeiAnchor> = None;
@@ -2242,12 +2246,16 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 score.parts[0].staves[staff_index].clef = clef;
                             }
                         }
-                        if in_section
-                            && let Some(key_signature) = attr(&event, b"keysig")
-                                .or_else(|| attr(&event, b"key.sig"))
-                                .and_then(|value| parse_key_signature(&value))
+                        if let Some(key_signature) = attr(&event, b"keysig")
+                            .or_else(|| attr(&event, b"key.sig"))
+                            .and_then(|value| parse_key_signature(&value))
                         {
-                            pending_key_change = Some(key_signature);
+                            note_mei_staff_key(
+                                &mut score.settings.key_signature,
+                                &mut pending_staff_keys,
+                                (staff_index, in_section),
+                                key_signature,
+                            );
                         }
                     }
                     // MEI 5 / Verovio form: <clef>, <keySig>, <meterSig> as scoreDef/staffDef
@@ -2277,7 +2285,14 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             .or_else(|| attr(&event, b"keysig"))
                             .and_then(|value| parse_key_signature(&value))
                         {
-                            if in_section {
+                            if let Some(staff_index) = open_staff_def {
+                                note_mei_staff_key(
+                                    &mut score.settings.key_signature,
+                                    &mut pending_staff_keys,
+                                    (staff_index, in_section),
+                                    key_signature,
+                                );
+                            } else if in_section {
                                 pending_key_change = Some(key_signature);
                             } else {
                                 score.settings.key_signature = key_signature;
@@ -2360,6 +2375,11 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 score.parts[0].staves[current_staff].measures[measure_index]
                                     .time_sig = Some(time);
                             }
+                            if let Some(key) = pending_staff_keys.remove(&current_staff) {
+                                score.parts[0].staves[current_staff].measures[measure_index]
+                                    .key_sig = Some(key);
+                                staff_key_measures.insert(measure_index);
+                            }
                             if let Some(position) = pending_clef_changes
                                 .iter()
                                 .position(|(staff, _)| *staff == current_staff)
@@ -2409,6 +2429,11 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             measure.time_sig = Some(measure_time);
                         }
                         measure.key_sig = pending_key_change.take();
+                        if let Some(key) = pending_staff_keys.remove(&current_staff) {
+                            measure.key_sig = Some(key);
+                            staff_key_measures
+                                .insert(score.parts[0].staves[current_staff].measures.len());
+                        }
                         for (name, left) in
                             [(b"left".as_slice(), true), (b"right".as_slice(), false)]
                         {
@@ -3198,7 +3223,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                 if measure.time_sig.is_none() {
                     measure.time_sig = time.clone();
                 }
-                if measure.key_sig.is_none() {
+                if measure.key_sig.is_none() && !staff_key_measures.contains(&measure_index) {
                     measure.key_sig = key.clone();
                 }
             }
@@ -3235,6 +3260,24 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
         }
     }
     Ok(score)
+}
+
+/// A `<staffDef>` key: in the opening scoreDef the first staff's key is the score's and another
+/// staff's differing key applies from its first bar; in the section it applies to that staff
+/// from its next bar.
+fn note_mei_staff_key(
+    score_key: &mut KeySignature,
+    pending: &mut HashMap<usize, KeySignature>,
+    (staff_index, in_section): (usize, bool),
+    key: KeySignature,
+) {
+    if in_section {
+        pending.insert(staff_index, key);
+    } else if staff_index == 0 {
+        *score_key = key;
+    } else if key != *score_key {
+        pending.insert(staff_index, key);
+    }
 }
 
 /// One `<staffGrp>` from the first MEI `<scoreDef>`, retained so part boundaries can be derived
@@ -5055,6 +5098,7 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
     let mut running_time = time.clone();
     let labels = mei_measure_labels(staves);
     let mut staff_fifths = vec![score.settings.key_signature.fifths; staves.len()];
+    let mut staff_keys = vec![score.settings.key_signature.clone(); staves.len()];
     let key = mei_key_signature(&score.settings.key_signature);
     out.push_str("</title></titleStmt></fileDesc></meiHead><music><body><mdiv><score>");
     append_mei_chord_definitions(&mut out, &score.chord_definitions);
@@ -5103,16 +5147,24 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
                 .and_then(|measure| measure.key_sig.as_ref())
             {
                 staff_fifths[staff_index] = key.fifths;
+                staff_keys[staff_index] = key.clone();
             }
         }
         let number = staves
             .iter()
             .find_map(|staff| staff.measures.get(measure_index))
             .map_or((measure_index + 1) as u32, |measure| measure.number);
+        // Key changes are score-wide unless the staves changing key disagree (a part with a
+        // different signature): then every staff gets its own `<staffDef keysig>`.
+        let key_changes: Vec<&KeySignature> = staves
+            .iter()
+            .filter_map(|staff| staff.measures.get(measure_index)?.key_sig.as_ref())
+            .collect();
+        let per_staff_keys = key_changes.windows(2).any(|pair| pair[0] != pair[1]);
         if let Some(first) = staves
             .iter()
             .find_map(|staff| staff.measures.get(measure_index))
-            && (first.time_sig.is_some() || first.key_sig.is_some())
+            && (first.time_sig.is_some() || !key_changes.is_empty())
         {
             out.push_str("<scoreDef");
             if let Some(time) = &first.time_sig {
@@ -5121,10 +5173,22 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
                     time.numerator, time.denominator
                 ));
             }
-            if let Some(key) = &first.key_sig {
-                out.push_str(&format!(" keysig=\"{}\"", mei_key_signature(key)));
+            if per_staff_keys {
+                out.push_str("><staffGrp>");
+                for (staff_index, key) in staff_keys.iter().enumerate() {
+                    out.push_str(&format!(
+                        "<staffDef n=\"{}\" keysig=\"{}\"/>",
+                        staff_index + 1,
+                        mei_key_signature(key)
+                    ));
+                }
+                out.push_str("</staffGrp></scoreDef>");
+            } else {
+                if let Some(key) = key_changes.first() {
+                    out.push_str(&format!(" keysig=\"{}\"", mei_key_signature(key)));
+                }
+                out.push_str("/>");
             }
-            out.push_str("/>");
         }
         if let Some(&(_, _, ending)) = volta_spans
             .iter()
