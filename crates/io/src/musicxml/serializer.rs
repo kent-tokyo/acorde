@@ -66,15 +66,11 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                 "      <score-instrument id=\"{}\">\n",
                 escape_xml(&instrument.id)
             ));
-            if let Some(name) = &instrument.name {
-                xml.push_str(&format!(
-                    "        <instrument-name>{}</instrument-name>\n",
-                    escape_xml(name)
-                ));
-            }
-            if let Some(key) = instrument.midi_unpitched {
-                xml.push_str(&format!("        <midi-unpitched>{key}</midi-unpitched>\n"));
-            }
+            // <instrument-name> is required; <midi-unpitched> belongs to <midi-instrument>.
+            xml.push_str(&format!(
+                "        <instrument-name>{}</instrument-name>\n",
+                escape_xml(instrument.name.as_deref().unwrap_or(&instrument.id))
+            ));
             xml.push_str("      </score-instrument>\n");
         }
         xml.push_str(&format!(
@@ -90,6 +86,14 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
             part.midi_program + 1
         ));
         xml.push_str("      </midi-instrument>\n");
+        for instrument in &part.percussion_instruments {
+            if let Some(key) = instrument.midi_unpitched {
+                xml.push_str(&format!(
+                    "      <midi-instrument id=\"{}\"><midi-unpitched>{key}</midi-unpitched></midi-instrument>\n",
+                    escape_xml(&instrument.id)
+                ));
+            }
+        }
         xml.push_str("    </score-part>\n");
         // Emit group stops after this part index.
         for (g, n) in &numbered_groups {
@@ -166,15 +170,18 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     .unwrap_or(false);
             if has_left {
                 xml.push_str("      <barline location=\"left\">\n");
+                // Content order: bar-style, ..., ending, repeat.
                 if matches!(measure.barline_left, Barline::RepeatStart) {
                     xml.push_str("        <bar-style>heavy-light</bar-style>\n");
-                    xml.push_str("        <repeat direction=\"forward\"/>\n");
                 }
                 if let Some(v) = &measure.volta {
                     xml.push_str(&format!(
                         "        <ending number=\"{}\" type=\"start\"/>\n",
                         v.number
                     ));
+                }
+                if matches!(measure.barline_left, Barline::RepeatStart) {
+                    xml.push_str("        <repeat direction=\"forward\"/>\n");
                 }
                 xml.push_str("      </barline>\n");
             }
@@ -643,11 +650,9 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
             if has_right {
                 xml.push_str("      <barline location=\"right\">\n");
                 match measure.barline_right {
-                    Barline::RepeatEnd => {
-                        xml.push_str("        <bar-style>light-heavy</bar-style>\n");
-                        xml.push_str("        <repeat direction=\"backward\"/>\n");
+                    Barline::RepeatEnd | Barline::Final => {
+                        xml.push_str("        <bar-style>light-heavy</bar-style>\n")
                     }
-                    Barline::Final => xml.push_str("        <bar-style>light-heavy</bar-style>\n"),
                     Barline::Double => xml.push_str("        <bar-style>light-light</bar-style>\n"),
                     _ => {}
                 }
@@ -658,6 +663,9 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                         "        <ending number=\"{}\" type=\"stop\"/>\n",
                         v.number
                     ));
+                }
+                if matches!(measure.barline_right, Barline::RepeatEnd) {
+                    xml.push_str("        <repeat direction=\"backward\"/>\n");
                 }
                 xml.push_str("      </barline>\n");
             }
@@ -747,7 +755,10 @@ fn serialize_note(
             ));
         }
         xml.push_str("        </root>\n");
-        xml.push_str(&format!("        <kind>{}</kind>\n", escape_xml(&cs.kind)));
+        xml.push_str(&format!(
+            "        <kind>{}</kind>\n",
+            escape_xml(&musicxml_harmony_kind(&cs.kind))
+        ));
         if let Some(function) = &cs.harmony_function {
             xml.push_str(&format!(
                 "        <function>{}</function>\n",
@@ -775,18 +786,20 @@ fn serialize_note(
                 "          <degree-value>{}</degree-value>\n",
                 degree.value
             ));
-            if degree.alter != 0 {
-                xml.push_str(&format!(
-                    "          <degree-alter>{}</degree-alter>\n",
-                    degree.alter
-                ));
-            }
-            if !degree.kind.is_empty() {
-                xml.push_str(&format!(
-                    "          <degree-type>{}</degree-type>\n",
-                    escape_xml(&degree.kind)
-                ));
-            }
+            // <degree-value>, <degree-alter> and <degree-type> are all required.
+            xml.push_str(&format!(
+                "          <degree-alter>{}</degree-alter>\n",
+                degree.alter
+            ));
+            let kind = if degree.kind.is_empty() {
+                if degree.alter != 0 { "alter" } else { "add" }
+            } else {
+                degree.kind.as_str()
+            };
+            xml.push_str(&format!(
+                "          <degree-type>{}</degree-type>\n",
+                escape_xml(kind)
+            ));
             xml.push_str("        </degree>\n");
         }
         xml.push_str("      </harmony>\n");
@@ -1316,8 +1329,9 @@ fn serialize_notations(
                     escape_xml(text)
                 ));
             }
+            // <wavy-line> is an ornament: it must sit inside <ornaments>.
             NotationSpannerKind::TrillLine => xml.push_str(&format!(
-                "          <wavy-line number=\"{number}\" type=\"{endpoint}\"{line_type}{placement}/>\n"
+                "          <ornaments><wavy-line number=\"{number}\" type=\"{endpoint}\"{line_type}{placement}/></ornaments>\n"
             )),
             NotationSpannerKind::Pedal | NotationSpannerKind::Ottava => {}
         }
@@ -1335,10 +1349,10 @@ fn serialize_notations(
         xml.push_str("          <glissando number=\"1\" type=\"start\">gliss.</glissando>\n");
     }
     if note.trill_line_end && !typed_has(NotationSpannerKind::TrillLine) {
-        xml.push_str("          <wavy-line number=\"1\" type=\"stop\"/>\n");
+        xml.push_str("          <ornaments><wavy-line number=\"1\" type=\"stop\"/></ornaments>\n");
     }
     if note.trill_line_start && !typed_has(NotationSpannerKind::TrillLine) {
-        xml.push_str("          <wavy-line number=\"1\" type=\"start\"/>\n");
+        xml.push_str("          <ornaments><wavy-line number=\"1\" type=\"start\"/></ornaments>\n");
     }
 
     if has_artic {
@@ -1351,8 +1365,6 @@ fn serialize_notations(
         let mut inverted_turn = false;
         let mut shake = false;
         let mut tremolo_n: Option<u8> = None;
-        let mut breath_mark = false;
-        let mut caesura = false;
         for a in &note.articulations {
             match a {
                 Articulation::Staccato => tags.push("staccato"),
@@ -1368,8 +1380,8 @@ fn serialize_notations(
                 Articulation::InvertedTurn => inverted_turn = true,
                 Articulation::Shake => shake = true,
                 Articulation::Tremolo(n) => tremolo_n = Some(*n),
-                Articulation::BreathMark => breath_mark = true,
-                Articulation::Caesura => caesura = true,
+                Articulation::BreathMark => tags.push("breath-mark"),
+                Articulation::Caesura => tags.push("caesura"),
                 // Written inside <technical> below.
                 Articulation::UpBow
                 | Articulation::DownBow
@@ -1420,12 +1432,6 @@ fn serialize_notations(
         }
         if fermata {
             xml.push_str("          <fermata/>\n");
-        }
-        if breath_mark {
-            xml.push_str("          <breath-mark/>\n");
-        }
-        if caesura {
-            xml.push_str("          <caesura/>\n");
         }
     }
     if let Some(dir) = note.arpeggiate {
@@ -1565,6 +1571,54 @@ fn split_note_name(name: &str) -> (&str, i8) {
     } else {
         (name, 0)
     }
+}
+
+/// Map a stored harmony kind onto the MusicXML `kind-value` enumeration (case and common aliases
+/// such as `minor-major`); values outside it are written as `other`.
+fn musicxml_harmony_kind(kind: &str) -> String {
+    const KINDS: &[&str] = &[
+        "major",
+        "minor",
+        "augmented",
+        "diminished",
+        "dominant",
+        "major-seventh",
+        "minor-seventh",
+        "diminished-seventh",
+        "augmented-seventh",
+        "half-diminished",
+        "major-minor",
+        "major-sixth",
+        "minor-sixth",
+        "dominant-ninth",
+        "major-ninth",
+        "minor-ninth",
+        "dominant-11th",
+        "major-11th",
+        "minor-11th",
+        "dominant-13th",
+        "major-13th",
+        "minor-13th",
+        "suspended-second",
+        "suspended-fourth",
+        "Neapolitan",
+        "Italian",
+        "French",
+        "German",
+        "pedal",
+        "power",
+        "Tristan",
+        "other",
+        "none",
+    ];
+    let normalized = match kind.trim() {
+        "minor-major" | "minor-major-seventh" => "major-minor",
+        other => other,
+    };
+    KINDS
+        .iter()
+        .find(|candidate| candidate.eq_ignore_ascii_case(normalized))
+        .map_or_else(|| "other".to_string(), |candidate| (*candidate).to_string())
 }
 
 /// MusicXML part ids are `xs:ID` (an XML name). Generated UUID ids can start with a digit, so
@@ -1952,6 +2006,33 @@ mod tests {
         let xml = serialize_musicxml(&score).unwrap();
         assert!(xml.contains("<step>G</step>"));
         assert!(xml.contains("<octave>4</octave>"));
+    }
+
+    #[test]
+    fn corpus_schema_fixes_barline_ornament_degree_kind_and_unpitched() {
+        let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Drums</part-name><score-instrument id="P1-I36"><instrument-name>Bass Drum</instrument-name></score-instrument><midi-instrument id="P1-I36"><midi-unpitched>36</midi-unpitched></midi-instrument></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><harmony><root><root-step>C</root-step></root><kind>minor-major</kind><degree><degree-value>9</degree-value><degree-alter>0</degree-alter><degree-type>add</degree-type></degree></harmony><note><pitch><step>C</step><octave>5</octave></pitch><duration>4</duration><type>whole</type><notations><ornaments><trill-mark/><wavy-line type="start"/></ornaments><articulations><breath-mark/></articulations></notations></note><barline location="right"><bar-style>light-heavy</bar-style><ending number="1" type="stop"/><repeat direction="backward"/></barline></measure></part></score-partwise>"#;
+        let score = super::super::parser::parse_musicxml(xml).expect("parses");
+        assert_eq!(
+            score.parts[0].percussion_instruments[0].midi_unpitched,
+            Some(36)
+        );
+        let out = serialize_musicxml(&score).expect("serializes");
+        let ending = out.find("<ending number=\"1\" type=\"stop\"/>");
+        let repeat = out.find("<repeat direction=\"backward\"/>");
+        assert!(
+            ending.is_some() && repeat.is_some() && ending < repeat,
+            "{out}"
+        );
+        assert!(out.contains("<ornaments><wavy-line"));
+        assert!(out.contains("<articulations>\n            <breath-mark/>"));
+        assert!(out.contains("<kind>major-minor</kind>"));
+        assert!(out.contains("<degree-alter>0</degree-alter>"));
+        assert!(out.contains("<midi-instrument id=\"P1-I36\"><midi-unpitched>36</midi-unpitched>"));
+        let restored = super::super::parser::parse_musicxml(&out).expect("reparses");
+        assert_eq!(
+            restored.parts[0].percussion_instruments[0].midi_unpitched,
+            Some(36)
+        );
     }
 
     #[test]

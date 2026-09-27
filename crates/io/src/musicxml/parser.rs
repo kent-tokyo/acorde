@@ -353,6 +353,10 @@ pub(crate) fn parse_musicxml_collecting(
     let mut pending_midi_channel: u8 = 0;
     let mut pending_midi_program: u8 = 0;
     let mut in_midi_instrument = false;
+    let mut midi_instrument_id = String::new();
+    // Standard MusicXML puts <midi-unpitched> in <midi-instrument id="..."> matching a
+    // <score-instrument>; collected per id and applied when the <score-part> closes.
+    let mut midi_unpitched_by_id: HashMap<String, u8> = HashMap::new();
     let mut in_score_instrument = false;
     let mut score_instrument_id = String::new();
     let mut score_instrument_name: Option<String> = None;
@@ -420,6 +424,7 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "midi-instrument" if in_score_part => {
                         in_midi_instrument = true;
+                        midi_instrument_id = attr_str(e, b"id").unwrap_or_default();
                     }
                     "harmony" => {
                         in_harmony = true;
@@ -1159,6 +1164,11 @@ pub(crate) fn parse_musicxml_collecting(
                     "midi-unpitched" if in_score_instrument => {
                         score_instrument_key = current_text.trim().parse::<u8>().ok();
                     }
+                    "midi-unpitched" if in_midi_instrument => {
+                        if let Ok(key) = current_text.trim().parse::<u8>() {
+                            midi_unpitched_by_id.insert(midi_instrument_id.clone(), key);
+                        }
+                    }
                     "score-instrument" if in_score_instrument => {
                         if !score_instrument_id.is_empty() {
                             part_percussion
@@ -1182,6 +1192,15 @@ pub(crate) fn parse_musicxml_collecting(
                         in_midi_instrument = false;
                     }
                     "score-part" if in_score_part => {
+                        if let Some(instruments) = part_percussion.get_mut(&score_part_id) {
+                            for instrument in instruments {
+                                if instrument.midi_unpitched.is_none() {
+                                    instrument.midi_unpitched =
+                                        midi_unpitched_by_id.get(&instrument.id).copied();
+                                }
+                            }
+                        }
+                        midi_unpitched_by_id.clear();
                         part_midi.insert(
                             score_part_id.clone(),
                             (pending_midi_channel, pending_midi_program),
