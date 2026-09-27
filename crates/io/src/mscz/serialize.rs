@@ -879,7 +879,8 @@ fn staff_span_marks(staff: &Staff) -> std::collections::HashMap<NoteKey, SpanMar
 
 fn write_styled_text(xml: &mut String, styled: &acorde_core::StyledText) -> Result<(), Error> {
     let has_offset = styled.offset_x.is_some() || styled.offset_y.is_some();
-    let element = if has_offset { "StaffText" } else { "Text" };
+    // MuseScore reads text in a bar's voice as `<StaffText>`; `<Text>` belongs to frames.
+    let element = "StaffText";
     write!(xml, "<{element}>").map_err(fmt_error)?;
     if has_offset {
         xml.push_str("<offset");

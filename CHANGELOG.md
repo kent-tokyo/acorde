@@ -22,6 +22,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   text is written as expression-style text instead of being reported as lost. Glissandos
   (`<Spanner type="Glissando">` in the notes they join) were reported as unsupported on both
   import and export; they now round-trip.
+- **MSCX bar texts reach MuseScore.** Texts without an offset were written as `<Text>`, which
+  MuseScore only reads inside frames, so staff and expression texts vanished when the file was
+  opened there; they are written as `<StaffText>` now.
 
 - **Breves and 128th notes.** `Duration` stopped at whole notes and 64ths: breves (MusicXML
   `breve`, MEI `dur="breve"`, MuseScore `breve`, GP7 `DoubleWhole`) became whole notes and
