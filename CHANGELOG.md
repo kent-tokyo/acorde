@@ -45,6 +45,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   written as `P-<id>`, and text positions move from `<direction>` to `<words>`/`<rehearsal>`.
 - MusicXML import reads `<beam>` groups into `BeamState`. Before, explicit beaming was replaced
   by default beat grouping.
+- MusicXML import now handles real-world files that previously failed. On a 268-file sample of
+  the music21 corpus, imports went from 153 to 268. The fixes: DOCTYPEs with any external
+  identifier are accepted (internal subsets and entities are still refused). UTF-16 and
+  BOM-prefixed files are decoded through the new `acorde_io::decode_xml_text`, which the CLI
+  and the MXL reader use. Orphan spanner stops (`musicxml.orphan-spanner-stop`), backups past
+  the measure start (`musicxml.backup-underflow`), overfull bars (imported as an irregular
+  `actual_length`), and chord members on another staff (`musicxml.chord-staff-mismatch`) are
+  reported instead of aborting the import. A chord member whose `<voice>` differs from its
+  chord joins that chord. `<midi-unpitched>` is read from `<midi-instrument>`.
+- MusicXML export fixes found with the XSD on that corpus: `<ending>` comes before `<repeat>`,
+  `<wavy-line>` is inside `<ornaments>`, breath marks and caesuras are inside `<articulations>`,
+  `<degree>` includes all its required children, harmony kinds are mapped onto the schema
+  enumeration, and `<score-instrument>`/`<midi-instrument>` are well formed. 266 of the 268
+  exports now validate; the remaining two contain cue notes. MEI export gives unique ids when
+  measure numbers repeat, adds the layer Verovio needs for cross-staff notes, and writes the
+  percussion clef as `perc`. All 268 MEI exports load in Verovio, and no warning traces to the
+  exporter apart from ties the source itself leaves unterminated.
 - MuseScore import now sets each staff's starting clef from `Part/Staff/defaultClef` and
   `Instrument/clef`. Before, bass-clef instruments and piano left hands imported in treble. A
   clef change in a later measure also no longer replaces the starting clef.
