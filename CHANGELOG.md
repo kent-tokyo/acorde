@@ -19,6 +19,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   schema-valid MusicXML and to MEI that Verovio loads. GP3/4/5 binary files are not supported.
 - SVG tablature staves now draw a TAB clef and no key signature. Fret numbers mask the string
   line behind them, and dead notes are written `X`.
+  Tab staves no longer draw beams placed by pitch, and a technique text such as "let ring"
+  that continues from note to note is written once per run within a bar.
 - Rendering no longer fails with "minimum measure widths exceed the available system width"
   because of f32 rounding, or when a very short bar sits next to long ones.
 - MusicXML cue notes now keep their written time at the I/O boundary. Import advances the cursor

@@ -2790,3 +2790,22 @@ fn inner_bar_annotations_do_not_widen_page_margins() {
     let with_lyric = staff_line(&acorde_render_svg::render_svg(&score, &options).unwrap());
     assert_eq!(plain, with_lyric);
 }
+
+#[test]
+fn continuing_technique_text_is_written_once_per_run() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+
+    let mut score = Score::new("let ring", 120, 4, 4, 0, 1);
+    let mut notes = Vec::new();
+    for (index, step) in [Step::C, Step::D, Step::E, Step::F].into_iter().enumerate() {
+        let mut note = Note::new(Pitch::new(step, 4), Duration::Quarter);
+        note.technique_text = Some(if index < 3 { "let ring" } else { "P.M." }.to_string());
+        notes.push(note);
+    }
+    score.parts[0].staves[0].measures[0].voices[0] = notes;
+    let svg =
+        acorde_render_svg::render_svg(&score, &acorde_render_svg::SvgRenderOptions::default())
+            .expect("renders");
+    assert_eq!(svg.matches(">let ring</text>").count(), 1, "{svg}");
+    assert_eq!(svg.matches(">P.M.</text>").count(), 1);
+}

@@ -3035,7 +3035,25 @@ fn render_measure_voice_notes(
         tablature_fret_mark_style,
         note_points,
     } = context;
-    for (note_idx, note) in notes.iter().enumerate() {
+    let mut previous_technique: Option<&str> = None;
+    for (note_idx, original_note) in notes.iter().enumerate() {
+        // A technique text that simply continues from the previous sounding note of this voice
+        // (GP "let ring", "P.M." on every beat) is shown once, at its start in the measure.
+        let repeats_technique = !original_note.is_rest
+            && original_note.technique_text.is_some()
+            && original_note.technique_text.as_deref() == previous_technique;
+        if !original_note.is_rest {
+            previous_technique = original_note.technique_text.as_deref();
+        }
+        let suppressed;
+        let note = if repeats_technique {
+            let mut copy = original_note.clone();
+            copy.technique_text = None;
+            suppressed = copy;
+            &suppressed
+        } else {
+            original_note
+        };
         let stem_up = note.stem_up.unwrap_or(*voice_stem_up);
         let point_y = note_anchor_y(note, *clef_bottom, stem_up, *bottom_y, *space, *tablature);
         note_points.insert(
