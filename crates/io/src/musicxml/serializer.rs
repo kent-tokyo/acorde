@@ -1891,6 +1891,9 @@ fn note_placement_attrs(note: &Note) -> String {
         (a, b) => Some(a.unwrap_or(0.0) + b.unwrap_or(0.0)),
     };
     let mut attrs = String::new();
+    if note.hidden {
+        attrs.push_str(" print-object=\"no\"");
+    }
     for (name, value) in [
         ("relative-x", sum(note.offset_x, note.relative_x)),
         ("relative-y", sum(note.offset_y, note.relative_y)),

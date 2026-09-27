@@ -526,7 +526,8 @@ fn write_staff(
             {
                 write!(
                     xml,
-                    "<Rest><durationType>measure</durationType><duration>{bar_numerator}/{bar_denominator}</duration></Rest>"
+                    "<Rest>{}<durationType>measure</durationType><duration>{bar_numerator}/{bar_denominator}</duration></Rest>",
+                    if only.hidden { "<visible>0</visible>" } else { "" }
                 )
                 .map_err(fmt_error)?;
             } else {
@@ -849,10 +850,15 @@ fn write_note(
     {
         xml.push_str("<Fermata><subtype>fermataAbove</subtype></Fermata>");
     }
+    let visible = if note.hidden {
+        "<visible>0</visible>"
+    } else {
+        ""
+    };
     if note.is_rest {
         write!(
             xml,
-            "<Rest><durationType>{}</durationType>{}</Rest>",
+            "<Rest>{visible}<durationType>{}</durationType>{}</Rest>",
             duration_name(&note.duration),
             dots(note.dot_count)
         )
@@ -992,7 +998,12 @@ fn write_note(
             }
             xml.push_str("</Spanner>");
         }
+        xml.push_str(visible);
         xml.push_str("</Note>");
+    }
+    // MuseScore hides a chord by hiding each of its notes and its stem.
+    if note.hidden {
+        xml.push_str("<Stem><visible>0</visible></Stem>");
     }
     for articulation in &note.articulations {
         match articulation {

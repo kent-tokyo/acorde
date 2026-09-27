@@ -2294,6 +2294,11 @@ pub struct Note {
     /// Cue note (small-sized, does not count toward beat total).
     #[serde(default)]
     pub is_cue: bool,
+    /// Not drawn (MusicXML `print-object="no"`, MEI `@visible="false"`, MuseScore
+    /// `<visible>0</visible>`): the note or rest still takes its time and sounds, as a hidden
+    /// rest in a second voice or a written-out trill does.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hidden: bool,
     /// Start of a multi-note trill line span.
     #[serde(default)]
     pub trill_line_start: bool,
@@ -2387,6 +2392,7 @@ impl Note {
             string_number: None,
             note_head: NoteHead::Normal,
             is_cue: false,
+            hidden: false,
             trill_line_start: false,
             trill_line_end: false,
             guitar_technique: None,
@@ -2442,6 +2448,7 @@ impl Note {
             string_number: None,
             note_head: NoteHead::Normal,
             is_cue: false,
+            hidden: false,
             trill_line_start: false,
             trill_line_end: false,
             guitar_technique: None,

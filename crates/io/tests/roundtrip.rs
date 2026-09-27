@@ -4999,3 +4999,65 @@ fn chord_kinds_have_labels_that_mei_reads_back() {
             .collect::<Vec<_>>()
     );
 }
+
+#[test]
+fn hidden_notes_and_rests_round_trip_through_every_notation_format() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("hidden", 120, 4, 4, 0, 2);
+    let mut rest = Note::rest(Duration::Half);
+    rest.hidden = true;
+    let mut note = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
+    note.hidden = true;
+    score.parts[0].staves[0].measures[0].voices[0] = vec![
+        rest,
+        note,
+        Note::new(Pitch::new(Step::D, 5), Duration::Quarter),
+    ];
+    let mut bar_rest = Note::rest(Duration::Whole);
+    bar_rest.hidden = true;
+    score.parts[0].staves[0].measures[1].voices[0] = vec![bar_rest];
+    let hidden = |score: &Score| {
+        score.parts[0].staves[0]
+            .measures
+            .iter()
+            .flat_map(|m| m.voices[0].iter().map(|n| n.hidden))
+            .collect::<Vec<_>>()
+    };
+    let expected = vec![true, true, false, true];
+    let xml = serialize_musicxml(&score).expect("musicxml");
+    assert!(xml.contains("<note print-object=\"no\">"));
+    assert_eq!(
+        hidden(&parse_musicxml(&xml).expect("musicxml back")),
+        expected
+    );
+    let mei = acorde_io::serialize_mei(&score).expect("mei");
+    assert!(mei.contains("<space dur=\"2\""));
+    assert_eq!(
+        hidden(&acorde_io::parse_mei(&mei).expect("mei back")),
+        expected
+    );
+    let mscx = acorde_io::serialize_mscx(&score).expect("mscx");
+    assert_eq!(
+        hidden(&acorde_io::parse_mscx(&mscx).expect("mscx back")),
+        expected
+    );
+    let abc = acorde_io::parse_abc("X:1\nM:4/4\nL:1/4\nK:C\nx2 c d|X|\n").expect("abc");
+    assert_eq!(
+        abc.parts[0].staves[0]
+            .measures
+            .iter()
+            .flat_map(|m| m.voices[0].iter().map(|n| (n.is_rest, n.hidden)))
+            .collect::<Vec<_>>(),
+        vec![(true, true), (false, false), (false, false), (true, true)]
+    );
+}
+
+#[test]
+fn musicxml_forward_gaps_import_as_hidden_rests() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>P</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>5</octave></pitch><duration>4</duration><voice>1</voice><type>whole</type></note><backup><duration>4</duration></backup><forward><duration>2</duration><voice>2</voice></forward><note><pitch><step>E</step><octave>4</octave></pitch><duration>2</duration><voice>2</voice><type>half</type></note></measure></part></score-partwise>"#;
+    let score = parse_musicxml(xml).expect("imports");
+    let voice = &score.parts[0].staves[0].measures[0].voices[1];
+    assert_eq!(voice.len(), 2);
+    assert!(voice[0].is_rest && voice[0].hidden);
+    assert!(!voice[1].hidden);
+}

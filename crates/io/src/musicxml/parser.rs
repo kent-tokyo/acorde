@@ -260,6 +260,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut note_is_grace = false;
     let mut note_grace_slash = false;
     let mut note_is_cue = false;
+    let mut note_hidden = false;
     let mut note_tuplet_actual: Option<u8> = None;
     let mut note_tuplet_normal: Option<u8> = None;
     let mut in_time_modification = false;
@@ -659,6 +660,7 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "note" => {
                         in_note = true;
+                        note_hidden = attr_str(e, b"print-object").as_deref() == Some("no");
                         note_lyrics.clear();
                         note_inline_dynamic = None;
                         // A note's default-x/default-y are absolute positions in the source
@@ -2195,7 +2197,11 @@ pub(crate) fn parse_musicxml_collecting(
                                 let mut used: f64 = voice.iter().map(|n| n.beats()).sum();
                                 while total_beats - used > 1e-9 {
                                     let remaining = total_beats - used;
-                                    let rest = Note::rest(Duration::whole_filling_beats(remaining));
+                                    // Time the source leaves empty is filled with hidden
+                                    // rests: MusicXML draws nothing there.
+                                    let mut rest =
+                                        Note::rest(Duration::whole_filling_beats(remaining));
+                                    rest.hidden = true;
                                     used += rest.beats();
                                     voice.push(rest);
                                 }
@@ -2546,6 +2552,7 @@ pub(crate) fn parse_musicxml_collecting(
                                         let direction = staff_dynamics.remove(&target_staff_index);
                                         note.dynamic = note_inline_dynamic.take().or(direction);
                                     }
+                                    note.hidden = note_hidden;
                                     voice.push(note);
                                     let address = NoteAddr {
                                         part: pi,
@@ -2927,7 +2934,10 @@ fn append_musicxml_gap_rests(
         if voice.len() >= MAX_NOTES_PER_VOICE {
             return Err(Error::Xml("too many notes in voice".into()));
         }
-        voice.push(Note::rest(duration));
+        // A `<forward>` gap draws nothing; the rest keeps its time hidden.
+        let mut rest = Note::rest(duration);
+        rest.hidden = true;
+        voice.push(rest);
         ticks -= duration_ticks;
     }
     Ok(())

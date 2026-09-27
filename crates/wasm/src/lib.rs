@@ -1966,6 +1966,16 @@ impl ScoreEngine {
         serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
     }
 
+    /// Hide or show a note or rest; a hidden one keeps its time and sound but is not drawn.
+    ///
+    /// `addr_json`: JSON-encoded `NoteAddr`.
+    pub fn set_hidden(&mut self, addr_json: &str, hidden: bool) -> Result<String, JsValue> {
+        let addr: acorde_core::NoteAddr = serde_json::from_str(addr_json)
+            .map_err(|e| js_err(format!("invalid NoteAddr: {e}")))?;
+        let hint = self.inner.set_hidden(addr, hidden).map_err(js_err)?;
+        serde_json::to_string(&hint).map_err(|e| js_err(format!("hint serialization failed: {e}")))
+    }
+
     /// Set or clear the unpitched flag while retaining display placement.
     pub fn set_unpitched(
         &mut self,

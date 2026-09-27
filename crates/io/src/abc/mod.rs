@@ -557,8 +557,8 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
             continue;
         }
 
-        // Rest
-        if (ch == 'z' || ch == 'Z')
+        // Rest (`x`/`X` are invisible rests)
+        if matches!(ch, 'z' | 'Z' | 'x' | 'X')
             && append_abc_rest_note(
                 &chars,
                 &mut i,
@@ -673,7 +673,7 @@ fn append_abc_rest_note(
     let Some(&kind) = chars.get(*cursor) else {
         return Ok(false);
     };
-    if !matches!(kind, 'z' | 'Z') {
+    if !matches!(kind, 'z' | 'Z' | 'x' | 'X') {
         return Ok(false);
     }
     *cursor += 1;
@@ -683,13 +683,15 @@ fn append_abc_rest_note(
     if *note_count > MAX_NOTES {
         return Err(Error::Abc(format!("input exceeds {MAX_NOTES} notes")));
     }
-    let duration = if kind == 'Z' {
+    let whole_bar = matches!(kind, 'Z' | 'X');
+    let duration = if whole_bar {
         Duration::whole_filling_beats(timing.measure_beats)
     } else {
         unit_to_duration(timing.unit_den, numerator, denominator)
     };
     let mut rest = Note::rest(duration);
-    rest.dot_count = u8::from(kind != 'Z' && is_dotted(timing.unit_den, numerator, denominator));
+    rest.hidden = matches!(kind, 'x' | 'X');
+    rest.dot_count = u8::from(!whole_bar && is_dotted(timing.unit_den, numerator, denominator));
     rest.articulations.append(pending_articulations);
     rest.tuplet = take_abc_tuplet(pending_tuplet);
     if let Some(measure) = staff.measures.last_mut() {
@@ -1811,7 +1813,7 @@ fn duration_to_abc_suffix(dur: Duration, dot_count: u8) -> String {
 fn note_to_abc(note: &Note) -> String {
     let suf = duration_to_abc_suffix(note.duration.clone(), note.dot_count);
     let mut s = if note.is_rest || note.pitches.is_empty() {
-        format!("z{}", suf)
+        format!("{}{}", if note.hidden { 'x' } else { 'z' }, suf)
     } else if note.pitches.len() == 1 {
         format!("{}{}", pitch_to_abc(&note.pitches[0]), suf)
     } else {

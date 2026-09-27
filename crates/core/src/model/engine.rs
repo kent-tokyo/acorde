@@ -608,6 +608,18 @@ impl ScoreEngine {
         }))
     }
 
+    /// Hide or show a note or rest (undo-able); it keeps its time and sound.
+    pub fn set_hidden(&mut self, addr: NoteAddr, hidden: bool) -> Result<ChangeHint, Error> {
+        self.apply(Command::SetHidden(super::commands::SetHiddenCmd {
+            part_index: addr.part,
+            staff_index: addr.staff,
+            measure_index: addr.measure,
+            voice: addr.voice,
+            note_index: addr.note,
+            hidden,
+        }))
+    }
+
     /// Set or clear the unpitched flag while retaining display placement.
     pub fn set_unpitched(
         &mut self,
@@ -824,6 +836,27 @@ mod tests {
             engine.score.parts[0].staves[0].measures[0].tempo_ramp_to,
             Some(84)
         );
+    }
+
+    #[test]
+    fn set_hidden_hides_a_rest_and_undoes() {
+        let mut engine = ScoreEngine::new();
+        let voice = &mut engine.score.parts[0].staves[0].measures[0].voices[0];
+        if voice.is_empty() {
+            voice.push(crate::Note::rest(Duration::Whole));
+        }
+        let addr = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
+        engine.set_hidden(addr, true).expect("hides");
+        assert!(engine.score.parts[0].staves[0].measures[0].voices[0][0].hidden);
+        assert_eq!(engine.undo_label().as_deref(), Some("Hide Note"));
+        engine.undo().expect("undoes");
+        assert!(!engine.score.parts[0].staves[0].measures[0].voices[0][0].hidden);
     }
 
     #[test]

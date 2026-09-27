@@ -4061,7 +4061,9 @@ fn plan_measure_beams(
             .note_indices
             .iter()
             .copied()
-            .filter(|&i| i < notes.len() && !notes[i].is_grace && !notes[i].is_cue)
+            .filter(|&i| {
+                i < notes.len() && !notes[i].is_grace && !notes[i].is_cue && !notes[i].hidden
+            })
             .collect();
         if valid_indices.len() < 2 {
             continue;
@@ -5584,6 +5586,14 @@ fn render_note(
     if note.is_cue {
         special_class.push_str(" acorde-cue");
     }
+    // A hidden note or rest keeps its place (and its hit target when interactive) but draws
+    // nothing; a host stylesheet can show `.acorde-hidden` greyed out while editing.
+    let hidden = if note.hidden {
+        special_class.push_str(" acorde-hidden");
+        " visibility=\"hidden\""
+    } else {
+        ""
+    };
     if note.is_unpitched {
         special_class.push_str(" acorde-unpitched");
         special_class.push_str(" acorde-percussion-notehead-");
@@ -5609,7 +5619,7 @@ fn render_note(
     if interactive {
         let _ = write!(
             g,
-            r#"<g class="acorde-{kind}{special_class}" data-acorde-kind="{kind}" data-part="{part}" data-staff="{staff}" data-measure="{measure_idx}" data-voice="{voice_idx}" data-note="{note_idx}" data-note-addr="{addr}"{unpitched}{instrument_id}{percussion_head}{transform}>"#,
+            r#"<g class="acorde-{kind}{special_class}" data-acorde-kind="{kind}" data-part="{part}" data-staff="{staff}" data-measure="{measure_idx}" data-voice="{voice_idx}" data-note="{note_idx}" data-note-addr="{addr}"{unpitched}{instrument_id}{percussion_head}{transform}{hidden}>"#,
             unpitched = if note.is_unpitched {
                 " data-acorde-unpitched=\"true\""
             } else {
@@ -5630,7 +5640,10 @@ fn render_note(
             },
         );
     } else {
-        let _ = write!(g, r#"<g class="acorde-{kind}{special_class}"{transform}>"#);
+        let _ = write!(
+            g,
+            r#"<g class="acorde-{kind}{special_class}"{transform}{hidden}>"#
+        );
     }
     body.push_str(&g);
 

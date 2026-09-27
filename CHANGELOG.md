@@ -9,6 +9,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Hidden notes and rests.** acorde drew everything a score hides: MusicXML
+  `print-object="no"` notes and rests (1464 of them in 34 corpus files, among them written-out
+  trills and placeholder rests over other voices), the rests it fills `<forward>` gaps with, MEI
+  `<space>` and `@visible="false"`, and MuseScore `<visible>0</visible>`; ABC `x`/`X` invisible
+  rests were skipped altogether, shifting the rest of the bar. `Note::hidden` now keeps them:
+  they take their time and sound, the SVG keeps their group (class `acorde-hidden`,
+  `visibility="hidden"`, so an editor can still show them greyed) and leaves them out of
+  beams, and every notation format reads and writes them (MusicXML `print-object`, MEI
+  `<space>`/`@visible`, MSCX `<visible>`, ABC `x`). `ScoreEngine::set_hidden` / wasm
+  `set_hidden` hide or show a note or rest with undo.
 ## [1.2.13] - 2026-09-27
 
 - **MusicXML barline styles.** MusicXML import read `<repeat>` but not `<bar-style>`, so final,

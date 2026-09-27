@@ -117,6 +117,7 @@ pub enum Command {
     SetStaffPresentation(SetStaffPresentationCmd),
     SetNoteHead(SetNoteHeadCmd),
     SetCue(SetCueCmd),
+    SetHidden(SetHiddenCmd),
     SetUnpitched(SetUnpitchedCmd),
     SetInstrumentId(SetInstrumentIdCmd),
     SetNotePlacement(SetNotePlacementCmd),
@@ -1012,6 +1013,17 @@ pub struct SetCueCmd {
     pub is_cue: bool,
 }
 
+/// Hide or show a note or rest; a hidden one keeps its time and sound but is not drawn.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetHiddenCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub voice: usize,
+    pub note_index: usize,
+    pub hidden: bool,
+}
+
 /// Mark or unmark a note as unpitched while retaining its display placement pitch.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetUnpitchedCmd {
@@ -1492,6 +1504,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::SetGuitarBendCurve(c) => hint!(meas!(c), false, false),
         Command::SetNoteHead(c) => hint!(meas!(c), false, false),
         Command::SetCue(c) => hint!(meas!(c), false, true),
+        Command::SetHidden(c) => hint!(meas!(c), false, true),
         Command::SetUnpitched(c) => hint!(meas!(c), false, true),
         Command::SetInstrumentId(c) => hint!(meas!(c), false, true),
         Command::SetNotePlacement(c) => hint!(meas!(c), true, false),
@@ -1639,6 +1652,7 @@ pub fn command_label(cmd: &Command) -> String {
             "Clear Cue Note"
         }
         .to_string(),
+        Command::SetHidden(c) => if c.hidden { "Hide Note" } else { "Show Note" }.to_string(),
         Command::SetExpressionText(_) => "Set Expression Text".to_string(),
         Command::SetMeasureText(c) => match c.text {
             Some(_) => "Set Measure Text",
@@ -1757,6 +1771,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetGuitarBendCurve(_) => "SetGuitarBendCurve".to_string(),
         Command::SetNoteHead(_) => "SetNoteHead".to_string(),
         Command::SetCue(_) => "SetCue".to_string(),
+        Command::SetHidden(_) => "SetHidden".to_string(),
         Command::SetUnpitched(_) => "SetUnpitched".to_string(),
         Command::SetInstrumentId(_) => "SetInstrumentId".to_string(),
         Command::SetNotePlacement(_) => "SetNotePlacement".to_string(),
@@ -2309,6 +2324,18 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
                 c.note_index,
             )?
             .is_cue = c.is_cue;
+            Ok(())
+        }
+        Command::SetHidden(c) => {
+            get_note_mut(
+                score,
+                c.part_index,
+                c.staff_index,
+                c.measure_index,
+                c.voice,
+                c.note_index,
+            )?
+            .hidden = c.hidden;
             Ok(())
         }
         Command::SetUnpitched(c) => {

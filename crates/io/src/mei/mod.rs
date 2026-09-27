@@ -1844,6 +1844,9 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
             .unwrap_or(false);
         note.grace_slash = note.is_grace && grace_slash;
     }
+    // `<space>` is an invisible rest.
+    note.hidden = event.name().as_ref() == b"space"
+        || inherited(b"visible").is_some_and(|value| value.trim() == "false");
     note.dynamic = pending_dynamic.take();
     note.lyric = pending_lyric.take();
     note.articulations.append(pending_articulations);
@@ -2690,6 +2693,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 );
                             }
                             let mut rest = Note::rest(Duration::Whole);
+                            rest.hidden = attr(&event, b"visible").as_deref() == Some("false");
                             rest.articulations.append(&mut pending_articulations);
                             voice.push(rest);
                             note_count += 1;
@@ -4071,6 +4075,9 @@ fn append_mei_note(
                 out.push_str(&format!(" tie=\"{tie}\""));
             }
             append_mei_grace_and_stem(out, note);
+            if note.hidden {
+                out.push_str(" visible=\"false\"");
+            }
             let tab = note
                 .tab_positions
                 .get(index)
@@ -4102,7 +4109,9 @@ fn append_mei_note(
     let dur = note.duration.as_fraction().1.to_string();
     let is_chord = !note.is_rest && note.pitches.len() > 1;
     if note.is_rest {
-        out.push_str(&format!("<rest dur=\"{dur}\""));
+        // A hidden rest is MEI's `<space>`.
+        let element = if note.hidden { "space" } else { "rest" };
+        out.push_str(&format!("<{element} dur=\"{dur}\""));
     } else if is_chord {
         out.push_str(&format!("<chord xml:id=\"{id}\" dur=\"{dur}\""));
         append_mei_grace_and_stem(out, note);
@@ -4119,6 +4128,9 @@ fn append_mei_note(
     }
     if note.dot_count > 0 {
         out.push_str(&format!(" dots=\"{}\"", note.dot_count));
+    }
+    if note.hidden && !note.is_rest {
+        out.push_str(" visible=\"false\"");
     }
     let tie = if has_per_pitch_ties(note) {
         None
@@ -4944,7 +4956,12 @@ fn append_mei_measure_staves(
                 }
                 let id = mei_note_id(label, staff_index, voice_index, note_index);
                 if voice.len() == 1 && note.is_plain_whole_rest() {
-                    out.push_str(&format!("<mRest xml:id=\"{id}\"/>"));
+                    let visible = if note.hidden {
+                        " visible=\"false\""
+                    } else {
+                        ""
+                    };
+                    out.push_str(&format!("<mRest xml:id=\"{id}\"{visible}/>"));
                     continue;
                 }
                 append_mei_note(

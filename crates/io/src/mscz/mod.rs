@@ -237,6 +237,13 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut chord_arpeggiate: Option<bool> = None;
     // A chord's `<staffMove>`: a signed staff count within its part.
     let mut chord_staff_move: i64 = 0;
+    // Element depth, to tell a Rest's or Note's own `<visible>` from a child element's.
+    let mut element_depth = 0usize;
+    let mut rest_depth = 0usize;
+    let mut note_depth = 0usize;
+    let mut rest_hidden = false;
+    let mut note_hidden = false;
+    let mut chord_notes_hidden = 0usize;
     let mut in_arpeggio = false;
     let mut chord_tremolo: Option<u8> = None;
     let mut in_tremolo = false;
@@ -366,6 +373,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                 }
                 let name = local_name_str(e.local_name().as_ref());
                 text.clear();
+                element_depth += 1;
 
                 match name.as_str() {
                     "metaTag" if !in_part && current_staff_id.is_none() => {
@@ -544,6 +552,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         chord_tremolo = None;
                         chord_articulations.clear();
                         chord_staff_move = 0;
+                        chord_notes_hidden = 0;
                     }
                     "Fermata" if in_measure && !in_chord && !in_rest_elem => {
                         pending_fermata = true;
@@ -555,6 +564,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "Rest" if in_measure && !in_chord && !in_rest_elem => {
                         in_rest_elem = true;
+                        rest_depth = element_depth;
+                        rest_hidden = false;
                         chord_duration = None;
                         chord_dots = 0;
                         chord_voice = if in_measure_voice_wrapper {
@@ -565,6 +576,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "Note" if in_chord && !in_note_elem => {
                         in_note_elem = true;
+                        note_depth = element_depth;
+                        note_hidden = false;
                         note_tie_start = false;
                         note_tie_end = false;
                         note_midi = 60;
@@ -722,6 +735,15 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                 let name = local_name_str(e.local_name().as_ref());
                 let t = std::mem::take(&mut text);
                 let t = t.trim();
+                let closing_depth = element_depth;
+                element_depth = element_depth.saturating_sub(1);
+                if name == "visible" && t == "0" {
+                    if in_note_elem && closing_depth == note_depth + 1 {
+                        note_hidden = true;
+                    } else if in_rest_elem && !in_chord && closing_depth == rest_depth + 1 {
+                        rest_hidden = true;
+                    }
+                }
 
                 match name.as_str() {
                     // Voice-level line spanners (HairPin, Pedal, MuseScore 3.x Slur)
@@ -1534,6 +1556,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         }
                         chord_tie_starts.push(note_tie_start);
                         chord_tie_ends.push(note_tie_end);
+                        chord_notes_hidden += usize::from(note_hidden);
                         in_note_elem = false;
                     }
 
@@ -1561,6 +1584,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             note.is_grace = chord_is_grace;
                             note.grace_slash = chord_grace_slash;
                             note.arpeggiate = chord_arpeggiate;
+                            note.hidden = chord_notes_hidden == chord_pitches.len();
                             // Held as the target's score-wide staff id until the part's staves
                             // are known (`assemble_score` maps it to an index in the part).
                             note.cross_staff = current_staff_id
@@ -1610,6 +1634,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         if std::mem::take(&mut pending_fermata) {
                             rest.articulations.push(Articulation::Fermata);
                         }
+                        rest.hidden = rest_hidden;
                         let v = chord_voice.min(3);
                         // Lines may start on a rest (a hairpin under a rest before the entry).
                         rest.hairpin_start = pending_hairpin[v].take();

@@ -3322,3 +3322,25 @@ fn single_voice_stems_follow_the_middle_line_rule_unless_authored() {
     // is kept.
     assert_eq!(stems, vec![true, false, false, true]);
 }
+
+#[test]
+fn hidden_notes_and_rests_keep_their_place_but_draw_nothing() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("hidden", 120, 4, 4, 0, 1);
+    let mut rest = Note::rest(Duration::Half);
+    rest.hidden = true;
+    let mut note = Note::new(Pitch::new(Step::C, 5), Duration::Eighth);
+    note.hidden = true;
+    score.parts[0].staves[0].measures[0].voices[0] = vec![
+        rest,
+        note,
+        Note::new(Pitch::new(Step::D, 5), Duration::Eighth),
+        Note::new(Pitch::new(Step::E, 5), Duration::Quarter),
+    ];
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_well_formed_xml(&svg);
+    assert_eq!(svg.matches("acorde-hidden\"").count(), 2);
+    assert_eq!(svg.matches("visibility=\"hidden\"").count(), 2);
+    // The hidden eighth is left out of the beam with its visible neighbour.
+    assert!(!svg.contains("acorde-beam"));
+}
