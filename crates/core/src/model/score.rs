@@ -1,9 +1,10 @@
 use super::{
     duration::Duration,
     notation::{
-        Articulation, Barline, BeamState, ChordDefinition, ChordSymbol, Clef, CrossStaff, Dynamic,
-        FiguredBassFigure, GuitarTechnique, HairpinKind, KeySignature, Lyric, NoteHead, OttavaKind,
-        StyledText, TabPosition, TablatureConfig, TimeSignature, TupletInfo, VerseLyric,
+        AccidentalDisplay, Articulation, Barline, BeamState, ChordDefinition, ChordSymbol, Clef,
+        CrossStaff, Dynamic, FiguredBassFigure, GuitarTechnique, HairpinKind, KeySignature, Lyric,
+        NoteHead, OttavaKind, StyledText, TabPosition, TablatureConfig, TimeSignature, TupletInfo,
+        VerseLyric,
     },
     pitch::Pitch,
 };
@@ -2257,6 +2258,11 @@ pub struct Note {
     /// Per-pitch tie ends, parallel to `pitches`; empty means `tie_end` applies to every pitch.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub pitch_tie_ends: Vec<bool>,
+    /// Per-pitch accidental display, parallel to `pitches`. Empty (the usual case) leaves every
+    /// accidental to the notation rules; pitches past the end are `Auto`, and a vector longer
+    /// than `pitches` is ignored. See [`Note::accidental_display`].
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pitch_accidentals: Vec<AccidentalDisplay>,
     pub beam: BeamState,
     pub articulations: Vec<Articulation>,
     pub dynamic: Option<Dynamic>,
@@ -2388,6 +2394,7 @@ impl Note {
             tie_end: false,
             pitch_tie_starts: Vec::new(),
             pitch_tie_ends: Vec::new(),
+            pitch_accidentals: Vec::new(),
             beam: BeamState::None,
             articulations: Vec::new(),
             dynamic: None,
@@ -2444,6 +2451,7 @@ impl Note {
             tie_end: false,
             pitch_tie_starts: Vec::new(),
             pitch_tie_ends: Vec::new(),
+            pitch_accidentals: Vec::new(),
             beam: BeamState::None,
             articulations: Vec::new(),
             dynamic: None,
@@ -2549,6 +2557,38 @@ impl Note {
             } else {
                 ends.to_vec()
             };
+        }
+    }
+
+    /// How the accidental of the pitch at `index` is shown (`Auto` when not recorded).
+    pub fn accidental_display(&self, index: usize) -> AccidentalDisplay {
+        if self.pitch_accidentals.len() > self.pitches.len() {
+            return AccidentalDisplay::Auto;
+        }
+        self.pitch_accidentals
+            .get(index)
+            .copied()
+            .unwrap_or_default()
+    }
+
+    /// Set how the accidental of the pitch at `index` is shown. The vector is dropped again
+    /// when every pitch is back to `Auto`.
+    pub fn set_accidental_display(&mut self, index: usize, display: AccidentalDisplay) {
+        if index >= self.pitches.len() {
+            return;
+        }
+        if self.pitch_accidentals.len() > self.pitches.len() {
+            self.pitch_accidentals.clear();
+        }
+        self.pitch_accidentals
+            .resize(self.pitches.len(), AccidentalDisplay::Auto);
+        self.pitch_accidentals[index] = display;
+        if self
+            .pitch_accidentals
+            .iter()
+            .all(|display| *display == AccidentalDisplay::Auto)
+        {
+            self.pitch_accidentals.clear();
         }
     }
 

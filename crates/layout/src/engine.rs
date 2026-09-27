@@ -2,7 +2,9 @@ use crate::{
     AccidentalMark, BeamGroup, ConcertKeyOverride, CourtesyAccidental, LayoutConfig, LayoutResult,
     RowLayout, SourceVoiceAddress, SpanMark, TupletGroup,
 };
-use acorde_core::{BeamState, HairpinKind, NoteAddr, OttavaKind, Score, Step, TupletInfo};
+use acorde_core::{
+    AccidentalDisplay, BeamState, HairpinKind, NoteAddr, OttavaKind, Score, Step, TupletInfo,
+};
 use std::collections::HashMap;
 
 /// Shift `fifths` (circle-of-fifths key index) by `semitones` semitones.
@@ -482,12 +484,12 @@ fn collect_courtesy_accidentals(score: &Score) -> Vec<CourtesyAccidental> {
                 // Phase 1: check this measure's notes against prev_alters.
                 for vi in 0..4usize {
                     for (ni, note) in measure.voices[vi].iter().enumerate() {
-                        if note.tie_end {
-                            continue;
-                        }
                         for (pitch_idx, pitch) in note.pitches.iter().enumerate() {
                             let key = (step_idx(&pitch.step), pitch.octave);
-                            if prev_alters.contains_key(&key) {
+                            // A parenthesized accidental the source asked for is always drawn.
+                            let requested = note.accidental_display(pitch_idx)
+                                == AccidentalDisplay::Parenthesized;
+                            if requested || (!note.tie_end && prev_alters.contains_key(&key)) {
                                 result.push(CourtesyAccidental {
                                     part: pi,
                                     staff: si,
@@ -552,8 +554,11 @@ fn collect_accidental_marks(score: &Score) -> Vec<AccidentalMark> {
                                 .get(&key)
                                 .copied()
                                 .unwrap_or_else(|| key_alter(current_fifths, &pitch.step));
+                            let display = note.accidental_display(pitch_idx);
+                            let parenthesized = display == AccidentalDisplay::Parenthesized;
                             if pitch.alter != baseline {
-                                if !note.tie_end {
+                                // A parenthesized one is drawn with the courtesy marks.
+                                if !note.tie_end && !parenthesized {
                                     result.push(AccidentalMark {
                                         part: pi,
                                         staff: si,
@@ -565,6 +570,21 @@ fn collect_accidental_marks(score: &Score) -> Vec<AccidentalMark> {
                                     });
                                 }
                                 active.insert(key, pitch.alter);
+                            } else if matches!(
+                                display,
+                                AccidentalDisplay::Cautionary | AccidentalDisplay::Editorial
+                            ) {
+                                // Cautionary and editorial accidentals are drawn even when the
+                                // key and the bar already imply them.
+                                result.push(AccidentalMark {
+                                    part: pi,
+                                    staff: si,
+                                    measure: mi,
+                                    voice: vi,
+                                    note_index: ni,
+                                    pitch_index: pitch_idx,
+                                    alter: pitch.alter,
+                                });
                             }
                         }
                     }
@@ -1167,6 +1187,32 @@ mod tests {
     }
 
     // ── AccidentalMark ────────────────────────────────────────────────────────
+
+    #[test]
+    fn requested_accidentals_are_drawn_where_the_rules_imply_them() {
+        use acorde_core::{Duration, Note, Pitch, Step};
+        let mut score = score_with_measures(1);
+        let mut cautionary = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        cautionary.set_accidental_display(0, AccidentalDisplay::Cautionary);
+        let mut sharp = Note::new(Pitch::with_alter(Step::F, 4, 1), Duration::Quarter);
+        sharp.set_accidental_display(0, AccidentalDisplay::Parenthesized);
+        let mut bracketed = Note::new(Pitch::new(Step::G, 4), Duration::Quarter);
+        bracketed.set_accidental_display(0, AccidentalDisplay::Parenthesized);
+        let plain = Note::new(Pitch::new(Step::A, 4), Duration::Quarter);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![cautionary, sharp, bracketed, plain];
+
+        let result = compute_layout(&score, &LayoutConfig::default());
+        let mandatory: Vec<usize> = result.accidentals.iter().map(|a| a.note_index).collect();
+        let courtesy: Vec<usize> = result
+            .courtesy_accidentals
+            .iter()
+            .map(|a| a.note_index)
+            .collect();
+        // The cautionary natural is drawn plain; the sharp and the natural asked for in
+        // parentheses are drawn as courtesy marks, and the sharp is not drawn twice.
+        assert_eq!(mandatory, vec![0]);
+        assert_eq!(courtesy, vec![1, 2]);
+    }
 
     #[test]
     fn accidental_none_for_clean_score() {

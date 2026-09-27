@@ -1,8 +1,8 @@
 use crate::Error;
 use acorde_core::{
-    Articulation, Barline, BeamState, Duration, GuitarTechnique, HairpinKind, HarpPedalPosition,
-    NotationSpanner, NotationSpannerKind, Note, NoteAddr, NoteHead, PartGroup, PartGroupSymbol,
-    Score, TextStyle, TimeSignature, compute_beams,
+    AccidentalDisplay, Articulation, Barline, BeamState, Duration, GuitarTechnique, HairpinKind,
+    HarpPedalPosition, NotationSpanner, NotationSpannerKind, Note, NoteAddr, NoteHead, PartGroup,
+    PartGroupSymbol, Score, TextStyle, TimeSignature, compute_beams,
 };
 
 const DIVISIONS: u32 = 480;
@@ -1091,6 +1091,9 @@ fn serialize_note(
             for _ in 0..note.dot_count {
                 xml.push_str("        <dot/>\n");
             }
+            if !note.is_unpitched {
+                push_accidental(xml, pitch, note.accidental_display(pitch_index));
+            }
             if !note.is_grace {
                 push_time_modification(xml);
             }
@@ -1927,6 +1930,27 @@ fn escape_xml(s: &str) -> String {
         .replace('>', "&gt;")
         .replace('"', "&quot;")
         .replace('\'', "&apos;")
+}
+
+/// An `<accidental>` for a pitch whose accidental the source asked to show: cautionary,
+/// parenthesized or editorial. Accidentals left to the notation rules are not written.
+fn push_accidental(xml: &mut String, pitch: &acorde_core::Pitch, display: AccidentalDisplay) {
+    let attribute = match display {
+        AccidentalDisplay::Auto => return,
+        AccidentalDisplay::Cautionary => "cautionary",
+        AccidentalDisplay::Parenthesized => "parentheses",
+        AccidentalDisplay::Editorial => "editorial",
+    };
+    let name = match pitch.alter {
+        ..=-2 => "flat-flat",
+        -1 => "flat",
+        0 => "natural",
+        1 => "sharp",
+        _ => "double-sharp",
+    };
+    xml.push_str(&format!(
+        "        <accidental {attribute}=\"yes\">{name}</accidental>\n"
+    ));
 }
 
 #[cfg(test)]

@@ -477,6 +477,22 @@ impl OttavaKind {
     }
 }
 
+/// How a pitch's accidental is shown when the notation rules alone would not decide it: a
+/// cautionary (courtesy) accidental the source asked for, one in parentheses or brackets, or
+/// an editorial one. `Auto` (the default) leaves the accidental to the key and the bar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum AccidentalDisplay {
+    #[default]
+    Auto,
+    /// Always shown, without parentheses (MusicXML `cautionary="yes"`, MEI `@func="caution"`).
+    Cautionary,
+    /// Always shown, in parentheses (MusicXML `parentheses="yes"`/`bracket="yes"`, MEI
+    /// `@enclose`, MuseScore accidental brackets).
+    Parenthesized,
+    /// An editor's addition (MusicXML `editorial="yes"`, MEI `@func="edit"`), always shown.
+    Editorial,
+}
+
 /// Note head shape.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum NoteHead {

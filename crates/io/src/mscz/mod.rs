@@ -1,10 +1,10 @@
 use crate::{Diagnostic, Error};
 use acorde_core::HairpinKind;
 use acorde_core::{
-    Articulation, Barline, BeamState, ChordDegree, ChordSymbol, Clef, Duration, Dynamic,
-    FiguredBassFigure, GuitarTechnique, KeySignature, Lyric, Measure, Note, NoteHead, Part,
-    PartGroupSymbol, Pitch, Score, Staff, StaffGroup, StaffKind, Step, StyledText, TabPosition,
-    TablatureConfig, TextStyle, TimeSignature, TupletInfo, VoltaBracket,
+    AccidentalDisplay, Articulation, Barline, BeamState, ChordDegree, ChordSymbol, Clef, Duration,
+    Dynamic, FiguredBassFigure, GuitarTechnique, KeySignature, Lyric, Measure, Note, NoteHead,
+    Part, PartGroupSymbol, Pitch, Score, Staff, StaffGroup, StaffKind, Step, StyledText,
+    TabPosition, TablatureConfig, TextStyle, TimeSignature, TupletInfo, VoltaBracket,
 };
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
@@ -228,6 +228,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut chord_tie_end = false;
     // MuseScore ties each note of a chord separately.
     let mut chord_tie_starts: Vec<bool> = Vec::new();
+    let mut chord_accidentals: Vec<AccidentalDisplay> = Vec::new();
+    let mut note_accidental_display = AccidentalDisplay::Auto;
     let mut chord_tie_ends: Vec<bool> = Vec::new();
     let mut note_tie_start = false;
     let mut note_tie_end = false;
@@ -543,6 +545,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         chord_tie_start = false;
                         chord_tie_end = false;
                         chord_tie_starts.clear();
+                        chord_accidentals.clear();
                         chord_tie_ends.clear();
                         chord_slur_start = false;
                         chord_slur_end = false;
@@ -584,6 +587,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         note_tpc = 14;
                         note_head = NoteHead::Normal;
                         note_microtone_cents = 0;
+                        note_accidental_display = AccidentalDisplay::Auto;
                         note_tab_string = None;
                         note_tab_fret = None;
                         note_fingerings.clear();
@@ -1283,6 +1287,18 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             _ => 0,
                         };
                     }
+                    // `<bracket>` 1–3: parentheses, brackets or braces; `<role>1`: placed by the
+                    // user (a cautionary accidental).
+                    "bracket" if in_accidental => {
+                        if t != "0" {
+                            note_accidental_display = AccidentalDisplay::Parenthesized;
+                        }
+                    }
+                    "role" if in_accidental => {
+                        if t == "1" && note_accidental_display == AccidentalDisplay::Auto {
+                            note_accidental_display = AccidentalDisplay::Cautionary;
+                        }
+                    }
                     "string" if in_note_elem => {
                         note_tab_string = t.parse::<u8>().ok();
                     }
@@ -1555,6 +1571,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             chord_tab_positions.push(TabPosition { string, fret });
                         }
                         chord_tie_starts.push(note_tie_start);
+                        chord_accidentals.push(note_accidental_display);
                         chord_tie_ends.push(note_tie_end);
                         chord_notes_hidden += usize::from(note_hidden);
                         in_note_elem = false;
@@ -1575,6 +1592,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             note.slur_end = chord_slur_end;
                             note.pitches = chord_pitches.clone();
                             note.set_pitch_ties(&chord_tie_starts, &chord_tie_ends);
+                            if chord_accidentals
+                                .iter()
+                                .any(|display| *display != AccidentalDisplay::Auto)
+                            {
+                                note.pitch_accidentals = chord_accidentals.clone();
+                            }
                             note.tab_positions = chord_tab_positions.clone();
                             note.tab_position = note.tab_positions.first().cloned();
                             note.fingerings = note_fingerings.clone();
@@ -3229,6 +3252,45 @@ mod tests {
         assert_eq!(
             score.parts[0].staves[0].measures[0].voices[0][0].pitches[0].microtone_cents,
             50
+        );
+    }
+
+    #[test]
+    fn mscx_requested_accidentals_round_trip() {
+        let xml = r#"
+        <Score><Staff id="1"><Measure number="1">
+          <Chord><durationType>half</durationType>
+            <Note><pitch>60</pitch><tpc>14</tpc>
+              <Accidental><role>1</role><subtype>accidentalNatural</subtype></Accidental>
+            </Note>
+            <Note><pitch>66</pitch><tpc>20</tpc>
+              <Accidental><bracket>1</bracket><role>1</role><subtype>accidentalSharp</subtype></Accidental>
+            </Note>
+          </Chord>
+          <Chord><durationType>half</durationType><Note><pitch>62</pitch><tpc>16</tpc></Note></Chord>
+        </Measure></Staff></Score>
+        "#;
+        let check = |score: &Score| {
+            let voice = &score.parts[0].staves[0].measures[0].voices[0];
+            assert_eq!(
+                voice[0].accidental_display(0),
+                AccidentalDisplay::Cautionary
+            );
+            assert_eq!(
+                voice[0].accidental_display(1),
+                AccidentalDisplay::Parenthesized
+            );
+            assert!(voice[1].pitch_accidentals.is_empty());
+        };
+        let score = parse_mscx(xml).expect("parses");
+        check(&score);
+        let written = crate::mscz::serialize::serialize_mscx(&score).expect("serializes");
+        assert!(written.contains("<bracket>1</bracket><role>1</role><subtype>accidentalSharp"));
+        check(&parse_mscx(&written).expect("reparses"));
+        let losses = loss_diagnostics(xml);
+        assert!(
+            losses.iter().all(|d| d.code == "mscx.unreferenced-staff"),
+            "{losses:?}"
         );
     }
 

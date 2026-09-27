@@ -4550,8 +4550,12 @@ fn accidental_footprint_u(note: &Note) -> f32 {
     let widths: Vec<f32> = note
         .pitches
         .iter()
-        .filter(|pitch| pitch.alter != 0)
-        .map(|pitch| glyphs::accidental_width_u(pitch.alter) + 0.15)
+        .enumerate()
+        .filter(|(index, pitch)| {
+            pitch.alter != 0
+                || note.accidental_display(*index) != acorde_core::AccidentalDisplay::Auto
+        })
+        .map(|(_, pitch)| glyphs::accidental_width_u(pitch.alter) + 0.15)
         .collect();
     widths.iter().sum::<f32>() + 0.25 * widths.len().saturating_sub(1) as f32
 }

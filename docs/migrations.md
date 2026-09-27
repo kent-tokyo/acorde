@@ -25,6 +25,14 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
+### Unreleased — requested accidentals
+
+`Note` gains `pitch_accidentals: Vec<AccidentalDisplay>` (`Auto`, `Cautionary`, `Parenthesized`,
+`Editorial`), parallel to `pitches`. It is empty unless the source asks to show an accidental the
+key and bar would not, and is omitted from JSON when empty, so existing score JSON is unchanged.
+Read it with `Note::accidental_display(i)` and write it with `Note::set_accidental_display`.
+Exhaustive matches on the new enum need its four arms.
+
 ### v1.2.15 — MIDI transcription and score transformations
 
 `Command` gains `UnrollRepeats(UnrollRepeatsCmd)` and

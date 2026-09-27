@@ -1,6 +1,7 @@
 use super::super::{Error, MAX_INPUT_BYTES};
 use acorde_core::{
-    Articulation, BeamState, Clef, Duration, Note, NoteHead, Pitch, Score, Staff, Step,
+    AccidentalDisplay, Articulation, BeamState, Clef, Duration, Note, NoteHead, Pitch, Score,
+    Staff, Step,
 };
 use std::fmt::Write;
 use std::io::{Cursor, Write as IoWrite};
@@ -958,9 +959,27 @@ fn write_note(
         if note.note_head != NoteHead::Normal {
             write!(xml, "<head>{}</head>", note_head_name(&note.note_head)).map_err(fmt_error)?;
         }
+        let display = note.accidental_display(pitch_index);
         if let Some(subtype) = microtone_subtype(pitch.microtone_cents) {
-            write!(xml, "<Accidental><subtype>{subtype}</subtype></Accidental>")
-                .map_err(fmt_error)?;
+            write!(xml, "<Accidental>").map_err(fmt_error)?;
+            write_accidental_role(xml, display)?;
+            write!(xml, "<subtype>{subtype}</subtype></Accidental>").map_err(fmt_error)?;
+        } else if display != AccidentalDisplay::Auto {
+            // A requested accidental: placed by the user, in brackets when parenthesized.
+            write!(xml, "<Accidental>").map_err(fmt_error)?;
+            write_accidental_role(xml, display)?;
+            write!(
+                xml,
+                "<subtype>{}</subtype></Accidental>",
+                match pitch.alter {
+                    ..=-2 => "accidentalDoubleFlat",
+                    -1 => "accidentalFlat",
+                    0 => "accidentalNatural",
+                    1 => "accidentalSharp",
+                    _ => "accidentalDoubleSharp",
+                }
+            )
+            .map_err(fmt_error)?;
         }
         if let Some(position) = note
             .tab_positions
@@ -1188,6 +1207,20 @@ fn escape(value: &str) -> String {
         .replace('>', "&gt;")
         .replace('"', "&quot;")
         .replace('\'', "&apos;")
+}
+
+/// MuseScore's accidental role: `<role>1` (placed by the user) for every requested accidental,
+/// with `<bracket>1` (parentheses) when it is parenthesized.
+fn write_accidental_role(xml: &mut String, display: AccidentalDisplay) -> Result<(), Error> {
+    match display {
+        AccidentalDisplay::Auto => Ok(()),
+        AccidentalDisplay::Parenthesized => {
+            write!(xml, "<bracket>1</bracket><role>1</role>").map_err(fmt_error)
+        }
+        AccidentalDisplay::Cautionary | AccidentalDisplay::Editorial => {
+            write!(xml, "<role>1</role>").map_err(fmt_error)
+        }
+    }
 }
 
 fn fmt_error(_: std::fmt::Error) -> Error {

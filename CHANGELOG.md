@@ -9,6 +9,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Cautionary, parenthesized and editorial accidentals.** Accidentals the source asks to show
+  where the key and bar would not (MusicXML `<accidental cautionary|parentheses|bracket|
+  editorial="yes">`, MEI `<accid func="caution|edit">`/`@enclose`, MuseScore `<Accidental>`
+  `<role>1`/`<bracket>`) were dropped on import — 1,701 of them in 205 corpus scores. They are now
+  kept per chord member in `Note::pitch_accidentals`, drawn (parenthesized ones in parentheses)
+  and written back to all three formats (MEI as `<accid>` children, which Verovio renders).
+  MuseScore has no editorial role, so an editorial accidental reaches MSCX as a cautionary one.
+
 - **MusicXML bars with rounded durations.** A bar whose durations add up differently from its
   meter only through rounding (17 divisions per quarter, sixteenths written as 4 ticks) became
   an irregular bar of the rounded length, so its correctly written notes overfilled it — 353

@@ -7,11 +7,11 @@
 
 use crate::{Diagnostic, Error, ImportReport};
 use acorde_core::{
-    Articulation, Barline, BeamState, ChordBarre, ChordDefinition, ChordDefinitionMember,
-    ChordDegree, ChordSymbol, Clef, Duration, Dynamic, FiguredBassFigure, HairpinKind,
-    KeySignature, Measure, Note, NoteAddr, OttavaKind, Part, PartGroup, PartGroupSymbol, Pitch,
-    Score, Staff, StaffGroup, Step, StyledText, TextStyle, TimeSignature, TupletInfo,
-    compute_beams,
+    AccidentalDisplay, Articulation, Barline, BeamState, ChordBarre, ChordDefinition,
+    ChordDefinitionMember, ChordDegree, ChordSymbol, Clef, Duration, Dynamic, FiguredBassFigure,
+    HairpinKind, KeySignature, Measure, Note, NoteAddr, OttavaKind, Part, PartGroup,
+    PartGroupSymbol, Pitch, Score, Staff, StaffGroup, Step, StyledText, TextStyle, TimeSignature,
+    TupletInfo, compute_beams,
 };
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
@@ -2845,16 +2845,29 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             Some("qf") => Some((0, -50)),
                             _ => None,
                         };
+                        // Its role: cautionary, editorial or enclosed in parentheses/brackets.
+                        let display = if attr(&event, b"enclose").is_some() {
+                            AccidentalDisplay::Parenthesized
+                        } else {
+                            match attr(&event, b"func").as_deref() {
+                                Some("caution") => AccidentalDisplay::Cautionary,
+                                Some("edit") => AccidentalDisplay::Editorial,
+                                _ => AccidentalDisplay::Auto,
+                            }
+                        };
                         if let (Some((alter, cents)), Some(measure_index)) =
                             (alter, current_measure)
-                            && let Some(pitch) = score.parts[0].staves[current_staff].measures
+                            && let Some(note) = score.parts[0].staves[current_staff].measures
                                 [measure_index]
                                 .voices[current_layer]
                                 .last_mut()
-                                .and_then(|note| note.pitches.last_mut())
+                            && let Some(index) = note.pitches.len().checked_sub(1)
                         {
-                            pitch.alter = alter;
-                            pitch.microtone_cents = cents;
+                            note.pitches[index].alter = alter;
+                            note.pitches[index].microtone_cents = cents;
+                            if display != AccidentalDisplay::Auto {
+                                note.set_accidental_display(index, display);
+                            }
                         }
                     }
                     b"verse" => {
@@ -4068,11 +4081,7 @@ fn mei_key_signature(key: &KeySignature) -> String {
 /// key signature or an earlier accidental in the measure): visible ones use `@accid`, implied
 /// alterations use `@accid.ges` so renderers do not print them.
 fn append_mei_pitch_attrs(out: &mut String, pitch: &Pitch, written: bool) {
-    out.push_str(&format!(
-        " pname=\"{}\" oct=\"{}\"",
-        pitch.step.to_char().to_ascii_lowercase(),
-        pitch.octave
-    ));
+    append_mei_pname_oct(out, pitch);
     let accid = match (pitch.alter, pitch.microtone_cents) {
         (0, 50) => Some("qs"),
         (0, -50) => Some("qf"),
@@ -4088,6 +4097,37 @@ fn append_mei_pitch_attrs(out: &mut String, pitch: &Pitch, written: bool) {
         (Some(accid), false) => out.push_str(&format!(" accid.ges=\"{accid}\"")),
         (None, _) => {}
     }
+}
+
+/// Pitch name and octave only: the accidental goes in an `<accid>` child (Verovio warns when a
+/// note has both `@accid`/`@accid.ges` and an `<accid>`).
+fn append_mei_pname_oct(out: &mut String, pitch: &Pitch) {
+    out.push_str(&format!(
+        " pname=\"{}\" oct=\"{}\"",
+        pitch.step.to_char().to_ascii_lowercase(),
+        pitch.octave
+    ));
+}
+
+/// An `<accid>` for an accidental the source asked to show: cautionary (`@func="caution"`),
+/// editorial (`@func="edit"`) or in parentheses (`@enclose="paren"`).
+fn mei_requested_accid(pitch: &Pitch, display: AccidentalDisplay) -> Option<String> {
+    let role = match display {
+        AccidentalDisplay::Auto => return None,
+        AccidentalDisplay::Cautionary => r#" func="caution""#,
+        AccidentalDisplay::Parenthesized => r#" enclose="paren""#,
+        AccidentalDisplay::Editorial => r#" func="edit""#,
+    };
+    let accid = match (pitch.alter, pitch.microtone_cents) {
+        (0, 50) => "qs",
+        (0, -50) => "qf",
+        (1, _) => "s",
+        (-1, _) => "f",
+        (2, _) => "x",
+        (-2, _) => "ff",
+        _ => "n",
+    };
+    Some(format!(r#"<accid accid="{accid}"{role}/>"#))
 }
 
 fn mei_key_alter(fifths: i8, step: &Step) -> i8 {
@@ -4269,7 +4309,12 @@ fn append_mei_note(
         append_mei_grace_and_stem(out, note);
     } else if let Some(pitch) = note.pitches.first() {
         out.push_str(&format!("<note xml:id=\"{id}\""));
-        append_mei_pitch_attrs(out, pitch, shown(0));
+        // A requested accidental is written as an `<accid>` child, which carries its role.
+        if mei_requested_accid(pitch, note.accidental_display(0)).is_some() {
+            append_mei_pname_oct(out, pitch);
+        } else {
+            append_mei_pitch_attrs(out, pitch, shown(0));
+        }
         out.push_str(&format!(" dur=\"{dur}\""));
         append_mei_grace_and_stem(out, note);
     } else {
@@ -4306,16 +4351,34 @@ fn append_mei_note(
         out.push('>');
         for (index, pitch) in note.pitches.iter().enumerate() {
             out.push_str(&format!("<note xml:id=\"{id}_p{}\"", index + 1));
-            append_mei_pitch_attrs(out, pitch, shown(index));
+            let requested = mei_requested_accid(pitch, note.accidental_display(index));
+            if requested.is_some() {
+                append_mei_pname_oct(out, pitch);
+            } else {
+                append_mei_pitch_attrs(out, pitch, shown(index));
+            }
             if has_per_pitch_ties(note)
                 && let Some(tie) = mei_tie(note.pitch_tie_start(index), note.pitch_tie_end(index))
             {
                 out.push_str(&format!(" tie=\"{tie}\""));
             }
-            out.push_str("/>");
+            match requested {
+                Some(accid) => out.push_str(&format!(">{accid}</note>")),
+                None => out.push_str("/>"),
+            }
         }
         append_mei_verses(out, note);
         out.push_str("</chord>");
+    } else if !note.is_rest
+        && let Some(accid) = note
+            .pitches
+            .first()
+            .and_then(|pitch| mei_requested_accid(pitch, note.accidental_display(0)))
+    {
+        out.push('>');
+        out.push_str(&accid);
+        append_mei_verses(out, note);
+        out.push_str("</note>");
     } else if has_verses && !note.is_rest {
         out.push('>');
         append_mei_verses(out, note);
@@ -6844,6 +6907,32 @@ mod tests {
         assert_eq!(
             restored.parts[0].staff_groups,
             report.score.parts[0].staff_groups
+        );
+    }
+
+    #[test]
+    fn requested_accidentals_round_trip_as_accid_children() {
+        let mut score = parse_mei(FIXTURE).expect("fixture parses");
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice[0].set_accidental_display(0, AccidentalDisplay::Parenthesized);
+        let mut chord = Note::new(Pitch::new(Step::C, 4), Duration::Half);
+        chord.pitches.push(Pitch::new(Step::E, 4));
+        chord.set_accidental_display(1, AccidentalDisplay::Cautionary);
+        voice[1] = chord;
+        let written = serialize_mei(&score).expect("serializes");
+        assert!(written.contains(r#"<accid accid="s" enclose="paren"/>"#));
+        assert!(written.contains(r#"<accid accid="n" func="caution"/>"#));
+        let back = parse_mei(&written).expect("reparses");
+        let voice = &back.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(voice[0].pitches[0].alter, 1);
+        assert_eq!(
+            voice[0].accidental_display(0),
+            AccidentalDisplay::Parenthesized
+        );
+        assert_eq!(voice[1].accidental_display(0), AccidentalDisplay::Auto);
+        assert_eq!(
+            voice[1].accidental_display(1),
+            AccidentalDisplay::Cautionary
         );
     }
 

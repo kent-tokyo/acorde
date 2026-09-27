@@ -46,8 +46,8 @@ pub use model::gm::{drum_name, program_name};
 pub use model::harmony::{detect_chord, roman_numeral};
 pub use model::interval::{Interval, IntervalQuality};
 pub use model::notation::{
-    Articulation, Barline, BeamState, ChordBarre, ChordDefinition, ChordDefinitionMember,
-    ChordDegree, ChordSymbol, Clef, CrossStaff, Dynamic, FiguredBassFigure,
+    AccidentalDisplay, Articulation, Barline, BeamState, ChordBarre, ChordDefinition,
+    ChordDefinitionMember, ChordDegree, ChordSymbol, Clef, CrossStaff, Dynamic, FiguredBassFigure,
     FingeringSelectionPolicy, GuitarTechnique, HairpinKind, KeySignature, Lyric, NoteHead,
     OttavaKind, StyledText, TabPosition, TablatureConfig, TextStyle, TimeSignature, TupletInfo,
     VerseLyric,

@@ -26,6 +26,7 @@ the `Score` model; rendering and export can have narrower format-specific covera
 | MIDI channel, program, transposition | yes | yes | no | partial | no | yes | yes / no / MIDI |
 | Percussion | partial | partial | no | partial | no | yes | partial / partial / MIDI |
 | Tablature positions and staff metadata | partial (staff-lines, tuning, string/fret, chord positions) | no | no | partial (StaffType, tuning, string/fret) | no | yes | partial / partial / MusicXML, MSCX |
+| Cautionary, parenthesized and editorial accidentals (`Note::pitch_accidentals`) | yes (`<accidental cautionary/parentheses/bracket/editorial>`) | no | no | yes (`<role>1`, `<bracket>`) | yes (`<accid func enclose>`) | yes; parenthesized ones use the courtesy glyph | yes / partial / MusicXML, MEI, MSCX |
 | Microtonal accidentals | partial (fractional `<alter>`) | no | partial (quarter accidental subset) | partial | partial (`qs`/`qf`) | yes; non-zero cents emit explicit `acorde-microtone` SVG markers | partial / partial / format-specific |
 
 ## Reading the matrix

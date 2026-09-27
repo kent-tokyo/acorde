@@ -1,10 +1,11 @@
 use crate::Error;
 use acorde_core::{
-    Articulation, Barline, ChordDegree, ChordSymbol, Clef, Duration, Dynamic, FiguredBassFigure,
-    GuitarTechnique, HairpinKind, HarpPedalDiagram, HarpPedalPosition, KeySignature, Lyric,
-    Measure, MeasureLength, NotationSpanner, NotationSpannerKind, Note, NoteAddr, NoteHead,
-    OttavaKind, Part, PartGroup, PartGroupSymbol, PercussionInstrument, Pitch, Score, Staff,
-    StaffKind, Step, StyledText, TextStyle, TimeSignature, TupletInfo, VerseLyric, VoltaBracket,
+    AccidentalDisplay, Articulation, Barline, ChordDegree, ChordSymbol, Clef, Duration, Dynamic,
+    FiguredBassFigure, GuitarTechnique, HairpinKind, HarpPedalDiagram, HarpPedalPosition,
+    KeySignature, Lyric, Measure, MeasureLength, NotationSpanner, NotationSpannerKind, Note,
+    NoteAddr, NoteHead, OttavaKind, Part, PartGroup, PartGroupSymbol, PercussionInstrument, Pitch,
+    Score, Staff, StaffKind, Step, StyledText, TextStyle, TimeSignature, TupletInfo, VerseLyric,
+    VoltaBracket,
 };
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
@@ -242,6 +243,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut note_microtone_cents = 0i16;
     let mut note_duration_ticks: Option<u32> = None;
     let mut note_type = "quarter".to_string();
+    let mut note_accidental_display = AccidentalDisplay::Auto;
     let mut note_dots: u8 = 0;
     let mut note_rest = false;
     let mut note_is_measure_rest = false;
@@ -422,6 +424,18 @@ pub(crate) fn parse_musicxml_collecting(
                 current_text.clear();
 
                 match tag.as_str() {
+                    "accidental" if in_note => {
+                        let yes = |name: &[u8]| attr_str(e, name).as_deref() == Some("yes");
+                        note_accidental_display = if yes(b"parentheses") || yes(b"bracket") {
+                            AccidentalDisplay::Parenthesized
+                        } else if yes(b"editorial") {
+                            AccidentalDisplay::Editorial
+                        } else if yes(b"cautionary") {
+                            AccidentalDisplay::Cautionary
+                        } else {
+                            AccidentalDisplay::Auto
+                        };
+                    }
                     "score-part" => {
                         in_score_part = true;
                         score_part_id = attr_str(e, b"id").unwrap_or_default();
@@ -699,6 +713,7 @@ pub(crate) fn parse_musicxml_collecting(
                         note_trill_line_start = false;
                         note_trill_line_end = false;
                         note_type.clear();
+                        note_accidental_display = AccidentalDisplay::Auto;
                         note_slur_start = false;
                         note_slur_end = false;
                         note_tie_start = false;
@@ -2458,6 +2473,9 @@ pub(crate) fn parse_musicxml_collecting(
                                 };
                                 note.tie_start = note_tie_start;
                                 note.tie_end = note_tie_end;
+                                if !note.is_rest && !note.is_unpitched {
+                                    note.set_accidental_display(0, note_accidental_display);
+                                }
                                 if note_chord && drop_chord_member {
                                     // Reported above; the member cannot join a chord on another
                                     // staff or voice.
@@ -3023,11 +3041,23 @@ struct MusicXmlChordNoteDetails {
 fn merge_musicxml_chord_note(last: &mut Note, note: &Note, details: MusicXmlChordNoteDetails) {
     let mut starts = last.pitch_tie_starts_or_uniform();
     let mut ends = last.pitch_tie_ends_or_uniform();
+    let mut accidentals: Vec<AccidentalDisplay> = (0..last.pitches.len())
+        .map(|index| last.accidental_display(index))
+        .collect();
     if let Some(pitch) = note.pitches.first() {
         last.pitches.push(pitch.clone());
         starts.push(note.tie_start);
         ends.push(note.tie_end);
+        accidentals.push(note.accidental_display(0));
     }
+    last.pitch_accidentals = if accidentals
+        .iter()
+        .any(|display| *display != AccidentalDisplay::Auto)
+    {
+        accidentals
+    } else {
+        Vec::new()
+    };
     // Each chord member keeps its own tie; a uniformly tied chord stays chord-level.
     last.set_pitch_ties(&starts, &ends);
     last.is_unpitched |= details.is_unpitched;
@@ -3521,6 +3551,29 @@ mod tests {
         assert_eq!(measure.voices[0].len(), 2);
         assert_eq!(measure.duration_beats(&score.settings.time_signature), 3.0);
         assert!(acorde_core::validate(&score).errors.is_empty());
+    }
+
+    #[test]
+    fn requested_accidentals_round_trip_per_chord_member() {
+        let xml = r#"<score-partwise><part-list><score-part id="P1"/></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><accidental cautionary="yes">natural</accidental></note><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><accidental>natural</accidental></note><note><chord/><pitch><step>G</step><alter>1</alter><octave>4</octave></pitch><duration>1</duration><type>quarter</type><accidental parentheses="yes">sharp</accidental></note></measure></part></score-partwise>"#;
+        let check = |score: &Score| {
+            let voice = &score.parts[0].staves[0].measures[0].voices[0];
+            assert_eq!(
+                voice[0].accidental_display(0),
+                AccidentalDisplay::Cautionary
+            );
+            assert_eq!(voice[1].accidental_display(0), AccidentalDisplay::Auto);
+            assert_eq!(
+                voice[1].accidental_display(1),
+                AccidentalDisplay::Parenthesized
+            );
+        };
+        let score = parse_musicxml(xml).expect("parses");
+        check(&score);
+        let written = crate::serialize_musicxml(&score).expect("serializes");
+        assert!(written.contains(r#"<accidental parentheses="yes">sharp</accidental>"#));
+        assert_eq!(written.matches("<accidental").count(), 2);
+        check(&parse_musicxml(&written).expect("reparses"));
     }
 
     #[test]
