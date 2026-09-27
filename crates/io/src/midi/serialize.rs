@@ -303,6 +303,9 @@ fn build_part_track(
         let dynamics = acorde_core::DynamicTimeline::for_staff(staff, seq);
         for voice_idx in 0..4usize {
             let mut cursor: u64 = 0;
+            // A tied note sounds once: its NoteOff moves to the end of the last note of the tie.
+            let mut open_ties: std::collections::HashMap<u8, usize> =
+                std::collections::HashMap::new();
             for (seq_position, &idx) in seq.iter().enumerate() {
                 let measure = match staff.measures.get(idx) {
                     Some(m) => m,
@@ -328,6 +331,16 @@ fn build_part_track(
                                 || (pitch.to_midi() + transpose as i16).clamp(0, 127) as u8,
                                 |key| key.min(127),
                             );
+                            let continues = note.pitch_tie_start(pitch_index);
+                            if note.pitch_tie_end(pitch_index)
+                                && let Some(&off) = open_ties.get(&midi)
+                            {
+                                events[off].abs_tick = cursor + ticks;
+                                if !continues {
+                                    open_ties.remove(&midi);
+                                }
+                                continue;
+                            }
                             events.push(TimedEvent {
                                 abs_tick: cursor,
                                 sort_key: 1,
@@ -346,6 +359,11 @@ fn build_part_track(
                                     vel: u7::from(0u8),
                                 },
                             });
+                            if continues {
+                                open_ties.insert(midi, events.len() - 1);
+                            } else {
+                                open_ties.remove(&midi);
+                            }
                         }
                     }
                     if !note.is_grace {

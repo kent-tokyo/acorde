@@ -5331,3 +5331,57 @@ fn abc_tempo_changes_round_trip() {
         tempos(&score)
     );
 }
+
+#[test]
+fn midi_import_splits_overlapping_notes_into_voices_and_ties_notes_across_barlines() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step, TimeSignature};
+    // Bar 1 in 4/4: a whole-note bass under four quarters. Bar 2 in 3/4: a dotted half tied on
+    // into bar 3.
+    let mut score = Score::new("midi", 120, 4, 4, 0, 3);
+    let staff = &mut score.parts[0].staves[0];
+    staff.measures[0].voices[0] = [Step::E, Step::F, Step::G, Step::A]
+        .into_iter()
+        .map(|step| Note::new(Pitch::new(step, 5), Duration::Quarter))
+        .collect();
+    staff.measures[0].voices[1] = vec![Note::new(Pitch::new(Step::C, 3), Duration::Whole)];
+    staff.measures[1].time_sig = Some(TimeSignature {
+        numerator: 3,
+        denominator: 4,
+    });
+    let mut held = Note::new(Pitch::new(Step::D, 5), Duration::Half);
+    held.dot_count = 1;
+    held.tie_start = true;
+    staff.measures[1].voices[0] = vec![held];
+    let mut end = Note::new(Pitch::new(Step::D, 5), Duration::Quarter);
+    end.tie_end = true;
+    staff.measures[2].voices[0] = vec![end, Note::rest(Duration::Half)];
+
+    let bytes = acorde_io::serialize_midi(&score).expect("exports");
+    let back = acorde_io::parse_midi(&bytes).expect("imports");
+    let measures = &back.parts[0].staves[0].measures;
+    assert_eq!(measures.len(), 3);
+    assert_eq!(
+        measures[1]
+            .time_sig
+            .as_ref()
+            .map(|t| (t.numerator, t.denominator)),
+        Some((3, 4))
+    );
+    assert_eq!(
+        measures[0].voices[0].len(),
+        4,
+        "the melody keeps its four quarters"
+    );
+    assert_eq!(measures[0].voices[1].len(), 1, "the bass is its own voice");
+    assert_eq!(measures[0].voices[1][0].duration, Duration::Whole);
+    let bar2 = &measures[1].voices[0];
+    assert_eq!(
+        (bar2[0].duration.clone(), bar2[0].dot_count),
+        (Duration::Half, 1)
+    );
+    assert!(bar2[0].tie_start);
+    let bar3 = &measures[2].voices[0];
+    assert!(bar3[0].tie_end);
+    assert_eq!(bar3[0].duration, Duration::Quarter);
+    assert!(bar3[1].is_rest);
+}

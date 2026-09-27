@@ -1,11 +1,12 @@
 mod serialize;
+mod transcribe;
 mod validation;
 pub use serialize::{serialize_midi, serialize_midi_region};
 
 use crate::{Diagnostic, Error, MAX_INPUT_BYTES, MAX_MIDI_EVENTS};
 use acorde_core::{
-    Clef, Duration, Measure, MidiAftertouch, MidiControlChange, MidiPitchBend, MidiProgramChange,
-    Note, Part, Pitch, Score, Staff, Step, TimeSignature,
+    Clef, MidiAftertouch, MidiControlChange, MidiPitchBend, MidiProgramChange, Part, Pitch, Score,
+    Staff, Step, TimeSignature,
 };
 use midly::{MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
 
@@ -46,34 +47,30 @@ pub fn parse_midi(data: &[u8]) -> Result<Score, Error> {
 
     if let Some(track) = smf.tracks.first() {
         for event in track.iter() {
-            match &event.kind {
-                TrackEventKind::Meta(MetaMessage::Tempo(t)) => {
-                    let us = t.as_int() as u64;
-                    if let Some(quotient) = 60_000_000u64.checked_div(us) {
-                        tempo_bpm = (quotient as u16).clamp(1, 999);
-                    }
-                }
-                TrackEventKind::Meta(MetaMessage::TimeSignature(n, d, _, _)) => {
-                    numerator = *n;
-                    denominator = 1u8 << d;
-                }
-                TrackEventKind::Meta(MetaMessage::TrackName(name)) if score_title.is_empty() => {
-                    score_title = String::from_utf8_lossy(name).to_string();
-                }
-                _ => {}
+            if let TrackEventKind::Meta(MetaMessage::TrackName(name)) = &event.kind
+                && score_title.is_empty()
+            {
+                score_title = String::from_utf8_lossy(name).to_string();
             }
         }
+    }
+    // The opening tempo and meter are the ones at tick 0; later ones are changes.
+    if let Some(&(_, bpm)) = tempo_changes.iter().find(|(tick, _)| *tick == 0) {
+        tempo_bpm = bpm;
+    }
+    if let Some((_, time)) = time_signature_changes.iter().find(|(tick, _)| *tick == 0) {
+        numerator = time.numerator;
+        denominator = time.denominator;
     }
 
     let ts = TimeSignature {
         numerator,
         denominator,
     };
-    let beats_per_measure = ts.total_beats();
 
     type TrackData = (
         String,
-        Vec<Note>,
+        Vec<RawNote>,
         Option<(u8, u8)>,
         Vec<MidiPitchBend>,
         Vec<MidiControlChange>,
@@ -90,7 +87,7 @@ pub fn parse_midi(data: &[u8]) -> Result<Score, Error> {
             continue;
         }
         let program_info = extract_program(track);
-        let notes = quantize_to_notes(raw, ppq);
+        let notes = raw;
         let name = track_name(track).unwrap_or_else(|| format!("Track {}", ti + 1));
         parts_data.push((
             name,
@@ -123,20 +120,25 @@ pub fn parse_midi(data: &[u8]) -> Result<Score, Error> {
     }
     score.parts.clear();
 
+    // Every part shares one bar grid, long enough for the last note of any track.
+    let end_tick = parts_data
+        .iter()
+        .flat_map(|data| data.1.iter().map(|note| note.end))
+        .max()
+        .unwrap_or(0);
+    let bars = transcribe::midi_bars(
+        ppq,
+        &score.settings.time_signature,
+        &time_signature_changes,
+        end_tick,
+        MAX_MEASURES,
+    );
     for (name, notes, program_info, pitch_bends, control_changes, program_changes, aftertouch) in
         parts_data
     {
         let short: String = name.chars().take(4).collect();
-        let mut measures = build_measures(notes, numerator, denominator, beats_per_measure);
-        apply_meta_changes(
-            &mut measures,
-            ppq,
-            numerator,
-            denominator,
-            &tempo_changes,
-            &time_signature_changes,
-        );
-        apply_key_changes(&mut measures, ppq, numerator, denominator, &key_changes);
+        let mut measures = transcribe::transcribe_track(&notes, ppq, &bars, midi_to_pitch);
+        transcribe::apply_bar_changes(&mut measures, &bars, &tempo_changes, &key_changes);
         let mut staff = Staff::new(Clef::Treble);
         staff.measures = measures;
         let mut part = Part::new(&name, &short);
@@ -620,67 +622,6 @@ fn collect_key_changes(track: &[midly::TrackEvent]) -> Vec<(u64, acorde_core::Ke
     changes
 }
 
-/// Put key signature changes on the bars they start, as tempo and meter changes are placed.
-fn apply_key_changes(
-    measures: &mut [Measure],
-    ppq: u64,
-    numerator: u8,
-    denominator: u8,
-    key_changes: &[(u64, acorde_core::KeySignature)],
-) {
-    let ticks_per_measure =
-        u64::from(numerator).saturating_mul(4).saturating_mul(ppq) / u64::from(denominator.max(1));
-    if ticks_per_measure == 0 {
-        return;
-    }
-    for (tick, key) in key_changes {
-        if tick % ticks_per_measure == 0
-            && let Some(measure) = measures.get_mut((tick / ticks_per_measure) as usize)
-        {
-            measure.key_sig = Some(key.clone());
-        }
-    }
-}
-
-fn apply_meta_changes(
-    measures: &mut [Measure],
-    ppq: u64,
-    initial_numerator: u8,
-    initial_denominator: u8,
-    tempo_changes: &[(u64, u16)],
-    time_signature_changes: &[(u64, TimeSignature)],
-) {
-    let ticks_per_measure = (initial_numerator as u64)
-        .saturating_mul(4)
-        .saturating_mul(ppq)
-        / u64::from(initial_denominator.max(1));
-    if ticks_per_measure == 0 {
-        return;
-    }
-    for &(tick, bpm) in tempo_changes {
-        if tick == 0 {
-            continue;
-        }
-        let index = (tick / ticks_per_measure) as usize;
-        if tick % ticks_per_measure == 0
-            && let Some(measure) = measures.get_mut(index)
-        {
-            measure.tempo = Some(bpm);
-        }
-    }
-    for &(tick, ref time_signature) in time_signature_changes {
-        if tick == 0 {
-            continue;
-        }
-        let index = (tick / ticks_per_measure) as usize;
-        if tick % ticks_per_measure == 0
-            && let Some(measure) = measures.get_mut(index)
-        {
-            measure.time_sig = Some(time_signature.clone());
-        }
-    }
-}
-
 fn off_measure_meta_change_diagnostics(smf: &Smf<'_>) -> Vec<Diagnostic> {
     let Some(track) = smf.tracks.first() else {
         return Vec::new();
@@ -761,170 +702,7 @@ fn midi_to_pitch(midi: u8) -> Pitch {
     Pitch::with_alter(step, octave, alter)
 }
 
-fn quantize_duration(beats: f64) -> (Duration, u8) {
-    if beats >= 3.5 {
-        return (Duration::Whole, 0);
-    }
-    if beats >= 2.5 {
-        return (Duration::Half, 1);
-    }
-    if beats >= 1.75 {
-        return (Duration::Half, 0);
-    }
-    if beats >= 1.25 {
-        return (Duration::Quarter, 1);
-    }
-    if beats >= 0.875 {
-        return (Duration::Quarter, 0);
-    }
-    if beats >= 0.625 {
-        return (Duration::Eighth, 1);
-    }
-    if beats >= 0.4375 {
-        return (Duration::Eighth, 0);
-    }
-    if beats >= 0.3125 {
-        return (Duration::Sixteenth, 1);
-    }
-    if beats >= 0.21875 {
-        return (Duration::Sixteenth, 0);
-    }
-    if beats >= 0.15625 {
-        return (Duration::ThirtySecond, 1);
-    }
-    if beats >= 0.109375 {
-        return (Duration::ThirtySecond, 0);
-    }
-    if beats >= 0.078125 {
-        return (Duration::SixtyFourth, 1);
-    }
-    (Duration::SixtyFourth, 0)
-}
-
-fn quantize_to_notes(raw: Vec<RawNote>, ppq: u64) -> Vec<Note> {
-    if raw.is_empty() {
-        return Vec::new();
-    }
-
-    // Group same-tick notes into chords
-    let mut groups: Vec<(u64, u64, Vec<u8>, bool)> = Vec::new();
-    for rn in raw {
-        if let Some(last) = groups.last_mut()
-            && last.0 == rn.start
-        {
-            last.1 = last.1.max(rn.end);
-            last.2.push(rn.midi);
-            last.3 &= rn.channel == 9;
-            continue;
-        }
-        groups.push((rn.start, rn.end, vec![rn.midi], rn.channel == 9));
-    }
-
-    let mut result: Vec<Note> = Vec::new();
-    let mut cursor: u64 = 0;
-
-    for (start, end, midis, is_unpitched) in groups {
-        if start > cursor {
-            fill_rests(&mut result, (start - cursor) as f64 / ppq as f64);
-            cursor = start;
-        }
-        let dur_beats = end.saturating_sub(start).max(1) as f64 / ppq as f64;
-        let (dur, dots) = quantize_duration(dur_beats);
-        let actual_beats = dur.beats(dots);
-        let mut note = Note::new(midi_to_pitch(midis[0]), dur.clone());
-        note.is_unpitched = is_unpitched;
-        note.dot_count = dots;
-        for &m in midis.iter().skip(1) {
-            note.pitches.push(midi_to_pitch(m));
-        }
-        result.push(note);
-        cursor += (actual_beats * ppq as f64).round() as u64;
-    }
-    result
-}
-
-fn fill_rests(notes: &mut Vec<Note>, mut gap_beats: f64) {
-    while gap_beats > 0.001 {
-        let dur = Duration::whole_filling_beats(gap_beats);
-        let b = dur.beats(0);
-        if b < 0.001 {
-            break;
-        }
-        gap_beats -= b;
-        notes.push(Note::rest(dur));
-    }
-}
-
 // ── measure building ──────────────────────────────────────────────────────────
-
-fn build_measures(
-    notes: Vec<Note>,
-    numerator: u8,
-    denominator: u8,
-    beats_per_measure: f64,
-) -> Vec<Measure> {
-    let mut measures: Vec<Measure> = Vec::new();
-    let mut bucket: Vec<Note> = Vec::new();
-    let mut used = 0.0f64;
-    let mut measure_num = 1u32;
-
-    for note in notes {
-        let nb = note.beats();
-        if nb < 0.001 {
-            continue;
-        }
-        if used + nb > beats_per_measure + 0.001 {
-            flush(
-                &mut measures,
-                &mut bucket,
-                &mut used,
-                &mut measure_num,
-                numerator,
-                denominator,
-                beats_per_measure,
-            );
-            if measures.len() >= MAX_MEASURES {
-                break;
-            }
-        }
-        used += nb;
-        bucket.push(note);
-    }
-    flush(
-        &mut measures,
-        &mut bucket,
-        &mut used,
-        &mut measure_num,
-        numerator,
-        denominator,
-        beats_per_measure,
-    );
-
-    if measures.is_empty() {
-        let mut m = Measure::empty(numerator, denominator);
-        m.number = 1;
-        measures.push(m);
-    }
-    measures
-}
-
-fn flush(
-    measures: &mut Vec<Measure>,
-    bucket: &mut Vec<Note>,
-    used: &mut f64,
-    measure_num: &mut u32,
-    numerator: u8,
-    denominator: u8,
-    beats_per_measure: f64,
-) {
-    fill_rests(bucket, beats_per_measure - *used);
-    let mut m = Measure::empty(numerator, denominator);
-    m.number = *measure_num;
-    m.voices[0] = std::mem::take(bucket);
-    measures.push(m);
-    *measure_num += 1;
-    *used = 0.0;
-}
 
 #[cfg(test)]
 mod tests {
@@ -1217,23 +995,24 @@ mod tests {
 
     #[test]
     fn meta_changes_at_measure_boundaries_attach_to_measure_metadata() {
-        let notes = vec![
-            Note::new(Pitch::new(Step::C, 4), Duration::Whole),
-            Note::new(Pitch::new(Step::D, 4), Duration::Whole),
-        ];
-        let mut measures = build_measures(notes, 4, 4, 4.0);
         let changed = TimeSignature {
             numerator: 3,
             denominator: 4,
         };
-        apply_meta_changes(
-            &mut measures,
-            480,
-            4,
-            4,
-            &[(1920, 90)],
-            &[(1920, changed.clone())],
-        );
+        let four = TimeSignature {
+            numerator: 4,
+            denominator: 4,
+        };
+        let bars = transcribe::midi_bars(480, &four, &[(1920, changed.clone())], 1920 + 1440, 99);
+        assert_eq!(bars.len(), 2);
+        let raw = [RawNote {
+            start: 0,
+            end: 1920,
+            midi: 60,
+            channel: 0,
+        }];
+        let mut measures = transcribe::transcribe_track(&raw, 480, &bars, midi_to_pitch);
+        transcribe::apply_bar_changes(&mut measures, &bars, &[(1920, 90)], &[]);
         assert_eq!(measures[1].tempo, Some(90));
         assert_eq!(measures[1].time_sig, Some(changed));
     }
@@ -1246,33 +1025,23 @@ mod tests {
     }
 
     #[test]
-    fn quantize_quarter_note() {
-        let (dur, dots) = quantize_duration(1.0);
-        assert_eq!(dur, Duration::Quarter);
-        assert_eq!(dots, 0);
-    }
-
-    #[test]
-    fn quantize_dotted_half() {
-        let (dur, dots) = quantize_duration(3.0);
-        assert_eq!(dur, Duration::Half);
-        assert_eq!(dots, 1);
-    }
-
-    #[test]
     fn drum_channel_notes_are_marked_unpitched_without_inventing_instrument_id() {
-        let notes = quantize_to_notes(
-            vec![RawNote {
-                start: 0,
-                end: 480,
-                midi: 38,
-                channel: 9,
-            }],
-            480,
-        );
-        assert!(notes[0].is_unpitched);
-        assert_eq!(notes[0].instrument_id, None);
-        assert_eq!(notes[0].pitches[0].to_midi(), 38);
+        let four = TimeSignature {
+            numerator: 4,
+            denominator: 4,
+        };
+        let bars = transcribe::midi_bars(480, &four, &[], 480, 99);
+        let raw = [RawNote {
+            start: 0,
+            end: 480,
+            midi: 38,
+            channel: 9,
+        }];
+        let measures = transcribe::transcribe_track(&raw, 480, &bars, midi_to_pitch);
+        let note = &measures[0].voices[0][0];
+        assert!(note.is_unpitched);
+        assert_eq!(note.instrument_id, None);
+        assert_eq!(note.pitches[0].to_midi(), 38);
     }
 
     #[test]

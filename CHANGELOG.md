@@ -9,6 +9,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **MIDI import transcription.** Import laid a track's notes end to end — a note that began
+  while another still sounded (any piano or chordal track) was pushed after it, a note that did
+  not fit the bar was moved whole into the next one, and the whole file took the *last* time
+  signature and tempo of the conductor track. Now bars follow the meter changes from tick 0,
+  starts and ends snap to a sixteenth grid (thirty-second when the track plays finer), notes
+  that overlap go to separate voices (up to four, the top line first), a note crossing a
+  barline is split and tied, gaps become rests, and tempo and key changes land on the bars
+  they start. A MusicXML → MIDI → import round trip of the corpus now plays back 270519 note
+  onsets against 270452 in the source (repeats expanded).
+- MIDI export sounds a tied note once instead of striking it again at every tied piece.
 ## [1.2.14] - 2026-09-27
 
 - **MusicXML opening tempo (user approved).** Export wrote the score's default tempo as a
