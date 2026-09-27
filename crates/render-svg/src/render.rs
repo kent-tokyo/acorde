@@ -4924,6 +4924,7 @@ fn render_tab_note(
                 space,
                 interactive,
                 fret_mark_style,
+                note.note_head == acorde_core::NoteHead::X,
             );
             cursor += glyph_width + gap;
         }
@@ -5054,6 +5055,7 @@ fn render_tab_bend(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn write_tab_fret_text(
     body: &mut String,
     position: &acorde_core::TabPosition,
@@ -5062,8 +5064,14 @@ fn write_tab_fret_text(
     space: f32,
     interactive: bool,
     fret_mark_style: acorde_core::TablatureFretMarkStyle,
+    dead_note: bool,
 ) {
-    let fret_label = tab_fret_label(position.fret, fret_mark_style);
+    // A dead (muted) note is written "X" on its string, as in Guitar Pro, alphaTab and MuseScore.
+    let fret_label = if dead_note {
+        "X".to_string()
+    } else {
+        tab_fret_label(position.fret, fret_mark_style)
+    };
     let attributes = if interactive {
         format!(
             " data-acorde-kind=\"tab-fret\" data-string=\"{}\" data-fret=\"{}\"",

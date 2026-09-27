@@ -2709,3 +2709,23 @@ fn a_very_short_bar_takes_its_minimum_width_from_its_neighbours() {
         .expect("a pickup of a 32nd no longer overflows the row");
     assert!(svg.contains("acorde-clef-treble"));
 }
+
+#[test]
+fn dead_notes_on_tablature_are_written_x() {
+    use acorde_core::{Duration, Note, NoteHead, Pitch, Score, Step, TabPosition, TablatureConfig};
+
+    let mut score = Score::new("dead note", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![40, 45, 50, 55, 59, 64],
+        capo: 0,
+    });
+    let mut note = Note::new(Pitch::new(Step::A, 2), Duration::Whole);
+    note.note_head = NoteHead::X;
+    note.tab_position = Some(TabPosition { string: 2, fret: 0 });
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+    let svg =
+        acorde_render_svg::render_svg(&score, &acorde_render_svg::SvgRenderOptions::default())
+            .expect("dead note renders");
+    assert!(svg.contains(r#"data-fret="0">X</text>"#), "{svg}");
+}
