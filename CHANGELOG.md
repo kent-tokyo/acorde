@@ -35,6 +35,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   back in the wrong key; staves that disagree now get their own `<staffDef keysig>`, and MEI
   import reads a `<staffDef>` key (attribute or `<keySig>` child) for that staff only. 32 of
   the 205 corpus files lost a part's key this way.
+- **Chord symbol labels.** Chord kinds outside a short list were drawn and exported with their
+  raw MusicXML kind name ("Daugmented-seventh", "Cdominant-13th"); every MusicXML kind now has
+  a compact label (`aug7`, `mMaj7`, `9`/`11`/`13`, `maj9`, `m11`, `add9`, …), shared as
+  `CHORD_KIND_SUFFIXES`, and MEI import reads those labels back as the same kind instead of
+  keeping them as plain text.
 - MSCX export writes invisible barlines (`<visible>0</visible>`), and MSCX import closes a
   volta that runs to the last bar, which MuseScore gives no closing marker.
 - **MEI endings.** Voltas were neither written nor read by MEI; they are now `<ending n label>`

@@ -427,7 +427,11 @@ fn parse_chord_label(value: &str) -> Option<ChordSymbol> {
     };
     let consumed = if accidental.is_empty() { 1 } else { 2 };
     let suffix = &label[consumed..];
-    let (kind, degrees) = parse_compact_chord_suffix(suffix)?;
+    // A whole suffix naming a kind (`aug7`, `13`, `mMaj7`) wins over quality plus degrees.
+    let (kind, degrees) = match ChordSymbol::kind_for_suffix(suffix) {
+        Some(kind) => (kind, Vec::new()),
+        None => parse_compact_chord_suffix(suffix)?,
+    };
     let kind = match kind {
         "" | "maj" => "major",
         "m" | "min" => "minor",

@@ -719,33 +719,57 @@ impl ChordDegree {
     }
 }
 
+/// Chord kinds (MusicXML `<kind>` values, plus aliases other formats use) and the compact
+/// suffix a chord label writes after its root. The first entry for a suffix is the kind a label
+/// reads back as.
+pub const CHORD_KIND_SUFFIXES: &[(&str, &str)] = &[
+    ("major", ""),
+    ("minor", "m"),
+    ("augmented", "aug"),
+    ("diminished", "dim"),
+    ("dominant", "7"),
+    ("major-seventh", "maj7"),
+    ("minor-seventh", "m7"),
+    ("diminished-seventh", "dim7"),
+    ("augmented-seventh", "aug7"),
+    ("half-diminished", "m7b5"),
+    ("major-minor", "mMaj7"),
+    ("minor-major-seventh", "mMaj7"),
+    ("minor-major", "mMaj7"),
+    ("major-sixth", "6"),
+    ("minor-sixth", "m6"),
+    ("dominant-ninth", "9"),
+    ("major-ninth", "maj9"),
+    ("minor-ninth", "m9"),
+    ("dominant-11th", "11"),
+    ("major-11th", "maj11"),
+    ("minor-11th", "m11"),
+    ("dominant-13th", "13"),
+    ("major-13th", "maj13"),
+    ("minor-13th", "m13"),
+    ("suspended-second", "sus2"),
+    ("suspended-fourth", "sus4"),
+    ("power", "5"),
+    ("major-add9", "add9"),
+    ("minor-add9", "madd9"),
+    ("dominant-flat-five", "7b5"),
+    ("dominant-sharp-five", "7#5"),
+];
+
 impl ChordSymbol {
+    /// The chord kind a compact label suffix (`"m7"`, `"aug7"`, `"13"`) stands for.
+    pub fn kind_for_suffix(suffix: &str) -> Option<&'static str> {
+        CHORD_KIND_SUFFIXES
+            .iter()
+            .find(|(_, candidate)| *candidate == suffix)
+            .map(|(kind, _)| *kind)
+    }
+
     pub fn display_text(&self) -> String {
-        let kind_str = match self.kind.as_str() {
-            "major" | "" => "",
-            "minor" => "m",
-            "dominant" => "7",
-            "major-seventh" => "maj7",
-            "minor-seventh" => "m7",
-            "diminished" => "dim",
-            "diminished-seventh" => "dim7",
-            "augmented" => "aug",
-            "suspended-second" => "sus2",
-            "suspended-fourth" => "sus4",
-            "half-diminished" => "m7b5",
-            "major-sixth" => "6",
-            "minor-sixth" => "m6",
-            "power" => "5",
-            "major-add9" => "add9",
-            "minor-add9" => "madd9",
-            "minor-major-seventh" => "mMaj7",
-            "dominant-flat-five" => "7b5",
-            "dominant-sharp-five" => "7#5",
-            "dominant-ninth" => "9",
-            "major-ninth" => "maj9",
-            "minor-ninth" => "m9",
-            other => other,
-        };
+        let kind_str = CHORD_KIND_SUFFIXES
+            .iter()
+            .find(|(kind, _)| *kind == self.kind)
+            .map_or(self.kind.as_str(), |(_, suffix)| *suffix);
         let bass_str = match &self.bass {
             Some(b) => format!("/{}", b),
             None => String::new(),

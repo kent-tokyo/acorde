@@ -4959,3 +4959,43 @@ fn mei_keeps_a_part_whose_key_signature_differs_from_the_others() {
     assert_eq!(keys(0), vec![-1, -1, 2]);
     assert_eq!(keys(1), vec![0, 0, 2]);
 }
+
+#[test]
+fn chord_kinds_have_labels_that_mei_reads_back() {
+    use acorde_core::{ChordSymbol, Duration, Note, Pitch, Score, Step};
+    let kinds = [
+        ("augmented-seventh", "Caug7"),
+        ("major-minor", "CmMaj7"),
+        ("dominant-13th", "C13"),
+        ("minor-11th", "Cm11"),
+        ("dominant-ninth", "C9"),
+        ("major-add9", "Cadd9"),
+        ("dominant-sharp-five", "C7#5"),
+    ];
+    let mut score = Score::new("chords", 120, 4, 4, 0, 7);
+    for (measure, (kind, label)) in score.parts[0].staves[0].measures.iter_mut().zip(kinds) {
+        let chord: ChordSymbol = serde_json::from_value(serde_json::json!({
+            "root": "C",
+            "kind": kind,
+        }))
+        .expect("chord symbol");
+        assert_eq!(chord.display_text(), label);
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        note.chord_symbol = Some(chord);
+        measure.voices[0] = vec![note];
+    }
+    let mei = acorde_io::serialize_mei(&score).expect("exports");
+    let back = acorde_io::parse_mei(&mei).expect("imports");
+    let read: Vec<_> = back.parts[0].staves[0]
+        .measures
+        .iter()
+        .map(|m| m.voices[0][0].chord_symbol.as_ref().map(|c| c.kind.clone()))
+        .collect();
+    assert_eq!(
+        read,
+        kinds
+            .iter()
+            .map(|(kind, _)| Some(kind.to_string()))
+            .collect::<Vec<_>>()
+    );
+}
