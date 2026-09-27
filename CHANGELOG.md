@@ -9,6 +9,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Guitar Pro import.** New `gp` feature (`acorde_io::parse_gp`, `parse_gp_with_report`; enabled
+  in the CLI and WASM builds, umbrella feature `acorde/gp`). It reads Guitar Pro 7/8 `.gp` and
+  Guitar Pro 6 `.gpx` files: tracks become parts, staves keep tuning and capo, and notes keep
+  string/fret positions, rhythm, ties, dynamics, lyrics, repeats, endings, sections, and tempo,
+  plus bends (with curves), hammer-ons/pull-offs, slides, dead notes, palm mute/let ring,
+  harmonics, accents, and left-hand fingering. Other content is reported as `gp.*` diagnostics
+  with counts. All 133 GP6/7/8 files in alphaTab's test data import, validate, and export to
+  schema-valid MusicXML and to MEI that Verovio loads. GP3/4/5 binary files are not supported.
+- SVG tablature staves now draw a TAB clef and no key signature. Fret numbers mask the string
+  line behind them, and dead notes are written `X`.
+- Rendering no longer fails with "minimum measure widths exceed the available system width"
+  because of f32 rounding, or when a very short bar sits next to long ones.
+- MusicXML cue notes now keep their written time at the I/O boundary. Import advances the cursor
+  past them, and export writes their duration followed by a `<backup>`. All 268 music21 corpus
+  exports validate against the MusicXML XSD.
+- MusicXML `<slide>` is written in `<notations>` and read from either place.
+- MEI tablature course numbers now follow acorde's string order (string 1 = lowest), so tab
+  exported to Verovio is no longer upside down.
+- GM instrument ranges widened to professional ranges (string quartet high positions, drop-D and
+  7-string guitar, 5-string bass, trombone pedal tones), so standard repertoire no longer fails
+  validation with `OutOfRange`.
+
 ## [1.2.7] - 2026-09-27
 
 - MEI export now writes every part. It previously wrote only the first part and dropped the

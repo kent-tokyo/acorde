@@ -32,6 +32,13 @@ A successful parse alone never changes a capability matrix cell to `yes`.
 - **MEI and MSCX/MSCZ:** documented structural, text, tablature, and selected spanner/harmony
   subsets round-trip or produce source-located diagnostics. Vendor-specific or timing-only
   semantics are not guessed into the canonical model.
+- **Guitar Pro 6/7/8 (import only):** `.gp` (ZIP) and `.gpx` (BCFZ/BCFS) containers are read to
+  their GPIF score: tracks, staves with tuning and capo, string/fret positions, rhythm, chords,
+  ties, dynamics, beat lyrics, repeats and endings, sections, tempo, and the guitar techniques the
+  model holds (bends with curves, hammer-on/pull-off, shift/legato slides, dead notes, palm mute
+  and let ring as technique text, natural harmonics, accents, left-hand fingering). Whammy,
+  tremolo picking, vibrato, tapping, strokes, chord diagrams, bar fermatas, and directions are
+  reported per kind (`gp.*`) with occurrence counts. Guitar Pro 3/4/5 binary files are not read.
 
 The exact feature-level status is the [notation coverage matrix](notation-coverage.md). The
 machine-readable local phase record is [`interchange-report.json`](interchange-report.json).

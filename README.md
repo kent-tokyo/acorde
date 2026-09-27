@@ -16,7 +16,7 @@ input bytes/text → acorde-io → Score → acorde-layout → LayoutResult
 | Crate | Responsibility |
 |---|---|
 | `acorde-core` | Score model, commands, validation, playback, theory helpers |
-| `acorde-io` | MusicXML/MXL and MIDI; optional ABC, MEI, MSCZ/MSCX |
+| `acorde-io` | MusicXML/MXL and MIDI; optional ABC, MEI, MSCZ/MSCX, Guitar Pro 6/7/8 import |
 | `acorde-layout` | Pixel-free logical layout and print-page metadata |
 | `acorde-render-svg` | Deterministic Rust/WASM SVG renderer |
 | `acorde-analysis` | Deterministic explainable harmony and SATB analysis |
@@ -39,7 +39,7 @@ acorde-render-svg = "1.2.7"
 Default I/O features are MusicXML and MIDI. Enable optional formats explicitly:
 
 ```toml
-acorde = { version = "1.2.7", features = ["abc", "mei", "mscz"] }
+acorde = { version = "1.2.7", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust
@@ -54,8 +54,8 @@ let score: &Score = engine.score();
 
 ## Format and host boundaries
 
-MusicXML/MXL is the broadest supported interchange path. MIDI, ABC, MEI, and MSCZ/MSCX are
-documented subsets, not lossless-compatibility promises. Use typed `ImportReport`, `ExportReport`,
+MusicXML/MXL is the broadest supported interchange path. MIDI, ABC, MEI, MSCZ/MSCX, and Guitar
+Pro 6/7/8 (`.gpx`/`.gp`, import only) are documented subsets, not lossless-compatibility promises. Use typed `ImportReport`, `ExportReport`,
 or `compatibility-report` when a workflow must inspect omission, normalization, or semantic
 difference.
 
