@@ -445,8 +445,8 @@ fn tuplet_bracket_spans_first_to_last_note_including_a_rest() {
 
 #[test]
 fn tuplet_number_shows_actual_notes_count() {
-    // vr_tuplet_triplet_unbeamed is a 3:2 triplet -> the digit "3" is drawn (a single-digit
-    // 7-segment glyph, i.e. exactly one digit() call worth of segments: at most 7 <line>s).
+    // vr_tuplet_triplet_unbeamed is a 3:2 triplet -> the digit "3" is drawn: one digit glyph,
+    // a single stroked path.
     let svg = render_svg(&common::vr_tuplet_triplet_unbeamed(), &opts()).unwrap();
     let number_group = svg
         .split(r#"<g class="acorde-tuplet-number">"#)
@@ -455,10 +455,10 @@ fn tuplet_number_shows_actual_notes_count() {
         .split("</g>")
         .next()
         .unwrap();
-    let segment_count = number_group.matches("<line").count();
-    assert!(
-        (1..=7).contains(&segment_count),
-        "expected a single digit's worth of segments, got {segment_count}"
+    let digit_count = number_group.matches("acorde-digit").count();
+    assert_eq!(
+        digit_count, 1,
+        "expected a single digit glyph: {number_group}"
     );
 }
 

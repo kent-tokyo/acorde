@@ -2233,8 +2233,9 @@ fn measure_total_beats(score: &Score, staff_ref: &(usize, usize), measure_idx: u
 
 fn header_width_u(clef: &Clef, key_fifths: i8, time_sig: Option<&TimeSignature>) -> f32 {
     let clef_w = match clef {
-        Clef::Treble | Clef::Bass => 1.8,
-        Clef::Alto | Clef::Tenor => 1.6,
+        Clef::Treble => 2.2,
+        Clef::Bass => 2.6,
+        Clef::Alto | Clef::Tenor => 2.1,
         Clef::Percussion => 1.6,
     };
     let key_count = key_fifths.unsigned_abs().min(7) as f32;
@@ -2244,7 +2245,13 @@ fn header_width_u(clef: &Clef, key_fifths: i8, time_sig: Option<&TimeSignature>)
         0.0
     };
     let time_w = time_sig
-        .map(|_| glyphs::DIGIT_WIDTH_U + HEADER_GAP_U)
+        .map(|ts| {
+            // The bold numerals want a little more air before the first note.
+            digit_count(ts.numerator).max(digit_count(ts.denominator)) as f32
+                * glyphs::DIGIT_WIDTH_U
+                + HEADER_GAP_U
+                + 0.5
+        })
         .unwrap_or(0.0);
     clef_w + key_w + time_w
 }
@@ -2280,19 +2287,19 @@ fn write_clef(
     match clef {
         Clef::Treble => {
             body.push_str(&glyphs::clef_treble(x, bottom_y, space));
-            Ok(1.4 * space)
+            Ok(2.0 * space)
         }
         Clef::Bass => {
             body.push_str(&glyphs::clef_bass(x, bottom_y, space));
-            Ok(1.4 * space)
+            Ok(2.4 * space)
         }
         Clef::Alto => {
             body.push_str(&glyphs::clef_c(x, bottom_y, space, 2.0));
-            Ok(1.3 * space)
+            Ok(1.95 * space)
         }
         Clef::Tenor => {
             body.push_str(&glyphs::clef_c(x, bottom_y, space, 3.0));
-            Ok(1.3 * space)
+            Ok(1.95 * space)
         }
         Clef::Percussion => {
             body.push_str(&glyphs::clef_percussion(x, bottom_y, space));
@@ -2363,10 +2370,29 @@ fn nearest_staff_position(step: &acorde_core::Step, clef_bottom: i32) -> i32 {
 
 fn write_time_signature(body: &mut String, ts: &TimeSignature, x: f32, bottom_y: f32, space: f32) {
     let top_y = bottom_y - STAFF_HEIGHT_U * space;
+    // Numerator and denominator each fill half the staff, centred on the wider of the two.
+    let width = |n: u8| digit_count(n) as f32 * glyphs::DIGIT_WIDTH_U;
+    let column = width(ts.numerator).max(width(ts.denominator));
     body.push_str(r#"<g class="acorde-time-sig">"#);
-    write_number(body, ts.numerator, x, top_y, space);
-    write_number(body, ts.denominator, x, top_y + 2.0 * space, space);
+    write_number(
+        body,
+        ts.numerator,
+        x + (column - width(ts.numerator)) / 2.0 * space,
+        top_y,
+        space,
+    );
+    write_number(
+        body,
+        ts.denominator,
+        x + (column - width(ts.denominator)) / 2.0 * space,
+        top_y + 2.0 * space,
+        space,
+    );
     body.push_str("</g>");
+}
+
+fn digit_count(n: u8) -> usize {
+    n.to_string().len()
 }
 
 fn write_number(body: &mut String, n: u8, x: f32, top_y: f32, space: f32) {
@@ -2382,11 +2408,9 @@ fn write_number(body: &mut String, n: u8, x: f32, top_y: f32, space: f32) {
         d.reverse();
         d
     };
-    let digit_box_h = 1.5 * space;
-    let box_gap = 2.0 * space - digit_box_h; // center within the allotted 2-space slot
     let mut dx = x;
     for d in digits {
-        body.push_str(&glyphs::digit(d, dx, top_y + box_gap / 2.0, space));
+        body.push_str(&glyphs::digit(d, dx, top_y, space));
         dx += glyphs::DIGIT_WIDTH_U * space;
     }
 }

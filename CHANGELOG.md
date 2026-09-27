@@ -9,6 +9,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- SVG cross-staff notes are drawn on the staff they are written across to (they were drawn on
+  their own staff with ledger lines), stems, ledger lines and beams included.
+- SVG time signatures, and tuplet numbers, use bold engraved-style numerals filling half the
+  staff (they were thin seven-segment digits), centred when the numerator and denominator
+  differ in width; treble, bass and C clefs are redrawn after the engraved shapes. Still plain
+  vector paths with no font. Header widths, spacing and golden SVGs change.
+
 ## [1.2.10] - 2026-09-27
 
 - SVG beams now join the stems (they ran between notehead centres), and sixteenth and shorter

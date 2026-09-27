@@ -56,66 +56,157 @@ fn path_from_segments(segments: &[Vec<(f32, f32)>], ox: f32, oy: f32, space: f32
 
 // ── clefs ─────────────────────────────────────────────────────────────────────
 
-/// Treble (G) clef. `ox,oy` = the staff's bottom-line origin (px); `space` = staff_size.
-/// Spans roughly `[-5.0u, +1.3u]` — about 1 space above the top line to 1.3 spaces below
-/// the bottom line, anchored so the belly loop crosses the G4 line (2 spaces above bottom).
+/// Stroke a path given in u units (x right, y down from the staff's bottom line) at `(ox, oy)`.
+fn stroked(
+    class: &str,
+    d_units: &[(char, &[(f32, f32)])],
+    ox: f32,
+    oy: f32,
+    space: f32,
+    width_u: f32,
+) -> String {
+    let mut d = String::new();
+    for (command, points) in d_units {
+        d.push(*command);
+        for &(x, y) in points.iter() {
+            let _ = write!(d, " {},{}", f(ox + x * space), f(oy + y * space));
+        }
+        d.push(' ');
+    }
+    format!(
+        r#"<path class="{class}" d="{}" fill="none" stroke="black" stroke-width="{}" stroke-linecap="round" stroke-linejoin="round"/>"#,
+        d.trim_end(),
+        f(width_u * space)
+    )
+}
+
+/// Treble (G) clef, after the engraved shape: a spiral round the G4 line (two spaces above
+/// the bottom line), a spine rising to a loop above the staff, and a tail ending in a ball
+/// below it. `ox,oy` = the staff's bottom-line origin (px); `space` = staff_size.
 pub(crate) fn clef_treble(ox: f32, oy: f32, space: f32) -> String {
-    let cx = 0.7;
-    let foot = arc_points(cx, 0.85, 0.42, 0.42, 200.0, 560.0, 24);
-    let belly = arc_points(cx + 0.05, -1.55, 0.62, 1.05, 55.0, -305.0, 40);
-    let top_curl = arc_points(cx - 0.5, -4.55, 0.42, 0.42, -10.0, 250.0, 24);
-    let d = path_from_segments(&[foot, belly, top_curl], ox, oy, space);
-    format!(
-        r#"<path class="acorde-clef acorde-clef-treble" d="{d}" fill="none" stroke="black" stroke-width="{sw}" stroke-linecap="round" stroke-linejoin="round"/>"#,
-        sw = f(0.15 * space)
-    )
-}
-
-/// Bass (F) clef, anchored so the two dots straddle the F3 line (3 spaces above bottom).
-pub(crate) fn clef_bass(ox: f32, oy: f32, space: f32) -> String {
-    let cx = 0.15;
-    let cy = -2.9;
-    let hook = arc_points(cx, cy, 0.62, 1.55, -100.0, 95.0, 50);
-    let tail_end = *hook.last().unwrap();
-    let tail_flick = arc_points(
-        tail_end.0 - 0.35,
-        tail_end.1 - 0.35,
-        0.35,
-        0.35,
-        30.0,
-        -180.0,
-        16,
+    let path = stroked(
+        "acorde-clef acorde-clef-treble",
+        &[
+            ('M', &[(1.05_f32, -1.55_f32)][..]),
+            (
+                'C',
+                &[
+                    (0.55, -1.6),
+                    (0.5, -2.4),
+                    (1.05, -2.45),
+                    (1.75, -2.5),
+                    (1.85, -1.05),
+                    (1.0, -0.95),
+                    (0.15, -0.9),
+                    (-0.1, -2.2),
+                    (0.55, -3.05),
+                    (1.0, -3.65),
+                    (1.5, -4.25),
+                    (1.38, -5.05),
+                    (1.3, -5.7),
+                    (0.8, -5.6),
+                    (0.72, -5.0),
+                    (0.58, -4.1),
+                    (0.85, -1.8),
+                    (1.1, 0.6),
+                    (1.15, 1.25),
+                    (0.75, 1.5),
+                    (0.5, 1.3),
+                ],
+            ),
+        ],
+        ox,
+        oy,
+        space,
+        0.19,
     );
-    let d = path_from_segments(&[hook, tail_flick], ox, oy, space);
-    let dot1 = dot_at(cx + 0.95, -3.5, ox, oy, space);
-    let dot2 = dot_at(cx + 0.95, -2.5, ox, oy, space);
-    let sw = f(0.15 * space);
-    format!(
-        r#"<g class="acorde-clef acorde-clef-bass"><path d="{d}" fill="none" stroke="black" stroke-width="{sw}" stroke-linecap="round" stroke-linejoin="round"/>{dot1}{dot2}</g>"#
-    )
+    let ball = dot_at(0.62, 1.12, ox, oy, space).replace(
+        &format!(r#"r="{}""#, f(0.13 * space)),
+        &format!(r#"r="{}""#, f(0.27 * space)),
+    );
+    format!(r#"<g class="acorde-clef acorde-clef-treble">{path}{ball}</g>"#)
 }
 
-/// C clef (alto/tenor): two mirrored lens shapes meeting on the reference (middle) line,
-/// flanked by two vertical bars spanning the staff height. `mid_position_u` is the
-/// reference line's position in staff-space units above the bottom line (e.g. 2.0 for
-/// alto clef's middle line).
+/// Bass (F) clef: a ball on the F3 line (the fourth line), a hook sweeping right and down,
+/// and two dots either side of the F line.
+pub(crate) fn clef_bass(ox: f32, oy: f32, space: f32) -> String {
+    let path = stroked(
+        "acorde-clef-bass-hook",
+        &[
+            ('M', &[(0.25_f32, -3.05_f32)][..]),
+            (
+                'C',
+                &[
+                    (0.3, -4.0),
+                    (1.75, -4.25),
+                    (1.8, -3.0),
+                    (1.85, -1.9),
+                    (1.05, -0.85),
+                    (0.1, -0.35),
+                ],
+            ),
+        ],
+        ox,
+        oy,
+        space,
+        0.24,
+    );
+    let ball = format!(
+        r#"<circle cx="{}" cy="{}" r="{}" fill="black"/>"#,
+        f(ox + 0.42 * space),
+        f(oy - 3.05 * space),
+        f(0.3 * space)
+    );
+    let dot1 = dot_at(2.2, -3.5, ox, oy, space);
+    let dot2 = dot_at(2.2, -2.5, ox, oy, space);
+    format!(r#"<g class="acorde-clef acorde-clef-bass">{ball}{path}{dot1}{dot2}</g>"#)
+}
+
+/// C clef (alto/tenor): a thick and a thin bar spanning the staff, and two curled brackets
+/// meeting at the reference line. `mid_position_u` is that line's height in staff spaces
+/// above the bottom line (2.0 alto, 3.0 tenor).
 pub(crate) fn clef_c(ox: f32, oy: f32, space: f32, mid_position_u: f32) -> String {
-    let mid = -mid_position_u;
-    let lens_top = arc_points(0.35, mid - 0.6, 0.35, 0.6, 90.0, 270.0, 20);
-    let lens_bottom = arc_points(0.35, mid + 0.6, 0.35, 0.6, -90.0, 90.0, 20);
-    let d = path_from_segments(&[lens_top, lens_bottom], ox, oy, space);
-    let bar1_x = ox + 0.85 * space;
-    let bar2_x = ox + 1.1 * space;
+    let m = -mid_position_u;
+    let upper = [
+        (0.62, m),
+        (1.0, m - 0.45),
+        (1.75, m - 0.55),
+        (1.75, m - 1.3),
+        (1.75, m - 2.05),
+        (1.05, m - 2.1),
+        (0.95, m - 1.6),
+    ];
+    let lower = [
+        (0.62, m),
+        (1.0, m + 0.45),
+        (1.75, m + 0.55),
+        (1.75, m + 1.3),
+        (1.75, m + 2.05),
+        (1.05, m + 2.1),
+        (0.95, m + 1.6),
+    ];
+    let brackets = stroked(
+        "acorde-clef-c-brackets",
+        &[
+            ('M', &upper[..1]),
+            ('C', &upper[1..]),
+            ('M', &lower[..1]),
+            ('C', &lower[1..]),
+        ],
+        ox,
+        oy,
+        space,
+        0.2,
+    );
     let top_y = oy - 4.0 * space;
-    let bottom_y = oy;
-    let sw = f(0.15 * space);
     format!(
-        r#"<g class="acorde-clef acorde-clef-c"><path d="{d}" fill="none" stroke="black" stroke-width="{sw}" stroke-linecap="round" stroke-linejoin="round"/><line x1="{bx1}" y1="{ty}" x2="{bx1}" y2="{by}" stroke="black" stroke-width="{sw}"/><line x1="{bx2}" y1="{ty}" x2="{bx2}" y2="{by}" stroke="black" stroke-width="{sw2}"/></g>"#,
-        bx1 = f(bar1_x),
-        bx2 = f(bar2_x),
+        r#"<g class="acorde-clef acorde-clef-c"><line x1="{x1}" y1="{ty}" x2="{x1}" y2="{by}" stroke="black" stroke-width="{w1}"/><line x1="{x2}" y1="{ty}" x2="{x2}" y2="{by}" stroke="black" stroke-width="{w2}"/>{brackets}</g>"#,
+        x1 = f(ox + 0.18 * space),
+        x2 = f(ox + 0.52 * space),
         ty = f(top_y),
-        by = f(bottom_y),
-        sw2 = f(0.28 * space),
+        by = f(oy),
+        w1 = f(0.34 * space),
+        w2 = f(0.11 * space),
     )
 }
 
@@ -556,54 +647,160 @@ pub(crate) fn augmentation_dot(cx: f32, cy: f32, space: f32) -> String {
 
 // ── digits (for time signatures) ────────────────────────────────────────────────
 
-/// Segments lit for each digit, in 7-segment order: a,b,c,d,e,f,g
-/// (a=top, b=top-right, c=bottom-right, d=bottom, e=bottom-left, f=top-left, g=middle).
-const DIGIT_SEGMENTS: [[bool; 7]; 10] = [
-    [true, true, true, true, true, true, false],     // 0
-    [false, true, true, false, false, false, false], // 1
-    [true, true, false, true, true, false, true],    // 2
-    [true, true, true, true, false, false, true],    // 3
-    [false, true, true, false, false, true, true],   // 4
-    [true, false, true, true, false, true, true],    // 5
-    [true, false, true, true, true, true, true],     // 6
-    [true, true, true, false, false, false, false],  // 7
-    [true, true, true, true, true, true, true],      // 8
-    [true, true, true, true, false, true, true],     // 9
-];
+/// Centre-line strokes of the digits 0–9 in a box 1.2 spaces wide and 2 spaces tall (origin
+/// top-left), drawn bold with round ends like engraved time-signature numerals.
+fn digit_strokes(d: u8) -> Vec<(char, Vec<(f32, f32)>)> {
+    let seg = |command: char, points: &[(f32, f32)]| (command, points.to_vec());
+    match d {
+        0 => vec![
+            seg('M', &[(0.6, 0.2)]),
+            seg(
+                'C',
+                &[
+                    (0.12, 0.2),
+                    (0.12, 1.8),
+                    (0.6, 1.8),
+                    (1.08, 1.8),
+                    (1.08, 0.2),
+                    (0.6, 0.2),
+                ],
+            ),
+        ],
+        1 => vec![
+            seg('M', &[(0.3, 0.55)]),
+            seg('L', &[(0.72, 0.2), (0.72, 1.8)]),
+            seg('M', &[(0.35, 1.8)]),
+            seg('L', &[(1.05, 1.8)]),
+        ],
+        2 => vec![
+            seg('M', &[(0.2, 0.6)]),
+            seg(
+                'C',
+                &[
+                    (0.22, 0.1),
+                    (1.0, 0.08),
+                    (1.0, 0.62),
+                    (1.0, 1.05),
+                    (0.3, 1.3),
+                    (0.2, 1.8),
+                ],
+            ),
+            seg('L', &[(1.05, 1.8)]),
+        ],
+        3 => vec![
+            seg('M', &[(0.22, 0.42)]),
+            seg(
+                'C',
+                &[
+                    (0.4, 0.08),
+                    (1.0, 0.1),
+                    (0.95, 0.5),
+                    (0.92, 0.85),
+                    (0.62, 0.95),
+                    (0.5, 0.95),
+                    (0.72, 0.95),
+                    (1.02, 1.1),
+                    (0.98, 1.42),
+                    (0.95, 1.92),
+                    (0.32, 1.9),
+                    (0.18, 1.58),
+                ],
+            ),
+        ],
+        4 => vec![
+            seg('M', &[(0.82, 1.85)]),
+            seg('L', &[(0.82, 0.2), (0.15, 1.3), (1.12, 1.3)]),
+        ],
+        5 => vec![
+            seg('M', &[(1.0, 0.2)]),
+            seg('L', &[(0.3, 0.2), (0.25, 0.9)]),
+            seg(
+                'C',
+                &[
+                    (0.5, 0.72),
+                    (1.04, 0.8),
+                    (1.0, 1.3),
+                    (0.98, 1.92),
+                    (0.32, 1.9),
+                    (0.18, 1.6),
+                ],
+            ),
+        ],
+        6 => vec![
+            seg('M', &[(0.95, 0.35)]),
+            seg(
+                'C',
+                &[
+                    (0.75, 0.08),
+                    (0.18, 0.2),
+                    (0.2, 1.1),
+                    (0.2, 1.92),
+                    (1.02, 1.9),
+                    (1.0, 1.3),
+                    (0.98, 0.78),
+                    (0.32, 0.8),
+                    (0.22, 1.2),
+                ],
+            ),
+        ],
+        7 => vec![
+            seg('M', &[(0.18, 0.2)]),
+            seg('L', &[(1.05, 0.2)]),
+            seg('C', &[(0.7, 0.7), (0.5, 1.2), (0.5, 1.82)]),
+        ],
+        8 => vec![
+            seg('M', &[(0.6, 0.95)]),
+            seg(
+                'C',
+                &[
+                    (0.2, 0.85),
+                    (0.25, 0.2),
+                    (0.6, 0.2),
+                    (0.95, 0.2),
+                    (1.0, 0.85),
+                    (0.6, 0.95),
+                    (0.14, 1.05),
+                    (0.14, 1.8),
+                    (0.6, 1.8),
+                    (1.06, 1.8),
+                    (1.06, 1.05),
+                    (0.6, 0.95),
+                ],
+            ),
+        ],
+        _ => vec![
+            seg('M', &[(0.25, 1.65)]),
+            seg(
+                'C',
+                &[
+                    (0.45, 1.92),
+                    (1.02, 1.8),
+                    (1.0, 0.9),
+                    (1.0, 0.08),
+                    (0.18, 0.1),
+                    (0.2, 0.7),
+                    (0.22, 1.22),
+                    (0.88, 1.2),
+                    (0.98, 0.8),
+                ],
+            ),
+        ],
+    }
+}
 
-/// Digit glyph in a `0.6u` × `1.6u` box (7-segment style — plain vector geometry, no font).
-/// `ox,oy` place the digit's top-left corner.
+/// Digit glyph in a 1.2 × 2 space box (a staff half: the numerator fills the top two spaces),
+/// with `ox,oy` at its top-left corner; plain vector strokes, no font.
 pub(crate) fn digit(d: u8, ox: f32, oy: f32, space: f32) -> String {
-    let segs = DIGIT_SEGMENTS[(d.min(9)) as usize];
-    let w = 0.55 * space;
-    let h = 1.5 * space;
-    let mid = h / 2.0;
-    let sw = f(0.14 * space);
-    let mut out = String::new();
-    let mut seg_line = |on: bool, x1: f32, y1: f32, x2: f32, y2: f32| {
-        if on {
-            let _ = write!(
-                out,
-                r#"<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="black" stroke-width="{sw}" stroke-linecap="square"/>"#,
-                x1 = f(ox + x1),
-                y1 = f(oy + y1),
-                x2 = f(ox + x2),
-                y2 = f(oy + y2)
-            );
-        }
-    };
-    seg_line(segs[0], 0.0, 0.0, w, 0.0); // a: top
-    seg_line(segs[1], w, 0.0, w, mid); // b: top-right
-    seg_line(segs[2], w, mid, w, h); // c: bottom-right
-    seg_line(segs[3], 0.0, h, w, h); // d: bottom
-    seg_line(segs[4], 0.0, mid, 0.0, h); // e: bottom-left
-    seg_line(segs[5], 0.0, 0.0, 0.0, mid); // f: top-left
-    seg_line(segs[6], 0.0, mid, w, mid); // g: middle
-    out
+    let strokes = digit_strokes(d.min(9));
+    let borrowed: Vec<(char, &[(f32, f32)])> = strokes
+        .iter()
+        .map(|(command, points)| (*command, points.as_slice()))
+        .collect();
+    stroked("acorde-digit", &borrowed, ox, oy, space, 0.34)
 }
 
 /// Width (u) a single digit occupies, including trailing gap.
-pub(crate) const DIGIT_WIDTH_U: f32 = 0.75;
+pub(crate) const DIGIT_WIDTH_U: f32 = 1.35;
 
 // ── tuplets ──────────────────────────────────────────────────────────────────────
 
