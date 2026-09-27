@@ -261,6 +261,8 @@ pub(crate) fn notehead_shape(
 /// Half the horizontal extent of the tilted `notehead()` oval, in staff spaces.
 pub(crate) const NOTEHEAD_RX_U: f32 = 0.56;
 pub(crate) const DEFAULT_STEM_LEN_U: f32 = 3.0;
+/// Stem line width, in staff spaces.
+pub(crate) const STEM_WIDTH_U: f32 = 0.11;
 
 /// Stem of the default fixed length (unbeamed notes). Returns `(svg, tip_y)`.
 pub(crate) fn stem(cx: f32, cy: f32, space: f32, up: bool) -> (String, f32) {
@@ -277,7 +279,7 @@ pub(crate) fn stem(cx: f32, cy: f32, space: f32, up: bool) -> (String, f32) {
 pub(crate) fn stem_to(cx: f32, cy: f32, tip_y: f32, space: f32, up: bool) -> String {
     let x_off = NOTEHEAD_RX_U * space * 0.92;
     let x = if up { cx + x_off } else { cx - x_off };
-    let sw = f(0.11 * space);
+    let sw = f(STEM_WIDTH_U * space);
     format!(
         r#"<line class="acorde-stem" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="black" stroke-width="{sw}"/>"#,
         x1 = f(x),

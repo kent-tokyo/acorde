@@ -76,12 +76,13 @@ pub(crate) fn vertical_extents(
     let max_level = durations.iter().map(beam_level).max().unwrap_or(1);
     let level_extent =
         (max_level.saturating_sub(1) as f32 * BEAM_LEVEL_GAP_U) + BEAM_THICKNESS_U / 2.0;
+    // Secondary beams sit inside the primary one, between it and the noteheads.
     if stem_up {
-        min_y -= level_extent;
-        max_y += BEAM_THICKNESS_U / 2.0;
-    } else {
         min_y -= BEAM_THICKNESS_U / 2.0;
         max_y += level_extent;
+    } else {
+        min_y -= level_extent;
+        max_y += BEAM_THICKNESS_U / 2.0;
     }
     (min_y, max_y)
 }
@@ -103,6 +104,13 @@ pub(crate) fn plan_beam_group(
     debug_assert_eq!(attach_ys.len(), n);
     let dir = if stem_up { -1.0 } else { 1.0 };
     let mut svg = String::new();
+    // Beams join the stems, which stand at the notehead's right (stem up) or left (stem down)
+    // edge, not at the notehead centre; `xs` are notehead centres.
+    let stem_offset = glyphs::NOTEHEAD_RX_U * space * 0.92 * -dir;
+    let stem_xs: Vec<f32> = xs.iter().map(|x| x + stem_offset).collect();
+    let xs = stem_xs.as_slice();
+    // Cover the stem's own width at the group's outer stems.
+    let half_stem = glyphs::STEM_WIDTH_U * space / 2.0;
 
     let natural = |i: usize| attach_ys[i] + dir * glyphs::DEFAULT_STEM_LEN_U * space;
     let raw_rise = natural(n - 1) - natural(0);
@@ -115,11 +123,14 @@ pub(crate) fn plan_beam_group(
     };
     let base_y = |x: f32| natural(0) + slope * (x - xs[0]);
 
-    // Clearance: shift the whole beam away from noteheads if any stem would be too short.
+    // Clearance: shift the whole beam away from noteheads if any stem would be too short. The
+    // inner (secondary) beams need their own room between the primary beam and the heads.
+    let levels = durations.iter().map(beam_level).max().unwrap_or(1).max(1);
+    let min_stem = (MIN_STEM_LEN_U + f32::from(levels - 1) * BEAM_LEVEL_GAP_U) * space;
     let mut max_deficit = 0.0f32;
     for (&x, &attach_y) in xs.iter().zip(attach_ys) {
         let stem_len = (base_y(x) - attach_y).abs();
-        let deficit = MIN_STEM_LEN_U * space - stem_len;
+        let deficit = min_stem - stem_len;
         if deficit > max_deficit {
             max_deficit = deficit;
         }
@@ -133,10 +144,10 @@ pub(crate) fn plan_beam_group(
 
     // Primary beam (level 0) always spans the full group.
     svg.push_str(&glyphs::beam_segment(
-        xs[0],
-        beam_y(xs[0]),
-        xs[n - 1],
-        beam_y(xs[n - 1]),
+        xs[0] - half_stem,
+        beam_y(xs[0] - half_stem),
+        xs[n - 1] + half_stem,
+        beam_y(xs[n - 1] + half_stem),
         BEAM_THICKNESS_U * space,
     ));
 
@@ -144,7 +155,8 @@ pub(crate) fn plan_beam_group(
     let max_level = durations.iter().map(beam_level).max().unwrap_or(1);
     for level in 1..max_level {
         let needs: Vec<bool> = durations.iter().map(|d| beam_level(d) > level).collect();
-        let level_y = |x: f32| beam_y(x) + dir * level as f32 * BEAM_LEVEL_GAP_U * space;
+        // Secondary beams stack inward, toward the noteheads, as in engraved music.
+        let level_y = |x: f32| beam_y(x) - dir * level as f32 * BEAM_LEVEL_GAP_U * space;
         let mut i = 0;
         while i < n {
             if !needs[i] {
@@ -291,13 +303,13 @@ mod tests {
             "top bound must include secondary beams: {min_y}"
         );
         assert!(
-            max_y < -2.0,
-            "top-side beam must stay above the staff: {max_y}"
+            max_y < -1.5,
+            "the inner (secondary) beam must clear the highest notehead: {max_y}"
         );
         let (min_down, max_down) = vertical_extents(&durations, &xs, &attach_ys, false);
         assert!(
-            min_down > 2.0,
-            "bottom-side beam must include thickness: {min_down}"
+            min_down > 1.5,
+            "the inner (secondary) beam must clear the lowest notehead: {min_down}"
         );
         assert!(
             max_down > 3.0,
