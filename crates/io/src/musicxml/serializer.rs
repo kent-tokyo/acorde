@@ -902,12 +902,20 @@ fn serialize_note(
 
     if note.is_rest {
         xml.push_str(&format!("      <note{}>\n", note_placement_attrs(note)));
+        if note.is_cue {
+            xml.push_str("        <cue/>\n");
+        }
         if is_measure_rest {
             xml.push_str("        <rest measure=\"yes\"/>\n");
         } else {
             xml.push_str("        <rest/>\n");
         }
-        xml.push_str(&format!("        <duration>{}</duration>\n", dur_ticks));
+        let rest_ticks = if note.is_cue {
+            cue_written_ticks(note).max(1)
+        } else {
+            dur_ticks
+        };
+        xml.push_str(&format!("        <duration>{}</duration>\n", rest_ticks));
         xml.push_str(&format!("        <voice>{voice_number}</voice>\n"));
         xml.push_str(&format!("        <type>{}</type>\n", duration_type));
         for _ in 0..dot_count {
@@ -916,6 +924,11 @@ fn serialize_note(
         push_time_modification(xml);
         xml.push_str(&staff_element);
         xml.push_str("      </note>\n");
+        if note.is_cue {
+            xml.push_str(&format!(
+                "      <backup><duration>{rest_ticks}</duration></backup>\n"
+            ));
+        }
     } else if let Some(pitch) = note.pitches.first() {
         let push_pitch = |xml: &mut String, pitch: &acorde_core::Pitch| {
             if note.is_unpitched {
@@ -960,13 +973,19 @@ fn serialize_note(
                 xml.push_str("        <chord/>\n");
             }
             push_pitch(xml, pitch);
-            if !note.is_grace {
+            if note.is_cue && !note.is_grace {
+                xml.push_str(&format!(
+                    "        <duration>{}</duration>\n",
+                    cue_written_ticks(note).max(1)
+                ));
+            } else if !note.is_grace {
                 xml.push_str(&format!("        <duration>{}</duration>\n", dur_ticks));
             }
-            if note.tie_end {
+            // The cue variant of <note> has no <tie> (the <tied> notation still is written).
+            if note.tie_end && !note.is_cue {
                 xml.push_str("        <tie type=\"stop\"/>\n");
             }
-            if note.tie_start {
+            if note.tie_start && !note.is_cue {
                 xml.push_str("        <tie type=\"start\"/>\n");
             }
             if let Some(instrument_id) = &note.instrument_id {
@@ -1053,6 +1072,12 @@ fn serialize_note(
                 xml.push_str("        </notations>\n");
             }
             xml.push_str("      </note>\n");
+        }
+        if note.is_cue && !note.is_grace {
+            xml.push_str(&format!(
+                "      <backup><duration>{}</duration></backup>\n",
+                cue_written_ticks(note).max(1)
+            ));
         }
     }
 
@@ -1172,6 +1197,13 @@ fn serialized_note_ticks(note: &Note) -> u32 {
     if note.is_grace || note.is_cue {
         return 0;
     }
+    cue_written_ticks(note)
+}
+
+/// Written length of a note at [`DIVISIONS`], ignoring the grace/cue zero-time rule. MusicXML
+/// cue notes carry this as their `<duration>` (it must be positive); acorde gives them no time,
+/// so the writer follows each cue note with a `<backup>` of the same length.
+fn cue_written_ticks(note: &Note) -> u32 {
     let base = u64::from(note.duration.to_ticks(note.dot_count));
     let adjusted = if let Some(tuplet) = &note.tuplet {
         if tuplet.actual_notes == 0 {

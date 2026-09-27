@@ -2044,8 +2044,13 @@ pub(crate) fn parse_musicxml_collecting(
                                     note_voice,
                                 )?;
                                 let mut drop_chord_member = false;
-                                let duration_ticks = if note_is_grace || note_is_cue {
+                                // Cue notes take time in MusicXML (their <duration> moves the
+                                // cursor, and a later <backup> counts it) even though the model
+                                // gives them none; see the voice cursor below.
+                                let duration_ticks = if note_is_grace {
                                     0
+                                } else if note_is_cue {
+                                    note_duration_ticks.unwrap_or(0)
                                 } else {
                                     note_duration_ticks.ok_or_else(|| {
                                         Error::Xml("MusicXML note is missing duration".into())
@@ -2284,8 +2289,22 @@ pub(crate) fn parse_musicxml_collecting(
                                         voice: voice_index,
                                         note: voice.len() - 1,
                                     };
-                                    voice_cursor_ticks
-                                        .insert((target_staff_index, voice_index), next_cursor);
+                                    // A zero-time cue note leaves the model voice where it was, so
+                                    // the next note in this voice is placed after a gap rest at
+                                    // its real time instead of drifting earlier.
+                                    voice_cursor_ticks.insert(
+                                        (target_staff_index, voice_index),
+                                        if note_is_cue && !note_chord {
+                                            note_start
+                                        } else if note_is_cue {
+                                            voice_cursor_ticks
+                                                .get(&(target_staff_index, voice_index))
+                                                .copied()
+                                                .unwrap_or(note_start)
+                                        } else {
+                                            next_cursor
+                                        },
+                                    );
                                     measure_cursor_ticks = next_cursor;
                                     measure_content_ticks = measure_content_ticks.max(next_cursor);
                                     last_note_start =

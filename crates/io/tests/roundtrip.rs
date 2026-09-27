@@ -3825,3 +3825,35 @@ fn utf16_musicxml_decodes_and_parses() {
     }
     assert!(acorde_io::decode_xml_text(&[0xFF, 0xFE, 0x3C]).is_err());
 }
+
+#[cfg(feature = "musicxml")]
+#[test]
+fn musicxml_cue_notes_keep_timing_on_import_and_export() {
+    // A part's cue passage in voice 1 over the rest of voice 2, as orchestral parts write it: the
+    // cue notes take time, so the <backup> after them is only valid if the reader counts it.
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Oboe</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note><cue/><pitch><step>C</step><octave>5</octave></pitch><duration>2</duration><voice>1</voice><type>half</type></note><note><pitch><step>E</step><octave>5</octave></pitch><duration>2</duration><voice>1</voice><type>half</type></note><backup><duration>4</duration></backup><note><rest/><duration>4</duration><voice>2</voice><type>whole</type></note></measure></part></score-partwise>"#;
+    let check = |score: &acorde_core::Score| {
+        let voices = &score.parts[0].staves[0].measures[0].voices;
+        assert!(voices[0][0].is_cue);
+        // The real note keeps its beat-3 position behind a half rest standing in for the cue.
+        assert!(voices[0][1].is_rest);
+        assert_eq!(voices[0][1].duration, acorde_core::Duration::Half);
+        assert_eq!(voices[0][2].pitches[0].step, acorde_core::Step::E);
+        assert_eq!(voices[1].len(), 1);
+        assert!(acorde_core::validate(score).errors.is_empty());
+    };
+    let report = acorde_io::parse_musicxml_with_report(xml).expect("cue MusicXML parses");
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .all(|d| d.code != "musicxml.backup-underflow"),
+        "{:?}",
+        report.diagnostics
+    );
+    check(&report.score);
+    let written = acorde_io::serialize_musicxml(&report.score).expect("cue MusicXML serializes");
+    assert!(!written.contains("<duration>0</duration>"));
+    assert!(written.contains("<backup><duration>960</duration></backup>"));
+    check(&parse_musicxml(&written).expect("cue MusicXML reparses"));
+}
