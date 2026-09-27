@@ -287,7 +287,11 @@ struct AbcHeaderContext<'a> {
 }
 
 fn parse_abc_header_line(line: &str, context: AbcHeaderContext<'_>) -> Result<bool, Error> {
-    if line.len() < 2 || line.as_bytes().get(1) != Some(&b':') {
+    // A field is a letter and a colon; `|:` opening a line is a repeat, not a field.
+    if line.len() < 2
+        || line.as_bytes().get(1) != Some(&b':')
+        || !line.as_bytes()[0].is_ascii_alphabetic()
+    {
         return Ok(false);
     }
     let AbcHeaderContext {
@@ -380,6 +384,16 @@ fn parse_abc_header_line(line: &str, context: AbcHeaderContext<'_>) -> Result<bo
                 .next()
                 .filter(|id| !id.is_empty())
                 .ok_or_else(|| Error::Abc(format!("invalid ABC voice: {value}")))?;
+            // Music written before the first `V:` is the first voice.
+            if voice_ids.is_empty()
+                && score
+                    .parts
+                    .first()
+                    .and_then(|part| part.staves.first())
+                    .is_some_and(|staff| !staff.measures.is_empty())
+            {
+                voice_ids.push(String::new());
+            }
             let index = match voice_ids.iter().position(|known| known == id) {
                 Some(index) => index,
                 None if voice_ids.len() < 32 => {
@@ -612,11 +626,29 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
         if matches!(ch, '|' | ':')
             && let Some((right_barline, left_barline, next_index)) = parse_barline(&chars, i)
         {
+            i = next_index;
+            // A barline before any note of the bar (a voice opening with `|:`, a line
+            // starting with the barline the last one ended with) only marks the bar's start.
+            let bar_count = staff.measures.len();
+            if let Some(m) = staff.measures.last_mut()
+                && m.voices.iter().all(Vec::is_empty)
+            {
+                if !matches!(left_barline, Barline::Normal) {
+                    m.barline_left = left_barline;
+                }
+                continue;
+            }
             if let Some(m) = staff.measures.last_mut() {
-                pad_voice(&mut m.voices[0], time.total_beats());
+                let used: f64 = m.voices[0].iter().map(Note::beats).sum();
+                // A short first bar is a pickup, not a bar to fill with rests.
+                if bar_count == 1 && used > 1e-9 && used < time.total_beats() - 1e-9 {
+                    m.actual_length = acorde_core::MeasureLength::from_beats(used);
+                }
+                if m.actual_length.is_none() {
+                    pad_voice(&mut m.voices[0], time.total_beats());
+                }
                 m.barline_right = right_barline;
             }
-            i = next_index;
             // The next bar opens here even at the end of a line (a tune's next line continues
             // in it); a trailing empty bar is dropped once the tune is read.
             if chars.get(i) != Some(&']') {
@@ -912,7 +944,7 @@ fn append_abc_chord_note(
         ),
         unit_to_duration(unit_den, cn, cd),
     );
-    note.dot_count = u8::from(is_dotted(unit_den, cn, cd));
+    note.dot_count = abc_dot_count(unit_den, cn, cd);
     note.is_grace = is_grace;
     apply_abc_note_annotations(
         chars,
@@ -967,7 +999,11 @@ fn append_abc_rest_note(
     };
     let mut rest = Note::rest(duration);
     rest.hidden = matches!(kind, 'x' | 'X');
-    rest.dot_count = u8::from(!whole_bar && is_dotted(timing.unit_den, numerator, denominator));
+    rest.dot_count = if whole_bar {
+        0
+    } else {
+        abc_dot_count(timing.unit_den, numerator, denominator)
+    };
     rest.articulations.append(pending_articulations);
     rest.tuplet = take_abc_tuplet(pending_tuplet);
     if let Some(measure) = staff.measures.last_mut() {
@@ -1042,7 +1078,7 @@ fn append_abc_pitched_note(
         Pitch::with_microtone(step, octave, alter, microtone.into()),
         unit_to_duration(unit_den, numerator, denominator),
     );
-    note.dot_count = u8::from(is_dotted(unit_den, numerator, denominator));
+    note.dot_count = abc_dot_count(unit_den, numerator, denominator);
     note.is_grace = is_grace;
     apply_abc_note_annotations(
         chars,
@@ -1156,6 +1192,7 @@ fn parse_barline(chars: &[char], index: usize) -> Option<(Barline, Barline, usiz
         (':', Some('|')) => (Barline::RepeatEnd, 2),
         (':', Some(':')) => (Barline::RepeatBoth, 2),
         ('|', Some('|')) => (Barline::Double, 2),
+        ('|', Some(']')) => (Barline::Final, 2),
         ('|', _) => (Barline::Normal, 1),
         _ => return None,
     };
@@ -1382,32 +1419,48 @@ fn parse_key(k: &str) -> (i8, String) {
     (fifths, mode.to_string())
 }
 
-fn unit_to_duration(unit_den: u32, num: u32, den: u32) -> Duration {
-    // Compute how many quarter notes this note spans, reduced to lowest terms.
-    // (beats_num / beats_den) quarter notes.
-    let beats_num = num.saturating_mul(4);
-    let beats_den = den.saturating_mul(unit_den);
-    let g = gcd(beats_num, beats_den);
-    match (beats_num / g, beats_den / g) {
-        (4, 1) => Duration::Whole,
-        (3, 1) | (2, 1) => Duration::Half, // dotted half or half
-        (3, 2) | (1, 1) => Duration::Quarter, // dotted quarter or quarter
-        (3, 4) | (1, 2) => Duration::Eighth, // dotted eighth or eighth
-        (3, 8) | (1, 4) => Duration::Sixteenth, // dotted sixteenth or sixteenth
-        (3, 16) | (1, 8) => Duration::ThirtySecond,
-        (1, 16) => Duration::SixtyFourth,
-        _ => Duration::Quarter,
+/// The note value and dot count of an ABC length `num/den` of the unit note `1/unit_den`:
+/// the exact one (with up to three dots), or else the longest that fits.
+fn abc_note_value(unit_den: u32, num: u32, den: u32) -> (Duration, u8) {
+    // Length in whole notes is num / (den * unit_den); compare cross-multiplied.
+    let (length_num, length_den) = (u64::from(num), u64::from(den) * u64::from(unit_den.max(1)));
+    let mut best: Option<(Duration, u8, u64, u64)> = None;
+    for value in [
+        Duration::Whole,
+        Duration::Half,
+        Duration::Quarter,
+        Duration::Eighth,
+        Duration::Sixteenth,
+        Duration::ThirtySecond,
+        Duration::SixtyFourth,
+    ] {
+        for dots in 0u8..=3 {
+            let (value_num, value_den) = value.as_fraction();
+            // value * (2^(dots+1) - 1) / 2^dots
+            let candidate_num = u64::from(value_num) * ((2u64 << dots) - 1);
+            let candidate_den = u64::from(value_den) << dots;
+            let order = (candidate_num * length_den).cmp(&(length_num * candidate_den));
+            if order.is_eq() {
+                return (value, dots);
+            }
+            let fits_longer = order.is_lt()
+                && best.as_ref().is_none_or(|(_, _, best_num, best_den)| {
+                    candidate_num * best_den > *best_num * candidate_den
+                });
+            if fits_longer {
+                best = Some((value.clone(), dots, candidate_num, candidate_den));
+            }
+        }
     }
+    best.map_or((Duration::Quarter, 0), |(value, dots, _, _)| (value, dots))
 }
 
-fn is_dotted(unit_den: u32, num: u32, den: u32) -> bool {
-    let beats_num = num.saturating_mul(4);
-    let beats_den = den.saturating_mul(unit_den);
-    let g = gcd(beats_num, beats_den);
-    matches!(
-        (beats_num / g, beats_den / g),
-        (3, 1) | (3, 2) | (3, 4) | (3, 8) | (3, 16)
-    )
+fn unit_to_duration(unit_den: u32, num: u32, den: u32) -> Duration {
+    abc_note_value(unit_den, num, den).0
+}
+
+fn abc_dot_count(unit_den: u32, num: u32, den: u32) -> u8 {
+    abc_note_value(unit_den, num, den).1
 }
 
 fn gcd(mut a: u32, mut b: u32) -> u32 {
@@ -1669,6 +1722,10 @@ fn write_abc_staff(out: &mut String, staff: &Staff, part_index: usize) -> Result
                 measure_index + 1
             )));
         };
+        // A bar with nothing in it still needs content, or its two barlines read as one `||`.
+        if notes.is_empty() {
+            out.push('X');
+        }
         let mut note_index = 0;
         while note_index < notes.len() {
             let emit_len = if let Some(tuplet) = &notes[note_index].tuplet {
@@ -1697,7 +1754,18 @@ fn write_abc_staff(out: &mut String, staff: &Staff, part_index: usize) -> Result
             }
             note_index += emit_len;
         }
-        out.push_str(barline_to_abc(&measure.barline_right));
+        // A repeat starting on the next bar is written in this bar's closing barline.
+        let next_opens_repeat = staff.measures.get(measure_index + 1).is_some_and(|next| {
+            matches!(
+                next.barline_left,
+                Barline::RepeatStart | Barline::RepeatBoth
+            )
+        });
+        out.push_str(match (&measure.barline_right, next_opens_repeat) {
+            (Barline::RepeatEnd | Barline::RepeatBoth, true) => "::",
+            (_, true) => "|:",
+            (right, false) => barline_to_abc(right),
+        });
     }
     out.push('\n');
     let lyric_tokens = staff
@@ -1767,11 +1835,8 @@ fn barline_to_abc(barline: &Barline) -> &'static str {
         Barline::RepeatStart => "|:",
         Barline::RepeatEnd => ":|",
         Barline::RepeatBoth => "::",
-        Barline::Invisible
-        | Barline::Normal
-        | Barline::Final
-        | Barline::Dashed
-        | Barline::Dotted => "|",
+        Barline::Final => "|]",
+        Barline::Invisible | Barline::Normal | Barline::Dashed | Barline::Dotted => "|",
     }
 }
 
@@ -1780,6 +1845,7 @@ fn abc_barline_is_exact(barline: &Barline) -> bool {
         barline,
         Barline::Normal
             | Barline::Double
+            | Barline::Final
             | Barline::RepeatStart
             | Barline::RepeatEnd
             | Barline::RepeatBoth
@@ -2343,7 +2409,7 @@ C D E F | G A B c |";
         let mut score = Score::new("barline export", 120, 4, 4, 0, 1);
         let measure = &mut score.parts[0].staves[0].measures[0];
         measure.barline_left = Barline::Dotted;
-        measure.barline_right = Barline::Final;
+        measure.barline_right = Barline::Dashed;
         let diagnostics = export_loss_diagnostics(&score);
         assert!(diagnostics.iter().any(|diagnostic| {
             diagnostic.source_location.as_deref()

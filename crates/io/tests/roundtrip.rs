@@ -5172,3 +5172,45 @@ fn abc_reads_and_writes_multi_line_tunes_with_chords_dynamics_voices_and_key_cha
         "round trip",
     );
 }
+
+#[test]
+fn abc_keeps_pickups_line_opening_repeats_double_dots_empty_bars_and_final_barlines() {
+    use acorde_core::{Barline, Duration};
+    let abc = "X:1\nM:4/4\nL:1/4\nK:C\nG|c7/4 d/4 e f|\n|:g4:|\nV:2 clef=bass\nz|C,4|D,4|]\n";
+    let score = acorde_io::parse_abc(abc).expect("parses");
+    let melody = &score.parts[0].staves[0].measures;
+    assert_eq!(melody.len(), 3);
+    assert!(
+        melody[0].actual_length.is_some(),
+        "a short first bar is a pickup"
+    );
+    assert_eq!(melody[0].voices[0].len(), 1);
+    assert_eq!(
+        (
+            melody[1].voices[0][0].duration.clone(),
+            melody[1].voices[0][0].dot_count
+        ),
+        (Duration::Quarter, 2)
+    );
+    assert_eq!(melody[2].barline_left, Barline::RepeatStart);
+    assert_eq!(melody[2].barline_right, Barline::RepeatEnd);
+    assert_eq!(
+        score.parts[1].staves[0].measures[2].barline_right,
+        Barline::Final
+    );
+
+    let mut with_empty = score.clone();
+    with_empty.parts[1].staves[0].measures[1].voices[0].clear();
+    let text = acorde_io::serialize_abc(&with_empty).expect("exports");
+    let back = acorde_io::parse_abc(&text).expect("re-imports");
+    assert_eq!(back.parts[0].staves[0].measures.len(), 3, "{text}");
+    assert_eq!(back.parts[1].staves[0].measures.len(), 3, "{text}");
+    assert_eq!(
+        back.parts[0].staves[0].measures[2].barline_left,
+        Barline::RepeatStart
+    );
+    assert_eq!(
+        back.parts[0].staves[0].measures[1].voices[0][0].dot_count,
+        2
+    );
+}

@@ -25,6 +25,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   dynamics, hairpins, text, inline meter and key changes, and lyrics for every voice. In the
   corpus MusicXML → ABC → import round trip, 6766 of 6961 dynamics, 102 chord symbols and
   almost all key and meter changes that were lost now survive.
+- ABC: a line opening with `|:` was taken for a header field and dropped; a short first bar
+  is a pickup instead of being filled with rests; lengths such as `7/4` read as double-dotted
+  values (and any length as the value that fits); `|]` is a final barline both ways; an empty
+  bar is written as `X` instead of vanishing into `||`; a repeat starting mid-tune is written in
+  the preceding barline; music before the first `V:` stays the first voice. The corpus ABC
+  round trip no longer fails on any file (4 did), and files whose barlines change drop from
+  173 to 8.
 - **MusicXML double dots and type-less notes.** Import counted `<dot/>` as a flag, so every
   double-dotted note (202 in the corpus) came in single-dotted and short; it now keeps the
   count. A note without `<type>` (the element is optional) was taken as a quarter; its value
