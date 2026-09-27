@@ -1062,11 +1062,6 @@ fn convert_beat(
             "whammy-bar dives are not imported",
         ),
         (
-            "Wah",
-            "gp.unsupported-wah",
-            "wah pedal marks are not imported",
-        ),
-        (
             "Fadding",
             "gp.unsupported-volume-swell",
             "fade-in/volume swells are not imported",
@@ -1074,6 +1069,26 @@ fn convert_beat(
     ] {
         if beat.child(element).is_some() {
             losses.add(code, reason);
+        }
+    }
+    // Wah pedal: open "o" and closed "+", the marks MuseScore's guitar palette uses as well.
+    if let Some(wah) = beat.text_at("Wah") {
+        let mark = match wah.trim().to_ascii_lowercase().as_str() {
+            "open" => Some(Articulation::OpenString),
+            "closed" => Some(Articulation::Stopped),
+            _ => None,
+        };
+        match mark {
+            Some(mark) if !note.is_rest => {
+                if !note.articulations.contains(&mark) {
+                    note.articulations.push(mark);
+                }
+            }
+            Some(_) => {}
+            None => losses.add(
+                "gp.unsupported-wah",
+                "wah pedal marks other than open/closed are not imported",
+            ),
         }
     }
     // Guitar Pro 6 stores whammy dives as beat properties instead of a <Whammy> element.
@@ -1731,12 +1746,14 @@ mod tests {
             .replace(
                 r#"<Note id="3"><Properties>"#,
                 r#"<Note id="3"><Vibrato>Slight</Vibrato><Properties><Property name="LeftHandTapped"><Enable /></Property>"#,
-            );
+            )
+            .replace("<Notes>2</Notes>", "<Notes>2</Notes><Wah>Closed</Wah>");
         let report = parse_gp_with_report(&archive(&gpif)).expect("GP7 archive parses");
         let voice = &report.score.parts[0].staves[0].measures[0].voices[0];
         assert!(voice[1].articulations.contains(&Articulation::Tap));
         assert!(voice[2].articulations.contains(&Articulation::Vibrato));
         assert!(voice[2].articulations.contains(&Articulation::LeftHandTap));
+        assert!(voice[1].articulations.contains(&Articulation::Stopped));
         assert!(
             report
                 .diagnostics

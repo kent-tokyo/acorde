@@ -20,6 +20,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `@artic` `scoop`/`plop`/`doit`/`fall` and MuseScore `<ChordLine>` (all three dropped them
   before), drawn at the notehead in SVG, and imported from Guitar Pro slides into and out of a
   note (GP3–7), which were reported as lost in 14 alphaTab test files.
+- **Guitar Pro 7 wah marks.** Beat `<Wah>` open and closed import as the "o" and "+" marks
+  (`OpenString`, `Stopped`), as MuseScore's guitar palette writes them; they were reported as
+  lost.
 
 - **Chord labels in other spellings.** MEI `<harm>` labels and Guitar Pro chord names are parsed
   from text; `C+`, `DMaj7`, `D7+`, `B♭6`, `F♯ø7`, `E°7`, `A-7`, `GΔ`, `Dsus` and grouped
