@@ -248,6 +248,8 @@ pub(crate) fn parse_musicxml_collecting(
     let mut in_unpitched = false;
     let mut note_is_unpitched = false;
     let mut note_instrument_id: Option<String> = None;
+    // (part, kit instrument id, display position) of unpitched notes, first one per id wins.
+    let mut kit_display_positions: Vec<(usize, String, i8)> = Vec::new();
     let mut note_offset_x: Option<f64> = None;
     let mut note_offset_y: Option<f64> = None;
     let mut note_relative_x: Option<f64> = None;
@@ -1218,11 +1220,12 @@ pub(crate) fn parse_musicxml_collecting(
                             score_instrument_name = Some(name.to_string());
                         }
                     }
+                    // MusicXML numbers percussion keys 1–128; the model holds the 0-based GM key.
                     "midi-unpitched" if in_score_instrument => {
-                        score_instrument_key = current_text.trim().parse::<u8>().ok();
+                        score_instrument_key = musicxml_midi_unpitched(&current_text);
                     }
                     "midi-unpitched" if in_midi_instrument => {
-                        if let Ok(key) = current_text.trim().parse::<u8>() {
+                        if let Some(key) = musicxml_midi_unpitched(&current_text) {
                             midi_unpitched_by_id.insert(midi_instrument_id.clone(), key);
                         }
                     }
@@ -2259,6 +2262,18 @@ pub(crate) fn parse_musicxml_collecting(
                                     n.is_cue = note_is_cue;
                                     n.is_unpitched = note_is_unpitched;
                                     n.instrument_id = note_instrument_id.clone();
+                                    // Where a kit instrument is drawn identifies it for chord
+                                    // members, which keep no instrument id of their own.
+                                    if note_is_unpitched
+                                        && let (Some(pi), Some(id)) =
+                                            (part_index, note_instrument_id.as_ref())
+                                    {
+                                        kit_display_positions.push((
+                                            pi,
+                                            id.clone(),
+                                            PercussionInstrument::display_position(&n.pitches[0]),
+                                        ));
+                                    }
                                     n.offset_x = note_offset_x;
                                     n.offset_y = note_offset_y;
                                     n.relative_x = note_relative_x;
@@ -2304,6 +2319,19 @@ pub(crate) fn parse_musicxml_collecting(
                                             stem_up: note_stem_up,
                                         },
                                     );
+                                    if note.is_unpitched
+                                        && let (Some(pi), Some(id), Some(pitch)) = (
+                                            part_index,
+                                            note_instrument_id.as_ref(),
+                                            note.pitches.first(),
+                                        )
+                                    {
+                                        kit_display_positions.push((
+                                            pi,
+                                            id.clone(),
+                                            PercussionInstrument::display_position(pitch),
+                                        ));
+                                    }
                                 } else {
                                     if voice.len() >= MAX_NOTES_PER_VOICE {
                                         return Err(Error::Xml("too many notes in voice".into()));
@@ -2470,6 +2498,39 @@ pub(crate) fn parse_musicxml_collecting(
 
     if score.parts.is_empty() {
         return Err(Error::Empty);
+    }
+    for (part_index, id, position) in kit_display_positions {
+        if let Some(instrument) = score.parts.get_mut(part_index).and_then(|part| {
+            part.percussion_instruments
+                .iter_mut()
+                .find(|instrument| instrument.id == id)
+        }) && instrument.staff_position.is_none()
+        {
+            instrument.staff_position = Some(position);
+        }
+    }
+    // An unpitched note whose kit instrument (and so its sound) is unknown plays its display
+    // pitch; say so once per part.
+    for (part_index, part) in score.parts.iter().enumerate() {
+        let unresolved = part
+            .staves
+            .iter()
+            .flat_map(|staff| staff.measures.iter())
+            .flat_map(|measure| measure.voices.iter().flatten())
+            .any(|note| {
+                note.is_unpitched
+                    && (0..note.pitches.len())
+                        .any(|index| part.percussion_key(note, index).is_none())
+            });
+        if unresolved {
+            let mut diagnostic = crate::Diagnostic::warning(
+                "musicxml.unpitched-without-instrument",
+                "an unpitched note names no percussion instrument with a <midi-unpitched> key; \
+                 playback uses its display pitch",
+            );
+            diagnostic.source_location = Some(format!("/score-partwise/part[{}]", part_index + 1));
+            tolerated.push(diagnostic);
+        }
     }
     for part in &mut score.parts {
         pad_declared_staff_measures(part);
@@ -2859,6 +2920,15 @@ fn words_to_navigation(text: &str) -> Option<String> {
         "To Coda" | "To \u{2295}" => Some("ToCoda".into()),
         _ => None,
     }
+}
+
+/// The 0-based General MIDI key for a MusicXML `<midi-unpitched>` value (1–128).
+fn musicxml_midi_unpitched(text: &str) -> Option<u8> {
+    text.trim()
+        .parse::<u8>()
+        .ok()
+        .filter(|key| (1..=128).contains(key))
+        .map(|key| key - 1)
 }
 
 /// MusicXML dynamic element names acorde's `Dynamic` holds (louder and softer extremes clamp).

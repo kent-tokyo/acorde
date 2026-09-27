@@ -1549,13 +1549,27 @@ pub struct MidiAftertouch {
 /// The MIDI key remains the playback fallback, while the remaining fields
 /// describe renderer-independent notation defaults. Individual notes may still
 /// override these defaults.
+impl PercussionInstrument {
+    /// Diatonic steps of a displayed unpitched note from the five-line staff's middle line
+    /// (B4 in the treble/percussion layout), the unit of `staff_position`.
+    pub fn display_position(pitch: &Pitch) -> i8 {
+        let step = "CDEFGAB"
+            .find(pitch.step.to_char())
+            .map_or(0, |index| index as i32);
+        let steps = i32::from(pitch.octave) * 7 + step;
+        (steps - (4 * 7 + 6)).clamp(i32::from(i8::MIN), i32::from(i8::MAX)) as i8
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PercussionInstrument {
     /// Stable MusicXML score-instrument identity.
     pub id: String,
     #[serde(default)]
     pub name: Option<String>,
-    /// General MIDI unpitched key used as the playback fallback.
+    /// General MIDI percussion key (0-based, 35 = acoustic bass drum, 38 = acoustic snare)
+    /// played for this instrument. MusicXML `<midi-unpitched>` is 1-based and is converted
+    /// on import and export.
     #[serde(default)]
     pub midi_unpitched: Option<u8>,
     /// Diatonic staff position relative to the middle line.
@@ -1589,6 +1603,35 @@ impl Part {
             staff_groups: Vec::new(),
             instrument: None,
         }
+    }
+
+    /// General MIDI key to sound for pitch `pitch_index` of an unpitched note: the declared
+    /// instrument's `midi_unpitched`, found by the note's `instrument_id` (for its first pitch)
+    /// or else by the instrument whose `staff_position` matches the pitch's display position.
+    /// `None` when the note is pitched or nothing matches; playback then uses the display
+    /// pitch, as before.
+    pub fn percussion_key(&self, note: &Note, pitch_index: usize) -> Option<u8> {
+        if !note.is_unpitched {
+            return None;
+        }
+        let pitch = note.pitches.get(pitch_index)?;
+        let by_id = note
+            .instrument_id
+            .as_deref()
+            .filter(|_| pitch_index == 0)
+            .and_then(|id| {
+                self.percussion_instruments
+                    .iter()
+                    .find(|instrument| instrument.id == id)
+            })
+            .and_then(|instrument| instrument.midi_unpitched);
+        by_id.or_else(|| {
+            let position = PercussionInstrument::display_position(pitch);
+            self.percussion_instruments
+                .iter()
+                .filter(|instrument| instrument.staff_position == Some(position))
+                .find_map(|instrument| instrument.midi_unpitched)
+        })
     }
 
     /// Resolve the declared percussion instrument for an unpitched note.
@@ -6522,5 +6565,41 @@ mod mid_clef_tests {
             clefs: vec![change(0.0 + 5.0, Clef::Bass)],
         }));
         assert!(invalid.is_err());
+    }
+}
+
+#[cfg(test)]
+mod percussion_key_tests {
+    use super::*;
+
+    #[test]
+    fn unpitched_chord_members_sound_their_kit_keys_by_display_position() {
+        let mut part = Part::new("Drums", "Dr.");
+        part.midi_channel = 9;
+        let kit = |id: &str, key: u8, display: Pitch| PercussionInstrument {
+            id: id.into(),
+            name: None,
+            midi_unpitched: Some(key),
+            staff_position: Some(PercussionInstrument::display_position(&display)),
+            notehead: None,
+            preferred_voice: None,
+            techniques: Vec::new(),
+        };
+        part.percussion_instruments = vec![
+            kit("kick", 35, Pitch::new(Step::F, 4)),
+            kit("snare", 38, Pitch::new(Step::C, 5)),
+        ];
+        let mut note = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
+        note.pitches.push(Pitch::new(Step::F, 4));
+        note.is_unpitched = true;
+        note.instrument_id = Some("snare".into());
+        assert_eq!(part.percussion_key(&note, 0), Some(38));
+        assert_eq!(part.percussion_key(&note, 1), Some(35));
+        note.is_unpitched = false;
+        assert_eq!(part.percussion_key(&note, 0), None);
+        assert_eq!(
+            PercussionInstrument::display_position(&Pitch::new(Step::B, 4)),
+            0
+        );
     }
 }

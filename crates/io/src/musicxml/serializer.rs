@@ -87,10 +87,12 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
         ));
         xml.push_str("      </midi-instrument>\n");
         for instrument in &part.percussion_instruments {
-            if let Some(key) = instrument.midi_unpitched {
+            // MusicXML numbers percussion keys from 1; the model holds the 0-based GM key.
+            if let Some(key) = instrument.midi_unpitched.filter(|key| *key < 128) {
                 xml.push_str(&format!(
-                    "      <midi-instrument id=\"{}\"><midi-unpitched>{key}</midi-unpitched></midi-instrument>\n",
-                    escape_xml(&instrument.id)
+                    "      <midi-instrument id=\"{}\"><midi-unpitched>{}</midi-unpitched></midi-instrument>\n",
+                    escape_xml(&instrument.id),
+                    key + 1
                 ));
             }
         }
@@ -2150,9 +2152,10 @@ mod tests {
     fn corpus_schema_fixes_barline_ornament_degree_kind_and_unpitched() {
         let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Drums</part-name><score-instrument id="P1-I36"><instrument-name>Bass Drum</instrument-name></score-instrument><midi-instrument id="P1-I36"><midi-unpitched>36</midi-unpitched></midi-instrument></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><harmony><root><root-step>C</root-step></root><kind>minor-major</kind><degree><degree-value>9</degree-value><degree-alter>0</degree-alter><degree-type>add</degree-type></degree></harmony><note><pitch><step>C</step><octave>5</octave></pitch><duration>4</duration><type>whole</type><notations><ornaments><trill-mark/><wavy-line type="start"/></ornaments><articulations><breath-mark/></articulations></notations></note><barline location="right"><bar-style>light-heavy</bar-style><ending number="1" type="stop"/><repeat direction="backward"/></barline></measure></part></score-partwise>"#;
         let score = super::super::parser::parse_musicxml(xml).expect("parses");
+        // MusicXML's 1-based key 36 is GM key 35.
         assert_eq!(
             score.parts[0].percussion_instruments[0].midi_unpitched,
-            Some(36)
+            Some(35)
         );
         let out = serialize_musicxml(&score).expect("serializes");
         let ending = out.find("<ending number=\"1\" type=\"stop\"/>");
@@ -2169,7 +2172,7 @@ mod tests {
         let restored = super::super::parser::parse_musicxml(&out).expect("reparses");
         assert_eq!(
             restored.parts[0].percussion_instruments[0].midi_unpitched,
-            Some(36)
+            Some(35)
         );
     }
 

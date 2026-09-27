@@ -9,6 +9,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Percussion plays its kit sounds.** Unpitched notes played their display pitch (a snare on
+  C5 sounded MIDI 72). Playback events and MIDI export now sound the kit instrument's
+  `midi_unpitched` key (`Part::percussion_key`), found by the note's instrument id or, for chord
+  members, by display position (`PercussionInstrument::staff_position`, now filled by MusicXML
+  import). `PercussionInstrument::midi_unpitched` is the 0-based General MIDI key: MusicXML's
+  1-based `<midi-unpitched>` is converted on import and export. Unpitched notes are no longer
+  reported as unsupported; `musicxml.unpitched-without-instrument` flags a part whose unpitched
+  notes name no playable instrument.
 - **[schema] Compound dynamics.** `Dynamic` gains `Fp`, `Sfp`, `Sfpp`, `Pf`, `Sffz`, `Sfzp` and
   `N` (niente), with `Dynamic::ALL`, `Dynamic::from_musicxml_str` and
   `Dynamic::sustained_level`. MusicXML, MEI and MSCX read and write them (478 fp/sfp marks in

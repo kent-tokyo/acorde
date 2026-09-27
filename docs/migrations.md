@@ -34,6 +34,11 @@ export change behaviour: an unmarked note now plays at the staff's last dynamic 
 `DynamicTimeline`) rather than velocity 64, so hosts that compare velocities should refresh
 their expectations; notes before any marking still play at 64.
 
+MusicXML import now stores `PercussionInstrument::midi_unpitched` as the 0-based General MIDI
+key (the MusicXML value minus one) and export adds one back; scores imported by earlier
+versions hold the raw MusicXML value, one higher. Unpitched notes with a resolvable kit
+instrument now play that key (`Part::percussion_key`) instead of their display pitch.
+
 ### v1.2.11 — mid-bar clef changes
 
 `Measure` gains `mid_clefs: Vec<MidMeasureClef>` (a `MeasureLength` offset from the bar's start

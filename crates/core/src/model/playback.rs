@@ -1834,8 +1834,14 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                                     instrument.map_or(0, |value| value.transpose_semitones),
                                 )
                             };
-                            for pitch in &note.pitches {
-                                let midi = (pitch.to_midi() + transpose as i16).clamp(0, 127) as u8;
+                            for (pitch_index, pitch) in note.pitches.iter().enumerate() {
+                                // An unpitched note sounds its instrument's percussion key.
+                                let percussion = part.percussion_key(note, pitch_index);
+                                let transpose = if percussion.is_some() { 0 } else { transpose };
+                                let midi = percussion.map_or_else(
+                                    || (pitch.to_midi() + transpose as i16).clamp(0, 127) as u8,
+                                    |key| key.min(127),
+                                );
                                 events.push(PlaybackEvent {
                                     address: Some(format!(
                                         "{part_index}:{staff_index}:{idx}:{voice_idx}:{note_index}"
@@ -1857,8 +1863,11 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                                             local_beats,
                                         ),
                                     pitch_midi: midi,
-                                    pitch_midi_cents: pitch.to_midi_cents()
-                                        + transpose as i32 * 100,
+                                    pitch_midi_cents: if percussion.is_some() {
+                                        i32::from(midi) * 100
+                                    } else {
+                                        pitch.to_midi_cents() + transpose as i32 * 100
+                                    },
                                     pitch_bend_curve: note.guitar_bend_curve.clone(),
                                     post_note_pause_beats,
                                     articulations: note.articulations.clone(),

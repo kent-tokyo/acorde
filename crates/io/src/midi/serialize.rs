@@ -257,8 +257,12 @@ fn build_part_track(
                     written_beats += note.beats();
                     if !note.is_rest && !note.is_grace {
                         let vel = dynamics.velocity(seq_position, onset_beats, note.dynamic);
-                        for pitch in &note.pitches {
-                            let midi = (pitch.to_midi() + transpose as i16).clamp(0, 127) as u8;
+                        for (pitch_index, pitch) in note.pitches.iter().enumerate() {
+                            // An unpitched note sounds its instrument's percussion key.
+                            let midi = part.percussion_key(note, pitch_index).map_or_else(
+                                || (pitch.to_midi() + transpose as i16).clamp(0, 127) as u8,
+                                |key| key.min(127),
+                            );
                             events.push(TimedEvent {
                                 abs_tick: cursor,
                                 sort_key: 1,

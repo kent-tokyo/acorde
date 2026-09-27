@@ -1121,7 +1121,7 @@ fn musicxml_empty_figured_bass_is_diagnosed() {
 }
 
 #[test]
-fn musicxml_unpitched_note_is_reported_instead_of_claiming_pitch_equivalence() {
+fn musicxml_unpitched_note_keeps_its_display_and_plays_its_kit_key() {
     let xml = SIMPLE_XML
         .replacen(
             "<part-name>Piano</part-name>",
@@ -1134,18 +1134,19 @@ fn musicxml_unpitched_note_is_reported_instead_of_claiming_pitch_equivalence() {
         1,
         );
     let report = acorde_io::parse_musicxml_with_report(&xml).expect("MusicXML report parses");
-    assert!(report.diagnostics.iter().any(|diagnostic| {
+    assert!(!report.diagnostics.iter().any(|diagnostic| {
         diagnostic.code == "musicxml.unsupported-element.unpitched"
-            && diagnostic
-                .source_location
-                .as_deref()
-                .is_some_and(|path| path.ends_with("/unpitched"))
+            || diagnostic.code == "musicxml.unpitched-without-instrument"
     }));
     assert_eq!(
         report.score.parts[0].staves[0].measures[0].voices[0][0].pitches[0].to_midi(),
         72,
-        "unpitched display position is retained until percussion mapping exists"
+        "the unpitched display position is kept"
     );
+    // MusicXML's 1-based <midi-unpitched>38 is GM key 37 (side stick), and playback sounds it.
+    let events =
+        acorde_core::to_playback_events(&report.score, &acorde_core::PlaybackOptions::default());
+    assert_eq!(events[0].pitch_midi, 37);
     assert!(report.score.parts[0].staves[0].measures[0].voices[0][0].is_unpitched);
     assert_eq!(
         report.score.parts[0].staves[0].measures[0].voices[0][0]
@@ -1155,7 +1156,7 @@ fn musicxml_unpitched_note_is_reported_instead_of_claiming_pitch_equivalence() {
     );
     assert_eq!(
         report.score.parts[0].percussion_instruments[0].midi_unpitched,
-        Some(38)
+        Some(37)
     );
     let serialized = acorde_io::serialize_musicxml(&report.score).expect("serialize unpitched");
     assert!(serialized.contains("<unpitched>"));

@@ -9,7 +9,7 @@ pub use parser::parse_musicxml;
 pub(crate) use parser::parse_musicxml_collecting;
 pub use serializer::serialize_musicxml;
 
-const UNSUPPORTED_ELEMENTS: &[&str] = &["unpitched"];
+const UNSUPPORTED_ELEMENTS: &[&str] = &[];
 
 /// Report MusicXML elements that are currently outside the canonical score subset.
 pub fn loss_diagnostics(xml: &str) -> Vec<crate::Diagnostic> {
