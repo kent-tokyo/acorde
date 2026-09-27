@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.11] - 2026-09-27
+
 - **[schema] Mid-bar clef changes.** `Measure.mid_clefs` (additive, omitted from JSON when
   empty) holds clef changes inside a bar at their offset. MusicXML, MEI and MSCX import keep
   them where they occur (MusicXML and MEI moved them to the next barline; MSCX applied them to

@@ -25,7 +25,7 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
-### Unreleased — mid-bar clef changes
+### v1.2.11 — mid-bar clef changes
 
 `Measure` gains `mid_clefs: Vec<MidMeasureClef>` (a `MeasureLength` offset from the bar's start
 and a `Clef`), serde-defaulted and omitted from JSON when empty, so existing score JSON is

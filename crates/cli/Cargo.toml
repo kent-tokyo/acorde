@@ -17,11 +17,11 @@ name = "acorde"
 path = "src/main.rs"
 
 [dependencies]
-acorde-core = { path = "../core", version = "1.2.10" }
-acorde-io   = { path = "../io", version = "1.2.10", features = ["abc", "gp", "mei", "mscz"] }
-acorde-analysis = { path = "../analysis", version = "1.2.10" }
-acorde-layout = { path = "../layout", version = "1.2.10" }
-acorde-render-svg = { path = "../render-svg", version = "1.2.10" }
+acorde-core = { path = "../core", version = "1.2.11" }
+acorde-io   = { path = "../io", version = "1.2.11", features = ["abc", "gp", "mei", "mscz"] }
+acorde-analysis = { path = "../analysis", version = "1.2.11" }
+acorde-layout = { path = "../layout", version = "1.2.11" }
+acorde-render-svg = { path = "../render-svg", version = "1.2.11" }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
