@@ -3736,3 +3736,24 @@ fn mscx_part_default_clefs_set_initial_staff_clefs_and_survive_mei() {
         expected
     );
 }
+
+#[cfg(all(feature = "musicxml", feature = "mei"))]
+#[test]
+fn cross_staff_notes_round_trip_through_mei_staff_attribute() {
+    let xml = include_str!("../../../tests/fixtures/declared_staves_cross_staff.musicxml");
+    let parsed = parse_musicxml(xml).expect("cross-staff MusicXML parses");
+    let crossings = |score: &acorde_core::Score| {
+        score.parts[0]
+            .staves
+            .iter()
+            .flat_map(|staff| &staff.measures)
+            .flat_map(|measure| measure.voices.iter().flatten())
+            .filter_map(|note| note.cross_staff.as_ref().map(|cross| cross.target_staff))
+            .collect::<Vec<_>>()
+    };
+    assert!(!crossings(&parsed).is_empty());
+    let export = acorde_io::serialize_mei_with_report(&parsed).expect("MEI export");
+    assert!(export.diagnostics.is_empty(), "{:?}", export.diagnostics);
+    let restored = acorde_io::parse_mei(&export.output).expect("MEI reparse");
+    assert_eq!(crossings(&restored), crossings(&parsed));
+}

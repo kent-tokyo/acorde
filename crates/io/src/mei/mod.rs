@@ -1753,6 +1753,18 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
         Note::new(parse_mei_pitch(event)?, dur)
     };
     note.dot_count = dots;
+    if let Some(target) = inherited(b"staff")
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .filter(|number| (1..=MAX_MEI_STAVES).contains(number))
+        .map(|number| number - 1)
+        .filter(|target| *target != current_staff)
+    {
+        // Flat staff index for now; re-addressed part-locally when parts are split.
+        note.cross_staff = Some(acorde_core::CrossStaff {
+            target_staff: target,
+            target_voice: None,
+        });
+    }
     if !is_rest {
         note.is_grace = grace_value
             .as_deref()
@@ -3003,11 +3015,21 @@ fn split_mei_parts(score: &mut Score, root: &MeiLayoutGroup, staff_group_explici
             .rposition(|&start| start <= staff)
             .unwrap_or(0)
     };
-    // Re-address harmony ranges from flat staff numbers to (part, local staff).
-    for staff in &mut score.parts[0].staves {
+    // Re-address harmony ranges and cross-staff targets from flat staff numbers to
+    // (part, local staff).
+    for (flat_index, staff) in score.parts[0].staves.iter_mut().enumerate() {
+        let home = unit_of(flat_index);
         for measure in &mut staff.measures {
             for voice in &mut measure.voices {
                 for note in voice {
+                    if let Some(target) = note.cross_staff.as_ref().map(|cross| cross.target_staff)
+                    {
+                        note.cross_staff =
+                            (unit_of(target) == home).then(|| acorde_core::CrossStaff {
+                                target_staff: target - starts[home],
+                                target_voice: None,
+                            });
+                    }
                     if let Some(end) = note
                         .chord_symbol
                         .as_mut()
@@ -3614,6 +3636,9 @@ fn append_mei_note(out: &mut String, note: &Note, id: &str, written: &[bool]) ->
     if let Some(tie) = tie {
         out.push_str(&format!(" tie=\"{tie}\""));
     }
+    if let Some(cross) = &note.cross_staff {
+        out.push_str(&format!(" staff=\"{}\"", cross.target_staff + 1));
+    }
     if !note.is_rest {
         let artic = note
             .articulations
@@ -4001,6 +4026,7 @@ fn mei_flatten_parts(score: &Score) -> Score {
         })
         .collect::<Vec<_>>();
     let mut merged = Part::new(&score.parts[0].name, &score.parts[0].short_name);
+    let mut staff_offsets = Vec::new();
     for (part_index, part) in flat.parts.drain(..).enumerate() {
         let offset = offsets[part_index];
         merged
@@ -4010,9 +4036,10 @@ fn mei_flatten_parts(score: &Score) -> Score {
                 last_staff: group.last_staff + offset,
                 ..group
             }));
+        staff_offsets.extend(std::iter::repeat_n(offset, part.staves.len()));
         merged.staves.extend(part.staves);
     }
-    for staff in &mut merged.staves {
+    for (staff, &part_offset) in merged.staves.iter_mut().zip(&staff_offsets) {
         for measure in &mut staff.measures {
             for voice in &mut measure.voices {
                 for note in voice {
@@ -4023,6 +4050,9 @@ fn mei_flatten_parts(score: &Score) -> Score {
                     {
                         end.staff += offsets.get(end.part).copied().unwrap_or(0);
                         end.part = 0;
+                    }
+                    if let Some(cross) = note.cross_staff.as_mut() {
+                        cross.target_staff += part_offset;
                     }
                 }
             }
@@ -4724,7 +4754,12 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                             ("technique_text", note.technique_text.is_some()),
                             ("glissando_start", note.glissando_start),
                             ("glissando_end", note.glissando_end),
-                            ("cross_staff", note.cross_staff.is_some()),
+                            (
+                                "cross_staff",
+                                note.cross_staff
+                                    .as_ref()
+                                    .is_some_and(|cross| cross.target_voice.is_some()),
+                            ),
                             ("fingering", note.fingering.is_some()),
                             ("string_number", note.string_number.is_some()),
                             (
