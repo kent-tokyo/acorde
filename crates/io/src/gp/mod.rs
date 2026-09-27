@@ -869,8 +869,10 @@ fn convert_beat(
             );
         }
     }
+    // Grace beats carry their own (usually default) dynamic; only main beats mark a change.
     if let Some(dynamic) = beat.text_at("Dynamic")
         && !note.is_rest
+        && !note.is_grace
         && dynamic != last_dynamic.as_str()
     {
         note.dynamic = gp_dynamic(dynamic);
@@ -1177,8 +1179,8 @@ fn finish_measures(score: &mut Score, master_bars: &[&Node]) {
         }
         times.push(time.clone());
     }
-    for measure_index in 0..measure_count {
-        let bar_beats = times[measure_index].total_beats();
+    for (measure_index, time) in times.iter().enumerate() {
+        let bar_beats = time.total_beats();
         let content = score
             .parts
             .iter()
@@ -1210,7 +1212,7 @@ fn finish_measures(score: &mut Score, master_bars: &[&Node]) {
                 // Guitar Pro beams automatically by beat; GPIF stores no groups for that default.
                 for voice in &mut measure.voices {
                     if voice.iter().all(|note| note.beam == BeamState::None) {
-                        let beams = compute_beams(voice, &times[measure_index]);
+                        let beams = compute_beams(voice, time);
                         for (note, beam) in voice.iter_mut().zip(beams) {
                             note.beam = beam;
                         }
