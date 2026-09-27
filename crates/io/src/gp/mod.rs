@@ -922,11 +922,6 @@ fn convert_beat(
             "whammy-bar dives are not imported",
         ),
         (
-            "Tremolo",
-            "gp.unsupported-tremolo-picking",
-            "tremolo picking is not imported",
-        ),
-        (
             "Chord",
             "gp.unsupported-chord-diagram",
             "chord names/diagrams attached to beats are not imported",
@@ -955,13 +950,55 @@ fn convert_beat(
     if beat.child("Whammy").is_none() && beat.property("WhammyBar").is_some() {
         losses.add("gp.unsupported-whammy", "whammy-bar dives are not imported");
     }
-    if beat.property("Brush").is_some() || beat.property("PickStroke").is_some() {
-        losses.add(
-            "gp.unsupported-stroke",
-            "brush and pick-stroke directions are not imported",
-        );
+    if !note.is_rest {
+        apply_beat_strokes(beat, &mut note, losses);
     }
     Some(note)
+}
+
+/// Beat-level picking marks. Tremolo picking becomes stem slashes (`1/2` = one mark, `1/4` = two,
+/// `1/8` = three, as Guitar Pro draws them). A pick stroke is written with the down-bow/up-bow
+/// signs MusicXML also uses for picking. A brush (strum) becomes an arpeggio: a downstroke strikes
+/// the low string first, so it rolls upwards in pitch.
+fn apply_beat_strokes(beat: &Node, note: &mut Note, losses: &mut Losses) {
+    if let Some(value) = beat.text_at("Tremolo") {
+        let marks = match value {
+            "1/2" => Some(1),
+            "1/4" => Some(2),
+            "1/8" => Some(3),
+            _ => None,
+        };
+        match marks {
+            Some(marks) => push_articulation(note, Articulation::Tremolo(marks)),
+            None => losses.add(
+                "gp.unsupported-tremolo-picking",
+                "tremolo picking with an unknown speed is not imported",
+            ),
+        }
+    }
+    let direction = |name: &str| {
+        beat.property(name)
+            .map(|property| property.text_at("Direction").unwrap_or("Down") == "Up")
+    };
+    if let Some(up) = direction("PickStroke") {
+        push_articulation(
+            note,
+            if up {
+                Articulation::UpBow
+            } else {
+                Articulation::DownBow
+            },
+        );
+    }
+    if let Some(up) = direction("Brush") {
+        note.arpeggiate = Some(!up);
+    }
+}
+
+fn push_articulation(note: &mut Note, articulation: Articulation) {
+    if !note.articulations.contains(&articulation) {
+        note.articulations.push(articulation);
+    }
 }
 
 fn apply_note_effects(node: &Node, note: &mut Note, losses: &mut Losses) {
@@ -1267,7 +1304,7 @@ mod tests {
 <Voices><Voice id="0"><Beats>0 1 2 3</Beats></Voice><Voice id="1"><Beats>4</Beats></Voice></Voices>
 <Beats>
 <Beat id="0"><Dynamic>MF</Dynamic><Rhythm ref="0" /><Notes>0 1</Notes><Lyrics><Line>Hey</Line><Line /></Lyrics></Beat>
-<Beat id="1"><Dynamic>MF</Dynamic><Rhythm ref="0" /><Notes>2</Notes></Beat>
+<Beat id="1"><Dynamic>MF</Dynamic><Rhythm ref="0" /><Notes>2</Notes><Tremolo>1/4</Tremolo><Properties><Property name="PickStroke"><Direction>Up</Direction></Property><Property name="Brush"><Direction>Down</Direction></Property></Properties></Beat>
 <Beat id="2"><Dynamic>MF</Dynamic><Rhythm ref="0" /><Notes>3</Notes><Whammy /></Beat>
 <Beat id="3"><Dynamic>F</Dynamic><Rhythm ref="1" /></Beat>
 <Beat id="4"><Dynamic>F</Dynamic><Rhythm ref="2" /><Notes>4</Notes></Beat>
@@ -1345,6 +1382,9 @@ mod tests {
         assert_eq!(voice[1].pitches[0].alter, 1);
         assert_eq!(voice[1].guitar_technique, Some(GuitarTechnique::PullOff));
         assert!(voice[1].articulations.contains(&Articulation::Accent));
+        assert!(voice[1].articulations.contains(&Articulation::Tremolo(2)));
+        assert!(voice[1].articulations.contains(&Articulation::UpBow));
+        assert_eq!(voice[1].arpeggiate, Some(true));
         assert_eq!(voice[1].dynamic, None);
         assert_eq!(voice[2].guitar_technique, Some(GuitarTechnique::Bend));
         assert_eq!(voice[2].guitar_bend_alter_cents, Some(200));

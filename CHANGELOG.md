@@ -14,7 +14,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Guitar Pro 6 `.gpx` files: tracks become parts, staves keep tuning and capo, and notes keep
   string/fret positions, rhythm, ties, dynamics, lyrics, repeats, endings, sections, and tempo,
   plus bends (with curves), hammer-ons/pull-offs, slides, dead notes, palm mute/let ring,
-  harmonics, accents, and left-hand fingering. Other content is reported as `gp.*` diagnostics
+  harmonics, accents, left-hand fingering, tremolo picking, pick strokes, and brushes (as
+  arpeggios). Other content is reported as `gp.*` diagnostics
   with counts. All 133 GP6/7/8 files in alphaTab's test data import, validate, and export to
   schema-valid MusicXML and to MEI that Verovio loads. GP3/4/5 binary files are not supported.
 - SVG tablature staves now draw a TAB clef and no key signature. Fret numbers mask the string

@@ -36,8 +36,9 @@ A successful parse alone never changes a capability matrix cell to `yes`.
   their GPIF score: tracks, staves with tuning and capo, string/fret positions, rhythm, chords,
   ties, dynamics, beat lyrics, repeats and endings, sections, tempo, and the guitar techniques the
   model holds (bends with curves, hammer-on/pull-off, shift/legato slides, dead notes, palm mute
-  and let ring as technique text, natural harmonics, accents, left-hand fingering). Whammy,
-  tremolo picking, vibrato, tapping, strokes, chord diagrams, bar fermatas, and directions are
+  and let ring as technique text, natural harmonics, accents, left-hand fingering, tremolo picking
+  as stem slashes, pick strokes as down-/up-bow, brushes as arpeggios). Whammy, vibrato, tapping,
+  chord diagrams, bar fermatas, and directions are
   reported per kind (`gp.*`) with occurrence counts. Guitar Pro 3/4/5 binary files are not read.
 
 The exact feature-level status is the [notation coverage matrix](notation-coverage.md). The
