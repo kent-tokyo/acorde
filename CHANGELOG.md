@@ -17,6 +17,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   chords, lines around their notes, with `<next>`/`<prev>` locations — and MSCX import reads
   ottavas. A MusicXML → MSCX → import round trip of the music21 corpus keeps all 15431 slurs
   and 1219 of 1228 hairpins.
+- **MSCX tuplets, grace notes, fermatas, ornaments, repeats, voltas and chord symbols.** MSCX
+  export wrote tuplets inside the chord (where MuseScore and acorde do not read them), grace
+  notes as ordinary chords, repeat ends as an empty `<endRepeat/>` and no repeat starts, voltas
+  not at all, chord symbols without a root, and dropped fermatas and ornaments. It now writes
+  MuseScore's `<Tuplet>…<endTuplet/>` blocks, `<acciaccatura/>`/`<appoggiatura/>`,
+  `<startRepeat/>`/`<endRepeat>2</endRepeat>`, volta spanners, `<Harmony><root>…`, `<Fermata>`
+  and ornament articulations; MSCX import reads fermatas, ornaments and a volta's closing
+  marker (which it took for a new one-bar volta), and no longer adds each chord symbol a
+  second time as measure text. In a MusicXML → MSCX → import round trip of the corpus, 7931
+  tuplet notes, 1242 grace notes, 854 fermatas, 442 barlines, 229 voltas and 102 chord symbols
+  that were lost now survive.
 ## [1.2.12] - 2026-09-27
 
 - **SVG stem directions.** A single voice drew every stem up unless the score fixed it. Stems

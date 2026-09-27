@@ -322,6 +322,13 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut in_volta_spanner = false;
     let mut volta_text = String::new();
     let mut volta_has_next = false;
+    // A volta Spanner with only a `<prev>` marks where the ending stops: the bar before it.
+    let mut volta_has_prev = false;
+    let mut volta_has_body = false;
+    let mut volta_endings = String::new();
+    let mut open_volta_number: Option<u8> = None;
+    // A `<Fermata>` written before the chord or rest it sits over.
+    let mut pending_fermata = false;
 
     // Feature K: Dynamic state
     let mut in_dynamic_elem = false;
@@ -535,6 +542,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         chord_tremolo = None;
                         chord_articulations.clear();
                     }
+                    "Fermata" if in_measure && !in_chord && !in_rest_elem => {
+                        pending_fermata = true;
+                    }
                     "Tuplet" if in_measure && !in_chord && !in_rest_elem => {
                         in_tuplet = true;
                         tuplet_actual_notes = None;
@@ -622,6 +632,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 in_volta_spanner = true;
                                 volta_text.clear();
                                 volta_has_next = false;
+                                volta_has_prev = false;
+                                volta_has_body = false;
+                                volta_endings.clear();
                             }
                             Some(kind @ ("HairPin" | "Pedal" | "Slur" | "Ottava")) => {
                                 line_spanner = Some(match kind {
@@ -663,6 +676,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "next" if in_volta_spanner => {
                         volta_has_next = true;
+                    }
+                    "prev" if in_volta_spanner => {
+                        volta_has_prev = true;
+                    }
+                    "Volta" if in_volta_spanner => {
+                        volta_has_body = true;
                     }
                     // Feature L: Slur Spanner at Chord level
                     "Spanner" if in_chord && !in_note_elem => {
@@ -1068,7 +1087,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 harmony_function.take(),
                             ));
                         }
-                        if !harmony_name.trim().is_empty() {
+                        // Without a root the chord cannot be a symbol; keep its text.
+                        if harmony_root.is_none() && !harmony_name.trim().is_empty() {
                             cur_texts.push(StyledText {
                                 style: TextStyle::ChordSymbol,
                                 text: harmony_name.trim().to_string(),
@@ -1312,13 +1332,46 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "beginText" | "text" if in_volta_spanner => {
                         volta_text = t.to_string();
                     }
+                    "endings" if in_volta_spanner => {
+                        volta_endings = t.to_string();
+                    }
                     "Spanner" if in_volta_spanner => {
-                        let number = parse_volta_number(&volta_text);
-                        let kind = if volta_has_next { "begin" } else { "begin_end" };
-                        cur_volta = Some(VoltaBracket {
-                            number,
-                            kind: kind.to_string(),
-                        });
+                        if volta_has_prev && !volta_has_body && !volta_has_next {
+                            // The end marker: the ending closes on this staff's previous bar.
+                            if let Some(previous) = staff_measures
+                                .get_mut(&current_staff_id.unwrap_or(1))
+                                .and_then(|measures| measures.last_mut())
+                                .and_then(|measure| measure.volta.as_mut())
+                            {
+                                previous.kind = if previous.kind == "begin" {
+                                    "begin_end".to_string()
+                                } else {
+                                    "end".to_string()
+                                };
+                            } else if let Some(previous) = staff_measures
+                                .get_mut(&current_staff_id.unwrap_or(1))
+                                .and_then(|measures| measures.last_mut())
+                            {
+                                previous.volta = Some(VoltaBracket {
+                                    number: open_volta_number.unwrap_or(1),
+                                    kind: "end".to_string(),
+                                });
+                            }
+                            open_volta_number = None;
+                        } else {
+                            let label = if volta_text.trim().is_empty() {
+                                volta_endings.as_str()
+                            } else {
+                                volta_text.as_str()
+                            };
+                            let number = parse_volta_number(label);
+                            let kind = if volta_has_next { "begin" } else { "begin_end" };
+                            open_volta_number = volta_has_next.then_some(number);
+                            cur_volta = Some(VoltaBracket {
+                                number,
+                                kind: kind.to_string(),
+                            });
+                        }
                         in_volta_spanner = false;
                     }
 
@@ -1481,6 +1534,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         if !chord_pitches.is_empty() {
                             let mut note = Note::new(chord_pitches[0].clone(), dur);
                             note.dot_count = chord_dots;
+                            if std::mem::take(&mut pending_fermata) {
+                                note.articulations.push(Articulation::Fermata);
+                            }
                             note.tie_start = chord_tie_start;
                             note.tie_end = chord_tie_end;
                             note.slur_start = chord_slur_start;
@@ -1531,6 +1587,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         let mut rest = Note::rest(dur);
                         rest.dot_count = chord_dots;
                         rest.tuplet = current_tuplet.clone();
+                        if std::mem::take(&mut pending_fermata) {
+                            rest.articulations.push(Articulation::Fermata);
+                        }
                         let v = chord_voice.min(3);
                         cur_voices[v].push(rest);
                         pending_chord_symbol = None;
@@ -2630,6 +2689,12 @@ fn mscx_articulation(subtype: &str) -> Option<Articulation> {
         "brassMuteOpen" => Some(Articulation::OpenString),
         "brassMuteClosed" => Some(Articulation::Stopped),
         "pluckedSnapPizzicato" => Some(Articulation::SnapPizzicato),
+        // MuseScore ornaments are articulation symbols too.
+        "ornamentTrill" => Some(Articulation::Trill),
+        "ornamentMordent" => Some(Articulation::Mordent),
+        "ornamentShortTrill" | "ornamentMordentInverted" => Some(Articulation::InvertedMordent),
+        "ornamentTurn" => Some(Articulation::Turn),
+        "ornamentTurnInverted" => Some(Articulation::InvertedTurn),
         _ => None,
     }
 }

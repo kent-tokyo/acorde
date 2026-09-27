@@ -4585,3 +4585,84 @@ fn mscx_keeps_every_part_of_a_multi_part_score() {
         );
     }
 }
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_round_trips_tuplets_graces_fermatas_ornaments_repeats_voltas_and_chords() {
+    use acorde_core::{
+        Articulation, Barline, ChordSymbol, Duration, Note, Pitch, Score, Step, TupletInfo,
+        VoltaBracket,
+    };
+    let mut score = Score::new("mscx", 120, 2, 4, 0, 3);
+    let triplet = TupletInfo {
+        actual_notes: 3,
+        normal_notes: 2,
+    };
+    {
+        let measures = &mut score.parts[0].staves[0].measures;
+        let mut grace = Note::new(Pitch::new(Step::B, 4), Duration::Eighth);
+        grace.is_grace = true;
+        grace.grace_slash = true;
+        let mut notes = vec![grace];
+        for step in [Step::C, Step::D, Step::E] {
+            let mut note = Note::new(Pitch::new(step, 5), Duration::Eighth);
+            note.tuplet = Some(triplet.clone());
+            notes.push(note);
+        }
+        let mut last = Note::new(Pitch::new(Step::F, 5), Duration::Quarter);
+        last.articulations = vec![Articulation::Fermata, Articulation::Trill];
+        let mut symbol: ChordSymbol =
+            serde_json::from_str(r#"{"root":"F","kind":"major-seventh","bass":"A"}"#)
+                .expect("chord symbol");
+        symbol.placement = None;
+        last.chord_symbol = Some(symbol);
+        notes.push(last);
+        measures[0].voices[0] = notes;
+        measures[0].barline_right = Barline::RepeatEnd;
+        measures[0].barline_left = Barline::RepeatStart;
+        measures[1].voices[0] = vec![Note::new(Pitch::new(Step::G, 4), Duration::Half)];
+        measures[1].volta = Some(VoltaBracket {
+            number: 1,
+            kind: "begin_end".into(),
+        });
+        measures[2].voices[0] = vec![Note::new(Pitch::new(Step::G, 4), Duration::Half)];
+        measures[2].volta = Some(VoltaBracket {
+            number: 2,
+            kind: "begin_end".into(),
+        });
+    }
+    let report = acorde_io::serialize_mscx_with_report(&score).expect("exports");
+    assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+    let back = acorde_io::parse_mscx(&report.output).expect("imports");
+    let measures = &back.parts[0].staves[0].measures;
+    let first = &measures[0].voices[0];
+    assert!(first[0].is_grace && first[0].grace_slash);
+    assert!(
+        first[1..4]
+            .iter()
+            .all(|note| note.tuplet == Some(triplet.clone()))
+    );
+    assert!(first[4].tuplet.is_none());
+    assert!(first[4].articulations.contains(&Articulation::Fermata));
+    assert!(first[4].articulations.contains(&Articulation::Trill));
+    let chord = first[4].chord_symbol.as_ref().expect("chord symbol");
+    assert_eq!(
+        (chord.root.as_str(), chord.bass.as_deref()),
+        ("F", Some("A"))
+    );
+    assert!(measures[0].texts.is_empty(), "no duplicate chord text");
+    assert_eq!(measures[0].barline_left, Barline::RepeatStart);
+    assert_eq!(measures[0].barline_right, Barline::RepeatEnd);
+    let voltas: Vec<_> = measures
+        .iter()
+        .map(|measure| measure.volta.as_ref().map(|v| (v.number, v.kind.clone())))
+        .collect();
+    assert_eq!(
+        voltas,
+        vec![
+            None,
+            Some((1, "begin_end".to_string())),
+            Some((2, "begin_end".to_string()))
+        ]
+    );
+}

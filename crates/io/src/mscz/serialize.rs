@@ -196,8 +196,10 @@ fn note_has_unsupported_fields(note: &Note) -> bool {
         .iter()
         .any(|pitch| pitch.microtone_cents != 0 && !matches!(pitch.microtone_cents, -50 | 50))
         || note.articulations.iter().any(|articulation| {
-            !matches!(articulation, Articulation::Tremolo(_))
-                && articulation_subtype(articulation).is_none()
+            !matches!(
+                articulation,
+                Articulation::Tremolo(_) | Articulation::Fermata
+            ) && articulation_subtype(articulation).is_none()
         })
         || note.glissando_start
         || note.glissando_end
@@ -313,6 +315,13 @@ fn write_staff(
 ) -> Result<(), Error> {
     let mut running_time = default_time.clone();
     let span_marks = staff_span_marks(staff);
+    // Voltas as (first bar, last bar, number).
+    let volta_spans = staff_volta_spans(staff);
+    let mut volta_close_before: std::collections::HashMap<usize, u8> = volta_spans
+        .iter()
+        .filter(|(_, end, _)| end + 1 < staff.measures.len())
+        .map(|&(_, end, number)| (end + 1, number))
+        .collect();
     write!(xml, "<Staff id=\"{id}\">").map_err(fmt_error)?;
     if !score_texts.is_empty() {
         xml.push_str("<VBox>");
@@ -374,6 +383,52 @@ fn write_staff(
         }
         if let Some(time) = &measure.time_sig {
             running_time = time.clone();
+        }
+        // Repeat barlines are measure properties in MuseScore.
+        if matches!(
+            measure.barline_left,
+            acorde_core::Barline::RepeatStart | acorde_core::Barline::RepeatBoth
+        ) {
+            xml.push_str("<startRepeat/>");
+        }
+        if matches!(
+            measure.barline_right,
+            acorde_core::Barline::RepeatEnd | acorde_core::Barline::RepeatBoth
+        ) {
+            xml.push_str("<endRepeat>2</endRepeat>");
+        }
+        // A volta opens where it begins and is closed by a `<prev>` marker at the start of the
+        // bar after its last one.
+        if volta_close_before.remove(&measure_index).is_some() {
+            let span = volta_spans
+                .iter()
+                .find(|(_, end, _)| end + 1 == measure_index)
+                .map_or(1, |(start, end, _)| end + 1 - start);
+            write!(
+                xml,
+                "<Spanner type=\"Volta\"><prev><location><measures>-{span}</measures></location></prev></Spanner>"
+            )
+            .map_err(fmt_error)?;
+        }
+        if let Some(&(start, end, number)) = volta_spans
+            .iter()
+            .find(|(start, _, _)| *start == measure_index)
+        {
+            // A one-bar ending in the last bar has no following bar to close it: it is written
+            // without `<next>`, which reads back as a one-bar volta.
+            let next = if start == end && end + 1 == staff.measures.len() {
+                String::new()
+            } else {
+                format!(
+                    "<next><location><measures>{}</measures></location></next>",
+                    end + 1 - start
+                )
+            };
+            write!(
+                xml,
+                "<Spanner type=\"Volta\"><Volta><endHookType>1</endHookType><beginText>{number}.</beginText><endings>{number}</endings></Volta>{next}</Spanner>"
+            )
+            .map_err(fmt_error)?;
         }
         // A measure rest is written as MuseScore's `measure` duration of the bar's length.
         let (bar_numerator, bar_denominator) = measure
@@ -453,7 +508,24 @@ fn write_staff(
                     [].iter().peekable()
                 };
                 let mut beats = 0.0;
+                // MuseScore brackets a tuplet's chords and rests between `<Tuplet>` and
+                // `<endTuplet/>`.
+                let tuplets = crate::tuplet_groups(voice);
                 for (note_index, note) in voice.iter().enumerate() {
+                    if let Some(tuplet) = note
+                        .tuplet
+                        .as_ref()
+                        .filter(|_| tuplets.iter().any(|&(start, _)| start == note_index))
+                    {
+                        write!(
+                            xml,
+                            "<Tuplet><normalNotes>{}</normalNotes><actualNotes>{}</actualNotes><baseNote>{}</baseNote></Tuplet>",
+                            tuplet.normal_notes,
+                            tuplet.actual_notes,
+                            duration_name(&note.duration)
+                        )
+                        .map_err(fmt_error)?;
+                    }
                     while let Some(change) =
                         clefs.next_if(|change| change.offset.beats().unwrap_or(0.0) <= beats + 1e-9)
                     {
@@ -488,6 +560,9 @@ fn write_staff(
                         melisma,
                         marks.map_or("", |marks| marks.inside.as_str()),
                     )?;
+                    if tuplets.iter().any(|&(_, end)| end == note_index) {
+                        xml.push_str("<endTuplet/>");
+                    }
                     if let Some(marks) = marks {
                         xml.push_str(&marks.after);
                     }
@@ -499,9 +574,6 @@ fn write_staff(
             if voice_index > 0 {
                 xml.push_str("</voice>");
             }
-        }
-        if matches!(measure.barline_right, acorde_core::Barline::RepeatEnd) {
-            xml.push_str("<endRepeat/>");
         }
         let barline = match measure.barline_right {
             acorde_core::Barline::Double => Some("double"),
@@ -517,6 +589,30 @@ fn write_staff(
     }
     xml.push_str("</Staff>");
     Ok(())
+}
+
+/// Voltas of a staff as (first bar, last bar, number), from each bar's `volta` marking.
+fn staff_volta_spans(staff: &Staff) -> Vec<(usize, usize, u8)> {
+    let mut spans = Vec::new();
+    let mut open: Option<(usize, u8)> = None;
+    for (index, measure) in staff.measures.iter().enumerate() {
+        let Some(volta) = &measure.volta else {
+            continue;
+        };
+        match volta.kind.as_str() {
+            "begin" => open = Some((index, volta.number)),
+            "begin_end" => spans.push((index, index, volta.number)),
+            "end" => {
+                let (start, number) = open.take().unwrap_or((index, volta.number));
+                spans.push((start, index, number));
+            }
+            _ => {}
+        }
+    }
+    if let Some((start, number)) = open {
+        spans.push((start, staff.measures.len().saturating_sub(1), number));
+    }
+    spans
 }
 
 /// MuseScore spanner markup to write around one note: voice-level line starts before it,
@@ -703,6 +799,14 @@ fn write_note(
     melisma: Option<acorde_core::MeasureLength>,
     chord_spanners: &str,
 ) -> Result<(), Error> {
+    // A fermata is its own element before the chord or rest it sits over.
+    if note
+        .articulations
+        .iter()
+        .any(|articulation| matches!(articulation, Articulation::Fermata))
+    {
+        xml.push_str("<Fermata><subtype>fermataAbove</subtype></Fermata>");
+    }
     if note.is_rest {
         write!(
             xml,
@@ -717,12 +821,30 @@ fn write_note(
         return Ok(());
     }
     if let Some(chord) = &note.chord_symbol {
-        write!(
-            xml,
-            "<Harmony><name>{}</name></Harmony>",
-            escape(&chord.display_text())
-        )
-        .map_err(fmt_error)?;
+        // MuseScore stores the root (and bass) as a tonal pitch class and the rest as a name.
+        let text = chord.display_text();
+        let name = text
+            .strip_prefix(chord.root.as_str())
+            .unwrap_or(&text)
+            .split('/')
+            .next()
+            .unwrap_or_default();
+        match spelled_tpc(&chord.root) {
+            Some(root) => {
+                write!(
+                    xml,
+                    "<Harmony><root>{root}</root><name>{}</name>",
+                    escape(name)
+                )
+                .map_err(fmt_error)?;
+                if let Some(bass) = chord.bass.as_deref().and_then(spelled_tpc) {
+                    write!(xml, "<base>{bass}</base>").map_err(fmt_error)?;
+                }
+                xml.push_str("</Harmony>");
+            }
+            None => write!(xml, "<Harmony><name>{}</name></Harmony>", escape(&text))
+                .map_err(fmt_error)?,
+        }
     }
     if let Some(dynamic) = &note.dynamic {
         write!(
@@ -740,13 +862,13 @@ fn write_note(
         dots(note.dot_count)
     )
     .map_err(fmt_error)?;
-    if let Some(tuplet) = &note.tuplet {
-        write!(
-            xml,
-            "<Tuplet><actualNotes>{}</actualNotes><normalNotes>{}</normalNotes></Tuplet>",
-            tuplet.actual_notes, tuplet.normal_notes
-        )
-        .map_err(fmt_error)?;
+    if note.is_grace {
+        // A slashed grace note is an acciaccatura, an unslashed one an appoggiatura.
+        xml.push_str(if note.grace_slash {
+            "<acciaccatura/>"
+        } else {
+            "<appoggiatura/>"
+        });
     }
     if let Some(stem_up) = note.stem_up {
         write!(
@@ -915,6 +1037,20 @@ fn text_style_name(style: &acorde_core::TextStyle) -> &'static str {
     }
 }
 
+/// Tonal pitch class of a spelled note name ("C", "F#", "Bb").
+fn spelled_tpc(name: &str) -> Option<i32> {
+    let mut chars = name.trim().chars();
+    let step = Step::from_char(chars.next()?.to_ascii_uppercase())?;
+    let alter: i32 = chars
+        .map(|accidental| match accidental {
+            '#' | '♯' => Some(1),
+            'b' | '♭' => Some(-1),
+            _ => None,
+        })
+        .sum::<Option<i32>>()?;
+    Some(pitch_tpc(&Pitch::with_alter(step, 4, alter as i8)))
+}
+
 fn pitch_tpc(pitch: &Pitch) -> i32 {
     let natural = match pitch.step {
         Step::F => 13,
@@ -943,13 +1079,13 @@ fn articulation_subtype(articulation: &Articulation) -> Option<&'static str> {
         Articulation::Accent => Some("articAccentAbove"),
         Articulation::Tenuto => Some("articTenutoAbove"),
         Articulation::Marcato => Some("articMarcatoAbove"),
+        Articulation::Trill => Some("ornamentTrill"),
+        Articulation::Mordent => Some("ornamentMordent"),
+        Articulation::InvertedMordent => Some("ornamentShortTrill"),
+        Articulation::Turn => Some("ornamentTurn"),
+        Articulation::InvertedTurn => Some("ornamentTurnInverted"),
         Articulation::Tremolo(_)
         | Articulation::Fermata
-        | Articulation::Trill
-        | Articulation::Mordent
-        | Articulation::InvertedMordent
-        | Articulation::Turn
-        | Articulation::InvertedTurn
         | Articulation::Shake
         | Articulation::BreathMark
         | Articulation::Caesura => None,
