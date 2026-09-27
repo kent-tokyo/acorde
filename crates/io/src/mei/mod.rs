@@ -1698,7 +1698,8 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
     let Some(measure_index) = current_measure else {
         return Err(Error::Xml("MEI note is outside a measure".into()));
     };
-    let is_rest = event.name().as_ref() == b"rest";
+    // `<space>` (invisible rest, as Verovio writes MusicXML forwards) keeps the timing as a rest.
+    let is_rest = matches!(event.name().as_ref(), b"rest" | b"space");
     if chord_started && !is_rest {
         // A later chord member: extend the chord note created by the first member.
         let pitch = parse_mei_pitch(event)?;
@@ -1876,6 +1877,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut current_tuplet: Option<TupletInfo> = None;
     let mut note_ids: HashMap<String, (usize, usize, usize, usize)> = HashMap::new();
     let mut pending_slurs: Vec<(String, String)> = Vec::new();
+    let mut pending_ties: Vec<(String, String)> = Vec::new();
     let mut pending_ottavas: Vec<(String, String, OttavaKind)> = Vec::new();
     let mut pending_pedals: Vec<(String, String)> = Vec::new();
     let mut pending_harm_symbols: Vec<PendingHarmSymbol> = Vec::new();
@@ -1916,7 +1918,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                     return Err(Error::Xml("MEI document has too many elements".into()));
                 }
                 match event.name().as_ref() {
-                    b"title" => in_title = true,
+                    b"title" if !is_empty_event => in_title = true,
                     b"instrDef" if layout_root.is_none() => {
                         if let (Some(midi), Some(group)) =
                             (parse_mei_instr_def(&event), layout_stack.last_mut())
@@ -1932,7 +1934,9 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             }
                         }
                     }
-                    b"label" if layout_root.is_none() && !layout_stack.is_empty() => {
+                    b"label"
+                        if layout_root.is_none() && !layout_stack.is_empty() && !is_empty_event =>
+                    {
                         in_layout_label = true;
                         layout_label_text.clear();
                     }
@@ -2205,7 +2209,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             .saturating_sub(1)
                             .min(3);
                     }
-                    b"dynam" if current_measure.is_some() => {
+                    b"dynam" if current_measure.is_some() && !is_empty_event => {
                         in_dynamic = true;
                         dynamic_text.clear();
                         dynam_anchor = (!in_layer)
@@ -2230,16 +2234,16 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             ));
                         }
                     }
-                    b"syl" if current_measure.is_some() => {
+                    b"syl" if current_measure.is_some() && !is_empty_event => {
                         in_syllable = true;
                         syllable_text.clear();
                         syllable_wordpos = attr(&event, b"wordpos");
                     }
-                    b"ornam" if current_measure.is_some() => {
+                    b"ornam" if current_measure.is_some() && !is_empty_event => {
                         in_ornament = true;
                         ornament_text.clear();
                     }
-                    b"harm" if current_measure.is_some() => {
+                    b"harm" if current_measure.is_some() && !is_empty_event => {
                         in_harm = true;
                         harm_text.clear();
                         harm_start_id = attr(&event, b"startid");
@@ -2256,22 +2260,22 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         harm_type = attr(&event, b"type");
                         harm_chord_ref = attr(&event, b"chordref");
                     }
-                    b"fb" if current_measure.is_some() => {
+                    b"fb" if current_measure.is_some() && !is_empty_event => {
                         in_figured_bass = true;
                         figured_bass_text.clear();
                         figured_bass_figures.clear();
                     }
-                    b"f" if in_figured_bass => {
+                    b"f" if in_figured_bass && !is_empty_event => {
                         in_figured_bass_figure = true;
                         figured_bass_figure_text.clear();
                         figured_bass_figure_extender = attr(&event, b"extender")
                             .is_some_and(|value| value.eq_ignore_ascii_case("true"));
                     }
-                    b"reh" if current_measure.is_some() => {
+                    b"reh" if current_measure.is_some() && !is_empty_event => {
                         in_rehearsal = true;
                         rehearsal_text.clear();
                     }
-                    b"dir" if current_measure.is_some() => {
+                    b"dir" if current_measure.is_some() && !is_empty_event => {
                         in_direction = true;
                         direction_text.clear();
                     }
@@ -2285,6 +2289,13 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                     b"octave" if current_measure.is_some() => {
                         if let Some(ottava) = parse_ottava(&event) {
                             pending_ottavas.push(ottava);
+                        }
+                    }
+                    b"tie" if current_measure.is_some() => {
+                        if let (Some(start), Some(end)) =
+                            (attr(&event, b"startid"), attr(&event, b"endid"))
+                        {
+                            pending_ties.push((start, end));
                         }
                     }
                     b"pedal" if current_measure.is_some() => {
@@ -2359,6 +2370,34 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             }
                         }
                     }
+                    b"mRest"
+                        if in_layer
+                            && current_measure.is_some_and(|measure_index| {
+                                score.parts[0].staves[current_staff].measures[measure_index].voices
+                                    [current_layer]
+                                    .is_empty()
+                            }) =>
+                    {
+                        // A layer's measure rest is a lone whole rest in the canonical model (the
+                        // same convention as MusicXML measure rests), so ids and fermatas attach.
+                        if let Some(measure_index) = current_measure {
+                            let voice = &mut score.parts[0].staves[current_staff].measures
+                                [measure_index]
+                                .voices[current_layer];
+                            if let Some(id) =
+                                attr(&event, b"xml:id").or_else(|| attr(&event, b"id"))
+                            {
+                                note_ids.insert(
+                                    id.trim_start_matches('#').to_string(),
+                                    (current_staff, measure_index, current_layer, voice.len()),
+                                );
+                            }
+                            let mut rest = Note::rest(Duration::Whole);
+                            rest.articulations.append(&mut pending_articulations);
+                            voice.push(rest);
+                            note_count += 1;
+                        }
+                    }
                     b"mRest" | b"multiRest" if current_measure.is_some() => {
                         if let Some(measure_index) = current_measure {
                             let count: u8 = if event.name().as_ref() == b"mRest" {
@@ -2410,7 +2449,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             .and_then(|value| value.parse::<u8>().ok())
                             .unwrap_or(1);
                     }
-                    b"note" | b"rest" => {
+                    b"note" | b"rest" | b"space" => {
                         if !is_empty_event {
                             note_element_depth += 1;
                         }
@@ -2593,7 +2632,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                     chord_started = false;
                     note_element_depth = note_element_depth.saturating_sub(1);
                 }
-                b"note" | b"rest" => {
+                b"note" | b"rest" | b"space" => {
                     note_element_depth = note_element_depth.saturating_sub(1);
                 }
                 b"ornam" => {
@@ -2747,6 +2786,20 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
         return Err(Error::Empty);
     }
     apply_mei_slurs(&mut score, &note_ids, pending_slurs);
+    for (start, end) in pending_ties {
+        // `<tie>` control events (Verovio's form of @tie) set the note-level tie flags.
+        for (id, is_start) in [(start, true), (end, false)] {
+            if let Some(&location) = note_ids.get(id.trim_start_matches('#'))
+                && let Some(note) = mei_note_mut(&mut score, location)
+            {
+                if is_start {
+                    note.tie_start = true;
+                } else {
+                    note.tie_end = true;
+                }
+            }
+        }
+    }
     apply_mei_ottavas(&mut score, &note_ids, pending_ottavas);
     apply_mei_pedals(&mut score, &note_ids, pending_pedals);
     apply_mei_control_events(&mut score, &note_ids, pending_dynams, pending_hairpins);
@@ -4208,6 +4261,10 @@ fn append_mei_measure_staves(
                     }
                 }
                 let id = mei_note_id(number, staff_index, voice_index, note_index);
+                if voice.len() == 1 && note.is_plain_whole_rest() {
+                    out.push_str(&format!("<mRest xml:id=\"{id}\"/>"));
+                    continue;
+                }
                 append_mei_note(
                     out,
                     note,
@@ -5549,6 +5606,37 @@ mod tests {
         let export = crate::serialize_mei_with_report(&report.score).expect("ottava exports");
         assert!(export.diagnostics.is_empty(), "{:?}", export.diagnostics);
         check(&parse_mei(&export.output).expect("ottava reparses"));
+    }
+
+    #[test]
+    fn verovio_output_forms_import_empty_title_tie_space_and_mrest() {
+        // Shapes Verovio writes when it re-encodes MEI or converts MusicXML.
+        let xml = r##"<mei meiversion="6.0-dev"><meiHead><fileDesc><titleStmt><title /></titleStmt></fileDesc></meiHead><music><body><mdiv><score><scoreDef keysig="0" meter.count="2" meter.unit="4"><staffGrp><staffDef n="1" clef.shape="G" clef.line="2"/></staffGrp></scoreDef><section><measure n="1"><staff n="1"><layer n="1"><space dur="4"/><chord xml:id="c" dur="4"><note xml:id="c1" pname="c" oct="5"/><note xml:id="c2" pname="e" oct="5"/></chord></layer></staff><dynam staff="1" startid="#c">p</dynam><tie startid="#c1" endid="#d1"/></measure><measure n="2"><staff n="1"><layer n="1"><note xml:id="d1" pname="c" oct="5" dur="4"><verse n="1"><syl>la</syl></verse></note><rest dur="4"/></layer></staff></measure><measure n="3"><staff n="1"><layer n="1"><mRest xml:id="m3"/></layer></staff><fermata staff="1" startid="#m3"/></measure></section></score></mdiv></body></music></mei>"##;
+        let report = parse_mei_with_report(xml).expect("Verovio forms parse");
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let staff = &report.score.parts[0].staves[0];
+        let first = &staff.measures[0].voices[0];
+        assert!(first[0].is_rest);
+        assert!(first[1].tie_start);
+        assert_eq!(first[1].dynamic, Some(Dynamic::P));
+        let second = &staff.measures[1].voices[0][0];
+        assert!(second.tie_end);
+        assert_eq!(
+            second.lyric.as_ref().map(|lyric| lyric.text.as_str()),
+            Some("la")
+        );
+        let rest = &staff.measures[2].voices[0];
+        assert_eq!(rest.len(), 1);
+        assert!(rest[0].is_plain_whole_rest());
+        assert_eq!(rest[0].articulations, vec![Articulation::Fermata]);
+        assert_eq!(staff.measures[2].multi_rest_count, None);
+        let serialized = serialize_mei(&report.score).expect("Verovio forms export");
+        assert!(serialized.contains("<mRest xml:id="));
+        let restored = parse_mei(&serialized).expect("Verovio forms reparse");
+        let restored_rest = &restored.parts[0].staves[0].measures[2].voices[0];
+        assert_eq!(restored_rest.len(), 1);
+        assert!(restored_rest[0].is_plain_whole_rest());
+        assert_eq!(restored_rest[0].articulations, vec![Articulation::Fermata]);
     }
 
     #[test]
