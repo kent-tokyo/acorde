@@ -7,10 +7,10 @@
 
 use crate::{Diagnostic, Error, ImportReport};
 use acorde_core::{
-    Articulation, Barline, ChordBarre, ChordDefinition, ChordDefinitionMember, ChordDegree,
-    BeamState, ChordSymbol, Clef, Duration, Dynamic, FiguredBassFigure, HairpinKind, KeySignature, Measure,
-    Note, NoteAddr, OttavaKind, Part, PartGroup, PartGroupSymbol, Pitch, Score, Staff, StaffGroup,
-    Step, StyledText, TextStyle, TimeSignature, TupletInfo,
+    Articulation, Barline, BeamState, ChordBarre, ChordDefinition, ChordDefinitionMember,
+    ChordDegree, ChordSymbol, Clef, Duration, Dynamic, FiguredBassFigure, HairpinKind,
+    KeySignature, Measure, Note, NoteAddr, OttavaKind, Part, PartGroup, PartGroupSymbol, Pitch,
+    Score, Staff, StaffGroup, Step, StyledText, TextStyle, TimeSignature, TupletInfo,
 };
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
@@ -3482,51 +3482,6 @@ fn append_mei_note(out: &mut String, note: &Note, id: &str) -> Result<(), Error>
     Ok(())
 }
 
-fn append_mei_ottava_spans(
-    out: &mut String,
-    voice: &[Note],
-    number: u32,
-    staff_index: usize,
-    voice_index: usize,
-) {
-    for (start_index, note) in voice.iter().enumerate() {
-        let Some(kind) = note.ottava_start else {
-            continue;
-        };
-        let Some(end_index) = voice
-            .iter()
-            .enumerate()
-            .skip(start_index)
-            .find_map(|(index, note)| note.ottava_end.then_some(index))
-        else {
-            continue;
-        };
-        let start_id = format!(
-            "n{}_{}_{}_{}",
-            number,
-            staff_index + 1,
-            voice_index + 1,
-            start_index + 1
-        );
-        let end_id = format!(
-            "n{}_{}_{}_{}",
-            number,
-            staff_index + 1,
-            voice_index + 1,
-            end_index + 1
-        );
-        out.push_str(&format!(
-            "<octave startid=\"#{start_id}\" endid=\"#{end_id}\" dis=\"{}\" dis.place=\"{}\"/>",
-            kind.musicxml_size(),
-            if kind.musicxml_type() == "up" {
-                "above"
-            } else {
-                "below"
-            }
-        ));
-    }
-}
-
 /// Find the note that closes a span opened at (`measure_index`, `voice_index`, `note_index`),
 /// searching forward in the same staff and voice across measure boundaries. The opening note
 /// itself is accepted only when no later note closes the span.
@@ -3620,6 +3575,19 @@ fn append_mei_control_events(out: &mut String, staves: &[Staff], measure_index: 
                     out.push_str(&format!(
                         "<slur staff=\"{n}\" startid=\"#{start_id}\" endid=\"#{}\"/>",
                         id_at(end_measure, voice_index, end_note)
+                    ));
+                }
+                if let Some(kind) = note.ottava_start
+                    && let Some((end_measure, end_note)) =
+                        mei_span_end(staff, measure_index, voice_index, note_index, |note| {
+                            note.ottava_end
+                        })
+                {
+                    out.push_str(&format!(
+                        "<octave staff=\"{n}\" startid=\"#{start_id}\" endid=\"#{}\" dis=\"{}\" dis.place=\"{}\"/>",
+                        id_at(end_measure, voice_index, end_note),
+                        kind.musicxml_size(),
+                        if kind.musicxml_type() == "up" { "above" } else { "below" }
                     ));
                 }
                 if note.pedal_start
@@ -4137,7 +4105,6 @@ fn append_mei_measure_staves(
                     out.push_str(if is_tuplet { "</tuplet>" } else { "</beam>" });
                 }
             }
-            append_mei_ottava_spans(out, voice, number, staff_index, voice_index);
             out.push_str("</layer>");
         }
         if let Some(count) = measure.multi_rest_count {
@@ -4484,8 +4451,18 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                             ),
                             ("tab_position", note.tab_position.is_some()),
                             ("tab_positions", !note.tab_positions.is_empty()),
-                            ("ottava_start", note.ottava_start.is_some()),
-                            ("ottava_end", note.ottava_end),
+                            (
+                                "ottava_start",
+                                note.ottava_start.is_some()
+                                    && mei_span_end(
+                                        staff,
+                                        measure_index,
+                                        voice_index,
+                                        note_index,
+                                        |note| note.ottava_end,
+                                    )
+                                    .is_none(),
+                            ),
                             (
                                 "pedal_start",
                                 note.pedal_start
@@ -5387,8 +5364,27 @@ mod tests {
         let serialized = serialize_mei(&report.score).expect("beams serialize");
         assert_eq!(serialized.matches("<tuplet ").count(), 1, "{serialized}");
         assert_eq!(serialized.matches("<beam>").count(), 2);
-        assert!(serialized.contains("<beam><tuplet num=\"3\" numbase=\"2\">") || serialized.contains("<tuplet num=\"3\" numbase=\"2\"><beam>"));
+        assert!(
+            serialized.contains("<beam><tuplet num=\"3\" numbase=\"2\">")
+                || serialized.contains("<tuplet num=\"3\" numbase=\"2\"><beam>")
+        );
         check(&parse_mei(&serialized).expect("beams reparse"));
+    }
+
+    #[test]
+    fn cross_measure_ottava_round_trips_without_loss() {
+        let xml = r##"<mei><music><body><mdiv><score><scoreDef meter.count="1" meter.unit="4"><staffGrp><staffDef n="1" clef.shape="G" clef.line="2"/></staffGrp></scoreDef><section><measure n="1"><staff n="1"><layer n="1"><note xml:id="a" pname="c" oct="6" dur="4"/></layer></staff><octave staff="1" startid="#a" endid="#b" dis="8" dis.place="above"/></measure><measure n="2"><staff n="1"><layer n="1"><note xml:id="b" pname="d" oct="6" dur="4"/></layer></staff></measure></section></score></mdiv></body></music></mei>"##;
+        let report = parse_mei_with_report(xml).expect("ottava parses");
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let check = |score: &Score| {
+            let staff = &score.parts[0].staves[0];
+            assert!(staff.measures[0].voices[0][0].ottava_start.is_some());
+            assert!(staff.measures[1].voices[0][0].ottava_end);
+        };
+        check(&report.score);
+        let export = crate::serialize_mei_with_report(&report.score).expect("ottava exports");
+        assert!(export.diagnostics.is_empty(), "{:?}", export.diagnostics);
+        check(&parse_mei(&export.output).expect("ottava reparses"));
     }
 
     #[test]
