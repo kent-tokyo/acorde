@@ -16,6 +16,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   with room for its dots, and an end-start repeat barline has dots on both sides. Every system
   after the first shows its first bar number above the clef. Rolled chords (`arpeggiate`)
   get a wavy line left of the chord, with an arrowhead for a downward roll, and space for it.
+- MusicXML `<ending>` starts written with their text (`<ending …>1.</ending>`, as MuseScore and
+  Finale write them) were ignored, so most first and second endings lost their start (22 of 165
+  imported in the music21 corpus; now all 165), and a one-bar ending became only an end.
 - **Ottava lines.** MusicXML `octave-shift` directions were read the wrong way round: `down`
   (notes displayed an octave below their pitch, an 8va) became an 8vb, and export wrote the
   mirror image, so interchange with MuseScore, Verovio and other tools flipped every octave

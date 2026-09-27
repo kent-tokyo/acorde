@@ -500,6 +500,14 @@ pub(crate) fn parse_musicxml_collecting(
                     "degree-alter" if in_harmony_degree => {}
                     "degree-type" if in_harmony_degree => {}
                     "work" => in_work = true,
+                    // An ending with its printed text (`<ending …>1.</ending>`) is not empty.
+                    "ending" if in_barline => apply_musicxml_ending(
+                        &mut score,
+                        part_index,
+                        &barline_location,
+                        attr_str(e, b"number"),
+                        attr_str(e, b"type"),
+                    ),
                     "barline" => {
                         in_barline = true;
                         barline_location =
@@ -1149,25 +1157,13 @@ pub(crate) fn parse_musicxml_collecting(
                         }
                         _ => {}
                     },
-                    "ending" if in_barline => {
-                        let ending_num: u8 = attr_str(e, b"number")
-                            .and_then(|s| s.parse().ok())
-                            .unwrap_or(1);
-                        let ending_type = attr_str(e, b"type").unwrap_or_default();
-                        let kind = match ending_type.as_str() {
-                            "start" if barline_location == "left" => "begin",
-                            "stop" | "discontinue" => "end",
-                            _ => "mid",
-                        };
-                        if let Some(pi) = part_index
-                            && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
-                        {
-                            m.volta = Some(VoltaBracket {
-                                number: ending_num,
-                                kind: kind.to_string(),
-                            });
-                        }
-                    }
+                    "ending" if in_barline => apply_musicxml_ending(
+                        &mut score,
+                        part_index,
+                        &barline_location,
+                        attr_str(e, b"number"),
+                        attr_str(e, b"type"),
+                    ),
                     "segno" if in_direction_type => pending_navigation = Some("Segno".to_string()),
                     "coda" if in_direction_type => pending_navigation = Some("Coda".to_string()),
                     "sound" if in_direction => {
@@ -2990,6 +2986,37 @@ fn words_to_navigation(text: &str) -> Option<String> {
         "Fine" => Some("Fine".into()),
         "To Coda" | "To \u{2295}" => Some("ToCoda".into()),
         _ => None,
+    }
+}
+
+/// Record a MusicXML `<ending>` on the part's current bar: a start at the left barline
+/// begins a volta, a stop or discontinue ends one, and both in one bar make a one-bar volta.
+fn apply_musicxml_ending(
+    score: &mut Score,
+    part_index: Option<usize>,
+    barline_location: &str,
+    number: Option<String>,
+    ending_type: Option<String>,
+) {
+    let ending_num: u8 = number
+        .and_then(|value| value.split(',').next()?.trim().parse().ok())
+        .unwrap_or(1);
+    let kind = match ending_type.as_deref().unwrap_or_default() {
+        "start" if barline_location == "left" => "begin",
+        "stop" | "discontinue" => "end",
+        _ => "mid",
+    };
+    if let Some(pi) = part_index
+        && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
+    {
+        let kind = match (m.volta.as_ref(), kind) {
+            (Some(open), "end") if open.kind == "begin" && open.number == ending_num => "begin_end",
+            _ => kind,
+        };
+        m.volta = Some(VoltaBracket {
+            number: ending_num,
+            kind: kind.to_string(),
+        });
     }
 }
 

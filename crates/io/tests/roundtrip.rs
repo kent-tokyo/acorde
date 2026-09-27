@@ -4393,3 +4393,44 @@ fn musicxml_octave_shift_down_is_an_8va() {
         Some(acorde_core::OttavaKind::Va8)
     );
 }
+
+#[test]
+fn musicxml_endings_with_text_and_one_bar_endings_are_imported() {
+    let bar = |number: u32, left: &str, right: &str| {
+        format!(
+            "<measure number=\"{number}\">{left}<note><pitch><step>C</step><octave>5</octave></pitch><duration>4</duration><voice>1</voice><type>whole</type></note>{right}</measure>"
+        )
+    };
+    let body = [
+        bar(1, "", ""),
+        bar(
+            2,
+            "<barline location=\"left\"><ending number=\"1\" type=\"start\">1.</ending></barline>",
+            "<barline location=\"right\"><bar-style>light-heavy</bar-style><ending number=\"1\" type=\"stop\"/><repeat direction=\"backward\"/></barline>",
+        ),
+        bar(
+            3,
+            "<barline location=\"left\"><ending number=\"2\" type=\"start\">2.</ending></barline>",
+            "<barline location=\"right\"><ending number=\"2\" type=\"discontinue\"/></barline>",
+        ),
+    ]
+    .concat();
+    let xml = format!(
+        r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>V</part-name></score-part></part-list><part id="P1"><attributes><divisions>1</divisions></attributes>{body}</part></score-partwise>"#
+    )
+    .replacen(
+        "<measure number=\"1\">",
+        "<measure number=\"1\"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>",
+        1,
+    )
+    .replacen("<attributes><divisions>1</divisions></attributes><measure", "<measure", 1);
+    let score = parse_musicxml(&xml).expect("parses");
+    let voltas: Vec<_> = score.parts[0].staves[0]
+        .measures
+        .iter()
+        .map(|measure| measure.volta.as_ref().map(|v| (v.number, v.kind.clone())))
+        .collect();
+    assert_eq!(voltas[0], None);
+    assert_eq!(voltas[1], Some((1, "begin_end".to_string())));
+    assert_eq!(voltas[2], Some((2, "begin_end".to_string())));
+}

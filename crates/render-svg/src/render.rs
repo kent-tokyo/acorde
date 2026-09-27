@@ -356,8 +356,10 @@ pub(crate) fn build_svg_with_metadata(
             .map(|state| state.clef.clone())
             .collect();
         let mut mx = left_margin_u * space + header_width_u * space;
-        // Where the current system's volta segment starts, and whether it opens there.
-        let mut volta_start_x: Option<(f32, bool)> = None;
+        // Where the current system's volta segment starts, with its number if it opens there,
+        // and the finished segments (start, end, number, closing hook).
+        let mut volta_start: Option<(f32, Option<u8>)> = None;
+        let mut volta_segments: Vec<(f32, f32, Option<u8>, bool)> = Vec::new();
         for (col, &measure_idx) in row.measure_indices.iter().enumerate() {
             let mwidth = measure_widths[col];
             for (si_idx, &(pi, si)) in staff_refs.iter().enumerate() {
@@ -469,73 +471,74 @@ pub(crate) fn build_svg_with_metadata(
                 );
             }
             // Volta brackets over the top staff: opened with their number, closed with a
-            // hook at an ending's last bar, carried unlabelled into the next system.
-            let volta_y = system_top_y - 2.4 * space;
+            // hook at an ending's last bar, carried unlabelled into the next system. Drawn
+            // once the system's notes are placed, clear of the highest of them.
             let begins = measure
                 .volta
                 .as_ref()
                 .filter(|volta| matches!(volta.kind.as_str(), "begin" | "begin_end"));
             if let Some(volta) = begins {
                 open_volta = Some(volta.number);
-                volta_start_x = Some((mx + 0.2 * space, true));
-                let _ = write!(
-                    body,
-                    r#"<text class="acorde-volta-number" x="{}" y="{}" font-family="serif" font-size="{}">{}.</text>"#,
-                    f(mx + 0.5 * space),
-                    f(volta_y + 1.3 * space),
-                    f(1.3 * space),
-                    volta.number
-                );
+                volta_start = Some((mx + 0.2 * space, Some(volta.number)));
             } else if col == 0 && open_volta.is_some() {
-                volta_start_x = Some((mx, false));
+                volta_start = Some((mx, None));
             }
             let ends = measure
                 .volta
                 .as_ref()
                 .is_some_and(|volta| matches!(volta.kind.as_str(), "end" | "begin_end"));
             let row_ends = col + 1 == row.measure_indices.len();
-            if let Some((start_x, hooked)) = volta_start_x
+            if let Some((start_x, label)) = volta_start
                 && (ends || row_ends)
             {
-                let end_x = mx + mwidth - 0.2 * space;
-                let hook = |x: f32| {
-                    format!(
-                        r#" M {} {} L {} {}"#,
-                        f(x),
-                        f(volta_y + 1.8 * space),
-                        f(x),
-                        f(volta_y)
-                    )
-                };
-                let left = if hooked {
-                    hook(start_x)
-                } else {
-                    format!(" M {} {}", f(start_x), f(volta_y))
-                };
-                let right = if ends {
-                    format!(
-                        " L {} {} L {} {}",
-                        f(end_x),
-                        f(volta_y),
-                        f(end_x),
-                        f(volta_y + 1.8 * space)
-                    )
-                } else {
-                    format!(" L {} {}", f(end_x), f(volta_y))
-                };
-                let _ = write!(
-                    body,
-                    r#"<path class="acorde-volta" d="{}{}" fill="none" stroke="black" stroke-width="{}"/>"#,
-                    left.trim_start(),
-                    right,
-                    f(0.1 * space)
-                );
-                volta_start_x = None;
+                volta_segments.push((start_x, mx + mwidth - 0.2 * space, label, ends));
+                volta_start = None;
                 if ends {
                     open_volta = None;
                 }
             }
             mx += mwidth;
+        }
+        if let Some(&(top_part, top_staff)) = staff_refs.first() {
+            for (start_x, end_x, label, closes) in volta_segments {
+                // Clear the top staff's notes under the bracket (their anchors plus a stem).
+                let highest_note = note_points
+                    .iter()
+                    .filter(|(key, point)| {
+                        key.0 == top_part
+                            && key.1 == top_staff
+                            && point.3 == row_idx
+                            && point.0 >= start_x - space
+                            && point.0 <= end_x + space
+                    })
+                    .map(|(_, point)| point.1 - 3.8 * space)
+                    .fold(f32::INFINITY, f32::min);
+                let y = (system_top_y - 2.4 * space).min(highest_note);
+                let hook = 1.8 * space;
+                let mut d = if label.is_some() {
+                    format!("M {} {} L {} {}", f(start_x), f(y + hook), f(start_x), f(y))
+                } else {
+                    format!("M {} {}", f(start_x), f(y))
+                };
+                let _ = write!(d, " L {} {}", f(end_x), f(y));
+                if closes {
+                    let _ = write!(d, " L {} {}", f(end_x), f(y + hook));
+                }
+                let _ = write!(
+                    body,
+                    r#"<path class="acorde-volta" d="{d}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                    f(0.1 * space)
+                );
+                if let Some(number) = label {
+                    let _ = write!(
+                        body,
+                        r#"<text class="acorde-volta-number" x="{}" y="{}" font-family="serif" font-size="{}">{number}.</text>"#,
+                        f(start_x + 0.3 * space),
+                        f(y + 1.3 * space),
+                        f(1.3 * space)
+                    );
+                }
+            }
         }
     }
 
