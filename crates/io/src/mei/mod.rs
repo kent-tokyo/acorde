@@ -1644,6 +1644,15 @@ struct MeiNoteContext<'a> {
     chord: Option<&'a BytesStart<'static>>,
     /// True once the enclosing chord already produced its note; later members add pitches.
     chord_started: bool,
+    /// `@ppq` declared for the current staff, used to recover tuplets from `@dur.ppq`.
+    ppq: Option<u32>,
+}
+
+fn gcd(mut a: u64, mut b: u64) -> u64 {
+    while b != 0 {
+        (a, b) = (b, a % b);
+    }
+    a.max(1)
 }
 
 fn parse_mei_pitch(event: &BytesStart<'_>) -> Result<Pitch, Error> {
@@ -1691,6 +1700,7 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
         note_ids,
         chord,
         chord_started,
+        ppq,
     } = context;
     if *note_count >= MAX_MEI_NOTES {
         return Err(Error::Xml("MEI document has too many notes".into()));
@@ -1784,6 +1794,32 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
         }
     }
     note.tuplet = (*current_tuplet).clone();
+    if note.tuplet.is_none()
+        && !note.is_grace
+        && dots == 0
+        && let (Some(ppq), Some(actual)) = (
+            ppq,
+            inherited(b"dur.ppq").and_then(|value| value.trim().parse::<u64>().ok()),
+        )
+    {
+        // Encoders that drop <tuplet> (Verovio's MusicXML conversion) still give the sounding
+        // length in @dur.ppq; a ratio to the written length recovers the tuplet.
+        let (numerator, denominator) = note.duration.as_fraction();
+        let dots = u32::from(dots.min(4));
+        let nominal_scaled = u64::from(ppq) * 4 * u64::from(numerator) * ((1 << (dots + 1)) - 1);
+        let nominal_divisor = u64::from(denominator.max(1)) * (1 << dots);
+        let actual_scaled = actual * nominal_divisor;
+        if actual_scaled != nominal_scaled && actual > 0 {
+            let divisor = gcd(nominal_scaled, actual_scaled);
+            let (actual_notes, normal_notes) = (nominal_scaled / divisor, actual_scaled / divisor);
+            if (2..=32).contains(&actual_notes) && (1..=32).contains(&normal_notes) {
+                note.tuplet = Some(TupletInfo {
+                    actual_notes: actual_notes as u8,
+                    normal_notes: normal_notes as u8,
+                });
+            }
+        }
+    }
     for tie in [attr(event, b"tie"), chord.and_then(|c| attr(c, b"tie"))] {
         match tie.as_deref() {
             Some("i") => note.tie_start = true,
@@ -1908,6 +1944,10 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut current_verse: u8 = 1;
     let mut syllable_wordpos: Option<String> = None;
     let mut in_layer = false;
+    let mut open_staff_def: Option<usize> = None;
+    let mut in_score_def = false;
+    let mut staff_ppq: HashMap<usize, u32> = HashMap::new();
+    let mut score_ppq: Option<u32> = None;
     let mut direction_style: Option<(TextStyle, Option<String>, usize)> = None;
     let mut in_section = false;
     let mut pending_time_change: Option<TimeSignature> = None;
@@ -2002,6 +2042,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         }
                     }
                     b"scoreDef" if in_section => {
+                        in_score_def = !is_empty_event;
                         // A mid-piece scoreDef changes meter/key from the next measure on.
                         if let Some(time_signature) =
                             parse_meter(attr(&event, b"meter.count"), attr(&event, b"meter.unit"))
@@ -2016,6 +2057,10 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         }
                     }
                     b"scoreDef" => {
+                        in_score_def = !is_empty_event;
+                        score_ppq = attr(&event, b"ppq")
+                            .and_then(|value| value.parse::<u32>().ok())
+                            .filter(|ppq| *ppq > 0);
                         if let Some(time_signature) =
                             parse_meter(attr(&event, b"meter.count"), attr(&event, b"meter.unit"))
                         {
@@ -2091,6 +2136,15 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         while score.parts[0].staves.len() <= staff_index {
                             score.parts[0].staves.push(Staff::new(Clef::Treble));
                         }
+                        if let Some(ppq) = attr(&event, b"ppq")
+                            .and_then(|value| value.parse::<u32>().ok())
+                            .filter(|ppq| *ppq > 0)
+                        {
+                            staff_ppq.insert(staff_index, ppq);
+                        }
+                        if !is_empty_event {
+                            open_staff_def = Some(staff_index);
+                        }
                         if let Some(clef) =
                             parse_clef(attr(&event, b"clef.shape"), attr(&event, b"clef.line"))
                         {
@@ -2106,6 +2160,44 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 .and_then(|value| parse_key_signature(&value))
                         {
                             pending_key_change = Some(key_signature);
+                        }
+                    }
+                    // MEI 5 / Verovio form: <clef>, <keySig>, <meterSig> as scoreDef/staffDef
+                    // children instead of attributes.
+                    b"clef" if !in_layer && open_staff_def.is_some() => {
+                        if let (Some(staff_index), Some(clef)) = (
+                            open_staff_def,
+                            parse_clef(attr(&event, b"shape"), attr(&event, b"line")),
+                        ) {
+                            if in_section {
+                                pending_clef_changes.push((staff_index, clef));
+                            } else if let Some(staff) = score.parts[0].staves.get_mut(staff_index) {
+                                staff.clef = clef;
+                            }
+                        }
+                    }
+                    b"keySig" if !in_layer && (in_score_def || open_staff_def.is_some()) => {
+                        if let Some(key_signature) = attr(&event, b"sig")
+                            .or_else(|| attr(&event, b"keysig"))
+                            .and_then(|value| parse_key_signature(&value))
+                        {
+                            if in_section {
+                                pending_key_change = Some(key_signature);
+                            } else {
+                                score.settings.key_signature = key_signature;
+                            }
+                        }
+                    }
+                    b"meterSig" if !in_layer && (in_score_def || open_staff_def.is_some()) => {
+                        if let Some(time_signature) =
+                            parse_meter(attr(&event, b"count"), attr(&event, b"unit"))
+                        {
+                            if in_section {
+                                pending_time_change = Some(time_signature);
+                            } else {
+                                default_time_signature = time_signature.clone();
+                                score.settings.time_signature = time_signature;
+                            }
                         }
                     }
                     b"clef" if in_layer => {
@@ -2507,6 +2599,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 note_ids: &mut note_ids,
                                 chord: open_chord.as_ref(),
                                 chord_started: started,
+                                ppq: staff_ppq.get(&current_staff).copied().or(score_ppq),
                             },
                         )?;
                     }
@@ -2564,7 +2657,11 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         }
                     }
                 }
-                b"staffDef" => layout_label_in_staff_def = false,
+                b"staffDef" => {
+                    layout_label_in_staff_def = false;
+                    open_staff_def = None;
+                }
+                b"scoreDef" => in_score_def = false,
                 b"staffGrp" => {
                     if layout_root.is_none()
                         && let Some(group) = layout_stack.pop()
@@ -5773,6 +5870,32 @@ mod tests {
             restored.parts[0].staves[0].measures[0].texts,
             score.parts[0].staves[0].measures[0].texts
         );
+    }
+
+    #[test]
+    fn mei5_score_def_children_and_ppq_tuplets_import() {
+        let xml = r##"<mei meiversion="5.1"><music><body><mdiv><score><scoreDef><staffGrp><staffDef n="1" lines="5" ppq="480"><label>Cello</label><clef shape="F" line="4"/><keySig sig="2s"/><meterSig count="3" unit="4"/></staffDef></staffGrp></scoreDef><section><measure n="1"><staff n="1"><layer n="1"><note dur="8" dur.ppq="160" pname="d" oct="3"/><note dur="8" dur.ppq="160" pname="e" oct="3"/><note dur="8" dur.ppq="160" pname="f" oct="3" accid.ges="s"/><note dur="2" dur.ppq="960" pname="g" oct="3"/></layer></staff></measure><scoreDef><staffGrp><staffDef n="1"><clef shape="C" line="3"/><keySig sig="1f"/><meterSig count="2" unit="4"/></staffDef></staffGrp></scoreDef><measure n="2"><staff n="1"><layer n="1"><note dur="2" pname="c" oct="4"/></layer></staff></measure></section></score></mdiv></body></music></mei>"##;
+        let report = parse_mei_with_report(xml).expect("MEI 5 scoreDef children parse");
+        let score = &report.score;
+        assert_eq!(score.parts[0].name, "Cello");
+        assert_eq!(score.parts[0].staves[0].clef, Clef::Bass);
+        assert_eq!(score.settings.key_signature.fifths, 2);
+        assert_eq!(score.settings.time_signature.numerator, 3);
+        let first = &score.parts[0].staves[0].measures[0].voices[0];
+        let triplet = TupletInfo {
+            actual_notes: 3,
+            normal_notes: 2,
+        };
+        assert!(
+            first[..3]
+                .iter()
+                .all(|note| note.tuplet.as_ref() == Some(&triplet))
+        );
+        assert!(first[3].tuplet.is_none());
+        let second = &score.parts[0].staves[0].measures[1];
+        assert_eq!(second.clef, Some(Clef::Alto));
+        assert_eq!(second.key_sig.as_ref().map(|key| key.fifths), Some(-1));
+        assert_eq!(second.time_sig.as_ref().map(|time| time.numerator), Some(2));
     }
 
     #[test]
