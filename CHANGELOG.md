@@ -48,6 +48,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the preceding barline; music before the first `V:` stays the first voice. The corpus ABC
   round trip no longer fails on any file (4 did), and files whose barlines change drop from
   173 to 8.
+- ABC tempo changes: body `Q:` lines and inline `[Q:]` set the bar's tempo (a later `Q:` no
+  longer replaced the tune's opening tempo), in any beat unit (`3/8=40`) and with quoted text;
+  export writes each bar's tempo as `[Q:1/4=…]`.
 - **ABC voice overlays.** Voices 2–4 of a bar were not exported and `&` was not read; they are
   now written and read as ABC voice overlays. Files whose notes change in the corpus ABC round
   trip drop from 42 to 2.

@@ -353,9 +353,17 @@ fn parse_abc_header_line(line: &str, context: AbcHeaderContext<'_>) -> Result<bo
             }
         }
         "Q" => {
-            let bpm = value.split('=').next_back().unwrap_or(value);
-            if let Ok(bpm) = bpm.trim().parse::<u16>() {
-                score.settings.tempo_bpm = bpm.clamp(20, 400);
+            if let Some(bpm) = parse_abc_tempo(value) {
+                if *in_header {
+                    score.settings.tempo_bpm = bpm;
+                } else if let Some(measure) = score
+                    .parts
+                    .get_mut(*current_part_index)
+                    .and_then(|part| part.staves.first_mut())
+                    .and_then(|staff| staff.measures.last_mut())
+                {
+                    measure.tempo = Some(bpm);
+                }
             }
         }
         "K" => {
@@ -730,6 +738,13 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
                         };
                         if let Some(measure) = staff.measures.last_mut() {
                             measure.time_sig = Some(time.clone());
+                        }
+                    }
+                    "Q" => {
+                        if let (Some(bpm), Some(measure)) =
+                            (parse_abc_tempo(fval), staff.measures.last_mut())
+                        {
+                            measure.tempo = Some(bpm);
                         }
                     }
                     "K" => {
@@ -1556,6 +1571,28 @@ fn apply_abc_body_change(
     }
 }
 
+/// A `Q:` tempo in quarter-note beats per minute: `1/4=120`, `3/8=60` (converted), or `120`.
+fn parse_abc_tempo(value: &str) -> Option<u16> {
+    // Quoted text such as `"Allegro" 1/4=120` is not part of the tempo.
+    let value: String = value.split('"').step_by(2).collect::<Vec<_>>().join(" ");
+    let (beat, bpm) = match value.split_once('=') {
+        Some((beat, bpm)) => (Some(beat.trim()), bpm.trim()),
+        None => (None, value.trim()),
+    };
+    let bpm: f64 = bpm.split_whitespace().next()?.parse().ok()?;
+    let quarters = match beat {
+        Some(beat) => {
+            let (num, den) = beat.split_once('/')?;
+            let num: f64 = num.trim().parse().ok()?;
+            let den: f64 = den.trim().parse().ok()?;
+            (den > 0.0).then(|| num * 4.0 / den)?
+        }
+        None => 1.0,
+    };
+    let quarter_bpm = (bpm * quarters).round();
+    (quarter_bpm >= 1.0).then(|| quarter_bpm.clamp(1.0, 999.0) as u16)
+}
+
 /// Split a `K:`/`V:` value into the part before its properties and a `clef=` (or bare clef
 /// word) it names.
 fn split_abc_clef(value: &str) -> (String, Option<Clef>) {
@@ -1718,6 +1755,9 @@ fn write_abc_staff(out: &mut String, staff: &Staff, part_index: usize) -> Result
             out.push_str(barline_to_abc(&measure.barline_left));
         }
         // Meter and key changes after the first bar are inline fields.
+        if let Some(bpm) = measure.tempo {
+            out.push_str(&format!("[Q:1/4={bpm}]"));
+        }
         if measure_index > 0 {
             if let Some(time) = &measure.time_sig {
                 out.push_str(&format!("[M:{}/{}]", time.numerator, time.denominator));

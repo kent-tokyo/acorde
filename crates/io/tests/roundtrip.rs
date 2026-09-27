@@ -5311,3 +5311,23 @@ fn midi_places_every_bar_at_its_own_start_and_writes_key_signatures() {
     }
     assert_eq!(keys, vec![(0, 0), (1440, 2)]);
 }
+
+#[test]
+fn abc_tempo_changes_round_trip() {
+    let abc = "X:1\nM:4/4\nL:1/4\nQ:1/4=100\nK:C\nc4|[Q:3/8=40]d4|\nQ:\"Presto\" 1/2=90\ne4|\n";
+    let score = acorde_io::parse_abc(abc).expect("parses");
+    let tempos = |score: &acorde_core::Score| {
+        score.parts[0].staves[0]
+            .measures
+            .iter()
+            .map(|m| m.tempo)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(score.settings.tempo_bpm, 100);
+    assert_eq!(tempos(&score), vec![None, Some(60), Some(180)]);
+    let text = acorde_io::serialize_abc(&score).expect("exports");
+    assert_eq!(
+        tempos(&acorde_io::parse_abc(&text).expect("re-imports")),
+        tempos(&score)
+    );
+}
