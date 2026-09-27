@@ -2,6 +2,11 @@ name: Publish
 
 on:
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Version to publish when recovering a partial crates.io release"
+        required: false
+        type: string
   push:
     tags:
       - "v*"
@@ -22,14 +27,19 @@ jobs:
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
-      - name: Check tag version
+      - name: Check release version
         shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
         run: |
-          test "${GITHUB_REF_TYPE}" = "tag"
-          tag_version="${GITHUB_REF_NAME#v}"
+          if test "${GITHUB_REF_TYPE}" = "tag"; then
+            release_version="${GITHUB_REF_NAME#v}"
+          else
+            release_version="$RELEASE_VERSION"
+          fi
+          test -n "$release_version"
           workspace_version=$(sed -n 's/^version = "\([^"]*\)"$/\1/p' Cargo.toml | head -n 1)
-          test -n "$tag_version"
-          test "$tag_version" = "$workspace_version"
+          test "$release_version" = "$workspace_version"
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -50,5 +60,33 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-      - name: Publish workspace
-        run: cargo publish --workspace --locked
+      - name: Publish missing workspace crates
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          if test "${GITHUB_REF_TYPE}" = "tag"; then
+            release_version="${GITHUB_REF_NAME#v}"
+          else
+            release_version="$RELEASE_VERSION"
+          fi
+
+          publish_if_missing() {
+            local crate_name="$1"
+            if cargo info "${crate_name}@${release_version}" >/dev/null 2>&1; then
+              echo "${crate_name} ${release_version} already published"
+            else
+              cargo publish --package "$crate_name" --locked
+            fi
+          }
+
+          # Keep the dependency order explicit so a partial release can resume safely.
+          publish_if_missing acorde-core
+          publish_if_missing acorde-analysis
+          publish_if_missing acorde-io
+          publish_if_missing acorde-layout
+          publish_if_missing acorde-soundfont
+          publish_if_missing acorde-render-svg
+          publish_if_missing acorde-cli
+          publish_if_missing acorde-wasm
+          publish_if_missing acorde
