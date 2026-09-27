@@ -144,6 +144,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     // Staff data: 1-based staff ID → measures
     let mut staff_measures: HashMap<usize, Vec<Measure>> = HashMap::new();
     let mut staff_clefs: HashMap<usize, Clef> = HashMap::new();
+    // Initial clefs declared in <Part> (Staff/defaultClef, Instrument/clef): MuseScore omits the
+    // first-measure <Clef> when the staff starts with its instrument default.
+    let mut part_default_clefs: HashMap<usize, Clef> = HashMap::new();
+    let mut cur_part_staff_id: Option<usize> = None;
+    let mut instrument_clef_staff = 1usize;
+    let mut instrument_clefs: Vec<(usize, Clef)> = Vec::new();
     let mut staff_tablature: HashMap<usize, TablatureConfig> = HashMap::new();
     let mut staff_presentation_lines: HashMap<usize, u8> = HashMap::new();
 
@@ -354,6 +360,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         cur_part_staff_ids.clear();
                         cur_part_staff_count = 0;
                         cur_part_staff_group_specs.clear();
+                        cur_part_staff_id = None;
+                        instrument_clefs.clear();
+                    }
+                    "clef" if in_instrument => {
+                        instrument_clef_staff = attr_usize(e, b"staff").unwrap_or(1).max(1);
                     }
                     "Instrument" if in_part => {
                         in_instrument = true;
@@ -379,6 +390,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "Staff" if in_part => {
                         cur_part_staff_count += 1;
+                        cur_part_staff_id = attr_usize(e, b"id");
                         if let Some(id) = attr_usize(e, b"id") {
                             cur_part_staff_ids.push(id);
                         }
@@ -767,6 +779,15 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "trackName" if in_part => {
                         cur_part_name = t.to_string();
                     }
+                    "defaultClef" if in_part => {
+                        if let Some(id) = cur_part_staff_id {
+                            part_default_clefs.insert(id, mscz_clef_type(t.trim()));
+                        }
+                    }
+                    "clef" if in_instrument => {
+                        instrument_clefs.push((instrument_clef_staff, mscz_clef_type(t.trim())));
+                        instrument_clef_staff = 1;
+                    }
                     "shortName" if in_part => {
                         cur_part_short_name = t.to_string();
                     }
@@ -786,6 +807,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         in_bar_line_span = false;
                     }
                     "Part" if in_part => {
+                        for (index, clef) in instrument_clefs.drain(..) {
+                            if let Some(&id) = cur_part_staff_ids.get(index - 1) {
+                                part_default_clefs.entry(id).or_insert(clef);
+                            }
+                        }
                         parts_meta.push(PartMeta {
                             name: cur_part_name.clone(),
                             short_name: cur_part_short_name.clone(),
@@ -823,7 +849,14 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     // Measure close
                     "Measure" if in_measure => {
                         let sid = current_staff_id.unwrap_or(1);
-                        if let Some(clef) = &cur_clef_in_measure {
+                        // Only a first-measure <Clef> is the staff's initial clef; a later one is a
+                        // clef change and must not replace the Part default.
+                        let is_first_measure = staff_measures
+                            .get(&sid)
+                            .is_none_or(|measures| measures.is_empty());
+                        if let Some(clef) = &cur_clef_in_measure
+                            && is_first_measure
+                        {
                             staff_clefs.entry(sid).or_insert_with(|| clef.clone());
                         }
                         let meas = Measure {
@@ -1517,6 +1550,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
 
     if element_count == 0 {
         return Err(Error::Xml("empty document".into()));
+    }
+    for (id, clef) in part_default_clefs {
+        staff_clefs.entry(id).or_insert(clef);
     }
 
     assemble_score(

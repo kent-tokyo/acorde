@@ -3707,3 +3707,32 @@ fn mscx_measure_repeats_import_and_round_trip() {
     assert_eq!(restored[1].measure_repeat, Some(1));
     assert!(restored[1].same_sounding_content(&restored[0]));
 }
+
+#[cfg(all(feature = "mscz", feature = "mei"))]
+#[test]
+fn mscx_part_default_clefs_set_initial_staff_clefs_and_survive_mei() {
+    use acorde_core::Clef;
+    // The Lieder file has no first-measure <Clef> for "Men" or the piano left hand: their bass
+    // clefs come only from Part/Staff/defaultClef and Instrument/clef staff="2".
+    let score = acorde_io::parse_mscx(OPENSCORE_LIEDER_MSCX).expect("Lieder parses");
+    let clefs = |score: &acorde_core::Score| {
+        score
+            .parts
+            .iter()
+            .flat_map(|part| part.staves.iter().map(|staff| staff.clef.clone()))
+            .collect::<Vec<_>>()
+    };
+    let expected = vec![
+        Clef::Treble,
+        Clef::Treble,
+        Clef::Bass,
+        Clef::Treble,
+        Clef::Bass,
+    ];
+    assert_eq!(clefs(&score), expected);
+    let mei = acorde_io::serialize_mei(&score).expect("MEI export");
+    assert_eq!(
+        clefs(&acorde_io::parse_mei(&mei).expect("MEI reparse")),
+        expected
+    );
+}
