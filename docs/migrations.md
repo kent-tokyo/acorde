@@ -25,7 +25,7 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
-### Unreleased — compound dynamics, held dynamics in playback, lyric extenders
+### v1.2.12 — compound dynamics, held dynamics in playback, lyric extenders
 
 `Dynamic` gains seven variants (`Fp`, `Sfp`, `Sfpp`, `Pf`, `Sffz`, `Sfzp`, `N`) and now derives
 `Copy` and `Eq`; exhaustive matches on it need arms for them. `Lyric` gains `extend: bool`

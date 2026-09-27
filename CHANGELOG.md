@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.12] - 2026-09-27
+
 - **SVG stem directions.** A single voice drew every stem up unless the score fixed it. Stems
   left open now follow the engraving rule: notes (or a beamed group, taken together) reaching
   farther below the middle line stem up, the rest (on or above it) stem down. Authored stems,
