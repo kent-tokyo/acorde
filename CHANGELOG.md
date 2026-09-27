@@ -9,6 +9,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **MEI tempo words and words in `<dynam>`.** `<tempo>` kept its metronome value but dropped
+  its text (Allegro, Andante con moto), and a `<dynam>` holding words rather than a dynamic
+  (Verovio writes MusicXML's cresc., dim. there) was dropped whole — about half of the texts
+  in Verovio-converted corpus scores. Tempo words become the bar's tempo text and are written
+  back (with `@staff`/`@tstamp`, which Verovio draws); dynam words become expression text.
+
 - **MuseScore rehearsal marks, repeat navigation and breath marks.** MSCX import ignored
   `<RehearsalMark>`, `<Marker>` (segno, coda, fine, to coda), `<Jump>` (D.C./D.S. al Fine/al
   Coda) and `<Breath>` (breath marks, caesuras), and export reported rehearsal marks and

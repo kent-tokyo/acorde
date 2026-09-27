@@ -1956,6 +1956,11 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut in_rehearsal = false;
     let mut rehearsal_text = String::new();
     let mut in_direction = false;
+    // `<tempo>` text (Allegro…) and the staff it names; a `<dynam>` that is not a dynamic
+    // (cresc., dolce) becomes expression text on its staff.
+    let mut tempo_text_target: Option<usize> = None;
+    let mut tempo_text_buffer = String::new();
+    let mut dynam_text_target: Option<(Option<String>, usize)> = None;
     let mut direction_text = String::new();
     let mut pending_articulations: Vec<Articulation> = Vec::new();
     let mut current_tuplet: Option<TupletInfo> = None;
@@ -2444,6 +2449,11 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         current_layer = 0;
                     }
                     b"tempo" if current_measure.is_some() => {
+                        if !is_empty_event {
+                            tempo_text_buffer.clear();
+                            tempo_text_target =
+                                Some(PendingMeiAnchor::from_event(&event, current_staff, 0).staff);
+                        }
                         // `@mm` counts `@mm.unit` beats (a half note is 2, dotted with
                         // `@mm.dots`); acorde keeps quarter-note beats per minute.
                         let unit = attr(&event, b"mm.unit")
@@ -2484,6 +2494,10 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                     b"dynam" if current_measure.is_some() && !is_empty_event => {
                         in_dynamic = true;
                         dynamic_text.clear();
+                        dynam_text_target = Some((
+                            attr(&event, b"place"),
+                            PendingMeiAnchor::from_event(&event, current_staff, 0).staff,
+                        ));
                         dynam_anchor = (!in_layer)
                             .then(|| {
                                 current_measure.map(|measure| {
@@ -2810,6 +2824,9 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
             Ok(Event::Text(event)) if in_title => {
                 title.push_str(&String::from_utf8_lossy(event.as_ref()));
             }
+            Ok(Event::Text(event)) if tempo_text_target.is_some() => {
+                tempo_text_buffer.push_str(&String::from_utf8_lossy(event.as_ref()));
+            }
             Ok(Event::Text(event)) if in_dynamic => {
                 dynamic_text.push_str(&String::from_utf8_lossy(event.as_ref()));
             }
@@ -2907,8 +2924,45 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                     }
                 }
                 b"title" => in_title = false,
+                b"tempo" => {
+                    let text = tempo_text_buffer
+                        .split_whitespace()
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    if let (Some(staff), Some(measure_index)) =
+                        (tempo_text_target.take(), current_measure)
+                        && !text.is_empty()
+                        && let Some(measure) = score.parts[0]
+                            .staves
+                            .get_mut(staff)
+                            .and_then(|staff| staff.measures.get_mut(measure_index))
+                    {
+                        measure.tempo_text.get_or_insert(text);
+                    }
+                }
                 b"dynam" => {
                     let dynamic = parse_dynamic(&dynamic_text);
+                    let text = dynamic_text.trim();
+                    if dynamic.is_none()
+                        && !text.is_empty()
+                        && let (Some((placement, staff)), Some(measure_index)) =
+                            (dynam_text_target.take(), current_measure)
+                        && let Some(measure) = score.parts[0]
+                            .staves
+                            .get_mut(staff)
+                            .and_then(|staff| staff.measures.get_mut(measure_index))
+                    {
+                        // Words in a `<dynam>` (Verovio writes cresc. and dim. there).
+                        measure.texts.push(StyledText {
+                            style: TextStyle::Expression,
+                            text: text.to_string(),
+                            placement,
+                            offset_x: None,
+                            offset_y: None,
+                            relative_x: None,
+                            relative_y: None,
+                        });
+                    }
                     match (dynam_anchor.take(), dynamic) {
                         (Some(anchor), Some(dynamic)) => pending_dynams.push((anchor, dynamic)),
                         (_, dynamic) => pending_dynamic = dynamic,
@@ -5390,11 +5444,27 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
             }
         }
         out.push('>');
-        if let Some(bpm) = staves
+        let bpm = staves
             .iter()
-            .find_map(|staff| staff.measures.get(measure_index).and_then(|m| m.tempo))
-        {
-            out.push_str(&format!("<tempo mm=\"{bpm}\"/>"));
+            .find_map(|staff| staff.measures.get(measure_index).and_then(|m| m.tempo));
+        let tempo_text = staves.iter().find_map(|staff| {
+            staff
+                .measures
+                .get(measure_index)
+                .and_then(|m| m.tempo_text.as_deref())
+        });
+        // A tempo mark on the first staff at the bar's start: its words and metronome value.
+        match (bpm, tempo_text) {
+            (Some(bpm), Some(text)) => out.push_str(&format!(
+                "<tempo staff=\"1\" tstamp=\"1\" mm=\"{bpm}\" mm.unit=\"4\">{}</tempo>",
+                escape(text)
+            )),
+            (Some(bpm), None) => out.push_str(&format!("<tempo mm=\"{bpm}\"/>")),
+            (None, Some(text)) => out.push_str(&format!(
+                "<tempo staff=\"1\" tstamp=\"1\">{}</tempo>",
+                escape(text)
+            )),
+            (None, None) => {}
         }
         for text in staves
             .iter()
@@ -5613,7 +5683,6 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                 );
                 for (field, present) in [
                     ("volta", measure.volta.is_some()),
-                    ("tempo_text", measure.tempo_text.is_some()),
                     ("rehearsal", false),
                     ("navigation", measure.navigation.is_some()),
                     ("expression_text", false),
@@ -6276,6 +6345,30 @@ mod tests {
         let restored = parse_mei(&xml).expect("serialized MEI parses");
         assert_eq!(restored.metadata.title, score.metadata.title);
         assert_eq!(restored.parts[0].staves[0].measures[0].voices[0].len(), 2);
+    }
+
+    #[test]
+    fn tempo_words_and_dynam_words_are_kept() {
+        let xml = FIXTURE.replace(
+            "</staff></measure>",
+            r#"</staff><tempo staff="1" tstamp="1" midi.bpm="132"><rend fontweight="bold">Allegro</rend> con brio</tempo><dynam staff="1" tstamp="1" place="below"><rend fontstyle="italic">cresc.</rend></dynam></measure>"#,
+        );
+        let report = parse_mei_with_report(&xml).expect("parses");
+        let measure = &report.score.parts[0].staves[0].measures[0];
+        assert_eq!(measure.tempo, Some(132));
+        assert_eq!(measure.tempo_text.as_deref(), Some("Allegro con brio"));
+        assert!(
+            measure
+                .texts
+                .iter()
+                .any(|text| text.style == TextStyle::Expression && text.text == "cresc.")
+        );
+        let written = serialize_mei(&report.score).expect("serializes");
+        assert!(written.contains(">Allegro con brio</tempo>"));
+        let back = parse_mei(&written).expect("reparses");
+        let measure = &back.parts[0].staves[0].measures[0];
+        assert_eq!(measure.tempo, Some(132));
+        assert_eq!(measure.tempo_text.as_deref(), Some("Allegro con brio"));
     }
 
     #[test]
