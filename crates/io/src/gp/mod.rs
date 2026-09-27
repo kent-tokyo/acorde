@@ -9,9 +9,10 @@
 
 use crate::{Diagnostic, Error, ImportReport, REPORT_SCHEMA_VERSION};
 use acorde_core::{
-    Articulation, Barline, Clef, Duration, Dynamic, GuitarBendPoint, GuitarTechnique, KeySignature,
-    Lyric, Measure, MeasureLength, Note, NoteHead, Part, Pitch, Score, Staff, Step, StyledText,
-    TabPosition, TablatureConfig, TextStyle, TimeSignature, TupletInfo, VoltaBracket,
+    Articulation, Barline, BeamState, Clef, Duration, Dynamic, GuitarBendPoint, GuitarTechnique,
+    KeySignature, Lyric, Measure, MeasureLength, Note, NoteHead, Part, Pitch, Score, Staff,
+    StaffKind, Step, StyledText, TabPosition, TablatureConfig, TextStyle, TimeSignature,
+    TupletInfo, VoltaBracket, compute_beams,
 };
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
@@ -463,6 +464,10 @@ pub fn parse_gpif(xml: &str) -> Result<(Score, Vec<Diagnostic>), Error> {
                     tuning_midi: tuning.clone(),
                     capo,
                 });
+                staff.presentation.kind = StaffKind::Tablature;
+                staff.presentation.lines = tuning.len() as u8;
+            } else if drums {
+                staff.presentation.kind = StaffKind::Percussion;
             }
             part.staves.push(staff);
             staff_infos.push((part_index, StaffInfo { tuning, capo }));
@@ -1201,6 +1206,15 @@ fn finish_measures(score: &mut Score, master_bars: &[&Node]) {
                 let filled = acorde_core::voice_duration_beats(&measure.voices[0], target);
                 if filled + 1e-9 < target {
                     pad_with_rests(&mut measure.voices[0], target - filled);
+                }
+                // Guitar Pro beams automatically by beat; GPIF stores no groups for that default.
+                for voice in &mut measure.voices {
+                    if voice.iter().all(|note| note.beam == BeamState::None) {
+                        let beams = compute_beams(voice, &times[measure_index]);
+                        for (note, beam) in voice.iter_mut().zip(beams) {
+                            note.beam = beam;
+                        }
+                    }
                 }
             }
         }
