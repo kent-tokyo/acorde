@@ -2869,3 +2869,33 @@ fn a_clef_change_inside_a_row_is_drawn_and_moves_the_notes() {
     assert_eq!(head_y(&plain, 1), head_y(&plain, 0));
     assert!(head_y(&changed, 1) < head_y(&changed, 0));
 }
+
+#[test]
+fn cross_staff_notes_are_drawn_on_their_target_staff() {
+    use acorde_core::{Clef, CrossStaff, Duration, Note, Pitch, Score, Staff, Step};
+
+    let mut score = Score::new("cross", 120, 4, 4, 0, 1);
+    let mut lower = Staff::new(Clef::Bass);
+    lower.measures = score.parts[0].staves[0].measures.clone();
+    lower.measures[0].voices[0] = vec![Note::new(Pitch::new(Step::C, 3), Duration::Whole)];
+    score.parts[0].staves.push(lower);
+    let mut crossing = Note::new(Pitch::new(Step::C, 3), Duration::Whole);
+    crossing.cross_staff = Some(CrossStaff {
+        target_staff: 1,
+        target_voice: None,
+    });
+    score.parts[0].staves[0].measures[0].voices[0] = vec![crossing];
+    let svg =
+        acorde_render_svg::render_svg(&score, &acorde_render_svg::SvgRenderOptions::default())
+            .expect("renders");
+    let head_y = |index: usize| -> f32 {
+        svg.split("class=\"acorde-notehead\"")
+            .nth(index + 1)
+            .and_then(|rest| rest.split("cy=\"").nth(1))
+            .and_then(|rest| rest.split('"').next())
+            .and_then(|value| value.parse().ok())
+            .expect("notehead y")
+    };
+    // The C3 written across sits exactly where the lower staff's own C3 does.
+    assert_eq!(head_y(0), head_y(1));
+}

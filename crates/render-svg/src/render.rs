@@ -380,6 +380,21 @@ pub(crate) fn build_svg_with_metadata(
                     row_clefs[si_idx] = change.clone();
                 }
                 let clef = &row_clefs[si_idx];
+                // Where this part's other staves sit, for notes written across to them.
+                let mut cross_frames: HashMap<usize, (i32, f32)> = HashMap::new();
+                for (other_idx, &(other_pi, other_si)) in staff_refs.iter().enumerate() {
+                    if other_pi == pi && other_si != si && row_staff_visible[other_idx] {
+                        if let Ok(bottom_line) = geometry::clef_bottom_line(&row_clefs[other_idx]) {
+                            cross_frames.insert(
+                                other_si,
+                                (
+                                    bottom_line,
+                                    staff_y[other_idx] + staff_heights_u[other_idx] * space,
+                                ),
+                            );
+                        }
+                    }
+                }
                 render_measure(
                     &mut body,
                     score,
@@ -393,6 +408,7 @@ pub(crate) fn build_svg_with_metadata(
                     bottom_y,
                     mwidth,
                     clef_lead_u,
+                    &cross_frames,
                     space,
                     options.interactive,
                     &mandatory,
@@ -2519,6 +2535,7 @@ fn render_measure(
     bottom_y: f32,
     width: f32,
     clef_lead_u: f32,
+    cross_frames: &HashMap<usize, (i32, f32)>,
     space: f32,
     interactive: bool,
     mandatory: &HashMap<AccKey, i8>,
@@ -2629,6 +2646,7 @@ fn render_measure(
                 clef,
                 clef_bottom,
                 bottom_y,
+                cross_frames,
                 space,
                 interactive,
                 mandatory,
@@ -2963,6 +2981,7 @@ fn render_measure_voice<'a>(
     clef: &Clef,
     clef_bottom: i32,
     bottom_y: f32,
+    cross_frames: &HashMap<usize, (i32, f32)>,
     space: f32,
     interactive: bool,
     mandatory: &HashMap<AccKey, i8>,
@@ -3022,6 +3041,7 @@ fn render_measure_voice<'a>(
         up,
         clef_bottom,
         bottom_y,
+        cross_frames,
         space,
     );
     render_measure_voice_notes(
@@ -3037,6 +3057,7 @@ fn render_measure_voice<'a>(
             clef,
             clef_bottom,
             bottom_y,
+            cross_frames,
             space,
             voice_stem_up: up,
             beam_tips: &beam_tips,
@@ -3087,6 +3108,7 @@ struct VoiceNotesRenderContext<'a> {
     clef: &'a Clef,
     clef_bottom: i32,
     bottom_y: f32,
+    cross_frames: &'a HashMap<usize, (i32, f32)>,
     space: f32,
     voice_stem_up: bool,
     beam_tips: &'a HashMap<usize, f32>,
@@ -3114,6 +3136,7 @@ fn render_measure_voice_notes(
         clef,
         clef_bottom,
         bottom_y,
+        cross_frames,
         space,
         voice_stem_up,
         beam_tips,
@@ -3145,6 +3168,10 @@ fn render_measure_voice_notes(
             original_note
         };
         let stem_up = note.stem_up.unwrap_or(*voice_stem_up);
+        // A cross-staff note is drawn on the staff it is written across to.
+        let (clef_bottom, bottom_y) =
+            note_staff_frame(note, (*clef_bottom, *bottom_y), cross_frames);
+        let (clef_bottom, bottom_y) = (&clef_bottom, &bottom_y);
         let point_y = note_anchor_y(note, *clef_bottom, stem_up, *bottom_y, *space, *tablature);
         note_points.insert(
             (*part, *staff, *measure_idx, *voice_idx, note_idx),
@@ -3467,6 +3494,20 @@ fn render_cross_measure_lyric_hyphens(
 /// Beam membership comes exclusively from `acorde-layout`; keeping this adapter separate from
 /// note emission prevents the renderer from accidentally re-inferring rhythmic grouping.
 #[allow(clippy::too_many_arguments)]
+/// The clef position and staff bottom a note is drawn against: its own staff's, or the
+/// target staff's for a cross-staff note whose target is shown in this system.
+fn note_staff_frame(
+    note: &Note,
+    own: (i32, f32),
+    cross_frames: &HashMap<usize, (i32, f32)>,
+) -> (i32, f32) {
+    note.cross_staff
+        .as_ref()
+        .and_then(|cross| cross_frames.get(&cross.target_staff))
+        .copied()
+        .unwrap_or(own)
+}
+
 fn plan_measure_beams(
     layout: &LayoutResult,
     part: usize,
@@ -3478,6 +3519,7 @@ fn plan_measure_beams(
     up: bool,
     clef_bottom: i32,
     bottom_y: f32,
+    cross_frames: &HashMap<usize, (i32, f32)>,
     space: f32,
 ) -> (HashMap<usize, f32>, String) {
     let mut beam_tips = HashMap::new();
@@ -3506,6 +3548,8 @@ fn plan_measure_beams(
         let attach_ys: Vec<f32> = valid_indices
             .iter()
             .map(|&i| {
+                let (clef_bottom, bottom_y) =
+                    note_staff_frame(&notes[i], (clef_bottom, bottom_y), cross_frames);
                 note_attach_y(&notes[i], clef_bottom, group_stem_up, bottom_y, space)
                     + note_placement_offsets_u(&notes[i]).1 * space
             })
