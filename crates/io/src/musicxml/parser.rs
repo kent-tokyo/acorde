@@ -94,11 +94,16 @@ fn parse_spanner_number(value: Option<String>) -> Result<u16, Error> {
     }
 }
 
+/// How far a measure's content may run past its time signature (cadenzas, un-barred passages)
+/// before the input is treated as corrupt.
+const MAX_OVERFULL_FACTOR: u32 = 16;
+
 fn apply_spanner_event(
     score: &mut Score,
     open_spanners: &mut HashMap<(NotationSpannerKind, u16), Vec<OpenSpanner>>,
     event: ParsedSpannerEvent,
     address: NoteAddr,
+    tolerated: &mut Vec<crate::Diagnostic>,
 ) -> Result<(), Error> {
     let key = (event.kind.clone(), event.number);
     match event.action {
@@ -112,15 +117,27 @@ fn apply_spanner_event(
             });
         }
         SpannerAction::Stop => {
-            let open = open_spanners
-                .get_mut(&key)
-                .and_then(Vec::pop)
-                .ok_or_else(|| {
-                    Error::Xml(format!(
-                        "orphan MusicXML {:?} spanner stop number {}",
+            // A stop with no open start (common in real files) is dropped and reported rather
+            // than failing the whole import, as MuseScore does.
+            let Some(open) = open_spanners.get_mut(&key).and_then(Vec::pop) else {
+                let mut diagnostic = crate::Diagnostic::warning(
+                    "musicxml.orphan-spanner-stop",
+                    format!(
+                        "{:?} stop number {} has no matching start and is ignored",
                         event.kind, event.number
-                    ))
-                })?;
+                    ),
+                );
+                diagnostic.source_location = Some(format!(
+                    "/score/part/{}/staff/{}/measure/{}/voice/{}/note/{}",
+                    address.part + 1,
+                    address.staff + 1,
+                    address.measure + 1,
+                    address.voice + 1,
+                    address.note + 1
+                ));
+                tolerated.push(diagnostic);
+                return Ok(());
+            };
             if open_spanners.get(&key).is_some_and(Vec::is_empty) {
                 open_spanners.remove(&key);
             }
@@ -158,6 +175,16 @@ fn apply_spanner_event(
 }
 
 pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
+    parse_musicxml_collecting(xml, &mut Vec::new())
+}
+
+/// Parse MusicXML, recording recoverable source problems (orphan spanner stops, overfull
+/// measures, backups past the measure start, chord members on another staff) in `tolerated`
+/// instead of failing.
+pub(crate) fn parse_musicxml_collecting(
+    xml: &str,
+    tolerated: &mut Vec<crate::Diagnostic>,
+) -> Result<Score, Error> {
     if xml.len() > MAX_MUSICXML_BYTES {
         return Err(Error::TooLarge(xml.len()));
     }
@@ -986,14 +1013,12 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                         ottava_size: Some(shift_size),
                                     },
                                     address,
+                                    tolerated,
                                 )?;
-                                let ottava_type =
-                                    open_ottava_types.remove(&number).ok_or_else(|| {
-                                        Error::Xml(format!(
-                                            "orphan MusicXML octave-shift stop number {number}"
-                                        ))
-                                    })?;
-                                if let Some(spanner) = score.spanners.last_mut() {
+                                // An orphan stop was already reported by apply_spanner_event.
+                                if let Some(ottava_type) = open_ottava_types.remove(&number)
+                                    && let Some(spanner) = score.spanners.last_mut()
+                                {
                                     spanner.ottava_type = Some(ottava_type);
                                 }
                             }
@@ -1036,6 +1061,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                     ottava_size: None,
                                 },
                                 address,
+                                tolerated,
                             )?;
                         }
                         _ => {}
@@ -1722,9 +1748,20 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             .trim()
                             .parse::<u32>()
                             .map_err(|_| Error::Xml("invalid backup duration".into()))?;
-                        measure_cursor_ticks = measure_cursor_ticks
-                            .checked_sub(duration)
-                            .ok_or_else(|| Error::Xml("MusicXML backup cursor underflow".into()))?;
+                        measure_cursor_ticks = match measure_cursor_ticks.checked_sub(duration) {
+                            Some(cursor) => cursor,
+                            None => {
+                                let mut diagnostic = crate::Diagnostic::warning(
+                                    "musicxml.backup-underflow",
+                                    "<backup> moves before the measure start; clamped to the start",
+                                );
+                                diagnostic.source_location = Some(format!(
+                                    "/score-partwise/measure[{current_measure_number}]/backup"
+                                ));
+                                tolerated.push(diagnostic);
+                                0
+                            }
+                        };
                         last_note_start = None;
                         last_note_cross_home = None;
                     }
@@ -1737,7 +1774,9 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             musicxml_measure_ticks(&current_time, current_divisions)?;
                         measure_cursor_ticks = measure_cursor_ticks
                             .checked_add(duration)
-                            .filter(|cursor| *cursor <= measure_ticks)
+                            .filter(|cursor| {
+                                *cursor <= measure_ticks.saturating_mul(MAX_OVERFULL_FACTOR)
+                            })
                             .ok_or_else(|| Error::Xml("MusicXML forward cursor overflow".into()))?;
                         measure_content_ticks = measure_content_ticks.max(measure_cursor_ticks);
                         last_note_start = None;
@@ -1874,7 +1913,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                             musicxml_measure_ticks(&current_time, current_divisions)
                                 .ok()
                                 .filter(|bar_ticks| {
-                                    measure_content_ticks > 0 && measure_content_ticks < *bar_ticks
+                                    measure_content_ticks > 0 && measure_content_ticks != *bar_ticks
                                 })
                                 .and_then(|_| {
                                     MeasureLength::from_ticks(
@@ -1979,12 +2018,13 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 .measures
                                 .last_mut()
                             {
-                                let voice_index = musicxml_voice_slot(
+                                let mut voice_index = musicxml_voice_slot(
                                     m,
                                     &mut source_voice_slots,
                                     target_staff_index,
                                     note_voice,
                                 )?;
+                                let mut drop_chord_member = false;
                                 let duration_ticks = if note_is_grace || note_is_cue {
                                     0
                                 } else {
@@ -1999,10 +2039,20 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                                 "MusicXML chord has no preceding note".into(),
                                             )
                                         })?;
-                                    if staff != target_staff_index || voice != voice_index {
-                                        return Err(Error::Xml(
-                                            "MusicXML chord changes staff or voice".into(),
+                                    if staff == target_staff_index && voice != voice_index {
+                                        // Some exporters number a chord member's <voice>
+                                        // differently; it still belongs to its chord.
+                                        voice_index = voice;
+                                    } else if staff != target_staff_index {
+                                        let mut diagnostic = crate::Diagnostic::warning(
+                                            "musicxml.chord-staff-mismatch",
+                                            "a <chord/> member sits on another staff than its chord (cross-staff chord); the member is not imported",
+                                        );
+                                        diagnostic.source_location = Some(format!(
+                                            "/score-partwise/measure[{current_measure_number}]/note"
                                         ));
+                                        tolerated.push(diagnostic);
+                                        drop_chord_member = true;
                                     }
                                     start
                                 } else {
@@ -2011,9 +2061,10 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 let next_cursor = note_start
                                     .checked_add(duration_ticks)
                                     .ok_or_else(|| Error::Xml("MusicXML cursor overflow".into()))?;
+                                let bar_ticks =
+                                    musicxml_measure_ticks(&current_time, current_divisions)?;
                                 if !note_chord
-                                    && next_cursor
-                                        > musicxml_measure_ticks(&current_time, current_divisions)?
+                                    && next_cursor > bar_ticks.saturating_mul(MAX_OVERFULL_FACTOR)
                                 {
                                     return Err(Error::Xml(format!(
                                         "MusicXML note cursor exceeds measure duration in measure {} voice {} ({} / {}, divisions {}): {} + {}",
@@ -2078,7 +2129,10 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                 };
                                 note.tie_start = note_tie_start;
                                 note.tie_end = note_tie_end;
-                                if note_chord {
+                                if note_chord && drop_chord_member {
+                                    // Reported above; the member cannot join a chord on another
+                                    // staff or voice.
+                                } else if note_chord {
                                     let last = voice.last_mut().ok_or_else(|| {
                                         Error::Xml("MusicXML chord has no preceding note".into())
                                     })?;
@@ -2229,6 +2283,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                         &mut open_spanners,
                                         event,
                                         address.clone(),
+                                        tolerated,
                                     )?;
                                 }
                                 for event in std::mem::take(&mut note_spanner_events) {
@@ -2237,6 +2292,7 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
                                         &mut open_spanners,
                                         event,
                                         address.clone(),
+                                        tolerated,
                                     )?;
                                 }
                             }
@@ -2680,12 +2736,15 @@ mod tests {
     }
 
     #[test]
-    fn cursor_underflow_and_overflow_are_rejected() {
-        let underflow = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><backup><duration>1</duration></backup></measure></part></score-partwise>"#;
-        assert!(parse_musicxml(underflow).is_err());
+    fn cursor_underflow_is_clamped_and_runaway_overflow_rejected() {
+        let underflow = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><rest/><duration>4</duration><type>whole</type></note><backup><duration>9</duration></backup></measure></part></score-partwise>"#;
+        let mut tolerated = Vec::new();
+        parse_musicxml_collecting(underflow, &mut tolerated).expect("underflow is clamped");
+        assert_eq!(tolerated[0].code, "musicxml.backup-underflow");
 
-        let overflow = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>"#;
-        assert!(parse_musicxml(overflow).is_err());
+        // Content past the bar imports as an irregular length, but not without bound.
+        let runaway = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>100</duration><type>whole</type></note></measure></part></score-partwise>"#;
+        assert!(parse_musicxml(runaway).is_err());
     }
 
     #[test]
@@ -2837,14 +2896,31 @@ mod tests {
     }
 
     #[test]
-    fn orphan_numbered_spanner_stop_is_rejected() {
+    fn orphan_numbered_spanner_stop_is_reported_not_fatal() {
         let xml = r#"<score-partwise><part-list><score-part id="P1"/></part-list><part id="P1"><measure><note><pitch><step>C</step><octave>4</octave></pitch><duration>480</duration><notations><slur number="3" type="stop"/></notations></note></measure></part></score-partwise>"#;
-        let error = parse_musicxml(xml).expect_err("orphan stop must be rejected");
+        let mut tolerated = Vec::new();
+        let score =
+            parse_musicxml_collecting(xml, &mut tolerated).expect("orphan stop is tolerated");
+        assert!(score.spanners.is_empty());
+        assert_eq!(tolerated.len(), 1);
+        assert_eq!(tolerated[0].code, "musicxml.orphan-spanner-stop");
         assert!(
-            error
-                .to_string()
-                .contains("orphan MusicXML Slur spanner stop number 3")
+            tolerated[0]
+                .loss_reason
+                .as_deref()
+                .unwrap_or("")
+                .contains("Slur stop number 3")
         );
+    }
+
+    #[test]
+    fn overfull_measure_keeps_its_content_as_an_irregular_length() {
+        let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>V</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#;
+        let score = parse_musicxml(xml).expect("overfull bar imports");
+        let measure = &score.parts[0].staves[0].measures[0];
+        assert_eq!(measure.voices[0].len(), 2);
+        assert_eq!(measure.duration_beats(&score.settings.time_signature), 3.0);
+        assert!(acorde_core::validate(&score).errors.is_empty());
     }
 
     #[test]

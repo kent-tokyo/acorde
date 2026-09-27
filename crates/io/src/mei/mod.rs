@@ -3966,13 +3966,18 @@ fn mei_span_end(
 
 /// Measure-level MEI control events (`<dynam>`, `<hairpin>`, `<slur>`, `<pedal>`) addressed by
 /// `@startid`/`@endid`, the form Verovio renders. Spans may end in a later measure.
-fn append_mei_control_events(out: &mut String, staves: &[Staff], measure_index: usize) {
+fn append_mei_control_events(
+    out: &mut String,
+    staves: &[Staff],
+    measure_index: usize,
+    labels: &[String],
+) {
     for (staff_index, staff) in staves.iter().enumerate() {
         let Some(measure) = staff.measures.get(measure_index) else {
             continue;
         };
         let id_at = |measure: usize, voice: usize, note: usize| {
-            mei_note_id(staff.measures[measure].number, staff_index, voice, note)
+            mei_note_id(&labels[measure], staff_index, voice, note)
         };
         let n = staff_index + 1;
         for text in &measure.texts {
@@ -4496,15 +4501,39 @@ fn parse_mei_text_style(value: &str) -> Option<TextStyle> {
     })
 }
 
-fn mei_note_id(number: u32, staff: usize, voice: usize, note: usize) -> String {
-    format!("n{}_{}_{}_{}", number, staff + 1, voice + 1, note + 1)
+fn mei_note_id(label: &str, staff: usize, voice: usize, note: usize) -> String {
+    format!("n{}_{}_{}_{}", label, staff + 1, voice + 1, note + 1)
+}
+
+/// Per-measure id labels: the measure number, made unique when numbers repeat (pickups numbered
+/// 0 twice, restarted numbering, second endings) so every `xml:id` stays distinct.
+fn mei_measure_labels(staves: &[Staff]) -> Vec<String> {
+    let count = staves
+        .iter()
+        .map(|staff| staff.measures.len())
+        .max()
+        .unwrap_or(0);
+    let mut seen = HashSet::new();
+    (0..count)
+        .map(|index| {
+            let number = staves
+                .iter()
+                .find_map(|staff| staff.measures.get(index))
+                .map_or((index + 1) as u32, |measure| measure.number);
+            if seen.insert(number) {
+                number.to_string()
+            } else {
+                format!("{number}x{}", index + 1)
+            }
+        })
+        .collect()
 }
 
 fn append_mei_measure_staves(
     out: &mut String,
     staves: &[Staff],
     measure_index: usize,
-    number: u32,
+    label: &str,
     default_time: &TimeSignature,
     staff_fifths: &[i8],
 ) -> Result<(), Error> {
@@ -4558,7 +4587,7 @@ fn append_mei_measure_staves(
                         _ => out.push_str("<beam>"),
                     }
                 }
-                let id = mei_note_id(number, staff_index, voice_index, note_index);
+                let id = mei_note_id(label, staff_index, voice_index, note_index);
                 if voice.len() == 1 && note.is_plain_whole_rest() {
                     out.push_str(&format!("<mRest xml:id=\"{id}\"/>"));
                     continue;
@@ -4631,6 +4660,7 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
     let staves = &score.parts[0].staves;
     let time = &score.settings.time_signature;
     let mut running_time = time.clone();
+    let labels = mei_measure_labels(staves);
     let mut staff_fifths = vec![score.settings.key_signature.fifths; staves.len()];
     let key = mei_key_signature(&score.settings.key_signature);
     out.push_str("</title></titleStmt></fileDesc></meiHead><music><body><mdiv><score>");
@@ -4785,13 +4815,8 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
                     let Some(chord) = &note.chord_symbol else {
                         continue;
                     };
-                    let id = format!(
-                        "n{}_{}_{}_{}",
-                        number,
-                        staff_index + 1,
-                        voice_index + 1,
-                        note_index + 1
-                    );
+                    let id =
+                        mei_note_id(&labels[measure_index], staff_index, voice_index, note_index);
                     out.push_str(&format!("<harm startid=\"#{id}\""));
                     if let Some(placement) = &chord.placement {
                         out.push_str(&format!(" place=\"{}\"", escape(placement)));
@@ -4812,17 +4837,13 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
                         out.push_str(&format!(" chordref=\"{}\"", escape(chord_ref)));
                     }
                     if let Some(end) = &chord.range_end {
-                        if let Some(end_measure) = staves
+                        if staves
                             .get(end.staff)
                             .and_then(|staff| staff.measures.get(end.measure))
+                            .is_some()
                         {
-                            let end_id = format!(
-                                "n{}_{}_{}_{}",
-                                end_measure.number,
-                                end.staff + 1,
-                                end.voice + 1,
-                                end.note + 1
-                            );
+                            let end_id =
+                                mei_note_id(&labels[end.measure], end.staff, end.voice, end.note);
                             out.push_str(&format!(" endid=\"#{end_id}\""));
                         }
                     }
@@ -4854,11 +4875,11 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
             &mut out,
             staves,
             measure_index,
-            number,
+            &labels[measure_index],
             &running_time,
             &staff_fifths,
         )?;
-        append_mei_control_events(&mut out, staves, measure_index);
+        append_mei_control_events(&mut out, staves, measure_index, &labels);
         out.push_str("</measure>");
         if let Some(first) = staves
             .iter()
@@ -6093,6 +6114,31 @@ mod tests {
             )
         };
         assert_eq!(tab(&restored), tab(&score));
+    }
+
+    #[test]
+    fn repeated_measure_numbers_keep_unique_ids() {
+        let mut score = Score::new("dup", 120, 4, 4, 0, 2);
+        for measure in &mut score.parts[0].staves[0].measures {
+            measure.number = 1;
+        }
+        score.parts[0].staves[0].measures[1].voices[0][0]
+            .articulations
+            .push(Articulation::Fermata);
+        let serialized = serialize_mei(&score).expect("serializes");
+        let ids = serialized
+            .match_indices("xml:id=\"")
+            .map(|(index, _)| serialized[index + 8..].split('"').next().unwrap_or(""))
+            .collect::<Vec<_>>();
+        let unique = ids.iter().collect::<HashSet<_>>();
+        assert_eq!(unique.len(), ids.len(), "{ids:?}");
+        let restored = parse_mei(&serialized).expect("reparses");
+        let staff = &restored.parts[0].staves[0];
+        assert!(staff.measures[0].voices[0][0].articulations.is_empty());
+        assert_eq!(
+            staff.measures[1].voices[0][0].articulations,
+            vec![Articulation::Fermata]
+        );
     }
 
     #[test]
