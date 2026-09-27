@@ -25,6 +25,18 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
+### Unreleased — MEI parity with Verovio
+
+No Rust or JSON API changes. MEI output changes shape: every part is written, articulations
+are written as `@artic`, ornaments and marks are written as measure-level control events,
+barlines are written on `measure@left`/`@right`, and the key is written as `@keysig`. Consumers
+that string-match acorde's MEI should parse it as MEI instead. The importer still accepts the
+older acorde forms: layer-level `<artic>`/`<ornam>`/`<dynam>`, `<barLine>` inside `<staff>`,
+`@key.sig`, and staff-level `@meter.count`. A layer `<mRest/>` now imports as one whole rest,
+the canonical measure rest, instead of an empty measure with `multi_rest_count = 1`. An MEI file
+whose first `scoreDef` labels its staves now imports as several parts. MuseScore files whose
+staves start in a non-treble clef now import with that clef.
+
 ### Unreleased — measure rests and string techniques
 
 `Articulation` gains `UpBow`, `DownBow`, `Harmonic`, `OpenString`, `Stopped`, and

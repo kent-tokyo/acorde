@@ -9,6 +9,34 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- MEI export now writes every part. It previously wrote only the first part and dropped the
+  rest without a diagnostic. Parts become labelled `<staffDef>`s or labelled `<staffGrp>`s
+  (the form Verovio and MuseScore use), part groups become enclosing `<staffGrp>`s, and
+  `<instrDef>` carries the MIDI channel and program. MEI import splits parts when the first
+  `<scoreDef>` names instruments; unlabelled layouts still import as one part.
+- MEI chords are exported as `<chord>`; before, only the first pitch was written. `<chord>` is
+  imported too; it used to be rejected. Lyrics are written as standard `<verse n><syl wordpos>`
+  note content for every verse. Articulations are written as `@artic`. Fermatas, trills,
+  mordents, turns, breaths, caesuras, dynamics, hairpins, slurs, ties, pedals, and ottavas are
+  measure-level control events with `@startid`/`@endid`, and their spans may cross barlines.
+  Hairpins were previously dropped without a diagnostic.
+- MEI now covers mid-piece meter, key, and clef changes, system and page breaks, beams, grouped
+  tuplets, cross-staff notes (`@staff`), barlines on `measure@left`/`@right`, measure rests in
+  layers, and typed measure texts (`<dir type="acorde-…">`). Accidentals are written visibly only
+  where the key signature and earlier accidentals in the measure do not already imply them
+  (`@accid` vs `@accid.ges`), and the key uses MEI 5 `@keysig`. With no explicit beams, the
+  default beat beaming is written.
+- MEI import reads what Verovio writes: `@accid.ges`, `<accid>` children, `<clef>`/`<keySig>`/
+  `<meterSig>` inside `scoreDef`/`staffDef`, `<tie>`, `<space>`, `<mRest>` (as a lone whole rest),
+  `@tstamp`-anchored control events, and tuplets recovered from `@dur.ppq`. Two bugs that dropped
+  text are fixed: an empty `<title/>` made the importer swallow every later lyric and dynamic,
+  and entity references such as `&amp;` were removed from all text.
+- The OpenScore fixtures now load in Verovio 6.3 with an empty toolkit log, and Verovio's own
+  re-encoding imports back with the same notes, chords, verses, marks, and spans.
+- MuseScore import now sets each staff's starting clef from `Part/Staff/defaultClef` and
+  `Instrument/clef`. Before, bass-clef instruments and piano left hands imported in treble. A
+  clef change in a later measure also no longer replaces the starting clef.
+
 ## [1.2.6] - 2026-09-27
 
 - MuseScore (MSCX/MSCZ) import now keeps voice-level hairpins, pedal lines, and 3.x slurs, slur
