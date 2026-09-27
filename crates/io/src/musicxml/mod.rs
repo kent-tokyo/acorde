@@ -270,6 +270,15 @@ fn push_invalid_numeric_value_diagnostic(
         return;
     };
     let valid = match field {
+        // A zero-length <forward>/<backup> moves nothing and loses nothing.
+        "duration"
+            if matches!(
+                path.iter().rev().nth(1).map(String::as_str),
+                Some("forward" | "backup")
+            ) =>
+        {
+            value.parse::<u32>().is_ok()
+        }
         "divisions" | "duration" => value.parse::<u32>().is_ok_and(|number| number > 0),
         "voice" => value
             .parse::<u32>()

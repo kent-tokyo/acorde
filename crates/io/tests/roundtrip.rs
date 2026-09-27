@@ -4478,3 +4478,19 @@ fn musicxml_dashes_lines_are_imported_drawn_and_exported() {
         .expect("a dashes spanner after a round trip");
     assert_eq!((again.start.note, again.end.note), (0, 1));
 }
+
+#[test]
+fn musicxml_zero_length_forward_is_not_reported() {
+    let xml = SIMPLE_XML.replacen(
+        "<note>",
+        "<forward><duration>0</duration><voice>2</voice></forward><note>",
+        1,
+    );
+    let report = acorde_io::parse_musicxml_with_report(&xml).expect("parses");
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "musicxml.invalid-numeric-value")
+    );
+}
