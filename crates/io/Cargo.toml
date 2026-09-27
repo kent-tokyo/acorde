@@ -20,7 +20,7 @@ midi = ["dep:midly"]
 abc = []
 mscz = ["dep:quick-xml", "dep:zip"]
 mei = ["dep:quick-xml"]
-# Guitar Pro 7/8 (.gp) import.
+# Guitar Pro 6/7/8 (.gpx/.gp) import.
 gp = ["dep:quick-xml", "dep:zip"]
 
 [dependencies]

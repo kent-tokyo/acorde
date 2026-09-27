@@ -1,6 +1,8 @@
-//! Guitar Pro 7/8 (`.gp`) import.
+//! Guitar Pro 6/7/8 (`.gpx`, `.gp`) import.
 //!
-//! A `.gp` file is a ZIP archive whose `Content/score.gpif` holds the score as GPIF XML. GPIF is
+//! A `.gp` file (Guitar Pro 7/8) is a ZIP archive whose `Content/score.gpif` holds the score as
+//! GPIF XML; a `.gpx` file (Guitar Pro 6) stores the same `score.gpif` in a "BCFZ"-compressed
+//! sector file system. GPIF is
 //! referential: master bars list one bar per staff, bars list voices, voices list beats, beats
 //! reference a rhythm and notes, all by id. This importer resolves those references into the
 //! canonical [`Score`]: one part per track, one staff per GPIF staff, tablature tuning and capo,
@@ -28,14 +30,18 @@ const MAX_GPIF_DEPTH: usize = 128;
 const MAX_GP_MEASURES: usize = 10_000;
 const GPIF_ENTRY: &str = "Content/score.gpif";
 
-/// Parse a Guitar Pro 7/8 `.gp` file.
+/// Parse a Guitar Pro 6 (`.gpx`) or 7/8 (`.gp`) file; the container is detected from its bytes.
 pub fn parse_gp(data: &[u8]) -> Result<Score, Error> {
     Ok(parse_gp_with_report(data)?.score)
 }
 
-/// Parse a Guitar Pro 7/8 `.gp` file, reporting GPIF content outside acorde's model.
+/// Parse a Guitar Pro 6/7/8 file, reporting GPIF content outside acorde's model.
 pub fn parse_gp_with_report(data: &[u8]) -> Result<ImportReport, Error> {
-    let xml = read_gpif(data)?;
+    let xml = if data.starts_with(b"BCFZ") || data.starts_with(b"BCFS") {
+        gpx::read_gpif(data)?
+    } else {
+        read_gpif(data)?
+    };
     let (score, diagnostics) = parse_gpif(&xml)?;
     Ok(ImportReport {
         schema_version: REPORT_SCHEMA_VERSION,
@@ -57,7 +63,7 @@ fn read_gpif(data: &[u8]) -> Result<String, Error> {
     }
     let entry = archive.by_name(GPIF_ENTRY).map_err(|_| {
         Error::Zip(format!(
-            "'{GPIF_ENTRY}' not found; only Guitar Pro 7/8 (.gp) files are supported"
+            "'{GPIF_ENTRY}' not found; only Guitar Pro 6/7/8 (.gpx/.gp) files are supported"
         ))
     })?;
     if entry.size() > MAX_GPIF_BYTES {
@@ -73,6 +79,8 @@ fn read_gpif(data: &[u8]) -> Result<String, Error> {
     }
     crate::decode_xml_text(&bytes)
 }
+
+mod gpx;
 
 // ── Minimal bounded DOM ─────────────────────────────────────────────────────
 
@@ -943,6 +951,10 @@ fn convert_beat(
             losses.add(code, reason);
         }
     }
+    // Guitar Pro 6 stores whammy dives as beat properties instead of a <Whammy> element.
+    if beat.child("Whammy").is_none() && beat.property("WhammyBar").is_some() {
+        losses.add("gp.unsupported-whammy", "whammy-bar dives are not imported");
+    }
     if beat.property("Brush").is_some() || beat.property("PickStroke").is_some() {
         losses.add(
             "gp.unsupported-stroke",
@@ -1357,7 +1369,7 @@ mod tests {
             zip.finish().unwrap();
         }
         let error = parse_gp(&buffer.into_inner()).unwrap_err();
-        assert!(error.to_string().contains("Guitar Pro 7/8"));
+        assert!(error.to_string().contains("Guitar Pro 6/7/8"));
         assert!(parse_gpif("<?xml version=\"1.0\"?><!DOCTYPE GPIF><GPIF/>").is_err());
     }
 }
