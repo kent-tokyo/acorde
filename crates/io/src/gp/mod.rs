@@ -1107,18 +1107,30 @@ fn apply_note_effects(node: &Node, note: &mut Note, losses: &mut Losses) {
             "note vibrato is not imported",
         ),
         (
-            "LeftFingering",
-            "gp.unsupported-fingering",
-            "left/right-hand fingering is not imported",
-        ),
-        (
             "RightFingering",
-            "gp.unsupported-fingering",
-            "left/right-hand fingering is not imported",
+            "gp.unsupported-right-hand-fingering",
+            "right-hand (p-i-m-a-c) fingering is not imported",
         ),
     ] {
         if node.child(element).is_some() {
             losses.add(code, reason);
+        }
+    }
+    // Left-hand fingering: GPIF letters I/M/A/C are fingers 1–4; the thumb (P) has no number.
+    if let Some(finger) = node.text_at("LeftFingering") {
+        let number = match finger {
+            "I" => Some(1),
+            "M" => Some(2),
+            "A" => Some(3),
+            "C" => Some(4),
+            _ => None,
+        };
+        match number {
+            Some(number) if note.pitches.len() == 1 => note.fingering = Some(number),
+            _ => losses.add(
+                "gp.unsupported-fingering",
+                "thumb fingering and fingering on chord members are not imported",
+            ),
         }
     }
     if node.child("LetRing").is_some() && node.property("PalmMuted").is_some() {
@@ -1265,7 +1277,7 @@ mod tests {
 <Note id="1"><Properties><Property name="Fret"><Fret>5</Fret></Property><Property name="Midi"><Number>55</Number></Property><Property name="String"><String>2</String></Property></Properties></Note>
 <Note id="2"><Properties><Property name="ConcertPitch"><Pitch><Step>F</Step><Accidental>#</Accidental><Octave>4</Octave></Pitch></Property><Property name="Fret"><Fret>7</Fret></Property><Property name="Midi"><Number>66</Number></Property><Property name="String"><String>4</String></Property><Property name="HopoOrigin"><Enable /></Property></Properties><Accent>8</Accent></Note>
 <Note id="3"><Properties><Property name="Fret"><Fret>5</Fret></Property><Property name="Midi"><Number>64</Number></Property><Property name="String"><String>4</String></Property><Property name="Bended"><Enable /></Property><Property name="BendOriginValue"><Float>0</Float></Property><Property name="BendOriginOffset"><Float>0</Float></Property><Property name="BendDestinationValue"><Float>100</Float></Property><Property name="BendDestinationOffset"><Float>60</Float></Property></Properties></Note>
-<Note id="4"><Properties><Property name="Fret"><Fret>0</Fret></Property><Property name="Midi"><Number>40</Number></Property><Property name="String"><String>0</String></Property><Property name="Muted"><Enable /></Property></Properties></Note>
+<Note id="4"><LeftFingering>M</LeftFingering><Properties><Property name="Fret"><Fret>0</Fret></Property><Property name="Midi"><Number>40</Number></Property><Property name="String"><String>0</String></Property><Property name="Muted"><Enable /></Property></Properties></Note>
 </Notes>
 <Rhythms><Rhythm id="0"><NoteValue>Quarter</NoteValue></Rhythm><Rhythm id="1"><NoteValue>Eighth</NoteValue><PrimaryTuplet num="3" den="2" /></Rhythm><Rhythm id="2"><NoteValue>Half</NoteValue><AugmentationDot count="1" /></Rhythm></Rhythms>
 </GPIF>"#;
@@ -1348,6 +1360,7 @@ mod tests {
         assert_eq!(second.time_sig.as_ref().map(|t| t.numerator), Some(3));
         assert_eq!(second.barline_right, Barline::RepeatEnd);
         assert_eq!(second.voices[0][0].note_head, NoteHead::X);
+        assert_eq!(second.voices[0][0].fingering, Some(2));
         assert_eq!(second.voices[0][0].dot_count, 1);
         assert!(
             report
