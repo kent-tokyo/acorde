@@ -38,6 +38,15 @@ sustains only the tied pitches, and the SVG renderer draws one tie per tied note
 `musicxml.partial-chord-tie` and `gp.partial-chord-tie` diagnostics introduced in 1.2.8 are no
 longer emitted. `parse_gp` also reads `.gp3`, `.gp4` and `.gp5` files.
 
+### Unreleased — MusicXML note positions and notehead size
+
+MusicXML import no longer fills `Note::offset_x`/`offset_y` from a note's `default-x`/
+`default-y`; those are absolute positions in the source engraver's layout, and the renderer
+applies `offset_*` as nudges from its own position. Hosts that set `offset_*` keep their
+meaning; MusicXML export writes them (added to `relative_*`) as `relative-x`/`relative-y`. SVG
+noteheads now have standard (SMuFL) proportions, so rendered widths, spacing and golden SVGs
+change; hosts comparing SVG snapshots should refresh them.
+
 ### v1.2.8 — Guitar Pro import and tablature rendering
 
 New optional `gp` feature; no existing API changes. The GM range table only widens, so no

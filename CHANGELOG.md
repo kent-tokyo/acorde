@@ -22,6 +22,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Pro import keep them, MusicXML, MEI and MSCX export write each note's own tie, playback sustains only
   the tied pitches, and the SVG renderer draws one tie per tied notehead (upper notes bow up,
   lower notes down). The 1.2.8 `*.partial-chord-tie` diagnostics are no longer needed.
+- **MusicXML note positions.** A note's `default-x`/`default-y` (absolute positions in the
+  source engraver's layout) are no longer imported into `Note::offset_x`/`offset_y`, which the
+  renderer applies as nudges. Scores exported by MuseScore or Finale rendered with notes outside
+  their bars (164 of 274 music21 corpus files) and, where `default-y` was present, drawn above
+  their staves (80 files). `relative-x`/`relative-y` still import, and `offset_*` now export as
+  part of `relative-x`/`relative-y`.
+- **SVG noteheads at standard size.** Noteheads were about half size (0.62 × 0.48 spaces); they
+  now follow SMuFL/Bravura proportions (about 1.15 × 0.85 spaces, tilted), with stems, flags,
+  dots, ledger lines and other head shapes following. A second in a chord puts its head across
+  the stem (right with the stem up, left with it down), accidentals sit clear of the head, and a
+  bar whose first notes carry accidentals starts its content clear of the clef and time
+  signature. SVG output and golden fixtures change accordingly.
 
 ## [1.2.8] - 2026-09-27
 
