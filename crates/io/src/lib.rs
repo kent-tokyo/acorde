@@ -33,7 +33,7 @@ pub fn decode_xml_text(data: &[u8]) -> Result<String, Error> {
         return Err(Error::TooLarge(data.len()));
     }
     let utf16 = |bytes: &[u8], little_endian: bool| -> Result<String, Error> {
-        if bytes.len() % 2 != 0 {
+        if !bytes.len().is_multiple_of(2) {
             return Err(Error::Xml("UTF-16 input has an odd number of bytes".into()));
         }
         let units = bytes.chunks_exact(2).map(|pair| {
