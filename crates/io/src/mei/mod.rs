@@ -11,6 +11,7 @@ use acorde_core::{
     ChordDegree, ChordSymbol, Clef, Duration, Dynamic, FiguredBassFigure, HairpinKind,
     KeySignature, Measure, Note, NoteAddr, OttavaKind, Part, PartGroup, PartGroupSymbol, Pitch,
     Score, Staff, StaffGroup, Step, StyledText, TextStyle, TimeSignature, TupletInfo,
+    compute_beams,
 };
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
@@ -333,6 +334,19 @@ fn navigation_text(value: &str) -> &str {
         "ToCoda" => "To Coda",
         _ => value,
     }
+}
+
+/// One MEI `data.BARRENDITION` value, as used by `measure@left` / `measure@right`.
+fn mei_barline_value(value: &str) -> Option<Barline> {
+    Some(match value.trim().to_ascii_lowercase().as_str() {
+        "rptstart" => Barline::RepeatStart,
+        "rptend" => Barline::RepeatEnd,
+        "rptboth" => Barline::RepeatBoth,
+        "dbl" => Barline::Double,
+        "end" => Barline::Final,
+        "invis" => Barline::Invisible,
+        _ => return None,
+    })
 }
 
 fn parse_barline(value: &str) -> Option<(Option<Barline>, Option<Barline>)> {
@@ -2146,6 +2160,20 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             measure.time_sig = Some(measure_time);
                         }
                         measure.key_sig = pending_key_change.take();
+                        for (name, left) in
+                            [(b"left".as_slice(), true), (b"right".as_slice(), false)]
+                        {
+                            if let Some(barline) =
+                                attr(&event, name).and_then(|value| mei_barline_value(&value))
+                            {
+                                if left {
+                                    measure.barline_left = barline;
+                                } else {
+                                    measure.barline_right = barline;
+                                }
+                                measure_changes.push(score.parts[0].staves[0].measures.len());
+                            }
+                        }
                         if measure.time_sig.is_some() || measure.key_sig.is_some() {
                             measure_changes.push(score.parts[0].staves[0].measures.len());
                         }
@@ -2727,15 +2755,28 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
         }
     }
     for measure_index in measure_changes {
-        let Some((time, key)) = score.parts[0].staves[0]
+        let Some((time, key, left, right)) = score.parts[0].staves[0]
             .measures
             .get(measure_index)
-            .map(|measure| (measure.time_sig.clone(), measure.key_sig.clone()))
+            .map(|measure| {
+                (
+                    measure.time_sig.clone(),
+                    measure.key_sig.clone(),
+                    measure.barline_left.clone(),
+                    measure.barline_right.clone(),
+                )
+            })
         else {
             continue;
         };
         for staff in score.parts[0].staves.iter_mut().skip(1) {
             if let Some(measure) = staff.measures.get_mut(measure_index) {
+                if matches!(measure.barline_left, Barline::Normal) {
+                    measure.barline_left = left.clone();
+                }
+                if matches!(measure.barline_right, Barline::Normal) {
+                    measure.barline_right = right.clone();
+                }
                 if measure.time_sig.is_none() {
                     measure.time_sig = time.clone();
                 }
@@ -4011,11 +4052,11 @@ fn mei_tuplet_groups(voice: &[Note]) -> Vec<(usize, usize)> {
 }
 
 /// Explicit beam runs (`Begin` … `End`) that nest cleanly with the tuplet ranges.
-fn mei_beam_groups(voice: &[Note], tuplets: &[(usize, usize)]) -> Vec<(usize, usize)> {
+fn mei_beam_groups(states: &[BeamState], tuplets: &[(usize, usize)]) -> Vec<(usize, usize)> {
     let mut groups = Vec::new();
     let mut start = None;
-    for (index, note) in voice.iter().enumerate() {
-        match note.beam {
+    for (index, state) in states.iter().enumerate() {
+        match state {
             BeamState::Begin => start = Some(index),
             BeamState::Continue | BeamState::ForwardHook | BeamState::BackwardHook => {}
             BeamState::End => {
@@ -4045,6 +4086,7 @@ fn append_mei_measure_staves(
     staves: &[Staff],
     measure_index: usize,
     number: u32,
+    default_time: &TimeSignature,
 ) -> Result<(), Error> {
     for (staff_index, staff) in staves.iter().enumerate() {
         let Some(measure) = staff.measures.get(measure_index) else {
@@ -4062,7 +4104,14 @@ fn append_mei_measure_staves(
                 out.push_str(&format!("<clef shape=\"{shape}\" line=\"{line}\"/>"));
             }
             let tuplets = mei_tuplet_groups(voice);
-            let beams = mei_beam_groups(voice, &tuplets);
+            // Without explicit beaming, write the default beat grouping so renderers that do not
+            // auto-beam (Verovio) show beams rather than flags.
+            let beam_states = if voice.iter().all(|note| note.beam == BeamState::None) {
+                compute_beams(voice, measure.time_sig.as_ref().unwrap_or(default_time))
+            } else {
+                voice.iter().map(|note| note.beam).collect()
+            };
+            let beams = mei_beam_groups(&beam_states, &tuplets);
             for (note_index, note) in voice.iter().enumerate() {
                 // Outer containers open first: a tuplet enclosing a beam, or a beam enclosing
                 // whole tuplets; identical ranges put the tuplet outside.
@@ -4108,23 +4157,18 @@ fn append_mei_measure_staves(
             out.push_str("</layer>");
         }
         if let Some(count) = measure.multi_rest_count {
-            out.push_str(&if count == 1 {
+            let rest = if count == 1 {
                 "<mRest/>".to_string()
             } else {
                 format!("<multiRest num=\"{count}\"/>")
-            });
-        }
-        if !matches!(measure.barline_left, Barline::Normal) {
-            out.push_str(&format!(
-                "<barLine form=\"{}\"/>",
-                mei_barline(measure.barline_left.clone())
-            ));
-        }
-        if !matches!(measure.barline_right, Barline::Normal) {
-            out.push_str(&format!(
-                "<barLine form=\"{}\"/>",
-                mei_barline(measure.barline_right.clone())
-            ));
+            };
+            // MEI keeps measure rests inside a layer; a measure that also has notes keeps the
+            // historical staff-level placement.
+            if measure.voices.iter().all(|voice| voice.is_empty()) {
+                out.push_str(&format!("<layer n=\"1\">{rest}</layer>"));
+            } else {
+                out.push_str(&rest);
+            }
         }
         out.push_str("</staff>");
     }
@@ -4145,11 +4189,14 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
     } else {
         score
     };
-    let mut out = String::from("<mei xmlns=\"http://www.music-encoding.org/ns/mei\"><meiHead>");
+    let mut out = String::from(
+        "<mei xmlns=\"http://www.music-encoding.org/ns/mei\" meiversion=\"5.1\"><meiHead>",
+    );
     out.push_str("<fileDesc><titleStmt><title>");
     out.push_str(&escape(&score.metadata.title));
     let staves = &score.parts[0].staves;
     let time = &score.settings.time_signature;
+    let mut running_time = time.clone();
     let key = mei_key_signature(&score.settings.key_signature);
     out.push_str("</title></titleStmt></fileDesc></meiHead><music><body><mdiv><score>");
     append_mei_chord_definitions(&mut out, &score.chord_definitions);
@@ -4176,6 +4223,13 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
         .max()
         .unwrap_or(0);
     for measure_index in 0..measure_count {
+        if let Some(changed) = staves
+            .iter()
+            .find_map(|staff| staff.measures.get(measure_index))
+            .and_then(|measure| measure.time_sig.clone())
+        {
+            running_time = changed;
+        }
         let number = staves
             .iter()
             .find_map(|staff| staff.measures.get(measure_index))
@@ -4197,7 +4251,22 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
             }
             out.push_str("/>");
         }
-        out.push_str(&format!("<measure n=\"{number}\">"));
+        out.push_str(&format!("<measure n=\"{number}\""));
+        if let Some(first) = staves
+            .iter()
+            .find_map(|staff| staff.measures.get(measure_index))
+        {
+            // Barlines are measure attributes in MEI (`<barLine>` inside <staff> is not valid).
+            for (name, barline) in [
+                ("left", &first.barline_left),
+                ("right", &first.barline_right),
+            ] {
+                if !matches!(barline, Barline::Normal) {
+                    out.push_str(&format!(" {name}=\"{}\"", mei_barline(barline.clone())));
+                }
+            }
+        }
+        out.push('>');
         if let Some(bpm) = staves
             .iter()
             .find_map(|staff| staff.measures.get(measure_index).and_then(|m| m.tempo))
@@ -4331,7 +4400,7 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
                 out.push_str("</dir>");
             }
         }
-        append_mei_measure_staves(&mut out, staves, measure_index, number)?;
+        append_mei_measure_staves(&mut out, staves, measure_index, number, &running_time)?;
         append_mei_control_events(&mut out, staves, measure_index);
         out.push_str("</measure>");
         if let Some(first) = staves
@@ -5485,7 +5554,9 @@ mod tests {
         assert_eq!(measure.barline_left, Barline::RepeatStart);
         assert_eq!(measure.barline_right, Barline::RepeatEnd);
         let serialized = serialize_mei(&report.score).expect("MEI barlines serialize");
-        assert!(serialized.contains("form=\"rptstart\"") && serialized.contains("form=\"rptend\""));
+        assert!(
+            serialized.contains("left=\"rptstart\"") && serialized.contains("right=\"rptend\"")
+        );
         let restored = parse_mei(&serialized).expect("serialized MEI barlines parse");
         assert_eq!(
             restored.parts[0].staves[0].measures[0].barline_right,
