@@ -595,7 +595,9 @@ fn ornament_articulations_are_rendered_with_semantic_classes() {
     ] {
         assert!(svg.contains(class), "missing ornament class: {class}");
     }
-    assert!(svg.contains(">tremolo 3</text>"));
+    // Ornaments are drawn, not spelled out; the tremolo is three strokes across the stem.
+    assert!(!svg.contains(">mordent</text>"));
+    assert!(svg.contains(r#"data-strokes="3""#));
 }
 
 #[test]
@@ -614,11 +616,13 @@ fn multiple_articulations_stack_on_distinct_baselines() {
         vec![Articulation::Mordent, Articulation::Turn];
 
     let svg = render_svg(&score, &opts()).unwrap();
+    // Each ornament path starts at its own baseline.
     let ys: Vec<&str> = svg
-        .split("<text ")
-        .filter(|text| text.contains("acorde-ornament"))
-        .filter_map(|text| text.split("y=\"").nth(1))
-        .filter_map(|text| text.split('\"').next())
+        .split("<path ")
+        .filter(|path| path.contains("acorde-ornament"))
+        .filter_map(|path| path.split("d=\"M ").nth(1))
+        .filter_map(|d| d.split(' ').next())
+        .filter_map(|point| point.split(',').nth(1))
         .collect();
     assert_eq!(ys.len(), 2);
     assert_ne!(ys[0], ys[1]);

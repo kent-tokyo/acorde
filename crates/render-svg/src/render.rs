@@ -2614,6 +2614,17 @@ fn render_measure(
         note_points,
         space,
         annotations::Kinds::ALL,
+        annotations::StaffBand {
+            top_y: bottom_y
+                - f32::from(
+                    tablature
+                        .as_ref()
+                        .map_or(5, |config| config.lines)
+                        .max(1)
+                        .saturating_sub(1),
+                ) * space,
+            bottom_y,
+        },
     )?;
     resolved_annotation_obstacles.extend(semantic_placements.iter().cloned());
 
@@ -6033,17 +6044,168 @@ pub(crate) fn render_articulation(
                 f(0.08 * space)
             );
         }
-        acorde_core::Articulation::Fermata
-        | acorde_core::Articulation::Trill
-        | acorde_core::Articulation::Mordent
+        acorde_core::Articulation::Fermata => {
+            // An arc over a dot (under it, inverted, below the staff).
+            let r = 0.75 * space;
+            let base = y + dir * -0.3 * space;
+            let sweep = if dir < 0.0 { 1 } else { 0 };
+            let _ = write!(
+                body,
+                r#"<g class="acorde-articulation acorde-fermata"><path d="M {},{} A {},{} 0 0 {sweep} {},{}" fill="none" stroke="black" stroke-width="{}" stroke-linecap="round"/><circle cx="{}" cy="{}" r="{}" fill="black"/></g>"#,
+                f(x - r),
+                f(base),
+                f(r),
+                f(r * 0.95),
+                f(x + r),
+                f(base),
+                f(0.16 * space),
+                f(x),
+                f(base + dir * 0.28 * space),
+                f(0.13 * space)
+            );
+        }
+        acorde_core::Articulation::Mordent
         | acorde_core::Articulation::InvertedMordent
-        | acorde_core::Articulation::Turn
-        | acorde_core::Articulation::InvertedTurn
-        | acorde_core::Articulation::Shake
-        | acorde_core::Articulation::Tremolo(_) => {
+        | acorde_core::Articulation::Shake => {
+            // A short zigzag; the (lower) mordent is crossed by a vertical stroke.
+            let peaks = if matches!(articulation, acorde_core::Articulation::Shake) {
+                6
+            } else {
+                4
+            };
+            let step = 0.3 * space;
+            let x0 = x - step * peaks as f32 / 2.0;
+            let mut d = format!("M {},{}", f(x0), f(y + 0.15 * space));
+            for index in 1..=peaks {
+                let py = if index % 2 == 1 {
+                    y - 0.2 * space
+                } else {
+                    y + 0.15 * space
+                };
+                let _ = write!(d, " L {},{}", f(x0 + step * index as f32), f(py));
+            }
+            if matches!(articulation, acorde_core::Articulation::Mordent) {
+                let _ = write!(
+                    d,
+                    " M {},{} L {},{}",
+                    f(x),
+                    f(y - 0.45 * space),
+                    f(x),
+                    f(y + 0.45 * space)
+                );
+            }
+            let class = match articulation {
+                acorde_core::Articulation::Mordent => "acorde-mordent",
+                acorde_core::Articulation::InvertedMordent => "acorde-inverted-mordent",
+                _ => "acorde-shake",
+            };
+            let _ = write!(
+                body,
+                r#"<path class="acorde-articulation acorde-ornament {class}" d="{d}" fill="none" stroke="black" stroke-width="{}" stroke-linejoin="round"/>"#,
+                f(0.13 * space)
+            );
+        }
+        acorde_core::Articulation::Turn | acorde_core::Articulation::InvertedTurn => {
+            // A turn lies on its side like a tilde with curled ends; the inverted turn is
+            // mirrored and crossed by a vertical stroke.
+            let s = if matches!(articulation, acorde_core::Articulation::Turn) {
+                1.0
+            } else {
+                -1.0
+            };
+            let mut d = format!(
+                "M {},{} C {},{} {},{} {},{} C {},{} {},{} {},{}",
+                f(x - 0.75 * space),
+                f(y + s * 0.05 * space),
+                f(x - 0.95 * space),
+                f(y - s * 0.55 * space),
+                f(x - 0.2 * space),
+                f(y - s * 0.55 * space),
+                f(x),
+                f(y),
+                f(x + 0.2 * space),
+                f(y + s * 0.55 * space),
+                f(x + 0.95 * space),
+                f(y + s * 0.55 * space),
+                f(x + 0.75 * space),
+                f(y - s * 0.05 * space)
+            );
+            if s < 0.0 {
+                let _ = write!(
+                    d,
+                    " M {},{} L {},{}",
+                    f(x),
+                    f(y - 0.5 * space),
+                    f(x),
+                    f(y + 0.5 * space)
+                );
+            }
+            let class = if s > 0.0 {
+                "acorde-turn"
+            } else {
+                "acorde-inverted-turn"
+            };
+            let _ = write!(
+                body,
+                r#"<path class="acorde-articulation acorde-ornament {class}" d="{d}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                f(0.14 * space)
+            );
+        }
+        acorde_core::Articulation::Trill | acorde_core::Articulation::Tremolo(_) => {
             render_text_articulation(body, articulation, x, y, dir, space);
         }
     }
+}
+
+/// Tremolo strokes across the stem (above or below the head of a stemless note).
+pub(crate) fn write_stem_tremolo(
+    body: &mut String,
+    note: &Note,
+    x: f32,
+    anchor_y: f32,
+    stem_up: bool,
+    space: f32,
+) {
+    let Some(acorde_core::Articulation::Tremolo(strokes)) = note
+        .articulations
+        .iter()
+        .find(|articulation| matches!(articulation, acorde_core::Articulation::Tremolo(_)))
+    else {
+        return;
+    };
+    let strokes = (*strokes).clamp(1, 4);
+    let dir = if stem_up { -1.0 } else { 1.0 };
+    let has_stem = !matches!(note.duration, Duration::Whole);
+    let stem_x = if has_stem {
+        x - dir * glyphs::NOTEHEAD_RX_U * space * 0.92
+    } else {
+        x
+    };
+    // Centre the strokes on the stem between notehead and tip (past the head when stemless).
+    let centre = anchor_y + dir * if has_stem { 2.0 } else { 1.6 } * space;
+    let gap = 0.45 * space;
+    let first = centre - (f32::from(strokes) - 1.0) * gap / 2.0;
+    let mut d = String::new();
+    for index in 0..strokes {
+        let y = first + f32::from(index) * gap;
+        let _ = write!(
+            d,
+            "M {},{} L {},{} L {},{} L {},{} Z ",
+            f(stem_x - 0.5 * space),
+            f(y + 0.2 * space),
+            f(stem_x + 0.5 * space),
+            f(y - 0.2 * space),
+            f(stem_x + 0.5 * space),
+            f(y - 0.02 * space),
+            f(stem_x - 0.5 * space),
+            f(y + 0.38 * space)
+        );
+    }
+    let _ = write!(
+        body,
+        r#"<path class="acorde-articulation acorde-tremolo" data-strokes="{strokes}" d="{}" fill="black"/>"#,
+        d.trim_end()
+    );
 }
 
 fn render_text_articulation(

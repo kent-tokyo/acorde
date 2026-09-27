@@ -39,7 +39,31 @@ enum SemanticAnnotation<'a> {
     },
 }
 
+/// Vertical extent of the staff an annotation pass works on, in SVG pixels.
+#[derive(Clone, Copy)]
+pub(crate) struct StaffBand {
+    pub(crate) top_y: f32,
+    pub(crate) bottom_y: f32,
+}
+
+/// Where an articulation belongs, following engraving practice: staccato, staccatissimo,
+/// tenuto and accent go at the notehead, away from the stem; fermatas, ornaments, marcato and
+/// string marks go outside the staff above (below for a lower voice).
+fn articulation_at_notehead(articulation: &Articulation) -> bool {
+    matches!(
+        articulation,
+        Articulation::Staccato
+            | Articulation::Staccatissimo
+            | Articulation::Tenuto
+            | Articulation::Accent
+    )
+}
+
 /// Render note-attached semantics through one constrained collision pass.
+///
+/// Lyrics, dynamics and chord symbols sit on lines measured from the staff, not from each
+/// note, so a line of syllables or dynamics reads level across the bar as it does in
+/// MuseScore and Verovio; the collision pass still moves one away from another.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn render_measure_semantic_annotations(
     body: &mut String,
@@ -50,9 +74,23 @@ pub(crate) fn render_measure_semantic_annotations(
     note_points: &HashMap<NoteKey, NotePoint>,
     space: f32,
     kinds: Kinds,
+    band: StaffBand,
 ) -> Result<Vec<GlyphPlacement>, RenderError> {
     let mut annotations = Vec::new();
     let mut owner = CollisionOwner::with_fixed_obstacles(&[]);
+    let active_voices = measure
+        .voices
+        .iter()
+        .filter(|voice| voice.iter().any(|note| !note.is_rest))
+        .count();
+    // A vocal staff carries its dynamics above, clear of the lyrics.
+    let has_lyrics = measure
+        .voices
+        .iter()
+        .flatten()
+        .any(|note| note.lyric.is_some() || !note.additional_lyrics.is_empty());
+    // Stem tips reach about 3.5 spaces from the notehead.
+    let stem_reach = 3.5 * space;
 
     for (voice_idx, voice) in measure.voices.iter().enumerate() {
         for (note_idx, note) in voice.iter().enumerate() {
@@ -61,6 +99,15 @@ pub(crate) fn render_measure_semantic_annotations(
             else {
                 continue;
             };
+            let lower_voice = active_voices > 1 && voice_idx % 2 == 1;
+            // The note's highest and lowest drawn point (notehead or stem tip).
+            let (note_top, note_bottom) = if note.is_rest {
+                (anchor_y - space, anchor_y + space)
+            } else if stem_up {
+                (anchor_y - stem_reach, anchor_y + 0.5 * space)
+            } else {
+                (anchor_y - 0.5 * space, anchor_y + stem_reach)
+            };
             if kinds.dynamics_and_chords {
                 for (class, text, above, priority) in [
                     (
@@ -68,7 +115,7 @@ pub(crate) fn render_measure_semantic_annotations(
                         note.dynamic
                             .as_ref()
                             .map(|value| value.to_musicxml_str().to_owned()),
-                        stem_up,
+                        has_lyrics && !lower_voice,
                         1,
                     ),
                     (
@@ -81,7 +128,15 @@ pub(crate) fn render_measure_semantic_annotations(
                     let Some(text) = text else {
                         continue;
                     };
-                    let distance = if class == "acorde-dynamic" { 4.0 } else { 5.6 };
+                    let y = match (class, above) {
+                        ("acorde-dynamic", true) => {
+                            (band.top_y - 2.0 * space).min(note_top - space)
+                        }
+                        ("acorde-dynamic", false) => {
+                            (band.bottom_y + 2.6 * space).max(note_bottom + 1.5 * space)
+                        }
+                        _ => (band.top_y - 2.8 * space).min(note_top - 1.5 * space),
+                    };
                     annotations.push(SemanticAnnotation::Text {
                         class,
                         text: text.clone(),
@@ -102,11 +157,7 @@ pub(crate) fn render_measure_semantic_annotations(
                                 height_mm: 0.9 * space,
                             },
                             x_mm: x,
-                            y_mm: if above {
-                                anchor_y - distance * space
-                            } else {
-                                anchor_y + distance * space
-                            },
+                            y_mm: y,
                             priority,
                         },
                         GlyphCollisionClass::Annotation,
@@ -118,6 +169,9 @@ pub(crate) fn render_measure_semantic_annotations(
                     );
                 }
             }
+            // Verse 1 of the lyrics sits on one line below the staff (lower only when a note
+            // reaches below it), with dynamics under a lyric line moved above the staff.
+            let lyric_baseline = (band.bottom_y + 3.2 * space).max(note_bottom + 1.8 * space);
             if kinds.lyrics
                 && let Some(lyric) = &note.lyric
             {
@@ -142,12 +196,7 @@ pub(crate) fn render_measure_semantic_annotations(
                             height_mm: 0.9 * space,
                         },
                         x_mm: x,
-                        y_mm: anchor_y
-                            + if !stem_up && note.dynamic.is_some() {
-                                5.9
-                            } else {
-                                4.8
-                            } * space,
+                        y_mm: lyric_baseline,
                         priority: 1,
                     },
                     GlyphCollisionClass::Annotation,
@@ -155,11 +204,6 @@ pub(crate) fn render_measure_semantic_annotations(
                 );
             }
             if kinds.lyrics {
-                let lyric_offset = if !stem_up && note.dynamic.is_some() {
-                    5.9
-                } else {
-                    4.8
-                };
                 // Verse n sits (n - 1) lyric lines below verse 1, so each verse keeps one line
                 // across notes even when an earlier verse is absent on a note.
                 for entry in &note.additional_lyrics {
@@ -187,7 +231,7 @@ pub(crate) fn render_measure_semantic_annotations(
                                 height_mm: 0.9 * space,
                             },
                             x_mm: x,
-                            y_mm: anchor_y + (lyric_offset + verse_offset) * space,
+                            y_mm: lyric_baseline + verse_offset * space,
                             priority: 1,
                         },
                         GlyphCollisionClass::Annotation,
@@ -197,11 +241,35 @@ pub(crate) fn render_measure_semantic_annotations(
             }
             if kinds.articulations {
                 for (articulation_idx, articulation) in note.articulations.iter().enumerate() {
-                    let distance = 1.2 + articulation_idx as f32;
+                    if matches!(articulation, Articulation::Tremolo(_)) {
+                        // Tremolo strokes cross the stem; they are not stacked with the rest.
+                        crate::render::write_stem_tremolo(body, note, x, anchor_y, stem_up, space);
+                        continue;
+                    }
+                    let stack = articulation_idx as f32 * 0.9 * space;
+                    let (above, y) = if articulation_at_notehead(articulation) {
+                        // Opposite the stem, just past the notehead.
+                        if stem_up {
+                            (false, anchor_y + 1.1 * space + stack)
+                        } else {
+                            (true, anchor_y - 1.1 * space - stack)
+                        }
+                    } else if lower_voice {
+                        (
+                            false,
+                            (band.bottom_y + 1.4 * space).max(note_bottom + space) + stack,
+                        )
+                    } else {
+                        (
+                            true,
+                            (band.top_y - 1.4 * space).min(note_top - space) - stack,
+                        )
+                    };
+                    let stem_up = !above;
                     annotations.push(SemanticAnnotation::Articulation {
                         articulation,
                         x,
-                        direction: if stem_up { -1.0 } else { 1.0 },
+                        direction: if above { -1.0 } else { 1.0 },
                     });
                     owner.push(
                         GlyphPlacement {
@@ -216,15 +284,11 @@ pub(crate) fn render_measure_semantic_annotations(
                                 height_mm: 0.96 * space,
                             },
                             x_mm: x,
-                            y_mm: if stem_up {
-                                anchor_y - distance * space
-                            } else {
-                                anchor_y + distance * space
-                            },
+                            y_mm: y,
                             priority: 1,
                         },
                         GlyphCollisionClass::Annotation,
-                        if stem_up {
+                        if !stem_up {
                             GlyphCollisionDirection::Up
                         } else {
                             GlyphCollisionDirection::Down
