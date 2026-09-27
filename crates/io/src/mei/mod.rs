@@ -4498,7 +4498,13 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
         "<scoreDef meter.count=\"{}\" meter.unit=\"{}\" keysig=\"{}\"><staffGrp>",
         time.numerator, time.denominator, key
     ));
-    if multi_part {
+    // A named single part is written like one part of a multi-part score so its name survives
+    // as a <label>; the importer's placeholder name "MEI" is not worth writing back.
+    let named_single_part = {
+        let name = score.parts[0].name.trim();
+        !name.is_empty() && name != "MEI"
+    };
+    if multi_part || named_single_part {
         append_mei_part_staff_defs(&mut out, original);
     } else {
         append_mei_staff_defs_at(
@@ -5852,6 +5858,31 @@ mod tests {
         assert_eq!(second.clef, Some(Clef::Alto));
         assert_eq!(second.key_sig.as_ref().map(|key| key.fifths), Some(-1));
         assert_eq!(second.time_sig.as_ref().map(|time| time.numerator), Some(2));
+    }
+
+    #[test]
+    fn named_single_part_keeps_name_and_brace_through_mei() {
+        let mut score = Score::new("piano", 120, 4, 4, 0, 1);
+        let mut lower = score.parts[0].staves[0].clone();
+        lower.clef = Clef::Bass;
+        score.parts[0].staves.push(lower);
+        score.parts[0].name = "Piano".into();
+        score.parts[0].staff_groups.push(StaffGroup {
+            first_staff: 0,
+            last_staff: 1,
+            symbol: PartGroupSymbol::Brace,
+            barlines_connect: true,
+        });
+        let serialized = serialize_mei(&score).expect("piano serializes");
+        assert!(
+            serialized
+                .contains("<staffGrp symbol=\"brace\" bar.thru=\"true\"><label>Piano</label>")
+        );
+        let restored = parse_mei(&serialized).expect("piano reparses");
+        assert_eq!(restored.parts.len(), 1);
+        assert_eq!(restored.parts[0].name, "Piano");
+        assert_eq!(restored.parts[0].staff_groups, score.parts[0].staff_groups);
+        assert_eq!(restored.parts[0].staves[1].clef, Clef::Bass);
     }
 
     #[test]
