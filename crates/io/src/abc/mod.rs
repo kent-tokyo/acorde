@@ -1587,7 +1587,8 @@ fn parse_duration_suffix(chars: &[char], mut i: usize) -> (u32, u32, usize) {
 
 fn pad_voice(voice: &mut Vec<Note>, max_beats: f64) {
     let mut used: f64 = voice.iter().map(|n| n.beats()).sum();
-    while max_beats - used > 1e-9 {
+    // Never overfill: a remainder shorter than a sixty-fourth stays open.
+    while max_beats - used >= Duration::SixtyFourth.beats(0) - 1e-9 {
         let remaining = max_beats - used;
         let rest = Note::rest(Duration::whole_filling_beats(remaining));
         used += rest.beats();

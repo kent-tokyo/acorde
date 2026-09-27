@@ -9,6 +9,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- MusicXML and ABC import no longer overfill a bar when padding it: a remainder shorter than
+  a sixty-fourth (left by playback-only notes of odd lengths) was filled with a sixty-fourth
+  rest, which made the bar too long and the score invalid, so no edit could be applied. With
+  the range change above, 201 of the 205 corpus scores now import editable (198 before).
 - **Out-of-range pitches are warnings (user approved).** Validation reported a pitch outside
   the part's instrument range as an error, and every edit command is refused on a score with
   errors — so a part whose MIDI program names another instrument (a viola marked as violin)

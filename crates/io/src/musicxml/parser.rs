@@ -2206,7 +2206,9 @@ pub(crate) fn parse_musicxml_collecting(
                                     continue;
                                 }
                                 let mut used: f64 = voice.iter().map(|n| n.beats()).sum();
-                                while total_beats - used > 1e-9 {
+                                // A remainder shorter than a sixty-fourth (playback-only notes
+                                // of odd lengths) is left open: a rest would overfill the bar.
+                                while total_beats - used >= Duration::SixtyFourth.beats(0) - 1e-9 {
                                     let remaining = total_beats - used;
                                     // Time the source leaves empty is filled with hidden
                                     // rests: MusicXML draws nothing there.
