@@ -9,6 +9,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **MEI import of Verovio-written files.** Checked against 30 corpus scores converted to MEI by
+  Verovio: control events placed a little off the beat (`tstamp="1.9167"`, which Verovio
+  derives from MusicXML offsets) found no note and were dropped — now a start takes the nearest
+  onset and an end (`tstamp2`) the last note begun by then, within the bar and in the meter in
+  force there, so kept dynamics rose from 51 % to 91 % and hairpins from 26 to 266 of 276.
+  Notes with only `@dur.ppq` (Verovio's hidden playback notes) and values beyond the model
+  (`dur="128"`…`"2048"`, breves) failed the whole file; they now import (the value from
+  `@dur.ppq`, or the nearest value the model has; MusicXML `128th`… and `breve` likewise).
+  An untyped `<dir>` lands on the staff it names (further ones as expression texts), and
+  `<tempo>` converts `@mm.unit`/`@mm.dots` beats to quarter-note tempo and goes on its staff.
 - **Realize chord symbols** (`RealizeChordSymbolsCmd`, MuseScore's Tools → Realize chord
   symbols): writes one staff's chord symbols out as chords into a voice of any staff, with
   undo. Every MusicXML chord kind and its added, altered and omitted degrees are voiced in

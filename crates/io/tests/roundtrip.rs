@@ -1733,6 +1733,8 @@ fn chord_label_semantics_match_across_mei_and_mscx() {
         if let Some(expression) = measure.expression_text.as_deref() {
             labels.push((acorde_core::TextStyle::Expression, expression.to_string()));
         }
+        // Formats order a bar's texts differently; the set is what must match.
+        labels.sort_by(|a, b| (format!("{:?}", a.0), &a.1).cmp(&(format!("{:?}", b.0), &b.1)));
         labels
     }
     let mei = acorde_io::parse_mei(
@@ -5457,4 +5459,58 @@ fn mei_keeps_a_part_whose_meter_differs_from_the_others() {
     };
     assert_eq!(meters(0), vec![(3, 4), (3, 4), (2, 4)]);
     assert_eq!(meters(1), vec![(6, 8), (6, 8), (2, 4)]);
+}
+
+#[test]
+fn mei_import_reads_verovio_style_offsets_ppq_durations_words_and_tempo_units() {
+    let mei = r##"<mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="5.1"><music><body><mdiv><score>
+      <scoreDef meter.count="4" meter.unit="4"><staffGrp>
+        <staffDef n="1" lines="5" ppq="4" clef.shape="G" clef.line="2"/>
+        <staffDef n="2" lines="5" ppq="4" clef.shape="F" clef.line="4"/>
+      </staffGrp></scoreDef>
+      <section><measure n="1">
+        <staff n="1"><layer n="1">
+          <note pname="c" oct="5" dur="4"/><note pname="d" oct="5" dur="4"/>
+          <note pname="e" oct="5" dur="2"/>
+        </layer></staff>
+        <staff n="2"><layer n="1">
+          <note pname="c" oct="3" dur.ppq="5" visible="false"/>
+          <note pname="g" oct="2" dur="4" dots="1" dur.ppq="6"/>
+          <note pname="c" oct="3" dur="2" dur.ppq="8"/>
+        </layer></staff>
+        <dynam staff="1" tstamp="1.9167">f</dynam>
+        <hairpin staff="1" tstamp="2" tstamp2="0m+4.9961" form="cres"/>
+        <dir place="below" staff="2" tstamp="1"><rend fontstyle="italic">dolce</rend></dir>
+        <tempo staff="1" tstamp="1" mm="60" mm.unit="2">Adagio</tempo>
+      </measure></section></score></mdiv></body></music></mei>"##;
+    let score = acorde_io::parse_mei(mei).expect("imports");
+    let upper = &score.parts[0].staves[0].measures[0];
+    // The dynamic just before beat 2 lands on the note at beat 2.
+    assert!(upper.voices[0][1].dynamic.is_some());
+    assert!(upper.voices[0][1].hairpin_start.is_some());
+    assert!(upper.voices[0][2].hairpin_end);
+    assert_eq!(
+        upper.tempo,
+        Some(120),
+        "60 half notes a minute is 120 quarters"
+    );
+    let lower_staff = score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .nth(1)
+        .expect("second staff");
+    let lower = &lower_staff.measures[0];
+    let first = &lower.voices[0][0];
+    assert!(first.hidden);
+    assert_eq!(
+        first.duration,
+        acorde_core::Duration::Quarter,
+        "5 ticks of 4 fit a quarter"
+    );
+    assert_eq!(
+        lower.expression_text.as_deref(),
+        Some("dolce"),
+        "on the staff it names"
+    );
 }

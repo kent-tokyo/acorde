@@ -3092,7 +3092,8 @@ fn parse_duration_type(t: &str) -> Duration {
         "eighth" => Duration::Eighth,
         "16th" => Duration::Sixteenth,
         "32nd" => Duration::ThirtySecond,
-        "64th" => Duration::SixtyFourth,
+        "64th" | "128th" | "256th" | "512th" | "1024th" => Duration::SixtyFourth,
+        "breve" | "long" | "maxima" => Duration::Whole,
         _ => Duration::Quarter,
     }
 }

@@ -40,8 +40,49 @@ fn duration(value: Option<&str>) -> Option<Duration> {
         Some("16") => Some(Duration::Sixteenth),
         Some("32") => Some(Duration::ThirtySecond),
         Some("64") => Some(Duration::SixtyFourth),
+        // Values beyond the model's range take its nearest one (the bar keeps its notes; their
+        // timing is approximate) instead of failing the whole file.
+        Some("128" | "256" | "512" | "1024" | "2048") => Some(Duration::SixtyFourth),
+        Some("breve" | "long" | "maxima") => Some(Duration::Whole),
         _ => None,
     }
+}
+
+/// The note value and dots lasting `ticks` at `ppq` per quarter: exact, else the longest that
+/// fits.
+fn mei_value_from_ppq(ticks: u64, ppq: u64) -> Option<(Duration, u8)> {
+    if ticks == 0 || ppq == 0 {
+        return None;
+    }
+    let mut best: Option<(Duration, u8, u64, u64)> = None;
+    for value in [
+        Duration::Whole,
+        Duration::Half,
+        Duration::Quarter,
+        Duration::Eighth,
+        Duration::Sixteenth,
+        Duration::ThirtySecond,
+        Duration::SixtyFourth,
+    ] {
+        let (num, den) = value.as_fraction();
+        for dots in 0u8..=3 {
+            // length = ppq * 4 * num/den * (2^(dots+1)-1)/2^dots, compared cross-multiplied
+            let length_num = ppq * 4 * u64::from(num) * ((2u64 << dots) - 1);
+            let length_den = u64::from(den) << dots;
+            match (ticks * length_den).cmp(&length_num) {
+                std::cmp::Ordering::Equal => return Some((value, dots)),
+                std::cmp::Ordering::Greater
+                    if best.as_ref().is_none_or(|(_, _, best_num, best_den)| {
+                        length_num * best_den > *best_num * length_den
+                    }) =>
+                {
+                    best = Some((value.clone(), dots, length_num, length_den));
+                }
+                _ => {}
+            }
+        }
+    }
+    best.map(|(value, dots, _, _)| (value, dots))
 }
 
 fn step(value: &str) -> Option<Step> {
@@ -1794,11 +1835,26 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
         return Ok(());
     }
     let inherited = |name: &[u8]| attr(event, name).or_else(|| chord.and_then(|c| attr(c, name)));
-    let dur = duration(inherited(b"dur").as_deref())
-        .ok_or_else(|| Error::Xml("MEI note has unsupported duration".into()))?;
-    let dots = inherited(b"dots")
-        .and_then(|value| value.parse::<u8>().ok())
-        .unwrap_or(0);
+    // Without `@dur` (Verovio writes hidden playback notes of odd lengths that way), the value
+    // comes from `@dur.ppq`: the exact one, or the longest that fits.
+    let from_ppq = inherited(b"dur")
+        .is_none()
+        .then(|| {
+            let ticks = inherited(b"dur.ppq")?.trim().parse::<u64>().ok()?;
+            mei_value_from_ppq(ticks, u64::from(ppq?))
+        })
+        .flatten();
+    let derived_from_ppq = from_ppq.is_some();
+    let (dur, dots) = match from_ppq {
+        Some(value) => value,
+        None => (
+            duration(inherited(b"dur").as_deref())
+                .ok_or_else(|| Error::Xml("MEI note has unsupported duration".into()))?,
+            inherited(b"dots")
+                .and_then(|value| value.parse::<u8>().ok())
+                .unwrap_or(0),
+        ),
+    };
     let grace_value = inherited(b"grace");
     let grace_slash =
         inherited(b"stem.mod").is_some_and(|value| value.to_ascii_lowercase().contains("slash"));
@@ -1874,6 +1930,7 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
     if note.tuplet.is_none()
         && !note.is_grace
         && dots == 0
+        && !derived_from_ppq
         && let (Some(ppq), Some(actual)) = (
             ppq,
             inherited(b"dur.ppq").and_then(|value| value.trim().parse::<u64>().ok()),
@@ -2040,6 +2097,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut staff_ppq: HashMap<usize, u32> = HashMap::new();
     let mut score_ppq: Option<u32> = None;
     let mut direction_style: Option<(TextStyle, Option<String>, usize)> = None;
+    let mut direction_untyped: Option<(Option<String>, usize)> = None;
     let mut in_section = false;
     let mut pending_time_change: Option<TimeSignature> = None;
     let mut pending_key_change: Option<KeySignature> = None;
@@ -2492,13 +2550,33 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         current_layer = 0;
                     }
                     b"tempo" if current_measure.is_some() => {
+                        // `@mm` counts `@mm.unit` beats (a half note is 2, dotted with
+                        // `@mm.dots`); acorde keeps quarter-note beats per minute.
+                        let unit = attr(&event, b"mm.unit")
+                            .and_then(|value| value.trim().parse::<f64>().ok())
+                            .filter(|unit| *unit > 0.0)
+                            .unwrap_or(4.0);
+                        let dots = attr(&event, b"mm.dots")
+                            .and_then(|value| value.trim().parse::<i32>().ok())
+                            .unwrap_or(0)
+                            .clamp(0, 3);
+                        let quarters = 4.0 / unit * (2.0 - 0.5f64.powi(dots));
                         if let Some(bpm) = attr(&event, b"mm")
-                            .and_then(|value| value.parse::<u16>().ok())
-                            .filter(|value| (1..=999).contains(value))
+                            .or_else(|| attr(&event, b"midi.bpm"))
+                            .and_then(|value| value.trim().parse::<f64>().ok())
+                            .map(|value| (value * quarters).round())
+                            .filter(|value| (1.0..=999.0).contains(value))
                             && let Some(measure_index) = current_measure
                         {
-                            score.parts[0].staves[current_staff].measures[measure_index].tempo =
-                                Some(bpm);
+                            let staff =
+                                PendingMeiAnchor::from_event(&event, current_staff, 0).staff;
+                            if let Some(measure) = score.parts[0]
+                                .staves
+                                .get_mut(staff)
+                                .and_then(|staff| staff.measures.get_mut(measure_index))
+                            {
+                                measure.tempo = Some(bpm as u16);
+                            }
                         }
                     }
                     b"layer" if current_measure.is_some() => {
@@ -2587,6 +2665,14 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                     PendingMeiAnchor::from_event(&event, current_staff, 0).staff
                                 })
                             });
+                        // An untyped `<dir>` (Verovio's MusicXML words) is expression text on
+                        // the staff it names.
+                        direction_untyped = direction_style.is_none().then(|| {
+                            (
+                                attr(&event, b"place"),
+                                PendingMeiAnchor::from_event(&event, current_staff, 0).staff,
+                            )
+                        });
                     }
                     b"slur" if current_measure.is_some() => {
                         if let (Some(start), Some(end)) =
@@ -3120,13 +3206,32 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         }
                     } else if let Some(measure_index) = current_measure {
                         let text = direction_text.trim();
+                        let (placement, staff) =
+                            direction_untyped.take().unwrap_or((None, current_staff));
                         if !text.is_empty() {
-                            let measure =
-                                &mut score.parts[0].staves[current_staff].measures[measure_index];
                             if let Some(navigation) = navigation_mark(text) {
-                                measure.navigation = Some(navigation.to_string());
-                            } else {
-                                measure.expression_text = Some(text.to_string());
+                                score.parts[0].staves[current_staff].measures[measure_index]
+                                    .navigation = Some(navigation.to_string());
+                            } else if let Some(measure) = score.parts[0]
+                                .staves
+                                .get_mut(staff)
+                                .and_then(|staff| staff.measures.get_mut(measure_index))
+                            {
+                                // The first is the bar's expression text (what export writes
+                                // back as an untyped `<dir>`); further ones are styled texts.
+                                if measure.expression_text.is_none() {
+                                    measure.expression_text = Some(text.to_string());
+                                } else {
+                                    measure.texts.push(StyledText {
+                                        style: TextStyle::Expression,
+                                        text: text.to_string(),
+                                        placement,
+                                        offset_x: None,
+                                        offset_y: None,
+                                        relative_x: None,
+                                        relative_y: None,
+                                    });
+                                }
                             }
                         }
                     }
@@ -3610,33 +3715,54 @@ fn mei_note_location_at_timestamp(
     measure_index: usize,
     timestamp: f64,
 ) -> Option<(usize, usize, usize, usize)> {
-    let measure = score
-        .parts
-        .first()?
-        .staves
-        .get(staff_index)?
-        .measures
-        .get(measure_index)?;
-    let denominator = measure
-        .time_sig
-        .as_ref()
-        .map_or(score.settings.time_signature.denominator, |time| {
-            time.denominator
-        });
+    mei_note_at_timestamp(score, staff_index, measure_index, timestamp, false)
+}
+
+/// The note a control event's `@tstamp` points at. An exact onset wins; otherwise a start
+/// takes the nearest onset and an end the last note begun by then — Verovio's MusicXML
+/// conversion writes offsets such as `tstamp="1.9167"` for a mark placed just before beat 2.
+fn mei_note_at_timestamp(
+    score: &Score,
+    staff_index: usize,
+    measure_index: usize,
+    timestamp: f64,
+    is_end: bool,
+) -> Option<(usize, usize, usize, usize)> {
+    let staff = score.parts.first()?.staves.get(staff_index)?;
+    let measure = staff.measures.get(measure_index)?;
+    let denominator = staff
+        .meter_at(measure_index, &score.settings.time_signature)
+        .denominator;
     let beat_target = (timestamp - 1.0) * 4.0 / f64::from(denominator);
-    if !beat_target.is_finite() || beat_target < 0.0 {
+    let bar_beats = staff.measure_beats(measure_index, &score.settings.time_signature);
+    if !beat_target.is_finite() || beat_target < -1e-6 || beat_target > bar_beats + 1e-6 {
         return None;
     }
+    let mut best: Option<((usize, usize, usize, usize), f64)> = None;
     for (layer, voice) in measure.voices.iter().enumerate() {
         let mut beat = 0.0;
         for (index, note) in voice.iter().enumerate() {
+            let location = (staff_index, measure_index, layer, index);
             if (beat - beat_target).abs() < 1e-6 {
-                return Some((staff_index, measure_index, layer, index));
+                return Some(location);
+            }
+            if !note.is_grace {
+                let distance = if is_end {
+                    // Only notes already begun; the latest is the closest.
+                    (beat <= beat_target + 1e-6).then_some(beat_target - beat)
+                } else {
+                    Some((beat - beat_target).abs())
+                };
+                if let Some(distance) = distance
+                    && best.is_none_or(|(_, current)| distance < current - 1e-9)
+                {
+                    best = Some((location, distance));
+                }
             }
             beat += note.beats();
         }
     }
-    None
+    best.map(|(location, _)| location)
 }
 
 fn mei_note_location_at_timestamp2(
@@ -3647,7 +3773,7 @@ fn mei_note_location_at_timestamp2(
 ) -> Option<(usize, usize, usize, usize)> {
     let (measure_offset, beat) = parse_mei_timestamp2(timestamp)?;
     let target_measure = measure_index.checked_add(measure_offset)?;
-    mei_note_location_at_timestamp(score, staff_index, target_measure, beat)
+    mei_note_at_timestamp(score, staff_index, target_measure, beat, true)
 }
 
 fn mei_note_mut(score: &mut Score, location: (usize, usize, usize, usize)) -> Option<&mut Note> {
