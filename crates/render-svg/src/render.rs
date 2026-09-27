@@ -1860,13 +1860,19 @@ fn note_vertical_margins(note: &Note, clef_bottom: i32, voice_stem_up: bool) -> 
     annotation_top = annotation_top.max(lane_top);
     annotation_bottom = annotation_bottom.max(lane_bottom);
 
-    if !note.is_rest && !matches!(note.duration, acorde_core::Duration::Whole) {
+    if !note.is_rest
+        && !matches!(
+            note.duration,
+            acorde_core::Duration::Whole | acorde_core::Duration::Breve
+        )
+    {
         let stem_up = note.stem_up.unwrap_or(voice_stem_up);
         let flag_count = match note.duration {
             acorde_core::Duration::Eighth => 1,
             acorde_core::Duration::Sixteenth => 2,
             acorde_core::Duration::ThirtySecond => 3,
             acorde_core::Duration::SixtyFourth => 4,
+            acorde_core::Duration::HundredTwentyEighth => 5,
             _ => 0,
         };
         // Matches the unbeamed stem: 3.5 spaces, plus 0.75 per flag beyond two.
@@ -1876,6 +1882,7 @@ fn note_vertical_margins(note: &Note, clef_bottom: i32, voice_stem_up: bool) -> 
             acorde_core::Duration::Sixteenth => 2,
             acorde_core::Duration::ThirtySecond => 3,
             acorde_core::Duration::SixtyFourth => 4,
+            acorde_core::Duration::HundredTwentyEighth => 5,
             _ => 0,
         };
         let beam_extent =
@@ -5950,7 +5957,7 @@ fn render_tab_rhythm(
     space: f32,
     stem_up: bool,
 ) {
-    if matches!(note.duration, Duration::Whole) {
+    if matches!(note.duration, Duration::Whole | Duration::Breve) {
         return;
     }
     let (stem, tip_y) = glyphs::stem(x, anchor_y, space, stem_up);
@@ -5960,6 +5967,7 @@ fn render_tab_rhythm(
         Duration::Sixteenth => 2,
         Duration::ThirtySecond => 3,
         Duration::SixtyFourth => 4,
+        Duration::HundredTwentyEighth => 5,
         _ => 0,
     };
     if flag_count > 0 {
@@ -7299,6 +7307,18 @@ fn render_rest(
         Duration::Sixteenth => (2, glyphs::rest_short(x, mid_y, space, 2)),
         Duration::ThirtySecond => (3, glyphs::rest_short(x, mid_y, space, 3)),
         Duration::SixtyFourth => (4, glyphs::rest_short(x, mid_y, space, 4)),
+        Duration::HundredTwentyEighth => (5, glyphs::rest_short(x, mid_y, space, 5)),
+        // A breve rest fills the space above the middle line.
+        Duration::Breve => (
+            0,
+            format!(
+                r#"<rect class="acorde-rest-breve" x="{}" y="{}" width="{}" height="{}" fill="black"/>"#,
+                f(x - 0.25 * space),
+                f(mid_y - space),
+                f(0.5 * space),
+                f(space)
+            ),
+        ),
     };
     let _ = flags;
     body.push_str(&glyph);
@@ -7337,13 +7357,15 @@ fn render_pitched_note(
             | Duration::Sixteenth
             | Duration::ThirtySecond
             | Duration::SixtyFourth
+            | Duration::HundredTwentyEighth
     );
-    let has_stem = !matches!(note.duration, Duration::Whole);
+    let has_stem = !matches!(note.duration, Duration::Whole | Duration::Breve);
     let flag_count = match note.duration {
         Duration::Eighth => 1,
         Duration::Sixteenth => 2,
         Duration::ThirtySecond => 3,
         Duration::SixtyFourth => 4,
+        Duration::HundredTwentyEighth => 5,
         _ => 0,
     };
 
@@ -7607,6 +7629,23 @@ fn render_pitched_note_heads(
             space,
             filled,
         ));
+        if note.duration == Duration::Breve {
+            // A breve is a whole-note head between two pairs of vertical bars.
+            let cx = x + notehead_offsets[pitch_index] * space;
+            for side in [-1.0_f32, 1.0] {
+                for offset in [0.12_f32, 0.28] {
+                    let bar_x = cx + side * (glyphs::NOTEHEAD_RX_U + offset) * space;
+                    let _ = write!(
+                        body,
+                        r#"<line class="acorde-breve-bar" x1="{bx}" y1="{}" x2="{bx}" y2="{}" stroke="black" stroke-width="{}"/>"#,
+                        f(y - 0.6 * space),
+                        f(y + 0.6 * space),
+                        f(0.1 * space),
+                        bx = f(bar_x)
+                    );
+                }
+            }
+        }
         if note.is_parenthesized(pitch_index) {
             body.push_str(&notehead_parentheses(
                 x + notehead_offsets[pitch_index] * space,

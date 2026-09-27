@@ -25,6 +25,12 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
+### Unreleased — breves and 128th notes
+
+`Duration` gains `Breve` (two whole notes) and `HundredTwentyEighth`. Existing score JSON is
+unchanged; exhaustive `Duration` matches need the two arms. `ScaleVoiceRangeCmd` now doubles a whole
+note to a breve and halves a 64th to a 128th instead of refusing.
+
 ### v1.2.16 — clefs, requested accidentals, and ghost noteheads
 
 `Clef` gains `Treble8vb`, `Treble8va`, `Bass8vb`, `Bass8va`, `Soprano`, `MezzoSoprano` and

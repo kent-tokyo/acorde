@@ -931,12 +931,16 @@ fn apply_abc_broken_rhythm(note: &mut Note, lengthen: bool, count: u8) {
     } else {
         for _ in 0..count {
             note.duration = match note.duration {
+                Duration::Breve => Duration::Whole,
                 Duration::Whole => Duration::Half,
                 Duration::Half => Duration::Quarter,
                 Duration::Quarter => Duration::Eighth,
                 Duration::Eighth => Duration::Sixteenth,
                 Duration::Sixteenth => Duration::ThirtySecond,
-                Duration::ThirtySecond | Duration::SixtyFourth => Duration::SixtyFourth,
+                Duration::ThirtySecond => Duration::SixtyFourth,
+                Duration::SixtyFourth | Duration::HundredTwentyEighth => {
+                    Duration::HundredTwentyEighth
+                }
             };
         }
     }
@@ -1519,6 +1523,7 @@ fn abc_note_value(unit_den: u32, num: u32, den: u32) -> (Duration, u8) {
         Duration::Sixteenth,
         Duration::ThirtySecond,
         Duration::SixtyFourth,
+        Duration::HundredTwentyEighth,
     ] {
         for dots in 0u8..=3 {
             let (value_num, value_den) = value.as_fraction();
@@ -2456,6 +2461,7 @@ fn pitch_to_abc(pitch: &Pitch) -> String {
 fn duration_to_abc_suffix(dur: Duration, dot_count: u8) -> String {
     // Duration relative to L:1/4 expressed as (numerator, denominator).
     let (base_num, base_den): (u32, u32) = match dur {
+        Duration::Breve => (8, 1),
         Duration::Whole => (4, 1),
         Duration::Half => (2, 1),
         Duration::Quarter => (1, 1),
@@ -2463,6 +2469,7 @@ fn duration_to_abc_suffix(dur: Duration, dot_count: u8) -> String {
         Duration::Sixteenth => (1, 4),
         Duration::ThirtySecond => (1, 8),
         Duration::SixtyFourth => (1, 16),
+        Duration::HundredTwentyEighth => (1, 32),
     };
     let (dot_num, dot_den): (u32, u32) = match dot_count {
         1 => (3, 2),

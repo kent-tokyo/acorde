@@ -2450,7 +2450,7 @@ pub(crate) fn parse_musicxml_collecting(
                                         // Shorter than any note value (a playback-only run of
                                         // 1/17 quarters): the shortest value, not a quarter.
                                         .or((duration_ticks > 0)
-                                            .then_some((Duration::SixtyFourth, 0)))
+                                            .then_some((Duration::HundredTwentyEighth, 0)))
                                     })
                                     .flatten();
                                 let dur = if note_is_measure_rest {
@@ -3022,6 +3022,10 @@ fn append_musicxml_gap_rests(
         (Duration::Sixteenth, divisions.checked_div(4)),
         (Duration::ThirtySecond, divisions.checked_div(8)),
         (Duration::SixtyFourth, divisions.checked_div(16)),
+        (
+            Duration::HundredTwentyEighth,
+            divisions.is_multiple_of(32).then_some(divisions / 32),
+        ),
     ];
     while ticks > 0 {
         let mut selected = None;
@@ -3153,6 +3157,7 @@ fn musicxml_value_from_ticks(
     }
     let (actual, normal) = tuplet.map_or((1u64, 1u64), |(a, n)| (u64::from(a), u64::from(n)));
     [
+        Duration::Breve,
         Duration::Whole,
         Duration::Half,
         Duration::Quarter,
@@ -3160,6 +3165,7 @@ fn musicxml_value_from_ticks(
         Duration::Sixteenth,
         Duration::ThirtySecond,
         Duration::SixtyFourth,
+        Duration::HundredTwentyEighth,
     ]
     .into_iter()
     .flat_map(|value| (0u8..=3).map(move |dots| (value.clone(), dots)))
@@ -3186,8 +3192,9 @@ fn parse_duration_type(t: &str) -> Duration {
         "eighth" => Duration::Eighth,
         "16th" => Duration::Sixteenth,
         "32nd" => Duration::ThirtySecond,
-        "64th" | "128th" | "256th" | "512th" | "1024th" => Duration::SixtyFourth,
-        "breve" | "long" | "maxima" => Duration::Whole,
+        "64th" => Duration::SixtyFourth,
+        "128th" | "256th" | "512th" | "1024th" => Duration::HundredTwentyEighth,
+        "breve" | "long" | "maxima" => Duration::Breve,
         _ => Duration::Quarter,
     }
 }
@@ -3642,7 +3649,7 @@ mod tests {
         assert!(
             voice[..4]
                 .iter()
-                .all(|note| note.duration == Duration::SixtyFourth)
+                .all(|note| note.duration == Duration::HundredTwentyEighth)
         );
     }
 

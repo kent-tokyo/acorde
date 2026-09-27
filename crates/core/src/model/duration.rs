@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 /// Note duration as a power-of-two fraction of a whole note.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Duration {
+    /// Double whole note.
+    Breve,
     Whole,
     Half,
     Quarter,
@@ -10,12 +12,14 @@ pub enum Duration {
     Sixteenth,
     ThirtySecond,
     SixtyFourth,
+    HundredTwentyEighth,
 }
 
 impl Duration {
     /// Exact fraction relative to a whole note = 1.
     pub fn as_fraction(&self) -> (u32, u32) {
         match self {
+            Duration::Breve => (2, 1),
             Duration::Whole => (1, 1),
             Duration::Half => (1, 2),
             Duration::Quarter => (1, 4),
@@ -23,6 +27,7 @@ impl Duration {
             Duration::Sixteenth => (1, 16),
             Duration::ThirtySecond => (1, 32),
             Duration::SixtyFourth => (1, 64),
+            Duration::HundredTwentyEighth => (1, 128),
         }
     }
 
@@ -42,6 +47,7 @@ impl Duration {
     /// MusicXML `<type>` string.
     pub fn to_musicxml_type(&self) -> &'static str {
         match self {
+            Duration::Breve => "breve",
             Duration::Whole => "whole",
             Duration::Half => "half",
             Duration::Quarter => "quarter",
@@ -49,6 +55,7 @@ impl Duration {
             Duration::Sixteenth => "16th",
             Duration::ThirtySecond => "32nd",
             Duration::SixtyFourth => "64th",
+            Duration::HundredTwentyEighth => "128th",
         }
     }
 

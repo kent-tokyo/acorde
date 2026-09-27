@@ -42,6 +42,7 @@ fn beam_level(duration: &Duration) -> u8 {
         Duration::Sixteenth => 2,
         Duration::ThirtySecond => 3,
         Duration::SixtyFourth => 4,
+        Duration::HundredTwentyEighth => 5,
         _ => 0,
     }
 }

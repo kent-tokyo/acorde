@@ -2777,6 +2777,8 @@ fn mscz_duration_type(s: &str) -> Duration {
         "16th" => Duration::Sixteenth,
         "32nd" => Duration::ThirtySecond,
         "64th" => Duration::SixtyFourth,
+        "128th" | "256th" | "512th" | "1024th" => Duration::HundredTwentyEighth,
+        "breve" | "longa" => Duration::Breve,
         "measure" => Duration::Whole,
         _ => Duration::Quarter,
     }

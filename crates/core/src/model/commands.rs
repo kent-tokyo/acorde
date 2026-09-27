@@ -4483,27 +4483,23 @@ fn apply_explode_chord_pitches(
 }
 
 fn scaled_duration(duration: &Duration, scale: DurationScale) -> Option<Duration> {
-    match (duration, scale) {
-        (Duration::Whole, DurationScale::Double) | (Duration::SixtyFourth, DurationScale::Half) => {
-            None
-        }
-        (Duration::Whole, DurationScale::Half) | (Duration::Half, DurationScale::Double) => {
-            Some(Duration::Half)
-        }
-        (Duration::Half, DurationScale::Half) | (Duration::Quarter, DurationScale::Double) => {
-            Some(Duration::Quarter)
-        }
-        (Duration::Quarter, DurationScale::Half) | (Duration::Eighth, DurationScale::Double) => {
-            Some(Duration::Eighth)
-        }
-        (Duration::Eighth, DurationScale::Half) | (Duration::Sixteenth, DurationScale::Double) => {
-            Some(Duration::Sixteenth)
-        }
-        (Duration::Sixteenth, DurationScale::Half)
-        | (Duration::ThirtySecond, DurationScale::Double) => Some(Duration::ThirtySecond),
-        (Duration::ThirtySecond, DurationScale::Half)
-        | (Duration::SixtyFourth, DurationScale::Double) => Some(Duration::SixtyFourth),
-    }
+    const ORDER: [Duration; 9] = [
+        Duration::Breve,
+        Duration::Whole,
+        Duration::Half,
+        Duration::Quarter,
+        Duration::Eighth,
+        Duration::Sixteenth,
+        Duration::ThirtySecond,
+        Duration::SixtyFourth,
+        Duration::HundredTwentyEighth,
+    ];
+    let index = ORDER.iter().position(|value| value == duration)?;
+    let scaled = match scale {
+        DurationScale::Double => index.checked_sub(1)?,
+        DurationScale::Half => index + 1,
+    };
+    ORDER.get(scaled).cloned()
 }
 
 fn uniform_tuplet_ratio(voice: &[Note]) -> Result<Option<TupletInfo>, Error> {
@@ -4547,6 +4543,7 @@ fn pad_voice_to_measure_with_tuplet_ratio(
             Duration::Sixteenth,
             Duration::ThirtySecond,
             Duration::SixtyFourth,
+            Duration::HundredTwentyEighth,
         ]
         .into_iter()
         .find(|duration| duration.beats(0) * ratio_scale <= remaining + 1e-9)

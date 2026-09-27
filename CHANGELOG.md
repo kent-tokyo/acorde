@@ -9,6 +9,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Breves and 128th notes.** `Duration` stopped at whole notes and 64ths: breves (MusicXML
+  `breve`, MEI `dur="breve"`, MuseScore `breve`, GP7 `DoubleWhole`) became whole notes and
+  128ths became 64ths, so the bars that held them over- or under-filled and played out of time.
+  `Duration` gains `Breve` and `HundredTwentyEighth`, read and written by every format,
+  drawn in SVG (breve bars and rest, five flags and beams); still shorter values take the
+  128th. One more corpus score now validates (204 of 205).
+
 ## [1.2.16] - 2026-09-28
 
 - **Ghost notes (parenthesized noteheads).** `Note::pitch_parentheses` marks noteheads drawn

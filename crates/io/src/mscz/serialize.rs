@@ -1108,6 +1108,7 @@ fn write_note(
 
 fn duration_name(duration: &Duration) -> &'static str {
     match duration {
+        Duration::Breve => "breve",
         Duration::Whole => "whole",
         Duration::Half => "half",
         Duration::Quarter => "quarter",
@@ -1115,6 +1116,7 @@ fn duration_name(duration: &Duration) -> &'static str {
         Duration::Sixteenth => "16th",
         Duration::ThirtySecond => "32nd",
         Duration::SixtyFourth => "64th",
+        Duration::HundredTwentyEighth => "128th",
     }
 }
 

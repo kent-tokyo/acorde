@@ -3392,3 +3392,28 @@ fn ghost_notes_draw_parentheses_around_their_notehead() {
     let svg = render_svg(&score, &opts()).unwrap();
     assert_eq!(svg.matches("acorde-ghost").count(), 1);
 }
+
+#[test]
+fn breves_and_hundred_twenty_eighths_render() {
+    use acorde_core::{Duration, Measure, Note, Part, Pitch, Score, Staff, Step};
+    let mut score = Score::new("values", 120, 4, 2, 1, 1);
+    let mut part = Part::new("P", "");
+    let mut staff = Staff::new(acorde_core::Clef::Treble);
+    let mut breve = Measure::empty(4, 2);
+    breve.voices[0] = vec![Note::new(Pitch::new(Step::C, 5), Duration::Breve)];
+    let mut rest = Measure::empty(4, 2);
+    rest.voices[0] = vec![Note::rest(Duration::Breve)];
+    let mut short = Measure::empty(4, 2);
+    let mut notes = vec![Note::new(
+        Pitch::new(Step::E, 5),
+        Duration::HundredTwentyEighth,
+    )];
+    notes.push(Note::rest(Duration::HundredTwentyEighth));
+    short.voices[0] = notes;
+    staff.measures = vec![breve, rest, short];
+    part.staves = vec![staff];
+    score.parts = vec![part];
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(svg.matches("acorde-breve-bar").count(), 4);
+    assert!(svg.contains("acorde-rest-breve"));
+}

@@ -305,12 +305,14 @@ fn gp_duration(value: &str, losses: &mut Losses) -> Duration {
         "16th" => Duration::Sixteenth,
         "32nd" => Duration::ThirtySecond,
         "64th" => Duration::SixtyFourth,
+        "128th" => Duration::HundredTwentyEighth,
+        "DoubleWhole" => Duration::Breve,
         _ => {
             losses.add(
                 "gp.unsupported-duration",
-                "note values shorter than a 64th are imported as 64ths",
+                "note values shorter than a 128th are imported as 128ths",
             );
-            Duration::SixtyFourth
+            Duration::HundredTwentyEighth
         }
     }
 }
@@ -424,7 +426,7 @@ fn property_float(note: &Node, name: &str) -> Option<f64> {
 
 /// Fill `beats` of rests into `voice` using the largest note values that fit.
 fn pad_with_rests(voice: &mut Vec<Note>, mut beats: f64) {
-    const VALUES: [(Duration, f64); 7] = [
+    const VALUES: [(Duration, f64); 8] = [
         (Duration::Whole, 4.0),
         (Duration::Half, 2.0),
         (Duration::Quarter, 1.0),
@@ -432,6 +434,7 @@ fn pad_with_rests(voice: &mut Vec<Note>, mut beats: f64) {
         (Duration::Sixteenth, 0.25),
         (Duration::ThirtySecond, 0.125),
         (Duration::SixtyFourth, 0.0625),
+        (Duration::HundredTwentyEighth, 0.03125),
     ];
     while beats > 1e-6 {
         let Some((duration, length)) = VALUES.iter().find(|(_, length)| *length <= beats + 1e-6)

@@ -32,6 +32,14 @@ fn attr(e: &BytesStart<'_>, key: &[u8]) -> Option<String> {
         .and_then(|value| String::from_utf8(value.value.to_vec()).ok())
 }
 
+/// MEI `@dur` for a note value: `breve`, or the denominator (`1`, `2`, …, `128`).
+fn mei_dur(duration: &Duration) -> String {
+    match duration {
+        Duration::Breve => "breve".to_string(),
+        other => other.as_fraction().1.to_string(),
+    }
+}
+
 fn duration(value: Option<&str>) -> Option<Duration> {
     match value {
         Some("1") => Some(Duration::Whole),
@@ -41,10 +49,12 @@ fn duration(value: Option<&str>) -> Option<Duration> {
         Some("16") => Some(Duration::Sixteenth),
         Some("32") => Some(Duration::ThirtySecond),
         Some("64") => Some(Duration::SixtyFourth),
+        Some("128") => Some(Duration::HundredTwentyEighth),
+        Some("breve") => Some(Duration::Breve),
         // Values beyond the model's range take its nearest one (the bar keeps its notes; their
         // timing is approximate) instead of failing the whole file.
-        Some("128" | "256" | "512" | "1024" | "2048") => Some(Duration::SixtyFourth),
-        Some("breve" | "long" | "maxima") => Some(Duration::Whole),
+        Some("256" | "512" | "1024" | "2048") => Some(Duration::HundredTwentyEighth),
+        Some("long" | "maxima") => Some(Duration::Breve),
         _ => None,
     }
 }
@@ -57,6 +67,7 @@ fn mei_value_from_ppq(ticks: u64, ppq: u64) -> Option<(Duration, u8)> {
     }
     let mut best: Option<(Duration, u8, u64, u64)> = None;
     for value in [
+        Duration::Breve,
         Duration::Whole,
         Duration::Half,
         Duration::Quarter,
@@ -64,6 +75,7 @@ fn mei_value_from_ppq(ticks: u64, ppq: u64) -> Option<(Duration, u8)> {
         Duration::Sixteenth,
         Duration::ThirtySecond,
         Duration::SixtyFourth,
+        Duration::HundredTwentyEighth,
     ] {
         let (num, den) = value.as_fraction();
         for dots in 0u8..=3 {
@@ -4143,7 +4155,7 @@ fn append_mei_note(
         && !note.pitches.is_empty()
     {
         // Tablature staves use <tabGrp> with string/fret on each note (pitch kept as well).
-        let dur = note.duration.as_fraction().1;
+        let dur = mei_dur(&note.duration);
         out.push_str(&format!("<tabGrp xml:id=\"{id}\" dur=\"{dur}\""));
         if note.dot_count > 0 {
             out.push_str(&format!(" dots=\"{}\"", note.dot_count));
@@ -4195,7 +4207,7 @@ fn append_mei_note(
         return Ok(());
     }
     let shown = |index: usize| written.get(index).copied().unwrap_or(true);
-    let dur = note.duration.as_fraction().1.to_string();
+    let dur = mei_dur(&note.duration);
     let is_chord = !note.is_rest && note.pitches.len() > 1;
     if note.is_rest {
         // A hidden rest is MEI's `<space>`.

@@ -2676,8 +2676,10 @@ impl Duration {
             Duration::Sixteenth
         } else if beats >= 0.125 {
             Duration::ThirtySecond
-        } else {
+        } else if beats >= 0.0625 {
             Duration::SixtyFourth
+        } else {
+            Duration::HundredTwentyEighth
         }
     }
 }
@@ -4625,6 +4627,7 @@ pub fn compute_beams(notes: &[Note], time_sig: &TimeSignature) -> Vec<BeamState>
                     | Duration::Sixteenth
                     | Duration::ThirtySecond
                     | Duration::SixtyFourth
+                    | Duration::HundredTwentyEighth
             )
     };
 
