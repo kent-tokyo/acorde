@@ -1864,6 +1864,11 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut current_verse: u8 = 1;
     let mut syllable_wordpos: Option<String> = None;
     let mut in_layer = false;
+    let mut in_section = false;
+    let mut pending_time_change: Option<TimeSignature> = None;
+    let mut pending_key_change: Option<KeySignature> = None;
+    let mut pending_clef_changes: Vec<(usize, Clef)> = Vec::new();
+    let mut measure_changes: Vec<usize> = Vec::new();
     let mut dynam_anchor: Option<PendingMeiAnchor> = None;
     let mut pending_dynams: Vec<(PendingMeiAnchor, Dynamic)> = Vec::new();
     let mut pending_hairpins: Vec<(PendingMeiAnchor, HairpinKind)> = Vec::new();
@@ -1902,6 +1907,34 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             ));
                         }
                         staff_grp_depth = staff_grp_depth.saturating_add(1);
+                    }
+                    b"section" => in_section = true,
+                    b"sb" | b"pb" if current_measure.is_none() => {
+                        let page = event.name().as_ref() == b"pb";
+                        if let Some(measure) = score.parts[0]
+                            .staves
+                            .first_mut()
+                            .and_then(|staff| staff.measures.last_mut())
+                        {
+                            if page {
+                                measure.page_break = true;
+                            } else {
+                                measure.system_break = true;
+                            }
+                        }
+                    }
+                    b"scoreDef" if in_section => {
+                        // A mid-piece scoreDef changes meter/key from the next measure on.
+                        if let Some(time_signature) =
+                            parse_meter(attr(&event, b"meter.count"), attr(&event, b"meter.unit"))
+                        {
+                            pending_time_change = Some(time_signature);
+                        }
+                        if let Some(key_signature) =
+                            attr(&event, b"key.sig").and_then(|value| parse_key_signature(&value))
+                        {
+                            pending_key_change = Some(key_signature);
+                        }
                     }
                     b"scoreDef" => {
                         if let Some(time_signature) =
@@ -1980,7 +2013,29 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         if let Some(clef) =
                             parse_clef(attr(&event, b"clef.shape"), attr(&event, b"clef.line"))
                         {
-                            score.parts[0].staves[staff_index].clef = clef;
+                            if in_section {
+                                pending_clef_changes.push((staff_index, clef));
+                            } else {
+                                score.parts[0].staves[staff_index].clef = clef;
+                            }
+                        }
+                        if in_section
+                            && let Some(key_signature) = attr(&event, b"key.sig")
+                                .and_then(|value| parse_key_signature(&value))
+                        {
+                            pending_key_change = Some(key_signature);
+                        }
+                    }
+                    b"clef" if in_layer => {
+                        if let (Some(clef), Some(measure_index)) = (
+                            parse_clef(attr(&event, b"shape"), attr(&event, b"line")),
+                            current_measure,
+                        ) {
+                            let measure =
+                                &mut score.parts[0].staves[current_staff].measures[measure_index];
+                            if measure.voices[current_layer].is_empty() {
+                                measure.clef = Some(clef);
+                            }
                         }
                     }
                     b"staff" => {
@@ -2015,9 +2070,26 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 measure.voices = [vec![], vec![], vec![], vec![]];
                                 score.parts[0].staves[current_staff].measures.push(measure);
                             }
+                            if let Some(time) = parse_meter(
+                                attr(&event, b"meter.count"),
+                                attr(&event, b"meter.unit"),
+                            ) {
+                                score.parts[0].staves[current_staff].measures[measure_index]
+                                    .time_sig = Some(time);
+                            }
+                            if let Some(position) = pending_clef_changes
+                                .iter()
+                                .position(|(staff, _)| *staff == current_staff)
+                            {
+                                let (_, clef) = pending_clef_changes.remove(position);
+                                score.parts[0].staves[current_staff].measures[measure_index].clef =
+                                    Some(clef);
+                            }
                         }
                     }
                     b"measure" => {
+                        // Measure-level content before the first <staff> belongs to staff 1.
+                        current_staff = 0;
                         if score.parts[0].staves[current_staff].measures.len() >= MAX_MEI_MEASURES {
                             return Err(Error::Xml("MEI document has too many measures".into()));
                         }
@@ -2026,13 +2098,21 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             .unwrap_or(
                                 (score.parts[0].staves[current_staff].measures.len() + 1) as u32,
                             );
+                        let changed_time = pending_time_change.take();
+                        if let Some(time) = &changed_time {
+                            default_time_signature = time.clone();
+                        }
                         let measure_time =
                             parse_meter(attr(&event, b"meter.count"), attr(&event, b"meter.unit"))
                                 .unwrap_or_else(|| default_time_signature.clone());
                         let mut measure =
                             Measure::empty(measure_time.numerator, measure_time.denominator);
-                        if measure_time != default_time_signature {
+                        if measure_time != default_time_signature || changed_time.is_some() {
                             measure.time_sig = Some(measure_time);
+                        }
+                        measure.key_sig = pending_key_change.take();
+                        if measure.time_sig.is_some() || measure.key_sig.is_some() {
+                            measure_changes.push(score.parts[0].staves[0].measures.len());
                         }
                         measure.number = n;
                         measure.voices[0].clear();
@@ -2512,6 +2592,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                 }
                 b"tuplet" => current_tuplet = None,
                 b"measure" => current_measure = None,
+                b"staff" => current_staff = 0,
                 _ => {}
             },
             Ok(Event::Eof) => {
@@ -2537,6 +2618,25 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     apply_mei_ottavas(&mut score, &note_ids, pending_ottavas);
     apply_mei_pedals(&mut score, &note_ids, pending_pedals);
     apply_mei_control_events(&mut score, &note_ids, pending_dynams, pending_hairpins);
+    for measure_index in measure_changes {
+        let Some((time, key)) = score.parts[0].staves[0]
+            .measures
+            .get(measure_index)
+            .map(|measure| (measure.time_sig.clone(), measure.key_sig.clone()))
+        else {
+            continue;
+        };
+        for staff in score.parts[0].staves.iter_mut().skip(1) {
+            if let Some(measure) = staff.measures.get_mut(measure_index) {
+                if measure.time_sig.is_none() {
+                    measure.time_sig = time.clone();
+                }
+                if measure.key_sig.is_none() {
+                    measure.key_sig = key.clone();
+                }
+            }
+        }
+    }
     apply_pending_harm_symbols(&mut score, &note_ids, pending_harm_symbols);
     if !title.trim().is_empty() {
         score.metadata.title = title.trim().to_string();
@@ -3705,26 +3805,22 @@ fn append_mei_measure_staves(
     staves: &[Staff],
     measure_index: usize,
     number: u32,
-    default_time: &TimeSignature,
 ) -> Result<(), Error> {
     for (staff_index, staff) in staves.iter().enumerate() {
         let Some(measure) = staff.measures.get(measure_index) else {
             continue;
         };
-        let measure_time = measure.time_sig.as_ref().unwrap_or(default_time);
-        out.push_str(&format!("<staff n=\"{}\"", staff_index + 1));
-        if measure.time_sig.is_some() {
-            out.push_str(&format!(
-                " meter.count=\"{}\" meter.unit=\"{}\"",
-                measure_time.numerator, measure_time.denominator
-            ));
-        }
-        out.push('>');
+        out.push_str(&format!("<staff n=\"{}\">", staff_index + 1));
+        let mut clef_change = measure.clef.clone();
         for (voice_index, voice) in measure.voices.iter().enumerate() {
             if voice.is_empty() {
                 continue;
             }
             out.push_str(&format!("<layer n=\"{}\">", voice_index + 1));
+            if let Some(clef) = clef_change.take() {
+                let (shape, line) = mei_clef(clef);
+                out.push_str(&format!("<clef shape=\"{shape}\" line=\"{line}\"/>"));
+            }
             for (note_index, note) in voice.iter().enumerate() {
                 append_mei_articulations(out, note);
                 if let Some(tuplet) = &note.tuplet {
@@ -3808,6 +3904,23 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
             .iter()
             .find_map(|staff| staff.measures.get(measure_index))
             .map_or((measure_index + 1) as u32, |measure| measure.number);
+        if let Some(first) = staves
+            .iter()
+            .find_map(|staff| staff.measures.get(measure_index))
+            && (first.time_sig.is_some() || first.key_sig.is_some())
+        {
+            out.push_str("<scoreDef");
+            if let Some(time) = &first.time_sig {
+                out.push_str(&format!(
+                    " meter.count=\"{}\" meter.unit=\"{}\"",
+                    time.numerator, time.denominator
+                ));
+            }
+            if let Some(key) = &first.key_sig {
+                out.push_str(&format!(" key.sig=\"{}\"", mei_key_signature(key)));
+            }
+            out.push_str("/>");
+        }
         out.push_str(&format!("<measure n=\"{number}\">"));
         if let Some(bpm) = staves
             .iter()
@@ -3942,9 +4055,19 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
                 out.push_str("</dir>");
             }
         }
-        append_mei_measure_staves(&mut out, staves, measure_index, number, time)?;
+        append_mei_measure_staves(&mut out, staves, measure_index, number)?;
         append_mei_control_events(&mut out, staves, measure_index);
         out.push_str("</measure>");
+        if let Some(first) = staves
+            .iter()
+            .find_map(|staff| staff.measures.get(measure_index))
+        {
+            if first.page_break {
+                out.push_str("<pb/>");
+            } else if first.system_break {
+                out.push_str("<sb/>");
+            }
+        }
     }
     out.push_str("</section></score></mdiv></body></music></mei>");
     Ok(out)
@@ -4019,8 +4142,6 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                     measure_index + 1
                 );
                 for (field, present) in [
-                    ("key_sig", measure.key_sig.is_some()),
-                    ("clef", measure.clef.is_some()),
                     ("volta", measure.volta.is_some()),
                     ("tempo_text", measure.tempo_text.is_some()),
                     ("rehearsal", false),
@@ -4032,8 +4153,7 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                             !matches!(text.style, TextStyle::ChordSymbol | TextStyle::FiguredBass)
                         }),
                     ),
-                    ("system_break", measure.system_break),
-                    ("page_break", measure.page_break),
+                    ("system_break", measure.system_break && measure.page_break),
                 ] {
                     if present {
                         push(
@@ -4878,6 +4998,42 @@ mod tests {
             "<hairpin form=\"cres\" staff=\"1\" startid=\"#n1_1_1_1\" endid=\"#n2_1_1_1\"/>"
         ));
         check(&parse_mei(&export.output).expect("control events reparse"));
+    }
+
+    #[test]
+    fn mid_piece_meter_key_clef_and_breaks_round_trip() {
+        let xml = r##"<mei><music><body><mdiv><score><scoreDef meter.count="4" meter.unit="4" key.sig="0"><staffGrp><staffDef n="1" clef.shape="G" clef.line="2"/><staffDef n="2" clef.shape="F" clef.line="4"/></staffGrp></scoreDef><section><measure n="1"><staff n="1"><layer n="1"><note pname="c" oct="5" dur="1"/></layer></staff><staff n="2"><layer n="1"><note pname="c" oct="3" dur="1"/></layer></staff><tempo mm="90"/></measure><sb/><scoreDef meter.count="3" meter.unit="4" key.sig="2s"><staffGrp><staffDef n="2" clef.shape="G" clef.line="2"/></staffGrp></scoreDef><measure n="2"><staff n="1"><layer n="1"><note pname="d" oct="5" dur="2" dots="1"/></layer></staff><staff n="2"><layer n="1"><note pname="d" oct="4" dur="2" dots="1"/></layer></staff></measure><pb/></section></score></mdiv></body></music></mei>"##;
+        let report = parse_mei_with_report(xml).expect("mid-piece changes parse");
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let check = |score: &Score| {
+            assert_eq!(score.settings.time_signature.numerator, 4);
+            assert_eq!(score.settings.key_signature.fifths, 0);
+            let upper = &score.parts[0].staves[0].measures;
+            let lower = &score.parts[0].staves[1].measures;
+            assert_eq!(score.parts[0].staves[1].clef, Clef::Bass);
+            assert_eq!(upper[0].tempo, Some(90));
+            assert!(upper[0].system_break);
+            assert!(upper[1].page_break);
+            for measures in [upper, lower] {
+                assert_eq!(
+                    measures[1].time_sig.as_ref().map(|time| time.numerator),
+                    Some(3)
+                );
+                assert_eq!(measures[1].key_sig.as_ref().map(|key| key.fifths), Some(2));
+            }
+            assert_eq!(lower[1].clef, Some(Clef::Treble));
+            assert_eq!(upper[1].clef, None);
+        };
+        check(&report.score);
+        let export = crate::serialize_mei_with_report(&report.score).expect("changes export");
+        assert!(export.diagnostics.is_empty(), "{:?}", export.diagnostics);
+        assert!(export.output.contains("<sb/>"));
+        assert!(
+            export
+                .output
+                .contains("<scoreDef meter.count=\"3\" meter.unit=\"4\" key.sig=\"2s\"/>")
+        );
+        check(&parse_mei(&export.output).expect("changes reparse"));
     }
 
     #[test]
