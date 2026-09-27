@@ -4719,3 +4719,129 @@ fn musicxml_export_writes_the_tempo_once_not_at_every_attributes_change() {
     assert_eq!(xml.matches("<sound tempo=").count(), 1);
     assert!(xml.contains("<per-minute>96</per-minute>"));
 }
+
+#[test]
+fn mei_round_trips_tremolos_arpeggios_and_tablature_graces_and_lyrics() {
+    use acorde_core::{
+        Articulation, Duration, Lyric, Note, Pitch, Score, Step, TabPosition, TablatureConfig,
+    };
+    let mut score = Score::new("mei marks", 120, 4, 4, 0, 1);
+    let mut guitar = acorde_core::Part::new("Guitar", "Gtr.");
+    guitar.staves = score.parts[0].staves.clone();
+    score.parts.push(guitar);
+    let mut tremolo = Note::new(Pitch::new(Step::C, 5), Duration::Half);
+    tremolo.articulations.push(Articulation::Tremolo(3));
+    let mut arpeggio = Note::new(Pitch::new(Step::E, 4), Duration::Half);
+    arpeggio.pitches.push(Pitch::new(Step::G, 4));
+    arpeggio.arpeggiate = Some(false);
+    score.parts[0].staves[0].measures[0].voices[0] = vec![tremolo, arpeggio];
+
+    let staff = &mut score.parts[1].staves[0];
+    staff.tablature = Some(TablatureConfig {
+        lines: 6,
+        tuning_midi: vec![40, 45, 50, 55, 59, 64],
+        capo: 0,
+    });
+    let mut grace = Note::new(Pitch::new(Step::A, 3), Duration::Eighth);
+    grace.is_grace = true;
+    grace.tab_position = Some(TabPosition { string: 4, fret: 2 });
+    let mut sung = Note::new(Pitch::new(Step::B, 3), Duration::Whole);
+    sung.tab_position = Some(TabPosition { string: 4, fret: 4 });
+    sung.lyric = Some(Lyric {
+        text: "la".into(),
+        syllabic: "single".into(),
+        extend: false,
+    });
+    sung.articulations.push(Articulation::Tremolo(2));
+    sung.arpeggiate = Some(true);
+    staff.measures[0].voices[0] = vec![grace, sung];
+
+    let mei = acorde_io::serialize_mei(&score).expect("exports");
+    assert!(mei.contains("stem.mod=\"3slash\""));
+    assert!(mei.contains("order=\"down\""));
+    let back = acorde_io::parse_mei(&mei).expect("imports");
+    let notes = &back.parts[0].staves[0].measures[0].voices[0];
+    assert!(notes[0].articulations.contains(&Articulation::Tremolo(3)));
+    assert_eq!(notes[1].arpeggiate, Some(false));
+    let tab = &back.parts[1].staves[0].measures[0].voices[0];
+    assert!(tab[0].is_grace);
+    assert_eq!(tab[1].lyric.as_ref().map(|l| l.text.as_str()), Some("la"));
+    assert!(tab[1].articulations.contains(&Articulation::Tremolo(2)));
+    assert_eq!(tab[1].arpeggiate, Some(true));
+}
+
+#[test]
+fn musicxml_reads_final_double_dashed_and_invisible_barlines() {
+    use acorde_core::{Barline, Score};
+    let mut score = Score::new("barlines", 120, 4, 4, 0, 5);
+    let mut piano = acorde_core::Part::new("Piano", "Pno.");
+    piano.staves = vec![score.parts[0].staves[0].clone(); 2];
+    score.parts.push(piano);
+    for part in &mut score.parts {
+        for staff in &mut part.staves {
+            staff.measures[0].barline_right = Barline::Double;
+            staff.measures[1].barline_right = Barline::Dashed;
+            staff.measures[2].barline_right = Barline::Invisible;
+            staff.measures[3].barline_right = Barline::RepeatEnd;
+            staff.measures[4].barline_right = Barline::Final;
+        }
+    }
+    let xml = serialize_musicxml(&score).expect("exports");
+    let back = parse_musicxml(&xml).expect("imports");
+    for part in &back.parts {
+        for staff in &part.staves {
+            let bars: Vec<_> = staff
+                .measures
+                .iter()
+                .map(|m| m.barline_right.clone())
+                .collect();
+            assert_eq!(
+                bars,
+                vec![
+                    Barline::Double,
+                    Barline::Dashed,
+                    Barline::Invisible,
+                    Barline::RepeatEnd,
+                    Barline::Final
+                ]
+            );
+        }
+    }
+}
+
+#[test]
+fn mscx_keeps_invisible_barlines_and_a_volta_that_runs_to_the_last_bar() {
+    use acorde_core::{Barline, Duration, Note, Pitch, Score, Step, VoltaBracket};
+    let mut score = Score::new("coda volta", 120, 2, 4, 0, 4);
+    for measure in &mut score.parts[0].staves[0].measures {
+        measure.voices[0] = vec![Note::new(Pitch::new(Step::A, 4), Duration::Half)];
+    }
+    let measures = &mut score.parts[0].staves[0].measures;
+    measures[0].barline_right = Barline::Invisible;
+    measures[1].barline_right = Barline::RepeatEnd;
+    measures[2].volta = Some(VoltaBracket {
+        number: 2,
+        kind: "begin".into(),
+    });
+    measures[3].volta = Some(VoltaBracket {
+        number: 2,
+        kind: "end".into(),
+    });
+    measures[3].barline_right = Barline::Final;
+    let mscx = acorde_io::serialize_mscx(&score).expect("exports");
+    let back = acorde_io::parse_mscx(&mscx).expect("imports");
+    let measures = &back.parts[0].staves[0].measures;
+    assert_eq!(measures[0].barline_right, Barline::Invisible);
+    assert_eq!(
+        measures
+            .iter()
+            .map(|m| m.volta.as_ref().map(|v| (v.number, v.kind.clone())))
+            .collect::<Vec<_>>(),
+        vec![
+            None,
+            None,
+            Some((2, "begin".to_string())),
+            Some((2, "end".to_string()))
+        ]
+    );
+}

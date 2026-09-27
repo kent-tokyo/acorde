@@ -584,6 +584,8 @@ fn write_staff(
         };
         if let Some(subtype) = barline {
             write!(xml, "<BarLine><subtype>{subtype}</subtype></BarLine>").map_err(fmt_error)?;
+        } else if matches!(measure.barline_right, acorde_core::Barline::Invisible) {
+            xml.push_str("<BarLine><subtype>normal</subtype><visible>0</visible></BarLine>");
         }
         xml.push_str("</Measure>");
     }

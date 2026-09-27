@@ -1221,13 +1221,16 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "repeat" if in_barline => {
                         let dir = attr_str(e, b"direction").unwrap_or_default();
-                        if let Some(pi) = part_index
-                            && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
-                        {
-                            match dir.as_str() {
-                                "forward" => m.barline_left = Barline::RepeatStart,
-                                "backward" => m.barline_right = Barline::RepeatEnd,
-                                _ => {}
+                        if let Some(pi) = part_index {
+                            for staff in &mut score.parts[pi].staves {
+                                let Some(m) = staff.measures.last_mut() else {
+                                    continue;
+                                };
+                                match dir.as_str() {
+                                    "forward" => m.barline_left = Barline::RepeatStart,
+                                    "backward" => m.barline_right = Barline::RepeatEnd,
+                                    _ => {}
+                                }
                             }
                         }
                     }
@@ -1518,6 +1521,25 @@ pub(crate) fn parse_musicxml_collecting(
                         in_figured_bass = false;
                     }
                     "work" => in_work = false,
+                    "bar-style" if in_barline && barline_location == "right" => {
+                        let style = match current_text.trim() {
+                            "light-heavy" | "heavy-heavy" => Some(Barline::Final),
+                            "light-light" => Some(Barline::Double),
+                            "dashed" => Some(Barline::Dashed),
+                            "dotted" => Some(Barline::Dotted),
+                            "none" => Some(Barline::Invisible),
+                            _ => None,
+                        };
+                        if let (Some(style), Some(pi)) = (style, part_index) {
+                            for staff in &mut score.parts[pi].staves {
+                                if let Some(m) = staff.measures.last_mut()
+                                    && matches!(m.barline_right, Barline::Normal)
+                                {
+                                    m.barline_right = style.clone();
+                                }
+                            }
+                        }
+                    }
                     "barline" => in_barline = false,
                     "pedal-tuning" if in_harp_pedal_tuning => {
                         in_harp_pedal_tuning = false;

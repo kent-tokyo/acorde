@@ -9,6 +9,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **MusicXML barline styles.** MusicXML import read `<repeat>` but not `<bar-style>`, so final,
+  double, dashed, dotted and invisible barlines were lost (every Guitar Pro → MusicXML → import
+  round trip of the alphaTab test files lost all 176 of them). They are now read — on every
+  staff of the part, as repeats now are — and export writes `dashed`, `dotted` and `none` and a
+  `RepeatBoth` bar's repeat signs; export also no longer writes an `<ending type="start">` for a
+  volta that only ends at a repeat start.
+- **MEI tremolos, arpeggios and tablature marks.** MEI export dropped single-note tremolos
+  (now `@stem.mod="Nslash"`) and arpeggios (now `<arpeg order>`), and wrote tablature notes
+  without their grace flag, tremolo or lyrics; import reads all of them back. Articulations on
+  tablature notes are still reported and not written, because Verovio 6.3 crashes on `@artic`
+  inside a `<tabGrp>`. A Guitar Pro → MEI → import round trip of the alphaTab test files now
+  keeps its 76 grace notes, 47 arpeggios and 27 tremolos.
+- MSCX export writes invisible barlines (`<visible>0</visible>`), and MSCX import closes a
+  volta that runs to the last bar, which MuseScore gives no closing marker.
 - **MEI endings.** Voltas were neither written nor read by MEI; they are now `<ending n label>`
   elements around their bars (Verovio draws them), and import gives them to every part.
 - MusicXML export wrote the score tempo as a new metronome mark in every bar with an

@@ -807,6 +807,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             cur_barline_right = barline;
                         }
                     }
+                    "visible" if in_barline_elem && t.trim() == "0" => {
+                        cur_barline_right = Barline::Invisible;
+                    }
                     "BarLine" if in_barline_elem => {
                         in_barline_elem = false;
                     }
@@ -1703,6 +1706,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     for (id, clef) in part_default_clefs {
         staff_clefs.entry(id).or_insert(clef);
     }
+    for measures in staff_measures.values_mut() {
+        close_final_volta(measures);
+    }
 
     assemble_score(
         base_score,
@@ -2302,6 +2308,27 @@ pub fn tab_position_diagnostics(score: &acorde_core::Score) -> Vec<Diagnostic> {
 }
 
 // ── Assembly ──────────────────────────────────────────────────────────────────
+
+/// A volta still open at the end of a staff runs to its last bar: MuseScore has no bar after
+/// the final one to hold the closing `<prev>` marker.
+fn close_final_volta(measures: &mut [Measure]) {
+    let mut open: Option<(usize, u8)> = None;
+    for (index, measure) in measures.iter().enumerate() {
+        if let Some(volta) = &measure.volta {
+            open = (volta.kind == "begin").then_some((index, volta.number));
+        }
+    }
+    let Some((start, number)) = open else {
+        return;
+    };
+    let last = measures.len() - 1;
+    if last > start {
+        measures[last].volta = Some(VoltaBracket {
+            number,
+            kind: "end".to_string(),
+        });
+    }
+}
 
 fn assemble_score(
     mut score: Score,

@@ -173,16 +173,24 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
             if has_left {
                 xml.push_str("      <barline location=\"left\">\n");
                 // Content order: bar-style, ..., ending, repeat.
-                if matches!(measure.barline_left, Barline::RepeatStart) {
+                if matches!(
+                    measure.barline_left,
+                    Barline::RepeatStart | Barline::RepeatBoth
+                ) {
                     xml.push_str("        <bar-style>heavy-light</bar-style>\n");
                 }
-                if let Some(v) = &measure.volta {
+                if let Some(v) = &measure.volta
+                    && (v.kind == "begin" || v.kind == "begin_end")
+                {
                     xml.push_str(&format!(
                         "        <ending number=\"{}\" type=\"start\"/>\n",
                         v.number
                     ));
                 }
-                if matches!(measure.barline_left, Barline::RepeatStart) {
+                if matches!(
+                    measure.barline_left,
+                    Barline::RepeatStart | Barline::RepeatBoth
+                ) {
                     xml.push_str("        <repeat direction=\"forward\"/>\n");
                 }
                 xml.push_str("      </barline>\n");
@@ -691,10 +699,13 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
             if has_right {
                 xml.push_str("      <barline location=\"right\">\n");
                 match measure.barline_right {
-                    Barline::RepeatEnd | Barline::Final => {
+                    Barline::RepeatEnd | Barline::RepeatBoth | Barline::Final => {
                         xml.push_str("        <bar-style>light-heavy</bar-style>\n")
                     }
                     Barline::Double => xml.push_str("        <bar-style>light-light</bar-style>\n"),
+                    Barline::Dashed => xml.push_str("        <bar-style>dashed</bar-style>\n"),
+                    Barline::Dotted => xml.push_str("        <bar-style>dotted</bar-style>\n"),
+                    Barline::Invisible => xml.push_str("        <bar-style>none</bar-style>\n"),
                     _ => {}
                 }
                 if let Some(v) = &measure.volta
@@ -705,7 +716,10 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                         v.number
                     ));
                 }
-                if matches!(measure.barline_right, Barline::RepeatEnd) {
+                if matches!(
+                    measure.barline_right,
+                    Barline::RepeatEnd | Barline::RepeatBoth
+                ) {
                     xml.push_str("        <repeat direction=\"backward\"/>\n");
                 }
                 xml.push_str("      </barline>\n");

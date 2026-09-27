@@ -1851,6 +1851,18 @@ fn parse_mei_note_event(event: &BytesStart<'_>, context: MeiNoteContext<'_>) -> 
             push_articulation(&mut note, articulation);
         }
     }
+    // On a non-grace note, `@stem.mod="Nslash"` is a single-note tremolo.
+    if !note.is_grace
+        && let Some(slashes) = inherited(b"stem.mod").and_then(|value| {
+            value
+                .trim()
+                .strip_suffix("slash")
+                .and_then(|count| count.parse::<u8>().ok())
+                .filter(|count| (1..=6).contains(count))
+        })
+    {
+        push_articulation(&mut note, Articulation::Tremolo(slashes));
+    }
     note.tuplet = (*current_tuplet).clone();
     if note.tuplet.is_none()
         && !note.is_grace
@@ -2030,6 +2042,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut pending_dynams: Vec<(PendingMeiAnchor, Dynamic)> = Vec::new();
     let mut pending_hairpins: Vec<(PendingMeiAnchor, HairpinKind)> = Vec::new();
     let mut pending_marks: Vec<(PendingMeiAnchor, Articulation)> = Vec::new();
+    let mut pending_arpeggios: Vec<(PendingMeiAnchor, bool)> = Vec::new();
     let mut beam_starts: Vec<usize> = Vec::new();
     let mut current_chord_definition: Option<ChordDefinition> = None;
     let mut buf = Vec::new();
@@ -2562,6 +2575,23 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 }
                             }
                             None => pending_articulations.extend(values),
+                        }
+                    }
+                    b"arpeg" if current_measure.is_some() && !in_layer => {
+                        if let Some(measure) = current_measure {
+                            let mut anchor =
+                                PendingMeiAnchor::from_event(&event, current_staff, measure);
+                            if anchor.start_id.is_none() {
+                                anchor.start_id = attr(&event, b"plist").and_then(|list| {
+                                    list.split_whitespace().next().map(str::to_string)
+                                });
+                            }
+                            let up = attr(&event, b"order").as_deref() != Some("down");
+                            if anchor.is_anchored()
+                                && attr(&event, b"order").as_deref() != Some("nonarp")
+                            {
+                                pending_arpeggios.push((anchor, up));
+                            }
                         }
                     }
                     element @ (b"fermata" | b"trill" | b"mordent" | b"turn" | b"breath"
@@ -3128,6 +3158,13 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     apply_mei_ottavas(&mut score, &note_ids, pending_ottavas);
     apply_mei_pedals(&mut score, &note_ids, pending_pedals);
     apply_mei_control_events(&mut score, &note_ids, pending_dynams, pending_hairpins);
+    for (anchor, up) in pending_arpeggios {
+        if let Some(location) = anchor.start(&score, &note_ids)
+            && let Some(note) = mei_note_mut(&mut score, location)
+        {
+            note.arpeggiate = Some(up);
+        }
+    }
     for (anchor, mark) in pending_marks {
         if let Some(location) = anchor.start(&score, &note_ids)
             && let Some(note) = mei_note_mut(&mut score, location)
@@ -3976,6 +4013,8 @@ fn append_mei_note(
             out.push_str(&format!(" tie=\"{tie}\""));
         }
         out.push('>');
+        // tabGrp carries no grace or stem attributes, so they go on its notes. On-note
+        // articulations stay out: Verovio (6.3) crashes on `@artic` inside a tabGrp.
         for (index, pitch) in note.pitches.iter().enumerate() {
             out.push_str(&format!("<note xml:id=\"{id}_p{}\"", index + 1));
             append_mei_pitch_attrs(out, pitch, false);
@@ -3984,6 +4023,7 @@ fn append_mei_note(
             {
                 out.push_str(&format!(" tie=\"{tie}\""));
             }
+            append_mei_grace_and_stem(out, note);
             let tab = note
                 .tab_positions
                 .get(index)
@@ -4000,7 +4040,13 @@ fn append_mei_note(
                     tab.fret
                 ));
             }
-            out.push_str("/>");
+            if index == 0 && (note.lyric.is_some() || !note.additional_lyrics.is_empty()) {
+                out.push('>');
+                append_mei_verses(out, note);
+                out.push_str("</note>");
+            } else {
+                out.push_str("/>");
+            }
         }
         out.push_str("</tabGrp>");
         return Ok(());
@@ -4012,22 +4058,12 @@ fn append_mei_note(
         out.push_str(&format!("<rest dur=\"{dur}\""));
     } else if is_chord {
         out.push_str(&format!("<chord xml:id=\"{id}\" dur=\"{dur}\""));
-        if note.is_grace {
-            out.push_str(" grace=\"acc\"");
-            if note.grace_slash {
-                out.push_str(" stem.mod=\"1slash\"");
-            }
-        }
+        append_mei_grace_and_stem(out, note);
     } else if let Some(pitch) = note.pitches.first() {
         out.push_str(&format!("<note xml:id=\"{id}\""));
         append_mei_pitch_attrs(out, pitch, shown(0));
         out.push_str(&format!(" dur=\"{dur}\""));
-        if note.is_grace {
-            out.push_str(" grace=\"acc\"");
-            if note.grace_slash {
-                out.push_str(" stem.mod=\"1slash\"");
-            }
-        }
+        append_mei_grace_and_stem(out, note);
     } else {
         return Err(Error::Xml("cannot serialize note without pitch".into()));
     }
@@ -4049,13 +4085,9 @@ fn append_mei_note(
         out.push_str(&format!(" staff=\"{}\"", cross.target_staff + 1));
     }
     if !note.is_rest {
-        let artic = note
-            .articulations
-            .iter()
-            .filter_map(mei_artic_value)
-            .collect::<Vec<_>>();
+        let artic = mei_artic_values(note);
         if !artic.is_empty() {
-            out.push_str(&format!(" artic=\"{}\"", artic.join(" ")));
+            out.push_str(&format!(" artic=\"{artic}\""));
         }
     }
     let has_verses = note.lyric.is_some() || !note.additional_lyrics.is_empty();
@@ -4160,6 +4192,20 @@ fn append_mei_control_events(
                         dynamic.to_musicxml_str()
                     ));
                 }
+                if let Some(up) = note.arpeggiate
+                    && !note.is_rest
+                {
+                    let order = if up { "up" } else { "down" };
+                    // Verovio takes @plist, but not a tabGrp as its target.
+                    let plist = if staff.tablature.is_none() {
+                        format!(" plist=\"#{start_id}\"")
+                    } else {
+                        String::new()
+                    };
+                    out.push_str(&format!(
+                        "<arpeg staff=\"{n}\" startid=\"#{start_id}\"{plist} order=\"{order}\"/>"
+                    ));
+                }
                 for (element, form) in note.articulations.iter().filter_map(mei_mark_element) {
                     out.push_str(&format!("<{element} staff=\"{n}\" startid=\"#{start_id}\""));
                     if let Some(form) = form {
@@ -4227,6 +4273,37 @@ fn append_mei_control_events(
 }
 
 /// MEI `@artic` value for marks written on the note or chord itself.
+/// The space-separated MEI `@artic` value for a note's on-note articulations.
+fn mei_artic_values(note: &Note) -> String {
+    note.articulations
+        .iter()
+        .filter_map(mei_artic_value)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// A note's single-note tremolo slash count, clamped to MEI's `@stem.mod` range.
+fn mei_tremolo_slashes(note: &Note) -> Option<u8> {
+    note.articulations
+        .iter()
+        .find_map(|articulation| match articulation {
+            Articulation::Tremolo(slashes) if *slashes > 0 => Some((*slashes).min(6)),
+            _ => None,
+        })
+}
+
+/// `@grace` plus `@stem.mod`: a slashed grace stem, or the slashes of a single-note tremolo.
+fn append_mei_grace_and_stem(out: &mut String, note: &Note) {
+    if note.is_grace {
+        out.push_str(" grace=\"acc\"");
+        if note.grace_slash {
+            out.push_str(" stem.mod=\"1slash\"");
+        }
+    } else if let Some(slashes) = mei_tremolo_slashes(note) {
+        out.push_str(&format!(" stem.mod=\"{slashes}slash\""));
+    }
+}
+
 fn mei_artic_value(articulation: &Articulation) -> Option<&'static str> {
     Some(match articulation {
         Articulation::Staccato => "stacc",
@@ -5343,15 +5420,13 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                                 note.tab_position.is_some() && staff.tablature.is_none(),
                             ),
                             (
-                                "tab_note_lyric_or_artic",
+                                "tab_note_artic",
                                 staff.tablature.is_some()
                                     && !note.is_rest
-                                    && (note.lyric.is_some()
-                                        || !note.additional_lyrics.is_empty()
-                                        || note
-                                            .articulations
-                                            .iter()
-                                            .any(|mark| mei_mark_element(mark).is_none())),
+                                    && note
+                                        .articulations
+                                        .iter()
+                                        .any(|mark| mei_artic_value(mark).is_some()),
                             ),
                             (
                                 "tab_positions",
@@ -5405,7 +5480,6 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                                     )
                                     .is_none(),
                             ),
-                            ("arpeggiate", note.arpeggiate.is_some()),
                             ("technique_text", note.technique_text.is_some()),
                             ("glissando_start", note.glissando_start),
                             ("glissando_end", note.glissando_end),
@@ -5463,7 +5537,9 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                             );
                         }
                         if note.articulations.iter().any(|articulation| {
-                            let on_note = mei_artic_value(articulation).is_some();
+                            let on_note = mei_artic_value(articulation).is_some()
+                                || matches!(articulation, Articulation::Tremolo(1..=6))
+                                    && !note.is_grace;
                             let control = mei_mark_element(articulation).is_some();
                             !(control || on_note && !note.is_rest)
                         }) {
