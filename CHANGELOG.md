@@ -48,6 +48,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   use the staff's dynamic in force (`DynamicTimeline`) instead of giving unmarked notes velocity
   64: p/f levels persist across notes, voices, bars and repeats; sf/sfz/fz/rfz/sffz accent only
   their moment; fp/sfp/pf and the like attack at the first level and continue at the second.
+  Hairpins ramp the velocity across their notes towards the marking that follows them, or two
+  dynamic steps up or down when none follows, and the level stays there.
 - **[schema] Lyric extenders.** `Lyric::extend` (omitted from JSON when false) marks a melisma
   line after the syllable. MusicXML `<extend>`, MEI `con="u"` and MSCX lyric `ticks`/`ticks_f`
   import and export (379 extenders in 45 corpus files were dropped); SVG draws the line on the

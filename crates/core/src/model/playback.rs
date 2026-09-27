@@ -1644,67 +1644,167 @@ fn push_tab_diagnostic(
 
 /// Dynamic levels of one staff along a played measure order, so a marking carries on until
 /// the next one as in engraved music: a level (p, f, …) holds, an accent (sf, sfz, fz, rfz,
-/// sffz) lifts only its own notes, and a compound (fp, sfp, pf, …) attacks at the first
-/// level and continues at the second. Before the first marking notes play at velocity 64.
+/// sffz) lifts only its own moment, and a compound (fp, sfp, pf, …) attacks at the first
+/// level and continues at the second. A hairpin ramps the level across its notes towards the
+/// marking that follows it (or two dynamic steps up or down when none follows at once) and
+/// leaves the level there. Before the first marking notes play at velocity 64.
 #[derive(Debug, Clone, Default)]
 pub struct DynamicTimeline {
-    /// (position in the measure order, beats into the measure, attack, level after).
-    changes: Vec<(usize, f64, u8, u8)>,
+    /// Start of each position of the order, in beats from the start.
+    position_beats: Vec<f64>,
+    /// (time, attack, level after), in time order.
+    changes: Vec<(f64, u8, u8)>,
+    /// Hairpins as (start, end, from velocity, to velocity).
+    ramps: Vec<(f64, f64, u8, u8)>,
+}
+
+/// One dynamic event on a staff timeline: a written marking or the level a hairpin reaches.
+#[derive(Clone, Copy)]
+enum DynamicMark {
+    Marking(crate::Dynamic),
+    Level(u8),
 }
 
 impl DynamicTimeline {
     /// Velocity of a note before any dynamic marking.
     pub const DEFAULT_VELOCITY: u8 = 64;
+    /// How far a hairpin moves the level when no marking follows it (two dynamic steps).
+    const HAIRPIN_STEP: i16 = 24;
 
-    /// Collect the markings of every voice of `staff` along `order` (measure indices as
-    /// played, repeats expanded). Grace and cue notes take no time.
+    /// Collect the markings and hairpins of every voice of `staff` along `order` (measure
+    /// indices as played, repeats expanded). Grace and cue notes take no time.
     pub fn for_staff(staff: &crate::Staff, order: &[usize]) -> Self {
-        let mut marks: Vec<(usize, f64, crate::Dynamic)> = Vec::new();
-        for (position, &measure_index) in order.iter().enumerate() {
+        let mut position_beats = Vec::with_capacity(order.len());
+        let mut marks: Vec<(f64, DynamicMark)> = Vec::new();
+        // (start, end, crescendo)
+        let mut hairpins: Vec<(f64, f64, bool)> = Vec::new();
+        let mut open_hairpins: [Option<(f64, bool)>; 4] = [None; 4];
+        let mut elapsed = 0.0;
+        for &measure_index in order {
+            position_beats.push(elapsed);
             let Some(measure) = staff.measures.get(measure_index) else {
                 continue;
             };
-            for voice in &measure.voices {
+            let mut length: f64 = 0.0;
+            for (voice_index, voice) in measure.voices.iter().enumerate() {
                 let mut beats = 0.0;
                 for note in voice {
+                    let onset = elapsed + beats;
                     if let Some(dynamic) = note.dynamic
                         && !note.is_rest
                     {
-                        marks.push((position, beats, dynamic));
+                        marks.push((onset, DynamicMark::Marking(dynamic)));
+                    }
+                    let end = onset + note.beats();
+                    // A note may end one hairpin and start the next.
+                    let ends_earlier = note.hairpin_end && open_hairpins[voice_index].is_some();
+                    if ends_earlier && let Some((start, up)) = open_hairpins[voice_index].take() {
+                        hairpins.push((start, end, up));
+                    }
+                    if let Some(kind) = note.hairpin_start {
+                        open_hairpins[voice_index] =
+                            Some((onset, kind == crate::HairpinKind::Crescendo));
+                    }
+                    if note.hairpin_end
+                        && !ends_earlier
+                        && let Some((start, up)) = open_hairpins[voice_index].take()
+                    {
+                        hairpins.push((start, end, up));
                     }
                     beats += note.beats();
                 }
+                length = length.max(beats);
             }
+            elapsed += length;
         }
-        marks.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.total_cmp(&b.1)));
+        marks.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let written = Self::resolve(&marks);
+        let mut ramps = Vec::new();
+        for (start, end, up) in hairpins {
+            if end <= start {
+                continue;
+            }
+            let from = Self::level_at(&written, start);
+            // The marking the hairpin leads to, if one comes within a beat of its end.
+            let next = written
+                .iter()
+                .find(|&&(time, _, _)| time >= end - 1e-9)
+                .filter(|&&(time, _, _)| time <= end + 1.0)
+                .map(|&(_, attack, _)| attack)
+                .filter(|&attack| if up { attack > from } else { attack < from });
+            let to = next.unwrap_or_else(|| {
+                let step = if up {
+                    Self::HAIRPIN_STEP
+                } else {
+                    -Self::HAIRPIN_STEP
+                };
+                (i16::from(from) + step).clamp(1, 127) as u8
+            });
+            if next.is_none() {
+                marks.push((end, DynamicMark::Level(to)));
+            }
+            ramps.push((start, end, from, to));
+        }
+        marks.sort_by(|a, b| a.0.total_cmp(&b.0));
+        Self {
+            position_beats,
+            changes: Self::resolve(&marks),
+            ramps,
+        }
+    }
+
+    fn resolve(marks: &[(f64, DynamicMark)]) -> Vec<(f64, u8, u8)> {
         let mut level = Self::DEFAULT_VELOCITY;
-        let changes = marks
-            .into_iter()
-            .map(|(position, beats, dynamic)| {
-                if let Some(next) = dynamic.sustained_level() {
-                    level = next.to_velocity();
+        marks
+            .iter()
+            .map(|&(time, mark)| match mark {
+                DynamicMark::Marking(dynamic) => {
+                    if let Some(next) = dynamic.sustained_level() {
+                        level = next.to_velocity();
+                    }
+                    (time, dynamic.to_velocity(), level)
                 }
-                (position, beats, dynamic.to_velocity(), level)
+                DynamicMark::Level(velocity) => {
+                    level = velocity;
+                    (time, velocity, level)
+                }
             })
-            .collect();
-        Self { changes }
+            .collect()
+    }
+
+    fn level_at(changes: &[(f64, u8, u8)], time: f64) -> u8 {
+        let before = changes.partition_point(|&(t, _, _)| t <= time + 1e-9);
+        before
+            .checked_sub(1)
+            .map_or(Self::DEFAULT_VELOCITY, |index| changes[index].2)
     }
 
     /// Velocity of a note at `beats` into the measure at `position` of the order: its own
-    /// marking's attack, the attack of a marking at the same moment in another voice, or the
-    /// level in force.
+    /// marking's attack, the attack of a marking at the same moment in another voice, the
+    /// point a hairpin has reached, or the level in force.
     pub fn velocity(&self, position: usize, beats: f64, own: Option<crate::Dynamic>) -> u8 {
         if let Some(dynamic) = own {
             return dynamic.to_velocity();
         }
-        let before = self
-            .changes
-            .partition_point(|&(p, b, _, _)| p < position || (p == position && b <= beats + 1e-9));
-        match before.checked_sub(1).map(|index| self.changes[index]) {
-            Some((p, b, attack, _)) if p == position && (b - beats).abs() <= 1e-9 => attack,
-            Some((_, _, _, level)) => level,
-            None => Self::DEFAULT_VELOCITY,
+        let time = self.position_beats.get(position).copied().unwrap_or(0.0) + beats;
+        let before = self.changes.partition_point(|&(t, _, _)| t <= time + 1e-9);
+        let current = before.checked_sub(1).map(|index| self.changes[index]);
+        if let Some((t, attack, _)) = current
+            && (t - time).abs() <= 1e-9
+        {
+            return attack;
         }
+        if let Some(&(start, end, from, to)) = self
+            .ramps
+            .iter()
+            .rev()
+            .find(|&&(start, end, _, _)| start <= time + 1e-9 && time < end - 1e-9)
+        {
+            let fraction = ((time - start) / (end - start)).clamp(0.0, 1.0);
+            let value = f64::from(from) + (f64::from(to) - f64::from(from)) * fraction;
+            return value.round().clamp(1.0, 127.0) as u8;
+        }
+        current.map_or(Self::DEFAULT_VELOCITY, |(_, _, level)| level)
     }
 }
 
@@ -2771,6 +2871,33 @@ mod tests {
             DynamicTimeline::default().velocity(0, 0.0, None),
             DynamicTimeline::DEFAULT_VELOCITY
         );
+    }
+
+    #[test]
+    fn hairpins_ramp_towards_the_following_marking_or_two_steps() {
+        use crate::model::notation::{Dynamic, HairpinKind};
+        let mut score = Score::new("T", 120, 4, 4, 0, 2);
+        let mut bar = |index: usize, dynamics: [Option<Dynamic>; 4], end: Option<Dynamic>| {
+            let mut notes: Vec<Note> = dynamics
+                .into_iter()
+                .map(|dynamic| {
+                    let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+                    note.dynamic = dynamic;
+                    note
+                })
+                .collect();
+            notes[0].hairpin_start = Some(HairpinKind::Crescendo);
+            notes[2].hairpin_end = true;
+            notes[3].dynamic = end;
+            score.parts[0].staves[0].measures[index].voices[0] = notes;
+        };
+        // Bar 1: p < (three beats) f. Bar 2: < with nothing after: two steps above f.
+        bar(0, [Some(Dynamic::P), None, None, None], Some(Dynamic::F));
+        bar(1, [None, None, None, None], None);
+        let events = to_playback_events(&score, &opts(None));
+        let velocities: Vec<u8> = events.iter().map(|event| event.velocity).collect();
+        assert_eq!(&velocities[..4], &[48, 60, 72, 84]);
+        assert_eq!(&velocities[4..], &[84, 92, 100, 108]);
     }
 
     #[test]
