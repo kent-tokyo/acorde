@@ -2047,6 +2047,9 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     // staff's key differs from the others' (not copied from the first staff).
     let mut pending_staff_keys: HashMap<usize, KeySignature> = HashMap::new();
     let mut staff_key_measures: HashSet<usize> = HashSet::new();
+    // The same for meters a `<staffDef>` gives one staff (a part in another meter).
+    let mut pending_staff_times: HashMap<usize, TimeSignature> = HashMap::new();
+    let mut staff_time_measures: HashSet<usize> = HashSet::new();
     let mut pending_clef_changes: Vec<(usize, Clef)> = Vec::new();
     let mut measure_changes: Vec<usize> = Vec::new();
     let mut dynam_anchor: Option<PendingMeiAnchor> = None;
@@ -2253,6 +2256,14 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 score.parts[0].staves[staff_index].clef = clef;
                             }
                         }
+                        if in_section
+                            && let Some(time) = parse_meter(
+                                attr(&event, b"meter.count"),
+                                attr(&event, b"meter.unit"),
+                            )
+                        {
+                            pending_staff_times.insert(staff_index, time);
+                        }
                         if let Some(key_signature) = attr(&event, b"keysig")
                             .or_else(|| attr(&event, b"key.sig"))
                             .and_then(|value| parse_key_signature(&value))
@@ -2311,7 +2322,12 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             parse_meter(attr(&event, b"count"), attr(&event, b"unit"))
                         {
                             if in_section {
-                                pending_time_change = Some(time_signature);
+                                match open_staff_def {
+                                    Some(staff_index) => {
+                                        pending_staff_times.insert(staff_index, time_signature);
+                                    }
+                                    None => pending_time_change = Some(time_signature),
+                                }
                             } else {
                                 default_time_signature = time_signature.clone();
                                 score.settings.time_signature = time_signature;
@@ -2387,6 +2403,11 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                     .key_sig = Some(key);
                                 staff_key_measures.insert(measure_index);
                             }
+                            if let Some(time) = pending_staff_times.remove(&current_staff) {
+                                score.parts[0].staves[current_staff].measures[measure_index]
+                                    .time_sig = Some(time);
+                                staff_time_measures.insert(measure_index);
+                            }
                             if let Some(position) = pending_clef_changes
                                 .iter()
                                 .position(|(staff, _)| *staff == current_staff)
@@ -2423,7 +2444,12 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             .unwrap_or(
                                 (score.parts[0].staves[current_staff].measures.len() + 1) as u32,
                             );
-                        let changed_time = pending_time_change.take();
+                        let staff_time = pending_staff_times.remove(&current_staff);
+                        if staff_time.is_some() {
+                            staff_time_measures
+                                .insert(score.parts[0].staves[current_staff].measures.len());
+                        }
+                        let changed_time = pending_time_change.take().or(staff_time);
                         if let Some(time) = &changed_time {
                             default_time_signature = time.clone();
                         }
@@ -3228,7 +3254,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                 if matches!(measure.barline_right, Barline::Normal) {
                     measure.barline_right = right.clone();
                 }
-                if measure.time_sig.is_none() {
+                if measure.time_sig.is_none() && !staff_time_measures.contains(&measure_index) {
                     measure.time_sig = time.clone();
                 }
                 if measure.key_sig.is_none() && !staff_key_measures.contains(&measure_index) {
@@ -5120,6 +5146,7 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
     let labels = mei_measure_labels(staves);
     let mut staff_fifths = vec![score.settings.key_signature.fifths; staves.len()];
     let mut staff_keys = vec![score.settings.key_signature.clone(); staves.len()];
+    let mut staff_times = vec![score.settings.time_signature.clone(); staves.len()];
     let key = mei_key_signature(&score.settings.key_signature);
     out.push_str("</title></titleStmt></fileDesc></meiHead><music><body><mdiv><score>");
     append_mei_chord_definitions(&mut out, &score.chord_definitions);
@@ -5170,6 +5197,13 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
                 staff_fifths[staff_index] = key.fifths;
                 staff_keys[staff_index] = key.clone();
             }
+            if let Some(time) = staff
+                .measures
+                .get(measure_index)
+                .and_then(|measure| measure.time_sig.as_ref())
+            {
+                staff_times[staff_index] = time.clone();
+            }
         }
         let number = staves
             .iter()
@@ -5182,26 +5216,42 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
             .filter_map(|staff| staff.measures.get(measure_index)?.key_sig.as_ref())
             .collect();
         let per_staff_keys = key_changes.windows(2).any(|pair| pair[0] != pair[1]);
+        // Likewise meters: a part in another meter gets its own `<staffDef meter.count>`.
+        let time_changes: Vec<&TimeSignature> = staves
+            .iter()
+            .filter_map(|staff| staff.measures.get(measure_index)?.time_sig.as_ref())
+            .collect();
+        let per_staff_times = time_changes.windows(2).any(|pair| pair[0] != pair[1])
+            || (!time_changes.is_empty() && staff_times.windows(2).any(|pair| pair[0] != pair[1]));
         if let Some(first) = staves
             .iter()
             .find_map(|staff| staff.measures.get(measure_index))
-            && (first.time_sig.is_some() || !key_changes.is_empty())
+            && (first.time_sig.is_some() || !key_changes.is_empty() || !time_changes.is_empty())
         {
             out.push_str("<scoreDef");
-            if let Some(time) = &first.time_sig {
+            if let Some(time) = first.time_sig.as_ref().filter(|_| !per_staff_times) {
                 out.push_str(&format!(
                     " meter.count=\"{}\" meter.unit=\"{}\"",
                     time.numerator, time.denominator
                 ));
             }
-            if per_staff_keys {
+            if per_staff_keys || per_staff_times {
+                if !per_staff_keys && let Some(key) = key_changes.first() {
+                    out.push_str(&format!(" keysig=\"{}\"", mei_key_signature(key)));
+                }
                 out.push_str("><staffGrp>");
-                for (staff_index, key) in staff_keys.iter().enumerate() {
-                    out.push_str(&format!(
-                        "<staffDef n=\"{}\" keysig=\"{}\"/>",
-                        staff_index + 1,
-                        mei_key_signature(key)
-                    ));
+                for (staff_index, (key, time)) in staff_keys.iter().zip(&staff_times).enumerate() {
+                    out.push_str(&format!("<staffDef n=\"{}\"", staff_index + 1));
+                    if per_staff_keys {
+                        out.push_str(&format!(" keysig=\"{}\"", mei_key_signature(key)));
+                    }
+                    if per_staff_times {
+                        out.push_str(&format!(
+                            " meter.count=\"{}\" meter.unit=\"{}\"",
+                            time.numerator, time.denominator
+                        ));
+                    }
+                    out.push_str("/>");
                 }
                 out.push_str("</staffGrp></scoreDef>");
             } else {

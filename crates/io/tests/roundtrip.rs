@@ -5422,3 +5422,39 @@ fn abc_verses_follow_their_music_lines() {
     assert_eq!(words(&back, 1), words(&score, 1), "{text}");
     assert_eq!(words(&back, 2), words(&score, 2), "{text}");
 }
+
+#[test]
+fn mei_keeps_a_part_whose_meter_differs_from_the_others() {
+    use acorde_core::{Score, TimeSignature};
+    let mut score = Score::new("meters", 120, 3, 4, 0, 3);
+    let mut second = acorde_core::Part::new("Voice", "V.");
+    second.staves = score.parts[0].staves.clone();
+    score.parts.push(second);
+    let meter = |numerator, denominator| {
+        Some(TimeSignature {
+            numerator,
+            denominator,
+        })
+    };
+    score.parts[0].staves[0].measures[0].time_sig = meter(3, 4);
+    score.parts[1].staves[0].measures[0].time_sig = meter(6, 8);
+    score.parts[0].staves[0].measures[2].time_sig = meter(2, 4);
+    score.parts[1].staves[0].measures[2].time_sig = meter(2, 4);
+    let mei = acorde_io::serialize_mei(&score).expect("exports");
+    assert!(
+        mei.contains("<staffDef n=\"2\" meter.count=\"6\" meter.unit=\"8\"/>"),
+        "{mei}"
+    );
+    let back = acorde_io::parse_mei(&mei).expect("imports");
+    let meters = |part: usize| {
+        let staff = &back.parts[part].staves[0];
+        (0..staff.measures.len())
+            .map(|i| {
+                let t = staff.meter_at(i, &back.settings.time_signature);
+                (t.numerator, t.denominator)
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(meters(0), vec![(3, 4), (3, 4), (2, 4)]);
+    assert_eq!(meters(1), vec![(6, 8), (6, 8), (2, 4)]);
+}

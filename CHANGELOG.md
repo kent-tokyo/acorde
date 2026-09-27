@@ -9,6 +9,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **MEI per-part meters.** Like keys before, MEI export wrote the first staff's time signature
+  for all staves, so a part in another meter (polymeter in early music, a 6/8 line against
+  3/4) came back in the wrong one. Staves whose meters differ now get their own
+  `<staffDef meter.count meter.unit>`, and import reads a `<staffDef>` meter (attribute or
+  `<meterSig>` child) for that staff only.
 - **ABC verses.** Every `w:` line continued from where the previous one stopped, so a second
   verse under a music line was sung over the following notes, and `hel-lo` was one syllable.
   A `w:` line now belongs to the music line above it — the first is verse 1, the next verse 2,
