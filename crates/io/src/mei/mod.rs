@@ -1885,6 +1885,21 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                 }
                 match event.name().as_ref() {
                     b"title" => in_title = true,
+                    b"instrDef" if layout_root.is_none() => {
+                        if let (Some(midi), Some(group)) =
+                            (parse_mei_instr_def(&event), layout_stack.last_mut())
+                        {
+                            match group.children.last_mut() {
+                                Some(MeiLayoutNode::Staff { midi: slot, .. })
+                                    if layout_label_in_staff_def =>
+                                {
+                                    *slot = Some(midi);
+                                }
+                                _ if group.midi.is_none() => group.midi = Some(midi),
+                                _ => {}
+                            }
+                        }
+                    }
                     b"label" if layout_root.is_none() && !layout_stack.is_empty() => {
                         in_layout_label = true;
                         layout_label_text.clear();
@@ -1893,6 +1908,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         if layout_root.is_none() && !is_empty_event {
                             layout_stack.push(MeiLayoutGroup {
                                 label: attr(&event, b"label"),
+                                midi: None,
                                 children: Vec::new(),
                             });
                         }
@@ -2004,6 +2020,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             group.children.push(MeiLayoutNode::Staff {
                                 index: staff_index,
                                 label: attr(&event, b"label"),
+                                midi: None,
                             });
                             layout_label_in_staff_def = !is_empty_event;
                         }
@@ -2653,18 +2670,45 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
 #[derive(Debug, Default)]
 struct MeiLayoutGroup {
     label: Option<String>,
+    /// `<instrDef>` MIDI channel and program declared directly in this group.
+    midi: Option<(u8, u8)>,
     children: Vec<MeiLayoutNode>,
 }
 
 #[derive(Debug)]
 enum MeiLayoutNode {
-    Staff { index: usize, label: Option<String> },
+    Staff {
+        index: usize,
+        label: Option<String>,
+        midi: Option<(u8, u8)>,
+    },
     Group(MeiLayoutGroup),
 }
 
 struct MeiPartUnit {
     name: Option<String>,
+    midi: Option<(u8, u8)>,
     staves: Vec<usize>,
+}
+
+fn mei_first_midi(group: &MeiLayoutGroup) -> Option<(u8, u8)> {
+    group.midi.or_else(|| {
+        group.children.iter().find_map(|child| match child {
+            MeiLayoutNode::Staff { midi, .. } => *midi,
+            MeiLayoutNode::Group(inner) => mei_first_midi(inner),
+        })
+    })
+}
+
+fn parse_mei_instr_def(event: &BytesStart<'_>) -> Option<(u8, u8)> {
+    let channel = attr(event, b"midi.channel").and_then(|value| value.parse::<u8>().ok());
+    let program = attr(event, b"midi.instrnum").and_then(|value| value.parse::<u8>().ok());
+    (channel.is_some() || program.is_some()).then(|| {
+        (
+            channel.filter(|value| *value < 16).unwrap_or(0),
+            program.filter(|value| *value < 128).unwrap_or(0),
+        )
+    })
 }
 
 fn mei_layout_staves(group: &MeiLayoutGroup, out: &mut Vec<usize>) {
@@ -2706,8 +2750,9 @@ fn mei_has_label(group: &MeiLayoutGroup) -> bool {
 fn mei_part_units(group: &MeiLayoutGroup, units: &mut Vec<MeiPartUnit>) {
     for child in &group.children {
         match child {
-            MeiLayoutNode::Staff { index, label } => units.push(MeiPartUnit {
+            MeiLayoutNode::Staff { index, label, midi } => units.push(MeiPartUnit {
                 name: label.clone(),
+                midi: *midi,
                 staves: vec![*index],
             }),
             MeiLayoutNode::Group(inner)
@@ -2717,6 +2762,7 @@ fn mei_part_units(group: &MeiLayoutGroup, units: &mut Vec<MeiPartUnit>) {
                 mei_layout_staves(inner, &mut staves);
                 units.push(MeiPartUnit {
                     name: inner.label.clone().or_else(|| mei_first_staff_label(inner)),
+                    midi: mei_first_midi(inner),
                     staves,
                 });
             }
@@ -2734,6 +2780,10 @@ fn mei_part_units(group: &MeiLayoutGroup, units: &mut Vec<MeiPartUnit>) {
 /// [`StaffGroup`]; an implicit (symbol-less) wrapper around exactly one part is dropped because it
 /// only encodes the part boundary.
 fn split_mei_parts(score: &mut Score, root: &MeiLayoutGroup, staff_group_explicit: &[bool]) {
+    if let Some((channel, program)) = mei_first_midi(root) {
+        score.parts[0].midi_channel = channel;
+        score.parts[0].midi_program = program;
+    }
     if !mei_has_label(root) {
         return;
     }
@@ -2792,6 +2842,10 @@ fn split_mei_parts(score: &mut Score, root: &MeiLayoutGroup, staff_group_explici
             .clone()
             .unwrap_or_else(|| format!("Part {}", index + 1));
         let mut part = Part::new(&name, "");
+        if let Some((channel, program)) = unit.midi {
+            part.midi_channel = channel;
+            part.midi_program = program;
+        }
         part.staves = staves.by_ref().take(unit.staves.len()).collect();
         parts.push(part);
     }
@@ -3519,10 +3573,6 @@ fn mei_staff_group_symbol(symbol: &PartGroupSymbol) -> &'static str {
     }
 }
 
-fn append_mei_staff_defs(out: &mut String, staves: &[Staff], groups: &[StaffGroup]) {
-    append_mei_staff_defs_at(out, staves, groups, 0, None);
-}
-
 /// Emit `<staffDef>`s for one staff list whose global MEI numbers start after `offset`.
 /// `single_label` attaches an instrument label to a lone staff as `<staffDef><label/>`.
 fn append_mei_staff_defs_at(
@@ -3531,6 +3581,7 @@ fn append_mei_staff_defs_at(
     groups: &[StaffGroup],
     offset: usize,
     single_label: Option<&str>,
+    first_content: &str,
 ) {
     for staff_index in 0..staves.len() {
         let mut openings = groups
@@ -3556,8 +3607,13 @@ fn append_mei_staff_defs_at(
             clef_shape,
             clef_line
         ));
+        let content = if staff_index == 0 { first_content } else { "" };
         match single_label {
-            Some(label) => out.push_str(&format!("><label>{}</label></staffDef>", escape(label))),
+            Some(label) => out.push_str(&format!(
+                "><label>{}</label>{content}</staffDef>",
+                escape(label)
+            )),
+            None if !content.is_empty() => out.push_str(&format!(">{content}</staffDef>")),
             None => out.push_str("/>"),
         }
         let mut closings = groups
@@ -3569,6 +3625,17 @@ fn append_mei_staff_defs_at(
             out.push_str("</staffGrp>");
         }
     }
+}
+
+/// `<instrDef>` carrying a part's MIDI channel and program, when either differs from the default.
+fn mei_instr_def(part: &Part) -> String {
+    if part.midi_channel == 0 && part.midi_program == 0 {
+        return String::new();
+    }
+    format!(
+        "<instrDef midi.channel=\"{}\" midi.instrnum=\"{}\"/>",
+        part.midi_channel, part.midi_program
+    )
 }
 
 fn mei_part_label(part: &Part, index: usize) -> String {
@@ -3615,7 +3682,14 @@ fn append_mei_part_staff_defs(out: &mut String, score: &Score) {
         }
         let label = mei_part_label(part, part_index);
         if part.staves.len() == 1 {
-            append_mei_staff_defs_at(out, &part.staves, &[], offset, Some(&label));
+            append_mei_staff_defs_at(
+                out,
+                &part.staves,
+                &[],
+                offset,
+                Some(&label),
+                &mei_instr_def(part),
+            );
         } else {
             let whole = part.staff_groups.iter().position(|group| {
                 group.first_staff == 0 && group.last_staff + 1 == part.staves.len()
@@ -3629,6 +3703,7 @@ fn append_mei_part_staff_defs(out: &mut String, score: &Score) {
                 None => out.push_str("<staffGrp>"),
             }
             out.push_str(&format!("<label>{}</label>", escape(&label)));
+            out.push_str(&mei_instr_def(part));
             let inner = part
                 .staff_groups
                 .iter()
@@ -3636,7 +3711,7 @@ fn append_mei_part_staff_defs(out: &mut String, score: &Score) {
                 .filter(|(index, _)| Some(*index) != whole)
                 .map(|(_, group)| group.clone())
                 .collect::<Vec<_>>();
-            append_mei_staff_defs_at(out, &part.staves, &inner, offset, None);
+            append_mei_staff_defs_at(out, &part.staves, &inner, offset, None, "");
             out.push_str("</staffGrp>");
         }
         let closings = score
@@ -3891,7 +3966,14 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
     if multi_part {
         append_mei_part_staff_defs(&mut out, original);
     } else {
-        append_mei_staff_defs(&mut out, staves, &score.parts[0].staff_groups);
+        append_mei_staff_defs_at(
+            &mut out,
+            staves,
+            &score.parts[0].staff_groups,
+            0,
+            None,
+            &mei_instr_def(&score.parts[0]),
+        );
     }
     out.push_str("</staffGrp></scoreDef><section>");
     let measure_count = staves
@@ -4093,16 +4175,6 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
     for (part_index, part) in score.parts.iter().enumerate() {
         let part_path = format!("/score/part/{}", part_index + 1);
         for (field, present, value) in [
-            (
-                "midi_channel",
-                part.midi_channel != 0,
-                part.midi_channel.to_string(),
-            ),
-            (
-                "midi_program",
-                part.midi_program != 0,
-                part.midi_program.to_string(),
-            ),
             (
                 "midi_pitch_bends",
                 !part.midi_pitch_bends.is_empty(),
@@ -4919,6 +4991,8 @@ mod tests {
         second.short_name = String::new();
         second.staves[0].clef = Clef::Bass;
         score.parts[0].name = "Violin".into();
+        score.parts[0].midi_channel = 3;
+        score.parts[0].midi_program = 40;
         score.parts.push(second);
         let serialized = serialize_mei(&score).expect("two parts serialize");
         assert!(serialized.contains("<label>Violin</label>"));
@@ -4926,6 +5000,13 @@ mod tests {
         assert!(serialized.contains("<staff n=\"2\">"));
         let restored = parse_mei(&serialized).expect("two parts reparse");
         assert_eq!(restored.parts.len(), 2);
+        assert_eq!(
+            (
+                restored.parts[0].midi_channel,
+                restored.parts[0].midi_program
+            ),
+            (3, 40)
+        );
         assert_eq!(restored.parts[1].staves[0].clef, Clef::Bass);
     }
 
@@ -5582,11 +5663,11 @@ mod tests {
             diagnostic.source_location.as_deref()
                 == Some("/score/part/1/staff/1/measure/1/voice/1/note/1/guitar_technique")
         }));
-        assert!(diagnostics.iter().any(|diagnostic| {
-            diagnostic.source_location.as_deref() == Some("/score/part/1/midi_channel")
-        }));
-        assert!(diagnostics.iter().any(|diagnostic| {
-            diagnostic.source_location.as_deref() == Some("/score/part/1/midi_program")
+        // Channel and program travel as <instrDef>; only the event streams are lost.
+        assert!(!diagnostics.iter().any(|diagnostic| {
+            diagnostic.source_location.as_deref().is_some_and(|path| {
+                path.ends_with("/midi_channel") || path.ends_with("/midi_program")
+            })
         }));
         assert!(diagnostics.iter().any(|diagnostic| {
             diagnostic.source_location.as_deref() == Some("/score/part/1/midi_pitch_bends")
