@@ -196,9 +196,122 @@ pub(crate) fn plan_beam_group(
     BeamPlan { tips, svg }
 }
 
+/// Plan a *kneed* beam group whose stems point both ways — typically a cross-staff group,
+/// upper-staff notes stemmed down and lower-staff notes stemmed up to one beam between the
+/// staves. The primary beam is horizontal, midway between the lowest point the down-stems
+/// need and the highest the up-stems allow; secondary beams stack toward the noteheads of
+/// the run's first note, and any stem reaching a secondary beam on its far side is extended.
+pub(crate) fn plan_kneed_beam_group(
+    durations: &[Duration],
+    xs: &[f32],
+    attach_ys: &[f32],
+    stem_ups: &[bool],
+    space: f32,
+) -> BeamPlan {
+    let n = durations.len();
+    debug_assert_eq!(xs.len(), n);
+    debug_assert_eq!(attach_ys.len(), n);
+    debug_assert_eq!(stem_ups.len(), n);
+    let stem_xs: Vec<f32> = xs
+        .iter()
+        .zip(stem_ups)
+        .map(|(&x, &up)| x + glyphs::NOTEHEAD_RX_U * space * 0.92 * if up { 1.0 } else { -1.0 })
+        .collect();
+    let half_stem = glyphs::STEM_WIDTH_U * space / 2.0;
+    let levels = durations.iter().map(beam_level).max().unwrap_or(1).max(1);
+    let min_stem = MIN_STEM_LEN_U * space;
+    let stack = f32::from(levels - 1) * BEAM_LEVEL_GAP_U * space;
+    // The beam must lie below every down-stemmed head and above every up-stemmed one.
+    let lowest = attach_ys
+        .iter()
+        .zip(stem_ups)
+        .filter(|&(_, &up)| !up)
+        .map(|(&y, _)| y + min_stem)
+        .fold(f32::NEG_INFINITY, f32::max);
+    let highest = attach_ys
+        .iter()
+        .zip(stem_ups)
+        .filter(|&(_, &up)| up)
+        .map(|(&y, _)| y - min_stem)
+        .fold(f32::INFINITY, f32::min);
+    let beam_y = match (lowest.is_finite(), highest.is_finite()) {
+        (true, true) => (lowest + highest) / 2.0,
+        (true, false) => lowest + stack,
+        (false, true) => highest - stack,
+        (false, false) => attach_ys.first().copied().unwrap_or(0.0),
+    };
+    let mut tips: HashMap<usize, f32> = (0..n).map(|i| (i, beam_y)).collect();
+    let mut svg = glyphs::beam_segment(
+        stem_xs[0] - half_stem,
+        beam_y,
+        stem_xs[n - 1] + half_stem,
+        beam_y,
+        BEAM_THICKNESS_U * space,
+    );
+    let max_level = durations.iter().map(beam_level).max().unwrap_or(1);
+    for level in 1..max_level {
+        let needs: Vec<bool> = durations.iter().map(|d| beam_level(d) > level).collect();
+        let mut i = 0;
+        while i < n {
+            if !needs[i] {
+                i += 1;
+                continue;
+            }
+            let run_start = i;
+            while i < n && needs[i] {
+                i += 1;
+            }
+            let run_end = i - 1;
+            // Toward the first note's head: below the beam for an up-stem, above for a down.
+            let side = if stem_ups[run_start] { 1.0 } else { -1.0 };
+            let y = beam_y + side * level as f32 * BEAM_LEVEL_GAP_U * space;
+            for (index, &up) in stem_ups
+                .iter()
+                .enumerate()
+                .take(run_end + 1)
+                .skip(run_start)
+            {
+                let tip = tips.entry(index).or_insert(beam_y);
+                *tip = if up { tip.min(y) } else { tip.max(y) };
+            }
+            let (x0, x1) = if run_start == run_end {
+                let hook_dir = if run_start > 0 { -1.0 } else { 1.0 };
+                let x0 = stem_xs[run_start];
+                (x0, x0 + hook_dir * HOOK_LEN_U * space)
+            } else {
+                (stem_xs[run_start], stem_xs[run_end])
+            };
+            svg.push_str(&glyphs::beam_segment(
+                x0,
+                y,
+                x1,
+                y,
+                BEAM_THICKNESS_U * space,
+            ));
+        }
+    }
+    BeamPlan { tips, svg }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn kneed_beam_lies_between_down_and_up_stemmed_heads() {
+        let durations = vec![Duration::Eighth, Duration::Sixteenth, Duration::Sixteenth];
+        let xs = vec![0.0, 20.0, 40.0];
+        // Two upper-staff heads (stems down) and one lower-staff head (stem up).
+        let attach_ys = vec![100.0, 90.0, 400.0];
+        let plan = plan_kneed_beam_group(&durations, &xs, &attach_ys, &[false, false, true], 20.0);
+        let primary = plan.tips[&0];
+        assert!(primary > 100.0 + MIN_STEM_LEN_U * 20.0);
+        assert!(primary < 400.0 - MIN_STEM_LEN_U * 20.0);
+        // The sixteenth run's secondary beam sits above the primary (toward the first run
+        // note's head), so the up-stemmed lower note is lengthened to reach it.
+        assert!(plan.tips[&2] < primary);
+        assert!((plan.tips[&1] - primary).abs() < 0.01);
+    }
 
     #[test]
     fn two_note_flat_beam_gives_default_stem_length() {

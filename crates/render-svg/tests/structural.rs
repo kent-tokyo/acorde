@@ -2472,7 +2472,7 @@ fn adjacent_accidentals_in_a_chord_get_separate_columns() {
     let accidental_xs: Vec<&str> = svg
         .split("acorde-accidental")
         .skip(1)
-        .filter_map(|fragment| fragment.split(r#"x1=""#).nth(1))
+        .filter_map(|fragment| fragment.split(r#"data-x=""#).nth(1))
         .filter_map(|value| value.split('"').next())
         .collect();
     assert!(accidental_xs.len() >= 2);
@@ -2495,7 +2495,7 @@ fn accidental_columns_at_measure_origin_stay_inside_svg_viewbox() {
     let accidental_xs: Vec<f32> = svg
         .split("acorde-accidental")
         .skip(1)
-        .filter_map(|fragment| fragment.split(r#"x1=""#).nth(1))
+        .filter_map(|fragment| fragment.split(r#"data-x=""#).nth(1))
         .filter_map(|value| value.split('"').next())
         .filter_map(|value| value.parse().ok())
         .collect();
@@ -2904,4 +2904,105 @@ fn cross_staff_notes_are_drawn_on_their_target_staff() {
     };
     // The C3 written across sits exactly where the lower staff's own C3 does.
     assert_eq!(head_y(0), head_y(1));
+}
+
+#[test]
+fn key_signature_sharps_follow_the_engraved_zigzag_per_clef() {
+    use acorde_core::{Clef, Measure, Part, Score, Staff};
+    let mut score = Score::new("keys", 120, 4, 4, 2, 1);
+    let mut part = Part::new("P", "");
+    part.staves = [Clef::Treble, Clef::Tenor]
+        .into_iter()
+        .map(|clef| {
+            let mut staff = Staff::new(clef);
+            staff.measures.push(Measure::empty(4, 4));
+            staff
+        })
+        .collect();
+    score.parts = vec![part];
+    let svg = render_svg(&score, &opts()).unwrap();
+    let sharp_ys: Vec<f32> = svg
+        .split(r#"acorde-sharp" data-x=""#)
+        .skip(1)
+        .filter_map(|fragment| fragment.split(r#"data-y=""#).nth(1))
+        .filter_map(|value| value.split('"').next()?.parse().ok())
+        .collect();
+    let line_ys: Vec<f32> = svg
+        .split(r#"acorde-staff-line" x1=""#)
+        .skip(1)
+        .filter_map(|fragment| fragment.split(r#"y1=""#).nth(1))
+        .filter_map(|value| value.split('"').next()?.parse().ok())
+        .collect();
+    assert_eq!(sharp_ys.len(), 4);
+    let space = opts().staff_size;
+    let treble_top = line_ys.iter().copied().fold(f32::INFINITY, f32::min);
+    // Treble: F# on the top line, C# in the third space.
+    assert!((sharp_ys[0] - treble_top).abs() < 0.01);
+    assert!((sharp_ys[1] - (treble_top + 1.5 * space)).abs() < 0.01);
+    // Tenor: F# starts low, in the second space, and C# rises above it.
+    let tenor_bottom = line_ys.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    assert!((sharp_ys[2] - (tenor_bottom - space)).abs() < 0.01);
+    assert!(sharp_ys[3] < sharp_ys[2]);
+}
+
+#[test]
+fn cross_staff_beam_group_is_kneed_between_the_staves() {
+    use acorde_core::{
+        Clef, CrossStaff, Duration, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature,
+    };
+    let mut score = Score::new("kneed", 120, 2, 4, 0, 1);
+    let mut upper = Staff::new(Clef::Treble);
+    upper.measures.push(Measure::empty(2, 4));
+    let mut lower = Staff::new(Clef::Bass);
+    lower.measures.push(Measure::empty(2, 4));
+    let mut notes: Vec<Note> = [(Step::C, 5, false), (Step::G, 3, true)]
+        .into_iter()
+        .map(|(step, octave, cross)| {
+            let mut note = Note::new(Pitch::new(step, octave), Duration::Eighth);
+            if cross {
+                note.cross_staff = Some(CrossStaff {
+                    target_staff: 1,
+                    target_voice: None,
+                });
+            }
+            note
+        })
+        .collect();
+    let states = acorde_core::compute_beams(
+        &notes,
+        &TimeSignature {
+            numerator: 2,
+            denominator: 4,
+        },
+    );
+    for (note, state) in notes.iter_mut().zip(states) {
+        note.beam = state;
+    }
+    upper.measures[0].voices[0] = notes;
+    lower.measures[0].voices[0] = vec![Note::rest(Duration::Half)];
+    let mut part = Part::new("P", "");
+    part.staves = vec![upper, lower];
+    score.parts = vec![part];
+    let svg = render_svg(&score, &opts()).unwrap();
+    let stems: Vec<(f32, f32)> = svg
+        .split(r#"class="acorde-stem" x1=""#)
+        .skip(1)
+        .filter_map(|fragment| {
+            let value = |name: &str| -> Option<f32> {
+                fragment
+                    .split(&format!(r#"{name}=""#))
+                    .nth(1)?
+                    .split('"')
+                    .next()?
+                    .parse()
+                    .ok()
+            };
+            Some((value("y1")?, value("y2")?))
+        })
+        .collect();
+    assert_eq!(stems.len(), 2);
+    // Upper note stems down, lower note stems up, and both meet at the same beam.
+    assert!(stems[0].1 > stems[0].0);
+    assert!(stems[1].1 < stems[1].0);
+    assert!((stems[0].1 - stems[1].1).abs() < 0.01);
 }

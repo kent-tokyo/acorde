@@ -19,41 +19,6 @@ pub(crate) fn f(v: f32) -> String {
     format!("{v:.2}")
 }
 
-fn arc_points(
-    cx: f32,
-    cy: f32,
-    rx: f32,
-    ry: f32,
-    start_deg: f32,
-    end_deg: f32,
-    steps: u32,
-) -> Vec<(f32, f32)> {
-    let mut pts = Vec::with_capacity(steps as usize + 1);
-    for i in 0..=steps {
-        let t = i as f32 / steps as f32;
-        let deg = start_deg + (end_deg - start_deg) * t;
-        let rad = deg.to_radians();
-        pts.push((cx + rad.cos() * rx, cy + rad.sin() * ry));
-    }
-    pts
-}
-
-/// Build an SVG path `d` string from segments of u-unit points, placed at `(ox,oy)` px and
-/// scaled by `space` (px per u).
-fn path_from_segments(segments: &[Vec<(f32, f32)>], ox: f32, oy: f32, space: f32) -> String {
-    let mut d = String::new();
-    let mut first = true;
-    for seg in segments {
-        for &(x, y) in seg {
-            let px = ox + x * space;
-            let py = oy + y * space;
-            let _ = write!(d, "{}{},{} ", if first { "M " } else { "L " }, f(px), f(py));
-            first = false;
-        }
-    }
-    d.trim_end().to_string()
-}
-
 // ── clefs ─────────────────────────────────────────────────────────────────────
 
 /// Stroke a path given in u units (x right, y down from the staff's bottom line) at `(ox, oy)`.
@@ -65,17 +30,10 @@ fn stroked(
     space: f32,
     width_u: f32,
 ) -> String {
-    let mut d = String::new();
-    for (command, points) in d_units {
-        d.push(*command);
-        for &(x, y) in points.iter() {
-            let _ = write!(d, " {},{}", f(ox + x * space), f(oy + y * space));
-        }
-        d.push(' ');
-    }
+    let d = unit_path_d(d_units, ox, oy, space);
     format!(
         r#"<path class="{class}" d="{}" fill="none" stroke="black" stroke-width="{}" stroke-linecap="round" stroke-linejoin="round"/>"#,
-        d.trim_end(),
+        d,
         f(width_u * space)
     )
 }
@@ -461,93 +419,164 @@ pub(crate) fn accidental(alter: i8, cx: f32, cy: f32, space: f32) -> String {
 /// Horizontal footprint an accidental glyph occupies (u-units), for layout spacing.
 pub(crate) fn accidental_width_u(alter: i8) -> f32 {
     match alter {
-        -2 => 1.1,
+        -2 => 1.25,
+        1 | 2 => 0.8,
         _ => 0.65,
     }
 }
 
+type UnitPath<'a> = [(char, &'a [(f32, f32)])];
+
+/// SVG path data for a shape given in staff-space units relative to `(ox, oy)`.
+fn unit_path_d(d_units: &UnitPath<'_>, ox: f32, oy: f32, space: f32) -> String {
+    let mut d = String::new();
+    for (command, points) in d_units {
+        d.push(*command);
+        for &(x, y) in points.iter() {
+            let _ = write!(d, " {},{}", f(ox + x * space), f(oy + y * space));
+        }
+        d.push(' ');
+    }
+    d.trim_end().to_string()
+}
+
+/// Thin vertical bar (a filled rectangle) from `y1` to `y2` at `x`, `w` wide (units).
+fn bar_units(x: f32, y1: f32, y2: f32, w: f32) -> [(f32, f32); 4] {
+    [
+        (x - w / 2.0, y1),
+        (x + w / 2.0, y1),
+        (x + w / 2.0, y2),
+        (x - w / 2.0, y2),
+    ]
+}
+
+/// Slanted thick bar (a parallelogram) centered at `y`, from `x1` to `x2`, rising `rise`
+/// to the right, `t` thick (units).
+fn slab_units(x1: f32, x2: f32, y: f32, rise: f32, t: f32) -> [(f32, f32); 4] {
+    let h = t / 2.0;
+    let (yl, yr) = (y + rise / 2.0, y - rise / 2.0);
+    [(x1, yl - h), (x2, yr - h), (x2, yr + h), (x1, yl + h)]
+}
+
+fn polygons_d(polys: &[[(f32, f32); 4]], ox: f32, oy: f32, space: f32) -> String {
+    let mut d = String::new();
+    for poly in polys {
+        d.push_str(&unit_path_d(
+            &[('M', &poly[..1]), ('L', &poly[1..])],
+            ox,
+            oy,
+            space,
+        ));
+        d.push_str(" Z ");
+    }
+    d.trim_end().to_string()
+}
+
+fn accidental_group(kind: &str, cx: f32, cy: f32, d: &str) -> String {
+    format!(
+        r#"<g class="acorde-accidental acorde-{kind}" data-x="{}" data-y="{}"><path d="{d}" fill="black" stroke="none"/></g>"#,
+        f(cx),
+        f(cy)
+    )
+}
+
+/// Engraved sharp: two thin stems, the left one set lower, crossed by two thick bars that
+/// rise to the right.
 fn sharp(cx: f32, cy: f32, space: f32) -> String {
-    let sw_v = f(0.09 * space);
-    let sw_h = f(0.22 * space);
-    let x1 = cx - 0.18 * space;
-    let x2 = cx + 0.18 * space;
-    let y_top = cy - 0.75 * space;
-    let y_bot = cy + 0.75 * space;
-    format!(
-        // Single-line literal: a multi-line raw string here would embed this *source file's*
-        // own line-ending bytes into the compiled string, making output diverge between
-        // LF-checkout and CRLF-checkout platforms (see beams::tests and CI history).
-        r#"<g class="acorde-accidental acorde-sharp"><line x1="{x1}" y1="{yt}" x2="{x1}" y2="{yb}" stroke="black" stroke-width="{swv}"/><line x1="{x2}" y1="{yt}" x2="{x2}" y2="{yb}" stroke="black" stroke-width="{swv}"/><line x1="{hx1}" y1="{hy1}" x2="{hx2}" y2="{hy1a}" stroke="black" stroke-width="{swh}"/><line x1="{hx1}" y1="{hy2}" x2="{hx2}" y2="{hy2a}" stroke="black" stroke-width="{swh}"/></g>"#,
-        x1 = f(x1),
-        x2 = f(x2),
-        yt = f(y_top),
-        yb = f(y_bot),
-        swv = sw_v,
-        swh = sw_h,
-        hx1 = f(cx - 0.3 * space),
-        hx2 = f(cx + 0.3 * space),
-        hy1 = f(cy - 0.32 * space),
-        hy1a = f(cy - 0.42 * space),
-        hy2 = f(cy + 0.42 * space),
-        hy2a = f(cy + 0.32 * space),
-    )
+    let d = polygons_d(
+        &[
+            bar_units(-0.19, -1.05, 1.35, 0.1),
+            bar_units(0.19, -1.35, 1.05, 0.1),
+            slab_units(-0.38, 0.38, -0.42, 0.24, 0.24),
+            slab_units(-0.38, 0.38, 0.42, 0.24, 0.24),
+        ],
+        cx,
+        cy,
+        space,
+    );
+    accidental_group("sharp", cx, cy, &d)
 }
 
+/// Engraved flat: a thin stem rising well above the note and a filled bowl that swells to
+/// the right and tapers into the stem at its foot.
 fn flat(cx: f32, cy: f32, space: f32) -> String {
-    let sw = f(0.1 * space);
-    let x = cx - 0.22 * space;
-    let y_top = cy - 0.85 * space;
-    let y_bot = cy + 0.35 * space;
-    let bowl = arc_points(0.0, 0.15, 0.32, 0.35, -90.0, 110.0, 16);
-    let bowl_d = path_from_segments(&[bowl], x, cy, space);
-    format!(
-        r#"<g class="acorde-accidental acorde-flat"><line x1="{x}" y1="{yt}" x2="{x}" y2="{yb}" stroke="black" stroke-width="{sw}"/><path d="{bowl_d}" fill="none" stroke="black" stroke-width="{sw}" stroke-linecap="round"/></g>"#,
-        x = f(x),
-        yt = f(y_top),
-        yb = f(y_bot),
-        sw = sw,
-    )
+    let x = -0.22;
+    let stem = polygons_d(&[bar_units(x, -1.65, 0.52, 0.11)], cx, cy, space);
+    let bowl = unit_path_d(
+        &[
+            ('M', &[(x, -0.12)]),
+            ('C', &[(x + 0.35, -0.55), (x + 0.95, -0.25), (x, 0.52)]),
+            ('L', &[(x, 0.34)]),
+            ('C', &[(x + 0.4, 0.02), (x + 0.26, -0.28), (x, 0.04)]),
+            ('Z', &[]),
+        ],
+        cx,
+        cy,
+        space,
+    );
+    accidental_group("flat", cx, cy, &format!("{stem} {bowl}"))
 }
 
+/// Engraved natural: the left stem rises above the note, the right one hangs below it, and
+/// two thick bars rising to the right join them.
 fn natural(cx: f32, cy: f32, space: f32) -> String {
-    let sw_v = f(0.08 * space);
-    let sw_h = f(0.16 * space);
-    let x1 = cx - 0.18 * space;
-    let x2 = cx + 0.18 * space;
-    format!(
-        r#"<g class="acorde-accidental acorde-natural"><line x1="{x1}" y1="{y1t}" x2="{x1}" y2="{y1b}" stroke="black" stroke-width="{swv}"/><line x1="{x2}" y1="{y2t}" x2="{x2}" y2="{y2b}" stroke="black" stroke-width="{swv}"/><line x1="{x1}" y1="{hy1}" x2="{x2}" y2="{hy1b}" stroke="black" stroke-width="{swh}"/><line x1="{x1}" y1="{hy2}" x2="{x2}" y2="{hy2b}" stroke="black" stroke-width="{swh}"/></g>"#,
-        x1 = f(x1),
-        x2 = f(x2),
-        y1t = f(cy - 0.3 * space),
-        y1b = f(cy + 0.85 * space),
-        y2t = f(cy - 0.85 * space),
-        y2b = f(cy + 0.3 * space),
-        hy1 = f(cy - 0.34 * space),
-        hy1b = f(cy - 0.5 * space),
-        hy2 = f(cy + 0.5 * space),
-        hy2b = f(cy + 0.34 * space),
-        swv = sw_v,
-        swh = sw_h,
-    )
+    let d = polygons_d(
+        &[
+            bar_units(-0.24, -1.3, 0.5, 0.1),
+            bar_units(0.24, -0.5, 1.3, 0.1),
+            slab_units(-0.29, 0.29, -0.38, 0.18, 0.22),
+            slab_units(-0.29, 0.29, 0.38, 0.18, 0.22),
+        ],
+        cx,
+        cy,
+        space,
+    );
+    accidental_group("natural", cx, cy, &d)
 }
 
+/// Engraved double sharp: a small X whose four arms end in square blocks.
 fn double_sharp(cx: f32, cy: f32, space: f32) -> String {
-    let sw = f(0.16 * space);
-    let r = 0.3 * space;
-    format!(
-        r#"<g class="acorde-accidental acorde-double-sharp"><line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="black" stroke-width="{sw}" stroke-linecap="round"/><line x1="{x2}" y1="{y1}" x2="{x1}" y2="{y2}" stroke="black" stroke-width="{sw}" stroke-linecap="round"/></g>"#,
-        x1 = f(cx - r),
-        x2 = f(cx + r),
-        y1 = f(cy - r),
-        y2 = f(cy + r),
-        sw = sw,
-    )
+    let (o, a, i) = (0.42, 0.17, 0.11);
+    let d = unit_path_d(
+        &[
+            ('M', &[(-o, -o)]),
+            (
+                'L',
+                &[
+                    (-a, -o),
+                    (0.0, -i),
+                    (a, -o),
+                    (o, -o),
+                    (o, -a),
+                    (i, 0.0),
+                    (o, a),
+                    (o, o),
+                    (a, o),
+                    (0.0, i),
+                    (-a, o),
+                    (-o, o),
+                    (-o, a),
+                    (-i, 0.0),
+                    (-o, -a),
+                ],
+            ),
+            ('Z', &[]),
+        ],
+        cx,
+        cy,
+        space,
+    );
+    accidental_group("double-sharp", cx, cy, &d)
 }
 
 fn double_flat(cx: f32, cy: f32, space: f32) -> String {
-    let left = flat(cx - 0.35 * space, cy, space);
-    let right = flat(cx + 0.35 * space, cy, space);
-    format!(r#"<g class="acorde-accidental acorde-double-flat">{left}{right}</g>"#)
+    let left = flat(cx - 0.3 * space, cy, space);
+    let right = flat(cx + 0.3 * space, cy, space);
+    format!(
+        r#"<g class="acorde-accidental acorde-double-flat" data-x="{}" data-y="{}">{left}{right}</g>"#,
+        f(cx),
+        f(cy)
+    )
 }
 
 // ── rests ────────────────────────────────────────────────────────────────────────

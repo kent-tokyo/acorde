@@ -2241,7 +2241,7 @@ fn header_width_u(clef: &Clef, key_fifths: i8, time_sig: Option<&TimeSignature>)
     };
     let key_count = key_fifths.unsigned_abs().min(7) as f32;
     let key_w = if key_count > 0.0 {
-        key_count * 0.85 + HEADER_GAP_U
+        key_count * key_signature_step_u(key_fifths.signum()) + HEADER_GAP_U
     } else {
         0.0
     };
@@ -2309,8 +2309,9 @@ fn write_clef(
     }
 }
 
-/// Key signature accidentals, placed at the octave nearest the staff's middle line
-/// (a deliberate simplification of the traditional per-clef zigzag placement — see README).
+/// Key signature accidentals at the conventional engraved staff positions for each clef
+/// (position 0 = bottom line): the treble/bass zigzag, one step lower in the alto clef, and
+/// the tenor clef's sharps starting low so none leaves the staff.
 fn write_key_signature(
     body: &mut String,
     clef: &Clef,
@@ -2319,54 +2320,40 @@ fn write_key_signature(
     bottom_y: f32,
     space: f32,
 ) -> Result<f32, RenderError> {
-    const SHARP_ORDER: [acorde_core::Step; 7] = [
-        acorde_core::Step::F,
-        acorde_core::Step::C,
-        acorde_core::Step::G,
-        acorde_core::Step::D,
-        acorde_core::Step::A,
-        acorde_core::Step::E,
-        acorde_core::Step::B,
-    ];
-    const FLAT_ORDER: [acorde_core::Step; 7] = [
-        acorde_core::Step::B,
-        acorde_core::Step::E,
-        acorde_core::Step::A,
-        acorde_core::Step::D,
-        acorde_core::Step::G,
-        acorde_core::Step::C,
-        acorde_core::Step::F,
-    ];
     let count = fifths.unsigned_abs().min(7) as usize;
     if count == 0 {
         return Ok(0.0);
     }
-    let order = if fifths > 0 {
-        &SHARP_ORDER
-    } else {
-        &FLAT_ORDER
-    };
+    let positions = key_signature_positions(clef, fifths > 0);
     let alter: i8 = if fifths > 0 { 1 } else { -1 };
-    let clef_bottom = geometry::clef_bottom_line(clef)?;
+    let step_u = key_signature_step_u(alter);
     body.push_str(r#"<g class="acorde-key-sig">"#);
     let mut cx = x;
-    for step in &order[..count] {
-        let position = nearest_staff_position(step, clef_bottom);
+    for &position in &positions[..count] {
         let y = bottom_y + geometry::position_y(position, space);
-        cx += 0.42 * space;
+        cx += step_u / 2.0 * space;
         body.push_str(&glyphs::accidental(alter, cx, y, space));
-        cx += 0.42 * space;
+        cx += step_u / 2.0 * space;
     }
     body.push_str("</g>");
     Ok(cx - x)
 }
 
-/// Pick whichever octave puts `step` closest to the staff middle line (position 4).
-fn nearest_staff_position(step: &acorde_core::Step, clef_bottom: i32) -> i32 {
-    (2..=6)
-        .map(|oct| geometry::staff_position(step, oct, clef_bottom))
-        .min_by_key(|&p| (p - 4).abs())
-        .unwrap_or(4)
+/// Horizontal advance of one key-signature accidental (u).
+fn key_signature_step_u(alter: i8) -> f32 {
+    glyphs::accidental_width_u(alter) + 0.2
+}
+
+/// Staff positions (0 = bottom line) of the seven key-signature sharps or flats, in order.
+fn key_signature_positions(clef: &Clef, sharps: bool) -> [i32; 7] {
+    match (clef, sharps) {
+        (Clef::Alto, true) => [7, 4, 8, 5, 2, 6, 3],
+        (Clef::Alto, false) => [3, 6, 2, 5, 1, 4, 0],
+        (Clef::Tenor, true) => [2, 6, 3, 7, 4, 8, 5],
+        (Clef::Tenor, false) => [4, 7, 3, 6, 2, 5, 1],
+        (_, true) => [8, 5, 9, 6, 3, 7, 4],
+        (_, false) => [4, 7, 3, 6, 2, 5, 1],
+    }
 }
 
 fn write_time_signature(body: &mut String, ts: &TimeSignature, x: f32, bottom_y: f32, space: f32) {
@@ -3055,7 +3042,7 @@ fn render_measure_voice<'a>(
     );
     prior_voice_events.extend(notes.iter().zip(xs.iter()).map(|(note, &x)| (x, note)));
 
-    let (beam_tips, beam_svg) = plan_measure_beams(
+    let (beam_tips, beam_svg, stem_dirs) = plan_measure_beams(
         layout,
         part,
         staff,
@@ -3069,6 +3056,23 @@ fn render_measure_voice<'a>(
         cross_frames,
         space,
     );
+    let kneed_notes: Vec<Note>;
+    let notes: &[Note] = if stem_dirs.is_empty() {
+        notes
+    } else {
+        kneed_notes = notes
+            .iter()
+            .enumerate()
+            .map(|(index, note)| {
+                let mut note = note.clone();
+                if let Some(&stem_up) = stem_dirs.get(&index) {
+                    note.stem_up = Some(stem_up);
+                }
+                note
+            })
+            .collect();
+        &kneed_notes
+    };
     render_measure_voice_notes(
         body,
         &mut VoiceNotesRenderContext {
@@ -3547,8 +3551,9 @@ fn plan_measure_beams(
     bottom_y: f32,
     cross_frames: &HashMap<usize, (i32, f32)>,
     space: f32,
-) -> (HashMap<usize, f32>, String) {
+) -> BeamLayout {
     let mut beam_tips = HashMap::new();
+    let mut stem_dirs = HashMap::new();
     let mut beam_svg = String::new();
     for group in layout.beam_groups.iter().filter(|g| {
         g.part == part && g.staff == staff && g.measure == measure_idx && g.voice == voice_idx
@@ -3580,14 +3585,54 @@ fn plan_measure_beams(
                     + note_placement_offsets_u(&notes[i]).1 * space
             })
             .collect();
-        let plan = beams::plan_beam_group(&durations, &group_xs, &attach_ys, group_stem_up, space);
+        // A group written across two staves (or with authored stems both ways) is a kneed
+        // beam: upper-staff notes stem down, lower-staff notes up, to a beam between them.
+        let frames: Vec<f32> = valid_indices
+            .iter()
+            .map(|&i| note_staff_frame(&notes[i], (clef_bottom, bottom_y), cross_frames).1)
+            .collect();
+        let top_frame = frames.iter().copied().fold(f32::INFINITY, f32::min);
+        let spans_staves = frames.iter().any(|&frame| (frame - top_frame).abs() > 0.5);
+        let stem_ups: Vec<bool> = valid_indices
+            .iter()
+            .zip(&frames)
+            .map(|(&i, &frame)| {
+                notes[i].stem_up.unwrap_or(if spans_staves {
+                    (frame - top_frame).abs() > 0.5
+                } else {
+                    group_stem_up
+                })
+            })
+            .collect();
+        let kneed = stem_ups.iter().any(|&u| u) && stem_ups.iter().any(|&u| !u);
+        let plan = if kneed {
+            let attach_ys: Vec<f32> = valid_indices
+                .iter()
+                .zip(&stem_ups)
+                .map(|(&i, &stem_up)| {
+                    let (clef_bottom, bottom_y) =
+                        note_staff_frame(&notes[i], (clef_bottom, bottom_y), cross_frames);
+                    note_attach_y(&notes[i], clef_bottom, stem_up, bottom_y, space)
+                        + note_placement_offsets_u(&notes[i]).1 * space
+                })
+                .collect();
+            for (&i, &stem_up) in valid_indices.iter().zip(&stem_ups) {
+                stem_dirs.insert(i, stem_up);
+            }
+            beams::plan_kneed_beam_group(&durations, &group_xs, &attach_ys, &stem_ups, space)
+        } else {
+            beams::plan_beam_group(&durations, &group_xs, &attach_ys, group_stem_up, space)
+        };
         for (local_i, tip) in plan.tips {
             beam_tips.insert(valid_indices[local_i], tip);
         }
         beam_svg.push_str(&plan.svg);
     }
-    (beam_tips, beam_svg)
+    (beam_tips, beam_svg, stem_dirs)
 }
+
+/// Stem tips by note index, the beams' SVG, and the stem directions a kneed beam imposes.
+type BeamLayout = (HashMap<usize, f32>, String, HashMap<usize, bool>);
 
 /// Render measure-level publication and navigation text after note content has been placed.
 ///
@@ -3934,8 +3979,14 @@ fn resolve_adjacent_event_spacing(
 /// Noteheads and accidentals always participate; text only participates when both annotations
 /// occupy the same semantic side of the staff.
 fn event_pair_clearance_u(left: &Note, right: &Note) -> f32 {
-    let notation =
-        (note_notation_footprint_u(left) + note_notation_footprint_u(right)) / 2.0 + 0.18;
+    // Accidentals sit wholly left of their notehead, so they widen only the gap before
+    // their own event; halving the sum of both footprints let a wide accidental (a double
+    // flat) run into the previous stem.
+    let right_accidental = accidental_footprint_u(right);
+    let notation = (note_notation_footprint_u(left) + note_notation_footprint_u(right)) / 2.0
+        + 0.18
+        + (right_accidental - accidental_footprint_u(left)).max(0.0) / 2.0
+        + if right_accidental > 0.0 { 0.2 } else { 0.0 };
     let annotations = [true, false]
         .into_iter()
         .map(|above| {

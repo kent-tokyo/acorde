@@ -18,6 +18,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   paths), falling back to italic text for other letters.
 - SVG unbeamed stems run 3.5 spaces past the chord's stem-side note, 0.75 more per flag beyond
   two, and reach the middle line from notes far outside the staff.
+- SVG accidentals are engraved filled shapes: sharps with thick rising crossbars and an offset
+  left stem, a flat whose bowl swells and tapers into its stem, a natural with the left stem
+  up and the right one down (they were drawn the other way round), and a double sharp with
+  square arm ends. Event spacing reserves an accidental's width wholly before its own note, so
+  a double flat no longer runs into the previous stem.
+- SVG key signatures use the engraved staff positions per clef (F♯ on the treble top line,
+  the tenor clef's low-starting sharps); they were placed at the octave nearest the middle
+  line, which put F♯ in the bottom space.
+- SVG beam groups written across two staves are kneed: upper-staff notes stem down and
+  lower-staff notes up to one horizontal beam between the staves (authored stem directions
+  are kept), with stems extended to secondary beams on their far side.
 
 - SVG cross-staff notes are drawn on the staff they are written across to (they were drawn on
   their own staff with ledger lines), stems, ledger lines and beams included.
