@@ -1,4 +1,4 @@
-//! Guitar Pro 6/7/8 (`.gpx`, `.gp`) import.
+//! Guitar Pro import: 3/4/5 (`.gp3`, `.gp4`, `.gp5`, see [`gp5`]), 6 (`.gpx`) and 7/8 (`.gp`).
 //!
 //! A `.gp` file (Guitar Pro 7/8) is a ZIP archive whose `Content/score.gpif` holds the score as
 //! GPIF XML; a `.gpx` file (Guitar Pro 6) stores the same `score.gpif` in a "BCFZ"-compressed
@@ -30,13 +30,23 @@ const MAX_GPIF_DEPTH: usize = 128;
 const MAX_GP_MEASURES: usize = 10_000;
 const GPIF_ENTRY: &str = "Content/score.gpif";
 
-/// Parse a Guitar Pro 6 (`.gpx`) or 7/8 (`.gp`) file; the container is detected from its bytes.
+/// Parse a Guitar Pro 3/4/5 (`.gp3`–`.gp5`), 6 (`.gpx`) or 7/8 (`.gp`) file; the format is
+/// detected from its bytes.
 pub fn parse_gp(data: &[u8]) -> Result<Score, Error> {
     Ok(parse_gp_with_report(data)?.score)
 }
 
-/// Parse a Guitar Pro 6/7/8 file, reporting GPIF content outside acorde's model.
+/// Parse a Guitar Pro 3–8 file, reporting content outside acorde's model.
 pub fn parse_gp_with_report(data: &[u8]) -> Result<ImportReport, Error> {
+    if gp5::is_gp5_family(data) {
+        let (score, diagnostics) = gp5::parse_gp5(data)?;
+        return Ok(ImportReport {
+            schema_version: REPORT_SCHEMA_VERSION,
+            format: "gp".to_string(),
+            score,
+            diagnostics,
+        });
+    }
     let xml = if data.starts_with(b"BCFZ") || data.starts_with(b"BCFS") {
         gpx::read_gpif(data)?
     } else {
@@ -80,6 +90,7 @@ fn read_gpif(data: &[u8]) -> Result<String, Error> {
     crate::decode_xml_text(&bytes)
 }
 
+mod gp5;
 mod gpx;
 
 // ── Minimal bounded DOM ─────────────────────────────────────────────────────
@@ -288,6 +299,23 @@ fn gp_dynamic(value: &str) -> Option<Dynamic> {
         "F" => Dynamic::F,
         "FF" => Dynamic::Ff,
         "FFF" => Dynamic::Fff,
+        _ => return None,
+    })
+}
+
+/// Guitar Pro direction names (GPIF text, and the GP5 direction table) as acorde navigation marks.
+fn gp_navigation(value: &str) -> Option<&'static str> {
+    Some(match value {
+        "Coda" => "Coda",
+        "Segno" => "Segno",
+        "Fine" => "Fine",
+        "DaCapo" => "DaCapo",
+        "DaCapoAlCoda" => "DaCapoAlCoda",
+        "DaCapoAlFine" => "DaCapoAlFine",
+        "DaSegno" | "DalSegno" => "DalSegno",
+        "DaSegnoAlCoda" | "DalSegnoAlCoda" => "DalSegnoAlCoda",
+        "DaSegnoAlFine" | "DalSegnoAlFine" => "DalSegnoAlFine",
+        "DaCoda" => "ToCoda",
         _ => return None,
     })
 }
@@ -633,11 +661,21 @@ pub fn parse_gpif(xml: &str) -> Result<(Score, Vec<Diagnostic>), Error> {
                 "bar fermatas (positioned by offset) are not imported",
             );
         }
-        if master_bar.child("Directions").is_some() {
-            losses.add(
-                "gp.unsupported-direction",
-                "coda/segno/fine directions are not imported",
-            );
+        let mut navigation = None;
+        if let Some(directions) = master_bar.child("Directions") {
+            for direction in &directions.children {
+                match (navigation.is_none(), gp_navigation(direction.text.trim())) {
+                    (true, Some(mark)) => navigation = Some(mark.to_string()),
+                    (false, Some(_)) => losses.add(
+                        "gp.unsupported-direction",
+                        "a bar with several directions keeps only the first",
+                    ),
+                    (_, None) => losses.add(
+                        "gp.unsupported-direction",
+                        "double coda and segno-segno directions are not imported",
+                    ),
+                }
+            }
         }
         let bar_ids = master_bar.text_at("Bars").map(ids).unwrap_or_default();
 
@@ -670,6 +708,7 @@ pub fn parse_gpif(xml: &str) -> Result<(Score, Vec<Diagnostic>), Error> {
             measure.volta = volta.clone();
             if staff_index == 0 {
                 measure.rehearsal = section.clone();
+                measure.navigation = navigation.clone();
                 measure.tempo = tempos.get(&bar_index).copied();
                 if bar_index == 0
                     && let Some(bpm) = measure.tempo
@@ -741,7 +780,10 @@ pub fn parse_gpif(xml: &str) -> Result<(Score, Vec<Diagnostic>), Error> {
     if master_bars.is_empty() {
         return Err(Error::Empty);
     }
-    finish_measures(&mut score, &master_bars);
+    let pickup = master_bars
+        .first()
+        .is_some_and(|bar| bar.child("Anacrusis").is_some());
+    finish_measures(&mut score, pickup);
     resolve_hammer_pull(&mut score);
     Ok((score, losses.into_diagnostics()))
 }
@@ -1088,7 +1130,21 @@ fn apply_note_effects(node: &Node, note: &mut Note, losses: &mut Losses) {
         .into_iter()
         .flatten()
         .collect();
-        // acorde curves span the whole note: strictly increasing from 0 to 1000 per mille.
+        finish_bend_curve(note);
+    }
+    if node.property("HopoOrigin").is_some() && note.guitar_technique.is_none() {
+        note.guitar_technique = Some(GuitarTechnique::HammerOn);
+        if note.technique_text.is_none() {
+            note.technique_text = Some(HOPO_MARK.to_string());
+        }
+    }
+    apply_note_effects_rest(node, note, losses);
+}
+
+/// Normalise a bend curve read from Guitar Pro: acorde curves span the whole note, strictly
+/// increasing from 0 to 1000 per mille, and the summary alteration is the largest excursion.
+fn finish_bend_curve(note: &mut Note) {
+    {
         note.guitar_bend_curve
             .sort_by_key(|point| point.position_per_mille);
         note.guitar_bend_curve
@@ -1118,12 +1174,9 @@ fn apply_note_effects(node: &Node, note: &mut Note, losses: &mut Losses) {
             .map(|point| point.alter_cents)
             .max_by_key(|cents| cents.abs());
     }
-    if node.property("HopoOrigin").is_some() && note.guitar_technique.is_none() {
-        note.guitar_technique = Some(GuitarTechnique::HammerOn);
-        if note.technique_text.is_none() {
-            note.technique_text = Some(HOPO_MARK.to_string());
-        }
-    }
+}
+
+fn apply_note_effects_rest(node: &Node, note: &mut Note, losses: &mut Losses) {
     if let Some(flags) = property_text(node, "Slide", "Flags").and_then(|v| v.parse::<u32>().ok()) {
         if flags & 0x03 != 0 && note.guitar_technique.is_none() {
             note.guitar_technique = Some(GuitarTechnique::Slide);
@@ -1234,10 +1287,7 @@ fn resolve_hammer_pull(score: &mut Score) {
 /// Make every measure hold its time: an anacrusis keeps its short length, an overfull bar keeps
 /// its content as an irregular length, and a short voice 1 is completed with rests (Guitar Pro
 /// allows incomplete bars).
-fn finish_measures(score: &mut Score, master_bars: &[&Node]) {
-    let pickup = master_bars
-        .first()
-        .is_some_and(|bar| bar.child("Anacrusis").is_some());
+fn finish_measures(score: &mut Score, pickup: bool) {
     let mut time = score.settings.time_signature.clone();
     let measure_count = score
         .parts
@@ -1328,7 +1378,7 @@ mod tests {
 <MasterBars>
 <MasterBar><Key><AccidentalCount>1</AccidentalCount><Mode>Minor</Mode></Key><Time>4/4</Time><Bars>0</Bars><Repeat start="true" end="false" count="0" /><Section><Letter>A</Letter><Text>Intro</Text></Section></MasterBar>
 <MasterBar><Key><AccidentalCount>1</AccidentalCount><Mode>Minor</Mode></Key><Time>3/4</Time><Bars>1</Bars><Repeat start="false" end="true" count="2" /></MasterBar>
-<MasterBar><Key><AccidentalCount>1</AccidentalCount><Mode>Minor</Mode></Key><Time>3/4</Time><Bars>2</Bars></MasterBar>
+<MasterBar><Key><AccidentalCount>1</AccidentalCount><Mode>Minor</Mode></Key><Time>3/4</Time><Bars>2</Bars><Directions><Jump>DaSegnoAlFine</Jump></Directions></MasterBar>
 </MasterBars>
 <Bars><Bar id="0"><Clef>G2</Clef><Voices>0 -1 -1 -1</Voices></Bar><Bar id="1"><Clef>G2</Clef><Voices>1 -1 -1 -1</Voices></Bar><Bar id="2"><Clef>G2</Clef><Voices>2 -1 -1 -1</Voices></Bar></Bars>
 <Voices><Voice id="0"><Beats>0 1 2 3</Beats></Voice><Voice id="1"><Beats>4</Beats></Voice><Voice id="2"><Beats>3</Beats></Voice></Voices>
@@ -1431,6 +1481,10 @@ mod tests {
         let third = &staff.measures[2].voices[0];
         assert_eq!(third.len(), 1);
         assert!(third[0].is_plain_whole_rest());
+        assert_eq!(
+            staff.measures[2].navigation.as_deref(),
+            Some("DalSegnoAlFine")
+        );
         assert_eq!(second.time_sig.as_ref().map(|t| t.numerator), Some(3));
         assert_eq!(second.barline_right, Barline::RepeatEnd);
         assert_eq!(second.voices[0][0].note_head, NoteHead::X);

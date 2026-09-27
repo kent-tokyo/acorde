@@ -16,7 +16,7 @@
 | クレート | 役割 |
 |---|---|
 | `acorde-core` | スコアモデル、コマンド、検証、再生、理論ヘルパー |
-| `acorde-io` | MusicXML/MXL、MIDI、任意機能のABC・MEI・MSCZ/MSCX・Guitar Pro 6/7/8入力 |
+| `acorde-io` | MusicXML/MXL、MIDI、任意機能のABC・MEI・MSCZ/MSCX・Guitar Pro 3〜8入力 |
 | `acorde-layout` | ピクセル非依存の論理配置と印刷ページメタデータ |
 | `acorde-render-svg` | 決定的なRust/WASM SVGレンダラー |
 | `acorde-analysis` | 決定的で説明可能な和声・SATB分析 |
@@ -35,7 +35,7 @@ acorde = "1.2.8"
 acorde-render-svg = "1.2.8"
 ```
 
-標準ではMusicXMLとMIDIが有効です。ABC、MEI、MSCZ/MSCX、Guitar Pro 6/7/8入力は明示的に有効化します。
+標準ではMusicXMLとMIDIが有効です。ABC、MEI、MSCZ/MSCX、Guitar Pro 3〜8入力は明示的に有効化します。
 
 ```toml
 acorde = { version = "1.2.8", features = ["abc", "mei", "mscz", "gp"] }
@@ -53,7 +53,7 @@ let score: &Score = engine.score();
 
 ## 対応範囲と責務
 
-MusicXML/MXLが最も広い交換経路です。MIDI、ABC、MEI、MSCZ/MSCX、Guitar Pro 6/7/8（`.gpx`/`.gp`、入力のみ）は文書化した部分集合であり、
+MusicXML/MXLが最も広い交換経路です。MIDI、ABC、MEI、MSCZ/MSCX、Guitar Pro 3〜8（`.gp3`/`.gp4`/`.gp5`/`.gpx`/`.gp`、入力のみ）は文書化した部分集合であり、
 完全ロスレス互換を主張しません。変換時の省略・正規化・意味差分は `ImportReport`、`ExportReport`、
 `compatibility-report` で確認できます。
 

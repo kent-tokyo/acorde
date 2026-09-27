@@ -32,14 +32,16 @@ A successful parse alone never changes a capability matrix cell to `yes`.
 - **MEI and MSCX/MSCZ:** documented structural, text, tablature, and selected spanner/harmony
   subsets round-trip or produce source-located diagnostics. Vendor-specific or timing-only
   semantics are not guessed into the canonical model.
-- **Guitar Pro 6/7/8 (import only):** `.gp` (ZIP) and `.gpx` (BCFZ/BCFS) containers are read to
-  their GPIF score: tracks, staves with tuning and capo, string/fret positions, rhythm, chords,
+- **Guitar Pro 3–8 (import only):** `.gp` (ZIP) and `.gpx` (BCFZ/BCFS) containers are read to
+  their GPIF score, and `.gp3`/`.gp4`/`.gp5` binary files are read field by field: tracks, staves with tuning and capo, string/fret positions, rhythm, chords,
   ties, dynamics, beat lyrics, repeats and endings, sections, tempo, and the guitar techniques the
   model holds (bends with curves, hammer-on/pull-off, shift/legato slides, dead notes, palm mute
   and let ring as technique text, natural harmonics, accents, left-hand fingering, tremolo picking
-  as stem slashes, pick strokes as down-/up-bow, brushes as arpeggios). Whammy, vibrato, tapping,
-  chord diagrams, bar fermatas, and directions are
-  reported per kind (`gp.*`) with occurrence counts. Guitar Pro 3/4/5 binary files are not read.
+  as stem slashes, pick strokes as down-/up-bow, brushes as arpeggios, coda/segno/fine directions
+  as navigation marks). Whammy, vibrato, tapping, chord diagrams, bar fermatas, double-coda
+  directions, and mix-table changes are reported per kind (`gp.*`) with occurrence counts. All
+  90 GP3/4/5 files in alphaTab's test data import and export to schema-valid MusicXML and to MEI
+  that Verovio loads; `serenade.gp5` and its GP7 counterpart import to the same 1270 events.
 
 The exact feature-level status is the [notation coverage matrix](notation-coverage.md). The
 machine-readable local phase record is [`interchange-report.json`](interchange-report.json).

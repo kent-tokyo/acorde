@@ -9,6 +9,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Guitar Pro 3/4/5 import.** `acorde_io::parse_gp` now also reads `.gp3`, `.gp4` and `.gp5`
+  binary files (detected from their bytes; the CLI accepts the extensions). They share the GPIF
+  path's mapping and `gp.*` diagnostics: tuning and capo, string/fret, bends, hammer/pull,
+  slides, dead notes, harmonics, grace notes, palm mute/let ring, tremolo picking, strokes,
+  lyrics, markers, repeats and endings, tempo changes, and directions. All 90 GP3/4/5 files in
+  alphaTab's test data import and export to schema-valid MusicXML and to MEI that Verovio loads.
+  Accent and ghost velocities that GP5 stores as note dynamics are not read as dynamic marks.
+- Guitar Pro coda/segno/fine directions import as navigation marks (GPIF and GP5).
+
 ## [1.2.8] - 2026-09-27
 
 - **Guitar Pro import.** New `gp` feature (`acorde_io::parse_gp`, `parse_gp_with_report`; enabled
