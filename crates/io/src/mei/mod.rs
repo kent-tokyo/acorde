@@ -1841,7 +1841,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
         return Err(Error::TooLarge(text.len()));
     }
     let mut reader = Reader::from_str(text);
-    reader.config_mut().trim_text(true);
+    reader.config_mut().trim_text(false);
     let mut score = Score::default();
     score.parts.clear();
     let mut part = Part::new("MEI", "MEI");
@@ -1908,6 +1908,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut current_verse: u8 = 1;
     let mut syllable_wordpos: Option<String> = None;
     let mut in_layer = false;
+    let mut direction_style: Option<(TextStyle, Option<String>, usize)> = None;
     let mut in_section = false;
     let mut pending_time_change: Option<TimeSignature> = None;
     let mut pending_key_change: Option<KeySignature> = None;
@@ -1921,7 +1922,20 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut current_chord_definition: Option<ChordDefinition> = None;
     let mut buf = Vec::new();
     loop {
-        let read = reader.read_event_into(&mut buf);
+        let read = match reader.read_event_into(&mut buf) {
+            // Entity and character references arrive as separate events; feed them to the
+            // active text buffer like ordinary text so "&amp;" or "&#233;" are not dropped.
+            Ok(Event::GeneralRef(reference)) => {
+                let reference = format!("&{};", String::from_utf8_lossy(reference.as_ref()));
+                let decoded = quick_xml::escape::unescape(&reference)
+                    .map(|text| text.into_owned())
+                    .unwrap_or_default();
+                Ok(Event::Text(quick_xml::events::BytesText::from_escaped(
+                    decoded,
+                )))
+            }
+            other => other,
+        };
         let is_empty_event = matches!(read, Ok(Event::Empty(_)));
         match read {
             Ok(Event::Start(event)) | Ok(Event::Empty(event)) => {
@@ -2290,6 +2304,14 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                     b"dir" if current_measure.is_some() && !is_empty_event => {
                         in_direction = true;
                         direction_text.clear();
+                        direction_style = attr(&event, b"type")
+                            .as_deref()
+                            .and_then(parse_mei_text_style)
+                            .map(|style| {
+                                (style, attr(&event, b"place"), {
+                                    PendingMeiAnchor::from_event(&event, current_staff, 0).staff
+                                })
+                            });
                     }
                     b"slur" if current_measure.is_some() => {
                         if let (Some(start), Some(end)) =
@@ -2759,7 +2781,27 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                     in_rehearsal = false;
                 }
                 b"dir" => {
-                    if let Some(measure_index) = current_measure {
+                    if let (Some(measure_index), Some((style, placement, staff))) =
+                        (current_measure, direction_style.take())
+                    {
+                        let text = direction_text.trim();
+                        if !text.is_empty()
+                            && let Some(measure) = score.parts[0]
+                                .staves
+                                .get_mut(staff)
+                                .and_then(|staff| staff.measures.get_mut(measure_index))
+                        {
+                            measure.texts.push(StyledText {
+                                style,
+                                text: text.to_string(),
+                                placement,
+                                offset_x: None,
+                                offset_y: None,
+                                relative_x: None,
+                                relative_y: None,
+                            });
+                        }
+                    } else if let Some(measure_index) = current_measure {
                         let text = direction_text.trim();
                         if !text.is_empty() {
                             let measure =
@@ -3722,6 +3764,16 @@ fn append_mei_control_events(out: &mut String, staves: &[Staff], measure_index: 
             mei_note_id(staff.measures[measure].number, staff_index, voice, note)
         };
         let n = staff_index + 1;
+        for text in &measure.texts {
+            let Some(kind) = mei_text_style_type(&text.style) else {
+                continue;
+            };
+            out.push_str(&format!("<dir type=\"{kind}\" staff=\"{n}\" tstamp=\"1\""));
+            if let Some(place) = &text.placement {
+                out.push_str(&format!(" place=\"{}\"", escape(place)));
+            }
+            out.push_str(&format!(">{}</dir>", escape(&text.text)));
+        }
         for (voice_index, voice) in measure.voices.iter().enumerate() {
             for (note_index, note) in voice.iter().enumerate() {
                 let start_id = id_at(measure_index, voice_index, note_index);
@@ -4228,6 +4280,29 @@ fn mei_beam_groups(states: &[BeamState], tuplets: &[(usize, usize)]) -> Vec<(usi
     groups
 }
 
+/// `<dir type>` values carrying acorde's typed measure text styles.
+fn mei_text_style_type(style: &TextStyle) -> Option<&'static str> {
+    Some(match style {
+        TextStyle::Expression => "acorde-expression",
+        TextStyle::Technique => "acorde-technique",
+        TextStyle::Lyrics => "acorde-lyrics",
+        TextStyle::RehearsalMark => "acorde-rehearsal",
+        TextStyle::Generic => "acorde-generic",
+        TextStyle::ChordSymbol | TextStyle::FiguredBass => return None,
+    })
+}
+
+fn parse_mei_text_style(value: &str) -> Option<TextStyle> {
+    Some(match value {
+        "acorde-expression" => TextStyle::Expression,
+        "acorde-technique" => TextStyle::Technique,
+        "acorde-lyrics" => TextStyle::Lyrics,
+        "acorde-rehearsal" => TextStyle::RehearsalMark,
+        "acorde-generic" => TextStyle::Generic,
+        _ => return None,
+    })
+}
+
 fn mei_note_id(number: u32, staff: usize, voice: usize, note: usize) -> String {
     format!("n{}_{}_{}_{}", number, staff + 1, voice + 1, note + 1)
 }
@@ -4665,9 +4740,13 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                     ("navigation", measure.navigation.is_some()),
                     ("expression_text", false),
                     (
-                        "texts",
+                        "text_offsets",
                         measure.texts.iter().any(|text| {
-                            !matches!(text.style, TextStyle::ChordSymbol | TextStyle::FiguredBass)
+                            mei_text_style_type(&text.style).is_some()
+                                && (text.offset_x.is_some()
+                                    || text.offset_y.is_some()
+                                    || text.relative_x.is_some()
+                                    || text.relative_y.is_some())
                         }),
                     ),
                     ("system_break", measure.system_break && measure.page_break),
@@ -5672,6 +5751,28 @@ mod tests {
         assert_eq!(restored_rest.len(), 1);
         assert!(restored_rest[0].is_plain_whole_rest());
         assert_eq!(restored_rest[0].articulations, vec![Articulation::Fermata]);
+    }
+
+    #[test]
+    fn typed_measure_texts_round_trip_as_dir() {
+        let mut score = Score::new("texts", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].texts.push(StyledText {
+            style: TextStyle::Technique,
+            text: "pizz. & sul tasto".into(),
+            placement: Some("above".into()),
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        });
+        let export = crate::serialize_mei_with_report(&score).expect("texts export");
+        assert!(export.diagnostics.is_empty(), "{:?}", export.diagnostics);
+        assert!(export.output.contains("<dir type=\"acorde-technique\" staff=\"1\" tstamp=\"1\" place=\"above\">pizz. &amp; sul tasto</dir>"));
+        let restored = parse_mei(&export.output).expect("texts reparse");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].texts,
+            score.parts[0].staves[0].measures[0].texts
+        );
     }
 
     #[test]
