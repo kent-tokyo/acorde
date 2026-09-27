@@ -1978,8 +1978,9 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         {
                             pending_time_change = Some(time_signature);
                         }
-                        if let Some(key_signature) =
-                            attr(&event, b"key.sig").and_then(|value| parse_key_signature(&value))
+                        if let Some(key_signature) = attr(&event, b"keysig")
+                            .or_else(|| attr(&event, b"key.sig"))
+                            .and_then(|value| parse_key_signature(&value))
                         {
                             pending_key_change = Some(key_signature);
                         }
@@ -1991,8 +1992,9 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             default_time_signature = time_signature.clone();
                             score.settings.time_signature = time_signature;
                         }
-                        if let Some(key_signature) =
-                            attr(&event, b"key.sig").and_then(|value| parse_key_signature(&value))
+                        if let Some(key_signature) = attr(&event, b"keysig")
+                            .or_else(|| attr(&event, b"key.sig"))
+                            .and_then(|value| parse_key_signature(&value))
                         {
                             score.settings.key_signature = key_signature;
                         }
@@ -2069,7 +2071,8 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             }
                         }
                         if in_section
-                            && let Some(key_signature) = attr(&event, b"key.sig")
+                            && let Some(key_signature) = attr(&event, b"keysig")
+                                .or_else(|| attr(&event, b"key.sig"))
                                 .and_then(|value| parse_key_signature(&value))
                         {
                             pending_key_change = Some(key_signature);
@@ -3411,7 +3414,10 @@ fn mei_key_signature(key: &KeySignature) -> String {
     }
 }
 
-fn append_mei_pitch_attrs(out: &mut String, pitch: &Pitch) {
+/// Write pitch attributes. `written` says whether the accidental is visible (not implied by the
+/// key signature or an earlier accidental in the measure): visible ones use `@accid`, implied
+/// alterations use `@accid.ges` so renderers do not print them.
+fn append_mei_pitch_attrs(out: &mut String, pitch: &Pitch, written: bool) {
     out.push_str(&format!(
         " pname=\"{}\" oct=\"{}\"",
         pitch.step.to_char().to_ascii_lowercase(),
@@ -3422,13 +3428,74 @@ fn append_mei_pitch_attrs(out: &mut String, pitch: &Pitch) {
         (0, -50) => Some("qf"),
         (1, _) => Some("s"),
         (-1, _) => Some("f"),
-        (2, _) => Some("ss"),
+        (2, _) => Some(if written { "x" } else { "ss" }),
         (-2, _) => Some("ff"),
+        (0, _) if written => Some("n"),
         _ => None,
     };
-    if let Some(accid) = accid {
-        out.push_str(&format!(" accid=\"{accid}\""));
+    match (accid, written) {
+        (Some(accid), true) => out.push_str(&format!(" accid=\"{accid}\"")),
+        (Some(accid), false) => out.push_str(&format!(" accid.ges=\"{accid}\"")),
+        (None, _) => {}
     }
+}
+
+fn mei_key_alter(fifths: i8, step: &Step) -> i8 {
+    const SHARPS: [Step; 7] = [
+        Step::F,
+        Step::C,
+        Step::G,
+        Step::D,
+        Step::A,
+        Step::E,
+        Step::B,
+    ];
+    const FLATS: [Step; 7] = [
+        Step::B,
+        Step::E,
+        Step::A,
+        Step::D,
+        Step::G,
+        Step::C,
+        Step::F,
+    ];
+    let count = usize::from(fifths.unsigned_abs()).min(7);
+    if fifths > 0 && SHARPS[..count].contains(step) {
+        1
+    } else if fifths < 0 && FLATS[..count].contains(step) {
+        -1
+    } else {
+        0
+    }
+}
+
+/// Visible-accidental flags per (voice, note) for one staff measure, using the same rule as the
+/// layout engine: an alteration differing from the key signature or from the last alteration of
+/// that step/octave earlier in the measure is shown; tie continuations are never shown.
+fn mei_written_accidentals(measure: &Measure, fifths: i8) -> HashMap<(usize, usize), Vec<bool>> {
+    let mut active: HashMap<(char, i8), i8> = HashMap::new();
+    let mut written = HashMap::new();
+    for (voice_index, voice) in measure.voices.iter().enumerate() {
+        for (note_index, note) in voice.iter().enumerate() {
+            let flags = note
+                .pitches
+                .iter()
+                .map(|pitch| {
+                    let key = (pitch.step.to_char(), pitch.octave);
+                    let baseline = active
+                        .get(&key)
+                        .copied()
+                        .unwrap_or_else(|| mei_key_alter(fifths, &pitch.step));
+                    if pitch.alter != baseline {
+                        active.insert(key, pitch.alter);
+                    }
+                    (pitch.alter != baseline || pitch.microtone_cents != 0) && !note.tie_end
+                })
+                .collect();
+            written.insert((voice_index, note_index), flags);
+        }
+    }
+    written
 }
 
 /// Write every lyric verse as standard MEI `<verse n><syl wordpos con>` note content.
@@ -3452,7 +3519,8 @@ fn append_mei_verses(out: &mut String, note: &Note) {
     }
 }
 
-fn append_mei_note(out: &mut String, note: &Note, id: &str) -> Result<(), Error> {
+fn append_mei_note(out: &mut String, note: &Note, id: &str, written: &[bool]) -> Result<(), Error> {
+    let shown = |index: usize| written.get(index).copied().unwrap_or(true);
     let dur = note.duration.as_fraction().1.to_string();
     let is_chord = !note.is_rest && note.pitches.len() > 1;
     if note.is_rest {
@@ -3467,7 +3535,7 @@ fn append_mei_note(out: &mut String, note: &Note, id: &str) -> Result<(), Error>
         }
     } else if let Some(pitch) = note.pitches.first() {
         out.push_str(&format!("<note xml:id=\"{id}\""));
-        append_mei_pitch_attrs(out, pitch);
+        append_mei_pitch_attrs(out, pitch, shown(0));
         out.push_str(&format!(" dur=\"{dur}\""));
         if note.is_grace {
             out.push_str(" grace=\"acc\"");
@@ -3508,7 +3576,7 @@ fn append_mei_note(out: &mut String, note: &Note, id: &str) -> Result<(), Error>
         out.push('>');
         for (index, pitch) in note.pitches.iter().enumerate() {
             out.push_str(&format!("<note xml:id=\"{id}_p{}\"", index + 1));
-            append_mei_pitch_attrs(out, pitch);
+            append_mei_pitch_attrs(out, pitch, shown(index));
             out.push_str("/>");
         }
         append_mei_verses(out, note);
@@ -4087,11 +4155,14 @@ fn append_mei_measure_staves(
     measure_index: usize,
     number: u32,
     default_time: &TimeSignature,
+    staff_fifths: &[i8],
 ) -> Result<(), Error> {
     for (staff_index, staff) in staves.iter().enumerate() {
         let Some(measure) = staff.measures.get(measure_index) else {
             continue;
         };
+        let written =
+            mei_written_accidentals(measure, staff_fifths.get(staff_index).copied().unwrap_or(0));
         out.push_str(&format!("<staff n=\"{}\">", staff_index + 1));
         let mut clef_change = measure.clef.clone();
         for (voice_index, voice) in measure.voices.iter().enumerate() {
@@ -4137,7 +4208,14 @@ fn append_mei_measure_staves(
                     }
                 }
                 let id = mei_note_id(number, staff_index, voice_index, note_index);
-                append_mei_note(out, note, &id)?;
+                append_mei_note(
+                    out,
+                    note,
+                    &id,
+                    written
+                        .get(&(voice_index, note_index))
+                        .map_or(&[][..], Vec::as_slice),
+                )?;
                 let mut closings = tuplets
                     .iter()
                     .filter(|group| group.1 == note_index)
@@ -4197,11 +4275,12 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
     let staves = &score.parts[0].staves;
     let time = &score.settings.time_signature;
     let mut running_time = time.clone();
+    let mut staff_fifths = vec![score.settings.key_signature.fifths; staves.len()];
     let key = mei_key_signature(&score.settings.key_signature);
     out.push_str("</title></titleStmt></fileDesc></meiHead><music><body><mdiv><score>");
     append_mei_chord_definitions(&mut out, &score.chord_definitions);
     out.push_str(&format!(
-        "<scoreDef meter.count=\"{}\" meter.unit=\"{}\" key.sig=\"{}\"><staffGrp>",
+        "<scoreDef meter.count=\"{}\" meter.unit=\"{}\" keysig=\"{}\"><staffGrp>",
         time.numerator, time.denominator, key
     ));
     if multi_part {
@@ -4230,6 +4309,15 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
         {
             running_time = changed;
         }
+        for (staff_index, staff) in staves.iter().enumerate() {
+            if let Some(key) = staff
+                .measures
+                .get(measure_index)
+                .and_then(|measure| measure.key_sig.as_ref())
+            {
+                staff_fifths[staff_index] = key.fifths;
+            }
+        }
         let number = staves
             .iter()
             .find_map(|staff| staff.measures.get(measure_index))
@@ -4247,7 +4335,7 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
                 ));
             }
             if let Some(key) = &first.key_sig {
-                out.push_str(&format!(" key.sig=\"{}\"", mei_key_signature(key)));
+                out.push_str(&format!(" keysig=\"{}\"", mei_key_signature(key)));
             }
             out.push_str("/>");
         }
@@ -4400,7 +4488,14 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
                 out.push_str("</dir>");
             }
         }
-        append_mei_measure_staves(&mut out, staves, measure_index, number, &running_time)?;
+        append_mei_measure_staves(
+            &mut out,
+            staves,
+            measure_index,
+            number,
+            &running_time,
+            &staff_fifths,
+        )?;
         append_mei_control_events(&mut out, staves, measure_index);
         out.push_str("</measure>");
         if let Some(first) = staves
@@ -5366,7 +5461,7 @@ mod tests {
         assert!(
             export
                 .output
-                .contains("<scoreDef meter.count=\"3\" meter.unit=\"4\" key.sig=\"2s\"/>")
+                .contains("<scoreDef meter.count=\"3\" meter.unit=\"4\" keysig=\"2s\"/>")
         );
         check(&parse_mei(&export.output).expect("changes reparse"));
     }
