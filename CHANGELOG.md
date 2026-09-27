@@ -9,6 +9,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Typed spanners are no longer dropped.** A slur, glissando, trill line, pedal or ottava held
+  only in `Score::spanners` (as `AddSpanner`/`UpdateSpanner` leave it: they clear the note
+  flags) was not drawn in SVG, played (pedal), or exported to MEI, MSCX or ABC, and was not
+  reported. `Score::with_legacy_spanner_flags` marks such spans on their endpoint notes, and
+  layout, SVG, playback, those exporters and their loss reports use it.
+- MusicXML export wrote a typed pedal's or ottava's stop before its last note, so each round
+  trip ended the span one note earlier; the stop now follows the note (and its chord members).
+- MusicXML lyric elisions (`<text>`, `<elision>`, `<text>`) kept only the last syllable; both
+  are kept, joined by ‿, and written back as an elision.
 - **Percussion plays its kit sounds.** Unpitched notes played their display pitch (a snare on
   C5 sounded MIDI 72). Playback events and MIDI export now sound the kit instrument's
   `midi_unpitched` key (`Part::percussion_key`), found by the note's instrument id or, for chord

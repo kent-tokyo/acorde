@@ -66,6 +66,9 @@ pub(crate) fn build_svg_with_metadata(
     layout: &LayoutResult,
     options: &SvgRenderOptions,
 ) -> Result<(String, RenderMetadata), RenderError> {
+    // Spans authored only as typed spanners are drawn from their endpoint notes' flags.
+    let materialized = score.with_legacy_spanner_flags();
+    let score: &Score = &materialized;
     let space = options.staff_size;
     if !options.width.is_finite() || options.width <= 0.0 {
         return Err(RenderError::InvalidOptions {

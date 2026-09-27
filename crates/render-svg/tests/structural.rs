@@ -3119,3 +3119,42 @@ fn lyric_extender_runs_under_the_melisma_to_its_last_notehead() {
     assert!(value("x1") > heads[0] && value("x2") > heads[2] && value("x2") < heads[3]);
     assert_eq!(svg.matches("acorde-lyric-extender").count(), 1);
 }
+
+#[test]
+fn spans_held_only_as_typed_spanners_are_drawn() {
+    use acorde_core::{
+        Duration, NotationSpanner, NotationSpannerKind, Note, NoteAddr, Pitch, Score, Step,
+    };
+    let mut score = Score::new("typed", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].measures[0].voices[0] = (0..4)
+        .map(|_| Note::new(Pitch::new(Step::C, 5), Duration::Quarter))
+        .collect();
+    let plain = render_svg(&score, &opts()).unwrap();
+    let address = |note| NoteAddr {
+        part: 0,
+        staff: 0,
+        measure: 0,
+        voice: 0,
+        note,
+    };
+    for (kind, id) in [
+        (NotationSpannerKind::Slur, "slur"),
+        (NotationSpannerKind::Pedal, "pedal"),
+    ] {
+        score.spanners.push(NotationSpanner {
+            id: id.into(),
+            kind,
+            start: address(0),
+            end: address(3),
+            number: None,
+            line_type: None,
+            text: None,
+            placement: None,
+            ottava_size: None,
+            ottava_type: None,
+        });
+    }
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert!(!plain.contains("acorde-slur") && svg.contains("acorde-slur"));
+    assert!(!plain.contains("acorde-pedal") && svg.contains("acorde-pedal"));
+}

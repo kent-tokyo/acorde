@@ -23,7 +23,8 @@ pub fn compute_layout(score: &Score, config: &LayoutConfig) -> LayoutResult {
     let first_row = config.first_row_measures.map(|n| n.max(1));
     let vis_slots = build_vis_slots(score);
     let rows = build_rows(score, &vis_slots, per_row, first_row);
-    let spans = resolve_spans(score);
+    // Spans authored only as typed spanners pair up like their legacy note flags.
+    let spans = resolve_spans(&score.with_legacy_spanner_flags());
 
     let mut concert_key_overrides = Vec::new();
     if config.concert_pitch {

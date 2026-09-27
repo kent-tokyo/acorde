@@ -1234,6 +1234,9 @@ fn apply_abc_lyrics(score: &mut Score, lyric_lines: &[(usize, String)]) {
 /// Only the first part and voice 0 are included.
 /// Uses `L:1/4` (quarter note as unit length) throughout.
 pub fn serialize_abc(score: &Score) -> Result<String, Error> {
+    // Export reads span endpoints from note flags; include spans held only as typed spanners.
+    let materialized = score.with_legacy_spanner_flags();
+    let score: &Score = &materialized;
     let mut out = String::new();
 
     out.push_str("X:1\n");

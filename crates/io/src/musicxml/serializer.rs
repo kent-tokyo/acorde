@@ -747,7 +747,9 @@ fn serialize_note(
         .iter()
         .filter(|spanner| spanner.start == *address || spanner.end == *address)
         .collect();
-    serialize_typed_direction_spanners(xml, &typed_spanners, address);
+    // Direction spanners start before their first note and stop after their last one (after
+    // its chord members), where MusicXML import reads them back.
+    serialize_typed_direction_spanners(xml, &typed_spanners, address, "start");
     let has_typed_endpoint =
         |kind: NotationSpannerKind| typed_spanners.iter().any(|spanner| spanner.kind == kind);
 
@@ -1143,6 +1145,8 @@ fn serialize_note(
         }
     }
 
+    serialize_typed_direction_spanners(xml, &typed_spanners, address, "stop");
+
     // Pedal stop
     if note.pedal_end && !has_typed_endpoint(NotationSpannerKind::Pedal) {
         xml.push_str("      <direction placement=\"below\">\n");
@@ -1325,11 +1329,12 @@ fn serialize_typed_direction_spanners(
     xml: &mut String,
     spanners: &[&NotationSpanner],
     address: &NoteAddr,
+    which: &str,
 ) {
     for spanner in spanners {
-        let endpoint = if spanner.start == *address {
+        let endpoint = if which == "start" && spanner.start == *address {
             Some("start")
-        } else if spanner.end == *address {
+        } else if which == "stop" && spanner.end == *address {
             Some("stop")
         } else {
             None

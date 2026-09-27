@@ -399,6 +399,98 @@ pub enum ScoreTemplate {
 }
 
 impl Score {
+    /// This score with every typed [`NotationSpanner`] also marked on its endpoint notes'
+    /// legacy flags (`slur_start`/`slur_end`, `pedal_start`/`pedal_end`, …). Exporters and
+    /// renderers that read only the legacy flags use it so a span authored or edited through
+    /// `Score::spanners` (whose commands clear the flags) is not silently dropped. Borrowed
+    /// unchanged when there is nothing to add.
+    pub fn with_legacy_spanner_flags(&self) -> std::borrow::Cow<'_, Score> {
+        use crate::model::notation::OttavaKind;
+        let missing = |spanner: &NotationSpanner| {
+            let start = self.note_at(&spanner.start);
+            let end = self.note_at(&spanner.end);
+            match spanner.kind {
+                NotationSpannerKind::Slur => {
+                    !start.is_some_and(|n| n.slur_start) || !end.is_some_and(|n| n.slur_end)
+                }
+                NotationSpannerKind::Glissando => {
+                    !start.is_some_and(|n| n.glissando_start)
+                        || !end.is_some_and(|n| n.glissando_end)
+                }
+                NotationSpannerKind::TrillLine => {
+                    !start.is_some_and(|n| n.trill_line_start)
+                        || !end.is_some_and(|n| n.trill_line_end)
+                }
+                NotationSpannerKind::Pedal => {
+                    !start.is_some_and(|n| n.pedal_start) || !end.is_some_and(|n| n.pedal_end)
+                }
+                NotationSpannerKind::Ottava => {
+                    !start.is_some_and(|n| n.ottava_start.is_some())
+                        || !end.is_some_and(|n| n.ottava_end)
+                }
+            }
+        };
+        if !self.spanners.iter().any(missing) {
+            return std::borrow::Cow::Borrowed(self);
+        }
+        let mut score = self.clone();
+        for spanner in &self.spanners {
+            if let Some(note) = score.note_at_mut(&spanner.start) {
+                match spanner.kind {
+                    NotationSpannerKind::Slur => note.slur_start = true,
+                    NotationSpannerKind::Glissando => note.glissando_start = true,
+                    NotationSpannerKind::TrillLine => note.trill_line_start = true,
+                    NotationSpannerKind::Pedal => note.pedal_start = true,
+                    NotationSpannerKind::Ottava if note.ottava_start.is_none() => {
+                        let two = spanner.ottava_size.is_some_and(|size| size >= 15);
+                        let down = spanner.ottava_type.as_deref() == Some("down");
+                        note.ottava_start = Some(match (down, two) {
+                            (false, false) => OttavaKind::Va8,
+                            (false, true) => OttavaKind::Ma15,
+                            (true, false) => OttavaKind::Vb8,
+                            (true, true) => OttavaKind::Mb15,
+                        });
+                    }
+                    NotationSpannerKind::Ottava => {}
+                }
+            }
+            if let Some(note) = score.note_at_mut(&spanner.end) {
+                match spanner.kind {
+                    NotationSpannerKind::Slur => note.slur_end = true,
+                    NotationSpannerKind::Glissando => note.glissando_end = true,
+                    NotationSpannerKind::TrillLine => note.trill_line_end = true,
+                    NotationSpannerKind::Pedal => note.pedal_end = true,
+                    NotationSpannerKind::Ottava => note.ottava_end = true,
+                }
+            }
+        }
+        std::borrow::Cow::Owned(score)
+    }
+
+    fn note_at(&self, address: &NoteAddr) -> Option<&Note> {
+        self.parts
+            .get(address.part)?
+            .staves
+            .get(address.staff)?
+            .measures
+            .get(address.measure)?
+            .voices
+            .get(address.voice)?
+            .get(address.note)
+    }
+
+    fn note_at_mut(&mut self, address: &NoteAddr) -> Option<&mut Note> {
+        self.parts
+            .get_mut(address.part)?
+            .staves
+            .get_mut(address.staff)?
+            .measures
+            .get_mut(address.measure)?
+            .voices
+            .get_mut(address.voice)?
+            .get_mut(address.note)
+    }
+
     /// Resolve score-wide defaults followed by the supplied view's local overrides.
     pub fn resolved_view_style(&self, layout: &ScoreViewLayoutOverrides) -> ViewStyle {
         let mut style = ViewStyle::default();

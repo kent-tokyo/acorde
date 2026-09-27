@@ -1714,6 +1714,9 @@ impl DynamicTimeline {
 /// Repeat sections and volta brackets are expanded using [`measure_sequence`].
 /// Events are sorted by `time_beats`.
 pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<PlaybackEvent> {
+    // A pedal held only as a typed spanner still presses the pedal on its first note.
+    let materialized = score.with_legacy_spanner_flags();
+    let score: &Score = &materialized;
     let bpm = options
         .bpm_override
         .unwrap_or(score.settings.tempo_bpm)

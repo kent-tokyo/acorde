@@ -4845,6 +4845,9 @@ fn settle_mei_mid_clefs(staff: &mut Staff) {
 
 /// Serialize the score subset understood by [`parse_mei`].
 pub fn serialize_mei(score: &Score) -> Result<String, Error> {
+    // Export reads span endpoints from note flags; include spans held only as typed spanners.
+    let materialized = score.with_legacy_spanner_flags();
+    let score: &Score = &materialized;
     if score.parts.is_empty() || score.parts.iter().all(|part| part.staves.is_empty()) {
         return Err(Error::Empty);
     }

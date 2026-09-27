@@ -217,6 +217,9 @@ fn note_has_unsupported_fields(note: &Note) -> bool {
 /// metadata. Unsupported model fields remain outside this function's lossless claim and should
 /// be surfaced by the caller's export diagnostics.
 pub fn serialize_mscx(score: &Score) -> Result<String, Error> {
+    // Export reads span endpoints from note flags; include spans held only as typed spanners.
+    let materialized = score.with_legacy_spanner_flags();
+    let score: &Score = &materialized;
     if score.parts.is_empty() {
         return Err(Error::Empty);
     }

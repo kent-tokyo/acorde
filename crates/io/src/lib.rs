@@ -117,7 +117,7 @@ pub fn serialize_mei_with_report(
         schema_version: REPORT_SCHEMA_VERSION,
         format: "mei".to_string(),
         output: serialize_mei(score)?,
-        diagnostics: mei::export_loss_diagnostics(score),
+        diagnostics: mei::export_loss_diagnostics(&score.with_legacy_spanner_flags()),
     })
 }
 
@@ -182,7 +182,7 @@ pub fn serialize_abc_with_report(
         schema_version: REPORT_SCHEMA_VERSION,
         format: "abc".to_string(),
         output: serialize_abc(score)?,
-        diagnostics: abc::export_loss_diagnostics(score),
+        diagnostics: abc::export_loss_diagnostics(&score.with_legacy_spanner_flags()),
     })
 }
 
@@ -197,7 +197,7 @@ pub fn serialize_mscx_with_report(
         schema_version: REPORT_SCHEMA_VERSION,
         format: "mscx".to_string(),
         output: serialize_mscx(score)?,
-        diagnostics: mscz::export_loss_diagnostics(score),
+        diagnostics: mscz::export_loss_diagnostics(&score.with_legacy_spanner_flags()),
     })
 }
 
@@ -209,7 +209,7 @@ pub fn serialize_mscz_with_report(
         schema_version: REPORT_SCHEMA_VERSION,
         format: "mscz".to_string(),
         output: serialize_mscz(score)?,
-        diagnostics: mscz::export_loss_diagnostics(score),
+        diagnostics: mscz::export_loss_diagnostics(&score.with_legacy_spanner_flags()),
     })
 }
 

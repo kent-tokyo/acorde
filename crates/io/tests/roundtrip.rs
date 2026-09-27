@@ -4221,3 +4221,67 @@ fn musicxml_lyric_elision_keeps_both_syllables() {
     assert!(written.contains("<elision>"));
     check(&parse_musicxml(&written).expect("reparses"));
 }
+
+#[test]
+fn typed_direction_spanners_keep_their_end_note_and_reach_other_exporters() {
+    use acorde_core::{
+        Duration, NotationSpanner, NotationSpannerKind, Note, NoteAddr, Pitch, Score, Step,
+    };
+    let mut score = Score::new("spans", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].measures[0].voices[0] = (0..4)
+        .map(|_| Note::new(Pitch::new(Step::C, 5), Duration::Quarter))
+        .collect();
+    let address = |note| NoteAddr {
+        part: 0,
+        staff: 0,
+        measure: 0,
+        voice: 0,
+        note,
+    };
+    for (kind, id) in [
+        (NotationSpannerKind::Ottava, "ottava"),
+        (NotationSpannerKind::Pedal, "pedal"),
+        (NotationSpannerKind::Slur, "slur"),
+    ] {
+        score.spanners.push(NotationSpanner {
+            id: id.into(),
+            kind,
+            start: address(0),
+            end: address(2),
+            number: Some(1),
+            line_type: None,
+            text: None,
+            placement: None,
+            ottava_size: Some(8),
+            ottava_type: Some("down".into()),
+        });
+    }
+    // MusicXML writes a direction's stop after its last note, so the span does not shrink.
+    let back = parse_musicxml(&serialize_musicxml(&score).expect("exports")).expect("imports");
+    for spanner in &back.spanners {
+        assert_eq!(
+            (spanner.start.note, spanner.end.note),
+            (0, 2),
+            "{:?}",
+            spanner.kind
+        );
+    }
+    // Spans held only as typed spanners are not dropped by exporters reading note flags.
+    let flagged = score.with_legacy_spanner_flags();
+    let notes = &flagged.parts[0].staves[0].measures[0].voices[0];
+    assert!(notes[0].slur_start && notes[2].slur_end && notes[0].pedal_start);
+    assert!(notes[0].ottava_start.is_some() && notes[2].ottava_end);
+    #[cfg(feature = "mei")]
+    {
+        let mei = acorde_io::serialize_mei(&score).expect("MEI export");
+        assert!(mei.contains("<slur") && mei.contains("<pedal") && mei.contains("<octave"));
+    }
+    #[cfg(feature = "mscz")]
+    {
+        let report = acorde_io::serialize_mscx_with_report(&score).expect("MSCX export");
+        assert!(
+            !report.diagnostics.is_empty(),
+            "unsupported spans are reported"
+        );
+    }
+}
