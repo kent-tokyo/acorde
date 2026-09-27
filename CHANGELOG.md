@@ -9,6 +9,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Chord labels in other spellings.** MEI `<harm>` labels and Guitar Pro chord names are parsed
+  from text; `C+`, `DMaj7`, `D7+`, `B♭6`, `F♯ø7`, `E°7`, `A-7`, `GΔ`, `Dsus` and grouped
+  alterations (`G7(b9, #11)`) were not recognised and stayed plain text (MEI) or were lost (GP).
+  They now become chord symbols: 51 of the 57 labels in the chord-symbol test file converted
+  by Verovio import as symbols (the rest are omissions and named chords such as `CN6`).
+
 - **MEI tempo words and words in `<dynam>`.** `<tempo>` kept its metronome value but dropped
   its text (Allegro, Andante con moto), and a `<dynam>` holding words rather than a dynamic
   (Verovio writes MusicXML's cresc., dim. there) was dropped whole — about half of the texts
