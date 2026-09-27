@@ -25,6 +25,15 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
+### Unreleased — compound dynamics, held dynamics in playback, lyric extenders
+
+`Dynamic` gains seven variants (`Fp`, `Sfp`, `Sfpp`, `Pf`, `Sffz`, `Sfzp`, `N`) and now derives
+`Copy` and `Eq`; exhaustive matches on it need arms for them. `Lyric` gains `extend: bool`
+(serde-defaulted, omitted when false), so struct literals must add the field. Playback and MIDI
+export change behaviour: an unmarked note now plays at the staff's last dynamic (see
+`DynamicTimeline`) rather than velocity 64, so hosts that compare velocities should refresh
+their expectations; notes before any marking still play at 64.
+
 ### v1.2.11 — mid-bar clef changes
 
 `Measure` gains `mid_clefs: Vec<MidMeasureClef>` (a `MeasureLength` offset from the bar's start

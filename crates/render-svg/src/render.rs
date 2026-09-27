@@ -457,6 +457,13 @@ pub(crate) fn build_svg_with_metadata(
         &resolved_annotation_obstacles,
         space,
     );
+    render_lyric_extenders(
+        &mut body,
+        score,
+        &note_points,
+        &resolved_annotation_obstacles,
+        space,
+    );
     render_cross_measure_tab_technique_connections(
         &mut body,
         score,
@@ -3640,6 +3647,106 @@ fn render_cross_measure_lyric_hyphens(
                                 .unwrap_or((start_y + end_y) * 0.5 + 4.55 * space),
                                 space,
                             },
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Draw verse-1 melisma extenders: a baseline rule from just after the syllable to the right
+/// edge of the melisma's last notehead, the melisma running on (across bars) until the next
+/// note with a lyric or the next rest. A line is drawn only within the syllable's system.
+fn render_lyric_extenders(
+    body: &mut String,
+    score: &Score,
+    points: &HashMap<NoteKey, NotePoint>,
+    placements: &[acorde_layout::GlyphPlacement],
+    space: f32,
+) {
+    let lyric_ys: HashMap<&str, f32> = placements
+        .iter()
+        .filter(|placement| placement.resource_key.starts_with("lyric:"))
+        .map(|placement| (placement.resource_key.as_str(), placement.y_mm))
+        .collect();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    for (note_index, note) in voice.iter().enumerate() {
+                        let Some(lyric) = note.lyric.as_ref().filter(|lyric| lyric.extend) else {
+                            continue;
+                        };
+                        let start_key = (
+                            part_index,
+                            staff_index,
+                            measure_index,
+                            voice_index,
+                            note_index,
+                        );
+                        let Some(&(start_x, _, _, row)) = points.get(&start_key) else {
+                            continue;
+                        };
+                        let Some(&baseline) = lyric_ys.get(
+                            format!(
+                                "lyric:{part_index}:{staff_index}:{measure_index}:{voice_index}:{note_index}"
+                            )
+                            .as_str(),
+                        ) else {
+                            continue;
+                        };
+                        // The last note of the melisma that sits on the same system.
+                        let mut end = None;
+                        'melisma: for next_measure in measure_index..staff.measures.len() {
+                            let Some(next_voice) =
+                                staff.measures[next_measure].voices.get(voice_index)
+                            else {
+                                break;
+                            };
+                            let skip = if next_measure == measure_index {
+                                note_index + 1
+                            } else {
+                                0
+                            };
+                            for (next_index, next) in next_voice.iter().enumerate().skip(skip) {
+                                if next.is_rest || next.lyric.is_some() {
+                                    break 'melisma;
+                                }
+                                if next.is_grace {
+                                    continue;
+                                }
+                                match points.get(&(
+                                    part_index,
+                                    staff_index,
+                                    next_measure,
+                                    voice_index,
+                                    next_index,
+                                )) {
+                                    Some(&(x, _, _, next_row)) if next_row == row => {
+                                        end = Some((next_measure, next_index, x));
+                                    }
+                                    _ => break 'melisma,
+                                }
+                            }
+                        }
+                        let end_x =
+                            end.map_or(start_x, |(_, _, x)| x) + glyphs::NOTEHEAD_RX_U * space;
+                        let x1 =
+                            start_x + (lyric.text.chars().count() as f32 * 0.21 + 0.25) * space;
+                        if !x1.is_finite() || !end_x.is_finite() || end_x - x1 < 0.5 * space {
+                            continue;
+                        }
+                        let (end_measure, end_note) =
+                            end.map_or((measure_index, note_index), |(m, n, _)| (m, n));
+                        let _ = write!(
+                            body,
+                            r#"<line class="acorde-lyric-extender" data-start-note-addr="{part_index}:{staff_index}:{measure_index}:{voice_index}:{note_index}" data-end-note-addr="{part_index}:{staff_index}:{end_measure}:{voice_index}:{end_note}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
+                            f(x1),
+                            f(baseline),
+                            f(end_x),
+                            f(baseline),
+                            f(0.1 * space)
                         );
                     }
                 }
@@ -7198,6 +7305,7 @@ mod tests {
             note.lyric = Some(Lyric {
                 text: "same lyric".into(),
                 syllabic: "single".into(),
+                extend: false,
             });
             measure.voices[voice_index] = vec![note];
         }
@@ -7520,6 +7628,7 @@ mod tests {
         annotated.lyric = Some(Lyric {
             text: "long-syllable".to_owned(),
             syllabic: "single".to_owned(),
+            extend: false,
         });
         let mut plain_positions = [0.0, 1.0];
         resolve_adjacent_event_spacing(
@@ -7576,6 +7685,7 @@ mod tests {
         current.lyric = Some(Lyric {
             text: "a wide lyric".into(),
             syllabic: "single".into(),
+            extend: false,
         });
         let prior_events = [(0.0, &prior)];
 

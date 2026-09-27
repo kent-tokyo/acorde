@@ -210,7 +210,7 @@ fn push_unsupported_notation_diagnostic(path: &[String], diagnostics: &mut Vec<c
     let unsupported = matches!(
         (parent.as_str(), name.as_str()),
         ("measure-style", "beat-repeat" | "slash")
-            | ("lyric", "extend" | "elision")
+            | ("lyric", "elision")
             | ("direction-type", "dashes" | "bracket")
             | ("notations", "non-arpeggiate")
             | ("harmony", "frame")

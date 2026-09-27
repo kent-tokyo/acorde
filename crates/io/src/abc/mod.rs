@@ -1220,6 +1220,7 @@ fn apply_abc_lyrics(score: &mut Score, lyric_lines: &[(usize, String)]) {
             note.lyric = Some(acorde_core::Lyric {
                 text,
                 syllabic: syllabic.to_string(),
+                extend: false,
             });
             *cursor = cursor.saturating_add(1);
         }
@@ -1960,6 +1961,7 @@ C D E F | G A B c |";
         note.lyric = Some(acorde_core::Lyric {
             text: "la".to_string(),
             syllabic: "single".to_string(),
+            extend: false,
         });
         note.articulations.extend([
             acorde_core::Articulation::Staccato,
@@ -2467,6 +2469,7 @@ C D E F | G A B c |";
         second.lyric = Some(acorde_core::Lyric {
             text: "word".to_string(),
             syllabic: "single".to_string(),
+            extend: false,
         });
         voice.push(second);
 

@@ -1081,6 +1081,7 @@ mod tests {
         note.lyric = Some(acorde_core::Lyric {
             text: "la".to_owned(),
             syllabic: "single".to_owned(),
+            extend: false,
         });
         note.is_grace = true;
         note.is_cue = true;

@@ -1697,9 +1697,9 @@ impl DynamicTimeline {
         if let Some(dynamic) = own {
             return dynamic.to_velocity();
         }
-        let before = self.changes.partition_point(|&(p, b, _, _)| {
-            p < position || (p == position && b <= beats + 1e-9)
-        });
+        let before = self
+            .changes
+            .partition_point(|&(p, b, _, _)| p < position || (p == position && b <= beats + 1e-9));
         match before.checked_sub(1).map(|index| self.changes[index]) {
             Some((p, b, attack, _)) if p == position && (b - beats).abs() <= 1e-9 => attack,
             Some((_, _, _, level)) => level,

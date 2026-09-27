@@ -3617,8 +3617,9 @@ fn unmodeled_musicxml_repeats_and_lines_are_source_diagnosed() {
             .iter()
             .any(|(code, _)| *code == "musicxml.unsupported-element.dashes")
     );
+    // Lyric extenders are imported (`Lyric::extend`), so they are no longer diagnosed.
     assert!(
-        codes
+        !codes
             .iter()
             .any(|(code, _)| *code == "musicxml.unsupported-element.extend")
     );
@@ -4139,4 +4140,54 @@ fn mei_and_mscx_keep_mid_bar_clef_changes() {
     let from_mscx = acorde_io::parse_mscx(&mscx).expect("MSCX import");
     assert_eq!(summary(&from_mscx)[0].1, expected[0].1);
     assert_eq!(summary(&from_mscx)[1], expected[1]);
+}
+
+#[test]
+fn lyric_extenders_and_compound_dynamics_survive_interchange() {
+    use acorde_core::{Duration, Dynamic, Lyric, Note, Pitch, Score, Step};
+    let mut score = Score::new("melisma", 120, 4, 4, 0, 1);
+    let mut notes: Vec<Note> = [Step::C, Step::D, Step::E, Step::F]
+        .into_iter()
+        .map(|step| Note::new(Pitch::new(step, 4), Duration::Quarter))
+        .collect();
+    notes[0].lyric = Some(Lyric {
+        text: "Ah".into(),
+        syllabic: "single".into(),
+        extend: true,
+    });
+    notes[0].dynamic = Some(Dynamic::Fp);
+    notes[3].lyric = Some(Lyric {
+        text: "men".into(),
+        syllabic: "single".into(),
+        extend: false,
+    });
+    notes[3].dynamic = Some(Dynamic::Sfp);
+    score.parts[0].staves[0].measures[0].voices[0] = notes;
+    let check = |score: &Score, format: &str| {
+        let voice = &score.parts[0].staves[0].measures[0].voices[0];
+        assert!(
+            voice[0].lyric.as_ref().is_some_and(|l| l.extend),
+            "{format}"
+        );
+        assert!(
+            voice[3].lyric.as_ref().is_some_and(|l| !l.extend),
+            "{format}"
+        );
+        assert_eq!(voice[0].dynamic, Some(Dynamic::Fp), "{format}");
+        assert_eq!(voice[3].dynamic, Some(Dynamic::Sfp), "{format}");
+    };
+    let xml = serialize_musicxml(&score).expect("MusicXML export");
+    assert!(xml.contains("<extend/>"));
+    check(&parse_musicxml(&xml).expect("MusicXML import"), "MusicXML");
+    #[cfg(feature = "mei")]
+    check(
+        &acorde_io::parse_mei(&acorde_io::serialize_mei(&score).unwrap()).unwrap(),
+        "MEI",
+    );
+    #[cfg(feature = "mscz")]
+    {
+        let mscx = acorde_io::serialize_mscx(&score).unwrap();
+        assert!(mscx.contains("<ticks_f>3/4</ticks_f>"));
+        check(&acorde_io::parse_mscx(&mscx).unwrap(), "MSCX");
+    }
 }

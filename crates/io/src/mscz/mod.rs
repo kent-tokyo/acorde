@@ -331,6 +331,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut lyrics_syllabic = String::new();
     // MuseScore `<Lyrics><no>` is the zero-based verse; completed lyrics of the current chord.
     let mut lyrics_no: Option<u8> = None;
+    let mut lyrics_extend = false;
     let mut chord_lyrics: Vec<(Option<u8>, Lyric)> = Vec::new();
 
     // Accumulated text for the current element
@@ -685,6 +686,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         lyrics_text.clear();
                         lyrics_syllabic.clear();
                         lyrics_no = None;
+                        lyrics_extend = false;
                     }
                     _ => {}
                 }
@@ -1325,6 +1327,15 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "syllabic" if in_lyrics_elem => {
                         lyrics_syllabic = t.to_string();
                     }
+                    // A lyric spanning more than its own chord carries an extender line.
+                    "ticks" | "ticks_f" if in_lyrics_elem => {
+                        lyrics_extend = t
+                            .trim()
+                            .split('/')
+                            .next()
+                            .and_then(|value| value.parse::<i64>().ok())
+                            .is_some_and(|value| value != 0);
+                    }
                     "no" if in_lyrics_elem => {
                         lyrics_no = t
                             .trim()
@@ -1345,6 +1356,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                     } else {
                                         lyrics_syllabic.clone()
                                     },
+                                    extend: lyrics_extend,
                                 },
                             ));
                         }

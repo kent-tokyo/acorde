@@ -296,6 +296,8 @@ pub(crate) fn parse_musicxml_collecting(
     let mut pending_ottava_start: Option<OttavaKind> = None;
     let mut pending_pedal_start = false;
     let mut in_lyric = false;
+    // `<extend>` (start, or untyped) under the current lyric: a melisma line follows it.
+    let mut lyric_extend = false;
     let mut lyric_text = String::new();
     let mut lyric_syllabic = String::new();
     // Source `<lyric number>` of the lyric being read, and the note's completed lyrics.
@@ -783,6 +785,10 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                 }
                 match tag.as_str() {
+                    "extend" if in_lyric => {
+                        lyric_extend =
+                            matches!(attr_str(e, b"type").as_deref(), None | Some("start"));
+                    }
                     "measure-repeat" if attr_str(e, b"type").as_deref() == Some("stop") => {
                         measure_repeat_active = None;
                     }
@@ -1852,9 +1858,11 @@ pub(crate) fn parse_musicxml_collecting(
                                     } else {
                                         lyric_syllabic.clone()
                                     },
+                                    extend: std::mem::take(&mut lyric_extend),
                                 },
                             ));
                         }
+                        lyric_extend = false;
                         lyric_syllabic = "single".to_string();
                     }
                     "duration" if in_backup => {

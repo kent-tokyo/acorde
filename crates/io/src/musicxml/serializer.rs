@@ -1091,6 +1091,9 @@ fn serialize_note(
                 "          <text>{}</text>\n",
                 escape_xml(&lyric.text)
             ));
+            if lyric.extend {
+                xml.push_str("          <extend/>\n");
+            }
             xml.push_str("        </lyric>\n");
         }
         xml.push_str("      </note>\n");

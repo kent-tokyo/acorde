@@ -3186,7 +3186,7 @@ fn apply_set_dynamic(cmd: &SetDynamicCmd, score: &mut Score) -> Result<(), Error
         cmd.voice,
         cmd.note_index,
     )?
-    .dynamic = cmd.dynamic.clone();
+    .dynamic = cmd.dynamic;
     Ok(())
 }
 
@@ -7109,6 +7109,7 @@ mod tests {
         let lyric = |text: &str| Lyric {
             text: text.into(),
             syllabic: "single".into(),
+            extend: false,
         };
         let set = |verse: Option<u8>, text: Option<&str>| {
             Command::SetLyric(SetLyricCmd {

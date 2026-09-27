@@ -2007,6 +2007,8 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut note_element_depth = 0usize;
     let mut current_verse: u8 = 1;
     let mut syllable_wordpos: Option<String> = None;
+    // `con="u"`: an underscore (melisma extender) connects this syllable onward.
+    let mut syllable_extender = false;
     let mut in_layer = false;
     let mut open_staff_def: Option<usize> = None;
     let mut open_staff_def_lines: Option<u8> = None;
@@ -2446,6 +2448,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         in_syllable = true;
                         syllable_text.clear();
                         syllable_wordpos = attr(&event, b"wordpos");
+                        syllable_extender = attr(&event, b"con").as_deref() == Some("u");
                     }
                     b"ornam" if current_measure.is_some() && !is_empty_event => {
                         in_ornament = true;
@@ -2849,6 +2852,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 _ => "single",
                             }
                             .to_string(),
+                            extend: syllable_extender,
                         };
                         let target = (note_element_depth > 0)
                             .then_some(current_measure)
@@ -3842,12 +3846,20 @@ fn append_mei_verses(out: &mut String, note: &Note) {
             .map(|entry| (entry.verse, &entry.lyric)),
     );
     for (number, lyric) in verses {
-        let wordpos = match lyric.syllabic.as_str() {
-            "begin" => " wordpos=\"i\" con=\"d\"",
-            "middle" => " wordpos=\"m\" con=\"d\"",
-            "end" => " wordpos=\"t\"",
-            _ => "",
+        // The connector after the syllable: an extender line wins over a hyphen, since the
+        // word position already says the word continues.
+        let (wordpos, connector) = match lyric.syllabic.as_str() {
+            "begin" => (" wordpos=\"i\"", " con=\"d\""),
+            "middle" => (" wordpos=\"m\"", " con=\"d\""),
+            "end" => (" wordpos=\"t\"", ""),
+            _ => ("", ""),
         };
+        let connector = if lyric.extend {
+            " con=\"u\""
+        } else {
+            connector
+        };
+        let wordpos = format!("{wordpos}{connector}");
         out.push_str(&format!(
             "<verse n=\"{number}\"><syl{wordpos}>{}</syl></verse>",
             escape(&lyric.text)

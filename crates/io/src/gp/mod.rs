@@ -947,6 +947,7 @@ fn convert_beat(
             let lyric = Lyric {
                 text: text.to_string(),
                 syllabic: "single".to_string(),
+                extend: false,
             };
             if index == 0 {
                 note.lyric = Some(lyric);

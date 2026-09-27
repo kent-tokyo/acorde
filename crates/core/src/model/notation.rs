@@ -484,6 +484,10 @@ pub struct Lyric {
     pub text: String,
     /// Syllabic position: "single" | "begin" | "middle" | "end"
     pub syllabic: String,
+    /// A melisma extender line follows the syllable, under the notes up to (not including)
+    /// the next note with a lyric or the next rest (MusicXML `<extend>`, MEI `con="u"`).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub extend: bool,
 }
 
 /// A lyric syllable for verse 2 or later. Verse 1 stays in `Note.lyric`.

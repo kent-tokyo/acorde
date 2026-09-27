@@ -1298,6 +1298,7 @@ fn apply_lyrics(measures: &mut [Measure], lines: &[(usize, String)]) {
                 syllables.push(Lyric {
                     text: part.to_string(),
                     syllabic: syllabic.to_string(),
+                    extend: false,
                 });
             }
         }

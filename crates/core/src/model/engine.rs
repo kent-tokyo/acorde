@@ -1625,12 +1625,14 @@ mod tests {
         third.lyric = Some(Lyric {
             text: "tri".into(),
             syllabic: "begin".into(),
+            extend: false,
         });
         let mut fourth = Note::new(Pitch::new(Step::F, 4), Duration::Half);
         fourth.tie_end = true;
         fourth.lyric = Some(Lyric {
             text: "plet".into(),
             syllabic: "end".into(),
+            extend: false,
         });
         let mut first = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
         first.tuplet = Some(ratio.clone());

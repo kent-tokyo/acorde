@@ -476,6 +476,7 @@ fn note_annotations_are_rendered_and_xml_escaped() {
     note.lyric = Some(Lyric {
         text: "A&B<".into(),
         syllabic: "single".into(),
+        extend: false,
     });
     note.articulations = vec![
         Articulation::Staccato,
@@ -517,10 +518,12 @@ fn lyric_hyphen_connects_adjacent_syllables_by_note_address() {
     score.parts[0].staves[0].measures[0].voices[0][0].lyric = Some(Lyric {
         text: "hel".into(),
         syllabic: "begin".into(),
+        extend: false,
     });
     score.parts[0].staves[0].measures[0].voices[0][1].lyric = Some(Lyric {
         text: "lo".into(),
         syllabic: "end".into(),
+        extend: false,
     });
 
     let svg = render_svg(&score, &opts()).unwrap();
@@ -545,12 +548,14 @@ fn lyric_hyphen_connects_across_measure_boundaries_on_same_system() {
     score.parts[0].staves[0].measures[0].voices[0][0].lyric = Some(Lyric {
         text: "hel".into(),
         syllabic: "begin".into(),
+        extend: false,
     });
     score.parts[0].staves[0].measures[1].voices[0] =
         vec![Note::new(Pitch::new(Step::D, 4), Duration::Whole)];
     score.parts[0].staves[0].measures[1].voices[0][0].lyric = Some(Lyric {
         text: "lo".into(),
         syllabic: "end".into(),
+        extend: false,
     });
 
     let svg = render_svg(&score, &opts()).unwrap();
@@ -645,6 +650,7 @@ fn mixed_note_annotations_use_distinct_vertical_lanes() {
     note.lyric = Some(Lyric {
         text: "la".to_string(),
         syllabic: "single".to_string(),
+        extend: false,
     });
     note.articulations = vec![Articulation::Trill];
 
@@ -680,6 +686,7 @@ fn mixed_annotation_lanes_expand_the_page_margin() {
     note.lyric = Some(Lyric {
         text: "la".to_string(),
         syllabic: "single".to_string(),
+        extend: false,
     });
     note.articulations = vec![Articulation::Trill, Articulation::Mordent];
 
@@ -798,6 +805,7 @@ fn metadata_exposes_typed_note_semantics_without_svg_parsing() {
     note.lyric = Some(Lyric {
         text: "la".to_owned(),
         syllabic: "single".to_owned(),
+        extend: false,
     });
     note.chord_symbol = Some(ChordSymbol {
         root: "C".to_owned(),
@@ -1535,6 +1543,7 @@ fn note_attached_annotations_expand_content_height() {
     note.lyric = Some(Lyric {
         text: "long".to_string(),
         syllabic: "single".to_string(),
+        extend: false,
     });
     note.ottava_start = Some(OttavaKind::Va8);
 
@@ -2383,6 +2392,7 @@ fn wide_simultaneous_voice_annotations_expand_notehead_separation() {
     score.parts[0].staves[0].measures[0].voices[1][0].lyric = Some(Lyric {
         text: "a deliberately wide simultaneous lyric".into(),
         syllabic: "single".into(),
+        extend: false,
     });
     let annotated = centers(&render_svg(&score, &opts()).unwrap());
     assert_eq!(annotated.len(), 2);
@@ -2609,12 +2619,14 @@ fn additional_lyric_verses_render_below_verse_one() {
     note.lyric = Some(Lyric {
         text: "first".into(),
         syllabic: "single".into(),
+        extend: false,
     });
     note.additional_lyrics = vec![VerseLyric {
         verse: 2,
         lyric: Lyric {
             text: "second".into(),
             syllabic: "single".into(),
+            extend: false,
         },
     }];
     score.parts[0].staves[0].measures[0].voices[0] = vec![note];
@@ -2796,6 +2808,7 @@ fn inner_bar_annotations_do_not_widen_page_margins() {
     score.parts[0].staves[0].measures[1].voices[0][0].lyric = Some(Lyric {
         text: "a-very-long-melisma-syllable-that-would-once-shrink-every-system".into(),
         syllabic: "single".into(),
+        extend: false,
     });
     let with_lyric = staff_line(&acorde_render_svg::render_svg(&score, &options).unwrap());
     assert_eq!(plain, with_lyric);
@@ -3065,4 +3078,44 @@ fn mid_bar_clef_change_is_drawn_before_its_note_and_governs_later_notes() {
         .unwrap();
     assert!(clef_x > changed[1].0 && clef_x < changed[2].0);
     assert!(changed[2].0 - changed[1].0 > plain[2].0 - plain[1].0);
+}
+
+#[test]
+fn lyric_extender_runs_under_the_melisma_to_its_last_notehead() {
+    use acorde_core::{Duration, Lyric, Note, Pitch, Score, Step};
+    let mut score = Score::new("melisma", 120, 4, 4, 0, 1);
+    let mut notes: Vec<Note> = [Step::C, Step::D, Step::E, Step::F]
+        .into_iter()
+        .map(|step| Note::new(Pitch::new(step, 4), Duration::Quarter))
+        .collect();
+    notes[0].lyric = Some(Lyric {
+        text: "Ah".into(),
+        syllabic: "single".into(),
+        extend: true,
+    });
+    notes[3].lyric = Some(Lyric {
+        text: "men".into(),
+        syllabic: "single".into(),
+        extend: false,
+    });
+    score.parts[0].staves[0].measures[0].voices[0] = notes;
+    let svg = render_svg(&score, &opts()).unwrap();
+    let line = svg
+        .split(r#"class="acorde-lyric-extender""#)
+        .nth(1)
+        .expect("an extender is drawn");
+    assert!(line.contains(r#"data-end-note-addr="0:0:0:0:2""#));
+    let value = |name: &str| -> f32 {
+        line.split(&format!(r#"{name}=""#))
+            .nth(1)
+            .and_then(|rest| rest.split('"').next()?.parse().ok())
+            .unwrap()
+    };
+    let heads: Vec<f32> = svg
+        .split(r#"class="acorde-notehead" cx=""#)
+        .skip(1)
+        .filter_map(|fragment| fragment.split('"').next()?.parse().ok())
+        .collect();
+    assert!(value("x1") > heads[0] && value("x2") > heads[2] && value("x2") < heads[3]);
+    assert_eq!(svg.matches("acorde-lyric-extender").count(), 1);
 }

@@ -9,6 +9,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **[schema] Compound dynamics.** `Dynamic` gains `Fp`, `Sfp`, `Sfpp`, `Pf`, `Sffz`, `Sfzp` and
+  `N` (niente), with `Dynamic::ALL`, `Dynamic::from_musicxml_str` and
+  `Dynamic::sustained_level`. MusicXML, MEI and MSCX read and write them (478 fp/sfp marks in
+  the music21 corpus were dropped; `sffz` was folded into `sfz`). `<other-dynamics>` is now
+  reported instead of silently ignored.
+- **Playback dynamics hold until the next marking.** `PlaybackEvent::velocity` and MIDI export
+  use the staff's dynamic in force (`DynamicTimeline`) instead of giving unmarked notes velocity
+  64: p/f levels persist across notes, voices, bars and repeats; sf/sfz/fz/rfz/sffz accent only
+  their moment; fp/sfp/pf and the like attack at the first level and continue at the second.
+- **[schema] Lyric extenders.** `Lyric::extend` (omitted from JSON when false) marks a melisma
+  line after the syllable. MusicXML `<extend>`, MEI `con="u"` and MSCX lyric `ticks`/`ticks_f`
+  import and export (379 extenders in 45 corpus files were dropped); SVG draws the line on the
+  lyric baseline to the melisma's last notehead.
 ## [1.2.11] - 2026-09-27
 
 - **[schema] Mid-bar clef changes.** `Measure.mid_clefs` (additive, omitted from JSON when

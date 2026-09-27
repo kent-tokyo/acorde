@@ -443,7 +443,7 @@ fn write_staff(
                     [].iter().peekable()
                 };
                 let mut beats = 0.0;
-                for note in voice {
+                for (note_index, note) in voice.iter().enumerate() {
                     while let Some(change) =
                         clefs.next_if(|change| change.offset.beats().unwrap_or(0.0) <= beats + 1e-9)
                     {
@@ -454,7 +454,21 @@ fn write_staff(
                         )
                         .map_err(fmt_error)?;
                     }
-                    write_note(xml, note)?;
+                    // MuseScore draws a verse-1 extender over the lyric's `ticks_f`: this
+                    // note and the following ones of the melisma within the bar.
+                    let melisma = note
+                        .lyric
+                        .as_ref()
+                        .filter(|lyric| lyric.extend)
+                        .and_then(|_| {
+                            let following: f64 = voice[note_index + 1..]
+                                .iter()
+                                .take_while(|next| !next.is_rest && next.lyric.is_none())
+                                .map(Note::beats)
+                                .sum();
+                            acorde_core::MeasureLength::from_beats(note.beats() + following)
+                        });
+                    write_note(xml, note, melisma)?;
                     if !note.is_grace {
                         beats += note.beats();
                     }
@@ -501,7 +515,11 @@ fn write_styled_text(xml: &mut String, styled: &acorde_core::StyledText) -> Resu
     write!(xml, "<text>{}</text></{element}>", escape(&styled.text)).map_err(fmt_error)
 }
 
-fn write_note(xml: &mut String, note: &Note) -> Result<(), Error> {
+fn write_note(
+    xml: &mut String,
+    note: &Note,
+    melisma: Option<acorde_core::MeasureLength>,
+) -> Result<(), Error> {
     if note.is_rest {
         write!(
             xml,
@@ -641,9 +659,15 @@ fn write_note(xml: &mut String, note: &Note) -> Result<(), Error> {
         }
     }
     if let Some(lyric) = &note.lyric {
+        let ticks = melisma.map_or_else(String::new, |length| {
+            format!(
+                "<ticks_f>{}/{}</ticks_f>",
+                length.numerator, length.denominator
+            )
+        });
         write!(
             xml,
-            "<Lyrics><syllabic>{}</syllabic><text>{}</text></Lyrics>",
+            "<Lyrics><syllabic>{}</syllabic>{ticks}<text>{}</text></Lyrics>",
             escape(&lyric.syllabic),
             escape(&lyric.text)
         )
