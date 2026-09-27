@@ -8,9 +8,9 @@
 use crate::{Diagnostic, Error, ImportReport};
 use acorde_core::{
     Articulation, Barline, ChordBarre, ChordDefinition, ChordDefinitionMember, ChordDegree,
-    ChordSymbol, Clef, Duration, Dynamic, FiguredBassFigure, KeySignature, Measure, Note, NoteAddr,
-    OttavaKind, Part, PartGroup, PartGroupSymbol, Pitch, Score, Staff, StaffGroup, Step,
-    StyledText, TextStyle, TimeSignature, TupletInfo,
+    ChordSymbol, Clef, Duration, Dynamic, FiguredBassFigure, HairpinKind, KeySignature, Measure,
+    Note, NoteAddr, OttavaKind, Part, PartGroup, PartGroupSymbol, Pitch, Score, Staff, StaffGroup,
+    Step, StyledText, TextStyle, TimeSignature, TupletInfo,
 };
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
@@ -641,9 +641,15 @@ fn pedal_has_supported_scope(
     let Some((start, end)) = parse_pedal(event) else {
         return false;
     };
-    let start = scopes.get(start.trim_start_matches('#'));
-    let end = scopes.get(end.trim_start_matches('#'));
-    start.is_some() && start == end
+    // Scopes are (measure, staff, layer): a pedal may run into later measures of the same
+    // staff and layer.
+    match (
+        scopes.get(start.trim_start_matches('#')),
+        scopes.get(end.trim_start_matches('#')),
+    ) {
+        (Some(start), Some(end)) => start.1 == end.1 && start.2 == end.2 && start.0 <= end.0,
+        _ => false,
+    }
 }
 
 fn push_unresolved_barre_references(
@@ -1857,6 +1863,10 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut note_element_depth = 0usize;
     let mut current_verse: u8 = 1;
     let mut syllable_wordpos: Option<String> = None;
+    let mut in_layer = false;
+    let mut dynam_anchor: Option<PendingMeiAnchor> = None;
+    let mut pending_dynams: Vec<(PendingMeiAnchor, Dynamic)> = Vec::new();
+    let mut pending_hairpins: Vec<(PendingMeiAnchor, HairpinKind)> = Vec::new();
     let mut current_chord_definition: Option<ChordDefinition> = None;
     let mut buf = Vec::new();
     loop {
@@ -2042,6 +2052,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                         }
                     }
                     b"layer" if current_measure.is_some() => {
+                        in_layer = !is_empty_event;
                         current_layer = attr(&event, b"n")
                             .and_then(|value| value.parse::<usize>().ok())
                             .unwrap_or(1)
@@ -2051,6 +2062,27 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                     b"dynam" if current_measure.is_some() => {
                         in_dynamic = true;
                         dynamic_text.clear();
+                        dynam_anchor = (!in_layer)
+                            .then(|| {
+                                current_measure.map(|measure| {
+                                    PendingMeiAnchor::from_event(&event, current_staff, measure)
+                                })
+                            })
+                            .flatten()
+                            .filter(PendingMeiAnchor::is_anchored);
+                    }
+                    b"hairpin" if current_measure.is_some() => {
+                        let kind = match attr(&event, b"form").as_deref() {
+                            Some("cres") => Some(HairpinKind::Crescendo),
+                            Some("dim") | Some("decres") => Some(HairpinKind::Decrescendo),
+                            _ => None,
+                        };
+                        if let (Some(kind), Some(measure)) = (kind, current_measure) {
+                            pending_hairpins.push((
+                                PendingMeiAnchor::from_event(&event, current_staff, measure),
+                                kind,
+                            ));
+                        }
                     }
                     b"syl" if current_measure.is_some() => {
                         in_syllable = true;
@@ -2308,9 +2340,14 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                 }
                 b"title" => in_title = false,
                 b"dynam" => {
-                    pending_dynamic = parse_dynamic(&dynamic_text);
+                    let dynamic = parse_dynamic(&dynamic_text);
+                    match (dynam_anchor.take(), dynamic) {
+                        (Some(anchor), Some(dynamic)) => pending_dynams.push((anchor, dynamic)),
+                        (_, dynamic) => pending_dynamic = dynamic,
+                    }
                     in_dynamic = false;
                 }
+                b"layer" => in_layer = false,
                 b"syl" => {
                     if !syllable_text.trim().is_empty() {
                         let lyric = acorde_core::Lyric {
@@ -2499,6 +2536,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     apply_mei_slurs(&mut score, &note_ids, pending_slurs);
     apply_mei_ottavas(&mut score, &note_ids, pending_ottavas);
     apply_mei_pedals(&mut score, &note_ids, pending_pedals);
+    apply_mei_control_events(&mut score, &note_ids, pending_dynams, pending_hairpins);
     apply_pending_harm_symbols(&mut score, &note_ids, pending_harm_symbols);
     if !title.trim().is_empty() {
         score.metadata.title = title.trim().to_string();
@@ -2834,6 +2872,100 @@ fn apply_mei_slurs(
     }
 }
 
+/// Where a measure-level MEI control event attaches: `@startid`/`@endid`, or `@tstamp`/`@tstamp2`
+/// on `@staff` in the measure that contains the event.
+struct PendingMeiAnchor {
+    start_id: Option<String>,
+    end_id: Option<String>,
+    tstamp: Option<f64>,
+    tstamp2: Option<String>,
+    staff: usize,
+    measure: usize,
+}
+
+impl PendingMeiAnchor {
+    fn from_event(event: &BytesStart<'_>, current_staff: usize, measure: usize) -> Self {
+        let staff = attr(event, b"staff")
+            .and_then(|value| {
+                value
+                    .split_whitespace()
+                    .next()
+                    .and_then(|first| first.parse::<usize>().ok())
+            })
+            .filter(|number| (1..=MAX_MEI_STAVES).contains(number))
+            .map_or(current_staff, |number| number - 1);
+        Self {
+            start_id: attr(event, b"startid"),
+            end_id: attr(event, b"endid"),
+            tstamp: attr(event, b"tstamp").and_then(|value| parse_mei_timestamp(&value)),
+            tstamp2: attr(event, b"tstamp2"),
+            staff,
+            measure,
+        }
+    }
+
+    fn is_anchored(&self) -> bool {
+        self.start_id.is_some() || self.tstamp.is_some()
+    }
+
+    fn start(
+        &self,
+        score: &Score,
+        note_ids: &HashMap<String, (usize, usize, usize, usize)>,
+    ) -> Option<(usize, usize, usize, usize)> {
+        self.start_id
+            .as_deref()
+            .and_then(|id| note_ids.get(id.trim_start_matches('#')).copied())
+            .or_else(|| {
+                self.tstamp.and_then(|value| {
+                    mei_note_location_at_timestamp(score, self.staff, self.measure, value)
+                })
+            })
+    }
+
+    fn end(
+        &self,
+        score: &Score,
+        note_ids: &HashMap<String, (usize, usize, usize, usize)>,
+    ) -> Option<(usize, usize, usize, usize)> {
+        self.end_id
+            .as_deref()
+            .and_then(|id| note_ids.get(id.trim_start_matches('#')).copied())
+            .or_else(|| {
+                self.tstamp2.as_deref().and_then(|value| {
+                    mei_note_location_at_timestamp2(score, self.staff, self.measure, value)
+                })
+            })
+    }
+}
+
+fn apply_mei_control_events(
+    score: &mut Score,
+    note_ids: &HashMap<String, (usize, usize, usize, usize)>,
+    dynamics: Vec<(PendingMeiAnchor, Dynamic)>,
+    hairpins: Vec<(PendingMeiAnchor, HairpinKind)>,
+) {
+    for (anchor, dynamic) in dynamics {
+        if let Some(location) = anchor.start(score, note_ids)
+            && let Some(note) = mei_note_mut(score, location)
+        {
+            note.dynamic = Some(dynamic);
+        }
+    }
+    for (anchor, kind) in hairpins {
+        let (Some(start), Some(end)) = (anchor.start(score, note_ids), anchor.end(score, note_ids))
+        else {
+            continue;
+        };
+        if let Some(note) = mei_note_mut(score, start) {
+            note.hairpin_start = Some(kind);
+        }
+        if let Some(note) = mei_note_mut(score, end) {
+            note.hairpin_end = true;
+        }
+    }
+}
+
 fn apply_mei_ottavas(
     score: &mut Score,
     note_ids: &HashMap<String, (usize, usize, usize, usize)>,
@@ -2868,8 +3000,8 @@ fn apply_mei_pedals(
             continue;
         };
         if start_location.0 != end_location.0
-            || start_location.1 != end_location.1
             || start_location.2 != end_location.2
+            || end_location.1 < start_location.1
         {
             continue;
         }
@@ -3140,50 +3272,107 @@ fn append_mei_ottava_spans(
     }
 }
 
-fn append_mei_pedal_spans(
-    out: &mut String,
-    voice: &[Note],
-    number: u32,
-    staff_index: usize,
+/// Find the note that closes a span opened at (`measure_index`, `voice_index`, `note_index`),
+/// searching forward in the same staff and voice across measure boundaries. The opening note
+/// itself is accepted only when no later note closes the span.
+fn mei_span_end(
+    staff: &Staff,
+    measure_index: usize,
     voice_index: usize,
-) {
-    for (start_index, note) in voice.iter().enumerate() {
-        if !note.pedal_start {
-            continue;
-        }
-        let Some(end_index) = voice
-            .iter()
-            .enumerate()
-            .skip(start_index)
-            .find_map(|(index, note)| note.pedal_end.then_some(index))
-        else {
-            continue;
-        };
-        let start_id = format!(
-            "n{}_{}_{}_{}",
-            number,
-            staff_index + 1,
-            voice_index + 1,
-            start_index + 1
-        );
-        let end_id = format!(
-            "n{}_{}_{}_{}",
-            number,
-            staff_index + 1,
-            voice_index + 1,
-            end_index + 1
-        );
-        out.push_str(&format!(
-            "<pedal dir=\"down\" startid=\"#{start_id}\" endid=\"#{end_id}\"/>"
-        ));
-    }
+    note_index: usize,
+    is_end: impl Fn(&Note) -> bool,
+) -> Option<(usize, usize)> {
+    const MAX_SPAN_MEASURES: usize = 256;
+    let later = staff
+        .measures
+        .iter()
+        .enumerate()
+        .skip(measure_index)
+        .take(MAX_SPAN_MEASURES)
+        .find_map(|(index, measure)| {
+            let skip = if index == measure_index {
+                note_index + 1
+            } else {
+                0
+            };
+            measure
+                .voices
+                .get(voice_index)?
+                .iter()
+                .enumerate()
+                .skip(skip)
+                .find_map(|(note, candidate)| is_end(candidate).then_some((index, note)))
+        });
+    later.or_else(|| {
+        staff
+            .measures
+            .get(measure_index)
+            .and_then(|measure| measure.voices.get(voice_index))
+            .and_then(|voice| voice.get(note_index))
+            .filter(|note| is_end(note))
+            .map(|_| (measure_index, note_index))
+    })
 }
 
-fn append_mei_dynamic(out: &mut String, note: &Note) {
-    if let Some(dynamic) = &note.dynamic {
-        out.push_str("<dynam>");
-        out.push_str(dynamic.to_musicxml_str());
-        out.push_str("</dynam>");
+/// Measure-level MEI control events (`<dynam>`, `<hairpin>`, `<slur>`, `<pedal>`) addressed by
+/// `@startid`/`@endid`, the form Verovio renders. Spans may end in a later measure.
+fn append_mei_control_events(out: &mut String, staves: &[Staff], measure_index: usize) {
+    for (staff_index, staff) in staves.iter().enumerate() {
+        let Some(measure) = staff.measures.get(measure_index) else {
+            continue;
+        };
+        let id_at = |measure: usize, voice: usize, note: usize| {
+            mei_note_id(staff.measures[measure].number, staff_index, voice, note)
+        };
+        let n = staff_index + 1;
+        for (voice_index, voice) in measure.voices.iter().enumerate() {
+            for (note_index, note) in voice.iter().enumerate() {
+                let start_id = id_at(measure_index, voice_index, note_index);
+                if let Some(dynamic) = &note.dynamic {
+                    out.push_str(&format!(
+                        "<dynam staff=\"{n}\" startid=\"#{start_id}\">{}</dynam>",
+                        dynamic.to_musicxml_str()
+                    ));
+                }
+                if let Some(kind) = note.hairpin_start
+                    && let Some((end_measure, end_note)) =
+                        mei_span_end(staff, measure_index, voice_index, note_index, |note| {
+                            note.hairpin_end
+                        })
+                {
+                    let form = match kind {
+                        HairpinKind::Crescendo => "cres",
+                        HairpinKind::Decrescendo => "dim",
+                    };
+                    out.push_str(&format!(
+                        "<hairpin form=\"{form}\" staff=\"{n}\" startid=\"#{start_id}\" endid=\"#{}\"/>",
+                        id_at(end_measure, voice_index, end_note)
+                    ));
+                }
+                if note.slur_start
+                    && let Some((end_measure, end_note)) =
+                        mei_span_end(staff, measure_index, voice_index, note_index, |note| {
+                            note.slur_end
+                        })
+                {
+                    out.push_str(&format!(
+                        "<slur staff=\"{n}\" startid=\"#{start_id}\" endid=\"#{}\"/>",
+                        id_at(end_measure, voice_index, end_note)
+                    ));
+                }
+                if note.pedal_start
+                    && let Some((end_measure, end_note)) =
+                        mei_span_end(staff, measure_index, voice_index, note_index, |note| {
+                            note.pedal_end
+                        })
+                {
+                    out.push_str(&format!(
+                        "<pedal dir=\"down\" staff=\"{n}\" startid=\"#{start_id}\" endid=\"#{}\"/>",
+                        id_at(end_measure, voice_index, end_note)
+                    ));
+                }
+            }
+        }
     }
 }
 
@@ -3537,7 +3726,6 @@ fn append_mei_measure_staves(
             }
             out.push_str(&format!("<layer n=\"{}\">", voice_index + 1));
             for (note_index, note) in voice.iter().enumerate() {
-                append_mei_dynamic(out, note);
                 append_mei_articulations(out, note);
                 if let Some(tuplet) = &note.tuplet {
                     out.push_str(&format!(
@@ -3551,23 +3739,7 @@ fn append_mei_measure_staves(
                     out.push_str("</tuplet>");
                 }
             }
-            for (start_index, _note) in voice.iter().enumerate().filter(|(_, note)| note.slur_start)
-            {
-                if let Some((end_index, _)) = voice
-                    .iter()
-                    .enumerate()
-                    .skip(start_index + 1)
-                    .find(|(_, note)| note.slur_end)
-                {
-                    let start_id = mei_note_id(number, staff_index, voice_index, start_index);
-                    let end_id = mei_note_id(number, staff_index, voice_index, end_index);
-                    out.push_str(&format!(
-                        "<slur startid=\"#{start_id}\" endid=\"#{end_id}\"/>"
-                    ));
-                }
-            }
             append_mei_ottava_spans(out, voice, number, staff_index, voice_index);
-            append_mei_pedal_spans(out, voice, number, staff_index, voice_index);
             out.push_str("</layer>");
         }
         if let Some(count) = measure.multi_rest_count {
@@ -3771,6 +3943,7 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
             }
         }
         append_mei_measure_staves(&mut out, staves, measure_index, number, time)?;
+        append_mei_control_events(&mut out, staves, measure_index);
         out.push_str("</measure>");
     }
     out.push_str("</section></score></mdiv></body></music></mei>");
@@ -3894,8 +4067,42 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                             ("tab_positions", !note.tab_positions.is_empty()),
                             ("ottava_start", note.ottava_start.is_some()),
                             ("ottava_end", note.ottava_end),
-                            ("pedal_start", note.pedal_start),
-                            ("pedal_end", note.pedal_end),
+                            (
+                                "pedal_start",
+                                note.pedal_start
+                                    && mei_span_end(
+                                        staff,
+                                        measure_index,
+                                        voice_index,
+                                        note_index,
+                                        |note| note.pedal_end,
+                                    )
+                                    .is_none(),
+                            ),
+                            (
+                                "hairpin_start",
+                                note.hairpin_start.is_some()
+                                    && mei_span_end(
+                                        staff,
+                                        measure_index,
+                                        voice_index,
+                                        note_index,
+                                        |note| note.hairpin_end,
+                                    )
+                                    .is_none(),
+                            ),
+                            (
+                                "slur_start",
+                                note.slur_start
+                                    && mei_span_end(
+                                        staff,
+                                        measure_index,
+                                        voice_index,
+                                        note_index,
+                                        |note| note.slur_end,
+                                    )
+                                    .is_none(),
+                            ),
                             ("arpeggiate", note.arpeggiate.is_some()),
                             ("technique_text", note.technique_text.is_some()),
                             ("glissando_start", note.glissando_start),
@@ -4420,13 +4627,26 @@ mod tests {
     }
 
     #[test]
-    fn cross_measure_pedal_is_reported_and_not_applied() {
+    fn cross_measure_pedal_is_applied_and_round_trips() {
         let xml = r##"<mei><music><body><mdiv><score><section><measure n="1"><pedal dir="down" startid="#n1" endid="#n2"/><staff n="1"><layer n="1"><note xml:id="n1" pname="c" oct="4" dur="4"/></layer></staff></measure><measure n="2"><staff n="1"><layer n="1"><note xml:id="n2" pname="d" oct="4" dur="4"/></layer></staff></measure></section></score></mdiv></body></music></mei>"##;
         let report = parse_mei_with_report(xml).expect("MEI pedal parses");
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let check = |score: &Score| {
+            assert!(score.parts[0].staves[0].measures[0].voices[0][0].pedal_start);
+            assert!(score.parts[0].staves[0].measures[1].voices[0][0].pedal_end);
+        };
+        check(&report.score);
+        let export = crate::serialize_mei_with_report(&report.score).expect("pedal exports");
+        assert!(export.diagnostics.is_empty(), "{:?}", export.diagnostics);
+        check(&parse_mei(&export.output).expect("pedal reparses"));
+    }
+
+    #[test]
+    fn cross_layer_pedal_is_reported_and_not_applied() {
+        let xml = r##"<mei><music><body><mdiv><score><section><measure n="1"><pedal dir="down" startid="#n1" endid="#n2"/><staff n="1"><layer n="1"><note xml:id="n1" pname="c" oct="4" dur="4"/></layer></staff></measure><measure n="2"><staff n="1"><layer n="2"><note xml:id="n2" pname="d" oct="4" dur="4"/></layer></staff></measure></section></score></mdiv></body></music></mei>"##;
+        let report = parse_mei_with_report(xml).expect("MEI pedal parses");
         let first = &report.score.parts[0].staves[0].measures[0].voices[0][0];
-        let second = &report.score.parts[0].staves[0].measures[1].voices[0][0];
         assert!(!first.pedal_start);
-        assert!(!second.pedal_end);
         assert!(report.diagnostics.iter().any(|diagnostic| {
             diagnostic.code == "mei.unsupported-detail.pedal"
                 && diagnostic
@@ -4636,6 +4856,31 @@ mod tests {
     }
 
     #[test]
+    fn measure_level_dynamics_hairpins_and_slurs_cross_barlines() {
+        let xml = r##"<mei><music><body><mdiv><score><scoreDef meter.count="2" meter.unit="4"><staffGrp><staffDef n="1" clef.shape="G" clef.line="2"/></staffGrp></scoreDef><section><measure n="1"><staff n="1"><layer n="1"><note xml:id="a" pname="c" oct="4" dur="4"/><note xml:id="b" pname="d" oct="4" dur="4"/></layer></staff><dynam staff="1" tstamp="2">p</dynam><hairpin form="cres" staff="1" startid="#a" endid="#c"/><slur staff="1" startid="#b" endid="#c"/></measure><measure n="2"><staff n="1"><layer n="1"><note xml:id="c" pname="e" oct="4" dur="2"/></layer></staff><dynam staff="1" startid="#c">f</dynam></measure></section></score></mdiv></body></music></mei>"##;
+        let report = parse_mei_with_report(xml).expect("control events parse");
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let check = |score: &Score| {
+            let first = &score.parts[0].staves[0].measures[0].voices[0];
+            let second = &score.parts[0].staves[0].measures[1].voices[0];
+            assert_eq!(first[0].hairpin_start, Some(HairpinKind::Crescendo));
+            assert_eq!(first[1].dynamic, Some(Dynamic::P));
+            assert!(first[1].slur_start);
+            assert!(second[0].hairpin_end);
+            assert!(second[0].slur_end);
+            assert_eq!(second[0].dynamic, Some(Dynamic::F));
+        };
+        check(&report.score);
+        let export =
+            crate::serialize_mei_with_report(&report.score).expect("control events export");
+        assert!(export.diagnostics.is_empty(), "{:?}", export.diagnostics);
+        assert!(export.output.contains(
+            "<hairpin form=\"cres\" staff=\"1\" startid=\"#n1_1_1_1\" endid=\"#n2_1_1_1\"/>"
+        ));
+        check(&parse_mei(&export.output).expect("control events reparse"));
+    }
+
+    #[test]
     fn nested_mei_staff_group_round_trips_without_becoming_part_group() {
         let xml = r#"<mei><music><body><mdiv><score><scoreDef><staffGrp><staffGrp symbol="brace" bar.thru="true"><staffDef n="1" clef.shape="G" clef.line="2"/><staffDef n="2" clef.shape="F" clef.line="4"/></staffGrp><staffDef n="3" clef.shape="G" clef.line="2"/></staffGrp></scoreDef><section><measure n="1"><staff n="1"><layer n="1"><note pname="c" oct="4" dur="4"/></layer></staff><staff n="2"><layer n="1"><note pname="c" oct="3" dur="4"/></layer></staff><staff n="3"><layer n="1"><note pname="g" oct="4" dur="4"/></layer></staff></measure></section></score></mdiv></body></music></mei>"#;
         let report = parse_mei_with_report(xml).expect("MEI staff group parses");
@@ -4691,7 +4936,8 @@ mod tests {
             Some(Dynamic::Mf)
         );
         let serialized = serialize_mei(&report.score).expect("MEI dynamic serializes");
-        assert!(serialized.contains("<dynam>mf</dynam>"));
+        assert!(serialized.contains("<dynam staff=\"1\" startid=\"#n"));
+        assert!(serialized.contains(">mf</dynam>"));
         let restored = parse_mei(&serialized).expect("serialized MEI dynamic parses");
         assert_eq!(
             restored.parts[0].staves[0].measures[0].voices[0][0].dynamic,
@@ -4794,7 +5040,9 @@ mod tests {
         assert!(voice[0].slur_start);
         assert!(voice[1].slur_end);
         let serialized = serialize_mei(&report.score).expect("MEI slur serializes");
-        assert!(serialized.contains("<slur startid=\"#n1_1_1_1\" endid=\"#n1_1_1_2\"/>"));
+        assert!(
+            serialized.contains("<slur staff=\"1\" startid=\"#n1_1_1_1\" endid=\"#n1_1_1_2\"/>")
+        );
         let restored = parse_mei(&serialized).expect("serialized MEI slur parses");
         assert!(restored.parts[0].staves[0].measures[0].voices[0][0].slur_start);
         assert!(restored.parts[0].staves[0].measures[0].voices[0][1].slur_end);
