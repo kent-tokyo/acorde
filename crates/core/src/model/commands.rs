@@ -24,6 +24,7 @@ use std::collections::BTreeSet;
 use uuid::Uuid;
 
 mod range_commands;
+mod realize;
 mod spanner_remap;
 mod structural_commands;
 mod unroll;
@@ -108,6 +109,7 @@ pub enum Command {
     SetSystemBreakInterval(SetSystemBreakIntervalCmd),
     RemoveTrailingEmptyMeasures(RemoveTrailingEmptyMeasuresCmd),
     UnrollRepeats(UnrollRepeatsCmd),
+    RealizeChordSymbols(RealizeChordSymbolsCmd),
     SetStem(SetStemCmd),
     SetArpeggio(SetArpeggioCmd),
     SetTechniqueText(SetTechniqueTextCmd),
@@ -1156,6 +1158,19 @@ pub struct RemoveTrailingEmptyMeasuresCmd {}
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct UnrollRepeatsCmd {}
 
+/// Write the chord symbols of one staff out as chords in a voice of a target staff (MuseScore's
+/// "Realize chord symbols"): close position with the root in octave 4 (octave 3 on a bass,
+/// tenor or alto clef staff), a slash bass below; each chord lasts until the next symbol and is
+/// tied across barlines it holds over. The target voice's content is replaced.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RealizeChordSymbolsCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub target_part: usize,
+    pub target_staff: usize,
+    pub target_voice: usize,
+}
+
 struct UndoEntry {
     command: Command,
     snapshot: Score,
@@ -1497,6 +1512,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         }
         Command::RemoveTrailingEmptyMeasures(_) => hint!(Global, true, true),
         Command::UnrollRepeats(_) => hint!(Global, true, true),
+        Command::RealizeChordSymbols(_) => hint!(Global, true, true),
 
         Command::SetStem(c) => hint!(meas!(c), false, false),
 
@@ -1644,6 +1660,7 @@ pub fn command_label(cmd: &Command) -> String {
         }
         Command::RemoveTrailingEmptyMeasures(_) => "Remove Empty Trailing Measures".to_string(),
         Command::UnrollRepeats(_) => "Unroll Repeats".to_string(),
+        Command::RealizeChordSymbols(_) => "Realize Chord Symbols".to_string(),
         Command::SetStem(_) => "Set Stem".to_string(),
         Command::SetArpeggio(_) => "Set Arpeggio".to_string(),
         Command::SetTechniqueText(_) => "Set Technique Text".to_string(),
@@ -1769,6 +1786,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetSystemBreakInterval(_) => "SetSystemBreakInterval".to_string(),
         Command::RemoveTrailingEmptyMeasures(_) => "RemoveTrailingEmptyMeasures".to_string(),
         Command::UnrollRepeats(_) => "UnrollRepeats".to_string(),
+        Command::RealizeChordSymbols(_) => "RealizeChordSymbols".to_string(),
         Command::SetStem(_) => "SetStem".to_string(),
         Command::SetArpeggio(_) => "SetArpeggio".to_string(),
         Command::SetTechniqueText(_) => "SetTechniqueText".to_string(),
@@ -2137,6 +2155,7 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         Command::SetSystemBreakInterval(c) => apply_system_break_interval(c, score),
         Command::RemoveTrailingEmptyMeasures(_) => apply_remove_trailing_empty_measures(score),
         Command::UnrollRepeats(_) => unroll::apply_unroll_repeats(score),
+        Command::RealizeChordSymbols(c) => realize::apply_realize_chord_symbols(c, score),
         Command::RespellStaffRegion(c) => {
             respell_staff_region(
                 score,

@@ -9,6 +9,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Realize chord symbols** (`RealizeChordSymbolsCmd`, MuseScore's Tools → Realize chord
+  symbols): writes one staff's chord symbols out as chords into a voice of any staff, with
+  undo. Every MusicXML chord kind and its added, altered and omitted degrees are voiced in
+  close position from the root (octave 4, octave 3 on a bass, tenor or alto clef staff) and
+  spelled from it (F#m7 is F#–A–C#–E, Bb7 has Ab), a slash bass goes below, and each chord
+  lasts until the next symbol, tied across barlines it holds over.
 - MusicXML and ABC import no longer overfill a bar when padding it: a remainder shorter than
   a sixty-fourth (left by playback-only notes of odd lengths) was filled with a sixty-fourth
   rest, which made the bar too long and the score invalid, so no edit could be applied. With
