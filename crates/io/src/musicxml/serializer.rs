@@ -375,18 +375,19 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     xml.push_str(marker);
                 }
                 xml.push_str("      </attributes>\n");
-                xml.push_str("      <direction placement=\"above\">\n");
-                xml.push_str("        <direction-type>\n");
-                xml.push_str(&format!(
-                    "          <metronome><beat-unit>quarter</beat-unit><per-minute>{}</per-minute></metronome>\n",
-                    score.settings.tempo_bpm
-                ));
-                xml.push_str("        </direction-type>\n");
-                xml.push_str(&format!(
-                    "        <sound tempo=\"{}\"/>\n",
-                    score.settings.tempo_bpm
-                ));
-                xml.push_str("      </direction>\n");
+                // The opening tempo; later bars write only their own tempo changes (an
+                // attributes block for a key, time or clef change is no tempo mark).
+                if i == 0 {
+                    let bpm = measure.tempo.unwrap_or(score.settings.tempo_bpm);
+                    xml.push_str("      <direction placement=\"above\">\n");
+                    xml.push_str("        <direction-type>\n");
+                    xml.push_str(&format!(
+                        "          <metronome><beat-unit>quarter</beat-unit><per-minute>{bpm}</per-minute></metronome>\n"
+                    ));
+                    xml.push_str("        </direction-type>\n");
+                    xml.push_str(&format!("        <sound tempo=\"{bpm}\"/>\n"));
+                    xml.push_str("      </direction>\n");
+                }
             } else if let Some(count) = measure.multi_rest_count
                 && count >= 2
             {

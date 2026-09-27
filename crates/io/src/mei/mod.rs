@@ -1947,6 +1947,10 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     part.staves.push(Staff::new(acorde_core::Clef::Treble));
     score.parts.push(part);
     let mut current_measure: Option<usize> = None;
+    // An open `<ending>`: its number, and the first bar read inside it.
+    let mut open_ending: Option<u8> = None;
+    let mut ending_first_measure: Option<usize> = None;
+    let mut ending_last_measure: Option<usize> = None;
     let mut current_staff: usize = 0;
     let mut title = String::new();
     let mut in_title = false;
@@ -2352,6 +2356,21 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                     Some(clef);
                             }
                         }
+                    }
+                    b"ending" => {
+                        open_ending = attr(&event, b"n")
+                            .or_else(|| attr(&event, b"label"))
+                            .and_then(|value| {
+                                value
+                                    .chars()
+                                    .take_while(char::is_ascii_digit)
+                                    .collect::<String>()
+                                    .parse::<u8>()
+                                    .ok()
+                            })
+                            .or(Some(1));
+                        ending_first_measure = None;
+                        ending_last_measure = None;
                     }
                     b"measure" => {
                         // Measure-level content before the first <staff> belongs to staff 1.
@@ -3025,7 +3044,39 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                     in_direction = false;
                 }
                 b"tuplet" => current_tuplet = None,
-                b"measure" => current_measure = None,
+                b"measure" => {
+                    if open_ending.is_some() && current_measure.is_some() {
+                        ending_first_measure = ending_first_measure.or(current_measure);
+                        ending_last_measure = current_measure;
+                    }
+                    current_measure = None;
+                }
+                // An ending spans the bars it encloses: a volta on the first staff.
+                b"ending" => {
+                    if let (Some(number), Some(first), Some(last)) = (
+                        open_ending.take(),
+                        ending_first_measure,
+                        ending_last_measure,
+                    ) && let Some(staff) = score.parts[0].staves.first_mut()
+                    {
+                        let kind = |value: &str| acorde_core::VoltaBracket {
+                            number,
+                            kind: value.to_string(),
+                        };
+                        if first == last {
+                            if let Some(measure) = staff.measures.get_mut(first) {
+                                measure.volta = Some(kind("begin_end"));
+                            }
+                        } else {
+                            if let Some(measure) = staff.measures.get_mut(first) {
+                                measure.volta = Some(kind("begin"));
+                            }
+                            if let Some(measure) = staff.measures.get_mut(last) {
+                                measure.volta = Some(kind("end"));
+                            }
+                        }
+                    }
+                }
                 b"staff" => current_staff = 0,
                 _ => {}
             },
@@ -3126,6 +3177,25 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     score.parts[0].staff_groups = staff_groups;
     if let Some(root) = layout_root.as_ref() {
         split_mei_parts(&mut score, root, &staff_group_explicit);
+    }
+    // Endings belong to the whole score: every part's first staff carries them, as MusicXML
+    // import gives them.
+    let voltas: Vec<Option<acorde_core::VoltaBracket>> = score
+        .parts
+        .first()
+        .and_then(|part| part.staves.first())
+        .map(|staff| staff.measures.iter().map(|m| m.volta.clone()).collect())
+        .unwrap_or_default();
+    if voltas.iter().any(Option::is_some) {
+        for part in score.parts.iter_mut().skip(1) {
+            if let Some(staff) = part.staves.first_mut() {
+                for (measure, volta) in staff.measures.iter_mut().zip(&voltas) {
+                    if measure.volta.is_none() {
+                        measure.volta = volta.clone();
+                    }
+                }
+            }
+        }
     }
     Ok(score)
 }
@@ -4847,6 +4917,40 @@ fn settle_mei_mid_clefs(staff: &mut Staff) {
     }
 }
 
+/// Voltas of a staff as (first bar, last bar, number), non-overlapping and in order.
+fn mei_volta_spans(staff: &Staff) -> Vec<(usize, usize, u8)> {
+    let mut spans = Vec::new();
+    let mut open: Option<(usize, u8)> = None;
+    for (index, measure) in staff.measures.iter().enumerate() {
+        let Some(volta) = &measure.volta else {
+            continue;
+        };
+        match volta.kind.as_str() {
+            "begin" => {
+                if let Some((start, number)) = open.take() {
+                    spans.push((start, index.saturating_sub(1).max(start), number));
+                }
+                open = Some((index, volta.number));
+            }
+            "begin_end" => {
+                if let Some((start, number)) = open.take() {
+                    spans.push((start, index.saturating_sub(1).max(start), number));
+                }
+                spans.push((index, index, volta.number));
+            }
+            "end" => {
+                let (start, number) = open.take().unwrap_or((index, volta.number));
+                spans.push((start, index, number));
+            }
+            _ => {}
+        }
+    }
+    if let Some((start, number)) = open {
+        spans.push((start, staff.measures.len().saturating_sub(1), number));
+    }
+    spans
+}
+
 /// Serialize the score subset understood by [`parse_mei`].
 pub fn serialize_mei(score: &Score) -> Result<String, Error> {
     // Export reads span endpoints from note flags; include spans held only as typed spanners.
@@ -4905,6 +5009,8 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
         .map(|staff| staff.measures.len())
         .max()
         .unwrap_or(0);
+    // Voltas on the first staff become `<ending>` elements around their bars.
+    let volta_spans = staves.first().map(mei_volta_spans).unwrap_or_default();
     for measure_index in 0..measure_count {
         if let Some(changed) = staves
             .iter()
@@ -4942,6 +5048,12 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
                 out.push_str(&format!(" keysig=\"{}\"", mei_key_signature(key)));
             }
             out.push_str("/>");
+        }
+        if let Some(&(_, _, ending)) = volta_spans
+            .iter()
+            .find(|(start, _, _)| *start == measure_index)
+        {
+            out.push_str(&format!("<ending n=\"{ending}\" label=\"{ending}.\">"));
         }
         out.push_str(&format!("<measure n=\"{number}\""));
         if let Some(first) = staves
@@ -5102,6 +5214,9 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
             } else if first.system_break {
                 out.push_str("<sb/>");
             }
+        }
+        if volta_spans.iter().any(|(_, end, _)| *end == measure_index) {
+            out.push_str("</ending>");
         }
     }
     out.push_str("</section></score></mdiv></body></music></mei>");

@@ -9,6 +9,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **MEI endings.** Voltas were neither written nor read by MEI; they are now `<ending n label>`
+  elements around their bars (Verovio draws them), and import gives them to every part.
+- MusicXML export wrote the score tempo as a new metronome mark in every bar with an
+  `<attributes>` block (a key, time or clef change); it is written once, in the first bar.
 - **MSCX export kept only the first part.** Every `<Part>` declared `<Staff id="1">`, so a
   multi-part score (a string quartet, a band score) re-imported, in acorde and in MuseScore,
   with its other parts empty. Staff ids now run across the score.

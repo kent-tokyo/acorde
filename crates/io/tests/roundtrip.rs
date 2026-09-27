@@ -4666,3 +4666,56 @@ fn mscx_round_trips_tuplets_graces_fermatas_ornaments_repeats_voltas_and_chords(
         ]
     );
 }
+
+#[cfg(feature = "mei")]
+#[test]
+fn mei_writes_and_reads_endings() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step, VoltaBracket};
+    let mut score = Score::new("endings", 120, 2, 4, 0, 4);
+    for measure in &mut score.parts[0].staves[0].measures {
+        measure.voices[0] = vec![Note::new(Pitch::new(Step::G, 4), Duration::Half)];
+    }
+    let measures = &mut score.parts[0].staves[0].measures;
+    measures[1].volta = Some(VoltaBracket {
+        number: 1,
+        kind: "begin".into(),
+    });
+    measures[2].volta = Some(VoltaBracket {
+        number: 1,
+        kind: "end".into(),
+    });
+    measures[3].volta = Some(VoltaBracket {
+        number: 2,
+        kind: "begin_end".into(),
+    });
+    let mei = acorde_io::serialize_mei(&score).expect("exports");
+    assert_eq!(mei.matches("<ending ").count(), 2);
+    let back = acorde_io::parse_mei(&mei).expect("imports");
+    let voltas: Vec<_> = back.parts[0].staves[0]
+        .measures
+        .iter()
+        .map(|m| m.volta.as_ref().map(|v| (v.number, v.kind.clone())))
+        .collect();
+    assert_eq!(
+        voltas,
+        vec![
+            None,
+            Some((1, "begin".to_string())),
+            Some((1, "end".to_string())),
+            Some((2, "begin_end".to_string()))
+        ]
+    );
+}
+
+#[test]
+fn musicxml_export_writes_the_tempo_once_not_at_every_attributes_change() {
+    use acorde_core::{KeySignature, Score};
+    let mut score = Score::new("tempo", 96, 4, 4, 0, 3);
+    score.parts[0].staves[0].measures[2].key_sig = Some(KeySignature {
+        fifths: 2,
+        mode: "major".into(),
+    });
+    let xml = serialize_musicxml(&score).expect("exports");
+    assert_eq!(xml.matches("<sound tempo=").count(), 1);
+    assert!(xml.contains("<per-minute>96</per-minute>"));
+}
