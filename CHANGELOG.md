@@ -9,6 +9,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **MusicXML double dots and type-less notes.** Import counted `<dot/>` as a flag, so every
+  double-dotted note (202 in the corpus) came in single-dotted and short; it now keeps the
+  count. A note without `<type>` (the element is optional) was taken as a quarter; its value
+  now comes from its `<duration>` and time modification — exactly when possible, otherwise
+  the longest value that fits, so playback-only notes of odd lengths no longer overfill the
+  bar.
+- A grace note inside a tuplet no longer splits the tuplet's bracket in MusicXML, MEI and MSCX
+  export (it closed the bracket early and gave the last note a one-note bracket).
 - **Hidden notes and rests.** acorde drew everything a score hides: MusicXML
   `print-object="no"` notes and rests (1464 of them in 34 corpus files, among them written-out
   trills and placeholder rests over other voices), the rests it fills `<forward>` gaps with, MEI

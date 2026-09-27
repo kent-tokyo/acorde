@@ -5061,3 +5061,53 @@ fn musicxml_forward_gaps_import_as_hidden_rests() {
     assert!(voice[0].is_rest && voice[0].hidden);
     assert!(!voice[1].hidden);
 }
+
+#[test]
+fn a_grace_note_inside_a_triplet_does_not_split_its_bracket() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step, TupletInfo};
+    let mut score = Score::new("grace triplet", 120, 1, 4, 0, 1);
+    let triplet = TupletInfo {
+        actual_notes: 3,
+        normal_notes: 2,
+    };
+    let eighth = |step| {
+        let mut note = Note::new(Pitch::new(step, 5), Duration::Eighth);
+        note.tuplet = Some(triplet.clone());
+        note
+    };
+    let mut grace = eighth(Step::D);
+    grace.is_grace = true;
+    score.parts[0].staves[0].measures[0].voices[0] =
+        vec![eighth(Step::C), grace, eighth(Step::E), eighth(Step::F)];
+    let xml = serialize_musicxml(&score).expect("exports");
+    assert_eq!(xml.matches("<tuplet type=\"start\"").count(), 1);
+    assert_eq!(xml.matches("<tuplet type=\"stop\"").count(), 1);
+    let back = parse_musicxml(&xml).expect("imports");
+    let timed: Vec<_> = back.parts[0].staves[0].measures[0].voices[0]
+        .iter()
+        .filter(|n| !n.is_grace)
+        .map(|n| n.tuplet.clone())
+        .collect();
+    assert_eq!(timed, vec![Some(triplet.clone()); 3]);
+}
+
+#[test]
+fn musicxml_reads_double_dots_and_notes_without_a_type() {
+    use acorde_core::Duration;
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>P</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>8</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>5</octave></pitch><duration>14</duration><voice>1</voice><type>half</type><dot/><dot/></note><note><pitch><step>D</step><octave>5</octave></pitch><duration>2</duration><voice>1</voice></note><note><pitch><step>E</step><octave>5</octave></pitch><duration>12</duration><voice>1</voice></note><note><pitch><step>F</step><octave>5</octave></pitch><duration>2</duration><voice>1</voice><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification></note></measure></part></score-partwise>"#;
+    let score = parse_musicxml(xml).expect("imports");
+    let notes: Vec<_> = score.parts[0].staves[0].measures[0].voices[0]
+        .iter()
+        .map(|n| (n.duration.clone(), n.dot_count))
+        .collect();
+    assert_eq!(
+        notes,
+        vec![
+            (Duration::Half, 2),
+            (Duration::Sixteenth, 0),
+            (Duration::Quarter, 1),
+            // Two ticks under 3:2 is a dotted sixteenth triplet.
+            (Duration::Sixteenth, 1),
+        ]
+    );
+}

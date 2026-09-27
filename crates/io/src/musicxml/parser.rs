@@ -242,7 +242,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut note_microtone_cents = 0i16;
     let mut note_duration_ticks: Option<u32> = None;
     let mut note_type = "quarter".to_string();
-    let mut note_dot = false;
+    let mut note_dots: u8 = 0;
     let mut note_rest = false;
     let mut note_is_measure_rest = false;
     let mut in_unpitched = false;
@@ -681,7 +681,7 @@ pub(crate) fn parse_musicxml_collecting(
                         note_chord = false;
                         note_voice = 1;
                         note_staff = 1;
-                        note_dot = false;
+                        note_dots = 0;
                         note_alter = 0;
                         note_microtone_cents = 0;
                         in_unpitched = false;
@@ -698,7 +698,7 @@ pub(crate) fn parse_musicxml_collecting(
                         in_time_modification = false;
                         note_trill_line_start = false;
                         note_trill_line_end = false;
-                        note_type = "quarter".to_string();
+                        note_type.clear();
                         note_slur_start = false;
                         note_slur_end = false;
                         note_tie_start = false;
@@ -837,7 +837,7 @@ pub(crate) fn parse_musicxml_collecting(
                         note_is_measure_rest = attr_is_yes(e, b"measure");
                     }
                     "instrument" if in_note => note_instrument_id = attr_str(e, b"id"),
-                    "dot" if in_note => note_dot = true,
+                    "dot" if in_note => note_dots = note_dots.saturating_add(1).min(4),
                     "chord" if in_note => note_chord = true,
                     "slur" if in_note => match attr_str(e, b"type").as_deref() {
                         Some("start") => {
@@ -2355,15 +2355,32 @@ pub(crate) fn parse_musicxml_collecting(
                                         current_divisions,
                                     )?;
                                 }
+                                // `<type>` is optional: without it the value comes from the
+                                // sounding duration when that is an exact note value.
+                                let inferred = (note_type.is_empty()
+                                    && !note_is_measure_rest
+                                    && !note_is_grace)
+                                    .then(|| {
+                                        musicxml_value_from_ticks(
+                                            duration_ticks,
+                                            current_divisions,
+                                            note_tuplet_actual.zip(note_tuplet_normal),
+                                        )
+                                    })
+                                    .flatten();
                                 let dur = if note_is_measure_rest {
                                     Duration::Whole
+                                } else if let Some((value, _)) = &inferred {
+                                    value.clone()
                                 } else {
                                     parse_duration_type(&note_type)
                                 };
                                 let dot_count = if note_is_measure_rest {
                                     0
+                                } else if let Some((_, dots)) = inferred {
+                                    dots
                                 } else {
-                                    u8::from(note_dot)
+                                    note_dots
                                 };
                                 let mut note = if note_rest {
                                     let mut n = Note::rest(dur);
@@ -3014,6 +3031,44 @@ fn merge_musicxml_chord_note(last: &mut Note, note: &Note, details: MusicXmlChor
     if let Some(stem_up) = details.stem_up {
         last.stem_up = Some(stem_up);
     }
+}
+
+/// The note value and dot count whose length is `ticks` at `divisions` per quarter, scaled by a
+/// tuplet's `(actual, normal)` ratio: the exact one, or else the longest that does not exceed
+/// it (playback-only notes of odd lengths), so the voice never overfills its bar.
+fn musicxml_value_from_ticks(
+    ticks: u32,
+    divisions: u32,
+    tuplet: Option<(u8, u8)>,
+) -> Option<(Duration, u8)> {
+    if ticks == 0 || divisions == 0 {
+        return None;
+    }
+    let (actual, normal) = tuplet.map_or((1u64, 1u64), |(a, n)| (u64::from(a), u64::from(n)));
+    [
+        Duration::Whole,
+        Duration::Half,
+        Duration::Quarter,
+        Duration::Eighth,
+        Duration::Sixteenth,
+        Duration::ThirtySecond,
+        Duration::SixtyFourth,
+    ]
+    .into_iter()
+    .flat_map(|value| (0u8..=3).map(move |dots| (value.clone(), dots)))
+    .map(|(value, dots)| {
+        // ticks = divisions * 4 * num/den * (2 - 1/2^dots) * normal/actual, compared as
+        // cross-multiplied integers.
+        let (num, den) = value.as_fraction();
+        let lhs = u64::from(ticks) * u64::from(den) * (1u64 << dots) * actual;
+        let rhs = u64::from(divisions) * 4 * u64::from(num) * ((2u64 << dots) - 1) * normal;
+        // Length in a common unit, for picking the longest that fits.
+        let length = rhs * 64 / (u64::from(den) * (1u64 << dots) * actual).max(1);
+        (value, dots, lhs.cmp(&rhs), length)
+    })
+    .filter(|(_, _, order, _)| order.is_ge())
+    .max_by_key(|(_, _, order, length)| (order.is_eq(), *length))
+    .map(|(value, dots, _, _)| (value, dots))
 }
 
 fn parse_duration_type(t: &str) -> Duration {

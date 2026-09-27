@@ -294,14 +294,21 @@ fn written_ticks(note: &acorde_core::Note) -> u64 {
 pub(crate) fn tuplet_groups(voice: &[acorde_core::Note]) -> Vec<(usize, usize)> {
     let mut groups = Vec::new();
     let mut open: Option<(usize, acorde_core::TupletInfo, u64)> = None;
+    // The last timed note: a group left open ends there, not on a grace note after it.
+    let mut last_timed = 0;
     for (index, note) in voice.iter().enumerate() {
+        // Grace notes take no time: they neither fill nor break a tuplet around them.
+        if note.is_grace {
+            continue;
+        }
+        let previous_timed = std::mem::replace(&mut last_timed, index);
         match (&mut open, &note.tuplet) {
             (Some((_, current, written)), Some(tuplet)) if current == tuplet => {
                 *written += written_ticks(note);
             }
             (_, tuplet) => {
                 if let Some((start, _, _)) = open.take() {
-                    groups.push((start, index - 1));
+                    groups.push((start, previous_timed));
                 }
                 open = tuplet
                     .clone()
@@ -318,7 +325,7 @@ pub(crate) fn tuplet_groups(voice: &[acorde_core::Note]) -> Vec<(usize, usize)> 
         }
     }
     if let Some((start, _, _)) = open {
-        groups.push((start, voice.len() - 1));
+        groups.push((start, last_timed));
     }
     groups
 }
