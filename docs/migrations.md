@@ -25,6 +25,23 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
+### v1.2.15 — MIDI transcription and score transformations
+
+`Command` gains `UnrollRepeats(UnrollRepeatsCmd)` and
+`RealizeChordSymbols(RealizeChordSymbolsCmd)`, both with undo/redo. The latter replaces a target
+voice with close-position chords from the source staff's chord symbols; the command structs are
+available from `acorde_core`. Exhaustive `Command` matches require two new arms.
+
+MIDI import now reconstructs meter-based bars, overlapping voices and ties across barlines rather
+than appending every event to one voice. Importing the same MIDI can therefore produce a different
+but time-preserving score structure. Out-of-range instrument pitches now produce
+`ValidationWarning::OutOfRange` instead of an edit-blocking error; consumers matching validation
+results should handle the warning.
+
+MEI supports per-staff meters and additional Verovio timing forms. ABC lyric lines attach to the
+preceding music line, so multi-verse and hyphenated lyric imports may be assigned differently than
+in earlier releases.
+
 ### v1.2.14 — hidden notation and interchange timing
 
 `Note` gains `hidden: bool`, serde-defaulted and omitted when false; old score JSON is unchanged.

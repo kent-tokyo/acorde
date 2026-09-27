@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.15] - 2026-09-28
+
 - **MEI import of Verovio-written files.** Checked against 30 corpus scores converted to MEI by
   Verovio: control events placed a little off the beat (`tstamp="1.9167"`, which Verovio
   derives from MusicXML offsets) found no note and were dropped — now a start takes the nearest
