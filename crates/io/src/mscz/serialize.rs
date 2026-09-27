@@ -28,6 +28,17 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
             "MSCX subset export does not emit reusable chord definitions",
         );
     }
+    for spanner in score
+        .spanners
+        .iter()
+        .filter(|spanner| spanner.kind == acorde_core::NotationSpannerKind::Dashes)
+    {
+        push(
+            format!("/score/spanners/{}", spanner.id),
+            "dashes".to_string(),
+            "MSCX subset export does not emit dashed text-continuation lines",
+        );
+    }
     if !score.part_groups.is_empty() {
         push(
             "/score/part-groups".to_string(),

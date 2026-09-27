@@ -1111,6 +1111,39 @@ pub(crate) fn parse_musicxml_collecting(
                             _ => {}
                         }
                     }
+                    "dashes" if in_direction_type => match attr_str(e, b"type").as_deref() {
+                        Some("start") => {
+                            pending_direction_spanner_events.push(ParsedSpannerEvent {
+                                kind: NotationSpannerKind::Dashes,
+                                action: SpannerAction::Start,
+                                number: parse_spanner_number(attr_str(e, b"number"))?,
+                                line_type: Some("dashed".to_string()),
+                                text: None,
+                                placement: pending_direction_placement.clone(),
+                                ottava_size: None,
+                            });
+                        }
+                        Some("stop") => {
+                            if let Some(address) = last_note_address.clone() {
+                                apply_spanner_event(
+                                    &mut score,
+                                    &mut open_spanners,
+                                    ParsedSpannerEvent {
+                                        kind: NotationSpannerKind::Dashes,
+                                        action: SpannerAction::Stop,
+                                        number: parse_spanner_number(attr_str(e, b"number"))?,
+                                        line_type: Some("dashed".to_string()),
+                                        text: None,
+                                        placement: pending_direction_placement.clone(),
+                                        ottava_size: None,
+                                    },
+                                    address,
+                                    tolerated,
+                                )?;
+                            }
+                        }
+                        _ => {}
+                    },
                     "pedal" => match attr_str(e, b"type").as_deref() {
                         Some("start") => {
                             pending_pedal_start = true;

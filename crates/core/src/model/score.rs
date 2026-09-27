@@ -335,6 +335,9 @@ pub enum NotationSpannerKind {
     TrillLine,
     Pedal,
     Ottava,
+    /// A dashed continuation line after a text direction ("cresc. - - -"), MusicXML
+    /// `<dashes>`.
+    Dashes,
 }
 
 /// A typed, potentially cross-staff notation span between two canonical note addresses.
@@ -428,6 +431,8 @@ impl Score {
                     !start.is_some_and(|n| n.ottava_start.is_some())
                         || !end.is_some_and(|n| n.ottava_end)
                 }
+                // No note flag holds dashes; consumers read the typed spanner.
+                NotationSpannerKind::Dashes => false,
             }
         };
         if !self.spanners.iter().any(missing) {
@@ -452,7 +457,7 @@ impl Score {
                             (true, true) => OttavaKind::Mb15,
                         });
                     }
-                    NotationSpannerKind::Ottava => {}
+                    NotationSpannerKind::Ottava | NotationSpannerKind::Dashes => {}
                 }
             }
             if let Some(note) = score.note_at_mut(&spanner.end) {
@@ -462,6 +467,7 @@ impl Score {
                     NotationSpannerKind::TrillLine => note.trill_line_end = true,
                     NotationSpannerKind::Pedal => note.pedal_end = true,
                     NotationSpannerKind::Ottava => note.ottava_end = true,
+                    NotationSpannerKind::Dashes => {}
                 }
             }
         }

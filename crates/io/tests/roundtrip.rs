@@ -3613,8 +3613,9 @@ fn unmodeled_musicxml_repeats_and_lines_are_source_diagnosed() {
         "musicxml.unsupported-multi-measure-repeat",
         "/score-partwise/part/measure/attributes/measure-style/measure-repeat"
     )));
+    // Dashes are imported as `NotationSpannerKind::Dashes`, so they are not diagnosed.
     assert!(
-        codes
+        !codes
             .iter()
             .any(|(code, _)| *code == "musicxml.unsupported-element.dashes")
     );
@@ -4433,4 +4434,47 @@ fn musicxml_endings_with_text_and_one_bar_endings_are_imported() {
     assert_eq!(voltas[0], None);
     assert_eq!(voltas[1], Some((1, "begin_end".to_string())));
     assert_eq!(voltas[2], Some((2, "begin_end".to_string())));
+}
+
+#[test]
+fn musicxml_dashes_lines_are_imported_drawn_and_exported() {
+    // cresc. - - - from the first note to the second.
+    let mut parts = SIMPLE_XML.splitn(3, "</note>");
+    let (first, second, rest) = (
+        parts.next().unwrap(),
+        parts.next().unwrap(),
+        parts.next().unwrap_or_default(),
+    );
+    let xml = format!(
+        "{}</note>{}</note><direction><direction-type><dashes type=\"stop\" number=\"1\"/></direction-type></direction>{}",
+        first.replacen(
+            "<note>",
+            "<direction placement=\"below\"><direction-type><words>cresc.</words></direction-type><direction-type><dashes type=\"start\" number=\"1\"/></direction-type></direction><note>",
+            1,
+        ),
+        second,
+        rest
+    );
+    let report = acorde_io::parse_musicxml_with_report(&xml).expect("parses");
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "musicxml.unsupported-element.dashes")
+    );
+    let dashes = report
+        .score
+        .spanners
+        .iter()
+        .find(|spanner| spanner.kind == acorde_core::NotationSpannerKind::Dashes)
+        .expect("a dashes spanner");
+    assert_eq!((dashes.start.note, dashes.end.note), (0, 1));
+    let written = serialize_musicxml(&report.score).expect("exports");
+    let back = parse_musicxml(&written).expect("reparses");
+    let again = back
+        .spanners
+        .iter()
+        .find(|spanner| spanner.kind == acorde_core::NotationSpannerKind::Dashes)
+        .expect("a dashes spanner after a round trip");
+    assert_eq!((again.start.note, again.end.note), (0, 1));
 }

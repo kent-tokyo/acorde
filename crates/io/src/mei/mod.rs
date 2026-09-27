@@ -5125,6 +5125,17 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
         diagnostics.push(diagnostic);
     };
 
+    for spanner in score
+        .spanners
+        .iter()
+        .filter(|spanner| spanner.kind == acorde_core::NotationSpannerKind::Dashes)
+    {
+        push(
+            &mut diagnostics,
+            format!("/score/spanners/{}", spanner.id),
+            "dashes".to_string(),
+        );
+    }
     for (part_index, part) in score.parts.iter().enumerate() {
         let part_path = format!("/score/part/{}", part_index + 1);
         for (field, present, value) in [

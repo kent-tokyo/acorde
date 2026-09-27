@@ -1369,6 +1369,19 @@ fn serialize_typed_direction_spanners(
                 xml.push_str("        </direction-type>\n");
                 xml.push_str("      </direction>\n");
             }
+            NotationSpannerKind::Dashes => {
+                let placement = spanner.placement.as_deref().unwrap_or("below");
+                xml.push_str(&format!(
+                    "      <direction placement=\"{}\">\n",
+                    escape_xml(placement)
+                ));
+                xml.push_str("        <direction-type>\n");
+                xml.push_str(&format!(
+                    "          <dashes type=\"{endpoint}\" number=\"{number}\"/>\n"
+                ));
+                xml.push_str("        </direction-type>\n");
+                xml.push_str("      </direction>\n");
+            }
             NotationSpannerKind::Ottava => {
                 let placement = spanner.placement.as_deref().unwrap_or("above");
                 let shift_type = if endpoint == "stop" {
@@ -1487,7 +1500,9 @@ fn serialize_notations(
             NotationSpannerKind::TrillLine => xml.push_str(&format!(
                 "          <ornaments><wavy-line number=\"{number}\" type=\"{endpoint}\"{line_type}{placement}/></ornaments>\n"
             )),
-            NotationSpannerKind::Pedal | NotationSpannerKind::Ottava => {}
+            NotationSpannerKind::Pedal
+            | NotationSpannerKind::Ottava
+            | NotationSpannerKind::Dashes => {}
         }
     }
     if note.slur_end && !typed_has(NotationSpannerKind::Slur) {

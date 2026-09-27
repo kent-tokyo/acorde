@@ -29,6 +29,7 @@ pub(super) fn clear_legacy_spanner_endpoints(score: &mut Score, spanner: &Notati
         NotationSpannerKind::TrillLine => note.trill_line_start = false,
         NotationSpannerKind::Pedal => note.pedal_start = false,
         NotationSpannerKind::Ottava => note.ottava_start = None,
+        NotationSpannerKind::Dashes => {}
     };
     let clear_end = |note: &mut Note| match spanner.kind {
         NotationSpannerKind::Slur => note.slur_end = false,
@@ -36,6 +37,7 @@ pub(super) fn clear_legacy_spanner_endpoints(score: &mut Score, spanner: &Notati
         NotationSpannerKind::TrillLine => note.trill_line_end = false,
         NotationSpannerKind::Pedal => note.pedal_end = false,
         NotationSpannerKind::Ottava => note.ottava_end = false,
+        NotationSpannerKind::Dashes => {}
     };
     if let Some(note) = note_at_mut(score, &spanner.start) {
         clear_start(note);

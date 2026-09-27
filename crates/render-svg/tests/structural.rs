@@ -3257,3 +3257,36 @@ fn rolled_chords_draw_a_wavy_line_left_of_the_chord() {
         .unwrap();
     assert!(line_x < head_x - opts().staff_size);
 }
+
+#[test]
+fn dashes_spanners_draw_a_dashed_line_under_their_notes() {
+    use acorde_core::{
+        Duration, NotationSpanner, NotationSpannerKind, Note, NoteAddr, Pitch, Score, Step,
+    };
+    let mut score = Score::new("cresc", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].measures[0].voices[0] = (0..4)
+        .map(|_| Note::new(Pitch::new(Step::G, 4), Duration::Quarter))
+        .collect();
+    let address = |note| NoteAddr {
+        part: 0,
+        staff: 0,
+        measure: 0,
+        voice: 0,
+        note,
+    };
+    score.spanners.push(NotationSpanner {
+        id: "cresc".into(),
+        kind: NotationSpannerKind::Dashes,
+        start: address(0),
+        end: address(3),
+        number: Some(1),
+        line_type: Some("dashed".into()),
+        text: None,
+        placement: Some("below".into()),
+        ottava_size: None,
+        ottava_type: None,
+    });
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(svg.matches(r#"class="acorde-dashes""#).count(), 1);
+    assert!(svg.contains("stroke-dasharray"));
+}

@@ -4746,6 +4746,56 @@ fn render_all_spans(
             body.push_str("</g>");
         }
     }
+    // Dashed continuation lines ("cresc. - - -") are typed spanners only: draw them from
+    // just after the start note to the end note on its system, below (or above) the notes.
+    for span in &layout.typed_spanners {
+        if span.kind != acorde_core::NotationSpannerKind::Dashes {
+            continue;
+        }
+        let (Some(&(x1, y1, _, row1)), Some(&(x2, y2, _, row2))) = (
+            points.get(&(
+                span.start.part,
+                span.start.staff,
+                span.start.measure,
+                span.start.voice,
+                span.start.note,
+            )),
+            points.get(&(
+                span.end.part,
+                span.end.staff,
+                span.end.measure,
+                span.end.voice,
+                span.end.note,
+            )),
+        ) else {
+            continue;
+        };
+        if row1 != row2 {
+            continue;
+        }
+        let above = span.placement.as_deref() == Some("above");
+        let y = if above {
+            y1.min(y2) - 3.0 * space
+        } else {
+            y1.max(y2) + 3.0 * space
+        };
+        let (start_x, end_x) = (x1 + 1.5 * space, x2 + glyphs::NOTEHEAD_RX_U * space);
+        if end_x - start_x < space {
+            continue;
+        }
+        let _ = write!(
+            body,
+            r#"<line class="acorde-dashes" data-acorde-span-id="{}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}" stroke-dasharray="{},{}"/>"#,
+            escape_xml(&span.id),
+            f(start_x),
+            f(y),
+            f(end_x),
+            f(y),
+            f(0.1 * space),
+            f(0.5 * space),
+            f(0.5 * space)
+        );
+    }
     if interactive {
         for span in &layout.typed_spanners {
             let kind = match span.kind {
@@ -4754,6 +4804,7 @@ fn render_all_spans(
                 acorde_core::NotationSpannerKind::TrillLine => "trill-line",
                 acorde_core::NotationSpannerKind::Pedal => "pedal",
                 acorde_core::NotationSpannerKind::Ottava => "ottava",
+                acorde_core::NotationSpannerKind::Dashes => "dashes",
             };
             let _ = write!(
                 body,

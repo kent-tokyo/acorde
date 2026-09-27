@@ -9,6 +9,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **[schema] Dashed text lines.** `NotationSpannerKind::Dashes` holds MusicXML `<dashes>`
+  ("cresc. - - -"): imported (58 lines in 4 corpus files were dropped), exported, and drawn as a
+  dashed line under (or over) the notes. MEI and MSCX export report them as unsupported.
 - **SVG volta brackets, repeat starts, bar numbers and arpeggios.** Voltas (1st/2nd endings)
   were not drawn at all; they now appear over the top staff with their number, a closing hook
   at the ending's last bar, and an unlabelled continuation into the next system. A forward
