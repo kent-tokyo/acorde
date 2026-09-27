@@ -300,6 +300,8 @@ pub(crate) fn parse_musicxml_collecting(
     let mut in_lyric = false;
     // `<extend>` (start, or untyped) under the current lyric: a melisma line follows it.
     let mut lyric_extend = false;
+    // An `<elision>` read since the last `<text>`: its connector joins the next syllable on.
+    let mut lyric_elision: Option<String> = None;
     let mut lyric_text = String::new();
     let mut lyric_syllabic = String::new();
     // Source `<lyric number>` of the lyric being read, and the note's completed lyrics.
@@ -623,6 +625,7 @@ pub(crate) fn parse_musicxml_collecting(
                     "lyric" if in_note => {
                         in_lyric = true;
                         lyric_text.clear();
+                        lyric_elision = None;
                         lyric_syllabic = "single".to_string();
                         lyric_number = attr_str(e, b"number")
                             .and_then(|value| value.trim().parse::<u8>().ok())
@@ -787,6 +790,7 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                 }
                 match tag.as_str() {
+                    "elision" if in_lyric => lyric_elision = Some(LYRIC_ELISION.to_string()),
                     "extend" if in_lyric => {
                         lyric_extend =
                             matches!(attr_str(e, b"type").as_deref(), None | Some("start"));
@@ -1848,7 +1852,26 @@ pub(crate) fn parse_musicxml_collecting(
                         }
                     }
                     "syllabic" if in_lyric => lyric_syllabic = current_text.trim().to_string(),
-                    "text" if in_lyric => lyric_text = current_text.trim().to_string(),
+                    "text" if in_lyric => {
+                        // Syllables elided onto one note keep their connector (‿) in the text.
+                        let text = current_text.trim();
+                        match lyric_elision.take() {
+                            Some(connector) if !lyric_text.is_empty() && !text.is_empty() => {
+                                lyric_text.push_str(&connector);
+                                lyric_text.push_str(text);
+                            }
+                            _ if text.is_empty() => {}
+                            _ => lyric_text = text.to_string(),
+                        }
+                    }
+                    "elision" if in_lyric => {
+                        let connector = current_text.trim();
+                        lyric_elision = Some(if connector.is_empty() {
+                            LYRIC_ELISION.to_string()
+                        } else {
+                            connector.to_string()
+                        });
+                    }
                     "lyric" if in_lyric => {
                         in_lyric = false;
                         if !lyric_text.is_empty() {
@@ -2921,6 +2944,9 @@ fn words_to_navigation(text: &str) -> Option<String> {
         _ => None,
     }
 }
+
+/// Connector written between syllables elided onto one note.
+const LYRIC_ELISION: &str = "\u{203F}";
 
 /// The 0-based General MIDI key for a MusicXML `<midi-unpitched>` value (1–128).
 fn musicxml_midi_unpitched(text: &str) -> Option<u8> {

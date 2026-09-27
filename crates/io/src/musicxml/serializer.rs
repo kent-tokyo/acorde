@@ -1089,10 +1089,16 @@ fn serialize_note(
                 "          <syllabic>{}</syllabic>\n",
                 escape_xml(&lyric.syllabic)
             ));
-            xml.push_str(&format!(
-                "          <text>{}</text>\n",
-                escape_xml(&lyric.text)
-            ));
+            // Syllables elided onto one note (joined by ‿) are written as text, elision, text.
+            for (index, syllable) in lyric.text.split('\u{203F}').enumerate() {
+                if index > 0 {
+                    xml.push_str("          <elision>\u{203F}</elision>\n");
+                }
+                xml.push_str(&format!(
+                    "          <text>{}</text>\n",
+                    escape_xml(syllable)
+                ));
+            }
             if lyric.extend {
                 xml.push_str("          <extend/>\n");
             }

@@ -4192,3 +4192,32 @@ fn lyric_extenders_and_compound_dynamics_survive_interchange() {
         check(&acorde_io::parse_mscx(&mscx).unwrap(), "MSCX");
     }
 }
+
+#[test]
+fn musicxml_lyric_elision_keeps_both_syllables() {
+    let xml = SIMPLE_XML.replacen(
+        "<pitch><step>C</step><octave>4</octave></pitch>",
+        "<pitch><step>C</step><octave>4</octave></pitch><lyric number=\"1\"><syllabic>single</syllabic><text>se</text><elision/><syllabic>begin</syllabic><text>a</text></lyric>",
+        1,
+    );
+    assert!(xml.contains("<elision/>"));
+    let report = acorde_io::parse_musicxml_with_report(&xml).expect("parses");
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "musicxml.unsupported-element.elision")
+    );
+    let check = |score: &acorde_core::Score| {
+        let lyric = score.parts[0].staves[0].measures[0].voices[0][0]
+            .lyric
+            .clone()
+            .expect("lyric");
+        assert_eq!(lyric.text, "se\u{203F}a");
+        assert_eq!(lyric.syllabic, "begin");
+    };
+    check(&report.score);
+    let written = serialize_musicxml(&report.score).expect("exports");
+    assert!(written.contains("<elision>"));
+    check(&parse_musicxml(&written).expect("reparses"));
+}
