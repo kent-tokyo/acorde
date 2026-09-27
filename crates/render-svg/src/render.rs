@@ -4554,6 +4554,39 @@ fn render_same_row_span(
     }
 }
 
+/// A tie arc from `(x1, y1)` to `(x2, y2)`: a filled crescent, thicker in the middle, whose
+/// height grows a little with its length.
+fn write_tie_curve(body: &mut String, x1: f32, y1: f32, x2: f32, y2: f32, above: bool, space: f32) {
+    if !x1.is_finite() || !x2.is_finite() || x2 <= x1 {
+        return;
+    }
+    let length_u = (x2 - x1) / space;
+    let height = (0.35 + 0.03 * length_u).min(0.8) * space;
+    let dir = if above { -1.0 } else { 1.0 };
+    let thickness = 0.14 * space;
+    let (c1x, c2x) = (x1 + (x2 - x1) * 0.25, x1 + (x2 - x1) * 0.75);
+    let (c1y, c2y) = (y1 + dir * height * 1.33, y2 + dir * height * 1.33);
+    let _ = write!(
+        body,
+        r#"<path class="acorde-tie" d="M {},{} C {},{} {},{} {},{} C {},{} {},{} {},{} Z" fill="black" stroke="black" stroke-width="{}"/>"#,
+        f(x1),
+        f(y1),
+        f(c1x),
+        f(c1y),
+        f(c2x),
+        f(c2y),
+        f(x2),
+        f(y2),
+        f(c2x),
+        f(c2y - dir * thickness),
+        f(c1x),
+        f(c1y - dir * thickness),
+        f(x1),
+        f(y1),
+        f(0.03 * space)
+    );
+}
+
 /// Vertical offset of each pitch of `note` from its rendered anchor (the outer notehead on the
 /// stem side, or the first tab string), so each tied pitch gets its own tie.
 fn pitch_offsets_from_anchor(
@@ -4644,31 +4677,41 @@ fn render_ties(
     right_margin_u: f32,
     space: f32,
 ) {
+    // A tie leaves the notehead on the side away from the stem (or the side given for a chord
+    // member), from just past one head to just before the next, with a shallow arch.
     let mut draw = |from: NotePoint, to: NotePoint, above: Option<bool>| {
         let (x1, y1, up1, row1) = from;
         let (x2, y2, up2, row2) = to;
-        let (up1, up2) = above.map_or((up1, up2), |above| (above, above));
+        let above = above.unwrap_or(!(up1 && up2));
+        let lift = if above { -0.45 } else { 0.45 } * space;
+        let head = glyphs::NOTEHEAD_RX_U * space;
         if row1 == row2 {
-            render_curve(body, "acorde-tie", x1, y1, x2, y2, up1 || up2, space);
-        } else {
-            render_curve(
+            write_tie_curve(
                 body,
-                "acorde-tie",
-                x1,
-                y1,
-                width - right_margin_u * space,
-                y1,
-                up1,
+                x1 + head,
+                y1 + lift,
+                x2 - head,
+                y2 + lift,
+                above,
                 space,
             );
-            render_curve(
+        } else {
+            write_tie_curve(
                 body,
-                "acorde-tie",
+                x1 + head,
+                y1 + lift,
+                width - right_margin_u * space,
+                y1 + lift,
+                above,
+                space,
+            );
+            write_tie_curve(
+                body,
                 left_margin_u * space,
-                y2,
-                x2,
-                y2,
-                up2,
+                y2 + lift,
+                x2 - head,
+                y2 + lift,
+                above,
                 space,
             );
         }
