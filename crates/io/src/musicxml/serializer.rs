@@ -814,6 +814,12 @@ fn serialize_note(
             dyn_val.to_musicxml_str()
         ));
         xml.push_str("        </direction-type>\n");
+        // The dynamic belongs to this note's staff (a cross-staff note's written staff).
+        let staff = note
+            .cross_staff
+            .as_ref()
+            .map_or(staff_number, |cross| cross.target_staff + 1);
+        xml.push_str(&format!("        <staff>{staff}</staff>\n"));
         xml.push_str("      </direction>\n");
     }
 

@@ -3983,3 +3983,37 @@ fn musicxml_clef_changes_on_a_later_staff_are_kept() {
     assert_eq!(staves[1].measures[1].clef, Some(acorde_core::Clef::Treble));
     assert_eq!(staves[1].measures[2].clef, Some(acorde_core::Clef::Bass));
 }
+
+#[cfg(feature = "musicxml")]
+#[test]
+fn musicxml_dynamics_import_and_round_trip() {
+    // A direction dynamic on staff 2 waits for that staff's next note; one in <notations>
+    // belongs to its own note; fp has no acorde equivalent and is reported.
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Pno</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><direction placement="below"><direction-type><dynamics><pp/></dynamics></direction-type><staff>2</staff></direction><direction><direction-type><dynamics><fp/></dynamics></direction-type></direction><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff><notations><dynamics><sfz/></dynamics></notations></note><note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff></note><backup><duration>2</duration></backup><note><rest/><duration>1</duration><voice>5</voice><type>quarter</type><staff>2</staff></note><note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><voice>5</voice><type>quarter</type><staff>2</staff></note></measure></part></score-partwise>"#;
+    let report = acorde_io::parse_musicxml_with_report(xml).expect("parses");
+    let staves = &report.score.parts[0].staves;
+    let upper = &staves[0].measures[0].voices[0];
+    assert_eq!(upper[0].dynamic, Some(acorde_core::Dynamic::Sfz));
+    assert_eq!(upper[1].dynamic, None);
+    let lower: Vec<_> = staves[1].measures[0].voices.iter().flatten().collect();
+    assert!(lower[0].is_rest && lower[0].dynamic.is_none());
+    assert_eq!(lower[1].dynamic, Some(acorde_core::Dynamic::Pp));
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "musicxml.unsupported-dynamic")
+    );
+    let written = serialize_musicxml(&report.score).expect("exports");
+    let back = parse_musicxml(&written).expect("reparses");
+    assert_eq!(
+        back.parts[0].staves[0].measures[0].voices[0][0].dynamic,
+        Some(acorde_core::Dynamic::Sfz)
+    );
+    let back_lower: Vec<_> = back.parts[0].staves[1].measures[0]
+        .voices
+        .iter()
+        .flatten()
+        .collect();
+    assert_eq!(back_lower[1].dynamic, Some(acorde_core::Dynamic::Pp));
+}

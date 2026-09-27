@@ -1,6 +1,6 @@
 use crate::Error;
 use acorde_core::{
-    Articulation, Barline, ChordDegree, ChordSymbol, Clef, Duration, FiguredBassFigure,
+    Articulation, Barline, ChordDegree, ChordSymbol, Clef, Duration, Dynamic, FiguredBassFigure,
     GuitarTechnique, HairpinKind, HarpPedalDiagram, HarpPedalPosition, KeySignature, Lyric,
     Measure, MeasureLength, NotationSpanner, NotationSpannerKind, Note, NoteAddr, NoteHead,
     OttavaKind, Part, PartGroup, PartGroupSymbol, PercussionInstrument, Pitch, Score, Staff,
@@ -317,6 +317,13 @@ pub(crate) fn parse_musicxml_collecting(
     let mut barline_location = String::new();
     let mut in_direction = false;
     let mut in_direction_type = false;
+    // Dynamics: <direction><direction-type><dynamics> marks wait for the next sounding note of
+    // their staff; <notations><dynamics> belongs to its note.
+    let mut in_dynamics = false;
+    let mut pending_direction_dynamic: Option<Dynamic> = None;
+    let mut pending_direction_staff = 0usize;
+    let mut staff_dynamics: HashMap<usize, Dynamic> = HashMap::new();
+    let mut note_inline_dynamic: Option<Dynamic> = None;
     let mut pending_tempo_text: Option<String> = None;
     let mut pending_expression_text: Option<String> = None;
     let mut pending_rehearsal: Option<String> = None;
@@ -498,6 +505,7 @@ pub(crate) fn parse_musicxml_collecting(
                             .filter(|value| value.is_finite());
                     }
                     "direction-type" => in_direction_type = true,
+                    "dynamics" if in_direction_type || in_notations => in_dynamics = true,
                     // Print-style position attributes belong on the text element; they take
                     // precedence over the legacy acorde placement on <direction>.
                     "words" | "rehearsal" if in_direction_type => {
@@ -615,6 +623,7 @@ pub(crate) fn parse_musicxml_collecting(
                     "note" => {
                         in_note = true;
                         note_lyrics.clear();
+                        note_inline_dynamic = None;
                         // A note's default-x/default-y are absolute positions in the source
                         // engraver's layout (from the measure's left barline and the staff's top
                         // line). acorde lays measures out itself, and `offset_x`/`offset_y` are
@@ -743,6 +752,22 @@ pub(crate) fn parse_musicxml_collecting(
                 let tag = std::str::from_utf8(e.name().as_ref())
                     .unwrap_or("")
                     .to_string();
+                if in_dynamics {
+                    match musicxml_dynamic(&tag) {
+                        Some(dynamic) if in_note => note_inline_dynamic = Some(dynamic),
+                        Some(dynamic) => pending_direction_dynamic = Some(dynamic),
+                        None => {
+                            let mut diagnostic = crate::Diagnostic::warning(
+                                "musicxml.unsupported-dynamic",
+                                "a dynamic outside acorde's set (fp, sfp, pf, n, other-dynamics) is not imported",
+                            );
+                            diagnostic.source_location = Some(format!(
+                                "/score-partwise/measure[{current_measure_number}]/dynamics/{tag}"
+                            ));
+                            tolerated.push(diagnostic);
+                        }
+                    }
+                }
                 match tag.as_str() {
                     "measure-repeat" if attr_str(e, b"type").as_deref() == Some("stop") => {
                         measure_repeat_active = None;
@@ -1529,6 +1554,10 @@ pub(crate) fn parse_musicxml_collecting(
                         pending_rehearsal = None;
                         pending_navigation = None;
                         pending_section_break = false;
+                        if let Some(dynamic) = pending_direction_dynamic.take() {
+                            staff_dynamics.insert(pending_direction_staff, dynamic);
+                        }
+                        pending_direction_staff = 0;
                         in_direction = false;
                     }
                     "attributes" => {
@@ -1880,6 +1909,15 @@ pub(crate) fn parse_musicxml_collecting(
                                 score.parts[pi].staves.push(Staff::new(Clef::Treble));
                             }
                         }
+                    }
+                    "dynamics" => in_dynamics = false,
+                    "staff" if in_direction && !in_note => {
+                        pending_direction_staff = current_text
+                            .trim()
+                            .parse::<usize>()
+                            .ok()
+                            .filter(|number| (1..=MAX_STAVES).contains(number))
+                            .map_or(0, |number| number - 1);
                     }
                     "staff" if in_note => {
                         note_staff = current_text
@@ -2319,6 +2357,10 @@ pub(crate) fn parse_musicxml_collecting(
                                         &mut note,
                                         std::mem::take(&mut note_lyrics),
                                     );
+                                    if !note.is_rest && !note.is_grace {
+                                        let direction = staff_dynamics.remove(&target_staff_index);
+                                        note.dynamic = note_inline_dynamic.take().or(direction);
+                                    }
                                     voice.push(note);
                                     let address = NoteAddr {
                                         part: pi,
@@ -2726,6 +2768,27 @@ fn words_to_navigation(text: &str) -> Option<String> {
         "To Coda" | "To \u{2295}" => Some("ToCoda".into()),
         _ => None,
     }
+}
+
+/// MusicXML dynamic element names acorde's `Dynamic` holds (louder and softer extremes clamp).
+fn musicxml_dynamic(tag: &str) -> Option<Dynamic> {
+    Some(match tag {
+        "pppppp" | "ppppp" | "pppp" => Dynamic::Pppp,
+        "ppp" => Dynamic::Ppp,
+        "pp" => Dynamic::Pp,
+        "p" => Dynamic::P,
+        "mp" => Dynamic::Mp,
+        "mf" => Dynamic::Mf,
+        "f" => Dynamic::F,
+        "ff" => Dynamic::Ff,
+        "fff" => Dynamic::Fff,
+        "ffff" | "fffff" | "ffffff" => Dynamic::Ffff,
+        "sfz" | "sffz" => Dynamic::Sfz,
+        "rfz" | "rf" => Dynamic::Rfz,
+        "fz" => Dynamic::Fz,
+        "sf" => Dynamic::Sf,
+        _ => return None,
+    })
 }
 
 #[cfg(test)]

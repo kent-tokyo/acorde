@@ -9,6 +9,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **MusicXML dynamics import.** `<dynamics>` marks were not imported at all (exported ones did
+  not survive a round trip). A direction's dynamic now attaches to the next sounding note of its
+  staff and a `<notations>` dynamic to its own note; fp, sfp, pf, n and other-dynamics, which the
+  model does not hold, are reported as `musicxml.unsupported-dynamic`. 7322 dynamics now import
+  from 205 music21 corpus files (none did before). Export writes the direction's `<staff>`.
+- SVG dynamics are drawn as bold slanted letter shapes (p, m, f, n, r, s, z; plain vector
+  paths), falling back to italic text for other letters.
+- SVG unbeamed stems run 3.5 spaces past the chord's stem-side note, 0.75 more per flag beyond
+  two, and reach the middle line from notes far outside the staff.
+
 - SVG cross-staff notes are drawn on the staff they are written across to (they were drawn on
   their own staff with ledger lines), stems, ledger lines and beams included.
 - SVG time signatures, and tuplet numbers, use bold engraved-style numerals filling half the
