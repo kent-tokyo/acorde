@@ -26,30 +26,28 @@ const MAX_DEPTH: usize = 64;
 /// `quick-xml` does not resolve the declaration, but accepting an internal subset would
 /// unnecessarily widen the parser's input surface. MuseScore writes this public declaration
 /// by default, so retain the compatibility path without admitting entity declarations.
+/// Accept a MusicXML DOCTYPE with any external identifier, but never an internal subset.
+///
+/// The reader never dereferences external DTDs, so the public/system identifier is inert: old
+/// Finale exports point at local paths (`"//D:/Program Files/MusicXML/partwise.dtd"`), some tools
+/// use `SYSTEM`, and all of them must still open. Internal subsets (`[...]`), entity and
+/// parameter-entity declarations remain rejected, as does a non-MusicXML root.
 fn is_safe_musicxml_doctype(declaration: &[u8]) -> bool {
     let Ok(declaration) = std::str::from_utf8(declaration) else {
         return false;
     };
-    let normalized = declaration.to_ascii_lowercase();
-    if normalized.contains(['[', ']', '%'])
-        || normalized.contains("entity")
-        || normalized.contains("system")
-    {
+    let normalized = declaration.trim().to_ascii_lowercase();
+    if normalized.contains(['[', ']', '%', '<', '>']) || normalized.contains("entity") {
         return false;
     }
-
-    let (root, system_id) = if normalized.starts_with("score-partwise") {
-        ("score-partwise", "musicxml.org/dtds/partwise.dtd")
-    } else if normalized.starts_with("score-timewise") {
-        ("score-timewise", "musicxml.org/dtds/timewise.dtd")
-    } else {
+    let Some(rest) = normalized
+        .strip_prefix("score-partwise")
+        .or_else(|| normalized.strip_prefix("score-timewise"))
+    else {
         return false;
     };
-
-    normalized.starts_with(root)
-        && normalized.contains("public")
-        && normalized.contains("-//recordare//dtd musicxml")
-        && normalized.contains(system_id)
+    let rest = rest.trim_start();
+    rest.is_empty() || rest.starts_with("public") || rest.starts_with("system")
 }
 
 /// Acorde stores tablature tuning from low to high, while MusicXML technical string numbers
@@ -2560,6 +2558,23 @@ mod tests {
     fn unsafe_doctype_rejected() {
         let xml = "<?xml version=\"1.0\"?><!DOCTYPE foo><score-partwise/>";
         assert!(parse_musicxml(xml).is_err());
+    }
+
+    #[test]
+    fn legacy_and_system_musicxml_doctypes_are_accepted() {
+        let body = r#"<score-partwise><part-list><score-part id="P1"><part-name>Q</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><rest/><duration>4</duration><type>whole</type></note></measure></part></score-partwise>"#;
+        for doctype in [
+            r#"<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 0.6a Partwise//EN" "//D:/Program Files/MusicXML/partwise.dtd">"#,
+            r#"<!DOCTYPE score-partwise SYSTEM "partwise.dtd">"#,
+        ] {
+            assert!(parse_musicxml(&format!("<?xml version=\"1.0\"?>{doctype}{body}")).is_ok());
+        }
+        for evil in [
+            r#"<!DOCTYPE score-partwise [<!ENTITY a "b">]>"#,
+            r#"<!DOCTYPE score-partwise SYSTEM "x.dtd" [<!ENTITY % p SYSTEM "http://evil">]>"#,
+        ] {
+            assert!(parse_musicxml(&format!("<?xml version=\"1.0\"?>{evil}{body}")).is_err());
+        }
     }
 
     #[test]
