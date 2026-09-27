@@ -1,6 +1,6 @@
 # acorde
 
-Platform-neutral Rust and WebAssembly score infrastructure (v1.2.12).
+Platform-neutral Rust and WebAssembly score infrastructure (v1.2.13).
 
 acorde provides a serializable score model, undoable edits, bounded notation I/O, logical layout,
 deterministic SVG, playback-event projection, analysis primitives, and WASM bindings. Library
@@ -32,14 +32,14 @@ rendering SVG.
 
 ```toml
 [dependencies]
-acorde = "1.2.12"
-acorde-render-svg = "1.2.12"
+acorde = "1.2.13"
+acorde-render-svg = "1.2.13"
 ```
 
 Default I/O features are MusicXML and MIDI. Enable optional formats explicitly:
 
 ```toml
-acorde = { version = "1.2.12", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "1.2.13", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust

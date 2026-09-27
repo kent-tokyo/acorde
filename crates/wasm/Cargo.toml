@@ -13,12 +13,12 @@ description = "WebAssembly bindings for the acorde music score library"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-acorde-core   = { path = "../core", version = "1.2.12" }
-acorde-io     = { path = "../io", version = "1.2.12", features = ["abc", "gp", "mscz", "mei"] }
-acorde-layout = { path = "../layout", version = "1.2.12" }
-acorde-render-svg = { path = "../render-svg", version = "1.2.12" }
-acorde-analysis = { path = "../analysis", version = "1.2.12" }
-acorde-soundfont = { path = "../soundfont", version = "1.2.12" }
+acorde-core   = { path = "../core", version = "1.2.13" }
+acorde-io     = { path = "../io", version = "1.2.13", features = ["abc", "gp", "mscz", "mei"] }
+acorde-layout = { path = "../layout", version = "1.2.13" }
+acorde-render-svg = { path = "../render-svg", version = "1.2.13" }
+acorde-analysis = { path = "../analysis", version = "1.2.13" }
+acorde-soundfont = { path = "../soundfont", version = "1.2.13" }
 wasm-bindgen = "0.2"
 serde        = "1"
 serde_json   = "1"

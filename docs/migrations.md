@@ -25,6 +25,19 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
+### v1.2.13 — MSCX/MEI interchange fidelity
+
+MSCX export now wraps every voice in MuseScore's required `<voice>` element; consumers that
+compare raw MSCX should accept this canonical structure. Cross-staff chords use `<staffMove>`,
+and MSCX spanners, tuplets, grace notes, ornaments, fermatas, repeats, voltas, chord symbols and
+invisible barlines have a broader documented round-trip subset. MEI now preserves per-staff key
+signatures, endings, tremolos, arpeggios and the documented TAB grace/tremolo/lyric subset.
+
+`CHORD_KIND_SUFFIXES` is a new public additive constant and `ChordSymbol::kind_for_suffix` maps
+its compact labels back to canonical MusicXML kinds. `ChordSymbol::display_text` therefore emits
+compact forms for every listed kind; hosts that string-compare the prior internal kind names must
+refresh expectations. No Score JSON field changed.
+
 ### v1.2.12 — compound dynamics, held dynamics in playback, lyric extenders
 
 `Dynamic` gains seven variants (`Fp`, `Sfp`, `Sfpp`, `Pf`, `Sffz`, `Sfzp`, `N`) and now derives

@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.13] - 2026-09-27
+
 - **MusicXML barline styles.** MusicXML import read `<repeat>` but not `<bar-style>`, so final,
   double, dashed, dotted and invisible barlines were lost (every Guitar Pro → MusicXML → import
   round trip of the alphaTab test files lost all 176 of them). They are now read — on every
