@@ -1474,6 +1474,9 @@ fn serialize_notations(
         ));
     }
     if has_technical {
+        if note.guitar_technique == Some(GuitarTechnique::Slide) {
+            xml.push_str("          <slide type=\"start\" number=\"1\"/>\n");
+        }
         xml.push_str("          <technical>\n");
         for articulation in &note.articulations {
             let tag = match articulation {
@@ -1528,9 +1531,8 @@ fn serialize_notations(
                         "            <bend><bend-alter>{bend_alter}</bend-alter></bend>\n"
                     ));
                 }
-                GuitarTechnique::Slide => {
-                    xml.push_str("            <slide type=\"start\" number=\"1\"/>\n")
-                }
+                // <slide> is a <notations> child, written before <technical>.
+                GuitarTechnique::Slide => {}
                 GuitarTechnique::HammerOn => xml
                     .push_str("            <hammer-on type=\"start\" number=\"1\">H</hammer-on>\n"),
                 GuitarTechnique::PullOff => {

@@ -820,7 +820,9 @@ pub(crate) fn parse_musicxml_collecting(
                     "tremolo" if in_ornament_block => {
                         pending_articulations.push(Articulation::Tremolo(1))
                     }
-                    "slide" if in_technical_block => {
+                    // Standard MusicXML puts <slide> in <notations>; older acorde output put it
+                    // in <technical>.
+                    "slide" if in_technical_block || in_notations => {
                         pending_guitar_technique = Some(GuitarTechnique::Slide);
                     }
                     "hammer-on" if in_technical_block => {
@@ -1888,7 +1890,9 @@ pub(crate) fn parse_musicxml_collecting(
                                 (value * 100.0).round().clamp(-32768.0, 32767.0) as i16
                             });
                     }
-                    "slide" if in_technical_block => {
+                    // Standard MusicXML puts <slide> in <notations>; older acorde output put it
+                    // in <technical>.
+                    "slide" if in_technical_block || in_notations => {
                         pending_guitar_technique = Some(GuitarTechnique::Slide);
                     }
                     "hammer-on" if in_technical_block => {
