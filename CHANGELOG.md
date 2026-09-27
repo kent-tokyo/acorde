@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.7] - 2026-09-27
+
 - MEI export now writes every part. It previously wrote only the first part and dropped the
   rest without a diagnostic. Parts become labelled `<staffDef>`s or labelled `<staffGrp>`s
   (the form Verovio and MuseScore use), part groups become enclosing `<staffGrp>`s, and
