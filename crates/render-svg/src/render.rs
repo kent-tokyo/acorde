@@ -3508,6 +3508,7 @@ fn note_staff_frame(
         .unwrap_or(own)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn plan_measure_beams(
     layout: &LayoutResult,
     part: usize,
