@@ -47,15 +47,60 @@ fn serialize_midi_impl(score: &Score, seq: &[usize]) -> Result<Vec<u8>, Error> {
     let header = Header::new(Format::Parallel, Timing::Metrical(u15::from(PPQ as u16)));
     let mut smf = Smf::new(header);
 
-    smf.tracks.push(build_meta_track(score, seq)?);
+    let starts = measure_start_ticks(score, seq);
+    smf.tracks.push(build_meta_track(score, seq, &starts)?);
     for part in &score.parts {
-        smf.tracks.push(build_part_track(part, seq)?);
+        smf.tracks.push(build_part_track(part, seq, &starts)?);
     }
 
     let mut bytes = Vec::new();
     smf.write_std(&mut bytes)
         .map_err(|e| Error::Midi(e.to_string()))?;
     Ok(bytes)
+}
+
+/// The tick each played bar starts at: bars take their own length (a pickup's
+/// `actual_length`, else the meter in force), so every voice and every meta event lines up with
+/// the bar it belongs to however full its voices are.
+fn measure_start_ticks(score: &Score, seq: &[usize]) -> Vec<u64> {
+    let Some(measures) = score
+        .parts
+        .first()
+        .and_then(|part| part.staves.first())
+        .map(|staff| &staff.measures)
+    else {
+        return vec![0; seq.len()];
+    };
+    let mut meter = score.settings.time_signature.clone();
+    let lengths: Vec<u64> = measures
+        .iter()
+        .map(|measure| {
+            if let Some(time) = &measure.time_sig {
+                meter = time.clone();
+            }
+            let beats = measure
+                .actual_length
+                .and_then(|length| length.beats())
+                .unwrap_or_else(|| meter.total_beats());
+            (beats * f64::from(PPQ)).round().max(0.0) as u64
+        })
+        .collect();
+    let mut tick = 0u64;
+    seq.iter()
+        .map(|&index| {
+            let start = tick;
+            tick += lengths.get(index).copied().unwrap_or(0);
+            start
+        })
+        .collect()
+}
+
+/// MIDI key signature meta: sharps (positive) or flats and whether the key is minor.
+fn midi_key_signature(key: &acorde_core::KeySignature) -> MetaMessage<'static> {
+    MetaMessage::KeySignature(
+        key.fifths.clamp(-7, 7),
+        key.mode.eq_ignore_ascii_case("minor"),
+    )
 }
 
 // ── meta track ────────────────────────────────────────────────────────────────
@@ -71,11 +116,13 @@ fn checked_delta(delta: u64) -> Result<u28, Error> {
         .ok_or_else(|| Error::Midi(format!("MIDI delta {delta} exceeds 28-bit limit")))
 }
 
-fn build_meta_track<'a>(score: &Score, seq: &[usize]) -> Result<Vec<TrackEvent<'a>>, Error> {
+fn build_meta_track<'a>(
+    score: &Score,
+    seq: &[usize],
+    starts: &[u64],
+) -> Result<Vec<TrackEvent<'a>>, Error> {
     let ts = &score.settings.time_signature;
     let den_log2 = (ts.denominator as u32).trailing_zeros() as u8;
-    let beats_per_measure = ts.numerator as f64 * 4.0 / ts.denominator as f64;
-    let ticks_per_measure = (beats_per_measure * PPQ as f64) as u64;
 
     let first_staff_opt = score.parts.first().and_then(|p| p.staves.first());
 
@@ -100,15 +147,24 @@ fn build_meta_track<'a>(score: &Score, seq: &[usize]) -> Result<Vec<TrackEvent<'
             delta: u28::from(0u32),
             kind: TrackEventKind::Meta(MetaMessage::TimeSignature(ts.numerator, den_log2, 24, 8)),
         },
+        TrackEvent {
+            delta: u28::from(0u32),
+            kind: TrackEventKind::Meta(midi_key_signature(
+                first_staff_opt
+                    .and_then(|staff| seq.first().and_then(|&i| staff.measures.get(i)))
+                    .and_then(|measure| measure.key_sig.as_ref())
+                    .unwrap_or(&score.settings.key_signature),
+            )),
+        },
     ];
 
     // Emit per-measure Tempo meta events for measures after the first.
     // Measure 0 is already covered by the initial event above.
     if let Some(first_staff) = first_staff_opt {
-        let mut cursor_tick: u64 = 0;
         let mut prev_event_tick: u64 = 0;
 
-        for &idx in seq {
+        for (position, &idx) in seq.iter().enumerate() {
+            let cursor_tick = starts.get(position).copied().unwrap_or(0);
             if cursor_tick > 0
                 && let Some(measure) = first_staff.measures.get(idx)
             {
@@ -133,8 +189,14 @@ fn build_meta_track<'a>(score: &Score, seq: &[usize]) -> Result<Vec<TrackEvent<'
                     });
                     prev_event_tick = cursor_tick;
                 }
+                if let Some(key) = &measure.key_sig {
+                    events.push(TrackEvent {
+                        delta: checked_delta(cursor_tick - prev_event_tick)?,
+                        kind: TrackEventKind::Meta(midi_key_signature(key)),
+                    });
+                    prev_event_tick = cursor_tick;
+                }
             }
-            cursor_tick += ticks_per_measure;
         }
     }
 
@@ -168,6 +230,7 @@ fn note_ticks(duration: &acorde_core::Duration, dot_count: u8, tuplet: Option<&T
 fn build_part_track(
     part: &acorde_core::Part,
     seq: &[usize],
+    starts: &[u64],
 ) -> Result<Vec<TrackEvent<'static>>, Error> {
     let channel = u4::from(part.midi_channel.min(15));
     let mut events: Vec<TimedEvent> = Vec::new();
@@ -245,6 +308,8 @@ fn build_part_track(
                     Some(m) => m,
                     None => continue,
                 };
+                // Each bar's voice starts at its bar, whatever the previous bar held.
+                cursor = starts.get(seq_position).copied().unwrap_or(cursor);
                 let transpose = if part.midi_channel == 9 {
                     0i8
                 } else {

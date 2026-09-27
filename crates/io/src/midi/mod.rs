@@ -107,9 +107,17 @@ pub fn parse_midi(data: &[u8]) -> Result<Score, Error> {
         return Err(Error::Empty);
     }
 
+    let key_changes = smf
+        .tracks
+        .first()
+        .map(|track| collect_key_changes(track))
+        .unwrap_or_default();
     let mut score = Score::default();
     score.settings.tempo_bpm = tempo_bpm;
     score.settings.time_signature = ts;
+    if let Some((0, key)) = key_changes.first() {
+        score.settings.key_signature = key.clone();
+    }
     if !score_title.is_empty() {
         score.metadata.title = score_title;
     }
@@ -128,6 +136,7 @@ pub fn parse_midi(data: &[u8]) -> Result<Score, Error> {
             &tempo_changes,
             &time_signature_changes,
         );
+        apply_key_changes(&mut measures, ppq, numerator, denominator, &key_changes);
         let mut staff = Staff::new(Clef::Treble);
         staff.measures = measures;
         let mut part = Part::new(&name, &short);
@@ -590,6 +599,47 @@ fn collect_meta_changes(track: &[midly::TrackEvent]) -> MidiMetaChanges {
         }
     }
     (tempo_changes, time_signature_changes)
+}
+
+/// Key signature meta events of the conductor track as (tick, key).
+fn collect_key_changes(track: &[midly::TrackEvent]) -> Vec<(u64, acorde_core::KeySignature)> {
+    let mut tick = 0_u64;
+    let mut changes = Vec::new();
+    for event in track {
+        tick += u64::from(event.delta.as_int());
+        if let TrackEventKind::Meta(MetaMessage::KeySignature(fifths, minor)) = &event.kind {
+            changes.push((
+                tick,
+                acorde_core::KeySignature {
+                    fifths: (*fifths).clamp(-7, 7),
+                    mode: if *minor { "minor" } else { "major" }.to_string(),
+                },
+            ));
+        }
+    }
+    changes
+}
+
+/// Put key signature changes on the bars they start, as tempo and meter changes are placed.
+fn apply_key_changes(
+    measures: &mut [Measure],
+    ppq: u64,
+    numerator: u8,
+    denominator: u8,
+    key_changes: &[(u64, acorde_core::KeySignature)],
+) {
+    let ticks_per_measure =
+        u64::from(numerator).saturating_mul(4).saturating_mul(ppq) / u64::from(denominator.max(1));
+    if ticks_per_measure == 0 {
+        return;
+    }
+    for (tick, key) in key_changes {
+        if tick % ticks_per_measure == 0
+            && let Some(measure) = measures.get_mut((tick / ticks_per_measure) as usize)
+        {
+            measure.key_sig = Some(key.clone());
+        }
+    }
 }
 
 fn apply_meta_changes(

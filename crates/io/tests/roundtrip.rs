@@ -5236,3 +5236,58 @@ fn abc_voice_overlays_keep_second_voices() {
     };
     assert_eq!(counts(&back), counts(&score), "{text}");
 }
+
+#[test]
+fn midi_places_every_bar_at_its_own_start_and_writes_key_signatures() {
+    use acorde_core::{Duration, KeySignature, Note, Pitch, Score, Step, TimeSignature};
+    let mut score = Score::new("bars", 120, 3, 4, 0, 3);
+    let staff = &mut score.parts[0].staves[0];
+    // Voice 2 is empty in bar 1 and plays in bar 3; bar 2 is in 2/4 and D major.
+    staff.measures[0].voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Half)];
+    staff.measures[1].time_sig = Some(TimeSignature {
+        numerator: 2,
+        denominator: 4,
+    });
+    staff.measures[1].key_sig = Some(KeySignature {
+        fifths: 2,
+        mode: "major".into(),
+    });
+    staff.measures[1].voices[0] = vec![Note::new(Pitch::new(Step::D, 4), Duration::Half)];
+    staff.measures[2].voices[1] = vec![Note::new(Pitch::new(Step::G, 3), Duration::Quarter)];
+    let bytes = acorde_io::serialize_midi(&score).expect("exports");
+    let smf = midly::Smf::parse(&bytes).expect("valid SMF");
+    let note_on_ticks = |key: u8| {
+        let mut tick = 0u64;
+        let mut found = Vec::new();
+        for event in &smf.tracks[1] {
+            tick += u64::from(event.delta.as_int());
+            if let midly::TrackEventKind::Midi {
+                message: midly::MidiMessage::NoteOn { key: k, vel },
+                ..
+            } = event.kind
+                && k.as_int() == key
+                && vel.as_int() > 0
+            {
+                found.push(tick);
+            }
+        }
+        found
+    };
+    // 3/4 bar (1440) + 2/4 bar (960): voice 2's G3 starts bar 3 at 2400, not at 0.
+    assert_eq!(note_on_ticks(55), vec![2400]);
+    let mut keys = Vec::new();
+    let mut tick = 0u64;
+    for event in &smf.tracks[0] {
+        tick += u64::from(event.delta.as_int());
+        match event.kind {
+            midly::TrackEventKind::Meta(midly::MetaMessage::KeySignature(fifths, _)) => {
+                keys.push((tick, fifths));
+            }
+            midly::TrackEventKind::Meta(midly::MetaMessage::TimeSignature(n, ..)) if tick > 0 => {
+                assert_eq!((tick, n), (1440, 2));
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(keys, vec![(0, 0), (1440, 2)]);
+}
