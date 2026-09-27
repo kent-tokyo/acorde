@@ -88,15 +88,15 @@ fn read_entry(archive: &mut ZipArchive<Cursor<&[u8]>>, name: &str) -> Result<Str
             entry.size()
         )));
     }
-    let mut buf = String::new();
+    let mut buf = Vec::new();
     entry
         .take(MAX_MXL_DECOMPRESSED + 1)
-        .read_to_string(&mut buf)
+        .read_to_end(&mut buf)
         .map_err(|e| Error::Zip(format!("failed to read '{name}': {e}")))?;
     if buf.len() as u64 > MAX_MXL_DECOMPRESSED {
         return Err(Error::TooLarge(buf.len()));
     }
-    Ok(buf)
+    crate::decode_xml_text(&buf)
 }
 
 fn find_score_entry(archive: &mut ZipArchive<Cursor<&[u8]>>) -> Result<String, Error> {

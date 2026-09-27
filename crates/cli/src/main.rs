@@ -546,26 +546,26 @@ fn parse_score(path: &Path) -> Result<Score, String> {
 
     match ext.as_str() {
         "xml" | "musicxml" => {
-            let xml = String::from_utf8(data)
-                .map_err(|e| format!("invalid UTF-8 in '{}': {e}", path.display()))?;
+            let xml = acorde_io::decode_xml_text(&data)
+                .map_err(|e| format!("cannot decode '{}': {e}", path.display()))?;
             acorde_io::parse_musicxml(&xml).map_err(|e| e.to_string())
         }
         "mxl" => acorde_io::parse_mxl(&data).map_err(|e| e.to_string()),
         "mid" | "midi" => acorde_io::parse_midi(&data).map_err(|e| e.to_string()),
         "abc" => {
-            let text = String::from_utf8(data)
-                .map_err(|e| format!("invalid UTF-8 in '{}': {e}", path.display()))?;
+            let text = acorde_io::decode_xml_text(&data)
+                .map_err(|e| format!("cannot decode '{}': {e}", path.display()))?;
             acorde_io::parse_abc(&text).map_err(|e| e.to_string())
         }
         "mei" => {
-            let text = String::from_utf8(data)
-                .map_err(|e| format!("invalid UTF-8 in '{}': {e}", path.display()))?;
+            let text = acorde_io::decode_xml_text(&data)
+                .map_err(|e| format!("cannot decode '{}': {e}", path.display()))?;
             acorde_io::parse_mei(&text).map_err(|e| e.to_string())
         }
         "mscz" => acorde_io::parse_mscz(&data).map_err(|e| e.to_string()),
         "mscx" => {
-            let xml = String::from_utf8(data)
-                .map_err(|e| format!("invalid UTF-8 in '{}': {e}", path.display()))?;
+            let xml = acorde_io::decode_xml_text(&data)
+                .map_err(|e| format!("cannot decode '{}': {e}", path.display()))?;
             acorde_io::parse_mscx(&xml).map_err(|e| e.to_string())
         }
         other => Err(format!("unsupported input format: '.{other}'")),
@@ -581,22 +581,22 @@ fn parse_report(path: &Path) -> Result<ImportReport, String> {
     let data = std::fs::read(path).map_err(|e| format!("cannot read '{}': {e}", path.display()))?;
     match ext.as_str() {
         "xml" | "musicxml" => {
-            let text = String::from_utf8(data).map_err(|e| format!("invalid UTF-8: {e}"))?;
+            let text = acorde_io::decode_xml_text(&data).map_err(|e| e.to_string())?;
             acorde_io::parse_musicxml_with_report(&text).map_err(|e| e.to_string())
         }
         "mxl" => acorde_io::parse_mxl_with_report(&data).map_err(|e| e.to_string()),
         "mid" | "midi" => acorde_io::parse_midi_with_report(&data).map_err(|e| e.to_string()),
         "abc" => {
-            let text = String::from_utf8(data).map_err(|e| format!("invalid UTF-8: {e}"))?;
+            let text = acorde_io::decode_xml_text(&data).map_err(|e| e.to_string())?;
             acorde_io::parse_abc_with_report(&text).map_err(|e| e.to_string())
         }
         "mei" => {
-            let text = String::from_utf8(data).map_err(|e| format!("invalid UTF-8: {e}"))?;
+            let text = acorde_io::decode_xml_text(&data).map_err(|e| e.to_string())?;
             acorde_io::parse_mei_with_report(&text).map_err(|e| e.to_string())
         }
         "mscz" => acorde_io::parse_mscz_with_report(&data).map_err(|e| e.to_string()),
         "mscx" => {
-            let text = String::from_utf8(data).map_err(|e| format!("invalid UTF-8: {e}"))?;
+            let text = acorde_io::decode_xml_text(&data).map_err(|e| e.to_string())?;
             acorde_io::parse_mscx_with_report(&text).map_err(|e| e.to_string())
         }
         other => Err(format!("unsupported input format: '.{other}'")),

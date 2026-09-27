@@ -3802,3 +3802,26 @@ fn musicxml_explicit_beams_import_and_round_trip() {
         expected
     );
 }
+
+#[cfg(feature = "musicxml")]
+#[test]
+fn utf16_musicxml_decodes_and_parses() {
+    let xml = "<?xml version='1.0' encoding='UTF-16'?><score-partwise><part-list><score-part id=\"P1\"><part-name>Cantus</part-name></score-part></part-list><part id=\"P1\"><measure number=\"1\"><attributes><divisions>1</divisions></attributes><note><pitch><step>G</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure></part></score-partwise>";
+    let units = xml.encode_utf16().collect::<Vec<_>>();
+    let mut little = vec![0xFF, 0xFE];
+    little.extend(units.iter().flat_map(|unit| unit.to_le_bytes()));
+    let mut big = vec![0xFE, 0xFF];
+    big.extend(units.iter().flat_map(|unit| unit.to_be_bytes()));
+    let no_bom = units
+        .iter()
+        .flat_map(|unit| unit.to_le_bytes())
+        .collect::<Vec<_>>();
+    let mut utf8_bom = vec![0xEF, 0xBB, 0xBF];
+    utf8_bom.extend(xml.as_bytes());
+    for bytes in [little, big, no_bom, utf8_bom] {
+        let text = acorde_io::decode_xml_text(&bytes).expect("decodes");
+        let score = parse_musicxml(&text).expect("decoded MusicXML parses");
+        assert_eq!(score.parts[0].staves[0].measures[0].voices[0].len(), 1);
+    }
+    assert!(acorde_io::decode_xml_text(&[0xFF, 0xFE, 0x3C]).is_err());
+}

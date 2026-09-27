@@ -24,6 +24,42 @@ pub(crate) const MAX_ABC_LINE_BYTES: usize = 1024 * 1024;
 pub(crate) const MAX_MIDI_EVENTS: usize = 500_000;
 
 pub use error::Error;
+
+/// Decode an XML document's bytes to text: UTF-8 (with or without a byte-order mark) or UTF-16
+/// LE/BE (with a byte-order mark, or detected from the `<?xml` prefix). Many MusicXML files from
+/// Finale/Sibelius era tools are UTF-16; readers such as MuseScore open them.
+pub fn decode_xml_text(data: &[u8]) -> Result<String, Error> {
+    if data.len() > MAX_INPUT_BYTES.saturating_mul(2) {
+        return Err(Error::TooLarge(data.len()));
+    }
+    let utf16 = |bytes: &[u8], little_endian: bool| -> Result<String, Error> {
+        if bytes.len() % 2 != 0 {
+            return Err(Error::Xml("UTF-16 input has an odd number of bytes".into()));
+        }
+        let units = bytes.chunks_exact(2).map(|pair| {
+            if little_endian {
+                u16::from_le_bytes([pair[0], pair[1]])
+            } else {
+                u16::from_be_bytes([pair[0], pair[1]])
+            }
+        });
+        char::decode_utf16(units)
+            .collect::<Result<String, _>>()
+            .map_err(|error| Error::Xml(format!("invalid UTF-16 input: {error}")))
+    };
+    match data {
+        [0xEF, 0xBB, 0xBF, rest @ ..] => std::str::from_utf8(rest)
+            .map(str::to_string)
+            .map_err(|error| Error::Xml(format!("invalid UTF-8 input: {error}"))),
+        [0xFF, 0xFE, rest @ ..] => utf16(rest, true),
+        [0xFE, 0xFF, rest @ ..] => utf16(rest, false),
+        [b'<', 0, b'?', 0, ..] => utf16(data, true),
+        [0, b'<', 0, b'?', ..] => utf16(data, false),
+        _ => std::str::from_utf8(data)
+            .map(str::to_string)
+            .map_err(|error| Error::Xml(format!("invalid UTF-8 input: {error}"))),
+    }
+}
 pub use report::{
     Diagnostic, DiagnosticSeverity, ExportReport, ImportReport, REPORT_SCHEMA_VERSION,
 };
