@@ -9,6 +9,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **SVG volta brackets, repeat starts, bar numbers and arpeggios.** Voltas (1st/2nd endings)
+  were not drawn at all; they now appear over the top staff with their number, a closing hook
+  at the ending's last bar, and an unlabelled continuation into the next system. A forward
+  repeat inside a system was drawn only at a system's start; it is drawn wherever it falls,
+  with room for its dots, and an end-start repeat barline has dots on both sides. Every system
+  after the first shows its first bar number above the clef. Rolled chords (`arpeggiate`)
+  get a wavy line left of the chord, with an arrowhead for a downward roll, and space for it.
 - **Ottava lines.** MusicXML `octave-shift` directions were read the wrong way round: `down`
   (notes displayed an octave below their pitch, an 8va) became an 8vb, and export wrote the
   mirror image, so interchange with MuseScore, Verovio and other tools flipped every octave

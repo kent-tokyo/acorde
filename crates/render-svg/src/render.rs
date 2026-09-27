@@ -160,6 +160,8 @@ pub(crate) fn build_svg_with_metadata(
     let mut note_points: HashMap<NoteKey, NotePoint> = HashMap::new();
     let ottava_shifts = ottava_display_shifts(score);
     let mut resolved_annotation_obstacles = Vec::new();
+    // A volta (1st/2nd ending) still open at the end of a system, by ending number.
+    let mut open_volta: Option<u8> = None;
 
     for (row_idx, row) in layout.rows.iter().enumerate() {
         if row.measure_indices.is_empty() {
@@ -354,6 +356,8 @@ pub(crate) fn build_svg_with_metadata(
             .map(|state| state.clef.clone())
             .collect();
         let mut mx = left_margin_u * space + header_width_u * space;
+        // Where the current system's volta segment starts, and whether it opens there.
+        let mut volta_start_x: Option<(f32, bool)> = None;
         for (col, &measure_idx) in row.measure_indices.iter().enumerate() {
             let mwidth = measure_widths[col];
             for (si_idx, &(pi, si)) in staff_refs.iter().enumerate() {
@@ -440,7 +444,9 @@ pub(crate) fn build_svg_with_metadata(
                 space,
                 false,
             );
-            if col == 0 && !matches!(measure.barline_left, Barline::Normal) {
+            // A bar's own left barline (a forward repeat) is drawn over the previous bar's
+            // right one inside a system too, not only at its start.
+            if !matches!(measure.barline_left, Barline::Normal) {
                 write_barline(
                     &mut body,
                     &measure.barline_left,
@@ -450,6 +456,84 @@ pub(crate) fn build_svg_with_metadata(
                     space,
                     true,
                 );
+            }
+            // Bar number above the clef of every system after the first.
+            if col == 0 && row_idx > 0 {
+                let _ = write!(
+                    body,
+                    r#"<text class="acorde-measure-number" x="{}" y="{}" font-family="serif" font-style="italic" font-size="{}">{}</text>"#,
+                    f(left_margin_u * space),
+                    f(system_top_y - 1.2 * space),
+                    f(1.2 * space),
+                    measure.number.max(1)
+                );
+            }
+            // Volta brackets over the top staff: opened with their number, closed with a
+            // hook at an ending's last bar, carried unlabelled into the next system.
+            let volta_y = system_top_y - 2.4 * space;
+            let begins = measure
+                .volta
+                .as_ref()
+                .filter(|volta| matches!(volta.kind.as_str(), "begin" | "begin_end"));
+            if let Some(volta) = begins {
+                open_volta = Some(volta.number);
+                volta_start_x = Some((mx + 0.2 * space, true));
+                let _ = write!(
+                    body,
+                    r#"<text class="acorde-volta-number" x="{}" y="{}" font-family="serif" font-size="{}">{}.</text>"#,
+                    f(mx + 0.5 * space),
+                    f(volta_y + 1.3 * space),
+                    f(1.3 * space),
+                    volta.number
+                );
+            } else if col == 0 && open_volta.is_some() {
+                volta_start_x = Some((mx, false));
+            }
+            let ends = measure
+                .volta
+                .as_ref()
+                .is_some_and(|volta| matches!(volta.kind.as_str(), "end" | "begin_end"));
+            let row_ends = col + 1 == row.measure_indices.len();
+            if let Some((start_x, hooked)) = volta_start_x
+                && (ends || row_ends)
+            {
+                let end_x = mx + mwidth - 0.2 * space;
+                let hook = |x: f32| {
+                    format!(
+                        r#" M {} {} L {} {}"#,
+                        f(x),
+                        f(volta_y + 1.8 * space),
+                        f(x),
+                        f(volta_y)
+                    )
+                };
+                let left = if hooked {
+                    hook(start_x)
+                } else {
+                    format!(" M {} {}", f(start_x), f(volta_y))
+                };
+                let right = if ends {
+                    format!(
+                        " L {} {} L {} {}",
+                        f(end_x),
+                        f(volta_y),
+                        f(end_x),
+                        f(volta_y + 1.8 * space)
+                    )
+                } else {
+                    format!(" L {} {}", f(end_x), f(volta_y))
+                };
+                let _ = write!(
+                    body,
+                    r#"<path class="acorde-volta" d="{}{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                    left.trim_start(),
+                    right,
+                    f(0.1 * space)
+                );
+                volta_start_x = None;
+                if ends {
+                    open_volta = None;
+                }
             }
             mx += mwidth;
         }
@@ -2533,15 +2617,23 @@ fn write_barline(
             body.push_str(&glyphs::barline(x, top_y, bottom_y, space, true));
         }
         Barline::RepeatBoth => {
-            write_repeat_dots(body, x - 0.45 * space, top_y, bottom_y, space);
+            write_repeat_dots(body, x - 0.55 * space, top_y, bottom_y, space);
             body.push_str(&glyphs::barline(
-                x - 0.25 * space,
+                x - 0.35 * space,
                 top_y,
                 bottom_y,
                 space,
                 false,
             ));
             body.push_str(&glyphs::barline(x, top_y, bottom_y, space, true));
+            body.push_str(&glyphs::barline(
+                x + 0.35 * space,
+                top_y,
+                bottom_y,
+                space,
+                false,
+            ));
+            write_repeat_dots(body, x + 0.55 * space, top_y, bottom_y, space);
         }
     }
     let _ = is_left;
@@ -2610,8 +2702,28 @@ fn render_measure(
             })
         })
         .fold(MEASURE_PAD_U, f32::max);
-    // A clef change drawn at the bar's start also pushes its content along.
-    let lead_u = lead_u + clef_lead_u;
+    // A clef change drawn at the bar's start also pushes its content along, as do the dots of
+    // a forward repeat.
+    let repeat_lead_u = if matches!(
+        measure.barline_left,
+        Barline::RepeatStart | Barline::RepeatBoth
+    ) {
+        0.8
+    } else {
+        0.0
+    };
+    // A rolled first chord's wavy line sits left of its accidentals.
+    let arpeggio_lead_u = if measure.voices.iter().any(|voice| {
+        voice
+            .iter()
+            .find(|note| !note.is_grace)
+            .is_some_and(|note| note.arpeggiate.is_some() && !note.is_rest)
+    }) {
+        0.8
+    } else {
+        0.0
+    };
+    let lead_u = lead_u + clef_lead_u + repeat_lead_u + arpeggio_lead_u;
     let content_x0 = x + lead_u * space;
     let content_w = (width - (lead_u + MEASURE_PAD_U) * space).max(space);
     let clef_bottom = geometry::clef_bottom_line(clef)?;
@@ -4273,7 +4385,9 @@ fn event_pair_clearance_u(left: &Note, right: &Note) -> f32 {
     // Accidentals sit wholly left of their notehead, so they widen only the gap before
     // their own event; halving the sum of both footprints let a wide accidental (a double
     // flat) run into the previous stem.
-    let right_accidental = accidental_footprint_u(right);
+    // A rolled chord's wavy line takes room before its own event, like an accidental.
+    let right_accidental =
+        accidental_footprint_u(right) + if right.arpeggiate.is_some() { 0.8 } else { 0.0 };
     let notation = (note_notation_footprint_u(left) + note_notation_footprint_u(right)) / 2.0
         + 0.18
         + (right_accidental - accidental_footprint_u(left)).max(0.0) / 2.0
@@ -5399,9 +5513,81 @@ fn render_note(
         tablature_rhythm_display,
         tablature_fret_mark_style,
     )?;
+    if tablature.is_none() && !note.is_rest && !note.is_unpitched {
+        if let Some(upward) = note.arpeggiate {
+            write_arpeggio(
+                body,
+                note,
+                clef_bottom,
+                x,
+                placed_staff_bottom_y,
+                space,
+                upward,
+            );
+        }
+    }
 
     body.push_str("</g>");
     Ok(())
+}
+
+/// A rolled-chord wavy line left of the chord (and its accidentals), a little beyond its outer
+/// noteheads, with an arrowhead at the foot for a downward roll.
+fn write_arpeggio(
+    body: &mut String,
+    note: &Note,
+    clef_bottom: i32,
+    x: f32,
+    staff_bottom_y: f32,
+    space: f32,
+    upward: bool,
+) {
+    let ys: Vec<f32> = note
+        .pitches
+        .iter()
+        .map(|pitch| {
+            staff_bottom_y
+                + geometry::position_y(
+                    geometry::staff_position(&pitch.step, pitch.octave, clef_bottom),
+                    space,
+                )
+        })
+        .collect();
+    let (Some(top), Some(bottom)) = (
+        ys.iter().copied().reduce(f32::min),
+        ys.iter().copied().reduce(f32::max),
+    ) else {
+        return;
+    };
+    let (top, bottom) = (top - 0.6 * space, bottom + 0.6 * space);
+    let line_x = x - (glyphs::NOTEHEAD_RX_U + 0.45 + accidental_footprint_u(note)) * space;
+    let half_wave = 0.25 * space;
+    let mut d = format!("M {} {}", f(line_x), f(top));
+    let mut y = top;
+    let mut side = 1.0;
+    while y + half_wave < bottom {
+        y += half_wave;
+        let _ = write!(d, " L {} {}", f(line_x + side * 0.18 * space), f(y));
+        side = -side;
+    }
+    let _ = write!(d, " L {} {}", f(line_x), f(bottom));
+    let _ = write!(
+        body,
+        r#"<path class="acorde-arpeggio" d="{d}" fill="none" stroke="black" stroke-width="{}" stroke-linejoin="round"/>"#,
+        f(0.12 * space)
+    );
+    if !upward {
+        let _ = write!(
+            body,
+            r#"<path class="acorde-arpeggio-arrow" d="M {} {} L {} {} L {} {} Z" fill="black"/>"#,
+            f(line_x - 0.3 * space),
+            f(bottom - 0.5 * space),
+            f(line_x + 0.3 * space),
+            f(bottom - 0.5 * space),
+            f(line_x),
+            f(bottom + 0.1 * space)
+        );
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

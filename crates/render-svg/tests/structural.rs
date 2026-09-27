@@ -3196,3 +3196,64 @@ fn notes_under_an_8va_line_are_drawn_an_octave_below_their_pitch() {
     assert!((shifted[2] - (plain[2] + 3.5 * space)).abs() < 0.01);
     assert!((shifted[3] - plain[3]).abs() < 0.01);
 }
+
+#[test]
+fn voltas_repeat_starts_and_system_bar_numbers_are_drawn() {
+    use acorde_core::{Barline, Duration, Note, Pitch, Score, Step, VoltaBracket};
+    let mut score = Score::new("voltas", 120, 4, 4, 0, 6);
+    for (index, measure) in score.parts[0].staves[0].measures.iter_mut().enumerate() {
+        measure.number = index as u32 + 1;
+        measure.voices[0] = (0..4)
+            .map(|_| Note::new(Pitch::new(Step::G, 4), Duration::Quarter))
+            .collect();
+    }
+    let measures = &mut score.parts[0].staves[0].measures;
+    measures[1].barline_left = Barline::RepeatStart;
+    measures[2].volta = Some(VoltaBracket {
+        number: 1,
+        kind: "begin".into(),
+    });
+    measures[3].volta = Some(VoltaBracket {
+        number: 1,
+        kind: "end".into(),
+    });
+    measures[3].barline_right = Barline::RepeatEnd;
+    measures[4].volta = Some(VoltaBracket {
+        number: 2,
+        kind: "begin_end".into(),
+    });
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(svg.matches(r#"class="acorde-volta""#).count(), 2);
+    assert!(svg.contains(">1.</text>") && svg.contains(">2.</text>"));
+    // The forward repeat inside the first system is drawn (two dots each side of the pair).
+    assert!(
+        svg.matches("acorde-augmentation-dot").count() >= 4 || svg.matches("<circle").count() >= 4
+    );
+    // The second system is numbered with its first bar.
+    assert!(svg.contains(r#"class="acorde-measure-number""#));
+    assert!(svg.contains(">5</text>"));
+}
+
+#[test]
+fn rolled_chords_draw_a_wavy_line_left_of_the_chord() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("arpeggio", 120, 4, 4, 0, 1);
+    let mut chord = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+    chord.pitches.push(Pitch::new(Step::G, 4));
+    chord.arpeggiate = Some(false);
+    score.parts[0].staves[0].measures[0].voices[0] = vec![chord];
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(svg.matches(r#"class="acorde-arpeggio""#).count(), 1);
+    assert_eq!(svg.matches("acorde-arpeggio-arrow").count(), 1);
+    let line_x: f32 = svg
+        .split(r#"class="acorde-arpeggio" d="M "#)
+        .nth(1)
+        .and_then(|rest| rest.split(' ').next()?.parse().ok())
+        .unwrap();
+    let head_x: f32 = svg
+        .split(r#"class="acorde-notehead" cx=""#)
+        .nth(1)
+        .and_then(|rest| rest.split('"').next()?.parse().ok())
+        .unwrap();
+    assert!(line_x < head_x - opts().staff_size);
+}
