@@ -397,6 +397,9 @@ pub(crate) fn parse_musicxml_collecting(
     let mut score_instrument_name: Option<String> = None;
     let mut score_instrument_key: Option<u8> = None;
     let mut in_transpose = false;
+    let mut transpose_chromatic: i32 = 0;
+    let mut transpose_octaves: i32 = 0;
+    let mut transpose_staff: Option<usize> = None;
     // <part-group> tracking: map group number → (start_part_index, symbol, barlines_connect)
     let mut open_groups: std::collections::HashMap<String, (usize, PartGroupSymbol, bool)> =
         std::collections::HashMap::new();
@@ -530,7 +533,14 @@ pub(crate) fn parse_musicxml_collecting(
                         barline_location =
                             attr_str(e, b"location").unwrap_or_else(|| "right".to_string());
                     }
-                    "transpose" => in_transpose = true,
+                    "transpose" => {
+                        in_transpose = true;
+                        transpose_chromatic = 0;
+                        transpose_octaves = 0;
+                        transpose_staff = attr_str(e, b"number")
+                            .and_then(|value| value.parse::<usize>().ok())
+                            .and_then(|number| number.checked_sub(1));
+                    }
                     "direction" => {
                         in_direction = true;
                         pending_direction_placement = attr_str(e, b"placement");
@@ -1827,13 +1837,27 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "transpose" => {
                         in_transpose = false;
+                        // Written-to-sounding interval: `<chromatic>` semitones plus
+                        // `<octave-change>` octaves (a guitar or a double bass sounds an octave
+                        // below its written notes), for the staff it names or every staff.
+                        let semitones = (transpose_chromatic + 12 * transpose_octaves)
+                            .clamp(i32::from(i8::MIN), i32::from(i8::MAX))
+                            as i8;
+                        if let Some(pi) = part_index {
+                            for (staff_index, staff) in
+                                score.parts[pi].staves.iter_mut().enumerate()
+                            {
+                                if transpose_staff.is_none_or(|number| number == staff_index) {
+                                    staff.transpose_semitones = semitones;
+                                }
+                            }
+                        }
                     }
                     "chromatic" if in_transpose => {
-                        if let Ok(v) = current_text.trim().parse::<i8>()
-                            && let Some(pi) = part_index
-                        {
-                            score.parts[pi].staves[0].transpose_semitones = v;
-                        }
+                        transpose_chromatic = current_text.trim().parse().unwrap_or(0);
+                    }
+                    "octave-change" if in_transpose => {
+                        transpose_octaves = current_text.trim().parse().unwrap_or(0);
                     }
                     "step" if in_pitch => {
                         note_step = match current_text.as_str() {

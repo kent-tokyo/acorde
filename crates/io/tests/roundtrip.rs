@@ -5548,3 +5548,33 @@ fn octave_and_c_clefs_round_trip_through_musicxml_mei_and_mscx() {
         "MSCX",
     );
 }
+
+#[test]
+fn musicxml_transpose_keeps_its_octave_change() {
+    // Bass clarinet: a major ninth down (a second plus an octave).
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Bass Clarinet</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef><transpose><diatonic>-1</diatonic><chromatic>-2</chromatic><octave-change>-1</octave-change></transpose></attributes><note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#;
+    let score = parse_musicxml(xml).expect("parses");
+    assert_eq!(score.parts[0].staves[0].transpose_semitones, -14);
+    let written = serialize_musicxml(&score).expect("serializes");
+    assert!(written.contains("<diatonic>-1</diatonic>"));
+    assert!(written.contains("<chromatic>-2</chromatic>"));
+    assert!(written.contains("<octave-change>-1</octave-change>"));
+    let back = parse_musicxml(&written).expect("reparses");
+    assert_eq!(back.parts[0].staves[0].transpose_semitones, -14);
+    // MEI `@trans.semi` and MuseScore's concert pitches with `transposeChromatic`.
+    let mei = acorde_io::serialize_mei(&score).expect("MEI");
+    assert!(mei.contains(r#"trans.diat="-8" trans.semi="-14""#));
+    let from_mei = acorde_io::parse_mei(&mei).expect("MEI reparses");
+    let from_mscx =
+        acorde_io::parse_mscx(&acorde_io::serialize_mscx(&score).expect("MSCX")).expect("MSCX");
+    for (format, back) in [("MEI", from_mei), ("MSCX", from_mscx)] {
+        let staff = &back.parts[0].staves[0];
+        assert_eq!(staff.transpose_semitones, -14, "{format}");
+        let pitch = &staff.measures[0].voices[0][0].pitches[0];
+        assert_eq!(
+            (pitch.step.clone(), pitch.octave),
+            (acorde_core::Step::D, 5),
+            "{format}"
+        );
+    }
+}

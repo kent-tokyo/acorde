@@ -263,9 +263,22 @@ pub fn serialize_mscx(score: &Score) -> Result<String, Error> {
             write!(xml, "<shortName>{}</shortName>", escape(&part.short_name))
                 .map_err(fmt_error)?;
         }
+        write!(xml, "<Instrument>").map_err(fmt_error)?;
+        let transpose = part
+            .staves
+            .first()
+            .map_or(0, |staff| staff.transpose_semitones);
+        if transpose != 0 {
+            write!(
+                xml,
+                "<transposeDiatonic>{}</transposeDiatonic><transposeChromatic>{transpose}</transposeChromatic>",
+                transpose_steps(transpose)
+            )
+            .map_err(fmt_error)?;
+        }
         write!(
             xml,
-            "<Instrument><Channel><program value=\"{}\"/><midiChannel>{}</midiChannel></Channel></Instrument>",
+            "<Channel><program value=\"{}\"/><midiChannel>{}</midiChannel></Channel></Instrument>",
             part.midi_program.min(127),
             part.midi_channel.min(15)
         )
@@ -591,6 +604,7 @@ fn write_staff(
                         melisma,
                         marks.map_or("", |marks| marks.inside.as_str()),
                         staff_in_part,
+                        staff.transpose_semitones,
                     )?;
                     if tuplets.iter().any(|&(_, end)| end == note_index) {
                         xml.push_str("<endTuplet/>");
@@ -842,6 +856,7 @@ fn write_note(
     melisma: Option<acorde_core::MeasureLength>,
     chord_spanners: &str,
     staff_in_part: usize,
+    transpose: i8,
 ) -> Result<(), Error> {
     // A fermata is its own element before the chord or rest it sits over.
     if note
@@ -949,13 +964,26 @@ fn write_note(
         .map_err(fmt_error)?;
     }
     for (pitch_index, pitch) in note.pitches.iter().enumerate() {
-        write!(
-            xml,
-            "<Note><pitch>{}</pitch><tpc>{}</tpc>",
-            pitch.to_midi().clamp(0, 127),
-            pitch_tpc(pitch)
-        )
-        .map_err(fmt_error)?;
+        if transpose == 0 {
+            write!(
+                xml,
+                "<Note><pitch>{}</pitch><tpc>{}</tpc>",
+                pitch.to_midi().clamp(0, 127),
+                pitch_tpc(pitch)
+            )
+            .map_err(fmt_error)?;
+        } else {
+            // MuseScore stores concert pitch, with the written spelling in `tpc2`.
+            let concert = transpose_pitch(pitch, transpose);
+            write!(
+                xml,
+                "<Note><pitch>{}</pitch><tpc>{}</tpc><tpc2>{}</tpc2>",
+                concert.to_midi().clamp(0, 127),
+                pitch_tpc(&concert),
+                pitch_tpc(pitch)
+            )
+            .map_err(fmt_error)?;
+        }
         if note.note_head != NoteHead::Normal {
             write!(xml, "<head>{}</head>", note_head_name(&note.note_head)).map_err(fmt_error)?;
         }
@@ -1150,6 +1178,40 @@ fn pitch_tpc(pitch: &Pitch) -> i32 {
         Step::B => 19,
     };
     natural + i32::from(pitch.alter) * 7
+}
+
+/// Letter steps of a transposition of `semitones` (a major second is one step, a perfect fifth
+/// four), the usual spelling of each interval class.
+fn transpose_steps(semitones: i8) -> i32 {
+    const STEPS: [i32; 12] = [0, 1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6];
+    let semitones = i32::from(semitones);
+    let octaves = semitones / 12;
+    let rest = semitones % 12;
+    octaves * 7 + rest.signum() * STEPS[rest.unsigned_abs() as usize]
+}
+
+/// `pitch` moved by `semitones`, spelled a letter distance of [`transpose_steps`] away.
+fn transpose_pitch(pitch: &Pitch, semitones: i8) -> Pitch {
+    const STEPS: [Step; 7] = [
+        Step::C,
+        Step::D,
+        Step::E,
+        Step::F,
+        Step::G,
+        Step::A,
+        Step::B,
+    ];
+    let index = STEPS
+        .iter()
+        .position(|step| *step == pitch.step)
+        .unwrap_or(0) as i32;
+    let target = i32::from(pitch.octave) * 7 + index + transpose_steps(semitones);
+    let step = STEPS[target.rem_euclid(7) as usize].clone();
+    let octave = target.div_euclid(7) as i8;
+    let natural = Pitch::new(step.clone(), octave).to_midi();
+    let wanted = pitch.to_midi() + i16::from(semitones);
+    let alter = (wanted - natural).clamp(-2, 2) as i8;
+    Pitch::with_microtone(step, octave, alter, pitch.microtone_cents)
 }
 
 fn microtone_subtype(cents: i16) -> Option<&'static str> {

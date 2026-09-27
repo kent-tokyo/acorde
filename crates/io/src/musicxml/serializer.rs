@@ -342,11 +342,21 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                     xml.push_str("        </staff-details>\n");
                 }
                 if i == 0 && staff.transpose_semitones != 0 {
+                    // Whole octaves go to `<octave-change>`; `<diatonic>` gives the letter
+                    // distance importers use to spell the written notes.
+                    let semitones = i32::from(staff.transpose_semitones);
+                    let (octaves, chromatic) = (semitones / 12, semitones % 12);
+                    const STEPS: [i32; 12] = [0, 1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6];
+                    let diatonic = chromatic.signum() * STEPS[chromatic.unsigned_abs() as usize];
                     xml.push_str("        <transpose>\n");
                     xml.push_str(&format!(
-                        "          <chromatic>{}</chromatic>\n",
-                        staff.transpose_semitones
+                        "          <diatonic>{diatonic}</diatonic>\n          <chromatic>{chromatic}</chromatic>\n"
                     ));
+                    if octaves != 0 {
+                        xml.push_str(&format!(
+                            "          <octave-change>{octaves}</octave-change>\n"
+                        ));
+                    }
                     xml.push_str("        </transpose>\n");
                 }
                 if let Some(count) = measure.multi_rest_count

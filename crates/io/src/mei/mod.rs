@@ -2311,6 +2311,13 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 score.parts[0].staves[staff_index].clef = clef;
                             }
                         }
+                        // A transposing instrument: written notes sound `trans.semi` away.
+                        if !in_section
+                            && let Some(semitones) =
+                                attr(&event, b"trans.semi").and_then(|value| value.parse().ok())
+                        {
+                            score.parts[0].staves[staff_index].transpose_semitones = semitones;
+                        }
                         if in_section
                             && let Some(time) = parse_meter(
                                 attr(&event, b"meter.count"),
@@ -4100,6 +4107,15 @@ fn append_mei_pitch_attrs(out: &mut String, pitch: &Pitch, written: bool) {
     }
 }
 
+/// Letter steps of a transposition of `semitones` (a major second is one step), for
+/// `@trans.diat`.
+fn mei_transpose_steps(semitones: i8) -> i32 {
+    const STEPS: [i32; 12] = [0, 1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6];
+    let semitones = i32::from(semitones);
+    let rest = semitones % 12;
+    semitones / 12 * 7 + rest.signum() * STEPS[rest.unsigned_abs() as usize]
+}
+
 /// Pitch name and octave only: the accidental goes in an `<accid>` child (Verovio warns when a
 /// note has both `@accid`/`@accid.ges` and an `<accid>`).
 fn append_mei_pname_oct(out: &mut String, pitch: &Pitch) {
@@ -4679,6 +4695,13 @@ fn append_mei_staff_defs_at(
                 "<staffDef n=\"{}\"{clef_attrs}",
                 offset + staff_index + 1,
             )),
+        }
+        let transpose = staves[staff_index].transpose_semitones;
+        if transpose != 0 {
+            out.push_str(&format!(
+                " trans.diat=\"{}\" trans.semi=\"{transpose}\"",
+                mei_transpose_steps(transpose)
+            ));
         }
         let tuning = tablature.map(mei_tuning).unwrap_or_default();
         let first = if staff_index == 0 { first_content } else { "" };

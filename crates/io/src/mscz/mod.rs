@@ -134,6 +134,10 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut cur_part_name = String::new();
     let mut cur_part_short_name = String::new();
     let mut cur_part_program: u8 = 0;
+    // The part's written-to-sounding interval (`Instrument/transposeChromatic`) and, per staff
+    // id, the interval its notes were converted by: MuseScore stores concert pitches.
+    let mut cur_part_transpose: i8 = 0;
+    let mut staff_transpose: HashMap<usize, i8> = HashMap::new();
     let mut cur_part_channel: u8 = 0;
     let mut cur_part_staff_ids: Vec<usize> = Vec::new();
     let mut cur_part_staff_count = 0usize;
@@ -198,6 +202,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     // KeySig parsing
     let mut in_keysig = false;
     let mut keysig_accidental: i8 = 0;
+    // MuseScore 4 writes `<concertKey>` and, on a transposing staff, `<actualKey>`.
+    let mut keysig_actual: Option<i8> = None;
     let mut keysig_mode = String::new();
 
     // TimeSig parsing
@@ -283,6 +289,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut in_note_elem = false;
     let mut note_midi: i32 = 60;
     let mut note_tpc: i32 = 14;
+    let mut note_tpc2: Option<i32> = None;
     let mut note_head = NoteHead::Normal;
     let mut note_microtone_cents: i16 = 0;
     let mut in_accidental = false;
@@ -388,6 +395,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         cur_part_short_name.clear();
                         cur_part_program = 0;
                         cur_part_channel = 0;
+                        cur_part_transpose = 0;
                         cur_part_staff_ids.clear();
                         cur_part_staff_count = 0;
                         cur_part_staff_group_specs.clear();
@@ -467,6 +475,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "KeySig" if in_measure => {
                         in_keysig = true;
                         keysig_accidental = 0;
+                        keysig_actual = None;
                         keysig_mode.clear();
                     }
                     "TimeSig" if in_measure => {
@@ -585,6 +594,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         note_tie_end = false;
                         note_midi = 60;
                         note_tpc = 14;
+                        note_tpc2 = None;
                         note_head = NoteHead::Normal;
                         note_microtone_cents = 0;
                         note_accidental_display = AccidentalDisplay::Auto;
@@ -875,6 +885,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "shortName" if in_part => {
                         cur_part_short_name = t.to_string();
                     }
+                    "transposeChromatic" if in_instrument => {
+                        cur_part_transpose = t.trim().parse().unwrap_or(0);
+                    }
                     "Instrument" if in_part => {
                         in_instrument = false;
                     }
@@ -891,6 +904,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         in_bar_line_span = false;
                     }
                     "Part" if in_part => {
+                        if cur_part_transpose != 0 {
+                            for &id in &cur_part_staff_ids {
+                                staff_transpose.insert(id, cur_part_transpose);
+                            }
+                        }
                         for (index, clef) in instrument_clefs.drain(..) {
                             if let Some(&id) = cur_part_staff_ids.get(index - 1) {
                                 part_default_clefs.entry(id).or_insert(clef);
@@ -1026,8 +1044,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
 
                     // KeySig
-                    "accidental" if in_keysig => {
+                    "accidental" | "concertKey" if in_keysig => {
                         keysig_accidental = t.parse().unwrap_or(0);
+                    }
+                    "actualKey" if in_keysig => {
+                        keysig_actual = t.parse().ok();
                     }
                     "mode" if in_keysig => {
                         keysig_mode = t.to_string();
@@ -1039,7 +1060,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             keysig_mode.as_str()
                         };
                         cur_key = Some(KeySignature {
-                            fifths: keysig_accidental,
+                            fifths: keysig_actual.unwrap_or(keysig_accidental),
                             mode: mode.to_string(),
                         });
                         in_keysig = false;
@@ -1279,6 +1300,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "tpc" if in_note_elem => {
                         note_tpc = t.parse().unwrap_or(14);
+                    }
+                    "tpc2" if in_note_elem => {
+                        note_tpc2 = t.parse().ok();
                     }
                     "subtype" if in_accidental => {
                         note_microtone_cents = match t {
@@ -1560,7 +1584,21 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
 
                     // Note close
                     "Note" if in_note_elem => {
-                        let pitch = tpc_midi_to_pitch(note_tpc, note_midi);
+                        // A transposing staff keeps written pitches: the concert pitch moved by
+                        // the instrument's interval, spelled by `tpc2` when present.
+                        let transpose = current_staff_id
+                            .and_then(|id| staff_transpose.get(&id))
+                            .copied()
+                            .unwrap_or(0);
+                        let pitch = if transpose == 0 {
+                            tpc_midi_to_pitch(note_tpc, note_midi)
+                        } else {
+                            let written = note_midi - i32::from(transpose);
+                            match note_tpc2 {
+                                Some(tpc2) => tpc_midi_to_pitch(tpc2, written),
+                                None => Pitch::from_midi(written.clamp(0, 127) as u8, false),
+                            }
+                        };
                         chord_pitches.push(Pitch::with_microtone(
                             pitch.step,
                             pitch.octave,
@@ -1786,7 +1824,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
         parts_meta,
         staff_measures,
         staff_clefs,
-        (staff_tablature, staff_presentation_lines),
+        (staff_tablature, staff_presentation_lines, staff_transpose),
     )
 }
 
@@ -2406,13 +2444,17 @@ fn assemble_score(
     parts_meta: Vec<PartMeta>,
     mut staff_measures: HashMap<usize, Vec<Measure>>,
     staff_clefs: HashMap<usize, Clef>,
-    staff_formats: (HashMap<usize, TablatureConfig>, HashMap<usize, u8>),
+    staff_formats: (
+        HashMap<usize, TablatureConfig>,
+        HashMap<usize, u8>,
+        HashMap<usize, i8>,
+    ),
 ) -> Result<Score, Error> {
     // Replace the default Score parts with the parsed content.
     score.parts.clear();
     score.metadata = metadata;
     score.texts = score_texts;
-    let (staff_tablature, staff_presentation_lines) = staff_formats;
+    let (staff_tablature, staff_presentation_lines, staff_transpose) = staff_formats;
 
     let build_staves = |ids: &[usize],
                         staff_measures: &mut HashMap<usize, Vec<Measure>>,
@@ -2493,6 +2535,9 @@ fn assemble_score(
                 &staff_tablature,
                 &staff_presentation_lines,
             );
+            for (staff, id) in part.staves.iter_mut().zip(&ids) {
+                staff.transpose_semitones = staff_transpose.get(id).copied().unwrap_or(0);
+            }
             let mut group_start = 0usize;
             for spec in meta.staff_group_specs {
                 if spec.span >= 2 && group_start.saturating_add(spec.span) <= part.staves.len() {
@@ -3260,6 +3305,42 @@ mod tests {
             score.parts[0].staves[0].measures[0].voices[0][0].pitches[0].microtone_cents,
             50
         );
+    }
+
+    #[test]
+    fn mscx_transposing_instrument_keeps_written_pitch_and_concert_pitch() {
+        // MuseScore 4: a B-flat clarinet in concert C major, written in D major.
+        let xml = r#"
+        <museScore version="4.20"><Score>
+          <Part><Staff id="1"/><trackName>Clarinet</trackName>
+            <Instrument><transposeDiatonic>-1</transposeDiatonic><transposeChromatic>-2</transposeChromatic></Instrument>
+          </Part>
+          <Staff id="1"><Measure><voice>
+            <KeySig><concertKey>0</concertKey><actualKey>2</actualKey></KeySig>
+            <TimeSig><sigN>1</sigN><sigD>4</sigD></TimeSig>
+            <Chord><durationType>quarter</durationType><Note><pitch>72</pitch><tpc>14</tpc><tpc2>16</tpc2></Note></Chord>
+          </voice></Measure></Staff>
+        </Score></museScore>"#;
+        let check = |score: &Score| {
+            let staff = &score.parts[0].staves[0];
+            assert_eq!(staff.transpose_semitones, -2);
+            let pitch = &staff.measures[0].voices[0][0].pitches[0];
+            assert_eq!(
+                (pitch.step.clone(), pitch.octave, pitch.alter),
+                (Step::D, 5, 0)
+            );
+            let key = staff.measures[0]
+                .key_sig
+                .as_ref()
+                .map_or(score.settings.key_signature.fifths, |key| key.fifths);
+            assert_eq!(key, 2);
+        };
+        let score = parse_mscx(xml).expect("parses");
+        check(&score);
+        let written = crate::mscz::serialize::serialize_mscx(&score).expect("serializes");
+        assert!(written.contains("<transposeChromatic>-2</transposeChromatic>"));
+        assert!(written.contains("<pitch>72</pitch><tpc>14</tpc><tpc2>16</tpc2>"));
+        check(&parse_mscx(&written).expect("reparses"));
     }
 
     #[test]

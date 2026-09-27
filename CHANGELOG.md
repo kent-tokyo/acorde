@@ -9,6 +9,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Transposing instruments across formats.** MusicXML `<transpose>` kept only `<chromatic>`,
+  so a guitar or double bass (`<octave-change>-1`) and a bass clarinet played an octave high;
+  the octave now counts, a `number` applies it to one staff (it was always the first), and
+  export writes `<diatonic>` and `<octave-change>`. MEI now reads and writes `@trans.semi`/
+  `@trans.diat`, and MuseScore files read and write `transposeChromatic`: MuseScore stores
+  concert pitch, so a clarinet part was imported at concert pitch and exported with its written
+  notes as if they sounded; written pitches now come from `tpc2` and concert pitches are written
+  back with both spellings. MuseScore 4 key signatures (`<concertKey>`/`<actualKey>`, instead of
+  3.x's `<accidental>`) were read as C major; they are now kept.
+
 - **Octave clefs and C clefs on every line.** `Clef` had only treble, bass, alto, tenor and
   percussion: a tenor voice's treble clef with an 8 below (86 of 205 corpus scores) lost its 8
   and was drawn an octave too high with ledger lines, and soprano, mezzo-soprano and baritone
