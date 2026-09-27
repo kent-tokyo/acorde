@@ -33,6 +33,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and entity references such as `&amp;` were removed from all text.
 - The OpenScore fixtures now load in Verovio 6.3 with an empty toolkit log, and Verovio's own
   re-encoding imports back with the same notes, chords, verses, marks, and spans.
+- MEI tablature: `<tuning>`/`<course>` become the staff's `TablatureConfig`, `<tabGrp>` notes
+  with only `@tab.course`/`@tab.fret` take their pitch from the tuning, and tablature staves
+  export as `notationtype="tab.guitar"` with `<tabGrp>`. Tablature MEI previously failed to
+  import. A single named part keeps its name as a `<label>`.
+- MusicXML export now validates against the official MusicXML 4.0 XSD; before, every exported
+  fixture was invalid, and the Lieder fixture had 713 errors. `<note>` children are written in
+  schema order. Chord members repeat the chord's dots, ties, and tuplet ratio, and their tab
+  positions go inside `<notations>`. Beams are written, either explicit or the default beat
+  grouping, and tuplets get `<tuplet>` bracket notations. Part ids that are not XML names are
+  written as `P-<id>`, and text positions move from `<direction>` to `<words>`/`<rehearsal>`.
+- MusicXML import reads `<beam>` groups into `BeamState`. Before, explicit beaming was replaced
+  by default beat grouping.
 - MuseScore import now sets each staff's starting clef from `Part/Staff/defaultClef` and
   `Instrument/clef`. Before, bass-clef instruments and piano left hands imported in treble. A
   clef change in a later measure also no longer replaces the starting clef.

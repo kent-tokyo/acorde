@@ -35,7 +35,10 @@ older acorde forms: layer-level `<artic>`/`<ornam>`/`<dynam>`, `<barLine>` insid
 `@key.sig`, and staff-level `@meter.count`. A layer `<mRest/>` now imports as one whole rest,
 the canonical measure rest, instead of an empty measure with `multi_rest_count = 1`. An MEI file
 whose first `scoreDef` labels its staves now imports as several parts. MuseScore files whose
-staves start in a non-treble clef now import with that clef.
+staves start in a non-treble clef now import with that clef. MusicXML export changes
+element order to match the schema, adds `<beam>` and `<tuplet>` elements, and writes part ids
+that are not XML names as `P-<id>`. MusicXML import now fills `Note.beam` from `<beam>`, so
+imported notes can carry explicit `BeamState` values where they were `None` before.
 
 ### Unreleased — measure rests and string techniques
 
