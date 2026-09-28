@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.17] - 2026-09-28
+
 - **Endings for several passes.** `VoltaBracket` gains `numbers` (with `passes`, `plays_on`,
   `label` and `parse_passes`) for an ending played on several passes (`1, 2.`, `1.–3.`), and
   playback repeats the section until the last ending's pass — `|: A |1, 2. B :|3. C` plays A B

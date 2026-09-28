@@ -25,26 +25,20 @@ fall back to `ReplaceScore`, preserving target-score data instead of silently dr
 
 ## Current release
 
-### Unreleased — endings for several passes
+### v1.2.17 — durations, endings, and expression techniques
 
 `VoltaBracket` gains `numbers: Vec<u8>` (omitted from JSON when empty; `number` stays the first
 pass). Code that builds `VoltaBracket` with a struct literal needs the field (`Vec::new()` for a
 single-pass ending). `measure_sequence` now repeats a section once per ending pass.
-
-### Unreleased — chord-note fingerings
 
 `Note` gains `pitch_fingerings: Vec<Option<u8>>`: the fingering of each chord note, parallel to
 `pitches` (the chord's `fingering`/`fingerings` still list them all for display). It is empty for
 single notes and omitted from JSON when empty. Read it with `Note::pitch_fingering(i)` and write
 it with `Note::set_pitch_fingering`.
 
-### Unreleased — tapping, vibrato and jazz slides
-
 `Articulation` gains `Tap`, `LeftHandTap` and `Vibrato` (all three are MusicXML technical
 marks, so `is_technical_mark` is true for them) and `Scoop`, `Plop`, `Doit` and `Falloff`.
 Exhaustive `Articulation` matches need the arms.
-
-### Unreleased — breves and 128th notes
 
 `Duration` gains `Breve` (two whole notes) and `HundredTwentyEighth`. Existing score JSON is
 unchanged; exhaustive `Duration` matches need the two arms. `ScaleVoiceRangeCmd` now doubles a whole
