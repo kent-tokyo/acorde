@@ -5,5 +5,8 @@ pub use acorde_core as core;
 pub use acorde_io as io;
 pub use acorde_layout as layout;
 
+#[cfg(feature = "omr")]
+pub use acorde_omr as omr;
+
 #[cfg(feature = "soundfont")]
 pub use acorde_soundfont as soundfont;

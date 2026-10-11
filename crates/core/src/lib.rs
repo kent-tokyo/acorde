@@ -52,6 +52,12 @@ pub use model::notation::{
     OttavaKind, StyledText, TabPosition, TablatureConfig, TextStyle, TimeSignature, TupletInfo,
     VerseLyric,
 };
+pub use model::omr::{
+    MAX_OMR_ANNOTATIONS, MAX_OMR_EVENTS_PER_MEASURE, MAX_OMR_MEASURES, MAX_OMR_PAGES,
+    OMR_PROPOSAL_CONTRACT_VERSION, OmrCommandPlan, OmrDiagnostic, OmrDiagnosticKind,
+    OmrMeasureProposal, OmrMeasureTarget, OmrNoteAnnotation, OmrNoteAnnotationProposal,
+    OmrNoteTarget, OmrPage, OmrProposal, OmrRegion, OmrRhythmicEvent, OmrUnresolvedItem,
+};
 pub use model::pitch::{Pitch, Step};
 pub use model::playback::{
     DynamicTimeline, MAX_PLAYBACK_COMPARISON_EVENTS, MAX_TAB_PERFORMANCE_EVENTS, MetronomeConfig,

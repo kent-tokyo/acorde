@@ -44,6 +44,19 @@ fn score_to_json(score: &Score) -> Result<String, JsValue> {
     serde_json::to_string(score).map_err(|e| js_err(format!("score serialization failed: {e}")))
 }
 
+fn recognize_omr_png_json(data: &[u8], config_json: &str) -> Result<String, String> {
+    if config_json.len() > MAX_SMALL_JSON_BYTES {
+        return Err(format!(
+            "OMR config JSON exceeds limit: {} bytes",
+            config_json.len()
+        ));
+    }
+    let config: acorde_omr::RecognitionConfig =
+        serde_json::from_str(config_json).map_err(|e| format!("invalid OMR config JSON: {e}"))?;
+    let report = acorde_omr::recognize_png(data, &config).map_err(|e| e.to_string())?;
+    serde_json::to_string(&report).map_err(|e| format!("OMR report serialization failed: {e}"))
+}
+
 /// Return the version of the browser-facing SVG metadata contract.
 #[wasm_bindgen]
 pub fn svg_contract_version() -> u32 {
@@ -54,6 +67,23 @@ pub fn svg_contract_version() -> u32 {
 #[wasm_bindgen]
 pub fn glyph_resource_contract_version() -> u32 {
     u32::from(acorde_layout::GLYPH_RESOURCE_CONTRACT_VERSION)
+}
+
+/// Return the version of the untrusted OMR proposal contract.
+#[wasm_bindgen]
+pub fn omr_proposal_contract_version() -> u32 {
+    acorde_core::OMR_PROPOSAL_CONTRACT_VERSION
+}
+
+/// Analyze a bounded PNG image and return a reviewable OMR report as JSON.
+///
+/// The result includes an editable draft score, a provider-neutral proposal, source geometry, and
+/// diagnostics. It never applies a command or writes an MSCZ file. Hosts must build a command plan
+/// from the proposal, present any diagnostics for review, and only then use the ordinary
+/// `ScoreEngine` and `serialize_mscz` APIs.
+#[wasm_bindgen]
+pub fn recognize_omr_png(data: &[u8], config_json: &str) -> Result<String, JsValue> {
+    recognize_omr_png_json(data, config_json).map_err(js_err)
 }
 
 /// Validate and return a host-provided glyph resource descriptor JSON object.
@@ -2031,6 +2061,56 @@ impl ScoreEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn synthetic_omr_png() -> Vec<u8> {
+        use png::{BitDepth, ColorType, Encoder};
+
+        let (width, height) = (160_u32, 70_u32);
+        let mut pixels = vec![255_u8; (width * height) as usize];
+        let mut darken = |x: u32, y: u32| pixels[(y * width + x) as usize] = 0;
+        for y in [20, 25, 30, 35, 40] {
+            for x in 8..152 {
+                darken(x, y);
+            }
+        }
+        for x in [8, 80, 151] {
+            for y in 20..41 {
+                darken(x, y);
+            }
+        }
+        for center_x in [35, 115] {
+            for y in 27..34 {
+                for x in center_x - 4..=center_x + 4 {
+                    let dx = x as i32 - center_x as i32;
+                    let dy = y as i32 - 30;
+                    if dx * dx + dy * dy <= 16 {
+                        darken(x, y);
+                    }
+                }
+            }
+        }
+        let mut encoded = Vec::new();
+        let mut encoder = Encoder::new(&mut encoded, width, height);
+        encoder.set_color(ColorType::Grayscale);
+        encoder.set_depth(BitDepth::Eight);
+        let mut writer = encoder.write_header().unwrap();
+        writer.write_image_data(&pixels).unwrap();
+        drop(writer);
+        encoded
+    }
+
+    #[test]
+    fn omr_png_report_is_available_without_a_wasm_runtime() {
+        let config = serde_json::to_string(&acorde_omr::RecognitionConfig::default()).unwrap();
+        let report: serde_json::Value =
+            serde_json::from_str(&recognize_omr_png_json(&synthetic_omr_png(), &config).unwrap())
+                .unwrap();
+        assert_eq!(report["proposal"]["contract_version"], 1);
+        assert_eq!(
+            report["proposal"]["measures"].as_array().map(Vec::len),
+            Some(2)
+        );
+    }
 
     #[test]
     fn score_roundtrip_via_json() {

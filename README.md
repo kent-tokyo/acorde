@@ -19,6 +19,7 @@ input bytes/text → acorde-io → Score → acorde-layout → LayoutResult
 | `acorde-io` | MusicXML/MXL and MIDI; optional ABC, MEI, MSCZ/MSCX, Guitar Pro 3–8 import |
 | `acorde-layout` | Pixel-free logical layout and print-page metadata |
 | `acorde-render-svg` | Deterministic Rust/WASM SVG renderer |
+| `acorde-omr` | Optional bounded PNG analysis that produces reviewable OMR proposals |
 | `acorde-analysis` | Deterministic explainable harmony and SATB analysis |
 | `acorde-soundfont` | Optional bounded SF2/SF3/provider integration boundary |
 | `acorde-wasm` | JavaScript bindings |
@@ -78,12 +79,23 @@ acorde print-report input.musicxml --preset a4-score --fail-on-issues
 acorde validate input.musicxml
 acorde compatibility-report source.musicxml candidate.musicxml --fail-on-differences
 acorde playback-report input.musicxml --bpm 120
+acorde omr printed-score.png draft.mscz --report draft.omr.json
+acorde omr-evaluate printed-score.png reference.mscz --report evaluation.json
+acorde omr-apply-report provider-result.json draft.mscz --report application.json
 ```
 
 Additional commands cover `info`, `report`, `preflight`, `analyze`, `benchmark`, `extract`,
 `transpose`, `normalize`, tablature assignment/performance, playback comparison, and
 machine-readable export reports. Run `acorde --help` for the complete, versioned command surface.
 CLI owns file access; the underlying library APIs accept in-memory strings or bytes.
+`omr` currently supports only the documented high-contrast, sequential one- or aligned two-staff
+PNG subset and writes no MSCZ when recognition requires review; see the
+[OMR proposal contract](docs/omr-proposal-contract.md) and [validation boundary](docs/omr-validation.md).
+`omr-evaluate` applies only an accepted proposal, compares its canonical score with a supplied
+reference score, and emits a reproducible JSON observation. It exits non-zero for rejected or
+different pairs; it does not turn a corpus observation into a general accuracy claim.
+`omr-apply-report` is the host/provider hand-off: it accepts the versioned reviewable report JSON
+and writes no MSCZ unless the same contract validation produces a ready command plan.
 
 ## Documentation
 
@@ -93,6 +105,8 @@ CLI owns file access; the underlying library APIs accept in-memory strings or by
 - [Print layout contract](docs/print-layout.md) and [page-SVG contract](docs/print-svg-contract.md)
 - [Browser contract](docs/browser-rendering.md) and [browser support checks](docs/browser-support.md)
 - [Performance evidence](docs/performance.md), [security contract](docs/security/threat-model.md), and [contribution guide](CONTRIBUTING.md)
+- [OMR proposal contract](docs/omr-proposal-contract.md) and [dependency/provider matrix](docs/omr-license-matrix.md)
+- [OMR validation boundary](docs/omr-validation.md)
 
 ## Development
 

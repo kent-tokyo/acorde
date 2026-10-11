@@ -8,6 +8,7 @@ pub mod gm;
 pub mod harmony;
 pub mod interval;
 pub mod notation;
+pub mod omr;
 pub mod pitch;
 pub mod playback;
 pub mod repeat;

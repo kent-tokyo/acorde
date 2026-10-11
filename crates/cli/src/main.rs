@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 const MAX_PLAYBACK_JSON_BYTES: usize = 64 * 1024 * 1024;
+const MAX_OMR_REPORT_BYTES: usize = 64 * 1024 * 1024;
 const RENDER_REPORT_SCHEMA_VERSION: u32 = 1;
 const PRINT_REPORT_SCHEMA_VERSION: u32 = 1;
 
@@ -103,6 +104,69 @@ enum Commands {
         input: PathBuf,
         /// Output file (.musicxml, .mid, .midi, .abc, .mei)
         output: PathBuf,
+    },
+    /// Recognize the supported printed-PNG subset and write a reviewed MuseScore .mscz draft
+    Omr {
+        /// Input high-contrast PNG score image
+        input: PathBuf,
+        /// Output MuseScore .mscz file; not written when review diagnostics are present
+        output: PathBuf,
+        /// Minimum proposal confidence required for automatic application
+        #[arg(long, default_value_t = 0.9)]
+        minimum_confidence: f32,
+        /// Luminance at or below which an input pixel is treated as dark
+        #[arg(long, default_value_t = 160)]
+        darkness_threshold: u8,
+        /// Required dark-pixel fraction for one detected staff line
+        #[arg(long, default_value_t = 0.35)]
+        minimum_staff_line_coverage: f32,
+        /// Meter numerator supplied by the caller; not inferred from image pixels
+        #[arg(long, default_value_t = 4)]
+        beats_per_measure: u8,
+        /// Meter denominator supplied by the caller; must be a power of two
+        #[arg(long, default_value_t = 4)]
+        beat_unit: u8,
+        /// Optional JSON recognition and proposal-diagnostic report path
+        #[arg(long)]
+        report: Option<PathBuf>,
+    },
+    /// Evaluate a bounded OMR PNG recognition result against a reference score
+    OmrEvaluate {
+        /// Input high-contrast PNG score image
+        input: PathBuf,
+        /// Reference score in any supported input format, normally MSCZ
+        expected: PathBuf,
+        /// Minimum proposal confidence required before comparison
+        #[arg(long, default_value_t = 0.9)]
+        minimum_confidence: f32,
+        /// Luminance at or below which an input pixel is treated as dark
+        #[arg(long, default_value_t = 160)]
+        darkness_threshold: u8,
+        /// Required dark-pixel fraction for one detected staff line
+        #[arg(long, default_value_t = 0.35)]
+        minimum_staff_line_coverage: f32,
+        /// Meter numerator supplied by the caller; not inferred from image pixels
+        #[arg(long, default_value_t = 4)]
+        beats_per_measure: u8,
+        /// Meter denominator supplied by the caller; must be a power of two
+        #[arg(long, default_value_t = 4)]
+        beat_unit: u8,
+        /// Optional JSON evaluation report path
+        #[arg(long)]
+        report: Option<PathBuf>,
+    },
+    /// Apply a reviewable OMR report JSON and write an MSCZ draft only when it is ready
+    OmrApplyReport {
+        /// JSON-serialized acorde-omr RecognitionReport from a host or provider
+        input: PathBuf,
+        /// Output MuseScore .mscz file; not written when review diagnostics are present
+        output: PathBuf,
+        /// Minimum proposal confidence required for automatic application
+        #[arg(long, default_value_t = 0.9)]
+        minimum_confidence: f32,
+        /// Optional JSON application report path
+        #[arg(long)]
+        report: Option<PathBuf>,
     },
     /// Render a score file to deterministic SVG
     Render {
@@ -384,6 +448,60 @@ fn main() {
     let cli = Cli::parse();
     let result = match &cli.command {
         Commands::Convert { input, output } => cmd_convert(input, output),
+        Commands::Omr {
+            input,
+            output,
+            minimum_confidence,
+            darkness_threshold,
+            minimum_staff_line_coverage,
+            beats_per_measure,
+            beat_unit,
+            report,
+        } => cmd_omr(
+            input,
+            output,
+            *minimum_confidence,
+            acorde_omr::RecognitionConfig {
+                time_signature: acorde_core::TimeSignature {
+                    numerator: *beats_per_measure,
+                    denominator: *beat_unit,
+                },
+                darkness_threshold: *darkness_threshold,
+                minimum_staff_line_coverage: *minimum_staff_line_coverage,
+                ..acorde_omr::RecognitionConfig::default()
+            },
+            report.as_deref(),
+        ),
+        Commands::OmrEvaluate {
+            input,
+            expected,
+            minimum_confidence,
+            darkness_threshold,
+            minimum_staff_line_coverage,
+            beats_per_measure,
+            beat_unit,
+            report,
+        } => cmd_omr_evaluate(
+            input,
+            expected,
+            *minimum_confidence,
+            acorde_omr::RecognitionConfig {
+                time_signature: acorde_core::TimeSignature {
+                    numerator: *beats_per_measure,
+                    denominator: *beat_unit,
+                },
+                darkness_threshold: *darkness_threshold,
+                minimum_staff_line_coverage: *minimum_staff_line_coverage,
+                ..acorde_omr::RecognitionConfig::default()
+            },
+            report.as_deref(),
+        ),
+        Commands::OmrApplyReport {
+            input,
+            output,
+            minimum_confidence,
+            report,
+        } => cmd_omr_apply_report(input, output, *minimum_confidence, report.as_deref()),
         Commands::Render {
             input,
             output,
@@ -1073,6 +1191,319 @@ fn cmd_convert(input: &Path, output: &Path) -> Result<(), String> {
     print_conversion_diagnostics("export", &export_diagnostics);
     println!("wrote '{}'", output.display());
     Ok(())
+}
+
+#[derive(Debug, Serialize)]
+struct OmrCliReport {
+    contract_version: u32,
+    source_path: String,
+    output_path: String,
+    recognized_systems: Vec<acorde_omr::DetectedStaffSystem>,
+    recognition_diagnostics: Vec<acorde_omr::RecognitionDiagnostic>,
+    proposal_diagnostics: Vec<acorde_core::OmrDiagnostic>,
+    command_count: usize,
+    ready: bool,
+}
+
+/// A machine-readable OMR outcome when image decoding or staff detection cannot produce a
+/// proposal. This deliberately contains no partial score data: callers must not mistake a failed
+/// image boundary for an editable draft.
+#[derive(Debug, Serialize)]
+struct OmrCliFailureReport {
+    contract_version: u32,
+    source_path: String,
+    output_path: String,
+    recognition_error: String,
+    ready: bool,
+}
+
+/// A reproducible, score-level observation for one OMR image/reference pair.
+///
+/// This is deliberately an observation rather than an accuracy percentage: a caller must keep
+/// the source image set, reference scores, and inclusion rules outside the CLI contract.
+#[derive(Debug, Serialize)]
+struct OmrEvaluationReport {
+    contract_version: u32,
+    source_path: String,
+    expected_path: String,
+    recognized_systems: Vec<acorde_omr::DetectedStaffSystem>,
+    recognition_diagnostics: Vec<acorde_omr::RecognitionDiagnostic>,
+    proposal_diagnostics: Vec<acorde_core::OmrDiagnostic>,
+    command_count: usize,
+    ready: bool,
+    compared: bool,
+    recognition_error: Option<String>,
+    expected_statistics: Option<acorde_core::ScoreStats>,
+    recognized_statistics: Option<acorde_core::ScoreStats>,
+    semantic_change_count: Option<usize>,
+    semantic_equivalent: Option<bool>,
+}
+
+fn write_omr_failure_report(
+    input: &Path,
+    output: &Path,
+    report_path: Option<&Path>,
+    recognition_error: &str,
+) -> Result<(), String> {
+    let Some(path) = report_path else {
+        return Ok(());
+    };
+    let report = OmrCliFailureReport {
+        contract_version: acorde_core::OMR_PROPOSAL_CONTRACT_VERSION,
+        source_path: input.display().to_string(),
+        output_path: output.display().to_string(),
+        recognition_error: recognition_error.to_string(),
+        ready: false,
+    };
+    let report_json = serde_json::to_string_pretty(&report)
+        .map_err(|error| format!("cannot serialize OMR failure report: {error}"))?;
+    std::fs::write(path, report_json)
+        .map_err(|error| format!("cannot write '{}': {error}", path.display()))
+}
+
+fn cmd_omr(
+    input: &Path,
+    output: &Path,
+    minimum_confidence: f32,
+    recognition_config: acorde_omr::RecognitionConfig,
+    report_path: Option<&Path>,
+) -> Result<(), String> {
+    let output_is_mscz = output
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("mscz"));
+    if !output_is_mscz {
+        return Err("OMR output must use the .mscz extension".to_string());
+    }
+    let image_size = std::fs::metadata(input)
+        .map_err(|error| format!("cannot inspect '{}': {error}", input.display()))?
+        .len();
+    if image_size > acorde_omr::MAX_PNG_BYTES as u64 {
+        return Err(format!(
+            "image exceeds the {}-byte OMR input limit",
+            acorde_omr::MAX_PNG_BYTES
+        ));
+    }
+    let image = std::fs::read(input)
+        .map_err(|error| format!("cannot read '{}': {error}", input.display()))?;
+    let recognition = match acorde_omr::recognize_png(&image, &recognition_config) {
+        Ok(recognition) => recognition,
+        Err(error) => {
+            let message = error.to_string();
+            write_omr_failure_report(input, output, report_path, &message)?;
+            return Err(format!("cannot recognize '{}': {message}", input.display()));
+        }
+    };
+    let plan = recognition.command_plan(minimum_confidence);
+    let ready = plan.is_ready() && recognition.diagnostics.is_empty();
+    let output_report = OmrCliReport {
+        contract_version: acorde_core::OMR_PROPOSAL_CONTRACT_VERSION,
+        source_path: input.display().to_string(),
+        output_path: output.display().to_string(),
+        recognized_systems: recognition.systems.clone(),
+        recognition_diagnostics: recognition.diagnostics.clone(),
+        proposal_diagnostics: plan.diagnostics.clone(),
+        command_count: plan.commands.len(),
+        ready,
+    };
+    let report_json = serde_json::to_string_pretty(&output_report)
+        .map_err(|error| format!("cannot serialize OMR report: {error}"))?;
+    if let Some(path) = report_path {
+        std::fs::write(path, &report_json)
+            .map_err(|error| format!("cannot write '{}': {error}", path.display()))?;
+    }
+    if !ready {
+        println!("{report_json}");
+        return Err("OMR result requires review; no .mscz file was written".to_string());
+    }
+    let mut engine = ScoreEngine::new();
+    engine.replace_score(recognition.draft);
+    engine
+        .batch_apply_labeled(plan.commands, "ApplyOMR")
+        .map_err(|error| format!("cannot apply OMR proposal: {error}"))?;
+    write_score(&engine.score, output)?;
+    println!("{report_json}");
+    println!("wrote '{}'", output.display());
+    Ok(())
+}
+
+fn cmd_omr_apply_report(
+    input: &Path,
+    output: &Path,
+    minimum_confidence: f32,
+    report_path: Option<&Path>,
+) -> Result<(), String> {
+    let output_is_mscz = output
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("mscz"));
+    if !output_is_mscz {
+        return Err("OMR output must use the .mscz extension".to_string());
+    }
+    let report_size = std::fs::metadata(input)
+        .map_err(|error| format!("cannot inspect '{}': {error}", input.display()))?
+        .len();
+    if report_size > MAX_OMR_REPORT_BYTES as u64 {
+        return Err(format!(
+            "OMR report exceeds the {}-byte input limit",
+            MAX_OMR_REPORT_BYTES
+        ));
+    }
+    let source = std::fs::read(input)
+        .map_err(|error| format!("cannot read '{}': {error}", input.display()))?;
+    let recognition: acorde_omr::RecognitionReport = match serde_json::from_slice(&source) {
+        Ok(recognition) => recognition,
+        Err(error) => {
+            let message = format!("cannot parse OMR report: {error}");
+            write_omr_failure_report(input, output, report_path, &message)?;
+            return Err(format!("{message} in '{}'", input.display()));
+        }
+    };
+    let plan = recognition.command_plan(minimum_confidence);
+    let ready = plan.is_ready() && recognition.diagnostics.is_empty();
+    let output_report = OmrCliReport {
+        contract_version: acorde_core::OMR_PROPOSAL_CONTRACT_VERSION,
+        source_path: input.display().to_string(),
+        output_path: output.display().to_string(),
+        recognized_systems: recognition.systems.clone(),
+        recognition_diagnostics: recognition.diagnostics.clone(),
+        proposal_diagnostics: plan.diagnostics.clone(),
+        command_count: plan.commands.len(),
+        ready,
+    };
+    let report_json = serde_json::to_string_pretty(&output_report)
+        .map_err(|error| format!("cannot serialize OMR application report: {error}"))?;
+    if let Some(path) = report_path {
+        std::fs::write(path, &report_json)
+            .map_err(|error| format!("cannot write '{}': {error}", path.display()))?;
+    }
+    if !ready {
+        println!("{report_json}");
+        return Err("OMR report requires review; no .mscz file was written".to_string());
+    }
+    let mut engine = ScoreEngine::new();
+    engine.replace_score(recognition.draft);
+    engine
+        .batch_apply_labeled(plan.commands, "ApplyOMR")
+        .map_err(|error| format!("cannot apply OMR proposal: {error}"))?;
+    write_score(&engine.score, output)?;
+    println!("{report_json}");
+    println!("wrote '{}'", output.display());
+    Ok(())
+}
+
+fn write_omr_evaluation_report(
+    report_path: Option<&Path>,
+    report: &OmrEvaluationReport,
+) -> Result<String, String> {
+    let report_json = serde_json::to_string_pretty(report)
+        .map_err(|error| format!("cannot serialize OMR evaluation report: {error}"))?;
+    if let Some(path) = report_path {
+        std::fs::write(path, &report_json)
+            .map_err(|error| format!("cannot write '{}': {error}", path.display()))?;
+    }
+    Ok(report_json)
+}
+
+fn cmd_omr_evaluate(
+    input: &Path,
+    expected: &Path,
+    minimum_confidence: f32,
+    recognition_config: acorde_omr::RecognitionConfig,
+    report_path: Option<&Path>,
+) -> Result<(), String> {
+    let image_size = std::fs::metadata(input)
+        .map_err(|error| format!("cannot inspect '{}': {error}", input.display()))?
+        .len();
+    if image_size > acorde_omr::MAX_PNG_BYTES as u64 {
+        return Err(format!(
+            "image exceeds the {}-byte OMR input limit",
+            acorde_omr::MAX_PNG_BYTES
+        ));
+    }
+    let image = std::fs::read(input)
+        .map_err(|error| format!("cannot read '{}': {error}", input.display()))?;
+    let recognition = match acorde_omr::recognize_png(&image, &recognition_config) {
+        Ok(recognition) => recognition,
+        Err(error) => {
+            let report = OmrEvaluationReport {
+                contract_version: acorde_core::OMR_PROPOSAL_CONTRACT_VERSION,
+                source_path: input.display().to_string(),
+                expected_path: expected.display().to_string(),
+                recognized_systems: Vec::new(),
+                recognition_diagnostics: Vec::new(),
+                proposal_diagnostics: Vec::new(),
+                command_count: 0,
+                ready: false,
+                compared: false,
+                recognition_error: Some(error.to_string()),
+                expected_statistics: None,
+                recognized_statistics: None,
+                semantic_change_count: None,
+                semantic_equivalent: None,
+            };
+            let report_json = write_omr_evaluation_report(report_path, &report)?;
+            println!("{report_json}");
+            return Err(format!("cannot recognize '{}': {error}", input.display()));
+        }
+    };
+
+    let plan = recognition.command_plan(minimum_confidence);
+    let ready = plan.is_ready() && recognition.diagnostics.is_empty();
+    if !ready {
+        let report = OmrEvaluationReport {
+            contract_version: acorde_core::OMR_PROPOSAL_CONTRACT_VERSION,
+            source_path: input.display().to_string(),
+            expected_path: expected.display().to_string(),
+            recognized_systems: recognition.systems,
+            recognition_diagnostics: recognition.diagnostics,
+            proposal_diagnostics: plan.diagnostics,
+            command_count: plan.commands.len(),
+            ready: false,
+            compared: false,
+            recognition_error: None,
+            expected_statistics: None,
+            recognized_statistics: None,
+            semantic_change_count: None,
+            semantic_equivalent: None,
+        };
+        let report_json = write_omr_evaluation_report(report_path, &report)?;
+        println!("{report_json}");
+        return Err("OMR result requires review; no score comparison was made".to_string());
+    }
+
+    let command_count = plan.commands.len();
+    let expected_score = parse_score(expected)?;
+    let mut engine = ScoreEngine::new();
+    engine.replace_score(recognition.draft);
+    engine
+        .batch_apply_labeled(plan.commands, "ApplyOMR")
+        .map_err(|error| format!("cannot apply OMR proposal: {error}"))?;
+    let changes = acorde_core::diff(&expected_score, &engine.score);
+    let equivalent = changes.is_empty();
+    let report = OmrEvaluationReport {
+        contract_version: acorde_core::OMR_PROPOSAL_CONTRACT_VERSION,
+        source_path: input.display().to_string(),
+        expected_path: expected.display().to_string(),
+        recognized_systems: recognition.systems,
+        recognition_diagnostics: recognition.diagnostics,
+        proposal_diagnostics: plan.diagnostics,
+        command_count,
+        ready: true,
+        compared: true,
+        recognition_error: None,
+        expected_statistics: Some(expected_score.statistics()),
+        recognized_statistics: Some(engine.score.statistics()),
+        semantic_change_count: Some(changes.len()),
+        semantic_equivalent: Some(equivalent),
+    };
+    let report_json = write_omr_evaluation_report(report_path, &report)?;
+    println!("{report_json}");
+    if equivalent {
+        Ok(())
+    } else {
+        Err("OMR recognition differs from the reference score".to_string())
+    }
 }
 
 // ── info ──────────────────────────────────────────────────────────────────────
@@ -2031,6 +2462,45 @@ fn file_fingerprint(path: &Path) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::process::Command as ProcessCommand;
+
+    fn set_black(pixels: &mut [u8], width: u32, x: u32, y: u32) {
+        pixels[y as usize * width as usize + x as usize] = 0;
+    }
+
+    fn write_synthetic_omr_png(path: &Path) {
+        let (width, height) = (240, 100);
+        let mut pixels = vec![255; width as usize * height as usize];
+        for y in [30, 40, 50, 60, 70] {
+            for x in 10..=230 {
+                set_black(&mut pixels, width, x, y);
+            }
+        }
+        for x in [10, 120, 230] {
+            for y in 30..=70 {
+                set_black(&mut pixels, width, x, y);
+            }
+        }
+        for (center_x, center_y) in [(65, 55), (175, 55)] {
+            for y in center_y - 3..=center_y + 3 {
+                for x in center_x - 5..=center_x + 5 {
+                    let dx = x as i32 - center_x as i32;
+                    let dy = y as i32 - center_y as i32;
+                    if dx * dx * 2 + dy * dy * 5 <= 45 {
+                        set_black(&mut pixels, width, x, y);
+                    }
+                }
+            }
+        }
+        let file = std::fs::File::create(path).expect("temporary PNG is writable");
+        let mut encoder = png::Encoder::new(file, width, height);
+        encoder.set_color(png::ColorType::Grayscale);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().expect("PNG header is writable");
+        writer
+            .write_image_data(&pixels)
+            .expect("PNG image data is writable");
+    }
 
     fn fixture(name: &str) -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -2052,6 +2522,237 @@ mod tests {
         assert!(!partial.is_empty());
         assert!(partial.len() <= all.len());
         assert!(partial.iter().all(|event| event.time_beats >= 0.0));
+    }
+
+    #[test]
+    fn omr_command_writes_a_reparsable_mscz_only_when_the_plan_is_ready() {
+        let stem = format!("acorde-cli-omr-{}", std::process::id());
+        let input = std::env::temp_dir().join(format!("{stem}.png"));
+        let output = std::env::temp_dir().join(format!("{stem}.mscz"));
+        let report = std::env::temp_dir().join(format!("{stem}.json"));
+        write_synthetic_omr_png(&input);
+        cmd_omr(
+            &input,
+            &output,
+            0.9,
+            acorde_omr::RecognitionConfig::default(),
+            Some(&report),
+        )
+        .expect("OMR conversion succeeds");
+        let reparsed = acorde_io::parse_mscz(&std::fs::read(&output).expect("MSCZ exists"))
+            .expect("OMR MSCZ reparses");
+        assert_eq!(reparsed.parts[0].staves[0].measures.len(), 2);
+        let report_json = std::fs::read_to_string(&report).expect("OMR report exists");
+        assert!(report_json.contains("\"ready\": true"));
+        std::fs::remove_file(input).expect("temporary PNG is removable");
+        std::fs::remove_file(output).expect("temporary MSCZ is removable");
+        std::fs::remove_file(report).expect("temporary report is removable");
+    }
+
+    #[test]
+    fn omr_command_writes_a_failure_report_without_writing_mscz() {
+        let stem = format!("acorde-cli-omr-failure-{}", std::process::id());
+        let input = std::env::temp_dir().join(format!("{stem}.png"));
+        let output = std::env::temp_dir().join(format!("{stem}.mscz"));
+        let report = std::env::temp_dir().join(format!("{stem}.json"));
+        let file = std::fs::File::create(&input).expect("temporary PNG is writable");
+        let mut encoder = png::Encoder::new(file, 16, 16);
+        encoder.set_color(png::ColorType::Grayscale);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().expect("PNG header is writable");
+        writer
+            .write_image_data(&vec![255; 16 * 16])
+            .expect("PNG image data is writable");
+        drop(writer);
+
+        let error = cmd_omr(
+            &input,
+            &output,
+            0.9,
+            acorde_omr::RecognitionConfig::default(),
+            Some(&report),
+        )
+        .expect_err("staff-free image must be rejected");
+        assert!(error.contains("no five-line staff"), "{error}");
+        assert!(!output.exists());
+        let report_json = std::fs::read_to_string(&report).expect("failure report exists");
+        assert!(report_json.contains("\"ready\": false"));
+        assert!(report_json.contains("\"recognition_error\""));
+        std::fs::remove_file(input).expect("temporary PNG is removable");
+        std::fs::remove_file(report).expect("temporary report is removable");
+    }
+
+    #[test]
+    fn omr_evaluate_compares_an_accepted_image_with_a_reference_mscz() {
+        let stem = format!("acorde-cli-omr-evaluate-{}", std::process::id());
+        let input = std::env::temp_dir().join(format!("{stem}.png"));
+        let expected = std::env::temp_dir().join(format!("{stem}.mscz"));
+        let conversion_report = std::env::temp_dir().join(format!("{stem}-conversion.json"));
+        let evaluation_report = std::env::temp_dir().join(format!("{stem}-evaluation.json"));
+        write_synthetic_omr_png(&input);
+        cmd_omr(
+            &input,
+            &expected,
+            0.9,
+            acorde_omr::RecognitionConfig::default(),
+            Some(&conversion_report),
+        )
+        .expect("synthetic OMR conversion succeeds");
+
+        cmd_omr_evaluate(
+            &input,
+            &expected,
+            0.9,
+            acorde_omr::RecognitionConfig::default(),
+            Some(&evaluation_report),
+        )
+        .expect("same image and reference are equivalent");
+        let report_json =
+            std::fs::read_to_string(&evaluation_report).expect("evaluation report exists");
+        assert!(report_json.contains("\"compared\": true"));
+        assert!(report_json.contains("\"semantic_equivalent\": true"));
+
+        std::fs::remove_file(input).expect("temporary PNG is removable");
+        std::fs::remove_file(expected).expect("temporary MSCZ is removable");
+        std::fs::remove_file(conversion_report).expect("temporary conversion report is removable");
+        std::fs::remove_file(evaluation_report).expect("temporary evaluation report is removable");
+    }
+
+    #[test]
+    fn omr_apply_report_writes_a_reparsable_mscz_for_a_ready_provider_report() {
+        let stem = format!("acorde-cli-omr-apply-report-{}", std::process::id());
+        let input = std::env::temp_dir().join(format!("{stem}.png"));
+        let provider_report = std::env::temp_dir().join(format!("{stem}-provider.json"));
+        let output = std::env::temp_dir().join(format!("{stem}.mscz"));
+        let application_report = std::env::temp_dir().join(format!("{stem}-application.json"));
+        write_synthetic_omr_png(&input);
+        let recognition = acorde_omr::recognize_png(
+            &std::fs::read(&input).expect("synthetic PNG is readable"),
+            &acorde_omr::RecognitionConfig::default(),
+        )
+        .expect("synthetic PNG is recognized");
+        std::fs::write(
+            &provider_report,
+            serde_json::to_vec(&recognition).expect("recognition report serializes"),
+        )
+        .expect("provider report is writable");
+
+        cmd_omr_apply_report(&provider_report, &output, 0.9, Some(&application_report))
+            .expect("ready provider report applies");
+        acorde_io::parse_mscz(&std::fs::read(&output).expect("MSCZ exists"))
+            .expect("provider-applied MSCZ reparses");
+        let report_json =
+            std::fs::read_to_string(&application_report).expect("application report exists");
+        assert!(report_json.contains("\"ready\": true"));
+
+        std::fs::remove_file(input).expect("temporary PNG is removable");
+        std::fs::remove_file(provider_report).expect("temporary provider report is removable");
+        std::fs::remove_file(output).expect("temporary MSCZ is removable");
+        std::fs::remove_file(application_report)
+            .expect("temporary application report is removable");
+    }
+
+    #[test]
+    fn omr_apply_report_records_malformed_json_without_writing_mscz() {
+        let stem = format!("acorde-cli-omr-apply-report-invalid-{}", std::process::id());
+        let input = std::env::temp_dir().join(format!("{stem}.json"));
+        let output = std::env::temp_dir().join(format!("{stem}.mscz"));
+        let report = std::env::temp_dir().join(format!("{stem}-application.json"));
+        std::fs::write(&input, b"not a recognition report").expect("invalid report is writable");
+
+        let error = cmd_omr_apply_report(&input, &output, 0.9, Some(&report))
+            .expect_err("malformed provider report must be rejected");
+        assert!(error.contains("cannot parse OMR report"), "{error}");
+        assert!(!output.exists());
+        let report_json = std::fs::read_to_string(&report).expect("failure report exists");
+        assert!(report_json.contains("\"ready\": false"));
+        assert!(report_json.contains("\"recognition_error\""));
+
+        std::fs::remove_file(input).expect("temporary input is removable");
+        std::fs::remove_file(report).expect("temporary application report is removable");
+    }
+
+    #[test]
+    #[ignore = "requires MuseScore Studio; set ACORDE_MUSESCORE_BIN to its mscore executable"]
+    fn omr_output_reopens_in_musescore_and_exports_parseable_musicxml() {
+        let musescore = std::env::var_os("ACORDE_MUSESCORE_BIN")
+            .map(PathBuf::from)
+            .expect("set ACORDE_MUSESCORE_BIN to the MuseScore mscore executable");
+        let stem = format!("acorde-cli-omr-musescore-{}", std::process::id());
+        let input = std::env::temp_dir().join(format!("{stem}.png"));
+        let mscz = std::env::temp_dir().join(format!("{stem}.mscz"));
+        let omr_report = std::env::temp_dir().join(format!("{stem}-omr.json"));
+        let musicxml = std::env::temp_dir().join(format!("{stem}.musicxml"));
+        let muse_home = std::env::temp_dir().join(format!("{stem}-musescore-home"));
+        std::fs::create_dir_all(&muse_home).expect("isolated MuseScore home is writable");
+        write_synthetic_omr_png(&input);
+        cmd_omr(
+            &input,
+            &mscz,
+            0.9,
+            acorde_omr::RecognitionConfig::default(),
+            Some(&omr_report),
+        )
+        .expect("synthetic OMR conversion succeeds");
+
+        let status = ProcessCommand::new(&musescore)
+            .arg("-F")
+            .arg("-o")
+            .arg(&musicxml)
+            .arg(&mscz)
+            .env("HOME", &muse_home)
+            .env("XDG_CONFIG_HOME", &muse_home)
+            .env("XDG_DATA_HOME", &muse_home)
+            .status()
+            .expect("MuseScore process starts");
+        let reparsed = status.success().then(|| parse_score(&musicxml));
+
+        std::fs::remove_file(input).expect("temporary PNG is removable");
+        std::fs::remove_file(mscz).expect("temporary MSCZ is removable");
+        std::fs::remove_file(omr_report).expect("temporary OMR report is removable");
+        if musicxml.exists() {
+            std::fs::remove_file(&musicxml).expect("temporary MusicXML is removable");
+        }
+        std::fs::remove_dir_all(muse_home).expect("isolated MuseScore home is removable");
+        assert!(status.success(), "MuseScore exited with {status}");
+        let reparsed = reparsed
+            .expect("MuseScore must produce a reparseable output on success")
+            .expect("MuseScore MusicXML output reparses");
+        assert_eq!(reparsed.parts[0].staves[0].measures.len(), 2);
+    }
+
+    #[test]
+    fn omr_evaluate_records_a_withheld_image_without_comparing_the_reference() {
+        let stem = format!("acorde-cli-omr-evaluate-withheld-{}", std::process::id());
+        let input = std::env::temp_dir().join(format!("{stem}.png"));
+        let absent_reference = std::env::temp_dir().join(format!("{stem}-missing.mscz"));
+        let report = std::env::temp_dir().join(format!("{stem}.json"));
+        let file = std::fs::File::create(&input).expect("temporary PNG is writable");
+        let mut encoder = png::Encoder::new(file, 16, 16);
+        encoder.set_color(png::ColorType::Grayscale);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().expect("PNG header is writable");
+        writer
+            .write_image_data(&vec![255; 16 * 16])
+            .expect("PNG image data is writable");
+        drop(writer);
+
+        let error = cmd_omr_evaluate(
+            &input,
+            &absent_reference,
+            0.9,
+            acorde_omr::RecognitionConfig::default(),
+            Some(&report),
+        )
+        .expect_err("staff-free image must be withheld before reference parsing");
+        assert!(error.contains("no five-line staff"), "{error}");
+        let report_json = std::fs::read_to_string(&report).expect("withheld report exists");
+        assert!(report_json.contains("\"ready\": false"));
+        assert!(report_json.contains("\"compared\": false"));
+        assert!(report_json.contains("\"recognition_error\""));
+
+        std::fs::remove_file(input).expect("temporary PNG is removable");
+        std::fs::remove_file(report).expect("temporary report is removable");
     }
 
     #[test]

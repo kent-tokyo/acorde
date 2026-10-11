@@ -4,6 +4,24 @@ This page summarizes compatibility-relevant changes from older releases. Detaile
 is kept in [`CHANGELOG.md`](../CHANGELOG.md); current APIs and feature boundaries are documented
 in the crate READMEs and the [notation coverage matrix](notation-coverage.md).
 
+## Unreleased — reviewed OMR proposal boundary
+
+`acorde-core` adds the provider-neutral `OmrProposal` API and `acorde-omr` adds an optional,
+in-memory PNG adapter. This is additive to Score JSON: no `Score`, `Measure`, or `Note` field
+changes. Consumers building `OmrRhythmicEvent` literals must add the serde-defaulted
+`is_unpitched`, `instrument_id`, and `tab_positions` fields (or use `note`/`rest` constructors).
+
+The proposal contract has serde-defaulted `annotations` for typed dynamics, lyrics, and chord
+symbols, which can target only notes in a complete recognized measure. Consumers that construct
+`OmrProposal` or exhaustively match `OmrDiagnosticKind` need to handle the added values. Browser
+hosts can call `recognize_omr_png`; it returns a review report only and never writes an MSCZ file
+or mutates a `ScoreEngine`.
+
+`RecognitionConfig` now accepts a serde-defaulted `time_signature`: existing configuration JSON
+continues to mean 4/4, while hosts can supply another valid power-of-two meter. The CLI exposes
+this only as explicit caller input (`--beats-per-measure` and `--beat-unit`); it does not infer a
+time signature from the image.
+
 ## v0.3–v0.5 — browser contract and hardening
 
 The `Score → LayoutResult → SVG` pipeline and stable `part:staff:measure:voice:note` addresses

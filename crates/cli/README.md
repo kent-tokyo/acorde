@@ -6,6 +6,9 @@ Command-line conversion and inspection tool for acorde.
 cargo install acorde-cli
 
 acorde convert input.mid output.musicxml
+acorde omr printed-score.png draft.mscz --report draft.omr.json
+acorde omr-evaluate printed-score.png reference.mscz --report evaluation.json
+acorde omr-apply-report provider-result.json draft.mscz --report application.json
 acorde convert input.musicxml output.abc
 acorde convert input.musicxml output.mei
 acorde render input.musicxml output.svg
@@ -38,6 +41,29 @@ acorde fingering-report guitar.musicxml --policy lowest
 
 `auto-tab-report` prints JSON containing assigned/remaining notes, chord count, total and maximum
 fret, while writing the optimized score to the requested output path.
+`omr` accepts an in-memory bounded PNG through the CLI file boundary and writes a MuseScore MSCZ
+only when the initial high-contrast, treble-clef whole/quarter-note subset produces a
+complete, high-confidence proposal with no diagnostics. It accepts either one staff or one aligned
+two-staff system. Its default meter is 4/4; callers can explicitly set another power-of-two meter
+with `--beats-per-measure` and `--beat-unit`. `--report` records detected geometry and review diagnostics; it also records a
+typed recognition failure when no proposal can be built. It does not use an
+external OMR/AI provider, and does not support JPEG, handwriting, lyrics, TAB, three or more
+staves, multiple voices, or general printed notation yet.
+
+`--darkness-threshold` and `--minimum-staff-line-coverage` let a caller tune the bounded local
+staff detector for a preprocessed scan. `--beats-per-measure` and `--beat-unit` set the meter the
+caller already knows; the adapter does not infer it from image pixels. These options never relax
+the complete-measure, confidence, or review requirements for MSCZ output.
+
+`omr-evaluate` is the local per-pair corpus gate. It applies only a ready proposal, compares the
+canonical result with a supplied reference score, and emits statistics plus the semantic change
+count. It exits non-zero for rejected or differing pairs; aggregate accuracy remains the caller's
+version-pinned corpus calculation.
+
+`omr-apply-report` is the provider hand-off. It reads a bounded JSON-serialized
+`acorde_omr::RecognitionReport`, repeats the core proposal validation, and writes MSCZ only for a
+ready result. A host should keep source images, provider credentials, consent, and its review UI
+outside this CLI contract.
 `tab-performance-report` prints the bounded core playback/tablature projection as JSON. It checks
 authored string/fret positions against tuning and capo, accepts an optional `--bpm` override, and
 supports `--fail-on-diagnostics` for a non-zero local CI gate.

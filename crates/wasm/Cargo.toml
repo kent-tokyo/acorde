@@ -16,6 +16,7 @@ crate-type = ["cdylib", "rlib"]
 acorde-core   = { path = "../core", version = "1.2.17" }
 acorde-io     = { path = "../io", version = "1.2.17", features = ["abc", "gp", "mscz", "mei"] }
 acorde-layout = { path = "../layout", version = "1.2.17" }
+acorde-omr    = { path = "../omr", version = "1.2.17" }
 acorde-render-svg = { path = "../render-svg", version = "1.2.17" }
 acorde-analysis = { path = "../analysis", version = "1.2.17" }
 acorde-soundfont = { path = "../soundfont", version = "1.2.17" }
@@ -26,6 +27,7 @@ serde_json   = "1"
 getrandom = { version = "0.4", features = ["wasm_js"] }
 
 [dev-dependencies]
+png = "0.17"
 wasm-bindgen-test = "0.3"
 
 [lints]

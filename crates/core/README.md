@@ -5,6 +5,11 @@ Score data model and command engine for Rust and WebAssembly.
 This crate has no I/O, filesystem, renderer, or async-runtime dependency. It provides Score, Part,
 Staff, Measure, Note, notation types, ScoreEngine, serializable Command values, undo/redo,
 validation, playback-event generation, score diff/patch, transposition, and music-theory helpers.
+For host-owned optical music recognition, the provider-neutral `OmrProposal` contract retains
+normalized source regions and confidence values, then produces all-or-nothing reviewed command
+plans; it never decodes images or contacts an OMR/AI provider. It can carry typed dynamic, lyric,
+and chord-symbol annotations only for recognized note events, plus lossless TAB position and
+unpitched-percussion event metadata for provider-owned OMR adapters.
 Playback-event generation coalesces contiguous authored ties into one continuous event while
 keeping malformed or non-contiguous tie endings observable as separate events.
 Pitches preserve fractional cents, and playback events expose exact MIDI-cent values in addition to

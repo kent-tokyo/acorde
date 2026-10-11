@@ -10,6 +10,7 @@ The enforcement column makes unfinished hardening visible.
 |---|---|---|---|
 | `acorde-io` | MusicXML, MXL, MIDI, ABC, MEI, MSCZ/MSCX bytes | panic, decompression or allocation exhaustion, lossy import | parser + caller |
 | `acorde-core` | JSON `Score`, commands, addresses | invalid state, partial mutation, history growth | model API |
+| `acorde-core` OMR contract | host-supplied proposal JSON and opaque page identifiers | invalid geometry, oversized proposal, partial transcription | proposal validator + host review |
 | `acorde-layout` | score and layout configuration | CPU exhaustion, invalid indices, non-terminating work | layout API |
 | `acorde-render-svg` | score, layout, options, annotation text | SVG active content, oversized output, invalid geometry | renderer API |
 | WASM host | caller strings/bytes and JS values | memory growth, exception confusion, stale state | bindings + host |
@@ -32,6 +33,7 @@ silently raise limits based on input data.
 | MIDI events | 500,000 | enforced before MIDI score construction |
 | ABC logical line | 1 MiB | enforced before ABC token scanning |
 | Score parts/staves/measures/voices | caller budget | model/layout validation boundary |
+| OMR proposal pages / voice measures / events per measure | 1,000 / 100,000 / 4,096 | enforced by `OmrProposal::command_plan` |
 | Command history | 200 entries by default | enforced by `CommandStack` |
 | SVG dimensions/options | finite positive values | enforced by renderer |
 | SVG annotations | 10,000 marks; 16 KiB UTF-8 text per mark | enforced by renderer |
@@ -53,6 +55,8 @@ even when a host presents them as one user-facing error.
 - Untrusted text is context-escaped before SVG/XML emission; caller-provided SVG fragments are
   not accepted by the render annotation API.
 - Failed commands and invalid layouts do not silently produce a success result.
+- OMR proposals remain host-owned untrusted drafts: image bytes, paths, URLs, credentials, and
+  model execution do not enter `acorde-core`; any proposal diagnostic clears its command plan.
 - Fuzz/soak tests must cover 0-byte input, 64 MiB-class garbage, malformed archives, hostile
   metadata/text, invalid JSON, and extreme score dimensions before a security gate is closed.
 
