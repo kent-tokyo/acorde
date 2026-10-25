@@ -126,9 +126,9 @@ jobs:
           size=$(stat -c%s crates/wasm/pkg/acorde_wasm_bg.wasm)
           echo "WASM bytes: $size"
           # The web binding includes score I/O, logical layout, SVG rendering,
-          # and analysis. Keep the optimized binary below 5 MiB while allowing
-          # the current 4.56 MiB feature-complete baseline to evolve safely.
-          test "$size" -le 5242880
+          # and analysis. zip 9's memory-safe zlib-rs backend raises the
+          # feature-complete baseline to 5.47 MiB; retain a narrow 5.5 MiB cap.
+          test "$size" -le 5767168
 
   renderer-benchmark:
     name: Renderer performance budget

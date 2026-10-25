@@ -1324,14 +1324,11 @@ fn apply_note_effects_rest(node: &Node, note: &mut Note, losses: &mut Losses) {
     if node.child("Vibrato").is_some() && !note.articulations.contains(&Articulation::Vibrato) {
         note.articulations.push(Articulation::Vibrato);
     }
-    for (element, code, reason) in [(
-        "RightFingering",
-        "gp.unsupported-right-hand-fingering",
-        "right-hand (p-i-m-a-c) fingering is not imported",
-    )] {
-        if node.child(element).is_some() {
-            losses.add(code, reason);
-        }
+    if node.child("RightFingering").is_some() {
+        losses.add(
+            "gp.unsupported-right-hand-fingering",
+            "right-hand (p-i-m-a-c) fingering is not imported",
+        );
     }
     // Left-hand fingering: GPIF letters I/M/A/C are fingers 1–4 and P the thumb (0), kept
     // per string of a chord.
