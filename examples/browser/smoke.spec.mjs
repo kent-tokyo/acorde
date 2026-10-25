@@ -42,7 +42,10 @@ test("browser contract renders and exposes selectable notes", async ({ page }) =
     fullPage: true,
     animations: "disabled",
     caret: "hide",
-    maxDiffPixelRatio: 0.01,
+    // Browser engines and runner images can rasterize the same deterministic SVG differently.
+    // Structural SVG and renderer golden tests remain exact; this browser smoke threshold catches
+    // material host-facing regressions without failing on known cross-engine antialiasing drift.
+    maxDiffPixelRatio: 0.03,
     threshold: 0.2,
   });
   await expect(page.locator("#score")).toHaveAttribute("aria-describedby", "score-description");
