@@ -40,7 +40,9 @@ pub fn decode_xml_text(data: &[u8]) -> Result<String, Error> {
         if !bytes.len().is_multiple_of(2) {
             return Err(Error::Xml("UTF-16 input has an odd number of bytes".into()));
         }
-        let units = bytes.chunks_exact(2).map(|pair| {
+        let (pairs, remainder) = bytes.as_chunks::<2>();
+        debug_assert!(remainder.is_empty());
+        let units = pairs.iter().map(|pair| {
             if little_endian {
                 u16::from_le_bytes([pair[0], pair[1]])
             } else {

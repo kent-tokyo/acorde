@@ -45,7 +45,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the advisories affecting `zip` 2.4.
 
 - **Release verification.** CI now checks the complete all-feature workspace at Rust 1.88, and
-  release packaging/publishing includes `acorde-pdf` in dependency order.
+  release packaging/publishing includes `acorde-omr` and `acorde-pdf` in dependency order.
+  Archive creation is checked before publication; registry verification runs once each internal
+  dependency has been published.
 
 ## [1.2.17] - 2026-09-28
 

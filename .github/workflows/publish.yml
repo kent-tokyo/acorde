@@ -51,7 +51,10 @@ jobs:
         run: cargo clippy --all-features --locked --all-targets -- -D warnings
 
       - name: Verify workspace packages
-        run: cargo package --workspace --locked
+        # Internal crates at the release version are not in crates.io until the
+        # publish job runs. Packaging validates every archive; cargo publish
+        # then verifies each archive after its dependencies are available.
+        run: cargo package --workspace --locked --no-verify
 
   publish:
     name: Publish crates
@@ -92,6 +95,7 @@ jobs:
           publish_if_missing acorde-core
           publish_if_missing acorde-analysis
           publish_if_missing acorde-io
+          publish_if_missing acorde-omr
           publish_if_missing acorde-layout
           publish_if_missing acorde-soundfont
           publish_if_missing acorde-render-svg

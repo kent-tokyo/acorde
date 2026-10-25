@@ -355,15 +355,21 @@ fn decode_png(data: &[u8]) -> Result<GrayImage, Error> {
     let luminance = match output.color_type {
         ColorType::Grayscale => bytes.to_vec(),
         ColorType::GrayscaleAlpha => bytes
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|pixel| blend_over_white(pixel[0], pixel[1]))
             .collect(),
         ColorType::Rgb => bytes
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .map(|pixel| luma(pixel[0], pixel[1], pixel[2]))
             .collect(),
         ColorType::Rgba => bytes
-            .chunks_exact(4)
+            .as_chunks::<4>()
+            .0
+            .iter()
             .map(|pixel| blend_over_white(luma(pixel[0], pixel[1], pixel[2]), pixel[3]))
             .collect(),
         ColorType::Indexed => return Err(Error::UnsupportedColor),
