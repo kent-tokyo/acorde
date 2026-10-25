@@ -1,5 +1,58 @@
 import { test, expect } from "playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  // Headless browsers do not share a Web Audio clock contract: Firefox can
+  // suspend or finish an output graph before Playwright observes the UI state.
+  // This smoke test exercises the host scheduler and transport UI, not a
+  // physical output device, so use a monotonic in-page Web Audio substitute.
+  await page.addInitScript(() => {
+    class FakeAudioParam {
+      setValueAtTime() {}
+      exponentialRampToValueAtTime() {}
+    }
+
+    class FakeOscillator extends EventTarget {
+      constructor(context) {
+        super();
+        this.context = context;
+        this.frequency = new FakeAudioParam();
+        this.type = "sine";
+      }
+
+      connect() { return this; }
+      start() {}
+      stop(at = this.context.currentTime) {
+        const delay = Math.max(0, at - this.context.currentTime) * 1000;
+        setTimeout(() => this.dispatchEvent(new Event("ended")), delay);
+      }
+    }
+
+    class FakeGain {
+      constructor() { this.gain = new FakeAudioParam(); }
+      connect() { return this; }
+    }
+
+    class FakeAudioContext {
+      constructor() {
+        this.startedAt = performance.now();
+        this.destination = {};
+        this.state = "running";
+      }
+
+      get currentTime() { return (performance.now() - this.startedAt) / 1000; }
+      async resume() { this.state = "running"; }
+      createOscillator() { return new FakeOscillator(this); }
+      createGain() { return new FakeGain(); }
+    }
+
+    Object.defineProperty(window, "AudioContext", {
+      configurable: true,
+      writable: true,
+      value: FakeAudioContext,
+    });
+  });
+});
+
 test("browser contract renders and exposes selectable notes", async ({ page }) => {
   await page.goto("http://127.0.0.1:8000/examples/browser/");
   const status = page.locator("#status");
