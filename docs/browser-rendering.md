@@ -34,6 +34,14 @@ Playback events retain the legacy string `address` and also expose an optional t
 `NoteAddr`; metronome events set both source fields to `null`. Browser hosts should prefer the
 typed field and use the string only for compatibility with older snapshots.
 
+The dependency-free browser fixture implements a deliberately small practice transport on top of
+this contract: Play/Pause/Stop, a tempo override, whole-score looping, metronome clicks, elapsed
+time, and source-address highlighting. It is informed by common web-score-player interactions,
+but is not a MuseScore client or compatibility layer. Its oscillator preview is intentionally not
+a claim about SoundFont quality, device latency, or production audio behavior. Hosts may replace
+that preview with their own licensed provider while retaining the same event and selection
+contracts.
+
 ## Stable calls
 
 - `parse_mei_render_svg(xml, options_json)` parses the documented MEI subset and renders its

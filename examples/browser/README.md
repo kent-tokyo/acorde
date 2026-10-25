@@ -24,12 +24,17 @@ document boundary.
 After loading, each `data-note-addr` group is made keyboard-focusable by the host fixture. Click
 or focus a note and press Enter/Space to exercise address-based selection; hover state is kept in
 the host as `data-hover`. The complete-score transport uses `to_playback_events_ex` with a
-bounded 200 ms Web Audio look-ahead scheduler. It has Play, Pause, and Stop controls and
-highlights sounding SVG groups by their stable `data-note-addr`. It deliberately uses oscillators
-rather than bundling an instrument library or SoundFont: synthesis, output-device access, sample
-assets, and their licenses remain host concerns. The selected-note Play button remains a small
-single-note diagnostic. This demonstrates that selection, highlighting, scheduling, and playback
-belong to the browser host rather than the stateless Rust renderer.
+bounded 200 ms Web Audio look-ahead scheduler. It has Play, Pause, Stop, tempo, full-score loop,
+and metronome controls, displays an elapsed cursor, and highlights sounding SVG groups by their
+stable `data-note-addr`. Tempo and metronome changes rebuild the deterministic event schedule at
+the nearest source event while playing; this is a simple practice-preview policy, not a
+sample-accurate tempo map.
+
+The fixture deliberately uses oscillators rather than bundling an instrument library or
+SoundFont: synthesis, output-device access, sample assets, their licenses, per-part mixer
+controls, and browser device latency remain host concerns. The selected-note Play button remains
+a small single-note diagnostic. This demonstrates that selection, highlighting, scheduling, and
+playback belong to the browser host rather than the stateless Rust renderer.
 
 `acorde-adapter.ts` is a dependency-free, framework-neutral starting point for a browser
 workspace. Inject the generated WASM module into `AcordeWorkspace`; it keeps score, layout,

@@ -8,6 +8,15 @@ test("browser contract renders and exposes selectable notes", async ({ page }) =
   await expect(page.locator("#analyze")).toBeEnabled();
   await expect(page.locator("#export")).toBeEnabled();
   await expect(page.getByRole("button", { name: "Play score" })).toBeEnabled();
+  const tempo = page.getByRole("slider", { name: "Playback tempo in beats per minute" });
+  await expect(tempo).toHaveValue("120");
+  await tempo.evaluate((element) => {
+    element.value = "96";
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await expect(page.locator("#tempo-value")).toHaveText("96 BPM");
+  await page.getByRole("checkbox", { name: "Loop score" }).check();
+  await page.getByRole("checkbox", { name: "Metronome" }).check();
   await page.getByRole("button", { name: "Play score" }).click();
   await expect(page.locator("#transport-status")).toHaveText("Playing");
   await expect(page.getByRole("button", { name: "Pause" })).toBeEnabled();

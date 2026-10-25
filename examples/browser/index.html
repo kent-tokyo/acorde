@@ -17,6 +17,13 @@
     <button id="pause-score" type="button" disabled>Pause</button>
     <button id="stop-score" type="button" disabled>Stop</button>
     <output id="transport-status" aria-live="polite">Stopped</output>
+    <label for="tempo">Tempo</label>
+    <input id="tempo" type="range" min="40" max="240" value="120" step="1"
+      aria-label="Playback tempo in beats per minute">
+    <output id="tempo-value" for="tempo">120 BPM</output>
+    <label><input id="loop-score" type="checkbox"> Loop score</label>
+    <label><input id="metronome" type="checkbox"> Metronome</label>
+    <output id="transport-position" aria-live="off">0:00</output>
   </p>
   <button id="play" type="button" disabled>Play selected note</button>
   <section id="score" aria-label="Rendered score" aria-describedby="score-description"></section>
@@ -32,6 +39,8 @@
   [data-note-addr].playing { outline: 3px solid #dc2626; }
   .transport { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
   #transport-status { min-width: 5rem; font-weight: 600; }
+  #tempo { inline-size: 9rem; }
+  #tempo-value, #transport-position { min-width: 4.5rem; font-variant-numeric: tabular-nums; }
   #play { margin-bottom: 1rem; }
   #source { display: block; max-width: 100%; margin: 0.5rem 0 1rem; font: 0.8rem monospace; }
   #analysis { max-height: 16rem; overflow: auto; }
@@ -73,9 +82,10 @@
   // short look-ahead window so an imported score cannot create an unbounded number of
   // browser audio nodes at once.
   class WebAudioTransport {
-    constructor({ onStateChange, onActiveAddresses }) {
+    constructor({ onStateChange, onActiveAddresses, onPositionChange }) {
       this.onStateChange = onStateChange;
       this.onActiveAddresses = onActiveAddresses;
+      this.onPositionChange = onPositionChange;
       this.context = null;
       this.events = [];
       this.nextEvent = 0;
@@ -86,12 +96,12 @@
       this.frame = null;
       this.generation = 0;
       this.voices = new Set();
+      this.loop = false;
     }
 
     static validEvents(events) {
       return events.filter((event) =>
-        !event.is_metronome
-        && Number.isFinite(event.time_secs) && event.time_secs >= 0
+        Number.isFinite(event.time_secs) && event.time_secs >= 0
         && Number.isFinite(event.duration_secs) && event.duration_secs > 0
         && Number.isFinite(event.pitch_midi_cents)
         && Number.isFinite(event.velocity),
@@ -100,8 +110,7 @@
 
     async play(events) {
       if (this.state === "playing") return;
-      this.events = WebAudioTransport.validEvents(events);
-      if (this.events.length === 0) throw new Error("No sounding playback events are available");
+      this.installEvents(events);
       this.context ??= new AudioContext();
       await this.context.resume();
       this.nextEvent = this.events.findIndex((event) => event.time_secs + event.duration_secs > this.elapsed);
@@ -112,6 +121,44 @@
       this.generation += 1;
       this.onStateChange(this.state);
       this.schedule();
+    }
+
+    installEvents(events) {
+      this.events = WebAudioTransport.validEvents(events);
+      if (!this.events.some((event) => !event.is_metronome)) {
+        throw new Error("No sounding playback events are available");
+      }
+    }
+
+    elapsedSeconds() {
+      return this.state === "playing" && this.context
+        ? Math.max(0, this.context.currentTime - this.origin)
+        : this.elapsed;
+    }
+
+    restartAtMatchingEvent(events) {
+      const previous = this.eventNearElapsed();
+      this.cancelScheduled();
+      this.installEvents(events);
+      const replacement = previous && this.events.find((event) =>
+        event.address === previous.address
+        && event.pitch_midi_cents === previous.pitch_midi_cents
+        && event.is_metronome === previous.is_metronome,
+      );
+      this.elapsed = replacement?.time_secs ?? 0;
+      this.nextEvent = this.events.findIndex((event) => event.time_secs + event.duration_secs > this.elapsed);
+      this.origin = this.context.currentTime - this.elapsed;
+      this.state = "playing";
+      this.generation += 1;
+      this.onStateChange(this.state);
+      this.schedule();
+    }
+
+    eventNearElapsed() {
+      const elapsed = this.elapsedSeconds();
+      return this.events.find((event) => event.time_secs <= elapsed && elapsed < event.time_secs + event.duration_secs)
+        ?? this.events.find((event) => event.time_secs >= elapsed)
+        ?? null;
     }
 
     pause() {
@@ -128,6 +175,7 @@
       this.nextEvent = 0;
       this.state = "stopped";
       this.onStateChange(this.state);
+      this.onPositionChange(0);
     }
 
     cancelScheduled() {
@@ -155,7 +203,14 @@
         this.scheduleVoice(event, Math.max(now + 0.005, start), generation);
       }
       if (this.nextEvent >= this.events.length && this.voices.size === 0) {
-        this.stop();
+        if (this.loop) {
+          this.elapsed = 0;
+          this.nextEvent = 0;
+          this.origin = this.context.currentTime;
+          this.schedule();
+        } else {
+          this.stop();
+        }
         return;
       }
       this.timer = setTimeout(() => this.schedule(), 25);
@@ -166,9 +221,13 @@
       const oscillator = this.context.createOscillator();
       const gain = this.context.createGain();
       const frequency = 440 * 2 ** ((event.pitch_midi_cents / 100 - 69) / 12);
-      const volume = Math.max(0.005, Math.min(0.16, (event.velocity / 127) * 0.16));
-      const end = this.origin + event.time_secs + event.duration_secs;
-      oscillator.type = "triangle";
+      const volume = event.is_metronome
+        ? Math.max(0.02, Math.min(0.08, (event.velocity / 127) * 0.08))
+        : Math.max(0.005, Math.min(0.16, (event.velocity / 127) * 0.16));
+      const end = event.is_metronome
+        ? Math.min(this.origin + event.time_secs + event.duration_secs, start + 0.045)
+        : this.origin + event.time_secs + event.duration_secs;
+      oscillator.type = event.is_metronome ? "square" : "triangle";
       oscillator.frequency.setValueAtTime(frequency, start);
       gain.gain.setValueAtTime(0.0001, start);
       gain.gain.exponentialRampToValueAtTime(volume, start + 0.008);
@@ -201,6 +260,7 @@
       const tick = () => {
         if (this.state !== "playing") { this.frame = null; return; }
         this.refreshHighlights();
+        this.onPositionChange(this.elapsedSeconds());
         this.frame = requestAnimationFrame(tick);
       };
       tick();
@@ -214,7 +274,19 @@
     let redoStack = [];
     const options = JSON.stringify({ width: 700, staff_size: 24, measures_per_system: 4, interactive: true });
     let selectedAddress = null;
-    const playbackOptions = JSON.stringify({});
+    const tempo = document.querySelector("#tempo");
+    const tempoValue = document.querySelector("#tempo-value");
+    const loopScore = document.querySelector("#loop-score");
+    const metronome = document.querySelector("#metronome");
+    const transportPosition = document.querySelector("#transport-position");
+    const playbackOptions = () => JSON.stringify({
+      bpm_override: Number(tempo.value),
+      metronome: metronome.checked ? {} : null,
+    });
+    const formatElapsed = (elapsed) => {
+      const wholeSeconds = Math.max(0, Math.floor(elapsed));
+      return `${Math.floor(wholeSeconds / 60)}:${String(wholeSeconds % 60).padStart(2, "0")}`;
+    };
     const transportStatus = document.querySelector("#transport-status");
     const updatePlaybackControls = (state) => {
       document.querySelector("#play-score").disabled = state === "playing";
@@ -231,6 +303,11 @@
         document.querySelectorAll("#score [data-note-addr]").forEach((note) =>
           note.classList.toggle("playing", addresses.has(note.dataset.noteAddr)),
         );
+      },
+      onPositionChange: (elapsed) => {
+        const label = formatElapsed(elapsed);
+        transportPosition.value = label;
+        transportPosition.textContent = label;
       },
     });
     const mountValidatedSvg = (container, source) => {
@@ -339,7 +416,7 @@
     });
     document.querySelector("#play-score").addEventListener("click", async () => {
       try {
-        const events = JSON.parse(to_playback_events_ex(score, playbackOptions));
+        const events = JSON.parse(to_playback_events_ex(score, playbackOptions()));
         await transport.play(events);
       } catch (error) {
         document.querySelector("#status").textContent = `FAIL: playback ${error}`;
@@ -348,6 +425,20 @@
     });
     document.querySelector("#pause-score").addEventListener("click", () => transport.pause());
     document.querySelector("#stop-score").addEventListener("click", () => transport.stop());
+    loopScore.addEventListener("change", () => { transport.loop = loopScore.checked; });
+    metronome.addEventListener("change", () => {
+      if (transport.state !== "playing") return;
+      try { transport.restartAtMatchingEvent(JSON.parse(to_playback_events_ex(score, playbackOptions()))); }
+      catch (error) { document.querySelector("#status").textContent = `FAIL: playback ${error}`; transport.stop(); }
+    });
+    tempo.addEventListener("input", () => {
+      const label = `${tempo.value} BPM`;
+      tempoValue.value = label;
+      tempoValue.textContent = label;
+      if (transport.state !== "playing") return;
+      try { transport.restartAtMatchingEvent(JSON.parse(to_playback_events_ex(score, playbackOptions()))); }
+      catch (error) { document.querySelector("#status").textContent = `FAIL: playback ${error}`; transport.stop(); }
+    });
     document.querySelector("#play").addEventListener("click", () => {
       if (!selectedAddress) return;
       const noteIndex = [...document.querySelectorAll("#score [data-note-addr]")]
