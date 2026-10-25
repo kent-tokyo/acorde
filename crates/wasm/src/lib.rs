@@ -2748,6 +2748,16 @@ mod wasm_tests {
     }
 
     #[wasm_bindgen_test]
+    fn abc_svg_rendering_preserves_whitespace_beam_groups() {
+        let abc = "X:1\nT:Beam test\nM:2/2\nL:1/8\nK:G\n|:G2BG DGBG:|\n";
+        let svg = parse_abc_render_svg(abc, "{}").expect("renders ABC beam fixture");
+
+        // `BG` and `DGBG` are separate adjacent-note runs. The spaces around them must not
+        // be treated as formatting-only whitespace, or SVG would join the two beam groups.
+        assert_eq!(svg.matches("acorde-beam").count(), 2);
+    }
+
+    #[wasm_bindgen_test]
     fn engine_undo_empty_returns_err() {
         let mut engine = ScoreEngine::new();
         assert!(engine.undo().is_err());
