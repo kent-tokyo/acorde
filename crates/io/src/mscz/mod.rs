@@ -2298,7 +2298,8 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
             }
             Ok(Event::Text(event)) => {
                 let field = path.last().map(String::as_str);
-                let value = String::from_utf8_lossy(event.as_ref()).trim().to_string();
+                let event_bytes: &[u8] = event.as_ref();
+                let value = String::from_utf8_lossy(event_bytes).trim().to_string();
                 if field == Some("accidental")
                     && path.iter().rev().nth(1).map(String::as_str) == Some("KeySig")
                     && value.parse::<i8>().is_err()
@@ -2477,14 +2478,14 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                     }
                 }
                 if field == Some("digit")
-                    && !event.is_empty()
+                    && !event_bytes.is_empty()
                     && let Some((_, _, has_digit)) = figured_bass_context.as_mut()
                 {
                     *has_digit = true;
                 }
                 if path.iter().any(|element| element == "FiguredBassItem")
                     && matches!(field, Some("digit"))
-                    && !event.is_empty()
+                    && !event_bytes.is_empty()
                 {
                     let value = String::from_utf8_lossy(event.as_ref());
                     if !value
@@ -2503,7 +2504,7 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                 }
                 if path.iter().any(|element| element == "Note")
                     && matches!(field, Some("string") | Some("fret"))
-                    && !event.is_empty()
+                    && !event_bytes.is_empty()
                 {
                     let value = String::from_utf8_lossy(event.as_ref());
                     let valid = match field {
@@ -2525,7 +2526,7 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                 }
                 if path.iter().any(|element| element == "FiguredBassItem")
                     && matches!(field, Some("prefix") | Some("suffix"))
-                    && !event.is_empty()
+                    && !event_bytes.is_empty()
                 {
                     let value = String::from_utf8_lossy(event.as_ref());
                     if !value

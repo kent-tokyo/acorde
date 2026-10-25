@@ -1,0 +1,24 @@
+[package]
+name = "acorde-pdf"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/acorde-pdf"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Vector PDF export for acorde scores through the Harumi backend"
+readme = "README.md"
+keywords = ["music", "notation", "pdf", "sheet-music", "svg"]
+categories = ["multimedia::audio", "rendering"]
+
+[dependencies]
+acorde-core = { path = "../core", version = "1.2.18" }
+acorde-render-svg = { path = "../render-svg", version = "1.2.18" }
+harumi = { version = "1.23.7", features = ["svg"] }
+roxmltree = "0.20"
+thiserror = "2"
+
+[lints]
+workspace = true

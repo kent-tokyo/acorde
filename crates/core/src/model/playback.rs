@@ -14,6 +14,9 @@ fn default_fermata_hold_beats() -> f64 {
 fn default_swing_unit() -> Duration {
     Duration::Eighth
 }
+fn default_tempo_multiplier() -> f64 {
+    1.0
+}
 fn default_metronome_channel() -> u8 {
     9
 }
@@ -89,8 +92,17 @@ impl Default for MetronomeConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct PlaybackOptions {
-    /// Replaces the score's tempo when `Some`; `None` uses `score.settings.tempo_bpm`.
+    /// Replaces every written tempo when `Some` and suppresses written tempo ramps.
+    ///
+    /// Use [`tempo_multiplier`](Self::tempo_multiplier) when a host needs to speed up or slow
+    /// down a score while retaining the written tempo map.
     pub bpm_override: Option<u16>,
+    /// Multiplies every effective tempo, including written tempo changes and ramps.
+    ///
+    /// The default `1.0` preserves the score. Non-finite or non-positive values are normalized
+    /// to `1.0` so an untrusted host option cannot produce an invalid schedule.
+    #[serde(default = "default_tempo_multiplier")]
+    pub tempo_multiplier: f64,
     /// Part indices to silence. Events from these parts are omitted entirely.
     pub muted_parts: Vec<usize>,
     /// Restrict playback to measures in the inclusive range `[start, end]`.
@@ -128,6 +140,7 @@ impl Default for PlaybackOptions {
     fn default() -> Self {
         Self {
             bpm_override: None,
+            tempo_multiplier: 1.0,
             muted_parts: Vec::new(),
             loop_region: None,
             fermata_multiplier: 1.5,
@@ -138,6 +151,40 @@ impl Default for PlaybackOptions {
             realization_profile: PlaybackRealizationProfile::Authored,
         }
     }
+}
+
+fn normalized_tempo_multiplier(options: &PlaybackOptions) -> f64 {
+    let multiplier = options.tempo_multiplier;
+    if multiplier.is_finite() && multiplier > 0.0 {
+        multiplier
+    } else {
+        1.0
+    }
+}
+
+fn initial_tempo_bpm(score: &Score, options: &PlaybackOptions) -> f64 {
+    f64::from(
+        options
+            .bpm_override
+            .unwrap_or(score.settings.tempo_bpm)
+            .max(1),
+    ) * normalized_tempo_multiplier(options)
+}
+
+fn written_tempo_bpm(options: &PlaybackOptions, tempo: u16) -> Option<f64> {
+    options
+        .bpm_override
+        .is_none()
+        .then(|| f64::from(tempo.max(1)) * normalized_tempo_multiplier(options))
+}
+
+fn written_tempo_ramp_bpm(options: &PlaybackOptions, tempo: Option<u16>) -> Option<f64> {
+    options.bpm_override.is_none().then_some(())?;
+    tempo.map(|tempo| f64::from(tempo.max(1)) * normalized_tempo_multiplier(options))
+}
+
+fn semantic_tempo_bpm(bpm: f64) -> u16 {
+    bpm.round().clamp(1.0, f64::from(u16::MAX)) as u16
 }
 
 /// A single sounding event suitable for audio playback engines (e.g. Web Audio, Tone.js).
@@ -935,24 +982,21 @@ fn offline_measure_times(
             .loop_region
             .is_none_or(|(start, end)| *measure >= start && *measure <= end)
     });
-    let mut bpm = options
-        .bpm_override
-        .unwrap_or(score.settings.tempo_bpm)
-        .max(1) as f64;
+    let mut bpm = initial_tempo_bpm(score, options);
     let mut secs = 0.0;
     let mut result = Vec::new();
     for measure_index in sequence {
         let Some(measure) = staff_ref.measures.get(measure_index) else {
             continue;
         };
-        if let Some(tempo) = measure.tempo {
-            bpm = tempo.max(1) as f64;
+        if let Some(tempo) = measure
+            .tempo
+            .and_then(|tempo| written_tempo_bpm(options, tempo))
+        {
+            bpm = tempo;
         }
         let beats = staff_ref.measure_beats(measure_index, &score.settings.time_signature);
-        let ramp_to_bpm = measure
-            .tempo_ramp_to
-            .map(f64::from)
-            .filter(|tempo| *tempo > 0.0);
+        let ramp_to_bpm = written_tempo_ramp_bpm(options, measure.tempo_ramp_to);
         result.push(OfflineMeasureTime {
             measure: measure_index,
             start_secs: secs,
@@ -1004,11 +1048,14 @@ fn append_measure_semantic_events(
             let frame = ((time.start_secs - origin_secs).max(0.0) * f64::from(sample_rate_hz))
                 .round() as u64;
             let measure = &staff.measures[time.measure];
-            if part_index == 0 && (measure.tempo.is_some() || measure.tempo_ramp_to.is_some()) {
+            if part_index == 0
+                && options.bpm_override.is_none()
+                && (measure.tempo.is_some() || measure.tempo_ramp_to.is_some())
+            {
                 events.push(OfflineRenderSemanticFrameEvent {
                     kind: OfflineRenderSemanticEventKind::Tempo {
-                        bpm: time.bpm.round() as u16,
-                        ramp_to_bpm: measure.tempo_ramp_to,
+                        bpm: semantic_tempo_bpm(time.bpm),
+                        ramp_to_bpm: time.ramp_to_bpm.map(semantic_tempo_bpm),
                     },
                     frame,
                     source: None,
@@ -1818,10 +1865,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
     // A pedal held only as a typed spanner still presses the pedal on its first note.
     let materialized = score.with_legacy_spanner_flags();
     let score: &Score = &materialized;
-    let bpm = options
-        .bpm_override
-        .unwrap_or(score.settings.tempo_bpm)
-        .max(1) as f64;
+    let bpm = initial_tempo_bpm(score, options);
     let full_seq = measure_sequence(score);
     let seq: Vec<usize> = if let Some((lo, hi)) = options.loop_region {
         full_seq
@@ -1855,14 +1899,14 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                     let channel = instrument.map_or(part.midi_channel, |value| value.midi_channel);
                     let program = instrument.map_or(part.midi_program, |value| value.midi_program);
                     let instrument_id = instrument.map(|value| value.id.clone());
-                    if let Some(b) = measure.tempo {
-                        current_bpm = b.max(1) as f64;
+                    if let Some(b) = measure
+                        .tempo
+                        .and_then(|tempo| written_tempo_bpm(options, tempo))
+                    {
+                        current_bpm = b;
                     }
                     let measure_beats = staff.measure_beats(idx, &score.settings.time_signature);
-                    let ramp_end_bpm = measure
-                        .tempo_ramp_to
-                        .map(f64::from)
-                        .filter(|bpm| *bpm > 0.0);
+                    let ramp_end_bpm = written_tempo_ramp_bpm(options, measure.tempo_ramp_to);
                     let measure_start_beats = time_beats;
                     let measure_start_secs = time_secs_cursor;
                     let mut local_beats = 0.0f64;
@@ -2030,8 +2074,9 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
             if let Some(t) = first_staff
                 .and_then(|s| s.measures.get(idx))
                 .and_then(|m| m.tempo)
+                .and_then(|tempo| written_tempo_bpm(options, tempo))
             {
-                metro_bpm = t.max(1) as f64;
+                metro_bpm = t;
             }
             let ts = first_staff.map_or(&score.settings.time_signature, |s| {
                 s.meter_at(idx, &score.settings.time_signature)
@@ -2040,10 +2085,8 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                 || ts.total_beats(),
                 |s| s.measure_beats(idx, &score.settings.time_signature),
             );
-            let ramp_end_bpm = measure
-                .and_then(|measure| measure.tempo_ramp_to)
-                .map(f64::from)
-                .filter(|bpm| *bpm > 0.0);
+            let ramp_end_bpm =
+                measure.and_then(|measure| written_tempo_ramp_bpm(options, measure.tempo_ramp_to));
             let beat_unit = ts.beat_unit_beats();
             let num_beats = (measure_beats / beat_unit).round() as u32;
             for b in 0..num_beats {
@@ -2125,10 +2168,10 @@ fn apply_realization_profile(
 
     let mut chord_groups: BTreeMap<String, Vec<usize>> = BTreeMap::new();
     for (index, event) in events.iter().enumerate() {
-        if !event.is_metronome {
-            if let Some(address) = &event.address {
-                chord_groups.entry(address.clone()).or_default().push(index);
-            }
+        if !event.is_metronome
+            && let Some(address) = &event.address
+        {
+            chord_groups.entry(address.clone()).or_default().push(index);
         }
     }
     for indices in chord_groups.into_values() {
@@ -2252,6 +2295,37 @@ fn tempo_ramp_seconds(start_bpm: f64, end_bpm: Option<f64>, measure_beats: f64, 
     60.0 * measure_beats / delta * (bpm_at_beats / start_bpm).ln()
 }
 
+/// Inverse of [`tempo_ramp_seconds`] within one measure.
+///
+/// This keeps visual/browser cursors on the same clock as emitted playback events when a written
+/// tempo ramp is active. Invalid or degenerate ramps fall back to constant-tempo conversion.
+fn tempo_ramp_beats_at_seconds(
+    start_bpm: f64,
+    end_bpm: Option<f64>,
+    measure_beats: f64,
+    seconds: f64,
+) -> f64 {
+    let seconds = seconds.max(0.0);
+    let Some(end_bpm) = end_bpm else {
+        return seconds * start_bpm / 60.0;
+    };
+    if measure_beats <= 0.0 || (end_bpm - start_bpm).abs() < f64::EPSILON {
+        return seconds * start_bpm / 60.0;
+    }
+    let delta = end_bpm - start_bpm;
+    let exponent = seconds * delta / (60.0 * measure_beats);
+    let ratio = exponent.exp();
+    if !ratio.is_finite() {
+        return measure_beats;
+    }
+    let beats = measure_beats * start_bpm * (ratio - 1.0) / delta;
+    if beats.is_finite() {
+        beats
+    } else {
+        measure_beats
+    }
+}
+
 /// Coalesce adjacent playback events that are connected by authored ties.
 ///
 /// Ties are a notational continuation, not repeated attacks. The event keeps the first
@@ -2353,13 +2427,11 @@ struct MeasureSegment {
     duration_secs: f64,
     beats: f64,
     bpm: f64,
+    ramp_to_bpm: Option<f64>,
 }
 
 fn build_measure_segments(score: &Score, options: &PlaybackOptions) -> Vec<MeasureSegment> {
-    let init_bpm = options
-        .bpm_override
-        .unwrap_or(score.settings.tempo_bpm)
-        .max(1) as f64;
+    let init_bpm = initial_tempo_bpm(score, options);
     let full_seq = measure_sequence(score);
     let seq: Vec<usize> = if let Some((lo, hi)) = options.loop_region {
         full_seq
@@ -2380,15 +2452,20 @@ fn build_measure_segments(score: &Score, options: &PlaybackOptions) -> Vec<Measu
             .first()
             .and_then(|p| p.staves.first())
             .and_then(|s| s.measures.get(idx));
-        if let Some(t) = first_measure.and_then(|m| m.tempo) {
-            current_bpm = t.max(1) as f64;
+        if let Some(t) = first_measure
+            .and_then(|measure| measure.tempo)
+            .and_then(|tempo| written_tempo_bpm(options, tempo))
+        {
+            current_bpm = t;
         }
         let first_staff = score.parts.first().and_then(|p| p.staves.first());
         let beats = match (first_staff, first_measure) {
             (Some(staff), Some(_)) => staff.measure_beats(idx, &score.settings.time_signature),
             _ => score.settings.time_signature.total_beats(),
         };
-        let duration_secs = beats / current_bpm * 60.0;
+        let ramp_to_bpm = first_measure
+            .and_then(|measure| written_tempo_ramp_bpm(options, measure.tempo_ramp_to));
+        let duration_secs = tempo_ramp_seconds(current_bpm, ramp_to_bpm, beats, beats);
 
         segments.push(MeasureSegment {
             measure_idx: idx,
@@ -2396,8 +2473,12 @@ fn build_measure_segments(score: &Score, options: &PlaybackOptions) -> Vec<Measu
             duration_secs,
             beats,
             bpm: current_bpm,
+            ramp_to_bpm,
         });
         cursor_secs += duration_secs;
+        if let Some(end_bpm) = ramp_to_bpm {
+            current_bpm = end_bpm;
+        }
     }
     segments
 }
@@ -2418,7 +2499,13 @@ pub fn compute_playback_position(
     let segments = build_measure_segments(score, options);
     for seg in &segments {
         if elapsed_secs < seg.start_secs + seg.duration_secs + 1e-9 {
-            let beat = ((elapsed_secs - seg.start_secs) * seg.bpm / 60.0).clamp(0.0, seg.beats);
+            let beat = tempo_ramp_beats_at_seconds(
+                seg.bpm,
+                seg.ramp_to_bpm,
+                seg.beats,
+                elapsed_secs - seg.start_secs,
+            )
+            .clamp(0.0, seg.beats);
             return Some(PlaybackPosition {
                 measure_index: seg.measure_idx,
                 beat,
@@ -2796,6 +2883,95 @@ mod tests {
         let events = to_playback_events(&score, &opts(Some(60)));
         assert!((events[0].time_secs).abs() < 1e-9);
         assert!((events[1].time_secs - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn tempo_multiplier_preserves_written_tempo_changes_and_ramps() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 2);
+        score.parts[0].staves[0].measures[0].tempo_ramp_to = Some(60);
+        score.parts[0].staves[0].measures[1].tempo = Some(90);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        score.parts[0].staves[0].measures[1].voices[0] =
+            vec![Note::new(Pitch::new(Step::D, 4), Duration::Quarter)];
+        let options = PlaybackOptions {
+            tempo_multiplier: 0.5,
+            ..Default::default()
+        };
+
+        let events = to_playback_events(&score, &options);
+        let second_measure_start = tempo_ramp_seconds(60.0, Some(30.0), 4.0, 4.0);
+        assert!((events[1].time_secs - second_measure_start).abs() < 1e-9);
+
+        let one_beat_into_ramp = tempo_ramp_seconds(60.0, Some(30.0), 4.0, 1.0);
+        let position = compute_playback_position(&score, &options, one_beat_into_ramp).unwrap();
+        assert_eq!(position.measure_index, 0);
+        assert!((position.beat - 1.0).abs() < 1e-9);
+
+        let second_measure_position =
+            compute_playback_position(&score, &options, second_measure_start + 60.0 / 45.0)
+                .unwrap();
+        assert_eq!(second_measure_position.measure_index, 1);
+        assert!((second_measure_position.beat - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn bpm_override_suppresses_written_tempo_changes_and_ramps() {
+        let mut score = Score::new("T", 120, 4, 4, 0, 2);
+        score.parts[0].staves[0].measures[0].tempo_ramp_to = Some(60);
+        score.parts[0].staves[0].measures[1].tempo = Some(90);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        score.parts[0].staves[0].measures[1].voices[0] =
+            vec![Note::new(Pitch::new(Step::D, 4), Duration::Quarter)];
+        let options = PlaybackOptions {
+            bpm_override: Some(120),
+            ..Default::default()
+        };
+
+        let events = to_playback_events(&score, &options);
+        assert!((events[1].time_secs - 2.0).abs() < 1e-9);
+        let position = compute_playback_position(&score, &options, 2.5).unwrap();
+        assert_eq!(position.measure_index, 1);
+        assert!((position.beat - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn playback_position_tracks_repeats_rests_and_meter_changes_with_a_tempo_multiplier() {
+        use crate::model::notation::{Barline, TimeSignature};
+
+        let mut score = Score::new("transport", 120, 4, 4, 0, 3);
+        let staff = &mut score.parts[0].staves[0];
+        staff.measures[0].barline_left = Barline::RepeatStart;
+        staff.measures[1].time_sig = Some(TimeSignature {
+            numerator: 3,
+            denominator: 4,
+        });
+        staff.measures[2].barline_right = Barline::RepeatEnd;
+        staff.measures[0].voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        staff.measures[1].voices[0] = vec![Note::rest(Duration::Quarter)];
+        staff.measures[2].voices[0] = vec![Note::new(Pitch::new(Step::D, 4), Duration::Quarter)];
+        let options = PlaybackOptions {
+            tempo_multiplier: 0.5,
+            ..Default::default()
+        };
+
+        let events = to_playback_events(&score, &options);
+        let note_starts: Vec<f64> = events
+            .iter()
+            .filter(|event| event.address.is_some())
+            .map(|event| event.time_secs)
+            .collect();
+        // 4/4 (4s), then 3/4 rest (3s) and note (3s). The repeat restarts at 10s.
+        assert_eq!(note_starts, vec![0.0, 7.0, 10.0, 17.0]);
+
+        let middle = compute_playback_position(&score, &options, 5.0).unwrap();
+        assert_eq!(middle.measure_index, 1);
+        assert!((middle.beat - 1.0).abs() < 1e-9);
+
+        let repeated = compute_playback_position(&score, &options, 10.5).unwrap();
+        assert_eq!(repeated.measure_index, 0);
+        assert!((repeated.beat - 0.5).abs() < 1e-9);
     }
 
     #[test]

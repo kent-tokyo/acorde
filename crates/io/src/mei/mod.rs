@@ -5593,16 +5593,15 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
                     if let Some(chord_ref) = &chord.chord_ref {
                         out.push_str(&format!(" chordref=\"{}\"", escape(chord_ref)));
                     }
-                    if let Some(end) = &chord.range_end {
-                        if staves
+                    if let Some(end) = &chord.range_end
+                        && staves
                             .get(end.staff)
                             .and_then(|staff| staff.measures.get(end.measure))
                             .is_some()
-                        {
-                            let end_id =
-                                mei_note_id(&labels[end.measure], end.staff, end.voice, end.note);
-                            out.push_str(&format!(" endid=\"#{end_id}\""));
-                        }
+                    {
+                        let end_id =
+                            mei_note_id(&labels[end.measure], end.staff, end.voice, end.note);
+                        out.push_str(&format!(" endid=\"#{end_id}\""));
                     }
                     out.push_str(&format!(">{}</harm>", escape(&chord.display_text())));
                 }

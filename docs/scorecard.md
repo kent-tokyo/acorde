@@ -7,10 +7,10 @@ and backed by a fixture or focused test.
 
 The current serialized contracts are SVG render metadata version 22, analysis result version 13,
 print layout version 32, glyph-resource metadata version 1, and tablature performance version 4;
-all values are recorded in
-`scorecard.json` and must be updated together with their contract documentation and regression
-tests. The physical print layout is also exposed through WASM and the browser adapter; this does
-not include PDF, font embedding, or printer APIs.
+all values are recorded in `scorecard.json` and must be updated together with their contract
+documentation and regression tests. Physical print layout is also exposed through WASM and the
+browser adapter. `acorde-pdf` separately converts one Acorde SVG viewport to vector PDF; page
+composition, font selection/embedding assurance, and printer APIs remain outside that contract.
 
 The SVG tab contract includes deterministic bend curves and edge-owned continuation segments for
 slide, hammer-on, and pull-off connections, while typed connection metadata remains available to

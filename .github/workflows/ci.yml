@@ -58,6 +58,18 @@ jobs:
           python3 -B scripts/validate_interoperability_manifest.py
           python3 -B scripts/validate_print_corpus.py --check-only
 
+  msrv:
+    name: MSRV (Rust 1.88)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # pinned toolchain action
+        with:
+          toolchain: 1.88.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - name: Check workspace at the declared MSRV
+        run: cargo check --workspace --all-features --locked
+
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -120,14 +132,17 @@ jobs:
       - name: wasm-pack build
         run: wasm-pack build crates/wasm --target web
 
+      - name: Check opt-in OMR bindings for wasm32
+        run: cargo check -p acorde-wasm --target wasm32-unknown-unknown --all-features --locked
+
       - name: Check WASM artifact budget
         shell: bash
         run: |
           size=$(stat -c%s crates/wasm/pkg/acorde_wasm_bg.wasm)
           echo "WASM bytes: $size"
           # The web binding includes score I/O, logical layout, SVG rendering,
-          # and analysis. zip 9's memory-safe zlib-rs backend raises the
-          # feature-complete baseline to 5.47 MiB; retain a narrow 5.5 MiB cap.
+          # and analysis. ZIP 9's audited pure-Rust codec raises the measured baseline to
+          # 5.18 MiB; retain the narrow 5.5 MiB cap rather than dropping browser capabilities.
           test "$size" -le 5767168
 
   renderer-benchmark:

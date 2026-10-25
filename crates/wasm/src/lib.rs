@@ -44,6 +44,7 @@ fn score_to_json(score: &Score) -> Result<String, JsValue> {
     serde_json::to_string(score).map_err(|e| js_err(format!("score serialization failed: {e}")))
 }
 
+#[cfg(feature = "omr")]
 fn recognize_omr_png_json(data: &[u8], config_json: &str) -> Result<String, String> {
     if config_json.len() > MAX_SMALL_JSON_BYTES {
         return Err(format!(
@@ -70,6 +71,7 @@ pub fn glyph_resource_contract_version() -> u32 {
 }
 
 /// Return the version of the untrusted OMR proposal contract.
+#[cfg(feature = "omr")]
 #[wasm_bindgen]
 pub fn omr_proposal_contract_version() -> u32 {
     acorde_core::OMR_PROPOSAL_CONTRACT_VERSION
@@ -81,6 +83,7 @@ pub fn omr_proposal_contract_version() -> u32 {
 /// diagnostics. It never applies a command or writes an MSCZ file. Hosts must build a command plan
 /// from the proposal, present any diagnostics for review, and only then use the ordinary
 /// `ScoreEngine` and `serialize_mscz` APIs.
+#[cfg(feature = "omr")]
 #[wasm_bindgen]
 pub fn recognize_omr_png(data: &[u8], config_json: &str) -> Result<String, JsValue> {
     recognize_omr_png_json(data, config_json).map_err(js_err)
@@ -2064,6 +2067,7 @@ impl ScoreEngine {
 mod tests {
     use super::*;
 
+    #[cfg(feature = "omr")]
     fn synthetic_omr_png() -> Vec<u8> {
         use png::{BitDepth, ColorType, Encoder};
 
@@ -2102,6 +2106,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "omr")]
     fn omr_png_report_is_available_without_a_wasm_runtime() {
         let config = serde_json::to_string(&acorde_omr::RecognitionConfig::default()).unwrap();
         let report: serde_json::Value =

@@ -1,35 +1,30 @@
-# Browser support and verification matrix
+# Browser support and verification
 
-The reusable renderer has no browser or DOM dependency. The WASM package is built for
-`wasm32-unknown-unknown` and the checked-in fixture is served as a plain ES module page.
-The current render metadata contract is version 22 and includes score-level `score_texts`, note-level MusicXML placement
-offsets and typed guitar techniques in addition to position-aware measure-level
-`text_annotations` with source placement and offset fields, plus deterministic `tablature_positions`,
-in addition to note `address_bounds`. Note semantics also expose ordered stable articulation names,
-canonical beat durations, and exact pitch values in MIDI cents.
-Typed `tablature_technique_connections` expose stable
-start/end note objects, string numbers, and whether a connection crosses a measure boundary.
+`acorde-render-svg` has no browser or DOM dependency. `acorde-wasm` targets
+`wasm32-unknown-unknown`; `examples/browser/` is a plain ES-module fixture that checks the
+browser/WASM contract rather than providing a production UI.
 
-| Surface | Verification | Status |
+| Surface | Required evidence | Current status |
 |---|---|---|
-| Native Rust renderer | `cargo test --all-features --locked`, deterministic SVG goldens | supported |
-| WASM package | `wasm-pack build crates/wasm --target web` | supported |
-| Chromium / Chrome | Playwright browser-contract smoke + reviewed screenshot baseline | verified |
-| Firefox | Playwright browser-contract smoke + reviewed screenshot baseline | verified |
-| WebKit | Playwright browser-contract smoke + reviewed screenshot baseline | verified |
+| Native renderer | Rust tests and deterministic SVG goldens | supported |
+| WASM build | `wasm-pack build crates/wasm --target web` | supported |
+| Chromium, Firefox, WebKit | Playwright contract smoke and reviewed PNG baselines | verified fixture path |
+| HiDPI Chromium | Playwright fixture baseline | verified fixture path |
 
-The Chromium smoke page also exercises host-owned keyboard selection and hover state through the
-stable `data-note-addr` hooks. The CI matrix compares Chromium, Firefox, and WebKit against the
-checked-in baselines under `examples/browser/smoke.spec.mjs-snapshots/`. Baselines are reviewed
-artifacts, not a substitute for the native SVG structural tests. The local verification on
-2026-09-12 used Playwright 1.55.0 with Chromium 140, Firefox 141, and WebKit 26; all three
-browser-contract smoke runs passed after the typed metadata contract update, and the Chromium
-HiDPI profile remains covered by the checked-in matrix.
+The fixture checks safe SVG mounting, note selection/hover hooks, transport controls, accessibility
+names, and source-address highlighting. Baselines under
+`examples/browser/smoke.spec.mjs-snapshots/` are review artifacts, not a substitute for structural
+SVG tests or a cross-browser audio-quality claim.
 
-The legacy `wasm-pack test --headless --chrome` path uses a separately downloaded WebDriver.
-The CI job pins `wasm-pack` 0.15.0, installs the current Chrome, and has an explicit timeout so
-driver startup failures cannot hang the workflow. Earlier local runs on 2026-09-06 and 2026-09-12
-reached the runner but did not complete successfully; those are retained as infrastructure history,
-not browser-test evidence. On 2026-09-22, the locally installed `wasm-pack` 0.13.1 and Chromium
-completed all 15 `acorde-wasm` headless Chrome tests. This is a local browser smoke result; the
-Playwright matrix remains the cross-browser visual-contract evidence.
+The most recently recorded local browser observation is 2026-09-12 with Playwright 1.55.0,
+Chromium 140, Firefox 141, and WebKit 26. It passed the checked fixture matrix. This dated local
+result does not prove compatibility with newer browser releases; CI and a fresh browser run are
+required for a release claim.
+
+`wasm-pack test --headless --chrome` is a separate smoke path with a WebDriver dependency. The CI
+job pins `wasm-pack` 0.15.0 and uses an explicit timeout. A local 2026-09-22 run completed 15
+`acorde-wasm` headless-Chrome tests with wasm-pack 0.13.1; earlier unsuccessful starts are retained
+as infrastructure history, not test evidence.
+
+See the [browser contract](browser-rendering.md) for integration rules and
+[`examples/browser/README.md`](../examples/browser/README.md) for fixture commands.

@@ -2060,10 +2060,10 @@ fn playback_report_events(
     loop_start: Option<usize>,
     loop_end: Option<usize>,
 ) -> Result<Vec<acorde_core::PlaybackEvent>, String> {
-    if let (Some(start), Some(end)) = (loop_start, loop_end) {
-        if start > end {
-            return Err("--loop-start must not exceed --loop-end".to_string());
-        }
+    if let (Some(start), Some(end)) = (loop_start, loop_end)
+        && start > end
+    {
+        return Err("--loop-start must not exceed --loop-end".to_string());
     }
     let options = PlaybackOptions {
         bpm_override: bpm,

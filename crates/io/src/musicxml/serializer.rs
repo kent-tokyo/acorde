@@ -1935,10 +1935,10 @@ fn note_placement_attrs(note: &Note) -> String {
         ("relative-x", sum(note.offset_x, note.relative_x)),
         ("relative-y", sum(note.offset_y, note.relative_y)),
     ] {
-        if let Some(value) = value {
-            if value.is_finite() {
-                attrs.push_str(&format!(" {name}=\"{value}\""));
-            }
+        if let Some(value) = value
+            && value.is_finite()
+        {
+            attrs.push_str(&format!(" {name}=\"{value}\""));
         }
     }
     attrs

@@ -1,14 +1,20 @@
 # acorde
 
-プラットフォーム非依存の Rust / WebAssembly 楽譜基盤ライブラリ（v1.2.17）です。
+[![CI](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml)
+[![docs.rs](https://docs.rs/acorde/badge.svg)](https://docs.rs/acorde)
+
+プラットフォーム非依存の Rust / WebAssembly 楽譜基盤ライブラリ（v1.2.18）です。
 
 シリアライズ可能なスコアモデル、Undo/Redo可能な編集、範囲を明示した記譜入出力、論理レイアウト、
 決定的SVG、再生イベント、分析、WASMバインディングを提供します。ライブラリ本体は同期・UI非依存で、
 ファイルを読み書きしません。
 
+ワークスペースの最小サポート Rust バージョン（MSRV）は **Rust 1.88** です。
+
 ```text
 入力バイト列/文字列 → acorde-io → Score → acorde-layout → LayoutResult
                                       └──────────────→ acorde-render-svg → SVG
+                                                               └────────→ acorde-pdf → PDF
 ```
 
 ## クレート
@@ -19,6 +25,8 @@
 | `acorde-io` | MusicXML/MXL、MIDI、任意機能のABC・MEI・MSCZ/MSCX・Guitar Pro 3〜8入力 |
 | `acorde-layout` | ピクセル非依存の論理配置と印刷ページメタデータ |
 | `acorde-render-svg` | 決定的なRust/WASM SVGレンダラー |
+| `acorde-pdf` | Harumiによる任意のベクターPDF出力（Rust 1.88以上） |
+| `acorde-omr` | 任意の、レビュー必須のPNG認識提案アダプター |
 | `acorde-analysis` | 決定的で説明可能な和声・SATB分析 |
 | `acorde-soundfont` | 任意機能のSF2/SF3/プロバイダ連携境界 |
 | `acorde-wasm` | JavaScriptバインディング |
@@ -31,14 +39,14 @@ SVGが必要な場合は `acorde-render-svg` を直接依存に追加します�
 
 ```toml
 [dependencies]
-acorde = "1.2.17"
-acorde-render-svg = "1.2.17"
+acorde = "1.2.18"
+acorde-render-svg = "1.2.18"
 ```
 
 標準ではMusicXMLとMIDIが有効です。ABC、MEI、MSCZ/MSCX、Guitar Pro 3〜8入力は明示的に有効化します。
 
 ```toml
-acorde = { version = "1.2.17", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "1.2.18", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust
@@ -57,8 +65,9 @@ MusicXML/MXLが最も広い交換経路です。MIDI、ABC、MEI、MSCZ/MSCX、G
 完全ロスレス互換を主張しません。変換時の省略・正規化・意味差分は `ImportReport`、`ExportReport`、
 `compatibility-report` で確認できます。
 
-acordeはスコア意味論、論理ジオメトリ、決定的SVG、ブラウザ/WASM契約を担当します。ファイルUI、
-音声合成、フォント解決・埋め込み、PDF、印刷ダイアログ、ブラウザE2Eはホスト側の責務です。SoundFont
+acordeはスコア意味論、論理ジオメトリ、決定的SVG、ブラウザ/WASM契約を担当します。`acorde-pdf` は
+Harumiを使う任意のメモリ内PDFアダプターです。フォント選択、ファイルUI、印刷ダイアログ、ブラウザE2Eは
+引き続きホスト側の責務です。SoundFont
 プロバイダは再生イベントを利用できますが、合成と音源ライセンスはホストが管理します。
 
 詳細は[記譜対応マトリクス](docs/notation-coverage.md)、保守的な機能一覧は
@@ -75,20 +84,26 @@ acorde print-report input.musicxml --preset a4-score --fail-on-issues
 acorde validate input.musicxml
 acorde compatibility-report source.musicxml candidate.musicxml --fail-on-differences
 acorde playback-report input.musicxml --bpm 120
+acorde omr printed-score.png draft.mscz --report draft.omr.json
+acorde omr-evaluate printed-score.png reference.mscz --report evaluation.json
+acorde omr-apply-report provider-result.json draft.mscz --report application.json
 ```
 
 このほか `info`、`report`、`preflight`、`analyze`、`benchmark`、`extract`、`transpose`、
 `normalize`、タブ譜割当・再生検査、再生比較、変換レポートを提供します。完全なコマンド一覧は
 `acorde --help` を参照してください。ファイルを扱うのはCLIであり、ライブラリAPIはメモリ上の入力を受け取ります。
+`omr` は高コントラストかつ連続した1段または整列した2段のPNGだけを、確認用の提案として扱います。
+認識結果だけではMSCZを書き出さず、`omr-apply-report` が同じ契約を再検証して「適用可能」と判断した
+ときだけ出力します。範囲と評価方法は[OMR提案契約](docs/omr-proposal-contract.md)と
+[検証境界](docs/omr-validation.md)を参照してください。
 
 ## 文書
 
-- [English README](README.md)
-- [記譜対応と既知の情報欠落](docs/notation-coverage.md)
-- [移行メモ](docs/migrations.md)
-- [印刷レイアウト契約](docs/print-layout.md) と [ページSVG契約](docs/print-svg-contract.md)
-- [ブラウザ契約](docs/browser-rendering.md) と [ブラウザ対応検査](docs/browser-support.md)
-- [性能証跡](docs/performance.md)、[セキュリティ契約](docs/security/threat-model.md)、[貢献ガイド](CONTRIBUTING.md)
+[文書案内](docs/README.md)から用途別に参照してください。主な入口は、[記譜対応と既知の情報欠落](docs/notation-coverage.md)、
+[移行メモ](docs/migrations.md)、[ブラウザ契約](docs/browser-rendering.md)、[PDF出力契約](docs/pdf-export.md)です。
+
+[English README](README.md)、[セキュリティ契約](docs/security/threat-model.md)、
+[貢献ガイド](CONTRIBUTING.md)は独立した入口として維持します。
 
 ## 開発
 

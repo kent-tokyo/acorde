@@ -1446,17 +1446,15 @@ pub(crate) fn parse_musicxml_collecting(
                         harmony_degree_type = current_text.trim().to_string();
                     }
                     "degree" if in_harmony_degree => {
-                        if let Ok(value) = harmony_degree_value.parse::<u8>() {
-                            if value > 0 {
-                                harmony_degrees.push(ChordDegree {
-                                    value,
-                                    alter: harmony_degree_alter
-                                        .parse::<f32>()
-                                        .unwrap_or(0.0)
-                                        .round() as i8,
-                                    kind: harmony_degree_type.clone(),
-                                });
-                            }
+                        if let Ok(value) = harmony_degree_value.parse::<u8>()
+                            && value > 0
+                        {
+                            harmony_degrees.push(ChordDegree {
+                                value,
+                                alter: harmony_degree_alter.parse::<f32>().unwrap_or(0.0).round()
+                                    as i8,
+                                kind: harmony_degree_type.clone(),
+                            });
                         }
                         in_harmony_degree = false;
                     }
@@ -1633,12 +1631,10 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "direction-type" => in_direction_type = false,
                     "direction" => {
-                        if pending_section_break {
-                            if let Some(pi) = part_index {
-                                for staff in &mut score.parts[pi].staves {
-                                    if let Some(measure) = staff.measures.last_mut() {
-                                        measure.section_break = true;
-                                    }
+                        if pending_section_break && let Some(pi) = part_index {
+                            for staff in &mut score.parts[pi].staves {
+                                if let Some(measure) = staff.measures.last_mut() {
+                                    measure.section_break = true;
                                 }
                             }
                         }

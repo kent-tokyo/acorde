@@ -1,14 +1,20 @@
 # acorde
 
-Platform-neutral Rust and WebAssembly score infrastructure (v1.2.17).
+[![CI](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml)
+[![docs.rs](https://docs.rs/acorde/badge.svg)](https://docs.rs/acorde)
+
+Platform-neutral Rust and WebAssembly score infrastructure (v1.2.18).
 
 acorde provides a serializable score model, undoable edits, bounded notation I/O, logical layout,
 deterministic SVG, playback-event projection, analysis primitives, and WASM bindings. Library
 crates are synchronous, UI-free, and do not read or write files.
 
+The workspace minimum supported Rust version (MSRV) is **Rust 1.88**.
+
 ```text
 input bytes/text → acorde-io → Score → acorde-layout → LayoutResult
                                       └──────────────→ acorde-render-svg → SVG
+                                                               └────────→ acorde-pdf → PDF
 ```
 
 ## Crates
@@ -19,6 +25,7 @@ input bytes/text → acorde-io → Score → acorde-layout → LayoutResult
 | `acorde-io` | MusicXML/MXL and MIDI; optional ABC, MEI, MSCZ/MSCX, Guitar Pro 3–8 import |
 | `acorde-layout` | Pixel-free logical layout and print-page metadata |
 | `acorde-render-svg` | Deterministic Rust/WASM SVG renderer |
+| `acorde-pdf` | Optional vector PDF export through Harumi (Rust 1.88+) |
 | `acorde-omr` | Optional bounded PNG analysis that produces reviewable OMR proposals |
 | `acorde-analysis` | Deterministic explainable harmony and SATB analysis |
 | `acorde-soundfont` | Optional bounded SF2/SF3/provider integration boundary |
@@ -33,14 +40,14 @@ rendering SVG.
 
 ```toml
 [dependencies]
-acorde = "1.2.17"
-acorde-render-svg = "1.2.17"
+acorde = "1.2.18"
+acorde-render-svg = "1.2.18"
 ```
 
 Default I/O features are MusicXML and MIDI. Enable optional formats explicitly:
 
 ```toml
-acorde = { version = "1.2.17", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "1.2.18", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust
@@ -61,8 +68,8 @@ or `compatibility-report` when a workflow must inspect omission, normalization, 
 difference.
 
 acorde owns score semantics, logical geometry, deterministic SVG, and versioned browser/WASM
-contracts. Hosts own filesystem/UI, audio rendering, font discovery and embedding, PDF backends,
-print dialogs, and browser end-to-end presentation. A SoundFont provider can consume Acorde
+contracts. `acorde-pdf` is the optional in-memory Harumi PDF adapter; callers still own font
+selection, filesystem/UI, print dialogs, and browser end-to-end presentation. A SoundFont provider can consume Acorde
 playback events, but synthesis and asset licensing remain host concerns.
 
 The detailed boundary and tested slices are in the [notation coverage matrix](docs/notation-coverage.md).
@@ -99,14 +106,13 @@ and writes no MSCZ unless the same contract validation produces a ready command 
 
 ## Documentation
 
-- [Japanese overview](README_ja.md)
-- [Notation coverage and known losses](docs/notation-coverage.md)
-- [Migration notes](docs/migrations.md)
-- [Print layout contract](docs/print-layout.md) and [page-SVG contract](docs/print-svg-contract.md)
-- [Browser contract](docs/browser-rendering.md) and [browser support checks](docs/browser-support.md)
-- [Performance evidence](docs/performance.md), [security contract](docs/security/threat-model.md), and [contribution guide](CONTRIBUTING.md)
-- [OMR proposal contract](docs/omr-proposal-contract.md) and [dependency/provider matrix](docs/omr-license-matrix.md)
-- [OMR validation boundary](docs/omr-validation.md)
+Start with the [documentation guide](docs/README.md). It groups contracts, migration notes, and
+bounded evidence by task. The most common references are the [notation coverage matrix](docs/notation-coverage.md),
+[migration notes](docs/migrations.md), [browser contract](docs/browser-rendering.md), and
+[PDF export boundary](docs/pdf-export.md).
+
+The [Japanese overview](README_ja.md), [security contract](docs/security/threat-model.md), and
+[contribution guide](CONTRIBUTING.md) remain separate entry points.
 
 ## Development
 

@@ -9,12 +9,43 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.18] - 2026-10-25
+
 - **Longa duration.** `Duration::Longa` represents four whole notes exactly. MusicXML `long`,
   MEI `@dur="long"`, and MuseScore `longa` now round-trip instead of being normalized to a
   breve; playback, commands, layout, and SVG retain its 16-quarter-note length.
+
 - **ABC explicit beaming.** Whitespace now closes an ABC 2.1 explicit beam group: adjacent
   eighth notes and shorter durations render as one group, while spaces, rests, longer notes,
   overlays and barlines separate them. This is preserved through the browser SVG API as well.
+
+- **PDF export.** `acorde-pdf` now requires Harumi 1.23.7 and passes bounded SVG directly to its
+  native converter. Engraving Bézier curves, elliptical arcs, and notehead ellipses therefore
+  remain vector geometry instead of being flattened to polygons before PDF generation.
+
+- **MSRV.** The workspace MSRV is now Rust 1.88, matching the optional Harumi-backed
+  `acorde-pdf` crate. CI checks the full all-feature workspace at that toolchain.
+
+- **Browser playback transport.** `PlaybackOptions::tempo_multiplier` lets hosts change speed
+  without erasing written tempo changes or ramps; invalid multipliers safely normalize to `1.0`.
+  `bpm_override` now consistently suppresses the written tempo map, as its contract states.
+  `compute_playback_position` uses the same ramp integration as emitted events, so a browser
+  measure/beat cursor cannot drift from its schedule. The dependency-free browser fixture adds
+  Rewind, seek, a visible measure/beat cursor, an explicit inclusive measure-range loop, and a
+  repeat/rest/meter-change transport fixture with a bounded host scheduling trace, audible
+  count-in, and focus-safe Space-key Play/Pause controls.
+
+- **Review-first OMR hand-off.** The optional `acorde-omr` crate accepts a bounded,
+  provider-neutral `RecognitionReport`, validates an explicit caller-supplied meter, produces a
+  reviewable command plan, and only then applies it through `ScoreEngine` before serializing
+  MSCZ. Malformed, non-ready, or diagnostic reports never produce an MSCZ file.
+
+- **Archive safety.** MusicXML/MXL, MSCZ, and Guitar Pro archive parsing now uses `zip` 9.1 and
+  rejects invalid archive entry names with a typed error. The checked lockfile no longer resolves
+  the advisories affecting `zip` 2.4.
+
+- **Release verification.** CI now checks the complete all-feature workspace at Rust 1.88, and
+  release packaging/publishing includes `acorde-pdf` in dependency order.
 
 ## [1.2.17] - 2026-09-28
 

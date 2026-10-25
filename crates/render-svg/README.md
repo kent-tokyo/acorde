@@ -1,81 +1,41 @@
 # acorde-render-svg
 
-Pure-Rust/WASM SVG renderer driven by acorde-core and acorde-layout.
+Pure Rust/WASM SVG rendering driven by `acorde-core` and `acorde-layout`. The renderer is
+deterministic, has no browser or DOM dependency, and never loads fonts. It exposes full-score,
+layout-aware, per-row, metadata, preflight, and annotation rendering APIs.
 
-The crate provides render_svg, render_svg_with_layout, render_svg_row, render_svg_metadata, and
-render_svg_with_annotations. Host-defined `RenderAnnotation` providers can add safe text marks
-using viewport coordinates; provider and mark IDs are validated and serialized deterministically.
-Providers may additionally return `SvgAnnotationMetrics` and `SvgAnnotationCollisionPolicy` from
-`collision_policy()` to route selected marks through the same deterministic priority/class/direction
-collision pass as logical layout. Bounds are provider-supplied SVG-pixel geometry; the renderer does
-not load fonts or infer text metrics. Providers that return no policy retain their requested position.
-Native measure text (including rehearsal marks and figured bass), simultaneous note lyrics,
-dynamics, chord symbols, and articulations use that pass after existing note-annotation clearance
-calculation. Spans and tablature lanes remain separate.
-The renderer accepts at most 10,000 marks and 16 KiB of UTF-8 text per mark; excess input returns
-a typed error before SVG emission.
-Output is deterministic and may include stable data-note-addr hooks for host-side selection and
-hit testing. `glyph_coverage()` reports the built-in resource ID, supported clefs, and accidental
-range before rendering; unsupported clefs/accidentals return `RenderError` rather than a blank
-fallback. The renderer has no browser/DOM dependency and uses font-independent SVG geometry for
-notation glyphs. Tablature staffs render their configured line count, explicit string/fret
-positions, and guitar bend/slide/hammer-on/pull-off technique labels; missing positions are shown
-as an explicit `?` marker rather than inferred silently.
-Authored ties are emitted only between pitched note endpoints; a tie start adjacent to a rest is
-not drawn across silence. Metadata contract version 22 exposes typed note semantics (including
-`tie_start` and `tie_end`), score and measure text, tablature positions and technique connections,
-object-style overrides, harp-pedal diagrams, semantic section breaks, and staff presentation
-without requiring hosts to parse SVG geometry. Standard staves use the authored line count and
-line distance; tablature uses its configured string-line count. A cutaway staff is omitted from a
-system containing only implicit rests while retaining its vertical coordinate slot for stable
-cross-staff addresses.
-`render_preflight()` reports the renderer's unsupported staff or measure clef, accidental, and
-tablature-position boundaries with stable score source locations before SVG emission. This also
-covers clef changes represented on individual measures rather than only the staff default.
-Measure-level `StyledText` entries are emitted as deterministic `acorde-measure-text-*` SVG text
-classes, with stable part/staff/measure/text-index hooks when interactive output is enabled.
-Placement and MusicXML offset hints are projected into host-neutral coordinates; font selection,
-font metrics, embedding, and final publication remain host responsibilities.
-Text is bounded to the same 16 KiB-per-entry limit as host annotations, and non-finite or
-non-representable offsets are rejected before any SVG is emitted.
-XML 1.0-incompatible control characters in score text and host annotations are also rejected
-before serialization, rather than being escaped into invalid XML.
-`render_preflight()` reports oversized measure text, invalid text offsets, and invalid XML
-characters with source locations before the renderer is invoked.
-Finite extreme vertical text offsets expand the content-aware SVG breathing room rather than
-being clipped by the ordinary staff margins.
-Multiple measure-level entries on the same side of a staff are stacked in source order with a
-stable staff-space separation; this is a bounded deterministic policy, not full font-aware
-engraving collision optimization.
-Legacy measure fields (`tempo_text`, `rehearsal`, `navigation`, and `expression_text`) are
-normalized into the same `StyledText` render and metadata path. Explicit entries retain priority,
-and an identical style/text pair retained by an importer is emitted only once.
-Negative measure-level horizontal offsets expand the left content margin and move the system
-content together; font-width-aware wrapping and positive-offset typography remain host work.
-Non-zero `Pitch::microtone_cents` values, including notes on tablature staffs, are rendered as
-explicit deterministic `acorde-microtone` text markers such as `+25c`. The
-`glyph_coverage().microtone_marker` capability reports this as `svg-text-cents` with exact signed
-cents preservation. This does not claim equivalence to any particular quarter-tone glyph font;
-hosts may augment the marker with a richer resource.
-Unpitched notes retain their display placement and receive an `acorde-unpitched` class plus a
-`data-acorde-unpitched="true"` hook. Their explicit `NoteHead` shape also receives a bounded
-`acorde-percussion-notehead-*` resource hook reported by `glyph_coverage()`; the renderer does
-not invent a percussion sound mapping.
-Tab positions outside the owning staff's line range return `RenderError::InvalidTabPosition`
-before SVG emission; invalid metric arithmetic returns `RenderError::TabMetricsOverflow`.
-The public `tab_fret_metrics()` contract and self-authored fixture pin the digit-width and gap
-assumptions used for deterministic multi-position spacing; installed-font metrics remain host work.
+Notation is emitted as font-independent geometry. Text, lyrics, chord symbols, and host annotation
+marks remain SVG text, so callers own font choice, font metrics, embedding, and publication
+typography. The renderer validates non-finite geometry, invalid XML characters, unsupported glyph
+requests, malformed TAB positions, and bounded annotation/text inputs before emitting SVG.
 
-~~~rust
+```rust
 use acorde_core::Score;
 use acorde_render_svg::{render_svg, SvgRenderOptions};
 
 let svg = render_svg(&Score::default(), &SvgRenderOptions::default())?;
-~~~
+# let _ = svg;
+# Ok::<(), acorde_render_svg::RenderError>(())
+```
 
-Unsupported clefs, accidentals, rows, layouts, and invalid options return RenderError rather than
-being silently dropped. See the [browser contract](https://github.com/kent-tokyo/acorde/blob/main/docs/browser-rendering.md).
+## Host integration
+
+Interactive output includes stable note-address hooks. `render_svg_metadata` supplies the matching
+typed note, text, TAB, and technique data; call `svg_contract_version()` before consuming fields
+added by later releases. `render_preflight()` reports source-located capability issues before a
+host mounts SVG. Rows can be rendered independently for virtualized views.
+
+`RenderAnnotation` permits bounded, deterministic host text marks. Hosts supply their own
+viewport geometry and can opt into the renderer's priority-based collision pass; the renderer does
+not infer text metrics. Missing authored TAB positions render as an explicit marker rather than a
+guessed string/fret.
+
+Ties never cross a rest, microtones retain exact cents as explicit markers, and unpitched notes
+retain display placement without inventing a percussion sound identity. These are bounded semantic
+projections, not claims of font-aware publication engraving.
+
+See the [browser contract](https://github.com/kent-tokyo/acorde/blob/main/docs/browser-rendering.md)
+for the WASM boundary and the [security contract](../../docs/security/threat-model.md) for SVG and
+annotation input rules.
 
 [API documentation](https://docs.rs/acorde-render-svg) · [Repository](https://github.com/kent-tokyo/acorde)
-
-SVG output and annotation trust-boundary rules are documented in the [security contract](../../docs/security/threat-model.md).

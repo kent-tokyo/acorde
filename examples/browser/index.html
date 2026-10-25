@@ -1,7 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>acorde WASM browser contract fixture</title>
-<main>
+<main id="practice-host" tabindex="-1">
   <h1>acorde WASM browser contract fixture</h1>
   <p id="status">Loading…</p>
   <p>
@@ -13,18 +13,30 @@
     <button id="export" type="button" disabled>Export MusicXML</button>
   </p>
   <p class="transport" aria-label="Score playback controls">
+    <button id="rewind-score" type="button" disabled>Rewind</button>
     <button id="play-score" type="button" disabled>Play score</button>
     <button id="pause-score" type="button" disabled>Pause</button>
     <button id="stop-score" type="button" disabled>Stop</button>
     <output id="transport-status" aria-live="polite">Stopped</output>
+    <label for="seek-position">Seek</label>
+    <input id="seek-position" type="range" min="0" max="0" value="0" step="0.01"
+      aria-label="Seek position in seconds" disabled>
     <label for="tempo">Tempo</label>
-    <input id="tempo" type="range" min="40" max="240" value="120" step="1"
-      aria-label="Playback tempo in beats per minute">
-    <output id="tempo-value" for="tempo">120 BPM</output>
-    <label><input id="loop-score" type="checkbox"> Loop score</label>
+    <input id="tempo" type="range" min="50" max="200" value="100" step="1"
+      aria-label="Playback tempo multiplier percentage">
+    <output id="tempo-value" for="tempo">100%</output>
+    <label for="count-in-beats">Count-in</label>
+    <input id="count-in-beats" type="number" min="0" max="8" value="0" step="1"
+      aria-label="Count-in beats">
+    <label><input id="loop-score" type="checkbox"> Loop measure range</label>
+    <label for="loop-start">Start</label>
+    <input id="loop-start" type="number" min="1" value="1" step="1" aria-label="Loop start measure">
+    <label for="loop-end">End</label>
+    <input id="loop-end" type="number" min="1" value="1" step="1" aria-label="Loop end measure">
     <label><input id="metronome" type="checkbox"> Metronome</label>
-    <output id="transport-position" aria-live="off">0:00</output>
+    <output id="transport-position" aria-live="polite">0:00 · M1 B1</output>
   </p>
+  <pre id="transport-trace" aria-live="polite" aria-label="Playback scheduling trace"></pre>
   <button id="play" type="button" disabled>Play selected note</button>
   <section id="score" aria-label="Rendered score" aria-describedby="score-description"></section>
   <p id="score-description" class="visually-hidden"></p>
@@ -40,7 +52,11 @@
   .transport { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
   #transport-status { min-width: 5rem; font-weight: 600; }
   #tempo { inline-size: 9rem; }
+  #seek-position { inline-size: 9rem; }
+  #count-in-beats { inline-size: 3.5rem; }
+  #loop-start, #loop-end { inline-size: 3.5rem; }
   #tempo-value, #transport-position { min-width: 4.5rem; font-variant-numeric: tabular-nums; }
+  #transport-trace { max-block-size: 10rem; overflow: auto; font-size: 0.75rem; }
   #play { margin-bottom: 1rem; }
   #source { display: block; max-width: 100%; margin: 0.5rem 0 1rem; font: 0.8rem monospace; }
   #analysis { max-height: 16rem; overflow: auto; }
@@ -67,6 +83,7 @@
     analyze_score,
     serialize_musicxml,
     to_playback_events_ex,
+    compute_playback_position,
   } from "../../crates/wasm/pkg/acorde_wasm.js";
 
   const fixture = `<?xml version="1.0" encoding="UTF-8"?>
@@ -75,17 +92,27 @@
 <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note>
 <note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note>
 <note><pitch><step>E</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note>
-<note><pitch><step>F</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>`;
+<note><pitch><step>F</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note>
+<barline location="left"><repeat direction="forward"/></barline></measure>
+<measure number="2"><attributes><time><beats>3</beats><beat-type>4</beat-type></time></attributes>
+<note><rest/><duration>1</duration><type>quarter</type></note>
+<note><pitch><step>G</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note>
+<note><pitch><step>A</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note></measure>
+<measure number="3"><note><pitch><step>B</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note>
+<note><pitch><step>C</step><octave>6</octave></pitch><duration>1</duration><type>quarter</type></note>
+<note><pitch><step>D</step><octave>6</octave></pitch><duration>1</duration><type>quarter</type></note>
+<barline location="right"><repeat direction="backward"/></barline></measure></part></score-partwise>`;
 
   // The score schedule comes from WASM; this small host transport deliberately owns
   // Web Audio nodes, output device access, and all visual state. It only schedules a
   // short look-ahead window so an imported score cannot create an unbounded number of
   // browser audio nodes at once.
   class WebAudioTransport {
-    constructor({ onStateChange, onActiveAddresses, onPositionChange }) {
+    constructor({ onStateChange, onActiveAddresses, onPositionChange, onTrace }) {
       this.onStateChange = onStateChange;
       this.onActiveAddresses = onActiveAddresses;
       this.onPositionChange = onPositionChange;
+      this.onTrace = onTrace;
       this.context = null;
       this.events = [];
       this.nextEvent = 0;
@@ -94,8 +121,10 @@
       this.state = "stopped";
       this.timer = null;
       this.frame = null;
+      this.countInTimer = null;
       this.generation = 0;
       this.voices = new Set();
+      this.countInVoices = new Set();
       this.loop = false;
     }
 
@@ -108,19 +137,60 @@
       ).sort((a, b) => a.time_secs - b.time_secs || a.pitch_midi_cents - b.pitch_midi_cents);
     }
 
-    async play(events) {
-      if (this.state === "playing") return;
+    async play(events, countIn = null) {
+      if (this.state === "playing" || this.state === "counting-in") return;
       this.installEvents(events);
       this.context ??= new AudioContext();
       await this.context.resume();
+      if (this.elapsed === 0 && countIn?.beats > 0 && countIn.beatSecs > 0) {
+        this.startCountIn(countIn);
+        return;
+      }
       this.nextEvent = this.events.findIndex((event) => event.time_secs + event.duration_secs > this.elapsed);
       if (this.nextEvent < 0) this.elapsed = 0;
       this.nextEvent = this.events.findIndex((event) => event.time_secs + event.duration_secs > this.elapsed);
       this.origin = this.context.currentTime - this.elapsed;
       this.state = "playing";
       this.generation += 1;
+      this.trace("play", { event_count: this.events.length });
       this.onStateChange(this.state);
       this.schedule();
+    }
+
+    startCountIn({ beats, beatSecs }) {
+      this.cancelScheduled();
+      const generation = this.generation;
+      const start = this.context.currentTime + 0.03;
+      for (let beat = 0; beat < beats; beat += 1) {
+        const oscillator = this.context.createOscillator();
+        const gain = this.context.createGain();
+        const at = start + beat * beatSecs;
+        oscillator.type = "square";
+        oscillator.frequency.setValueAtTime(beat === 0 ? 1760 : 1320, at);
+        gain.gain.setValueAtTime(0.0001, at);
+        gain.gain.exponentialRampToValueAtTime(0.07, at + 0.004);
+        gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.04);
+        oscillator.connect(gain).connect(this.context.destination);
+        const voice = { oscillator, generation };
+        this.countInVoices.add(voice);
+        oscillator.addEventListener("ended", () => this.countInVoices.delete(voice));
+        oscillator.start(at);
+        oscillator.stop(at + 0.05);
+      }
+      this.state = "counting-in";
+      this.trace("count-in", { beats, beat_secs: Number(beatSecs.toFixed(3)) });
+      this.onStateChange(this.state);
+      this.onPositionChange(0);
+      this.countInTimer = setTimeout(() => {
+        this.countInTimer = null;
+        if (this.generation !== generation || this.state !== "counting-in") return;
+        this.origin = this.context.currentTime - this.elapsed;
+        this.state = "playing";
+        this.generation += 1;
+        this.trace("count-in-complete");
+        this.onStateChange(this.state);
+        this.schedule();
+      }, Math.ceil((beats * beatSecs + 0.03) * 1000));
     }
 
     installEvents(events) {
@@ -134,6 +204,48 @@
       return this.state === "playing" && this.context
         ? Math.max(0, this.context.currentTime - this.origin)
         : this.elapsed;
+    }
+
+    durationSeconds() {
+      return this.events.reduce(
+        (latest, event) => Math.max(latest, event.time_secs + event.duration_secs),
+        0,
+      );
+    }
+
+    trace(kind, details = {}) {
+      this.onTrace({
+        kind,
+        elapsed_secs: Number(this.elapsedSeconds().toFixed(3)),
+        ...details,
+      });
+    }
+
+    seek(seconds) {
+      const duration = this.durationSeconds();
+      if (duration <= 0) return;
+      // Keep an exact end seek from immediately stopping and resetting to zero.
+      const target = Math.min(
+        Math.max(0, Number.isFinite(seconds) ? seconds : 0),
+        Math.max(0, duration - 0.001),
+      );
+      const wasPlaying = this.state === "playing" && this.context;
+      this.cancelScheduled();
+      this.elapsed = target;
+      this.nextEvent = this.events.findIndex((event) => event.time_secs + event.duration_secs > target);
+      this.trace("seek", { target_secs: Number(target.toFixed(3)) });
+      if (wasPlaying) {
+        this.origin = this.context.currentTime - target;
+        this.state = "playing";
+        this.generation += 1;
+        this.onStateChange(this.state);
+        this.onPositionChange(target);
+        this.schedule();
+        return;
+      }
+      this.state = target > 0 ? "paused" : "stopped";
+      this.onStateChange(this.state);
+      this.onPositionChange(target);
     }
 
     restartAtMatchingEvent(events) {
@@ -150,6 +262,7 @@
       this.origin = this.context.currentTime - this.elapsed;
       this.state = "playing";
       this.generation += 1;
+      this.trace("reschedule", { event_count: this.events.length });
       this.onStateChange(this.state);
       this.schedule();
     }
@@ -162,10 +275,13 @@
     }
 
     pause() {
-      if (this.state !== "playing" || !this.context) return;
-      this.elapsed = Math.max(0, this.context.currentTime - this.origin);
+      if ((this.state !== "playing" && this.state !== "counting-in") || !this.context) return;
+      if (this.state === "playing") {
+        this.elapsed = Math.max(0, this.context.currentTime - this.origin);
+      }
       this.cancelScheduled();
       this.state = "paused";
+      this.trace("pause");
       this.onStateChange(this.state);
     }
 
@@ -174,18 +290,54 @@
       this.elapsed = 0;
       this.nextEvent = 0;
       this.state = "stopped";
+      this.trace("stop");
       this.onStateChange(this.state);
       this.onPositionChange(0);
+    }
+
+    rewind() {
+      if (this.state === "counting-in") {
+        this.cancelScheduled();
+        this.elapsed = 0;
+        this.nextEvent = 0;
+        this.state = "paused";
+        this.trace("rewind");
+        this.onStateChange(this.state);
+        this.onPositionChange(0);
+        return;
+      }
+      if (this.state !== "playing" || !this.context) {
+        this.elapsed = 0;
+        this.nextEvent = 0;
+        this.trace("rewind");
+        this.onPositionChange(0);
+        return;
+      }
+      this.cancelScheduled();
+      this.elapsed = 0;
+      this.nextEvent = 0;
+      this.origin = this.context.currentTime;
+      this.state = "playing";
+      this.generation += 1;
+      this.trace("rewind");
+      this.onStateChange(this.state);
+      this.onPositionChange(0);
+      this.schedule();
     }
 
     cancelScheduled() {
       this.generation += 1;
       if (this.timer !== null) { clearTimeout(this.timer); this.timer = null; }
       if (this.frame !== null) { cancelAnimationFrame(this.frame); this.frame = null; }
+      if (this.countInTimer !== null) { clearTimeout(this.countInTimer); this.countInTimer = null; }
       for (const voice of this.voices) {
         try { voice.oscillator.stop(); } catch (_) { /* already stopped */ }
       }
       this.voices.clear();
+      for (const voice of this.countInVoices) {
+        try { voice.oscillator.stop(); } catch (_) { /* already stopped */ }
+      }
+      this.countInVoices.clear();
       this.onActiveAddresses(new Set());
     }
 
@@ -204,6 +356,7 @@
       }
       if (this.nextEvent >= this.events.length && this.voices.size === 0) {
         if (this.loop) {
+          this.trace("loop");
           this.elapsed = 0;
           this.nextEvent = 0;
           this.origin = this.context.currentTime;
@@ -236,6 +389,12 @@
       oscillator.connect(gain).connect(this.context.destination);
       const voice = { oscillator, event, start, end, generation };
       this.voices.add(voice);
+      this.trace("schedule", {
+        source_address: event.address ?? null,
+        starts_at_secs: Number(event.time_secs.toFixed(3)),
+        duration_secs: Number(event.duration_secs.toFixed(3)),
+        metronome: event.is_metronome,
+      });
       oscillator.addEventListener("ended", () => {
         this.voices.delete(voice);
         if (this.generation === generation) this.refreshHighlights();
@@ -276,22 +435,38 @@
     let selectedAddress = null;
     const tempo = document.querySelector("#tempo");
     const tempoValue = document.querySelector("#tempo-value");
+    const countInBeats = document.querySelector("#count-in-beats");
     const loopScore = document.querySelector("#loop-score");
+    const loopStart = document.querySelector("#loop-start");
+    const loopEnd = document.querySelector("#loop-end");
     const metronome = document.querySelector("#metronome");
+    const seekPosition = document.querySelector("#seek-position");
     const transportPosition = document.querySelector("#transport-position");
-    const playbackOptions = () => JSON.stringify({
-      bpm_override: Number(tempo.value),
+    const transportTrace = document.querySelector("#transport-trace");
+    const traceEntries = [];
+    let measureCount = 1;
+    let lastPositionUpdate = Number.NEGATIVE_INFINITY;
+    const playbackOptions = () => ({
+      tempo_multiplier: Number(tempo.value) / 100,
+      loop_region: loopScore.checked
+        ? [Number(loopStart.value) - 1, Number(loopEnd.value) - 1]
+        : null,
       metronome: metronome.checked ? {} : null,
     });
+    const playbackOptionsJson = () => JSON.stringify(playbackOptions());
     const formatElapsed = (elapsed) => {
       const wholeSeconds = Math.max(0, Math.floor(elapsed));
       return `${Math.floor(wholeSeconds / 60)}:${String(wholeSeconds % 60).padStart(2, "0")}`;
     };
     const transportStatus = document.querySelector("#transport-status");
     const updatePlaybackControls = (state) => {
-      document.querySelector("#play-score").disabled = state === "playing";
-      document.querySelector("#pause-score").disabled = state !== "playing";
+      document.querySelector("#rewind-score").disabled = state === "stopped";
+      document.querySelector("#play-score").disabled = state === "playing" || state === "counting-in";
+      document.querySelector("#pause-score").disabled = state !== "playing" && state !== "counting-in";
       document.querySelector("#stop-score").disabled = state === "stopped";
+      const duration = transport.durationSeconds();
+      seekPosition.disabled = duration <= 0;
+      seekPosition.max = String(duration);
     };
     const transport = new WebAudioTransport({
       onStateChange: (state) => {
@@ -305,9 +480,30 @@
         );
       },
       onPositionChange: (elapsed) => {
-        const label = formatElapsed(elapsed);
+        const duration = transport.durationSeconds();
+        if (duration > 0 && document.activeElement !== seekPosition) {
+          seekPosition.value = String(Math.min(elapsed, duration));
+        }
+        let musicalPosition = "";
+        if (elapsed === 0 || elapsed < lastPositionUpdate || elapsed - lastPositionUpdate >= 0.1) {
+          lastPositionUpdate = elapsed;
+          const position = JSON.parse(compute_playback_position(score, playbackOptionsJson(), elapsed));
+          if (position) {
+            const beat = Number.isInteger(position.beat) ? position.beat + 1 : (position.beat + 1).toFixed(2);
+            musicalPosition = ` · M${position.measure_index + 1} B${beat}`;
+          }
+        } else {
+          musicalPosition = transportPosition.dataset.musicalPosition ?? "";
+        }
+        transportPosition.dataset.musicalPosition = musicalPosition;
+        const label = `${formatElapsed(elapsed)}${musicalPosition}`;
         transportPosition.value = label;
         transportPosition.textContent = label;
+      },
+      onTrace: (entry) => {
+        traceEntries.push(entry);
+        if (traceEntries.length > 64) traceEntries.shift();
+        transportTrace.textContent = traceEntries.map((value) => JSON.stringify(value)).join("\n");
       },
     });
     const mountValidatedSvg = (container, source) => {
@@ -342,7 +538,8 @@
       const metadata = JSON.parse(render_score_metadata(nextScore, layout, options));
       if (!svg.startsWith("<svg") || !row.startsWith("<svg") ||
           metadata.contract_version !== svg_contract_version() ||
-          metadata.address_bounds.length !== 4 ||
+          metadata.measure_count < 1 ||
+          metadata.address_bounds.length !== metadata.note_count ||
           !Array.isArray(metadata.tablature_staves) ||
           !Array.isArray(metadata.note_semantics) ||
           metadata.note_semantics.length !== metadata.note_count ||
@@ -350,6 +547,12 @@
         throw new Error("contract output failed validation");
       }
       mountValidatedSvg(document.querySelector("#score"), row);
+      measureCount = metadata.measure_count;
+      for (const input of [loopStart, loopEnd]) {
+        input.max = String(measureCount);
+        input.value = String(Math.min(Math.max(Number(input.value) || 1, 1), measureCount));
+      }
+      if (Number(loopStart.value) > Number(loopEnd.value)) loopEnd.value = loopStart.value;
       const notes = document.querySelectorAll("#score [data-note-addr]");
       let selectedNote = null;
       const select = (element) => {
@@ -387,6 +590,12 @@
       if (recordHistory) redoStack = [];
       render(score);
     };
+    const countInOptions = () => {
+      const beats = Math.min(8, Math.max(0, Number(countInBeats.value) || 0));
+      countInBeats.value = String(beats);
+      const startTempo = Number(JSON.parse(score).settings?.tempo_bpm) || 120;
+      return { beats, beatSecs: 60 / (startTempo * Number(tempo.value) / 100) };
+    };
     document.querySelector("#apply").addEventListener("click", () => {
       try { replaceScore(parse_musicxml(document.querySelector("#source").value)); }
       catch (error) { document.querySelector("#status").textContent = `FAIL: ${error}`; }
@@ -416,28 +625,51 @@
     });
     document.querySelector("#play-score").addEventListener("click", async () => {
       try {
-        const events = JSON.parse(to_playback_events_ex(score, playbackOptions()));
-        await transport.play(events);
+        const events = JSON.parse(to_playback_events_ex(score, playbackOptionsJson()));
+        await transport.play(events, countInOptions());
       } catch (error) {
         document.querySelector("#status").textContent = `FAIL: playback ${error}`;
         transport.stop();
       }
     });
+    document.querySelector("#rewind-score").addEventListener("click", () => transport.rewind());
     document.querySelector("#pause-score").addEventListener("click", () => transport.pause());
     document.querySelector("#stop-score").addEventListener("click", () => transport.stop());
-    loopScore.addEventListener("change", () => { transport.loop = loopScore.checked; });
-    metronome.addEventListener("change", () => {
+    seekPosition.addEventListener("change", () => transport.seek(Number(seekPosition.value)));
+    const restartPlaybackSchedule = () => {
       if (transport.state !== "playing") return;
-      try { transport.restartAtMatchingEvent(JSON.parse(to_playback_events_ex(score, playbackOptions()))); }
+      try { transport.restartAtMatchingEvent(JSON.parse(to_playback_events_ex(score, playbackOptionsJson()))); }
       catch (error) { document.querySelector("#status").textContent = `FAIL: playback ${error}`; transport.stop(); }
+    };
+    loopScore.addEventListener("change", () => { transport.loop = loopScore.checked; restartPlaybackSchedule(); });
+    for (const input of [loopStart, loopEnd]) {
+      input.addEventListener("change", () => {
+        const start = Math.min(Math.max(Number(loopStart.value) || 1, 1), measureCount);
+        const end = Math.min(Math.max(Number(loopEnd.value) || 1, start), measureCount);
+        loopStart.value = String(start);
+        loopEnd.value = String(end);
+        restartPlaybackSchedule();
+      });
+    }
+    metronome.addEventListener("change", () => {
+      restartPlaybackSchedule();
     });
     tempo.addEventListener("input", () => {
-      const label = `${tempo.value} BPM`;
+      const label = `${tempo.value}%`;
       tempoValue.value = label;
       tempoValue.textContent = label;
-      if (transport.state !== "playing") return;
-      try { transport.restartAtMatchingEvent(JSON.parse(to_playback_events_ex(score, playbackOptions()))); }
-      catch (error) { document.querySelector("#status").textContent = `FAIL: playback ${error}`; transport.stop(); }
+      restartPlaybackSchedule();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== " " || event.ctrlKey || event.metaKey || event.altKey) return;
+      const tag = event.target instanceof Element ? event.target.localName : "";
+      if (["input", "textarea", "select", "button"].includes(tag)) return;
+      event.preventDefault();
+      if (transport.state === "playing" || transport.state === "counting-in") {
+        transport.pause();
+      } else {
+        document.querySelector("#play-score").click();
+      }
     });
     document.querySelector("#play").addEventListener("click", () => {
       if (!selectedAddress) return;

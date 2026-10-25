@@ -37,13 +37,14 @@ voltas, navigation, rehearsal marks, and normalized text annotations for the pri
 
 ## Host boundary
 
-acorde owns logical geometry, collision constraints, glyph-resource descriptors, and preflight.
-The host owns font lookup and metrics, shaping, embedding, raster output, PDF backend, save/preview
-UI, and OS printing. Built-in vector glyph coverage is checked before SVG output; unsupported
-critical glyphs are rejected rather than silently blanked.
+acorde owns logical geometry, collision constraints, glyph-resource descriptors, preflight, and the
+optional one-viewport [`acorde-pdf`](pdf-export.md) conversion path. The host owns font lookup and
+metrics, shaping, multipage SVG composition, raster output, save/preview UI, and OS printing.
+Built-in vector glyph coverage is checked before SVG output; unsupported critical glyphs are
+rejected rather than silently blanked.
 
 Therefore a successful layout or SVG preflight is not proof of shaped-font collision quality,
-PDF fidelity, font embedding, or printer output.
+multi-page PDF composition, font embedding, or printer output.
 
 ## Phase 19A corpus gate
 

@@ -33,13 +33,13 @@ A successful parse alone never changes a capability matrix cell to `yes`.
   subsets round-trip or produce source-located diagnostics. Vendor-specific or timing-only
   semantics are not guessed into the canonical model.
 - **Guitar Pro 3–8 (import only):** `.gp` (ZIP) and `.gpx` (BCFZ/BCFS) containers are read to
-  their GPIF score, and `.gp3`/`.gp4`/`.gp5` binary files are read field by field: tracks, staves with tuning and capo, string/fret positions, rhythm, chords,
-  ties, dynamics, beat lyrics, repeats and endings, sections, tempo, and the guitar techniques the
-  model holds (bends with curves, hammer-on/pull-off, shift/legato slides, dead notes, palm mute
-  and let ring as technique text, natural harmonics, accents, left-hand fingering, tremolo picking
-  as stem slashes, pick strokes as down-/up-bow, brushes as arpeggios, coda/segno/fine directions
-  as navigation marks). Whammy, vibrato, tapping, chord diagrams, bar fermatas, double-coda
-  directions, and mix-table changes are reported per kind (`gp.*`) with occurrence counts. All
+  their GPIF score, and `.gp3`/`.gp4`/`.gp5` binaries are read field by field. The documented
+  subset covers tracks, tuning/capo, string/fret positions, rhythm, chords, ties, dynamics, beat
+  lyrics, repeats/endings, sections, tempo, bar fermatas, navigation, and modelled techniques:
+  bends, hammer-on/pull-off, shifts/legato slides, dead notes, palm mute/let ring, natural
+  harmonics, accents, tapping, vibrato, slide-in/out marks, wah, and available pitch fingerings.
+  Remaining right-hand detail, slap/pop, whammy, volume swells, harmonic types, chord diagrams,
+  complex navigation, and mix-table data are reported per kind (`gp.*`) rather than guessed. All
   90 GP3/4/5 files in alphaTab's test data import and export to schema-valid MusicXML and to MEI
   that Verovio loads; `serenade.gp5` and its GP7 counterpart import to the same 1270 events.
 

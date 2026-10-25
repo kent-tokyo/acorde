@@ -95,6 +95,7 @@ jobs:
           publish_if_missing acorde-layout
           publish_if_missing acorde-soundfont
           publish_if_missing acorde-render-svg
+          publish_if_missing acorde-pdf
           publish_if_missing acorde-cli
           publish_if_missing acorde-wasm
           publish_if_missing acorde

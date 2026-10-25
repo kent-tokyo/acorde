@@ -1,157 +1,51 @@
 # Browser contract fixture
 
-This page is a dependency-free browser harness for the documented WASM pipeline. Build the
-package, serve the repository root, and open `/examples/browser/`:
+This dependency-free page is a smoke-test host for the documented WASM pipeline. It is not a
+product UI or a MuseScore compatibility layer.
 
 ```bash
 wasm-pack build crates/wasm --target web
 python3 -m http.server 8000
 ```
 
-The page verifies `parse_musicxml` → `compute_layout_ex` →
-`render_score_svg_with_layout` / `render_score_svg_row` / `render_score_metadata`, including
-stable `address_bounds`, typed `note_semantics`, and tablature staff tuning/capo metadata coverage;
-the browser smoke contract also asserts the presence of the `tablature_staves` field.
-It also asserts the versioned analysis result and duration-weighted key-estimate fields.
-It also provides an offline reference workflow for loading a
-local MusicXML file, editing and applying the source, undoing/redoing edits, running analysis,
-playing the complete score, selecting and playing individual notes, and exporting MusicXML. It is intentionally framework-free so it can
-also serve as a smoke test for future browser integrations.
-The editor always exposes canonical MusicXML, while the WASM score JSON remains an internal
-transport representation; applying an edit and undoing or redoing it therefore preserves the
-document boundary.
+Open `/examples/browser/` after serving the repository root. The page exercises the canonical
+`parse_musicxml` → layout → SVG path, typed render metadata, source-address hit testing, analysis,
+editing with undo/redo, and MusicXML export. Browser smoke tests also cover tablature staff
+metadata and the versioned analysis result.
 
-After loading, each `data-note-addr` group is made keyboard-focusable by the host fixture. Click
-or focus a note and press Enter/Space to exercise address-based selection; hover state is kept in
-the host as `data-hover`. The complete-score transport uses `to_playback_events_ex` with a
-bounded 200 ms Web Audio look-ahead scheduler. It has Play, Pause, Stop, tempo, full-score loop,
-and metronome controls, displays an elapsed cursor, and highlights sounding SVG groups by their
-stable `data-note-addr`. Tempo and metronome changes rebuild the deterministic event schedule at
-the nearest source event while playing; this is a simple practice-preview policy, not a
-sample-accurate tempo map.
+## Practice preview
 
-The fixture deliberately uses oscillators rather than bundling an instrument library or
-SoundFont: synthesis, output-device access, sample assets, their licenses, per-part mixer
-controls, and browser device latency remain host concerns. The selected-note Play button remains
-a small single-note diagnostic. This demonstrates that selection, highlighting, scheduling, and
-playback belong to the browser host rather than the stateless Rust renderer.
+The fixture is an offline reference implementation for host-owned playback. It provides transport,
+seek, a 50–200% tempo multiplier, inclusive measure loops, metronome, a 0–8 beat count-in,
+musical position, and source-address highlighting. Seek and option changes rebuild a bounded Web
+Audio look-ahead schedule; its trace is for contract review, not audio-quality measurement.
 
-`acorde-adapter.ts` is a dependency-free, framework-neutral starting point for a browser
-workspace. Inject the generated WASM module into `AcordeWorkspace`; it keeps score, layout,
-metadata, and analysis transport consistent while `SelectionStore` synchronizes stable note
-addresses across notation and analysis views. `RenderMetadata` uses typed entries for hit-test
-bounds, styled text, note semantics, tablature positions/staff configuration, and harmony ranges,
-so hosts can consume
-editing and playback fields without parsing SVG or maintaining a duplicate score index. Results
-are cached by the WASM-provided analysis
-cache key plus layout or render configuration, so repeated view updates and equivalent revisions do
-not rerun WASM analysis or rendering.
- Its `RenderMetadata` type includes optional typed `tablature_staves` entries for line count,
-MIDI tuning, and capo, plus note articulation names and typed tablature technique connections. The
-`tablatureTechniqueConnections()` helper returns that connection list directly while
-preserving compatibility with older generated WASM bindings.
-`noteSemanticAt(address)` provides the complete typed semantic entry for one stable note address,
-including articulation names, without requiring hosts to scan the metadata array.
-The current metadata contract is version 22. Its note semantics include authored `tie_start` and
-`tie_end`; SVG tie geometry is suppressed when either endpoint is a rest, so hosts should use the
-typed flags and source addresses rather than infer ties from curve presence.
-The adapter also types the analysis result's interval observations; each interval exposes both the
-legacy semitone distance and the exact signed `cents` value, so microtonal editor views do not need
-to decode untyped JSON fields.
-Key estimates also expose duration-weighted coverage and total pitched duration, allowing hosts to
-explain why sustained tones outweigh short passing tones in a candidate ranking.
-`analysisIntervals()` and `analysisKeyEstimates()` provide those typed categories directly while
-reusing the same analysis cache entry.
-`BROWSER_ADAPTER_CONTRACT_VERSION` identifies the request/response surface independently from
-`WORKSPACE_SNAPSHOT_SCHEMA_VERSION`; hosts can reject an adapter with an unsupported message
-contract before dispatching Worker requests.
-`analysisCacheKey()` and the `analysis-cache-key` Worker request expose the same schema-versioned
-score identity to a host-level or persistent cache without duplicating hashing logic in JavaScript.
-`WorkspaceSnapshot.analysisCacheKey` carries that identity alongside the analysis result for hosts
-that persist or synchronize snapshots as one unit.
-Snapshots include `schemaVersion` (currently `1`) so persisted Worker/UI state can reject or migrate
-future contract changes explicitly.
-`restoreSnapshot(snapshot)` and the `restore-snapshot` Worker request validate that version, rebuild
-layout from the persisted score, and restore the stable selection address.
-`renderRowSvg(rowIndex)` exposes the same contract one logical row at a time, which lets a host
-virtualize long scores without moving row/index arithmetic into the UI.
-`renderPreflight()` exposes the source-located renderer capability checks before SVG emission;
-hosts can reject unsupported clefs, accidentals, tablature positions, oversized text, and invalid
-XML characters without parsing renderer error strings. The matching `render-preflight` Worker
-request returns the same issue array.
-`validateScore()` exposes the canonical score-model validation report, and the `validate` Worker
-request provides the same check after an edit and before host export or playback.
-`preflight(includeTablature)` combines validation and renderer issues for one workspace revision;
-when enabled, it also includes tablature projection and canonical round-trip diagnostics. The
-result carries the adapter contract version and revision so a host can discard stale preflight
-results. It also provides `valid` and issue counts: validation errors and renderer issues make
-the result invalid, while validation warnings remain advisory. When tablature checks are enabled,
-tablature diagnostics also make the result invalid. The matching `preflight` Worker request
-returns the same correlated object.
-Parse, layout, render, metadata, and analysis failures are raised as `AcordeWorkspaceError` with
-a typed operation field, allowing a host to show an actionable diagnostic without matching error
-message text. `replaceScoreJson`, `undo`, and `redo` provide a small host-facing edit history;
-failed layout preparation leaves the current score unchanged.
-`loadMidi` adds binary MIDI loading with the same transactional replacement behavior, while
-`exportMusicXml` provides offline MusicXML export. `playbackEvents`, `playbackPosition`, and
-`durationSeconds` expose deterministic scheduling data to a host audio backend without coupling
-the adapter to Web Audio or another playback framework.
-`exportMei`, `exportAbc`, `exportMidi`, `exportMscx`, and `exportMscz` expose the format serializers for browser
-downloads or host adapters; report-capable formats retain typed conversion diagnostics through
-their `WithReport` methods. MIDI and MSCZ are returned as `Uint8Array`, while text formats are
-returned as strings.
-`loadMxl`, `loadMei`, `loadAbc`, `loadMscx`, and `loadMscz` expose the corresponding existing
-WASM parsers through the same transactional score replacement boundary; the adapter does not
-claim that any of these format subsets are globally lossless.
-The matching `loadMxlWithReport`, `loadMeiWithReport`, `loadAbcWithReport`,
-`loadMscxWithReport`, `loadMsczWithReport`, and `loadMidiWithReport` methods preserve the
-format adapter's structured diagnostics together with the installed snapshot. Their Worker
-request variants return `{ report, snapshot }` as one correlated result.
-`comparePlaybackTiming(actualEvents, tolerance, options)` compares a host scheduler trace with
-the expected event trace using the versioned WASM contract. It checks event identity and timing,
-not audio output, device latency, or SoundFont behavior. `tablaturePerformance(options)` maps
-authored string/fret positions onto playback events and returns explicit pitch/position
-diagnostics; `tablatureRoundTripReport()` checks the canonical score JSON boundary. These methods
-support alphaTab-like browser hosts while keeping scheduling, synthesis, and rendering outside
-the adapter.
-`loadMusicXmlWithReport` and `exportMusicXmlWithReport` additionally return structured
-interchange diagnostics, including preserved values and loss reasons when the format adapter
-has such information, so hosts can present repair guidance without parsing error strings.
-`compatibilityReport(candidateScoreJson)` compares a candidate canonical score with the loaded
-score and returns score and deterministic analysis gate booleans. It does not infer losses from a
-format conversion; use the import/export report methods for that boundary.
-The Worker boundary exposes the same operation as `compatibility-report` with a
-`candidateScoreJson` payload.
-Each sounding playback event carries the stable source address used by `data-note-addr`, and
-`selectPlaybackEvent` sends that address through the shared `SelectionStore` for notation and
-analysis highlighting.
-`playbackEventAt` resolves the active sounding event at a host clock time, and `selectPlaybackAt`
-combines that lookup with selection updates; `WorkspaceSnapshot.selectedAddress` makes the same
-state available to persistence and view synchronization code.
-`WorkspaceRequest` and `handleWorkspaceRequest` provide a serializable message boundary for
-Worker hosts; the same handler returns correlated success or structured error responses for load,
-edit, render, analysis, playback, tablature validation, and export operations. The playback
-comparison request carries `actualEvents`, optional `tolerance`, and the same playback `options`
-used to produce the expected trace, making Worker validation inputs explicit.
-`encodeScoreJson`, `decodeScoreJson`, `scoreJsonBytes`, and the `replace-score-bytes` request use
-UTF-8 `Uint8Array` transport, preserving the string API while allowing Worker structured-clone
-messages to avoid carrying an additional JavaScript string representation.
-The `undo` and `redo` requests return `{ changed, snapshot, history }`, and `history-state`
-provides the revision and undo/redo availability without requiring a full render or analysis
-round trip.
-`select-address` updates the shared `SelectionStore` from a Worker host and returns the current
-revision plus selected address; `selection-state` reads the same lightweight state without
-rendering or analysis.
-`formatNoteAddress`, `parseNoteAddress`, and `select-note` provide a typed bridge for hosts that
-already use the metadata/analysis `{part, staff, measure, voice, note}` address shape. The
-legacy string selection remains available, and `selectedNoteSemantic()` resolves the current
-selection without requiring the host to parse SVG or score JSON.
-`apply-command` and `AcordeWorkspace.applyCommandJson()` route one JSON-compatible core command
-through the validated WASM command boundary, then record the resulting snapshot in adapter undo
-history. Note, tablature, and notation edits therefore use the same checked path as native
-`ScoreEngine` edits.
-`AcordeWorkspace.setTablatureConfig()` provides a typed convenience wrapper for changing or
-clearing staff tuning, string count, and capo without hand-assembling command JSON.
-`soundfont-preset-snapshot` accepts SF2/SF3 bytes and returns one bounded, deterministic
-provider-neutral preset-zone snapshot with asset provenance and typed materialization diagnostics;
-sample decoding, synthesis, and licensed assets remain host-owned.
+It deliberately uses oscillators. SoundFonts, synthesis quality, output-device access, mixer
+controls, asset licensing, and browser latency are application responsibilities. The selected-note
+button is only a selection and scheduling diagnostic.
+
+## Adapter
+
+`acorde-adapter.ts` is a framework-neutral starting point for a browser workspace. Supply the
+generated WASM module to `AcordeWorkspace`; it maintains score, layout, render metadata, analysis,
+selection, and transactional edit history. `WorkspaceRequest` and `handleWorkspaceRequest` expose
+the same bounded operations for Worker hosts.
+
+The generated TypeScript declarations are authoritative for method names, request payloads, result
+fields, and contract versions. The adapter covers canonical imports and exports, render preflight,
+validation, incremental row rendering, deterministic playback events, tablature projection, and
+format conversion reports. It never turns SVG metadata into trusted HTML or chooses audio, fonts,
+PDF, or UI policy for the host.
+
+Snapshots carry a schema version and stable note addresses. Hosts should reject unsupported
+versions, treat every `data-*` value as an opaque identifier, and keep selection outside the
+stateless Rust renderer.
+
+## Production integration
+
+Parse returned SVG as `image/svg+xml`, require an SVG root in the SVG namespace, and reject scripts,
+event-handler attributes, and `javascript:` links before inserting it into the DOM. Use a restrictive
+CSP, Trusted Types where available, and a Worker for expensive parsing or rendering.
+
+See [the browser rendering contract](../../docs/browser-rendering.md) for integration boundaries
+and the generated bindings for the complete, versioned surface.

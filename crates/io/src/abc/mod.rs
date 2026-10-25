@@ -2204,20 +2204,18 @@ fn abc_note_export_losses(
     let mut losses = Vec::new();
     let starts_tuplet_group =
         note_index == 0 || notes[note_index - 1].tuplet.as_ref() != note.tuplet.as_ref();
-    if starts_tuplet_group {
-        if let Some(tuplet) = note.tuplet.as_ref() {
-            let group_len = abc_tuplet_run_len(notes, note_index, tuplet);
-            let actual_notes = usize::from(tuplet.actual_notes);
-            if actual_notes == 0 || group_len < actual_notes {
-                losses.push((
-                    format!("{note_path}/tuplet"),
-                    format!(
-                        "{}:{}:{} notes",
-                        tuplet.actual_notes, tuplet.normal_notes, group_len
-                    ),
-                    "ABC export cannot preserve an incomplete tuplet group",
-                ));
-            }
+    if starts_tuplet_group && let Some(tuplet) = note.tuplet.as_ref() {
+        let group_len = abc_tuplet_run_len(notes, note_index, tuplet);
+        let actual_notes = usize::from(tuplet.actual_notes);
+        if actual_notes == 0 || group_len < actual_notes {
+            losses.push((
+                format!("{note_path}/tuplet"),
+                format!(
+                    "{}:{}:{} notes",
+                    tuplet.actual_notes, tuplet.normal_notes, group_len
+                ),
+                "ABC export cannot preserve an incomplete tuplet group",
+            ));
         }
     }
     for (field, present, value, reason) in [

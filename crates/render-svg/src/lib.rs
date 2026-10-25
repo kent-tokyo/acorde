@@ -478,14 +478,14 @@ pub fn render_preflight(score: &Score) -> Vec<RenderPreflightIssue> {
                         ("relative_x", styled.relative_x),
                         ("relative_y", styled.relative_y),
                     ] {
-                        if let Some(value) = value {
-                            if !value.is_finite() || !(value as f32).is_finite() {
-                                issues.push(RenderPreflightIssue {
-                                    kind: RenderPreflightKind::InvalidMeasureTextOffset,
-                                    source_location: format!("{text_path}/{field}"),
-                                    preserved_value: value.to_string(),
-                                });
-                            }
+                        if let Some(value) = value
+                            && (!value.is_finite() || !(value as f32).is_finite())
+                        {
+                            issues.push(RenderPreflightIssue {
+                                kind: RenderPreflightKind::InvalidMeasureTextOffset,
+                                source_location: format!("{text_path}/{field}"),
+                                preserved_value: value.to_string(),
+                            });
                         }
                     }
                 }
@@ -546,14 +546,14 @@ pub fn render_preflight(score: &Score) -> Vec<RenderPreflightIssue> {
                             ("relative-x", note.relative_x),
                             ("relative-y", note.relative_y),
                         ] {
-                            if let Some(value) = value {
-                                if !value.is_finite() || !(value as f32).is_finite() {
-                                    issues.push(RenderPreflightIssue {
-                                        kind: RenderPreflightKind::InvalidNotePlacement,
-                                        source_location: format!("{note_path}/{field}"),
-                                        preserved_value: value.to_string(),
-                                    });
-                                }
+                            if let Some(value) = value
+                                && (!value.is_finite() || !(value as f32).is_finite())
+                            {
+                                issues.push(RenderPreflightIssue {
+                                    kind: RenderPreflightKind::InvalidNotePlacement,
+                                    source_location: format!("{note_path}/{field}"),
+                                    preserved_value: value.to_string(),
+                                });
                             }
                         }
                         for (pitch_index, pitch) in note.pitches.iter().enumerate() {

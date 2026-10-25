@@ -2377,29 +2377,29 @@ fn page_publication(
             alignment: config.publication.footer_alignment,
         });
     }
-    if config.publication.page_number_in_footer {
-        if let Some(page_number) = page_number {
-            let (paper_width, paper_height) = config.paper_size.dimensions_mm();
-            let (page_width, page_height) =
-                if matches!(config.orientation, PageOrientation::Landscape) {
-                    (paper_height, paper_width)
-                } else {
-                    (paper_width, paper_height)
-                };
-            text_blocks.push(PublicationTextBlock {
-                role: PublicationTextRole::Footer,
-                text: page_number.to_string(),
-                x_mm: config.margin_left_mm + config.safe_left_mm,
-                y_mm: page_height - config.margin_bottom_mm,
-                width_mm: page_width
-                    - config.margin_left_mm
-                    - config.margin_right_mm
-                    - config.safe_left_mm
-                    - config.safe_right_mm,
-                height_mm: config.publication.line_height_mm,
-                alignment: config.publication.footer_alignment,
-            });
-        }
+    if config.publication.page_number_in_footer
+        && let Some(page_number) = page_number
+    {
+        let (paper_width, paper_height) = config.paper_size.dimensions_mm();
+        let (page_width, page_height) = if matches!(config.orientation, PageOrientation::Landscape)
+        {
+            (paper_height, paper_width)
+        } else {
+            (paper_width, paper_height)
+        };
+        text_blocks.push(PublicationTextBlock {
+            role: PublicationTextRole::Footer,
+            text: page_number.to_string(),
+            x_mm: config.margin_left_mm + config.safe_left_mm,
+            y_mm: page_height - config.margin_bottom_mm,
+            width_mm: page_width
+                - config.margin_left_mm
+                - config.margin_right_mm
+                - config.safe_left_mm
+                - config.safe_right_mm,
+            height_mm: config.publication.line_height_mm,
+            alignment: config.publication.footer_alignment,
+        });
     }
     if is_title_page {
         let content_height = page_height

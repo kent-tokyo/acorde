@@ -393,16 +393,18 @@ pub(crate) fn build_svg_with_metadata(
                 // Where this part's other staves sit, for notes written across to them.
                 let mut cross_frames: HashMap<usize, (i32, f32)> = HashMap::new();
                 for (other_idx, &(other_pi, other_si)) in staff_refs.iter().enumerate() {
-                    if other_pi == pi && other_si != si && row_staff_visible[other_idx] {
-                        if let Ok(bottom_line) = geometry::clef_bottom_line(&row_clefs[other_idx]) {
-                            cross_frames.insert(
-                                other_si,
-                                (
-                                    bottom_line,
-                                    staff_y[other_idx] + staff_heights_u[other_idx] * space,
-                                ),
-                            );
-                        }
+                    if other_pi == pi
+                        && other_si != si
+                        && row_staff_visible[other_idx]
+                        && let Ok(bottom_line) = geometry::clef_bottom_line(&row_clefs[other_idx])
+                    {
+                        cross_frames.insert(
+                            other_si,
+                            (
+                                bottom_line,
+                                staff_y[other_idx] + staff_heights_u[other_idx] * space,
+                            ),
+                        );
                     }
                 }
                 render_measure(
@@ -1349,10 +1351,10 @@ fn validate_score_content(score: &Score) -> Result<(), RenderError> {
                             ("relative_x", note.relative_x),
                             ("relative_y", note.relative_y),
                         ] {
-                            if let Some(value) = value {
-                                if !value.is_finite() || !(value as f32).is_finite() {
-                                    return Err(RenderError::InvalidNotePlacement { field });
-                                }
+                            if let Some(value) = value
+                                && (!value.is_finite() || !(value as f32).is_finite())
+                            {
+                                return Err(RenderError::InvalidNotePlacement { field });
                             }
                         }
                     }
@@ -1400,10 +1402,10 @@ fn validate_styled_text_constraints(styled: &StyledText) -> Result<(), RenderErr
         ("relative_x", styled.relative_x),
         ("relative_y", styled.relative_y),
     ] {
-        if let Some(value) = value {
-            if !value.is_finite() || !(value as f32).is_finite() {
-                return Err(RenderError::InvalidMeasureTextOffset { field });
-            }
+        if let Some(value) = value
+            && (!value.is_finite() || !(value as f32).is_finite())
+        {
+            return Err(RenderError::InvalidMeasureTextOffset { field });
         }
     }
     Ok(())
@@ -4633,10 +4635,11 @@ fn accidental_footprint_u(note: &Note) -> f32 {
 fn note_annotation_lane_width_u(note: &Note, above: bool) -> f32 {
     let mut width = 0.0_f32;
     let direction = note.stem_up;
-    if note.chord_symbol.is_some() && above {
-        if let Some(chord) = &note.chord_symbol {
-            width = width.max(chord.display_text().chars().count() as f32 * 0.42);
-        }
+    if note.chord_symbol.is_some()
+        && above
+        && let Some(chord) = &note.chord_symbol
+    {
+        width = width.max(chord.display_text().chars().count() as f32 * 0.42);
     }
     if let Some(dynamic) = &note.dynamic {
         reserve_annotation_lane(
@@ -4678,10 +4681,11 @@ fn note_annotation_lane_width_u(note: &Note, above: bool) -> f32 {
             width = width.max(fingering_width);
         }
     }
-    if note.lyric.is_some() && !above {
-        if let Some(lyric) = &note.lyric {
-            width = width.max(lyric.text.chars().count() as f32 * 0.42 + 0.6);
-        }
+    if note.lyric.is_some()
+        && !above
+        && let Some(lyric) = &note.lyric
+    {
+        width = width.max(lyric.text.chars().count() as f32 * 0.42 + 0.6);
     }
     if note.pitches.iter().any(|pitch| pitch.microtone_cents != 0) && above {
         width = width.max(
@@ -5743,18 +5747,20 @@ fn render_note(
         tablature_rhythm_display,
         tablature_fret_mark_style,
     )?;
-    if tablature.is_none() && !note.is_rest && !note.is_unpitched {
-        if let Some(upward) = note.arpeggiate {
-            write_arpeggio(
-                body,
-                note,
-                clef_bottom,
-                x,
-                placed_staff_bottom_y,
-                space,
-                upward,
-            );
-        }
+    if tablature.is_none()
+        && !note.is_rest
+        && !note.is_unpitched
+        && let Some(upward) = note.arpeggiate
+    {
+        write_arpeggio(
+            body,
+            note,
+            clef_bottom,
+            x,
+            placed_staff_bottom_y,
+            space,
+            upward,
+        );
     }
 
     body.push_str("</g>");

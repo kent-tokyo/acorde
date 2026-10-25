@@ -566,10 +566,10 @@ impl Reader<'_> {
         if flags & 0x08 != 0 {
             effects = self.read_beat_effects()?;
         }
-        if flags & 0x10 != 0 {
-            if let Some(bpm) = self.read_mix_table()? {
-                tempos.entry(bar_index).or_insert(bpm);
-            }
+        if flags & 0x10 != 0
+            && let Some(bpm) = self.read_mix_table()?
+        {
+            tempos.entry(bar_index).or_insert(bpm);
         }
         let string_flags = self.bin.u8()?;
         let mut members: Vec<(u8, Pitch, Option<TabPosition>, NoteRead)> = Vec::new();

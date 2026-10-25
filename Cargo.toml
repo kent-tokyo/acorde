@@ -1,11 +1,11 @@
 [workspace]
-members = ["crates/core", "crates/io", "crates/layout", "crates/render-svg", "crates/omr", "crates/cli", "crates/wasm", "crates/acorde", "crates/analysis", "crates/soundfont"]
+members = ["crates/core", "crates/io", "crates/layout", "crates/render-svg", "crates/pdf", "crates/omr", "crates/cli", "crates/wasm", "crates/acorde", "crates/analysis", "crates/soundfont"]
 resolver = "2"
 
 [workspace.package]
-version = "1.2.17"
+version = "1.2.18"
 edition = "2024"
-rust-version = "1.87"
+rust-version = "1.88"
 homepage = "https://github.com/kent-tokyo/acorde"
 documentation = "https://docs.rs/acorde-core"
 license = "MIT OR Apache-2.0"
