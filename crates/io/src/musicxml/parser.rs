@@ -3040,6 +3040,8 @@ fn append_musicxml_gap_rests(
     divisions: u32,
 ) -> Result<(), Error> {
     let candidates = [
+        (Duration::Longa, divisions.checked_mul(16)),
+        (Duration::Breve, divisions.checked_mul(8)),
         (Duration::Whole, divisions.checked_mul(4)),
         (Duration::Half, divisions.checked_mul(2)),
         (Duration::Quarter, Some(divisions)),
@@ -3191,6 +3193,7 @@ fn musicxml_value_from_ticks(
     }
     let (actual, normal) = tuplet.map_or((1u64, 1u64), |(a, n)| (u64::from(a), u64::from(n)));
     [
+        Duration::Longa,
         Duration::Breve,
         Duration::Whole,
         Duration::Half,
@@ -3228,7 +3231,8 @@ fn parse_duration_type(t: &str) -> Duration {
         "32nd" => Duration::ThirtySecond,
         "64th" => Duration::SixtyFourth,
         "128th" | "256th" | "512th" | "1024th" => Duration::HundredTwentyEighth,
-        "breve" | "long" | "maxima" => Duration::Breve,
+        "long" | "maxima" => Duration::Longa,
+        "breve" => Duration::Breve,
         _ => Duration::Quarter,
     }
 }

@@ -5670,6 +5670,37 @@ fn breves_and_hundred_twenty_eighths_round_trip() {
 }
 
 #[test]
+fn longa_round_trips_through_musicxml_mei_and_mscx() {
+    use acorde_core::Duration;
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>V</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>1</beat-type></time></attributes><note><pitch><step>C</step><octave>5</octave></pitch><duration>16</duration><type>long</type></note></measure></part></score-partwise>"#;
+    let check = |score: &acorde_core::Score, format: &str| {
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].duration,
+            Duration::Longa,
+            "{format}"
+        );
+        assert!(acorde_core::validate(score).is_valid(), "{format}");
+    };
+    let score = parse_musicxml(xml).expect("MusicXML parses");
+    check(&score, "MusicXML");
+    let musicxml = serialize_musicxml(&score).expect("MusicXML serializes");
+    assert!(musicxml.contains("<type>long</type>"));
+    check(
+        &parse_musicxml(&musicxml).expect("MusicXML reparses"),
+        "MusicXML again",
+    );
+    let mei = acorde_io::serialize_mei(&score).expect("MEI serializes");
+    assert!(mei.contains(r#"dur="long""#));
+    check(&acorde_io::parse_mei(&mei).expect("MEI reparses"), "MEI");
+    let mscx = acorde_io::serialize_mscx(&score).expect("MSCX serializes");
+    assert!(mscx.contains("<durationType>longa</durationType>"));
+    check(
+        &acorde_io::parse_mscx(&mscx).expect("MSCX reparses"),
+        "MSCX",
+    );
+}
+
+#[test]
 fn tapping_and_vibrato_round_trip_through_musicxml() {
     use acorde_core::Articulation;
     let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Guitar</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notations><technical><tap/></technical></notations></note><note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notations><technical><tap hand="left">T</tap></technical></notations></note><note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notations><technical><other-technical>vibrato</other-technical></technical></notations></note></measure></part></score-partwise>"#;

@@ -1223,6 +1223,7 @@ fn write_note(
 
 fn duration_name(duration: &Duration) -> &'static str {
     match duration {
+        Duration::Longa => "longa",
         Duration::Breve => "breve",
         Duration::Whole => "whole",
         Duration::Half => "half",

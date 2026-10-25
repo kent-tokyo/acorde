@@ -9,6 +9,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Longa duration.** `Duration::Longa` represents four whole notes exactly. MusicXML `long`,
+  MEI `@dur="long"`, and MuseScore `longa` now round-trip instead of being normalized to a
+  breve; playback, commands, layout, and SVG retain its 16-quarter-note length.
+
 ## [1.2.17] - 2026-09-28
 
 - **Endings for several passes.** `VoltaBracket` gains `numbers` (with `passes`, `plays_on`,

@@ -1870,7 +1870,9 @@ fn note_vertical_margins(note: &Note, clef_bottom: i32, voice_stem_up: bool) -> 
     if !note.is_rest
         && !matches!(
             note.duration,
-            acorde_core::Duration::Whole | acorde_core::Duration::Breve
+            acorde_core::Duration::Whole
+                | acorde_core::Duration::Breve
+                | acorde_core::Duration::Longa
         )
     {
         let stem_up = note.stem_up.unwrap_or(voice_stem_up);
@@ -5964,7 +5966,10 @@ fn render_tab_rhythm(
     space: f32,
     stem_up: bool,
 ) {
-    if matches!(note.duration, Duration::Whole | Duration::Breve) {
+    if matches!(
+        note.duration,
+        Duration::Whole | Duration::Breve | Duration::Longa
+    ) {
         return;
     }
     let (stem, tip_y) = glyphs::stem(x, anchor_y, space, stem_up);
@@ -7124,7 +7129,10 @@ pub(crate) fn write_stem_tremolo(
     };
     let strokes = (*strokes).clamp(1, 4);
     let dir = if stem_up { -1.0 } else { 1.0 };
-    let has_stem = !matches!(note.duration, Duration::Whole);
+    let has_stem = !matches!(
+        note.duration,
+        Duration::Whole | Duration::Breve | Duration::Longa
+    );
     let stem_x = if has_stem {
         x - dir * glyphs::NOTEHEAD_RX_U * space * 0.92
     } else {
@@ -7368,11 +7376,17 @@ fn render_rest(
         Duration::ThirtySecond => (3, glyphs::rest_short(x, mid_y, space, 3)),
         Duration::SixtyFourth => (4, glyphs::rest_short(x, mid_y, space, 4)),
         Duration::HundredTwentyEighth => (5, glyphs::rest_short(x, mid_y, space, 5)),
-        // A breve rest fills the space above the middle line.
-        Duration::Breve => (
+        // Long rests fill the space above the middle line. The class keeps their semantic value
+        // available to CSS-capable hosts even though this minimal glyph uses the same block shape.
+        Duration::Breve | Duration::Longa => (
             0,
             format!(
-                r#"<rect class="acorde-rest-breve" x="{}" y="{}" width="{}" height="{}" fill="black"/>"#,
+                r#"<rect class="acorde-rest-{}" x="{}" y="{}" width="{}" height="{}" fill="black"/>"#,
+                if matches!(duration, Duration::Longa) {
+                    "longa"
+                } else {
+                    "breve"
+                },
                 f(x - 0.25 * space),
                 f(mid_y - space),
                 f(0.5 * space),
@@ -7419,7 +7433,10 @@ fn render_pitched_note(
             | Duration::SixtyFourth
             | Duration::HundredTwentyEighth
     );
-    let has_stem = !matches!(note.duration, Duration::Whole | Duration::Breve);
+    let has_stem = !matches!(
+        note.duration,
+        Duration::Whole | Duration::Breve | Duration::Longa
+    );
     let flag_count = match note.duration {
         Duration::Eighth => 1,
         Duration::Sixteenth => 2,
@@ -7692,15 +7709,20 @@ fn render_pitched_note_heads(
         if pitch_index == 0 {
             render_chord_lines(body, note, x + notehead_offsets[0] * space, y, space);
         }
-        if note.duration == Duration::Breve {
-            // A breve is a whole-note head between two pairs of vertical bars.
+        if matches!(note.duration, Duration::Breve | Duration::Longa) {
+            // A longa uses the same bounded fallback as a breve: a whole-note head between bars.
             let cx = x + notehead_offsets[pitch_index] * space;
             for side in [-1.0_f32, 1.0] {
                 for offset in [0.12_f32, 0.28] {
                     let bar_x = cx + side * (glyphs::NOTEHEAD_RX_U + offset) * space;
                     let _ = write!(
                         body,
-                        r#"<line class="acorde-breve-bar" x1="{bx}" y1="{}" x2="{bx}" y2="{}" stroke="black" stroke-width="{}"/>"#,
+                        r#"<line class="acorde-{}-bar" x1="{bx}" y1="{}" x2="{bx}" y2="{}" stroke="black" stroke-width="{}"/>"#,
+                        if matches!(note.duration, Duration::Longa) {
+                            "longa"
+                        } else {
+                            "breve"
+                        },
                         f(y - 0.6 * space),
                         f(y + 0.6 * space),
                         f(0.1 * space),

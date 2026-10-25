@@ -32,9 +32,10 @@ fn attr(e: &BytesStart<'_>, key: &[u8]) -> Option<String> {
         .and_then(|value| String::from_utf8(value.value.to_vec()).ok())
 }
 
-/// MEI `@dur` for a note value: `breve`, or the denominator (`1`, `2`, …, `128`).
+/// MEI `@dur` for a note value: `long`, `breve`, or the denominator (`1`, `2`, …, `128`).
 fn mei_dur(duration: &Duration) -> String {
     match duration {
+        Duration::Longa => "long".to_string(),
         Duration::Breve => "breve".to_string(),
         other => other.as_fraction().1.to_string(),
     }
@@ -50,11 +51,11 @@ fn duration(value: Option<&str>) -> Option<Duration> {
         Some("32") => Some(Duration::ThirtySecond),
         Some("64") => Some(Duration::SixtyFourth),
         Some("128") => Some(Duration::HundredTwentyEighth),
+        Some("long" | "maxima") => Some(Duration::Longa),
         Some("breve") => Some(Duration::Breve),
         // Values beyond the model's range take its nearest one (the bar keeps its notes; their
         // timing is approximate) instead of failing the whole file.
         Some("256" | "512" | "1024" | "2048") => Some(Duration::HundredTwentyEighth),
-        Some("long" | "maxima") => Some(Duration::Breve),
         _ => None,
     }
 }
@@ -67,6 +68,7 @@ fn mei_value_from_ppq(ticks: u64, ppq: u64) -> Option<(Duration, u8)> {
     }
     let mut best: Option<(Duration, u8, u64, u64)> = None;
     for value in [
+        Duration::Longa,
         Duration::Breve,
         Duration::Whole,
         Duration::Half,
