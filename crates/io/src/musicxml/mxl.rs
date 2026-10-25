@@ -28,7 +28,10 @@ pub(crate) fn read_mxl_score(data: &[u8]) -> Result<String, Error> {
         let entry = archive
             .by_index(index)
             .map_err(|e| Error::Zip(format!("failed to inspect MXL entry: {e}")))?;
-        let name = entry.name().to_string();
+        let name = entry
+            .name()
+            .map_err(|e| Error::Zip(format!("invalid MXL entry name: {e}")))?
+            .into_owned();
         validate_zip_path(&name)?;
         if !entry_names.insert(name.clone()) {
             return Err(Error::Zip(format!("duplicate MXL entry: '{name}'")));
@@ -103,11 +106,12 @@ fn find_score_entry(archive: &mut ZipArchive<Cursor<&[u8]>>) -> Result<String, E
     let names: Vec<String> = (0..archive.len())
         .filter_map(|i| {
             let e = archive.by_index(i).ok()?;
-            let name_lc = e.name().to_ascii_lowercase();
+            let name = e.name().ok()?.into_owned();
+            let name_lc = name.to_ascii_lowercase();
             if (name_lc.ends_with(".xml") || name_lc.ends_with(".musicxml"))
                 && !name_lc.starts_with("meta-inf")
             {
-                Some(e.name().to_string())
+                Some(name)
             } else {
                 None
             }
