@@ -7,6 +7,16 @@ test("browser contract renders and exposes selectable notes", async ({ page }) =
   await expect(page.locator("#apply")).toBeEnabled();
   await expect(page.locator("#analyze")).toBeEnabled();
   await expect(page.locator("#export")).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Play score" })).toBeEnabled();
+  await page.getByRole("button", { name: "Play score" }).click();
+  await expect(page.locator("#transport-status")).toHaveText("Playing");
+  await expect(page.getByRole("button", { name: "Pause" })).toBeEnabled();
+  await page.getByRole("button", { name: "Pause" }).click();
+  await expect(page.locator("#transport-status")).toHaveText("Paused");
+  await page.getByRole("button", { name: "Play score" }).click();
+  await expect(page.locator("#transport-status")).toHaveText("Playing");
+  await page.getByRole("button", { name: "Stop" }).click();
+  await expect(page.locator("#transport-status")).toHaveText("Stopped");
   await page.getByRole("button", { name: "Analyze" }).click();
   await expect(page.locator("#analysis")).not.toHaveText("");
   await expect(page.locator("#analysis")).toContainText('"schema_version": 13');

@@ -87,6 +87,7 @@ impl Default for MetronomeConfig {
 
 /// Options for [`to_playback_events`].
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
 pub struct PlaybackOptions {
     /// Replaces the score's tempo when `Some`; `None` uses `score.settings.tempo_bpm`.
     pub bpm_override: Option<u16>,
@@ -2441,6 +2442,12 @@ mod tests {
             bpm_override: bpm,
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn playback_options_accepts_an_empty_json_object_as_defaults() {
+        let parsed: PlaybackOptions = serde_json::from_str("{}").expect("default playback options");
+        assert_eq!(parsed, PlaybackOptions::default());
     }
 
     #[test]

@@ -396,12 +396,14 @@ pub fn to_playback_events(
         .map_err(|e| js_err(format!("playback serialization failed: {e}")))
 }
 
-/// Extended playback event generator accepting a full `PlaybackOptions` JSON.
+/// Extended playback event generator accepting partial or full `PlaybackOptions` JSON.
 ///
 /// Use this instead of [`to_playback_events`] when you need `loop_region` or other
 /// options that cannot be expressed via positional parameters.
 ///
-/// `options_json` example: `{"bpm_override":null,"muted_parts":[],"loop_region":[2,5]}`
+/// Omitted fields use [`acorde_core::PlaybackOptions::default`]. For example,
+/// `{"loop_region":[2,5]}` restricts playback while retaining the default tempo,
+/// swing, and metronome behavior.
 #[wasm_bindgen]
 pub fn to_playback_events_ex(score_json: &str, options_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
@@ -2221,9 +2223,9 @@ mod tests {
                 value: 88,
             });
         let score_json = serde_json::to_string(&score).unwrap();
-        let options_json = serde_json::to_string(&acorde_core::PlaybackOptions::default()).unwrap();
+        let options_json = "{}";
         let events: Vec<acorde_core::PlaybackEvent> =
-            serde_json::from_str(&to_playback_events_ex(&score_json, &options_json).unwrap())
+            serde_json::from_str(&to_playback_events_ex(&score_json, options_json).unwrap())
                 .unwrap();
         assert_eq!(events[0].address.as_deref(), Some("0:0:0:0:0"));
         assert_eq!(events[0].source.as_ref().map(|source| source.note), Some(0));

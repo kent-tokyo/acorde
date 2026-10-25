@@ -15,7 +15,7 @@ the browser smoke contract also asserts the presence of the `tablature_staves` f
 It also asserts the versioned analysis result and duration-weighted key-estimate fields.
 It also provides an offline reference workflow for loading a
 local MusicXML file, editing and applying the source, undoing/redoing edits, running analysis,
-selecting and playing notes, and exporting MusicXML. It is intentionally framework-free so it can
+playing the complete score, selecting and playing individual notes, and exporting MusicXML. It is intentionally framework-free so it can
 also serve as a smoke test for future browser integrations.
 The editor always exposes canonical MusicXML, while the WASM score JSON remains an internal
 transport representation; applying an edit and undoing or redoing it therefore preserves the
@@ -23,9 +23,13 @@ document boundary.
 
 After loading, each `data-note-addr` group is made keyboard-focusable by the host fixture. Click
 or focus a note and press Enter/Space to exercise address-based selection; hover state is kept in
-the host as `data-hover`. The Play button uses a small Web Audio oscillator for the selected note,
-showing that playback also remains a host concern. This deliberately demonstrates that
-selection/highlighting/playback belong to the browser host rather than the stateless Rust renderer.
+the host as `data-hover`. The complete-score transport uses `to_playback_events_ex` with a
+bounded 200 ms Web Audio look-ahead scheduler. It has Play, Pause, and Stop controls and
+highlights sounding SVG groups by their stable `data-note-addr`. It deliberately uses oscillators
+rather than bundling an instrument library or SoundFont: synthesis, output-device access, sample
+assets, and their licenses remain host concerns. The selected-note Play button remains a small
+single-note diagnostic. This demonstrates that selection, highlighting, scheduling, and playback
+belong to the browser host rather than the stateless Rust renderer.
 
 `acorde-adapter.ts` is a dependency-free, framework-neutral starting point for a browser
 workspace. Inject the generated WASM module into `AcordeWorkspace`; it keeps score, layout,
