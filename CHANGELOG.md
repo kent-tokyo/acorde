@@ -12,6 +12,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Longa duration.** `Duration::Longa` represents four whole notes exactly. MusicXML `long`,
   MEI `@dur="long"`, and MuseScore `longa` now round-trip instead of being normalized to a
   breve; playback, commands, layout, and SVG retain its 16-quarter-note length.
+- **ABC explicit beaming.** Whitespace now closes an ABC 2.1 explicit beam group: adjacent
+  eighth notes and shorter durations render as one group, while spaces, rests, longer notes,
+  overlays and barlines separate them. This is preserved through the browser SVG API as well.
 
 ## [1.2.17] - 2026-09-28
 

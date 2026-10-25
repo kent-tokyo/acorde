@@ -14,8 +14,8 @@ use crate::{Diagnostic, DiagnosticSeverity, Error, MAX_ABC_LINE_BYTES, MAX_INPUT
 ///
 /// Reference: <https://abcnotation.com/wiki/abc:standard:v2.1>
 use acorde_core::{
-    Barline, ChordSymbol, Clef, Duration, Dynamic, HairpinKind, KeySignature, Measure, Note, Part,
-    Pitch, Score, Staff, Step, StyledText, TextStyle, TimeSignature, TupletInfo,
+    Barline, BeamState, ChordSymbol, Clef, Duration, Dynamic, HairpinKind, KeySignature, Measure,
+    Note, Part, Pitch, Score, Staff, Step, StyledText, TextStyle, TimeSignature, TupletInfo,
 };
 
 const MAX_LINES: usize = 10_000;
@@ -514,6 +514,73 @@ struct AbcPendingNoteState<'a> {
     pending_tuplet: &'a mut Option<(TupletInfo, usize)>,
 }
 
+/// The current adjacent, explicitly beamed ABC note run in voice zero.
+///
+/// ABC whitespace is semantic for beaming: adjacent short notes belong to a group, while a
+/// space closes it. The parser keeps the active overlay in voice zero and always closes a run
+/// before swapping voices or measures, so note indices remain stable here.
+#[derive(Default)]
+struct AbcBeamRun {
+    measure: Option<usize>,
+    note_indices: Vec<usize>,
+}
+
+fn clear_abc_beam_run(run: &mut AbcBeamRun) {
+    run.measure = None;
+    run.note_indices.clear();
+}
+
+fn abc_note_is_beamable(note: &Note) -> bool {
+    !note.is_rest
+        && matches!(
+            note.duration,
+            Duration::Eighth
+                | Duration::Sixteenth
+                | Duration::ThirtySecond
+                | Duration::SixtyFourth
+                | Duration::HundredTwentyEighth
+        )
+}
+
+/// Extend the active explicit ABC beam group with the last note in voice zero, or close it when
+/// that note is a rest or has a non-beamable duration.
+fn update_abc_beam_run(staff: &mut Staff, run: &mut AbcBeamRun) {
+    let Some(measure_index) = staff.measures.len().checked_sub(1) else {
+        clear_abc_beam_run(run);
+        return;
+    };
+    let Some(note_index) = staff.measures[measure_index]
+        .voices
+        .first()
+        .and_then(|voice| voice.len().checked_sub(1))
+    else {
+        clear_abc_beam_run(run);
+        return;
+    };
+
+    if !abc_note_is_beamable(&staff.measures[measure_index].voices[0][note_index]) {
+        staff.measures[measure_index].voices[0][note_index].beam = BeamState::None;
+        clear_abc_beam_run(run);
+        return;
+    }
+
+    if run.measure != Some(measure_index) {
+        clear_abc_beam_run(run);
+        run.measure = Some(measure_index);
+    }
+
+    if let Some(previous_index) = run.note_indices.last().copied() {
+        let voice = &mut staff.measures[measure_index].voices[0];
+        voice[previous_index].beam = if run.note_indices.len() == 1 {
+            BeamState::Begin
+        } else {
+            BeamState::Continue
+        };
+        voice[note_index].beam = BeamState::End;
+    }
+    run.note_indices.push(note_index);
+}
+
 fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error> {
     let AbcBodyContext {
         score,
@@ -556,6 +623,7 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
     // `&` overlays another voice on the bar. The voice being written is kept in slot 0 (where
     // the note readers append) and swapped back into its own slot at the barline.
     let mut overlay = 0usize;
+    let mut beam_run = AbcBeamRun::default();
 
     loop {
         let position = abc_last_note_position(staff);
@@ -568,7 +636,14 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
         }
         let ch = chars[i];
 
+        if ch.is_whitespace() {
+            clear_abc_beam_run(&mut beam_run);
+            i += 1;
+            continue;
+        }
+
         if ch == '&' {
+            clear_abc_beam_run(&mut beam_run);
             if let Some(measure) = staff.measures.last_mut()
                 && overlay + 1 < measure.voices.len()
             {
@@ -698,6 +773,7 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
         if matches!(ch, '|' | ':')
             && let Some((right_barline, left_barline, next_index)) = parse_barline(&chars, i)
         {
+            clear_abc_beam_run(&mut beam_run);
             i = next_index;
             if let Some(measure) = staff.measures.last_mut() {
                 measure.voices.swap(0, std::mem::take(&mut overlay));
@@ -833,6 +909,7 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
                 &mut pending_tuplet,
             )?
         {
+            update_abc_beam_run(staff, &mut beam_run);
             continue;
         }
 
@@ -851,6 +928,7 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
                 &mut pending_tuplet,
             )?
         {
+            update_abc_beam_run(staff, &mut beam_run);
             continue;
         }
 
@@ -868,6 +946,7 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
                 pending_tuplet: &mut pending_tuplet,
             },
         )? {
+            update_abc_beam_run(staff, &mut beam_run);
             continue;
         }
         i += 1;
@@ -2552,7 +2631,7 @@ fn note_to_abc(note: &Note) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acorde_core::{Duration, Step};
+    use acorde_core::{BeamState, Duration, Step};
 
     const SIMPLE: &str = "\
 X:1
@@ -2610,6 +2689,57 @@ C D E F | G A B c |";
                 (Duration::Sixteenth, 0),
                 (Duration::Sixteenth, 0),
                 (Duration::Eighth, 1),
+            ]
+        );
+    }
+
+    #[test]
+    fn whitespace_controls_explicit_abc_beam_groups() {
+        let abc = "X:1\nT:Beam test\nM:2/2\nL:1/8\nK:G\n|:G2BG DGBG:|\n";
+        let score = parse_abc(abc).expect("parses beam fixture");
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+
+        assert_eq!(
+            notes
+                .iter()
+                .filter(|note| !note.is_rest)
+                .map(|note| (&note.duration, note.beam))
+                .collect::<Vec<_>>(),
+            vec![
+                (&Duration::Quarter, BeamState::None),
+                (&Duration::Eighth, BeamState::Begin),
+                (&Duration::Eighth, BeamState::End),
+                (&Duration::Eighth, BeamState::Begin),
+                (&Duration::Eighth, BeamState::Continue),
+                (&Duration::Eighth, BeamState::Continue),
+                (&Duration::Eighth, BeamState::End),
+            ]
+        );
+    }
+
+    #[test]
+    fn whitespace_rests_and_long_notes_end_abc_beam_runs() {
+        let abc = "X:1\nT:Beam boundaries\nM:3/2\nL:1/8\nK:C\nCDEzFG A2BC|\n";
+        let score = parse_abc(abc).expect("parses beam boundaries");
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+
+        assert_eq!(
+            notes
+                .iter()
+                .take(10)
+                .map(|note| note.beam)
+                .collect::<Vec<_>>(),
+            vec![
+                BeamState::Begin,
+                BeamState::Continue,
+                BeamState::End,
+                BeamState::None,
+                BeamState::Begin,
+                BeamState::End,
+                BeamState::None,
+                BeamState::Begin,
+                BeamState::End,
+                BeamState::None,
             ]
         );
     }
