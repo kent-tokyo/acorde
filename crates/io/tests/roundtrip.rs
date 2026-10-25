@@ -5,6 +5,7 @@ use acorde_core::{
 /// Integration tests: parse a fixture, serialize, re-parse, and verify
 /// that key musical properties are preserved across the round-trip.
 use acorde_io::{parse_midi, parse_musicxml, serialize_musicxml};
+use std::fmt::Write as _;
 
 // Fixtures live at the workspace root under tests/fixtures/.
 // include_str! paths are relative to this source file:
@@ -680,7 +681,11 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
             "FluidR3Mono_GM.sf3" => include_bytes!("../../../tests/fixtures/FluidR3Mono_GM.sf3"),
             other => panic!("manifest fixture has no embedded test mapping: {other}"),
         };
-        let actual = format!("{:x}", Sha256::digest(bytes));
+        let digest = Sha256::digest(bytes);
+        let mut actual = String::with_capacity(digest.len() * 2);
+        for byte in digest {
+            write!(&mut actual, "{byte:02x}").expect("writing to a String cannot fail");
+        }
         assert_eq!(actual, expected, "fixture checksum mismatch: {path}");
     }
 }
