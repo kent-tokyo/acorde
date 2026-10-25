@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 /// Note duration as a power-of-two fraction of a whole note.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Duration {
+    /// Longa (four whole notes).
+    Longa,
     /// Double whole note.
     Breve,
     Whole,
@@ -19,6 +21,7 @@ impl Duration {
     /// Exact fraction relative to a whole note = 1.
     pub fn as_fraction(&self) -> (u32, u32) {
         match self {
+            Duration::Longa => (4, 1),
             Duration::Breve => (2, 1),
             Duration::Whole => (1, 1),
             Duration::Half => (1, 2),
@@ -47,6 +50,7 @@ impl Duration {
     /// MusicXML `<type>` string.
     pub fn to_musicxml_type(&self) -> &'static str {
         match self {
+            Duration::Longa => "long",
             Duration::Breve => "breve",
             Duration::Whole => "whole",
             Duration::Half => "half",
@@ -99,6 +103,9 @@ mod tests {
 
     #[test]
     fn musicxml_type_strings() {
+        assert_eq!(Duration::Longa.to_musicxml_type(), "long");
+        assert_eq!(Duration::Longa.to_ticks(0), 7680);
+        assert!((Duration::Longa.beats(0) - 16.0).abs() < 1e-9);
         assert_eq!(Duration::Sixteenth.to_musicxml_type(), "16th");
         assert_eq!(Duration::ThirtySecond.to_musicxml_type(), "32nd");
     }

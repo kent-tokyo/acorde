@@ -4483,7 +4483,8 @@ fn apply_explode_chord_pitches(
 }
 
 fn scaled_duration(duration: &Duration, scale: DurationScale) -> Option<Duration> {
-    const ORDER: [Duration; 9] = [
+    const ORDER: [Duration; 10] = [
+        Duration::Longa,
         Duration::Breve,
         Duration::Whole,
         Duration::Half,

@@ -23,6 +23,12 @@ WASM score patch/apply APIs were added. Patches can represent measure metadata, 
 marks, volta brackets, and explicit note insertion positions. Unsafe or structurally broad changes
 fall back to `ReplaceScore`, preserving target-score data instead of silently dropping it.
 
+## Unreleased
+
+`Duration` gains `Longa` (four whole notes). Existing serialized scores continue to load, but
+downstream exhaustive `Duration` matches need one new arm. MusicXML `long`, MEI `@dur="long"`,
+and MuseScore `longa` now preserve this value instead of becoming `Breve`.
+
 ## Current release
 
 ### v1.2.17 — durations, endings, and expression techniques
