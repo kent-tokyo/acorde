@@ -711,7 +711,9 @@ pub fn decode_sf2_pcm16(
         return Err(Error::Truncated);
     }
     let pcm = bytes[start..end]
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|pair| i16::from_le_bytes([pair[0], pair[1]]))
         .collect();
     DecodedSample::new(sample_rate, channels, pcm)
@@ -2020,7 +2022,9 @@ fn parse_preset_headers(data: &[u8]) -> Result<Vec<SfPresetHeader>, Error> {
         return Err(Error::Truncated);
     }
     Ok(data
-        .chunks_exact(RECORD)
+        .as_chunks::<RECORD>()
+        .0
+        .iter()
         .take(data.len() / RECORD - 1)
         .map(|record| SfPresetHeader {
             program: u16::from_le_bytes([record[20], record[21]]),
@@ -2036,7 +2040,9 @@ fn parse_instrument_headers(data: &[u8]) -> Result<Vec<SfInstrumentHeader>, Erro
         return Err(Error::Truncated);
     }
     Ok(data
-        .chunks_exact(RECORD)
+        .as_chunks::<RECORD>()
+        .0
+        .iter()
         .take(data.len() / RECORD - 1)
         .map(|record| SfInstrumentHeader {
             bag_index: usize::from(u16::from_le_bytes([record[20], record[21]])),
@@ -2049,7 +2055,9 @@ fn parse_bags(data: &[u8]) -> Result<Vec<SfBag>, Error> {
         return Err(Error::Truncated);
     }
     Ok(data
-        .chunks_exact(4)
+        .as_chunks::<4>()
+        .0
+        .iter()
         .map(|record| SfBag {
             generator_index: usize::from(u16::from_le_bytes([record[0], record[1]])),
         })
@@ -2061,7 +2069,9 @@ fn parse_generators(data: &[u8]) -> Result<Vec<SfGenerator>, Error> {
         return Err(Error::Truncated);
     }
     Ok(data
-        .chunks_exact(4)
+        .as_chunks::<4>()
+        .0
+        .iter()
         .map(|record| SfGenerator {
             operator: u16::from_le_bytes([record[0], record[1]]),
             amount: i16::from_le_bytes([record[2], record[3]]),
@@ -2075,7 +2085,9 @@ fn parse_sample_headers(data: &[u8]) -> Result<Vec<SfSampleHeader>, Error> {
         return Err(Error::Truncated);
     }
     Ok(data
-        .chunks_exact(RECORD)
+        .as_chunks::<RECORD>()
+        .0
+        .iter()
         .take(data.len() / RECORD - 1)
         .map(|record| SfSampleHeader {
             start: u32::from_le_bytes([record[20], record[21], record[22], record[23]]),
@@ -2120,7 +2132,12 @@ fn parse_presets(data: &[u8], presets: &mut Vec<SoundFontPreset>) -> Result<(), 
     if count > MAX_PRESETS + 1 {
         return Err(Error::TooManyPresets(count));
     }
-    for record in data.chunks_exact(RECORD).take(count.saturating_sub(1)) {
+    for record in data
+        .as_chunks::<RECORD>()
+        .0
+        .iter()
+        .take(count.saturating_sub(1))
+    {
         let name_end = record[..20].iter().position(|b| *b == 0).unwrap_or(20);
         let name = String::from_utf8_lossy(&record[..name_end])
             .trim()
