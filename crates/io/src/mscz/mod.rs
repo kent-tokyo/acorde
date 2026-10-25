@@ -100,7 +100,10 @@ fn extract_mscx_bytes(data: &[u8]) -> Result<String, Error> {
         let entry = archive
             .by_index(index)
             .map_err(|e| Error::Zip(format!("failed to inspect MSCZ entry: {e}")))?;
-        let name = entry.name().to_string();
+        let name = entry
+            .name()
+            .map_err(|e| Error::Zip(format!("invalid MSCZ entry name: {e}")))?
+            .into_owned();
         validate_archive_entry_path(&name)?;
         if !entry_names.insert(name.clone()) {
             return Err(Error::Zip(format!("duplicate MSCZ entry: '{name}'")));
@@ -2474,14 +2477,14 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                     }
                 }
                 if field == Some("digit")
-                    && !event.as_ref().is_empty()
+                    && !event.is_empty()
                     && let Some((_, _, has_digit)) = figured_bass_context.as_mut()
                 {
                     *has_digit = true;
                 }
                 if path.iter().any(|element| element == "FiguredBassItem")
                     && matches!(field, Some("digit"))
-                    && !event.as_ref().is_empty()
+                    && !event.is_empty()
                 {
                     let value = String::from_utf8_lossy(event.as_ref());
                     if !value
@@ -2500,7 +2503,7 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                 }
                 if path.iter().any(|element| element == "Note")
                     && matches!(field, Some("string") | Some("fret"))
-                    && !event.as_ref().is_empty()
+                    && !event.is_empty()
                 {
                     let value = String::from_utf8_lossy(event.as_ref());
                     let valid = match field {
@@ -2522,7 +2525,7 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                 }
                 if path.iter().any(|element| element == "FiguredBassItem")
                     && matches!(field, Some("prefix") | Some("suffix"))
-                    && !event.as_ref().is_empty()
+                    && !event.is_empty()
                 {
                     let value = String::from_utf8_lossy(event.as_ref());
                     if !value
@@ -3203,7 +3206,10 @@ fn extract_mscx<R: std::io::Read + std::io::Seek>(
     use std::io::Read;
     for i in 0..archive.len() {
         let file = archive.by_index(i).map_err(|e| Error::Zip(e.to_string()))?;
-        let name = file.name().to_owned();
+        let name = file
+            .name()
+            .map_err(|e| Error::Zip(format!("invalid MSCZ entry name: {e}")))?
+            .into_owned();
         validate_archive_entry_path(&name)?;
         if name.ends_with(".mscx") {
             if file.size() > MAX_MSCX_SIZE {
