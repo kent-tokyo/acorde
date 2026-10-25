@@ -15,6 +15,7 @@ fn opts() -> SvgRenderOptions {
     SvgRenderOptions {
         width: 700.0,
         staff_size: 24.0,
+        staff_gap: 10.0,
         measures_per_system: 4,
         interactive: true,
     }
@@ -108,6 +109,7 @@ fn linked_view_uses_its_projection_and_layout_overrides() {
         &score.resolve_view("part").expect("view resolves"),
         &SvgRenderOptions {
             staff_size: 36.0,
+            staff_gap: 10.0,
             measures_per_system: 1,
             ..opts()
         },
@@ -1682,11 +1684,50 @@ fn invalid_render_dimensions_return_errors() {
         Err(acorde_render_svg::RenderError::InvalidOptions { .. })
     ));
     options = opts();
+    options.staff_gap = 0.0;
+    assert!(matches!(
+        render_svg(&score, &options),
+        Err(acorde_render_svg::RenderError::InvalidOptions { .. })
+    ));
+    options.staff_gap = f32::NAN;
+    assert!(matches!(
+        render_svg(&score, &options),
+        Err(acorde_render_svg::RenderError::InvalidOptions { .. })
+    ));
+    options = opts();
     options.width = 80.0;
     assert!(matches!(
         render_svg(&score, &options),
         Err(acorde_render_svg::RenderError::InvalidOptions { .. })
     ));
+}
+
+#[test]
+fn staff_gap_moves_the_lower_staff_without_resizing_notes() {
+    let score = common::satb_major();
+    let layout = compute_layout(&score, &LayoutConfig::default());
+    let normal = render_svg_metadata(&score, &layout, &opts()).unwrap();
+    let compact = render_svg_metadata(
+        &score,
+        &layout,
+        &SvgRenderOptions {
+            staff_gap: 8.0,
+            ..opts()
+        },
+    )
+    .unwrap();
+    let first = |metadata: &acorde_render_svg::RenderMetadata, staff| {
+        let note = metadata
+            .address_bounds
+            .iter()
+            .find(|note| note.staff == staff)
+            .unwrap();
+        (note.y, note.height)
+    };
+    assert!((normal.height - compact.height - 2.0 * opts().staff_size).abs() < 0.01);
+    assert!((first(&normal, 1).0 - first(&compact, 1).0 - 2.0 * opts().staff_size).abs() < 0.01);
+    assert!((first(&normal, 0).0 - first(&compact, 0).0).abs() < 0.01);
+    assert!((first(&normal, 1).1 - first(&compact, 1).1).abs() < 0.01);
 }
 
 #[test]

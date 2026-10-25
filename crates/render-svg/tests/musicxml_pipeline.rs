@@ -9,6 +9,7 @@ fn opts() -> SvgRenderOptions {
     SvgRenderOptions {
         width: 900.0,
         staff_size: 24.0,
+        staff_gap: 10.0,
         measures_per_system: 4,
         interactive: true,
     }

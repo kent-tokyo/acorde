@@ -33,6 +33,7 @@ fn single_note_matches_golden_svg() {
     let options = SvgRenderOptions {
         width: 200.0,
         staff_size: 20.0,
+        staff_gap: 10.0,
         measures_per_system: 1,
         interactive: false,
     };

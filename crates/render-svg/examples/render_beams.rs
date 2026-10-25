@@ -96,6 +96,7 @@ fn main() {
     let options = SvgRenderOptions {
         width: 1000.0,
         staff_size: 24.0,
+        staff_gap: 10.0,
         measures_per_system: 5,
         interactive: true,
     };
