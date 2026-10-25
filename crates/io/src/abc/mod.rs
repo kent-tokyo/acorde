@@ -1530,6 +1530,8 @@ fn abc_note_value(unit_den: u32, num: u32, den: u32) -> (Duration, u8) {
     let (length_num, length_den) = (u64::from(num), u64::from(den) * u64::from(unit_den.max(1)));
     let mut best: Option<(Duration, u8, u64, u64)> = None;
     for value in [
+        Duration::Longa,
+        Duration::Breve,
         Duration::Whole,
         Duration::Half,
         Duration::Quarter,

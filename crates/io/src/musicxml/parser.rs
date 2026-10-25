@@ -3040,6 +3040,8 @@ fn append_musicxml_gap_rests(
     divisions: u32,
 ) -> Result<(), Error> {
     let candidates = [
+        (Duration::Longa, divisions.checked_mul(16)),
+        (Duration::Breve, divisions.checked_mul(8)),
         (Duration::Whole, divisions.checked_mul(4)),
         (Duration::Half, divisions.checked_mul(2)),
         (Duration::Quarter, Some(divisions)),

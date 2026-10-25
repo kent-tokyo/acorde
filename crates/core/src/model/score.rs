@@ -2762,7 +2762,11 @@ impl Note {
 impl Duration {
     /// Returns the largest single duration that fills the given number of beats.
     pub fn whole_filling_beats(beats: f64) -> Duration {
-        if beats >= 4.0 {
+        if beats >= 16.0 {
+            Duration::Longa
+        } else if beats >= 8.0 {
+            Duration::Breve
+        } else if beats >= 4.0 {
             Duration::Whole
         } else if beats >= 2.0 {
             Duration::Half
@@ -4967,6 +4971,8 @@ mod tests {
 
     #[test]
     fn whole_filling_beats() {
+        assert_eq!(Duration::whole_filling_beats(16.0), Duration::Longa);
+        assert_eq!(Duration::whole_filling_beats(8.0), Duration::Breve);
         assert_eq!(Duration::whole_filling_beats(4.0), Duration::Whole);
         assert_eq!(Duration::whole_filling_beats(2.0), Duration::Half);
         assert_eq!(Duration::whole_filling_beats(1.0), Duration::Quarter);

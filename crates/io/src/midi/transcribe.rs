@@ -167,6 +167,8 @@ fn assign_voices(raw: &[RawNote], grid: u64) -> [Vec<VoiceChord>; 4] {
 fn note_values(ppq: u64) -> Vec<(Duration, u8, u64)> {
     let mut values = Vec::new();
     for value in [
+        Duration::Longa,
+        Duration::Breve,
         Duration::Whole,
         Duration::Half,
         Duration::Quarter,
