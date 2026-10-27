@@ -113,6 +113,9 @@ pub struct SvgRenderOptions {
     /// Distance between two adjacent staff lines, in pixels. Drives every other glyph
     /// dimension (noteheads, stems, clefs, accidentals are all proportional to this).
     pub staff_size: f32,
+    /// Clear distance between consecutive staves in a system, measured in staff spaces.
+    /// Defaults to 10.0 to preserve the established layout.
+    pub staff_gap: f32,
     /// How many measures to place per system/row.
     pub measures_per_system: usize,
     /// When `true`, emit stable `data-*` hooks (`data-acorde-kind`, `data-part`, `data-staff`,
@@ -748,6 +751,7 @@ impl Default for SvgRenderOptions {
         Self {
             width: 900.0,
             staff_size: 24.0,
+            staff_gap: 10.0,
             measures_per_system: 4,
             interactive: true,
         }

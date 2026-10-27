@@ -38,7 +38,6 @@ const RIGHT_MARGIN_U: f32 = 1.0;
 // annotation stacks instead of clipping them into a fixed page box.
 const TOP_MARGIN_U: f32 = 8.0;
 const BOTTOM_MARGIN_U: f32 = 7.0;
-const STAFF_GAP_U: f32 = 10.0; // gap between consecutive staves within one system (room for ledger lines both directions)
 const SYSTEM_GAP_U: f32 = 9.0; // extra gap between the last staff of a system and the next
 const STAFF_HEIGHT_U: f32 = 4.0; // top line to bottom line
 const HEADER_GAP_U: f32 = 0.4;
@@ -78,6 +77,11 @@ pub(crate) fn build_svg_with_metadata(
     if !space.is_finite() || space <= 0.0 {
         return Err(RenderError::InvalidOptions {
             reason: "staff_size must be finite and positive".into(),
+        });
+    }
+    if !options.staff_gap.is_finite() || options.staff_gap <= 0.0 {
+        return Err(RenderError::InvalidOptions {
+            reason: "staff_gap must be finite and positive".into(),
         });
     }
     if options.measures_per_system == 0 {
@@ -143,7 +147,7 @@ pub(crate) fn build_svg_with_metadata(
         .map(|&(part, staff)| staff_height_u(score, part, staff))
         .collect();
     let system_height_u: f32 = staff_heights_u.iter().sum::<f32>()
-        + (staff_refs.len().saturating_sub(1)) as f32 * STAFF_GAP_U;
+        + (staff_refs.len().saturating_sub(1)) as f32 * options.staff_gap;
 
     let content_width = options.width - (left_margin_u + right_margin_u) * space;
     if !content_width.is_finite() || content_width <= 0.0 {
@@ -280,7 +284,7 @@ pub(crate) fn build_svg_with_metadata(
             let mut y = row_top_y;
             for &staff_height in &staff_heights_u {
                 staff_y.push(y);
-                y += (staff_height + STAFF_GAP_U) * space;
+                y += (staff_height + options.staff_gap) * space;
             }
         }
         let system_top_y = row_top_y;
