@@ -2478,6 +2478,41 @@ fn consecutive_grace_noteheads_are_not_collapsed_on_one_anchor() {
 }
 
 #[test]
+fn grace_notehead_clears_its_following_regular_note() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("grace anchor clearance", 120, 4, 4, 0, 1);
+    let notes = &mut score.parts[0].staves[0].measures[0].voices[0];
+    notes.clear();
+    let mut lead = Note::new(Pitch::new(Step::G, 4), Duration::Quarter);
+    lead.dot_count = 1;
+    notes.push(lead);
+    let mut grace = Note::new(Pitch::new(Step::D, 5), Duration::Eighth);
+    grace.is_grace = true;
+    notes.push(grace);
+    let mut anchor = Note::new(Pitch::new(Step::D, 5), Duration::Quarter);
+    anchor.dot_count = 1;
+    notes.push(anchor);
+
+    let mut options = opts();
+    options.width = 2200.0;
+    options.measures_per_system = 1;
+    let svg = render_svg(&score, &options).unwrap();
+    let centers: Vec<f32> = svg
+        .split(r#"class="acorde-notehead""#)
+        .skip(1)
+        .filter_map(|fragment| fragment.split(r#"cx=""#).nth(1))
+        .filter_map(|value| value.split('"').next())
+        .filter_map(|value| value.parse().ok())
+        .collect();
+
+    assert_eq!(centers.len(), 3);
+    assert!(
+        centers[2] - centers[1] >= 1.0 * options.staff_size,
+        "grace and following noteheads need a full head clearance: {centers:?}"
+    );
+}
+
+#[test]
 fn adjacent_tones_in_a_chord_get_alternating_notehead_offsets() {
     use acorde_core::{Duration, Measure, Note, Part, Pitch, Score, Staff, Step};
     let mut score = Score::new("cluster chord", 120, 4, 4, 0, 1);

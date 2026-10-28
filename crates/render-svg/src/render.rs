@@ -46,6 +46,13 @@ const VOICE_SEPARATION_U: f32 = 0.65; // minimum center-to-center separation for
 // A second in a chord puts one head on the other side of the stem: one head width, less the
 // shared stem line.
 const CHORD_SECOND_SHIFT_U: f32 = 2.0 * glyphs::NOTEHEAD_RX_U * 0.92;
+const GRACE_SCALE: f32 = 0.68;
+// Grace notes are drawn at `GRACE_SCALE`, but still need their own horizontal
+// footprint.  Keeping only a visual nudge from their zero-duration anchor made
+// a grace head overlap the following full-size head.
+const GRACE_NOTEHEAD_CLEARANCE_U: f32 =
+    glyphs::NOTEHEAD_RX_U + glyphs::NOTEHEAD_RX_U * GRACE_SCALE + 0.18;
+const CONSECUTIVE_GRACE_CLEARANCE_U: f32 = glyphs::NOTEHEAD_RX_U * GRACE_SCALE * 2.0 + 0.18;
 
 /// Accidental lookup key: (part, staff, measure, voice, note_index, pitch_index).
 type AccKey = (usize, usize, usize, usize, usize, usize);
@@ -4421,8 +4428,9 @@ fn measure_text_collision_y(context: &MeasureTextCollisionContext<'_>) -> f32 {
 }
 
 /// Return the horizontal offset, in staff spaces, for one grace note in a consecutive run.
-/// Grace notes are zero-duration events, so their temporal anchor is shared; placing the run
-/// from left to right keeps every glyph address stable while avoiding complete overlap.
+/// Grace notes are zero-duration events, so their temporal anchor is shared. Reserve the
+/// scaled grace head's footprint before the following full-size head, then separate earlier
+/// grace heads by their own scaled footprints.
 fn grace_note_offset(notes: &[Note], index: usize) -> f32 {
     if !notes.get(index).is_some_and(|note| note.is_grace) {
         return 0.0;
@@ -4431,8 +4439,8 @@ fn grace_note_offset(notes: &[Note], index: usize) -> f32 {
         .iter()
         .position(|note| !note.is_grace)
         .map_or(notes.len(), |position| index + position);
-    let reverse_index = run_end.saturating_sub(index);
-    -0.42 * reverse_index as f32
+    let preceding_graces = run_end.saturating_sub(index + 1);
+    -(GRACE_NOTEHEAD_CLEARANCE_U + preceding_graces as f32 * CONSECUTIVE_GRACE_CLEARANCE_U)
 }
 
 /// Return the minimum center-to-center separation for simultaneous voice events. The base
@@ -5690,7 +5698,7 @@ fn render_note(
     let anchor_y = note_anchor_y(note, clef_bottom, stem_up, staff_bottom_y, space, tablature);
     let transform = if note.is_grace || note.is_cue {
         format!(
-            " transform=\"translate({} {}) scale(0.68) translate({} {})\"",
+            " transform=\"translate({} {}) scale({GRACE_SCALE}) translate({} {})\"",
             f(x),
             f(anchor_y),
             f(-x),
