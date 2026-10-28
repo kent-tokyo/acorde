@@ -680,7 +680,10 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
             "FluidR3Mono_GM.sf3" => include_bytes!("../../../tests/fixtures/FluidR3Mono_GM.sf3"),
             other => panic!("manifest fixture has no embedded test mapping: {other}"),
         };
-        let actual = format!("{:x}", Sha256::digest(bytes));
+        let actual = Sha256::digest(bytes)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
         assert_eq!(actual, expected, "fixture checksum mismatch: {path}");
     }
 }
