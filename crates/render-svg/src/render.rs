@@ -2417,6 +2417,9 @@ fn write_clef(
     space: f32,
 ) -> Result<f32, RenderError> {
     match clef {
+        // `middle=` remaps the written staff positions; it does not alter the conventional
+        // glyph selected by the clef declaration.
+        Clef::AbcMiddle { base, .. } => write_clef(body, base, x, bottom_y, space),
         Clef::Treble8vb | Clef::Treble8va | Clef::Bass8vb | Clef::Bass8va => {
             let advance = write_clef(body, &clef.without_octave(), x, bottom_y, space)?;
             // The small 8 below or above the clef.

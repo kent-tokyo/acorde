@@ -475,7 +475,7 @@ fn parse_abc_header_line(line: &str, context: AbcHeaderContext<'_>) -> Result<bo
             }
         }
         "K" => {
-            let (key_text, clef) = split_abc_clef(value);
+            let (key_text, clef) = split_abc_clef(value)?;
             let (fifths, mode) = parse_key(&key_text);
             let key = KeySignature { fifths, mode };
             if *in_header {
@@ -489,7 +489,11 @@ fn parse_abc_header_line(line: &str, context: AbcHeaderContext<'_>) -> Result<bo
                     .get_mut(*current_part_index)
                     .and_then(|part| part.staves.first_mut())
             {
-                staff.clef = clef;
+                if !*in_header && let Some(measure) = staff.measures.last_mut() {
+                    measure.clef = Some(clef);
+                } else {
+                    staff.clef = clef;
+                }
             }
             *in_header = false;
         }
@@ -529,7 +533,7 @@ fn parse_abc_header_line(line: &str, context: AbcHeaderContext<'_>) -> Result<bo
                 part.staves.push(Staff::new(Clef::Treble));
                 score.parts.push(part);
             }
-            let (_, clef) = split_abc_clef(value);
+            let (_, clef) = split_abc_clef(value)?;
             if let Some(part) = score.parts.get_mut(*current_part_index) {
                 if let Some(clef) = clef
                     && let Some(staff) = part.staves.first_mut()
@@ -967,14 +971,18 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
                         }
                     }
                     "K" => {
-                        let (key_text, clef) = split_abc_clef(fval);
+                        let (key_text, clef) = split_abc_clef(fval)?;
                         let (fifths, mode) = parse_key(&key_text);
                         key_state.set_key(KeySignature { fifths, mode });
                         if let Some(measure) = staff.measures.last_mut() {
                             measure.key_sig = Some(key_state.key_signature.clone());
                         }
                         if let Some(clef) = clef {
-                            staff.clef = clef;
+                            if let Some(measure) = staff.measures.last_mut() {
+                                measure.clef = Some(clef);
+                            } else {
+                                staff.clef = clef;
+                            }
                         }
                     }
                     _ => {}
@@ -1890,11 +1898,17 @@ fn parse_abc_tempo(value: &str) -> Option<u16> {
 
 /// Split a `K:`/`V:` value into the part before its properties and a `clef=` (or bare clef
 /// word) it names.
-fn split_abc_clef(value: &str) -> (String, Option<Clef>) {
+fn split_abc_clef(value: &str) -> Result<(String, Option<Clef>), Error> {
     let mut rest = Vec::new();
     let mut clef = None;
+    let mut middle = None;
+    let mut has_explicit_clef = false;
     for token in value.split_whitespace() {
         let explicit = token.strip_prefix("clef=");
+        if let Some(value) = token.strip_prefix("middle=") {
+            middle = Some(value);
+            continue;
+        }
         let parsed = match explicit.unwrap_or(token).to_ascii_lowercase().as_str() {
             "treble" => Some(Clef::Treble),
             "bass" => Some(Clef::Bass),
@@ -1910,12 +1924,46 @@ fn split_abc_clef(value: &str) -> (String, Option<Clef>) {
             _ => None,
         };
         if parsed.is_some() {
+            has_explicit_clef |= explicit.is_some();
             clef = parsed;
         } else if !token.contains('=') {
             rest.push(token);
         }
     }
-    (rest.join(" "), clef)
+    if let Some(value) = middle {
+        if !has_explicit_clef {
+            return Err(Error::Abc(format!(
+                "ABC middle={value} requires an explicit clef= in the same field"
+            )));
+        }
+        let base =
+            clef.ok_or_else(|| Error::Abc(format!("unsupported ABC clef for middle={value}")))?;
+        let middle = parse_abc_middle_pitch(value)?;
+        let placed = Clef::with_abc_middle(base, middle)
+            .ok_or_else(|| Error::Abc(format!("unsupported ABC clef placement middle={value}")))?;
+        clef = Some(placed);
+    }
+    Ok((rest.join(" "), clef))
+}
+
+/// Parse ABC's `middle=` pitch without changing the score's written or sounding pitches.
+/// Accidentals are deliberately rejected: a clef's line mapping is diatonic, and accidental
+/// spellings would describe the same line ambiguously.
+fn parse_abc_middle_pitch(value: &str) -> Result<Pitch, Error> {
+    let mut chars = value.chars();
+    let note = chars
+        .next()
+        .filter(|ch| "ABCDEFGabcdefg".contains(*ch))
+        .ok_or_else(|| Error::Abc(format!("invalid ABC middle={value}")))?;
+    let (step, mut octave) = abc_note_char(note);
+    for modifier in chars {
+        match modifier {
+            ',' => octave -= 1,
+            '\'' => octave += 1,
+            _ => return Err(Error::Abc(format!("invalid ABC middle={value}"))),
+        }
+    }
+    Ok(Pitch::new(step, octave))
 }
 
 /// A `key="value"` (or `key=value`) property of a `V:` field.
@@ -2089,7 +2137,7 @@ pub fn serialize_abc(score: &Score) -> Result<String, Error> {
                 if staff_index == 0 && !part.name.trim().is_empty() {
                     out.push_str(&format!(" name=\"{}\"", part.name.replace('"', "'")));
                 }
-                match staff.clef {
+                match &staff.clef {
                     Clef::Bass => out.push_str(" clef=bass"),
                     Clef::Alto => out.push_str(" clef=alto"),
                     Clef::Tenor => out.push_str(" clef=tenor"),
@@ -2099,21 +2147,50 @@ pub fn serialize_abc(score: &Score) -> Result<String, Error> {
                     // ABC's `treble-8` does not agree between tools on whether it moves the
                     // notes, so octave clefs are written plain (the pitches stay exact).
                     Clef::Bass8vb | Clef::Bass8va => out.push_str(" clef=bass"),
+                    Clef::AbcMiddle { base, middle } => {
+                        write_abc_clef_property(&mut out, base);
+                        out.push_str(&format!(" middle={}", pitch_to_abc(middle)));
+                    }
                     _ => {}
                 }
                 out.push('\n');
             }
-            write_abc_staff(&mut out, staff, i)?;
+            write_abc_staff(&mut out, staff, i, &score.settings.key_signature)?;
         }
     }
 
     Ok(out)
 }
 
+fn write_abc_clef_property(out: &mut String, clef: &Clef) {
+    match clef {
+        Clef::Bass => out.push_str(" clef=bass"),
+        Clef::Alto => out.push_str(" clef=alto"),
+        Clef::Tenor => out.push_str(" clef=tenor"),
+        Clef::Soprano => out.push_str(" clef=soprano"),
+        Clef::MezzoSoprano => out.push_str(" clef=mezzosoprano"),
+        Clef::Baritone => out.push_str(" clef=baritone"),
+        Clef::Bass8vb | Clef::Bass8va => out.push_str(" clef=bass"),
+        Clef::AbcMiddle { base, middle } => {
+            write_abc_clef_property(out, base);
+            out.push_str(&format!(" middle={}", pitch_to_abc(middle)));
+        }
+        Clef::Treble | Clef::Treble8vb | Clef::Treble8va | Clef::Percussion => {
+            out.push_str(" clef=treble")
+        }
+    }
+}
+
 /// One staff's bars as an ABC voice line (voice 1 only), followed by its lyrics.
-fn write_abc_staff(out: &mut String, staff: &Staff, part_index: usize) -> Result<(), Error> {
+fn write_abc_staff(
+    out: &mut String,
+    staff: &Staff,
+    part_index: usize,
+    opening_key: &KeySignature,
+) -> Result<(), Error> {
     let mut open_hairpin: Option<HairpinKind> = None;
     let mut overlay_hairpins: [Option<HairpinKind>; 4] = [None; 4];
+    let mut active_key = opening_key.clone();
     for (measure_index, measure) in staff.measures.iter().enumerate() {
         if let Some(volta) = &measure.volta
             && matches!(volta.kind.as_str(), "begin" | "begin_end")
@@ -2129,17 +2206,24 @@ fn write_abc_staff(out: &mut String, staff: &Staff, part_index: usize) -> Result
         if measure_index == 0 && !matches!(measure.barline_left, Barline::Normal) {
             out.push_str(barline_to_abc(&measure.barline_left));
         }
-        // Meter and key changes after the first bar are inline fields.
+        // Meter and key/clef changes are inline fields. A clef-only change still repeats the
+        // active key because ABC's `K:` field supplies both pieces of information.
         if let Some(bpm) = measure.tempo {
             out.push_str(&format!("[Q:1/4={bpm}]"));
         }
-        if measure_index > 0 {
-            if let Some(time) = &measure.time_sig {
-                out.push_str(&format!("[M:{}/{}]", time.numerator, time.denominator));
+        if measure_index > 0
+            && let Some(time) = &measure.time_sig
+        {
+            out.push_str(&format!("[M:{}/{}]", time.numerator, time.denominator));
+        }
+        if measure.key_sig.is_some() || measure.clef.is_some() {
+            let key = measure.key_sig.as_ref().unwrap_or(&active_key);
+            out.push_str(&format!("[K:{}", fifths_to_abc_key(key.fifths, &key.mode)));
+            if let Some(clef) = &measure.clef {
+                write_abc_clef_property(out, clef);
             }
-            if let Some(key) = &measure.key_sig {
-                out.push_str(&format!("[K:{}]", fifths_to_abc_key(key.fifths, &key.mode)));
-            }
+            out.push(']');
+            active_key = key.clone();
         }
         for text in &measure.texts {
             if matches!(
@@ -3784,5 +3868,62 @@ C D E F | G A B c |";
         assert_eq!(notes[0].pitches[0].octave, 4);
         assert_eq!(notes[2].pitches[0].step, Step::C);
         assert_eq!(notes[2].pitches[0].octave, 5);
+    }
+
+    #[test]
+    fn abc_middle_modifier_preserves_pitch_and_round_trips() {
+        let abc =
+            "X:1\nT:middle modifier\nM:4/4\nL:1/4\nK:C\nV:B clef=bass middle=d\n[V:B] d4 |]\n";
+        let score = parse_abc(abc).expect("middle modifier parses");
+        let staff = &score.parts[0].staves[0];
+        match &staff.clef {
+            Clef::AbcMiddle { base, middle } => {
+                assert_eq!(**base, Clef::Bass);
+                assert_eq!(middle.step, Step::D);
+                assert_eq!(middle.octave, 5);
+            }
+            other => panic!("expected ABC middle clef, got {other:?}"),
+        }
+        let note = &staff.measures[0].voices[0][0];
+        assert_eq!(note.pitches[0], Pitch::new(Step::D, 5));
+        assert_eq!(note.beats(), 4.0);
+
+        let serialized = serialize_abc(&score).expect("middle modifier serializes");
+        assert!(serialized.contains("clef=bass middle=d"), "{serialized}");
+        let restored = parse_abc(&serialized).expect("serialized middle modifier parses");
+        assert!(matches!(
+            restored.parts[0].staves[0].clef,
+            Clef::AbcMiddle { .. }
+        ));
+    }
+
+    #[test]
+    fn abc_middle_modifier_without_explicit_clef_is_diagnosed() {
+        let abc = "X:1\nT:middle modifier\nM:4/4\nL:1/4\nK:C\nV:B middle=d\n[V:B] d4 |]\n";
+        let error = parse_abc(abc).expect_err("ambiguous middle modifier must fail");
+        assert!(error.to_string().contains("requires an explicit clef="));
+    }
+
+    #[test]
+    fn abc_inline_middle_modifier_round_trips_at_a_measure_boundary() {
+        let abc = "X:1\nT:inline middle\nM:4/4\nL:1/4\nK:C\nC4|[K:C clef=bass middle=d]d4|]\n";
+        let score = parse_abc(abc).expect("inline middle modifier parses");
+        let staff = &score.parts[0].staves[0];
+        assert!(matches!(staff.clef, Clef::Treble));
+        assert!(matches!(
+            staff.measures[1].clef,
+            Some(Clef::AbcMiddle { .. })
+        ));
+
+        let serialized = serialize_abc(&score).expect("inline middle modifier serializes");
+        assert!(
+            serialized.contains("[K:C clef=bass middle=d]"),
+            "{serialized}"
+        );
+        let restored = parse_abc(&serialized).expect("serialized inline modifier parses");
+        assert!(matches!(
+            restored.parts[0].staves[0].measures[1].clef,
+            Some(Clef::AbcMiddle { .. })
+        ));
     }
 }

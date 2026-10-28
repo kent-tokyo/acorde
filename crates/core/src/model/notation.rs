@@ -24,6 +24,16 @@ pub enum Clef {
     MezzoSoprano,
     /// C clef on the top line.
     Baritone,
+    /// An ABC 2.1 clef whose middle staff line is explicitly mapped to a written pitch.
+    ///
+    /// ABC's `middle=` modifier changes staff placement only. It does not transpose the
+    /// written pitch or playback, so the original ABC pitch remains intact.
+    AbcMiddle {
+        /// The conventional clef glyph to draw.
+        base: Box<Clef>,
+        /// Written pitch placed on the middle staff line.
+        middle: Pitch,
+    },
 }
 
 impl Clef {
@@ -33,6 +43,7 @@ impl Clef {
             Clef::Bass | Clef::Bass8vb | Clef::Bass8va => "F",
             Clef::Alto | Clef::Tenor | Clef::Soprano | Clef::MezzoSoprano | Clef::Baritone => "C",
             Clef::Percussion => "percussion",
+            Clef::AbcMiddle { base, .. } => base.to_musicxml_sign(),
         }
     }
 
@@ -46,6 +57,7 @@ impl Clef {
             Clef::Soprano => 1,
             Clef::MezzoSoprano => 2,
             Clef::Baritone => 5,
+            Clef::AbcMiddle { base, .. } => base.musicxml_line(),
         }
     }
 
@@ -55,6 +67,7 @@ impl Clef {
         match self {
             Clef::Treble8vb | Clef::Bass8vb => -1,
             Clef::Treble8va | Clef::Bass8va => 1,
+            Clef::AbcMiddle { base, .. } => base.octave_change(),
             _ => 0,
         }
     }
@@ -64,7 +77,30 @@ impl Clef {
         match self {
             Clef::Treble8vb | Clef::Treble8va => Clef::Treble,
             Clef::Bass8vb | Clef::Bass8va => Clef::Bass,
+            Clef::AbcMiddle { base, middle } => Clef::AbcMiddle {
+                base: Box::new(base.without_octave()),
+                middle: middle.clone(),
+            },
             other => other.clone(),
+        }
+    }
+
+    /// Attach ABC 2.1's visual `middle=` placement to a conventional clef.
+    ///
+    /// Nested custom placements and percussion clefs have no unambiguous ABC meaning and are
+    /// rejected by returning `None`.
+    pub fn with_abc_middle(base: Clef, middle: Pitch) -> Option<Clef> {
+        (!matches!(base, Clef::AbcMiddle { .. } | Clef::Percussion)).then_some(Clef::AbcMiddle {
+            base: Box::new(base),
+            middle,
+        })
+    }
+
+    /// The pitch explicitly placed on the middle line by ABC's `middle=` modifier.
+    pub fn abc_middle(&self) -> Option<&Pitch> {
+        match self {
+            Clef::AbcMiddle { middle, .. } => Some(middle),
+            _ => None,
         }
     }
 
@@ -128,6 +164,7 @@ impl Clef {
             Clef::Soprano => 67,      // G4
             Clef::MezzoSoprano => 64, // E4
             Clef::Baritone => 53,     // F3
+            Clef::AbcMiddle { middle, .. } => middle.to_midi().clamp(0, 127) as u8,
         }
     }
 }
