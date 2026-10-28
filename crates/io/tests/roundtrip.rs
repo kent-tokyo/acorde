@@ -4750,6 +4750,7 @@ fn musicxml_writes_an_opening_tempo_mark_once_in_the_first_part() {
     assert_eq!(back.parts[0].staves[0].measures[0].tempo, Some(72));
 }
 
+#[cfg(feature = "mei")]
 #[test]
 fn mei_round_trips_tremolos_arpeggios_and_tablature_graces_and_lyrics() {
     use acorde_core::{
@@ -4953,6 +4954,7 @@ fn mscx_wraps_every_voice_so_second_voices_stay_apart() {
     );
 }
 
+#[cfg(feature = "mei")]
 #[test]
 fn mei_keeps_a_part_whose_key_signature_differs_from_the_others() {
     use acorde_core::{KeySignature, Score};
@@ -4992,6 +4994,7 @@ fn mei_keeps_a_part_whose_key_signature_differs_from_the_others() {
     assert_eq!(keys(1), vec![0, 0, 2]);
 }
 
+#[cfg(feature = "mei")]
 #[test]
 fn chord_kinds_have_labels_that_mei_reads_back() {
     use acorde_core::{ChordSymbol, Duration, Note, Pitch, Score, Step};
@@ -5032,6 +5035,7 @@ fn chord_kinds_have_labels_that_mei_reads_back() {
     );
 }
 
+#[cfg(feature = "mei")]
 #[test]
 fn hidden_notes_and_rests_round_trip_through_every_notation_format() {
     use acorde_core::{Duration, Note, Pitch, Score, Step};
@@ -5435,6 +5439,7 @@ fn abc_verses_follow_their_music_lines() {
     assert_eq!(words(&back, 2), words(&score, 2), "{text}");
 }
 
+#[cfg(feature = "mei")]
 #[test]
 fn mei_keeps_a_part_whose_meter_differs_from_the_others() {
     use acorde_core::{Score, TimeSignature};
@@ -5471,6 +5476,7 @@ fn mei_keeps_a_part_whose_meter_differs_from_the_others() {
     assert_eq!(meters(1), vec![(6, 8), (6, 8), (2, 4)]);
 }
 
+#[cfg(feature = "mei")]
 #[test]
 fn mei_import_reads_verovio_style_offsets_ppq_durations_words_and_tempo_units() {
     let mei = r##"<mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="5.1"><music><body><mdiv><score>
@@ -5525,6 +5531,7 @@ fn mei_import_reads_verovio_style_offsets_ppq_durations_words_and_tempo_units() 
     );
 }
 
+#[cfg(feature = "mei")]
 #[test]
 fn octave_and_c_clefs_round_trip_through_musicxml_mei_and_mscx() {
     use acorde_core::Clef;
@@ -5559,6 +5566,7 @@ fn octave_and_c_clefs_round_trip_through_musicxml_mei_and_mscx() {
     );
 }
 
+#[cfg(feature = "mei")]
 #[test]
 fn musicxml_transpose_keeps_its_octave_change() {
     // Bass clarinet: a major ninth down (a second plus an octave).
@@ -5589,6 +5597,7 @@ fn musicxml_transpose_keeps_its_octave_change() {
     }
 }
 
+#[cfg(feature = "mei")]
 #[test]
 fn ghost_noteheads_round_trip_per_chord_member() {
     let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Guitar</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><chord/><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notehead parentheses="yes">normal</notehead></note></measure></part></score-partwise>"#;
@@ -5625,6 +5634,7 @@ fn ghost_noteheads_round_trip_per_chord_member() {
     );
 }
 
+#[cfg(feature = "mei")]
 #[test]
 fn breves_and_hundred_twenty_eighths_round_trip() {
     use acorde_core::Duration;
@@ -5672,6 +5682,7 @@ fn breves_and_hundred_twenty_eighths_round_trip() {
     );
 }
 
+#[cfg(feature = "mei")]
 #[test]
 fn longa_round_trips_through_musicxml_mei_and_mscx() {
     use acorde_core::Duration;
@@ -5721,6 +5732,7 @@ fn tapping_and_vibrato_round_trip_through_musicxml() {
     check(&parse_musicxml(&written).expect("reparses"));
 }
 
+#[cfg(feature = "mei")]
 #[test]
 fn scoops_plops_doits_and_falloffs_round_trip() {
     use acorde_core::Articulation;
@@ -5787,6 +5799,7 @@ fn chord_member_fingerings_stay_on_their_notes() {
     );
 }
 
+#[cfg(feature = "mei")]
 #[test]
 fn endings_for_several_passes_round_trip_and_play() {
     // |: A | 1, 2. B :| 3. C |
