@@ -3,11 +3,15 @@
 [![CI](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml)
 [![docs.rs](https://docs.rs/acorde/badge.svg)](https://docs.rs/acorde)
 
-プラットフォーム非依存の Rust / WebAssembly 楽譜基盤ライブラリ（v1.2.20）です。
+プラットフォーム非依存の Rust / WebAssembly 楽譜基盤ライブラリです。
+
+> **リリース注意:** v1.2.19 と v1.2.20 は `SvgRenderOptions` の公開フィールド追加により、
+> 完全な構造体リテラルを使う Rust 利用側をコンパイル不能にする場合があります。v1.3.0 が公開されるまで、
+> 新規導入では `=1.2.18` を固定してください。詳細は[移行メモ](docs/migrations.md)です。
 
 シリアライズ可能なスコアモデル、Undo/Redo可能な編集、範囲を明示した記譜入出力、論理レイアウト、
-決定的SVG、再生イベント、分析、WASMバインディングを提供します。ライブラリ本体は同期・UI非依存で、
-ファイルを読み書きしません。
+決定的SVG、再生イベント、分析、WASMバインディングを提供します。
+ライブラリ本体は同期・UI非依存で、ファイルを読み書きしません。
 
 ワークスペースの最小サポート Rust バージョン（MSRV）は **Rust 1.88** です。
 
@@ -39,14 +43,14 @@ SVGが必要な場合は `acorde-render-svg` を直接依存に追加します�
 
 ```toml
 [dependencies]
-acorde = "1.2.20"
-acorde-render-svg = "1.2.20"
+acorde = "=1.2.18"
+acorde-render-svg = "=1.2.18"
 ```
 
 標準ではMusicXMLとMIDIが有効です。ABC、MEI、MSCZ/MSCX、Guitar Pro 3〜8入力は明示的に有効化します。
 
 ```toml
-acorde = { version = "1.2.20", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "=1.2.18", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust

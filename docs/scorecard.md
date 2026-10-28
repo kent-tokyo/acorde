@@ -5,25 +5,13 @@ inventory of the current contracts, not a claim of parity with MuseScore, music2
 Verovio. Capability labels must remain aligned with the [notation coverage matrix](notation-coverage.md)
 and backed by a fixture or focused test.
 
-The current serialized contracts are SVG render metadata version 22, analysis result version 13,
-print layout version 32, glyph-resource metadata version 1, and tablature performance version 4;
-all values are recorded in `scorecard.json` and must be updated together with their contract
-documentation and regression tests. Physical print layout is also exposed through WASM and the
-browser adapter. `acorde-pdf` separately converts one Acorde SVG viewport to vector PDF; page
-composition, font selection/embedding assurance, and printer APIs remain outside that contract.
+Current contracts are SVG metadata 22, analysis result 13, print layout 32, glyph-resource
+metadata 1, and tablature performance 4. `scorecard.json`, its contract documentation, and their
+regression tests must change together.
 
-The SVG tab contract includes deterministic bend curves and edge-owned continuation segments for
-slide, hammer-on, and pull-off connections, while typed connection metadata remains available to
-browser playback and editing hosts.
-
-The framework-neutral browser adapter now covers transactional loading for MusicXML, MXL, MEI,
-ABC, MIDI, MSCX, and MSCZ, plus MusicXML/MEI/ABC/MIDI and bounded MSCX/MSCZ export. This is an adapter/API capability,
-not evidence of global format losslessness or external application parity.
-
-The `evidence.security_checks` commands are local release gates and now match the CI candidate
-workflow, including formatting, all-feature/all-target validation, and workspace packaging.
-Browser E2E, cross-browser raster fidelity, and host-measured latency require their respective
-environments and are not claimed by native Rust test results alone.
-
-Release publication is verified separately from this checked-in source inventory. It does not
-establish ecosystem compatibility or downstream adoption.
+- Print layout is available through WASM and the browser adapter. `acorde-pdf` converts one Acorde
+  SVG viewport to vector PDF; page composition, font assurance, and printer APIs remain host work.
+- The browser adapter transactionally loads MusicXML, MXL, MEI, ABC, MIDI, MSCX, and MSCZ; it
+  exports MusicXML, MEI, ABC, MIDI, and bounded MSCX/MSCZ. This is not a losslessness or parity claim.
+- `evidence.security_checks` mirrors local release gates. Browser E2E, raster fidelity, latency,
+  publication, and downstream adoption need their own evidence.

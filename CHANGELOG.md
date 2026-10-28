@@ -17,10 +17,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-- **ABC clef placement.** ABC 2.1 `middle=` modifiers on explicit `clef=` declarations now
-  preserve written and playback pitch while mapping the requested written pitch to the middle
-  staff line. Header and measure-boundary inline changes round-trip through ABC; ambiguous or
-  unsupported values fail with an ABC diagnostic instead of being discarded.
+- **Documentation.** Simplified the scorecard and interchange evidence, and documented the
+  published `SvgRenderOptions` source-compatibility exception for Rust struct literals.
 
 ## [1.2.20] - 2026-10-28
 
