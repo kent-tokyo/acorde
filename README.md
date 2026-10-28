@@ -6,8 +6,8 @@
 Platform-neutral Rust and WebAssembly score infrastructure.
 
 > **Release notice:** v1.2.19 and v1.2.20 added a public `SvgRenderOptions` field and can break
-> Rust code that uses a complete struct literal. New integrations should pin `=1.2.18` until the
-> compatible v1.3.0 release is available. See the [migration notes](docs/migrations.md).
+> Rust code that uses a complete struct literal. Upgrade to the compatible v1.3.0 release before
+> adopting the renderer configuration API. See the [migration notes](docs/migrations.md).
 
 acorde provides a serializable score model, undoable edits, bounded notation I/O, logical layout,
 deterministic SVG, playback-event projection, analysis primitives, and WASM bindings. Library

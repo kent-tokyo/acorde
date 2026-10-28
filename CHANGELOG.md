@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.0 - Unreleased
+## 1.3.0 - 2026-10-28
 
 - Restored `SvgRenderOptions` to its original four public fields. Versions 1.2.19 and 1.2.20
   added `staff_gap`, which broke downstream Rust struct literals despite being patch releases.
