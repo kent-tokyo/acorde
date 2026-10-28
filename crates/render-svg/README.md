@@ -34,8 +34,7 @@ Ties never cross a rest, microtones retain exact cents as explicit markers, and 
 retain display placement without inventing a percussion sound identity. These are bounded semantic
 projections, not claims of font-aware publication engraving.
 
-See the [browser contract](https://github.com/kent-tokyo/acorde/blob/main/docs/browser-rendering.md)
-for the WASM boundary and the [security contract](../../docs/security/threat-model.md) for SVG and
-annotation input rules.
+See the [browser contract](../../docs/browser-rendering.md) for the WASM boundary and the
+[security contract](../../docs/security/threat-model.md) for SVG and annotation input rules.
 
 [API documentation](https://docs.rs/acorde-render-svg) · [Repository](https://github.com/kent-tokyo/acorde)

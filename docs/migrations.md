@@ -6,16 +6,6 @@ This page lists changes that can require consumer action. Release history is in
 otherwise, so stored score JSON remains readable. Rust consumers that use exhaustive `match` or
 struct literals must still update for added variants and fields.
 
-## Unreleased worktree
-
-- The review-first OMR boundary adds `OmrProposal` and optional `acorde-omr`; it never mutates a
-  `ScoreEngine` or writes MSCZ. `OmrRhythmicEvent` literals need `is_unpitched`, `instrument_id`,
-  and `tab_positions`; `OmrProposal` and exhaustive `OmrDiagnosticKind` matches need new cases.
-- `RecognitionConfig.time_signature` defaults to 4/4. The CLI accepts only explicit meter input;
-  it does not infer meter from pixels.
-- Browser transport and `acorde-pdf` are additive host adapters. The PDF crate is separate and
-  requires Rust 1.88 with Harumi; core, I/O, and layout do not depend on it.
-
 ## v1.2 series
 
 | Release | Consumer action |

@@ -4,152 +4,41 @@ Command-line conversion and inspection tool for acorde.
 
 ~~~bash
 cargo install acorde-cli
-
+acorde --help
 acorde convert input.mid output.musicxml
-acorde omr printed-score.png draft.mscz --report draft.omr.json
-acorde omr-evaluate printed-score.png reference.mscz --report evaluation.json
-acorde omr-apply-report provider-result.json draft.mscz --report application.json
-acorde convert input.musicxml output.abc
-acorde convert input.musicxml output.mei
-acorde render input.musicxml output.svg
-acorde render input.mei output.svg --width 1200 --staff-size 20 --measures-per-system 3
-acorde render-report input.mei output.svg --fail-on-issues
-acorde print-report input.mei --measures-per-system 3 --systems-per-page 4 --title-page
-acorde info input.musicxml
 acorde validate input.musicxml
-acorde report input.mei
-acorde preflight input.musicxml
-acorde preflight input.musicxml --fail-on-issues
-acorde analyze input.musicxml
-acorde benchmark benchmarks/analysis.json --fail-on-mismatch
-acorde extract --part 0 input.musicxml part.musicxml
-acorde transpose --semitones 2 input.musicxml transposed.musicxml
-acorde normalize input.musicxml normalized.musicxml
-acorde export-report input.musicxml exported.musicxml
-acorde export-report input.musicxml exported.abc
-acorde export-report input.musicxml exported.mei
-acorde tab-position guitar.musicxml edited.musicxml --part 0 --measure 0 --note 1 --string 2 --fret 3
-acorde tab-position edited.musicxml cleared.musicxml --part 0 --measure 0 --note 1 --clear
-acorde auto-tab guitar.musicxml guitar-tabbed.musicxml
-acorde auto-tab-report guitar.musicxml guitar-tabbed.musicxml
-acorde tab-performance-report guitar-tabbed.musicxml --bpm 120 --fail-on-diagnostics
-acorde playback-report input.musicxml --bpm 120 --loop-start 0 --loop-end 3
-acorde playback-compare expected.json actual.json --fail-on-mismatch
-acorde fingering-report guitar.musicxml --policy source-order
-acorde fingering-report guitar.musicxml --policy lowest
+acorde render input.musicxml output.svg
+acorde print-report input.musicxml --preset a4-score --fail-on-issues
+acorde compatibility-report source.musicxml candidate.musicxml --fail-on-differences
 ~~~
 
-`auto-tab-report` prints JSON containing assigned/remaining notes, chord count, total and maximum
-fret, while writing the optimized score to the requested output path.
-`omr` accepts an in-memory bounded PNG through the CLI file boundary and writes a MuseScore MSCZ
-only when the initial high-contrast, treble-clef whole/quarter-note subset produces a
-complete, high-confidence proposal with no diagnostics. It accepts either one staff or one aligned
-two-staff system. Its default meter is 4/4; callers can explicitly set another power-of-two meter
-with `--beats-per-measure` and `--beat-unit`. `--report` records detected geometry and review diagnostics; it also records a
-typed recognition failure when no proposal can be built. It does not use an
-external OMR/AI provider, and does not support JPEG, handwriting, lyrics, TAB, three or more
-staves, multiple voices, or general printed notation yet.
+Use `acorde <command> --help` for the full surface. Commands are grouped as conversion and
+inspection (`convert`, `info`, `validate`, `report`, `preflight`), SVG/print rendering, analysis,
+score edits (`extract`, `transpose`, `normalize`), tablature, playback, and machine-readable
+export/compatibility reports.
 
-`--darkness-threshold` and `--minimum-staff-line-coverage` let a caller tune the bounded local
-staff detector for a preprocessed scan. `--beats-per-measure` and `--beat-unit` set the meter the
-caller already knows; the adapter does not infer it from image pixels. These options never relax
-the complete-measure, confidence, or review requirements for MSCZ output.
+Input accepts MusicXML/MXL, MIDI, ABC, MEI, MSCX/MSCZ, and Guitar Pro 3–8. Conversion writes
+MusicXML, MIDI, ABC, MEI, and the documented canonical MSCX/MSCZ subset; it does not promise full
+MuseScore parity. `render` writes deterministic SVG with optional interactive score-address hooks.
+`print-report` returns host-neutral page and system layout JSON, not a PDF or printer job.
 
-`omr-evaluate` is the local per-pair corpus gate. It applies only a ready proposal, compares the
-canonical result with a supplied reference score, and emits statistics plus the semantic change
-count. It exits non-zero for rejected or differing pairs; aggregate accuracy remains the caller's
-version-pinned corpus calculation.
+Report commands are intended for automation: `render-report` and `preflight` expose renderer
+issues; `export-report` exposes typed conversion losses; `compatibility-report` compares two
+scores; and `benchmark` checks a local manifest. Their `fnv1a64-*` values identify local input
+bytes and are not publication hashes or compatibility scores. `--fail-on-*` keeps JSON output while
+making the selected condition a non-zero exit.
 
-`omr-apply-report` is the provider hand-off. It reads a bounded JSON-serialized
-`acorde_omr::RecognitionReport`, repeats the core proposal validation, and writes MSCZ only for a
-ready result. A host should keep source images, provider credentials, consent, and its review UI
-outside this CLI contract.
-`tab-performance-report` prints the bounded core playback/tablature projection as JSON. It checks
-authored string/fret positions against tuning and capo, accepts an optional `--bpm` override, and
-supports `--fail-on-diagnostics` for a non-zero local CI gate.
-`playback-report` prints the deterministic expected event schedule for comparison with a browser or
-Composer host's scheduled trace. It accepts `--bpm` and inclusive physical-measure range options
-`--loop-start`/`--loop-end`; output is bounded by the core comparison event limit.
-`playback-compare` compares expected and host-observed event JSON with explicit timing tolerances
-and supports `--fail-on-mismatch` for CI. Each input JSON file is limited to 64 MiB.
-`fingering-report` prints each authored candidate list and the selected value without modifying the
-score. Its deterministic policies are `source-order`, `lowest`, and `highest`.
+`auto-tab-report`, `tab-performance-report`, and `fingering-report` provide deterministic
+tablature and fingering diagnostics. `playback-report` produces the expected event schedule, while
+`playback-compare` checks a host-observed schedule with explicit tolerances.
 
-Input supports .musicxml, .mxl, .mid/.midi, .abc, .mei, .mscz, and .mscx. Conversion output is
-MusicXML, MIDI, ABC, MEI, or the deterministic canonical MSCX/MSCZ subset. MSCX/MSCZ output is intentionally bounded and does not claim full MuseScore feature parity. `render` parses the same inputs and writes deterministic SVG through
-`acorde-render-svg`; width, staff size, system capacity, and interactive address hooks are explicit
-options. Address hooks are enabled by default and can be omitted with `--no-interactive`. info
-prints title, counts, tempo, time signature, and duration estimate; validate
-exits with status 1 when structural errors are found. report emits the parsed score and structured
-import diagnostics as JSON.
-preflight emits renderer capability issues with stable score source locations as JSON before SVG
-generation.
-`render-report` writes the SVG and emits its own `render_report_schema_version`, the input format,
-byte count, deterministic
-`svg_fingerprint`, import diagnostics, and renderer preflight issues as one JSON report.
-`--fail-on-issues` makes any such issue a non-zero exit. When rendering is rejected, the report
-still contains `rendered: false` and `render_error`; no incomplete SVG is written. The fingerprint
-is a local `fnv1a64-*` evidence identifier, not a cryptographic publication hash.
-`--fail-on-issues` keeps the JSON output but exits with status 1 when any issue is found, which is
-useful for CI gates.
-The repository fixture `tests/fixtures/render_preflight_unsupported.musicxml` demonstrates the
-failure path without external resources.
-`print-report` emits a versioned JSON report containing import format/schema, import diagnostics,
-and renderer preflight issues plus
-the host-neutral `PrintLayoutResult` under `layout`, including physical pages and systems, typed
-break reasons, publication metadata, normalized measure text annotations, and glyph/span
-diagnostics. Select `--preset a4-score` or `--preset letter-score` for full scores;
-select `--preset a4-part` or `--preset letter-part` with `--part N` for an extracted part. It
-emits no PDF or printer output; `--title-page` and the system/page capacity options are
-deterministic layout inputs. `--running-title`, `--header-text`, `--footer-text`,
-`--page-number-in-footer`, and `--no-part-names` add deterministic publication metadata without
-moving font or printer responsibilities into the CLI. `--fail-on-issues` preserves the JSON while
-returning a non-zero status when import or renderer issues are present. `--scale`,
-`--first-system-measures`, `--final-page-policy`, `--notation-break-policy`, and `--pickup-policy`
-expose the existing deterministic system-breaking policies.
-analyze emits deterministic chord, melodic-interval, and key-estimate results as JSON.
-export-report writes MusicXML, MIDI, ABC, or MEI and emits machine-readable export diagnostics
-without embedding the binary/text artifact in the JSON response.
-compatibility-report parses two local score files and emits their deterministic positional semantic
-diff plus source-located import diagnostics from both sides. It reports differences and does not
-claim lossless interchange.
-Its envelope includes the CLI version and an `fnv1a64-*` fingerprint for each exact input byte
-stream, so an external-tool comparison can record the inputs it actually used. These are local
-evidence identifiers, not cryptographic publication hashes or external compatibility scores.
-`--fail-on-differences` preserves the JSON report and exits with status 1 when semantic changes
-are found, making the command suitable for a compatibility gate.
-`--fail-on-loss` independently fails when either side reports a typed information-loss diagnostic.
-The JSON includes explicit `semantic_equivalent` and `lossless` booleans so consumers do not need
-to infer gate status from counts. `lossless` requires score equivalence and zero typed conversion
-losses; analysis changes remain separately visible through `analysis_equivalent`.
-It also includes `analysis_changed_categories`, covering deterministic chord, interval, key,
-cadence, voice-leading, SATB, motif, and phrase-boundary changes.
-`--fail-on-differences` fails when either the score diff or the analysis category diff is non-empty;
-`analysis_equivalent` exposes that second decision explicitly.
-benchmark reads a local JSON manifest and emits corpus metadata, including a content fingerprint,
-plus the deterministic suite report.
-Paths are relative to the manifest file. `--fail-on-mismatch` makes the command exit with status 1
-when any case has a category mismatch. `--expected-fingerprint` makes the command exit with status
-1 when the manifest or referenced fixture bytes differ from a recorded fingerprint. A manifest
-includes corpus metadata; each case has `name`,
-`input`, `coverage`, `provenance`, and expected category counts:
-
-~~~json
-{"cases":[{"name":"sample","input":"../tests/fixtures/simple.musicxml","expected":{"chords":0}}]}
-~~~
+`omr` is a review-first, high-contrast PNG subset. It writes MSCZ only for a complete,
+high-confidence, diagnostic-free proposal; callers supply the meter and retain source, provider,
+consent, and review UI. `omr-evaluate` is a per-pair observation gate, and `omr-apply-report`
+revalidates an untrusted report before writing. See the [proposal contract](../../docs/omr-proposal-contract.md)
+and [validation boundary](../../docs/omr-validation.md).
 
 [Repository](https://github.com/kent-tokyo/acorde)
 
-## Tablature validation
-
-`validate` also checks tablature metadata and explicit string/fret positions. This local-only
-check does not require a SoundFont or other external asset:
-
-~~~bash
-acorde validate tests/fixtures/guitar.musicxml
-~~~
-
-An invalid line count, tuning value, string number, or microtone-cent value exits with status 1
-and prints the part/staff location.
-
-CLI input and output boundary rules are documented in the [security contract](../../docs/security/threat-model.md).
+`validate` also checks tablature tuning, string/fret positions, and microtone values. CLI input and
+output rules are documented in the [security contract](../../docs/security/threat-model.md).

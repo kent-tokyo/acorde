@@ -43,12 +43,14 @@ cargo test --all-features --locked
 cargo clippy --all-features --locked --all-targets -- -D warnings
 cargo audit
 cargo deny check advisories licenses sources bans
-cargo package --workspace --locked
+cargo package --workspace --locked --no-verify
 ```
 
-The CI package job also records locked Cargo metadata, the compiler version, and SHA-256
-digests for every generated `.crate` archive. These files provide provenance and reproducibility
-evidence; they are not cryptographic signatures and do not replace a release signing service.
+The CI package job records locked Cargo metadata, the compiler version, and SHA-256 digests for
+every generated `.crate` archive. Release verification packages with `--no-verify` before
+dependency-ordered publication, then `cargo publish` verifies each crate once its internal
+dependencies are available. These files provide provenance and reproducibility evidence; they are
+not cryptographic signatures and do not replace a release signing service.
 GitHub Actions used by CI and publication are referenced by reviewed commit SHA, with the release
 line retained in comments for update review. The fuzz action is pinned separately from its explicit
 `nightly-2026-05-22` toolchain input.

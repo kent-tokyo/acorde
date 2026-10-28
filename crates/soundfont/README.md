@@ -4,75 +4,26 @@
 It validates bounded SF2/SF3 RIFF metadata, resolves bank/program presets, and
 manages provider-neutral note lifecycle actions from `acorde_core::PlaybackEvent`.
 
-The provider contract also exposes `SampleRegion`, deterministic key/velocity zone selection,
-`SampleVoiceParameters`, `SampleAction`, bounded `DecodedSample` validation, and a FIFO
-`SampleCache`. `SampleDecoder`, `SampleRenderer`, and the versioned `SoundFontProvider` contract
-provide the stable integration boundary: a
-separately licensed SF2/SF3 decoder supplies sample regions and bounded PCM, and a host-owned
-renderer consumes that PCM with `SampleAction`. This crate does not bundle proprietary assets, a
-codec, an audio device, or a synthesizer. Unsupported compression or generator features must be
-reported by that provider before creating a region.
-`SoundFontPresetZone` and `select_preset_zone` provide the shared bank/program/key/velocity
-mapping API; providers can translate SF2 generators or SF3 metadata once and Composer does not
-need to duplicate that parsing. Each mapped region carries bounded half-open sample frame
-offsets, sample rate, loop points, tuning, attenuation, and envelope parameters.
-`decode_sample_region` returns a `DecodedSampleRegion` whose PCM and loop coordinates share the
-same zero-based, region-relative frame space. Use `render_sample_region_action` for scheduled
-actions so non-zero SoundFont sample starts cannot apply asset-relative loop points to cropped PCM.
-The lower-level decode and render functions remain available for providers that already own one
-consistent coordinate system.
-`ResolvedPresetZoneMetadata` and `resolve_preset_zone_metadata` expose an owned snapshot of all
-resolved zone fields for downstream UI, diagnostics, cache keys, and audio setup; hosts can
-reconstruct the validated `SampleRegion` without repeating provider parsing. Each snapshot also
-contains `channel_layout` and `decode_channels`, so `metadata.decode_sample_region(bytes)` uses
-the correct source channel count and SF3 logical stream without the host reparsing SF2/SF3 tables.
-SF2 linked stereo is
-represented as two mono regions with reciprocal sample IDs and an explicit left/right role; hosts
-combine that pair after decoding. A single interleaved stereo payload is represented separately.
-SF3 Ogg identification headers distinguish a single interleaved stereo payload from a linked pair.
-Some SF3 libraries retain a left/right marker for a standalone mono Ogg payload; it is exposed as
-mono because its decoder contract is one channel. Unsupported sample types and broken or
-inconsistent nonzero stereo links are retained as typed `SoundFontZoneDiagnostic` values rather
-than silently approximated.
-`schedule_preset_note_on` combines that selection with the validated voice plan in one call.
+`SampleDecoder`, `SampleRenderer`, and the versioned `SoundFontProvider` contract are the stable
+integration point. They expose bounded regions, deterministic bank/program/key/velocity selection,
+voice actions, decoded PCM validation, and a FIFO cache. Hosts provide the licensed decoder and
+renderer; this crate bundles neither assets, an audio device, nor a general synthesizer.
 
-For a loaded asset, `SoundFontAsset::materialize_zones` creates a bounded
-`MaterializedSoundFontAsset`. Its `snapshot_for_preset` method returns an owned
-`SoundFontZoneSnapshot` carrying the asset format, checksum, provider version, preset identity,
-resolved zones, and typed provider diagnostics. Zone and diagnostic counts are capped, and both
-collections are sorted deterministically. Providers still own SF2/SF3 generator interpretation;
-the wrapper prevents browser workers and hosts from reparsing the same materialized data.
-`load_materialized` additionally reads the bounded preset/instrument generator tables from SF2/SF3
-RIFF metadata and materializes the supported projection; unsupported generators are retained as
-bounded diagnostics and never silently approximated.
-Malformed preset/instrument table ranges are emitted as `InvalidZoneAt` diagnostics with
-`SoundFontZoneLocation` coordinates, so a host can report the exact table boundary without
-reparsing the asset.
+`SoundFontPresetZone`, `resolve_preset_zone_metadata`, and `schedule_preset_note_on` keep region,
+loop, tuning, envelope, channel-layout, and diagnostic data in one validated representation.
+`materialize_zones` creates a bounded, deterministic snapshot for UI, cache keys, and worker
+handoff. Unsupported generators, compression, malformed table ranges, and invalid stereo links
+remain typed diagnostics rather than approximations.
 
-`PROVIDER_CONTRACT_VERSION` identifies the adapter contract. Providers advertise
-`ProviderCapabilities` and hosts should call `validate_provider_capabilities` before decoding;
-unsupported PCM/Vorbis or synthesis support returns a typed error. The checked-in regression
-suite includes a CC0 SF2 fixture and the MIT-licensed FluidR3Mono SF3 fixture, with provenance
-and checksums in `tests/fixtures/`; the SF3 test is gated behind `sf3-vorbis`. Production and
-provider-owned assets remain separate.
+`PROVIDER_CONTRACT_VERSION` and `validate_provider_capabilities` let a host reject unsupported
+PCM/Vorbis or synthesis before decoding. The built-in SF2 PCM16 path and optional
+`sf3-vorbis` decoder are bounded helpers; production assets and renderers remain separate. Fixture
+provenance and checksums are recorded in `tests/fixtures/`.
 
-`validate_sample_region` rejects malformed key/velocity ranges, loop points, sample rates, and
-envelope values before scheduling. Unsupported generator data should be rejected by the provider
-as `Error::UnsupportedGenerator` rather than silently approximated.
-
-The built-in `decode_sf2_pcm16` path decodes bounded PCM16 from an SF2 `smpl` chunk, and
-`render_sample_action` provides deterministic nearest-neighbor playback with gain, envelope,
-looping, and pitch-rate handling. Enable the optional `sf3-vorbis` feature to use the separately
-licensed `lewton` decoder for SF3 Ogg/Vorbis payloads; without it, Vorbis returns an explicit
-unsupported-compression error. `decode_sample_region` retains the legacy first-stream SF3
-convenience behavior; `decode_materialized_sample_region` and snapshot metadata select the Ogg
-stream matching the materialized `sample_id`.
-
-It does not decode samples or include a synthesizer. Applications provide a
-separately licensed SF2/SF3 renderer, so no external sample assets or vendor
-library become a requirement for acorde itself. The checksum is path-independent
-FNV-1a 64-bit over the asset bytes. `PLAYBACK_CONTRACT_VERSION` identifies the
-action contract consumed by providers.
+It does not require an asset, audio device, or general synthesizer. Applications provide their
+own licensed assets and renderer; the optional bounded decoders do not make either a requirement
+for Acorde itself. The checksum is path-independent FNV-1a 64-bit over the asset bytes.
+`PLAYBACK_CONTRACT_VERSION` identifies the action contract consumed by providers.
 
 Security invariants and resource-limit ownership are documented in the
 [security contract](../../docs/security/threat-model.md). SoundFont bytes, provider metadata,

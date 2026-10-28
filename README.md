@@ -68,13 +68,12 @@ or `compatibility-report` when a workflow must inspect omission, normalization, 
 difference.
 
 acorde owns score semantics, logical geometry, deterministic SVG, and versioned browser/WASM
-contracts. `acorde-pdf` is the optional in-memory Harumi PDF adapter; callers still own font
-selection, filesystem/UI, print dialogs, and browser end-to-end presentation. A SoundFont provider can consume Acorde
-playback events, but synthesis and asset licensing remain host concerns.
+contracts. `acorde-pdf` is an optional in-memory Harumi adapter; hosts own fonts, UI, printing,
+and end-to-end browser presentation. SoundFont synthesis and asset licensing are also host work.
 
-The detailed boundary and tested slices are in the [notation coverage matrix](docs/notation-coverage.md).
-The [scorecard](docs/scorecard.md) is a conservative inventory, and the
-[external evidence](docs/external-interoperability-evidence.md) records bounded observations only.
+Use the [coverage matrix](docs/notation-coverage.md) for the tested boundary, the
+[scorecard](docs/scorecard.md) for the current inventory, and
+[external evidence](docs/external-interoperability-evidence.md) for bounded observations.
 
 ## CLI
 
@@ -91,18 +90,10 @@ acorde omr-evaluate printed-score.png reference.mscz --report evaluation.json
 acorde omr-apply-report provider-result.json draft.mscz --report application.json
 ```
 
-Additional commands cover `info`, `report`, `preflight`, `analyze`, `benchmark`, `extract`,
-`transpose`, `normalize`, tablature assignment/performance, playback comparison, and
-machine-readable export reports. Run `acorde --help` for the complete, versioned command surface.
-CLI owns file access; the underlying library APIs accept in-memory strings or bytes.
-`omr` currently supports only the documented high-contrast, sequential one- or aligned two-staff
-PNG subset and writes no MSCZ when recognition requires review; see the
-[OMR proposal contract](docs/omr-proposal-contract.md) and [validation boundary](docs/omr-validation.md).
-`omr-evaluate` applies only an accepted proposal, compares its canonical score with a supplied
-reference score, and emits a reproducible JSON observation. It exits non-zero for rejected or
-different pairs; it does not turn a corpus observation into a general accuracy claim.
-`omr-apply-report` is the host/provider hand-off: it accepts the versioned reviewable report JSON
-and writes no MSCZ unless the same contract validation produces a ready command plan.
+Additional commands cover inspection, analysis, conversion reports, tablature, and playback;
+run `acorde --help` for the versioned surface. The CLI owns file access. `omr` is deliberately a
+review-first, high-contrast PNG subset; its limits and no-silent-write rule are in the
+[proposal contract](docs/omr-proposal-contract.md) and [validation boundary](docs/omr-validation.md).
 
 ## Documentation
 

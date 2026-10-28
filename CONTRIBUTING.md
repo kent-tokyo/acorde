@@ -18,9 +18,9 @@ devices, fonts, PDF generation, and print dialogs in hosts such as Composer.
 ## Required checks
 
 ```bash
-cargo fmt --check
-cargo test --all
-cargo clippy --all --all-targets -- -D warnings
+cargo fmt --all -- --check
+cargo test --workspace --all-features --locked
+cargo clippy --workspace --all-features --locked --all-targets -- -D warnings
 git diff --check
 ```
 

@@ -66,13 +66,12 @@ MusicXML/MXLが最も広い交換経路です。MIDI、ABC、MEI、MSCZ/MSCX、G
 `compatibility-report` で確認できます。
 
 acordeはスコア意味論、論理ジオメトリ、決定的SVG、ブラウザ/WASM契約を担当します。`acorde-pdf` は
-Harumiを使う任意のメモリ内PDFアダプターです。フォント選択、ファイルUI、印刷ダイアログ、ブラウザE2Eは
-引き続きホスト側の責務です。SoundFont
-プロバイダは再生イベントを利用できますが、合成と音源ライセンスはホストが管理します。
+Harumiを使う任意のメモリ内アダプターであり、フォント、UI、印刷、ブラウザE2Eはホスト側の責務です。
+SoundFontの合成と音源ライセンスもホストが管理します。
 
-詳細は[記譜対応マトリクス](docs/notation-coverage.md)、保守的な機能一覧は
-[scorecard](docs/scorecard.md)、外部ツールの限定観測は[相互運用証跡](docs/external-interoperability-evidence.md)
-を参照してください。
+対応範囲は[記譜対応マトリクス](docs/notation-coverage.md)、現行機能は
+[scorecard](docs/scorecard.md)、外部ツールの限定観測は
+[相互運用証跡](docs/external-interoperability-evidence.md)を参照してください。
 
 ## CLI
 
@@ -89,13 +88,10 @@ acorde omr-evaluate printed-score.png reference.mscz --report evaluation.json
 acorde omr-apply-report provider-result.json draft.mscz --report application.json
 ```
 
-このほか `info`、`report`、`preflight`、`analyze`、`benchmark`、`extract`、`transpose`、
-`normalize`、タブ譜割当・再生検査、再生比較、変換レポートを提供します。完全なコマンド一覧は
-`acorde --help` を参照してください。ファイルを扱うのはCLIであり、ライブラリAPIはメモリ上の入力を受け取ります。
-`omr` は高コントラストかつ連続した1段または整列した2段のPNGだけを、確認用の提案として扱います。
-認識結果だけではMSCZを書き出さず、`omr-apply-report` が同じ契約を再検証して「適用可能」と判断した
-ときだけ出力します。範囲と評価方法は[OMR提案契約](docs/omr-proposal-contract.md)と
-[検証境界](docs/omr-validation.md)を参照してください。
+このほか検査、分析、変換レポート、タブ譜、再生関連のコマンドを提供します。完全な一覧は
+`acorde --help` を参照してください。ファイルを扱うのはCLIです。`omr` は高コントラストPNGを対象にした
+レビュー必須の限定機能で、診断付き結果からはMSCZを書き出しません。範囲と評価方法は
+[OMR提案契約](docs/omr-proposal-contract.md)と[検証境界](docs/omr-validation.md)を参照してください。
 
 ## 文書
 

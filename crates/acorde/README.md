@@ -2,14 +2,13 @@
 
 Umbrella crate for the acorde score library.
 
-It re-exports acorde-core, acorde-io, and acorde-layout as acorde::core, acorde::io, and
-acorde::layout. Its default I/O features are musicxml and midi; enable abc, mscz, or mei when needed.
-The optional `soundfont` feature re-exports `acorde-soundfont` as `acorde::soundfont`; it provides
-bounded SF2/SF3 metadata and provider-neutral playback lifecycle actions without bundling samples.
-Enable `soundfont-sf3-vorbis` to opt into the separately licensed Vorbis decoder feature.
-acorde-render-svg is intentionally not re-exported and must be added directly.
-Format report APIs preserve source-located import/export diagnostics; malformed MSCX numeric
-values are reported instead of being indistinguishable from canonical defaults.
+It re-exports `acorde-core`, `acorde-io`, and `acorde-layout` as `acorde::core`, `acorde::io`, and
+`acorde::layout`. Default I/O is `musicxml` and `midi`; enable `abc`, `mei`, `mscz`, or `gp` as
+needed. Optional `omr` and `soundfont` re-export `acorde-omr` and `acorde-soundfont`; use
+`soundfont-sf3-vorbis` for the separately licensed Vorbis decoder.
+
+`acorde-render-svg` is intentionally a direct dependency. Format reports retain source-located
+import/export diagnostics instead of silently normalizing malformed source values.
 
 ~~~toml
 [dependencies]

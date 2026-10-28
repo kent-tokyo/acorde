@@ -1,28 +1,27 @@
 # Documentation guide
 
-This directory records Acorde's public boundaries and the evidence behind them. It describes the
-current `main` worktree; published-release claims remain pinned to a tag, its CI, registry, and
-release artifacts.
+This directory records public contracts and their evidence. It describes current `main`; a release
+claim additionally needs its tag, CI, registry, and release artifacts.
 
 ## Start here
 
 | Need | Document |
 |---|---|
 | Supported notation and known loss | [Notation coverage](notation-coverage.md) |
-| Upgrade impact | [Migration notes](migrations.md) and [`CHANGELOG.md`](../CHANGELOG.md) |
-| File-format checks and reports | [Interchange evidence](interchange-evidence.md) |
-| Browser/WASM integration | [Browser contract](browser-rendering.md) and [browser checks](browser-support.md) |
-| Print and vector PDF boundary | [Print layout](print-layout.md), [page SVG](print-svg-contract.md), and [PDF export](pdf-export.md) |
+| Upgrade impact and release index | [Migration notes](migrations.md), [`CHANGELOG.md`](../CHANGELOG.md) |
+| Format checks and reports | [Interchange evidence](interchange-evidence.md) |
+| Browser/WASM host | [Browser contract](browser-rendering.md), [browser checks](browser-support.md) |
+| Print/PDF host | [Print layout](print-layout.md), [page SVG](print-svg-contract.md), [PDF export](pdf-export.md) |
 
 ## Verification and evidence
 
-- [Scorecard](scorecard.md) is a conservative implementation inventory.
-- [External interoperability evidence](external-interoperability-evidence.md) and
-  [external analysis evidence](external-analysis-evidence.md) record version-pinned observations;
-  they are not general parity or quality claims.
-- [Performance](performance.md), [visual regression](visual-regression.md), and
-  [fixture policy](../tests/fixtures/README.md) describe reproducible local checks.
-- [Security](security/README.md) defines input, archive, SVG, and resource boundaries.
+- [Scorecard](scorecard.md) is the conservative implementation inventory.
+- [External interoperability](external-interoperability-evidence.md) and
+  [analysis evidence](external-analysis-evidence.md) are version-pinned observations, not parity
+  or quality scores.
+- [Performance](performance.md), [visual regression](visual-regression.md),
+  [fixture policy](../tests/fixtures/README.md), and [security](security/README.md) document
+  reproducible local and safety checks.
 
 ## Optional OMR boundary
 
@@ -32,6 +31,6 @@ not a general score-recognition or accuracy claim.
 
 ## Maintenance
 
-Keep one canonical document for each contract. Put release-specific history in `CHANGELOG.md`,
-compatibility actions in `migrations.md`, and measured observations in their focused evidence file.
-Do not promote a local check into an external-support, audio-quality, or publication claim.
+Keep one canonical page per contract: release index in `CHANGELOG.md`, consumer actions in
+`migrations.md`, and measurements in their evidence file. Local checks do not establish external
+support, audio quality, or publication quality.
