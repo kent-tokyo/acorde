@@ -40,7 +40,8 @@ use acorde_core::{
     TextStyle, ValidationError, ViewStyle, ViewStyleOverride,
 };
 use acorde_layout::{
-    GlyphCollisionClass, GlyphCollisionDirection, LayoutConfig, LayoutResult, compute_layout,
+    GlyphCollisionClass, GlyphCollisionDirection, LayoutConfig, LayoutResult, RowLayout,
+    compute_layout,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -130,6 +131,21 @@ pub struct SvgRenderOptions {
 pub struct SvgRenderConfig {
     options: SvgRenderOptions,
     staff_gap: f32,
+    system_breaking: SvgSystemBreakStrategy,
+}
+
+/// Strategy used when SVG rendering computes system breaks itself.
+///
+/// [`FixedMeasureCount`](Self::FixedMeasureCount) is the compatibility default.  The adaptive
+/// strategy is intentionally opt-in: it preserves authored breaks and the configured maximum
+/// number of measures per system, while starting a new system before a dense measure would make
+/// the current row too narrow.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SvgSystemBreakStrategy {
+    /// Use the fixed [`SvgRenderOptions::measures_per_system`] count.
+    FixedMeasureCount,
+    /// Use notation density as an additional system-break constraint.
+    NotationDensity,
 }
 
 impl SvgRenderConfig {
@@ -137,6 +153,7 @@ impl SvgRenderConfig {
         Self {
             options,
             staff_gap: 10.0,
+            system_breaking: SvgSystemBreakStrategy::FixedMeasureCount,
         }
     }
 
@@ -146,11 +163,28 @@ impl SvgRenderConfig {
         self
     }
 
+    /// Prefer a new system before notation density would make the current system too narrow.
+    ///
+    /// This does not override authored system/page breaks and never places more than
+    /// [`SvgRenderOptions::measures_per_system`] visual measure columns on one row.
+    pub fn with_notation_density_breaks(mut self) -> Self {
+        self.system_breaking = SvgSystemBreakStrategy::NotationDensity;
+        self
+    }
+
     pub fn options(&self) -> &SvgRenderOptions {
         &self.options
     }
     pub fn staff_gap(&self) -> f32 {
         self.staff_gap
+    }
+    pub fn system_breaking(&self) -> SvgSystemBreakStrategy {
+        self.system_breaking
+    }
+
+    fn with_options(mut self, options: SvgRenderOptions) -> Self {
+        self.options = options;
+        self
     }
 }
 
@@ -811,6 +845,13 @@ pub enum RenderError {
     InvalidLayout { reason: String },
     /// Rendering dimensions or system settings are not finite and positive.
     InvalidOptions { reason: String },
+    /// A single physical measure needs more horizontal space than density-aware rendering can
+    /// allocate in one SVG system. The values are deterministic staff-space units.
+    MeasureOverflow {
+        measure: usize,
+        required_units: usize,
+        available_units: usize,
+    },
     /// A staff uses a clef this renderer has no staff-position mapping for.
     UnsupportedClef,
     /// A pitch's `alter` is outside the supported range (`-2..=2`: double-flat..double-sharp).
@@ -841,6 +882,15 @@ impl std::fmt::Display for RenderError {
             }
             RenderError::InvalidLayout { reason } => write!(f, "invalid layout: {reason}"),
             RenderError::InvalidOptions { reason } => write!(f, "invalid render options: {reason}"),
+            RenderError::MeasureOverflow {
+                measure,
+                required_units,
+                available_units,
+            } => write!(
+                f,
+                "measure {} needs {required_units} staff-space units but only {available_units} fit in one system",
+                measure + 1,
+            ),
             RenderError::UnsupportedClef => write!(
                 f,
                 "unsupported clef (no staff-position mapping is available)"
@@ -898,15 +948,150 @@ pub fn render_svg_with_config(
     config: &SvgRenderConfig,
 ) -> Result<String, RenderError> {
     let options = options_for_score(config.options(), score)?;
-    let config = SvgRenderConfig::new(options).with_staff_gap(config.staff_gap());
-    let layout = compute_layout(
+    let config = config.clone().with_options(options);
+    let layout = layout_for_config(score, &config)?;
+    render::build_svg_with_config(score, &layout, &config)
+}
+
+fn layout_for_config(score: &Score, config: &SvgRenderConfig) -> Result<LayoutResult, RenderError> {
+    let mut layout = compute_layout(
         score,
         &LayoutConfig {
             measures_per_row: config.measures_per_system.max(1),
             ..Default::default()
         },
     );
-    render::build_svg_with_config(score, &layout, &config)
+    if config.system_breaking() == SvgSystemBreakStrategy::NotationDensity {
+        layout.rows = density_aware_rows(score, &layout.vis_slots, config.options())?;
+    }
+    Ok(layout)
+}
+
+/// Choose rows from deterministic, renderer-independent notation metrics.  It deliberately
+/// estimates a lower bound instead of performing glyph positioning: actual horizontal collision
+/// resolution still happens in `render`, while this pass prevents clearly unsuitable rows.
+fn density_aware_rows(
+    score: &Score,
+    vis_slots: &[usize],
+    options: &SvgRenderOptions,
+) -> Result<Vec<RowLayout>, RenderError> {
+    if vis_slots.is_empty() {
+        return Ok(vec![RowLayout {
+            measure_indices: Vec::new(),
+        }]);
+    }
+
+    // Reserve a conservative first-system header budget (clef/key/time plus page margins).
+    // The actual renderer calculates exact header widths afterwards; this bound makes the row
+    // selection stable without duplicating SVG glyph geometry here.
+    let available_units = ((options.width / options.staff_size) - 14.0)
+        .floor()
+        .max(1.0) as usize;
+    let column_limit = options.measures_per_system.max(1);
+    let mut spans = Vec::new();
+    for &measure in vis_slots {
+        if let Some((last, slots)) = spans.last_mut()
+            && *last == measure
+        {
+            *slots += 1;
+        } else {
+            spans.push((measure, 1usize));
+        }
+    }
+
+    let mut rows = Vec::new();
+    let mut row = Vec::new();
+    let mut row_columns = 0usize;
+    let mut row_units = 0usize;
+    for (measure, visual_columns) in spans {
+        let units = measure_density_units(score, measure).max(visual_columns * 3);
+        if units > available_units {
+            return Err(RenderError::MeasureOverflow {
+                measure,
+                required_units: units,
+                available_units,
+            });
+        }
+        if !row.is_empty()
+            && (row_columns.saturating_add(visual_columns) > column_limit
+                || row_units.saturating_add(units) > available_units)
+        {
+            rows.push(RowLayout {
+                measure_indices: std::mem::take(&mut row),
+            });
+            row_columns = 0;
+            row_units = 0;
+        }
+        row.push(measure);
+        row_columns += visual_columns;
+        row_units += units;
+        if measure_forces_system_break(score, measure) {
+            rows.push(RowLayout {
+                measure_indices: std::mem::take(&mut row),
+            });
+            row_columns = 0;
+            row_units = 0;
+        }
+    }
+    if !row.is_empty() {
+        rows.push(RowLayout {
+            measure_indices: row,
+        });
+    }
+    Ok(rows)
+}
+
+fn measure_forces_system_break(score: &Score, measure: usize) -> bool {
+    score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .filter_map(|staff| staff.measures.get(measure))
+        .any(|measure| measure.system_break || measure.page_break)
+}
+
+fn measure_density_units(score: &Score, measure: usize) -> usize {
+    let mut widest_staff = 3usize;
+    for staff in score.parts.iter().flat_map(|part| &part.staves) {
+        let Some(measure) = staff.measures.get(measure) else {
+            continue;
+        };
+        let voice_width = measure
+            .voices
+            .iter()
+            .map(|voice| {
+                voice
+                    .iter()
+                    .filter(|note| !note.hidden)
+                    .map(|note| {
+                        let notehead_width = if note.is_rest { 1 } else { 2 };
+                        let chord_width = note.pitches.len().saturating_sub(1);
+                        let accidental_width =
+                            note.pitches.iter().filter(|pitch| pitch.alter != 0).count();
+                        let lyric_width = note
+                            .lyric
+                            .as_ref()
+                            .map_or(0, |lyric| lyric.text.chars().count().div_ceil(3));
+                        notehead_width
+                            + chord_width
+                            + accidental_width
+                            + usize::from(note.dot_count)
+                            + lyric_width
+                            + usize::from(note.chord_symbol.is_some()) * 2
+                            + note.articulations.len().div_ceil(2)
+                    })
+                    .sum::<usize>()
+            })
+            .max()
+            .unwrap_or(0);
+        let text_width = measure
+            .texts
+            .iter()
+            .map(|text| text.text.chars().count().div_ceil(4))
+            .sum::<usize>();
+        widest_staff = widest_staff.max(voice_width + text_width + 3);
+    }
+    widest_staff
 }
 
 /// Render one linked [`ScoreView`] without mutating the source [`Score`].
@@ -1043,7 +1228,7 @@ pub fn render_svg_with_layout_config(
     config: &SvgRenderConfig,
 ) -> Result<String, RenderError> {
     let options = options_for_score(config.options(), score)?;
-    let config = SvgRenderConfig::new(options).with_staff_gap(config.staff_gap());
+    let config = config.clone().with_options(options);
     render::build_svg_with_config(score, layout, &config)
 }
 
@@ -1123,6 +1308,6 @@ pub fn render_svg_metadata_with_config(
     config: &SvgRenderConfig,
 ) -> Result<RenderMetadata, RenderError> {
     let options = options_for_score(config.options(), score)?;
-    let config = SvgRenderConfig::new(options).with_staff_gap(config.staff_gap());
+    let config = config.clone().with_options(options);
     render::build_svg_with_metadata_config(score, layout, &config).map(|(_, metadata)| metadata)
 }
