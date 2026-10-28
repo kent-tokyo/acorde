@@ -25,7 +25,6 @@ fn opts() -> SvgRenderOptions {
     SvgRenderOptions {
         width: 500.0,
         staff_size: 20.0,
-        staff_gap: 10.0,
         measures_per_system: 4,
         interactive: false,
     }

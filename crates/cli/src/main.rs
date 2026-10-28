@@ -762,7 +762,6 @@ fn cmd_render(
     let options = acorde_render_svg::SvgRenderOptions {
         width,
         staff_size,
-        staff_gap: 10.0,
         measures_per_system,
         interactive,
     };
@@ -804,7 +803,6 @@ fn render_report_summary(
     let options = acorde_render_svg::SvgRenderOptions {
         width,
         staff_size,
-        staff_gap: 10.0,
         measures_per_system,
         interactive,
     };

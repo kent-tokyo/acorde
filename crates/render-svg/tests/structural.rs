@@ -15,7 +15,6 @@ fn opts() -> SvgRenderOptions {
     SvgRenderOptions {
         width: 700.0,
         staff_size: 24.0,
-        staff_gap: 10.0,
         measures_per_system: 4,
         interactive: true,
     }
@@ -109,7 +108,6 @@ fn linked_view_uses_its_projection_and_layout_overrides() {
         &score.resolve_view("part").expect("view resolves"),
         &SvgRenderOptions {
             staff_size: 36.0,
-            staff_gap: 10.0,
             measures_per_system: 1,
             ..opts()
         },
@@ -1684,14 +1682,19 @@ fn invalid_render_dimensions_return_errors() {
         Err(acorde_render_svg::RenderError::InvalidOptions { .. })
     ));
     options = opts();
-    options.staff_gap = 0.0;
     assert!(matches!(
-        render_svg(&score, &options),
+        acorde_render_svg::render_svg_with_config(
+            &score,
+            &acorde_render_svg::SvgRenderConfig::new(options.clone()).with_staff_gap(0.0),
+        ),
         Err(acorde_render_svg::RenderError::InvalidOptions { .. })
     ));
-    options.staff_gap = f32::NAN;
+
     assert!(matches!(
-        render_svg(&score, &options),
+        acorde_render_svg::render_svg_with_config(
+            &score,
+            &acorde_render_svg::SvgRenderConfig::new(options).with_staff_gap(f32::NAN),
+        ),
         Err(acorde_render_svg::RenderError::InvalidOptions { .. })
     ));
     options = opts();
@@ -1707,13 +1710,10 @@ fn staff_gap_moves_the_lower_staff_without_resizing_notes() {
     let score = common::satb_major();
     let layout = compute_layout(&score, &LayoutConfig::default());
     let normal = render_svg_metadata(&score, &layout, &opts()).unwrap();
-    let compact = render_svg_metadata(
+    let compact = acorde_render_svg::render_svg_metadata_with_config(
         &score,
         &layout,
-        &SvgRenderOptions {
-            staff_gap: 8.0,
-            ..opts()
-        },
+        &acorde_render_svg::SvgRenderConfig::new(opts()).with_staff_gap(8.0),
     )
     .unwrap();
     let first = |metadata: &acorde_render_svg::RenderMetadata, staff| {
