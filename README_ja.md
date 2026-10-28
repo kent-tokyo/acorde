@@ -3,7 +3,7 @@
 [![CI](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml)
 [![docs.rs](https://docs.rs/acorde/badge.svg)](https://docs.rs/acorde)
 
-プラットフォーム非依存の Rust / WebAssembly 楽譜基盤ライブラリ（v1.2.18）です。
+プラットフォーム非依存の Rust / WebAssembly 楽譜基盤ライブラリ（v1.2.19）です。
 
 シリアライズ可能なスコアモデル、Undo/Redo可能な編集、範囲を明示した記譜入出力、論理レイアウト、
 決定的SVG、再生イベント、分析、WASMバインディングを提供します。ライブラリ本体は同期・UI非依存で、
@@ -39,14 +39,14 @@ SVGが必要な場合は `acorde-render-svg` を直接依存に追加します�
 
 ```toml
 [dependencies]
-acorde = "1.2.18"
-acorde-render-svg = "1.2.18"
+acorde = "1.2.19"
+acorde-render-svg = "1.2.19"
 ```
 
 標準ではMusicXMLとMIDIが有効です。ABC、MEI、MSCZ/MSCX、Guitar Pro 3〜8入力は明示的に有効化します。
 
 ```toml
-acorde = { version = "1.2.18", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "1.2.19", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust

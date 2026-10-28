@@ -9,6 +9,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.19] - 2026-10-28
+
+- Added a finite, positive `SvgRenderOptions::staff_gap` in staff spaces. The default remains 10,
+  so hosts can tighten a multi-staff system without resizing notation.
+- Consolidated public documentation and release/migration entry points without changing format or
+  host-boundary guarantees.
+
 ## [1.2.18] - 2026-10-25
 
 - **Longa duration.** `Duration::Longa` represents four whole notes exactly. MusicXML `long`,
@@ -18,10 +25,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **ABC explicit beaming.** Whitespace now closes an ABC 2.1 explicit beam group: adjacent
   eighth notes and shorter durations render as one group, while spaces, rests, longer notes,
   overlays and barlines separate them. This is preserved through the browser SVG API as well.
-- SVG renderers accept a positive `staff_gap` option in staff spaces, with the existing
-  10-space layout retained by default. Browser hosts can place two-staff scores more closely
-  without shrinking notes. Rust callers constructing `SvgRenderOptions` directly must set the
-  new field or use `..Default::default()`.
 
 - **PDF export.** `acorde-pdf` now requires Harumi 1.23.7 and passes bounded SVG directly to its
   native converter. Engraving Bézier curves, elliptical arcs, and notehead ellipses therefore

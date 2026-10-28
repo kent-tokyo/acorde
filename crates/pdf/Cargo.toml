@@ -14,8 +14,8 @@ keywords = ["music", "notation", "pdf", "sheet-music", "svg"]
 categories = ["multimedia::audio", "rendering"]
 
 [dependencies]
-acorde-core = { path = "../core", version = "1.2.18" }
-acorde-render-svg = { path = "../render-svg", version = "1.2.18" }
+acorde-core = { path = "../core", version = "1.2.19" }
+acorde-render-svg = { path = "../render-svg", version = "1.2.19" }
 harumi = { version = "1.23.7", features = ["svg"] }
 roxmltree = "0.20"
 thiserror = "2"

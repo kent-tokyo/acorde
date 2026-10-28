@@ -10,6 +10,7 @@ struct literals must still update for added variants and fields.
 
 | Release | Consumer action |
 |---|---|
+| 1.2.19 | `SvgRenderOptions` gains `staff_gap`; direct struct literals must set a finite positive value or use `..Default::default()`. It is measured in staff spaces and defaults to 10. |
 | 1.2.18 | `acorde-omr` is an optional review-first adapter; use its report/command-plan boundary rather than treating image analysis as automatic conversion. `OmrRhythmicEvent` gains serde-defaulted `is_unpitched`, `instrument_id`, and `tab_positions`; `RecognitionConfig.time_signature` defaults to 4/4. Browser transport and `acorde-pdf` remain host-facing additive crates. |
 | 1.2.17 | Add `VoltaBracket.numbers` to literals; handle `Duration::{Breve,HundredTwentyEighth}` and new `Articulation` values. `Note.pitch_fingerings` is parallel to chord pitches. |
 | 1.2.16 | Handle octave and C-family `Clef` values. `Note.pitch_accidentals` and `pitch_parentheses` are parallel per-pitch fields. |
