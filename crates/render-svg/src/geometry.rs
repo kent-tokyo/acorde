@@ -28,6 +28,10 @@ pub(crate) fn diatonic_index(step: &Step, octave: i8) -> i32 {
 /// Diatonic index of a clef's bottom staff line — the reference for [`staff_position`].
 pub(crate) fn clef_bottom_line(clef: &Clef) -> Result<i32, RenderError> {
     match clef {
+        // The middle line is four diatonic steps above the bottom line. `middle=` is a
+        // display mapping only, so this deliberately leaves the written and sounding pitch
+        // stored in the score untouched.
+        Clef::AbcMiddle { middle, .. } => Ok(diatonic_index(&middle.step, middle.octave) - 4),
         Clef::Treble => Ok(diatonic_index(&Step::E, 4)),
         Clef::Bass => Ok(diatonic_index(&Step::G, 2)),
         Clef::Alto => Ok(diatonic_index(&Step::F, 3)),
@@ -91,6 +95,7 @@ pub(crate) fn ledger_positions(position: i32) -> Vec<i32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use acorde_core::Pitch;
 
     #[test]
     fn diatonic_index_matches_expected() {
@@ -123,6 +128,15 @@ mod tests {
         assert_eq!(staff_position(&Step::G, 2, bottom), 0);
         assert_eq!(staff_position(&Step::D, 3, bottom), 4); // middle line
         assert_eq!(staff_position(&Step::A, 3, bottom), 8); // top line
+    }
+
+    #[test]
+    fn abc_middle_pitch_is_placed_on_the_middle_line() {
+        let clef = Clef::with_abc_middle(Clef::Bass, Pitch::new(Step::D, 5))
+            .expect("bass supports an ABC middle mapping");
+        let bottom = clef_bottom_line(&clef).expect("custom clef is renderable");
+        assert_eq!(staff_position(&Step::D, 5, bottom), 4);
+        assert_eq!(staff_position(&Step::D, 3, bottom), -10);
     }
 
     #[test]

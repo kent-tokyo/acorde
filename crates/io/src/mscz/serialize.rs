@@ -1275,6 +1275,7 @@ fn clef_name(clef: &Clef) -> &'static str {
         Clef::Soprano => "C1",
         Clef::MezzoSoprano => "C2",
         Clef::Baritone => "C5",
+        Clef::AbcMiddle { base, .. } => clef_name(base),
     }
 }
 
