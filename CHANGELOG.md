@@ -9,9 +9,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.20] - 2026-10-28
+
 - **MSCZ archive index.** `serialize_mscz` now writes the standard
   `META-INF/container.xml` index alongside `score.mscx`, so consumers can pass the generated
   archive directly to MuseScore-compatible readers without reconstructing the ZIP.
+- **ABC key signatures.** Parsing now applies a declared key signature when converting unmarked
+  notes to pitches, while explicit accidentals retain their written meaning.
+- **Documentation.** Consolidated interoperability and capability evidence, and refreshed the
+  renderer benchmark baseline on the release candidate.
 
 ## [1.2.19] - 2026-10-28
 

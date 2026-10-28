@@ -1,6 +1,6 @@
 # External analysis evidence
 
-This document records a bounded Phase 17D comparison protocol. It is not a claim that Acorde and
+This document records a bounded music21 comparison protocol. It is not a claim that Acorde and
 music21 have equivalent analytical algorithms, engraving, playback, or file-format coverage.
 
 ## Projection contract

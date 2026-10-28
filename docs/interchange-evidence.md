@@ -30,7 +30,8 @@ A successful parse alone never changes a capability matrix cell to `yes`.
   ties/slurs, grace notes, lyrics, volta, and quarter-tone spellings. Multiple voices/staves,
   tablature, and unsupported rhythm syntax are explicit limits.
 - **MEI and MSCX/MSCZ:** documented structural, text, tablature, and selected spanner/harmony
-  subsets round-trip or produce source-located diagnostics. Vendor-specific or timing-only
+  subsets round-trip or produce source-located diagnostics. MSCZ export includes the standard
+  `META-INF/container.xml` index for its `score.mscx` entry. Vendor-specific or timing-only
   semantics are not guessed into the canonical model.
 - **Guitar Pro 3–8 (import only):** `.gp` (ZIP) and `.gpx` (BCFZ/BCFS) containers are read to
   their GPIF score, and `.gp3`/`.gp4`/`.gp5` binaries are read field by field. The documented
@@ -56,7 +57,7 @@ lossless interchange, engraving parity, browser fidelity, or host audio equivale
 require a permission-cleared corpus or relevant external execution under pinned conditions.
 
 The current public MIDI fixtures and pinned MSCZ files are smoke cases, not population benchmarks.
-The Phase 18 evidence inventory retains per-tool outcomes without calculating a compatibility rate
+The external evidence inventory retains per-tool outcomes without calculating a compatibility rate
 or cross-format parity score.
 
 ## Deferred beat-aware MIDI transformation

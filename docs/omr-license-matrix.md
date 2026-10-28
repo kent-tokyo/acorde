@@ -1,6 +1,6 @@
 # OMR dependency and provider matrix
 
-This document records the Phase 1 image-recognition boundary. It is not a claim of recognition
+This document records the image-recognition dependency boundary. It is not a claim of recognition
 quality or of compatibility with every scanned score.
 
 | Component | Version / source | License evidence | Distribution role |

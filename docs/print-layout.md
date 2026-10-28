@@ -46,7 +46,7 @@ rejected rather than silently blanked.
 Therefore a successful layout or SVG preflight is not proof of shaped-font collision quality,
 multi-page PDF composition, font embedding, or printer output.
 
-## Phase 19A corpus gate
+## Corpus gate
 
 [`benchmarks/print/phase19a.json`](../benchmarks/print/phase19a.json) pins self-authored fixtures
 for rich notation, multipart scores, tablature, and explicit system/page breaks.

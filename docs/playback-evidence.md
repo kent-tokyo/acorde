@@ -1,6 +1,6 @@
 # Playback and tablature evidence
 
-This document records the reproducible local evidence for Phase 10.7. It deliberately separates
+This document records reproducible local playback and tablature evidence. It deliberately separates
 deterministic score/event contracts from host-owned audio and browser evidence.
 
 ## Local gate

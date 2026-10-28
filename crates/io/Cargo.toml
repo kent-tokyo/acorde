@@ -24,7 +24,7 @@ mei = ["dep:quick-xml"]
 gp = ["dep:quick-xml", "dep:zip", "dep:flate2"]
 
 [dependencies]
-acorde-core = { path = "../core", version = "1.2.19" }
+acorde-core = { path = "../core", version = "1.2.20" }
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 

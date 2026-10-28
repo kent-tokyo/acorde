@@ -34,7 +34,7 @@ particular, a dataset's top-level license does not by itself establish that ever
 transcription is redistributable. Only individually reviewed Public Domain/CC0 or otherwise
 permission-cleared files may be promoted into the checked-in fixture corpus.
 
-The Phase 18 external-comparison corpus contract is
+The external-comparison corpus contract is
 [`benchmarks/interoperability/phase18a.json`](../../benchmarks/interoperability/phase18a.json).
 It reuses only registered fixtures and requires a separate output SHA-256, external-tool version,
 options, typed semantic changes, and source/candidate loss diagnostics. External artifacts are

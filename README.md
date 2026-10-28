@@ -3,7 +3,7 @@
 [![CI](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml)
 [![docs.rs](https://docs.rs/acorde/badge.svg)](https://docs.rs/acorde)
 
-Platform-neutral Rust and WebAssembly score infrastructure (v1.2.19).
+Platform-neutral Rust and WebAssembly score infrastructure (v1.2.20).
 
 acorde provides a serializable score model, undoable edits, bounded notation I/O, logical layout,
 deterministic SVG, playback-event projection, analysis primitives, and WASM bindings. Library
@@ -40,14 +40,14 @@ rendering SVG.
 
 ```toml
 [dependencies]
-acorde = "1.2.19"
-acorde-render-svg = "1.2.19"
+acorde = "1.2.20"
+acorde-render-svg = "1.2.20"
 ```
 
 Default I/O features are MusicXML and MIDI. Enable optional formats explicitly:
 
 ```toml
-acorde = { version = "1.2.19", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "1.2.20", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust
