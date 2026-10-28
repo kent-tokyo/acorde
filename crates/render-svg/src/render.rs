@@ -313,6 +313,28 @@ pub(crate) fn build_svg_with_metadata_config(
         }
         let system_top_y = row_top_y;
         let system_bottom_y = row_top_y + system_height_u * space;
+        // Repeat dots belong to each individual staff, whereas the barline itself spans the
+        // complete visible system. Keeping those geometries separate prevents a piano-system
+        // repeat from acquiring one erroneous pair of dots between the staves.
+        let repeat_dot_ranges: Vec<(f32, f32)> = staff_refs
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| row_staff_visible[*index])
+            .map(|(index, _)| {
+                let bottom = staff_y[index] + staff_heights_u[index] * space;
+                let top = bottom
+                    - f32::from(
+                        staff_line_count(
+                            &score.parts[staff_refs[index].0].staves[staff_refs[index].1],
+                        )
+                        .saturating_sub(1),
+                    ) * score.parts[staff_refs[index].0].staves[staff_refs[index].1]
+                        .presentation
+                        .line_distance
+                        * space;
+                (top, bottom)
+            })
+            .collect();
 
         // Staff lines + headers for every staff in the system.
         for (si_idx, &(pi, si)) in staff_refs.iter().enumerate() {
@@ -473,8 +495,8 @@ pub(crate) fn build_svg_with_metadata_config(
                 bar_x,
                 system_top_y,
                 system_bottom_y,
+                &repeat_dot_ranges,
                 space,
-                false,
             );
             // A bar's own left barline (a forward repeat) is drawn over the previous bar's
             // right one inside a system too, not only at its start.
@@ -485,8 +507,8 @@ pub(crate) fn build_svg_with_metadata_config(
                     mx,
                     system_top_y,
                     system_bottom_y,
+                    &repeat_dot_ranges,
                     space,
-                    true,
                 );
             }
             // Bar number above the clef of every system after the first.
@@ -2645,8 +2667,8 @@ fn write_barline(
     x: f32,
     top_y: f32,
     bottom_y: f32,
+    repeat_dot_ranges: &[(f32, f32)],
     space: f32,
-    is_left: bool,
 ) {
     match kind {
         Barline::Invisible => {}
@@ -2707,10 +2729,10 @@ fn write_barline(
                 space,
                 false,
             ));
-            write_repeat_dots(body, x + 0.45 * space, top_y, bottom_y, space);
+            write_repeat_dots(body, x + 0.45 * space, repeat_dot_ranges, space);
         }
         Barline::RepeatEnd => {
-            write_repeat_dots(body, x - 0.45 * space, top_y, bottom_y, space);
+            write_repeat_dots(body, x - 0.45 * space, repeat_dot_ranges, space);
             body.push_str(&glyphs::barline(
                 x - 0.25 * space,
                 top_y,
@@ -2721,7 +2743,7 @@ fn write_barline(
             body.push_str(&glyphs::barline(x, top_y, bottom_y, space, true));
         }
         Barline::RepeatBoth => {
-            write_repeat_dots(body, x - 0.55 * space, top_y, bottom_y, space);
+            write_repeat_dots(body, x - 0.55 * space, repeat_dot_ranges, space);
             body.push_str(&glyphs::barline(
                 x - 0.35 * space,
                 top_y,
@@ -2737,16 +2759,19 @@ fn write_barline(
                 space,
                 false,
             ));
-            write_repeat_dots(body, x + 0.55 * space, top_y, bottom_y, space);
+            write_repeat_dots(body, x + 0.55 * space, repeat_dot_ranges, space);
         }
     }
-    let _ = is_left;
 }
 
-fn write_repeat_dots(body: &mut String, x: f32, top_y: f32, bottom_y: f32, space: f32) {
-    let mid = (top_y + bottom_y) / 2.0;
-    body.push_str(&glyphs::augmentation_dot(x, mid - 0.5 * space, space));
-    body.push_str(&glyphs::augmentation_dot(x, mid + 0.5 * space, space));
+fn write_repeat_dots(body: &mut String, x: f32, staff_ranges: &[(f32, f32)], space: f32) {
+    for &(top_y, bottom_y) in staff_ranges {
+        let mid = (top_y + bottom_y) / 2.0;
+        body.push_str(r#"<g class="acorde-repeat-dots">"#);
+        body.push_str(&glyphs::augmentation_dot(x, mid - 0.5 * space, space));
+        body.push_str(&glyphs::augmentation_dot(x, mid + 0.5 * space, space));
+        body.push_str("</g>");
+    }
 }
 
 // ── measure content ──────────────────────────────────────────────────────────────

@@ -3331,6 +3331,60 @@ fn voltas_repeat_starts_and_system_bar_numbers_are_drawn() {
 }
 
 #[test]
+fn repeat_dots_are_drawn_for_each_staff_in_a_system() {
+    use acorde_core::{Barline, Clef, Duration, Note, Pitch, Score, Staff, Step};
+
+    let mut score = Score::new("piano repeat", 120, 4, 4, 0, 2);
+    let mut lower = Staff::new(Clef::Bass);
+    lower.measures = score.parts[0].staves[0].measures.clone();
+    score.parts[0].staves.push(lower);
+    for staff in &mut score.parts[0].staves {
+        for measure in &mut staff.measures {
+            measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        }
+        staff.measures[0].barline_right = Barline::RepeatEnd;
+        staff.measures[1].barline_left = Barline::RepeatStart;
+    }
+
+    let svg = render_svg(&score, &opts()).expect("piano repeat renders");
+    let repeat_dot_groups: Vec<Vec<f32>> = svg
+        .split(r#"<g class="acorde-repeat-dots">"#)
+        .skip(1)
+        .filter_map(|group| group.split("</g>").next())
+        .map(|group| {
+            group
+                .split(r#"<circle cx=""#)
+                .skip(1)
+                .filter_map(|fragment| {
+                    fragment
+                        .split(r#"cy=""#)
+                        .nth(1)?
+                        .split('"')
+                        .next()?
+                        .parse()
+                        .ok()
+                })
+                .collect()
+        })
+        .collect();
+
+    // Two adjacent repeat boundaries draw a pair of dots for each of the two staff ranges.
+    assert_eq!(repeat_dot_groups.len(), 4);
+    assert!(repeat_dot_groups.iter().all(|dots| dots.len() == 2));
+    let distinct_y: Vec<f32> =
+        repeat_dot_groups
+            .into_iter()
+            .flatten()
+            .fold(Vec::new(), |mut ys, y| {
+                if !ys.iter().any(|existing: &f32| (*existing - y).abs() < 0.01) {
+                    ys.push(y);
+                }
+                ys
+            });
+    assert_eq!(distinct_y.len(), 4);
+}
+
+#[test]
 fn rolled_chords_draw_a_wavy_line_left_of_the_chord() {
     use acorde_core::{Duration, Note, Pitch, Score, Step};
     let mut score = Score::new("arpeggio", 120, 4, 4, 0, 1);
