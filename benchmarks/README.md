@@ -18,6 +18,15 @@ cargo run --offline -p acorde-cli -- benchmark benchmarks/analysis.json \
   --fail-on-mismatch --expected-fingerprint fnv1a64-b3b4b222fa7349e8
 ```
 
+To record host-specific analysis latency without weakening the deterministic correctness gate, use
+a fixed repetition count and record a CPU label in the JSON output:
+
+```bash
+cargo run --release --locked -p acorde-cli -- benchmark benchmarks/analysis.json \
+  --fail-on-mismatch --expected-fingerprint fnv1a64-b3b4b222fa7349e8 \
+  --timing-repetitions 10 --cpu-label "Apple M4"
+```
+
 The command emits corpus metadata, including a deterministic fingerprint of the manifest and input
 bytes, together with the analysis report. Runtime latency is intentionally measured by the host
 runner and is not part of the expected analysis annotations.

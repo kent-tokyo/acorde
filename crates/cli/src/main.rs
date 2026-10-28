@@ -6,6 +6,7 @@ use acorde_io::{Diagnostic, DiagnosticSeverity, ImportReport};
 use clap::{Parser, Subcommand, ValueEnum};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 const MAX_PLAYBACK_JSON_BYTES: usize = 64 * 1024 * 1024;
 const MAX_OMR_REPORT_BYTES: usize = 64 * 1024 * 1024;
@@ -300,6 +301,12 @@ enum Commands {
         /// Expected corpus fingerprint; exits 1 when manifest or fixture bytes drift
         #[arg(long)]
         expected_fingerprint: Option<String>,
+        /// Run the fixed analysis corpus repeatedly and include timing metadata in the JSON output
+        #[arg(long)]
+        timing_repetitions: Option<usize>,
+        /// Human-readable CPU model or host label recorded with a timed benchmark
+        #[arg(long)]
+        cpu_label: Option<String>,
     },
     /// Extract a single part from a score
     Extract {
@@ -585,7 +592,15 @@ fn main() {
             manifest,
             fail_on_mismatch,
             expected_fingerprint,
-        } => cmd_benchmark(manifest, *fail_on_mismatch, expected_fingerprint.as_deref()),
+            timing_repetitions,
+            cpu_label,
+        } => cmd_benchmark(
+            manifest,
+            *fail_on_mismatch,
+            expected_fingerprint.as_deref(),
+            *timing_repetitions,
+            cpu_label.as_deref(),
+        ),
         Commands::Extract {
             input,
             output,
@@ -1006,12 +1021,27 @@ struct BenchmarkCorpusCaseMetadata {
 struct BenchmarkOutput {
     corpus: BenchmarkCorpusMetadata,
     report: acorde_analysis::BenchmarkSuiteReport,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    timing: Option<BenchmarkTiming>,
+}
+
+#[derive(Debug, Serialize)]
+struct BenchmarkTiming {
+    repetitions: usize,
+    host_os: &'static str,
+    host_arch: &'static str,
+    cpu_label: String,
+    min_us: u128,
+    median_us: u128,
+    max_us: u128,
 }
 
 fn cmd_benchmark(
     manifest: &Path,
     fail_on_mismatch: bool,
     expected_fingerprint: Option<&str>,
+    timing_repetitions: Option<usize>,
+    cpu_label: Option<&str>,
 ) -> Result<(), String> {
     let text = std::fs::read_to_string(manifest)
         .map_err(|e| format!("cannot read '{}': {e}", manifest.display()))?;
@@ -1034,6 +1064,10 @@ fn cmd_benchmark(
         })
         .collect();
     let report = acorde_analysis::run_benchmark_suite(&cases);
+    let timing = match timing_repetitions {
+        Some(repetitions) => Some(measure_benchmark(&cases, &report, repetitions, cpu_label)?),
+        None => None,
+    };
     drop(cases);
     let output = BenchmarkOutput {
         corpus: BenchmarkCorpusMetadata {
@@ -1053,6 +1087,7 @@ fn cmd_benchmark(
                 .collect(),
         },
         report,
+        timing,
     };
     if let Some(expected) = expected_fingerprint
         && expected != output.corpus.fingerprint
@@ -1073,6 +1108,47 @@ fn cmd_benchmark(
         ));
     }
     Ok(())
+}
+
+fn measure_benchmark(
+    cases: &[acorde_analysis::BenchmarkCase<'_>],
+    expected: &acorde_analysis::BenchmarkSuiteReport,
+    repetitions: usize,
+    cpu_label: Option<&str>,
+) -> Result<BenchmarkTiming, String> {
+    if repetitions == 0 {
+        return Err("--timing-repetitions must be at least 1".to_string());
+    }
+    let cpu_label = cpu_label
+        .map(str::trim)
+        .filter(|label| !label.is_empty())
+        .ok_or_else(|| "--cpu-label is required with --timing-repetitions".to_string())?;
+
+    // Warm caches without including the result in the reported sample set.
+    let warmup = std::hint::black_box(acorde_analysis::run_benchmark_suite(cases));
+    if warmup != *expected {
+        return Err("analysis benchmark result changed during warm-up".to_string());
+    }
+    let mut samples_us = Vec::with_capacity(repetitions);
+    for _ in 0..repetitions {
+        let start = Instant::now();
+        let report = std::hint::black_box(acorde_analysis::run_benchmark_suite(cases));
+        if report != *expected {
+            return Err("analysis benchmark result changed between repetitions".to_string());
+        }
+        samples_us.push(start.elapsed().as_micros());
+    }
+    samples_us.sort_unstable();
+    let median_us = samples_us[(samples_us.len() - 1) / 2];
+    Ok(BenchmarkTiming {
+        repetitions,
+        host_os: std::env::consts::OS,
+        host_arch: std::env::consts::ARCH,
+        cpu_label: cpu_label.to_string(),
+        min_us: samples_us[0],
+        median_us,
+        max_us: samples_us[repetitions - 1],
+    })
 }
 
 fn benchmark_fingerprint(manifest: &BenchmarkManifest, base_dir: &Path) -> Result<String, String> {
@@ -2991,5 +3067,22 @@ mod tests {
         })
         .expect_err("full score must reject part selection");
         assert!(error.contains("requires an extracted-part preset"));
+    }
+
+    #[test]
+    fn analysis_benchmark_timing_requires_cpu_label_and_reports_host_metadata() {
+        let cases: [acorde_analysis::BenchmarkCase<'_>; 0] = [];
+        let report = acorde_analysis::run_benchmark_suite(&cases);
+        assert!(measure_benchmark(&cases, &report, 1, None).is_err());
+        assert!(measure_benchmark(&cases, &report, 0, Some("test CPU")).is_err());
+
+        let timing =
+            measure_benchmark(&cases, &report, 3, Some(" test CPU ")).expect("timing succeeds");
+        assert_eq!(timing.repetitions, 3);
+        assert_eq!(timing.cpu_label, "test CPU");
+        assert_eq!(timing.host_os, std::env::consts::OS);
+        assert_eq!(timing.host_arch, std::env::consts::ARCH);
+        assert!(timing.min_us <= timing.median_us);
+        assert!(timing.median_us <= timing.max_us);
     }
 }

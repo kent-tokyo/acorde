@@ -7,6 +7,9 @@
 - Added `SvgRenderConfig::new(options).with_staff_gap(...)` plus configuration-aware SVG and
   metadata entry points. Future renderer settings belong in this builder type.
 - Added an external-crate-style compile regression test for the legacy options literal.
+- Renderer and analysis benchmark commands now record fixed-input repetition metadata and host
+  information for reproducible local timing evidence; the analysis timing mode requires an explicit
+  CPU label.
 
 All notable released changes are summarized here. The repository tags and commit history retain
 the full implementation record. Score JSON additions are backward-compatible unless marked

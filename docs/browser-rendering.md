@@ -42,10 +42,12 @@ clefs, accidentals, TAB positions, invalid text, or oversize inputs before mount
 
 ## Playback and practice hosts
 
-`SvgRenderOptions` defaults are `width: 900`, `staff_size: 24`, `staff_gap: 10`,
-`measures_per_system: 4`, and `interactive: true`. `staff_gap` is the clear vertical distance
-between adjacent staves within a system, measured in staff spaces; it must be finite and positive.
-Complete Rust struct literals require the [published compatibility exception](migrations.md).
+`SvgRenderOptions` defaults are `width: 900`, `staff_size: 24`,
+`measures_per_system: 4`, and `interactive: true`. It deliberately retains these four public
+fields so existing Rust struct literals remain source-compatible. Configure the clear vertical
+distance between adjacent staves through
+`SvgRenderConfig::new(options).with_staff_gap(10.0)`. The gap is measured in staff spaces and
+must be finite and positive; see the [migration notes](migrations.md).
 
 `to_playback_events_ex` produces the expected score schedule; it does not synthesize audio.
 `compute_playback_position` maps elapsed time to a typed musical position using the same tempo-ramp
