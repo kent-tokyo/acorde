@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0 - Unreleased
+
+- Restored `SvgRenderOptions` to its original four public fields. Versions 1.2.19 and 1.2.20
+  added `staff_gap`, which broke downstream Rust struct literals despite being patch releases.
+- Added `SvgRenderConfig::new(options).with_staff_gap(...)` plus configuration-aware SVG and
+  metadata entry points. Future renderer settings belong in this builder type.
+- Added an external-crate-style compile regression test for the legacy options literal.
+
 All notable released changes are summarized here. The repository tags and commit history retain
 the full implementation record. Score JSON additions are backward-compatible unless marked
 **[breaking]**; consumers should accept unknown additive fields and retain `#[serde(default)]`

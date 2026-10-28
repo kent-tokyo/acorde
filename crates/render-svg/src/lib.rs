@@ -44,6 +44,7 @@ use acorde_layout::{
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::ops::Deref;
 
 /// Version of the browser-facing [`RenderMetadata`] contract.
 pub const SVG_CONTRACT_VERSION: u32 = 22;
@@ -113,15 +114,51 @@ pub struct SvgRenderOptions {
     /// Distance between two adjacent staff lines, in pixels. Drives every other glyph
     /// dimension (noteheads, stems, clefs, accidentals are all proportional to this).
     pub staff_size: f32,
-    /// Clear distance between consecutive staves in a system, measured in staff spaces.
-    /// Defaults to 10.0 to preserve the established layout.
-    pub staff_gap: f32,
     /// How many measures to place per system/row.
     pub measures_per_system: usize,
     /// When `true`, emit stable `data-*` hooks (`data-acorde-kind`, `data-part`, `data-staff`,
     /// `data-measure`, `data-voice`, `data-note`, `data-note-addr`) for click-to-position
     /// interaction. When `false`, those attributes are omitted.
     pub interactive: bool,
+}
+
+/// Extensible SVG renderer configuration.
+///
+/// Keep [`SvgRenderOptions`] as the stable four-field compatibility surface. New renderer
+/// settings belong here so consumers using an options struct literal remain source-compatible.
+#[derive(Debug, Clone)]
+pub struct SvgRenderConfig {
+    options: SvgRenderOptions,
+    staff_gap: f32,
+}
+
+impl SvgRenderConfig {
+    pub fn new(options: SvgRenderOptions) -> Self {
+        Self {
+            options,
+            staff_gap: 10.0,
+        }
+    }
+
+    /// Set the clear distance between consecutive staves, in staff spaces.
+    pub fn with_staff_gap(mut self, staff_gap: f32) -> Self {
+        self.staff_gap = staff_gap;
+        self
+    }
+
+    pub fn options(&self) -> &SvgRenderOptions {
+        &self.options
+    }
+    pub fn staff_gap(&self) -> f32 {
+        self.staff_gap
+    }
+}
+
+impl Deref for SvgRenderConfig {
+    type Target = SvgRenderOptions;
+    fn deref(&self) -> &Self::Target {
+        &self.options
+    }
 }
 
 /// Lightweight browser-facing metadata for a rendered score.
@@ -751,7 +788,6 @@ impl Default for SvgRenderOptions {
         Self {
             width: 900.0,
             staff_size: 24.0,
-            staff_gap: 10.0,
             measures_per_system: 4,
             interactive: true,
         }
@@ -854,6 +890,23 @@ pub fn render_svg(score: &Score, options: &SvgRenderOptions) -> Result<String, R
     };
     let layout = compute_layout(score, &config);
     render_svg_with_layout(score, &layout, options)
+}
+
+/// Render with extensible configuration such as a custom staff gap.
+pub fn render_svg_with_config(
+    score: &Score,
+    config: &SvgRenderConfig,
+) -> Result<String, RenderError> {
+    let options = options_for_score(config.options(), score)?;
+    let config = SvgRenderConfig::new(options).with_staff_gap(config.staff_gap());
+    let layout = compute_layout(
+        score,
+        &LayoutConfig {
+            measures_per_row: config.measures_per_system.max(1),
+            ..Default::default()
+        },
+    );
+    render::build_svg_with_config(score, &layout, &config)
 }
 
 /// Render one linked [`ScoreView`] without mutating the source [`Score`].
@@ -983,6 +1036,17 @@ pub fn render_svg_with_layout(
     render::build_svg(score, layout, &options)
 }
 
+/// Render a precomputed layout with extensible renderer configuration.
+pub fn render_svg_with_layout_config(
+    score: &Score,
+    layout: &LayoutResult,
+    config: &SvgRenderConfig,
+) -> Result<String, RenderError> {
+    let options = options_for_score(config.options(), score)?;
+    let config = SvgRenderConfig::new(options).with_staff_gap(config.staff_gap());
+    render::build_svg_with_config(score, layout, &config)
+}
+
 /// Render a score and append deterministic, host-provided annotations.
 ///
 /// Annotation providers are sorted by [`RenderAnnotation::id`]. The returned marks are sorted by
@@ -1050,4 +1114,15 @@ pub fn render_svg_metadata(
 ) -> Result<RenderMetadata, RenderError> {
     let options = options_for_score(options, score)?;
     render::build_svg_with_metadata(score, layout, &options).map(|(_, metadata)| metadata)
+}
+
+/// Return metadata using extensible renderer configuration.
+pub fn render_svg_metadata_with_config(
+    score: &Score,
+    layout: &LayoutResult,
+    config: &SvgRenderConfig,
+) -> Result<RenderMetadata, RenderError> {
+    let options = options_for_score(config.options(), score)?;
+    let config = SvgRenderConfig::new(options).with_staff_gap(config.staff_gap());
+    render::build_svg_with_metadata_config(score, layout, &config).map(|(_, metadata)| metadata)
 }

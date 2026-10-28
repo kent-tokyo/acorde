@@ -25,8 +25,8 @@ use crate::{
     AddressBounds, HarmonyRangeMetadata, NoteSemanticMetadata, RenderAnnotation,
     RenderAnnotationError, RenderError, RenderMetadata, SVG_ANNOTATION_COLLISION_GAP_PX,
     SVG_CONTRACT_VERSION, ScoreTextMetadata, SvgAnnotation, SvgAnnotationCollisionPolicy,
-    SvgAnnotationMetrics, SvgRenderOptions, TablatureChangeMetadata, TablatureStaffMetadata,
-    TablatureTechniqueConnectionMetadata, TextAnnotation, tab_fret_metrics,
+    SvgAnnotationMetrics, SvgRenderConfig, SvgRenderOptions, TablatureChangeMetadata,
+    TablatureStaffMetadata, TablatureTechniqueConnectionMetadata, TextAnnotation, tab_fret_metrics,
 };
 use crate::{spans, tab_technique};
 
@@ -64,7 +64,15 @@ pub(crate) fn build_svg(
     layout: &LayoutResult,
     options: &SvgRenderOptions,
 ) -> Result<String, RenderError> {
-    build_svg_with_metadata(score, layout, options).map(|(svg, _)| svg)
+    build_svg_with_config(score, layout, &SvgRenderConfig::new(options.clone()))
+}
+
+pub(crate) fn build_svg_with_config(
+    score: &Score,
+    layout: &LayoutResult,
+    config: &SvgRenderConfig,
+) -> Result<String, RenderError> {
+    build_svg_with_metadata_config(score, layout, config).map(|(svg, _)| svg)
 }
 
 pub(crate) fn build_svg_with_metadata(
@@ -72,6 +80,15 @@ pub(crate) fn build_svg_with_metadata(
     layout: &LayoutResult,
     options: &SvgRenderOptions,
 ) -> Result<(String, RenderMetadata), RenderError> {
+    build_svg_with_metadata_config(score, layout, &SvgRenderConfig::new(options.clone()))
+}
+
+pub(crate) fn build_svg_with_metadata_config(
+    score: &Score,
+    layout: &LayoutResult,
+    config: &SvgRenderConfig,
+) -> Result<(String, RenderMetadata), RenderError> {
+    let options: &SvgRenderOptions = config;
     // Spans authored only as typed spanners are drawn from their endpoint notes' flags.
     let materialized = score.with_legacy_spanner_flags();
     let score: &Score = &materialized;
@@ -86,7 +103,7 @@ pub(crate) fn build_svg_with_metadata(
             reason: "staff_size must be finite and positive".into(),
         });
     }
-    if !options.staff_gap.is_finite() || options.staff_gap <= 0.0 {
+    if !config.staff_gap().is_finite() || config.staff_gap() <= 0.0 {
         return Err(RenderError::InvalidOptions {
             reason: "staff_gap must be finite and positive".into(),
         });
@@ -154,7 +171,7 @@ pub(crate) fn build_svg_with_metadata(
         .map(|&(part, staff)| staff_height_u(score, part, staff))
         .collect();
     let system_height_u: f32 = staff_heights_u.iter().sum::<f32>()
-        + (staff_refs.len().saturating_sub(1)) as f32 * options.staff_gap;
+        + (staff_refs.len().saturating_sub(1)) as f32 * config.staff_gap();
 
     let content_width = options.width - (left_margin_u + right_margin_u) * space;
     if !content_width.is_finite() || content_width <= 0.0 {
@@ -291,7 +308,7 @@ pub(crate) fn build_svg_with_metadata(
             let mut y = row_top_y;
             for &staff_height in &staff_heights_u {
                 staff_y.push(y);
-                y += (staff_height + options.staff_gap) * space;
+                y += (staff_height + config.staff_gap()) * space;
             }
         }
         let system_top_y = row_top_y;
