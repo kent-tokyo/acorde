@@ -64,6 +64,23 @@ fn render_preflight_locates_measure_clef_changes() {
     );
 }
 
+#[test]
+fn mscx_implicit_terminal_beams_render_as_beams_not_flags() {
+    let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<museScore version="3.02"><Score><Part><Staff id="1"/><trackName>Piano</trackName></Part>
+<Staff id="1"><Measure number="1">
+  <Chord><BeamMode>begin</BeamMode><durationType>eighth</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord>
+  <Chord><BeamMode>mid</BeamMode><durationType>eighth</durationType><Note><pitch>62</pitch><tpc>16</tpc></Note></Chord>
+  <Chord><BeamMode>mid</BeamMode><durationType>eighth</durationType><Note><pitch>64</pitch><tpc>18</tpc></Note></Chord>
+  <Chord><durationType>eighth</durationType><Note><pitch>65</pitch><tpc>13</tpc></Note></Chord>
+</Measure></Staff></Score></museScore>"#;
+    let score = acorde_io::parse_mscx(xml).expect("MSCX parses");
+    let svg = render_svg(&score, &SvgRenderOptions::default()).expect("SVG renders");
+
+    assert!(svg.contains("acorde-beam"));
+    assert!(!svg.contains("acorde-flag"));
+}
+
 /// Well-formedness check: every opened tag closes, via quick-xml's reader (it errors on
 /// malformed XML). Cheaper than diffing full text against a golden file.
 fn assert_well_formed_xml(svg: &str) {

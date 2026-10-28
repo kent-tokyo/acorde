@@ -43,6 +43,69 @@ fn parse_mscx_measure_len(value: &str) -> Option<acorde_core::MeasureLength> {
     length.beats().map(|_| length)
 }
 
+/// Resolve MuseScore beam groups whose final `BeamMode` is implicit.
+///
+/// MuseScore commonly writes `begin`/`mid` on the leading chords of a beam and omits the
+/// terminal mode on the last beamable chord. It also sometimes leaves the last chord as
+/// `continue` when a longer value or a barline ends the group. Acorde stores explicit beam
+/// states, so normalize those two encodings as the measure is finalized.
+fn close_implicit_mscx_beam_groups(voices: &mut [Vec<Note>; 4]) {
+    for voice in voices {
+        let mut start = None;
+
+        for index in 0..voice.len() {
+            match voice[index].beam {
+                BeamState::Begin => {
+                    if let Some(previous_start) = start.take() {
+                        close_open_mscx_beam_group(voice, previous_start, index.saturating_sub(1));
+                    }
+                    start = Some(index);
+                }
+                BeamState::Continue => {}
+                BeamState::End => start = None,
+                BeamState::None
+                | BeamState::BeginEnd
+                | BeamState::ForwardHook
+                | BeamState::BackwardHook => {
+                    if let Some(group_start) = start.take() {
+                        if mscx_note_is_beamable(&voice[index]) {
+                            // An omitted terminal BeamMode belongs to the open group.
+                            voice[index].beam = BeamState::End;
+                        } else {
+                            // A trailing `continue` ends immediately before this longer note,
+                            // rest, or other non-beamable event.
+                            close_open_mscx_beam_group(voice, group_start, index.saturating_sub(1));
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Some(group_start) = start {
+            let last = voice.len().saturating_sub(1);
+            close_open_mscx_beam_group(voice, group_start, last);
+        }
+    }
+}
+
+fn mscx_note_is_beamable(note: &Note) -> bool {
+    !note.is_rest
+        && matches!(
+            note.duration,
+            Duration::Eighth
+                | Duration::Sixteenth
+                | Duration::ThirtySecond
+                | Duration::SixtyFourth
+                | Duration::HundredTwentyEighth
+        )
+}
+
+fn close_open_mscx_beam_group(voice: &mut [Note], start: usize, last: usize) {
+    if last > start {
+        voice[last].beam = BeamState::End;
+    }
+}
+
 mod serialize;
 pub use serialize::{export_loss_diagnostics, serialize_mscx, serialize_mscz};
 
@@ -1027,6 +1090,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     // Measure close
                     "Measure" if in_measure => {
                         let sid = current_staff_id.unwrap_or(1);
+                        close_implicit_mscx_beam_groups(&mut cur_voices);
                         // Sort the bar's clefs: at its start, inside it (before a later note
                         // of the same voice), or after its last note (the next bar's clef).
                         let mut mid_clefs: Vec<acorde_core::MidMeasureClef> = Vec::new();
@@ -4194,6 +4258,60 @@ mod tests {
         assert_eq!(notes.len(), 2);
         assert!(notes.iter().all(|note| note.stem_up == Some(false)));
         assert!(report.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn parse_mscx_closes_beam_with_omitted_terminal_mode() {
+        let xml = simple_mscx(
+            r#"
+      <Measure number="1">
+        <Chord><BeamMode>begin</BeamMode><durationType>eighth</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord>
+        <Chord><BeamMode>mid</BeamMode><durationType>eighth</durationType><Note><pitch>62</pitch><tpc>16</tpc></Note></Chord>
+        <Chord><BeamMode>mid</BeamMode><durationType>eighth</durationType><Note><pitch>64</pitch><tpc>18</tpc></Note></Chord>
+        <Chord><durationType>eighth</durationType><Note><pitch>65</pitch><tpc>13</tpc></Note></Chord>
+      </Measure>"#,
+        );
+
+        let score = parse_mscx(&xml).expect("MSCX parses");
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(
+            notes.iter().map(|note| note.beam).collect::<Vec<_>>(),
+            vec![
+                BeamState::Begin,
+                BeamState::Continue,
+                BeamState::Continue,
+                BeamState::End,
+            ]
+        );
+
+        let serialized = serialize_mscx(&score).expect("MSCX serializes");
+        let reparsed = parse_mscx(&serialized).expect("MSCX reparses");
+        assert_eq!(
+            reparsed.parts[0].staves[0].measures[0].voices[0]
+                .iter()
+                .map(|note| note.beam)
+                .collect::<Vec<_>>(),
+            notes.iter().map(|note| note.beam).collect::<Vec<_>>(),
+        );
+    }
+
+    #[test]
+    fn parse_mscx_closes_terminal_continue_before_longer_note() {
+        let xml = simple_mscx(
+            r#"
+      <Measure number="1">
+        <Chord><BeamMode>begin</BeamMode><durationType>eighth</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord>
+        <Chord><BeamMode>continue</BeamMode><durationType>eighth</durationType><Note><pitch>62</pitch><tpc>16</tpc></Note></Chord>
+        <Chord><durationType>quarter</durationType><Note><pitch>64</pitch><tpc>18</tpc></Note></Chord>
+      </Measure>"#,
+        );
+
+        let score = parse_mscx(&xml).expect("MSCX parses");
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(
+            notes.iter().map(|note| note.beam).collect::<Vec<_>>(),
+            vec![BeamState::Begin, BeamState::End, BeamState::None]
+        );
     }
 
     #[test]
