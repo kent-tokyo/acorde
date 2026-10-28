@@ -9,6 +9,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **MSCZ archive index.** `serialize_mscz` now writes the standard
+  `META-INF/container.xml` index alongside `score.mscx`, so consumers can pass the generated
+  archive directly to MuseScore-compatible readers without reconstructing the ZIP.
+
 ## [1.2.19] - 2026-10-28
 
 - Added a finite, positive `SvgRenderOptions::staff_gap` in staff spaces. The default remains 10,
