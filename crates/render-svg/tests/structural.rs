@@ -6,8 +6,9 @@ mod common;
 
 use acorde_layout::{LayoutConfig, compute_layout};
 use acorde_render_svg::{
-    RenderError, RenderPreflightKind, SvgRenderOptions, render_preflight, render_svg,
-    render_svg_metadata, render_svg_view, render_svg_view_metadata,
+    RenderError, RenderPreflightKind, SvgRenderConfig, SvgRenderOptions, render_preflight,
+    render_svg, render_svg_metadata, render_svg_view, render_svg_view_metadata,
+    render_svg_with_config,
 };
 use std::collections::BTreeMap;
 
@@ -3382,6 +3383,89 @@ fn repeat_dots_are_drawn_for_each_staff_in_a_system() {
                 ys
             });
     assert_eq!(distinct_y.len(), 4);
+}
+
+#[test]
+fn density_aware_breaks_split_dense_systems_without_changing_fixed_layout() {
+    use acorde_core::{Clef, Duration, Note, Pitch, Score, Staff, Step};
+
+    let mut score = Score::new("density", 120, 4, 4, 0, 3);
+    for measure in &mut score.parts[0].staves[0].measures {
+        measure.voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Half),
+            Note::new(Pitch::new(Step::D, 4), Duration::Half),
+        ];
+    }
+    score.parts[0].staves[0].measures[1].voices[0] = (0..8)
+        .map(|_| {
+            let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Eighth);
+            note.pitches.push(Pitch::new(Step::E, 4));
+            note.pitches.push(Pitch::new(Step::G, 4));
+            note.pitches[0].alter = 1;
+            note.pitches[1].alter = -1;
+            note.pitches[2].alter = 1;
+            note
+        })
+        .collect();
+    let mut lower = Staff::new(Clef::Bass);
+    lower.measures = score.parts[0].staves[0].measures.clone();
+    score.parts[0].staves.push(lower);
+
+    let options = SvgRenderOptions {
+        width: 1872.0,
+        staff_size: 24.0,
+        measures_per_system: 3,
+        interactive: true,
+    };
+    let fixed = render_svg(&score, &options).expect("fixed layout renders");
+    let adaptive = render_svg_with_config(
+        &score,
+        &SvgRenderConfig::new(options).with_notation_density_breaks(),
+    )
+    .expect("density-aware layout renders");
+    let rows = |svg: &str| -> Vec<usize> {
+        svg.split(r#"data-system-row=""#)
+            .skip(1)
+            .filter_map(|fragment| fragment.split('"').next()?.parse().ok())
+            .collect()
+    };
+    assert!(rows(&fixed).iter().all(|row| *row == 0));
+    let adaptive_rows = rows(&adaptive);
+    assert!(adaptive_rows.contains(&1));
+    assert_eq!(adaptive_rows.iter().copied().max(), Some(2));
+}
+
+#[test]
+fn density_aware_breaks_report_single_measure_overflow() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+
+    let mut score = Score::new("overflow", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].measures[0].voices[0] = (0..8)
+        .map(|_| {
+            let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Eighth);
+            note.pitches.push(Pitch::new(Step::E, 4));
+            note.pitches.push(Pitch::new(Step::G, 4));
+            note.pitches[0].alter = 1;
+            note.pitches[1].alter = -1;
+            note.pitches[2].alter = 1;
+            note
+        })
+        .collect();
+    let options = SvgRenderOptions {
+        width: 500.0,
+        staff_size: 24.0,
+        measures_per_system: 1,
+        interactive: true,
+    };
+    let error = render_svg_with_config(
+        &score,
+        &SvgRenderConfig::new(options).with_notation_density_breaks(),
+    )
+    .expect_err("dense measure reports overflow");
+    assert!(matches!(
+        error,
+        RenderError::MeasureOverflow { measure: 0, .. }
+    ));
 }
 
 #[test]
