@@ -1,14 +1,16 @@
 # Documentation guide
 
 This directory records public contracts and their evidence. It describes current `main`; a release
-claim additionally needs its tag, CI, registry, and release artifacts.
+claim also needs its tag, CI, registry, and release artifact. The latest published release is
+[`v1.2.20`](https://github.com/kent-tokyo/acorde/releases/tag/v1.2.20), but it has a documented
+Rust source-compatibility exception; follow the migration notes before selecting a version.
 
 ## Start here
 
 | Need | Document |
 |---|---|
 | Supported notation and known loss | [Notation coverage](notation-coverage.md) |
-| Upgrade impact and release index | [Migration notes](migrations.md), [`CHANGELOG.md`](../CHANGELOG.md) |
+| Upgrade impact and release history | [Migration notes](migrations.md), [`CHANGELOG.md`](../CHANGELOG.md) |
 | Format checks and reports | [Interchange evidence](interchange-evidence.md) |
 | Browser/WASM host | [Browser contract](browser-rendering.md), [browser checks](browser-support.md) |
 | Print/PDF host | [Print layout](print-layout.md), [page SVG](print-svg-contract.md), [PDF export](pdf-export.md) |
@@ -31,6 +33,6 @@ not a general score-recognition or accuracy claim.
 
 ## Maintenance
 
-Keep one canonical page per contract: release index in `CHANGELOG.md`, consumer actions in
+Keep one canonical page per contract: release history in `CHANGELOG.md`, consumer actions in
 `migrations.md`, and measurements in their evidence file. Local checks do not establish external
 support, audio quality, or publication quality.
