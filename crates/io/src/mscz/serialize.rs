@@ -8,6 +8,16 @@ use std::io::{Cursor, Write as IoWrite};
 use zip::ZipWriter;
 use zip::write::SimpleFileOptions;
 
+const MSCZ_SCORE_ENTRY: &str = "score.mscx";
+const MSCZ_CONTAINER_ENTRY: &str = "META-INF/container.xml";
+const MSCZ_CONTAINER_XML: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="score.mscx" media-type="application/x-musescore"/>
+  </rootfiles>
+</container>
+"#;
+
 /// Report canonical score fields that the deliberately bounded MSCX serializer cannot emit.
 pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
     const MAX_DIAGNOSTICS: usize = 1_024;
@@ -311,10 +321,16 @@ pub fn serialize_mscz(score: &Score) -> Result<Vec<u8>, Error> {
     let xml = serialize_mscx(score)?;
     let mut archive = ZipWriter::new(Cursor::new(Vec::new()));
     archive
-        .start_file("score.mscx", SimpleFileOptions::default())
+        .start_file(MSCZ_SCORE_ENTRY, SimpleFileOptions::default())
         .map_err(|error| Error::Zip(error.to_string()))?;
     archive
         .write_all(xml.as_bytes())
+        .map_err(|error| Error::Zip(error.to_string()))?;
+    archive
+        .start_file(MSCZ_CONTAINER_ENTRY, SimpleFileOptions::default())
+        .map_err(|error| Error::Zip(error.to_string()))?;
+    archive
+        .write_all(MSCZ_CONTAINER_XML.as_bytes())
         .map_err(|error| Error::Zip(error.to_string()))?;
     archive
         .finish()
@@ -1458,6 +1474,7 @@ fn fmt_error(_: std::fmt::Error) -> Error {
 mod tests {
     use super::*;
     use acorde_core::{Barline, Part, Score};
+    use std::io::Read;
 
     #[test]
     fn mscx_and_mscz_round_trip_the_canonical_subset() {
@@ -1514,6 +1531,15 @@ mod tests {
         assert!(restored.parts[0].staves[0].measures[0].voices[0][0].tie_end);
         assert_eq!(restored.parts[0].staves[0].measures[0].voices[0].len(), 1);
         let mscz = serialize_mscz(&score).expect("MSCZ serializes");
+        let mut archive = zip::ZipArchive::new(Cursor::new(&mscz)).expect("valid MSCZ archive");
+        assert!(archive.by_name(MSCZ_SCORE_ENTRY).is_ok());
+        let mut container = String::new();
+        archive
+            .by_name(MSCZ_CONTAINER_ENTRY)
+            .expect("Open Container index")
+            .read_to_string(&mut container)
+            .expect("read Open Container index");
+        assert!(container.contains(r#"<rootfile full-path="score.mscx""#));
         let restored_archive = super::super::parse_mscz(&mscz).expect("MSCZ reparses");
         assert_eq!(restored_archive.parts[0].name, "Export & Test");
     }
