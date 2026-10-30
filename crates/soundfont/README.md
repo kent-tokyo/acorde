@@ -6,8 +6,8 @@ manages provider-neutral note lifecycle actions from `acorde_core::PlaybackEvent
 
 `SampleDecoder`, `SampleRenderer`, and the versioned `SoundFontProvider` contract are the stable
 integration point. They expose bounded regions, deterministic bank/program/key/velocity selection,
-voice actions, decoded PCM validation, and a FIFO cache. Hosts provide the licensed decoder and
-renderer; this crate bundles neither assets, an audio device, nor a general synthesizer.
+voice actions, decoded PCM validation, and a FIFO cache. Hosts can provide a decoder and
+renderer; this crate bundles neither production assets nor an audio device.
 
 `SoundFontPresetZone`, `resolve_preset_zone_metadata`, and `schedule_preset_note_on` keep region,
 loop, tuning, envelope, channel-layout, and diagnostic data in one validated representation.
@@ -17,12 +17,19 @@ remain typed diagnostics rather than approximations.
 
 `PROVIDER_CONTRACT_VERSION` and `validate_provider_capabilities` let a host reject unsupported
 PCM/Vorbis or synthesis before decoding. The built-in SF2 PCM16 path and optional
-`sf3-vorbis` decoder are bounded helpers; production assets and renderers remain separate. Fixture
+`sf3-vorbis` decoder are bounded helpers; production assets remain separate. Fixture
 provenance and checksums are recorded in `tests/fixtures/`.
 
-It does not require an asset, audio device, or general synthesizer. Applications provide their
-own licensed assets and renderer; the optional bounded decoders do not make either a requirement
-for Acorde itself. The checksum is path-independent FNV-1a 64-bit over the asset bytes.
+`render_offline_wav` mixes a validated frame schedule with a caller-supplied SF2 into a bounded
+PCM16 WAV. The CLI exposes this as `acorde audio-render score.musicxml piano.sf2 output.wav`.
+It uses linear sample interpolation and writes mono or stereo output. This is a basic native
+offline renderer: it does not implement release envelopes, pedal, MIDI program-change or pitch-bend automation,
+ornament realization, effects, SF3 input, or live audio playback. Unsupported expressive events
+return errors. A supplied SF2 must contain every requested bank/program/key/velocity zone.
+
+It does not require an asset or audio device. Applications may provide their own licensed assets
+and renderer; the bounded native renderer is optional. The checksum is path-independent FNV-1a
+64-bit over the asset bytes.
 `PLAYBACK_CONTRACT_VERSION` identifies the action contract consumed by providers.
 
 Security invariants and resource-limit ownership are documented in the

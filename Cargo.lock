@@ -33,6 +33,7 @@ dependencies = [
  "acorde-layout",
  "acorde-omr",
  "acorde-render-svg",
+ "acorde-soundfont",
  "clap",
  "png",
  "serde",

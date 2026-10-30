@@ -420,6 +420,21 @@ enum Commands {
         #[arg(long, requires = "loop_start")]
         loop_end: Option<usize>,
     },
+    /// Render a supported score to PCM16 WAV with a caller-supplied SF2 SoundFont
+    AudioRender {
+        /// Input score file
+        input: PathBuf,
+        /// SF2 SoundFont file
+        soundfont: PathBuf,
+        /// Output .wav file
+        output: PathBuf,
+        /// Output sample rate in Hz
+        #[arg(long, default_value_t = 48_000)]
+        sample_rate: u32,
+        /// Mono or stereo output
+        #[arg(long, default_value_t = 2)]
+        channels: u8,
+    },
     /// Compare expected and host-observed playback event JSON files
     PlaybackCompare {
         /// JSON file produced by `playback-report`
@@ -665,6 +680,13 @@ fn run(cli: &Cli) -> Result<(), String> {
             loop_start,
             loop_end,
         } => cmd_playback_report(input, *bpm, *loop_start, *loop_end),
+        Commands::AudioRender {
+            input,
+            soundfont,
+            output,
+            sample_rate,
+            channels,
+        } => cmd_audio_render(input, soundfont, output, *sample_rate, *channels),
         Commands::PlaybackCompare {
             expected,
             actual,
@@ -2145,6 +2167,55 @@ fn cmd_tab_performance_report(
             report.diagnostics.len()
         ));
     }
+    Ok(())
+}
+
+fn cmd_audio_render(
+    input: &Path,
+    soundfont: &Path,
+    output: &Path,
+    sample_rate: u32,
+    channels: u8,
+) -> Result<(), String> {
+    if !output
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("wav"))
+    {
+        return Err("audio output must use the .wav extension".to_string());
+    }
+    let score = parse_score(input)?;
+    let request = acorde_core::OfflineRenderRequest {
+        sample_rate_hz: sample_rate,
+        channels,
+        provider_identity: Some("acorde-native-sf2-v1".to_string()),
+        ..acorde_core::OfflineRenderRequest::default()
+    };
+    let manifest =
+        acorde_core::build_offline_render_manifest(&score, &PlaybackOptions::default(), &request)
+            .map_err(|error| format!("cannot schedule audio: {error}"))?;
+    let size = std::fs::metadata(soundfont)
+        .map_err(|error| format!("cannot inspect '{}': {error}", soundfont.display()))?
+        .len();
+    if size > acorde_soundfont::MAX_ASSET_BYTES as u64 {
+        return Err(format!(
+            "SoundFont exceeds {} bytes",
+            acorde_soundfont::MAX_ASSET_BYTES
+        ));
+    }
+    let asset = std::fs::read(soundfont)
+        .map_err(|error| format!("cannot read '{}': {error}", soundfont.display()))?;
+    let wav = acorde_soundfont::render_offline_wav(&manifest, &asset)
+        .map_err(|error| format!("cannot render WAV: {error}"))?;
+    std::fs::write(output, wav)
+        .map_err(|error| format!("cannot write '{}': {error}", output.display()))?;
+    eprintln!(
+        "rendered {} events / {} frames at {} Hz to '{}'",
+        manifest.events.len(),
+        manifest.duration_frames,
+        manifest.sample_rate_hz,
+        output.display()
+    );
     Ok(())
 }
 

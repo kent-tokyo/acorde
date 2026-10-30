@@ -468,8 +468,8 @@ pub struct OfflineRenderDiagnostic {
 
 /// Encoded audio format requested from a host-side offline renderer.
 ///
-/// acorde does not encode audio; this keeps the requested output explicit in the deterministic
-/// schedule handed to a Composer or other host.
+/// The core does not encode audio; this keeps the requested output explicit in the deterministic
+/// schedule handed to the native SF2 renderer, Composer, or another host.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub enum OfflineRenderFormat {
     #[default]

@@ -1,7 +1,8 @@
 # Playback and tablature evidence
 
-This document records reproducible local playback and tablature evidence. It deliberately separates
-deterministic score/event contracts from host-owned audio and browser evidence.
+This document records reproducible local playback and tablature evidence. It separates
+deterministic score/event contracts and basic native WAV output from browser and audio-quality
+evidence.
 
 ## Local gate
 
@@ -59,8 +60,33 @@ positioned on the full bar's beat grid. Non-finite or out-of-range ratios leave 
 The `swing_*` tests in `crates/core/src/model/playback.rs` cover these cases.
 
 This is a bounded event-timing correction, not a same-input alphaTab audio comparison. The
-repository still has no bundled synthesizer, PCM-output comparison, or cross-browser playback
-timing measurement.
+repository still has no PCM-output comparison or cross-browser playback timing measurement.
+
+## Native SF2 WAV output (2026-10-31)
+
+`acorde audio-render` uses the core's integer-frame offline schedule and a caller-supplied SF2
+to write PCM16 WAV. The renderer decodes matching SoundFont zones, resamples with linear
+interpolation, mixes notes at their scheduled frame, and bounds the WAV at 64 MiB. It rejects
+unrealized pedal, MIDI program change, pitch bend, ornament, guitar technique, microtonal, release-tail, and SF3
+semantics. It has no effects or live audio device. A score whose requested preset is absent from
+the SF2 fails with a typed error.
+
+The licensed Upright Piano SF2 fixture is recorded in `tests/fixtures/README.md`. Reproduce a
+short MusicXML render from the repository root:
+
+```sh
+cargo run -p acorde-cli --locked -- audio-render \
+  tests/fixtures/simple.musicxml \
+  tests/fixtures/UprightPianoKW-small-20190703.sf2 \
+  /tmp/acorde-simple-sf2.wav --sample-rate 8000 --channels 1
+```
+
+The command produces a 3-second, 8-kHz mono PCM16 WAV with five scheduled events. A Rust
+regression constructs a quarter-rest then a quarter-note at 120 BPM and checks that the first
+4,000 output frames are silent and later frames contain audio. Separate resampling regressions
+check fractional-rate interpolation, loop-boundary interpolation, and silence after an unlooped
+sample ends. These tests verify timing and basic PCM generation; they do not measure audio quality
+or establish superiority over alphaTab's SoundFont synthesizer.
 
 ## alphaTab 1.8.4 / independent CC0 score (2026-10-30)
 
@@ -189,7 +215,7 @@ superiority over alphaTab.
 ## Evidence boundary
 
 This local evidence proves deterministic score projection, event scheduling/position calculation,
-typed diagnostics, and bounded JSON boundaries. It does not prove:
+typed diagnostics, bounded JSON boundaries, and basic native SF2-to-WAV output. It does not prove:
 
 - Web Audio timing or rendered PCM equivalence;
 - browser-driver or cross-browser visual equivalence;
