@@ -1,8 +1,8 @@
 {
   "viewer": {
-    "raw": 4486312,
-    "gzip": 1421069,
-    "brotli": 961382,
+    "raw": 4486430,
+    "gzip": 1421326,
+    "brotli": 961354,
     "exports": [
       "affected_analysis_categories",
       "analysis_cache_key",
@@ -89,9 +89,9 @@
     ]
   },
   "viewer-musicxml": {
-    "raw": 4809988,
-    "gzip": 1527776,
-    "brotli": 1035688,
+    "raw": 4812633,
+    "gzip": 1528204,
+    "brotli": 1036641,
     "exports": [
       "affected_analysis_categories",
       "analysis_cache_key",
@@ -186,9 +186,9 @@
     ]
   },
   "viewer-midi": {
-    "raw": 4622042,
-    "gzip": 1471091,
-    "brotli": 994586,
+    "raw": 4623406,
+    "gzip": 1471418,
+    "brotli": 993991,
     "exports": [
       "affected_analysis_categories",
       "analysis_cache_key",
@@ -281,9 +281,9 @@
     ]
   },
   "viewer-gp": {
-    "raw": 4664888,
-    "gzip": 1493682,
-    "brotli": 1014389,
+    "raw": 4666294,
+    "gzip": 1493935,
+    "brotli": 1014724,
     "exports": [
       "affected_analysis_categories",
       "analysis_cache_key",
@@ -372,9 +372,9 @@
     ]
   },
   "viewer-mei": {
-    "raw": 4833623,
-    "gzip": 1541101,
-    "brotli": 1045252,
+    "raw": 4832030,
+    "gzip": 1540919,
+    "brotli": 1045231,
     "exports": [
       "affected_analysis_categories",
       "analysis_cache_key",
@@ -466,9 +466,9 @@
     ]
   },
   "viewer-soundfont": {
-    "raw": 4548386,
-    "gzip": 1437059,
-    "brotli": 969259,
+    "raw": 4548508,
+    "gzip": 1437126,
+    "brotli": 969142,
     "exports": [
       "affected_analysis_categories",
       "analysis_cache_key",
@@ -556,9 +556,9 @@
     ]
   },
   "full": {
-    "raw": 5496504,
-    "gzip": 1771356,
-    "brotli": 1203214,
+    "raw": 5499319,
+    "gzip": 1771482,
+    "brotli": 1204368,
     "exports": [
       "affected_analysis_categories",
       "analysis_cache_key",

@@ -52,29 +52,29 @@ from the original tiny ABC tune; both profiles receive identical bytes.
 
 Measured locally on 2026-10-30 with macOS arm64, Rust 1.97.0
 (`2d8144b78`), `wasm-pack` 0.15.0, `wasm-opt` 130, Node 24.5.0,
-Playwright 1.60.0, and Chrome 156.0.8078.74. The source base is v1.3.0
-(`421f26b2e6226343a30e79ddacdab5a93ee5153d`) plus the feature-profile
-changes in this PR. Each row used the same release optimization settings.
+Playwright 1.60.0, and Chrome 156.0.8078.74. The measured source is PR
+commit `c051f5cbb399e9102c834f9efa2c832a0d16533d`, based on main after
+PR #127. Each row used the same release optimization settings.
 
 | Profile | Raw bytes | gzip bytes | Brotli bytes |
 | --- | ---: | ---: | ---: |
-| Full | 5,496,504 | 1,771,356 | 1,203,214 |
-| Viewer | 4,486,312 | 1,421,069 | 961,382 |
+| Full | 5,499,319 | 1,771,482 | 1,204,368 |
+| Viewer | 4,486,430 | 1,421,326 | 961,354 |
 
 The [size and export record](wasm-viewer-sizes.json) lists every measured
 profile and generated function export.
 
-The viewer saves 1,010,192 raw bytes, 350,287 gzip bytes, and 241,832
+The viewer saves 1,012,889 raw bytes, 350,156 gzip bytes, and 243,014
 Brotli bytes from this full build. The size contribution of each removable
 feature was measured by adding only that feature to the viewer:
 
 | Viewer plus one feature | Raw bytes | gzip bytes | Brotli bytes | Brotli increase |
 | --- | ---: | ---: | ---: | ---: |
-| MusicXML/MXL | 4,809,988 | 1,527,776 | 1,035,688 | 74,306 |
-| MIDI | 4,622,042 | 1,471,091 | 994,586 | 33,204 |
-| Guitar Pro | 4,664,888 | 1,493,682 | 1,014,389 | 53,007 |
-| MEI | 4,833,623 | 1,541,101 | 1,045,252 | 83,870 |
-| SoundFont | 4,548,386 | 1,437,059 | 969,259 | 7,877 |
+| MusicXML/MXL | 4,812,633 | 1,528,204 | 1,036,641 | 75,287 |
+| MIDI | 4,623,406 | 1,471,418 | 993,991 | 32,637 |
+| Guitar Pro | 4,666,294 | 1,493,935 | 1,014,724 | 53,370 |
+| MEI | 4,832,030 | 1,540,919 | 1,045,231 | 83,877 |
+| SoundFont | 4,548,508 | 1,437,126 | 969,142 | 7,788 |
 
 These increments are not additive: the formats share dependencies and
 compression patterns. All five together produce the full-size row above.
@@ -86,12 +86,12 @@ The medians of three cold Chrome runs (milliseconds) were:
 
 | Profile and input | WASM transfer | Init | Parse | First SVG |
 | --- | ---: | ---: | ---: | ---: |
-| Full, tiny ABC (2 bars) | 1,300.6 | 6.8 | 5.2 | 27.3 |
-| Viewer, tiny ABC (2 bars) | 1,055.6 | 5.5 | 5.2 | 27.3 |
-| Full, generated MSCZ (4 parts, 8 staves, 32 bars) | 1,300.8 | 6.5 | 30.5 | 64.7 |
-| Viewer, generated MSCZ (4 parts, 8 staves, 32 bars) | 1,056.2 | 5.9 | 31.6 | 64.3 |
+| Full, tiny ABC (2 bars) | 1,313.0 | 7.0 | 5.0 | 20.9 |
+| Viewer, tiny ABC (2 bars) | 1,068.2 | 5.9 | 4.6 | 20.6 |
+| Full, generated MSCZ (4 parts, 8 staves, 32 bars) | 1,308.9 | 6.7 | 23.1 | 40.1 |
+| Viewer, generated MSCZ (4 parts, 8 staves, 32 bars) | 1,064.9 | 5.4 | 24.3 | 41.3 |
 
-The encoded WASM response bodies were 1,203,214 bytes for full and 961,382
+The encoded WASM response bodies were 1,204,368 bytes for full and 961,354
 bytes for viewer, matching Brotli size. The cold transfer medians differ by
 about 245 ms under the specified emulation. These are local observations,
 not a cross-device latency guarantee. Browser caching, preloading, CDN
