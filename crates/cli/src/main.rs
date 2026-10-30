@@ -434,6 +434,9 @@ enum Commands {
         /// Mono or stereo output
         #[arg(long, default_value_t = 2)]
         channels: u8,
+        /// Extra space for SoundFont note-release decay, in milliseconds
+        #[arg(long, default_value_t = 1_000)]
+        release_tail_ms: u32,
     },
     /// Compare expected and host-observed playback event JSON files
     PlaybackCompare {
@@ -686,7 +689,15 @@ fn run(cli: &Cli) -> Result<(), String> {
             output,
             sample_rate,
             channels,
-        } => cmd_audio_render(input, soundfont, output, *sample_rate, *channels),
+            release_tail_ms,
+        } => cmd_audio_render(
+            input,
+            soundfont,
+            output,
+            *sample_rate,
+            *channels,
+            *release_tail_ms,
+        ),
         Commands::PlaybackCompare {
             expected,
             actual,
@@ -2176,6 +2187,7 @@ fn cmd_audio_render(
     output: &Path,
     sample_rate: u32,
     channels: u8,
+    release_tail_ms: u32,
 ) -> Result<(), String> {
     if !output
         .extension()
@@ -2188,6 +2200,7 @@ fn cmd_audio_render(
     let request = acorde_core::OfflineRenderRequest {
         sample_rate_hz: sample_rate,
         channels,
+        release_tail_millis: release_tail_ms,
         provider_identity: Some("acorde-native-sf2-v1".to_string()),
         ..acorde_core::OfflineRenderRequest::default()
     };

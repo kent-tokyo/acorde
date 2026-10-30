@@ -22,10 +22,12 @@ provenance and checksums are recorded in `tests/fixtures/`.
 
 `render_offline_wav` mixes a validated frame schedule with a caller-supplied SF2 into a bounded
 PCM16 WAV. The CLI exposes this as `acorde audio-render score.musicxml piano.sf2 output.wav`.
-It uses linear sample interpolation and writes mono or stereo output. This is a basic native
-offline renderer: it does not implement release envelopes, pedal, MIDI program-change or pitch-bend automation,
-ornament realization, effects, SF3 input, or live audio playback. Unsupported expressive events
-return errors. A supplied SF2 must contain every requested bank/program/key/velocity zone.
+It uses linear sample interpolation and writes mono or stereo output. SF2 note releases decay
+through the requested tail, and score pedal spans hold notes until pedal-up on the same part.
+This basic native renderer does not implement MIDI controller automation (including CC64),
+program-change or pitch-bend automation, ornament realization, effects, SF3 input, or live audio
+playback. Unsupported expressive events return errors. A supplied SF2 must contain every
+requested bank/program/key/velocity zone.
 
 It does not require an asset or audio device. Applications may provide their own licensed assets
 and renderer; the bounded native renderer is optional. The checksum is path-independent FNV-1a
