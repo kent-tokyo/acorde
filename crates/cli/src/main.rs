@@ -453,7 +453,14 @@ enum Commands {
 
 fn main() {
     let cli = Cli::parse();
-    let result = match &cli.command {
+    if let Err(e) = run(&cli) {
+        eprintln!("error: {e}");
+        std::process::exit(1);
+    }
+}
+
+fn run(cli: &Cli) -> Result<(), String> {
+    match &cli.command {
         Commands::Convert { input, output } => cmd_convert(input, output),
         Commands::Omr {
             input,
@@ -660,10 +667,6 @@ fn main() {
             fail_on_differences,
             fail_on_loss,
         } => cmd_compatibility_report(source, candidate, *fail_on_differences, *fail_on_loss),
-    };
-    if let Err(e) = result {
-        eprintln!("error: {e}");
-        std::process::exit(1);
     }
 }
 
@@ -2540,6 +2543,12 @@ mod tests {
     use super::*;
     use std::process::Command as ProcessCommand;
 
+    fn invoke(args: &[&str]) -> Result<(), String> {
+        let cli = Cli::try_parse_from(std::iter::once("acorde").chain(args.iter().copied()))
+            .expect("CLI arguments parse");
+        run(&cli)
+    }
+
     fn set_black(pixels: &mut [u8], width: u32, x: u32, y: u32) {
         pixels[y as usize * width as usize + x as usize] = 0;
     }
@@ -3084,5 +3093,211 @@ mod tests {
         assert_eq!(timing.host_arch, std::env::consts::ARCH);
         assert!(timing.min_us <= timing.median_us);
         assert!(timing.median_us <= timing.max_us);
+    }
+
+    #[test]
+    fn cli_read_commands_report_real_scores_and_preflight_failures() {
+        let input = fixture("simple.musicxml");
+        let input = input.to_str().unwrap();
+        for args in [
+            vec!["info", input],
+            vec!["validate", input],
+            vec!["report", input],
+            vec!["preflight", input],
+            vec!["analyze", input],
+            vec!["playback-report", input],
+            vec!["fingering-report", input],
+            vec!["tab-performance-report", input],
+            vec!["print-report", input],
+            vec!["compatibility-report", input, input],
+        ] {
+            invoke(&args).unwrap_or_else(|error| panic!("{args:?}: {error}"));
+        }
+        let unsupported = fixture("render_preflight_unsupported.musicxml");
+        assert!(
+            invoke(&[
+                "preflight",
+                unsupported.to_str().unwrap(),
+                "--fail-on-issues",
+            ])
+            .unwrap_err()
+            .contains("issue")
+        );
+    }
+
+    #[test]
+    fn cli_write_commands_produce_reparsable_outputs_and_diagnostics() {
+        let directory = std::env::temp_dir().join(format!(
+            "acorde-cli-coverage-{}-{}",
+            std::process::id(),
+            "write"
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let input = fixture("simple.musicxml");
+        let source = input.to_str().unwrap();
+        for extension in ["musicxml", "mid", "abc", "mei", "mscx", "mscz"] {
+            let output = directory.join(format!("converted.{extension}"));
+            invoke(&["convert", source, output.to_str().unwrap()]).unwrap();
+            assert!(parse_score(&output).is_ok(), "{extension} output reparses");
+        }
+
+        let svg = directory.join("render.svg");
+        invoke(&["render", source, svg.to_str().unwrap()]).unwrap();
+        assert!(std::fs::read_to_string(&svg).unwrap().contains("<svg"));
+        let report_svg = directory.join("render-report.svg");
+        invoke(&["render-report", source, report_svg.to_str().unwrap()]).unwrap();
+        assert!(report_svg.exists());
+
+        for (command, extension) in [
+            ("extract", "musicxml"),
+            ("transpose", "musicxml"),
+            ("normalize", "mscx"),
+            ("export-report", "mei"),
+            ("auto-tab", "musicxml"),
+            ("auto-tab-report", "musicxml"),
+        ] {
+            let output = directory.join(format!("{command}.{extension}"));
+            let args: Vec<&str> = match command {
+                "extract" => vec![command, source, output.to_str().unwrap(), "--part", "0"],
+                "transpose" => vec![
+                    command,
+                    source,
+                    output.to_str().unwrap(),
+                    "--semitones",
+                    "2",
+                ],
+                _ => vec![command, source, output.to_str().unwrap()],
+            };
+            invoke(&args).unwrap_or_else(|error| panic!("{command}: {error}"));
+            assert!(parse_score(&output).is_ok(), "{command} output reparses");
+        }
+
+        let playback =
+            playback_report_events(&parse_score(&input).unwrap(), None, None, None).unwrap();
+        let events = directory.join("events.json");
+        std::fs::write(&events, serde_json::to_vec(&playback).unwrap()).unwrap();
+        invoke(&[
+            "playback-compare",
+            events.to_str().unwrap(),
+            events.to_str().unwrap(),
+            "--fail-on-mismatch",
+        ])
+        .unwrap();
+
+        let tab_input = fixture("external_tab.musicxml");
+        let tab_output = directory.join("tab-position.musicxml");
+        invoke(&[
+            "tab-position",
+            tab_input.to_str().unwrap(),
+            tab_output.to_str().unwrap(),
+            "--part",
+            "0",
+            "--measure",
+            "0",
+            "--note",
+            "0",
+            "--string",
+            "1",
+            "--fret",
+            "3",
+        ])
+        .unwrap();
+        assert!(parse_score(&tab_output).is_ok());
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn cli_benchmark_checks_pinned_corpus_and_timing_metadata() {
+        let directory = std::env::temp_dir().join(format!(
+            "acorde-cli-coverage-{}-benchmark",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::copy(
+            fixture("simple.musicxml"),
+            directory.join("simple.musicxml"),
+        )
+        .unwrap();
+        let manifest = BenchmarkManifest {
+            schema_version: 1,
+            corpus_id: "coverage-fixture".into(),
+            corpus_version: "1".into(),
+            license: "self-authored".into(),
+            cases: vec![BenchmarkManifestCase {
+                name: "simple".into(),
+                input: PathBuf::from("simple.musicxml"),
+                coverage: vec!["plain-notation".into()],
+                provenance: "checked-in fixture".into(),
+                expected: acorde_analysis::BenchmarkExpectation::default(),
+            }],
+        };
+        let expected = benchmark_fingerprint(&manifest, &directory).unwrap();
+        let path = directory.join("benchmark.json");
+        std::fs::write(&path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+        invoke(&[
+            "benchmark",
+            path.to_str().unwrap(),
+            "--expected-fingerprint",
+            &expected,
+            "--timing-repetitions",
+            "2",
+            "--cpu-label",
+            "CI CPU",
+        ])
+        .unwrap();
+        assert!(
+            invoke(&[
+                "benchmark",
+                path.to_str().unwrap(),
+                "--expected-fingerprint",
+                "fnv1a64-stale",
+            ])
+            .unwrap_err()
+            .contains("fingerprint mismatch")
+        );
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn cli_omr_subcommands_share_a_reviewed_image_and_reference() {
+        let directory =
+            std::env::temp_dir().join(format!("acorde-cli-coverage-{}-omr", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let input = directory.join("score.png");
+        let expected = directory.join("score.mscz");
+        let report = directory.join("recognition.json");
+        write_synthetic_omr_png(&input);
+        invoke(&[
+            "omr",
+            input.to_str().unwrap(),
+            expected.to_str().unwrap(),
+            "--report",
+            report.to_str().unwrap(),
+        ])
+        .unwrap();
+        assert!(parse_score(&expected).is_ok());
+        invoke(&[
+            "omr-evaluate",
+            input.to_str().unwrap(),
+            expected.to_str().unwrap(),
+        ])
+        .unwrap();
+        let provider = directory.join("provider.json");
+        let recognized = acorde_omr::recognize_png(
+            &std::fs::read(&input).unwrap(),
+            &acorde_omr::RecognitionConfig::default(),
+        )
+        .unwrap();
+        std::fs::write(&provider, serde_json::to_vec(&recognized).unwrap()).unwrap();
+        let applied = directory.join("applied.mscz");
+        invoke(&[
+            "omr-apply-report",
+            provider.to_str().unwrap(),
+            applied.to_str().unwrap(),
+        ])
+        .unwrap();
+        assert!(parse_score(&applied).is_ok());
+        std::fs::remove_dir_all(directory).unwrap();
     }
 }

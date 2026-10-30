@@ -2131,8 +2131,8 @@ impl ScoreEngine {
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
-// Native unit tests — must not call #[wasm_bindgen] functions since
-// JsValue panics outside of a wasm32 runtime.
+// Native unit tests can exercise successful JSON boundaries. Error paths that
+// create JsValue require the wasm32 runtime and are covered by browser tests.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2883,6 +2883,390 @@ mod tests {
         let plan: acorde_core::StructuralChangePlan = serde_json::from_str(&result).unwrap();
         assert!(plan.can_apply);
         assert_eq!(plan.command_key, "ImplodeStaves");
+    }
+
+    #[test]
+    #[cfg(all(feature = "musicxml", feature = "mei", feature = "midi"))]
+    fn native_web_format_boundaries_preserve_a_reparsable_score() {
+        let abc = include_str!("../../../tests/fixtures/sample.abc");
+        let original = parse_abc(abc).expect("ABC imports through the public boundary");
+        let baseline = score_statistics(&original).unwrap();
+        assert!(baseline.contains("note_count"));
+        assert!(parse_abc_report(abc).unwrap().contains("diagnostics"));
+
+        let xml = serialize_musicxml(&original).unwrap();
+        let from_xml = parse_musicxml(&xml).unwrap();
+        assert!(parse_musicxml_report(&xml).unwrap().contains("diagnostics"));
+        assert!(
+            parse_musicxml_render_svg(&xml, "{}")
+                .unwrap()
+                .contains("<svg")
+        );
+        assert!(
+            serialize_musicxml_report(&original)
+                .unwrap()
+                .contains("output")
+        );
+
+        let mei = serialize_mei(&from_xml).unwrap();
+        assert!(parse_mei(&mei).unwrap().contains("parts"));
+        assert!(parse_mei_report(&mei).unwrap().contains("diagnostics"));
+        assert!(parse_mei_render_svg(&mei, "{}").unwrap().contains("<svg"));
+        assert!(serialize_mei_report(&from_xml).unwrap().contains("output"));
+
+        let mscx = serialize_mscx(&original).unwrap();
+        assert!(parse_mscx(&mscx).unwrap().contains("parts"));
+        assert!(parse_mscx_report(&mscx).unwrap().contains("diagnostics"));
+        assert!(parse_mscx_render_svg(&mscx, "{}").unwrap().contains("<svg"));
+        assert!(serialize_mscx_report(&original).unwrap().contains("output"));
+
+        let mscz = serialize_mscz(&original).unwrap();
+        assert!(parse_mscz(&mscz).unwrap().contains("parts"));
+        assert!(parse_mscz_report(&mscz).unwrap().contains("diagnostics"));
+        assert!(parse_mscz_render_svg(&mscz, "{}").unwrap().contains("<svg"));
+        assert!(serialize_mscz_report(&original).unwrap().contains("output"));
+
+        let midi = serialize_midi(&original).unwrap();
+        assert!(parse_midi(&midi).unwrap().contains("parts"));
+        assert!(parse_midi_report(&midi).unwrap().contains("diagnostics"));
+        assert!(parse_midi_render_svg(&midi, "{}").unwrap().contains("<svg"));
+        assert!(serialize_midi_report(&original).unwrap().contains("output"));
+        assert!(
+            serialize_midi_region(&original, 0, 0)
+                .unwrap()
+                .starts_with(b"MThd")
+        );
+
+        let exported_abc = serialize_abc(&original).unwrap();
+        assert!(parse_abc(&exported_abc).unwrap().contains("parts"));
+        assert!(serialize_abc_report(&original).unwrap().contains("output"));
+    }
+
+    #[test]
+    fn native_web_playback_and_layout_boundaries_agree_on_one_score() {
+        let score = parse_abc("X:1\nT:Timing\nM:4/4\nL:1/4\nK:C\nCDEF|GABc|\n").unwrap();
+        let events = to_playback_events_ex(&score, "{}").unwrap();
+        assert_eq!(
+            serde_json::from_str::<Vec<acorde_core::PlaybackEvent>>(&events)
+                .unwrap()
+                .len(),
+            8
+        );
+        #[allow(deprecated)]
+        let legacy = to_playback_events(&score, 0, "[]").unwrap();
+        assert_eq!(events, legacy);
+        let tolerance =
+            serde_json::to_string(&acorde_core::PlaybackTimingTolerance::default()).unwrap();
+        let comparison = compare_playback_timing(&events, &events, &tolerance).unwrap();
+        assert!(comparison.contains("within_tolerance"));
+        assert_ne!(
+            compute_playback_position(&score, "{}", 0.1).unwrap(),
+            "null"
+        );
+        assert!(score_duration_secs(&score).unwrap() > 0.0);
+        assert!(score_duration_secs_region(&score, 0, 0).unwrap() > 0.0);
+
+        let layout = compute_layout_ex(&score, r#"{"measures_per_row":2}"#).unwrap();
+        #[allow(deprecated)]
+        let legacy_layout = compute_layout(&score, 2, false).unwrap();
+        assert_eq!(layout, legacy_layout);
+        assert!(render_preflight(&score).unwrap().contains("["));
+        assert!(render_score_svg(&score, "{}").unwrap().contains("<svg"));
+        assert!(
+            render_score_svg_with_layout(&score, &layout, "{}")
+                .unwrap()
+                .contains("<svg")
+        );
+        assert!(
+            render_score_svg_row(&score, &layout, 0, "{}")
+                .unwrap()
+                .contains("<svg")
+        );
+        assert!(
+            render_score_metadata(&score, &layout, "{}")
+                .unwrap()
+                .contains("width")
+        );
+
+        let print = serde_json::to_string(&acorde_layout::PrintPreset::A4Score.config()).unwrap();
+        let physical = compute_print_layout(&score, &print).unwrap();
+        assert!(physical.contains("pages"));
+        let trees = export_page_render_trees(&score, &print).unwrap();
+        validate_page_render_trees(&score, &trees).unwrap();
+        assert!(
+            !serde_json::from_str::<Vec<acorde_layout::PageRenderTree>>(&trees)
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn native_web_analysis_cache_and_score_diffs_keep_the_same_evidence() {
+        let score = parse_abc("X:1\nT:Analysis\nM:4/4\nL:1/4\nK:C\nCEGc|\n").unwrap();
+        let result = analyze_score(&score).unwrap();
+        let address = r#"{"part":0,"staff":0,"measure":0,"voice":0,"note":0}"#;
+        assert!(
+            diff_analysis(&result, &result)
+                .unwrap()
+                .contains("changed_categories")
+        );
+        assert!(
+            analysis_provenance(&result, address)
+                .unwrap()
+                .starts_with('[')
+        );
+        assert!(
+            explain_analysis_change(&result, &result, address)
+                .unwrap()
+                .contains("changed_categories")
+        );
+        assert!(!analysis_cache_key(&score).unwrap().is_empty());
+        assert!(
+            compatibility_report(&score, &score)
+                .unwrap()
+                .contains("\"semantic_equivalent\":true")
+        );
+        assert_eq!(diff_scores(&score, &score).unwrap(), "[]");
+        let patch = score_patch(&score, &score).unwrap();
+        assert_eq!(patch, "[]");
+        assert_eq!(apply_score_patch(&score, &patch).unwrap(), score);
+
+        let mut cache = AnalysisCache::new(2).unwrap();
+        assert!(cache.is_empty());
+        assert_eq!(cache.capacity(), 2);
+        assert_eq!(cache.analyze(&score).unwrap(), result);
+        assert_eq!(cache.len(), 1);
+        let scores = serde_json::to_string(&vec![
+            serde_json::from_str::<Score>(&score).unwrap(),
+            serde_json::from_str::<Score>(&score).unwrap(),
+        ])
+        .unwrap();
+        assert_eq!(
+            serde_json::from_str::<Vec<serde_json::Value>>(&cache.analyze_batch(&scores).unwrap())
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(cache.analyze_after_edit(&score, &score).unwrap(), result);
+        assert!(
+            cache
+                .analyze_after_edit_with_diff(&score, &result, &score)
+                .unwrap()
+                .contains("\"analysis\"")
+        );
+        assert_eq!(
+            cache
+                .analyze_selected_after_edit(&score, &result, &score, "[]")
+                .unwrap(),
+            result
+        );
+        let tempo = Command::SetTempo(acorde_core::SetTempoCmd { bpm: 96 });
+        let edited = apply_score_command(&score, &serde_json::to_string(&tempo).unwrap()).unwrap();
+        let hint = serde_json::from_str::<serde_json::Value>(&edited).unwrap()["hint"].to_string();
+        assert!(
+            affected_analysis_categories(&hint)
+                .unwrap()
+                .starts_with('[')
+        );
+        assert!(analysis_refresh_plan(&hint).unwrap().contains("categories"));
+        assert!(
+            cache
+                .analyze_after_edit_with_hint(&score, &result, &score, &hint)
+                .unwrap()
+                .contains("\"analysis\"")
+        );
+        assert!(cache.stats().unwrap().contains("hits"));
+        assert!(cache.invalidate(&score).unwrap());
+        cache.reset_stats();
+        cache.clear();
+        assert!(cache.is_empty());
+    }
+
+    #[test]
+    fn native_web_engine_history_replays_edits_and_clips_voice() {
+        let score = parse_abc("X:1\nT:Edit\nM:4/4\nL:1/4\nK:C\nCDEF|GABc|\n").unwrap();
+        let command = Command::SetTempo(acorde_core::SetTempoCmd { bpm: 96 });
+        let command_json = serde_json::to_string(&command).unwrap();
+        let mut engine = ScoreEngine::new();
+        engine.replace_score(&score).unwrap();
+        let version = engine.get_version();
+        let hint = engine.apply(&command_json).unwrap();
+        assert_eq!(engine.get_version(), version + 1);
+        assert!(hint.contains("playback_dirty"));
+        assert_eq!(engine.get_undo_key().as_deref(), Some("SetTempo"));
+        assert!(engine.get_undo_label().is_some());
+        assert_eq!(command_key_from_json(&command_json).unwrap(), "SetTempo");
+        engine.undo().unwrap();
+        assert!(engine.get_redo_label().is_some());
+        assert_eq!(engine.get_redo_key().as_deref(), Some("SetTempo"));
+        engine.redo().unwrap();
+        let snapshot = engine.get_score().unwrap();
+        assert!(snapshot.contains("\"tempo_bpm\":96"));
+
+        engine.copy_voice(0, 0, 0, 0).unwrap();
+        engine.paste_voice(0, 0, 1, 0).unwrap();
+        let copied: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert_eq!(copied.parts[0].staves[0].measures[1].voices[0].len(), 4);
+        let history = engine.export_history().unwrap();
+        assert_eq!(
+            ScoreEngine::compare_histories(&history, &history).unwrap(),
+            "\"Equivalent\""
+        );
+        assert_eq!(
+            ScoreEngine::history_conflict(&history, &history).unwrap(),
+            "null"
+        );
+        let mut restored = ScoreEngine::new();
+        restored.restore_history(&history).unwrap();
+        assert_eq!(restored.get_score().unwrap(), engine.get_score().unwrap());
+    }
+
+    #[test]
+    fn native_web_theory_and_score_helpers_use_the_same_json_contract() {
+        let score = parse_abc("X:1\nT:Theory\nM:4/4\nL:1/4\nK:C\nCEGc|\n").unwrap();
+        assert!(validate_score(&score).unwrap().contains("errors"));
+        let transposed = transpose_score(&score, 2).unwrap();
+        assert_ne!(transposed, score);
+        assert_eq!(assign_tablature_positions(&score).unwrap(), score);
+        assert_eq!(
+            select_fingering(&score, 0, 0, 0, 0, 0, "lowest").unwrap(),
+            "null"
+        );
+        let part = extract_part(&score, 0).unwrap();
+        assert_eq!(serde_json::from_str::<Score>(&part).unwrap().parts.len(), 1);
+        assert_eq!(
+            serde_json::from_str::<Score>(&merge_scores(&score, &score).unwrap())
+                .unwrap()
+                .parts
+                .len(),
+            2
+        );
+        assert!(
+            tablature_round_trip_report(&score)
+                .unwrap()
+                .contains("diagnostics")
+        );
+        assert!(
+            project_tablature_performance(&score, "{}")
+                .unwrap()
+                .contains("events")
+        );
+
+        let c = pitch_from_str("C4").unwrap();
+        let e = pitch_from_midi(64, false).unwrap();
+        assert!(interval_between(&c, &e).unwrap().contains("semitones"));
+        let key = serde_json::to_string(&acorde_core::KeySignature::default()).unwrap();
+        assert_eq!(key_alter_for_step(&key, "C").unwrap(), 0);
+        assert!(key_contains_pitch(&key, &c).unwrap());
+        assert_eq!(key_display_name(&key).unwrap(), "C major");
+        let pitches = format!("[{c},{e},{}]", pitch_from_str("G4").unwrap());
+        let chord = detect_chord(&pitches).unwrap();
+        assert_ne!(chord, "null");
+        assert_ne!(roman_numeral(&chord, &key).unwrap(), "null");
+        assert_ne!(best_fit_scale(&pitches).unwrap(), "null");
+        assert_eq!(clef_middle_line_midi("\"Treble\"").unwrap(), 71);
+        assert!(suggested_stem_up(&pitches, "\"Treble\"").unwrap());
+
+        let parsed: Score = serde_json::from_str(&score).unwrap();
+        let measure = &parsed.parts[0].staves[0].measures[0];
+        let notes = serde_json::to_string(&measure.voices[0]).unwrap();
+        let time = serde_json::to_string(&measure.time_sig).unwrap();
+        assert_eq!(
+            serde_json::from_str::<Vec<serde_json::Value>>(&compute_beams(&notes, &time).unwrap())
+                .unwrap()
+                .len(),
+            4
+        );
+        assert_eq!(measure_beats_remaining(&score, 0, 0, 0, 0).unwrap(), 0.0);
+        assert_eq!(respell_score(&score, false).unwrap(), score);
+        assert_eq!(respell_score_to_key(&score).unwrap(), score);
+        assert!(
+            analyze_for_accordion(&score)
+                .unwrap()
+                .contains("candidates")
+        );
+    }
+
+    #[test]
+    fn native_web_offline_manifest_and_view_tree_keep_valid_addresses() {
+        let mut score = Score::new("Views", 120, 4, 4, 0, 2);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(
+            acorde_core::Pitch::new(acorde_core::Step::C, 4),
+            acorde_core::Duration::Whole,
+        )];
+        score
+            .views
+            .push(acorde_core::ScoreView::linked_part("part", "Part", 0));
+        let json = score_to_json(&score).unwrap();
+        let request = serde_json::to_string(&acorde_core::OfflineRenderRequest::default()).unwrap();
+        let manifest = build_offline_render_manifest(&json, "{}", &request).unwrap();
+        validate_offline_render_manifest(&manifest).unwrap();
+        let physical = compute_print_layout_for_view(&json, "{}", "part").unwrap();
+        assert!(physical.contains("pages"));
+        let trees = export_page_render_trees_for_view(&json, "{}", "part").unwrap();
+        validate_page_render_trees(&json, &trees).unwrap();
+        let selection = acorde_core::ScoreFragmentSelection {
+            start: acorde_core::NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+            end: acorde_core::NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                voice: 0,
+                note: 0,
+            },
+        };
+        let fragment =
+            extract_score_fragment(&json, &serde_json::to_string(&vec![selection]).unwrap())
+                .unwrap();
+        assert!(fragment.contains("voices"));
+    }
+
+    #[test]
+    fn native_web_typed_note_edits_are_undoable_and_keep_addresses() {
+        let score = parse_abc("X:1\nT:Edits\nM:4/4\nL:1/4\nK:C\nCDEF|\n").unwrap();
+        let first = r#"{"part":0,"staff":0,"measure":0,"voice":0,"note":0}"#;
+        let second = r#"{"part":0,"staff":0,"measure":0,"voice":0,"note":1}"#;
+        let mut engine = ScoreEngine::new();
+        engine.replace_score(&score).unwrap();
+        engine
+            .set_note_placement(first, Some(2.0), None, None, None)
+            .unwrap();
+        engine.set_stem(first, "true").unwrap();
+        engine.set_duration(first, "\"Quarter\"", 0).unwrap();
+        engine.set_arpeggio(first, "true").unwrap();
+        engine.set_cue(first, true).unwrap();
+        engine.set_hidden(first, true).unwrap();
+        engine.set_unpitched(first, true).unwrap();
+        engine.set_note_head(first, "\"Diamond\"").unwrap();
+        let edited: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        let note = &edited.parts[0].staves[0].measures[0].voices[0][0];
+        assert_eq!(note.offset_x, Some(2.0));
+        assert_eq!(note.stem_up, Some(true));
+        assert!(note.is_cue && note.hidden && note.is_unpitched);
+        assert_eq!(note.note_head, acorde_core::NoteHead::Diamond);
+        engine.undo().unwrap();
+        let undone: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        assert_ne!(
+            undone.parts[0].staves[0].measures[0].voices[0][0].note_head,
+            acorde_core::NoteHead::Diamond
+        );
+        engine.redo().unwrap();
+
+        engine.toggle_slur(first, second).unwrap();
+        engine.toggle_trill_line(first, second).unwrap();
+        let with_spans: Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        let voice = &with_spans.parts[0].staves[0].measures[0].voices[0];
+        assert!(voice[0].slur_start && voice[1].slur_end);
+        assert!(voice[0].trill_line_start && voice[1].trill_line_end);
+        engine.copy_range(first, second).unwrap();
+        engine.paste_range(first).unwrap();
+        assert!(engine.get_version() > 2);
     }
 }
 
