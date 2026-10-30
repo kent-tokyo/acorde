@@ -90,6 +90,15 @@ trial that enlarged staff space without changing measure breaks created severe
 overlaps and was discarded. This score does not meet a publication-quality
 comparison against Verovio yet.
 
+The subsequent opt-in density change reserves 15% of its budget on the first
+system for clef, key, and meter. Quilter now breaks 3+4+3, matching
+Verovio's measure groups, and the first row is less cramped. The A4 PDF was
+rasterized again at 1400 px. Its staff and direction text remain much smaller
+than Verovio's and the lower page remains mostly unused; this break change is
+not a publication-quality result by itself. A trial with a 70 mm system height
+and larger direction text also left floating text and collisions, so neither
+change was adopted.
+
 ```bash
 verovio -a --page-width 2100 --page-height 2970 \
   --page-margin-top 160 --page-margin-bottom 160 \
@@ -101,6 +110,11 @@ cargo run -q -p acorde-pdf --example print_mxl -- \
 pdftoppm -f 1 -l 1 -scale-to 1400 -png \
   /tmp/acorde-quilter.pdf /tmp/acorde-quilter
 qlmanage -t -s 1400 -o /tmp /tmp/verovio-quilter.svg
+
+# Inspect the opt-in first-system density adjustment with the same paper size.
+cargo run -q -p acorde-pdf --example print_mxl -- \
+  tests/fixtures/openscore_lieder_quilter_prelude.mxl \
+  crates/pdf/tests/fixtures/Tuffy.ttf /tmp/acorde-quilter-density.pdf 4 density
 ```
 
 ### Density-aware print break experiment (2026-10-31)
@@ -167,6 +181,10 @@ on a full-width system and the final three measures on page 9. Pages 1 and 8
 were rasterized at 1400 pixels and inspected; they do not establish a
 corpus-wide collision or legibility result. Verovio remains more compact at
 7 pages and 20 systems on this input.
+
+K.464 was also rerun after the first-system density change from the same
+exported MusicXML with a seven-measure maximum; it remains at 9 A4 pages and
+25 systems, with zero reimport diagnostics.
 
 ```bash
 cargo run -p acorde-pdf --example print_mxl -- \
