@@ -123,9 +123,23 @@ diagnostics, so the report is not lossless. `serialize_musicxml_with_auto_beams`
 for display-only exports that need explicit default beam groups. One successful score is not a
 score for all OpenScore files.
 
-music21 10.5.2 also imported and exported the same MXL. Acorde's compatibility reporter
-could not parse that output because a part/staff contains more than four distinct source voice
-numbers. Consequently, there is **no comparable music21 semantic-change count** for this
-fixture. The importer has four canonical editing voice slots per staff; expanding that model
-requires separate work. The reporter's parse limit and the single-score evidence prevent
-any general claim that Acorde preserves real scores better than music21.
+music21 10.5.2 also imported and exported the same MXL. Its output uses more than four distinct
+source voice numbers across the piano staff, but never more than three in one measure. Acorde now
+reuses its four editing slots across measures and imports that output. The compatibility reporter
+lists 229 changes against the source, including 79 `NoteModified`, 75 `NoteRemoved`, and 70
+`NoteAdded`; these are **not verified note losses** because the reporter aligns notes by editing
+voice slot and order. Its source and candidate loss reports contain 32 and 85 diagnostics.
+The observed music21 output SHA-256 is
+`03075a6f5dae29a15a1863f703f5b5c8dc3641bd6f9d83ebd942d02950bbfdbd`; its generated
+instrument IDs vary across runs. It can be regenerated with music21 10.5.2 using
+`converter.parse(source).write("musicxml", fp=output)`.
+
+An independent XML event projection checks part, measure, staff, rational onset and duration,
+written pitch, and lyric text, ignoring voice numbering and order. Run
+`python3 scripts/compare_musicxml_events.py SOURCE.mxl CANDIDATE.musicxml` for either output.
+All 617 source note/rest events are present in both the Acorde and music21 outputs; Acorde adds
+21 rest events and music21 adds 16. The source contains 30 wedge elements; Acorde writes 30 and
+music21 writes 26. Element count alone is not a semantic equivalence check: Acorde does not
+retain wedge numbers and moves two stop elements across measure boundaries. The event projection
+does not cover ties, directions, articulations, engraving, or all MusicXML semantics. The single
+score supports neither a general win over music21 nor a whole-format compatibility claim.

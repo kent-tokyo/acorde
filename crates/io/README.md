@@ -44,8 +44,9 @@ or byte identity matter.
 
 Reports carry a schema version, severity, source location when available, preserved value, and loss
 reason. Invalid values use a visible diagnostic rather than being silently replaced. Parsers keep
-up to four canonical editing voices per staff/measure; an unrepresentable fifth source voice is
-rejected instead of merged.
+up to four canonical editing voices per staff/measure. MusicXML source voice numbers can exceed
+four across a score when each measure fits those slots; a fifth distinct voice in the same
+staff/measure is rejected instead of merged.
 
 ## Resource and trust boundary
 
