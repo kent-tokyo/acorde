@@ -302,7 +302,13 @@ pub(super) fn apply_unroll_repeats(score: &mut Score) -> Result<(), Error> {
 #[cfg(test)]
 mod tests {
     use super::super::{Command, CommandStack, UnrollRepeatsCmd};
-    use crate::{Barline, Duration, KeySignature, Note, Pitch, Score, Step, VoltaBracket};
+    use crate::model::score::{
+        MidiAftertouch, MidiControlChange, MidiPitchBend, MidiProgramChange, ObjectStyleOverride,
+        ObjectStyleTarget, ScoreView, ViewStyleProperty,
+    };
+    use crate::{
+        Barline, Duration, KeySignature, Note, NoteAddr, Pitch, Score, Step, VoltaBracket,
+    };
 
     fn note(step: Step) -> Note {
         Note::new(Pitch::new(step, 4), Duration::Whole)
@@ -383,5 +389,139 @@ mod tests {
             serde_json::to_value(&score).expect("json"),
             serde_json::to_value(&before).expect("json")
         );
+    }
+
+    #[test]
+    fn unroll_duplicates_timed_events_and_object_references_for_each_play() {
+        let mut score = Score::new("repeat events", 120, 4, 4, 0, 2);
+        let staff = &mut score.parts[0].staves[0];
+        staff.measures[0].barline_left = Barline::RepeatStart;
+        staff.measures[1].barline_right = Barline::RepeatEnd;
+        staff.measures[0].voices[0] = vec![note(Step::C)];
+        staff.measures[1].voices[0] = vec![note(Step::D)];
+        let first = NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
+        let second = NoteAddr {
+            measure: 1,
+            ..first.clone()
+        };
+        staff.measures[0].voices[0][0].chord_symbol = Some(
+            serde_json::from_value(serde_json::json!({
+                "root": "C", "kind": "major", "bass": null, "range_end": second
+            }))
+            .expect("chord"),
+        );
+        score.spanners.push(
+            serde_json::from_value(serde_json::json!({
+                "id": "slur", "kind": "Slur", "start": first, "end": second
+            }))
+            .expect("spanner"),
+        );
+        score.object_style_overrides.push(ObjectStyleOverride {
+            target: ObjectStyleTarget::Note {
+                address: first.clone(),
+            },
+            property: ViewStyleProperty::TextScale,
+            value: 1.2,
+            provenance: None,
+        });
+        let mut view = ScoreView::linked_part("part", "Part", 0);
+        view.layout.system_breaks = vec![1];
+        view.layout.page_breaks = vec![1];
+        score.views.push(view);
+        let part = &mut score.parts[0];
+        part.midi_pitch_bends.push(MidiPitchBend {
+            tick: 120,
+            channel: 0,
+            value: 300,
+        });
+        part.midi_control_changes.push(MidiControlChange {
+            tick: 2_040,
+            channel: 0,
+            controller: 64,
+            value: 127,
+        });
+        part.midi_program_changes.push(MidiProgramChange {
+            tick: 120,
+            channel: 0,
+            program: 12,
+        });
+        part.midi_aftertouch.push(MidiAftertouch {
+            tick: 2_040,
+            channel: 0,
+            key: None,
+            value: 70,
+        });
+
+        CommandStack::new(1)
+            .execute(Command::UnrollRepeats(UnrollRepeatsCmd {}), &mut score)
+            .expect("unroll");
+        assert_eq!(score.parts[0].staves[0].measures.len(), 4);
+        assert_eq!(
+            score.parts[0]
+                .midi_pitch_bends
+                .iter()
+                .map(|event| event.tick)
+                .collect::<Vec<_>>(),
+            vec![120, 3_960]
+        );
+        assert_eq!(
+            score.parts[0]
+                .midi_control_changes
+                .iter()
+                .map(|event| event.tick)
+                .collect::<Vec<_>>(),
+            vec![2_040, 5_880]
+        );
+        assert_eq!(
+            score.parts[0]
+                .midi_program_changes
+                .iter()
+                .map(|event| event.tick)
+                .collect::<Vec<_>>(),
+            vec![120, 3_960]
+        );
+        assert_eq!(
+            score.parts[0]
+                .midi_aftertouch
+                .iter()
+                .map(|event| event.tick)
+                .collect::<Vec<_>>(),
+            vec![2_040, 5_880]
+        );
+        assert_eq!(
+            score
+                .spanners
+                .iter()
+                .map(|span| (span.start.measure, span.end.measure))
+                .collect::<Vec<_>>(),
+            vec![(0, 1), (2, 3)]
+        );
+        assert_eq!(
+            score.parts[0].staves[0].measures[2].voices[0][0]
+                .chord_symbol
+                .as_ref()
+                .and_then(|chord| chord.range_end.as_ref())
+                .map(|end| end.measure),
+            Some(3)
+        );
+        assert_eq!(
+            score
+                .object_style_overrides
+                .iter()
+                .map(|style| match &style.target {
+                    ObjectStyleTarget::Note { address } => address.measure,
+                    _ => unreachable!(),
+                })
+                .collect::<Vec<_>>(),
+            vec![0, 2]
+        );
+        assert!(score.views[0].layout.system_breaks.is_empty());
+        assert!(score.views[0].layout.page_breaks.is_empty());
     }
 }

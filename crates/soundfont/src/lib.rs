@@ -2639,6 +2639,187 @@ mod tests {
     }
 
     #[test]
+    fn malformed_generator_tables_report_precise_nonfatal_diagnostics() {
+        fn tables() -> SfTables {
+            SfTables {
+                presets: vec![SfPresetHeader {
+                    bank: 0,
+                    program: 3,
+                    bag_index: 0,
+                }],
+                preset_bags: vec![SfBag { generator_index: 0 }],
+                preset_generators: vec![SfGenerator {
+                    operator: 41,
+                    amount: 0,
+                }],
+                instruments: vec![SfInstrumentHeader { bag_index: 0 }],
+                instrument_bags: vec![SfBag { generator_index: 0 }],
+                instrument_generators: vec![SfGenerator {
+                    operator: 53,
+                    amount: 0,
+                }],
+                samples: vec![SfSampleHeader {
+                    start: 0,
+                    end: 1_000,
+                    start_loop: 10,
+                    end_loop: 100,
+                    sample_rate: 44_100,
+                    root_key: 60,
+                    sample_link: 0,
+                    sample_type: 1,
+                }],
+            }
+        }
+
+        fn diagnosed(mut change: impl FnMut(&mut SfTables)) -> SoundFontZoneDiagnostic {
+            let mut source = tables();
+            change(&mut source);
+            let (zones, diagnostics) =
+                materialize_tables(&source, SoundFontFormat::Sf2).expect("malformed tables");
+            assert!(zones.is_empty());
+            let [diagnostic] = diagnostics.as_slice() else {
+                panic!("expected exactly one diagnostic, got {diagnostics:?}");
+            };
+            diagnostic.clone()
+        }
+
+        assert!(matches!(
+            diagnosed(|t| t.presets[0].bag_index = 1),
+            SoundFontZoneDiagnostic::InvalidZoneAt { ref reason, .. } if reason == "preset bag range"
+        ));
+        assert!(matches!(
+            diagnosed(|t| t.preset_bags[0].generator_index = 2),
+            SoundFontZoneDiagnostic::InvalidZoneAt { ref reason, .. } if reason == "preset generator range"
+        ));
+        assert!(matches!(
+            diagnosed(|t| t.preset_generators[0].amount = 9),
+            SoundFontZoneDiagnostic::InvalidZoneAt { ref reason, .. } if reason == "instrument index"
+        ));
+        assert!(matches!(
+            diagnosed(|t| t.instruments[0].bag_index = 1),
+            SoundFontZoneDiagnostic::InvalidZoneAt { ref reason, .. } if reason == "instrument bag range"
+        ));
+        assert!(matches!(
+            diagnosed(|t| t.instrument_bags[0].generator_index = 2),
+            SoundFontZoneDiagnostic::InvalidZoneAt { ref reason, .. } if reason == "instrument generator range"
+        ));
+        assert!(matches!(
+            diagnosed(|t| t.instrument_generators[0].amount = 9),
+            SoundFontZoneDiagnostic::MissingSampleAt { sample_id: 9, .. }
+        ));
+        assert!(matches!(
+            diagnosed(|t| t.instrument_generators.push(SfGenerator {
+                operator: 60,
+                amount: 0
+            })),
+            SoundFontZoneDiagnostic::UnsupportedGeneratorAt { .. }
+        ));
+        assert!(matches!(
+            diagnosed(|t| t.samples[0].end = 0),
+            SoundFontZoneDiagnostic::InvalidZoneAt { ref reason, .. } if reason == "sample frame range"
+        ));
+    }
+
+    #[test]
+    fn provider_diagnostics_have_stable_snapshot_order_across_legacy_and_located_forms() {
+        let location = SoundFontZoneLocation {
+            bank: 0,
+            program: 3,
+            preset_index: 0,
+            preset_bag_index: Some(1),
+            instrument_index: Some(0),
+            instrument_bag_index: Some(1),
+            generator_index: None,
+        };
+        let diagnostics = vec![
+            SoundFontZoneDiagnostic::InvalidSampleLinkAt {
+                location,
+                sample_id: 1,
+                linked_sample_id: 2,
+                reason: "broken link".into(),
+            },
+            SoundFontZoneDiagnostic::UnsupportedSampleTypeAt {
+                location,
+                sample_id: 1,
+                sample_type: 8,
+            },
+            SoundFontZoneDiagnostic::InvalidZoneAt {
+                location,
+                reason: "bad range".into(),
+            },
+            SoundFontZoneDiagnostic::UnsupportedGeneratorAt {
+                location,
+                generator: "unknown".into(),
+            },
+            SoundFontZoneDiagnostic::MissingSampleAt {
+                location,
+                sample_id: 1,
+            },
+            SoundFontZoneDiagnostic::InvalidZone {
+                bank: 0,
+                program: 3,
+                reason: "legacy zone".into(),
+            },
+            SoundFontZoneDiagnostic::UnsupportedGenerator {
+                bank: 0,
+                program: 3,
+                generator: "legacy generator".into(),
+            },
+            SoundFontZoneDiagnostic::MissingSample {
+                bank: 0,
+                program: 3,
+                sample_id: 1,
+            },
+        ];
+        let asset = SoundFontAsset {
+            format: SoundFontFormat::Sf2,
+            checksum: 42,
+            provider_version: "test".into(),
+            presets: vec![SoundFontPreset {
+                bank: 0,
+                program: 3,
+                name: "Piano".into(),
+            }],
+        };
+        let loaded = asset
+            .materialize_zones([], diagnostics)
+            .expect("diagnostics accepted");
+        let snapshot = loaded.snapshot_for_preset(0, 3).expect("preset snapshot");
+        assert!(matches!(
+            snapshot.diagnostics[0],
+            SoundFontZoneDiagnostic::MissingSample { .. }
+        ));
+        assert!(matches!(
+            snapshot.diagnostics[1],
+            SoundFontZoneDiagnostic::UnsupportedGenerator { .. }
+        ));
+        assert!(matches!(
+            snapshot.diagnostics[2],
+            SoundFontZoneDiagnostic::InvalidZone { .. }
+        ));
+        assert!(matches!(
+            snapshot.diagnostics[3],
+            SoundFontZoneDiagnostic::MissingSampleAt { .. }
+        ));
+        assert!(matches!(
+            snapshot.diagnostics[4],
+            SoundFontZoneDiagnostic::UnsupportedGeneratorAt { .. }
+        ));
+        assert!(matches!(
+            snapshot.diagnostics[5],
+            SoundFontZoneDiagnostic::InvalidZoneAt { .. }
+        ));
+        assert!(matches!(
+            snapshot.diagnostics[6],
+            SoundFontZoneDiagnostic::UnsupportedSampleTypeAt { .. }
+        ));
+        assert!(matches!(
+            snapshot.diagnostics[7],
+            SoundFontZoneDiagnostic::InvalidSampleLinkAt { .. }
+        ));
+    }
+
+    #[test]
     fn sample_channel_layout_resolves_mono_linked_stereo_and_sf3_single_payloads() {
         let header = |sample_type, sample_link, start| SfSampleHeader {
             start,

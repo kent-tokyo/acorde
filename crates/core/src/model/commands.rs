@@ -7558,6 +7558,151 @@ mod tests {
     }
 
     #[test]
+    fn linked_view_rejects_invalid_projection_and_keeps_the_source_intact() {
+        use crate::model::score::{ViewStaffKindOverride, ViewStaffRef, ViewStyleProperty};
+
+        let mut score = Score::template(ScoreTemplate::StringQuartet);
+        let original = score.clone();
+        let original_parts = serde_json::to_value(&score.parts).unwrap();
+        let base = ScoreView::linked_part("viola", "Viola", 2);
+        let mut invalid = base.clone();
+        invalid.parts.push(2);
+        assert!(
+            apply_command(
+                &Command::UpsertScoreView(UpsertScoreViewCmd { view: invalid }),
+                &mut score
+            )
+            .is_err()
+        );
+        let mut invalid = base.clone();
+        invalid
+            .layout
+            .hidden_staves
+            .push(ViewStaffRef { part: 1, staff: 0 });
+        assert!(
+            apply_command(
+                &Command::UpsertScoreView(UpsertScoreViewCmd { view: invalid }),
+                &mut score
+            )
+            .is_err()
+        );
+        let mut invalid = base.clone();
+        invalid.staff_kind_overrides.push(ViewStaffKindOverride {
+            staff: ViewStaffRef { part: 2, staff: 0 },
+            kind: StaffKind::Tablature,
+        });
+        assert!(
+            apply_command(
+                &Command::UpsertScoreView(UpsertScoreViewCmd { view: invalid }),
+                &mut score
+            )
+            .is_err()
+        );
+        let mut invalid = base.clone();
+        invalid
+            .layout
+            .typed_style_overrides
+            .push(ViewStyleOverride {
+                property: ViewStyleProperty::StaffSpace,
+                value: f32::NAN,
+            });
+        assert!(
+            apply_command(
+                &Command::UpsertScoreView(UpsertScoreViewCmd { view: invalid }),
+                &mut score
+            )
+            .is_err()
+        );
+        assert_eq!(score.views, original.views);
+        assert_eq!(serde_json::to_value(&score.parts).unwrap(), original_parts);
+
+        let mut view = base;
+        view.parts = vec![2, 0];
+        view.layout
+            .hidden_staves
+            .push(ViewStaffRef { part: 0, staff: 0 });
+        view.layout.typed_style_overrides.push(ViewStyleOverride {
+            property: ViewStyleProperty::StaffSpace,
+            value: 1.25,
+        });
+        view.staff_kind_overrides.push(ViewStaffKindOverride {
+            staff: ViewStaffRef { part: 2, staff: 0 },
+            kind: StaffKind::Percussion,
+        });
+        let mut stack = CommandStack::new(4);
+        stack
+            .execute(
+                Command::UpsertScoreView(UpsertScoreViewCmd { view }),
+                &mut score,
+            )
+            .expect("valid linked projection applies");
+        let projected = score.resolve_view("viola").expect("view resolves");
+        assert_eq!(projected.parts.len(), 2);
+        assert_eq!(projected.parts[0].name, original.parts[2].name);
+        assert_eq!(projected.parts[1].name, original.parts[0].name);
+        assert_eq!(
+            projected.parts[0].staves[0].presentation.kind,
+            StaffKind::Percussion
+        );
+        assert_eq!(projected.views[0].layout.hidden_staves[0].part, 1);
+        assert_eq!(projected.views[0].layout.resolved_style().staff_space, 1.25);
+        assert_eq!(serde_json::to_value(&score.parts).unwrap(), original_parts);
+        stack.undo(&mut score).expect("view creation is undoable");
+        assert!(score.views.is_empty());
+    }
+
+    #[test]
+    fn template_score_edit_session_keeps_global_and_measure_marks_in_sync() {
+        let mut score = Score::default();
+        apply_command(
+            &Command::NewScore(NewScoreCmd {
+                title: "Quartet rehearsal".into(),
+                composer: "Composer".into(),
+                tempo_bpm: 96,
+                time_numerator: 3,
+                time_denominator: 4,
+                key_fifths: 2,
+                measure_count: 2,
+                template: Some(ScoreTemplate::StringQuartet),
+            }),
+            &mut score,
+        )
+        .unwrap();
+        assert_eq!(score.parts.len(), 4);
+        assert_eq!(score.parts[3].staves[0].measures.len(), 2);
+        assert_eq!(score.metadata.composer, "Composer");
+        for command in [
+            Command::SetKeySignature(SetKeySignatureCmd { fifths: -1 }),
+            Command::SetRehearsalMark(SetRehearsalMarkCmd {
+                measure_index: 0,
+                text: Some("A".into()),
+            }),
+            Command::SetNavigationMark(SetNavigationMarkCmd {
+                measure_index: 1,
+                mark: Some("Fine".into()),
+            }),
+            Command::SetSystemBreak(SetSystemBreakCmd {
+                measure_index: 1,
+                value: true,
+            }),
+            Command::SetPageBreak(SetPageBreakCmd {
+                measure_index: 1,
+                value: true,
+            }),
+        ] {
+            apply_command(&command, &mut score).unwrap();
+        }
+        assert_eq!(score.settings.key_signature.fifths, -1);
+        for part in &score.parts {
+            let measures = &part.staves[0].measures;
+            assert_eq!(measures[0].rehearsal.as_deref(), Some("A"));
+            assert_eq!(measures[1].navigation.as_deref(), Some("Fine"));
+            assert!(measures[1].system_break);
+            assert!(measures[1].page_break);
+        }
+    }
+
+    #[test]
     fn section_break_is_atomic_undoable_and_synced_across_staves() {
         let mut score = Score::template(ScoreTemplate::Piano);
         let original = score.clone();

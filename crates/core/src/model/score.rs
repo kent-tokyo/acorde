@@ -1081,6 +1081,9 @@ pub fn optimize_tablature_positions(score: &mut Score) -> usize {
                         }
                     }
                 }
+                if locations.is_empty() {
+                    continue;
+                }
                 let candidates: Vec<Vec<Vec<TabPosition>>> = locations
                     .iter()
                     .map(|(measure_index, _, note)| {
@@ -5023,6 +5026,72 @@ mod tests {
     }
 
     #[test]
+    fn optimized_tablature_respects_an_authored_anchor_across_measures() {
+        let mut score = Score::new("Two-string bass", 120, 4, 4, 0, 2);
+        score.parts[0].staves[0].tablature = Some(TablatureConfig {
+            lines: 2,
+            tuning_midi: vec![40, 45],
+            capo: 0,
+        });
+        let a2 = Pitch::new(Step::A, 2);
+        let mut anchor = Note::new(a2.clone(), Duration::Quarter);
+        anchor.tab_position = Some(TabPosition { string: 1, fret: 5 });
+        score.parts[0].staves[0].measures[0].voices[0] = vec![anchor];
+        score.parts[0].staves[0].measures[1].voices[0] = vec![
+            Note::rest(Duration::Quarter),
+            Note::new(a2, Duration::Quarter),
+        ];
+
+        assert_eq!(optimize_tablature_positions(&mut score), 1);
+        let anchor = &score.parts[0].staves[0].measures[0].voices[0][0];
+        let assigned = &score.parts[0].staves[0].measures[1].voices[0][1];
+        assert_eq!(
+            anchor.tab_position,
+            Some(TabPosition { string: 1, fret: 5 })
+        );
+        // The open second string has a lower fret but would require a larger hand move.
+        assert_eq!(
+            assigned.tab_position,
+            Some(TabPosition { string: 1, fret: 5 })
+        );
+        assert_eq!(assigned.string_number, Some(1));
+        assert_eq!(
+            assigned.tab_positions,
+            vec![TabPosition { string: 1, fret: 5 }]
+        );
+        assert_eq!(optimize_tablature_positions(&mut score), 0);
+    }
+
+    #[test]
+    fn optimized_tablature_assigns_distinct_strings_to_a_chord() {
+        let mut score = Score::new("Guitar chord", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].tablature = Some(TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![64, 59, 55, 50, 45, 40],
+            capo: 0,
+        });
+        let mut chord = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+        chord.pitches.push(Pitch::new(Step::G, 4));
+        score.parts[0].staves[0].measures[0].voices[0] = vec![chord];
+
+        assert_eq!(optimize_tablature_positions(&mut score), 1);
+        let assigned = &score.parts[0].staves[0].measures[0].voices[0][0];
+        assert_eq!(assigned.tab_positions.len(), 2);
+        assert_ne!(
+            assigned.tab_positions[0].string,
+            assigned.tab_positions[1].string
+        );
+        for (pitch, position) in assigned.pitches.iter().zip(&assigned.tab_positions) {
+            let open = score.parts[0].staves[0]
+                .tablature
+                .as_ref()
+                .unwrap()
+                .tuning_midi[usize::from(position.string - 1)];
+            assert_eq!(pitch.to_midi(), open + i16::from(position.fret));
+        }
+    }
+
+    #[test]
     fn new_score_measure_count() {
         let score = Score::new("Test", 120, 4, 4, 0, 8);
         assert_eq!(score.measure_count(), 8);
@@ -5906,6 +5975,75 @@ mod tests {
         )));
         let result = apply_patch(&a, &patches).expect("score text patch failed");
         assert_eq!(result.texts, b.texts);
+    }
+
+    #[test]
+    fn mixed_editor_changes_round_trip_as_local_patches() {
+        let mut before = Score::new("Before", 120, 4, 4, 0, 2);
+        before.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::D, 4), Duration::Quarter),
+        ];
+        before.parts[0].staves[0].measures[1].voices[0] = vec![
+            Note::new(Pitch::new(Step::E, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::F, 4), Duration::Quarter),
+        ];
+        let mut after = before.clone();
+        after.metadata.title = "After".into();
+        after.metadata.composer = "Composer".into();
+        after.metadata.lyricist = "Lyricist".into();
+        after.metadata.copyright = "Copyright".into();
+        after.metadata.work_number = "Op. 1".into();
+        after.metadata.movement_title = "Prelude".into();
+        after.settings.tempo_bpm = 96;
+        after.parts[0].name = "Piano".into();
+        after.parts[0].short_name = "Pno.".into();
+        after.parts[0].midi_channel = 1;
+        after.parts[0].midi_program = 41;
+        after.parts[0].midi_pitch_bends.push(MidiPitchBend {
+            tick: 240,
+            channel: 1,
+            value: 512,
+        });
+        after.parts[0].staves[0].clef = Clef::Bass;
+        after.parts[0].staves[0].measures[0].voices[0][0] =
+            Note::new(Pitch::new(Step::G, 3), Duration::Quarter);
+        after.parts[0].staves[0].measures[0].voices[0]
+            .push(Note::new(Pitch::new(Step::A, 3), Duration::Quarter));
+        after.parts[0].staves[0].measures[1].voices[0].pop();
+
+        let changes = diff(&before, &after);
+        assert!(
+            changes
+                .iter()
+                .any(|change| matches!(change, ScoreChange::PartMidiAutomationChanged { .. }))
+        );
+        assert!(
+            changes
+                .iter()
+                .any(|change| matches!(change, ScoreChange::NoteModified { .. }))
+        );
+        assert!(
+            changes
+                .iter()
+                .any(|change| matches!(change, ScoreChange::NoteAdded { .. }))
+        );
+        assert!(
+            changes
+                .iter()
+                .any(|change| matches!(change, ScoreChange::NoteRemoved { .. }))
+        );
+        let patches = score_patch(&before, &after);
+        assert!(
+            !patches
+                .iter()
+                .any(|patch| matches!(patch, ScorePatch::ReplaceScore { .. }))
+        );
+        let result = apply_patch(&before, &patches).expect("local patches apply");
+        assert_eq!(
+            serde_json::to_value(result).expect("patched score"),
+            serde_json::to_value(after).expect("expected score")
+        );
     }
 
     #[test]

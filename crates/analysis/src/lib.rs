@@ -2516,6 +2516,47 @@ mod tests {
     }
 
     #[test]
+    fn local_analysis_refresh_matches_full_pass_after_a_middle_measure_edit() {
+        let mut score = Score::default();
+        for measure in &mut score.parts[0].staves[0].measures {
+            measure.voices[0] = [Step::C, Step::E, Step::G]
+                .into_iter()
+                .map(|step| Note::new(Pitch::new(step, 4), Duration::Quarter))
+                .collect();
+            measure.voices[1] = [Step::G, Step::A, Step::B]
+                .into_iter()
+                .map(|step| Note::new(Pitch::new(step, 3), Duration::Quarter))
+                .collect();
+        }
+        let before = analyze_score(&score);
+        score.parts[0].staves[0].measures[1].voices[0][1] =
+            Note::new(Pitch::new(Step::F, 4), Duration::Quarter);
+        score.parts[0].staves[0].measures[1].voices[1][1] =
+            Note::new(Pitch::new(Step::F, 3), Duration::Quarter);
+        let region = AnalysisRegion {
+            part: 0,
+            staff: 0,
+            start_measure: 1,
+            end_measure: 2,
+        };
+        let refreshed = analyze_selected_categories_in_region(
+            &score,
+            &before,
+            &[
+                AnalysisCategory::Chords,
+                AnalysisCategory::Intervals,
+                AnalysisCategory::VoiceLeading,
+            ],
+            Some(&region),
+        );
+        let full = analyze_score(&score);
+        assert_eq!(refreshed.chords, full.chords);
+        assert_eq!(refreshed.intervals, full.intervals);
+        assert_eq!(refreshed.voice_leading, full.voice_leading);
+        assert_eq!(refreshed.key_estimates, before.key_estimates);
+    }
+
+    #[test]
     fn interval_region_includes_boundary_observations() {
         let mut score = Score::default();
         for measure_index in 0..2 {

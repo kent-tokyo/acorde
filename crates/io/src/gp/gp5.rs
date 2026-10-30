@@ -1799,4 +1799,70 @@ mod tests {
         assert!(codes.contains(&"gp.unsupported-mix-change".to_string()));
         assert!(codes.contains(&"gp.unsupported-wah".to_string()));
     }
+
+    #[test]
+    fn gp_chord_names_survive_three_binary_dialects_without_diagram_data() {
+        let mut gp5 = vec![0; 17 + 1 + 21 + 4 + 4 + 7 * 4 + 1 + 5 + 26];
+        gp5[17] = 2;
+        gp5[18..20].copy_from_slice(b"Am");
+        let mut gp4 = vec![0; 1 + 16 + 1 + 21 + 4 + 4 + 7 * 4 + 1 + 5 + 26];
+        gp4[0] = 1;
+        gp4[17] = 2;
+        gp4[18..20].copy_from_slice(b"G7");
+        let mut gp3 = vec![0; 1 + 25 + 1 + 34 + 4 + 6 * 4 + 36];
+        gp3[0] = 1;
+        gp3[26] = 3;
+        gp3[27..30].copy_from_slice(b"Dm7");
+
+        for (version, data, expected) in [(500, gp5, "Am"), (400, gp4, "G7"), (300, gp3, "Dm7")] {
+            let mut reader = Reader {
+                bin: Bin {
+                    data: &data,
+                    pos: 0,
+                },
+                version,
+                losses: Losses::default(),
+            };
+            assert_eq!(reader.read_chord_name().unwrap().as_deref(), Some(expected));
+            assert_eq!(reader.bin.pos, data.len());
+            assert!(
+                reader
+                    .losses
+                    .into_diagnostics()
+                    .iter()
+                    .any(|diagnostic| { diagnostic.code == "gp.unsupported-chord-diagram" })
+            );
+        }
+    }
+
+    #[test]
+    fn gp_lyrics_follow_sounding_notes_and_keep_hyphenation() {
+        let mut measures = vec![Measure::empty(4, 4), Measure::empty(4, 4)];
+        for measure in &mut measures {
+            measure.voices[0].clear();
+        }
+        let pitch = Pitch::new(acorde_core::Step::C, 4);
+        measures[0].voices[0].push(Note::new(pitch.clone(), Duration::Quarter));
+        let mut grace = Note::new(pitch.clone(), Duration::Eighth);
+        grace.is_grace = true;
+        measures[0].voices[0].push(grace);
+        measures[0].voices[0].push(Note::rest(Duration::Quarter));
+        let mut tied = Note::new(pitch.clone(), Duration::Quarter);
+        tied.tie_end = true;
+        measures[0].voices[0].push(tied);
+        measures[0].voices[0].push(Note::new(pitch.clone(), Duration::Quarter));
+        measures[1].voices[0].push(Note::new(pitch, Duration::Quarter));
+
+        apply_lyrics(&mut measures, &[(0, "la-vi-ta".to_string())]);
+        let syllables: Vec<_> = measures
+            .iter()
+            .flat_map(|measure| &measure.voices[0])
+            .filter_map(|note| note.lyric.as_ref())
+            .map(|lyric| (lyric.text.as_str(), lyric.syllabic.as_str()))
+            .collect();
+        assert_eq!(
+            syllables,
+            [("la", "begin"), ("vi", "middle"), ("ta", "end")]
+        );
+    }
 }
