@@ -59,6 +59,44 @@ type AccKey = (usize, usize, usize, usize, usize, usize);
 pub(crate) type NoteKey = (usize, usize, usize, usize, usize);
 pub(crate) type NotePoint = (f32, f32, bool, usize);
 
+/// Physical print placement of the already chosen logical rows. Coordinates are in renderer
+/// pixels; the caller converts them to millimetres in the page SVG viewport.
+pub(crate) struct PrintRowPlacement<'a> {
+    pub row_tops_px: &'a [f32],
+    pub canvas_height_px: f32,
+}
+
+pub(crate) fn print_row_metrics(
+    score: &Score,
+    layout: &LayoutResult,
+    staff_gap: f32,
+) -> Result<(f32, f32, f32), RenderError> {
+    let staff_refs = collect_staff_refs(score);
+    if staff_refs.is_empty() {
+        return Err(RenderError::EmptyScore);
+    }
+    let (top, bottom) = content_margins(score, layout, &staff_refs);
+    let system = staff_refs
+        .iter()
+        .map(|&(part, staff)| staff_height_u(score, part, staff))
+        .sum::<f32>()
+        + staff_refs.len().saturating_sub(1) as f32 * staff_gap;
+    Ok((top, system, bottom))
+}
+
+pub(crate) fn print_staff_offsets(score: &Score, staff_gap: f32) -> Vec<(usize, f32, f32)> {
+    let mut offset = 0.0;
+    collect_staff_refs(score)
+        .into_iter()
+        .map(|(part, staff)| {
+            let height = staff_height_u(score, part, staff);
+            let result = (part, offset, height);
+            offset += height + staff_gap;
+            result
+        })
+        .collect()
+}
+
 pub(crate) fn build_svg(
     score: &Score,
     layout: &LayoutResult,
@@ -87,6 +125,15 @@ pub(crate) fn build_svg_with_metadata_config(
     score: &Score,
     layout: &LayoutResult,
     config: &SvgRenderConfig,
+) -> Result<(String, RenderMetadata), RenderError> {
+    build_svg_with_metadata_placement(score, layout, config, None)
+}
+
+pub(crate) fn build_svg_with_metadata_placement(
+    score: &Score,
+    layout: &LayoutResult,
+    config: &SvgRenderConfig,
+    print_placement: Option<&PrintRowPlacement<'_>>,
 ) -> Result<(String, RenderMetadata), RenderError> {
     let options: &SvgRenderOptions = config;
     // Spans authored only as typed spanners are drawn from their endpoint notes' flags.
@@ -179,10 +226,27 @@ pub(crate) fn build_svg_with_metadata_config(
             reason: "content-aware margins leave no usable SVG width".into(),
         });
     }
-    let total_height = top_margin_u * space
+    let calculated_height = top_margin_u * space
         + layout.rows.len().max(1) as f32 * system_height_u * space
         + layout.rows.len().saturating_sub(1) as f32 * SYSTEM_GAP_U * space
         + bottom_margin_u * space;
+    let total_height = if let Some(placement) = print_placement {
+        if placement.row_tops_px.len() != layout.rows.len()
+            || !placement.canvas_height_px.is_finite()
+            || placement.canvas_height_px <= 0.0
+            || placement
+                .row_tops_px
+                .iter()
+                .any(|top| !top.is_finite() || *top < 0.0)
+        {
+            return Err(RenderError::InvalidOptions {
+                reason: "print row positions and canvas height must be finite and valid".into(),
+            });
+        }
+        placement.canvas_height_px
+    } else {
+        calculated_height
+    };
 
     let mut body = String::new();
     let mut note_points: HashMap<NoteKey, NotePoint> = HashMap::new();
@@ -191,12 +255,19 @@ pub(crate) fn build_svg_with_metadata_config(
     // A volta (1st/2nd ending) still open at the end of a system, by ending number.
     let mut open_volta: Option<u8> = None;
 
+    let row_tops: Vec<f32> = (0..layout.rows.len())
+        .map(|row_idx| {
+            print_placement.map_or_else(
+                || top_margin_u * space + row_idx as f32 * (system_height_u + SYSTEM_GAP_U) * space,
+                |placement| placement.row_tops_px[row_idx],
+            )
+        })
+        .collect();
     for (row_idx, row) in layout.rows.iter().enumerate() {
         if row.measure_indices.is_empty() {
             continue;
         }
-        let row_top_y =
-            top_margin_u * space + row_idx as f32 * (system_height_u + SYSTEM_GAP_U) * space;
+        let row_top_y = row_tops[row_idx];
 
         // Effective clef/key/time per staff as of this row's first measure.
         let row_start_measure = row.measure_indices[0];
@@ -623,6 +694,7 @@ pub(crate) fn build_svg_with_metadata_config(
         score,
         layout,
         &note_points,
+        &row_tops,
         options.width,
         left_margin_u,
         right_margin_u,
@@ -4846,6 +4918,7 @@ fn render_all_spans(
     score: &Score,
     layout: &LayoutResult,
     points: &HashMap<NoteKey, NotePoint>,
+    row_tops: &[f32],
     width: f32,
     left_margin_u: f32,
     right_margin_u: f32,
@@ -4948,6 +5021,19 @@ fn render_all_spans(
                 space,
                 false,
             );
+            for middle_row in row1.saturating_add(1)..row2 {
+                let y = y1 + row_tops[middle_row] - row_tops[row1];
+                render_span_segment(
+                    body,
+                    span,
+                    left_margin_u * space,
+                    y,
+                    up1,
+                    width - right_margin_u * space,
+                    space,
+                    false,
+                );
+            }
             if interactive {
                 body.push_str("</g>");
             }
@@ -4996,31 +5082,42 @@ fn render_all_spans(
         ) else {
             continue;
         };
-        if row1 != row2 {
-            continue;
-        }
         let above = span.placement.as_deref() == Some("above");
-        let y = if above {
-            y1.min(y2) - 3.0 * space
-        } else {
-            y1.max(y2) + 3.0 * space
-        };
-        let (start_x, end_x) = (x1 + 1.5 * space, x2 + glyphs::NOTEHEAD_RX_U * space);
-        if end_x - start_x < space {
-            continue;
+        for row in row1..=row2 {
+            let anchor_y = if row == row1 {
+                y1
+            } else if row == row2 {
+                y2
+            } else {
+                y1 + row_tops[row] - row_tops[row1]
+            };
+            let y = anchor_y + if above { -3.0 * space } else { 3.0 * space };
+            let start_x = if row == row1 {
+                x1 + 1.5 * space
+            } else {
+                left_margin_u * space
+            };
+            let end_x = if row == row2 {
+                x2 + glyphs::NOTEHEAD_RX_U * space
+            } else {
+                width - right_margin_u * space
+            };
+            if end_x - start_x < space {
+                continue;
+            }
+            let _ = write!(
+                body,
+                r#"<line class="acorde-dashes" data-acorde-span-id="{}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}" stroke-dasharray="{},{}"/>"#,
+                escape_xml(&span.id),
+                f(start_x),
+                f(y),
+                f(end_x),
+                f(y),
+                f(0.1 * space),
+                f(0.5 * space),
+                f(0.5 * space)
+            );
         }
-        let _ = write!(
-            body,
-            r#"<line class="acorde-dashes" data-acorde-span-id="{}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}" stroke-dasharray="{},{}"/>"#,
-            escape_xml(&span.id),
-            f(start_x),
-            f(y),
-            f(end_x),
-            f(y),
-            f(0.1 * space),
-            f(0.5 * space),
-            f(0.5 * space)
-        );
     }
     if interactive {
         for span in &layout.typed_spanners {

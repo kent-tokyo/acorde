@@ -2,7 +2,7 @@
 
 Pure Rust/WASM SVG rendering driven by `acorde-core` and `acorde-layout`. The renderer is
 deterministic, has no browser or DOM dependency, and never loads fonts. It exposes full-score,
-layout-aware, per-row, metadata, preflight, and annotation rendering APIs.
+layout-aware, per-row, physical print-page, metadata, preflight, and annotation rendering APIs.
 
 Notation is emitted as font-independent geometry. Text, lyrics, chord symbols, and host annotation
 marks remain SVG text, so callers own font choice, font metrics, embedding, and publication
@@ -24,6 +24,9 @@ Interactive output includes stable note-address hooks. `render_svg_metadata` sup
 typed note, text, TAB, and technique data; call `svg_contract_version()` before consuming fields
 added by later releases. `render_preflight()` reports source-located capability issues before a
 host mounts SVG. Rows can be rendered independently for virtualized views.
+`render_print_page_svgs()` accepts a validated `PrintLayoutResult` and emits one millimetre-sized
+SVG per page using its system breaks and positions. Unsupported host resources return an error.
+The matching vector PDF path is in `acorde-pdf`.
 
 `RenderAnnotation` permits bounded, deterministic host text marks. Hosts supply their own
 viewport geometry and can opt into the renderer's priority-based collision pass; the renderer does

@@ -4,7 +4,7 @@
 host-neutral page and system metadata in millimetres.
 
 ```text
-Score → PrintConfig → PrintLayoutResult → SVG/PDF/print host
+Score → PrintConfig → PrintLayoutResult → page SVG → vector PDF
 ```
 
 ## What Acorde provides
@@ -19,7 +19,8 @@ Score → PrintConfig → PrintLayoutResult → SVG/PDF/print host
   section, spacer, frame, and image-resource descriptors. Image bytes and drawing stay outside
   the contract.
 
-The serialized print-layout contract is version **33**; the preset schema is version **2**.
+The serialized print-layout contract is version **34**; the preset schema is version **2**.
+Each page records `content_left_mm`, so asymmetric margins retain their physical notation origin.
 Consumers must validate a received
 `PrintLayoutResult` before reuse; incompatible contract versions, invalid page/system addresses,
 non-finite geometry, and invalid page metadata are rejected.
@@ -40,6 +41,8 @@ capacity for piano and chamber scores; extracted single-staff parts use their ow
 Callers with measured system geometry can select `SystemHeightPolicy::Fixed` to use
 `system_height_mm` exactly. This is a pagination clearance floor, not a guarantee that lyrics,
 annotations, or shaped glyphs fit without collisions.
+The default `PickupPolicy::Auto` keeps a short pickup with following music. Select
+`DetectFirstMeasure` when the pickup must occupy a separate first system.
 
 `PageLayout::span_segments` and `SystemLayout::span_segments` identify continuation ownership so
 a renderer does not reconstruct spans by index arithmetic. `measure_marks` carries repeats,
@@ -48,14 +51,16 @@ voltas, navigation, rehearsal marks, and normalized text annotations for the pri
 ## Host boundary
 
 acorde owns logical geometry, collision constraints, glyph-resource descriptors, preflight, and
-optional one-viewport and page-SVG assembly paths through [`acorde-pdf`](pdf-export.md). The host
-owns font lookup and metrics, shaping, SVG rendering of each print page, raster output,
-save/preview UI, and OS printing.
+physical page SVG generation through `acorde-render-svg::render_print_page_svgs`. The generated
+pages can be joined into vector PDF with `acorde-pdf::export_score_print_pdf`. The host supplies
+text-font bytes for PDF export and owns raster output, preview UI, and OS printing. Host glyphs,
+images, publication frames, color preservation, and crop marks return explicit errors in the
+current page SVG path.
 Built-in vector glyph coverage is checked before SVG output; unsupported critical glyphs are
 rejected rather than silently blanked.
 
-Therefore a successful layout or SVG preflight is not proof of shaped-font collision quality,
-complete page engraving, font embedding, or printer output.
+Therefore a successful layout or page SVG is not proof of shaped-font collision quality,
+font embedding, printer output, or superiority to another engraver.
 
 ## Corpus gate
 
