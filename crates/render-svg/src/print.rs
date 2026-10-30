@@ -14,6 +14,7 @@ use crate::{RenderError, SvgRenderConfig, SvgRenderOptions, is_valid_xml_char};
 
 const PX_PER_MM: f32 = 4.0;
 const PRINT_STAFF_GAP: f32 = 6.0;
+const MULTIVERSE_PRINT_STAFF_GAP: f32 = 9.0;
 const PREFERRED_STAFF_SPACE_MM: f32 = 1.7;
 const MIN_STAFF_SPACE_MM: f32 = 1.1;
 const MAX_PRINT_PAGES: usize = 256;
@@ -106,6 +107,24 @@ pub fn render_print_page_svgs(
     layout: &PrintLayoutResult,
 ) -> Result<Vec<String>, PrintRenderError> {
     layout.validate()?;
+    // Match the staff-aware layout's extra page reservation for an additional
+    // lyric lane. A fixed-height layout may instead fail the legibility preflight.
+    let staff_gap = if score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .any(|staff| {
+            staff
+                .measures
+                .iter()
+                .flat_map(|measure| &measure.voices)
+                .flatten()
+                .any(|note| !note.additional_lyrics.is_empty())
+        }) {
+        MULTIVERSE_PRINT_STAFF_GAP
+    } else {
+        PRINT_STAFF_GAP
+    };
     if layout.pages.is_empty() {
         return Err(PrintRenderError::EmptyPages);
     }
@@ -222,8 +241,7 @@ pub fn render_print_page_svgs(
         return Err(PrintRenderError::InvalidSystemMeasures);
     }
     score_layout.rows = rows;
-    let (top_u, system_u, bottom_u) =
-        render::print_row_metrics(score, &score_layout, PRINT_STAFF_GAP)?;
+    let (top_u, system_u, bottom_u) = render::print_row_metrics(score, &score_layout, staff_gap)?;
     let required_u = top_u + system_u + bottom_u;
     let minimum_mm = required_u * MIN_STAFF_SPACE_MM;
     if min_system_height_mm < minimum_mm {
@@ -246,7 +264,7 @@ pub fn render_print_page_svgs(
             .max(1),
         interactive: false,
     };
-    let config = SvgRenderConfig::new(options).with_staff_gap(PRINT_STAFF_GAP);
+    let config = SvgRenderConfig::new(options).with_staff_gap(staff_gap);
     let row_tops_px = row_tops_mm
         .iter()
         .map(|top| top * PX_PER_MM + top_u * space_px)
@@ -281,7 +299,7 @@ pub fn render_print_page_svgs(
         .split_once(BODY_PREFIX)
         .and_then(|(_, remainder)| remainder.strip_suffix("</g></svg>"))
         .ok_or(PrintRenderError::InternalSvg)?;
-    let staff_offsets = render::print_staff_offsets(score, PRINT_STAFF_GAP);
+    let staff_offsets = render::print_staff_offsets(score, staff_gap);
     let mut pages = Vec::with_capacity(layout.pages.len());
     for (page, offset) in layout.pages.iter().zip(offsets) {
         let has_movement_title = !page.publication.movement_title.trim().is_empty()
