@@ -111,7 +111,10 @@ With default import settings, Acorde reads those physical measure lengths as **3
 3-beat and 3.5-beat measures as **4 beats** each: `masterBars[5].start` is 17 beats and
 `masterBars[14].start` is 50 beats (960 ticks per beat). This is a concrete timing case where
 Acorde preserves the authored split-measure positions and alphaTab's default MIDI export does not.
-The Rust regression test checks Acorde's measure lengths and first sounding attacks.
+The first Acorde comparison exposed a second bug: the two chorus parts had no explicit length on
+their silent split measures, so their later attacks drifted 1.5 beats. Playback now resolves a
+physical measure's authored length across all staves. The Rust regression checks the resumed
+chorus timing and a source-derived fingerprint of every attack.
 
 Reproduce with the same pinned alphaTab package, then inspect its bar starts and compare emitted
 note onsets:
@@ -120,16 +123,20 @@ note onsets:
 node scripts/export_alphatab_midi.mjs /tmp/acorde-alphatab-1_8_4 tests/fixtures/openscore_lieder_aloha_oe.mxl /tmp/acorde-alphatab-1_8_4/aloha-oe.mid
 target/debug/acorde playback-report tests/fixtures/openscore_lieder_aloha_oe.mxl > /tmp/acorde-alphatab-1_8_4/aloha-oe.json
 uv run --no-project --with 'mido==1.3.3' python scripts/compare_playback_onsets.py /tmp/acorde-alphatab-1_8_4/aloha-oe.json /tmp/acorde-alphatab-1_8_4/aloha-oe.mid
+uv run --no-project --with 'mido==1.3.3' python scripts/compare_musicxml_onsets.py tests/fixtures/openscore_lieder_aloha_oe.mxl /tmp/acorde-alphatab-1_8_4/aloha-oe.json /tmp/acorde-alphatab-1_8_4/aloha-oe.mid
 ```
 
 The alphaTab MIDI SHA-256 is
 `ec3665d5ee2bf115d2ef32c6b9607d937112c14aeb772f324c5f6dda88a89ca5`; the Acorde
-JSON SHA-256 is `29af738accd117e14cc93db76ae88cf627677db0882ef0151154aa519fcf1d04`.
-Both exports contain **644** note attacks. **302** match by pitch and absolute beat; **342** on
-each side do not. Those aggregate unmatched attacks also include differences beyond the two bar
-boundaries, so the proven advantage is the source-backed physical-measure timing, not a claim that
-every note of this score or every playback feature is more accurate. The comparison does not
-cover audio synthesis or sound quality.
+JSON SHA-256 is `241f10d4f044034224122823583804bb9231190b32a362df57413d2a88ab15ef`.
+The independent, narrow MusicXML onset reader checks written durations, backups, chords, ties,
+and physical measure lengths. Both exports contain **644** note attacks. Acorde matches all
+**644/644** written pitch-and-beat onsets; alphaTab's default MIDI export matches **201/644**.
+The source onset fingerprint is
+`775250e82772f839c7a535f0d76a4b1fd478dd13d1757a300e8077e0d85cbe21`.
+This is a same-score win on written note onset timing for this fixture. The oracle rejects score
+features it does not implement, and this result does not establish broader repertoire accuracy,
+audio synthesis, velocity, or sound quality.
 
 ## Evidence boundary
 

@@ -404,6 +404,8 @@ fn independent_cc0_mxl_playback_shares_tempo_and_excludes_cue_attacks() {
 
 #[test]
 fn independent_cc0_mxl_playback_keeps_irregular_measure_starts() {
+    use sha2::{Digest, Sha256};
+
     let score = acorde_io::parse_mxl(OPENSCORE_LIEDER_ALOHA_OE_MXL).expect("CC0 MXL imports");
     let staff = &score.parts[0].staves[0];
     assert_eq!(staff.measures.len(), 23);
@@ -438,6 +440,53 @@ fn independent_cc0_mxl_playback_keeps_irregular_measure_starts() {
             .expect("measure has a sounding attack");
         assert_eq!(first_attack, expected_start, "physical measure {measure}");
     }
+    // The two chorus parts have no authored lengths on their silent split measures. They must
+    // still follow the shared score clock when they resume.
+    for part in [1, 2, 3] {
+        for (measure, expected_start) in [(14, 48.5), (15, 49.0)] {
+            let first_attack = events
+                .iter()
+                .filter(|event| {
+                    event
+                        .source
+                        .as_ref()
+                        .is_some_and(|source| source.part == part && source.measure == measure)
+                })
+                .map(|event| event.time_beats)
+                .min_by(f64::total_cmp)
+                .expect("part and measure have a sounding attack");
+            assert_eq!(
+                first_attack, expected_start,
+                "part {part} measure {measure}"
+            );
+        }
+    }
+
+    // Golden pitch/onset fingerprint computed independently from the MusicXML duration,
+    // backup, chord, and tie elements (see scripts/compare_musicxml_onsets.py).
+    let mut attacks: Vec<_> = events
+        .iter()
+        .map(|event| {
+            (
+                (event.time_beats * 1_000_000.0).round() as i64,
+                event.pitch_midi,
+            )
+        })
+        .collect();
+    attacks.sort_unstable();
+    let mut hasher = Sha256::new();
+    for (beat_micros, pitch) in attacks {
+        hasher.update(format!("{beat_micros}:{pitch}\n"));
+    }
+    let digest = hasher
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    assert_eq!(
+        digest,
+        "775250e82772f839c7a535f0d76a4b1fd478dd13d1757a300e8077e0d85cbe21"
+    );
 }
 
 #[test]
