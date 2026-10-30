@@ -2881,7 +2881,8 @@ fn validate_print_config(config: &PrintConfig) -> Result<(f32, f32, f32), PrintL
 }
 
 /// Build rows from score-relative notation demand. The 90th percentile of the established
-/// four-measure systems sets a budget for this score; the physical page width scales it.
+/// four-measure systems sets a budget for this score; physical page width and
+/// staff size scale it.
 /// A single measure may exceed the budget, but never causes data loss or a layout error.
 fn print_density_rows(
     score: &Score,
@@ -2889,6 +2890,7 @@ fn print_density_rows(
     max_columns: usize,
     first_row_limit: Option<usize>,
     content_width_mm: f32,
+    print_size_factor: f32,
 ) -> Vec<RowLayout> {
     if vis_slots.is_empty() {
         return vec![RowLayout {
@@ -2907,9 +2909,10 @@ fn print_density_rows(
         .collect::<Vec<_>>();
     baseline_costs.sort_unstable();
     let percentile_index = (baseline_costs.len() * 9 - 1) / 10;
-    let budget = ((baseline_costs[percentile_index] as f32 * content_width_mm / 182.0)
-        .round()
-        .max(3.0)) as usize;
+    let budget =
+        ((baseline_costs[percentile_index] as f32 * content_width_mm / 182.0 / print_size_factor)
+            .round()
+            .max(3.0)) as usize;
     // The first row spends part of the same physical width on clefs, key, and meter.
     // Reserve 15% of its demand budget instead of packing it like later rows.
     let first_row_budget = ((budget as f32 * 0.85).round().max(3.0)) as usize;
@@ -2987,10 +2990,19 @@ pub fn compute_print_layout(
         .iter()
         .map(|part| part.staves.len())
         .sum::<usize>();
+    // A two-staff grand staff needs enough physical height for readable notes.
+    // The previous 40 mm reservation made dense piano systems fit four bars by
+    // shrinking the staff; the density budget below must track this increase.
+    const TWO_STAFF_BASELINE_HEIGHT_MM: f32 = 40.0;
+    const TWO_STAFF_MIN_HEIGHT_MM: f32 = 50.0;
     let staff_clearance_mm = if staff_count <= 1 {
         0.0
     } else {
-        24.0 + staff_count.saturating_sub(1) as f32 * 16.0
+        (24.0 + staff_count.saturating_sub(1) as f32 * 16.0).max(if staff_count == 2 {
+            TWO_STAFF_MIN_HEIGHT_MM
+        } else {
+            0.0
+        })
     };
     let has_multiple_lyric_verses =
         layout_score
@@ -3064,6 +3076,11 @@ pub fn compute_print_layout(
             config.measures_per_system.max(1),
             first_row_measures,
             content_width_mm,
+            if staff_count == 2 {
+                (scaled_system_height_mm / TWO_STAFF_BASELINE_HEIGHT_MM).max(1.0)
+            } else {
+                1.0
+            },
         );
     }
 
@@ -4401,10 +4418,10 @@ mod tests {
             ..PrintConfig::default()
         };
         let layout = compute_print_layout(&score, &config).expect("piano print layout");
-        assert_eq!(layout.pages[0].systems[0].height_mm, 40.0);
-        assert_eq!(layout.pages[0].systems.len(), 6);
-        assert_eq!(layout.pages[1].systems.len(), 4);
-        assert_eq!(layout.pages[0].systems[1].top_mm, 56.0);
+        assert_eq!(layout.pages[0].systems[0].height_mm, 50.0);
+        assert_eq!(layout.pages[0].systems.len(), 5);
+        assert_eq!(layout.pages[1].systems.len(), 5);
+        assert_eq!(layout.pages[0].systems[1].top_mm, 66.0);
 
         let fixed = compute_print_layout(
             &score,
@@ -4438,7 +4455,7 @@ mod tests {
         second.staves.push(staff);
         score.parts.push(second);
         let full = compute_print_layout(&score, &PrintConfig::default()).unwrap();
-        assert_eq!(full.pages[0].systems[0].height_mm, 40.0);
+        assert_eq!(full.pages[0].systems[0].height_mm, 50.0);
         let part = compute_print_layout(
             &score,
             &PrintConfig {

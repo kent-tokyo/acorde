@@ -243,6 +243,24 @@ lower area; some dense syllables and notation are still small. The 73 Acorde
 import diagnostics remain separate from this layout change. This is a
 fixture-level clearance improvement, not a broad visual-quality result.
 
+### Two-staff piano print size and density breaks (2026-10-31)
+
+Staff-aware layouts for two staves now reserve at least 50 mm per system,
+up from 40 mm. The notation-density row budget scales inversely with this
+physical height, so larger notes are not packed into the old row lengths.
+The pinned CC0 Quilter Prelude is still one A4 page, but its ten measures
+now form four systems (2+3+3+2) rather than three (3+4+3). The first
+staff's line spacing in the generated SVG rises from about 1.20 to
+1.50 mm. The denser final measure on the second system receives over 10%
+more width than its preceding measure.
+
+The resulting PDF was rasterized at 1400 px and visually inspected beside
+Verovio 6.3.0 on the same source. The larger staff and shorter rows improve
+the Quilter preview, while the direction text is still tiny and the lower
+part of the A4 page is largely empty. Individual chord and accidental
+collisions have not been ruled out, and the import still reports 103
+diagnostics. This change does not establish print-quality parity.
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.

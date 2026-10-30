@@ -20,9 +20,10 @@ fn staff_line_right_edges(svg: &str) -> Vec<f32> {
         .collect()
 }
 
-fn first_system_barlines(svg: &str) -> Vec<f32> {
-    let mut first_y = None;
-    svg.split(r#"class="acorde-barline""#)
+fn system_barlines(svg: &str, system_index: usize) -> Vec<f32> {
+    let mut system_ys = Vec::<f32>::new();
+    let barlines = svg
+        .split(r#"class="acorde-barline""#)
         .skip(1)
         .map(|line| {
             let coordinate = |name: &str| {
@@ -37,10 +38,16 @@ fn first_system_barlines(svg: &str) -> Vec<f32> {
             };
             (coordinate(r#"x1=""#), coordinate(r#"y1=""#))
         })
-        .take_while(|(_, y)| {
-            let top = *first_y.get_or_insert(*y);
-            (*y - top).abs() < 0.01
-        })
+        .collect::<Vec<_>>();
+    for (_, y) in &barlines {
+        if !system_ys.iter().any(|top| (top - y).abs() < 0.01) {
+            system_ys.push(*y);
+        }
+    }
+    let top = system_ys[system_index];
+    barlines
+        .into_iter()
+        .filter(|(_, y)| (*y - top).abs() < 0.01)
         .map(|(x, _)| x)
         .collect()
 }
@@ -244,16 +251,38 @@ fn dense_piano_opening_gets_room_for_clef_key_and_meter() {
         .flat_map(|page| &page.systems)
         .map(|system| system.measure_indices.clone())
         .collect::<Vec<_>>();
-    assert_eq!(systems, [vec![0, 1, 2], vec![3, 4, 5, 6], vec![7, 8, 9]]);
+    assert_eq!(
+        systems,
+        [vec![0, 1], vec![2, 3, 4], vec![5, 6, 7], vec![8, 9]]
+    );
     let pages = render_print_page_svgs(&import.score, &layout).unwrap();
     assert_eq!(pages.len(), 1);
-    let barlines = first_system_barlines(&pages[0]);
+    let barlines = system_barlines(&pages[0], 1);
     assert_eq!(barlines.len(), 3);
-    let second_bar_width = barlines[1] - barlines[0];
-    let dense_third_bar_width = barlines[2] - barlines[1];
+    let middle_bar_width = barlines[1] - barlines[0];
+    let last_bar_width = barlines[2] - barlines[1];
     assert!(
-        dense_third_bar_width > second_bar_width * 1.1,
-        "dense third bar needs more room: {barlines:?}"
+        last_bar_width > middle_bar_width * 1.1,
+        "denser last bar needs more room: {barlines:?}"
+    );
+    let staff_lines = pages[0]
+        .split(r#"class="acorde-staff-line""#)
+        .skip(1)
+        .take(2)
+        .map(|line| {
+            line.split_once(r#"y1=""#)
+                .unwrap()
+                .1
+                .split('"')
+                .next()
+                .unwrap()
+                .parse::<f32>()
+                .unwrap()
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        (staff_lines[1] - staff_lines[0]).abs() >= 6.0,
+        "grand-staff space below 1.5 mm: {staff_lines:?}"
     );
 }
 
