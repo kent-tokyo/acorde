@@ -115,7 +115,7 @@
       "source_revision": "38c5db510224d9facdc4b08d741fc788cfb58ea8",
       "sha256": "79a19736fcce71c0acf4b39feff63723d2ff75e29285ea2ab594f9b2b6a835ff",
       "round_trip": "import-only",
-      "expected_losses": ["MusicXML rendering attributes and incomplete beam and direction-text preservation"]
+      "expected_losses": ["MusicXML rendering attributes and incomplete direction-text preservation"]
     },
     {
       "path": "openscore_lieder_aloha_oe.mscx",
