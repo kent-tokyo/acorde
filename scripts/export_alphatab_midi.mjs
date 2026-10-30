@@ -25,4 +25,11 @@ const midiFile = new alphaTab.midi.MidiFile();
 const handler = new alphaTab.midi.AlphaSynthMidiFileHandler(midiFile, true);
 new alphaTab.midi.MidiFileGenerator(score, settings, handler).generate();
 fs.writeFileSync(outputPath, midiFile.toBinary());
-console.log(JSON.stringify({ alphaTab: packageInfo.version, title: score.title, tracks: score.tracks.length, masterBars: score.masterBars.length }));
+console.log(JSON.stringify({
+    alphaTab: packageInfo.version,
+    title: score.title,
+    tracks: score.tracks.length,
+    masterBars: score.masterBars.length,
+    barStartsTicks: score.masterBars.map(bar => bar.start),
+    barDurationsTicks: score.masterBars.map(bar => bar.calculateDuration()),
+}));
