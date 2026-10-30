@@ -3112,14 +3112,14 @@ mod tests {
             &acorde_layout::PrintPreset::A4Score.config(),
         )
         .expect("five-staff A4 layout");
-        assert_eq!(layout.pages.len(), 3);
+        assert_eq!(layout.pages.len(), 2);
         assert_eq!(
             layout
                 .pages
                 .iter()
                 .map(|page| page.systems.len())
                 .collect::<Vec<_>>(),
-            vec![3, 3, 1]
+            vec![3, 3]
         );
         assert!(
             layout
@@ -3132,7 +3132,8 @@ mod tests {
                         && system.top_mm + system.height_mm <= 281.0
                 })
         );
-        assert_eq!(layout.pages[2].systems[0].measure_indices.last(), Some(&22));
+        assert_eq!(layout.pages[0].systems[0].measure_indices, vec![0, 1, 2, 3]);
+        assert_eq!(layout.pages[1].systems[2].measure_indices.last(), Some(&22));
     }
 
     #[test]
