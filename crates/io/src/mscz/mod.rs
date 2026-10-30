@@ -122,8 +122,10 @@ struct PartMeta {
     short_name: String,
     midi_program: u8,
     midi_channel: u8,
-    staff_ids: Vec<usize>,
+    staff_ids: Vec<Option<usize>>,
     staff_count: usize,
+    default_clefs: Vec<Option<Clef>>,
+    transpose: i8,
     staff_group_specs: Vec<StaffGroupSpec>,
 }
 
@@ -131,6 +133,13 @@ struct StaffGroupSpec {
     symbol: PartGroupSymbol,
     span: usize,
     barlines_connect: bool,
+}
+
+struct StaffAssemblyData {
+    tablature: HashMap<usize, TablatureConfig>,
+    presentation_lines: HashMap<usize, u8>,
+    transpose: HashMap<usize, i8>,
+    order: Vec<usize>,
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -206,8 +215,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut cur_part_transpose: i8 = 0;
     let mut staff_transpose: HashMap<usize, i8> = HashMap::new();
     let mut cur_part_channel: u8 = 0;
-    let mut cur_part_staff_ids: Vec<usize> = Vec::new();
+    let mut cur_part_staff_ids: Vec<Option<usize>> = Vec::new();
     let mut cur_part_staff_count = 0usize;
+    let mut cur_part_default_clefs: Vec<Option<Clef>> = Vec::new();
     let mut cur_part_staff_group_specs: Vec<StaffGroupSpec> = Vec::new();
     let mut in_bar_line_span = false;
     let mut in_instrument = false;
@@ -216,10 +226,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     // Staff data: 1-based staff ID → measures
     let mut staff_measures: HashMap<usize, Vec<Measure>> = HashMap::new();
     let mut staff_clefs: HashMap<usize, Clef> = HashMap::new();
-    // Initial clefs declared in <Part> (Staff/defaultClef, Instrument/clef): MuseScore omits the
-    // first-measure <Clef> when the staff starts with its instrument default.
-    let mut part_default_clefs: HashMap<usize, Clef> = HashMap::new();
-    let mut cur_part_staff_id: Option<usize> = None;
+    // Preserve score Staff order for Part declarations that omit an id.
+    let mut score_staff_order: Vec<usize> = Vec::new();
     let mut instrument_clef_staff = 1usize;
     let mut instrument_clefs: Vec<(usize, Clef)> = Vec::new();
     let mut staff_tablature: HashMap<usize, TablatureConfig> = HashMap::new();
@@ -494,8 +502,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         cur_part_transpose = 0;
                         cur_part_staff_ids.clear();
                         cur_part_staff_count = 0;
+                        cur_part_default_clefs.clear();
                         cur_part_staff_group_specs.clear();
-                        cur_part_staff_id = None;
                         instrument_clefs.clear();
                     }
                     "clef" if in_instrument => {
@@ -512,6 +520,24 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "Staff" if !in_part && current_staff_id.is_none() => {
                         let id = attr_usize(e, b"id").unwrap_or(1);
+                        let declared_part = parts_meta
+                            .iter()
+                            .find(|meta| meta.staff_ids.contains(&Some(id)));
+                        let part = declared_part.or_else(|| {
+                            let ordinal = score_staff_order.len();
+                            let mut first_staff = 0usize;
+                            parts_meta.iter().find(|meta| {
+                                let belongs = ordinal < first_staff + meta.staff_count.max(1);
+                                first_staff += meta.staff_count.max(1);
+                                belongs
+                            })
+                        });
+                        if let Some(meta) = part
+                            && meta.transpose != 0
+                        {
+                            staff_transpose.insert(id, meta.transpose);
+                        }
+                        score_staff_order.push(id);
                         current_staff_id = Some(id);
                         staff_measures.entry(id).or_default();
                         cur_measure_num = 0;
@@ -525,10 +551,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "Staff" if in_part => {
                         cur_part_staff_count += 1;
-                        cur_part_staff_id = attr_usize(e, b"id");
-                        if let Some(id) = attr_usize(e, b"id") {
-                            cur_part_staff_ids.push(id);
-                        }
+                        cur_part_staff_ids.push(attr_usize(e, b"id"));
+                        cur_part_default_clefs.push(None);
                     }
                     "StaffType" if current_staff_id.is_some() => {
                         in_staff_type = true;
@@ -1013,8 +1037,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         cur_part_name = t.to_string();
                     }
                     "defaultClef" if in_part => {
-                        if let Some(id) = cur_part_staff_id {
-                            part_default_clefs.insert(id, mscz_clef_type(t.trim()));
+                        if let Some(slot) = cur_part_default_clefs.last_mut() {
+                            *slot = Some(mscz_clef_type(t.trim()));
                         }
                     }
                     "clef" if in_instrument => {
@@ -1044,13 +1068,15 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "Part" if in_part => {
                         if cur_part_transpose != 0 {
-                            for &id in &cur_part_staff_ids {
+                            for &id in cur_part_staff_ids.iter().flatten() {
                                 staff_transpose.insert(id, cur_part_transpose);
                             }
                         }
                         for (index, clef) in instrument_clefs.drain(..) {
-                            if let Some(&id) = cur_part_staff_ids.get(index - 1) {
-                                part_default_clefs.entry(id).or_insert(clef);
+                            if let Some(slot) = cur_part_default_clefs.get_mut(index - 1)
+                                && slot.is_none()
+                            {
+                                *slot = Some(clef);
                             }
                         }
                         parts_meta.push(PartMeta {
@@ -1060,6 +1086,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             midi_channel: cur_part_channel,
                             staff_ids: cur_part_staff_ids.clone(),
                             staff_count: cur_part_staff_count,
+                            default_clefs: cur_part_default_clefs.clone(),
+                            transpose: cur_part_transpose,
                             staff_group_specs: std::mem::take(&mut cur_part_staff_group_specs),
                         });
                         in_part = false;
@@ -1986,9 +2014,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "Staff" if in_part => {
                         cur_part_staff_count += 1;
-                        if let Some(id) = attr_usize(e, b"id") {
-                            cur_part_staff_ids.push(id);
-                        }
+                        cur_part_staff_ids.push(attr_usize(e, b"id"));
+                        cur_part_default_clefs.push(None);
                     }
                     "bracket" if in_part => {
                         let symbol = match attr_str(e, b"type").as_deref() {
@@ -2079,9 +2106,6 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     if element_count == 0 {
         return Err(Error::Xml("empty document".into()));
     }
-    for (id, clef) in part_default_clefs {
-        staff_clefs.entry(id).or_insert(clef);
-    }
     for measures in staff_measures.values_mut() {
         close_final_volta(measures);
     }
@@ -2093,7 +2117,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
         parts_meta,
         staff_measures,
         staff_clefs,
-        (staff_tablature, staff_presentation_lines, staff_transpose),
+        StaffAssemblyData {
+            tablature: staff_tablature,
+            presentation_lines: staff_presentation_lines,
+            transpose: staff_transpose,
+            order: score_staff_order,
+        },
     )?;
     if create_multi_measure_rests {
         mark_multi_measure_rests(&mut score);
@@ -2786,18 +2815,19 @@ fn assemble_score(
     score_texts: Vec<StyledText>,
     parts_meta: Vec<PartMeta>,
     mut staff_measures: HashMap<usize, Vec<Measure>>,
-    staff_clefs: HashMap<usize, Clef>,
-    staff_formats: (
-        HashMap<usize, TablatureConfig>,
-        HashMap<usize, u8>,
-        HashMap<usize, i8>,
-    ),
+    mut staff_clefs: HashMap<usize, Clef>,
+    staff_data: StaffAssemblyData,
 ) -> Result<Score, Error> {
     // Replace the default Score parts with the parsed content.
     score.parts.clear();
     score.metadata = metadata;
     score.texts = score_texts;
-    let (staff_tablature, staff_presentation_lines, staff_transpose) = staff_formats;
+    let StaffAssemblyData {
+        tablature: staff_tablature,
+        presentation_lines: staff_presentation_lines,
+        transpose: staff_transpose,
+        order: score_staff_order,
+    } = staff_data;
 
     let build_staves = |ids: &[usize],
                         staff_measures: &mut HashMap<usize, Vec<Measure>>,
@@ -2850,6 +2880,19 @@ fn assemble_score(
         );
         score.parts.push(part);
     } else {
+        let explicit_ids: HashSet<usize> = parts_meta
+            .iter()
+            .flat_map(|meta| meta.staff_ids.iter().flatten().copied())
+            .collect();
+        let mut assigned_ids = HashSet::new();
+        let mut ordered_ids = score_staff_order;
+        let mut extra_ids: Vec<usize> = staff_measures
+            .keys()
+            .copied()
+            .filter(|id| !ordered_ids.contains(id))
+            .collect();
+        extra_ids.sort_unstable();
+        ordered_ids.extend(extra_ids);
         for meta in parts_meta {
             let mut part = Part::new(
                 &meta.name,
@@ -2861,16 +2904,22 @@ fn assemble_score(
             );
             part.midi_program = meta.midi_program;
             part.midi_channel = meta.midi_channel;
-            let ids = if meta.staff_ids.is_empty() {
-                let mut remaining: Vec<usize> = staff_measures.keys().copied().collect();
-                remaining.sort();
-                remaining
-                    .into_iter()
-                    .take(meta.staff_count.max(1))
-                    .collect()
-            } else {
-                meta.staff_ids
-            };
+            let mut ids = Vec::new();
+            for slot in 0..meta.staff_count.max(1) {
+                let id = meta.staff_ids.get(slot).copied().flatten().or_else(|| {
+                    ordered_ids
+                        .iter()
+                        .copied()
+                        .find(|id| !explicit_ids.contains(id) && !assigned_ids.contains(id))
+                });
+                if let Some(id) = id {
+                    assigned_ids.insert(id);
+                    if let Some(clef) = meta.default_clefs.get(slot).and_then(Option::as_ref) {
+                        staff_clefs.entry(id).or_insert_with(|| clef.clone());
+                    }
+                    ids.push(id);
+                }
+            }
             part.staves = build_staves(
                 &ids,
                 &mut staff_measures,
@@ -4712,6 +4761,71 @@ mod tests {
         assert_eq!(m.voices[1].len(), 1, "voice 1 should have 1 note");
         assert_eq!(m.voices[0][0].pitches[0].step, Step::C);
         assert_eq!(m.voices[1][0].pitches[0].step, Step::E);
+    }
+
+    #[test]
+    fn idless_part_staff_defaults_follow_actual_staff_order() {
+        let source = |idless: bool| {
+            let declaration_id = |id: usize| {
+                if idless && id != 4 {
+                    String::new()
+                } else {
+                    format!("id=\"{id}\"")
+                }
+            };
+            let actual_staves = (1..=5)
+                .map(|id| {
+                    let clef = if id == 3 {
+                        "<Clef><concertClefType>G</concertClefType></Clef>"
+                    } else {
+                        ""
+                    };
+                    format!(
+                        "<Staff id=\"{id}\"><Measure><voice>{clef}<Chord><durationType>whole</durationType><Note><pitch>{}</pitch><tpc>14</tpc></Note></Chord></voice></Measure></Staff>",
+                        60 + id
+                    )
+                })
+                .collect::<String>();
+            format!(
+                r#"<museScore version="4.70"><Score>
+                  <Part><Staff {}><StaffType group="pitched"/><defaultClef>G</defaultClef></Staff><Staff {}><StaffType group="pitched"/></Staff><Instrument><trackName>Grand</trackName><clef staff="2">F</clef></Instrument></Part>
+                  <Part><Staff {}><StaffType group="pitched"/><defaultClef>F</defaultClef></Staff><Instrument><trackName>Solo</trackName><transposeChromatic>2</transposeChromatic></Instrument></Part>
+                  <Part><Staff {}><StaffType group="pitched"/><defaultClef>G</defaultClef></Staff><Staff {}><StaffType group="pitched"/><defaultClef>C3</defaultClef></Staff><Instrument><trackName>Mixed</trackName></Instrument></Part>
+                  {actual_staves}</Score></museScore>"#,
+                declaration_id(1),
+                declaration_id(2),
+                declaration_id(3),
+                declaration_id(4),
+                declaration_id(5),
+            )
+        };
+        let expected = parse_mscz(&zipped_mscx(&source(false))).expect("explicit IDs parse");
+        let actual = parse_mscz(&zipped_mscx(&source(true))).expect("idless parts parse");
+        let clefs = |score: &Score| {
+            score
+                .parts
+                .iter()
+                .map(|part| {
+                    part.staves
+                        .iter()
+                        .map(|staff| staff.clef.clone())
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
+        };
+        let expected_clefs = vec![
+            vec![Clef::Treble, Clef::Bass],
+            vec![Clef::Treble],
+            vec![Clef::Treble, Clef::Alto],
+        ];
+        assert_eq!(clefs(&expected), expected_clefs);
+        assert_eq!(clefs(&actual), expected_clefs);
+        assert_eq!(expected.parts[1].staves[0].transpose_semitones, 2);
+        assert_eq!(actual.parts[1].staves[0].transpose_semitones, 2);
+        let playback = |score: &Score| {
+            acorde_core::to_playback_events(score, &acorde_core::PlaybackOptions::default())
+        };
+        assert_eq!(playback(&actual), playback(&expected));
     }
 
     #[test]
