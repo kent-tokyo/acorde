@@ -5978,6 +5978,75 @@ mod tests {
     }
 
     #[test]
+    fn mixed_editor_changes_round_trip_as_local_patches() {
+        let mut before = Score::new("Before", 120, 4, 4, 0, 2);
+        before.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::D, 4), Duration::Quarter),
+        ];
+        before.parts[0].staves[0].measures[1].voices[0] = vec![
+            Note::new(Pitch::new(Step::E, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::F, 4), Duration::Quarter),
+        ];
+        let mut after = before.clone();
+        after.metadata.title = "After".into();
+        after.metadata.composer = "Composer".into();
+        after.metadata.lyricist = "Lyricist".into();
+        after.metadata.copyright = "Copyright".into();
+        after.metadata.work_number = "Op. 1".into();
+        after.metadata.movement_title = "Prelude".into();
+        after.settings.tempo_bpm = 96;
+        after.parts[0].name = "Piano".into();
+        after.parts[0].short_name = "Pno.".into();
+        after.parts[0].midi_channel = 1;
+        after.parts[0].midi_program = 41;
+        after.parts[0].midi_pitch_bends.push(MidiPitchBend {
+            tick: 240,
+            channel: 1,
+            value: 512,
+        });
+        after.parts[0].staves[0].clef = Clef::Bass;
+        after.parts[0].staves[0].measures[0].voices[0][0] =
+            Note::new(Pitch::new(Step::G, 3), Duration::Quarter);
+        after.parts[0].staves[0].measures[0].voices[0]
+            .push(Note::new(Pitch::new(Step::A, 3), Duration::Quarter));
+        after.parts[0].staves[0].measures[1].voices[0].pop();
+
+        let changes = diff(&before, &after);
+        assert!(
+            changes
+                .iter()
+                .any(|change| matches!(change, ScoreChange::PartMidiAutomationChanged { .. }))
+        );
+        assert!(
+            changes
+                .iter()
+                .any(|change| matches!(change, ScoreChange::NoteModified { .. }))
+        );
+        assert!(
+            changes
+                .iter()
+                .any(|change| matches!(change, ScoreChange::NoteAdded { .. }))
+        );
+        assert!(
+            changes
+                .iter()
+                .any(|change| matches!(change, ScoreChange::NoteRemoved { .. }))
+        );
+        let patches = score_patch(&before, &after);
+        assert!(
+            !patches
+                .iter()
+                .any(|patch| matches!(patch, ScorePatch::ReplaceScore { .. }))
+        );
+        let result = apply_patch(&before, &patches).expect("local patches apply");
+        assert_eq!(
+            serde_json::to_value(result).expect("patched score"),
+            serde_json::to_value(after).expect("expected score")
+        );
+    }
+
+    #[test]
     fn measure_presentation_changes_use_typed_diff_and_local_patch() {
         let a = Score::new("T", 120, 4, 4, 0, 1);
         let mut b = a.clone();
