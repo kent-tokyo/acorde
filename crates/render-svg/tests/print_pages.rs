@@ -119,6 +119,21 @@ fn openscore_five_staff_score_renders_two_physical_a4_pages() {
     }
     assert!(svgs[0].contains("acorde-print-title"));
     assert!(svgs[0].contains("acorde-print-part-label"));
+    // SVG viewBox units are 4 px/mm. Keep voice lyrics readable on the physical A4 page.
+    let first_lyric = svgs[0]
+        .split_once("class=\"acorde-lyric\"")
+        .expect("voice lyric on first page")
+        .1;
+    let lyric_size = first_lyric
+        .split_once("font-size=\"")
+        .unwrap()
+        .1
+        .split('"')
+        .next()
+        .unwrap()
+        .parse::<f32>()
+        .unwrap();
+    assert!(lyric_size >= 7.6, "lyric font below 1.9 mm: {lyric_size}");
 
     let density = compute_print_layout(
         &import.score,

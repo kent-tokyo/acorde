@@ -149,7 +149,7 @@ jobs:
             --out-dir ../../target/wasm-profiles/viewer \
             --no-default-features --features viewer
           declarations=target/wasm-profiles/viewer/acorde_wasm.d.ts
-          for binding in parse_abc parse_mscz compute_beams detect_chord render_score_svg to_playback_events_ex serialize_mscz; do
+          for binding in parse_abc parse_mscz compute_beams detect_chord render_score_svg render_print_page_svgs to_playback_events_ex serialize_mscz; do
             grep -q "^export function $binding(" "$declarations"
           done
           if grep -q '^export function parse_musicxml(' "$declarations"; then
@@ -176,10 +176,10 @@ jobs:
         run: |
           size=$(stat -c%s crates/wasm/pkg/acorde_wasm_bg.wasm)
           echo "WASM bytes: $size"
-          # The web binding includes score I/O, logical layout, SVG rendering,
-          # and analysis. ZIP 9's audited pure-Rust codec raises the measured baseline to
-          # 5.18 MiB; retain the narrow 5.5 MiB cap rather than dropping browser capabilities.
-          test "$size" -le 5767168
+          # The full web binding includes score I/O, physical print-page SVGs,
+          # layout, and analysis. The measured PR #195 artifact is 5,779,480 bytes;
+          # retain a narrow 5.6 MiB cap while keeping the print export available.
+          test "$size" -le 5872026
 
   renderer-benchmark:
     name: Renderer performance budget

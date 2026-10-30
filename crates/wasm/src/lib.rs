@@ -717,6 +717,18 @@ pub fn compute_print_layout_for_view(
         .map_err(|e| js_err(format!("view print layout serialization failed: {e}")))
 }
 
+/// Render the exact pages of a previously computed and validated print layout as SVG strings.
+/// Returns a JSON array in page order. System breaks are taken from the supplied layout.
+#[wasm_bindgen]
+pub fn render_print_page_svgs(score_json: &str, layout_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let layout: acorde_layout::PrintLayoutResult =
+        parse_json(layout_json, "print layout", MAX_LAYOUT_JSON_BYTES)?;
+    let pages = acorde_render_svg::render_print_page_svgs(&score, &layout).map_err(js_err)?;
+    serde_json::to_string(&pages)
+        .map_err(|error| js_err(format!("print page SVG serialization failed: {error}")))
+}
+
 /// Export page-scoped semantic render trees using the same print configuration.
 ///
 /// The result carries canonical score addresses for notes/rests plus page-owned
@@ -3711,6 +3723,18 @@ mod wasm_tests {
     use wasm_bindgen_test::wasm_bindgen_test;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test]
+    fn browser_print_page_svgs_use_supplied_physical_layout() {
+        let score = score_to_json(&Score::new("Print", 120, 4, 4, 0, 2)).unwrap();
+        let layout = compute_print_layout(&score, r#"{"measures_per_system":1,"systems_per_page":1}"#).unwrap();
+        let pages: Vec<String> = serde_json::from_str(&render_print_page_svgs(&score, &layout).unwrap()).unwrap();
+        assert_eq!(pages.len(), 2);
+        assert!(pages.iter().all(|page| page.contains("width=\"210.000mm\" height=\"297.000mm\"")));
+        assert!(pages[0].contains("acorde-page-number"));
+        assert_ne!(pages[0], pages[1]);
+        assert!(render_print_page_svgs(&score, "{}").is_err());
+    }
 
     #[wasm_bindgen_test]
     fn browser_musical_position_comparison_keeps_later_beats_aligned() {

@@ -1,8 +1,10 @@
 # Print SVG contract
 
-This document defines the host-neutral requirements for exporting an `acorde-layout`
-page as SVG. It deliberately stops at deterministic page geometry; `acorde-pdf` can join completed
-page SVGs, while font installation, file I/O, and OS printing belong to the consuming host.
+`acorde-render-svg::render_print_page_svgs(score, layout)` turns a validated
+`PrintLayoutResult` into one physical SVG per page. The WASM viewer export has the
+same name and returns a JSON array of SVG strings. `acorde-pdf::export_score_print_pdf`
+renders those pages and assembles a vector PDF. Font installation, file I/O, and
+OS printing belong to the consuming host.
 
 ## Required page representation
 
@@ -10,8 +12,8 @@ page SVGs, while font installation, file I/O, and OS printing belong to the cons
 - Set `width` and `height` to the page's physical size and use a matching `viewBox`.
 - Emit one independent SVG artifact per logical page. The page address and logical page
   number come from `PrintLayoutResult`, not from a viewport or DOM position.
-- Keep measure and cross-system span ownership from the page artifact unchanged. An SVG
-  exporter must not recompute physical measure indices.
+- Keep measure and cross-system span ownership from the page artifact unchanged. The renderer
+  uses the supplied system breaks and physical top positions; it does not repaginate.
 - Preserve deterministic ordering: page metadata, definitions/resources, systems, then
   publication text and diagnostics.
 
@@ -26,23 +28,23 @@ page SVGs, while font installation, file I/O, and OS printing belong to the cons
 - Publication text is escaped SVG text with its typed style, alignment, line-box height,
   and physical placement. Hosts may convert it to paths only after recording the selected
   font/resource contract.
-- Structured figured-bass extender flags may be represented by a deterministic continuation-line
-  hook; measure text uses the renderer's bounded, font-independent priority/class/direction
-  collision pass after note-annotation clearance. Native lyrics, dynamics, chord symbols, and
-  articulations use the same pass; span, tablature, ornament hooks, beam geometry, and exact
-  glyph shaping remain host or later-renderer work.
+- Lyrics, dynamics, chord symbols, articulations, beams, and supported span continuations
+  come from the shared score renderer. The same font-independent collision estimates are
+  used in interactive and print SVGs. The text font supplied to the PDF backend can still
+  differ from those estimates.
+- Built-in print export rejects host glyphs, image resources, frames, preserved colors,
+  crop marks, and unpositioned score text explicitly.
 - No caller-provided SVG/XML fragments are accepted as annotations.
 
 ## Metadata and colors
 
-Every page should expose stable metadata sufficient for reproducibility: contract version,
-score fingerprint, renderer version, page address, logical page number, and the selected
-glyph-resource policy. Colors are opaque sRGB values unless a host explicitly documents a
-different profile; transparency and crop marks must follow `PrintConfig`.
+Page order, physical size, title, and page number come from the validated layout.
+The SVG currently does not embed a score fingerprint or renderer version; hosts that
+archive pages should record those alongside the SVG. Print output is monochrome.
 
 ## Verification
 
-For a fixed score, `PrintConfig`, renderer version, and resource contract, page geometry and
-serialized metadata must be byte-deterministic. Hosts should separately verify PDF boxes,
-font embedding/substitution, raster output, and printer behavior; those checks are not
-evidence that the core renderer owns those capabilities.
+For a fixed score, `PrintConfig`, renderer version, and resource contract, page SVGs
+are byte-deterministic. Tests cover A4 and Letter PDF media boxes and the browser-facing
+WASM API. Hosts should separately verify font embedding/substitution, raster output,
+and printer behavior.

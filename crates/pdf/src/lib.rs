@@ -8,8 +8,8 @@
 //!
 //! It does not alter score semantics or logical layout. The caller supplies the font used for
 //! textual SVG elements, while Acorde's notation glyphs remain vector geometry. The current
-//! [`export_svg_pages_pdf`] joins independently sized page SVGs into one vector PDF. Producing
-//! those page SVGs from print-layout systems remains a separate rendering step.
+//! [`export_svg_pages_pdf`] joins independently sized page SVGs into one vector PDF.
+//! [`export_score_print_pdf`] renders pages from a validated print layout and then assembles them.
 
 use acorde_core::Score;
 use acorde_layout::{PrintLayoutError, PrintLayoutResult};
@@ -920,7 +920,7 @@ fn format_number(value: f32) -> String {
 #[cfg(test)]
 mod tests {
     use acorde_core::{Duration, Note, Pitch, Score, Step, TupletBoundary, TupletInfo};
-    use acorde_layout::{PrintConfig, compute_print_layout};
+    use acorde_layout::{PaperSize, PrintConfig, compute_print_layout};
     use acorde_render_svg::{SvgRenderOptions, render_svg};
 
     use super::{
@@ -1124,5 +1124,25 @@ mod tests {
             assert!((width - 210.0 * POINTS_PER_MM).abs() < 0.1);
             assert!((height - 297.0 * POINTS_PER_MM).abs() < 0.1);
         }
+    }
+
+    #[test]
+    fn letter_print_pdf_uses_physical_media_box() {
+        let score = Score::new("Letter print", 120, 4, 4, 0, 1);
+        let layout = compute_print_layout(
+            &score,
+            &PrintConfig {
+                paper_size: PaperSize::Letter,
+                ..PrintConfig::default()
+            },
+        )
+        .expect("Letter layout");
+        let font = include_bytes!("../tests/fixtures/Tuffy.ttf");
+        let bytes = export_score_print_pdf(&score, &layout, font).expect("Letter PDF");
+        let mut pdf = harumi::Document::from_bytes(&bytes).expect("valid vector PDF");
+        assert_eq!(pdf.page_count(), 1);
+        let (width, height) = pdf.page(1).unwrap().size().unwrap();
+        assert!((width - 215.9 * POINTS_PER_MM).abs() < 0.1);
+        assert!((height - 279.4 * POINTS_PER_MM).abs() < 0.1);
     }
 }
