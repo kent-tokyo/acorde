@@ -7,7 +7,7 @@ pub use mxl::parse_mxl;
 pub(crate) use mxl::read_mxl_score;
 pub use parser::parse_musicxml;
 pub(crate) use parser::parse_musicxml_collecting;
-pub use serializer::serialize_musicxml;
+pub use serializer::{serialize_musicxml, serialize_musicxml_with_auto_beams};
 
 const UNSUPPORTED_ELEMENTS: &[&str] = &[];
 

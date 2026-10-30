@@ -72,7 +72,9 @@ pub use report::{
 };
 
 #[cfg(feature = "musicxml")]
-pub use musicxml::{parse_musicxml, parse_mxl, serialize_musicxml};
+pub use musicxml::{
+    parse_musicxml, parse_mxl, serialize_musicxml, serialize_musicxml_with_auto_beams,
+};
 
 #[cfg(feature = "musicxml")]
 pub fn parse_musicxml_with_report(xml: &str) -> Result<ImportReport, Error> {

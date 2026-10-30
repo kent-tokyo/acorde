@@ -7,7 +7,21 @@ use acorde_core::{
 
 const DIVISIONS: u32 = 480;
 
+/// Export authored beam states without adding default visual grouping.
 pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
+    serialize_musicxml_inner(score, false)
+}
+
+/// Add beat-based beams to voices without authored beams for readers that do not auto-beam.
+/// This changes the MusicXML's explicit beam state and should be used only for display exports.
+pub fn serialize_musicxml_with_auto_beams(score: &Score) -> Result<String, Error> {
+    serialize_musicxml_inner(score, true)
+}
+
+fn serialize_musicxml_inner(
+    score: &Score,
+    auto_beam_unmarked_voices: bool,
+) -> Result<String, Error> {
     let mut xml = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
     xml.push_str("<score-partwise version=\"4.0\">\n");
 
@@ -632,7 +646,10 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                         note,
                         musicxml_voice_number(measure, voice_index),
                         1,
-                        measure_ticks,
+                        NoteExportOptions {
+                            measure_ticks,
+                            auto_beam_unmarked_voices,
+                        },
                         score,
                         &NoteAddr {
                             part: pi,
@@ -683,7 +700,10 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
                             note,
                             musicxml_staff_voice_number(extra_measure, staff_index, voice_index),
                             staff_index + 1,
-                            measure_ticks,
+                            NoteExportOptions {
+                                measure_ticks,
+                                auto_beam_unmarked_voices,
+                            },
                             score,
                             &NoteAddr {
                                 part: pi,
@@ -744,15 +764,25 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
     Ok(xml)
 }
 
+#[derive(Clone, Copy)]
+struct NoteExportOptions {
+    measure_ticks: u32,
+    auto_beam_unmarked_voices: bool,
+}
+
 fn serialize_note(
     xml: &mut String,
     note: &Note,
     voice_number: u32,
     staff_number: usize,
-    measure_ticks: u32,
+    options: NoteExportOptions,
     score: &Score,
     address: &NoteAddr,
 ) {
+    let NoteExportOptions {
+        measure_ticks,
+        auto_beam_unmarked_voices,
+    } = options;
     let tab_lines = score
         .parts
         .get(address.part)
@@ -930,15 +960,16 @@ fn serialize_note(
                     .unwrap_or_else(|| score.settings.time_signature.clone()),
             )
         });
-    // Beams: explicit states when the voice has any, otherwise the default beat grouping so
-    // readers that do not auto-beam (Verovio) still show beams.
+    // Preserve authored beam states by default. Display exports may add beat grouping when
+    // the whole voice is unmarked, for readers that do not auto-beam.
     let beam = voice_notes.as_ref().and_then(|(voice, time)| {
         let voice = (*voice)?;
-        let state = if voice.iter().all(|note| note.beam == BeamState::None) {
-            compute_beams(voice, time).get(address.note).copied()?
-        } else {
-            voice.get(address.note)?.beam
-        };
+        let state =
+            if auto_beam_unmarked_voices && voice.iter().all(|note| note.beam == BeamState::None) {
+                compute_beams(voice, time).get(address.note).copied()?
+            } else {
+                voice.get(address.note)?.beam
+            };
         match state {
             BeamState::Begin => Some("begin"),
             BeamState::Continue => Some("continue"),
@@ -1006,6 +1037,9 @@ fn serialize_note(
         }
         push_time_modification(xml);
         xml.push_str(&staff_element);
+        if let Some(beam) = beam {
+            xml.push_str(&format!("        <beam number=\"1\">{beam}</beam>\n"));
+        }
         serialize_notations(xml, note, &typed_spanners, address, tab_lines, tuplet_marks);
         xml.push_str("      </note>\n");
         if note.is_cue {
@@ -2341,6 +2375,9 @@ mod tests {
             });
             voice.push(note);
         }
+        voice[0].beam = BeamState::Begin;
+        voice[1].beam = BeamState::Continue;
+        voice[2].beam = BeamState::End;
         let mut chord = Note::new(Pitch::new(Step::C, 4), Duration::Half);
         chord.pitches.push(Pitch::new(Step::E, 4));
         chord.dot_count = 1;
@@ -2379,6 +2416,21 @@ mod tests {
         assert!(member.contains("<dot/>"));
         assert!(member.contains("<tie type=\"start\"/>"));
         assert!(member.contains("<tied type=\"start\"/>"));
+    }
+
+    #[test]
+    fn auto_beaming_is_opt_in_for_display_exports() {
+        let mut score = Score::new("beams", 120, 4, 4, 0, 1);
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        for step in [Step::C, Step::D, Step::E, Step::F] {
+            voice.push(Note::new(Pitch::new(step, 4), Duration::Eighth));
+        }
+        let interchange = serialize_musicxml(&score).expect("interchange export");
+        assert!(!interchange.contains("<beam "));
+        let display = serialize_musicxml_with_auto_beams(&score).expect("display export");
+        assert!(display.contains("<beam number=\"1\">begin</beam>"));
+        assert!(display.contains("<beam number=\"1\">end</beam>"));
     }
 
     #[test]

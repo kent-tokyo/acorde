@@ -5,7 +5,7 @@ or bytes; this crate never opens files. The CLI owns paths and file handles.
 
 | Feature | Default | API boundary |
 |---|---:|---|
-| `musicxml` | yes | MusicXML and compressed MXL import/export |
+| `musicxml` | yes | MusicXML import/export and compressed MXL import |
 | `midi` | yes | Standard MIDI import/export and region export |
 | `abc` | no | Bounded ABC import/export |
 | `mei` | no | Bounded MEI import/export |
@@ -17,6 +17,11 @@ The default calls are `parse_musicxml`, `parse_mxl`, `serialize_musicxml`, `pars
 Use `parse_*_with_report` and `serialize_*_with_report` when a caller must inspect
 normalization, unsupported source data, or output loss. An empty report means that API detected no
 loss; it is not a whole-format compatibility guarantee.
+
+`serialize_musicxml` writes only authored beam states, so an unmarked voice stays unmarked
+through interchange. `serialize_musicxml_with_auto_beams` adds beat-based beams to unmarked
+voices for display readers that need explicit groups; use it only when that visual change is
+intended.
 
 ```rust
 use acorde_io::{parse_musicxml, serialize_musicxml};
