@@ -43,8 +43,10 @@ The Acorde import diagnostics are mostly unsupported MusicXML text styling;
 they remain unfixed. The PDF has a valid A4 media box on both pages. In the rendered
 images, the page title and four part labels are visible, and the pickup is no longer
 stretched into a standalone full-width system. Verovio uses three pages with visibly
-larger lyrics and clearer grand-staff grouping. Acorde's lyrics are very small at
-1400-pixel page preview size, and the final system is stretched to the full page width.
+larger lyrics. The follow-up staff-group change on this branch adds the missing
+brace across the piano's two staves; the updated A4 PDF was rendered at 1400 pixels
+and inspected. Acorde's lyrics are still very small at that preview size, and the
+final system is stretched to the full page width.
 The two-page Acorde result is therefore not evidence of superior print quality.
 Verovio chooses its own system breaks and fonts; this is a same-input, same-paper
 comparison rather than an identical-layout comparison.
@@ -52,7 +54,7 @@ comparison rather than an identical-layout comparison.
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.
-2. Improve lyric size, grand-staff braces, ragged final systems, and publication
+2. Improve lyric size, ragged final systems, and publication
    typography against the visual baseline.
 3. Pin a larger licensed piano/chamber corpus and compare missing symbols,
    clipped content, collisions, page geometry, and legibility at print size.
