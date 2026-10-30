@@ -66,8 +66,11 @@ repository still has no PCM-output comparison or cross-browser playback timing m
 
 `acorde audio-render` uses the core's integer-frame offline schedule and a caller-supplied SF2
 to write PCM16 WAV. The renderer decodes matching SoundFont zones, resamples with linear
-interpolation, mixes notes at their scheduled frame, and bounds the WAV at 64 MiB. It rejects
-unrealized pedal, MIDI program change, pitch bend, ornament, guitar technique, microtonal, release-tail, and SF3
+interpolation, mixes notes at their scheduled frame, and bounds the WAV at 64 MiB. SF2 note-off
+release decays to silence within its SoundFont release time; score pedal spans hold released notes
+until pedal-up on the same part. The CLI reserves one second of release tail by default and
+accepts `--release-tail-ms` to change it. The renderer rejects MIDI controller automation
+(including CC64), program change, pitch bend, ornament, guitar technique, microtonal, and SF3
 semantics. It has no effects or live audio device. A score whose requested preset is absent from
 the SF2 fails with a typed error.
 
@@ -81,11 +84,13 @@ cargo run -p acorde-cli --locked -- audio-render \
   /tmp/acorde-simple-sf2.wav --sample-rate 8000 --channels 1
 ```
 
-The command produces a 3-second, 8-kHz mono PCM16 WAV with five scheduled events. A Rust
+The command produces a 4-second, 8-kHz mono PCM16 WAV with five scheduled events, including one
+second of release tail. A Rust
 regression constructs a quarter-rest then a quarter-note at 120 BPM and checks that the first
 4,000 output frames are silent and later frames contain audio. Separate resampling regressions
 check fractional-rate interpolation, loop-boundary interpolation, and silence after an unlooped
-sample ends. These tests verify timing and basic PCM generation; they do not measure audio quality
+sample ends. Another real-SF2 regression checks that the release tail decays to silence and that
+pedal-down holds a note across a rest until the pedal-up mark. These tests verify timing and basic PCM generation; they do not measure audio quality
 or establish superiority over alphaTab's SoundFont synthesizer.
 
 ## alphaTab 1.8.4 / independent CC0 score (2026-10-30)
