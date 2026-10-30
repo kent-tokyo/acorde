@@ -6,7 +6,7 @@ mod engine;
 mod print;
 
 pub use acorde_core::NoteAddr;
-pub use engine::compute_layout;
+pub use engine::{compute_layout, notation_density_units};
 pub use print::{
     BreakReason, CropMarkPolicy, FinalPagePolicy, GLYPH_RESOURCE_CONTRACT_VERSION,
     GlyphCollisionClass, GlyphCollisionDirection, GlyphExtents, GlyphFallbackPolicy, GlyphMetrics,
@@ -17,11 +17,11 @@ pub use print::{
     PagePublication, PageRenderAddress, PageRenderNode, PageRenderNodeKind, PageRenderTree,
     PageSpanSegment, PaperSize, PartGroupMark, PartLabel, PartLayoutPolicy, PickupPolicy,
     PrintColorPolicy, PrintConfig, PrintLayoutError, PrintLayoutResult, PrintPreset,
-    PublicationConfig, PublicationFrame, PublicationFramePlacement, PublicationImagePlacement,
-    PublicationImageResource, PublicationPageTemplate, PublicationSection, PublicationSpacer,
-    PublicationTextAlignment, PublicationTextBlock, PublicationTextRole, SpanSegment,
-    SystemAddress, SystemHeightPolicy, SystemLayout, compute_print_layout,
-    compute_print_layout_for_view, distribute_glyph_spacing, glyph_extents,
+    PrintSystemBreakStrategy, PublicationConfig, PublicationFrame, PublicationFramePlacement,
+    PublicationImagePlacement, PublicationImageResource, PublicationPageTemplate,
+    PublicationSection, PublicationSpacer, PublicationTextAlignment, PublicationTextBlock,
+    PublicationTextRole, SpanSegment, SystemAddress, SystemHeightPolicy, SystemLayout,
+    compute_print_layout, compute_print_layout_for_view, distribute_glyph_spacing, glyph_extents,
     resolve_glyph_collisions, resolve_glyph_collisions_checked,
     resolve_glyph_collisions_constrained, resolve_glyph_collisions_with_classes,
     resolve_glyph_horizontal_collisions, resolve_glyph_horizontal_collisions_checked,

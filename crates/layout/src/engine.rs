@@ -133,7 +133,7 @@ fn force_break_after(score: &Score, phys: usize) -> bool {
         .any(|m| m.system_break || m.page_break)
 }
 
-fn build_rows(
+pub(crate) fn build_rows(
     score: &Score,
     vis_slots: &[usize],
     per_row: usize,
@@ -182,6 +182,54 @@ fn build_rows(
         });
     }
     rows
+}
+
+/// Approximate the horizontal demand of one measure in notation units.
+///
+/// This is a deterministic lower bound shared by SVG and print row selection. The
+/// renderer still resolves actual glyph placement and collisions after breaks are chosen.
+pub fn notation_density_units(score: &Score, measure: usize) -> usize {
+    let mut widest_staff = 3usize;
+    for staff in score.parts.iter().flat_map(|part| &part.staves) {
+        let Some(measure) = staff.measures.get(measure) else {
+            continue;
+        };
+        let voice_width = measure
+            .voices
+            .iter()
+            .map(|voice| {
+                voice
+                    .iter()
+                    .filter(|note| !note.hidden)
+                    .map(|note| {
+                        let notehead_width = if note.is_rest { 1 } else { 2 };
+                        let chord_width = note.pitches.len().saturating_sub(1);
+                        let accidental_width =
+                            note.pitches.iter().filter(|pitch| pitch.alter != 0).count();
+                        let lyric_width = note
+                            .lyric
+                            .as_ref()
+                            .map_or(0, |lyric| lyric.text.chars().count().div_ceil(3));
+                        notehead_width
+                            + chord_width
+                            + accidental_width
+                            + usize::from(note.dot_count)
+                            + lyric_width
+                            + usize::from(note.chord_symbol.is_some()) * 2
+                            + note.articulations.len().div_ceil(2)
+                    })
+                    .sum::<usize>()
+            })
+            .max()
+            .unwrap_or(0);
+        let text_width = measure
+            .texts
+            .iter()
+            .map(|text| text.text.chars().count().div_ceil(4))
+            .sum::<usize>();
+        widest_staff = widest_staff.max(voice_width + text_width + 3);
+    }
+    widest_staff
 }
 
 // ── span resolution ───────────────────────────────────────────────────────────

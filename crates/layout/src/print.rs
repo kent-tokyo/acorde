@@ -1,4 +1,5 @@
-use crate::{LayoutConfig, SpanMark, compute_layout};
+use crate::engine::build_rows;
+use crate::{LayoutConfig, RowLayout, SpanMark, compute_layout, notation_density_units};
 use acorde_core::{Barline, NoteAddr, PartGroupSymbol, Score, StyledText, TextStyle};
 use serde::{Deserialize, Serialize};
 
@@ -989,6 +990,16 @@ pub struct KeepTogetherRange {
     pub last_measure: usize,
 }
 
+/// How printed systems are divided before page pagination.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum PrintSystemBreakStrategy {
+    /// Keep the established fixed measure capacity.
+    #[default]
+    FixedMeasureCount,
+    /// Use score-relative notation demand to avoid putting dense measures in one system.
+    NotationDensity,
+}
+
 /// Host-neutral inputs for deterministic page and system layout.
 ///
 /// This contract describes physical page geometry only. It intentionally does not select
@@ -1017,6 +1028,9 @@ pub struct PrintConfig {
     /// Content scale factor. `1.0` preserves the configured system height.
     pub scale: f32,
     pub measures_per_system: usize,
+    /// System break policy. Density mode uses `measures_per_system` as an upper bound.
+    #[serde(default)]
+    pub system_break_strategy: PrintSystemBreakStrategy,
     /// Optional measure capacity for the first system, useful for pickup/title systems.
     #[serde(default)]
     pub first_system_measures: Option<usize>,
@@ -1066,6 +1080,7 @@ impl Default for PrintConfig {
             system_height_policy: SystemHeightPolicy::StaffAware,
             scale: 1.0,
             measures_per_system: 4,
+            system_break_strategy: PrintSystemBreakStrategy::FixedMeasureCount,
             first_system_measures: None,
             pickup_policy: PickupPolicy::Auto,
             notation_break_policy: NotationBreakPolicy::Preserve,
@@ -2864,6 +2879,93 @@ fn validate_print_config(config: &PrintConfig) -> Result<(f32, f32, f32), PrintL
     Ok((width_mm, height_mm, scaled_system_height_mm))
 }
 
+/// Build rows from score-relative notation demand. The 90th percentile of the established
+/// four-measure systems sets a budget for this score; the physical page width scales it.
+/// A single measure may exceed the budget, but never causes data loss or a layout error.
+fn print_density_rows(
+    score: &Score,
+    vis_slots: &[usize],
+    max_columns: usize,
+    first_row_limit: Option<usize>,
+    content_width_mm: f32,
+) -> Vec<RowLayout> {
+    if vis_slots.is_empty() {
+        return vec![RowLayout {
+            measure_indices: Vec::new(),
+        }];
+    }
+
+    let mut baseline_costs = build_rows(score, vis_slots, 4, None)
+        .iter()
+        .map(|row| {
+            row.measure_indices
+                .iter()
+                .map(|&measure| notation_density_units(score, measure))
+                .sum::<usize>()
+        })
+        .collect::<Vec<_>>();
+    baseline_costs.sort_unstable();
+    let percentile_index = (baseline_costs.len() * 9 - 1) / 10;
+    let budget = ((baseline_costs[percentile_index] as f32 * content_width_mm / 182.0)
+        .round()
+        .max(3.0)) as usize;
+
+    let mut rows = Vec::new();
+    let mut row = Vec::new();
+    let mut row_columns = 0usize;
+    let mut row_cost = 0usize;
+    let mut spans = Vec::<(usize, usize)>::new();
+    for &measure in vis_slots {
+        if let Some((last, columns)) = spans.last_mut()
+            && *last == measure
+        {
+            *columns += 1;
+        } else {
+            spans.push((measure, 1));
+        }
+    }
+    for (measure, columns) in spans {
+        let cost = notation_density_units(score, measure).max(columns * 3);
+        let limit = if rows.is_empty() {
+            first_row_limit.unwrap_or(max_columns).max(1)
+        } else {
+            max_columns
+        };
+        if !row.is_empty()
+            && (row_columns.saturating_add(columns) > limit
+                || row_cost.saturating_add(cost) > budget)
+        {
+            rows.push(RowLayout {
+                measure_indices: std::mem::take(&mut row),
+            });
+            row_columns = 0;
+            row_cost = 0;
+        }
+        row.push(measure);
+        row_columns = row_columns.saturating_add(columns);
+        row_cost = row_cost.saturating_add(cost);
+        if score
+            .parts
+            .iter()
+            .flat_map(|part| &part.staves)
+            .filter_map(|staff| staff.measures.get(measure))
+            .any(|measure| measure.system_break || measure.page_break)
+        {
+            rows.push(RowLayout {
+                measure_indices: std::mem::take(&mut row),
+            });
+            row_columns = 0;
+            row_cost = 0;
+        }
+    }
+    if !row.is_empty() {
+        rows.push(RowLayout {
+            measure_indices: row,
+        });
+    }
+    rows
+}
+
 /// Compute physical page and system placement without rendering or host integration.
 pub fn compute_print_layout(
     score: &Score,
@@ -2916,18 +3018,28 @@ pub fn compute_print_layout(
         return Err(PrintLayoutError::InvalidSystemHeight);
     }
     let systems_per_page = config.systems_per_page.unwrap_or(geometric_capacity).max(1);
-    let layout = compute_layout(
+    let first_row_measures = config.first_system_measures.or_else(|| {
+        (matches!(config.pickup_policy, PickupPolicy::DetectFirstMeasure)
+            && has_first_measure_pickup(&layout_score))
+        .then_some(1)
+    });
+    let mut layout = compute_layout(
         &layout_score,
         &LayoutConfig {
             measures_per_row: config.measures_per_system.max(1),
-            first_row_measures: config.first_system_measures.or_else(|| {
-                (matches!(config.pickup_policy, PickupPolicy::DetectFirstMeasure)
-                    && has_first_measure_pickup(&layout_score))
-                .then_some(1)
-            }),
+            first_row_measures,
             ..LayoutConfig::default()
         },
     );
+    if config.system_break_strategy == PrintSystemBreakStrategy::NotationDensity {
+        layout.rows = print_density_rows(
+            &layout_score,
+            &layout.vis_slots,
+            config.measures_per_system.max(1),
+            first_row_measures,
+            content_width_mm,
+        );
+    }
 
     let mut keep_together = config.keep_together.clone();
     if matches!(
@@ -3282,6 +3394,74 @@ mod tests {
         part.staves = vec![staff];
         score.parts = vec![part];
         score
+    }
+
+    #[test]
+    fn density_breaks_use_more_space_for_sparse_bars_and_isolate_busy_bars() {
+        let mut score = score_with_measures(16);
+        score.parts[0].staves[0].measures[8].voices[0] = (0..16)
+            .map(|_| Note::new(Pitch::new(Step::C, 4), Duration::Sixteenth))
+            .collect();
+        let config = PrintConfig {
+            measures_per_system: 7,
+            system_break_strategy: PrintSystemBreakStrategy::NotationDensity,
+            ..PrintConfig::default()
+        };
+        let layout = compute_print_layout(&score, &config).unwrap();
+        let rows = layout
+            .pages
+            .iter()
+            .flat_map(|page| page.systems.iter())
+            .map(|system| system.measure_indices.clone())
+            .collect::<Vec<_>>();
+        assert_eq!(rows[0], vec![0, 1, 2, 3, 4, 5, 6]);
+        assert_eq!(
+            rows.iter().flatten().copied().collect::<Vec<_>>(),
+            (0..16).collect::<Vec<_>>()
+        );
+        assert!(rows.iter().find(|row| row.contains(&8)).unwrap().len() < 7);
+    }
+
+    #[test]
+    fn density_breaks_preserve_authored_system_breaks_and_first_system_capacity() {
+        let mut score = score_with_measures(8);
+        score.parts[0].staves[0].measures[3].system_break = true;
+        let layout = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 7,
+                first_system_measures: Some(2),
+                system_break_strategy: PrintSystemBreakStrategy::NotationDensity,
+                ..PrintConfig::default()
+            },
+        )
+        .unwrap();
+        let rows = layout
+            .pages
+            .iter()
+            .flat_map(|page| page.systems.iter())
+            .map(|system| system.measure_indices.clone())
+            .collect::<Vec<_>>();
+        assert_eq!(rows[0], vec![0, 1]);
+        assert_eq!(rows[1], vec![2, 3]);
+        assert_eq!(
+            rows.iter().flatten().copied().collect::<Vec<_>>(),
+            (0..8).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn legacy_print_config_json_defaults_to_fixed_breaks() {
+        let mut value = serde_json::to_value(PrintConfig::default()).unwrap();
+        value
+            .as_object_mut()
+            .unwrap()
+            .remove("system_break_strategy");
+        let restored: PrintConfig = serde_json::from_value(value).unwrap();
+        assert_eq!(
+            restored.system_break_strategy,
+            PrintSystemBreakStrategy::FixedMeasureCount
+        );
     }
 
     #[test]
