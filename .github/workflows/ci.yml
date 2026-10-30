@@ -142,6 +142,21 @@ jobs:
       - name: wasm-pack build
         run: wasm-pack build crates/wasm --target web
 
+      - name: Build viewer profile and check exports
+        shell: bash
+        run: |
+          wasm-pack build crates/wasm --target web --release \
+            --out-dir ../../target/wasm-profiles/viewer \
+            --no-default-features --features viewer
+          declarations=target/wasm-profiles/viewer/acorde_wasm.d.ts
+          for binding in parse_abc parse_mscz compute_beams detect_chord render_score_svg to_playback_events_ex serialize_mscz; do
+            grep -q "^export function $binding(" "$declarations"
+          done
+          if grep -q '^export function parse_musicxml(' "$declarations"; then
+            echo 'viewer unexpectedly exports MusicXML' >&2
+            exit 1
+          fi
+
       - name: Check opt-in OMR bindings for wasm32
         run: cargo check -p acorde-wasm --target wasm32-unknown-unknown --all-features --locked
 
@@ -180,6 +195,8 @@ jobs:
         run: cargo install wasm-pack --version 0.15.0 --locked
       - name: wasm browser tests
         run: timeout 5m wasm-pack test --headless --chrome crates/wasm
+      - name: Viewer browser tests
+        run: timeout 5m wasm-pack test --headless --chrome crates/wasm --no-default-features --features viewer
 
   browser-matrix:
     name: Browser smoke (${{ matrix.browser }})

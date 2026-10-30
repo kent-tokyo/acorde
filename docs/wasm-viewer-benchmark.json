@@ -1,0 +1,197 @@
+{
+  "gitHead": "421f26b2e6226343a30e79ddacdab5a93ee5153d",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasmPack": "wasm-pack 0.15.0",
+  "browser": "Chrome 156.0.8078.74",
+  "conditions": "cold context, cache disabled, 80 ms latency, 1 MB/s download/upload, three runs",
+  "fixture": {
+    "tinyAbc": "X:1\nT:Original tiny tune\nM:4/4\nL:1/8\nK:C\nCDEF GABc|cBAG FEDC|\n",
+    "generatedMsczBytes": 3263,
+    "generatedParts": 4,
+    "generatedStaves": 8,
+    "generatedBars": 32
+  },
+  "sizes": {
+    "full": {
+      "raw": 5496504,
+      "gzip": 1771356,
+      "brotli": 1203214
+    },
+    "viewer": {
+      "raw": 4486312,
+      "gzip": 1421069,
+      "brotli": 961382
+    }
+  },
+  "results": {
+    "full": {
+      "tiny-abc": [
+        {
+          "transferMs": 1299.800000011921,
+          "initMs": 6,
+          "parseMs": 5.399999976158142,
+          "svgMs": 26.899999976158142,
+          "transferBytes": 1203514,
+          "encodedBytes": 1203214,
+          "decodedBytes": 5496504,
+          "scoreParts": 1,
+          "scoreStaves": 1,
+          "playbackEvents": 16,
+          "msczBytes": 859
+        },
+        {
+          "transferMs": 1300.6000000238419,
+          "initMs": 6.799999952316284,
+          "parseMs": 5.199999988079071,
+          "svgMs": 27.30000001192093,
+          "transferBytes": 1203514,
+          "encodedBytes": 1203214,
+          "decodedBytes": 5496504,
+          "scoreParts": 1,
+          "scoreStaves": 1,
+          "playbackEvents": 16,
+          "msczBytes": 859
+        },
+        {
+          "transferMs": 1301.699999988079,
+          "initMs": 7.100000023841858,
+          "parseMs": 5,
+          "svgMs": 28,
+          "transferBytes": 1203514,
+          "encodedBytes": 1203214,
+          "decodedBytes": 5496504,
+          "scoreParts": 1,
+          "scoreStaves": 1,
+          "playbackEvents": 16,
+          "msczBytes": 859
+        }
+      ],
+      "generated-4-part-8-staff-32-bar-mscz": [
+        {
+          "transferMs": 1301.300000011921,
+          "initMs": 7,
+          "parseMs": 31.799999952316284,
+          "svgMs": 67.70000004768372,
+          "transferBytes": 1203514,
+          "encodedBytes": 1203214,
+          "decodedBytes": 5496504,
+          "scoreParts": 4,
+          "scoreStaves": 8,
+          "playbackEvents": 2048,
+          "msczBytes": 3263
+        },
+        {
+          "transferMs": 1300.800000011921,
+          "initMs": 6.199999988079071,
+          "parseMs": 30.100000023841858,
+          "svgMs": 64.69999998807907,
+          "transferBytes": 1203514,
+          "encodedBytes": 1203214,
+          "decodedBytes": 5496504,
+          "scoreParts": 4,
+          "scoreStaves": 8,
+          "playbackEvents": 2048,
+          "msczBytes": 3263
+        },
+        {
+          "transferMs": 1300.199999988079,
+          "initMs": 6.5,
+          "parseMs": 30.5,
+          "svgMs": 63.90000003576279,
+          "transferBytes": 1203514,
+          "encodedBytes": 1203214,
+          "decodedBytes": 5496504,
+          "scoreParts": 4,
+          "scoreStaves": 8,
+          "playbackEvents": 2048,
+          "msczBytes": 3263
+        }
+      ]
+    },
+    "viewer": {
+      "tiny-abc": [
+        {
+          "transferMs": 1055.6000000238419,
+          "initMs": 5.5,
+          "parseMs": 5.300000011920929,
+          "svgMs": 27.599999964237213,
+          "transferBytes": 961682,
+          "encodedBytes": 961382,
+          "decodedBytes": 4486312,
+          "scoreParts": 1,
+          "scoreStaves": 1,
+          "playbackEvents": 16,
+          "msczBytes": 859
+        },
+        {
+          "transferMs": 1058.2999999523163,
+          "initMs": 6.300000011920929,
+          "parseMs": 5.199999988079071,
+          "svgMs": 27.30000001192093,
+          "transferBytes": 961682,
+          "encodedBytes": 961382,
+          "decodedBytes": 4486312,
+          "scoreParts": 1,
+          "scoreStaves": 1,
+          "playbackEvents": 16,
+          "msczBytes": 859
+        },
+        {
+          "transferMs": 1055.5999999642372,
+          "initMs": 5.200000047683716,
+          "parseMs": 5.099999964237213,
+          "svgMs": 27.30000001192093,
+          "transferBytes": 961682,
+          "encodedBytes": 961382,
+          "decodedBytes": 4486312,
+          "scoreParts": 1,
+          "scoreStaves": 1,
+          "playbackEvents": 16,
+          "msczBytes": 859
+        }
+      ],
+      "generated-4-part-8-staff-32-bar-mscz": [
+        {
+          "transferMs": 1056.2000000476837,
+          "initMs": 5.899999976158142,
+          "parseMs": 31.80000001192093,
+          "svgMs": 64.5,
+          "transferBytes": 961682,
+          "encodedBytes": 961382,
+          "decodedBytes": 4486312,
+          "scoreParts": 4,
+          "scoreStaves": 8,
+          "playbackEvents": 2048,
+          "msczBytes": 3263
+        },
+        {
+          "transferMs": 1062.8999999761581,
+          "initMs": 6.700000047683716,
+          "parseMs": 30.799999952316284,
+          "svgMs": 63.5,
+          "transferBytes": 961682,
+          "encodedBytes": 961382,
+          "decodedBytes": 4486312,
+          "scoreParts": 4,
+          "scoreStaves": 8,
+          "playbackEvents": 2048,
+          "msczBytes": 3263
+        },
+        {
+          "transferMs": 1055.2999999523163,
+          "initMs": 5.600000023841858,
+          "parseMs": 31.600000023841858,
+          "svgMs": 64.29999995231628,
+          "transferBytes": 961682,
+          "encodedBytes": 961382,
+          "decodedBytes": 4486312,
+          "scoreParts": 4,
+          "scoreStaves": 8,
+          "playbackEvents": 2048,
+          "msczBytes": 3263
+        }
+      ]
+    }
+  },
+  "wasmOpt": "wasm-opt version 130"
+}
