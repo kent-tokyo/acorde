@@ -1979,6 +1979,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                 element_count += 1;
                 let name = local_name_str(e.local_name().as_ref());
                 match name.as_str() {
+                    // An empty MuseScore 4 voice wrapper occupies a slot just as
+                    // <voice></voice> does; otherwise later voices shift left.
+                    "voice" if in_measure && !in_chord && !in_rest_elem => {
+                        measure_voice_index += 1;
+                    }
                     "Staff" if in_part => {
                         cur_part_staff_count += 1;
                         if let Some(id) = attr_usize(e, b"id") {
@@ -4707,6 +4712,54 @@ mod tests {
         assert_eq!(m.voices[1].len(), 1, "voice 1 should have 1 note");
         assert_eq!(m.voices[0][0].pitches[0].step, Step::C);
         assert_eq!(m.voices[1][0].pitches[0].step, Step::E);
+    }
+
+    #[test]
+    fn self_closing_empty_voice_keeps_following_tied_voice_slot_and_playback() {
+        let explicit = simple_mscx(
+            r#"
+      <Measure number="1">
+        <voice><Rest><durationType>quarter</durationType></Rest></voice>
+        <voice></voice>
+        <voice><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc><Spanner type="Tie"><next/></Spanner></Note></Chord></voice>
+      </Measure>
+      <Measure number="2">
+        <voice><Rest><durationType>quarter</durationType></Rest></voice>
+        <voice></voice>
+        <voice><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc><Spanner type="Tie"><prev/></Spanner></Note></Chord></voice>
+      </Measure>"#,
+        );
+        let self_closing = explicit.replace("<voice></voice>", "<voice/>");
+        let expected = parse_mscz(&zipped_mscx(&explicit)).expect("explicit empty voices parse");
+        let actual =
+            parse_mscz(&zipped_mscx(&self_closing)).expect("self-closing empty voices parse");
+        for score in [&expected, &actual] {
+            for measure in &score.parts[0].staves[0].measures {
+                assert_eq!(
+                    std::array::from_fn(|slot| measure.voices[slot].len()),
+                    [1, 0, 1, 0]
+                );
+            }
+        }
+        let expected_notes = &expected.parts[0].staves[0].measures;
+        let actual_notes = &actual.parts[0].staves[0].measures;
+        assert!(expected_notes[0].voices[2][0].tie_start);
+        assert!(expected_notes[1].voices[2][0].tie_end);
+        assert_eq!(
+            expected_notes[0].voices[2][0].tie_start,
+            actual_notes[0].voices[2][0].tie_start
+        );
+        assert_eq!(
+            expected_notes[1].voices[2][0].tie_end,
+            actual_notes[1].voices[2][0].tie_end
+        );
+        let options = acorde_core::PlaybackOptions::default();
+        let expected_events = acorde_core::to_playback_events(&expected, &options);
+        assert_eq!(expected_events.len(), 1, "the tie must keep one attack");
+        assert_eq!(
+            expected_events,
+            acorde_core::to_playback_events(&actual, &options)
+        );
     }
 
     #[test]
