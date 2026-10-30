@@ -1029,6 +1029,24 @@ pub fn diff_scores(score_a_json: &str, score_b_json: &str) -> Result<String, JsV
     serde_json::to_string(&changes).map_err(|e| js_err(format!("diff serialization failed: {e}")))
 }
 
+/// Compare independently parsed scores by written musical position. Returns note addresses,
+/// added/removed/modified classifications, changed fields and alignment diagnostics.
+/// Existing structural diff and patch operations are unchanged.
+#[wasm_bindgen]
+pub fn compare_musical_positions(
+    reference_json: &str,
+    current_json: &str,
+    options_json: &str,
+) -> Result<String, JsValue> {
+    let reference = score_from_json(reference_json)?;
+    let current = score_from_json(current_json)?;
+    let options: acorde_core::MusicalComparisonOptions =
+        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::compare_musical_positions(&reference, &current, &options);
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("musical comparison serialization failed: {error}")))
+}
+
 /// Compare two canonical score JSON values and return score and analysis gate status.
 ///
 /// This is intentionally limited to canonical score inputs. Import/export diagnostics belong
@@ -3693,6 +3711,34 @@ mod wasm_tests {
     use wasm_bindgen_test::wasm_bindgen_test;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test]
+    fn browser_musical_position_comparison_keeps_later_beats_aligned() {
+        let parse = |notes: &str| parse_abc(&format!("X:1\nM:4/4\nL:1/8\nK:C\n{notes}|")).unwrap();
+        let reference = parse("C2 D2 E2 F2");
+        let current = parse("C C D2 E2 F2");
+        let report: serde_json::Value = serde_json::from_str(
+            &compare_musical_positions(&reference, &current, "{}").unwrap(),
+        ).unwrap();
+        let addresses: Vec<_> = report["changes"].as_array().unwrap().iter()
+            .filter_map(|change| change["current"]["note"].as_u64()).collect();
+        assert_eq!(addresses, vec![0, 1]);
+        assert_eq!(report["changes"][0]["reference"]["note"], 0);
+        assert!(report["diagnostics"].as_array().unwrap().is_empty());
+        let independent = parse("C2 D2 E2 F2");
+        let equal: serde_json::Value = serde_json::from_str(
+            &compare_musical_positions(&reference, &independent, "{}").unwrap(),
+        ).unwrap();
+        assert!(equal["changes"].as_array().unwrap().is_empty());
+        let straight = parse("C D E2 F2 G2");
+        let swing = parse("(3:2:2 C2 D E2 F2 G2");
+        let swung: serde_json::Value = serde_json::from_str(
+            &compare_musical_positions(&straight, &swing, "{}").unwrap(),
+        ).unwrap();
+        let swung_addresses: Vec<_> = swung["changes"].as_array().unwrap().iter()
+            .filter_map(|change| change["current"]["note"].as_u64()).collect();
+        assert_eq!(swung_addresses, vec![0, 1]);
+    }
 
     #[wasm_bindgen_test]
     fn browser_authored_chord_annotations_return_provenance_without_changing_input() {

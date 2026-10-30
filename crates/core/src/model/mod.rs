@@ -9,6 +9,7 @@ pub mod fragment;
 pub mod gm;
 pub mod harmony;
 pub mod interval;
+pub mod musical_diff;
 pub mod notation;
 pub mod omr;
 pub mod pitch;
