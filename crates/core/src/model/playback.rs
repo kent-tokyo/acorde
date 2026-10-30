@@ -1,7 +1,7 @@
 use super::duration::Duration;
 use super::notation::{Articulation, ChordSymbol, GuitarTechnique, TabPosition};
 use super::repeat::measure_sequence;
-use super::score::{GuitarBendPoint, NoteAddr, Score};
+use super::score::{GuitarBendPoint, Note, NoteAddr, Score};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -117,9 +117,10 @@ pub struct PlaybackOptions {
     /// multiplier-only behavior; hosts decide how to realize the resulting silence.
     #[serde(default = "default_fermata_hold_beats")]
     pub fermata_hold_beats: f64,
-    /// Swing ratio for pairs of plain notes of [`swing_unit`] duration. `None` = straight.
+    /// Swing ratio for aligned pairs of plain notes or rests of [`swing_unit`] duration.
+    /// `None` = straight.
     /// `0.67` ≈ triplet swing (2:1). Valid range: (0.5, 1.0).
-    /// Applied only to notes matching `swing_unit`, no tuplet, no dot.
+    /// Applied only when both adjacent rhythmic units match `swing_unit`, with no tuplet or dot.
     #[serde(default)]
     pub swing: Option<f64>,
     /// Note duration that swing is applied to. Defaults to `Duration::Eighth`.
@@ -160,6 +161,35 @@ fn normalized_tempo_multiplier(options: &PlaybackOptions) -> f64 {
     } else {
         1.0
     }
+}
+
+fn swingable_rhythm_slot(note: &Note, unit: &Duration) -> bool {
+    !note.is_grace && note.tuplet.is_none() && note.dot_count == 0 && note.duration == *unit
+}
+
+fn starts_swing_pair(
+    notes: &[Note],
+    note_index: usize,
+    written_beats: f64,
+    grid_offset_beats: f64,
+    measure_beats: f64,
+    unit: &Duration,
+) -> bool {
+    let Some(first) = notes.get(note_index) else {
+        return false;
+    };
+    let Some(second) = notes.get(note_index + 1) else {
+        return false;
+    };
+    if !swingable_rhythm_slot(first, unit) || !swingable_rhythm_slot(second, unit) {
+        return false;
+    }
+    let pair_beats = first.beats() * 2.0;
+    if written_beats + pair_beats > measure_beats + 1e-9 {
+        return false;
+    }
+    let slot = (written_beats + grid_offset_beats) / pair_beats;
+    (slot - slot.round()).abs() < 1e-9
 }
 
 fn initial_tempo_bpm(score: &Score, options: &PlaybackOptions) -> f64 {
@@ -1866,6 +1896,9 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
     let materialized = score.with_legacy_spanner_flags();
     let score: &Score = &materialized;
     let bpm = initial_tempo_bpm(score, options);
+    let swing_ratio = options
+        .swing
+        .filter(|ratio| ratio.is_finite() && *ratio > 0.5 && *ratio < 1.0);
     let full_seq = measure_sequence(score);
     let seq: Vec<usize> = if let Some((lo, hi)) = options.loop_region {
         full_seq
@@ -1906,39 +1939,47 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                         current_bpm = b;
                     }
                     let measure_beats = staff.measure_beats(idx, &score.settings.time_signature);
+                    let grid_offset_beats = if idx == 0 && measure.actual_length.is_some() {
+                        (staff
+                            .meter_at(idx, &score.settings.time_signature)
+                            .total_beats()
+                            - measure_beats)
+                            .max(0.0)
+                    } else {
+                        0.0
+                    };
                     let ramp_end_bpm = written_tempo_ramp_bpm(options, measure.tempo_ramp_to);
                     let measure_start_beats = time_beats;
                     let measure_start_secs = time_secs_cursor;
                     let mut local_beats = 0.0f64;
                     // Unswung position, which dynamic markings are keyed by.
                     let mut written_beats = 0.0f64;
-                    let mut swing_first = true;
+                    let mut swing_second = false;
                     for (note_index, note) in measure.voices[voice_idx].iter().enumerate() {
                         if note.is_grace {
                             continue;
                         }
                         let onset_written_beats = written_beats;
                         written_beats += note.beats();
-                        let dur = match options.swing {
-                            Some(ratio)
-                                if note.tuplet.is_none()
-                                    && note.dot_count == 0
-                                    && note.duration == options.swing_unit =>
-                            {
-                                let pair = note.beats() * 2.0;
-                                let d = if swing_first {
-                                    ratio * pair
-                                } else {
-                                    (1.0 - ratio) * pair
-                                };
-                                swing_first = !swing_first;
-                                d
-                            }
-                            Some(_) => {
-                                swing_first = true;
+                        let dur = if let Some(ratio) = swing_ratio {
+                            if swing_second {
+                                swing_second = false;
+                                (1.0 - ratio) * note.beats() * 2.0
+                            } else if starts_swing_pair(
+                                &measure.voices[voice_idx],
+                                note_index,
+                                onset_written_beats,
+                                grid_offset_beats,
+                                measure_beats,
+                                &options.swing_unit,
+                            ) {
+                                swing_second = true;
+                                ratio * note.beats() * 2.0
+                            } else {
                                 note.beats()
                             }
-                            None => note.beats(),
+                        } else {
+                            note.beats()
                         };
                         if !note.is_rest {
                             let mut velocity =
@@ -3350,6 +3391,124 @@ mod tests {
             (e_d.time_beats - 0.67).abs() < 1e-9,
             "second note start should be at 0.67"
         );
+    }
+
+    #[test]
+    fn swing_does_not_stretch_an_unpaired_eighth() {
+        let mut score = Score::new("unpaired", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Eighth),
+            Note::new(Pitch::new(Step::D, 4), Duration::Quarter),
+        ];
+        let events = to_playback_events(
+            &score,
+            &PlaybackOptions {
+                swing: Some(2.0 / 3.0),
+                ..Default::default()
+            },
+        );
+        assert!((events[0].duration_beats - 0.5).abs() < 1e-9);
+        assert!((events[1].time_beats - 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn swing_requires_metric_alignment_and_a_matching_next_note() {
+        let mut score = Score::new("metric boundary", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Eighth),
+            Note::new(Pitch::new(Step::D, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::E, 4), Duration::Eighth),
+            Note::new(Pitch::new(Step::F, 4), Duration::Eighth),
+            Note::new(Pitch::new(Step::G, 4), Duration::Eighth),
+            Note::new(Pitch::new(Step::A, 4), Duration::Eighth),
+        ];
+        let events = to_playback_events(
+            &score,
+            &PlaybackOptions {
+                swing: Some(2.0 / 3.0),
+                ..Default::default()
+            },
+        );
+        assert!((events[0].time_beats).abs() < 1e-9);
+        assert!((events[0].duration_beats - 0.5).abs() < 1e-9);
+        assert!((events[2].time_beats - 1.5).abs() < 1e-9);
+        assert!((events[2].duration_beats - 0.5).abs() < 1e-9);
+        assert!((events[3].time_beats - 2.0).abs() < 1e-9);
+        assert!((events[3].duration_beats - 2.0 / 3.0).abs() < 1e-9);
+        assert!((events[4].time_beats - 8.0 / 3.0).abs() < 1e-9);
+        assert!((events[4].duration_beats - 1.0 / 3.0).abs() < 1e-9);
+        assert!((events[5].time_beats - 3.0).abs() < 1e-9);
+        assert!((events[5].duration_beats - 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn swing_keeps_the_offbeat_delay_after_an_eighth_rest() {
+        let mut score = Score::new("rest swing", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::rest(Duration::Eighth),
+            Note::new(Pitch::new(Step::C, 4), Duration::Eighth),
+            Note::new(Pitch::new(Step::D, 4), Duration::Quarter),
+        ];
+        let events = to_playback_events(
+            &score,
+            &PlaybackOptions {
+                swing: Some(2.0 / 3.0),
+                ..Default::default()
+            },
+        );
+        assert!((events[0].time_beats - 2.0 / 3.0).abs() < 1e-9);
+        assert!((events[0].duration_beats - 1.0 / 3.0).abs() < 1e-9);
+        assert!((events[1].time_beats - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn invalid_swing_ratios_keep_straight_finite_timing() {
+        let mut score = Score::new("invalid swing", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Eighth),
+            Note::new(Pitch::new(Step::D, 4), Duration::Eighth),
+        ];
+        for ratio in [f64::NAN, f64::INFINITY, -1.0, 0.5, 1.0] {
+            let events = to_playback_events(
+                &score,
+                &PlaybackOptions {
+                    swing: Some(ratio),
+                    ..Default::default()
+                },
+            );
+            assert_eq!(events.len(), 2);
+            assert_eq!(events[0].duration_beats, 0.5);
+            assert_eq!(events[1].time_beats, 0.5);
+            assert_eq!(events[1].duration_beats, 0.5);
+            assert!(events.iter().all(|event| event.time_secs.is_finite()));
+        }
+    }
+
+    #[test]
+    fn pickup_swing_uses_metric_position_in_the_full_bar() {
+        let mut score = Score::new("pickup swing", 120, 4, 4, 0, 1);
+        let measure = &mut score.parts[0].staves[0].measures[0];
+        measure.actual_length = Some(crate::MeasureLength {
+            numerator: 3,
+            denominator: 8,
+        });
+        measure.voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Eighth),
+            Note::new(Pitch::new(Step::D, 4), Duration::Eighth),
+            Note::new(Pitch::new(Step::E, 4), Duration::Eighth),
+        ];
+        let events = to_playback_events(
+            &score,
+            &PlaybackOptions {
+                swing: Some(2.0 / 3.0),
+                ..Default::default()
+            },
+        );
+        assert_eq!(events[0].duration_beats, 0.5);
+        assert!((events[1].time_beats - 0.5).abs() < 1e-9);
+        assert!((events[1].duration_beats - 2.0 / 3.0).abs() < 1e-9);
+        assert!((events[2].time_beats - 7.0 / 6.0).abs() < 1e-9);
+        assert!((events[2].duration_beats - 1.0 / 3.0).abs() < 1e-9);
     }
 
     #[test]
