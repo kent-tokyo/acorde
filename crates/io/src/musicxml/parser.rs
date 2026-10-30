@@ -435,6 +435,12 @@ pub(crate) fn parse_musicxml_collecting(
                 current_text.clear();
 
                 match tag.as_str() {
+                    // A positioned rest may contain display-step/display-octave children.
+                    // Empty rests are handled by the Event::Empty branch below.
+                    "rest" if in_note => {
+                        note_rest = true;
+                        note_is_measure_rest = attr_is_yes(e, b"measure");
+                    }
                     // `<tap>T</tap>`: tapping with its displayed text.
                     "tap" if in_technical_block => pending_articulations.push(
                         if attr_str(e, b"hand").as_deref() == Some("left") {
@@ -3435,6 +3441,19 @@ mod tests {
         let notes = &score.parts[0].staves[0].measures[0].voices[0];
         assert!(!notes.is_empty());
         assert!(!notes[0].is_rest);
+    }
+
+    #[test]
+    fn positioned_rest_with_display_children_remains_silent() {
+        let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note><rest><display-step>E</display-step><display-octave>4</display-octave></rest><duration>1</duration><type>quarter</type></note><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#;
+        let score = parse_musicxml(xml).expect("positioned rest parses");
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+        assert!(notes[0].is_rest);
+        let events =
+            acorde_core::to_playback_events(&score, &acorde_core::PlaybackOptions::default());
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].pitch_midi, 60);
+        assert_eq!(events[0].time_beats, 1.0);
     }
 
     #[test]

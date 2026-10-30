@@ -41,6 +41,10 @@ static OPENSCORE_LIEDER_MXL: &[u8] =
     include_bytes!("../../../tests/fixtures/openscore_lieder_just_for_today.mxl");
 static OPENSCORE_LIEDER_ALOHA_OE_MXL: &[u8] =
     include_bytes!("../../../tests/fixtures/openscore_lieder_aloha_oe.mxl");
+static OPENSCORE_LIEDER_WEBERN_MXL: &[u8] =
+    include_bytes!("../../../tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl");
+static OPENSCORE_LIEDER_QUILTER_MXL: &[u8] =
+    include_bytes!("../../../tests/fixtures/openscore_lieder_quilter_prelude.mxl");
 #[cfg(feature = "mscz")]
 static OPENSCORE_OMR_MSCZ: &[u8] =
     include_bytes!("../../../tests/fixtures/openscore_omr_score_1003.mscz");
@@ -489,10 +493,58 @@ fn independent_cc0_mxl_playback_keeps_irregular_measure_starts() {
     );
 }
 
+#[test]
+fn independent_cc0_mxl_cross_voice_ties_and_positioned_rests_have_exact_attacks() {
+    use sha2::{Digest, Sha256};
+
+    for (fixture, expected_count, expected_sha) in [
+        (
+            OPENSCORE_LIEDER_WEBERN_MXL,
+            132,
+            "95d45c4ab4c58d0875831cbaab46fc08a5e29051ed18cbfe2debf2c311448c4f",
+        ),
+        (
+            OPENSCORE_LIEDER_QUILTER_MXL,
+            181,
+            "d6a7a14d11699400090873cc6315799a60f51085ceb370d3d3b71c4d916be49d",
+        ),
+    ] {
+        let score = acorde_io::parse_mxl(fixture).expect("CC0 MXL imports");
+        let events =
+            acorde_core::to_playback_events(&score, &acorde_core::PlaybackOptions::default());
+        assert_eq!(events.len(), expected_count);
+        let mut attacks: Vec<_> = events
+            .iter()
+            .map(|event| {
+                (
+                    (event.time_beats * 1_000_000.0).round() as i64,
+                    event.pitch_midi,
+                )
+            })
+            .collect();
+        attacks.sort_unstable();
+        let mut hasher = Sha256::new();
+        for (beat_micros, pitch) in attacks {
+            hasher.update(format!("{beat_micros}:{pitch}\n"));
+        }
+        let digest = hasher
+            .finalize()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
+        assert_eq!(digest, expected_sha);
+    }
+}
+
 #[cfg(feature = "midi")]
 #[test]
 fn independent_cc0_mxl_midi_attacks_match_playback_events() {
-    for fixture in [OPENSCORE_LIEDER_MXL, OPENSCORE_LIEDER_ALOHA_OE_MXL] {
+    for fixture in [
+        OPENSCORE_LIEDER_MXL,
+        OPENSCORE_LIEDER_ALOHA_OE_MXL,
+        OPENSCORE_LIEDER_WEBERN_MXL,
+        OPENSCORE_LIEDER_QUILTER_MXL,
+    ] {
         let score = acorde_io::parse_mxl(fixture).expect("CC0 MXL imports");
         let expected =
             acorde_core::to_playback_events(&score, &acorde_core::PlaybackOptions::default());
@@ -875,6 +927,14 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
             }
             "openscore_lieder_aloha_oe.mxl" => {
                 include_bytes!("../../../tests/fixtures/openscore_lieder_aloha_oe.mxl")
+            }
+            "openscore_lieder_webern_so_ich_traurig_bin.mxl" => {
+                include_bytes!(
+                    "../../../tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl"
+                )
+            }
+            "openscore_lieder_quilter_prelude.mxl" => {
+                include_bytes!("../../../tests/fixtures/openscore_lieder_quilter_prelude.mxl")
             }
             "openscore_omr_score_1003.mscz" => {
                 include_bytes!("../../../tests/fixtures/openscore_omr_score_1003.mscz")

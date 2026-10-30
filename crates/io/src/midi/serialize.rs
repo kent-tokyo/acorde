@@ -203,6 +203,23 @@ struct TimedEvent {
     message: MidiMessage,
 }
 
+struct MidiNoteCandidate {
+    start_tick: u64,
+    sounding_ticks: u64,
+    pitch: u8,
+    velocity: u8,
+    tie_start: bool,
+    tie_end: bool,
+    staff: usize,
+    voice: usize,
+}
+
+struct OpenMidiTie {
+    off_event: usize,
+    staff: usize,
+    voice: usize,
+}
+
 fn note_ticks(duration: &acorde_core::Duration, dot_count: u8, tuplet: Option<&TupletInfo>) -> u64 {
     let base = duration.to_ticks(dot_count) as u64;
     match tuplet {
@@ -220,6 +237,7 @@ fn build_part_track(
 ) -> Result<Vec<TrackEvent<'static>>, Error> {
     let channel = u4::from(part.midi_channel.min(15));
     let mut events: Vec<TimedEvent> = Vec::new();
+    let mut notes: Vec<MidiNoteCandidate> = Vec::new();
 
     if part.midi_program_changes.is_empty() {
         // Always emit ProgramChange at tick 0 to initialize the channel's timbre.
@@ -285,13 +303,10 @@ fn build_part_track(
         });
     }
 
-    for staff in &part.staves {
+    for (staff_index, staff) in part.staves.iter().enumerate() {
         let dynamics = acorde_core::DynamicTimeline::for_staff(staff, seq);
         for voice_idx in 0..4usize {
             let mut cursor: u64 = 0;
-            // A tied note sounds once: its NoteOff moves to the end of the last note of the tie.
-            let mut open_ties: std::collections::HashMap<u8, usize> =
-                std::collections::HashMap::new();
             for (seq_position, &idx) in seq.iter().enumerate() {
                 let measure = match staff.measures.get(idx) {
                     Some(m) => m,
@@ -336,44 +351,79 @@ fn build_part_track(
                                 || (pitch.to_midi() + transpose as i16).clamp(0, 127) as u8,
                                 |key| key.min(127),
                             );
-                            let continues = note.pitch_tie_start(pitch_index);
-                            if note.pitch_tie_end(pitch_index)
-                                && let Some(&off) = open_ties.get(&midi)
-                            {
-                                events[off].abs_tick = cursor + sounding_ticks;
-                                if !continues {
-                                    open_ties.remove(&midi);
-                                }
-                                continue;
-                            }
-                            events.push(TimedEvent {
-                                abs_tick: cursor,
-                                sort_key: 1,
-                                channel,
-                                message: MidiMessage::NoteOn {
-                                    key: u7::from(midi),
-                                    vel: u7::from(vel),
-                                },
+                            notes.push(MidiNoteCandidate {
+                                start_tick: cursor,
+                                sounding_ticks,
+                                pitch: midi,
+                                velocity: vel,
+                                tie_start: note.pitch_tie_start(pitch_index),
+                                tie_end: note.pitch_tie_end(pitch_index),
+                                staff: staff_index,
+                                voice: voice_idx,
                             });
-                            events.push(TimedEvent {
-                                abs_tick: cursor + sounding_ticks,
-                                sort_key: 0,
-                                channel,
-                                message: MidiMessage::NoteOff {
-                                    key: u7::from(midi),
-                                    vel: u7::from(0u8),
-                                },
-                            });
-                            if continues {
-                                open_ties.insert(midi, events.len() - 1);
-                            } else {
-                                open_ties.remove(&midi);
-                            }
                         }
                     }
                     cursor += ticks;
                 }
             }
+        }
+    }
+
+    // Resolve ties on the shared part clock, since MusicXML may move a continuation to another
+    // voice or staff. Independent unison notes retain their own attacks and note-offs.
+    notes.sort_by_key(|note| note.start_tick);
+    let mut open_ties: std::collections::HashMap<u8, Vec<OpenMidiTie>> =
+        std::collections::HashMap::new();
+    for note in notes {
+        if let Some(candidates) = open_ties.get_mut(&note.pitch) {
+            candidates.retain(|candidate| events[candidate.off_event].abs_tick >= note.start_tick);
+            if note.tie_end {
+                let matching = candidates
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, candidate)| {
+                        events[candidate.off_event].abs_tick == note.start_tick
+                    })
+                    .max_by_key(|(_, candidate)| {
+                        (candidate.staff == note.staff, candidate.voice == note.voice)
+                    })
+                    .map(|(position, _)| position);
+                if let Some(position) = matching {
+                    let mut candidate = candidates.remove(position);
+                    events[candidate.off_event].abs_tick = note.start_tick + note.sounding_ticks;
+                    if note.tie_start {
+                        candidate.staff = note.staff;
+                        candidate.voice = note.voice;
+                        candidates.push(candidate);
+                    }
+                    continue;
+                }
+            }
+        }
+        events.push(TimedEvent {
+            abs_tick: note.start_tick,
+            sort_key: 1,
+            channel,
+            message: MidiMessage::NoteOn {
+                key: u7::from(note.pitch),
+                vel: u7::from(note.velocity),
+            },
+        });
+        events.push(TimedEvent {
+            abs_tick: note.start_tick + note.sounding_ticks,
+            sort_key: 0,
+            channel,
+            message: MidiMessage::NoteOff {
+                key: u7::from(note.pitch),
+                vel: u7::from(0u8),
+            },
+        });
+        if note.tie_start {
+            open_ties.entry(note.pitch).or_default().push(OpenMidiTie {
+                off_event: events.len() - 1,
+                staff: note.staff,
+                voice: note.voice,
+            });
         }
     }
 

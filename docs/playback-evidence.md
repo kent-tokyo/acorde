@@ -167,6 +167,25 @@ uv run --no-project --with 'mido==1.3.3' python scripts/compare_playback_onsets.
 uv run --no-project --with 'mido==1.3.3' python scripts/compare_musicxml_onsets.py tests/fixtures/openscore_lieder_aloha_oe.mxl /tmp/acorde-alphatab-1_8_4/aloha-oe.json /tmp/acorde-aloha-oe.mid
 ```
 
+## Pinned OpenScore Lieder timing sample (2026-10-30)
+
+The [40-score selection and per-file results](playback-corpus-2026-10-30.json) use OpenScore/Lieder
+at commit `38c5db510224d9facdc4b08d741fc788cfb58ea8`. The selection is the first 40 MXL
+paths ordered by the SHA-256 of each UTF-8 repository path. The narrow independent MusicXML
+onset reader accepted 16 scores and rejected 24: 21 contain grace or cue notes, two have a
+backup before the measure start, and one uses navigation or transposition outside the reader.
+The accepted scores contain **15,189** written pitch-and-beat attacks. After fixing ties that
+change voice or staff and rests with display-position children, Acorde emits exactly
+**15,189/15,189** matching attacks with no extras. The checked-in Webern and Quilter MXL files
+are the two focused regressions; their source-derived onset fingerprints are asserted in the
+I/O integration suite. Matching allows two MIDI ticks for tuplet rounding.
+
+alphaTab 1.8.4's default MIDI export also matches all 15,189 written attacks in this sample.
+It emits 173 further attacks, including tremolo realizations, which the narrow written-onset
+reader does not classify. Those are not evidence of 173 alphaTab errors. The sample establishes
+Acorde correctness only within the reader's supported subset and does not show general timing
+superiority over alphaTab.
+
 ## Evidence boundary
 
 This local evidence proves deterministic score projection, event scheduling/position calculation,
