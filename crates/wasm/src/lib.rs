@@ -45,6 +45,34 @@ fn score_to_json(score: &Score) -> Result<String, JsValue> {
     serde_json::to_string(score).map_err(|e| js_err(format!("score serialization failed: {e}")))
 }
 
+fn svg_render_options(
+    options_json: &str,
+) -> Result<(acorde_render_svg::SvgRenderOptions, Option<f32>), JsValue> {
+    let value: serde_json::Value = parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
+    let staff_gap = value
+        .get("staff_gap")
+        .map(|value| {
+            serde_json::from_value::<f32>(value.clone())
+                .map_err(|error| js_err(format!("invalid staff_gap: {error}")))
+        })
+        .transpose()?;
+    let options = serde_json::from_value(value)
+        .map_err(|error| js_err(format!("invalid options JSON: {error}")))?;
+    Ok((options, staff_gap))
+}
+
+fn render_svg_from_json(score: &Score, options_json: &str) -> Result<String, JsValue> {
+    let (options, staff_gap) = svg_render_options(options_json)?;
+    match staff_gap {
+        Some(staff_gap) => acorde_render_svg::render_svg_with_config(
+            score,
+            &acorde_render_svg::SvgRenderConfig::new(options).with_staff_gap(staff_gap),
+        )
+        .map_err(js_err),
+        None => acorde_render_svg::render_svg(score, &options).map_err(js_err),
+    }
+}
+
 #[cfg(feature = "omr")]
 fn recognize_omr_png_json(data: &[u8], config_json: &str) -> Result<String, String> {
     if config_json.len() > MAX_SMALL_JSON_BYTES {
@@ -127,9 +155,7 @@ pub fn parse_musicxml(xml: &str) -> Result<String, JsValue> {
 #[wasm_bindgen]
 pub fn parse_musicxml_render_svg(xml: &str, options_json: &str) -> Result<String, JsValue> {
     let score = acorde_io::parse_musicxml(xml).map_err(js_err)?;
-    let options: acorde_render_svg::SvgRenderOptions =
-        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
-    acorde_render_svg::render_svg(&score, &options).map_err(js_err)
+    render_svg_from_json(&score, options_json)
 }
 
 /// Parse MusicXML and return an [`acorde_io::ImportReport`] JSON string.
@@ -177,9 +203,7 @@ pub fn parse_gp_report(data: &[u8]) -> Result<String, JsValue> {
 #[wasm_bindgen]
 pub fn parse_mxl_render_svg(data: &[u8], options_json: &str) -> Result<String, JsValue> {
     let score = acorde_io::parse_mxl(data).map_err(js_err)?;
-    let options: acorde_render_svg::SvgRenderOptions =
-        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
-    acorde_render_svg::render_svg(&score, &options).map_err(js_err)
+    render_svg_from_json(&score, options_json)
 }
 
 /// Serialize a score (JSON string) to MusicXML.
@@ -217,9 +241,7 @@ pub fn parse_mei(xml: &str) -> Result<String, JsValue> {
 #[wasm_bindgen]
 pub fn parse_mei_render_svg(xml: &str, options_json: &str) -> Result<String, JsValue> {
     let score = acorde_io::parse_mei(xml).map_err(js_err)?;
-    let options: acorde_render_svg::SvgRenderOptions =
-        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
-    acorde_render_svg::render_svg(&score, &options).map_err(js_err)
+    render_svg_from_json(&score, options_json)
 }
 
 /// Parse the documented MEI subset and return an ImportReport JSON string.
@@ -260,9 +282,7 @@ pub fn parse_mscz(data: &[u8]) -> Result<String, JsValue> {
 #[wasm_bindgen]
 pub fn parse_mscz_render_svg(data: &[u8], options_json: &str) -> Result<String, JsValue> {
     let score = acorde_io::parse_mscz(data).map_err(js_err)?;
-    let options: acorde_render_svg::SvgRenderOptions =
-        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
-    acorde_render_svg::render_svg(&score, &options).map_err(js_err)
+    render_svg_from_json(&score, options_json)
 }
 
 /// Parse a MuseScore .mscz archive and return an ImportReport JSON string.
@@ -283,9 +303,7 @@ pub fn parse_mscx(xml: &str) -> Result<String, JsValue> {
 #[wasm_bindgen]
 pub fn parse_mscx_render_svg(xml: &str, options_json: &str) -> Result<String, JsValue> {
     let score = acorde_io::parse_mscx(xml).map_err(js_err)?;
-    let options: acorde_render_svg::SvgRenderOptions =
-        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
-    acorde_render_svg::render_svg(&score, &options).map_err(js_err)
+    render_svg_from_json(&score, options_json)
 }
 
 /// Parse a MuseScore .mscx XML document and return an ImportReport JSON string.
@@ -342,9 +360,7 @@ pub fn parse_midi(data: &[u8]) -> Result<String, JsValue> {
 #[wasm_bindgen]
 pub fn parse_midi_render_svg(data: &[u8], options_json: &str) -> Result<String, JsValue> {
     let score = acorde_io::parse_midi(data).map_err(js_err)?;
-    let options: acorde_render_svg::SvgRenderOptions =
-        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
-    acorde_render_svg::render_svg(&score, &options).map_err(js_err)
+    render_svg_from_json(&score, options_json)
 }
 
 /// Parse MIDI and return an ImportReport JSON string.
@@ -726,14 +742,13 @@ pub fn render_preflight(score_json: &str) -> Result<String, JsValue> {
 ///
 /// `options_json` is a (partial) [`acorde_render_svg::SvgRenderOptions`] JSON object, e.g.
 /// `{"width":900,"staff_size":24,"measures_per_system":4,"interactive":true}` — every field
-/// has a default, so `"{}"` renders with defaults. This calls the exact same
-/// `acorde_render_svg::render_svg` used natively — no browser/DOM-specific code path.
+/// has a default, so `"{}"` renders with defaults. An optional `staff_gap` in staff spaces
+/// uses the native [`acorde_render_svg::SvgRenderConfig`] path. The four-field Rust options
+/// struct remains source-compatible.
 #[wasm_bindgen]
 pub fn render_score_svg(score_json: &str, options_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
-    let options: acorde_render_svg::SvgRenderOptions =
-        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
-    acorde_render_svg::render_svg(&score, &options).map_err(js_err)
+    render_svg_from_json(&score, options_json)
 }
 
 /// Render a score using a layout computed by [`compute_layout_ex`].
@@ -746,9 +761,18 @@ pub fn render_score_svg_with_layout(
     let score = score_from_json(score_json)?;
     let layout: acorde_layout::LayoutResult =
         parse_json(layout_json, "layout", MAX_LAYOUT_JSON_BYTES)?;
-    let options: acorde_render_svg::SvgRenderOptions =
-        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
-    acorde_render_svg::render_svg_with_layout(&score, &layout, &options).map_err(js_err)
+    let (options, staff_gap) = svg_render_options(options_json)?;
+    match staff_gap {
+        Some(staff_gap) => acorde_render_svg::render_svg_with_layout_config(
+            &score,
+            &layout,
+            &acorde_render_svg::SvgRenderConfig::new(options).with_staff_gap(staff_gap),
+        )
+        .map_err(js_err),
+        None => {
+            acorde_render_svg::render_svg_with_layout(&score, &layout, &options).map_err(js_err)
+        }
+    }
 }
 
 /// Render one system row from a precomputed layout. `row` is zero-based.
@@ -762,9 +786,26 @@ pub fn render_score_svg_row(
     let score = score_from_json(score_json)?;
     let layout: acorde_layout::LayoutResult =
         parse_json(layout_json, "layout", MAX_LAYOUT_JSON_BYTES)?;
-    let options: acorde_render_svg::SvgRenderOptions =
-        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
-    acorde_render_svg::render_svg_row(&score, &layout, row, &options).map_err(js_err)
+    let (options, staff_gap) = svg_render_options(options_json)?;
+    match staff_gap {
+        Some(staff_gap) => {
+            let mut subset = layout.clone();
+            subset.rows = vec![
+                layout
+                    .rows
+                    .get(row)
+                    .cloned()
+                    .ok_or_else(|| js_err(format!("invalid row: {row}")))?,
+            ];
+            acorde_render_svg::render_svg_with_layout_config(
+                &score,
+                &subset,
+                &acorde_render_svg::SvgRenderConfig::new(options).with_staff_gap(staff_gap),
+            )
+            .map_err(js_err)
+        }
+        None => acorde_render_svg::render_svg_row(&score, &layout, row, &options).map_err(js_err),
+    }
 }
 
 /// Return deterministic SVG dimensions and NoteAddr-keyed hit-test bounds.
@@ -777,10 +818,18 @@ pub fn render_score_metadata(
     let score = score_from_json(score_json)?;
     let layout: acorde_layout::LayoutResult =
         parse_json(layout_json, "layout", MAX_LAYOUT_JSON_BYTES)?;
-    let options: acorde_render_svg::SvgRenderOptions =
-        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
-    let metadata =
-        acorde_render_svg::render_svg_metadata(&score, &layout, &options).map_err(js_err)?;
+    let (options, staff_gap) = svg_render_options(options_json)?;
+    let metadata = match staff_gap {
+        Some(staff_gap) => acorde_render_svg::render_svg_metadata_with_config(
+            &score,
+            &layout,
+            &acorde_render_svg::SvgRenderConfig::new(options).with_staff_gap(staff_gap),
+        )
+        .map_err(js_err)?,
+        None => {
+            acorde_render_svg::render_svg_metadata(&score, &layout, &options).map_err(js_err)?
+        }
+    };
     serde_json::to_string(&metadata)
         .map_err(|e| js_err(format!("metadata serialization failed: {e}")))
 }
@@ -817,9 +866,7 @@ pub fn parse_abc(text: &str) -> Result<String, JsValue> {
 #[wasm_bindgen]
 pub fn parse_abc_render_svg(text: &str, options_json: &str) -> Result<String, JsValue> {
     let score = acorde_io::parse_abc(text).map_err(js_err)?;
-    let options: acorde_render_svg::SvgRenderOptions =
-        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
-    acorde_render_svg::render_svg(&score, &options).map_err(js_err)
+    render_svg_from_json(&score, options_json)
 }
 
 /// Parse ABC Notation and return an ImportReport JSON string.
@@ -2912,6 +2959,76 @@ mod wasm_tests {
             serde_json::to_value(events).expect("events serialize"),
             serde_json::to_value(restored_events).expect("restored events serialize")
         );
+    }
+
+    #[wasm_bindgen_test]
+    fn staff_gap_json_moves_lower_staff_without_changing_notes_or_playback() {
+        let mut score = Score::new("staff gap", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(
+            acorde_core::Pitch::new(acorde_core::Step::C, 5),
+            acorde_core::Duration::Whole,
+        )];
+        let mut lower = score.parts[0].staves[0].clone();
+        lower.clef = acorde_core::Clef::Bass;
+        lower.measures[0].voices[0] = vec![acorde_core::Note::new(
+            acorde_core::Pitch::new(acorde_core::Step::C, 3),
+            acorde_core::Duration::Whole,
+        )];
+        score.parts[0].staves.push(lower);
+        let score_json = score_to_json(&score).expect("score serializes");
+        let layout_json =
+            compute_layout_ex(&score_json, r#"{"measures_per_row":1}"#).expect("layout computes");
+        let compact_options =
+            r#"{"width":1200,"staff_size":10,"measures_per_system":1,"staff_gap":8}"#;
+        let spacious_options =
+            r#"{"width":1200,"staff_size":10,"measures_per_system":1,"staff_gap":20}"#;
+        let compact_svg = render_score_svg(&score_json, compact_options).expect("compact SVG");
+        let spacious_svg = render_score_svg(&score_json, spacious_options).expect("spacious SVG");
+        assert_ne!(compact_svg, spacious_svg);
+        assert_ne!(
+            render_score_svg_with_layout(&score_json, &layout_json, compact_options)
+                .expect("compact layout SVG"),
+            render_score_svg_with_layout(&score_json, &layout_json, spacious_options)
+                .expect("spacious layout SVG")
+        );
+        assert_ne!(
+            render_score_svg_row(&score_json, &layout_json, 0, compact_options)
+                .expect("compact row SVG"),
+            render_score_svg_row(&score_json, &layout_json, 0, spacious_options)
+                .expect("spacious row SVG")
+        );
+        let metadata = |options| -> acorde_render_svg::RenderMetadata {
+            serde_json::from_str(
+                &render_score_metadata(&score_json, &layout_json, options)
+                    .expect("metadata renders"),
+            )
+            .expect("metadata JSON parses")
+        };
+        let compact = metadata(compact_options);
+        let spacious = metadata(spacious_options);
+        let bounds = |metadata: &acorde_render_svg::RenderMetadata, staff| {
+            let note = metadata
+                .address_bounds
+                .iter()
+                .find(|bounds| bounds.staff == staff)
+                .expect("staff note has bounds");
+            (note.y, note.height)
+        };
+        assert_eq!(compact.note_count, spacious.note_count);
+        assert!((spacious.height - compact.height - 120.0).abs() < 0.1);
+        assert!((bounds(&spacious, 1).0 - bounds(&compact, 1).0 - 120.0).abs() < 0.1);
+        assert!((bounds(&spacious, 0).0 - bounds(&compact, 0).0).abs() < 0.1);
+        assert!((bounds(&spacious, 1).1 - bounds(&compact, 1).1).abs() < 0.1);
+        let playback = to_playback_events_ex(&score_json, "{}").expect("playback computes");
+        assert_eq!(
+            serde_json::from_str::<Vec<acorde_core::PlaybackEvent>>(&playback)
+                .expect("events parse")
+                .len(),
+            2
+        );
+        assert_eq!(playback, to_playback_events_ex(&score_json, "{}").unwrap());
+        assert!(render_score_svg(&score_json, r#"{"staff_gap":0}"#).is_err());
+        assert!(render_score_svg(&score_json, r#"{"staff_gap":"bad"}"#).is_err());
     }
 
     #[wasm_bindgen_test]
