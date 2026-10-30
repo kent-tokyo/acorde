@@ -1,6 +1,6 @@
 # Notation coverage matrix
 
-This matrix describes the v1.3.2 public capability boundary. **Yes** means the value is modelled
+This matrix describes the v1.3.3 public capability boundary. **Yes** means the value is modelled
 and covered by a focused test; **partial** means a documented common subset; **no** means that
 format path does not carry it. “Model/SVG/export” distinguishes the canonical score from visible
 rendering and the broadest implemented export route. It is not a lossless-interchange claim.
