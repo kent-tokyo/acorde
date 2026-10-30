@@ -106,3 +106,25 @@ structural/playback-pitch projection, not browser, scheduler, SoundFont, or visu
 
 The separate [music21 observation](external-analysis-evidence.md) records a bounded MusicXML
 analysis projection. It does not imply agreement with any engraving or interchange result above.
+
+## music21 10.5.2 / independent CC0 MXL (2026-10-30)
+
+The checked-in `openscore_lieder_just_for_today.mxl` is OpenScore Lieder's *Just for Today*
+at revision `38c5db510224d9facdc4b08d741fc788cfb58ea8` (SHA-256
+`79a19736fcce71c0acf4b39feff63723d2ff75e29285ea2ab594f9b2b6a835ff`). It is a
+41-measure, two-part score distributed as MusicXML by OpenScore, not an Acorde-generated
+MusicXML input. The fixture manifest records its URL and CC0 provenance.
+
+With the MusicXML part-name and rest-notation fixes in this branch, Acorde imports its `Voice`
+and `Piano` part names and retains them through MusicXML export and reimport. It also retains
+the fermata on a rest in measure 25. The full Acorde round-trip still reports **53 semantic
+changes**: 50 beam changes, two text changes, and one presentation change. The source has 32
+unsupported rendering-attribute diagnostics.
+These are concrete remaining losses, not a score for all OpenScore files.
+
+music21 10.5.2 also imported and exported the same MXL. Acorde's compatibility reporter
+could not parse that output because a part/staff contains more than four distinct source voice
+numbers. Consequently, there is **no comparable music21 semantic-change count** for this
+fixture. The importer has four canonical editing voice slots per staff; expanding that model
+requires separate work. Acorde's own reported 53 changes and the reporter's parse limit prevent
+any general claim that Acorde preserves real scores better than music21.

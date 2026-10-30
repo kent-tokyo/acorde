@@ -383,9 +383,12 @@ pub(crate) fn parse_musicxml_collecting(
 
     // Collect <midi-instrument> data from <score-part> declarations.
     let mut part_midi: HashMap<String, (u8, u8)> = HashMap::new();
+    let mut part_names: HashMap<String, (String, String)> = HashMap::new();
     let mut part_percussion: HashMap<String, Vec<PercussionInstrument>> = HashMap::new();
     let mut in_score_part = false;
     let mut score_part_id = String::new();
+    let mut pending_part_name = String::new();
+    let mut pending_part_abbreviation = String::new();
     let mut pending_midi_channel: u8 = 0;
     let mut pending_midi_program: u8 = 0;
     let mut in_midi_instrument = false;
@@ -455,9 +458,15 @@ pub(crate) fn parse_musicxml_collecting(
                     "score-part" => {
                         in_score_part = true;
                         score_part_id = attr_str(e, b"id").unwrap_or_default();
+                        pending_part_name.clear();
+                        pending_part_abbreviation.clear();
                         pending_midi_channel = 0;
                         pending_midi_program = 0;
                         part_list_part_count += 1;
+                    }
+                    "part-name" | "part-abbreviation" if in_score_part => {
+                        // Preserve spaces around XML references, which arrive as separate events.
+                        reader.config_mut().trim_text(false);
                     }
                     "clef" => {
                         in_clef = true;
@@ -777,7 +786,12 @@ pub(crate) fn parse_musicxml_collecting(
                             return Err(Error::Xml("too many parts".into()));
                         }
                         let id = attr_str(e, b"id").unwrap_or_default();
-                        let mut part = Part::new(&id, "");
+                        let (name, abbreviation) = part_names
+                            .get(&id)
+                            .cloned()
+                            .unwrap_or_else(|| (id.clone(), String::new()));
+                        let mut part =
+                            Part::new(if name.is_empty() { &id } else { &name }, &abbreviation);
                         if let Some(&(ch, prog)) = part_midi.get(&id) {
                             part.midi_channel = ch;
                             part.midi_program = prog;
@@ -1303,12 +1317,17 @@ pub(crate) fn parse_musicxml_collecting(
             }
 
             Ok(Event::Text(ref e)) => {
-                current_text = match e.decode() {
-                    Ok(text) => quick_xml::escape::unescape(&text)
-                        .map(|text| text.into_owned())
-                        .unwrap_or_default(),
-                    Err(_) => String::new(),
-                };
+                if let Ok(text) = e.decode()
+                    && let Ok(unescaped) = quick_xml::escape::unescape(&text)
+                {
+                    current_text.push_str(&unescaped);
+                }
+            }
+            Ok(Event::GeneralRef(ref e)) => {
+                let reference = format!("&{};", String::from_utf8_lossy(e.as_ref()));
+                let decoded = quick_xml::escape::unescape(&reference)
+                    .map_err(|err| Error::Xml(format!("invalid XML entity: {err}")))?;
+                current_text.push_str(&decoded);
             }
 
             Ok(Event::End(ref e)) => {
@@ -1334,6 +1353,14 @@ pub(crate) fn parse_musicxml_collecting(
                         if !name.is_empty() {
                             score_instrument_name = Some(name.to_string());
                         }
+                    }
+                    "part-name" if in_score_part => {
+                        pending_part_name = current_text.trim().to_string();
+                        reader.config_mut().trim_text(true);
+                    }
+                    "part-abbreviation" if in_score_part => {
+                        pending_part_abbreviation = current_text.trim().to_string();
+                        reader.config_mut().trim_text(true);
                     }
                     // MusicXML numbers percussion keys 1–128; the model holds the 0-based GM key.
                     "midi-unpitched" if in_score_instrument => {
@@ -1379,6 +1406,10 @@ pub(crate) fn parse_musicxml_collecting(
                         part_midi.insert(
                             score_part_id.clone(),
                             (pending_midi_channel, pending_midi_program),
+                        );
+                        part_names.insert(
+                            score_part_id.clone(),
+                            (pending_part_name.clone(), pending_part_abbreviation.clone()),
                         );
                         in_score_part = false;
                     }
