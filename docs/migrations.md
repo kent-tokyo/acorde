@@ -11,6 +11,17 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## v1.3.3
+
+Rust code using a complete `Note` struct literal must add `tuplet_boundary: None` or an authored
+`TupletBoundary` value. `Note::new` and `Note::rest` set the default automatically, and older score
+JSON remains readable. Re-import ABC or MusicXML that contains adjacent same-ratio tuplet groups
+to retain their written boundaries; a previously normalized score cannot recover them on its own.
+Regenerate playback or PDF output if shortened bars, tied staccato, or page bounds affected it.
+
+The new accordion reduction, arrangement, and seeded-preset APIs are opt-in. Hosts should inspect
+their structured diagnostics and source mappings before using a generated score.
+
 ## v1.3.2
 
 No Rust source migration is required. Re-import original MusicXML or MSCZ files to pick up the

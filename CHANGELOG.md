@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## 1.3.3 - 2026-10-30
+
+- Added bounded print-page validation and PDF assembly from page SVGs with page order and media
+  boxes taken from a validated print layout.
+- Preserved pickup and shortened-bar timing in MSCZ and ABC, corrected tied staccato playback,
+  and kept adjacent authored tuplet groups distinct through layout, SVG, and format export.
+- Added source-preserving accordion reduction, explicit-chord and layered accompaniment, and
+  versioned seeded presets through Rust and WASM. These APIs return source mappings and diagnostics;
+  their documented ranges and host integration limits still apply.
+- Raised the all-feature Rust line coverage reported by Codecov on `main` to 92.04%. A regression
+  test also found and fixed a panic when tablature optimization encounters an empty voice.
+- **[breaking]** `Note` now carries `tuplet_boundary` for authored group edges. Stored score JSON remains readable
+  through a default, but Rust code using complete `Note` struct literals must add the field.
+
 ## 1.3.2 - 2026-10-30
 
 - Preserved more authored MusicXML semantics during import: part labels, rest notation, beam
