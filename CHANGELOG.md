@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## 1.3.4 - 2026-10-31
+
+- Added physical page SVG and vector PDF export from validated print layouts, including WASM page
+  SVG access, piano and staff-group braces, span continuation, and bounded publication text.
+  Density-aware breaks, notation-weighted measure widths, lyric clearance, and larger print text
+  improve the pinned piano and vocal fixtures. Broader collision and print-quality review remains
+  open; this release does not establish parity with Verovio.
+- Added source-backed chord annotations, musical-position comparison, optional display beams,
+  MusicXML publication credits, and safer MuseScore nested-excerpt handling.
+- Added bounded SF2-to-WAV rendering, note release and score-pedal behavior, plus an opt-in full-SF2
+  engine for wider GM preset coverage. The full-SF2 path applies authored pitch bend and MIDI
+  CC 1, 7, 10, 11, and 64 on the frame schedule, with isolated channels for overlapping voices.
+  Same-input alphaTab comparisons are recorded for fixed fixtures; audio-quality equivalence or
+  overall superiority has not been established.
+
 ## 1.3.3 - 2026-10-30
 
 - Added bounded print-page validation and PDF assembly from page SVGs with page order and media

@@ -33,7 +33,7 @@ input bytes/text → acorde-io → Score → acorde-layout → LayoutResult
 | `acorde-pdf` | Optional vector PDF export through Harumi (Rust 1.88+) |
 | `acorde-omr` | Optional bounded PNG analysis that produces reviewable OMR proposals |
 | `acorde-analysis` | Deterministic explainable harmony and SATB analysis |
-| `acorde-soundfont` | Optional bounded SF2/SF3/provider integration boundary |
+| `acorde-soundfont` | Optional bounded SF2/SF3/provider integration and SF2 WAV rendering |
 | `acorde-wasm` | JavaScript bindings |
 | `acorde-cli` | File-based conversion and inspection |
 | `acorde` | Umbrella re-export of core, I/O, and layout |
@@ -45,14 +45,14 @@ rendering SVG.
 
 ```toml
 [dependencies]
-acorde = "=1.3.3"
-acorde-render-svg = "=1.3.3"
+acorde = "=1.3.4"
+acorde-render-svg = "=1.3.4"
 ```
 
 Default I/O features are MusicXML and MIDI. Enable optional formats explicitly:
 
 ```toml
-acorde = { version = "=1.3.3", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "=1.3.4", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust
@@ -74,7 +74,8 @@ difference.
 
 acorde owns score semantics, logical geometry, deterministic SVG, and versioned browser/WASM
 contracts. `acorde-pdf` is an optional in-memory Harumi adapter; hosts own fonts, UI, printing,
-and end-to-end browser presentation. SoundFont synthesis and asset licensing are also host work.
+and end-to-end browser presentation. Optional SF2 WAV rendering accepts a caller-supplied asset;
+asset licensing and device playback remain host work.
 
 Use the [coverage matrix](docs/notation-coverage.md) for the tested boundary, the
 [scorecard](docs/scorecard.md) for the current inventory, and
@@ -90,6 +91,7 @@ acorde print-report input.musicxml --preset a4-score --fail-on-issues
 acorde validate input.musicxml
 acorde compatibility-report source.musicxml candidate.musicxml --fail-on-differences
 acorde playback-report input.musicxml --bpm 120
+acorde audio-render input.musicxml licensed.sf2 output.wav --full-sf2
 acorde omr printed-score.png draft.mscz --report draft.omr.json
 acorde omr-evaluate printed-score.png reference.mscz --report evaluation.json
 acorde omr-apply-report provider-result.json draft.mscz --report application.json

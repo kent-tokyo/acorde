@@ -11,6 +11,14 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## v1.3.4
+
+No intentional Rust source migration is required for the added print, comparison, and audio APIs.
+Rebuild exhaustive matches as usual when adopting a newer version. The full-SF2 renderer is
+opt-in and requires a caller-supplied licensed SF2 asset; unsupported or unrouted MIDI automation
+now returns an error rather than being silently omitted. Regenerate page SVG/PDF and audio output
+if your host relies on the corrected print placement or playback control schedule.
+
 ## v1.3.3
 
 Rust code using a complete `Note` struct literal must add `tuplet_boundary: None` or an authored
