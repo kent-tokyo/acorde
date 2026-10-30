@@ -573,7 +573,6 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         let sequential_number = cur_measure_num.saturating_add(1);
                         cur_measure_num = attr_str(e, b"number")
                             .and_then(|value| value.parse::<u32>().ok())
-                            .filter(|number| *number > 0)
                             .unwrap_or(sequential_number);
                         cur_measure_len =
                             attr_str(e, b"len").and_then(|value| parse_mscx_measure_len(&value));
