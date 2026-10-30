@@ -164,7 +164,11 @@ fn normalized_tempo_multiplier(options: &PlaybackOptions) -> f64 {
 }
 
 fn swingable_rhythm_slot(note: &Note, unit: &Duration) -> bool {
-    !note.is_grace && note.tuplet.is_none() && note.dot_count == 0 && note.duration == *unit
+    !note.is_grace
+        && !note.is_cue
+        && note.tuplet.is_none()
+        && note.dot_count == 0
+        && note.duration == *unit
 }
 
 fn starts_swing_pair(
@@ -211,6 +215,36 @@ fn written_tempo_bpm(options: &PlaybackOptions, tempo: u16) -> Option<f64> {
 fn written_tempo_ramp_bpm(options: &PlaybackOptions, tempo: Option<u16>) -> Option<f64> {
     options.bpm_override.is_none().then_some(())?;
     tempo.map(|tempo| f64::from(tempo.max(1)) * normalized_tempo_multiplier(options))
+}
+
+#[derive(Clone, Copy, Default)]
+struct ScoreTempoMark {
+    bpm: Option<u16>,
+    ramp_to_bpm: Option<u16>,
+}
+
+/// Tempo directions are score-wide even when an interchange format places them on one part.
+/// Resolve each field from the first staff that writes it, in score order.
+fn score_tempo_marks(score: &Score) -> Vec<ScoreTempoMark> {
+    let count = score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .map(|staff| staff.measures.len())
+        .max()
+        .unwrap_or(0);
+    let mut marks = vec![ScoreTempoMark::default(); count];
+    for (index, mark) in marks.iter_mut().enumerate() {
+        for part in &score.parts {
+            for staff in &part.staves {
+                if let Some(measure) = staff.measures.get(index) {
+                    mark.bpm = mark.bpm.or(measure.tempo);
+                    mark.ramp_to_bpm = mark.ramp_to_bpm.or(measure.tempo_ramp_to);
+                }
+            }
+        }
+    }
+    marks
 }
 
 fn semantic_tempo_bpm(bpm: f64) -> u16 {
@@ -999,6 +1033,7 @@ fn offline_measure_times(
     options: &PlaybackOptions,
     part: usize,
     staff: usize,
+    tempo_marks: &[ScoreTempoMark],
 ) -> Vec<OfflineMeasureTime> {
     let Some(staff_ref) = score
         .parts
@@ -1016,17 +1051,15 @@ fn offline_measure_times(
     let mut secs = 0.0;
     let mut result = Vec::new();
     for measure_index in sequence {
-        let Some(measure) = staff_ref.measures.get(measure_index) else {
+        if staff_ref.measures.get(measure_index).is_none() {
             continue;
-        };
-        if let Some(tempo) = measure
-            .tempo
-            .and_then(|tempo| written_tempo_bpm(options, tempo))
-        {
+        }
+        let mark = tempo_marks.get(measure_index).copied().unwrap_or_default();
+        if let Some(tempo) = mark.bpm.and_then(|tempo| written_tempo_bpm(options, tempo)) {
             bpm = tempo;
         }
         let beats = staff_ref.measure_beats(measure_index, &score.settings.time_signature);
-        let ramp_to_bpm = written_tempo_ramp_bpm(options, measure.tempo_ramp_to);
+        let ramp_to_bpm = written_tempo_ramp_bpm(options, mark.ramp_to_bpm);
         result.push(OfflineMeasureTime {
             measure: measure_index,
             start_secs: secs,
@@ -1050,8 +1083,9 @@ fn append_measure_semantic_events(
     origin_secs: f64,
     events: &mut Vec<OfflineRenderSemanticFrameEvent>,
 ) {
+    let tempo_marks = score_tempo_marks(score);
     for (part_index, part) in score.parts.iter().enumerate() {
-        let timeline = offline_measure_times(score, options, part_index, 0);
+        let timeline = offline_measure_times(score, options, part_index, 0, &tempo_marks);
         let Some(staff) = part.staves.first() else {
             continue;
         };
@@ -1078,9 +1112,10 @@ fn append_measure_semantic_events(
             let frame = ((time.start_secs - origin_secs).max(0.0) * f64::from(sample_rate_hz))
                 .round() as u64;
             let measure = &staff.measures[time.measure];
+            let mark = tempo_marks.get(time.measure).copied().unwrap_or_default();
             if part_index == 0
                 && options.bpm_override.is_none()
-                && (measure.tempo.is_some() || measure.tempo_ramp_to.is_some())
+                && (mark.bpm.is_some() || mark.ramp_to_bpm.is_some())
             {
                 events.push(OfflineRenderSemanticFrameEvent {
                     kind: OfflineRenderSemanticEventKind::Tempo {
@@ -1896,6 +1931,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
     let materialized = score.with_legacy_spanner_flags();
     let score: &Score = &materialized;
     let bpm = initial_tempo_bpm(score, options);
+    let tempo_marks = score_tempo_marks(score);
     let swing_ratio = options
         .swing
         .filter(|ratio| ratio.is_finite() && *ratio > 0.5 && *ratio < 1.0);
@@ -1932,10 +1968,8 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                     let channel = instrument.map_or(part.midi_channel, |value| value.midi_channel);
                     let program = instrument.map_or(part.midi_program, |value| value.midi_program);
                     let instrument_id = instrument.map(|value| value.id.clone());
-                    if let Some(b) = measure
-                        .tempo
-                        .and_then(|tempo| written_tempo_bpm(options, tempo))
-                    {
+                    let mark = tempo_marks.get(idx).copied().unwrap_or_default();
+                    if let Some(b) = mark.bpm.and_then(|tempo| written_tempo_bpm(options, tempo)) {
                         current_bpm = b;
                     }
                     let measure_beats = staff.measure_beats(idx, &score.settings.time_signature);
@@ -1948,7 +1982,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                     } else {
                         0.0
                     };
-                    let ramp_end_bpm = written_tempo_ramp_bpm(options, measure.tempo_ramp_to);
+                    let ramp_end_bpm = written_tempo_ramp_bpm(options, mark.ramp_to_bpm);
                     let measure_start_beats = time_beats;
                     let measure_start_secs = time_secs_cursor;
                     let mut local_beats = 0.0f64;
@@ -1956,7 +1990,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                     let mut written_beats = 0.0f64;
                     let mut swing_second = false;
                     for (note_index, note) in measure.voices[voice_idx].iter().enumerate() {
-                        if note.is_grace {
+                        if note.is_grace || note.is_cue {
                             continue;
                         }
                         let onset_written_beats = written_beats;
@@ -2111,12 +2145,8 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
         let mut metro_bpm = bpm;
         for &idx in &seq {
             let first_staff = score.parts.first().and_then(|p| p.staves.first());
-            let measure = first_staff.and_then(|staff| staff.measures.get(idx));
-            if let Some(t) = first_staff
-                .and_then(|s| s.measures.get(idx))
-                .and_then(|m| m.tempo)
-                .and_then(|tempo| written_tempo_bpm(options, tempo))
-            {
+            let mark = tempo_marks.get(idx).copied().unwrap_or_default();
+            if let Some(t) = mark.bpm.and_then(|tempo| written_tempo_bpm(options, tempo)) {
                 metro_bpm = t;
             }
             let ts = first_staff.map_or(&score.settings.time_signature, |s| {
@@ -2126,8 +2156,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                 || ts.total_beats(),
                 |s| s.measure_beats(idx, &score.settings.time_signature),
             );
-            let ramp_end_bpm =
-                measure.and_then(|measure| written_tempo_ramp_bpm(options, measure.tempo_ramp_to));
+            let ramp_end_bpm = written_tempo_ramp_bpm(options, mark.ramp_to_bpm);
             let beat_unit = ts.beat_unit_beats();
             let num_beats = (measure_beats / beat_unit).round() as u32;
             for b in 0..num_beats {
@@ -2473,6 +2502,7 @@ struct MeasureSegment {
 
 fn build_measure_segments(score: &Score, options: &PlaybackOptions) -> Vec<MeasureSegment> {
     let init_bpm = initial_tempo_bpm(score, options);
+    let tempo_marks = score_tempo_marks(score);
     let full_seq = measure_sequence(score);
     let seq: Vec<usize> = if let Some((lo, hi)) = options.loop_region {
         full_seq
@@ -2493,10 +2523,8 @@ fn build_measure_segments(score: &Score, options: &PlaybackOptions) -> Vec<Measu
             .first()
             .and_then(|p| p.staves.first())
             .and_then(|s| s.measures.get(idx));
-        if let Some(t) = first_measure
-            .and_then(|measure| measure.tempo)
-            .and_then(|tempo| written_tempo_bpm(options, tempo))
-        {
+        let mark = tempo_marks.get(idx).copied().unwrap_or_default();
+        if let Some(t) = mark.bpm.and_then(|tempo| written_tempo_bpm(options, tempo)) {
             current_bpm = t;
         }
         let first_staff = score.parts.first().and_then(|p| p.staves.first());
@@ -2504,8 +2532,7 @@ fn build_measure_segments(score: &Score, options: &PlaybackOptions) -> Vec<Measu
             (Some(staff), Some(_)) => staff.measure_beats(idx, &score.settings.time_signature),
             _ => score.settings.time_signature.total_beats(),
         };
-        let ramp_to_bpm = first_measure
-            .and_then(|measure| written_tempo_ramp_bpm(options, measure.tempo_ramp_to));
+        let ramp_to_bpm = written_tempo_ramp_bpm(options, mark.ramp_to_bpm);
         let duration_secs = tempo_ramp_seconds(current_bpm, ramp_to_bpm, beats, beats);
 
         segments.push(MeasureSegment {
@@ -2607,6 +2634,60 @@ mod tests {
             .collect();
         // 4/4, then two bars of 3/4: the third bar starts at 4 + 3, not 4 + 4.
         assert_eq!(onsets, vec![0.0, 4.0, 7.0]);
+    }
+
+    #[test]
+    fn tempo_written_on_either_part_governs_the_whole_score() {
+        let mut score = Score::new("shared tempo", 120, 4, 4, 0, 2);
+        let mut second = score.parts[0].clone();
+        second.id = "second".into();
+        score.parts.push(second);
+        for part in &mut score.parts {
+            for measure in &mut part.staves[0].measures {
+                measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+            }
+        }
+        score.parts[0].staves[0].measures[0].tempo = Some(92);
+        score.parts[1].staves[0].measures[1].tempo = Some(60);
+        let options = PlaybackOptions {
+            metronome: Some(MetronomeConfig::default()),
+            ..Default::default()
+        };
+        let events = to_playback_events(&score, &options);
+        for part_index in 0..2 {
+            let first = events
+                .iter()
+                .find(|event| {
+                    event.part_index == part_index
+                        && event
+                            .source
+                            .as_ref()
+                            .is_some_and(|source| source.measure == 0)
+                })
+                .unwrap();
+            let second = events
+                .iter()
+                .find(|event| {
+                    event.part_index == part_index
+                        && event
+                            .source
+                            .as_ref()
+                            .is_some_and(|source| source.measure == 1)
+                })
+                .unwrap();
+            assert!((first.duration_secs - 60.0 / 92.0).abs() < 1e-9);
+            assert!((second.time_secs - 4.0 * 60.0 / 92.0).abs() < 1e-9);
+            assert!((second.duration_secs - 1.0).abs() < 1e-9);
+        }
+        let clicks: Vec<_> = events.iter().filter(|event| event.is_metronome).collect();
+        assert!((clicks[1].time_secs - 60.0 / 92.0).abs() < 1e-9);
+        assert!((clicks[4].time_secs - 4.0 * 60.0 / 92.0).abs() < 1e-9);
+        let position = compute_playback_position(&score, &options, 1.5 * 60.0 / 92.0).unwrap();
+        assert_eq!(position.measure_index, 0);
+        assert!((position.beat - 1.5).abs() < 1e-9);
+        let timeline_1 = offline_measure_times(&score, &options, 1, 0, &score_tempo_marks(&score));
+        assert!((timeline_1[0].bpm - 92.0).abs() < 1e-9);
+        assert!((timeline_1[1].bpm - 60.0).abs() < 1e-9);
     }
 
     #[test]
@@ -3409,6 +3490,30 @@ mod tests {
         );
         assert!((events[0].duration_beats - 0.5).abs() < 1e-9);
         assert!((events[1].time_beats - 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn cue_note_does_not_sound_or_pair_with_a_written_eighth() {
+        let mut score = Score::new("cue", 120, 4, 4, 0, 1);
+        let mut cue = Note::new(Pitch::new(Step::D, 4), Duration::Eighth);
+        cue.is_cue = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Eighth),
+            cue,
+            Note::new(Pitch::new(Step::E, 4), Duration::Eighth),
+        ];
+        let events = to_playback_events(
+            &score,
+            &PlaybackOptions {
+                swing: Some(2.0 / 3.0),
+                ..Default::default()
+            },
+        );
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].pitch_midi, 60);
+        assert_eq!(events[0].duration_beats, 0.5);
+        assert_eq!(events[1].pitch_midi, 64);
+        assert_eq!(events[1].time_beats, 0.5);
     }
 
     #[test]
