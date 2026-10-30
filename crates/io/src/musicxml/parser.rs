@@ -378,6 +378,8 @@ pub(crate) fn parse_musicxml_collecting(
     let mut harp_pedal_step = Step::C;
     let mut harp_pedal_alter = 0i8;
     let mut in_work = false;
+    let mut in_identification = false;
+    let mut creator_type = String::new();
     let mut in_backup = false;
     let mut in_forward = false;
     let mut measure_cursor_ticks = 0u32;
@@ -448,6 +450,10 @@ pub(crate) fn parse_musicxml_collecting(
                 current_text.clear();
 
                 match tag.as_str() {
+                    "identification" => in_identification = true,
+                    "creator" if in_identification => {
+                        creator_type = attr_str(e, b"type").unwrap_or_default();
+                    }
                     // A positioned rest may contain display-step/display-octave children.
                     // Empty rests are handled by the Event::Empty branch below.
                     "rest" if in_note => {
@@ -1647,6 +1653,7 @@ pub(crate) fn parse_musicxml_collecting(
                         in_figured_bass = false;
                     }
                     "work" => in_work = false,
+                    "identification" => in_identification = false,
                     "bar-style" if in_barline && barline_location == "right" => {
                         let style = match current_text.trim() {
                             "light-heavy" | "heavy-heavy" => Some(Barline::Final),
@@ -1842,11 +1849,30 @@ pub(crate) fn parse_musicxml_collecting(
                         score.metadata.title = current_text.clone();
                     }
                     "movement-title" => {
+                        score.metadata.movement_title = current_text.clone();
                         if score.metadata.title.is_empty()
                             || score.metadata.title == "Untitled Score"
                         {
                             score.metadata.title = current_text.clone();
                         }
+                    }
+                    "creator" if in_identification => {
+                        let text = current_text.trim();
+                        let target = match creator_type.as_str() {
+                            "composer" => Some(&mut score.metadata.composer),
+                            "lyricist" => Some(&mut score.metadata.lyricist),
+                            _ => None,
+                        };
+                        if let Some(target) = target
+                            && target.is_empty()
+                            && !text.is_empty()
+                        {
+                            *target = text.to_string();
+                        }
+                        creator_type.clear();
+                    }
+                    "rights" if in_identification && score.metadata.copyright.is_empty() => {
+                        score.metadata.copyright = current_text.trim().to_string();
                     }
                     "divisions" => {
                         current_divisions = current_text.parse().unwrap_or(480);

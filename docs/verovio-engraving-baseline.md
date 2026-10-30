@@ -211,6 +211,19 @@ quality claim follows from these unchanged page counts. Increasing the
 staff-aware system height in a separate trial enlarged the notation but left
 visible lyric/staff collisions in Aloha Oe, so that trial was reverted.
 
+### Quilter publication credits (2026-10-31)
+
+The pinned Quilter MusicXML contains a work title, a separate movement title,
+composer, and CC0 rights. Acorde previously imported only the work title. The
+MusicXML importer now retains the other fields, and export preserves them on
+roundtrip. The physical first-page SVG prints `Prelude` and `Roger Quilter`
+above the first system; the rights remain in score metadata. The A4 PDF was
+rasterized at 1400 px to check that the new text stays inside the page and does
+not overlap the first system. The system grouping and one-page count are
+unchanged. Verovio's publication type is still visibly larger and clearer, and
+the 103 Acorde import diagnostics remain; restoring these credits is a semantic
+and completeness fix, not a claim of print-quality parity.
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.

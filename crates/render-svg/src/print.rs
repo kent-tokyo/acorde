@@ -176,6 +176,11 @@ pub fn render_print_page_svgs(
                 .any(|c| !is_valid_xml_char(c))
             || page
                 .publication
+                .movement_title
+                .chars()
+                .any(|c| !is_valid_xml_char(c))
+            || page
+                .publication
                 .composer
                 .chars()
                 .any(|c| !is_valid_xml_char(c))
@@ -279,13 +284,15 @@ pub fn render_print_page_svgs(
     let staff_offsets = render::print_staff_offsets(score, PRINT_STAFF_GAP);
     let mut pages = Vec::with_capacity(layout.pages.len());
     for (page, offset) in layout.pages.iter().zip(offsets) {
+        let has_movement_title = !page.publication.movement_title.trim().is_empty()
+            && page.publication.movement_title != page.publication.title;
         if page.page_index == 0
             && !page.publication.is_title_page
-            && !page.publication.title.is_empty()
+            && (!page.publication.title.is_empty() || has_movement_title)
             && page
                 .systems
                 .first()
-                .is_some_and(|system| system.top_mm < 10.0)
+                .is_some_and(|system| system.top_mm < if has_movement_title { 16.0 } else { 10.0 })
         {
             return Err(PrintRenderError::UnsupportedResource {
                 page_index: 0,
@@ -342,20 +349,32 @@ fn write_publication(
         && !page.publication.is_title_page
         && let Some(system) = page.systems.first()
     {
-        let y = (system.top_mm - 5.0) * scale;
+        let has_movement_title = !page.publication.movement_title.trim().is_empty()
+            && page.publication.movement_title != page.publication.title;
+        let title_y = (system.top_mm - if has_movement_title { 8.5 } else { 5.0 }) * scale;
+        let credit_y = (system.top_mm - if has_movement_title { 3.0 } else { 5.0 }) * scale;
         if !page.publication.title.is_empty() {
             let _ = write!(
                 svg,
-                "<text class=\"acorde-print-title\" x=\"{:.3}\" y=\"{y:.3}\" text-anchor=\"middle\" font-family=\"serif\" font-weight=\"bold\" font-size=\"{:.3}\">{}</text>",
+                "<text class=\"acorde-print-title\" x=\"{:.3}\" y=\"{title_y:.3}\" text-anchor=\"middle\" font-family=\"serif\" font-weight=\"bold\" font-size=\"{:.3}\">{}</text>",
                 page.width_mm * scale / 2.0,
                 4.5 * scale,
                 escape_xml(&page.publication.title)
             );
         }
+        if has_movement_title {
+            let _ = write!(
+                svg,
+                "<text class=\"acorde-print-movement-title\" x=\"{:.3}\" y=\"{credit_y:.3}\" text-anchor=\"middle\" font-family=\"serif\" font-size=\"{:.3}\">{}</text>",
+                page.width_mm * scale / 2.0,
+                3.0 * scale,
+                escape_xml(&page.publication.movement_title)
+            );
+        }
         if !page.publication.composer.is_empty() {
             let _ = write!(
                 svg,
-                "<text class=\"acorde-print-composer\" x=\"{:.3}\" y=\"{y:.3}\" text-anchor=\"end\" font-family=\"serif\" font-size=\"{:.3}\">{}</text>",
+                "<text class=\"acorde-print-composer\" x=\"{:.3}\" y=\"{credit_y:.3}\" text-anchor=\"end\" font-family=\"serif\" font-size=\"{:.3}\">{}</text>",
                 (page.content_left_mm + page.content_width_mm) * scale,
                 2.5 * scale,
                 escape_xml(&page.publication.composer)

@@ -32,12 +32,35 @@ fn serialize_musicxml_inner(
     ));
     xml.push_str("  </work>\n");
 
-    if !score.metadata.composer.is_empty() {
-        xml.push_str("  <identification>\n");
+    if !score.metadata.movement_title.is_empty() {
         xml.push_str(&format!(
-            "    <creator type=\"composer\">{}</creator>\n",
-            escape_xml(&score.metadata.composer)
+            "  <movement-title>{}</movement-title>\n",
+            escape_xml(&score.metadata.movement_title)
         ));
+    }
+
+    if !score.metadata.composer.is_empty()
+        || !score.metadata.lyricist.is_empty()
+        || !score.metadata.copyright.is_empty()
+    {
+        xml.push_str("  <identification>\n");
+        for (kind, value) in [
+            ("composer", &score.metadata.composer),
+            ("lyricist", &score.metadata.lyricist),
+        ] {
+            if !value.is_empty() {
+                xml.push_str(&format!(
+                    "    <creator type=\"{kind}\">{}</creator>\n",
+                    escape_xml(value)
+                ));
+            }
+        }
+        if !score.metadata.copyright.is_empty() {
+            xml.push_str(&format!(
+                "    <rights>{}</rights>\n",
+                escape_xml(&score.metadata.copyright)
+            ));
+        }
         xml.push_str("  </identification>\n");
     }
 
