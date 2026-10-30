@@ -160,3 +160,32 @@ fn openscore_five_staff_score_renders_two_physical_a4_pages() {
         2
     );
 }
+
+#[test]
+fn dense_piano_opening_gets_room_for_clef_key_and_meter() {
+    let fixture = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/openscore_lieder_quilter_prelude.mxl"
+    );
+    let bytes = std::fs::read(fixture).expect("pinned CC0 piano fixture");
+    let import = acorde_io::parse_mxl_with_report(&bytes).expect("MXL import");
+    let config = PrintConfig {
+        measures_per_system: 4,
+        system_break_strategy: PrintSystemBreakStrategy::NotationDensity,
+        ..PrintConfig::default()
+    };
+    let layout = compute_print_layout(&import.score, &config).expect("density layout");
+    let systems = layout
+        .pages
+        .iter()
+        .flat_map(|page| &page.systems)
+        .map(|system| system.measure_indices.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(systems, [vec![0, 1, 2], vec![3, 4, 5, 6], vec![7, 8, 9]]);
+    assert_eq!(
+        render_print_page_svgs(&import.score, &layout)
+            .unwrap()
+            .len(),
+        1
+    );
+}

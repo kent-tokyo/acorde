@@ -2909,6 +2909,9 @@ fn print_density_rows(
     let budget = ((baseline_costs[percentile_index] as f32 * content_width_mm / 182.0)
         .round()
         .max(3.0)) as usize;
+    // The first row spends part of the same physical width on clefs, key, and meter.
+    // Reserve 15% of its demand budget instead of packing it like later rows.
+    let first_row_budget = ((budget as f32 * 0.85).round().max(3.0)) as usize;
 
     let mut rows = Vec::new();
     let mut row = Vec::new();
@@ -2931,9 +2934,14 @@ fn print_density_rows(
         } else {
             max_columns
         };
+        let row_budget = if rows.is_empty() {
+            first_row_budget
+        } else {
+            budget
+        };
         if !row.is_empty()
             && (row_columns.saturating_add(columns) > limit
-                || row_cost.saturating_add(cost) > budget)
+                || row_cost.saturating_add(cost) > row_budget)
         {
             rows.push(RowLayout {
                 measure_indices: std::mem::take(&mut row),
