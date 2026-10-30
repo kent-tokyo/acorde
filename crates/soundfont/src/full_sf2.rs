@@ -26,6 +26,15 @@ enum Action {
         channel: u8,
         down: bool,
     },
+    Controller {
+        channel: u8,
+        controller: u8,
+        value: u8,
+    },
+    PitchBend {
+        channel: u8,
+        value: i16,
+    },
     NoteOn {
         channel: u8,
         program: u8,
@@ -40,7 +49,14 @@ impl Action {
             Self::Pedal { down: true, .. } => 0,
             Self::NoteOff { .. } => 1,
             Self::Pedal { down: false, .. } => 2,
-            Self::NoteOn { .. } => 3,
+            Self::Controller {
+                controller: 64,
+                value,
+                ..
+            } if value >= 64 => 0,
+            Self::Controller { controller: 64, .. } => 2,
+            Self::Controller { .. } | Self::PitchBend { .. } => 3,
+            Self::NoteOn { .. } => 4,
         }
     }
 }
@@ -79,8 +95,7 @@ pub fn render_offline_wav_full_sf2(
     for action in &manifest.semantic_events {
         if matches!(
             action.kind,
-            OfflineRenderSemanticEventKind::Controller { .. }
-                | OfflineRenderSemanticEventKind::PitchBend { .. }
+            OfflineRenderSemanticEventKind::ProgramChange { .. }
                 | OfflineRenderSemanticEventKind::Aftertouch { .. }
                 | OfflineRenderSemanticEventKind::GuitarBend { .. }
         ) {
@@ -133,6 +148,7 @@ pub fn render_offline_wav_full_sf2(
     let mut used = BTreeSet::new();
     let mut lane_channels = BTreeMap::new();
     let mut part_channels = BTreeMap::<usize, BTreeSet<u8>>::new();
+    let mut midi_channels = BTreeMap::<(usize, u8), BTreeSet<u8>>::new();
     for lane in lanes {
         let requested = lane.3;
         let channel = if used.insert(requested) {
@@ -155,11 +171,15 @@ pub fn render_offline_wav_full_sf2(
         };
         lane_channels.insert(lane, channel);
         part_channels.entry(lane.0).or_default().insert(channel);
+        midi_channels
+            .entry((lane.0, requested))
+            .or_default()
+            .insert(channel);
     }
 
     let mut actions = BTreeMap::<usize, Vec<Action>>::new();
     let mut active_keys = BTreeMap::<(u8, u8), usize>::new();
-    let mut collision_channels = BTreeMap::<usize, BTreeSet<u8>>::new();
+    let mut collision_channels = BTreeMap::<(usize, u8), BTreeSet<u8>>::new();
     let mut frame_events = manifest.frame_events.iter().collect::<Vec<_>>();
     frame_events.sort_by_key(|event| (event.start_frame, event.end_frame));
     for frame_event in frame_events {
@@ -218,7 +238,7 @@ pub fn render_offline_wav_full_sf2(
                 ));
             }
             if let Some(&spare) = collision_channels
-                .get(&event.part_index)
+                .get(&(event.part_index, event.channel))
                 .and_then(|channels| channels.iter().find(|&&channel| !collides(channel)))
             {
                 spare
@@ -230,11 +250,15 @@ pub fn render_offline_wav_full_sf2(
                     ))?;
                 used.insert(spare);
                 collision_channels
-                    .entry(event.part_index)
+                    .entry((event.part_index, event.channel))
                     .or_default()
                     .insert(spare);
                 part_channels
                     .entry(event.part_index)
+                    .or_default()
+                    .insert(spare);
+                midi_channels
+                    .entry((event.part_index, event.channel))
                     .or_default()
                     .insert(spare);
                 spare
@@ -263,6 +287,69 @@ pub fn render_offline_wav_full_sf2(
             channel,
             key: event.pitch_midi,
         });
+    }
+    for semantic in &manifest.semantic_events {
+        let (authored_channel, action) = match semantic.kind {
+            OfflineRenderSemanticEventKind::Controller {
+                channel,
+                controller,
+                value,
+            } => {
+                if !matches!(controller, 1 | 7 | 10 | 11 | 64) || value > 127 {
+                    return Err(Error::UnsupportedOfflineFeature("MIDI controller"));
+                }
+                (
+                    channel,
+                    Action::Controller {
+                        channel,
+                        controller,
+                        value,
+                    },
+                )
+            }
+            OfflineRenderSemanticEventKind::PitchBend { channel, value } => {
+                if !(-8192..=8191).contains(&value) {
+                    return Err(Error::InvalidEvent);
+                }
+                (channel, Action::PitchBend { channel, value })
+            }
+            _ => continue,
+        };
+        let part = semantic
+            .source
+            .as_ref()
+            .map(|source| source.part)
+            .or_else(|| semantic.measure.as_ref().map(|measure| measure.part))
+            .ok_or(Error::UnsupportedOfflineFeature("unrouted MIDI automation"))?;
+        if matches!(action, Action::Controller { controller: 64, .. })
+            && pedal_spans
+                .get(&part)
+                .is_some_and(|spans| !spans.is_empty())
+        {
+            return Err(Error::UnsupportedOfflineFeature(
+                "duplicate sustain controller",
+            ));
+        }
+        let routed = midi_channels
+            .get(&(part, authored_channel))
+            .ok_or(Error::UnsupportedOfflineFeature("unrouted MIDI automation"))?;
+        let frame = usize::try_from(semantic.frame).map_err(|_| Error::InvalidEvent)?;
+        if frame < frames {
+            for &channel in routed {
+                let routed_action = match action {
+                    Action::Controller {
+                        controller, value, ..
+                    } => Action::Controller {
+                        channel,
+                        controller,
+                        value,
+                    },
+                    Action::PitchBend { value, .. } => Action::PitchBend { channel, value },
+                    _ => unreachable!("only MIDI automation actions are routed"),
+                };
+                actions.entry(frame).or_default().push(routed_action);
+            }
+        }
     }
     for (part, spans) in pedal_spans {
         let Some(channels) = part_channels.get(&part) else {
@@ -316,6 +403,25 @@ pub fn render_offline_wav_full_sf2(
                     64,
                     if down { 127 } else { 0 },
                 ),
+                Action::Controller {
+                    channel,
+                    controller,
+                    value,
+                } => synth.process_midi_message(
+                    i32::from(channel),
+                    0xB0,
+                    i32::from(controller),
+                    i32::from(value),
+                ),
+                Action::PitchBend { channel, value } => {
+                    let unsigned = i32::from(value) + 8192;
+                    synth.process_midi_message(
+                        i32::from(channel),
+                        0xE0,
+                        unsigned & 0x7f,
+                        unsigned >> 7,
+                    );
+                }
                 Action::NoteOn {
                     channel,
                     program,
@@ -367,8 +473,8 @@ fn render_segment(
 #[cfg(test)]
 mod tests {
     use acorde_core::{
-        Duration, Note, OfflineRenderRequest, Pitch, PlaybackOptions, Score, Step,
-        build_offline_render_manifest,
+        Duration, MidiControlChange, MidiPitchBend, MidiProgramChange, Note, OfflineRenderRequest,
+        Pitch, PlaybackOptions, Score, Step, build_offline_render_manifest,
     };
 
     use super::*;
@@ -452,6 +558,19 @@ mod tests {
                 "pedal without routed span"
             ))
         );
+        score.parts[0].midi_control_changes.push(MidiControlChange {
+            tick: 0,
+            channel: 0,
+            controller: 64,
+            value: 127,
+        });
+        assert_eq!(
+            render_offline_wav_full_sf2(&manifest(&score), PIANO),
+            Err(Error::UnsupportedOfflineFeature(
+                "duplicate sustain controller"
+            ))
+        );
+        score.parts[0].midi_control_changes.clear();
         score.parts[0].staves[0].measures[0].voices[0][0].pedal_start = false;
         score.parts[0].staves[0].measures[0].voices[0][2].pedal_end = false;
         let dry = render_offline_wav_full_sf2(&manifest(&score), PIANO).unwrap();
@@ -464,5 +583,169 @@ mod tests {
                 .sum()
         };
         assert!(gap_energy(&held) > gap_energy(&dry) * 2);
+    }
+
+    #[test]
+    fn full_sf2_applies_authored_pitch_bend_at_the_scheduled_frame() {
+        let mut score = Score::new("Bend", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Half)];
+        let dry = render_offline_wav_full_sf2(&manifest(&score), PIANO).unwrap();
+        score.parts[0].midi_pitch_bends.push(MidiPitchBend {
+            tick: 240,
+            channel: 0,
+            value: 4096,
+        });
+        let schedule = manifest(&score);
+        assert!(schedule.semantic_events.iter().any(|event| matches!(
+            event.kind,
+            OfflineRenderSemanticEventKind::PitchBend { value: 4096, .. }
+        ) && event.frame == 4_000));
+        let bent = render_offline_wav_full_sf2(&schedule, PIANO).unwrap();
+        assert_eq!(dry[..44 + 4_000 * 2], bent[..44 + 4_000 * 2]);
+        assert_ne!(
+            dry[44 + 5_000 * 2..44 + 6_000 * 2],
+            bent[44 + 5_000 * 2..44 + 6_000 * 2]
+        );
+    }
+
+    #[test]
+    fn full_sf2_applies_authored_volume_control_after_its_frame() {
+        let mut score = Score::new("Volume", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Half)];
+        score.parts[0].staves[0].measures[0].voices[1] =
+            vec![Note::new(Pitch::new(Step::E, 4), Duration::Half)];
+        let dry = render_offline_wav_full_sf2(&manifest(&score), PIANO).unwrap();
+        score.parts[0].midi_control_changes.push(MidiControlChange {
+            tick: 240,
+            channel: 0,
+            controller: 7,
+            value: 0,
+        });
+        let controlled = render_offline_wav_full_sf2(&manifest(&score), PIANO).unwrap();
+        assert_eq!(dry[..44 + 4_000 * 2], controlled[..44 + 4_000 * 2]);
+        let energy = |wav: &[u8]| -> i64 {
+            wav[44 + 8_000 * 2..44 + 12_000 * 2]
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|bytes| i64::from(i16::from_le_bytes(*bytes)).abs())
+                .sum()
+        };
+        assert!(energy(&controlled) < energy(&dry) / 10);
+    }
+
+    #[test]
+    fn full_sf2_rejects_unrouted_and_unsupported_midi_automation() {
+        let mut score = Score::new("Automation", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Half)];
+        score.parts[0].midi_pitch_bends.push(MidiPitchBend {
+            tick: 240,
+            channel: 2,
+            value: 4096,
+        });
+        assert_eq!(
+            render_offline_wav_full_sf2(&manifest(&score), PIANO),
+            Err(Error::UnsupportedOfflineFeature("unrouted MIDI automation"))
+        );
+        score.parts[0].midi_pitch_bends.clear();
+        score.parts[0].midi_control_changes.push(MidiControlChange {
+            tick: 240,
+            channel: 0,
+            controller: 2,
+            value: 64,
+        });
+        assert_eq!(
+            render_offline_wav_full_sf2(&manifest(&score), PIANO),
+            Err(Error::UnsupportedOfflineFeature("MIDI controller"))
+        );
+        score.parts[0].midi_control_changes.clear();
+        score.parts[0].midi_program_changes.push(MidiProgramChange {
+            tick: 240,
+            channel: 0,
+            program: 40,
+        });
+        assert_eq!(
+            render_offline_wav_full_sf2(&manifest(&score), PIANO),
+            Err(Error::UnsupportedOfflineFeature("MIDI automation"))
+        );
+    }
+
+    #[test]
+    fn full_sf2_routes_authored_cc64_to_the_note_channel() {
+        let mut score = Score::new("CC64", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            Note::rest(Duration::Quarter),
+            Note::new(Pitch::new(Step::D, 4), Duration::Quarter),
+        ];
+        let dry = render_offline_wav_full_sf2(&manifest(&score), PIANO).unwrap();
+        score.parts[0].midi_control_changes = vec![
+            MidiControlChange {
+                tick: 0,
+                channel: 0,
+                controller: 64,
+                value: 127,
+            },
+            MidiControlChange {
+                tick: 960,
+                channel: 0,
+                controller: 64,
+                value: 0,
+            },
+        ];
+        let held = render_offline_wav_full_sf2(&manifest(&score), PIANO).unwrap();
+        let gap_energy = |wav: &[u8]| -> i64 {
+            wav[44 + 12_000 * 2..44 + 14_000 * 2]
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|bytes| i64::from(i16::from_le_bytes(*bytes)).abs())
+                .sum()
+        };
+        assert!(gap_energy(&held) > gap_energy(&dry) * 2);
+    }
+
+    #[test]
+    fn full_sf2_does_not_reuse_collision_channel_across_authored_channels() {
+        let mut score = Score::new("Channel change", 120, 4, 4, 0, 2);
+        for measure in &mut score.parts[0].staves[0].measures {
+            let mut first = Note::new(Pitch::new(Step::A, 4), Duration::Quarter);
+            first.articulations.push(Articulation::Fermata);
+            measure.voices[0] = vec![first, Note::new(Pitch::new(Step::A, 4), Duration::Quarter)];
+        }
+        let mut dry_schedule = manifest(&score);
+        assert_eq!(dry_schedule.frame_events.len(), 4);
+        for index in 2..4 {
+            dry_schedule.events[index].channel = 1;
+            dry_schedule.frame_events[index].event.channel = 1;
+        }
+        let dry = render_offline_wav_full_sf2(&dry_schedule, PIANO).unwrap();
+
+        score.parts[0].midi_control_changes.push(MidiControlChange {
+            tick: 1_920,
+            channel: 0,
+            controller: 7,
+            value: 0,
+        });
+        let mut controlled_schedule = manifest(&score);
+        for index in 2..4 {
+            controlled_schedule.events[index].channel = 1;
+            controlled_schedule.frame_events[index].event.channel = 1;
+        }
+        let controlled = render_offline_wav_full_sf2(&controlled_schedule, PIANO).unwrap();
+        // The first channel's volume change must not silence the second channel's
+        // overlapping unison, even when both need a spare channel.
+        let energy = |wav: &[u8]| -> i64 {
+            wav[44 + 44_000 * 2..44 + 48_000 * 2]
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|bytes| i64::from(i16::from_le_bytes(*bytes)).abs())
+                .sum()
+        };
+        assert!(energy(&controlled) > energy(&dry) * 9 / 10);
     }
 }

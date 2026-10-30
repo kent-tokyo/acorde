@@ -148,6 +148,13 @@ disabled. The mode is available at 16–192 kHz and continues to reject unsuppor
 expression. The alphaTab 1.8.4 bundled `sonivox.sf2` is loaded from its installed npm package,
 not copied into this repository.
 
+The full-SF2 mode also applies authored signed 14-bit pitch bend and MIDI CC 1, 7, 10, 11, and 64
+on the frame schedule. A two-voice real-SF2 regression checks that CC7 reaches both channels
+after voice splitting; another checks that a bend changes only audio after its authored frame.
+CC64 holds sound across a rest. Unsupported or unrouted automation, including raw MIDI program
+changes, fails explicitly. These regressions show control realization, not alphaTab audio parity
+on a real-score controller corpus.
+
 On the independent *Just for Today* MXL (score SHA-256
 `79a19736fcce71c0acf4b39feff63723d2ff75e29285ea2ab594f9b2b6a835ff`), Acorde rendered
 all 579 scheduled notes using that SF2 (SHA-256
