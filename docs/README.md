@@ -13,6 +13,7 @@ before selecting a version.
 | Upgrade impact and release history | [Migration notes](migrations.md), [`CHANGELOG.md`](../CHANGELOG.md) |
 | Format checks and reports | [Interchange evidence](interchange-evidence.md) |
 | Browser/WASM host | [Browser contract](browser-rendering.md), [browser checks](browser-support.md) |
+| Written accompaniment chord symbols | [Authored chord annotation](authored-chords.md) |
 | Print/PDF host | [Print layout](print-layout.md), [page SVG](print-svg-contract.md), [PDF export](pdf-export.md) |
 
 ## Verification and evidence

@@ -19,6 +19,10 @@ pub use model::arrange_presets::{
     accordion_preset_capabilities, arrange_accordion_preset, arrange_from_resolved_preset,
     shuffle_accordion_preset,
 };
+pub use model::authored_chords::{
+    AuthoredChordAnnotation, AuthoredChordDiagnostic, AuthoredChordOptions, AuthoredChordResult,
+    annotate_from_authored_chords,
+};
 pub use model::change_hint::{ChangeHint, ChangeScope};
 pub use model::commands::{
     AddHairpinCmd, AddMeasureCmd, AddNoteCmd, AddPartCmd, AddPedalCmd, AddPitchCmd, AddSpannerCmd,
