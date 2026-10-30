@@ -120,6 +120,12 @@ pub fn measure_sequence(score: &Score) -> Vec<usize> {
 
             // Barline-repeat handling (only outside navigation pass).
             if matches!(m.barline_left, Barline::RepeatStart | Barline::RepeatBoth) {
+                // A new repeat section starts on its first pass even if the previous
+                // section's repeat end was skipped on an alternate-ending pass.
+                // Re-entering this same start after a jump keeps the current pass.
+                if repeat_start != i {
+                    volta_pass = 1;
+                }
                 repeat_start = i;
             }
 
@@ -331,6 +337,42 @@ mod tests {
         assert_eq!(seq, vec![0, 1, 2, 0, 1, 3, 4]);
         let second_pass_third = seq[5];
         assert_eq!(second_pass_third, 3);
+    }
+
+    #[test]
+    fn independent_repeat_sections_restart_at_their_first_pass() {
+        let ending = |number| {
+            Some(VoltaBracket {
+                number,
+                kind: "begin_end".into(),
+                numbers: Vec::new(),
+            })
+        };
+        let mut first_start = plain(1);
+        first_start.barline_left = Barline::RepeatStart;
+        let mut first_ending = plain(2);
+        first_ending.barline_right = Barline::RepeatEnd;
+        first_ending.volta = ending(1);
+        let mut second_ending = plain(3);
+        second_ending.volta = ending(2);
+
+        let mut next_start = plain(4);
+        next_start.barline_left = Barline::RepeatStart;
+        let mut next_first_ending = plain(5);
+        next_first_ending.barline_right = Barline::RepeatEnd;
+        next_first_ending.volta = ending(1);
+        let mut next_second_ending = plain(6);
+        next_second_ending.volta = ending(2);
+
+        let score = score_with_measures(vec![
+            first_start,
+            first_ending,
+            second_ending,
+            next_start,
+            next_first_ending,
+            next_second_ending,
+        ]);
+        assert_eq!(measure_sequence(&score), vec![0, 1, 0, 2, 3, 4, 3, 5]);
     }
 
     // ── Navigation marks ─────────────────────────────────────────────────────

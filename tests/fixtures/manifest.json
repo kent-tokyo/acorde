@@ -160,6 +160,28 @@
       ]
     },
     {
+      "path": "freilachs_no_17.mscz",
+      "format": "mscz",
+      "license": "public-domain",
+      "source_url": "https://github.com/kent-tokyo/fisarmonica.org/blob/c17ef9808593c9ef88365fa78fcb22bde7cc11fe/public/scores/freilachs-no-17.mscz",
+      "source_revision": "c17ef9808593c9ef88365fa78fcb22bde7cc11fe",
+      "source_path": "public/scores/freilachs-no-17.mscz",
+      "sha256": "35cb6480a7bb3df84995a1dc0829b24af19bf1d049a8a159eb4a52f4cc1ec696",
+      "round_trip": "import-only",
+      "expected_losses": []
+    },
+    {
+      "path": "freilachs_no_17_accordion.mscz",
+      "format": "mscz",
+      "license": "public-domain",
+      "source_url": "https://github.com/kent-tokyo/fisarmonica.org/blob/c17ef9808593c9ef88365fa78fcb22bde7cc11fe/public/scores/accordion/freilachs-no-17.mscz",
+      "source_revision": "c17ef9808593c9ef88365fa78fcb22bde7cc11fe",
+      "source_path": "public/scores/accordion/freilachs-no-17.mscz",
+      "sha256": "ad3543e3675a9ebdf9f82dbca56e0e1631ac1dd92303a4484dafb3fe6df9b380",
+      "round_trip": "import-only",
+      "expected_losses": []
+    },
+    {
       "path": "openscore_omr_score_1003.mscz",
       "format": "mscz",
       "license": "CC0-1.0",

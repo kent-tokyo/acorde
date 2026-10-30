@@ -445,6 +445,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut volta_has_next = false;
     // A volta Spanner with only a `<prev>` marks where the ending stops: the bar before it.
     let mut volta_has_prev = false;
+    let mut volta_in_prev = false;
+    let mut volta_prev_is_prior_measure = false;
     let mut volta_has_body = false;
     let mut volta_endings = String::new();
     let mut open_volta_numbers: Vec<u8> = Vec::new();
@@ -823,6 +825,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 volta_text.clear();
                                 volta_has_next = false;
                                 volta_has_prev = false;
+                                volta_in_prev = false;
+                                volta_prev_is_prior_measure = false;
                                 volta_has_body = false;
                                 volta_endings.clear();
                             }
@@ -870,6 +874,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "prev" if in_volta_spanner => {
                         volta_has_prev = true;
+                        volta_in_prev = true;
                     }
                     "Volta" if in_volta_spanner => {
                         volta_has_body = true;
@@ -1657,10 +1662,25 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "endings" if in_volta_spanner => {
                         volta_endings = t.to_string();
                     }
+                    "measures" if in_volta_spanner && volta_in_prev => {
+                        volta_prev_is_prior_measure = t.trim().parse::<i32>().is_ok_and(|n| n < 0);
+                    }
+                    "prev" if in_volta_spanner => {
+                        volta_in_prev = false;
+                    }
                     "Spanner" if in_volta_spanner => {
                         if volta_has_prev && !volta_has_body && !volta_has_next {
-                            // The end marker: the ending closes on this staff's previous bar.
-                            if let Some(previous) = staff_measures
+                            // A within-bar end marker closes a volta already begun in this
+                            // measure. Otherwise it closes the previous bar's volta.
+                            if !volta_prev_is_prior_measure
+                                && let Some(current) = cur_volta.as_mut()
+                            {
+                                current.kind = if current.kind == "begin" {
+                                    "begin_end".to_string()
+                                } else {
+                                    "end".to_string()
+                                };
+                            } else if let Some(previous) = staff_measures
                                 .get_mut(&current_staff_id.unwrap_or(1))
                                 .and_then(|measures| measures.last_mut())
                                 .and_then(|measure| measure.volta.as_mut())
@@ -4021,6 +4041,31 @@ mod tests {
         let volta = m.volta.as_ref().unwrap();
         assert_eq!(volta.number, 1);
         assert_eq!(volta.kind, "begin_end");
+    }
+
+    #[test]
+    fn volta_end_location_distinguishes_current_and_previous_measure() {
+        let xml = simple_mscx(
+            r#"
+      <Measure number="1"><voice>
+        <Spanner type="Volta"><Volta><endings>1</endings></Volta>
+          <next><location><measures>1</measures></location></next></Spanner>
+        <Rest><durationType>whole</durationType></Rest>
+      </voice></Measure>
+      <Measure number="2"><voice>
+        <Spanner type="Volta"><Volta><endings>2</endings></Volta>
+          <next><location><fractions>1/2</fractions></location></next></Spanner>
+        <Spanner type="Volta"><prev><location><measures>-1</measures></location></prev></Spanner>
+        <Rest><durationType>whole</durationType></Rest>
+        <Spanner type="Volta"><prev><location><fractions>-1/2</fractions></location></prev></Spanner>
+      </voice></Measure>"#,
+        );
+        let score = parse_mscx(&xml).unwrap();
+        let measures = &score.parts[0].staves[0].measures;
+        assert_eq!(measures[0].volta.as_ref().unwrap().kind, "begin_end");
+        assert_eq!(measures[1].volta.as_ref().unwrap().kind, "begin_end");
+        assert_eq!(measures[0].volta.as_ref().unwrap().number, 1);
+        assert_eq!(measures[1].volta.as_ref().unwrap().number, 2);
     }
 
     // ── Feature K: Dynamic + Lyric ────────────────────────────────────────────
