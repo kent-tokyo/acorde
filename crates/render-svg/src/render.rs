@@ -12,7 +12,7 @@ use acorde_core::{
     Barline, Clef, Duration, Measure, Note, Score, StyledText, TablatureRhythmDisplay, TextStyle,
     TimeSignature,
 };
-use acorde_layout::{LayoutResult, SpanMark};
+use acorde_layout::{LayoutResult, SpanMark, notation_density_units};
 
 use crate::annotations;
 use crate::beams;
@@ -332,38 +332,56 @@ pub(crate) fn build_svg_with_metadata_placement(
             .map(|&m| measure_total_beats(score, &staff_refs[0], m))
             .collect();
         let total_beats: f64 = beats.iter().sum::<f64>().max(1e-6);
-        // Width follows beats, but every measure keeps at least one staff space; the space those
-        // minimums take is removed from the others instead of overflowing the row (a very short
-        // bar next to long ones previously failed the whole render).
-        let mut measure_widths: Vec<f32> = beats
+        // Physical print rows can contain bars with the same duration but very different
+        // amounts of notation. Give dense bars more of the fixed row width while retaining
+        // a rhythmic share (especially for pickups). Screen SVG spacing is unchanged.
+        let width_weights: Vec<f64> = if print_placement.is_some() {
+            let density: Vec<f64> = row
+                .measure_indices
+                .iter()
+                .map(|&measure| notation_density_units(score, measure) as f64)
+                .collect();
+            let total_density = density.iter().sum::<f64>().max(1.0);
+            beats
+                .iter()
+                .zip(&density)
+                .map(|(beat, demand)| 0.4 * beat / total_beats + 0.6 * demand / total_density)
+                .collect()
+        } else {
+            beats.iter().map(|beat| beat / total_beats).collect()
+        };
+        // Every measure keeps at least one staff space; the space those minimums take is
+        // removed from the others instead of overflowing the row (a very short bar next to
+        // long ones previously failed the whole render).
+        let mut measure_widths: Vec<f32> = width_weights
             .iter()
-            .map(|beat| (measure_area_width * (*beat / total_beats) as f32).max(space))
+            .map(|weight| (measure_area_width * *weight as f32).max(space))
             .collect();
         for _ in 0..measure_widths.len() {
-            let clamped: Vec<bool> = beats
+            let clamped: Vec<bool> = width_weights
                 .iter()
                 .zip(&measure_widths)
                 .map(|(_, width)| *width <= space + f32::EPSILON)
                 .collect();
             let fixed = clamped.iter().filter(|c| **c).count() as f32 * space;
-            let free_beats: f64 = beats
+            let free_weight: f64 = width_weights
                 .iter()
                 .zip(&clamped)
                 .filter(|(_, c)| !**c)
-                .map(|(beat, _)| *beat)
+                .map(|(weight, _)| *weight)
                 .sum();
             let free_width = measure_area_width - fixed;
-            if free_beats <= 0.0 || free_width <= 0.0 {
+            if free_weight <= 0.0 || free_width <= 0.0 {
                 break;
             }
-            let next: Vec<f32> = beats
+            let next: Vec<f32> = width_weights
                 .iter()
                 .zip(&clamped)
-                .map(|(beat, c)| {
+                .map(|(weight, c)| {
                     if *c {
                         space
                     } else {
-                        (free_width * (*beat / free_beats) as f32).max(space)
+                        (free_width * (*weight / free_weight) as f32).max(space)
                     }
                 })
                 .collect();
