@@ -13,7 +13,9 @@
 
 use acorde_core::Score;
 use acorde_layout::{PrintLayoutError, PrintLayoutResult};
-use acorde_render_svg::{RenderError, SvgRenderOptions, render_svg};
+use acorde_render_svg::{
+    PrintRenderError, RenderError, SvgRenderOptions, render_print_page_svgs, render_svg,
+};
 use roxmltree::{Document, Node, NodeType};
 use std::f32::consts::PI;
 use thiserror::Error;
@@ -72,6 +74,8 @@ pub enum PdfPagesError {
     Page { index: usize, source: PdfError },
     #[error("print layout is invalid: {0}")]
     Layout(#[from] PrintLayoutError),
+    #[error("print page SVG rendering failed: {0}")]
+    PrintRender(#[from] PrintRenderError),
     #[error("print layout has {expected} pages but {actual} page SVGs were supplied")]
     PageCountMismatch { expected: usize, actual: usize },
     #[error("PDF page assembly failed: {0}")]
@@ -243,6 +247,17 @@ pub fn export_print_layout_pdf<S: AsRef<str>>(
         })
         .collect::<Vec<_>>();
     export_svg_pages_pdf(&pages, font_bytes)
+}
+
+/// Render the score into the physical pages fixed by `layout`, then join their vector SVGs
+/// into one PDF. The supplied font is used for lyrics and publication text.
+pub fn export_score_print_pdf(
+    score: &Score,
+    layout: &PrintLayoutResult,
+    font_bytes: &[u8],
+) -> Result<Vec<u8>, PdfPagesError> {
+    let pages = render_print_page_svgs(score, layout)?;
+    export_print_layout_pdf(layout, &pages, font_bytes)
 }
 
 /// Normalize standard vector geometry emitted by `acorde-render-svg` for older Harumi backends.
@@ -910,8 +925,8 @@ mod tests {
 
     use super::{
         MAX_PDF_PAGES, POINTS_PER_MM, PdfError, PdfPagesError, PdfRenderOptions, SvgPathError,
-        SvgPdfPage, export_print_layout_pdf, export_score_pdf, export_svg_pages_pdf,
-        normalize_svg_for_harumi,
+        SvgPdfPage, export_print_layout_pdf, export_score_pdf, export_score_print_pdf,
+        export_svg_pages_pdf, normalize_svg_for_harumi,
     };
 
     #[test]
@@ -1080,6 +1095,29 @@ mod tests {
         ));
         let bytes = export_print_layout_pdf(&layout, &[svg, svg], &[]).expect("print PDF");
         let mut pdf = harumi::Document::from_bytes(&bytes).expect("valid PDF");
+        assert_eq!(pdf.page_count(), 2);
+        for page in 1..=2 {
+            let (width, height) = pdf.page(page).unwrap().size().unwrap();
+            assert!((width - 210.0 * POINTS_PER_MM).abs() < 0.1);
+            assert!((height - 297.0 * POINTS_PER_MM).abs() < 0.1);
+        }
+    }
+
+    #[test]
+    fn score_print_pdf_renders_layout_pages_without_host_svg() {
+        let score = Score::new("", 120, 4, 4, 0, 2);
+        let layout = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 1,
+                systems_per_page: Some(1),
+                ..PrintConfig::default()
+            },
+        )
+        .expect("two-page print layout");
+        let font = include_bytes!("../tests/fixtures/Tuffy.ttf");
+        let bytes = export_score_print_pdf(&score, &layout, font).expect("page SVG to PDF");
+        let mut pdf = harumi::Document::from_bytes(&bytes).expect("valid vector PDF");
         assert_eq!(pdf.page_count(), 2);
         for page in 1..=2 {
             let (width, height) = pdf.page(page).unwrap().size().unwrap();

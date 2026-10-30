@@ -90,6 +90,7 @@ name = "acorde-pdf"
 version = "1.3.3"
 dependencies = [
  "acorde-core",
+ "acorde-io",
  "acorde-layout",
  "acorde-render-svg",
  "harumi",
