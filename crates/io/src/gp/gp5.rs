@@ -1584,4 +1584,219 @@ mod tests {
         wrong[20..24].copy_from_slice(b"v9.9");
         assert!(crate::parse_gp(&wrong).is_err());
     }
+
+    fn gp5_record_reader(data: &[u8]) -> Reader<'_> {
+        Reader {
+            bin: Bin { data, pos: 0 },
+            version: 500,
+            losses: Losses::default(),
+        }
+    }
+
+    #[test]
+    fn gp5_header_keeps_multi_pass_ending_and_reports_unmodeled_feel() {
+        let mut data = vec![0xff, 3, 4, 3]; // 3/4, repeat start/end, three passes.
+        data.extend_from_slice(&2_i32.to_le_bytes()); // marker field size
+        data.extend_from_slice(&[1, b'A']);
+        data.extend_from_slice(&[0; 4]); // marker colour
+        data.extend_from_slice(&[(-2_i8) as u8, 1]); // B-flat minor
+        data.extend_from_slice(&[0; 4]); // beam grouping
+        data.extend_from_slice(&[0b0000_0101, 1, 0]); // endings 1 and 3, triplet feel
+        let mut reader = gp5_record_reader(&data);
+        let header = reader.read_header(None).expect("GP5 header parses");
+        assert_eq!((header.numerator, header.denominator), (3, 4));
+        assert!(header.repeat_start && header.repeat_end && header.double_bar);
+        assert_eq!(header.ending_passes, vec![1, 3]);
+        assert_eq!(header.marker.as_deref(), Some("A"));
+        assert_eq!(header.key, Some((-2, true)));
+        let codes: Vec<_> = reader
+            .losses
+            .into_diagnostics()
+            .into_iter()
+            .map(|diagnostic| diagnostic.code)
+            .collect();
+        assert!(codes.contains(&"gp.repeat-count".to_string()));
+        assert!(codes.contains(&"gp.triplet-feel".to_string()));
+    }
+
+    #[test]
+    fn gp5_beat_effects_keep_playable_marks_and_report_losses() {
+        let mut data = vec![0x72, 0x07, 1]; // swell, vibrato, tap, brush, rasgueado, whammy, pick.
+        data.push(1); // whammy type
+        data.extend_from_slice(&0_i32.to_le_bytes());
+        data.extend_from_slice(&1_i32.to_le_bytes()); // one whammy point
+        data.extend_from_slice(&[0; 9]);
+        data.extend_from_slice(&[1, 0, 1]); // up brush and up pick
+        let mut reader = gp5_record_reader(&data);
+        let effects = reader.read_beat_effects().expect("GP5 beat effects parse");
+        let mut note = Note::new(Pitch::from_midi(60, false), Duration::Quarter);
+        effects.apply(&mut note, &mut reader.losses);
+        assert_eq!(note.arpeggiate, Some(false));
+        assert!(note.articulations.contains(&Articulation::Tap));
+        assert!(note.articulations.contains(&Articulation::Vibrato));
+        assert!(note.articulations.contains(&Articulation::UpBow));
+        let codes: Vec<_> = reader
+            .losses
+            .into_diagnostics()
+            .into_iter()
+            .map(|diagnostic| diagnostic.code)
+            .collect();
+        for code in [
+            "gp.unsupported-volume-swell",
+            "gp.unsupported-rasgueado",
+            "gp.unsupported-whammy",
+        ] {
+            assert!(codes.contains(&code.to_string()), "{code}");
+        }
+    }
+
+    #[test]
+    fn gp5_note_effects_preserve_bend_and_grace_metadata() {
+        let mut data = vec![0xb8, 1, 5, 3, 2, 1, 0x02];
+        // Note effect flags: bend, grace, let ring, hammer; then palm mute,
+        // staccato, tremolo, slide, harmonic, trill and vibrato.
+        data.extend_from_slice(&[0x1b, 0x7f, 1]);
+        data.extend_from_slice(&100_i32.to_le_bytes());
+        data.extend_from_slice(&2_i32.to_le_bytes());
+        for (offset, value) in [(0_i32, 0_i32), (60, 100)] {
+            data.extend_from_slice(&offset.to_le_bytes());
+            data.extend_from_slice(&value.to_le_bytes());
+            data.push(0);
+        }
+        data.extend_from_slice(&[5, 4, 3, 1, 0x03]); // dead on-beat grace
+        data.extend_from_slice(&[2, 1, 2, 0, 0, 0, 0, 0]); // tremolo, slide, harmonic, trill
+        let mut reader = gp5_record_reader(&data);
+        let read = reader.read_note().expect("GP5 note effects parse");
+        assert_eq!(read.dynamic, Some(5));
+        assert_eq!(read.fret, 3);
+        assert!(read.swap_accidental);
+        assert!(
+            read.grace
+                .as_ref()
+                .is_some_and(|grace| grace.dead && grace.on_beat)
+        );
+        let mut note = Note::new(Pitch::from_midi(60, false), Duration::Quarter);
+        reader.apply_note(&mut note, &read, &BeatEffects::default());
+        assert_eq!(note.guitar_technique, Some(GuitarTechnique::Bend));
+        assert_eq!(note.guitar_bend_curve.len(), 2);
+        assert_eq!(note.technique_text.as_deref(), Some("P.M."));
+        for mark in [
+            Articulation::Staccato,
+            Articulation::Vibrato,
+            Articulation::Harmonic,
+            Articulation::Trill,
+            Articulation::Tremolo(2),
+        ] {
+            assert!(note.articulations.contains(&mark), "{mark:?}");
+        }
+        let codes: Vec<_> = reader
+            .losses
+            .into_diagnostics()
+            .into_iter()
+            .map(|diagnostic| diagnostic.code)
+            .collect();
+        for code in [
+            "gp.unsupported-right-hand-fingering",
+            "gp.harmonic-type",
+            "gp.let-ring-with-palm-mute",
+        ] {
+            assert!(codes.contains(&code.to_string()), "{code}");
+        }
+    }
+
+    #[test]
+    fn gp5_beats_keep_grace_tie_tab_and_rhythm_across_a_voice() {
+        let mut data = vec![0x25, 1]; // dotted eighth, tuplet and above-staff text
+        data.extend_from_slice(&3_i32.to_le_bytes()); // triplet
+        data.extend_from_slice(&6_i32.to_le_bytes());
+        data.extend_from_slice(&[5, b'I', b'n', b't', b'r', b'o']);
+        data.extend_from_slice(&[0x40, 0x38, 1, 5, 3, 0]); // high E string, fret 3, dynamic 5
+        data.extend_from_slice(&[0x10, 0, 5, 4, 3, 1, 0x03]); // dead on-beat grace, hammer
+        data.extend_from_slice(&0x10_i16.to_le_bytes()); // 8va
+        data.extend_from_slice(&[0, 1, 0x40, 0x20, 2, 0, 0]); // tied eighth on same string
+        data.extend_from_slice(&0_i16.to_le_bytes());
+
+        let track = Track {
+            name: "Guitar".into(),
+            tuning: vec![64, 59, 55, 50, 45, 40],
+            capo: 0,
+            percussion: false,
+            tablature: true,
+            bass_clef: false,
+            program: 24,
+            channel: 0,
+        };
+        let mut reader = gp5_record_reader(&data);
+        let mut measures = vec![Measure::empty(4, 4)];
+        measures[0].voices[0].clear();
+        let mut state = VoiceState::default();
+        let mut dynamic = 6;
+        let mut tempos = BTreeMap::new();
+        for _ in 0..2 {
+            reader
+                .read_beat(
+                    &track,
+                    &mut measures,
+                    0,
+                    0,
+                    &mut state,
+                    &mut dynamic,
+                    &mut tempos,
+                    0,
+                )
+                .expect("two GP5 beats parse");
+        }
+        assert_eq!(reader.bin.pos, data.len());
+        let measure = &measures[0];
+        assert_eq!(measure.texts[0].text, "Intro");
+        let voice = &measure.voices[0];
+        assert_eq!(voice.len(), 3); // grace, first beat, tied second beat
+        assert!(voice[0].is_grace);
+        assert_eq!(voice[0].guitar_technique, Some(GuitarTechnique::HammerOn));
+        assert_eq!(voice[0].note_head, NoteHead::X);
+        assert_eq!(
+            voice[1]
+                .tuplet
+                .as_ref()
+                .map(|t| (t.actual_notes, t.normal_notes)),
+            Some((3, 2))
+        );
+        assert_eq!(voice[1].dot_count, 1);
+        assert_eq!(voice[1].ottava_start, Some(acorde_core::OttavaKind::Va8));
+        assert_eq!(voice[1].pitches[0].to_midi(), 67);
+        assert_eq!(
+            voice[1].tab_position.as_ref().map(|p| (p.string, p.fret)),
+            Some((6, 3))
+        );
+        assert!(voice[1].tie_start && voice[2].tie_end);
+        assert_eq!(voice[2].pitches[0].to_midi(), 67); // tied fret inherits the first beat
+        assert!(
+            reader
+                .losses
+                .into_diagnostics()
+                .iter()
+                .any(|d| d.code == "gp.on-beat-grace")
+        );
+    }
+
+    #[test]
+    fn gp5_mix_table_applies_tempo_and_reports_unmodeled_controls() {
+        let mut data = vec![2]; // instrument change
+        data.extend_from_slice(&[0; 16]);
+        data.extend_from_slice(&[30, 255, 255, 255, 255, 255]); // volume change
+        data.extend_from_slice(&1_i32.to_le_bytes()); // empty GP5 effect text
+        data.push(0);
+        data.extend_from_slice(&120_i32.to_le_bytes());
+        data.extend_from_slice(&[0, 0, 0, 0]); // volume duration, tempo duration, flags, wah
+        let mut reader = gp5_record_reader(&data);
+        assert_eq!(reader.read_mix_table().unwrap(), Some(120));
+        let codes: Vec<_> = reader
+            .losses
+            .into_diagnostics()
+            .into_iter()
+            .map(|diagnostic| diagnostic.code)
+            .collect();
+        assert!(codes.contains(&"gp.unsupported-mix-change".to_string()));
+        assert!(codes.contains(&"gp.unsupported-wah".to_string()));
+    }
 }

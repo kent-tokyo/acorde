@@ -7600,4 +7600,242 @@ mod tests {
             serde_json::to_value(&original).unwrap()
         );
     }
+
+    #[test]
+    fn notation_editing_session_keeps_score_valid_and_undoes_atomically() {
+        let mut score = Score::new("Notation session", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = (0..4)
+            .map(|_| Note::new(Pitch::new(Step::C, 4), Duration::Quarter))
+            .collect();
+        let original = serde_json::to_value(&score).unwrap();
+        let mut stack = CommandStack::new(16);
+        let edits = [
+            (
+                Command::AddPitch(AddPitchCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    voice: 0,
+                    note_index: 0,
+                    pitch: Pitch::new(Step::E, 4),
+                }),
+                "Add Pitch",
+                "AddPitch",
+            ),
+            (
+                Command::SetArpeggio(SetArpeggioCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    voice_index: 0,
+                    note_index: 0,
+                    direction: Some(true),
+                }),
+                "Set Arpeggio",
+                "SetArpeggio",
+            ),
+            (
+                Command::SetStem(SetStemCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    voice_index: 0,
+                    note_index: 0,
+                    stem_up: Some(true),
+                }),
+                "Set Stem",
+                "SetStem",
+            ),
+            (
+                Command::SetDynamic(SetDynamicCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    voice: 0,
+                    note_index: 0,
+                    dynamic: Some(Dynamic::Mf),
+                }),
+                "Set Dynamic",
+                "SetDynamic",
+            ),
+            (
+                Command::ToggleArticulation(ToggleArticulationCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    voice: 0,
+                    note_index: 1,
+                    articulation: Articulation::Staccato,
+                }),
+                "Toggle Articulation",
+                "ToggleArticulation",
+            ),
+            (
+                Command::ToggleTie(ToggleTieCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    voice: 0,
+                    note_index: 1,
+                }),
+                "Toggle Tie",
+                "ToggleTie",
+            ),
+            (
+                Command::AddHairpin(AddHairpinCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    voice: 0,
+                    start_note_idx: 0,
+                    end_note_idx: 3,
+                    kind: HairpinKind::Crescendo,
+                }),
+                "Add Hairpin",
+                "AddHairpin",
+            ),
+            (
+                Command::AddPedal(AddPedalCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    voice: 0,
+                    start_note_idx: 0,
+                    end_note_idx: 3,
+                }),
+                "Add Pedal",
+                "AddPedal",
+            ),
+            (
+                Command::SetBarline(SetBarlineCmd {
+                    measure_index: 0,
+                    side: "right".into(),
+                    barline: Barline::Double,
+                }),
+                "Set Barline",
+                "SetBarline",
+            ),
+        ];
+        for (command, label, key) in edits {
+            stack.execute(command, &mut score).unwrap();
+            assert_eq!(stack.undo_label().as_deref(), Some(label));
+            assert_eq!(stack.undo_key().as_deref(), Some(key));
+        }
+        assert!(validate(&score).is_valid());
+        let voice = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(voice[0].pitches.len(), 2);
+        assert_eq!(voice[0].arpeggiate, Some(true));
+        assert_eq!(voice[0].hairpin_start, Some(HairpinKind::Crescendo));
+        assert!(voice[0].pedal_start);
+        assert!(voice[1].tie_start && voice[2].tie_end);
+        assert!(voice[3].pedal_end && voice[3].hairpin_end);
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].barline_right,
+            Barline::Double
+        );
+        let edited = serde_json::to_value(&score).unwrap();
+        for _ in 0..9 {
+            stack.undo(&mut score).unwrap();
+        }
+        assert_eq!(serde_json::to_value(&score).unwrap(), original);
+        for _ in 0..9 {
+            stack.redo(&mut score).unwrap();
+        }
+        assert_eq!(serde_json::to_value(&score).unwrap(), edited);
+    }
+
+    #[test]
+    fn guitar_annotation_commands_keep_json_and_score_semantics() {
+        let mut score = Score::new("Guitar annotations", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = (0..4)
+            .map(|_| Note::new(Pitch::new(Step::C, 4), Duration::Quarter))
+            .collect();
+        let edits = [
+            (
+                serde_json::json!({"type":"set_tablature_config", "part_index":0,
+                    "staff_index":0, "config":{"lines":6,"tuning_midi":[40,45,50,55,59,64],"capo":0}}),
+                "SetTablatureConfig",
+            ),
+            (
+                serde_json::json!({"type":"set_fingering", "part_index":0,"staff_index":0,
+                    "measure_index":0,"voice":0,"note_index":0,"fingering":2}),
+                "SetFingering",
+            ),
+            (
+                serde_json::json!({"type":"set_fingerings", "part_index":0,"staff_index":0,
+                    "measure_index":0,"voice":0,"note_index":0,"fingerings":[1,3]}),
+                "SetFingerings",
+            ),
+            (
+                serde_json::json!({"type":"set_string_number", "part_index":0,"staff_index":0,
+                    "measure_index":0,"voice":0,"note_index":0,"string_number":2}),
+                "SetStringNumber",
+            ),
+            (
+                serde_json::json!({"type":"set_tab_position", "part_index":0,"staff_index":0,
+                    "measure_index":0,"voice":0,"note_index":0,"position":{"string":2,"fret":1}}),
+                "SetTabPosition",
+            ),
+            (
+                serde_json::json!({"type":"set_guitar_technique", "part_index":0,"staff_index":0,
+                    "measure_index":0,"voice":0,"note_index":0,"technique":"slide"}),
+                "SetGuitarTechnique",
+            ),
+            (
+                serde_json::json!({"type":"set_technique_text", "part_index":0,"staff_index":0,
+                    "measure_index":0,"voice":0,"note_index":0,"text":"let ring"}),
+                "SetTechniqueText",
+            ),
+            (
+                serde_json::json!({"type":"set_note_head", "part_index":0,"staff_index":0,
+                    "measure_index":0,"voice":0,"note_index":0,"note_head":"Diamond"}),
+                "SetNoteHead",
+            ),
+            (
+                serde_json::json!({"type":"set_hidden", "part_index":0,"staff_index":0,
+                    "measure_index":0,"voice":0,"note_index":0,"hidden":true}),
+                "SetHidden",
+            ),
+            (
+                serde_json::json!({"type":"set_instrument_id", "part_index":0,"staff_index":0,
+                    "measure_index":0,"voice":0,"note_index":0,"instrument_id":"guitar"}),
+                "SetInstrumentId",
+            ),
+            (
+                serde_json::json!({"type":"set_note_placement", "part_index":0,"staff_index":0,
+                    "measure_index":0,"voice":0,"note_index":0,"offset_x":1.5,"offset_y":-2.0}),
+                "SetNotePlacement",
+            ),
+            (
+                serde_json::json!({"type":"set_expression_text", "measure_index":0,
+                    "text":"dolce"}),
+                "SetExpressionText",
+            ),
+        ];
+        for (value, key) in edits {
+            let command: Command = serde_json::from_value(value).unwrap();
+            assert_eq!(command_key(&command), key);
+            assert!(!command_label(&command).is_empty());
+            apply_command(&command, &mut score).unwrap();
+        }
+        let note = &score.parts[0].staves[0].measures[0].voices[0][0];
+        assert_eq!(note.fingerings, vec![1, 3]);
+        assert_eq!(
+            note.tab_position,
+            Some(crate::TabPosition { string: 2, fret: 1 })
+        );
+        assert_eq!(note.guitar_technique, Some(GuitarTechnique::Slide));
+        assert_eq!(note.technique_text.as_deref(), Some("let ring"));
+        assert_eq!(note.note_head, NoteHead::Diamond);
+        assert!(note.hidden);
+        assert_eq!(note.instrument_id.as_deref(), Some("guitar"));
+        assert_eq!(note.offset_x, Some(1.5));
+        assert_eq!(
+            score.parts[0].staves[0].measures[0]
+                .expression_text
+                .as_deref(),
+            Some("dolce")
+        );
+        assert!(validate(&score).is_valid());
+    }
 }
