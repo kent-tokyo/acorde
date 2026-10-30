@@ -16,6 +16,9 @@ not change the score model, access the filesystem, or access printer APIs.
   conversion. Callers can derive point sizes from `PageArtifact` millimetres with `POINTS_PER_MM`.
 - `export_print_layout_pdf` validates a `PrintLayoutResult`, requires one SVG per layout page, and
   uses its page dimensions for the assembled PDF without recomputing pagination.
+- `acorde-render-svg::render_print_page_svgs` consumes the score and validated layout, retaining
+  its system breaks and physical page positions. `export_score_print_pdf` calls that renderer and
+  assembles the resulting pages into vector PDF.
 - Callers provide an embeddable TrueType/OpenType font for lyric, text, and label SVG nodes.
   Acorde's notation geometry is retained as vector paths; no bitmap score is inserted.
 - SVG is limited to 16 MiB. Harumi receives it unchanged, so Bézier paths, elliptical arcs, and
@@ -23,10 +26,12 @@ not change the score model, access the filesystem, or access printer APIs.
 
 ## Deliberate limits
 
-This is not a claim of publication-ready multipage engraving. Acorde does not yet map
-`PrintLayoutResult` pages and systems into complete page SVGs, resolve publication font
-resources, embed music fonts, or integrate an OS print dialog. The existing
-`acorde-layout::compute_print_layout` contract stays the source of truth for page planning.
+This is not a claim of publication-ready engraving or parity with Verovio. The page SVG path
+rejects host glyphs, images, frames, color preservation, and crop marks. It relies on the caller's
+text font for PDF and has no OS print dialog. The OpenScore *Aloha Oe* A4 comparison in
+[`verovio-engraving-baseline.md`](verovio-engraving-baseline.md) still shows small lyrics and
+missing grand-staff braces in Acorde's output. `acorde-layout::compute_print_layout` remains the
+source of truth for system and page planning.
 
 ## Compatibility
 

@@ -754,6 +754,27 @@ fn spans_crossing_systems_get_continuation_segments() {
 }
 
 #[test]
+fn span_continues_through_every_intermediate_system() {
+    use acorde_core::{Duration, HairpinKind, Note, Pitch, Score, Step};
+
+    let mut score = Score::new("Three systems", 120, 4, 4, 0, 3);
+    for measure in &mut score.parts[0].staves[0].measures {
+        measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 5), Duration::Whole)];
+    }
+    score.parts[0].staves[0].measures[0].voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+    score.parts[0].staves[0].measures[2].voices[0][0].hairpin_end = true;
+
+    let mut options = opts();
+    options.measures_per_system = 1;
+    let svg = render_svg(&score, &options).unwrap();
+    assert_eq!(
+        svg.matches("class=\"acorde-hairpin\" data-continuation=\"true\"")
+            .count(),
+        3
+    );
+}
+
+#[test]
 fn note_annotations_are_rendered_and_xml_escaped() {
     use acorde_core::{Articulation, ChordSymbol, Duration, Dynamic, Lyric, Note, Pitch, Step};
 

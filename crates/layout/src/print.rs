@@ -666,10 +666,11 @@ pub enum SystemHeightPolicy {
     Fixed,
 }
 
-/// Policy for reserving the first system for a partial pickup measure.
+/// Policy for placing a partial pickup measure in the first system.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum PickupPolicy {
-    /// Detect a non-empty partial first measure automatically (the default).
+    /// Keep a pickup with the following music (the default). The renderer gives its
+    /// short duration a proportionally smaller horizontal column.
     #[default]
     Auto,
     /// Do not infer pickup measures from score content.
@@ -1084,7 +1085,7 @@ impl Default for PrintConfig {
 /// Version of the built-in host-neutral print preset data.
 pub const PRINT_PRESET_SCHEMA_VERSION: u16 = 2;
 /// Version of the serialized host-neutral print layout contract.
-pub const PRINT_LAYOUT_CONTRACT_VERSION: u16 = 33;
+pub const PRINT_LAYOUT_CONTRACT_VERSION: u16 = 34;
 
 /// Reproducible starting configurations for common publication workflows.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -1234,6 +1235,8 @@ pub struct PageLayout {
     pub publication: PagePublication,
     pub width_mm: f32,
     pub height_mm: f32,
+    /// Physical x-coordinate of the notation content area, including the left safe margin.
+    pub content_left_mm: f32,
     pub content_width_mm: f32,
     pub content_height_mm: f32,
     pub bleed_top_mm: f32,
@@ -1573,10 +1576,12 @@ impl PrintLayoutResult {
                 || page.width_mm <= 0.0
                 || page.height_mm <= 0.0
                 || !page.content_width_mm.is_finite()
+                || !page.content_left_mm.is_finite()
+                || page.content_left_mm < 0.0
                 || !page.content_height_mm.is_finite()
                 || page.content_width_mm <= 0.0
                 || page.content_height_mm <= 0.0
-                || page.content_width_mm > page.width_mm
+                || page.content_left_mm + page.content_width_mm > page.width_mm
                 || page.content_height_mm > page.height_mm
                 || !page.bleed_top_mm.is_finite()
                 || !page.bleed_right_mm.is_finite()
@@ -2616,6 +2621,7 @@ fn build_page_layout(
         publication,
         width_mm,
         height_mm,
+        content_left_mm: config.margin_left_mm + config.safe_left_mm,
         content_width_mm,
         content_height_mm,
         bleed_top_mm: config.bleed_top_mm,
@@ -2915,10 +2921,8 @@ pub fn compute_print_layout(
         &LayoutConfig {
             measures_per_row: config.measures_per_system.max(1),
             first_row_measures: config.first_system_measures.or_else(|| {
-                (matches!(
-                    config.pickup_policy,
-                    PickupPolicy::Auto | PickupPolicy::DetectFirstMeasure
-                ) && has_first_measure_pickup(&layout_score))
+                (matches!(config.pickup_policy, PickupPolicy::DetectFirstMeasure)
+                    && has_first_measure_pickup(&layout_score))
                 .then_some(1)
             }),
             ..LayoutConfig::default()
@@ -3422,7 +3426,7 @@ mod tests {
     }
 
     #[test]
-    fn pickup_policy_auto_isolates_a_partial_first_measure_by_default() {
+    fn pickup_policy_auto_keeps_a_partial_first_measure_with_following_music() {
         let mut score = score_with_measures(4);
         score.parts[0].staves[0].measures[0].voices[0] =
             vec![acorde_core::Note::rest(acorde_core::Duration::Quarter)];
@@ -3435,8 +3439,19 @@ mod tests {
             },
         )
         .expect("valid automatic pickup policy");
-        assert_eq!(result.pages[0].systems[0].measure_indices, vec![0]);
-        assert_eq!(result.pages[0].systems[1].measure_indices, vec![1, 2, 3]);
+        assert_eq!(result.pages[0].systems[0].measure_indices, vec![0, 1, 2]);
+        assert_eq!(result.pages[0].systems[1].measure_indices, vec![3]);
+    }
+
+    #[test]
+    fn page_validation_rejects_content_origin_past_paper_edge() {
+        let score = score_with_measures(1);
+        let mut result = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+        result.pages[0].content_left_mm = result.pages[0].width_mm;
+        assert_eq!(
+            result.validate(),
+            Err(PrintLayoutError::InvalidPageGeometry { page_index: 0 })
+        );
     }
 
     #[test]

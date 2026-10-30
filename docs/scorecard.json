@@ -5,7 +5,7 @@
   "contracts": {
     "svg_render_metadata": 22,
     "analysis_result": 13,
-    "print_layout": 33,
+    "print_layout": 34,
     "glyph_resource": 1,
     "tab_performance": 4
   },
@@ -47,7 +47,7 @@
     "Tablature and microtonal accidentals are supported only in documented subsets; ABC does not emit canonical tablature staff, string/fret, or guitar-technique fields.",
     "Broad held-out MEI/MSCZ/MIDI corpus comparison and audio-rendering equivalence remain external validation gates.",
     "Compatibility measurements against music21 and browser notation ecosystems, plus downstream adoption evidence, remain external ecosystem gates.",
-    "Advanced print engraving, publication-ready multipage PDF, music-font embedding, and OS printing remain host-bound or planned work.",
+    "Physical page SVG and vector multipage PDF exist, but advanced print engraving, complete publication resources, music-font embedding, and OS printing remain host-bound or planned work.",
     "Browser E2E and cross-browser visual measurements are not implied by native tests.",
     "AnalysisCache reuses complete deterministic results by score fingerprint; dependency-aware partial recomputation is bounded to ChangeHint regions and remains conservative."
   ],

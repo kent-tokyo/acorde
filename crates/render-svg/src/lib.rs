@@ -30,6 +30,7 @@ mod beams;
 mod collision;
 mod geometry;
 mod glyphs;
+mod print;
 mod render;
 mod spans;
 mod tab_technique;
@@ -46,6 +47,8 @@ use acorde_layout::{
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::Deref;
+
+pub use print::{PrintRenderError, render_print_page_svgs};
 
 /// Version of the browser-facing [`RenderMetadata`] contract.
 pub const SVG_CONTRACT_VERSION: u32 = 22;
