@@ -40,6 +40,10 @@ unrepresentable channel counts, unsupported score expression, and SF3 input with
 provider-neutral zone materializer is unchanged and still reports unsupported generators.
 Each note's effective program is selected at its attack, including measure-local instrument
 changes from the score schedule.
+Authored MIDI pitch bend and CC 1 (modulation), 7 (volume), 10 (pan), 11 (expression), and 64
+(sustain) are applied at their scheduled frames to every voice channel routed from the source
+part and MIDI channel. An unrouted event, unsupported controller, aftertouch, raw MIDI program
+change, or simultaneous score-pedal and CC64 control returns an error rather than disappearing.
 
 It does not require an asset or audio device. Applications may provide their own licensed assets
 and renderer; the bounded native renderer is optional. The checksum is path-independent FNV-1a
