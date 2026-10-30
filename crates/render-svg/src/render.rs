@@ -31,7 +31,11 @@ use crate::{
 use crate::{spans, tab_technique};
 
 /// Vertical distance between lyric verse lines, in staff spaces.
-pub(crate) const LYRIC_VERSE_SPACING: f32 = 1.6;
+pub(crate) const LYRIC_VERSE_SPACING: f32 = 1.9;
+// Keep printed lyrics near the staff-space height and reserve the same width that is drawn.
+const LYRIC_FONT_SIZE_U: f32 = 1.4;
+const LYRIC_CHAR_WIDTH_U: f32 = 0.8;
+const LYRIC_WIDTH_PADDING_U: f32 = 1.0;
 const LEFT_MARGIN_U: f32 = 1.0;
 const RIGHT_MARGIN_U: f32 = 1.0;
 // Minimum breathing room; content_margins() expands these values for extreme pitches and
@@ -3311,7 +3315,7 @@ fn render_measure_semantic_annotations(
                 // across notes even when an earlier verse is absent on a note.
                 for entry in &note.additional_lyrics {
                     let text = entry.lyric.text.clone();
-                    let width = text.chars().count() as f32 * 0.42 * space + 0.6 * space;
+                    let width = lyric_width_u(&text) * space;
                     let verse_offset = LYRIC_VERSE_SPACING * f32::from(entry.verse - 1);
                     annotations.push(MeasureSemanticAnnotation::Text {
                         class: "acorde-lyric-verse",
@@ -3327,9 +3331,9 @@ fn render_measure_semantic_annotations(
                         metrics: acorde_layout::GlyphMetrics {
                             advance_mm: 0.0,
                             left_mm: -width / 2.0,
-                            top_mm: -0.72 * space,
+                            top_mm: -LYRIC_FONT_SIZE_U * space,
                             width_mm: width,
-                            height_mm: 0.9 * space,
+                            height_mm: 1.6 * space,
                         },
                         x_mm: x,
                         y_mm: anchor_y + (lyric_offset + verse_offset) * space,
@@ -3340,7 +3344,7 @@ fn render_measure_semantic_annotations(
                 }
                 if let Some(lyric) = &note.lyric {
                     let text = lyric.text.clone();
-                    let width = text.chars().count() as f32 * 0.42 * space + 0.6 * space;
+                    let width = lyric_width_u(&text) * space;
                     annotations.push(MeasureSemanticAnnotation::Text {
                         class: "acorde-lyric",
                         text,
@@ -3354,9 +3358,9 @@ fn render_measure_semantic_annotations(
                         metrics: acorde_layout::GlyphMetrics {
                             advance_mm: 0.0,
                             left_mm: -width / 2.0,
-                            top_mm: -0.72 * space,
+                            top_mm: -LYRIC_FONT_SIZE_U * space,
                             width_mm: width,
-                            height_mm: 0.9 * space,
+                            height_mm: 1.6 * space,
                         },
                         x_mm: x,
                         y_mm: anchor_y + lyric_offset * space,
@@ -4249,8 +4253,7 @@ fn render_lyric_extenders(
                         }
                         let end_x =
                             end.map_or(start_x, |(_, _, x)| x) + glyphs::NOTEHEAD_RX_U * space;
-                        let x1 =
-                            start_x + (lyric.text.chars().count() as f32 * 0.21 + 0.25) * space;
+                        let x1 = start_x + lyric_width_u(&lyric.text) * 0.5 * space;
                         if !x1.is_finite() || !end_x.is_finite() || end_x - x1 < 0.5 * space {
                             continue;
                         }
@@ -4873,7 +4876,7 @@ fn note_annotation_lane_width_u(note: &Note, above: bool) -> f32 {
         && !above
         && let Some(lyric) = &note.lyric
     {
-        width = width.max(lyric.text.chars().count() as f32 * 0.42 + 0.6);
+        width = width.max(lyric_width_u(&lyric.text));
     }
     if note.pitches.iter().any(|pitch| pitch.microtone_cents != 0) && above {
         width = width.max(
@@ -4908,7 +4911,7 @@ fn reserve_annotation_lane(
 fn note_annotation_width_u(note: &Note) -> f32 {
     let mut width = 0.0_f32;
     if let Some(lyric) = &note.lyric {
-        width = width.max(lyric.text.chars().count() as f32 * 0.42 + 0.6);
+        width = width.max(lyric_width_u(&lyric.text));
     }
     if let Some(chord) = &note.chord_symbol {
         width = width.max(chord.display_text().chars().count() as f32 * 0.42);
@@ -7583,16 +7586,25 @@ pub(crate) fn write_annotation_text(
     italic: bool,
 ) {
     let style = if italic { " font-style=\"italic\"" } else { "" };
+    let font_size = if class.starts_with("acorde-lyric") {
+        LYRIC_FONT_SIZE_U
+    } else {
+        0.72
+    };
     let _ = write!(
         body,
         r#"<text class="{}" x="{}" y="{}" text-anchor="middle" font-family="serif" font-size="{}"{}>{}</text>"#,
         class,
         f(x),
         f(y),
-        f(0.72 * space),
+        f(font_size * space),
         style,
         escape_xml(value)
     );
+}
+
+fn lyric_width_u(text: &str) -> f32 {
+    text.chars().count() as f32 * LYRIC_CHAR_WIDTH_U + LYRIC_WIDTH_PADDING_U
 }
 
 /// Emit an exact, browser-addressable microtone marker while retaining the readable fallback

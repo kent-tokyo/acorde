@@ -52,6 +52,57 @@ The two-page Acorde result is therefore not evidence of superior print quality.
 Verovio chooses its own system breaks and fonts; this is a same-input, same-paper
 comparison rather than an identical-layout comparison.
 
+### Page-SVG WASM API and lyric-size check (2026-10-31)
+
+The `render_print_page_svgs(score_json, layout_json)` WASM export now returns the
+same physical pages as Rust's `render_print_page_svgs`. A browser test checks the
+supplied A4 page dimensions, page number, distinct page bodies, and invalid layout
+rejection. The Aloha Oe PDF was rebuilt and both pages were rasterized at 1400 px.
+The voice lyric font grew from 0.72 to 1.4 staff spaces; on this fixture its first
+SVG lyric is 1.97 mm high. The wider lyric collision estimate and verse spacing
+were changed together. The lyrics are more legible, and visual inspection found
+no clipped staves or missing page numbers on either page. Verovio still has
+larger, clearer publication typography and 73 Acorde import diagnostics remain.
+
+```bash
+cargo run -q -p acorde-pdf --example print_mxl -- \
+  tests/fixtures/openscore_lieder_aloha_oe.mxl \
+  crates/pdf/tests/fixtures/Tuffy.ttf /tmp/acorde-aloha-lyric-review.pdf
+pdftoppm -f 1 -l 2 -scale-to 1400 -png \
+  /tmp/acorde-aloha-lyric-review.pdf /tmp/acorde-aloha-lyric-review
+```
+
+### Second piano score: Quilter, Prelude (2026-10-31)
+
+The pinned CC0 `tests/fixtures/openscore_lieder_quilter_prelude.mxl` was rendered
+with the same A4 paper and 16/14 mm margins using Verovio 6.3.0 and Acorde.
+Verovio produced one SVG page with three systems; Acorde produced one PDF page
+with three systems and a correct 595.276 × 841.89 pt media box. Acorde reported
+103 MusicXML import diagnostics; Verovio separately warned of two open hairpins.
+These diagnostics are not engraving measurements.
+
+The Acorde PDF and Verovio SVG were rasterized at 1400 px and inspected. Acorde
+uses fixed groups of four, four, and two measures, leaving the lower half of the
+page mostly empty. Verovio uses groups of three, four, and three, with larger
+notation and readable directions. Acorde's first system has cramped note and
+direction text, though its staves and page number are inside the page box. A
+trial that enlarged staff space without changing measure breaks created severe
+overlaps and was discarded. This score does not meet a publication-quality
+comparison against Verovio yet.
+
+```bash
+verovio -a --page-width 2100 --page-height 2970 \
+  --page-margin-top 160 --page-margin-bottom 160 \
+  --page-margin-left 140 --page-margin-right 140 \
+  -o /tmp/verovio-quilter.svg tests/fixtures/openscore_lieder_quilter_prelude.mxl
+cargo run -q -p acorde-pdf --example print_mxl -- \
+  tests/fixtures/openscore_lieder_quilter_prelude.mxl \
+  crates/pdf/tests/fixtures/Tuffy.ttf /tmp/acorde-quilter.pdf
+pdftoppm -f 1 -l 1 -scale-to 1400 -png \
+  /tmp/acorde-quilter.pdf /tmp/acorde-quilter
+qlmanage -t -s 1400 -o /tmp /tmp/verovio-quilter.svg
+```
+
 ### Density-aware print break experiment (2026-10-31)
 
 The opt-in `PrintSystemBreakStrategy::NotationDensity` uses the shared SVG/layout

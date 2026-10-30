@@ -2812,7 +2812,9 @@ fn wide_simultaneous_voice_annotations_expand_notehead_separation() {
             .take(2)
             .collect::<Vec<_>>()
     };
-    let baseline = centers(&render_svg(&score, &opts()).unwrap());
+    let mut wide_options = opts();
+    wide_options.width = 1200.0;
+    let baseline = centers(&render_svg(&score, &wide_options).unwrap());
     assert_eq!(baseline.len(), 2);
 
     score.parts[0].staves[0].measures[0].voices[1][0].lyric = Some(Lyric {
@@ -2820,7 +2822,7 @@ fn wide_simultaneous_voice_annotations_expand_notehead_separation() {
         syllabic: "single".into(),
         extend: false,
     });
-    let annotated = centers(&render_svg(&score, &opts()).unwrap());
+    let annotated = centers(&render_svg(&score, &wide_options).unwrap());
     assert_eq!(annotated.len(), 2);
     assert!(
         (annotated[0] - annotated[1]).abs() > (baseline[0] - baseline[1]).abs(),
@@ -2830,7 +2832,7 @@ fn wide_simultaneous_voice_annotations_expand_notehead_separation() {
     let mut accidental_score = score;
     accidental_score.parts[0].staves[0].measures[0].voices[1][0].lyric = None;
     accidental_score.parts[0].staves[0].measures[0].voices[1][0].pitches[0].alter = 1;
-    let accidental = centers(&render_svg(&accidental_score, &opts()).unwrap());
+    let accidental = centers(&render_svg(&accidental_score, &wide_options).unwrap());
     assert_eq!(accidental.len(), 2);
     assert!(
         (accidental[0] - accidental[1]).abs() > (baseline[0] - baseline[1]).abs(),
