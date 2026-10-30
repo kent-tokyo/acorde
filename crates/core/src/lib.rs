@@ -5,11 +5,13 @@
 pub mod model;
 
 pub use model::arrange::{
-    AccordionAnalysis, AccordionLossPolicy, AccordionPattern, AccordionReductionDiagnostic,
-    AccordionReductionOptions, AccordionReductionResult, AccordionSourceMapping, ArrangeResult,
-    GuidedAccordionOptions, GuidedAccordionResult, GuidedArrangeDiagnostic, PartCandidate,
+    AccordionAnalysis, AccordionBassMode, AccordionInversion, AccordionLossPolicy,
+    AccordionMelodicVoice, AccordionPattern, AccordionReductionDiagnostic,
+    AccordionReductionOptions, AccordionReductionResult, AccordionSourceMapping,
+    AccordionSwingPolicy, ArrangeResult, GuidedAccordionOptions, GuidedAccordionResult,
+    GuidedArrangeDiagnostic, LayeredAccordionOptions, LayeredAccordionResult, PartCandidate,
     PositionedAccordionChord, analyze_for_accordion, arrange_for_accordion,
-    arrange_for_accordion_with_options, arrange_with_explicit_chords,
+    arrange_for_accordion_with_options, arrange_with_explicit_chords, arrange_with_layers,
 };
 pub use model::change_hint::{ChangeHint, ChangeScope};
 pub use model::commands::{

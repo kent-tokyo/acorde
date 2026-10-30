@@ -1417,6 +1417,17 @@ pub fn arrange_for_accordion_with_options(
         .map_err(|error| js_err(format!("reduction result serialization failed: {error}")))
 }
 
+/// Compose typed accompaniment, explicit harmony and melodic-voice layers.
+#[wasm_bindgen]
+pub fn arrange_with_layers(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::LayeredAccordionOptions =
+        parse_json(options_json, "layered arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_with_layers(&score, options);
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("layered arrangement serialization failed: {error}")))
+}
+
 /// Return the total duration of a score in seconds (uses score tempo and repeat structure).
 #[wasm_bindgen]
 pub fn score_duration_secs(score_json: &str) -> Result<f64, JsValue> {
@@ -3269,6 +3280,51 @@ mod tests {
     }
 
     #[test]
+    fn layered_accordion_json_matches_native_events_and_provenance() {
+        let mut score = acorde_core::Score::new("layered", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(
+            acorde_core::Pitch::from_midi(67, false),
+            acorde_core::Duration::Whole,
+        )];
+        let options: acorde_core::LayeredAccordionOptions = serde_json::from_value(serde_json::json!({
+            "chords": [{
+                "measure_index": 0,
+                "offset_beats": 0.0,
+                "chord": {"root": "C", "kind": "major-seventh", "bass": null}
+            }],
+            "alternative_chords": null,
+            "inversion": "first",
+            "accompaniment": "bass-chord-pulse",
+            "melodic_voice": "third-below",
+            "swing": "notated-accompaniment-two-to-one",
+            "bass_mode": "free-bass"
+        }))
+        .unwrap();
+        let native = acorde_core::arrange_with_layers(&score, options.clone());
+        let web: acorde_core::LayeredAccordionResult = serde_json::from_str(
+            &arrange_with_layers(
+                &serde_json::to_string(&score).unwrap(),
+                &serde_json::to_string(&options).unwrap(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert!(web.diagnostics.is_empty(), "{:?}", web.diagnostics);
+        assert_eq!(web.contract_version, native.contract_version);
+        assert_eq!(web.resolved_chords, native.resolved_chords);
+        assert_eq!(web.source_notes, native.source_notes);
+        assert_eq!(web.generated_notes, native.generated_notes);
+        assert_eq!(web.notated_swing, native.notated_swing);
+        let events = |score: &acorde_core::Score| {
+            acorde_core::to_playback_events(score, &Default::default())
+                .into_iter()
+                .map(|event| (event.pitch_midi, event.time_beats, event.duration_beats))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(events(web.score.as_ref().unwrap()), events(native.score.as_ref().unwrap()));
+    }
+
+    #[test]
     fn accordion_reduction_json_matches_native_provenance() {
         let mut score = acorde_core::Score::new("reduction", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(
@@ -3429,6 +3485,36 @@ mod wasm_tests {
     use wasm_bindgen_test::wasm_bindgen_test;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test]
+    fn layered_arrangement_renders_plays_and_exports_in_viewer() {
+        let mut source = Score::new("layered browser", 120, 4, 4, 0, 1);
+        source.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(
+            acorde_core::Pitch::from_midi(67, false),
+            acorde_core::Duration::Whole,
+        )];
+        let input = score_to_json(&source).expect("source serializes");
+        let options = r#"{"chords":[{"measure_index":0,"offset_beats":0.0,"chord":{"root":"C","kind":"major-seventh","bass":null}}],"alternative_chords":null,"inversion":null,"accompaniment":"walking-bass","melodic_voice":"third-below","swing":"straight","bass_mode":"free-bass"}"#;
+        let result: acorde_core::LayeredAccordionResult = serde_json::from_str(
+            &arrange_with_layers(&input, options).expect("arrangement runs"),
+        )
+        .expect("result parses");
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        let arranged = score_to_json(result.score.as_ref().expect("score returned"))
+            .expect("arranged score serializes");
+        let svg = render_score_svg(&arranged, "{}").expect("SVG renders");
+        assert!(svg.contains("data-note-addr"));
+        let events: Vec<acorde_core::PlaybackEvent> = serde_json::from_str(
+            &to_playback_events_ex(&arranged, "{}").expect("playback computes"),
+        )
+        .expect("events parse");
+        assert!(events.iter().any(|event| event.pitch_midi == 64));
+        let mscz = serialize_mscz(&arranged).expect("MSCZ exports");
+        let restored: Score = serde_json::from_str(&parse_mscz(&mscz).expect("MSCZ reparses"))
+            .expect("restored score parses");
+        assert_eq!(restored.parts[0].staves[0].measures[0].voices[0][0].pitches,
+            source.parts[0].staves[0].measures[0].voices[0][0].pitches);
+    }
 
     #[cfg(feature = "musicxml")]
     #[wasm_bindgen_test]
