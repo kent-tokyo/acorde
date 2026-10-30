@@ -61,6 +61,11 @@ pub use model::fragment::{
 pub use model::gm::{drum_name, program_name};
 pub use model::harmony::{detect_chord, roman_numeral};
 pub use model::interval::{Interval, IntervalQuality};
+pub use model::musical_diff::{
+    MusicalChange, MusicalChangeKind, MusicalComparisonDiagnostic, MusicalComparisonOptions,
+    MusicalComparisonResult, NoteCorrespondence, StructurePolicy, VoiceAddr, VoiceCorrespondence,
+    compare_musical_positions,
+};
 pub use model::notation::{
     AccidentalDisplay, Articulation, Barline, BeamState, ChordBarre, ChordDefinition,
     ChordDefinitionMember, ChordDegree, ChordSymbol, Clef, CrossStaff, Dynamic, FiguredBassFigure,

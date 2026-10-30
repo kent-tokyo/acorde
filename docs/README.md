@@ -14,6 +14,7 @@ before selecting a version.
 | Format checks and reports | [Interchange evidence](interchange-evidence.md) |
 | Browser/WASM host | [Browser contract](browser-rendering.md), [browser checks](browser-support.md) |
 | Written accompaniment chord symbols | [Authored chord annotation](authored-chords.md) |
+| Compare arrangements by musical position | [Musical position comparison](musical-position-diff.md) |
 | Print/PDF host | [Print layout](print-layout.md), [page SVG](print-svg-contract.md), [PDF export](pdf-export.md) |
 
 ## Verification and evidence
