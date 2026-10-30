@@ -348,13 +348,24 @@ fn write_staff(
 ) -> Result<(), Error> {
     let mut running_time = default_time.clone();
     let span_marks = staff_span_marks(staff);
-    // Voltas as (first bar, last bar, number).
+    // Voltas as (first bar, last bar, number). An end marker without a matching
+    // start has no opening spanner, but still needs a closing marker.
     let volta_spans = staff_volta_spans(staff);
-    let mut volta_close_before: std::collections::HashMap<usize, u8> = volta_spans
+    let mut volta_close_before: std::collections::HashMap<usize, usize> = volta_spans
         .iter()
         .filter(|(_, end, _)| end + 1 < staff.measures.len())
-        .map(|&(_, end, number)| (end + 1, number))
+        .map(|&(start, end, _)| (end + 1, end + 1 - start))
         .collect();
+    for (index, measure) in staff.measures.iter().enumerate() {
+        if measure
+            .volta
+            .as_ref()
+            .is_some_and(|volta| volta.kind == "end")
+            && index + 1 < staff.measures.len()
+        {
+            volta_close_before.entry(index + 1).or_insert(1);
+        }
+    }
     write!(xml, "<Staff id=\"{id}\">").map_err(fmt_error)?;
     if !score_texts.is_empty() {
         xml.push_str("<VBox>");
@@ -438,11 +449,7 @@ fn write_staff(
         xml.push_str("<voice>");
         // A volta opens where it begins and is closed by a `<prev>` marker at the start of the
         // bar after its last one.
-        if volta_close_before.remove(&measure_index).is_some() {
-            let span = volta_spans
-                .iter()
-                .find(|(_, end, _)| end + 1 == measure_index)
-                .map_or(1, |(start, end, _)| end + 1 - start);
+        if let Some(span) = volta_close_before.remove(&measure_index) {
             write!(
                 xml,
                 "<Spanner type=\"Volta\"><prev><location><measures>-{span}</measures></location></prev></Spanner>"
@@ -453,9 +460,16 @@ fn write_staff(
             .iter()
             .find(|(start, _, _)| *start == measure_index)
         {
-            // A one-bar ending in the last bar has no following bar to close it: it is written
-            // without `<next>`, which reads back as a one-bar volta.
-            let next = if start == end && end + 1 == staff.measures.len() {
+            // A one-bar completed ending in the last bar has no following bar to close it.
+            // An open `begin` in that bar still needs `<next>` so it does not reparse as
+            // `begin_end` (the target bar need not exist in this staff).
+            let completed_last_bar = start == end
+                && end + 1 == staff.measures.len()
+                && staff.measures[start]
+                    .volta
+                    .as_ref()
+                    .is_some_and(|volta| volta.kind == "begin_end");
+            let next = if completed_last_bar {
                 String::new()
             } else {
                 format!(
@@ -721,8 +735,9 @@ fn staff_volta_spans(staff: &Staff) -> Vec<(usize, usize, u8)> {
             "begin" => open = Some((index, volta.number)),
             "begin_end" => spans.push((index, index, volta.number)),
             "end" => {
-                let (start, number) = open.take().unwrap_or((index, volta.number));
-                spans.push((start, index, number));
+                if let Some((start, number)) = open.take() {
+                    spans.push((start, index, number));
+                }
             }
             _ => {}
         }
