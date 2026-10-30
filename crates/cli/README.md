@@ -8,6 +8,7 @@ acorde --help
 acorde convert input.mid output.musicxml
 acorde validate input.musicxml
 acorde render input.musicxml output.svg
+acorde render input.mscz output.svg --auto-beams
 acorde print-report input.musicxml --preset a4-score --fail-on-issues
 acorde compatibility-report source.musicxml candidate.musicxml --fail-on-differences
 ~~~
@@ -20,6 +21,8 @@ export/compatibility reports.
 Input accepts MusicXML/MXL, MIDI, ABC, MEI, MSCX/MSCZ, and Guitar Pro 3–8. Conversion writes
 MusicXML, MIDI, ABC, MEI, and the documented canonical MSCX/MSCZ subset; it does not promise full
 MuseScore parity. `render` writes deterministic SVG with optional interactive score-address hooks.
+`render --auto-beams` adds meter-aware display beams for unmarked short notes without editing
+the input score. The default render keeps authored beam state.
 `print-report` returns host-neutral page and system layout JSON, not a PDF or printer job.
 
 Report commands are intended for automation: `render-report` and `preflight` expose renderer

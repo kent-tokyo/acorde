@@ -4,7 +4,7 @@ use crate::{
 };
 use acorde_core::{
     AccidentalDisplay, BeamState, HairpinKind, NotationSpanner, NotationSpannerKind, NoteAddr,
-    OttavaKind, Score, Step,
+    OttavaKind, Score, Step, TupletBoundary, compute_beams,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -46,7 +46,7 @@ pub fn compute_layout(score: &Score, config: &LayoutConfig) -> LayoutResult {
         }
     }
 
-    let beam_groups = collect_beam_groups(score);
+    let beam_groups = collect_beam_groups(score, false);
     let tuplet_groups = collect_tuplet_groups(score);
     let courtesy_accidentals = collect_courtesy_accidentals(score);
     let accidentals = collect_accidental_marks(score);
@@ -64,6 +64,19 @@ pub fn compute_layout(score: &Score, config: &LayoutConfig) -> LayoutResult {
         accidentals,
         source_voice_addresses,
     }
+}
+
+/// Compute ordinary layout plus opt-in display beams without modifying the score.
+pub fn compute_layout_with_display_beams(score: &Score, config: &LayoutConfig) -> LayoutResult {
+    let mut layout = compute_layout(score, config);
+    add_display_beams(score, &mut layout);
+    layout
+}
+
+/// Replace only the beam groups in an existing layout with display beam suggestions.
+/// The score, authored beam states, and all other layout decisions are unchanged.
+pub fn add_display_beams(score: &Score, layout: &mut LayoutResult) {
+    layout.beam_groups = collect_beam_groups(score, true);
 }
 
 fn collect_source_voice_addresses(score: &Score) -> Vec<SourceVoiceAddress> {
@@ -382,11 +395,15 @@ fn resolve_spans(score: &Score, typed_spanners: &[NotationSpanner]) -> Vec<SpanM
 
 // ── beam groups ───────────────────────────────────────────────────────────────
 
-fn collect_beam_groups(score: &Score) -> Vec<BeamGroup> {
+fn collect_beam_groups(score: &Score, infer_unmarked: bool) -> Vec<BeamGroup> {
     let mut groups = Vec::new();
     for (pi, part) in score.parts.iter().enumerate() {
         for (si, staff) in part.staves.iter().enumerate() {
+            let mut meter = score.settings.time_signature.clone();
             for (mi, measure) in staff.measures.iter().enumerate() {
+                if let Some(change) = &measure.time_sig {
+                    meter = change.clone();
+                }
                 for vi in 0..4usize {
                     let voice = &measure.voices[vi];
                     let mut current: Option<Vec<usize>> = None;
@@ -428,6 +445,53 @@ fn collect_beam_groups(score: &Score) -> Vec<BeamGroup> {
                                 current = None;
                             }
                         }
+                    }
+                    if infer_unmarked {
+                        let recommended = compute_beams(voice, &meter);
+                        let mut candidate = Vec::new();
+                        let mut flush = |candidate: &mut Vec<usize>| {
+                            if candidate.len() >= 2 {
+                                groups.push(BeamGroup {
+                                    part: pi,
+                                    staff: si,
+                                    measure: mi,
+                                    voice: vi,
+                                    note_indices: std::mem::take(candidate),
+                                });
+                            } else {
+                                candidate.clear();
+                            }
+                        };
+                        for (ni, (note, suggested)) in voice.iter().zip(&recommended).enumerate() {
+                            if matches!(suggested, BeamState::Begin | BeamState::None)
+                                || matches!(
+                                    note.tuplet_boundary,
+                                    Some(TupletBoundary::Start | TupletBoundary::StartStop)
+                                )
+                            {
+                                flush(&mut candidate);
+                            }
+                            if *suggested != BeamState::None
+                                && note.beam == BeamState::None
+                                && !note.explicit_unbeamed
+                                && !note.is_grace
+                                && !note.is_cue
+                                && !note.hidden
+                            {
+                                candidate.push(ni);
+                            } else {
+                                flush(&mut candidate);
+                            }
+                            if *suggested == BeamState::End
+                                || matches!(
+                                    note.tuplet_boundary,
+                                    Some(TupletBoundary::Stop | TupletBoundary::StartStop)
+                                )
+                            {
+                                flush(&mut candidate);
+                            }
+                        }
+                        flush(&mut candidate);
                     }
                 }
             }
@@ -912,6 +976,116 @@ mod tests {
         let score = Score::default();
         let result = compute_layout(&score, &LayoutConfig::default());
         assert!(result.beam_groups.is_empty());
+    }
+
+    #[test]
+    fn display_beams_follow_simple_and_compound_meter_without_changing_score() {
+        use acorde_core::{Duration, Note, Pitch, Step, TimeSignature};
+        let note = || Note::new(Pitch::new(Step::C, 4), Duration::Eighth);
+        let mut score = score_with_measures(2);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note(); 4];
+        score.parts[0].staves[0].measures[1].time_sig = Some(TimeSignature {
+            numerator: 6,
+            denominator: 8,
+        });
+        score.parts[0].staves[0].measures[1].voices[0] = vec![note(); 6];
+        let original = score.clone();
+
+        assert!(
+            compute_layout(&score, &LayoutConfig::default())
+                .beam_groups
+                .is_empty()
+        );
+        let layout = compute_layout_with_display_beams(&score, &LayoutConfig::default());
+        let groups: Vec<_> = layout
+            .beam_groups
+            .iter()
+            .map(|g| (g.measure, g.note_indices.clone()))
+            .collect();
+        assert_eq!(
+            groups,
+            vec![
+                (0, vec![0, 1]),
+                (0, vec![2, 3]),
+                (1, vec![0, 1, 2]),
+                (1, vec![3, 4, 5])
+            ]
+        );
+        assert_eq!(
+            serde_json::to_value(&score).unwrap(),
+            serde_json::to_value(&original).unwrap()
+        );
+    }
+
+    #[test]
+    fn display_beams_respect_authored_unbeamed_rest_grace_and_barlines() {
+        use acorde_core::{BeamState, Duration, Note, Pitch, Step};
+        let note = || Note::new(Pitch::new(Step::C, 4), Duration::Eighth);
+        let mut score = score_with_measures(2);
+        let mut authored = note();
+        authored.beam = BeamState::Begin;
+        let mut authored_end = note();
+        authored_end.beam = BeamState::End;
+        let mut no = note();
+        no.explicit_unbeamed = true;
+        let mut grace = note();
+        grace.is_grace = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            authored,
+            authored_end,
+            no,
+            note(),
+            Note::rest(Duration::Eighth),
+            note(),
+            grace,
+            note(),
+        ];
+        score.parts[0].staves[0].measures[1].voices[0] = vec![note(), note()];
+
+        let layout = compute_layout_with_display_beams(&score, &LayoutConfig::default());
+        let groups: Vec<_> = layout
+            .beam_groups
+            .iter()
+            .map(|g| (g.measure, g.note_indices.clone()))
+            .collect();
+        assert_eq!(groups, vec![(0, vec![0, 1]), (1, vec![0, 1])]);
+    }
+
+    #[test]
+    fn display_beams_keep_pickup_and_tuplet_boundaries_separate() {
+        use acorde_core::{Duration, Note, Pitch, Step, TupletBoundary, TupletInfo};
+        let mut score = score_with_measures(2);
+        let mut notes: Vec<_> = (0..6)
+            .map(|_| Note::new(Pitch::new(Step::C, 4), Duration::Eighth))
+            .collect();
+        for note in &mut notes[..3] {
+            note.tuplet = Some(TupletInfo {
+                actual_notes: 3,
+                normal_notes: 2,
+            });
+        }
+        notes[0].tuplet_boundary = Some(TupletBoundary::Start);
+        notes[2].tuplet_boundary = Some(TupletBoundary::Stop);
+        // A short first measure is a pickup; its beam groups remain measure-local.
+        score.parts[0].staves[0].measures[0].voices[0] = notes;
+        score.parts[0].staves[0].measures[1].voices[0] = (0..2)
+            .map(|_| Note::new(Pitch::new(Step::D, 4), Duration::Eighth))
+            .collect();
+
+        let layout = compute_layout_with_display_beams(&score, &LayoutConfig::default());
+        assert_eq!(layout.beam_groups[0].note_indices, vec![0, 1, 2]);
+        assert!(
+            layout
+                .beam_groups
+                .iter()
+                .any(|group| group.measure == 1 && group.note_indices == vec![0, 1])
+        );
+        assert!(
+            layout
+                .beam_groups
+                .iter()
+                .all(|g| !g.note_indices.contains(&2) || !g.note_indices.contains(&3))
+        );
     }
 
     #[test]

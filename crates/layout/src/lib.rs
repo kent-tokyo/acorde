@@ -6,7 +6,9 @@ mod engine;
 mod print;
 
 pub use acorde_core::NoteAddr;
-pub use engine::{compute_layout, notation_density_units};
+pub use engine::{
+    add_display_beams, compute_layout, compute_layout_with_display_beams, notation_density_units,
+};
 pub use print::{
     BreakReason, CropMarkPolicy, FinalPagePolicy, GLYPH_RESOURCE_CONTRACT_VERSION,
     GlyphCollisionClass, GlyphCollisionDirection, GlyphExtents, GlyphFallbackPolicy, GlyphMetrics,

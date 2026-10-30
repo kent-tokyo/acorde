@@ -1063,7 +1063,9 @@ fn write_note(
         )
         .map_err(fmt_error)?;
     }
-    if let Some(mode) = beam_mode(note.beam) {
+    if note.explicit_unbeamed && note.beam == BeamState::None {
+        xml.push_str("<BeamMode>no</BeamMode>");
+    } else if let Some(mode) = beam_mode(note.beam) {
         write!(xml, "<BeamMode>{mode}</BeamMode>").map_err(fmt_error)?;
     }
     xml.push_str(marks.map_or("", |marks| marks.inside.as_str()));

@@ -2367,6 +2367,10 @@ pub struct Note {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub pitch_fingerings: Vec<Option<u8>>,
     pub beam: BeamState,
+    /// An authored instruction to leave this short note unbeamed. An absent beam mark is
+    /// unspecified and may be grouped by an opt-in display policy.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub explicit_unbeamed: bool,
     pub articulations: Vec<Articulation>,
     pub dynamic: Option<Dynamic>,
     pub stem_up: Option<bool>,
@@ -2504,6 +2508,7 @@ impl Note {
             pitch_parentheses: Vec::new(),
             pitch_fingerings: Vec::new(),
             beam: BeamState::None,
+            explicit_unbeamed: false,
             articulations: Vec::new(),
             dynamic: None,
             stem_up: None,
@@ -2564,6 +2569,7 @@ impl Note {
             pitch_parentheses: Vec::new(),
             pitch_fingerings: Vec::new(),
             beam: BeamState::None,
+            explicit_unbeamed: false,
             articulations: Vec::new(),
             dynamic: None,
             stem_up: None,
@@ -4879,6 +4885,7 @@ fn note_content_eq(a: &Note, b: &Note) -> bool {
         && a.tie_start == b.tie_start
         && a.tie_end == b.tie_end
         && a.beam == b.beam
+        && a.explicit_unbeamed == b.explicit_unbeamed
         && a.articulations == b.articulations
         && a.dynamic == b.dynamic
         && a.stem_up == b.stem_up

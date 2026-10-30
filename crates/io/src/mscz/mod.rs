@@ -68,7 +68,7 @@ fn close_implicit_mscx_beam_groups(voices: &mut [Vec<Note>; 4]) {
                 | BeamState::ForwardHook
                 | BeamState::BackwardHook => {
                     if let Some(group_start) = start.take() {
-                        if mscx_note_is_beamable(&voice[index]) {
+                        if mscx_note_is_beamable(&voice[index]) && !voice[index].explicit_unbeamed {
                             // An omitted terminal BeamMode belongs to the open group.
                             voice[index].beam = BeamState::End;
                         } else {
@@ -312,6 +312,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut chord_voice: usize = 0;
     let mut chord_stem_up: Option<bool> = None;
     let mut chord_beam = BeamState::None;
+    let mut chord_explicit_unbeamed = false;
     let mut last_voice_index = 0usize;
     let mut beam_group_starts = [0usize; 4];
     let mut chord_pitches: Vec<Pitch> = Vec::new();
@@ -710,6 +711,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         last_voice_index = chord_voice.min(3);
                         chord_stem_up = None;
                         chord_beam = BeamState::None;
+                        chord_explicit_unbeamed = false;
                         chord_pitches.clear();
                         chord_tab_positions.clear();
                         chord_tie_start = false;
@@ -1851,6 +1853,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         };
                     }
                     "BeamMode" if in_chord && !in_note_elem => {
+                        chord_explicit_unbeamed = t.trim().eq_ignore_ascii_case("no");
                         chord_beam = match t.trim().to_ascii_lowercase().as_str() {
                             "begin" => BeamState::Begin,
                             "continue" | "mid" => BeamState::Continue,
@@ -1984,6 +1987,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 });
                             note.stem_up = chord_stem_up;
                             note.beam = chord_beam;
+                            note.explicit_unbeamed = chord_explicit_unbeamed;
                             note.note_head = note_head.clone();
                             note.chord_symbol = pending_chord_symbol.take();
                             if let Some(level) = chord_tremolo {
@@ -4501,6 +4505,41 @@ mod tests {
                 .collect::<Vec<_>>(),
             notes.iter().map(|note| note.beam).collect::<Vec<_>>(),
         );
+    }
+
+    #[test]
+    fn mscx_unbeamed_instruction_survives_roundtrip() {
+        let xml = simple_mscx(
+            r#"<Measure number="1">
+                <Chord><BeamMode>no</BeamMode><durationType>eighth</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord>
+                <Chord><durationType>eighth</durationType><Note><pitch>62</pitch><tpc>16</tpc></Note></Chord>
+            </Measure>"#,
+        );
+        let score = parse_mscx(&xml).unwrap();
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+        assert!(notes[0].explicit_unbeamed);
+        assert!(!notes[1].explicit_unbeamed);
+        let xml = serialize_mscx(&score).unwrap();
+        assert!(xml.contains("<BeamMode>no</BeamMode>"));
+        let reparsed = parse_mscx(&xml).unwrap();
+        assert!(reparsed.parts[0].staves[0].measures[0].voices[0][0].explicit_unbeamed);
+    }
+
+    #[test]
+    fn mscx_explicit_no_ends_open_group_before_unbeamed_note() {
+        let xml = simple_mscx(
+            r#"<Measure number="1">
+                <Chord><BeamMode>begin</BeamMode><durationType>eighth</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord>
+                <Chord><BeamMode>mid</BeamMode><durationType>eighth</durationType><Note><pitch>62</pitch><tpc>16</tpc></Note></Chord>
+                <Chord><BeamMode>no</BeamMode><durationType>eighth</durationType><Note><pitch>64</pitch><tpc>18</tpc></Note></Chord>
+            </Measure>"#,
+        );
+        let score = parse_mscx(&xml).unwrap();
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(notes[0].beam, BeamState::Begin);
+        assert_eq!(notes[1].beam, BeamState::End);
+        assert_eq!(notes[2].beam, BeamState::None);
+        assert!(notes[2].explicit_unbeamed);
     }
 
     #[test]

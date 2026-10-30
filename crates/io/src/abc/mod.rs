@@ -371,6 +371,20 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
         return Err(Error::Empty);
     }
 
+    // ABC whitespace is an authored beam boundary. A short note left outside an explicit
+    // run must stay unbeamed when a renderer opts into default grouping for other formats.
+    for note in score
+        .parts
+        .iter_mut()
+        .flat_map(|part| &mut part.staves)
+        .flat_map(|staff| &mut staff.measures)
+        .flat_map(|measure| measure.voices.iter_mut().flatten())
+    {
+        if abc_note_is_beamable(note) && note.beam == BeamState::None {
+            note.explicit_unbeamed = true;
+        }
+    }
+
     Ok(score)
 }
 
@@ -2985,6 +2999,18 @@ C D E F | G A B c |";
                 (&Duration::Eighth, BeamState::Continue),
                 (&Duration::Eighth, BeamState::End),
             ]
+        );
+    }
+
+    #[test]
+    fn isolated_abc_eighths_remain_explicitly_unbeamed_for_display_policy() {
+        let score = parse_abc("X:1\nT:Spaces\nM:2/4\nL:1/8\nK:C\nC D E F|\n").unwrap();
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(notes.len(), 4);
+        assert!(
+            notes
+                .iter()
+                .all(|note| note.beam == BeamState::None && note.explicit_unbeamed)
         );
     }
 
