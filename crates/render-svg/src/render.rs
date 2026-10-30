@@ -4975,6 +4975,8 @@ fn render_all_spans(
             SpanMark::Glissando { .. } => "glissando",
             SpanMark::Harmony { .. } => "harmony",
         };
+        let slur_above = matches!(span, SpanMark::Slur { .. })
+            .then(|| spans::slur_above(layout, start, end, up1, up2));
         if interactive {
             let _ = write!(
                 body,
@@ -5007,6 +5009,7 @@ fn render_all_spans(
                 x1,
                 y1 + start_offset,
                 up1,
+                slur_above,
                 width - right_margin_u * space,
                 space,
                 true,
@@ -5017,6 +5020,7 @@ fn render_all_spans(
                 left_margin_u * space,
                 y2 + end_offset,
                 up2,
+                slur_above,
                 x2,
                 space,
                 false,
@@ -5043,6 +5047,20 @@ fn render_all_spans(
             .get(&(span_index, row1))
             .copied()
             .unwrap_or_default();
+        let slur_extreme = slur_above.and_then(|above| {
+            points
+                .iter()
+                .filter(|((part, staff, _, voice, _), (x, _, _, row))| {
+                    *part == start.part
+                        && *staff == start.staff
+                        && *voice == start.voice
+                        && *row == row1
+                        && *x >= x1.min(x2)
+                        && *x <= x1.max(x2)
+                })
+                .map(|(_, (_, y, _, _))| *y + offset)
+                .reduce(|a, b| if above { a.min(b) } else { a.max(b) })
+        });
         render_same_row_span(
             body,
             span,
@@ -5053,6 +5071,8 @@ fn render_all_spans(
             y2 + offset,
             up2,
             space,
+            slur_above,
+            slur_extreme,
         );
         if interactive {
             body.push_str("</g>");
@@ -5272,6 +5292,8 @@ fn render_same_row_span(
     y2: f32,
     up2: bool,
     space: f32,
+    slur_above: Option<bool>,
+    slur_extreme: Option<f32>,
 ) {
     let (left, right) = if x1 <= x2 { (x1, x2) } else { (x2, x1) };
     match span {
@@ -5297,7 +5319,30 @@ fn render_same_row_span(
                 f(0.08 * space)
             );
         }
-        SpanMark::Slur { .. } | SpanMark::TrillLine { .. } | SpanMark::Glissando { .. } => {
+        SpanMark::Slur { .. } => {
+            if (x2 - x1).abs() < 0.6 * space {
+                return;
+            }
+            let above = slur_above.unwrap_or(!up1);
+            let direction = if x2 >= x1 { 1.0 } else { -1.0 };
+            let side = if above { -1.0 } else { 1.0 };
+            let start_y = y1 + side * 0.65 * space;
+            let end_y = y2 + side * 0.65 * space;
+            let extreme = slur_extreme.unwrap_or(if above { y1.min(y2) } else { y1.max(y2) });
+            let control_y = extreme + side * 2.4 * space;
+            let _ = write!(
+                body,
+                r#"<path class="acorde-slur" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                f(x1 + direction * 0.3 * space),
+                f(start_y),
+                f((x1 + x2) / 2.0),
+                f(control_y),
+                f(x2 - direction * 0.3 * space),
+                f(end_y),
+                f(0.08 * space)
+            );
+        }
+        SpanMark::TrillLine { .. } | SpanMark::Glissando { .. } => {
             let y = if up1 || up2 {
                 y1.min(y2) - 1.0 * space
             } else {
@@ -5308,9 +5353,7 @@ fn render_same_row_span(
             } else {
                 0.8 * space
             };
-            let class = if matches!(span, SpanMark::Slur { .. }) {
-                "acorde-slur"
-            } else if matches!(span, SpanMark::Glissando { .. }) {
+            let class = if matches!(span, SpanMark::Glissando { .. }) {
                 "acorde-glissando"
             } else {
                 "acorde-trill-line"
@@ -5625,6 +5668,7 @@ fn render_span_segment(
     x1: f32,
     y1: f32,
     up: bool,
+    slur_above: Option<bool>,
     x2: f32,
     space: f32,
     start: bool,
@@ -5652,7 +5696,26 @@ fn render_span_segment(
                 f(0.08 * space)
             );
         }
-        SpanMark::Slur { .. } => render_curve(body, "acorde-slur", x1, y1, x2, y1, up, space),
+        SpanMark::Slur { .. } => {
+            let above = slur_above.unwrap_or(!up);
+            let side = if above { -1.0 } else { 1.0 };
+            let anchor_y = y1 + side * 0.65 * space;
+            let (start_x, end_x) = if start {
+                (x1 + 0.3 * space, x2)
+            } else {
+                (x1, x2 - 0.3 * space)
+            };
+            render_curve(
+                body,
+                "acorde-slur",
+                start_x,
+                anchor_y,
+                end_x,
+                anchor_y,
+                above,
+                space,
+            );
+        }
         SpanMark::TrillLine { .. } => {
             render_curve(body, "acorde-trill-line", x1, y1, x2, y1, up, space)
         }
@@ -5704,7 +5767,6 @@ fn render_span_segment(
             );
         }
     }
-    let _ = start;
 }
 
 #[allow(clippy::too_many_arguments)]

@@ -4,12 +4,50 @@ use std::collections::HashMap;
 
 use acorde_layout::{
     GlyphCollisionClass, GlyphCollisionDirection, GlyphMetrics, GlyphPlacement, LayoutResult,
-    SpanMark,
+    NoteAddr, SpanMark,
 };
 
 use crate::SVG_ANNOTATION_COLLISION_GAP_PX;
 use crate::collision::CollisionOwner;
 use crate::render::{NoteKey, NotePoint};
+
+/// Conventional single-voice slurs sit opposite stems. For a lower voice,
+/// keep the slur below the staff to distinguish it from the upper voice;
+/// mixed stems follow the starting note's side consistently across systems.
+pub(crate) fn slur_above(
+    layout: &LayoutResult,
+    start: &NoteAddr,
+    end: &NoteAddr,
+    up1: bool,
+    up2: bool,
+) -> bool {
+    if let Some(placement) = layout
+        .typed_spanners
+        .iter()
+        .find(|span| {
+            span.kind == acorde_core::NotationSpannerKind::Slur
+                && span.start == *start
+                && span.end == *end
+        })
+        .and_then(|span| span.placement.as_deref())
+    {
+        match placement {
+            "above" => return true,
+            "below" => return false,
+            _ => {}
+        }
+    }
+    if start.voice != end.voice {
+        return start.voice == 0;
+    }
+    if start.voice > 0 {
+        return false;
+    }
+    match (up1, up2) {
+        (true, true) | (true, false) => false,
+        (false, false) | (false, true) => true,
+    }
+}
 
 /// Allocate deterministic escape lanes for spans sharing a system.
 pub(crate) fn resolve_lane_offsets(
@@ -47,8 +85,12 @@ pub(crate) fn resolve_lane_offsets(
         ) else {
             continue;
         };
+        let slur_side =
+            matches!(span, SpanMark::Slur { .. }).then(|| slur_above(layout, start, end, up1, up2));
         let mut add_segment = |row: usize, left: f32, right: f32, anchor_y: f32, stem_up: bool| {
-            let (baseline, above) = lane_baseline(span, anchor_y, stem_up, space);
+            let (baseline, above) = slur_side
+                .map(|above| (anchor_y, above))
+                .unwrap_or_else(|| lane_baseline(span, anchor_y, stem_up, space));
             keys.push((span_index, row));
             original_y.push(baseline);
             owner.push(
