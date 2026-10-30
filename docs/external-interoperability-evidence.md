@@ -115,17 +115,17 @@ at revision `38c5db510224d9facdc4b08d741fc788cfb58ea8` (SHA-256
 41-measure, two-part score distributed as MusicXML by OpenScore, not an Acorde-generated
 MusicXML input. The fixture manifest records its URL and CC0 provenance.
 
-With the MusicXML part-name, rest-notation, and authored-beam fixes, Acorde imports its `Voice`
-and `Piano` part names and retains them through MusicXML export and reimport. It also retains
-the fermata on a rest in measure 25. The full Acorde round-trip reports **3 semantic changes**:
-two text changes and one presentation change. The source has 32 unsupported
-rendering-attribute diagnostics. `serialize_musicxml_with_auto_beams` remains available for
-display-only exports that need explicit default beam groups.
-These are concrete remaining losses, not a score for all OpenScore files.
+With the MusicXML part-name, rest-notation, authored-beam, and direction-text fixes, Acorde
+imports its `Voice` and `Piano` part names, the fermata on a rest in measure 25, and the
+tempo words in their original direction. The Acorde MusicXML round-trip now reports **zero
+semantic changes** on this score. The source still has 32 unsupported rendering-attribute
+diagnostics, so the report is not lossless. `serialize_musicxml_with_auto_beams` remains available
+for display-only exports that need explicit default beam groups. One successful score is not a
+score for all OpenScore files.
 
 music21 10.5.2 also imported and exported the same MXL. Acorde's compatibility reporter
 could not parse that output because a part/staff contains more than four distinct source voice
 numbers. Consequently, there is **no comparable music21 semantic-change count** for this
 fixture. The importer has four canonical editing voice slots per staff; expanding that model
-requires separate work. Acorde's remaining changes and the reporter's parse limit prevent
+requires separate work. The reporter's parse limit and the single-score evidence prevent
 any general claim that Acorde preserves real scores better than music21.

@@ -184,7 +184,7 @@ fn styled_measure_text_command_roundtrips_supported_musicxml_styles() {
     assert!(texts.contains(&StyledText {
         style: TextStyle::Expression,
         text: "dolce".to_string(),
-        placement: Some("above".to_string()),
+        placement: None,
         offset_x: None,
         offset_y: None,
         relative_x: None,
@@ -355,7 +355,7 @@ fn cc0_mscz_part_names_survive_musicxml_roundtrip() {
 }
 
 #[test]
-fn independent_cc0_mxl_names_rest_fermata_and_beams_survive_roundtrip() {
+fn independent_cc0_mxl_semantic_roundtrip() {
     let source = acorde_io::parse_mxl(OPENSCORE_LIEDER_MXL).expect("CC0 MXL imports");
     let xml = serialize_musicxml(&source).expect("MusicXML exports");
     let reparsed = parse_musicxml(&xml).expect("MusicXML imports");
@@ -378,40 +378,8 @@ fn independent_cc0_mxl_names_rest_fermata_and_beams_survive_roundtrip() {
             .contains(&acorde_core::Articulation::Fermata)
     );
     assert_eq!(source_rest.articulations, restored_rest.articulations);
-    for (part_index, (before_part, after_part)) in
-        source.parts.iter().zip(&reparsed.parts).enumerate()
-    {
-        for (staff_index, (before_staff, after_staff)) in before_part
-            .staves
-            .iter()
-            .zip(&after_part.staves)
-            .enumerate()
-        {
-            for (measure_index, (before_measure, after_measure)) in before_staff
-                .measures
-                .iter()
-                .zip(&after_staff.measures)
-                .enumerate()
-            {
-                for (voice_index, (before_voice, after_voice)) in before_measure
-                    .voices
-                    .iter()
-                    .zip(&after_measure.voices)
-                    .enumerate()
-                {
-                    for (note_index, (before_note, after_note)) in
-                        before_voice.iter().zip(after_voice).enumerate()
-                    {
-                        assert_eq!(
-                            before_note.beam, after_note.beam,
-                            "part={part_index} staff={staff_index} measure={measure_index} voice={voice_index} note={note_index} rest={}",
-                            before_note.is_rest
-                        );
-                    }
-                }
-            }
-        }
-    }
+    let changes = acorde_core::diff(&source, &reparsed);
+    assert!(changes.is_empty(), "{changes:#?}");
 }
 
 #[test]

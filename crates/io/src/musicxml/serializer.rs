@@ -126,6 +126,15 @@ fn serialize_musicxml_inner(
     }
     xml.push_str("  </part-list>\n");
 
+    let opening_mark = score
+        .parts
+        .iter()
+        .enumerate()
+        .find_map(|(part_index, part)| {
+            let measure = part.staves.first()?.measures.first()?;
+            measure.tempo.map(|bpm| (part_index, bpm, measure))
+        });
+
     for (pi, part) in score.parts.iter().enumerate() {
         xml.push_str(&format!(
             "  <part id=\"{}\">\n",
@@ -398,10 +407,6 @@ fn serialize_musicxml_inner(
                 // first bar) as a metronome mark, otherwise the playback tempo as a bare
                 // `<sound>` that draws nothing. Later bars write only their own tempo changes
                 // (an attributes block for a key, time or clef change is no tempo mark).
-                let opening_mark = score
-                    .parts
-                    .iter()
-                    .find_map(|part| part.staves.first()?.measures.first()?.tempo);
                 if i == 0 && pi == 0 && opening_mark.is_none() {
                     xml.push_str(&format!(
                         "      <sound tempo=\"{}\"/>\n",
@@ -410,16 +415,13 @@ fn serialize_musicxml_inner(
                 }
                 if i == 0
                     && pi == 0
-                    && let Some(bpm) = opening_mark
+                    && let Some((source_part, bpm, tempo_measure)) = opening_mark
                 {
-                    xml.push_str("      <direction placement=\"above\">\n");
-                    xml.push_str("        <direction-type>\n");
-                    xml.push_str(&format!(
-                        "          <metronome><beat-unit>quarter</beat-unit><per-minute>{bpm}</per-minute></metronome>\n"
-                    ));
-                    xml.push_str("        </direction-type>\n");
-                    xml.push_str(&format!("        <sound tempo=\"{bpm}\"/>\n"));
-                    xml.push_str("      </direction>\n");
+                    push_tempo_direction(
+                        &mut xml,
+                        bpm,
+                        (source_part == 0).then_some(tempo_measure),
+                    );
                 }
             } else if let Some(count) = measure.multi_rest_count
                 && count >= 2
@@ -446,15 +448,7 @@ fn serialize_musicxml_inner(
             if i > 0
                 && let Some(bpm) = measure.tempo
             {
-                xml.push_str("      <direction placement=\"above\">\n");
-                xml.push_str("        <direction-type>\n");
-                xml.push_str(&format!(
-                        "          <metronome><beat-unit>quarter</beat-unit><per-minute>{}</per-minute></metronome>\n",
-                        bpm
-                    ));
-                xml.push_str("        </direction-type>\n");
-                xml.push_str(&format!("        <sound tempo=\"{}\"/>\n", bpm));
-                xml.push_str("      </direction>\n");
+                push_tempo_direction(&mut xml, bpm, Some(measure));
             }
 
             // Navigation mark
@@ -489,7 +483,14 @@ fn serialize_musicxml_inner(
             }
 
             // Tempo text
-            if let Some(text) = &measure.tempo_text {
+            let tempo_text_emitted_with_sound = if i == 0 {
+                pi == 0 && opening_mark.is_some_and(|(source_part, _, _)| source_part == 0)
+            } else {
+                measure.tempo.is_some()
+            };
+            if let Some(text) = &measure.tempo_text
+                && !tempo_text_emitted_with_sound
+            {
                 let attrs = measure_text_direction_attrs(measure, TextStyle::Generic, text);
                 xml.push_str(&format!("      <direction{}>\n", attrs));
                 xml.push_str("        <direction-type>\n");
@@ -583,8 +584,10 @@ fn serialize_musicxml_inner(
             }
 
             for styled in &measure.texts {
-                let already_emitted = matches!(styled.style, TextStyle::Expression)
-                    && measure.expression_text.as_deref() == Some(styled.text.as_str())
+                let already_emitted = matches!(styled.style, TextStyle::Generic)
+                    && measure.tempo_text.as_deref() == Some(styled.text.as_str())
+                    || matches!(styled.style, TextStyle::Expression)
+                        && measure.expression_text.as_deref() == Some(styled.text.as_str())
                     || matches!(styled.style, TextStyle::RehearsalMark)
                         && measure.rehearsal.as_deref() == Some(styled.text.as_str());
                 if already_emitted {
@@ -1910,6 +1913,31 @@ fn musicxml_part_id(id: &str) -> String {
     }
 }
 
+fn push_tempo_direction(xml: &mut String, bpm: u16, measure: Option<&acorde_core::Measure>) {
+    if let Some((measure, text)) =
+        measure.and_then(|measure| measure.tempo_text.as_deref().map(|text| (measure, text)))
+    {
+        let styled = measure_styled_text(measure, TextStyle::Generic, text);
+        let attrs = measure_text_direction_attrs(measure, TextStyle::Generic, text);
+        xml.push_str(&format!("      <direction{attrs}>\n"));
+        xml.push_str("        <direction-type>\n");
+        xml.push_str(&format!(
+            "          <words{}>{}</words>\n",
+            styled_text_position_attrs(styled),
+            escape_xml(text)
+        ));
+    } else {
+        xml.push_str("      <direction placement=\"above\">\n");
+        xml.push_str("        <direction-type>\n");
+        xml.push_str(&format!(
+            "          <metronome><beat-unit>quarter</beat-unit><per-minute>{bpm}</per-minute></metronome>\n"
+        ));
+    }
+    xml.push_str("        </direction-type>\n");
+    xml.push_str(&format!("        <sound tempo=\"{bpm}\"/>\n"));
+    xml.push_str("      </direction>\n");
+}
+
 fn measure_styled_text<'a>(
     measure: &'a acorde_core::Measure,
     style: TextStyle,
@@ -1928,14 +1956,15 @@ fn measure_text_direction_attrs(
 ) -> String {
     measure_styled_text(measure, style, text)
         .map(styled_direction_attrs)
-        .unwrap_or_else(|| " placement=\"above\"".to_string())
+        .unwrap_or_default()
 }
 
 fn styled_direction_attrs(styled: &acorde_core::StyledText) -> String {
-    format!(
-        " placement=\"{}\"",
-        escape_xml(styled.placement.as_deref().unwrap_or("above"))
-    )
+    styled
+        .placement
+        .as_ref()
+        .map(|placement| format!(" placement=\"{}\"", escape_xml(placement)))
+        .unwrap_or_default()
 }
 
 /// Print-style position attributes, which MusicXML allows on `<words>`/`<rehearsal>` but not on
