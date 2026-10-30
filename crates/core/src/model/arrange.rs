@@ -946,6 +946,400 @@ pub fn arrange_for_accordion(
     })
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AccordionLossPolicy {
+    RequireAll,
+    PermitReduction,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AccordionReductionOptions {
+    pub right_hand_part_index: Option<usize>,
+    /// Empty means all other pitched parts in source order.
+    pub left_hand_part_indices: Vec<usize>,
+    pub loss_policy: AccordionLossPolicy,
+    pub octave_fit: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AccordionReductionDiagnostic {
+    pub code: String,
+    pub message: String,
+    pub source: Option<NoteAddr>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_location: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AccordionSourceMapping {
+    pub source: NoteAddr,
+    /// None exactly when the selected loss policy permits this source note to be omitted.
+    pub target: Option<NoteAddr>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccordionReductionResult {
+    /// None when a requested lossless reduction or source structure cannot be represented.
+    pub score: Option<Score>,
+    pub resolved_options: AccordionReductionOptions,
+    pub diagnostics: Vec<AccordionReductionDiagnostic>,
+    pub source_map: Vec<AccordionSourceMapping>,
+    pub transposition_semitones: i8,
+    pub contract_version: u16,
+}
+
+fn reduction_error(
+    options: AccordionReductionOptions,
+    code: &str,
+    message: impl Into<String>,
+) -> AccordionReductionResult {
+    AccordionReductionResult {
+        score: None,
+        resolved_options: options,
+        diagnostics: vec![AccordionReductionDiagnostic {
+            code: code.to_string(),
+            message: message.into(),
+            source: None,
+            source_location: None,
+        }],
+        source_map: Vec::new(),
+        transposition_semitones: 0,
+        contract_version: 1,
+    }
+}
+
+fn same_reduction_bar(a: &Measure, b: &Measure) -> bool {
+    a.number == b.number
+        && a.actual_length == b.actual_length
+        && a.time_sig == b.time_sig
+        && a.barline_left == b.barline_left
+        && a.barline_right == b.barline_right
+        && a.volta == b.volta
+        && a.section_break == b.section_break
+        && a.measure_repeat == b.measure_repeat
+}
+
+fn reduction_measure_metadata(measure: &Measure) -> serde_json::Value {
+    let mut metadata = measure.clone();
+    metadata.voices = [vec![], vec![], vec![], vec![]];
+    metadata.source_voice_numbers = [None; 4];
+    serde_json::to_value(metadata).unwrap_or(serde_json::Value::Null)
+}
+
+fn source_voice_addresses(score: &Score, part: usize, staff: usize, voice: usize) -> Vec<NoteAddr> {
+    score.parts[part].staves[staff]
+        .measures
+        .iter()
+        .enumerate()
+        .flat_map(|(measure, bar)| {
+            bar.voices[voice]
+                .iter()
+                .enumerate()
+                .filter(|(_, note)| !note.is_rest)
+                .map(move |(note, _)| NoteAddr {
+                    part,
+                    staff,
+                    measure,
+                    voice,
+                    note,
+                })
+        })
+        .collect()
+}
+
+/// Reduce authored parts onto two accordion staves with explicit part selection and loss policy.
+/// Selected voices are copied into separate score voices, so ties, tuplets and source note IDs
+/// survive without onset bucketing or note shortening. Voice capacity and unselected notes are
+/// either reported as source-located omissions or rejected before returning a score.
+pub fn arrange_for_accordion_with_options(
+    score: &Score,
+    mut options: AccordionReductionOptions,
+) -> AccordionReductionResult {
+    let analysis = analyze_for_accordion(score);
+    let Some(right) = options.right_hand_part_index.or_else(|| {
+        analysis
+            .candidates
+            .first()
+            .map(|candidate| candidate.part_index)
+    }) else {
+        return reduction_error(
+            options,
+            "no-pitched-part",
+            "no pitched source part is available",
+        );
+    };
+    if right >= score.parts.len() || is_percussion_part(&score.parts[right]) {
+        return reduction_error(
+            options,
+            "invalid-selection",
+            "right-hand part is invalid or percussion",
+        );
+    }
+    options.right_hand_part_index = Some(right);
+    if options.left_hand_part_indices.is_empty() {
+        options.left_hand_part_indices = analysis
+            .candidates
+            .iter()
+            .map(|candidate| candidate.part_index)
+            .filter(|index| *index != right)
+            .collect();
+    }
+    let left_indices = &options.left_hand_part_indices;
+    if left_indices.is_empty()
+        || left_indices.iter().any(|index| {
+            *index >= score.parts.len()
+                || *index == right
+                || is_percussion_part(&score.parts[*index])
+        })
+        || {
+            let mut seen = std::collections::BTreeSet::new();
+            left_indices.iter().any(|index| !seen.insert(index))
+        }
+    {
+        return reduction_error(
+            options,
+            "invalid-selection",
+            "left-hand selection must contain distinct pitched parts other than the right hand",
+        );
+    }
+    let right_staff = match score.parts[right].staves.first() {
+        Some(staff) if !staff.measures.is_empty() => staff,
+        _ => {
+            return reduction_error(
+                options,
+                "unsupported-source",
+                "right-hand part has no staff or measures",
+            );
+        }
+    };
+    for &part_index in left_indices {
+        let Some(staff) = score.parts[part_index].staves.first() else {
+            return reduction_error(
+                options,
+                "unsupported-source",
+                format!("left-hand part {part_index} has no staff"),
+            );
+        };
+        if staff.measures.len() != right_staff.measures.len()
+            || staff
+                .measures
+                .iter()
+                .zip(&right_staff.measures)
+                .any(|(a, b)| !same_reduction_bar(a, b))
+        {
+            return reduction_error(
+                options,
+                "misaligned-bars",
+                format!(
+                    "part {part_index} has different bar numbering, lengths, repeats or endings"
+                ),
+            );
+        }
+    }
+    let validation = super::validate::validate(score);
+    if !validation.is_valid() {
+        return reduction_error(
+            options,
+            "invalid-source",
+            format!("source validation failed: {:?}", validation.errors[0]),
+        );
+    }
+    if !score.spanners.is_empty() || !score.object_style_overrides.is_empty() {
+        return reduction_error(
+            options,
+            "unsupported-notation",
+            "source spanners or object style overrides require address remapping",
+        );
+    }
+    let mut diagnostics = Vec::new();
+    let primary_left = &score.parts[left_indices[0]].staves[0];
+    for &part_index in left_indices.iter().skip(1) {
+        for (measure_index, (primary, additional)) in primary_left
+            .measures
+            .iter()
+            .zip(&score.parts[part_index].staves[0].measures)
+            .enumerate()
+        {
+            if reduction_measure_metadata(primary) != reduction_measure_metadata(additional) {
+                diagnostics.push(AccordionReductionDiagnostic {
+                    code: "unsupported-notation".to_string(),
+                    message: format!("part {part_index}, measure {measure_index} has distinct measure metadata that one left staff cannot retain"),
+                    source: None,
+                    source_location: Some(format!("/score/part/{}/staff/1/measure/{}", part_index + 1, measure_index + 1)),
+                });
+            }
+        }
+    }
+    if !score.views.is_empty() || !score.part_groups.is_empty() {
+        diagnostics.push(AccordionReductionDiagnostic {
+            code: "unsupported-score-view".to_string(),
+            message: "source views or part groups cannot be carried into one accordion part"
+                .to_string(),
+            source: None,
+            source_location: Some("/score/views".to_string()),
+        });
+    }
+    let mut source_map = Vec::new();
+    let mut included = std::collections::BTreeSet::new();
+    let right_copy = right_staff.clone();
+    for voice in 0..4 {
+        for address in source_voice_addresses(score, right, 0, voice) {
+            source_map.push(AccordionSourceMapping {
+                target: Some(NoteAddr {
+                    part: 0,
+                    staff: 0,
+                    ..address.clone()
+                }),
+                source: address,
+            });
+        }
+    }
+    included.insert((right, 0));
+    let mut left_copy = score.parts[left_indices[0]].staves[0].clone();
+    left_copy.clef = Clef::Bass;
+    for measure in &mut left_copy.measures {
+        measure.voices = [vec![], vec![], vec![], vec![]];
+        measure.source_voice_numbers = [None; 4];
+    }
+    let mut next_voice = 0;
+    for &part_index in left_indices {
+        let staff = &score.parts[part_index].staves[0];
+        included.insert((part_index, 0));
+        for voice in 0..4 {
+            if staff
+                .measures
+                .iter()
+                .all(|measure| measure.voices[voice].is_empty())
+            {
+                continue;
+            }
+            if next_voice < 4 {
+                for (measure_index, measure) in staff.measures.iter().enumerate() {
+                    left_copy.measures[measure_index].voices[next_voice] =
+                        measure.voices[voice].clone();
+                    for (note_index, note) in measure.voices[voice].iter().enumerate() {
+                        if note.is_rest {
+                            continue;
+                        }
+                        let address = NoteAddr {
+                            part: part_index,
+                            staff: 0,
+                            measure: measure_index,
+                            voice,
+                            note: note_index,
+                        };
+                        source_map.push(AccordionSourceMapping {
+                            target: Some(NoteAddr {
+                                part: 0,
+                                staff: 1,
+                                measure: measure_index,
+                                voice: next_voice,
+                                note: note_index,
+                            }),
+                            source: address,
+                        });
+                    }
+                }
+                next_voice += 1;
+            } else {
+                for address in source_voice_addresses(score, part_index, 0, voice) {
+                    diagnostics.push(AccordionReductionDiagnostic {
+                        code: "voice-capacity".to_string(),
+                        message: "left hand has more than four source voices".to_string(),
+                        source: Some(address.clone()),
+                        source_location: None,
+                    });
+                    source_map.push(AccordionSourceMapping {
+                        source: address,
+                        target: None,
+                    });
+                }
+            }
+        }
+    }
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for staff_index in 0..part.staves.len() {
+            if included.contains(&(part_index, staff_index)) {
+                continue;
+            }
+            for voice in 0..4 {
+                for address in source_voice_addresses(score, part_index, staff_index, voice) {
+                    diagnostics.push(AccordionReductionDiagnostic {
+                        code: "unselected-source".to_string(),
+                        message: "source note is outside the selected hands".to_string(),
+                        source: Some(address.clone()),
+                        source_location: None,
+                    });
+                    source_map.push(AccordionSourceMapping {
+                        source: address,
+                        target: None,
+                    });
+                }
+            }
+        }
+    }
+    source_map.sort_by_key(|mapping| {
+        (
+            mapping.source.part,
+            mapping.source.staff,
+            mapping.source.measure,
+            mapping.source.voice,
+            mapping.source.note,
+        )
+    });
+    if options.loss_policy == AccordionLossPolicy::RequireAll && !diagnostics.is_empty() {
+        return AccordionReductionResult {
+            score: None,
+            resolved_options: options,
+            diagnostics,
+            source_map,
+            transposition_semitones: 0,
+            contract_version: 1,
+        };
+    }
+    let mut output = score.clone();
+    output.id = uuid::Uuid::new_v4().to_string();
+    let mut accordion = Part::new("Accordion", "Acc.");
+    accordion.midi_program = ACCORDION_PROGRAM;
+    accordion.staves = vec![right_copy, left_copy];
+    output.parts = vec![accordion];
+    output.part_groups.clear();
+    output.views.clear();
+    let (output, shift) = if options.octave_fit {
+        octave_fit(&output)
+    } else {
+        (output, 0)
+    };
+    if shift != 0 {
+        diagnostics.push(AccordionReductionDiagnostic {
+            code: "octave-shift".to_string(),
+            message: format!("both hands transposed by {shift} semitones"),
+            source: None,
+            source_location: None,
+        });
+    }
+    let output_validation = super::validate::validate(&output);
+    if !output_validation.is_valid() {
+        return reduction_error(
+            options,
+            "invalid-output",
+            format!(
+                "reduced score validation failed: {:?}",
+                output_validation.errors[0]
+            ),
+        );
+    }
+    AccordionReductionResult {
+        score: Some(output),
+        resolved_options: options,
+        diagnostics,
+        source_map,
+        transposition_semitones: shift,
+        contract_version: 1,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1111,6 +1505,196 @@ mod tests {
             .collect::<Vec<_>>();
         starts.dedup();
         assert_eq!(starts, [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    }
+
+    fn reduction_fixture() -> Score {
+        let mut score = guided_fixture();
+        let mut bass = score.parts[0].clone();
+        bass.name = "bass".to_string();
+        bass.staves[0].clef = Clef::Bass;
+        bass.staves[0].measures[0].voices[0] = vec![note(Step::C, 3, Duration::Quarter)];
+        bass.staves[0].measures[1].voices[0] = vec![note(Step::G, 3, Duration::Whole)];
+        let mut middle = bass.clone();
+        middle.name = "countermelody".to_string();
+        middle.staves[0].measures[0].voices[0] = vec![note(Step::E, 4, Duration::Quarter)];
+        middle.staves[0].measures[1].voices[0] = vec![note(Step::F, 4, Duration::Whole)];
+        score.parts.push(bass);
+        score.parts.push(middle);
+        score
+    }
+
+    fn reduction_options(policy: AccordionLossPolicy) -> AccordionReductionOptions {
+        AccordionReductionOptions {
+            right_hand_part_index: Some(0),
+            left_hand_part_indices: vec![1, 2],
+            loss_policy: policy,
+            octave_fit: false,
+        }
+    }
+
+    #[test]
+    fn explicit_reduction_preserves_three_parts_and_source_timing() {
+        let score = reduction_fixture();
+        let before = serde_json::to_value(&score).unwrap();
+        let result = arrange_for_accordion_with_options(
+            &score,
+            reduction_options(AccordionLossPolicy::RequireAll),
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        let reduced = result.score.unwrap();
+        assert_eq!(reduced.parts[0].staves.len(), 2);
+        assert_eq!(
+            reduced.parts[0].staves[1].measures[0].actual_length,
+            score.parts[1].staves[0].measures[0].actual_length
+        );
+        assert_eq!(
+            reduced.parts[0].staves[1].measures[1].barline_right,
+            Barline::RepeatEnd
+        );
+        assert_eq!(result.source_map.len(), 6);
+        assert!(
+            result
+                .source_map
+                .iter()
+                .all(|mapping| mapping.target.is_some())
+        );
+        for mapping in &result.source_map {
+            let source_note = &score.parts[mapping.source.part].staves[mapping.source.staff]
+                .measures[mapping.source.measure]
+                .voices[mapping.source.voice][mapping.source.note];
+            let target = mapping.target.as_ref().unwrap();
+            let copied = &reduced.parts[target.part].staves[target.staff].measures[target.measure]
+                .voices[target.voice][target.note];
+            assert_eq!(copied.id, source_note.id);
+            assert_eq!(copied.beats(), source_note.beats());
+            assert_eq!(copied.pitches, source_note.pitches);
+        }
+        let original_melody = crate::to_playback_events(&score, &Default::default())
+            .into_iter()
+            .filter(|event| event.source.as_ref().is_some_and(|addr| addr.part == 0))
+            .map(|event| (event.pitch_midi, event.time_beats))
+            .collect::<Vec<_>>();
+        let reduced_melody = crate::to_playback_events(&reduced, &Default::default())
+            .into_iter()
+            .filter(|event| event.source.as_ref().is_some_and(|addr| addr.staff == 0))
+            .map(|event| (event.pitch_midi, event.time_beats))
+            .collect::<Vec<_>>();
+        assert_eq!(original_melody, reduced_melody);
+        assert_eq!(serde_json::to_value(&score).unwrap(), before);
+    }
+
+    #[test]
+    fn lossless_reduction_rejects_voice_overflow_and_permitted_reduction_reports_each_note() {
+        let mut score = reduction_fixture();
+        for offset in 0..3 {
+            let mut extra = score.parts[1].clone();
+            extra.name = format!("extra {offset}");
+            extra.staves[0].measures[0].voices[0][0].pitches[0] = Pitch::new(Step::D, 3 + offset);
+            score.parts.push(extra);
+        }
+        let mut options = reduction_options(AccordionLossPolicy::RequireAll);
+        options.left_hand_part_indices = vec![1, 2, 3, 4, 5];
+        let rejected = arrange_for_accordion_with_options(&score, options.clone());
+        assert!(rejected.score.is_none());
+        assert_eq!(rejected.diagnostics.len(), 2);
+        assert!(rejected.diagnostics.iter().all(|diagnostic| {
+            diagnostic.code == "voice-capacity"
+                && diagnostic
+                    .source
+                    .as_ref()
+                    .is_some_and(|source| source.part == 5)
+        }));
+        options.loss_policy = AccordionLossPolicy::PermitReduction;
+        let reduced = arrange_for_accordion_with_options(&score, options);
+        assert!(reduced.score.is_some());
+        assert_eq!(
+            reduced
+                .source_map
+                .iter()
+                .filter(|mapping| mapping.target.is_none())
+                .count(),
+            2
+        );
+        assert!(
+            reduced
+                .source_map
+                .iter()
+                .filter(|mapping| mapping.target.is_none())
+                .all(|mapping| mapping.source.part == 5)
+        );
+    }
+
+    #[test]
+    fn reduction_reports_unselected_notes_and_optional_octave_shift() {
+        let mut score = reduction_fixture();
+        let mut options = reduction_options(AccordionLossPolicy::RequireAll);
+        options.left_hand_part_indices = vec![1];
+        let rejected = arrange_for_accordion_with_options(&score, options.clone());
+        assert!(rejected.score.is_none());
+        assert_eq!(rejected.diagnostics.len(), 2);
+        assert!(rejected.diagnostics.iter().all(|diagnostic| {
+            diagnostic.code == "unselected-source"
+                && diagnostic
+                    .source
+                    .as_ref()
+                    .is_some_and(|source| source.part == 2)
+        }));
+
+        options.loss_policy = AccordionLossPolicy::PermitReduction;
+        let reduced = arrange_for_accordion_with_options(&score, options.clone());
+        assert!(reduced.score.is_some());
+        assert_eq!(
+            reduced
+                .source_map
+                .iter()
+                .filter(|mapping| mapping.target.is_none())
+                .count(),
+            2
+        );
+
+        for part in &mut score.parts {
+            for measure in &mut part.staves[0].measures {
+                for note in &mut measure.voices[0] {
+                    if !note.is_rest {
+                        note.pitches[0] = Pitch::new(Step::C, 7);
+                    }
+                }
+            }
+        }
+        options.left_hand_part_indices = vec![1, 2];
+        options.loss_policy = AccordionLossPolicy::RequireAll;
+        options.octave_fit = true;
+        let fitted = arrange_for_accordion_with_options(&score, options);
+        assert!(fitted.score.is_some());
+        assert_ne!(fitted.transposition_semitones, 0);
+        assert!(
+            fitted
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "octave-shift")
+        );
+    }
+
+    #[test]
+    fn reduction_reports_measure_annotations_that_cannot_merge() {
+        let mut score = reduction_fixture();
+        score.parts[2].staves[0].measures[1].tempo_text = Some("rubato".to_string());
+        let options = reduction_options(AccordionLossPolicy::RequireAll);
+        let rejected = arrange_for_accordion_with_options(&score, options.clone());
+        assert!(rejected.score.is_none());
+        assert!(rejected.diagnostics.iter().any(|diagnostic| diagnostic.code
+            == "unsupported-notation"
+            && diagnostic.source_location.as_deref() == Some("/score/part/3/staff/1/measure/2")));
+        let mut permitted = options;
+        permitted.loss_policy = AccordionLossPolicy::PermitReduction;
+        let result = arrange_for_accordion_with_options(&score, permitted);
+        assert!(result.score.is_some());
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "unsupported-notation")
+        );
     }
 
     #[test]
