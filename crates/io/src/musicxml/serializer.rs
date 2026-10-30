@@ -61,6 +61,12 @@ pub fn serialize_musicxml(score: &Score) -> Result<String, Error> {
             "      <part-name>{}</part-name>\n",
             escape_xml(&part.name)
         ));
+        if !part.short_name.is_empty() {
+            xml.push_str(&format!(
+                "      <part-abbreviation>{}</part-abbreviation>\n",
+                escape_xml(&part.short_name)
+            ));
+        }
         for instrument in &part.percussion_instruments {
             xml.push_str(&format!(
                 "      <score-instrument id=\"{}\">\n",
@@ -1000,6 +1006,7 @@ fn serialize_note(
         }
         push_time_modification(xml);
         xml.push_str(&staff_element);
+        serialize_notations(xml, note, &typed_spanners, address, tab_lines, tuplet_marks);
         xml.push_str("      </note>\n");
         if note.is_cue {
             xml.push_str(&format!(

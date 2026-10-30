@@ -37,6 +37,8 @@ static INTERCHANGE_FIGURED_BASS_MSCX: &str =
 #[cfg(feature = "mscz")]
 static OPENSCORE_LIEDER_MSCX: &str =
     include_str!("../../../tests/fixtures/openscore_lieder_aloha_oe.mscx");
+static OPENSCORE_LIEDER_MXL: &[u8] =
+    include_bytes!("../../../tests/fixtures/openscore_lieder_just_for_today.mxl");
 #[cfg(feature = "mscz")]
 static OPENSCORE_OMR_MSCZ: &[u8] =
     include_bytes!("../../../tests/fixtures/openscore_omr_score_1003.mscz");
@@ -303,6 +305,79 @@ fn simple_musicxml_roundtrip_preserves_structure() {
             }
         }
     }
+}
+
+#[test]
+fn musicxml_part_names_and_abbreviations_survive_roundtrip() {
+    let xml = r#"<score-partwise version="4.0"><part-list>
+      <score-part id="P1"><part-name>Piano &amp; Voice</part-name><part-abbreviation>Pno.</part-abbreviation></score-part>
+      <score-part id="P2"><part-name>Violoncello</part-name><part-abbreviation>Vc.</part-abbreviation></score-part>
+      </part-list><part id="P1"><measure number="1"><note><rest/><duration>4</duration><type>whole</type></note></measure></part>
+      <part id="P2"><measure number="1"><note><rest/><duration>4</duration><type>whole</type></note></measure></part></score-partwise>"#;
+    let parsed = parse_musicxml(xml).expect("MusicXML imports");
+    let names = |score: &acorde_core::Score| {
+        score
+            .parts
+            .iter()
+            .map(|part| (part.name.clone(), part.short_name.clone()))
+            .collect::<Vec<_>>()
+    };
+    let expected = vec![
+        ("Piano & Voice".to_string(), "Pno.".to_string()),
+        ("Violoncello".to_string(), "Vc.".to_string()),
+    ];
+    assert_eq!(names(&parsed), expected);
+    let exported = serialize_musicxml(&parsed).expect("MusicXML exports");
+    assert!(exported.contains("<part-abbreviation>Pno.</part-abbreviation>"));
+    let reparsed = parse_musicxml(&exported).expect("MusicXML reparses");
+    assert_eq!(names(&reparsed), expected);
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn cc0_mscz_part_names_survive_musicxml_roundtrip() {
+    for bytes in [
+        OPENSCORE_OMR_MSCZ,
+        OPENSCORE_OMR_MSCZ_SECOND,
+        OPENSCORE_OMR_MSCZ_THIRD,
+        OPENSCORE_OMR_MSCZ_FOURTH,
+        OPENSCORE_OMR_MSCZ_FIFTH,
+    ] {
+        let source = acorde_io::parse_mscz(bytes).expect("CC0 MSCZ imports");
+        let xml = serialize_musicxml(&source).expect("MusicXML exports");
+        let reparsed = parse_musicxml(&xml).expect("MusicXML imports");
+        assert_eq!(source.parts.len(), reparsed.parts.len());
+        for (before, after) in source.parts.iter().zip(&reparsed.parts) {
+            assert_eq!(before.name, after.name);
+            assert_eq!(before.short_name, after.short_name);
+        }
+    }
+}
+
+#[test]
+fn independent_cc0_mxl_part_names_and_rest_fermata_survive_roundtrip() {
+    let source = acorde_io::parse_mxl(OPENSCORE_LIEDER_MXL).expect("CC0 MXL imports");
+    let xml = serialize_musicxml(&source).expect("MusicXML exports");
+    let reparsed = parse_musicxml(&xml).expect("MusicXML imports");
+    let part_names = |score: &acorde_core::Score| {
+        score
+            .parts
+            .iter()
+            .map(|part| (part.name.clone(), part.short_name.clone()))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(part_names(&source), part_names(&reparsed));
+    assert_eq!(part_names(&source)[0].0, "Voice");
+    assert_eq!(part_names(&source)[1].0, "Piano");
+    let source_rest = &source.parts[0].staves[0].measures[24].voices[0][0];
+    let restored_rest = &reparsed.parts[0].staves[0].measures[24].voices[0][0];
+    assert!(source_rest.is_rest);
+    assert!(
+        source_rest
+            .articulations
+            .contains(&acorde_core::Articulation::Fermata)
+    );
+    assert_eq!(source_rest.articulations, restored_rest.articulations);
 }
 
 #[test]
@@ -642,6 +717,9 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
             }
             "openscore_lieder_aloha_oe.mscx" => {
                 include_bytes!("../../../tests/fixtures/openscore_lieder_aloha_oe.mscx")
+            }
+            "openscore_lieder_just_for_today.mxl" => {
+                include_bytes!("../../../tests/fixtures/openscore_lieder_just_for_today.mxl")
             }
             "openscore_omr_score_1003.mscz" => {
                 include_bytes!("../../../tests/fixtures/openscore_omr_score_1003.mscz")
