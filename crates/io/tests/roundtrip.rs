@@ -936,6 +936,12 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
             "openscore_lieder_quilter_prelude.mxl" => {
                 include_bytes!("../../../tests/fixtures/openscore_lieder_quilter_prelude.mxl")
             }
+            "freilachs_no_17.mscz" => {
+                include_bytes!("../../../tests/fixtures/freilachs_no_17.mscz")
+            }
+            "freilachs_no_17_accordion.mscz" => {
+                include_bytes!("../../../tests/fixtures/freilachs_no_17_accordion.mscz")
+            }
             "openscore_omr_score_1003.mscz" => {
                 include_bytes!("../../../tests/fixtures/openscore_omr_score_1003.mscz")
             }
