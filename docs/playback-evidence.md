@@ -130,13 +130,42 @@ The alphaTab MIDI SHA-256 is
 `ec3665d5ee2bf115d2ef32c6b9607d937112c14aeb772f324c5f6dda88a89ca5`; the Acorde
 JSON SHA-256 is `241f10d4f044034224122823583804bb9231190b32a362df57413d2a88ab15ef`.
 The independent, narrow MusicXML onset reader checks written durations, backups, chords, ties,
-and physical measure lengths. Both exports contain **644** note attacks. Acorde matches all
+and physical measure lengths. It allows a two-tick MIDI rounding window (2/960 beat for this
+alphaTab export), which is important for tuplets; the result here is unchanged. Both exports
+contain **644** note attacks. Acorde matches all
 **644/644** written pitch-and-beat onsets; alphaTab's default MIDI export matches **201/644**.
 The source onset fingerprint is
 `775250e82772f839c7a535f0d76a4b1fd478dd13d1757a300e8077e0d85cbe21`.
 This is a same-score win on written note onset timing for this fixture. The oracle rejects score
 features it does not implement, and this result does not establish broader repertoire accuracy,
 audio synthesis, velocity, or sound quality.
+
+## MIDI export timing parity (2026-10-30)
+
+The core playback schedule and `acorde convert … .mid` are separate delivery paths. On *Just for
+Today*, the previous MIDI export emitted six silent cue notes as attacks (**585** instead of
+**579**). It also read tempo only from the first staff, and measured irregular bars from the
+first staff even when another part supplied the authored length. MIDI export now skips cue notes,
+uses the score-wide tempo and physical measure length, and applies the default fermata, staccato,
+and accent note behavior used by `to_playback_events`.
+
+The corrected *Just for Today* MIDI SHA-256 is
+`ba55c164f7c112a3f21feb9f61ef4098568d9cf5019d94b77c4eeb7275f8667a`.
+Its **579/579** pitch-and-beat onsets match Acorde playback JSON. The FIFO MIDI note-on/off
+comparison still reports eight note-duration differences, so this is an onset parity claim. On
+*Aloha Oe*, the Acorde MIDI SHA-256 is
+`25f8453f9920584298b93d7b77cd9cdee9f64573bd9d526b25912429ed0a6682`; all **644/644**
+attacks match both the playback JSON and the independent MusicXML onset oracle. The alphaTab
+1.8.4 default MIDI result on that same score remains **201/644** source matches.
+
+Reproduce the two Acorde MIDI exports after `cargo build -p acorde-cli --locked`:
+
+```sh
+target/debug/acorde convert tests/fixtures/openscore_lieder_just_for_today.mxl /tmp/acorde-just-for-today.mid
+target/debug/acorde convert tests/fixtures/openscore_lieder_aloha_oe.mxl /tmp/acorde-aloha-oe.mid
+uv run --no-project --with 'mido==1.3.3' python scripts/compare_playback_onsets.py /tmp/acorde-alphatab-1_8_4/acorde.json /tmp/acorde-just-for-today.mid
+uv run --no-project --with 'mido==1.3.3' python scripts/compare_musicxml_onsets.py tests/fixtures/openscore_lieder_aloha_oe.mxl /tmp/acorde-alphatab-1_8_4/aloha-oe.json /tmp/acorde-aloha-oe.mid
+```
 
 ## Evidence boundary
 

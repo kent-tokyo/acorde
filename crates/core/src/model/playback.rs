@@ -247,33 +247,6 @@ fn score_tempo_marks(score: &Score) -> Vec<ScoreTempoMark> {
     marks
 }
 
-/// A physical measure has one score-wide duration. MusicXML may leave an otherwise empty part's
-/// irregular bar unmarked, so resolve an authored length from any staff before using the first
-/// staff's meter as a fallback.
-fn score_measure_beats(score: &Score, measure_index: usize) -> f64 {
-    for part in &score.parts {
-        for staff in &part.staves {
-            if let Some(beats) = staff
-                .measures
-                .get(measure_index)
-                .and_then(|measure| measure.actual_length)
-                .and_then(|length| length.beats())
-            {
-                return beats;
-            }
-        }
-    }
-    score
-        .parts
-        .iter()
-        .flat_map(|part| &part.staves)
-        .find(|staff| staff.measures.get(measure_index).is_some())
-        .map_or_else(
-            || score.settings.time_signature.total_beats(),
-            |staff| staff.measure_beats(measure_index, &score.settings.time_signature),
-        )
-}
-
 fn semantic_tempo_bpm(bpm: f64) -> u16 {
     bpm.round().clamp(1.0, f64::from(u16::MAX)) as u16
 }
@@ -1085,7 +1058,7 @@ fn offline_measure_times(
         if let Some(tempo) = mark.bpm.and_then(|tempo| written_tempo_bpm(options, tempo)) {
             bpm = tempo;
         }
-        let beats = score_measure_beats(score, measure_index);
+        let beats = score.playback_measure_beats(measure_index);
         let ramp_to_bpm = written_tempo_ramp_bpm(options, mark.ramp_to_bpm);
         result.push(OfflineMeasureTime {
             measure: measure_index,
@@ -1120,7 +1093,7 @@ fn append_measure_semantic_events(
         let mut tick = 0u64;
         for measure_index in 0..staff.measures.len() {
             tick_starts.push(tick);
-            let beats = score_measure_beats(score, measure_index);
+            let beats = score.playback_measure_beats(measure_index);
             tick = tick.saturating_add((beats * 480.0).round() as u64);
         }
         for time in timeline {
@@ -1960,7 +1933,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
     let bpm = initial_tempo_bpm(score, options);
     let tempo_marks = score_tempo_marks(score);
     let measure_lengths: Vec<f64> = (0..tempo_marks.len())
-        .map(|index| score_measure_beats(score, index))
+        .map(|index| score.playback_measure_beats(index))
         .collect();
     let swing_ratio = options
         .swing
@@ -2554,7 +2527,7 @@ fn build_measure_segments(score: &Score, options: &PlaybackOptions) -> Vec<Measu
         if let Some(t) = mark.bpm.and_then(|tempo| written_tempo_bpm(options, tempo)) {
             current_bpm = t;
         }
-        let beats = score_measure_beats(score, idx);
+        let beats = score.playback_measure_beats(idx);
         let ramp_to_bpm = written_tempo_ramp_bpm(options, mark.ramp_to_bpm);
         let duration_secs = tempo_ramp_seconds(current_bpm, ramp_to_bpm, beats, beats);
 

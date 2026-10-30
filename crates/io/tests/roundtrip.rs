@@ -489,6 +489,49 @@ fn independent_cc0_mxl_playback_keeps_irregular_measure_starts() {
     );
 }
 
+#[cfg(feature = "midi")]
+#[test]
+fn independent_cc0_mxl_midi_attacks_match_playback_events() {
+    for fixture in [OPENSCORE_LIEDER_MXL, OPENSCORE_LIEDER_ALOHA_OE_MXL] {
+        let score = acorde_io::parse_mxl(fixture).expect("CC0 MXL imports");
+        let expected =
+            acorde_core::to_playback_events(&score, &acorde_core::PlaybackOptions::default());
+        let bytes = acorde_io::serialize_midi(&score).expect("MIDI exports");
+        let smf = midly::Smf::parse(&bytes).expect("valid MIDI");
+        let ppq = match smf.header.timing {
+            midly::Timing::Metrical(value) => u64::from(value.as_int()),
+            _ => panic!("expected metrical MIDI timing"),
+        };
+        let mut midi_attacks = Vec::new();
+        for track in smf.tracks.iter().skip(1) {
+            let mut tick = 0u64;
+            for event in track {
+                tick += u64::from(event.delta.as_int());
+                if let midly::TrackEventKind::Midi {
+                    message: midly::MidiMessage::NoteOn { key, vel },
+                    ..
+                } = &event.kind
+                    && vel.as_int() > 0
+                {
+                    midi_attacks.push((tick, key.as_int()));
+                }
+            }
+        }
+        midi_attacks.sort_unstable();
+        let mut playback_attacks: Vec<_> = expected
+            .iter()
+            .map(|event| {
+                (
+                    (event.time_beats * ppq as f64).round() as u64,
+                    event.pitch_midi,
+                )
+            })
+            .collect();
+        playback_attacks.sort_unstable();
+        assert_eq!(midi_attacks, playback_attacks);
+    }
+}
+
 #[test]
 fn rich_musicxml_fragment_fixture_roundtrips_and_pastes_undoably() {
     let score = parse_musicxml(FRAGMENT_RICH_XML).expect("rich fixture parses");

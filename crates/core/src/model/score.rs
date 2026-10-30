@@ -403,6 +403,31 @@ pub enum ScoreTemplate {
 }
 
 impl Score {
+    /// Duration of a physical measure on the shared playback clock. An interchange file may
+    /// write an irregular length on only one staff while other parts are silent there.
+    pub fn playback_measure_beats(&self, measure_index: usize) -> f64 {
+        for part in &self.parts {
+            for staff in &part.staves {
+                if let Some(beats) = staff
+                    .measures
+                    .get(measure_index)
+                    .and_then(|measure| measure.actual_length)
+                    .and_then(|length| length.beats())
+                {
+                    return beats;
+                }
+            }
+        }
+        self.parts
+            .iter()
+            .flat_map(|part| &part.staves)
+            .find(|staff| staff.measures.get(measure_index).is_some())
+            .map_or_else(
+                || self.settings.time_signature.total_beats(),
+                |staff| staff.measure_beats(measure_index, &self.settings.time_signature),
+            )
+    }
+
     /// This score with every typed [`NotationSpanner`] also marked on its endpoint notes'
     /// legacy flags (`slur_start`/`slur_end`, `pedal_start`/`pedal_end`, …). Exporters and
     /// renderers that read only the legacy flags use it so a span authored or edited through

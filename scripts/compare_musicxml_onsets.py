@@ -13,8 +13,10 @@ import hashlib
 import json
 import xml.etree.ElementTree as ET
 import zipfile
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
+
+import mido
 
 from compare_playback_onsets import acorde_events, midi_events
 
@@ -99,6 +101,40 @@ def fingerprint(attacks: Counter[tuple[float, int]]) -> str:
     return hashlib.sha256(lines.encode()).hexdigest()
 
 
+def match_onsets(
+    source: Counter[tuple[float, int]],
+    actual: Counter[tuple[float, int]],
+    tolerance_beats: float,
+) -> tuple[int, float]:
+    """Match each pitch in time order, allowing MIDI's tick rounding on the beat axis."""
+    def by_pitch(attacks: Counter[tuple[float, int]]) -> dict[int, list[float]]:
+        grouped: defaultdict[int, list[float]] = defaultdict(list)
+        for (beat, pitch), count in attacks.items():
+            grouped[pitch].extend([beat] * count)
+        return {pitch: sorted(beats) for pitch, beats in grouped.items()}
+
+    expected = by_pitch(source)
+    observed = by_pitch(actual)
+    matches = 0
+    max_difference = 0.0
+    for pitch in expected.keys() | observed.keys():
+        reference = expected.get(pitch, [])
+        produced = observed.get(pitch, [])
+        i = j = 0
+        while i < len(reference) and j < len(produced):
+            difference = reference[i] - produced[j]
+            if abs(difference) <= tolerance_beats:
+                matches += 1
+                max_difference = max(max_difference, abs(difference))
+                i += 1
+                j += 1
+            elif difference < 0:
+                i += 1
+            else:
+                j += 1
+    return matches, max_difference
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source_mxl", type=Path)
@@ -108,14 +144,23 @@ def main() -> None:
     source, lengths = source_attacks(args.source_mxl)
     acorde = Counter({key: len(values) for key, values in acorde_events(args.acorde_json).items()})
     external = Counter({key: len(values) for key, values in midi_events(args.external_midi).items()})
+    ticks_per_beat = mido.MidiFile(args.external_midi).ticks_per_beat
+    if ticks_per_beat <= 0:
+        raise ValueError("invalid MIDI ticks per beat")
+    tolerance_beats = 2 / ticks_per_beat
+    acorde_matches, acorde_max_difference = match_onsets(source, acorde, tolerance_beats)
+    external_matches, external_max_difference = match_onsets(source, external, tolerance_beats)
     print(json.dumps({
         "source_attacks": source.total(),
         "source_onset_fingerprint_sha256": fingerprint(source),
         "physical_measure_lengths_beats": lengths,
-        "acorde_source_matches": (source & acorde).total(),
-        "acorde_only": (acorde - source).total(),
-        "alphatab_source_matches": (source & external).total(),
-        "alphatab_only": (external - source).total(),
+        "onset_tolerance_beats": tolerance_beats,
+        "acorde_source_matches": acorde_matches,
+        "acorde_only": acorde.total() - acorde_matches,
+        "acorde_max_matched_difference_beats": acorde_max_difference,
+        "alphatab_source_matches": external_matches,
+        "alphatab_only": external.total() - external_matches,
+        "alphatab_max_matched_difference_beats": external_max_difference,
     }, indent=2))
 
 
