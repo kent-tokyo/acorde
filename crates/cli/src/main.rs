@@ -437,6 +437,9 @@ enum Commands {
         /// Extra space for SoundFont note-release decay, in milliseconds
         #[arg(long, default_value_t = 1_000)]
         release_tail_ms: u32,
+        /// Use complete SF2 synthesis (filters, modulation and envelopes); requires 16–192 kHz
+        #[arg(long)]
+        full_sf2: bool,
     },
     /// Compare expected and host-observed playback event JSON files
     PlaybackCompare {
@@ -690,6 +693,7 @@ fn run(cli: &Cli) -> Result<(), String> {
             sample_rate,
             channels,
             release_tail_ms,
+            full_sf2,
         } => cmd_audio_render(
             input,
             soundfont,
@@ -697,6 +701,7 @@ fn run(cli: &Cli) -> Result<(), String> {
             *sample_rate,
             *channels,
             *release_tail_ms,
+            *full_sf2,
         ),
         Commands::PlaybackCompare {
             expected,
@@ -2188,6 +2193,7 @@ fn cmd_audio_render(
     sample_rate: u32,
     channels: u8,
     release_tail_ms: u32,
+    full_sf2: bool,
 ) -> Result<(), String> {
     if !output
         .extension()
@@ -2201,7 +2207,11 @@ fn cmd_audio_render(
         sample_rate_hz: sample_rate,
         channels,
         release_tail_millis: release_tail_ms,
-        provider_identity: Some("acorde-native-sf2-v1".to_string()),
+        provider_identity: Some(if full_sf2 {
+            "acorde-rustysynth-sf2-v1".to_string()
+        } else {
+            "acorde-native-sf2-v1".to_string()
+        }),
         ..acorde_core::OfflineRenderRequest::default()
     };
     let manifest =
@@ -2218,8 +2228,12 @@ fn cmd_audio_render(
     }
     let asset = std::fs::read(soundfont)
         .map_err(|error| format!("cannot read '{}': {error}", soundfont.display()))?;
-    let wav = acorde_soundfont::render_offline_wav(&manifest, &asset)
-        .map_err(|error| format!("cannot render WAV: {error}"))?;
+    let wav = if full_sf2 {
+        acorde_soundfont::render_offline_wav_full_sf2(&manifest, &asset)
+    } else {
+        acorde_soundfont::render_offline_wav(&manifest, &asset)
+    }
+    .map_err(|error| format!("cannot render WAV: {error}"))?;
     std::fs::write(output, wav)
         .map_err(|error| format!("cannot write '{}': {error}", output.display()))?;
     eprintln!(

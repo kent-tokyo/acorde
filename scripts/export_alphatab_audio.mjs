@@ -54,6 +54,8 @@ const exporter = synthesizer.exportAudio(options, midi, [], new Map());
 
 let frames = 0;
 let complete = false;
+let nonFiniteSamples = 0;
+let firstNonFiniteFrame = null;
 const audioHash = crypto.createHash('sha256');
 const fd = fs.openSync(outputPath, 'w');
 try {
@@ -66,6 +68,12 @@ try {
         const samples = chunk.samples;
         if (samples.length % 2 !== 0) {
             throw new Error('alphaTab returned non-stereo float32 audio');
+        }
+        for (let index = 0; index < samples.length; index++) {
+            if (!Number.isFinite(samples[index])) {
+                nonFiniteSamples++;
+                firstNonFiniteFrame ??= frames + Math.floor(index / 2);
+            }
         }
         const bytes = Buffer.from(samples.buffer, samples.byteOffset, samples.byteLength);
         for (let offset = 0; offset < bytes.length;) {
@@ -92,4 +100,6 @@ console.log(JSON.stringify({
     scoreSha256: sha256(scoreBytes),
     soundfontSha256: sha256(soundfontBytes),
     audioSha256: audioHash.digest('hex'),
+    nonFiniteSamples,
+    firstNonFiniteFrame,
 }));

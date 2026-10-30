@@ -195,7 +195,7 @@ fn release_gain(frame: usize, release_start: usize, release_frames: usize) -> f3
     }
 }
 
-fn pedal_intervals(
+pub(super) fn pedal_intervals(
     manifest: &OfflineRenderManifest,
 ) -> Result<BTreeMap<usize, Vec<(usize, usize)>>, Error> {
     let mut changes = BTreeMap::<usize, Vec<(usize, bool)>>::new();
