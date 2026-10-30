@@ -1650,6 +1650,24 @@ pub fn detect_chord(pitches_json: &str) -> Result<String, JsValue> {
     serde_json::to_string(&result).map_err(|e| js_err(format!("chord serialization failed: {e}")))
 }
 
+/// Add display chord symbols backed by actual lower-hand block chords in a source score.
+/// Returns JSON with a newly annotated score, source/target note addresses, count and
+/// diagnostics. Neither input is modified; an absent source lower staff adds no symbols.
+#[wasm_bindgen]
+pub fn annotate_authored_chords(
+    target_json: &str,
+    source_json: &str,
+    options_json: &str,
+) -> Result<String, JsValue> {
+    let target = score_from_json(target_json)?;
+    let source = score_from_json(source_json)?;
+    let options: acorde_core::AuthoredChordOptions =
+        parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::annotate_from_authored_chords(&target, &source, &options);
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("authored chord serialization failed: {error}")))
+}
+
 /// Return the Roman numeral analysis of a chord in the context of a key.
 ///
 /// `chord_json`: JSON-encoded `ChordSymbol` (e.g. `{"root":"G","kind":"dominant","bass":null}`).
@@ -3675,6 +3693,38 @@ mod wasm_tests {
     use wasm_bindgen_test::wasm_bindgen_test;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test]
+    fn browser_authored_chord_annotations_return_provenance_without_changing_input() {
+        let mut source = Score::new("source chords", 120, 4, 4, 0, 1);
+        let mut lower = source.parts[0].clone();
+        lower.id = "lower".into();
+        source.parts.push(lower);
+        source.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(
+            acorde_core::Pitch::from_midi(62, false), acorde_core::Duration::Quarter,
+        )];
+        let mut chord = acorde_core::Note::new(
+            acorde_core::Pitch::from_midi(62, false), acorde_core::Duration::Half,
+        );
+        chord.pitches = [62, 66, 69]
+            .map(|pitch| acorde_core::Pitch::from_midi(pitch, false)).to_vec();
+        source.parts[1].staves[0].measures[0].voices[0] = vec![chord];
+        let original = score_to_json(&source).unwrap();
+        let report: serde_json::Value = serde_json::from_str(
+            &annotate_authored_chords(&original, &original, "{}").unwrap(),
+        ).unwrap();
+        assert_eq!(report["count"], 1);
+        assert_eq!(report["annotations"][0]["source"]["part"], 1);
+        assert_eq!(report["annotations"][0]["target"]["note"], 0);
+        assert_eq!(report["score"]["parts"][0]["staves"][0]["measures"][0]["voices"][0][0]["chord_symbol"]["root"], "D");
+        let annotated = serde_json::to_string(&report["score"]).unwrap();
+        assert!(render_score_svg(&annotated, "{}").unwrap().contains("acorde-chord-symbol"));
+        let restored: serde_json::Value = serde_json::from_str(
+            &parse_mscz(&serialize_mscz(&annotated).unwrap()).unwrap(),
+        ).unwrap();
+        assert_eq!(restored["parts"][0]["staves"][0]["measures"][0]["voices"][0][0]["chord_symbol"]["root"], "D");
+        assert_eq!(score_to_json(&source).unwrap(), original);
+    }
 
     #[wasm_bindgen_test]
     fn browser_auto_beams_work_with_precomputed_layout_and_rows() {
