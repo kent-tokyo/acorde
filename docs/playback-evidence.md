@@ -130,7 +130,9 @@ The alphaTab MIDI SHA-256 is
 `ec3665d5ee2bf115d2ef32c6b9607d937112c14aeb772f324c5f6dda88a89ca5`; the Acorde
 JSON SHA-256 is `241f10d4f044034224122823583804bb9231190b32a362df57413d2a88ab15ef`.
 The independent, narrow MusicXML onset reader checks written durations, backups, chords, ties,
-and physical measure lengths. Both exports contain **644** note attacks. Acorde matches all
+and physical measure lengths. It allows a two-tick MIDI rounding window (2/960 beat for this
+alphaTab export), which is important for tuplets; the result here is unchanged. Both exports
+contain **644** note attacks. Acorde matches all
 **644/644** written pitch-and-beat onsets; alphaTab's default MIDI export matches **201/644**.
 The source onset fingerprint is
 `775250e82772f839c7a535f0d76a4b1fd478dd13d1757a300e8077e0d85cbe21`.
