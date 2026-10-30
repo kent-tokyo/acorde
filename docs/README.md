@@ -2,7 +2,7 @@
 
 This directory records public contracts and their evidence. It describes current `main`; a release
 claim also needs its tag, CI, registry, and release artifact. The latest published release is
-[`v1.3.1`](https://github.com/kent-tokyo/acorde/releases/tag/v1.3.1); follow the migration notes
+[`v1.3.2`](https://github.com/kent-tokyo/acorde/releases/tag/v1.3.2); follow the migration notes
 before selecting a version.
 
 ## Start here

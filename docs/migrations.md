@@ -11,6 +11,14 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## v1.3.2
+
+No Rust source migration is required. Re-import original MusicXML or MSCZ files to pick up the
+newly retained import semantics; existing canonical score JSON is not rewritten automatically.
+Playback schedules and exported MIDI should be regenerated from the corrected score and timing
+logic. Browser hosts that need only MSCZ playback events can opt into the `playback-only` WASM
+profile with `--no-default-features`; the default full profile is unchanged.
+
 ## v1.3.1
 
 No Rust source migration is required for the new WASM viewer profile or MSCZ fixes. Re-import an
