@@ -182,6 +182,10 @@ were rasterized at 1400 pixels and inspected; they do not establish a
 corpus-wide collision or legibility result. Verovio remains more compact at
 7 pages and 20 systems on this input.
 
+K.464 was also rerun after the first-system density change from the same
+exported MusicXML with a seven-measure maximum; it remains at 9 A4 pages and
+25 systems, with zero reimport diagnostics.
+
 ```bash
 cargo run -p acorde-pdf --example print_mxl -- \
   /tmp/k464.musicxml crates/pdf/tests/fixtures/Tuffy.ttf \
