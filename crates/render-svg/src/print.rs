@@ -264,7 +264,9 @@ pub fn render_print_page_svgs(
             .max(1),
         interactive: false,
     };
-    let config = SvgRenderConfig::new(options).with_staff_gap(staff_gap);
+    let config = SvgRenderConfig::new(options)
+        .with_staff_gap(staff_gap)
+        .with_measure_text_scale(1.7);
     let row_tops_px = row_tops_mm
         .iter()
         .map(|top| top * PX_PER_MM + top_u * space_px)
@@ -376,7 +378,7 @@ fn write_publication(
                 svg,
                 "<text class=\"acorde-print-title\" x=\"{:.3}\" y=\"{title_y:.3}\" text-anchor=\"middle\" font-family=\"serif\" font-weight=\"bold\" font-size=\"{:.3}\">{}</text>",
                 page.width_mm * scale / 2.0,
-                4.5 * scale,
+                5.0 * scale,
                 escape_xml(&page.publication.title)
             );
         }
@@ -385,7 +387,7 @@ fn write_publication(
                 svg,
                 "<text class=\"acorde-print-movement-title\" x=\"{:.3}\" y=\"{credit_y:.3}\" text-anchor=\"middle\" font-family=\"serif\" font-size=\"{:.3}\">{}</text>",
                 page.width_mm * scale / 2.0,
-                3.0 * scale,
+                3.8 * scale,
                 escape_xml(&page.publication.movement_title)
             );
         }
@@ -394,7 +396,7 @@ fn write_publication(
                 svg,
                 "<text class=\"acorde-print-composer\" x=\"{:.3}\" y=\"{credit_y:.3}\" text-anchor=\"end\" font-family=\"serif\" font-size=\"{:.3}\">{}</text>",
                 (page.content_left_mm + page.content_width_mm) * scale,
-                2.5 * scale,
+                3.0 * scale,
                 escape_xml(&page.publication.composer)
             );
         }

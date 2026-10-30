@@ -20,6 +20,18 @@ fn staff_line_right_edges(svg: &str) -> Vec<f32> {
         .collect()
 }
 
+fn svg_attribute_f32(fragment: &str, name: &str) -> f32 {
+    fragment
+        .split_once(&format!("{name}=\""))
+        .expect("SVG attribute")
+        .1
+        .split('"')
+        .next()
+        .unwrap()
+        .parse::<f32>()
+        .unwrap()
+}
+
 fn system_barlines(svg: &str, system_index: usize) -> Vec<f32> {
     let mut system_ys = Vec::<f32>::new();
     let barlines = svg
@@ -268,7 +280,7 @@ fn dense_piano_opening_gets_room_for_clef_key_and_meter() {
     let staff_lines = pages[0]
         .split(r#"class="acorde-staff-line""#)
         .skip(1)
-        .take(2)
+        .take(5)
         .map(|line| {
             line.split_once(r#"y1=""#)
                 .unwrap()
@@ -284,6 +296,23 @@ fn dense_piano_opening_gets_room_for_clef_key_and_meter() {
         (staff_lines[1] - staff_lines[0]).abs() >= 6.0,
         "grand-staff space below 1.5 mm: {staff_lines:?}"
     );
+    let tempo = pages[0]
+        .split_once(r#"class="acorde-measure-text acorde-measure-text-generic""#)
+        .expect("opening tempo text")
+        .1;
+    let tempo_size = svg_attribute_f32(tempo, "font-size");
+    let tempo_y = svg_attribute_f32(tempo, "y");
+    assert!(tempo_size >= 7.8, "tempo text below 1.95 mm: {tempo_size}");
+    assert!(
+        staff_lines[4] - tempo_y >= 20.0,
+        "tempo text too close to first staff: {tempo_y}, {staff_lines:?}"
+    );
+    let brace = pages[0]
+        .split_once(r#"class="acorde-staff-brace""#)
+        .expect("grand-staff brace")
+        .1;
+    assert!(brace.split_once(r#"d=""#).unwrap().1.contains(" C "));
+    assert!(svg_attribute_f32(brace, "stroke-width") >= 0.85);
 }
 
 #[test]
@@ -301,4 +330,15 @@ fn print_page_retains_quilter_publication_credits() {
     assert!(pages[0].contains(">Roger Quilter</text>"));
     assert!(pages[0].contains("class=\"acorde-print-movement-title\""));
     assert!(pages[0].contains(">Prelude</text>"));
+    for (class, minimum_px) in [
+        ("acorde-print-title", 20.0),
+        ("acorde-print-movement-title", 15.0),
+        ("acorde-print-composer", 12.0),
+    ] {
+        let credit = pages[0]
+            .split_once(&format!("class=\"{class}\""))
+            .expect("publication credit")
+            .1;
+        assert!(svg_attribute_f32(credit, "font-size") >= minimum_px);
+    }
 }
