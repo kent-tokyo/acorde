@@ -90,8 +90,53 @@ regression constructs a quarter-rest then a quarter-note at 120 BPM and checks t
 4,000 output frames are silent and later frames contain audio. Separate resampling regressions
 check fractional-rate interpolation, loop-boundary interpolation, and silence after an unlooped
 sample ends. Another real-SF2 regression checks that the release tail decays to silence and that
-pedal-down holds a note across a rest until the pedal-up mark. These tests verify timing and basic PCM generation; they do not measure audio quality
-or establish superiority over alphaTab's SoundFont synthesizer.
+pedal-down holds a note across a rest until the pedal-up mark. These tests verify timing and basic
+PCM generation; they do not measure audio quality or establish superiority over alphaTab's
+SoundFont synthesizer.
+
+## Same-input PCM baseline against alphaTab 1.8.4 (2026-10-31)
+
+The checked-in synthetic `simple.musicxml` (SHA-256
+`55c2d8d2546100437460474b8bc685b173493c3696303cbad2eb85254acbfd7d`) and the licensed
+Upright Piano SF2 (SHA-256
+`cf2a98eb38a32c4954b4b6e2caae4112d62dd8e892eceefdd7942b0e7d01ac2f`) were given to
+both Acorde and `@coderline/alphatab@1.8.4`. alphaTab's
+[public audio export API](https://docs.alphatab.net/docs/guides/audio-export)
+produces interleaved stereo float32 samples. The script pins the package version and writes the
+raw samples without changing alphaTab's synthesis. Acorde writes mono PCM16 here. The comparison
+downmixes alphaTab to mono and uses a gain-independent cosine similarity within a 100 ms window
+starting 100 ms after each written note onset. It searches a maximum 16-frame alignment shift.
+The local run used Node.js 24.5.0, npm 11.5.1, Python 3.13.6, and Rust 1.97.0.
+
+```sh
+npm install --prefix /tmp/acorde-alphatab-1_8_4 --no-save --no-package-lock @coderline/alphatab@1.8.4
+cargo run -p acorde-cli --locked -- audio-render tests/fixtures/simple.musicxml \
+  tests/fixtures/UprightPianoKW-small-20190703.sf2 /tmp/acorde-simple.wav \
+  --sample-rate 8000 --channels 1
+node scripts/export_alphatab_audio.mjs /tmp/acorde-alphatab-1_8_4 \
+  tests/fixtures/simple.musicxml tests/fixtures/UprightPianoKW-small-20190703.sf2 \
+  /tmp/alphatab-simple.f32le 8000
+python3 scripts/compare_playback_audio.py /tmp/acorde-simple.wav \
+  /tmp/alphatab-simple.f32le 0,500,1000,1500,2000
+```
+
+The Acorde WAV contains 32,000 frames (SHA-256
+`a6e3de8601284632768f1121eecd4e874ebebcdbc9ae6df7341bd72460ada8cb`); alphaTab emits
+32,064 frames (raw PCM SHA-256
+`87d10c86f7b1d5bac176a04e9cdb2a1503d02ebb24248100e832ccec35abb8d8`). The five
+alignment cosines are **0.999965, 0.990789, 0.999180, 0.996500, 0.999464**. The selected
+alphaTab array shifts are **0, -5, 0, -9, 0 frames**. These shifts are signal alignment values,
+not independent note-onset error measurements. Different channel layouts and gain policies also
+prevent interpreting the peaks (Acorde 0.520203, alphaTab 0.463316) as loudness quality. This
+single synthetic piano score does not establish audible or general playback superiority.
+
+As a range check, Acorde's current zone materializer cannot select bank 0/program 0 from the
+1.3 MiB `sonivox.sf2` bundled with alphaTab 1.8.4: a render of the independent *Just for Today*
+MXL fails with `SoundFont preset (0, 0) was not found`. That SoundFont has a Piano 1 preset, but
+the materializer rejects its zones because it cannot represent several envelope/filter
+generators. This is a synthesis coverage gap tracked in
+[Issue #203](https://github.com/kent-tokyo/acorde/issues/203); the failed render is not an
+alphaTab quality comparison.
 
 ## alphaTab 1.8.4 / independent CC0 score (2026-10-30)
 
