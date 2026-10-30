@@ -659,8 +659,9 @@ pub enum FinalPagePolicy {
 /// How the physical height reserved for each music system is selected.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum SystemHeightPolicy {
-    /// Reserve at least 16 mm for every staff beyond the first. This is a
-    /// conservative pagination floor, not a shaped-glyph collision guarantee.
+    /// Reserve at least 16 mm for every staff beyond the first, plus a lyric-lane
+    /// allowance when the score has multiple verses. This is a conservative
+    /// pagination floor, not a shaped-glyph collision guarantee.
     #[default]
     StaffAware,
     /// Use `system_height_mm` exactly, for callers with measured system geometry.
@@ -2991,6 +2992,23 @@ pub fn compute_print_layout(
     } else {
         24.0 + staff_count.saturating_sub(1) as f32 * 16.0
     };
+    let has_multiple_lyric_verses =
+        layout_score
+            .parts
+            .iter()
+            .flat_map(|part| &part.staves)
+            .any(|staff| {
+                staff
+                    .measures
+                    .iter()
+                    .flat_map(|measure| &measure.voices)
+                    .flatten()
+                    .any(|note| !note.additional_lyrics.is_empty())
+            });
+    // A second lyric lane needs room below its staff. Keep the page reservation in
+    // step with the print SVG's wider staff gap so notation size does not shrink.
+    let staff_clearance_mm =
+        staff_clearance_mm + if has_multiple_lyric_verses { 16.0 } else { 0.0 };
     let scaled_system_height_mm = match config.system_height_policy {
         SystemHeightPolicy::StaffAware => {
             configured_system_height_mm.max(staff_clearance_mm * config.scale)

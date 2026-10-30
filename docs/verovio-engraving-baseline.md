@@ -132,8 +132,9 @@ cargo run -p acorde-pdf --example print_mxl -- \
   crates/pdf/tests/fixtures/Tuffy.ttf /tmp/acorde-aloha-density.pdf 7 density
 ```
 
-This produces **2 A4 pages and 5 systems**, compared with 2 pages and 6
-systems for fixed four-measure breaks and Verovio's 3 pages and 6 systems.
+Before the two-verse clearance change below, this produced **2 A4 pages and 5
+systems**, compared with 2 pages and 6 systems for fixed four-measure breaks
+and Verovio's 3 pages and 6 systems.
 The second page was rasterized at 1400 pixels and inspected. Lyrics remain
 too small at this size, so the more compact result is not evidence of better
 engraving.
@@ -204,10 +205,10 @@ coordinates. The A4 page still has three systems and the same 3+4+3 breaks.
 
 The new Quilter PDF was rasterized at 1400 px. Its opening has more room for
 the busy bars, but text remains small and the page's lower area is largely
-unused. The CC0 Aloha Oe density PDF remains two A4 pages / five systems with
-73 import diagnostics; the same-input K.464 quartet remains nine pages / 25
-systems with zero reimport diagnostics. No broad collision-free or visual
-quality claim follows from these unchanged page counts. Increasing the
+unused. At this stage the CC0 Aloha Oe density PDF was still two A4 pages /
+five systems with 73 import diagnostics. The same-input K.464 quartet remains
+nine pages / 25 systems with zero reimport diagnostics. No broad collision-free
+or visual quality claim follows from these unchanged page counts. Increasing the
 staff-aware system height in a separate trial enlarged the notation but left
 visible lyric/staff collisions in Aloha Oe, so that trial was reverted.
 
@@ -223,6 +224,24 @@ not overlap the first system. The system grouping and one-page count are
 unchanged. Verovio's publication type is still visibly larger and clearer, and
 the 103 Acorde import diagnostics remain; restoring these credits is a semantic
 and completeness fix, not a claim of print-quality parity.
+
+### Two-verse vocal staff clearance (2026-10-31)
+
+For scores with an additional lyric verse, the staff-aware print layout now
+reserves 16 mm more per system and the physical SVG uses a nine-space gap
+between staves instead of six. On the CC0 Aloha Oe fixture, the fixed mode is
+three A4 pages / six systems and density mode is three pages / five systems.
+Verovio 6.3.0 is three pages / six systems on the same source and paper. The
+first page's staff space stays about 1.4 mm, while the gap from the first vocal
+staff to the next rises from about 8.4 to 12.5 mm. A regression asserts at least
+4 mm from a second-verse baseline to the following staff's top line.
+
+All three density-mode PDF pages were rasterized at 1400 px and inspected. The
+two lyric lines no longer run into the following staff in those previews, and
+the page number and staves remain inside A4. The third page has a large unused
+lower area; some dense syllables and notation are still small. The 73 Acorde
+import diagnostics remain separate from this layout change. This is a
+fixture-level clearance improvement, not a broad visual-quality result.
 
 ## Gates before a quality claim
 

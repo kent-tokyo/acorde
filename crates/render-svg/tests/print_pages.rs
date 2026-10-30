@@ -121,7 +121,7 @@ fn print_rejects_host_glyphs_instead_of_silently_dropping_them() {
 }
 
 #[test]
-fn openscore_five_staff_score_renders_two_physical_a4_pages() {
+fn openscore_five_staff_score_reserves_space_for_two_lyric_verses() {
     let fixture = concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/fixtures/openscore_lieder_aloha_oe.mxl"
@@ -129,9 +129,9 @@ fn openscore_five_staff_score_renders_two_physical_a4_pages() {
     let bytes = std::fs::read(fixture).expect("pinned CC0 fixture");
     let import = acorde_io::parse_mxl_with_report(&bytes).expect("MXL import");
     let layout = compute_print_layout(&import.score, &PrintConfig::default()).expect("A4 layout");
-    assert_eq!(layout.pages.len(), 2);
+    assert_eq!(layout.pages.len(), 3);
     let svgs = render_print_page_svgs(&import.score, &layout).expect("physical page SVGs");
-    assert_eq!(svgs.len(), 2);
+    assert_eq!(svgs.len(), 3);
     for svg in &svgs {
         let mut reader = quick_xml::Reader::from_str(svg);
         loop {
@@ -159,6 +159,44 @@ fn openscore_five_staff_score_renders_two_physical_a4_pages() {
         .parse::<f32>()
         .unwrap();
     assert!(lyric_size >= 7.6, "lyric font below 1.9 mm: {lyric_size}");
+    let staff_line_ys = svgs[0]
+        .split(r#"class="acorde-staff-line""#)
+        .skip(1)
+        .map(|line| {
+            line.split_once(r#"y1=""#)
+                .unwrap()
+                .1
+                .split('"')
+                .next()
+                .unwrap()
+                .parse::<f32>()
+                .unwrap()
+        })
+        .collect::<Vec<_>>();
+    let second_verse_y = svgs[0]
+        .split_once(r#"class="acorde-lyric-verse""#)
+        .expect("second verse on first page")
+        .1
+        .split_once(r#"y=""#)
+        .unwrap()
+        .1
+        .split('"')
+        .next()
+        .unwrap()
+        .parse::<f32>()
+        .unwrap();
+    let next_staff_top = staff_line_ys
+        .into_iter()
+        .filter(|y| *y > second_verse_y)
+        .min_by(f32::total_cmp)
+        .expect("following staff");
+    // The following staff starts well below the second lyric baseline at print scale.
+    assert!(
+        next_staff_top - second_verse_y >= 16.0,
+        "next staff top {}, second verse baseline {}",
+        next_staff_top,
+        second_verse_y
+    );
 
     let density = compute_print_layout(
         &import.score,
@@ -169,7 +207,7 @@ fn openscore_five_staff_score_renders_two_physical_a4_pages() {
         },
     )
     .expect("A4 density layout");
-    assert_eq!(density.pages.len(), 2);
+    assert_eq!(density.pages.len(), 3);
     assert_eq!(
         density
             .pages
@@ -182,7 +220,7 @@ fn openscore_five_staff_score_renders_two_physical_a4_pages() {
         render_print_page_svgs(&import.score, &density)
             .unwrap()
             .len(),
-        2
+        3
     );
 }
 
