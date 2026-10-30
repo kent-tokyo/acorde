@@ -2219,6 +2219,13 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
         }
     }
 
+    // Parts, staves and voices are projected separately. Sort before resolving ties so a
+    // continuation moved to another staff or voice follows its start on the shared clock.
+    events.sort_by(|a, b| {
+        a.time_beats
+            .partial_cmp(&b.time_beats)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     events = merge_tied_events(score, events);
     events = apply_realization_profile(score, events, options.realization_profile);
     events.sort_by(|a, b| {
@@ -2410,8 +2417,14 @@ fn tempo_ramp_beats_at_seconds(
 fn merge_tied_events(score: &Score, events: Vec<PlaybackEvent>) -> Vec<PlaybackEvent> {
     use std::collections::HashMap;
 
+    struct PendingTie {
+        index: usize,
+        staff: usize,
+        voice: usize,
+    }
+
     let mut merged = Vec::with_capacity(events.len());
-    let mut pending: HashMap<(usize, usize, usize, i32), usize> = HashMap::new();
+    let mut pending: HashMap<(usize, i32), Vec<PendingTie>> = HashMap::new();
     for event in events {
         let Some(source) = event.source.as_ref() else {
             merged.push(event);
@@ -2439,35 +2452,53 @@ fn merge_tied_events(score: &Score, events: Vec<PlaybackEvent>) -> Vec<PlaybackE
             Some(index) => (note.pitch_tie_start(index), note.pitch_tie_end(index)),
             None => (note.tie_start, note.tie_end),
         };
-        let key = (
-            source.part,
-            source.staff,
-            source.voice,
-            event.pitch_midi_cents,
-        );
-        if tie_end
-            && pending.get(&key).is_some_and(|&index| {
-                merged.get(index).is_some_and(|previous| {
-                    (previous.time_beats + previous.duration_beats - event.time_beats).abs() < 1e-9
-                })
-            })
-        {
-            let index = pending[&key];
-            let previous = &mut merged[index];
-            previous.duration_beats += event.duration_beats;
-            previous.duration_secs += event.duration_secs;
-            if !tie_start {
-                pending.remove(&key);
+        let source_staff = source.staff;
+        let source_voice = source.voice;
+        let key = (source.part, event.pitch_midi_cents);
+        if let Some(candidates) = pending.get_mut(&key) {
+            candidates.retain(|candidate| {
+                let previous: &PlaybackEvent = &merged[candidate.index];
+                previous.time_beats + previous.duration_beats >= event.time_beats - 1e-9
+            });
+            if tie_end {
+                let matching = candidates
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, candidate)| {
+                        let previous: &PlaybackEvent = &merged[candidate.index];
+                        (previous.time_beats + previous.duration_beats - event.time_beats).abs()
+                            < 1e-9
+                    })
+                    .max_by_key(|(_, candidate)| {
+                        (
+                            candidate.staff == source.staff,
+                            candidate.voice == source.voice,
+                        )
+                    })
+                    .map(|(position, _)| position);
+                if let Some(position) = matching {
+                    let mut candidate = candidates.remove(position);
+                    let previous = &mut merged[candidate.index];
+                    previous.duration_beats += event.duration_beats;
+                    previous.duration_secs += event.duration_secs;
+                    if tie_start {
+                        candidate.staff = source.staff;
+                        candidate.voice = source.voice;
+                        candidates.push(candidate);
+                    }
+                    continue;
+                }
             }
-            continue;
         }
 
         let index = merged.len();
         merged.push(event);
         if tie_start {
-            pending.insert(key, index);
-        } else {
-            pending.remove(&key);
+            pending.entry(key).or_default().push(PendingTie {
+                index,
+                staff: source_staff,
+                voice: source_voice,
+            });
         }
     }
     merged
@@ -2788,6 +2819,55 @@ mod tests {
         assert!((events[0].time_beats).abs() < 1e-9);
         assert!((events[0].duration_beats - 8.0).abs() < 1e-9);
         assert!((events[0].duration_secs - 6.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn ties_continue_across_voice_and_staff_changes() {
+        let whole_c = || Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+
+        let mut voice_score = Score::new("voice change", 120, 4, 4, 0, 2);
+        let mut start = whole_c();
+        start.tie_start = true;
+        let mut end = whole_c();
+        end.tie_end = true;
+        voice_score.parts[0].staves[0].measures[0].voices[0] = vec![start.clone()];
+        voice_score.parts[0].staves[0].measures[1].voices[1] = vec![end.clone()];
+        let events = to_playback_events(&voice_score, &opts(None));
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].time_beats, 0.0);
+        assert_eq!(events[0].duration_beats, 8.0);
+
+        let mut staff_score = Score::new("staff change", 120, 4, 4, 0, 2);
+        let second_staff = staff_score.parts[0].staves[0].clone();
+        staff_score.parts[0].staves.push(second_staff);
+        staff_score.parts[0].staves[0].measures[0].voices[0] = vec![start];
+        staff_score.parts[0].staves[1].measures[1].voices[0] = vec![end];
+        let events = to_playback_events(&staff_score, &opts(None));
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].time_beats, 0.0);
+        assert_eq!(events[0].duration_beats, 8.0);
+    }
+
+    #[test]
+    fn cross_voice_tie_keeps_independent_unison_attacks() {
+        let mut score = Score::new("unison", 120, 4, 4, 0, 2);
+        let mut start = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        start.tie_start = true;
+        let mut end = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        end.tie_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![start];
+        score.parts[0].staves[0].measures[0].voices[1] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        score.parts[0].staves[0].measures[1].voices[1] = vec![end];
+        score.parts[0].staves[0].measures[1].voices[2] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+
+        let mut durations: Vec<_> = to_playback_events(&score, &opts(None))
+            .into_iter()
+            .map(|event| event.duration_beats)
+            .collect();
+        durations.sort_by(f64::total_cmp);
+        assert_eq!(durations, vec![4.0, 4.0, 8.0]);
     }
 
     #[test]

@@ -128,6 +128,26 @@
       "expected_losses": ["MusicXML rendering attributes", "MusicXML unsupported dynamic"]
     },
     {
+      "path": "openscore_lieder_webern_so_ich_traurig_bin.mxl",
+      "format": "mxl",
+      "license": "CC0-1.0",
+      "source_url": "https://github.com/OpenScore/Lieder/blob/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Webern,_Anton/5_Lieder_nach_Gedichten_von_Stefan_George,_Op.4/4_So_ich_traurig_bin/lc6725890.mxl",
+      "source_revision": "38c5db510224d9facdc4b08d741fc788cfb58ea8",
+      "sha256": "609b32d0829c48ab9a134308d8694fd5b1ee7de89acba11f76084a32f56ca8a3",
+      "round_trip": "import-only",
+      "expected_losses": ["MusicXML rendering attributes"]
+    },
+    {
+      "path": "openscore_lieder_quilter_prelude.mxl",
+      "format": "mxl",
+      "license": "CC0-1.0",
+      "source_url": "https://github.com/OpenScore/Lieder/blob/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Quilter,_Roger/To_Julia,_Op.8/1_Prelude/lc29093051.mxl",
+      "source_revision": "38c5db510224d9facdc4b08d741fc788cfb58ea8",
+      "sha256": "6b85a51cc92fc93f561fd07cbd553d2ac9d4e53bd403637e85bd888495af6aa4",
+      "round_trip": "import-only",
+      "expected_losses": ["MusicXML rendering attributes"]
+    },
+    {
       "path": "openscore_lieder_aloha_oe.mscx",
       "format": "mscx",
       "license": "CC0-1.0",
