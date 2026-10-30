@@ -147,7 +147,9 @@ pub fn render_offline_wav_full_sf2(
                 .find(|channel| {
                     *channel != 9 && !reserved.contains(channel) && !used.contains(channel)
                 })
-                .ok_or(Error::UnsupportedOfflineFeature("too many MIDI voice lanes"))?;
+                .ok_or(Error::UnsupportedOfflineFeature(
+                    "too many MIDI voice lanes",
+                ))?;
             used.insert(spare);
             spare
         };
