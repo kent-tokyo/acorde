@@ -8,6 +8,9 @@
 use acorde_core::PlaybackEvent;
 use serde::Serialize;
 
+mod offline;
+pub use offline::{MAX_OFFLINE_WAV_BYTES, render_offline_wav};
+
 pub const PLAYBACK_CONTRACT_VERSION: u16 = 1;
 /// Version of the provider capability/decoder/renderer adapter contract.
 pub const PROVIDER_CONTRACT_VERSION: u16 = 1;
@@ -912,6 +915,9 @@ pub fn render_sample_action(
         return Err(Error::InvalidEvent);
     }
     let channels = usize::from(sample.channels);
+    if !(1..=2).contains(&channels) || !sample.pcm_i16.len().is_multiple_of(channels) {
+        return Err(Error::InvalidSample);
+    }
     let frames = (event.duration_secs * f64::from(output_rate)).ceil() as usize;
     let frames = frames.min(MAX_DECODED_FRAMES);
     let source_frames = sample.pcm_i16.len() / channels;
@@ -921,17 +927,30 @@ pub fn render_sample_action(
         return Err(Error::InvalidSample);
     }
     let mut output = Vec::with_capacity(frames * channels);
+    let loop_range = parameters.loop_points.and_then(|points| {
+        let start = usize::try_from(points.start_frame).ok()?;
+        let end = usize::try_from(points.end_frame).ok()?;
+        (start < end && end <= source_frames).then_some((start, end))
+    });
     for frame in 0..frames {
         let mut source = frame as f64 * ratio;
-        if let Some(loop_points) = parameters.loop_points {
-            let loop_start = usize::try_from(loop_points.start_frame).unwrap_or(usize::MAX);
-            let loop_end = usize::try_from(loop_points.end_frame).unwrap_or(usize::MAX);
-            if loop_start < loop_end && loop_end <= source_frames && source >= loop_end as f64 {
-                source = loop_start as f64
-                    + (source - loop_start as f64).rem_euclid((loop_end - loop_start) as f64);
-            }
+        if let Some((loop_start, loop_end)) = loop_range
+            && source >= loop_end as f64
+        {
+            source = loop_start as f64
+                + (source - loop_start as f64).rem_euclid((loop_end - loop_start) as f64);
         }
-        let source_frame = (source as usize).min(source_frames - 1);
+        if source >= source_frames as f64 {
+            output.extend(std::iter::repeat_n(0, channels));
+            continue;
+        }
+        let source_frame = source as usize;
+        let fraction = (source - source_frame as f64) as f32;
+        let next_frame = match loop_range {
+            Some((loop_start, loop_end)) if source_frame + 1 == loop_end => Some(loop_start),
+            _ if source_frame + 1 < source_frames => Some(source_frame + 1),
+            _ => None,
+        };
         let t = frame as f32 / output_rate as f32;
         let envelope = if parameters.attack_secs > 0.0 && t < parameters.attack_secs {
             t / parameters.attack_secs
@@ -943,9 +962,11 @@ pub fn render_sample_action(
             parameters.sustain_level
         };
         for channel in 0..channels {
-            let value = f32::from(sample.pcm_i16[source_frame * channels + channel])
-                * parameters.gain
-                * envelope;
+            let current = f32::from(sample.pcm_i16[source_frame * channels + channel]);
+            let next = next_frame
+                .map(|index| f32::from(sample.pcm_i16[index * channels + channel]))
+                .unwrap_or(0.0);
+            let value = (current + (next - current) * fraction) * parameters.gain * envelope;
             output.push(value.clamp(-32768.0, 32767.0).round() as i16);
         }
     }
@@ -1279,6 +1300,10 @@ pub enum Error {
     UnsupportedProviderCapability(&'static str),
     #[error("SoundFont decode failed: {0}")]
     Decode(String),
+    #[error("offline WAV output exceeds its {0}-byte limit")]
+    OfflineOutputTooLarge(usize),
+    #[error("offline WAV cannot render unsupported score feature: {0}")]
+    UnsupportedOfflineFeature(&'static str),
 }
 
 /// Load only the bounded, path-independent metadata needed by a renderer.
@@ -3031,6 +3056,67 @@ mod tests {
             .expect("sample action");
         let rendered = render_sample_action(&sample, &action, 2).expect("rendered sample");
         assert_eq!(rendered, vec![-1000, 2000]);
+    }
+
+    #[test]
+    fn sample_resampling_interpolates_and_unlooped_tail_falls_silent() {
+        let sample = DecodedSample {
+            sample_rate: 1,
+            channels: 1,
+            pcm_i16: vec![1000, 3000],
+        };
+        let mut note = event("resample", 127);
+        note.duration_secs = 3.0;
+        let action = SampleAction::Start {
+            voice_id: 1,
+            sample_id: 1,
+            event: Box::new(note),
+            parameters: SampleVoiceParameters {
+                playback_rate_ratio: 1.0,
+                gain: 1.0,
+                loop_points: None,
+                attack_secs: 0.0,
+                decay_secs: 0.0,
+                sustain_level: 1.0,
+                release_secs: 0.0,
+            },
+        };
+        assert_eq!(
+            render_sample_action(&sample, &action, 2).unwrap(),
+            vec![1000, 2000, 3000, 1500, 0, 0]
+        );
+    }
+
+    #[test]
+    fn sample_resampling_interpolates_across_loop_boundary() {
+        let sample = DecodedSample {
+            sample_rate: 1,
+            channels: 1,
+            pcm_i16: vec![1000, 3000],
+        };
+        let mut note = event("loop", 127);
+        note.duration_secs = 1.5;
+        let action = SampleAction::Start {
+            voice_id: 1,
+            sample_id: 1,
+            event: Box::new(note),
+            parameters: SampleVoiceParameters {
+                playback_rate_ratio: 1.0,
+                gain: 1.0,
+                loop_points: Some(SampleLoop {
+                    start_frame: 0,
+                    end_frame: 2,
+                }),
+                attack_secs: 0.0,
+                decay_secs: 0.0,
+                sustain_level: 1.0,
+                release_secs: 0.0,
+            },
+        };
+        assert_eq!(
+            render_sample_action(&sample, &action, 4).unwrap(),
+            vec![1000, 1500, 2000, 2500, 3000, 2500]
+        );
     }
 
     #[test]
