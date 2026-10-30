@@ -179,7 +179,7 @@ pub fn render_offline_wav_full_sf2(
 
     let mut actions = BTreeMap::<usize, Vec<Action>>::new();
     let mut active_keys = BTreeMap::<(u8, u8), usize>::new();
-    let mut collision_channels = BTreeMap::<usize, BTreeSet<u8>>::new();
+    let mut collision_channels = BTreeMap::<(usize, u8), BTreeSet<u8>>::new();
     let mut frame_events = manifest.frame_events.iter().collect::<Vec<_>>();
     frame_events.sort_by_key(|event| (event.start_frame, event.end_frame));
     for frame_event in frame_events {
@@ -238,7 +238,7 @@ pub fn render_offline_wav_full_sf2(
                 ));
             }
             if let Some(&spare) = collision_channels
-                .get(&event.part_index)
+                .get(&(event.part_index, event.channel))
                 .and_then(|channels| channels.iter().find(|&&channel| !collides(channel)))
             {
                 spare
@@ -250,7 +250,7 @@ pub fn render_offline_wav_full_sf2(
                     ))?;
                 used.insert(spare);
                 collision_channels
-                    .entry(event.part_index)
+                    .entry((event.part_index, event.channel))
                     .or_default()
                     .insert(spare);
                 part_channels
@@ -706,5 +706,46 @@ mod tests {
                 .sum()
         };
         assert!(gap_energy(&held) > gap_energy(&dry) * 2);
+    }
+
+    #[test]
+    fn full_sf2_does_not_reuse_collision_channel_across_authored_channels() {
+        let mut score = Score::new("Channel change", 120, 4, 4, 0, 2);
+        for measure in &mut score.parts[0].staves[0].measures {
+            let mut first = Note::new(Pitch::new(Step::A, 4), Duration::Quarter);
+            first.articulations.push(Articulation::Fermata);
+            measure.voices[0] = vec![first, Note::new(Pitch::new(Step::A, 4), Duration::Quarter)];
+        }
+        let mut dry_schedule = manifest(&score);
+        assert_eq!(dry_schedule.frame_events.len(), 4);
+        for index in 2..4 {
+            dry_schedule.events[index].channel = 1;
+            dry_schedule.frame_events[index].event.channel = 1;
+        }
+        let dry = render_offline_wav_full_sf2(&dry_schedule, PIANO).unwrap();
+
+        score.parts[0].midi_control_changes.push(MidiControlChange {
+            tick: 1_920,
+            channel: 0,
+            controller: 7,
+            value: 0,
+        });
+        let mut controlled_schedule = manifest(&score);
+        for index in 2..4 {
+            controlled_schedule.events[index].channel = 1;
+            controlled_schedule.frame_events[index].event.channel = 1;
+        }
+        let controlled = render_offline_wav_full_sf2(&controlled_schedule, PIANO).unwrap();
+        // The first channel's volume change must not silence the second channel's
+        // overlapping unison, even when both need a spare channel.
+        let energy = |wav: &[u8]| -> i64 {
+            wav[44 + 44_000 * 2..44 + 48_000 * 2]
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|bytes| i64::from(i16::from_le_bytes(*bytes)).abs())
+                .sum()
+        };
+        assert!(energy(&controlled) > energy(&dry) * 9 / 10);
     }
 }
