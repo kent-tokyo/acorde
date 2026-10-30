@@ -235,7 +235,9 @@ mod tests {
         assert_eq!(&wav[36..40], b"data");
         assert_eq!(wav.len(), 44 + manifest.duration_frames as usize * 2);
         let pcm = wav[44..]
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|bytes| i16::from_le_bytes([bytes[0], bytes[1]]))
             .collect::<Vec<_>>();
         assert!(pcm[..4_000].iter().all(|sample| *sample == 0));
@@ -246,7 +248,9 @@ mod tests {
     fn wav_mix_normalizes_overlapping_samples_without_clipping() {
         let wav = encode_wav(&[0.0, 40_000.0, -40_000.0], 8_000, 1).unwrap();
         let pcm = wav[44..]
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|bytes| i16::from_le_bytes([bytes[0], bytes[1]]))
             .collect::<Vec<_>>();
         assert_eq!(pcm, [0, i16::MAX, -i16::MAX]);
