@@ -2,8 +2,11 @@ use crate::{
     AccidentalMark, BeamGroup, ConcertKeyOverride, CourtesyAccidental, LayoutConfig, LayoutResult,
     RowLayout, SourceVoiceAddress, SpanMark, TupletGroup,
 };
-use acorde_core::{AccidentalDisplay, BeamState, HairpinKind, NoteAddr, OttavaKind, Score, Step};
-use std::collections::HashMap;
+use acorde_core::{
+    AccidentalDisplay, BeamState, HairpinKind, NotationSpanner, NotationSpannerKind, NoteAddr,
+    OttavaKind, Score, Step,
+};
+use std::collections::{HashMap, HashSet};
 
 /// Shift `fifths` (circle-of-fifths key index) by `semitones` semitones.
 ///
@@ -23,8 +26,9 @@ pub fn compute_layout(score: &Score, config: &LayoutConfig) -> LayoutResult {
     let first_row = config.first_row_measures.map(|n| n.max(1));
     let vis_slots = build_vis_slots(score);
     let rows = build_rows(score, &vis_slots, per_row, first_row);
-    // Spans authored only as typed spanners pair up like their legacy note flags.
-    let spans = resolve_spans(&score.with_legacy_spanner_flags());
+    // Typed slurs retain their exact pairs; a boolean note flag cannot represent
+    // overlapping or numbered slurs at the same endpoint.
+    let spans = resolve_spans(&score.with_legacy_spanner_flags(), &score.spanners);
 
     let mut concert_key_overrides = Vec::new();
     if config.concert_pitch {
@@ -182,8 +186,14 @@ fn build_rows(
 
 // ── span resolution ───────────────────────────────────────────────────────────
 
-fn resolve_spans(score: &Score) -> Vec<SpanMark> {
+fn resolve_spans(score: &Score, typed_spanners: &[NotationSpanner]) -> Vec<SpanMark> {
     let mut spans = Vec::new();
+    let typed_slur_endpoints = typed_spanners
+        .iter()
+        .filter(|span| span.kind == NotationSpannerKind::Slur)
+        .flat_map(|span| [&span.start, &span.end])
+        .map(|addr| (addr.part, addr.staff, addr.measure, addr.voice, addr.note))
+        .collect::<HashSet<_>>();
 
     for (pi, part) in score.parts.iter().enumerate() {
         for (si, staff) in part.staves.iter().enumerate() {
@@ -191,7 +201,7 @@ fn resolve_spans(score: &Score) -> Vec<SpanMark> {
                 let mut open_hairpin: Option<(NoteAddr, HairpinKind)> = None;
                 let mut open_ottava: Option<(NoteAddr, OttavaKind)> = None;
                 let mut open_pedal: Option<NoteAddr> = None;
-                let mut open_slur: Option<NoteAddr> = None;
+                let mut open_slurs: Vec<NoteAddr> = Vec::new();
                 let mut open_trill_line: Option<NoteAddr> = None;
                 let mut open_glissando: Option<NoteAddr> = None;
 
@@ -254,16 +264,21 @@ fn resolve_spans(score: &Score) -> Vec<SpanMark> {
                             });
                         }
 
-                        if note.slur_start {
-                            open_slur = Some(addr.clone());
-                        }
-                        if note.slur_end
-                            && let Some(start) = open_slur.take()
-                        {
-                            spans.push(SpanMark::Slur {
-                                start,
-                                end: addr.clone(),
-                            });
+                        // Close before opening: one note may end a phrase and
+                        // start the next. A stack preserves nested legacy slurs.
+                        // Typed endpoints are handled below with exact identities.
+                        if !typed_slur_endpoints.contains(&(pi, si, mi, voice, ni)) {
+                            if note.slur_end
+                                && let Some(start) = open_slurs.pop()
+                            {
+                                spans.push(SpanMark::Slur {
+                                    start,
+                                    end: addr.clone(),
+                                });
+                            }
+                            if note.slur_start {
+                                open_slurs.push(addr.clone());
+                            }
                         }
 
                         if note.trill_line_start {
@@ -304,6 +319,16 @@ fn resolve_spans(score: &Score) -> Vec<SpanMark> {
             }
         }
     }
+
+    spans.extend(
+        typed_spanners
+            .iter()
+            .filter(|span| span.kind == NotationSpannerKind::Slur)
+            .map(|span| SpanMark::Slur {
+                start: span.start.clone(),
+                end: span.end.clone(),
+            }),
+    );
     spans
 }
 
@@ -983,6 +1008,98 @@ mod tests {
             assert_eq!(start.note, 0);
             assert_eq!(end.note, 1);
         }
+    }
+
+    #[test]
+    fn adjacent_legacy_slurs_share_an_endpoint_without_zero_length() {
+        use acorde_core::{Duration, Note, Pitch, Step};
+        let mut score = score_with_measures(1);
+        let mut notes = [Step::C, Step::D, Step::E, Step::F]
+            .map(|step| Note::new(Pitch::new(step, 4), Duration::Quarter));
+        notes[0].slur_start = true;
+        notes[1].slur_end = true;
+        notes[1].slur_start = true;
+        notes[2].slur_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = notes.to_vec();
+        let slurs = compute_layout(&score, &LayoutConfig::default())
+            .spans
+            .into_iter()
+            .filter_map(|span| match span {
+                SpanMark::Slur { start, end } => Some((start.note, end.note)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(slurs, vec![(0, 1), (1, 2)]);
+    }
+
+    #[test]
+    fn nested_legacy_slurs_close_in_last_in_first_out_order() {
+        use acorde_core::{Duration, Note, Pitch, Step};
+        let mut score = score_with_measures(1);
+        let mut notes = [Step::C, Step::D, Step::E, Step::F]
+            .map(|step| Note::new(Pitch::new(step, 4), Duration::Quarter));
+        notes[0].slur_start = true;
+        notes[1].slur_start = true;
+        notes[2].slur_end = true;
+        notes[3].slur_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = notes.to_vec();
+        let slurs = compute_layout(&score, &LayoutConfig::default())
+            .spans
+            .into_iter()
+            .filter_map(|span| match span {
+                SpanMark::Slur { start, end } => Some((start.note, end.note)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(slurs, vec![(1, 2), (0, 3)]);
+    }
+
+    #[test]
+    fn typed_slurs_keep_overlapping_pairs_without_legacy_duplicates() {
+        use acorde_core::{Duration, Note, Pitch, Step};
+        let mut score = score_with_measures(1);
+        let mut notes = [Step::C, Step::D, Step::E, Step::F]
+            .map(|step| Note::new(Pitch::new(step, 4), Duration::Quarter));
+        notes[0].slur_start = true;
+        notes[1].slur_start = true;
+        notes[2].slur_end = true;
+        notes[3].slur_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = notes.to_vec();
+        for (id, start, end) in [("outer", 0, 2), ("overlap", 1, 3)] {
+            score.spanners.push(NotationSpanner {
+                id: id.into(),
+                kind: NotationSpannerKind::Slur,
+                start: NoteAddr {
+                    part: 0,
+                    staff: 0,
+                    measure: 0,
+                    voice: 0,
+                    note: start,
+                },
+                end: NoteAddr {
+                    part: 0,
+                    staff: 0,
+                    measure: 0,
+                    voice: 0,
+                    note: end,
+                },
+                number: None,
+                line_type: None,
+                text: None,
+                placement: None,
+                ottava_size: None,
+                ottava_type: None,
+            });
+        }
+        let slurs = compute_layout(&score, &LayoutConfig::default())
+            .spans
+            .into_iter()
+            .filter_map(|span| match span {
+                SpanMark::Slur { start, end } => Some((start.note, end.note)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(slurs, vec![(0, 2), (1, 3)]);
     }
 
     #[test]

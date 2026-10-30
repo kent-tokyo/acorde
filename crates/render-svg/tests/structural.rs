@@ -21,6 +21,165 @@ fn opts() -> SvgRenderOptions {
     }
 }
 
+fn slur_geometries(svg: &str) -> Vec<[f32; 6]> {
+    svg.split(r#"class="acorde-slur" d=""#)
+        .skip(1)
+        .map(|fragment| {
+            let path = fragment.split('"').next().unwrap();
+            let numbers = path
+                .split(['M', 'Q', ',', ' '])
+                .filter_map(|value| value.parse::<f32>().ok())
+                .collect::<Vec<_>>();
+            numbers.try_into().expect("quadratic slur geometry")
+        })
+        .collect()
+}
+
+fn notehead_centers(svg: &str) -> Vec<(f32, f32)> {
+    svg.split(r#"class="acorde-notehead" cx=""#)
+        .skip(1)
+        .map(|fragment| {
+            let (x, tail) = fragment.split_once(r#"" cy=""#).expect("notehead x/y");
+            let y = tail.split('"').next().unwrap();
+            (x.parse().unwrap(), y.parse().unwrap())
+        })
+        .collect()
+}
+
+#[test]
+fn single_voice_slurs_attach_outside_heads_opposite_stems() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    for (steps, above) in [
+        ([Step::C, Step::D, Step::E], false),
+        ([Step::G, Step::A, Step::B], true),
+    ] {
+        let octave = if above { 5 } else { 4 };
+        let mut score = Score::new("slur anchors", 120, 3, 4, 0, 1);
+        let mut notes = steps.map(|step| Note::new(Pitch::new(step, octave), Duration::Quarter));
+        notes[0].slur_start = true;
+        notes[2].slur_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = notes.to_vec();
+        let svg = render_svg(&score, &opts()).expect("slur renders");
+        let path = slur_geometries(&svg)[0];
+        let heads = notehead_centers(&svg);
+        assert_eq!(heads.len(), 3);
+        assert!(path[0] > heads[0].0 && path[4] < heads[2].0);
+        if above {
+            assert!(path[1] < heads[0].1 && path[5] < heads[2].1);
+            assert!(
+                path[3]
+                    < heads
+                        .iter()
+                        .map(|head| head.1)
+                        .fold(f32::INFINITY, f32::min)
+            );
+        } else {
+            assert!(path[1] > heads[0].1 && path[5] > heads[2].1);
+            assert!(
+                path[3]
+                    > heads
+                        .iter()
+                        .map(|head| head.1)
+                        .fold(f32::NEG_INFINITY, f32::max)
+            );
+        }
+    }
+}
+
+#[test]
+fn issue_176_abc_phrase_bows_below_up_stems() {
+    let score = acorde_io::parse_abc("X:1\nT:Slur side\nM:9/8\nL:1/8\nK:G\nd2G G(FG/A/) B3|]")
+        .expect("ABC phrase parses");
+    let mut options = opts();
+    options.width = 1400.0;
+    options.measures_per_system = 1;
+    let svg = render_svg(&score, &options).expect("ABC phrase renders");
+    let path = slur_geometries(&svg)[0];
+    let heads = notehead_centers(&svg);
+    let nearest = |x: f32| {
+        heads
+            .iter()
+            .min_by(|a, b| (a.0 - x).abs().total_cmp(&(b.0 - x).abs()))
+            .unwrap()
+            .1
+    };
+    assert!(path[1] > nearest(path[0]));
+    assert!(path[5] > nearest(path[4]));
+    assert!(path[3] > path[1].max(path[5]));
+}
+
+#[test]
+fn cross_system_slur_continuations_keep_the_same_side() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("cross-system slur", 120, 4, 4, 0, 2);
+    for measure in &mut score.parts[0].staves[0].measures {
+        measure.voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::D, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::E, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::F, 4), Duration::Quarter),
+        ];
+    }
+    score.parts[0].staves[0].measures[0].voices[0][2].slur_start = true;
+    score.parts[0].staves[0].measures[1].voices[0][1].slur_end = true;
+    let mut options = opts();
+    options.measures_per_system = 1;
+    let svg = render_svg(&score, &options).expect("cross-system slur renders");
+    let paths = slur_geometries(&svg);
+    assert_eq!(paths.len(), 2);
+    assert!(paths.iter().all(|path| path[3] > path[1]));
+    assert!(paths.iter().all(|path| path[4] > path[0]));
+}
+
+#[test]
+fn authored_slur_placement_overrides_default_stem_side() {
+    use acorde_core::{
+        Duration, NotationSpanner, NotationSpannerKind, Note, NoteAddr, Pitch, Score, Step,
+    };
+    let mut score = Score::new("placed slur", 120, 3, 4, 0, 1);
+    score.parts[0].staves[0].measures[0].voices[0] = [Step::C, Step::D, Step::E]
+        .map(|step| Note::new(Pitch::new(step, 4), Duration::Quarter))
+        .to_vec();
+    let address = |note| NoteAddr {
+        part: 0,
+        staff: 0,
+        measure: 0,
+        voice: 0,
+        note,
+    };
+    score.spanners.push(NotationSpanner {
+        id: "above-low-notes".into(),
+        kind: NotationSpannerKind::Slur,
+        start: address(0),
+        end: address(2),
+        number: Some(1),
+        line_type: None,
+        text: None,
+        placement: Some("above".into()),
+        ottava_size: None,
+        ottava_type: None,
+    });
+    let svg = render_svg(&score, &opts()).expect("placed slur renders");
+    let path = slur_geometries(&svg)[0];
+    let heads = notehead_centers(&svg);
+    assert!(path[1] < heads[0].1 && path[5] < heads[2].1);
+}
+
+#[test]
+fn adjacent_slurs_render_as_two_nonzero_paths() {
+    let mut score = acorde_io::parse_abc("X:1\nT:Adjacent slurs\nM:4/4\nL:1/4\nK:C\nCDEF|]")
+        .expect("ABC parses");
+    let notes = &mut score.parts[0].staves[0].measures[0].voices[0];
+    notes[0].slur_start = true;
+    notes[1].slur_end = true;
+    notes[1].slur_start = true;
+    notes[2].slur_end = true;
+    let svg = render_svg(&score, &opts()).expect("adjacent slurs render");
+    let slurs = slur_geometries(&svg);
+    assert_eq!(slurs.len(), 2);
+    assert!(slurs.iter().all(|path| path[4] > path[0]));
+}
+
 #[test]
 fn adjacent_abc_tuplets_keep_four_brackets_at_narrow_and_wide_widths() {
     let abc = "X:1\nM:4/4\nL:1/8\nK:C\n(3C-C G (3C-C G (3C-C G (3C-C G |]\n";

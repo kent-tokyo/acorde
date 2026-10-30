@@ -39,3 +39,22 @@ fn musicxml_pipeline_is_deterministic() {
     let b = render_svg(&acorde_io::parse_musicxml(&xml).unwrap(), &opts()).unwrap();
     assert_eq!(a, b);
 }
+
+#[test]
+fn adjacent_numbered_musicxml_slurs_survive_round_trip_and_render() {
+    let source = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>480</divisions><time><beats>3</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type><notations><slur number="1" type="start"/></notations></note><note><pitch><step>D</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type><notations><slur number="1" type="stop"/><slur number="2" type="start"/></notations></note><note><pitch><step>E</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type><notations><slur number="2" type="stop"/></notations></note></measure></part></score-partwise>"#;
+    let parsed = acorde_io::parse_musicxml(source).expect("parse numbered slurs");
+    let serialized = acorde_io::serialize_musicxml(&parsed).expect("serialize numbered slurs");
+    let restored = acorde_io::parse_musicxml(&serialized).expect("reparse numbered slurs");
+    let pairs = acorde_layout::compute_layout(&restored, &Default::default())
+        .spans
+        .iter()
+        .filter_map(|span| match span {
+            acorde_layout::SpanMark::Slur { start, end } => Some((start.note, end.note)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(pairs, vec![(0, 1), (1, 2)]);
+    let svg = render_svg(&restored, &opts()).expect("render numbered slurs");
+    assert_eq!(svg.matches("class=\"acorde-slur\"").count(), 2);
+}
