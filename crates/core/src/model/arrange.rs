@@ -10,17 +10,21 @@
 //! target. A single-part score (already a 2-staff piano-style reduction, or
 //! a lone melodic line) skips the multi-part ranking entirely.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 use super::duration::Duration;
 use super::gm::instrument_range;
-use super::notation::{Barline, Clef};
+use super::notation::{Barline, ChordSymbol, Clef};
 use super::pitch::Pitch;
-use super::score::{Measure, Note, Part, Score, Staff};
+use super::score::{Measure, Note, NoteAddr, Part, Score, Staff};
 use crate::Error;
 
 const ACCORDION_PROGRAM: u8 = 21;
+// Conservative default for the first guided chromatic-accordion preset. A later
+// instrument-specific contract can narrow or widen either hand explicitly.
+const GUIDED_RIGHT_HAND_RANGE: (i16, i16) = (48, 96);
+const GUIDED_LEFT_HAND_RANGE: (i16, i16) = (36, 84);
 /// Onset/duration quantization grid — 64th-note resolution, the finest
 /// [`Duration`] unit the model supports.
 const GRID: f64 = 64.0;
@@ -47,6 +51,451 @@ pub struct AccordionAnalysis {
 pub struct ArrangeResult {
     pub score: Score,
     pub notes: Vec<String>,
+}
+
+/// First-stage, explicitly harmonized accompaniment. No chord is inferred from the melody.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AccordionPattern {
+    HeldBassChord,
+    AlternatingBassChord,
+    Arpeggio,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PositionedAccordionChord {
+    pub measure_index: usize,
+    /// Quarter-note beats from the beginning of the authored measure, on a 1/64-beat grid.
+    pub offset_beats: f64,
+    pub chord: ChordSymbol,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GuidedAccordionOptions {
+    pub pattern: AccordionPattern,
+    pub chords: Vec<PositionedAccordionChord>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GuidedArrangeDiagnostic {
+    pub code: String,
+    pub message: String,
+    pub measure_index: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GuidedAccordionResult {
+    /// None on any error. A caller never receives a partially generated score.
+    pub score: Option<Score>,
+    pub resolved_options: GuidedAccordionOptions,
+    pub diagnostics: Vec<GuidedArrangeDiagnostic>,
+    pub source_notes: Vec<NoteAddr>,
+    pub generated_notes: Vec<NoteAddr>,
+    pub contract_version: u16,
+}
+
+fn guided_error(
+    options: GuidedAccordionOptions,
+    code: &str,
+    message: impl Into<String>,
+    measure_index: Option<usize>,
+) -> GuidedAccordionResult {
+    GuidedAccordionResult {
+        score: None,
+        resolved_options: options,
+        diagnostics: vec![GuidedArrangeDiagnostic {
+            code: code.to_string(),
+            message: message.into(),
+            measure_index,
+        }],
+        source_notes: Vec::new(),
+        generated_notes: Vec::new(),
+        contract_version: 1,
+    }
+}
+
+fn accordion_pitch_class(name: &str) -> Option<u8> {
+    let mut characters = name.chars();
+    let base: i16 = match characters.next()? {
+        'C' => 0,
+        'D' => 2,
+        'E' => 4,
+        'F' => 5,
+        'G' => 7,
+        'A' => 9,
+        'B' => 11,
+        _ => return None,
+    };
+    let alter = match characters.next() {
+        None => 0,
+        Some('#') => 1,
+        Some('b') => -1,
+        _ => return None,
+    };
+    if characters.next().is_some() {
+        return None;
+    }
+    Some((base + alter).rem_euclid(12) as u8)
+}
+
+#[derive(Clone)]
+struct RealizedAccordionChord {
+    symbol: ChordSymbol,
+    bass_midi: u8,
+    chord_midi: [u8; 3],
+}
+
+fn realize_accordion_chord(symbol: &ChordSymbol) -> Option<RealizedAccordionChord> {
+    if !symbol.degrees.is_empty() {
+        return None;
+    }
+    let root = accordion_pitch_class(&symbol.root)?;
+    let bass = symbol
+        .bass
+        .as_deref()
+        .map(accordion_pitch_class)
+        .unwrap_or(Some(root))?;
+    let intervals = match symbol.kind.as_str() {
+        "major" => [0, 4, 7],
+        "minor" => [0, 3, 7],
+        "diminished" => [0, 3, 6],
+        "augmented" => [0, 4, 8],
+        _ => return None,
+    };
+    Some(RealizedAccordionChord {
+        symbol: symbol.clone(),
+        bass_midi: 36 + bass,
+        chord_midi: intervals.map(|interval| 60 + root + interval),
+    })
+}
+
+fn guided_note(pitches: &[u8], duration: Duration) -> Note {
+    let mut note = Note::new(Pitch::from_midi(pitches[0], false), duration);
+    note.pitches = pitches
+        .iter()
+        .map(|midi| Pitch::from_midi(*midi, false))
+        .collect();
+    note
+}
+
+fn guided_region(
+    pattern: AccordionPattern,
+    chord: &RealizedAccordionChord,
+    ticks: u32,
+) -> Option<Vec<Note>> {
+    let mut notes = Vec::new();
+    match pattern {
+        AccordionPattern::HeldBassChord => {
+            let pitches = [
+                chord.bass_midi,
+                chord.chord_midi[0],
+                chord.chord_midi[1],
+                chord.chord_midi[2],
+            ];
+            let mut remaining = ticks;
+            while remaining > 0 {
+                let duration = Duration::whole_filling_beats(f64::from(remaining) / GRID);
+                let filled = (duration.beats(0) * GRID).round() as u32;
+                if filled == 0 || filled > remaining {
+                    return None;
+                }
+                let mut note = guided_note(&pitches, duration);
+                note.tie_end = !notes.is_empty();
+                note.tie_start = remaining > filled;
+                notes.push(note);
+                remaining -= filled;
+            }
+        }
+        AccordionPattern::AlternatingBassChord => {
+            if !ticks.is_multiple_of(64) {
+                return None;
+            }
+            for pulse in 0..ticks / 64 {
+                let pitches: Vec<u8> = match pulse % 4 {
+                    0 => vec![chord.bass_midi],
+                    2 => vec![chord.bass_midi + 7],
+                    _ => chord.chord_midi.to_vec(),
+                };
+                notes.push(guided_note(&pitches, Duration::Quarter));
+            }
+        }
+        AccordionPattern::Arpeggio => {
+            if !ticks.is_multiple_of(32) {
+                return None;
+            }
+            for pulse in 0..ticks / 32 {
+                let midi = match pulse % 4 {
+                    0 => chord.bass_midi + 12,
+                    1 | 3 => chord.chord_midi[1],
+                    _ => chord.chord_midi[2],
+                };
+                notes.push(guided_note(&[midi], Duration::Eighth));
+            }
+        }
+    }
+    if let Some(first) = notes.first_mut() {
+        first.chord_symbol = Some(chord.symbol.clone());
+    }
+    Some(notes)
+}
+
+/// Generate a two-staff accordion score from a monophonic melody and positioned, explicit chords.
+/// Source melody notes, bar lengths, ties, repeats and endings remain authored; invalid requests
+/// return only structured diagnostics. Generation is deterministic in musical content and timing.
+pub fn arrange_with_explicit_chords(
+    score: &Score,
+    options: GuidedAccordionOptions,
+) -> GuidedAccordionResult {
+    if score.parts.len() != 1 || score.parts[0].staves.len() != 1 {
+        return guided_error(
+            options,
+            "unsupported-source",
+            "expected one melody part and one staff",
+            None,
+        );
+    }
+    let source_staff = &score.parts[0].staves[0];
+    if source_staff.measures.is_empty() || source_staff.measures.len() > 2048 {
+        return guided_error(
+            options,
+            "unsupported-source",
+            "measure count is empty or exceeds 2048",
+            None,
+        );
+    }
+    if options.chords.is_empty() || options.chords.len() > 8192 {
+        return guided_error(
+            options,
+            "missing-chords",
+            "provide 1 to 8192 positioned chords",
+            None,
+        );
+    }
+    for (index, measure) in source_staff.measures.iter().enumerate() {
+        if measure.voices.iter().skip(1).any(|voice| !voice.is_empty())
+            || measure.voices[0]
+                .iter()
+                .any(|note| !note.is_rest && note.pitches.len() != 1)
+            || measure.multi_rest_count.is_some()
+        {
+            return guided_error(
+                options,
+                "unsupported-source",
+                "expected a monophonic melody without measure repeats",
+                Some(index),
+            );
+        }
+    }
+    let validation = super::validate::validate(score);
+    if !validation.is_valid() {
+        return guided_error(
+            options,
+            "invalid-source",
+            format!("source validation failed: {:?}", validation.errors[0]),
+            None,
+        );
+    }
+    let mut regions: Vec<Vec<(u32, RealizedAccordionChord)>> =
+        vec![Vec::new(); source_staff.measures.len()];
+    let mut length_ticks = Vec::with_capacity(source_staff.measures.len());
+    for index in 0..source_staff.measures.len() {
+        let beats = score.playback_measure_beats(index);
+        let ticks = (beats * GRID).round();
+        if !ticks.is_finite() || ticks <= 0.0 || (ticks / GRID - beats).abs() > 1e-9 {
+            return guided_error(
+                options,
+                "unsupported-rhythm",
+                "measure length must be on a 1/64-beat grid",
+                Some(index),
+            );
+        }
+        length_ticks.push(ticks as u32);
+    }
+    for placed in &options.chords {
+        let index = placed.measure_index;
+        let Some(&length) = length_ticks.get(index) else {
+            return guided_error(
+                options,
+                "chord-position",
+                "chord measure is outside the score",
+                Some(index),
+            );
+        };
+        let offset = (placed.offset_beats * GRID).round();
+        if !offset.is_finite()
+            || offset < 0.0
+            || offset >= f64::from(length)
+            || (offset / GRID - placed.offset_beats).abs() > 1e-9
+        {
+            return guided_error(
+                options,
+                "chord-position",
+                "chord offset must be inside the measure on a 1/64-beat grid",
+                Some(index),
+            );
+        }
+        let Some(chord) = realize_accordion_chord(&placed.chord) else {
+            return guided_error(
+                options.clone(),
+                "unsupported-chord",
+                format!("cannot realize chord {}", placed.chord.display_text()),
+                Some(index),
+            );
+        };
+        regions[index].push((offset as u32, chord));
+    }
+    let mut left = Staff::new(Clef::Bass);
+    let mut generated_notes = Vec::new();
+    let mut current_chord: Option<RealizedAccordionChord> = None;
+    for (index, source_measure) in source_staff.measures.iter().enumerate() {
+        regions[index].sort_by_key(|(offset, _)| *offset);
+        if regions[index]
+            .windows(2)
+            .any(|window| window[0].0 == window[1].0)
+        {
+            return guided_error(
+                options,
+                "chord-position",
+                "two chords occupy the same position",
+                Some(index),
+            );
+        }
+        if regions[index]
+            .first()
+            .is_none_or(|(offset, _)| *offset != 0)
+        {
+            let Some(chord) = current_chord.clone() else {
+                return guided_error(
+                    options,
+                    "missing-chords",
+                    "no explicit chord covers the start of this measure",
+                    Some(index),
+                );
+            };
+            regions[index].insert(0, (0, chord));
+        }
+        let mut generated = Vec::new();
+        for position in 0..regions[index].len() {
+            let (start, chord) = &regions[index][position];
+            let end = regions[index]
+                .get(position + 1)
+                .map_or(length_ticks[index], |(offset, _)| *offset);
+            let Some(mut notes) = guided_region(options.pattern, chord, end - start) else {
+                return guided_error(
+                    options,
+                    "unsupported-rhythm",
+                    "pattern cannot fill the chord region exactly",
+                    Some(index),
+                );
+            };
+            for note_index in generated.len()..generated.len() + notes.len() {
+                generated_notes.push(NoteAddr {
+                    part: 0,
+                    staff: 1,
+                    measure: index,
+                    voice: 0,
+                    note: note_index,
+                });
+            }
+            generated.append(&mut notes);
+            current_chord = Some(chord.clone());
+        }
+        let mut measure = Measure::empty(
+            source_measure
+                .time_sig
+                .as_ref()
+                .map_or(score.settings.time_signature.numerator, |ts| ts.numerator),
+            source_measure
+                .time_sig
+                .as_ref()
+                .map_or(score.settings.time_signature.denominator, |ts| {
+                    ts.denominator
+                }),
+        );
+        measure.number = source_measure.number;
+        measure.time_sig = source_measure.time_sig.clone();
+        measure.key_sig = source_measure.key_sig.clone();
+        measure.tempo = source_measure.tempo;
+        measure.tempo_ramp_to = source_measure.tempo_ramp_to;
+        measure.barline_left = source_measure.barline_left.clone();
+        measure.barline_right = source_measure.barline_right.clone();
+        measure.volta = source_measure.volta.clone();
+        measure.system_break = source_measure.system_break;
+        measure.page_break = source_measure.page_break;
+        measure.section_break = source_measure.section_break;
+        measure.actual_length = source_measure.actual_length;
+        measure.voices[0] = generated;
+        left.measures.push(measure);
+    }
+    let mut output = score.clone();
+    output.id = uuid::Uuid::new_v4().to_string();
+    let mut part = Part::new("Accordion", "Acc.");
+    part.midi_program = ACCORDION_PROGRAM;
+    part.staves = vec![source_staff.clone(), left];
+    output.parts = vec![part];
+    output.part_groups.clear();
+    output.views.clear();
+    for (staff_index, staff) in output.parts[0].staves.iter().enumerate() {
+        let (min_midi, max_midi) = if staff_index == 0 {
+            GUIDED_RIGHT_HAND_RANGE
+        } else {
+            GUIDED_LEFT_HAND_RANGE
+        };
+        for (measure_index, measure) in staff.measures.iter().enumerate() {
+            for note in &measure.voices[0] {
+                if note
+                    .pitches
+                    .iter()
+                    .any(|pitch| pitch.to_midi() < min_midi || pitch.to_midi() > max_midi)
+                {
+                    return guided_error(
+                        options,
+                        "out-of-range",
+                        format!("hand {staff_index} requires MIDI range {min_midi}..={max_midi}"),
+                        Some(measure_index),
+                    );
+                }
+            }
+        }
+    }
+    let output_validation = super::validate::validate(&output);
+    if !output_validation.is_valid() {
+        return guided_error(
+            options,
+            "invalid-output",
+            format!(
+                "generated score validation failed: {:?}",
+                output_validation.errors[0]
+            ),
+            None,
+        );
+    }
+    let source_notes = source_staff
+        .measures
+        .iter()
+        .enumerate()
+        .flat_map(|(measure, bar)| {
+            bar.voices[0]
+                .iter()
+                .enumerate()
+                .filter(|(_, note)| !note.is_rest)
+                .map(move |(note, _)| NoteAddr {
+                    part: 0,
+                    staff: 0,
+                    measure,
+                    voice: 0,
+                    note,
+                })
+        })
+        .collect();
+    GuidedAccordionResult {
+        score: Some(output),
+        resolved_options: options,
+        diagnostics: Vec::new(),
+        source_notes,
+        generated_notes,
+        contract_version: 1,
+    }
 }
 
 fn is_percussion_part(part: &Part) -> bool {
@@ -504,6 +953,164 @@ mod tests {
 
     fn note(step: Step, octave: i8, duration: Duration) -> Note {
         Note::new(Pitch::new(step, octave), duration)
+    }
+
+    fn guided_fixture() -> Score {
+        let mut score = Score::new("melody", 120, 4, 4, 0, 2);
+        let first = &mut score.parts[0].staves[0].measures[0];
+        first.number = 0;
+        first.actual_length = super::super::score::MeasureLength::from_beats(1.0);
+        first.voices[0] = vec![note(Step::C, 5, Duration::Quarter)];
+        let second = &mut score.parts[0].staves[0].measures[1];
+        second.voices[0] = vec![note(Step::D, 5, Duration::Whole)];
+        second.barline_right = Barline::RepeatEnd;
+        score
+    }
+
+    fn guided_options(pattern: AccordionPattern) -> GuidedAccordionOptions {
+        let chord = |root: &str| {
+            serde_json::from_value(serde_json::json!({"root": root, "kind": "major", "bass": null}))
+                .unwrap()
+        };
+        GuidedAccordionOptions {
+            pattern,
+            chords: vec![
+                PositionedAccordionChord {
+                    measure_index: 0,
+                    offset_beats: 0.0,
+                    chord: chord("C"),
+                },
+                PositionedAccordionChord {
+                    measure_index: 1,
+                    offset_beats: 0.0,
+                    chord: chord("G"),
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn guided_patterns_preserve_source_and_pickup_repeat_timing() {
+        let score = guided_fixture();
+        let before = serde_json::to_value(&score).unwrap();
+        let original_events: Vec<_> = crate::to_playback_events(&score, &Default::default())
+            .into_iter()
+            .map(|event| (event.pitch_midi, event.time_beats, event.duration_beats))
+            .collect();
+        let mut bass_patterns = Vec::new();
+        for pattern in [
+            AccordionPattern::HeldBassChord,
+            AccordionPattern::AlternatingBassChord,
+            AccordionPattern::Arpeggio,
+        ] {
+            let result = arrange_with_explicit_chords(&score, guided_options(pattern));
+            assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+            let arranged = result.score.expect("valid arrangement");
+            assert_eq!(arranged.parts.len(), 1);
+            assert_eq!(arranged.parts[0].staves.len(), 2);
+            assert_eq!(arranged.parts[0].staves[0].measures[0].number, 0);
+            assert_eq!(
+                arranged.parts[0].staves[1].measures[0].actual_length,
+                score.parts[0].staves[0].measures[0].actual_length
+            );
+            assert_eq!(
+                arranged.parts[0].staves[1].measures[1].barline_right,
+                Barline::RepeatEnd
+            );
+            assert_eq!(
+                arranged.parts[0].staves[0].measures[0].voices[0][0].id,
+                score.parts[0].staves[0].measures[0].voices[0][0].id
+            );
+            let melody_events: Vec<_> = crate::to_playback_events(&arranged, &Default::default())
+                .into_iter()
+                .filter(|event| {
+                    event
+                        .source
+                        .as_ref()
+                        .is_some_and(|address| address.staff == 0)
+                })
+                .map(|event| (event.pitch_midi, event.time_beats, event.duration_beats))
+                .collect();
+            assert_eq!(melody_events, original_events);
+            bass_patterns.push(
+                arranged.parts[0].staves[1].measures[1].voices[0]
+                    .iter()
+                    .map(|note| {
+                        (
+                            note.pitches.iter().map(Pitch::to_midi).collect::<Vec<_>>(),
+                            note.beats(),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+            );
+        }
+        assert_ne!(bass_patterns[0], bass_patterns[1]);
+        assert_ne!(bass_patterns[1], bass_patterns[2]);
+        assert_eq!(serde_json::to_value(&score).unwrap(), before);
+    }
+
+    #[test]
+    fn guided_arrangement_rejects_uncovered_unsupported_and_out_of_range_input() {
+        let score = guided_fixture();
+        let mut options = guided_options(AccordionPattern::Arpeggio);
+        options.chords.remove(0);
+        let result = arrange_with_explicit_chords(&score, options);
+        assert!(result.score.is_none());
+        assert_eq!(result.diagnostics[0].code, "missing-chords");
+
+        let mut options = guided_options(AccordionPattern::AlternatingBassChord);
+        options.chords[1].offset_beats = 0.5;
+        let result = arrange_with_explicit_chords(&score, options);
+        assert!(result.score.is_none());
+        assert_eq!(result.diagnostics[0].code, "unsupported-rhythm");
+
+        let mut high = guided_fixture();
+        high.parts[0].staves[0].measures[0].voices[0][0].pitches[0] = Pitch::new(Step::C, 9);
+        let result =
+            arrange_with_explicit_chords(&high, guided_options(AccordionPattern::HeldBassChord));
+        assert!(result.score.is_none());
+        assert_eq!(result.diagnostics[0].code, "out-of-range");
+    }
+
+    #[test]
+    fn guided_arrangement_carries_explicit_harmony_into_internal_short_bar() {
+        let mut score = Score::new("short cadence", 120, 4, 4, 0, 2);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note(Step::C, 5, Duration::Whole)];
+        let cadence = &mut score.parts[0].staves[0].measures[1];
+        cadence.actual_length = super::super::score::MeasureLength::from_beats(3.0);
+        let mut dotted = note(Step::D, 5, Duration::Half);
+        dotted.dot_count = 1;
+        cadence.voices[0] = vec![dotted];
+        let cadence_length = cadence.actual_length;
+        let mut options = guided_options(AccordionPattern::AlternatingBassChord);
+        options.chords.pop();
+        let first = arrange_with_explicit_chords(&score, options.clone());
+        let second = arrange_with_explicit_chords(&score, options);
+        assert!(first.diagnostics.is_empty(), "{:?}", first.diagnostics);
+        let arranged = first.score.unwrap();
+        assert_eq!(
+            arranged.parts[0].staves[1].measures[1].actual_length,
+            cadence_length
+        );
+        let left = |score: &Score| {
+            crate::to_playback_events(score, &Default::default())
+                .into_iter()
+                .filter(|event| {
+                    event
+                        .source
+                        .as_ref()
+                        .is_some_and(|address| address.staff == 1)
+                })
+                .map(|event| (event.pitch_midi, event.time_beats, event.duration_beats))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(left(&arranged), left(second.score.as_ref().unwrap()));
+        let mut starts = left(&arranged)
+            .iter()
+            .map(|event| event.1)
+            .collect::<Vec<_>>();
+        starts.dedup();
+        assert_eq!(starts, [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
     }
 
     #[test]

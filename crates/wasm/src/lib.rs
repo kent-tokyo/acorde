@@ -1387,6 +1387,21 @@ pub fn arrange_for_accordion(
         .map_err(|e| js_err(format!("arrange result serialization failed: {e}")))
 }
 
+/// Build a two-staff accordion arrangement from a melody and explicit positioned chords.
+/// Returns a versioned result with a score on success or structured diagnostics on failure.
+#[wasm_bindgen]
+pub fn arrange_with_explicit_chords(
+    score_json: &str,
+    options_json: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::GuidedAccordionOptions =
+        parse_json(options_json, "arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_with_explicit_chords(&score, options);
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("arrangement result serialization failed: {error}")))
+}
+
 /// Return the total duration of a score in seconds (uses score tempo and repeat structure).
 #[wasm_bindgen]
 pub fn score_duration_secs(score_json: &str) -> Result<f64, JsValue> {
@@ -3199,6 +3214,43 @@ mod tests {
                 .unwrap()
                 .contains("candidates")
         );
+    }
+
+    #[test]
+    fn guided_accordion_json_matches_native_event_timing() {
+        let mut score = acorde_core::Score::new("guided", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(
+            acorde_core::Pitch::from_midi(72, false),
+            acorde_core::Duration::Whole,
+        )];
+        let options: acorde_core::GuidedAccordionOptions = serde_json::from_value(serde_json::json!({
+            "pattern": "alternating-bass-chord",
+            "chords": [{
+                "measure_index": 0,
+                "offset_beats": 0.0,
+                "chord": {"root": "C", "kind": "major", "bass": null}
+            }]
+        }))
+        .unwrap();
+        let native = acorde_core::arrange_with_explicit_chords(&score, options.clone());
+        let web: acorde_core::GuidedAccordionResult = serde_json::from_str(
+            &arrange_with_explicit_chords(
+                &serde_json::to_string(&score).unwrap(),
+                &serde_json::to_string(&options).unwrap(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(web.contract_version, native.contract_version);
+        assert_eq!(web.diagnostics, native.diagnostics);
+        let events = |score: &acorde_core::Score| {
+            acorde_core::to_playback_events(score, &Default::default())
+                .into_iter()
+                .map(|event| (event.pitch_midi, event.time_beats, event.duration_beats))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(events(web.score.as_ref().unwrap()), events(native.score.as_ref().unwrap()));
+        assert_eq!(web.generated_notes, native.generated_notes);
     }
 
     #[test]
