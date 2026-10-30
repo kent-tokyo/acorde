@@ -5033,6 +5033,7 @@ fn render_all_spans(
                     left_margin_u * space,
                     y,
                     up1,
+                    slur_above,
                     width - right_margin_u * space,
                     space,
                     false,
