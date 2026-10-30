@@ -4,8 +4,8 @@ use acorde_core::{
     FiguredBassFigure, GuitarTechnique, HairpinKind, HarpPedalDiagram, HarpPedalPosition,
     KeySignature, Lyric, Measure, MeasureLength, NotationSpanner, NotationSpannerKind, Note,
     NoteAddr, NoteHead, OttavaKind, Part, PartGroup, PartGroupSymbol, PercussionInstrument, Pitch,
-    Score, Staff, StaffKind, Step, StyledText, TextStyle, TimeSignature, TupletInfo, VerseLyric,
-    VoltaBracket,
+    Score, Staff, StaffKind, Step, StyledText, TextStyle, TimeSignature, TupletBoundary,
+    TupletInfo, VerseLyric, VoltaBracket,
 };
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
@@ -179,6 +179,18 @@ pub fn parse_musicxml(xml: &str) -> Result<Score, Error> {
     parse_musicxml_collecting(xml, &mut Vec::new())
 }
 
+fn add_tuplet_boundary(boundary: &mut Option<TupletBoundary>, kind: Option<&str>) {
+    *boundary = match (kind, *boundary) {
+        (Some("start"), Some(TupletBoundary::Stop | TupletBoundary::StartStop))
+        | (Some("stop"), Some(TupletBoundary::Start | TupletBoundary::StartStop)) => {
+            Some(TupletBoundary::StartStop)
+        }
+        (Some("start"), _) => Some(TupletBoundary::Start),
+        (Some("stop"), _) => Some(TupletBoundary::Stop),
+        _ => *boundary,
+    };
+}
+
 /// Parse MusicXML, recording recoverable source problems (orphan spanner stops, overfull
 /// measures, backups past the measure start, chord members on another staff) in `tolerated`
 /// instead of failing.
@@ -267,6 +279,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut note_hidden = false;
     let mut note_tuplet_actual: Option<u8> = None;
     let mut note_tuplet_normal: Option<u8> = None;
+    let mut note_tuplet_boundary: Option<TupletBoundary> = None;
     let mut in_time_modification = false;
     let mut note_trill_line_start = false;
     let mut note_trill_line_end = false;
@@ -658,6 +671,10 @@ pub(crate) fn parse_musicxml_collecting(
                         _ => measure_repeat_start_pending = true,
                     },
                     "notations" if in_note => in_notations = true,
+                    "tuplet" if in_notations => add_tuplet_boundary(
+                        &mut note_tuplet_boundary,
+                        attr_str(e, b"type").as_deref(),
+                    ),
                     "articulations" if in_notations => in_artic_block = true,
                     "ornaments" if in_notations => in_ornament_block = true,
                     "technical" if in_notations => in_technical_block = true,
@@ -751,6 +768,7 @@ pub(crate) fn parse_musicxml_collecting(
                         note_is_cue = false;
                         note_tuplet_actual = None;
                         note_tuplet_normal = None;
+                        note_tuplet_boundary = None;
                         in_time_modification = false;
                         note_trill_line_start = false;
                         note_trill_line_end = false;
@@ -904,6 +922,10 @@ pub(crate) fn parse_musicxml_collecting(
                     "instrument" if in_note => note_instrument_id = attr_str(e, b"id"),
                     "dot" if in_note => note_dots = note_dots.saturating_add(1).min(4),
                     "chord" if in_note => note_chord = true,
+                    "tuplet" if in_notations => add_tuplet_boundary(
+                        &mut note_tuplet_boundary,
+                        attr_str(e, b"type").as_deref(),
+                    ),
                     "slur" if in_note => match attr_str(e, b"type").as_deref() {
                         Some("start") => {
                             note_slur_start = true;
@@ -2639,6 +2661,7 @@ pub(crate) fn parse_musicxml_collecting(
                                             actual_notes,
                                             normal_notes,
                                         });
+                                        note.tuplet_boundary = note_tuplet_boundary;
                                     }
                                     if !note.is_grace
                                         && let Some(kind) =

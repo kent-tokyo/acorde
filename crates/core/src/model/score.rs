@@ -3,8 +3,8 @@ use super::{
     notation::{
         AccidentalDisplay, Articulation, Barline, BeamState, ChordDefinition, ChordSymbol, Clef,
         CrossStaff, Dynamic, FiguredBassFigure, GuitarTechnique, HairpinKind, KeySignature, Lyric,
-        NoteHead, OttavaKind, StyledText, TabPosition, TablatureConfig, TimeSignature, TupletInfo,
-        VerseLyric,
+        NoteHead, OttavaKind, StyledText, TabPosition, TablatureConfig, TimeSignature,
+        TupletBoundary, TupletInfo, VerseLyric,
     },
     pitch::Pitch,
 };
@@ -2373,6 +2373,9 @@ pub struct Note {
     pub hairpin_end: bool,
     #[serde(default)]
     pub tuplet: Option<TupletInfo>,
+    /// Start/stop of an authored tuplet group, independent of the rhythmic ratio.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tuplet_boundary: Option<TupletBoundary>,
     #[serde(default)]
     pub chord_symbol: Option<ChordSymbol>,
     #[serde(default)]
@@ -2504,6 +2507,7 @@ impl Note {
             hairpin_start: None,
             hairpin_end: false,
             tuplet: None,
+            tuplet_boundary: None,
             chord_symbol: None,
             is_grace: false,
             grace_slash: false,
@@ -2563,6 +2567,7 @@ impl Note {
             hairpin_start: None,
             hairpin_end: false,
             tuplet: None,
+            tuplet_boundary: None,
             chord_symbol: None,
             is_grace: false,
             grace_slash: false,
@@ -2809,6 +2814,59 @@ impl Duration {
             Duration::HundredTwentyEighth
         }
     }
+}
+
+/// Written tuplet ranges (inclusive note indices), using explicit boundaries when present.
+/// Legacy scores without boundaries are split at complete written note-value groups.
+pub fn tuplet_group_ranges(voice: &[Note]) -> Vec<(usize, usize)> {
+    let mut groups = Vec::new();
+    let mut open: Option<(usize, TupletInfo, u64, bool)> = None;
+    let mut previous_timed = 0;
+    for (index, note) in voice.iter().enumerate() {
+        if note.is_grace {
+            continue;
+        }
+        let has_start = matches!(
+            note.tuplet_boundary,
+            Some(TupletBoundary::Start | TupletBoundary::StartStop)
+        );
+        let has_stop = matches!(
+            note.tuplet_boundary,
+            Some(TupletBoundary::Stop | TupletBoundary::StartStop)
+        );
+        let must_close = open
+            .as_ref()
+            .is_some_and(|(_, ratio, _, _)| note.tuplet.as_ref() != Some(ratio) || has_start);
+        if must_close && let Some((start, _, _, _)) = open.take() {
+            groups.push((start, previous_timed));
+        }
+        if let Some(ratio) = &note.tuplet {
+            let (numerator, denominator) = note.duration.as_fraction();
+            let base = 4096 * u64::from(numerator) / u64::from(denominator.max(1));
+            let dots = u32::from(note.dot_count.min(4));
+            let written = base * ((1u64 << (dots + 1)) - 1) / (1u64 << dots);
+            let (_, current_ratio, total_written, explicit) =
+                open.get_or_insert_with(|| (index, ratio.clone(), 0, has_start));
+            *total_written += written;
+            let count = u64::from(current_ratio.actual_notes.max(1));
+            let unit = *total_written / count;
+            let legacy_complete = !*explicit
+                && *total_written % count == 0
+                && unit > 0
+                && unit.is_power_of_two()
+                && unit <= 4096;
+            if (has_stop || legacy_complete)
+                && let Some((start, _, _, _)) = open.take()
+            {
+                groups.push((start, index));
+            }
+        }
+        previous_timed = index;
+    }
+    if let Some((start, _, _, _)) = open {
+        groups.push((start, previous_timed));
+    }
+    groups
 }
 
 // ── NoteAddr ──────────────────────────────────────────────────────────────────

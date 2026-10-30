@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 
 use super::duration::Duration;
 use super::gm::instrument_range;
-use super::notation::{Barline, ChordSymbol, Clef, TupletInfo};
+use super::notation::{Barline, ChordSymbol, Clef, TupletBoundary, TupletInfo};
 use super::pitch::Pitch;
 use super::score::{Measure, Note, NoteAddr, Part, Score, Staff};
 use crate::Error;
@@ -290,8 +290,10 @@ fn guided_region(
             for _ in 0..ticks / 64 {
                 let mut bass = guided_note(&[chord.bass_midi], Duration::Quarter);
                 bass.tuplet = triplet.clone();
+                bass.tuplet_boundary = Some(TupletBoundary::Start);
                 let mut chord_note = guided_note(&chord.chord_midi, Duration::Eighth);
                 chord_note.tuplet = triplet.clone();
+                chord_note.tuplet_boundary = Some(TupletBoundary::Stop);
                 notes.push(bass);
                 notes.push(chord_note);
             }
@@ -870,6 +872,7 @@ pub fn arrange_with_layers(
                 };
                 added.dot_count = source_note.dot_count;
                 added.tuplet = source_note.tuplet.clone();
+                added.tuplet_boundary = source_note.tuplet_boundary;
                 added.beam = source_note.beam;
                 added.articulations = source_note.articulations.clone();
                 added.dynamic = source_note.dynamic;
@@ -2123,6 +2126,10 @@ mod tests {
         let arranged = result.score.unwrap();
         let notes = &arranged.parts[0].staves[1].measures[1].voices[0];
         assert_eq!(notes.len(), 8);
+        assert_eq!(
+            crate::tuplet_group_ranges(notes),
+            [(0, 1), (2, 3), (4, 5), (6, 7)]
+        );
         for pair in notes.chunks(2) {
             assert_eq!(pair.len(), 2);
             assert!((pair[0].beats() / pair[1].beats() - 2.0).abs() < 1e-9);

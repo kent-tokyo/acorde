@@ -2,9 +2,7 @@ use crate::{
     AccidentalMark, BeamGroup, ConcertKeyOverride, CourtesyAccidental, LayoutConfig, LayoutResult,
     RowLayout, SourceVoiceAddress, SpanMark, TupletGroup,
 };
-use acorde_core::{
-    AccidentalDisplay, BeamState, HairpinKind, NoteAddr, OttavaKind, Score, Step, TupletInfo,
-};
+use acorde_core::{AccidentalDisplay, BeamState, HairpinKind, NoteAddr, OttavaKind, Score, Step};
 use std::collections::HashMap;
 
 /// Shift `fifths` (circle-of-fifths key index) by `semitones` semitones.
@@ -374,49 +372,26 @@ fn collect_tuplet_groups(score: &Score) -> Vec<TupletGroup> {
             for (mi, measure) in staff.measures.iter().enumerate() {
                 for vi in 0..4usize {
                     let voice = &measure.voices[vi];
-                    let mut current_indices: Vec<usize> = Vec::new();
-                    let mut current_info: Option<TupletInfo> = None;
-
-                    let flush = |indices: &mut Vec<usize>,
-                                 info: &mut Option<TupletInfo>,
-                                 groups: &mut Vec<TupletGroup>| {
-                        if indices.len() >= 2
-                            && let Some(ti) = info.take()
+                    for (first, last) in acorde_core::tuplet_group_ranges(voice) {
+                        let note_indices: Vec<_> = (first..=last)
+                            .filter(|&index| {
+                                !voice[index].is_grace && voice[index].tuplet.is_some()
+                            })
+                            .collect();
+                        if note_indices.len() >= 2
+                            && let Some(ti) = voice[first].tuplet.as_ref()
                         {
                             groups.push(TupletGroup {
                                 part: pi,
                                 staff: si,
                                 measure: mi,
                                 voice: vi,
-                                note_indices: std::mem::take(indices),
+                                note_indices,
                                 actual_notes: ti.actual_notes,
                                 normal_notes: ti.normal_notes,
                             });
-                            return;
-                        }
-                        indices.clear();
-                        info.take();
-                    };
-
-                    for (ni, note) in voice.iter().enumerate() {
-                        match &note.tuplet {
-                            Some(ti) => {
-                                let same_group = current_info.as_ref().is_some_and(|prev| {
-                                    prev.actual_notes == ti.actual_notes
-                                        && prev.normal_notes == ti.normal_notes
-                                });
-                                if !same_group {
-                                    flush(&mut current_indices, &mut current_info, &mut groups);
-                                    current_info = Some(ti.clone());
-                                }
-                                current_indices.push(ni);
-                            }
-                            None => {
-                                flush(&mut current_indices, &mut current_info, &mut groups);
-                            }
                         }
                     }
-                    flush(&mut current_indices, &mut current_info, &mut groups);
                 }
             }
         }

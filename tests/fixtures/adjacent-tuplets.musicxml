@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Tuplets</part-name></score-part></part-list>
+  <part id="P1"><measure number="1">
+    <attributes><divisions>480</divisions><time><beats>2</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>
+    <note><pitch><step>C</step><octave>4</octave></pitch><duration>160</duration><type>eighth</type><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification><notations><tuplet number="1" type="start"/></notations></note>
+    <note><pitch><step>D</step><octave>4</octave></pitch><duration>160</duration><type>eighth</type><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification></note>
+    <note><pitch><step>E</step><octave>4</octave></pitch><duration>160</duration><type>eighth</type><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification><notations><tuplet number="1" type="stop"/></notations></note>
+    <note><pitch><step>F</step><octave>4</octave></pitch><duration>320</duration><type>quarter</type><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification><notations><tuplet number="1" type="start"/></notations></note>
+    <note><pitch><step>G</step><octave>4</octave></pitch><duration>160</duration><type>eighth</type><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification><notations><tuplet number="1" type="stop"/></notations></note>
+  </measure></part>
+</score-partwise>

@@ -15,7 +15,8 @@ use crate::{Diagnostic, DiagnosticSeverity, Error, MAX_ABC_LINE_BYTES, MAX_INPUT
 /// Reference: <https://abcnotation.com/wiki/abc:standard:v2.1>
 use acorde_core::{
     Barline, BeamState, ChordSymbol, Clef, Duration, Dynamic, HairpinKind, KeySignature, Measure,
-    Note, Part, Pitch, Score, Staff, Step, StyledText, TextStyle, TimeSignature, TupletInfo,
+    Note, Part, Pitch, Score, Staff, Step, StyledText, TextStyle, TimeSignature, TupletBoundary,
+    TupletInfo,
 };
 use std::collections::BTreeMap;
 
@@ -601,7 +602,7 @@ struct AbcPendingNoteState<'a> {
     pending_tie_end: &'a mut bool,
     pending_slur_start: &'a mut bool,
     pending_articulations: &'a mut Vec<acorde_core::Articulation>,
-    pending_tuplet: &'a mut Option<(TupletInfo, usize)>,
+    pending_tuplet: &'a mut PendingAbcTuplet,
     key_signature: &'a KeySignature,
     accidentals: &'a mut AbcAccidentalScope,
 }
@@ -708,7 +709,7 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
     let chars: Vec<char> = line.chars().collect();
     let mut i = 0;
     let mut pending_articulations = Vec::new();
-    let mut pending_tuplet: Option<(TupletInfo, usize)> = None;
+    let mut pending_tuplet: PendingAbcTuplet = None;
     // Marks written before a note (chord symbols, dynamics, hairpin starts and ends) attach to
     // the next note or rest the line appends.
     let mut marks = AbcPendingMarks::default();
@@ -813,7 +814,7 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
         if ch == '('
             && let Some((tuplet, count, next_index)) = parse_abc_tuplet(&chars, i)
         {
-            pending_tuplet = Some((tuplet, count));
+            pending_tuplet = Some((tuplet, count, count));
             i = next_index;
             continue;
         }
@@ -1194,7 +1195,7 @@ fn append_abc_chord_note(
     pending_tie_end: &mut bool,
     pending_slur_start: &mut bool,
     pending_articulations: &mut Vec<acorde_core::Articulation>,
-    pending_tuplet: &mut Option<(TupletInfo, usize)>,
+    pending_tuplet: &mut PendingAbcTuplet,
     key_signature: &KeySignature,
     accidentals: &mut AbcAccidentalScope,
 ) -> Result<bool, Error> {
@@ -1229,7 +1230,7 @@ fn append_abc_chord_note(
         pending_slur_start,
     );
     note.articulations.append(pending_articulations);
-    note.tuplet = take_abc_tuplet(pending_tuplet);
+    apply_abc_tuplet(&mut note, pending_tuplet);
     for pitch in chord.iter().skip(1) {
         note.pitches
             .push(resolve_abc_pitch(pitch, key_signature, accidentals));
@@ -1247,7 +1248,7 @@ fn append_abc_rest_note(
     timing: AbcRestTiming,
     note_count: &mut usize,
     pending_articulations: &mut Vec<acorde_core::Articulation>,
-    pending_tuplet: &mut Option<(TupletInfo, usize)>,
+    pending_tuplet: &mut PendingAbcTuplet,
 ) -> Result<bool, Error> {
     let Some(&kind) = chars.get(*cursor) else {
         return Ok(false);
@@ -1276,7 +1277,7 @@ fn append_abc_rest_note(
         abc_dot_count(timing.unit_den, numerator, denominator)
     };
     rest.articulations.append(pending_articulations);
-    rest.tuplet = take_abc_tuplet(pending_tuplet);
+    apply_abc_tuplet(&mut rest, pending_tuplet);
     if let Some(measure) = staff.measures.last_mut() {
         measure.voices[0].push(rest);
     }
@@ -1371,7 +1372,7 @@ fn append_abc_pitched_note(
         state.pending_slur_start,
     );
     note.articulations.append(state.pending_articulations);
-    note.tuplet = take_abc_tuplet(state.pending_tuplet);
+    apply_abc_tuplet(&mut note, state.pending_tuplet);
     if let Some(measure) = staff.measures.last_mut() {
         measure.voices[0].push(note);
     }
@@ -1613,15 +1614,24 @@ fn parse_abc_tuplet(chars: &[char], index: usize) -> Option<(TupletInfo, usize, 
     ))
 }
 
-fn take_abc_tuplet(pending: &mut Option<(TupletInfo, usize)>) -> Option<TupletInfo> {
-    let (tuplet, remaining) = pending.as_mut()?;
-    let result = tuplet.clone();
+type PendingAbcTuplet = Option<(TupletInfo, usize, usize)>;
+
+fn apply_abc_tuplet(note: &mut Note, pending: &mut PendingAbcTuplet) {
+    let Some((tuplet, remaining, written_count)) = pending.as_mut() else {
+        return;
+    };
+    note.tuplet = Some(tuplet.clone());
+    note.tuplet_boundary = match (*remaining == *written_count, *remaining == 1) {
+        (true, true) => Some(TupletBoundary::StartStop),
+        (true, false) => Some(TupletBoundary::Start),
+        (false, true) => Some(TupletBoundary::Stop),
+        (false, false) => None,
+    };
     if *remaining <= 1 {
         *pending = None;
     } else {
         *remaining -= 1;
     }
-    Some(result)
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -2327,20 +2337,22 @@ fn write_abc_staff(
 
 /// A voice's notes in ABC, tuplets bracketed, each with the marks written before it.
 fn write_abc_notes(out: &mut String, notes: &[Note], open_hairpin: &mut Option<HairpinKind>) {
+    let groups = acorde_core::tuplet_group_ranges(notes);
     let mut note_index = 0;
     while note_index < notes.len() {
-        let emit_len = if let Some(tuplet) = &notes[note_index].tuplet {
-            let mut group_len = 0usize;
-            while note_index + group_len < notes.len()
-                && notes[note_index + group_len].tuplet.as_ref() == Some(tuplet)
-                && group_len < usize::from(tuplet.actual_notes)
-            {
-                group_len += 1;
-            }
-            if group_len == usize::from(tuplet.actual_notes) {
+        let emit_len = if let Some((_, last)) =
+            groups.iter().find(|(first, _)| *first == note_index)
+            && let Some(tuplet) = &notes[note_index].tuplet
+        {
+            let group_len = *last - note_index + 1;
+            let written_count = notes[note_index..=*last]
+                .iter()
+                .filter(|note| !note.is_grace)
+                .count();
+            if abc_tuplet_group_is_complete(notes, note_index, *last, tuplet) {
                 out.push_str(&format!(
                     "({}:{}:{}",
-                    tuplet.actual_notes, tuplet.normal_notes, group_len
+                    tuplet.actual_notes, tuplet.normal_notes, written_count
                 ));
                 group_len
             } else {
@@ -2355,6 +2367,40 @@ fn write_abc_notes(out: &mut String, notes: &[Note], open_hairpin: &mut Option<H
         }
         note_index += emit_len;
     }
+}
+
+fn abc_tuplet_group_is_complete(
+    notes: &[Note],
+    first: usize,
+    last: usize,
+    tuplet: &TupletInfo,
+) -> bool {
+    let group = &notes[first..=last];
+    if group.iter().filter(|note| !note.is_grace).count() < 2 || tuplet.actual_notes == 0 {
+        return false;
+    }
+    if group.iter().any(|note| note.tuplet_boundary.is_some()) {
+        return matches!(
+            notes[first].tuplet_boundary,
+            Some(TupletBoundary::Start | TupletBoundary::StartStop)
+        ) && matches!(
+            notes[last].tuplet_boundary,
+            Some(TupletBoundary::Stop | TupletBoundary::StartStop)
+        );
+    }
+    let written: u64 = group
+        .iter()
+        .filter(|note| !note.is_grace)
+        .map(|note| {
+            let (numerator, denominator) = note.duration.as_fraction();
+            let base = 4096 * u64::from(numerator) / u64::from(denominator.max(1));
+            let dots = u32::from(note.dot_count.min(4));
+            base * ((1u64 << (dots + 1)) - 1) / (1u64 << dots)
+        })
+        .sum();
+    let count = u64::from(tuplet.actual_notes);
+    let unit = written / count;
+    written.is_multiple_of(count) && unit > 0 && unit.is_power_of_two() && unit <= 4096
 }
 
 /// Marks ABC writes before a note: its chord symbol, a hairpin ending on it, its dynamic, and
@@ -2418,26 +2464,22 @@ fn abc_barline_is_exact(barline: &Barline) -> bool {
     )
 }
 
-fn abc_tuplet_run_len(notes: &[Note], start: usize, tuplet: &TupletInfo) -> usize {
-    notes[start..]
-        .iter()
-        .take_while(|note| note.tuplet.as_ref() == Some(tuplet))
-        .count()
-}
-
 fn abc_note_export_losses(
     notes: &[Note],
     note_index: usize,
     note_path: &str,
+    tuplet_groups: &[(usize, usize)],
 ) -> Vec<(String, String, &'static str)> {
     let note = &notes[note_index];
     let mut losses = Vec::new();
-    let starts_tuplet_group =
-        note_index == 0 || notes[note_index - 1].tuplet.as_ref() != note.tuplet.as_ref();
-    if starts_tuplet_group && let Some(tuplet) = note.tuplet.as_ref() {
-        let group_len = abc_tuplet_run_len(notes, note_index, tuplet);
-        let actual_notes = usize::from(tuplet.actual_notes);
-        if actual_notes == 0 || group_len < actual_notes {
+    if let Some((_, last)) = tuplet_groups.iter().find(|(first, _)| *first == note_index)
+        && let Some(tuplet) = note.tuplet.as_ref()
+    {
+        let group_len = notes[note_index..=*last]
+            .iter()
+            .filter(|note| !note.is_grace)
+            .count();
+        if !abc_tuplet_group_is_complete(notes, note_index, *last, tuplet) {
             losses.push((
                 format!("{note_path}/tuplet"),
                 format!(
@@ -2691,6 +2733,7 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                     );
                     continue;
                 };
+                let tuplet_groups = acorde_core::tuplet_group_ranges(first_voice);
                 for (note_index, _note) in first_voice.iter().enumerate() {
                     let note_path = format!(
                         "/score/part/{}/staff/{}/measure/{}/voice/1/note/{}",
@@ -2700,7 +2743,7 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                         note_index + 1
                     );
                     for (path, value, reason) in
-                        abc_note_export_losses(first_voice, note_index, &note_path)
+                        abc_note_export_losses(first_voice, note_index, &note_path, &tuplet_groups)
                     {
                         push(path, value, reason);
                     }

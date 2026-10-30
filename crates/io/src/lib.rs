@@ -282,59 +282,11 @@ pub(crate) fn assign_note_verses(
     }
 }
 
-#[allow(dead_code)]
-/// Written duration in 1/4096 of a whole note, including dots.
-fn written_ticks(note: &acorde_core::Note) -> u64 {
-    let (numerator, denominator) = note.duration.as_fraction();
-    let base = 4096 * u64::from(numerator) / u64::from(denominator.max(1));
-    let dots = u32::from(note.dot_count.min(4));
-    base * ((1u64 << (dots + 1)) - 1) / (1u64 << dots)
-}
-
-/// Shared by the MEI `<tuplet>` and MusicXML `<tuplet>` notation writers.
-///
-/// Group consecutive notes sharing a tuplet ratio into `<tuplet>` ranges (inclusive indices).
-/// A group closes once its written length equals `num` notes of one plain note value, so a
-/// triplet of eighths or a quarter+eighth triplet each form one bracket. Timing never depends on
-/// the grouping: every member keeps its own ratio.
+/// Group notes into `<tuplet>` ranges shared by the MEI and MusicXML writers.
+/// Explicit boundaries take precedence over inferred written-duration groups.
 #[allow(dead_code)]
 pub(crate) fn tuplet_groups(voice: &[acorde_core::Note]) -> Vec<(usize, usize)> {
-    let mut groups = Vec::new();
-    let mut open: Option<(usize, acorde_core::TupletInfo, u64)> = None;
-    // The last timed note: a group left open ends there, not on a grace note after it.
-    let mut last_timed = 0;
-    for (index, note) in voice.iter().enumerate() {
-        // Grace notes take no time: they neither fill nor break a tuplet around them.
-        if note.is_grace {
-            continue;
-        }
-        let previous_timed = std::mem::replace(&mut last_timed, index);
-        match (&mut open, &note.tuplet) {
-            (Some((_, current, written)), Some(tuplet)) if current == tuplet => {
-                *written += written_ticks(note);
-            }
-            (_, tuplet) => {
-                if let Some((start, _, _)) = open.take() {
-                    groups.push((start, previous_timed));
-                }
-                open = tuplet
-                    .clone()
-                    .map(|tuplet| (index, tuplet, written_ticks(note)));
-            }
-        }
-        if let Some((start, tuplet, written)) = &open {
-            let count = u64::from(tuplet.actual_notes.max(1));
-            let unit = *written / count;
-            if *written % count == 0 && unit > 0 && unit.is_power_of_two() && unit <= 4096 {
-                groups.push((*start, index));
-                open = None;
-            }
-        }
-    }
-    if let Some((start, _, _)) = open {
-        groups.push((start, last_timed));
-    }
-    groups
+    acorde_core::tuplet_group_ranges(voice)
 }
 
 /// Export-loss diagnostics for lyric verses 2 and later, for formats whose exporter only writes
