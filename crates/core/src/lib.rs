@@ -13,6 +13,12 @@ pub use model::arrange::{
     PositionedAccordionChord, analyze_for_accordion, arrange_for_accordion,
     arrange_for_accordion_with_options, arrange_with_explicit_chords, arrange_with_layers,
 };
+pub use model::arrange_presets::{
+    AccordionPresetCapabilities, AccordionPresetConfig, AccordionPresetDescription,
+    AccordionPresetResult, AccordionPresetSelection, AccordionShuffleOptions,
+    accordion_preset_capabilities, arrange_accordion_preset, arrange_from_resolved_preset,
+    shuffle_accordion_preset,
+};
 pub use model::change_hint::{ChangeHint, ChangeScope};
 pub use model::commands::{
     AddHairpinCmd, AddMeasureCmd, AddNoteCmd, AddPartCmd, AddPedalCmd, AddPitchCmd, AddSpannerCmd,

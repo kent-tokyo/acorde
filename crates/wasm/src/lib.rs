@@ -1428,6 +1428,55 @@ pub fn arrange_with_layers(score_json: &str, options_json: &str) -> Result<Strin
         .map_err(|error| js_err(format!("layered arrangement serialization failed: {error}")))
 }
 
+/// Describe stable accordion preset IDs, constraints and contract version.
+#[wasm_bindgen]
+pub fn accordion_preset_capabilities() -> Result<String, JsValue> {
+    serde_json::to_string(&acorde_core::accordion_preset_capabilities())
+        .map_err(|error| js_err(format!("preset capabilities serialization failed: {error}")))
+}
+
+/// Arrange a score from a chosen preset ID and explicit chord selection.
+#[wasm_bindgen]
+pub fn arrange_accordion_preset(
+    score_json: &str,
+    selection_json: &str,
+    preset_id: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let selection: acorde_core::AccordionPresetSelection =
+        parse_json(selection_json, "preset selection", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_accordion_preset(
+        &score, selection, preset_id,
+    ))
+    .map_err(|error| js_err(format!("preset result serialization failed: {error}")))
+}
+
+/// Recreate a score from a resolved configuration, without sampling.
+#[wasm_bindgen]
+pub fn arrange_from_resolved_preset(
+    score_json: &str,
+    config_json: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let config: acorde_core::AccordionPresetConfig =
+        parse_json(config_json, "resolved preset", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_from_resolved_preset(&score, config))
+        .map_err(|error| js_err(format!("preset result serialization failed: {error}")))
+}
+
+/// Choose and arrange an eligible preset with a 64-bit decimal seed.
+#[wasm_bindgen]
+pub fn shuffle_accordion_preset(
+    score_json: &str,
+    request_json: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::AccordionShuffleOptions =
+        parse_json(request_json, "shuffle request", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::shuffle_accordion_preset(&score, request))
+        .map_err(|error| js_err(format!("shuffle result serialization failed: {error}")))
+}
+
 /// Return the total duration of a score in seconds (uses score tempo and repeat structure).
 #[wasm_bindgen]
 pub fn score_duration_secs(score_json: &str) -> Result<f64, JsValue> {
@@ -3325,6 +3374,53 @@ mod tests {
     }
 
     #[test]
+    fn preset_json_matches_native_seeded_selection_and_replay() {
+        let mut score = acorde_core::Score::new("preset", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(
+            acorde_core::Pitch::from_midi(67, false),
+            acorde_core::Duration::Whole,
+        )];
+        let score_json = serde_json::to_string(&score).unwrap();
+        let request: acorde_core::AccordionShuffleOptions = serde_json::from_value(serde_json::json!({
+            "selection": {
+                "chords": [{"measure_index":0,"offset_beats":0.0,"chord":{"root":"C","kind":"major-seventh","bass":null}}],
+                "alternative_chords": null,
+                "inversion": null,
+                "bass_mode": "free-bass"
+            },
+            "allowed_preset_ids": ["swing-third", "walking-third"],
+            "seed": "18446744073709551615",
+            "previous_config": null
+        })).unwrap();
+        let native = acorde_core::shuffle_accordion_preset(&score, request.clone());
+        let web: acorde_core::AccordionPresetResult = serde_json::from_str(
+            &shuffle_accordion_preset(&score_json, &serde_json::to_string(&request).unwrap())
+                .unwrap(),
+        )
+        .unwrap();
+        assert!(web.diagnostics.is_empty(), "{:?}", web.diagnostics);
+        assert_eq!(web.resolved_config, native.resolved_config);
+        assert_eq!(web.source_notes, native.source_notes);
+        assert_eq!(web.generated_notes, native.generated_notes);
+        let config_json = serde_json::to_string(web.resolved_config.as_ref().unwrap()).unwrap();
+        let replay: acorde_core::AccordionPresetResult = serde_json::from_str(
+            &arrange_from_resolved_preset(&score_json, &config_json).unwrap(),
+        )
+        .unwrap();
+        let signature = |score: &acorde_core::Score| {
+            acorde_core::to_playback_events(score, &Default::default())
+                .into_iter()
+                .map(|event| (event.pitch_midi, event.time_beats, event.duration_beats))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(signature(web.score.as_ref().unwrap()), signature(native.score.as_ref().unwrap()));
+        assert_eq!(signature(web.score.as_ref().unwrap()), signature(replay.score.as_ref().unwrap()));
+        let capabilities: acorde_core::AccordionPresetCapabilities =
+            serde_json::from_str(&accordion_preset_capabilities().unwrap()).unwrap();
+        assert_eq!(capabilities.contract_version, web.contract_version);
+    }
+
+    #[test]
     fn accordion_reduction_json_matches_native_provenance() {
         let mut score = acorde_core::Score::new("reduction", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(
@@ -3514,6 +3610,54 @@ mod wasm_tests {
             .expect("restored score parses");
         assert_eq!(restored.parts[0].staves[0].measures[0].voices[0][0].pitches,
             source.parts[0].staves[0].measures[0].voices[0][0].pitches);
+    }
+
+    #[wasm_bindgen_test]
+    fn preset_choose_shuffle_replay_and_render_in_viewer() {
+        let mut source = Score::new("presets browser", 120, 4, 4, 0, 1);
+        source.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(
+            acorde_core::Pitch::from_midi(67, false),
+            acorde_core::Duration::Whole,
+        )];
+        let input = score_to_json(&source).expect("source serializes");
+        let selection = r#"{"chords":[{"measure_index":0,"offset_beats":0.0,"chord":{"root":"C","kind":"major-seventh","bass":null}}],"alternative_chords":null,"inversion":null,"bass_mode":"free-bass"}"#;
+        let capabilities: serde_json::Value = serde_json::from_str(
+            &accordion_preset_capabilities().expect("capabilities serialize"),
+        )
+        .expect("capabilities parse");
+        assert_eq!(capabilities["contract_version"], 1);
+        for preset_id in ["swing-third", "walking-bass", "walking-third"] {
+            let result: acorde_core::AccordionPresetResult = serde_json::from_str(
+                &arrange_accordion_preset(&input, selection, preset_id).expect("preset arranges"),
+            )
+            .expect("result parses");
+            assert!(result.diagnostics.is_empty(), "{preset_id}: {:?}", result.diagnostics);
+            let arranged = score_to_json(result.score.as_ref().expect("score returned"))
+                .expect("arranged score serializes");
+            assert!(render_score_svg(&arranged, "{}").expect("SVG renders").contains("<svg"));
+            let events: Vec<acorde_core::PlaybackEvent> = serde_json::from_str(
+                &to_playback_events_ex(&arranged, "{}").expect("playback computes"),
+            )
+            .expect("events parse");
+            assert!(events.iter().any(|event| event.pitch_midi == 67));
+            if preset_id == "swing-third" {
+                assert!(result.notated_swing);
+                assert!(events.iter().any(|event| event.pitch_midi == 64));
+            }
+        }
+        let request = format!(r#"{{"selection":{selection},"allowed_preset_ids":["swing-third","walking-third"],"seed":"42","previous_config":null}}"#);
+        let shuffled: acorde_core::AccordionPresetResult = serde_json::from_str(
+            &shuffle_accordion_preset(&input, &request).expect("shuffle arranges"),
+        )
+        .expect("shuffle parses");
+        let config = serde_json::to_string(shuffled.resolved_config.as_ref().unwrap()).unwrap();
+        let replay: acorde_core::AccordionPresetResult = serde_json::from_str(
+            &arrange_from_resolved_preset(&input, &config).expect("replay arranges"),
+        )
+        .expect("replay parses");
+        assert_eq!(shuffled.resolved_config, replay.resolved_config);
+        let arranged = score_to_json(replay.score.as_ref().unwrap()).unwrap();
+        assert!(!serialize_mscz(&arranged).expect("MSCZ exports").is_empty());
     }
 
     #[cfg(feature = "musicxml")]
