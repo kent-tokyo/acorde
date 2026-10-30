@@ -345,6 +345,10 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut chord_staff_move: i64 = 0;
     // Element depth, to tell a Rest's or Note's own `<visible>` from a child element's.
     let mut element_depth = 0usize;
+    // MSCX can contain one main Score followed by nested excerpt Scores. Their
+    // Part and Staff ids reuse the main score's ids and must not enter its model.
+    let mut main_score_seen = false;
+    let mut ignored_score_depth = None;
     let mut rest_depth = 0usize;
     let mut note_depth = 0usize;
     let mut rest_hidden = false;
@@ -489,6 +493,16 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                 let name = local_name_str(e.local_name().as_ref());
                 text.clear();
                 element_depth += 1;
+                if name == "Score" && ignored_score_depth.is_none() {
+                    if main_score_seen {
+                        ignored_score_depth = Some(element_depth);
+                    } else {
+                        main_score_seen = true;
+                    }
+                }
+                if ignored_score_depth.is_some() {
+                    continue;
+                }
 
                 match name.as_str() {
                     "metaTag" if !in_part && current_staff_id.is_none() => {
@@ -916,6 +930,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                 let t = t.trim();
                 let closing_depth = element_depth;
                 element_depth = element_depth.saturating_sub(1);
+                if let Some(ignored_depth) = ignored_score_depth {
+                    if closing_depth == ignored_depth {
+                        ignored_score_depth = None;
+                    }
+                    continue;
+                }
                 if name == "visible" && t == "0" {
                     if in_note_elem && closing_depth == note_depth + 1 {
                         note_hidden = true;
@@ -2024,6 +2044,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
             // ── Empty events ──────────────────────────────────────────────────
             Ok(Event::Empty(ref e)) => {
                 element_count += 1;
+                if ignored_score_depth.is_some() {
+                    continue;
+                }
                 let name = local_name_str(e.local_name().as_ref());
                 match name.as_str() {
                     // An empty MuseScore 4 voice wrapper occupies a slot just as
@@ -2105,6 +2128,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
 
             // ── Text events ───────────────────────────────────────────────────
             Ok(Event::Text(ref e)) => {
+                if ignored_score_depth.is_some() {
+                    continue;
+                }
                 if let Ok(t) = e.decode()
                     && let Ok(t) = quick_xml::escape::unescape(&t)
                 {
@@ -2112,6 +2138,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                 }
             }
             Ok(Event::GeneralRef(ref e)) => {
+                if ignored_score_depth.is_some() {
+                    continue;
+                }
                 let reference = format!("&{};", String::from_utf8_lossy(e.as_ref()));
                 if let Ok(decoded) = quick_xml::escape::unescape(&reference) {
                     text.push_str(&decoded);
@@ -2234,6 +2263,8 @@ fn push_invalid_numeric_diagnostic(
 pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
     let mut reader = Reader::from_str(xml);
     let mut path: Vec<String> = Vec::new();
+    let mut main_score_seen = false;
+    let mut ignored_score_depth = None;
     let mut diagnostics = Vec::new();
     let mut harmony_context: Option<(String, bool, bool, bool)> = None;
     let mut harmony_function_path: Option<Vec<String>> = None;
@@ -2248,6 +2279,22 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
             Ok(Event::Start(event)) => {
                 let name = local_name_str(event.local_name().as_ref());
                 path.push(name.clone());
+                if name == "Score" && ignored_score_depth.is_none() {
+                    if main_score_seen {
+                        ignored_score_depth = Some(path.len());
+                        let mut diagnostic = Diagnostic::warning(
+                            "mscx.unimported-excerpt",
+                            "nested MuseScore excerpt is omitted from the main score",
+                        );
+                        diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                        diagnostics.push(diagnostic);
+                    } else {
+                        main_score_seen = true;
+                    }
+                }
+                if ignored_score_depth.is_some() {
+                    continue;
+                }
                 if matches!(name.as_str(), "Harmony" | "harmonyInfo") {
                     push_harmony_attribute_diagnostics(&mut diagnostics, &path, &event, &name);
                 }
@@ -2305,10 +2352,15 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                     diagnostics.push(diagnostic);
                 }
             }
-            Ok(Event::Text(event)) if harmony_function_path.is_some() => {
+            Ok(Event::Text(event))
+                if ignored_score_depth.is_none() && harmony_function_path.is_some() =>
+            {
                 harmony_function_text.push_str(&String::from_utf8_lossy(event.as_ref()));
             }
             Ok(Event::Empty(event)) => {
+                if ignored_score_depth.is_some() {
+                    continue;
+                }
                 let name = local_name_str(event.local_name().as_ref());
                 let mut element_path = path.clone();
                 element_path.push(name.clone());
@@ -2366,6 +2418,13 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                 }
             }
             Ok(Event::End(event)) => {
+                if let Some(ignored_depth) = ignored_score_depth {
+                    if path.len() == ignored_depth {
+                        ignored_score_depth = None;
+                    }
+                    path.pop();
+                    continue;
+                }
                 let name = local_name_str(event.local_name().as_ref());
                 if name == "Harmony"
                     && let Some((harmony_path, has_name, has_root, has_unsupported_child)) =
@@ -2414,6 +2473,9 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                 path.pop();
             }
             Ok(Event::Text(event)) => {
+                if ignored_score_depth.is_some() {
+                    continue;
+                }
                 let field = path.last().map(String::as_str);
                 let event_bytes: &[u8] = event.as_ref();
                 let value = String::from_utf8_lossy(event_bytes).trim().to_string();
@@ -2694,16 +2756,35 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
 fn presentation_loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
     let mut reader = Reader::from_str(xml);
     let mut path: Vec<String> = Vec::new();
+    let mut main_score_seen = false;
+    let mut ignored_score_depth = None;
     let mut text = String::new();
     let mut diagnostics = Vec::new();
     loop {
         match reader.read_event() {
             Ok(Event::Start(event)) => {
-                path.push(local_name_str(event.local_name().as_ref()));
+                let name = local_name_str(event.local_name().as_ref());
+                path.push(name.clone());
+                if name == "Score" && ignored_score_depth.is_none() {
+                    if main_score_seen {
+                        ignored_score_depth = Some(path.len());
+                    } else {
+                        main_score_seen = true;
+                    }
+                }
                 text.clear();
             }
-            Ok(Event::Text(event)) => text.push_str(&String::from_utf8_lossy(event.as_ref())),
+            Ok(Event::Text(event)) if ignored_score_depth.is_none() => {
+                text.push_str(&String::from_utf8_lossy(event.as_ref()));
+            }
             Ok(Event::End(_)) => {
+                if let Some(ignored_depth) = ignored_score_depth {
+                    if path.len() == ignored_depth {
+                        ignored_score_depth = None;
+                    }
+                    path.pop();
+                    continue;
+                }
                 if let [.., parent, name] = path.as_slice() {
                     let value = text.trim();
                     if name == "visible"
@@ -3434,6 +3515,35 @@ mod tests {
         let note = &score.parts[0].staves[0].measures[0].voices[0][0];
         assert_eq!(note.pitches[0].to_midi_cents(), 6000);
         assert_eq!(note.duration, Duration::Quarter);
+    }
+
+    #[test]
+    fn mscx_excerpts_do_not_replace_or_duplicate_main_score() {
+        let xml = r#"<museScore version="4.0"><Score>
+          <Part><Staff id="1"/><trackName>Violin I</trackName></Part>
+          <Staff id="1"><Measure number="1"><Chord><durationType>quarter</durationType>
+            <Note><pitch>60</pitch><tpc>14</tpc></Note>
+          </Chord></Measure></Staff>
+          <Score>
+            <Part><Staff id="1"/><trackName>Excerpt violin</trackName></Part>
+            <Part><Staff id="2"/><trackName>Excerpt cello</trackName></Part>
+            <Staff id="1"><Measure number="1"><Chord><durationType>quarter</durationType>
+              <Note><pitch>bad</pitch><tpc>14</tpc></Note>
+            </Chord></Measure></Staff>
+            <Staff id="2"><Measure number="1"><Rest><durationType>whole</durationType>
+            </Rest></Measure></Staff>
+          </Score>
+        </Score></museScore>"#;
+        let score = parse_mscx(xml).expect("main MSCX score parses");
+        assert_eq!(score.parts.len(), 1);
+        assert_eq!(score.parts[0].name, "Violin I");
+        assert_eq!(score.parts[0].staves.len(), 1);
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(notes.len(), 1);
+        assert_eq!(notes[0].pitches[0].to_midi_cents(), 6000);
+        let diagnostics = loss_diagnostics(xml);
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].code, "mscx.unimported-excerpt");
     }
 
     #[test]
