@@ -48,6 +48,20 @@ pitch mismatches without inventing a fingering.
 tablature configuration and authored per-pitch candidates. This is a model-persistence check, not
 a MusicXML/MSCX or external-editor round-trip claim.
 
+## Swing pair timing (2026-10-30)
+
+The [alphaTab 1.8.4 MIDI generator](https://github.com/CoderLine/alphaTab/blob/v1.8.4/packages/alphatab/src/midi/MidiFileGenerator.ts#L822-L870)
+checks the duration, beat-grid position, and next beat before applying triplet feel. Acorde's
+`PlaybackOptions.swing` previously stretched an isolated matching note, shifting the onset of
+the following note. It now applies the requested ratio only to an adjacent, aligned pair of plain
+rhythmic units; a rest can occupy either unit. The first measure's authored pickup length is
+positioned on the full bar's beat grid. Non-finite or out-of-range ratios leave timing straight.
+The `swing_*` tests in `crates/core/src/model/playback.rs` cover these cases.
+
+This is a bounded event-timing correction, not a same-input alphaTab audio comparison. The
+repository still has no bundled synthesizer, PCM-output comparison, or cross-browser playback
+timing measurement.
+
 ## Evidence boundary
 
 This local evidence proves deterministic score projection, event scheduling/position calculation,
