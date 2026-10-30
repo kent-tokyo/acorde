@@ -1,4 +1,5 @@
 //! `cargo run -p acorde-pdf --example print_mxl -- score.mxl font.ttf output.pdf`
+//! Plain `.musicxml` input is also accepted for same-input engraving comparisons.
 
 use std::path::Path;
 
@@ -9,10 +10,17 @@ use acorde_render_svg::render_print_page_svgs;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = std::env::args().collect::<Vec<_>>();
     if args.len() != 4 {
-        return Err("usage: print_mxl INPUT.mxl FONT.ttf OUTPUT.pdf".into());
+        return Err("usage: print_mxl INPUT.{mxl,musicxml} FONT.ttf OUTPUT.pdf".into());
     }
     let source = std::fs::read(&args[1])?;
-    let import = acorde_io::parse_mxl_with_report(&source)?;
+    let import = if Path::new(&args[1])
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("mxl"))
+    {
+        acorde_io::parse_mxl_with_report(&source)?
+    } else {
+        acorde_io::parse_musicxml_with_report(std::str::from_utf8(&source)?)?
+    };
     eprintln!("import diagnostics: {}", import.diagnostics.len());
     let layout = compute_print_layout(&import.score, &PrintConfig::default())?;
     for page in &layout.pages {
