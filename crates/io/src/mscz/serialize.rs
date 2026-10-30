@@ -394,11 +394,14 @@ fn write_staff(
         .map_err(fmt_error)?;
     }
     for (measure_index, measure) in staff.measures.iter().enumerate() {
-        let number = if measure.number == 0 {
-            measure_index as u32 + 1
-        } else {
-            measure.number
-        };
+        // A short opening measure numbered 0 is an authored pickup. Other zeroes
+        // can come from unnumbered Measure::empty values and remain sequential.
+        let number =
+            if measure.number == 0 && (measure_index != 0 || measure.actual_length.is_none()) {
+                measure_index as u32 + 1
+            } else {
+                measure.number
+            };
         match measure
             .actual_length
             .filter(|length| length.beats().is_some())
@@ -1558,6 +1561,32 @@ mod tests {
         assert!(container.contains(r#"<rootfile full-path="score.mscx""#));
         let restored_archive = super::super::parse_mscz(&mscz).expect("MSCZ reparses");
         assert_eq!(restored_archive.parts[0].name, "Export & Test");
+    }
+
+    #[test]
+    fn pickup_measure_zero_round_trips_through_mscz() {
+        let mut score = Score::new("pickup", 120, 4, 4, 0, 2);
+        let staff = &mut score.parts[0].staves[0];
+        staff.measures[0].number = 0;
+        staff.measures[0].actual_length = acorde_core::MeasureLength::from_beats(1.0);
+        staff.measures[0].voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        staff.measures[1].number = 1;
+        staff.measures[1].voices[0] = vec![Note::new(Pitch::new(Step::D, 4), Duration::Whole)];
+
+        let mscz = serialize_mscz(&score).expect("pickup serializes");
+        let restored = super::super::parse_mscz(&mscz).expect("pickup reparses");
+        let measures = &restored.parts[0].staves[0].measures;
+        assert_eq!(
+            measures
+                .iter()
+                .map(|measure| measure.number)
+                .collect::<Vec<_>>(),
+            [0, 1]
+        );
+        assert_eq!(
+            measures[0].actual_length,
+            score.parts[0].staves[0].measures[0].actual_length
+        );
     }
 
     #[test]

@@ -874,7 +874,6 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
             last_note = abc_last_note_position(staff);
             // A barline before any note of the bar (a voice opening with `|:`, a line
             // starting with the barline the last one ended with) only marks the bar's start.
-            let bar_count = staff.measures.len();
             if let Some(m) = staff.measures.last_mut()
                 && m.voices.iter().all(Vec::is_empty)
             {
@@ -885,8 +884,9 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
             }
             if let Some(m) = staff.measures.last_mut() {
                 let used: f64 = m.voices[0].iter().map(Note::beats).sum();
-                // A short first bar is a pickup, not a bar to fill with rests.
-                if bar_count == 1 && used > 1e-9 && used < time.total_beats() - 1e-9 {
+                // A barline ends the actual bar, including internal pickups and short
+                // cadences before a section boundary.
+                if used > 1e-9 && used < time.total_beats() - 1e-9 {
                     m.actual_length = acorde_core::MeasureLength::from_beats(used);
                 }
                 if m.actual_length.is_none() {
@@ -3176,6 +3176,30 @@ C D E F | G A B c |";
         let score = parse_abc(SIMPLE).unwrap();
         let measures = &score.parts[0].staves[0].measures;
         assert_eq!(measures.len(), 2);
+    }
+
+    #[test]
+    fn internal_short_bars_keep_section_pickup_timing() {
+        let text = "X:1\nT:Internal pickup\nM:2/2\nL:1/8\nK:C\nC2 | C8 | C6 || C2 | C8 |]";
+        let score = parse_abc(text).expect("internal pickup parses");
+        let measures = &score.parts[0].staves[0].measures;
+        assert_eq!(measures.len(), 5);
+        assert_eq!(
+            measures
+                .iter()
+                .map(|measure| measure.actual_length.and_then(|length| length.beats()))
+                .collect::<Vec<_>>(),
+            [Some(1.0), None, Some(3.0), Some(1.0), None]
+        );
+        let events =
+            acorde_core::to_playback_events(&score, &acorde_core::PlaybackOptions::default());
+        assert_eq!(
+            events
+                .iter()
+                .map(|event| event.time_beats)
+                .collect::<Vec<_>>(),
+            [0.0, 1.0, 5.0, 8.0, 9.0]
+        );
     }
 
     #[test]

@@ -2226,7 +2226,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
             .partial_cmp(&b.time_beats)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
-    events = merge_tied_events(score, events);
+    events = merge_tied_events(score, options, events);
     events = apply_realization_profile(score, events, options.realization_profile);
     events.sort_by(|a, b| {
         a.time_beats
@@ -2411,20 +2411,26 @@ fn tempo_ramp_beats_at_seconds(
 /// Coalesce adjacent playback events that are connected by authored ties.
 ///
 /// Ties are a notational continuation, not repeated attacks. The event keeps the first
-/// source address and accumulates the sounding duration of each contiguous segment. Malformed
-/// or non-contiguous tie endings remain as independent events so playback never silently drops
-/// a note.
-fn merge_tied_events(score: &Score, events: Vec<PlaybackEvent>) -> Vec<PlaybackEvent> {
+/// source address. The notated duration determines continuity; articulations on any segment
+/// affect the combined note once. Malformed or non-contiguous tie endings remain independent.
+fn merge_tied_events(
+    score: &Score,
+    options: &PlaybackOptions,
+    events: Vec<PlaybackEvent>,
+) -> Vec<PlaybackEvent> {
     use std::collections::HashMap;
 
     struct PendingTie {
         index: usize,
         staff: usize,
         voice: usize,
+        notated_end_beats: f64,
+        staccato: bool,
     }
 
     let mut merged = Vec::with_capacity(events.len());
     let mut pending: HashMap<(usize, i32), Vec<PendingTie>> = HashMap::new();
+    let mut clock = None;
     for event in events {
         let Some(source) = event.source.as_ref() else {
             merged.push(event);
@@ -2452,22 +2458,37 @@ fn merge_tied_events(score: &Score, events: Vec<PlaybackEvent>) -> Vec<PlaybackE
             Some(index) => (note.pitch_tie_start(index), note.pitch_tie_end(index)),
             None => (note.tie_start, note.tie_end),
         };
+        let mut articulation_scale = 1.0;
+        let mut staccato = false;
+        for articulation in &note.articulations {
+            match articulation {
+                Articulation::Staccato | Articulation::Staccatissimo => {
+                    articulation_scale *= 0.5;
+                    staccato = true;
+                }
+                Articulation::Fermata => articulation_scale *= options.fermata_multiplier,
+                _ => {}
+            }
+        }
+        let notated_duration = if articulation_scale.is_finite()
+            && articulation_scale > 0.0
+            && event.duration_beats.is_finite()
+        {
+            event.duration_beats / articulation_scale
+        } else {
+            note.beats()
+        };
         let source_staff = source.staff;
         let source_voice = source.voice;
         let key = (source.part, event.pitch_midi_cents);
         if let Some(candidates) = pending.get_mut(&key) {
-            candidates.retain(|candidate| {
-                let previous: &PlaybackEvent = &merged[candidate.index];
-                previous.time_beats + previous.duration_beats >= event.time_beats - 1e-9
-            });
+            candidates.retain(|candidate| candidate.notated_end_beats >= event.time_beats - 1e-9);
             if tie_end {
                 let matching = candidates
                     .iter()
                     .enumerate()
                     .filter(|(_, candidate)| {
-                        let previous: &PlaybackEvent = &merged[candidate.index];
-                        (previous.time_beats + previous.duration_beats - event.time_beats).abs()
-                            < 1e-9
+                        (candidate.notated_end_beats - event.time_beats).abs() < 1e-9
                     })
                     .max_by_key(|(_, candidate)| {
                         (
@@ -2479,8 +2500,32 @@ fn merge_tied_events(score: &Score, events: Vec<PlaybackEvent>) -> Vec<PlaybackE
                 if let Some(position) = matching {
                     let mut candidate = candidates.remove(position);
                     let previous = &mut merged[candidate.index];
+                    for articulation in event.articulations.iter().filter(|articulation| {
+                        matches!(
+                            articulation,
+                            Articulation::Staccato | Articulation::Staccatissimo
+                        )
+                    }) {
+                        if !previous.articulations.contains(articulation) {
+                            previous.articulations.push(articulation.clone());
+                        }
+                    }
+                    candidate.notated_end_beats = event.time_beats + notated_duration;
+                    candidate.staccato |= staccato;
                     previous.duration_beats += event.duration_beats;
                     previous.duration_secs += event.duration_secs;
+                    if candidate.staccato {
+                        previous.duration_beats =
+                            (candidate.notated_end_beats - previous.time_beats) * 0.5;
+                        let timeline =
+                            clock.get_or_insert_with(|| playback_measure_clock(score, options));
+                        if let Some(end_secs) = playback_secs_at_beat(
+                            timeline,
+                            previous.time_beats + previous.duration_beats,
+                        ) {
+                            previous.duration_secs = end_secs - previous.time_secs;
+                        }
+                    }
                     if tie_start {
                         candidate.staff = source.staff;
                         candidate.voice = source.voice;
@@ -2498,10 +2543,72 @@ fn merge_tied_events(score: &Score, events: Vec<PlaybackEvent>) -> Vec<PlaybackE
                 index,
                 staff: source_staff,
                 voice: source_voice,
+                notated_end_beats: merged[index].time_beats + notated_duration,
+                staccato,
             });
         }
     }
     merged
+}
+
+#[derive(Clone, Copy)]
+struct PlaybackClockMeasure {
+    start_beats: f64,
+    start_secs: f64,
+    bpm: f64,
+    ramp_to_bpm: Option<f64>,
+    beats: f64,
+}
+
+fn playback_measure_clock(score: &Score, options: &PlaybackOptions) -> Vec<PlaybackClockMeasure> {
+    let marks = score_tempo_marks(score);
+    let mut bpm = initial_tempo_bpm(score, options);
+    let mut start_beats = 0.0;
+    let mut start_secs = 0.0;
+    let mut clock = Vec::new();
+    for index in measure_sequence(score).into_iter().filter(|index| {
+        options
+            .loop_region
+            .is_none_or(|(start, end)| *index >= start && *index <= end)
+    }) {
+        let mark = marks.get(index).copied().unwrap_or_default();
+        if let Some(next) = mark.bpm.and_then(|tempo| written_tempo_bpm(options, tempo)) {
+            bpm = next;
+        }
+        let beats = score.playback_measure_beats(index);
+        let ramp_to_bpm = written_tempo_ramp_bpm(options, mark.ramp_to_bpm);
+        clock.push(PlaybackClockMeasure {
+            start_beats,
+            start_secs,
+            bpm,
+            ramp_to_bpm,
+            beats,
+        });
+        start_beats += beats;
+        start_secs += tempo_ramp_seconds(bpm, ramp_to_bpm, beats, beats);
+        if let Some(next) = ramp_to_bpm {
+            bpm = next;
+        }
+    }
+    clock
+}
+
+fn playback_secs_at_beat(clock: &[PlaybackClockMeasure], beat: f64) -> Option<f64> {
+    let index = clock.partition_point(|measure| measure.start_beats <= beat);
+    let measure = clock.get(index.saturating_sub(1))?;
+    let offset = beat - measure.start_beats;
+    if offset > measure.beats + 1e-9 {
+        return None;
+    }
+    Some(
+        measure.start_secs
+            + tempo_ramp_seconds(
+                measure.bpm,
+                measure.ramp_to_bpm,
+                measure.beats,
+                offset.clamp(0.0, measure.beats),
+            ),
+    )
 }
 
 /// Convert a score into playback events while enforcing the host-comparison event bound.
@@ -2766,6 +2873,60 @@ mod tests {
         assert!((events[0].time_beats).abs() < 1e-9);
         assert!((events[0].duration_beats - 2.0).abs() < 1e-9);
         assert!((events[0].duration_secs - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn staccato_tied_across_barline_has_one_half_length_attack() {
+        for marks in [[true, false], [false, true], [true, true]] {
+            let mut score = Score::new("tied staccato", 120, 4, 4, 0, 2);
+            let mut first = Note::new(Pitch::new(Step::D, 5), Duration::Eighth);
+            first.tie_start = true;
+            let mut second = Note::new(Pitch::new(Step::D, 5), Duration::Eighth);
+            second.tie_end = true;
+            if marks[0] {
+                first.articulations.push(Articulation::Staccato);
+            }
+            if marks[1] {
+                second.articulations.push(Articulation::Staccato);
+            }
+            score.parts[0].staves[0].measures[0].voices[0] = vec![
+                Note::rest(Duration::Half),
+                Note::rest(Duration::Quarter),
+                Note::rest(Duration::Eighth),
+                first,
+            ];
+            score.parts[0].staves[0].measures[1].voices[0] = vec![second];
+            let events = to_playback_events(&score, &opts(None));
+            assert_eq!(events.len(), 1, "articulations: {marks:?}");
+            assert_eq!(events[0].pitch_midi, 74);
+            assert_eq!(events[0].time_beats, 3.5);
+            assert!(events[0].articulations.contains(&Articulation::Staccato));
+            assert!((events[0].duration_beats - 0.5).abs() < 1e-9);
+            assert!((events[0].duration_secs - 0.25).abs() < 1e-9);
+        }
+    }
+
+    #[test]
+    fn tied_staccato_uses_tempo_at_sounding_end() {
+        let mut score = Score::new("tied tempo", 120, 4, 4, 0, 2);
+        let mut first = Note::new(Pitch::new(Step::D, 5), Duration::Eighth);
+        first.tie_start = true;
+        first.articulations.push(Articulation::Staccato);
+        let mut second = Note::new(Pitch::new(Step::D, 5), Duration::Quarter);
+        second.dot_count = 1;
+        second.tie_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::rest(Duration::Half),
+            Note::rest(Duration::Quarter),
+            Note::rest(Duration::Eighth),
+            first,
+        ];
+        score.parts[0].staves[0].measures[1].tempo = Some(60);
+        score.parts[0].staves[0].measures[1].voices[0] = vec![second];
+        let events = to_playback_events(&score, &opts(None));
+        assert_eq!(events.len(), 1);
+        assert!((events[0].duration_beats - 1.0).abs() < 1e-9);
+        assert!((events[0].duration_secs - 0.75).abs() < 1e-9);
     }
 
     #[test]
