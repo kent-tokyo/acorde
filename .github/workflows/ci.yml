@@ -200,7 +200,8 @@ jobs:
 
   browser-matrix:
     name: Browser smoke (${{ matrix.browser }})
-    runs-on: ubuntu-latest
+    # Playwright 1.55.0 does not install browsers on ubuntu-26.04.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -232,7 +233,7 @@ jobs:
 
   browser-hidpi:
     name: Browser smoke (Chromium HiDPI)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
