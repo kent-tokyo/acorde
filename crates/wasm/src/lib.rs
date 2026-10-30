@@ -3268,6 +3268,38 @@ mod tests {
         engine.paste_range(first).unwrap();
         assert!(engine.get_version() > 2);
     }
+
+    #[test]
+    fn web_beam_inference_keeps_fifteen_in_eight_tuplet_separate_from_next_beat() {
+        let pitch = acorde_core::Pitch::new(acorde_core::Step::C, 4);
+        let mut run = acorde_core::Note::new(pitch.clone(), acorde_core::Duration::ThirtySecond);
+        run.tuplet = Some(acorde_core::TupletInfo {
+            actual_notes: 15,
+            normal_notes: 8,
+        });
+        let mut notes = vec![run; 15];
+        notes.extend([
+            acorde_core::Note::new(pitch.clone(), acorde_core::Duration::Eighth),
+            acorde_core::Note::new(pitch, acorde_core::Duration::Eighth),
+        ]);
+        let meter = acorde_core::TimeSignature {
+            numerator: 2,
+            denominator: 4,
+        };
+        let beams: Vec<acorde_core::BeamState> = serde_json::from_str(
+            &compute_beams(
+                &serde_json::to_string(&notes).unwrap(),
+                &serde_json::to_string(&meter).unwrap(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(beams[14], acorde_core::BeamState::End);
+        assert_eq!(
+            beams[15..],
+            [acorde_core::BeamState::Begin, acorde_core::BeamState::End]
+        );
+    }
 }
 
 // WASM integration tests — run with `wasm-pack test --headless --chrome`

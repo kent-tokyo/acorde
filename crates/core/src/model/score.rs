@@ -4766,8 +4766,18 @@ pub fn compute_beams(notes: &[Note], time_sig: &TimeSignature) -> Vec<BeamState>
         pos += note.beats();
     }
 
-    // Assign beam group ids based on beat boundary
-    let group_id = |i: usize| -> i64 { (starts[i] / beat_size).floor() as i64 };
+    // A tuplet can end exactly on a beat while the accumulated f64 start is a
+    // few ulps below it (15 copies of 1/15, for example). Snap only starts
+    // within a much smaller interval than any supported note value.
+    let group_id = |i: usize| -> i64 {
+        let beat = starts[i] / beat_size;
+        let nearest = beat.round();
+        if (beat - nearest).abs() <= 1e-9 {
+            nearest as i64
+        } else {
+            beat.floor() as i64
+        }
+    };
 
     let mut i = 0;
     while i < n {
@@ -6785,6 +6795,35 @@ mod tests {
         let notes = vec![eighth(c4.clone())];
         let beams = compute_beams(&notes, &ts);
         assert_eq!(beams[0], BeamState::None);
+    }
+
+    #[test]
+    fn compute_beams_stops_fifteen_in_eight_tuplet_at_the_beat_boundary() {
+        let ts = TimeSignature {
+            numerator: 2,
+            denominator: 4,
+        };
+        let pitch = Pitch::new(Step::C, 4);
+        let mut tuplet_note = Note::new(pitch.clone(), Duration::ThirtySecond);
+        tuplet_note.tuplet = Some(TupletInfo {
+            actual_notes: 15,
+            normal_notes: 8,
+        });
+        let mut notes = vec![tuplet_note; 15];
+        notes.extend([eighth(pitch.clone()), eighth(pitch)]);
+        let original = serde_json::to_value(&notes).unwrap();
+
+        let beams = compute_beams(&notes, &ts);
+        let mut expected = vec![BeamState::Begin];
+        expected.extend([BeamState::Continue; 13]);
+        expected.extend([BeamState::End, BeamState::Begin, BeamState::End]);
+        assert_eq!(beams, expected);
+        assert_eq!(
+            serde_json::to_value(&notes).unwrap(),
+            original,
+            "beam inference must not change notation or timing"
+        );
+        assert!((notes[..15].iter().map(Note::beats).sum::<f64>() - 1.0).abs() < 1e-12);
     }
 }
 
