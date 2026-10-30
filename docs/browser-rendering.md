@@ -48,6 +48,9 @@ fields so existing Rust struct literals remain source-compatible. Configure the 
 distance between adjacent staves through
 `SvgRenderConfig::new(options).with_staff_gap(10.0)`. The gap is measured in staff spaces and
 must be finite and positive; see the [migration notes](migrations.md).
+WASM callers can pass `"staff_gap": 8` in `options_json` to `render_score_svg`,
+the `parse_*_render_svg` helpers, `render_score_svg_with_layout`,
+`render_score_svg_row`, and `render_score_metadata`. An invalid gap returns an error.
 
 `to_playback_events_ex` produces the expected score schedule; it does not synthesize audio.
 `compute_playback_position` maps elapsed time to a typed musical position using the same tempo-ramp
