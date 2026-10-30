@@ -9,8 +9,13 @@ not change the score model, access the filesystem, or access printer APIs.
 - `export_score_pdf` accepts an `acorde_core::Score` plus `SvgRenderOptions`.
   `export_svg_pdf` accepts only a bounded, self-contained Acorde SVG viewport; it is not a generic
   SVG sanitizer or renderer.
-- Output is one `Vec<u8>` containing one vector PDF page. Passing `page_size_pt` scales the SVG
-  viewport onto that media box.
+- `export_score_pdf` and `export_svg_pdf` return one vector PDF page. Passing `page_size_pt`
+  scales that SVG viewport onto the selected media box.
+- `export_svg_pages_pdf` joins 1–256 independently sized page SVGs into one in-memory PDF. It
+  retains page order and each page's physical media box, and rejects invalid sizes before any
+  conversion. Callers can derive point sizes from `PageArtifact` millimetres with `POINTS_PER_MM`.
+- `export_print_layout_pdf` validates a `PrintLayoutResult`, requires one SVG per layout page, and
+  uses its page dimensions for the assembled PDF without recomputing pagination.
 - Callers provide an embeddable TrueType/OpenType font for lyric, text, and label SVG nodes.
   Acorde's notation geometry is retained as vector paths; no bitmap score is inserted.
 - SVG is limited to 16 MiB. Harumi receives it unchanged, so Bézier paths, elliptical arcs, and
@@ -18,11 +23,10 @@ not change the score model, access the filesystem, or access printer APIs.
 
 ## Deliberate limits
 
-This first slice is not a claim of publication-ready multipage engraving. It does not map
-`PrintLayoutResult` pages and systems into independently scaled SVG viewports, resolve
-publication font resources, embed music fonts, or integrate an OS print dialog. Those remain
-the next `acorde-pdf` phases. The existing `acorde-layout::compute_print_layout` contract stays
-the source of truth for page planning.
+This is not a claim of publication-ready multipage engraving. Acorde does not yet map
+`PrintLayoutResult` pages and systems into complete page SVGs, resolve publication font
+resources, embed music fonts, or integrate an OS print dialog. The existing
+`acorde-layout::compute_print_layout` contract stays the source of truth for page planning.
 
 ## Compatibility
 

@@ -1610,6 +1610,7 @@ impl PrintLayoutResult {
                 }
                 None => numbered_pages = Some(false),
             }
+            let mut previous_system_bottom_mm = 0.0;
             for (index_on_page, system) in page.systems.iter().enumerate() {
                 if system.page_index != page_index
                     || system.address.page_index != page_index
@@ -1623,16 +1624,21 @@ impl PrintLayoutResult {
                         system_index: expected_system_index,
                     });
                 }
+                let system_bottom_mm = system.top_mm + system.height_mm;
                 if !system.top_mm.is_finite()
                     || system.top_mm < 0.0
                     || !system.height_mm.is_finite()
                     || system.height_mm <= 0.0
+                    || !system_bottom_mm.is_finite()
+                    || system_bottom_mm > page.height_mm
+                    || system.top_mm < previous_system_bottom_mm
                 {
                     return Err(PrintLayoutError::InvalidSystemGeometry {
                         page_index,
                         index_on_page,
                     });
                 }
+                previous_system_bottom_mm = system_bottom_mm;
                 expected_system_index += 1;
             }
         }
@@ -1825,7 +1831,7 @@ pub enum PrintLayoutError {
     InvalidPaperDimensions,
     #[error("margins must be finite and non-negative")]
     InvalidMargins,
-    #[error("system height must be finite and greater than zero")]
+    #[error("system height must be finite, positive, and fit the usable page area")]
     InvalidSystemHeight,
     #[error("print scale must be finite and greater than zero")]
     InvalidScale,
@@ -2859,14 +2865,17 @@ pub fn compute_print_layout(
         return Err(PrintLayoutError::NoUsablePageArea);
     }
 
-    let systems_per_page = config
+    if scaled_system_height_mm > content_height_mm {
+        return Err(PrintLayoutError::InvalidSystemHeight);
+    }
+    let geometric_capacity = (content_height_mm / scaled_system_height_mm).floor() as usize;
+    if config
         .systems_per_page
-        .unwrap_or_else(|| {
-            (content_height_mm / scaled_system_height_mm)
-                .floor()
-                .max(1.0) as usize
-        })
-        .max(1);
+        .is_some_and(|requested| requested.max(1) > geometric_capacity)
+    {
+        return Err(PrintLayoutError::InvalidSystemHeight);
+    }
+    let systems_per_page = config.systems_per_page.unwrap_or(geometric_capacity).max(1);
     let layout = compute_layout(
         &layout_score,
         &LayoutConfig {
@@ -3161,10 +3170,12 @@ pub fn compute_print_layout(
         );
     }
 
-    Ok(PrintLayoutResult {
+    let result = PrintLayoutResult {
         contract_version: PRINT_LAYOUT_CONTRACT_VERSION,
         pages,
-    })
+    };
+    result.validate()?;
+    Ok(result)
 }
 
 /// Compute print layout for one linked score view without mutating the canonical score.
@@ -3867,6 +3878,33 @@ mod tests {
     }
 
     #[test]
+    fn layout_validation_rejects_systems_past_the_page_or_on_top_of_each_other() {
+        let score = score_with_measures(2);
+        let config = PrintConfig {
+            measures_per_system: 1,
+            ..PrintConfig::default()
+        };
+        let mut result = compute_print_layout(&score, &config).expect("two valid systems");
+        result.pages[0].systems[1].top_mm = 290.0;
+        assert_eq!(
+            result.validate(),
+            Err(PrintLayoutError::InvalidSystemGeometry {
+                page_index: 0,
+                index_on_page: 1,
+            })
+        );
+
+        result.pages[0].systems[1].top_mm = result.pages[0].systems[0].top_mm + 1.0;
+        assert_eq!(
+            result.validate(),
+            Err(PrintLayoutError::InvalidSystemGeometry {
+                page_index: 0,
+                index_on_page: 1,
+            })
+        );
+    }
+
+    #[test]
     fn layout_validation_rejects_content_larger_than_page() {
         let score = score_with_measures(1);
         let mut result =
@@ -4074,6 +4112,27 @@ mod tests {
         )
         .expect_err("invalid page area");
         assert_eq!(error, PrintLayoutError::NoUsablePageArea);
+    }
+
+    #[test]
+    fn rejects_system_height_or_requested_capacity_that_clips_the_page() {
+        let score = score_with_measures(2);
+        for config in [
+            PrintConfig {
+                system_height_mm: 266.0,
+                ..PrintConfig::default()
+            },
+            PrintConfig {
+                system_height_mm: 140.0,
+                systems_per_page: Some(2),
+                ..PrintConfig::default()
+            },
+        ] {
+            assert_eq!(
+                compute_print_layout(&score, &config),
+                Err(PrintLayoutError::InvalidSystemHeight)
+            );
+        }
     }
 
     #[test]

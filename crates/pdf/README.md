@@ -5,10 +5,13 @@
 I/O, logical layout, and SVG rendering do not depend on a PDF backend.
 
 The crate accepts a caller-supplied TrueType or OpenType font for SVG text. Acorde's own
-notation glyphs remain vector paths; no score bitmap is created during conversion. The initial
-API produces one PDF page from one rendered SVG viewport. `PdfRenderOptions::page_size_pt` can
-fit that viewport to a chosen physical page. Print-layout pagination, publication typography,
-and printer integration remain follow-up work.
+notation glyphs remain vector paths; no score bitmap is created during conversion.
+`export_score_pdf` produces one PDF page from a rendered SVG viewport.
+`export_svg_pages_pdf` joins up to 256 caller-supplied page SVGs into one vector PDF, preserving
+their order and independent physical media boxes. The caller still needs to render each
+`PrintLayoutResult` page as SVG. `export_print_layout_pdf` validates that layout and uses its
+page count and physical dimensions when joining those SVGs. Publication typography and printer
+integration remain follow-up work.
 
 With Harumi 1.23.7 or newer, Acorde passes its SVG directly to the PDF backend: engraving
 Bézier curves, elliptical arcs, and notehead ellipses remain native vector geometry rather than

@@ -1,8 +1,8 @@
 # Print SVG contract
 
 This document defines the host-neutral requirements for exporting an `acorde-layout`
-page as SVG. It deliberately stops at deterministic page geometry; PDF conversion,
-font installation or embedding, file I/O, and OS printing belong to the consuming host.
+page as SVG. It deliberately stops at deterministic page geometry; `acorde-pdf` can join completed
+page SVGs, while font installation, file I/O, and OS printing belong to the consuming host.
 
 ## Required page representation
 

@@ -8,10 +8,11 @@
 //!
 //! It does not alter score semantics or logical layout. The caller supplies the font used for
 //! textual SVG elements, while Acorde's notation glyphs remain vector geometry. The current
-//! export is one PDF page per SVG viewport; physical multi-page print composition is intentionally
-//! left to a later print-rendering layer rather than silently shrinking or dropping systems.
+//! [`export_svg_pages_pdf`] joins independently sized page SVGs into one vector PDF. Producing
+//! those page SVGs from print-layout systems remains a separate rendering step.
 
 use acorde_core::Score;
+use acorde_layout::{PrintLayoutError, PrintLayoutResult};
 use acorde_render_svg::{RenderError, SvgRenderOptions, render_svg};
 use roxmltree::{Document, Node, NodeType};
 use std::f32::consts::PI;
@@ -21,6 +22,8 @@ use thiserror::Error;
 pub const MAX_SVG_BYTES: usize = 16 * 1024 * 1024;
 /// Maximum flattened vector points from one SVG path.
 pub const MAX_PATH_POINTS: usize = 100_000;
+/// Maximum number of SVG pages accepted by one in-memory PDF export.
+pub const MAX_PDF_PAGES: usize = 256;
 /// Points per millimetre for callers selecting a physical PDF page size.
 pub const POINTS_PER_MM: f32 = 72.0 / 25.4;
 
@@ -60,6 +63,21 @@ pub enum SvgPathError {
     TooManyPoints { maximum: usize },
 }
 
+/// Errors while assembling independent SVG pages into one PDF.
+#[derive(Debug, Error)]
+pub enum PdfPagesError {
+    #[error("PDF export requires between 1 and {maximum} pages")]
+    InvalidPageCount { maximum: usize },
+    #[error("PDF page {index} is invalid: {source}")]
+    Page { index: usize, source: PdfError },
+    #[error("print layout is invalid: {0}")]
+    Layout(#[from] PrintLayoutError),
+    #[error("print layout has {expected} pages but {actual} page SVGs were supplied")]
+    PageCountMismatch { expected: usize, actual: usize },
+    #[error("PDF page assembly failed: {0}")]
+    Assembly(#[from] harumi::Error),
+}
+
 /// Options for one vector PDF export.
 ///
 /// `font_bytes` must contain a TrueType or OpenType font accepted by Harumi. It is used only for
@@ -72,6 +90,16 @@ pub struct PdfRenderOptions<'a> {
     pub page_size_pt: Option<[f32; 2]>,
     /// SVG engraving options used by [`export_score_pdf`].
     pub svg: SvgRenderOptions,
+}
+
+/// One self-contained page SVG and its physical PDF media-box size.
+///
+/// The SVG should correspond to one page from an Acorde print layout. Callers can convert
+/// `PageArtifact::width_mm` and `height_mm` using [`POINTS_PER_MM`].
+#[derive(Debug, Clone, Copy)]
+pub struct SvgPdfPage<'a> {
+    pub svg: &'a str,
+    pub page_size_pt: [f32; 2],
 }
 
 impl<'a> PdfRenderOptions<'a> {
@@ -124,6 +152,96 @@ pub fn export_svg_pdf(svg: &str, options: &PdfRenderOptions<'_>) -> Result<Vec<u
         },
     )
     .map_err(PdfError::from)
+}
+
+/// Join independently sized Acorde page SVGs into one in-memory vector PDF.
+///
+/// Input order is preserved as PDF page order. Every page is converted through the same bounded
+/// SVG path as [`export_svg_pdf`], with its own media box; no page is shrunk to the first page's
+/// size. The caller supplies page SVGs and any font needed by their text elements.
+pub fn export_svg_pages_pdf(
+    pages: &[SvgPdfPage<'_>],
+    font_bytes: &[u8],
+) -> Result<Vec<u8>, PdfPagesError> {
+    let Some((first, rest)) = pages.split_first() else {
+        return Err(PdfPagesError::InvalidPageCount {
+            maximum: MAX_PDF_PAGES,
+        });
+    };
+    if pages.len() > MAX_PDF_PAGES {
+        return Err(PdfPagesError::InvalidPageCount {
+            maximum: MAX_PDF_PAGES,
+        });
+    }
+    for (index, page) in pages.iter().enumerate() {
+        if page
+            .page_size_pt
+            .iter()
+            .any(|size| !size.is_finite() || *size <= 0.0)
+        {
+            return Err(PdfPagesError::Page {
+                index,
+                source: PdfError::InvalidPageSize,
+            });
+        }
+        if page.svg.len() > MAX_SVG_BYTES {
+            return Err(PdfPagesError::Page {
+                index,
+                source: PdfError::SvgTooLarge {
+                    bytes: page.svg.len(),
+                    maximum: MAX_SVG_BYTES,
+                },
+            });
+        }
+    }
+    let convert = |index: usize, page: &SvgPdfPage<'_>| {
+        export_svg_pdf(
+            page.svg,
+            &PdfRenderOptions {
+                font_bytes,
+                page_size_pt: Some(page.page_size_pt),
+                svg: SvgRenderOptions::default(),
+            },
+        )
+        .map_err(|source| PdfPagesError::Page { index, source })
+    };
+    let mut document = harumi::Document::from_bytes(&convert(0, first)?)?;
+    for (index, page) in rest.iter().enumerate() {
+        document.merge_from(harumi::Document::from_bytes(&convert(index + 1, page)?)?)?;
+    }
+    document.save_to_bytes().map_err(PdfPagesError::from)
+}
+
+/// Assemble one PDF page per page of a validated [`PrintLayoutResult`].
+///
+/// `page_svgs` must be in layout page order. The layout supplies each page's physical dimensions
+/// in millimetres; the caller supplies the completed SVG for each page. No score layout is
+/// recomputed and no printer or filesystem is accessed.
+pub fn export_print_layout_pdf<S: AsRef<str>>(
+    layout: &PrintLayoutResult,
+    page_svgs: &[S],
+    font_bytes: &[u8],
+) -> Result<Vec<u8>, PdfPagesError> {
+    layout.validate()?;
+    if page_svgs.len() != layout.pages.len() {
+        return Err(PdfPagesError::PageCountMismatch {
+            expected: layout.pages.len(),
+            actual: page_svgs.len(),
+        });
+    }
+    let pages = layout
+        .pages
+        .iter()
+        .zip(page_svgs)
+        .map(|(page, svg)| SvgPdfPage {
+            svg: svg.as_ref(),
+            page_size_pt: [
+                page.width_mm * POINTS_PER_MM,
+                page.height_mm * POINTS_PER_MM,
+            ],
+        })
+        .collect::<Vec<_>>();
+    export_svg_pages_pdf(&pages, font_bytes)
 }
 
 /// Normalize standard vector geometry emitted by `acorde-render-svg` for older Harumi backends.
@@ -764,9 +882,13 @@ fn format_number(value: f32) -> String {
 #[cfg(test)]
 mod tests {
     use acorde_core::{Duration, Note, Pitch, Score, Step};
+    use acorde_layout::{PrintConfig, compute_print_layout};
     use acorde_render_svg::{SvgRenderOptions, render_svg};
 
-    use super::{PdfError, SvgPathError, normalize_svg_for_harumi};
+    use super::{
+        MAX_PDF_PAGES, POINTS_PER_MM, PdfError, PdfPagesError, SvgPathError, SvgPdfPage,
+        export_print_layout_pdf, export_svg_pages_pdf, normalize_svg_for_harumi,
+    };
 
     #[test]
     fn normalizes_notation_curves_and_noteheads_to_harumi_subset() {
@@ -829,5 +951,82 @@ mod tests {
         let normalized = normalize_svg_for_harumi(&svg).expect("normalizes score SVG");
         assert!(!normalized.contains("<ellipse"));
         assert!(!normalized.contains("<path"));
+    }
+
+    #[test]
+    fn combines_page_svgs_in_order_with_independent_media_boxes() {
+        let first = r#"<svg width="100" height="100" viewBox="0 0 100 100"><line x1="10" y1="10" x2="90" y2="90" stroke="black"/></svg>"#;
+        let second = r#"<svg width="100" height="100" viewBox="0 0 100 100"><rect x="20" y="20" width="60" height="60" fill="black"/></svg>"#;
+        let bytes = export_svg_pages_pdf(
+            &[
+                SvgPdfPage {
+                    svg: first,
+                    page_size_pt: [595.0, 842.0],
+                },
+                SvgPdfPage {
+                    svg: second,
+                    page_size_pt: [612.0, 792.0],
+                },
+            ],
+            &[],
+        )
+        .expect("two-page vector PDF");
+        let mut pdf = harumi::Document::from_bytes(&bytes).expect("valid PDF bytes");
+        assert_eq!(pdf.page_count(), 2);
+        assert_eq!(pdf.page(1).unwrap().size().unwrap(), (595.0, 842.0));
+        assert_eq!(pdf.page(2).unwrap().size().unwrap(), (612.0, 792.0));
+    }
+
+    #[test]
+    fn rejects_empty_or_invalid_multipage_pdf_inputs() {
+        assert!(matches!(
+            export_svg_pages_pdf(&[], &[]),
+            Err(PdfPagesError::InvalidPageCount { maximum }) if maximum == MAX_PDF_PAGES
+        ));
+        let svg = r#"<svg width="10" height="10"><line x1="0" y1="0" x2="10" y2="10" stroke="black"/></svg>"#;
+        assert!(matches!(
+            export_svg_pages_pdf(
+                &[SvgPdfPage {
+                    svg,
+                    page_size_pt: [595.0, f32::NAN],
+                }],
+                &[],
+            ),
+            Err(PdfPagesError::Page {
+                index: 0,
+                source: PdfError::InvalidPageSize,
+            })
+        ));
+    }
+
+    #[test]
+    fn print_layout_supplies_page_count_and_a4_media_boxes() {
+        let score = Score::new("Two-page PDF", 120, 4, 4, 0, 2);
+        let layout = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 1,
+                systems_per_page: Some(1),
+                ..PrintConfig::default()
+            },
+        )
+        .expect("two-page layout");
+        assert_eq!(layout.pages.len(), 2);
+        let svg = r#"<svg width="100" height="100" viewBox="0 0 100 100"><line x1="0" y1="0" x2="100" y2="100" stroke="black"/></svg>"#;
+        assert!(matches!(
+            export_print_layout_pdf(&layout, &[svg], &[]),
+            Err(PdfPagesError::PageCountMismatch {
+                expected: 2,
+                actual: 1,
+            })
+        ));
+        let bytes = export_print_layout_pdf(&layout, &[svg, svg], &[]).expect("print PDF");
+        let mut pdf = harumi::Document::from_bytes(&bytes).expect("valid PDF");
+        assert_eq!(pdf.page_count(), 2);
+        for page in 1..=2 {
+            let (width, height) = pdf.page(page).unwrap().size().unwrap();
+            assert!((width - 210.0 * POINTS_PER_MM).abs() < 0.1);
+            assert!((height - 297.0 * POINTS_PER_MM).abs() < 0.1);
+        }
     }
 }

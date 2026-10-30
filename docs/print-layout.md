@@ -30,6 +30,9 @@ policies either fit a system/page or return a typed error; they are never silent
 Multirests retain their underlying physical extent. `FinalPagePolicy::Balance` balances automatic
 pagination, but does not override explicit breaks. Extracted-part layout is an explicit view and
 does not mutate the score.
+The configured system height and any explicit systems-per-page request must fit the usable page
+height. Persisted layouts reject systems that overlap or extend beyond the physical page instead
+of passing clipped geometry to a renderer.
 
 `PageLayout::span_segments` and `SystemLayout::span_segments` identify continuation ownership so
 a renderer does not reconstruct spans by index arithmetic. `measure_marks` carries repeats,
@@ -37,14 +40,15 @@ voltas, navigation, rehearsal marks, and normalized text annotations for the pri
 
 ## Host boundary
 
-acorde owns logical geometry, collision constraints, glyph-resource descriptors, preflight, and the
-optional one-viewport [`acorde-pdf`](pdf-export.md) conversion path. The host owns font lookup and
-metrics, shaping, multipage SVG composition, raster output, save/preview UI, and OS printing.
+acorde owns logical geometry, collision constraints, glyph-resource descriptors, preflight, and
+optional one-viewport and page-SVG assembly paths through [`acorde-pdf`](pdf-export.md). The host
+owns font lookup and metrics, shaping, SVG rendering of each print page, raster output,
+save/preview UI, and OS printing.
 Built-in vector glyph coverage is checked before SVG output; unsupported critical glyphs are
 rejected rather than silently blanked.
 
 Therefore a successful layout or SVG preflight is not proof of shaped-font collision quality,
-multi-page PDF composition, font embedding, or printer output.
+complete page engraving, font embedding, or printer output.
 
 ## Corpus gate
 
