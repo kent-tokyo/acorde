@@ -371,7 +371,10 @@ pub(crate) fn parse_musicxml_collecting(
     // Furthest cursor position reached in the current measure (notes and `<forward>`).
     let mut measure_content_ticks = 0u32;
     let mut voice_cursor_ticks: HashMap<(usize, usize), u32> = HashMap::new();
+    // Current-measure occupancy and part-wide slot preference are separate: source voice
+    // numbers may exceed four across a score while each measure still fits four editing slots.
     let mut source_voice_slots: HashMap<(usize, u32), usize> = HashMap::new();
+    let mut preferred_source_voice_slots: HashMap<(usize, u32), usize> = HashMap::new();
     let mut last_note_start: Option<(usize, usize, u32)> = None;
     // Owning staff of the previous note when it was a cross-staff placement, so chord members
     // follow their chord head.
@@ -807,6 +810,7 @@ pub(crate) fn parse_musicxml_collecting(
                         current_clef = Clef::Treble;
                         current_measure_number = 0;
                         source_voice_slots.clear();
+                        preferred_source_voice_slots.clear();
                         measure_repeat_active = None;
                     }
                     "measure" => {
@@ -831,6 +835,7 @@ pub(crate) fn parse_musicxml_collecting(
                         measure_cursor_ticks = 0;
                         measure_content_ticks = 0;
                         voice_cursor_ticks.clear();
+                        source_voice_slots.clear();
                         last_note_start = None;
                         last_note_cross_home = None;
                         last_note_address = None;
@@ -2411,6 +2416,7 @@ pub(crate) fn parse_musicxml_collecting(
                                 let mut voice_index = musicxml_voice_slot(
                                     m,
                                     &mut source_voice_slots,
+                                    &mut preferred_source_voice_slots,
                                     target_staff_index,
                                     note_voice,
                                 )?;
@@ -3018,13 +3024,14 @@ fn musicxml_measure_ticks(time: &TimeSignature, divisions: u32) -> Result<u32, E
         .map_err(|_| Error::Xml("MusicXML measure duration overflow".into()))
 }
 
-/// Map an arbitrary positive MusicXML voice identifier onto one of the four canonical editing
-/// slots without changing the source identifier stored on the measure. The mapping is stable for
-/// the enclosing part/staff, so a sparse source voice remains in the same host slot across
-/// measures. A fifth distinct source voice is rejected explicitly rather than silently merged.
+/// Map an arbitrary positive MusicXML voice identifier onto one of four editing slots in the
+/// current measure. Prefer the source voice's previous slot when it is free, while allowing a
+/// different source number to reuse it in a later measure. More than four distinct voices in
+/// one measure/staff cannot be represented and are rejected rather than merged.
 fn musicxml_voice_slot(
     measure: &mut Measure,
     source_slots: &mut HashMap<(usize, u32), usize>,
+    preferred_slots: &mut HashMap<(usize, u32), usize>,
     staff_index: usize,
     source_voice: u32,
 ) -> Result<usize, Error> {
@@ -3048,15 +3055,20 @@ fn musicxml_voice_slot(
     } else {
         usize::try_from(zero_based).ok()
     };
-    let slot = preferred
+    let slot = preferred_slots
+        .get(&(staff_index, source_voice))
+        .copied()
         .filter(|slot| *slot < measure.voices.len() && !occupied(*slot))
+        .or_else(|| preferred.filter(|slot| *slot < measure.voices.len() && !occupied(*slot)))
         .or_else(|| (0..measure.voices.len()).find(|slot| !occupied(*slot)))
         .ok_or_else(|| {
             Error::Xml(
-                "MusicXML part/staff contains more than four distinct source voice numbers".into(),
+                "MusicXML measure/staff contains more than four distinct source voice numbers"
+                    .into(),
             )
         })?;
     source_slots.insert((staff_index, source_voice), slot);
+    preferred_slots.insert((staff_index, source_voice), slot);
     measure.source_voice_numbers[slot] = Some(source_voice);
     Ok(slot)
 }
@@ -3511,6 +3523,46 @@ mod tests {
             restored.parts[0].staves[0].measures[0].source_voice_numbers,
             [Some(1), Some(5), None, None]
         );
+    }
+
+    #[test]
+    fn distinct_voice_numbers_across_measures_reuse_free_editing_slots() {
+        let mut xml = String::from(
+            "<score-partwise><part-list><score-part id=\"P1\"><part-name>Piano</part-name></score-part></part-list><part id=\"P1\">",
+        );
+        for (number, voices) in [(1, &[1, 2, 3, 4][..]), (2, &[2, 5, 6][..])] {
+            xml.push_str(&format!("<measure number=\"{number}\">"));
+            if number == 1 {
+                xml.push_str("<attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time></attributes>");
+            }
+            for (index, voice) in voices.iter().enumerate() {
+                if index > 0 {
+                    xml.push_str("<backup><duration>1</duration></backup>");
+                }
+                let step = ["C", "D", "E", "F", "G", "A"][(*voice - 1) as usize];
+                xml.push_str(&format!("<note><pitch><step>{step}</step><octave>4</octave></pitch><duration>1</duration><voice>{voice}</voice><type>quarter</type></note>"));
+            }
+            xml.push_str("</measure>");
+        }
+        xml.push_str("</part></score-partwise>");
+        let score = parse_musicxml(&xml).expect("later source voices reuse free slots");
+        let measures = &score.parts[0].staves[0].measures;
+        assert_eq!(
+            measures[0].source_voice_numbers,
+            [Some(1), Some(2), Some(3), Some(4)]
+        );
+        assert_eq!(
+            measures[1].source_voice_numbers,
+            [Some(5), Some(2), Some(6), None]
+        );
+        assert_eq!(measures[1].voices.iter().map(Vec::len).sum::<usize>(), 3);
+        let exported = crate::serialize_musicxml(&score).expect("exports");
+        let reparsed = parse_musicxml(&exported).expect("reimports");
+        assert_eq!(
+            reparsed.parts[0].staves[0].measures[1].source_voice_numbers,
+            measures[1].source_voice_numbers
+        );
+        assert!(acorde_core::diff(&score, &reparsed).is_empty());
     }
 
     #[test]
