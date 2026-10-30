@@ -1991,6 +1991,55 @@ fn cc0_mscz_musescore_4_pair_parses_with_declared_diagnostics() {
 
 #[cfg(feature = "mscz")]
 #[test]
+fn orphan_volta_end_and_final_open_begin_preserve_playback_on_mscz_round_trip() {
+    use acorde_core::{Barline, Note, Pitch, Score, VoltaBracket};
+
+    // Reduced from the first/second-ending boundary in Freilachs No. 17 and No. 18.
+    let mut score = Score::new("volta boundary", 104, 4, 4, 0, 3);
+    let measures = &mut score.parts[0].staves[0].measures;
+    for (measure, step) in measures.iter_mut().zip([Step::C, Step::A, Step::B]) {
+        measure.voices[0] = vec![Note::new(Pitch::new(step, 4), Duration::Whole)];
+    }
+    measures[0].barline_left = Barline::RepeatStart;
+    measures[1].barline_right = Barline::RepeatEnd;
+    measures[1].volta = Some(VoltaBracket {
+        number: 1,
+        kind: "end".into(),
+        numbers: Vec::new(),
+    });
+    measures[2].volta = Some(VoltaBracket {
+        number: 2,
+        kind: "begin".into(),
+        numbers: Vec::new(),
+    });
+
+    let encoded = acorde_io::serialize_mscz(&score).expect("MSCZ serializes");
+    let restored = acorde_io::parse_mscz(&encoded).expect("MSCZ reparses");
+    let voltas = |score: &Score| {
+        score.parts[0].staves[0]
+            .measures
+            .iter()
+            .map(|measure| measure.volta.clone())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(voltas(&restored), voltas(&score));
+    assert_eq!(
+        acorde_core::measure_sequence(&restored),
+        acorde_core::measure_sequence(&score)
+    );
+
+    let melody_events = |score: &Score| {
+        acorde_core::to_playback_events(score, &acorde_core::PlaybackOptions::default())
+            .into_iter()
+            .filter(|event| event.part_index == 0)
+            .map(|event| (event.time_beats, event.pitch_midi, event.duration_beats))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(melody_events(&restored), melody_events(&score));
+}
+
+#[cfg(feature = "mscz")]
+#[test]
 fn cc0_mscz_pair_extracted_mscx_files_parse_with_same_declared_boundary() {
     for (xml, expected_diagnostics) in [(OPENSCORE_OMR_MSCX, 0), (OPENSCORE_OMR_MSCX_SECOND, 0)] {
         let report = acorde_io::parse_mscx_with_report(xml).expect("extracted MSCX parses");
