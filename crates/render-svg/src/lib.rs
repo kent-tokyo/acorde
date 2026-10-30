@@ -134,6 +134,7 @@ pub struct SvgRenderOptions {
 pub struct SvgRenderConfig {
     options: SvgRenderOptions,
     staff_gap: f32,
+    measure_text_scale: f32,
     system_breaking: SvgSystemBreakStrategy,
     auto_beam_unmarked: bool,
 }
@@ -157,6 +158,7 @@ impl SvgRenderConfig {
         Self {
             options,
             staff_gap: 10.0,
+            measure_text_scale: 1.0,
             system_breaking: SvgSystemBreakStrategy::FixedMeasureCount,
             auto_beam_unmarked: false,
         }
@@ -165,6 +167,11 @@ impl SvgRenderConfig {
     /// Set the clear distance between consecutive staves, in staff spaces.
     pub fn with_staff_gap(mut self, staff_gap: f32) -> Self {
         self.staff_gap = staff_gap;
+        self
+    }
+
+    pub(crate) fn with_measure_text_scale(mut self, scale: f32) -> Self {
+        self.measure_text_scale = scale;
         self
     }
 
@@ -189,6 +196,9 @@ impl SvgRenderConfig {
     }
     pub fn staff_gap(&self) -> f32 {
         self.staff_gap
+    }
+    pub(crate) fn measure_text_scale(&self) -> f32 {
+        self.measure_text_scale
     }
     pub fn system_breaking(&self) -> SvgSystemBreakStrategy {
         self.system_breaking

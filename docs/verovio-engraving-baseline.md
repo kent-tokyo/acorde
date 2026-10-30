@@ -261,6 +261,25 @@ part of the A4 page is largely empty. Individual chord and accidental
 collisions have not been ruled out, and the import still reports 103
 diagnostics. This change does not establish print-quality parity.
 
+### Print text and grand-staff brace (2026-10-31)
+
+The physical-page SVG now prints measure directions at 1.7 times the screen
+SVG size, with a minimum above-staff lane for directions whose imported
+placement hint would otherwise pull enlarged text into the notation. The
+screen renderer keeps its established text size. On Quilter, the first tempo
+direction is about 2.0 mm high and its baseline is about 6.0 mm above the
+top staff line; the staff space remains about 1.5 mm. Publication title,
+movement title, and composer sizes increase to 5.0, 3.8, and 3.0 mm. The
+inferred piano brace uses a wider, more visible vector curve.
+
+The Quilter density PDF remains one A4 page / four systems. All three Aloha
+Oe density PDF pages were also rasterized at 1400 px and inspected; the page
+count remains three pages / five systems. These fixture previews show clearer
+directions and credits without a new visible overlap from the change. The
+Quilter page still has unused lower space, dense chords need a measured
+collision review, and neither score proves Verovio-level typography or
+publication quality. Import diagnostics remain 103 and 73 respectively.
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.

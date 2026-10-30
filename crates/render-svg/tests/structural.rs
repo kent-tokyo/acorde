@@ -1111,6 +1111,27 @@ fn piano_grand_staff_and_explicit_staff_groups_have_braces() {
     assert_eq!(svg.matches("acorde-staff-brace").count(), 1);
     assert_well_formed_xml(&svg);
 
+    let mut unlabeled = acorde_core::Score::template(ScoreTemplate::Piano);
+    unlabeled.parts[0].short_name.clear();
+    let svg = render_svg(&unlabeled, &opts()).unwrap();
+    let brace = svg
+        .split_once("class=\"acorde-staff-brace\"")
+        .unwrap()
+        .1
+        .split_once("d=\"")
+        .unwrap()
+        .1
+        .split('"')
+        .next()
+        .unwrap();
+    for point in brace.replace(['M', 'C'], "").split_whitespace() {
+        let x = point.split_once(',').unwrap().0.parse::<f32>().unwrap();
+        assert!(
+            x >= 0.0,
+            "grand-staff brace clips the SVG left edge: {brace}"
+        );
+    }
+
     let mut explicit = piano;
     explicit.parts[0].name = "Keyboard".into();
     explicit.parts[0].staff_groups.push(StaffGroup {

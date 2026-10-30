@@ -160,6 +160,11 @@ pub(crate) fn build_svg_with_metadata_placement(
             reason: "staff_gap must be finite and positive".into(),
         });
     }
+    if !config.measure_text_scale().is_finite() || config.measure_text_scale() <= 0.0 {
+        return Err(RenderError::InvalidOptions {
+            reason: "measure_text_scale must be finite and positive".into(),
+        });
+    }
     if options.measures_per_system == 0 {
         return Err(RenderError::InvalidOptions {
             reason: "measures_per_system must be positive".into(),
@@ -579,6 +584,7 @@ pub(crate) fn build_svg_with_metadata_placement(
                     &cross_frames,
                     space,
                     options.interactive,
+                    config.measure_text_scale(),
                     &mandatory,
                     &courtesy,
                     &mut note_points,
@@ -1799,15 +1805,19 @@ fn write_group_connector(
     };
     let path = match symbol {
         acorde_core::PartGroupSymbol::Brace => format!(
-            "M {},{} Q {},{} {},{} Q {},{} {},{}",
+            "M {},{} C {},{} {},{} {},{} C {},{} {},{} {},{}",
             f(x),
             f(top),
-            f(x - 0.45 * space),
-            f(top + 2.0 * space),
-            f(x),
+            f(x - 1.8 * space),
+            f(top + 1.0 * space),
+            f(x - 1.8 * space),
+            f((top + bottom) / 2.0 - 1.0 * space),
+            f(x + 0.25 * space),
             f((top + bottom) / 2.0),
-            f(x - 0.45 * space),
-            f(bottom - 2.0 * space),
+            f(x - 1.8 * space),
+            f((top + bottom) / 2.0 + 1.0 * space),
+            f(x - 1.8 * space),
+            f(bottom - 1.0 * space),
             f(x),
             f(bottom)
         ),
@@ -1819,10 +1829,10 @@ fn write_group_connector(
         kind,
         class,
         path,
-        f(if matches!(symbol, acorde_core::PartGroupSymbol::Bracket) {
-            0.16 * space
-        } else {
-            0.1 * space
+        f(match symbol {
+            acorde_core::PartGroupSymbol::Bracket => 0.16 * space,
+            acorde_core::PartGroupSymbol::Brace => 0.15 * space,
+            acorde_core::PartGroupSymbol::Line => 0.1 * space,
         })
     );
 }
@@ -2234,6 +2244,21 @@ fn content_horizontal_margins(
 ) -> (f32, f32) {
     let mut left = LEFT_MARGIN_U;
     let mut right = RIGHT_MARGIN_U;
+    let has_brace = score
+        .part_groups
+        .iter()
+        .any(|group| group.symbol == acorde_core::PartGroupSymbol::Brace)
+        || score.parts.iter().any(|part| {
+            implicit_piano_brace(part)
+                || part
+                    .staff_groups
+                    .iter()
+                    .any(|group| group.symbol == acorde_core::PartGroupSymbol::Brace)
+        });
+    if has_brace {
+        // The wider brace must remain inside the SVG even without a part label.
+        left = left.max(2.3);
+    }
     for &(part, staff) in staff_refs {
         let tablature = score.parts[part].staves[staff].tablature.as_ref();
         let short_name = score.parts[part].short_name.trim();
@@ -2946,6 +2971,7 @@ fn render_measure(
     cross_frames: &HashMap<usize, (i32, f32)>,
     space: f32,
     interactive: bool,
+    measure_text_scale: f32,
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
     note_points: &mut HashMap<NoteKey, NotePoint>,
@@ -3199,6 +3225,7 @@ fn render_measure(
         width,
         space,
         interactive,
+        measure_text_scale,
         note_points,
         &semantic_placements,
     )?;
@@ -4429,6 +4456,7 @@ fn render_measure_text(
     width: f32,
     space: f32,
     interactive: bool,
+    text_scale: f32,
     note_points: &HashMap<NoteKey, NotePoint>,
     resolved_annotations: &[acorde_layout::GlyphPlacement],
 ) -> Result<(), RenderError> {
@@ -4461,12 +4489,12 @@ fn render_measure_text(
             index
         };
         let default_y = if placement_below {
-            bottom_y + (2.8 + stack_index as f32 * 0.95) * space
+            bottom_y + (2.8 + stack_index as f32 * 0.95 * text_scale) * space
         } else {
-            bottom_y - (6.2 + stack_index as f32 * 0.95) * space
+            bottom_y - (6.2 + stack_index as f32 * 0.95 * text_scale) * space
         };
         let offset_y = styled.offset_y.unwrap_or(0.0) + styled.relative_y.unwrap_or(0.0);
-        let y = measure_text_collision_y(&MeasureTextCollisionContext {
+        let mut y = measure_text_collision_y(&MeasureTextCollisionContext {
             measure,
             part,
             staff,
@@ -4476,6 +4504,12 @@ fn render_measure_text(
             space,
             below: placement_below,
         }) + (offset_y as f32 / 10.0) * space;
+        if text_scale > 1.0 && !placement_below {
+            // Imported default-y is a hint from the source engraving. Keep
+            // enlarged print text above the staff even when that hint would
+            // pull it back into the note and stem lane after reflow.
+            y = y.min(bottom_y - 8.0 * space);
+        }
         let offset_x = styled.offset_x.unwrap_or(0.0) + styled.relative_x.unwrap_or(0.0);
         let text_x = content_x0 + (offset_x as f32 / 10.0) * space;
         let class = match styled.style {
@@ -4493,9 +4527,9 @@ fn render_measure_text(
             metrics: acorde_layout::GlyphMetrics {
                 advance_mm: 0.0,
                 left_mm: 0.0,
-                top_mm: -0.78 * space,
-                width_mm: styled.text.chars().count() as f32 * 0.46 * space,
-                height_mm: 0.9 * space,
+                top_mm: -0.78 * space * text_scale,
+                width_mm: styled.text.chars().count() as f32 * 0.46 * space * text_scale,
+                height_mm: 0.9 * space * text_scale,
             },
             x_mm: text_x,
             y_mm: y,
@@ -4542,7 +4576,7 @@ fn render_measure_text(
             class = class,
             x = f(text_x),
             y = f(y),
-            size = f(0.78 * space),
+            size = f(0.78 * space * text_scale),
             style = style,
             attributes = attributes,
             text = escape_xml(&styled.text),
@@ -4550,16 +4584,17 @@ fn render_measure_text(
         if styled.style == acorde_core::TextStyle::FiguredBass
             && measure.figured_bass.iter().any(|figure| figure.extender)
         {
-            let line_start =
-                text_x + styled.text.chars().count() as f32 * 0.42 * space + 0.25 * space;
+            let line_start = text_x
+                + styled.text.chars().count() as f32 * 0.42 * space * text_scale
+                + 0.25 * space;
             let line_end = (x + width - MEASURE_PAD_U * space).max(line_start);
             let _ = write!(
                 body,
                 r#"<line class="acorde-figured-bass-extender" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
                 f(line_start),
-                f(y - 0.18 * space),
+                f(y - 0.18 * space * text_scale),
                 f(line_end),
-                f(y - 0.18 * space),
+                f(y - 0.18 * space * text_scale),
                 f(0.06 * space)
             );
         }
@@ -8518,6 +8553,7 @@ mod tests {
             100.0,
             24.0,
             false,
+            1.0,
             &HashMap::new(),
             &[obstacle],
         )
