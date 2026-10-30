@@ -22,6 +22,136 @@ fn opts() -> SvgRenderOptions {
 }
 
 #[test]
+fn adjacent_abc_tuplets_keep_four_brackets_at_narrow_and_wide_widths() {
+    let abc = "X:1\nM:4/4\nL:1/8\nK:C\n(3C-C G (3C-C G (3C-C G (3C-C G |]\n";
+    let score = acorde_io::parse_abc(abc).expect("ABC tuplets parse");
+    let voice = &score.parts[0].staves[0].measures[0].voices[0];
+    assert_eq!(voice.len(), 12);
+    assert_eq!(
+        acorde_core::tuplet_group_ranges(voice),
+        [(0, 2), (3, 5), (6, 8), (9, 11)]
+    );
+    assert!((voice.iter().map(acorde_core::Note::beats).sum::<f64>() - 4.0).abs() < 1e-9);
+    let events = acorde_core::to_playback_events(&score, &Default::default());
+    let starts_for = |midi| {
+        events
+            .iter()
+            .filter(|event| event.pitch_midi == midi)
+            .map(|event| (event.time_beats, event.duration_beats))
+            .collect::<Vec<_>>()
+    };
+    let bass = starts_for(60);
+    let upper = starts_for(67);
+    assert_eq!(bass.len(), 4);
+    assert_eq!(upper.len(), 4);
+    for (index, ((bass_start, bass_length), (upper_start, upper_length))) in
+        bass.iter().zip(&upper).enumerate()
+    {
+        assert!((*bass_start - index as f64).abs() < 1e-9);
+        assert!((*bass_length - 2.0 / 3.0).abs() < 1e-9);
+        assert!((*upper_start - (index as f64 + 2.0 / 3.0)).abs() < 1e-9);
+        assert!((*upper_length - 1.0 / 3.0).abs() < 1e-9);
+    }
+    let layout = compute_layout(&score, &LayoutConfig::default());
+    assert_eq!(layout.tuplet_groups.len(), 4);
+    for width in [500.0, 1200.0] {
+        let svg = render_svg(
+            &score,
+            &SvgRenderOptions {
+                width,
+                measures_per_system: 1,
+                ..opts()
+            },
+        )
+        .expect("SVG renders");
+        assert_eq!(svg.matches("class=\"acorde-tuplet-number\"").count(), 4);
+    }
+    let abc_roundtrip = acorde_io::serialize_abc(&score).expect("ABC exports");
+    let restored = acorde_io::parse_abc(&abc_roundtrip).expect("ABC reparses");
+    assert_eq!(
+        acorde_core::tuplet_group_ranges(&restored.parts[0].staves[0].measures[0].voices[0]).len(),
+        4
+    );
+    let restored_events = acorde_core::to_playback_events(&restored, &Default::default());
+    assert_eq!(
+        events
+            .iter()
+            .map(|event| (event.pitch_midi, event.time_beats, event.duration_beats))
+            .collect::<Vec<_>>(),
+        restored_events
+            .iter()
+            .map(|event| (event.pitch_midi, event.time_beats, event.duration_beats))
+            .collect::<Vec<_>>()
+    );
+    let xml = acorde_io::serialize_musicxml(&score).expect("MusicXML exports");
+    let restored_xml = acorde_io::parse_musicxml(&xml).expect("MusicXML reparses");
+    assert_eq!(
+        acorde_core::tuplet_group_ranges(&restored_xml.parts[0].staves[0].measures[0].voices[0])
+            .len(),
+        4
+    );
+}
+
+#[test]
+fn mixed_duration_tuplets_rests_and_normal_notes_keep_boundaries() {
+    for (abc, expected, groups) in [
+        (
+            "X:1\nM:4/4\nL:1/8\nK:C\n(3:2:2 C2 G (3:2:2 C2 G (3:2:2 C2 G (3:2:2 C2 G |]\n",
+            8,
+            4,
+        ),
+        ("X:1\nM:4/4\nL:1/8\nK:C\n(3CDE F2 (3GzB C2 |]\n", 8, 2),
+    ] {
+        let score = acorde_io::parse_abc(abc).expect("ABC parses");
+        let voice = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(voice.len(), expected);
+        assert_eq!(acorde_core::tuplet_group_ranges(voice).len(), groups);
+        assert!((voice.iter().map(acorde_core::Note::beats).sum::<f64>() - 4.0).abs() < 1e-9);
+        assert_eq!(
+            compute_layout(&score, &LayoutConfig::default())
+                .tuplet_groups
+                .len(),
+            groups
+        );
+        let svg = render_svg(&score, &opts()).expect("SVG renders");
+        assert_eq!(
+            svg.matches("class=\"acorde-tuplet-number\"").count(),
+            groups
+        );
+        let abc_roundtrip = acorde_io::serialize_abc(&score).expect("ABC exports");
+        let restored = acorde_io::parse_abc(&abc_roundtrip).expect("ABC reparses");
+        assert_eq!(
+            acorde_core::tuplet_group_ranges(&restored.parts[0].staves[0].measures[0].voices[0])
+                .len(),
+            groups
+        );
+    }
+}
+
+#[test]
+fn explicit_musicxml_tuplet_starts_stops_survive_export_and_layout() {
+    let source = include_str!("../../../tests/fixtures/adjacent-tuplets.musicxml");
+    let score = acorde_io::parse_musicxml(source).expect("MusicXML parses");
+    let voice = &score.parts[0].staves[0].measures[0].voices[0];
+    assert_eq!(acorde_core::tuplet_group_ranges(voice), [(0, 2), (3, 4)]);
+    assert!((voice.iter().map(acorde_core::Note::beats).sum::<f64>() - 2.0).abs() < 1e-9);
+    assert_eq!(
+        compute_layout(&score, &LayoutConfig::default())
+            .tuplet_groups
+            .len(),
+        2
+    );
+    let svg = render_svg(&score, &opts()).expect("SVG renders");
+    assert_eq!(svg.matches("class=\"acorde-tuplet-number\"").count(), 2);
+    let exported = acorde_io::serialize_musicxml(&score).expect("MusicXML exports");
+    let restored = acorde_io::parse_musicxml(&exported).expect("MusicXML reparses");
+    assert_eq!(
+        acorde_core::tuplet_group_ranges(&restored.parts[0].staves[0].measures[0].voices[0]),
+        [(0, 2), (3, 4)]
+    );
+}
+
+#[test]
 fn render_preflight_locates_renderer_capability_boundaries() {
     use acorde_core::{Clef, Duration, Note, NoteHead, Pitch, Score, Step, TablatureConfig};
 

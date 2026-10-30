@@ -129,8 +129,8 @@ pub fn export_score_pdf(
 
 /// Convert a self-contained Acorde SVG viewport into one vector PDF page.
 ///
-/// Harumi natively preserves the Bézier paths, elliptical arcs, and ellipses emitted by
-/// `acorde-render-svg`; this function therefore passes the bounded SVG source through unchanged.
+/// Harumi preserves Bézier paths and ellipses, but does not accept the rotation on Acorde's
+/// notehead ellipses. Only those rotated ellipses are polygonized before PDF conversion.
 /// It is intended for Acorde-generated SVG, not as a general-purpose SVG sanitizer or renderer.
 pub fn export_svg_pdf(svg: &str, options: &PdfRenderOptions<'_>) -> Result<Vec<u8>, PdfError> {
     if svg.len() > MAX_SVG_BYTES {
@@ -144,8 +144,9 @@ pub fn export_svg_pdf(svg: &str, options: &PdfRenderOptions<'_>) -> Result<Vec<u
     {
         return Err(PdfError::InvalidPageSize);
     }
+    let normalized = normalize_svg_rotated_ellipses(svg)?;
     harumi::svg_to_pdf_with_options(
-        svg.as_bytes(),
+        normalized.as_bytes(),
         harumi::SvgOptions {
             font_bytes: options.font_bytes,
             page_size: options.page_size_pt,
@@ -258,34 +259,56 @@ pub fn normalize_svg_for_harumi(svg: &str) -> Result<String, PdfError> {
     }
     let document = Document::parse(svg)?;
     let mut output = String::with_capacity(svg.len());
-    serialize_children(document.root(), &mut output)?;
+    serialize_children(document.root(), &mut output, true)?;
     Ok(output)
 }
 
-fn serialize_children(node: Node<'_, '_>, output: &mut String) -> Result<(), PdfError> {
+fn normalize_svg_rotated_ellipses(svg: &str) -> Result<String, PdfError> {
+    let document = Document::parse(svg)?;
+    let mut output = String::with_capacity(svg.len());
+    serialize_children(document.root(), &mut output, false)?;
+    Ok(output)
+}
+
+fn serialize_children(
+    node: Node<'_, '_>,
+    output: &mut String,
+    flatten_paths: bool,
+) -> Result<(), PdfError> {
     for child in node.children() {
-        serialize_node(child, output)?;
+        serialize_node(child, output, flatten_paths)?;
     }
     Ok(())
 }
 
-fn serialize_node(node: Node<'_, '_>, output: &mut String) -> Result<(), PdfError> {
+fn serialize_node(
+    node: Node<'_, '_>,
+    output: &mut String,
+    flatten_paths: bool,
+) -> Result<(), PdfError> {
     match node.node_type() {
-        NodeType::Root => serialize_children(node, output),
+        NodeType::Root => serialize_children(node, output, flatten_paths),
         NodeType::Text => {
             output.push_str(&escape_xml(node.text().unwrap_or_default()));
             Ok(())
         }
         NodeType::Element => match node.tag_name().name() {
-            "path" => serialize_path(node, output),
-            "ellipse" => serialize_ellipse(node, output),
-            name => serialize_element(name, node, output),
+            "path" if flatten_paths => serialize_path(node, output),
+            "ellipse" if flatten_paths || node.attribute("transform").is_some() => {
+                serialize_ellipse(node, output)
+            }
+            name => serialize_element(name, node, output, flatten_paths),
         },
         _ => Ok(()),
     }
 }
 
-fn serialize_element(name: &str, node: Node<'_, '_>, output: &mut String) -> Result<(), PdfError> {
+fn serialize_element(
+    name: &str,
+    node: Node<'_, '_>,
+    output: &mut String,
+    flatten_paths: bool,
+) -> Result<(), PdfError> {
     output.push('<');
     output.push_str(name);
     serialize_attributes(node, &[], output);
@@ -294,7 +317,7 @@ fn serialize_element(name: &str, node: Node<'_, '_>, output: &mut String) -> Res
         return Ok(());
     }
     output.push('>');
-    serialize_children(node, output)?;
+    serialize_children(node, output, flatten_paths)?;
     output.push_str("</");
     output.push_str(name);
     output.push('>');
@@ -881,14 +904,49 @@ fn format_number(value: f32) -> String {
 
 #[cfg(test)]
 mod tests {
-    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    use acorde_core::{Duration, Note, Pitch, Score, Step, TupletBoundary, TupletInfo};
     use acorde_layout::{PrintConfig, compute_print_layout};
     use acorde_render_svg::{SvgRenderOptions, render_svg};
 
     use super::{
-        MAX_PDF_PAGES, POINTS_PER_MM, PdfError, PdfPagesError, SvgPathError, SvgPdfPage,
-        export_print_layout_pdf, export_svg_pages_pdf, normalize_svg_for_harumi,
+        MAX_PDF_PAGES, POINTS_PER_MM, PdfError, PdfPagesError, PdfRenderOptions, SvgPathError,
+        SvgPdfPage, export_print_layout_pdf, export_score_pdf, export_svg_pages_pdf,
+        normalize_svg_for_harumi,
     };
+
+    #[test]
+    fn adjacent_triplets_remain_separate_in_pdf_source() {
+        let mut score = Score::new("", 120, 4, 4, 0, 1);
+        let mut notes = Vec::new();
+        for _ in 0..4 {
+            for index in 0..3 {
+                let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Eighth);
+                note.tuplet = Some(TupletInfo {
+                    actual_notes: 3,
+                    normal_notes: 2,
+                });
+                note.tuplet_boundary = match index {
+                    0 => Some(TupletBoundary::Start),
+                    2 => Some(TupletBoundary::Stop),
+                    _ => None,
+                };
+                notes.push(note);
+            }
+        }
+        score.parts[0].staves[0].measures[0].voices[0] = notes;
+        let svg = render_svg(&score, &SvgRenderOptions::default()).expect("SVG renders");
+        assert_eq!(svg.matches("class=\"acorde-tuplet-number\"").count(), 4);
+        let normalized =
+            super::normalize_svg_rotated_ellipses(&svg).expect("PDF source normalizes");
+        assert!(!normalized.contains("rotate("));
+        assert!(
+            normalized.contains("<path"),
+            "notation curves stay vector paths"
+        );
+        let pdf =
+            export_score_pdf(&score, &PdfRenderOptions::new(&[])).expect("vector PDF exports");
+        assert!(pdf.starts_with(b"%PDF"));
+    }
 
     #[test]
     fn normalizes_notation_curves_and_noteheads_to_harumi_subset() {

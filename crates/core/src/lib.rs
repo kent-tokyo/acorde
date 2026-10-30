@@ -61,8 +61,8 @@ pub use model::notation::{
     AccidentalDisplay, Articulation, Barline, BeamState, ChordBarre, ChordDefinition,
     ChordDefinitionMember, ChordDegree, ChordSymbol, Clef, CrossStaff, Dynamic, FiguredBassFigure,
     FingeringSelectionPolicy, GuitarTechnique, HairpinKind, KeySignature, Lyric, NoteHead,
-    OttavaKind, StyledText, TabPosition, TablatureConfig, TextStyle, TimeSignature, TupletInfo,
-    VerseLyric,
+    OttavaKind, StyledText, TabPosition, TablatureConfig, TextStyle, TimeSignature, TupletBoundary,
+    TupletInfo, VerseLyric,
 };
 pub use model::omr::{
     MAX_OMR_ANNOTATIONS, MAX_OMR_EVENTS_PER_MEASURE, MAX_OMR_MEASURES, MAX_OMR_PAGES,
@@ -104,7 +104,7 @@ pub use model::score::{
     assign_tablature_positions, compute_beams, diff, measure_beats_remaining,
     optimize_tablature_positions, respell_score, respell_score_to_key, respell_staff_region,
     score_duration_secs, score_duration_secs_region, score_patch, suggested_stem_up, transpose,
-    transpose_checked, transpose_staff_region_checked, voice_duration_beats,
+    transpose_checked, transpose_staff_region_checked, tuplet_group_ranges, voice_duration_beats,
 };
 pub use model::structural_plan::{
     STRUCTURAL_CHANGE_PLAN_CONTRACT_VERSION, StructuralChangeDiagnostic,

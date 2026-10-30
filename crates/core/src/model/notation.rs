@@ -565,6 +565,15 @@ pub struct TupletInfo {
     pub normal_notes: u8,
 }
 
+/// Explicit written tuplet boundary. Timing remains defined by [`TupletInfo`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TupletBoundary {
+    Start,
+    Stop,
+    StartStop,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub enum BeamState {
     #[default]
