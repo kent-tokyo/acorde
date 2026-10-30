@@ -1,0 +1,197 @@
+{
+  "gitHead": "c051f5cbb399e9102c834f9efa2c832a0d16533d",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasmPack": "wasm-pack 0.15.0",
+  "wasmOpt": "wasm-opt version 130",
+  "browser": "Chrome 156.0.8078.74",
+  "conditions": "cold context, cache disabled, 80 ms latency, 1 MB/s download/upload, three runs",
+  "fixture": {
+    "tinyAbc": "X:1\nT:Original tiny tune\nM:4/4\nL:1/8\nK:C\nCDEF GABc|cBAG FEDC|\n",
+    "generatedMsczBytes": 3263,
+    "generatedParts": 4,
+    "generatedStaves": 8,
+    "generatedBars": 32
+  },
+  "sizes": {
+    "full": {
+      "raw": 5499319,
+      "gzip": 1771482,
+      "brotli": 1204368
+    },
+    "viewer": {
+      "raw": 4486430,
+      "gzip": 1421326,
+      "brotli": 961354
+    }
+  },
+  "results": {
+    "full": {
+      "tiny-abc": [
+        {
+          "transferMs": 1317,
+          "initMs": 7.5,
+          "parseMs": 5,
+          "svgMs": 20.899999976158142,
+          "transferBytes": 1204668,
+          "encodedBytes": 1204368,
+          "decodedBytes": 5499319,
+          "scoreParts": 1,
+          "scoreStaves": 1,
+          "playbackEvents": 16,
+          "msczBytes": 859
+        },
+        {
+          "transferMs": 1313,
+          "initMs": 6.5,
+          "parseMs": 5,
+          "svgMs": 21.100000023841858,
+          "transferBytes": 1204668,
+          "encodedBytes": 1204368,
+          "decodedBytes": 5499319,
+          "scoreParts": 1,
+          "scoreStaves": 1,
+          "playbackEvents": 16,
+          "msczBytes": 859
+        },
+        {
+          "transferMs": 1310.8999999761581,
+          "initMs": 7,
+          "parseMs": 4.700000047683716,
+          "svgMs": 20.799999952316284,
+          "transferBytes": 1204668,
+          "encodedBytes": 1204368,
+          "decodedBytes": 5499319,
+          "scoreParts": 1,
+          "scoreStaves": 1,
+          "playbackEvents": 16,
+          "msczBytes": 859
+        }
+      ],
+      "generated-4-part-8-staff-32-bar-mscz": [
+        {
+          "transferMs": 1312.5,
+          "initMs": 6.900000035762787,
+          "parseMs": 24.399999976158142,
+          "svgMs": 42,
+          "transferBytes": 1204668,
+          "encodedBytes": 1204368,
+          "decodedBytes": 5499319,
+          "scoreParts": 4,
+          "scoreStaves": 8,
+          "playbackEvents": 2048,
+          "msczBytes": 3263
+        },
+        {
+          "transferMs": 1308.8999999761581,
+          "initMs": 6.5,
+          "parseMs": 23.100000023841858,
+          "svgMs": 39.69999998807907,
+          "transferBytes": 1204668,
+          "encodedBytes": 1204368,
+          "decodedBytes": 5499319,
+          "scoreParts": 4,
+          "scoreStaves": 8,
+          "playbackEvents": 2048,
+          "msczBytes": 3263
+        },
+        {
+          "transferMs": 1307.5,
+          "initMs": 6.699999988079071,
+          "parseMs": 21.5,
+          "svgMs": 40.10000002384186,
+          "transferBytes": 1204668,
+          "encodedBytes": 1204368,
+          "decodedBytes": 5499319,
+          "scoreParts": 4,
+          "scoreStaves": 8,
+          "playbackEvents": 2048,
+          "msczBytes": 3263
+        }
+      ]
+    },
+    "viewer": {
+      "tiny-abc": [
+        {
+          "transferMs": 1065.199999988079,
+          "initMs": 5.899999976158142,
+          "parseMs": 4.600000023841858,
+          "svgMs": 20.30000001192093,
+          "transferBytes": 961654,
+          "encodedBytes": 961354,
+          "decodedBytes": 4486430,
+          "scoreParts": 1,
+          "scoreStaves": 1,
+          "playbackEvents": 16,
+          "msczBytes": 859
+        },
+        {
+          "transferMs": 1068.199999988079,
+          "initMs": 7.900000035762787,
+          "parseMs": 5.5,
+          "svgMs": 23.099999964237213,
+          "transferBytes": 961654,
+          "encodedBytes": 961354,
+          "decodedBytes": 4486430,
+          "scoreParts": 1,
+          "scoreStaves": 1,
+          "playbackEvents": 16,
+          "msczBytes": 859
+        },
+        {
+          "transferMs": 1068.199999988079,
+          "initMs": 5.5,
+          "parseMs": 4.5,
+          "svgMs": 20.599999964237213,
+          "transferBytes": 961654,
+          "encodedBytes": 961354,
+          "decodedBytes": 4486430,
+          "scoreParts": 1,
+          "scoreStaves": 1,
+          "playbackEvents": 16,
+          "msczBytes": 859
+        }
+      ],
+      "generated-4-part-8-staff-32-bar-mscz": [
+        {
+          "transferMs": 1066,
+          "initMs": 5.400000035762787,
+          "parseMs": 24.099999964237213,
+          "svgMs": 39.200000047683716,
+          "transferBytes": 961654,
+          "encodedBytes": 961354,
+          "decodedBytes": 4486430,
+          "scoreParts": 4,
+          "scoreStaves": 8,
+          "playbackEvents": 2048,
+          "msczBytes": 3263
+        },
+        {
+          "transferMs": 1064.8999999761581,
+          "initMs": 5.300000011920929,
+          "parseMs": 24.30000001192093,
+          "svgMs": 41.30000001192093,
+          "transferBytes": 961654,
+          "encodedBytes": 961354,
+          "decodedBytes": 4486430,
+          "scoreParts": 4,
+          "scoreStaves": 8,
+          "playbackEvents": 2048,
+          "msczBytes": 3263
+        },
+        {
+          "transferMs": 1063.5,
+          "initMs": 5.599999964237213,
+          "parseMs": 25.200000047683716,
+          "svgMs": 41.69999998807907,
+          "transferBytes": 961654,
+          "encodedBytes": 961354,
+          "decodedBytes": 4486430,
+          "scoreParts": 4,
+          "scoreStaves": 8,
+          "playbackEvents": 2048,
+          "msczBytes": 3263
+        }
+      ]
+    }
+  }
+}

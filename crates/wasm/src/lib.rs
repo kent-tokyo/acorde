@@ -8,6 +8,7 @@ const MAX_SCORE_JSON_BYTES: usize = 16 * 1024 * 1024;
 const MAX_LAYOUT_JSON_BYTES: usize = 32 * 1024 * 1024;
 const MAX_OPTIONS_JSON_BYTES: usize = 64 * 1024;
 const MAX_SMALL_JSON_BYTES: usize = 256 * 1024;
+#[cfg(feature = "soundfont")]
 const MAX_SOUNDFONT_BYTES: usize = acorde_soundfont::MAX_ASSET_BYTES;
 
 fn js_err(msg: impl std::fmt::Display) -> JsValue {
@@ -111,6 +112,7 @@ pub fn validate_glyph_resource_descriptor(descriptor_json: &str) -> Result<Strin
 // ── MusicXML ──────────────────────────────────────────────────────────────────
 
 /// Parse a MusicXML string and return the score as a JSON string.
+#[cfg(feature = "musicxml")]
 #[wasm_bindgen]
 pub fn parse_musicxml(xml: &str) -> Result<String, JsValue> {
     let score = acorde_io::parse_musicxml(xml).map_err(js_err)?;
@@ -121,6 +123,7 @@ pub fn parse_musicxml(xml: &str) -> Result<String, JsValue> {
 ///
 /// This convenience path reuses the documented MusicXML parser and the same SVG renderer as
 /// native callers; use `parse_musicxml_report` when source-located import diagnostics are needed.
+#[cfg(feature = "musicxml")]
 #[wasm_bindgen]
 pub fn parse_musicxml_render_svg(xml: &str, options_json: &str) -> Result<String, JsValue> {
     let score = acorde_io::parse_musicxml(xml).map_err(js_err)?;
@@ -130,6 +133,7 @@ pub fn parse_musicxml_render_svg(xml: &str, options_json: &str) -> Result<String
 }
 
 /// Parse MusicXML and return an [`acorde_io::ImportReport`] JSON string.
+#[cfg(feature = "musicxml")]
 #[wasm_bindgen]
 pub fn parse_musicxml_report(xml: &str) -> Result<String, JsValue> {
     let report = acorde_io::parse_musicxml_with_report(xml).map_err(js_err)?;
@@ -137,6 +141,7 @@ pub fn parse_musicxml_report(xml: &str) -> Result<String, JsValue> {
 }
 
 /// Parse a compressed MXL file (byte array) and return the score as a JSON string.
+#[cfg(feature = "musicxml")]
 #[wasm_bindgen]
 pub fn parse_mxl(data: &[u8]) -> Result<String, JsValue> {
     let score = acorde_io::parse_mxl(data).map_err(js_err)?;
@@ -144,6 +149,7 @@ pub fn parse_mxl(data: &[u8]) -> Result<String, JsValue> {
 }
 
 /// Parse a compressed MusicXML (MXL) archive and return an ImportReport JSON string.
+#[cfg(feature = "musicxml")]
 #[wasm_bindgen]
 pub fn parse_mxl_report(data: &[u8]) -> Result<String, JsValue> {
     let report = acorde_io::parse_mxl_with_report(data).map_err(js_err)?;
@@ -151,6 +157,7 @@ pub fn parse_mxl_report(data: &[u8]) -> Result<String, JsValue> {
 }
 
 /// Parse a Guitar Pro 6 (`.gpx`) or 7/8 (`.gp`) file (byte array) and return the score as JSON.
+#[cfg(feature = "gp")]
 #[wasm_bindgen]
 pub fn parse_gp(data: &[u8]) -> Result<String, JsValue> {
     let score = acorde_io::parse_gp(data).map_err(js_err)?;
@@ -158,6 +165,7 @@ pub fn parse_gp(data: &[u8]) -> Result<String, JsValue> {
 }
 
 /// Parse a Guitar Pro 6/7/8 (`.gpx`/`.gp`) file and return an ImportReport JSON string.
+#[cfg(feature = "gp")]
 #[wasm_bindgen]
 pub fn parse_gp_report(data: &[u8]) -> Result<String, JsValue> {
     let report = acorde_io::parse_gp_with_report(data).map_err(js_err)?;
@@ -165,6 +173,7 @@ pub fn parse_gp_report(data: &[u8]) -> Result<String, JsValue> {
 }
 
 /// Parse a compressed MusicXML (MXL) archive and render its canonical score directly to SVG.
+#[cfg(feature = "musicxml")]
 #[wasm_bindgen]
 pub fn parse_mxl_render_svg(data: &[u8], options_json: &str) -> Result<String, JsValue> {
     let score = acorde_io::parse_mxl(data).map_err(js_err)?;
@@ -174,6 +183,7 @@ pub fn parse_mxl_render_svg(data: &[u8], options_json: &str) -> Result<String, J
 }
 
 /// Serialize a score (JSON string) to MusicXML.
+#[cfg(feature = "musicxml")]
 #[wasm_bindgen]
 pub fn serialize_musicxml(score_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
@@ -181,6 +191,7 @@ pub fn serialize_musicxml(score_json: &str) -> Result<String, JsValue> {
 }
 
 /// Serialize a score to MusicXML and return an [`acorde_io::ExportReport`] JSON string.
+#[cfg(feature = "musicxml")]
 #[wasm_bindgen]
 pub fn serialize_musicxml_report(score_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
@@ -191,6 +202,7 @@ pub fn serialize_musicxml_report(score_json: &str) -> Result<String, JsValue> {
 // ── MEI ──────────────────────────────────────────────────────────────────────
 
 /// Parse the documented MEI subset and return the score as a JSON string.
+#[cfg(feature = "mei")]
 #[wasm_bindgen]
 pub fn parse_mei(xml: &str) -> Result<String, JsValue> {
     let score = acorde_io::parse_mei(xml).map_err(js_err)?;
@@ -201,6 +213,7 @@ pub fn parse_mei(xml: &str) -> Result<String, JsValue> {
 ///
 /// This convenience path is equivalent to `parse_mei` followed by `render_score_svg`; it does
 /// not broaden MEI support or hide source diagnostics from `parse_mei_report`.
+#[cfg(feature = "mei")]
 #[wasm_bindgen]
 pub fn parse_mei_render_svg(xml: &str, options_json: &str) -> Result<String, JsValue> {
     let score = acorde_io::parse_mei(xml).map_err(js_err)?;
@@ -210,6 +223,7 @@ pub fn parse_mei_render_svg(xml: &str, options_json: &str) -> Result<String, JsV
 }
 
 /// Parse the documented MEI subset and return an ImportReport JSON string.
+#[cfg(feature = "mei")]
 #[wasm_bindgen]
 pub fn parse_mei_report(xml: &str) -> Result<String, JsValue> {
     let report = acorde_io::parse_mei_with_report(xml).map_err(js_err)?;
@@ -217,6 +231,7 @@ pub fn parse_mei_report(xml: &str) -> Result<String, JsValue> {
 }
 
 /// Serialize a score to the documented MEI subset.
+#[cfg(feature = "mei")]
 #[wasm_bindgen]
 pub fn serialize_mei(score_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
@@ -224,6 +239,7 @@ pub fn serialize_mei(score_json: &str) -> Result<String, JsValue> {
 }
 
 /// Serialize a score to MEI and return an ExportReport JSON string.
+#[cfg(feature = "mei")]
 #[wasm_bindgen]
 pub fn serialize_mei_report(score_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
@@ -310,6 +326,7 @@ pub fn serialize_mscz_report(score_json: &str) -> Result<String, JsValue> {
 }
 
 /// Parse a MIDI file (byte array) and return the score as a JSON string.
+#[cfg(feature = "midi")]
 #[wasm_bindgen]
 pub fn parse_midi(data: &[u8]) -> Result<String, JsValue> {
     let score = acorde_io::parse_midi(data).map_err(js_err)?;
@@ -321,6 +338,7 @@ pub fn parse_midi(data: &[u8]) -> Result<String, JsValue> {
 /// MIDI notation is necessarily a bounded projection of performance events; this helper does
 /// not invent notation semantics that are absent from the MIDI input. Use `parse_midi_report`
 /// for source-located conversion diagnostics.
+#[cfg(feature = "midi")]
 #[wasm_bindgen]
 pub fn parse_midi_render_svg(data: &[u8], options_json: &str) -> Result<String, JsValue> {
     let score = acorde_io::parse_midi(data).map_err(js_err)?;
@@ -330,6 +348,7 @@ pub fn parse_midi_render_svg(data: &[u8], options_json: &str) -> Result<String, 
 }
 
 /// Parse MIDI and return an ImportReport JSON string.
+#[cfg(feature = "midi")]
 #[wasm_bindgen]
 pub fn parse_midi_report(data: &[u8]) -> Result<String, JsValue> {
     let report = acorde_io::parse_midi_with_report(data).map_err(js_err)?;
@@ -337,6 +356,7 @@ pub fn parse_midi_report(data: &[u8]) -> Result<String, JsValue> {
 }
 
 /// Serialize a score (JSON string) to MIDI bytes (`Uint8Array` in JS).
+#[cfg(feature = "midi")]
 #[wasm_bindgen]
 pub fn serialize_midi(score_json: &str) -> Result<Vec<u8>, JsValue> {
     let score = score_from_json(score_json)?;
@@ -344,6 +364,7 @@ pub fn serialize_midi(score_json: &str) -> Result<Vec<u8>, JsValue> {
 }
 
 /// Serialize a score to MIDI and return an ExportReport JSON string.
+#[cfg(feature = "midi")]
 #[wasm_bindgen]
 pub fn serialize_midi_report(score_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
@@ -355,6 +376,7 @@ pub fn serialize_midi_report(score_json: &str) -> Result<String, JsValue> {
 ///
 /// Only measures with physical index in `[start_measure, end_measure]` are exported.
 /// The MIDI file starts at tick 0 regardless of the region offset.
+#[cfg(feature = "midi")]
 #[wasm_bindgen]
 pub fn serialize_midi_region(
     score_json: &str,
@@ -499,6 +521,7 @@ pub fn compare_playback_timing(
 ///
 /// Zone metadata is provider-neutral; decoding, synthesis, and licensed sample ownership stay
 /// with the host. `bank` and `program` select the preset whose materialized zones are returned.
+#[cfg(feature = "soundfont")]
 #[wasm_bindgen]
 pub fn soundfont_preset_snapshot(
     data: &[u8],
@@ -2824,11 +2847,13 @@ mod wasm_tests {
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
+    #[cfg(feature = "musicxml")]
     #[wasm_bindgen_test]
     fn parse_musicxml_empty_returns_err() {
         assert!(parse_musicxml("").is_err());
     }
 
+    #[cfg(feature = "musicxml")]
     #[wasm_bindgen_test]
     fn parse_musicxml_garbage_returns_err() {
         assert!(parse_musicxml("not xml at all!!!").is_err());
@@ -2842,6 +2867,51 @@ mod wasm_tests {
         // `BG` and `DGBG` are separate adjacent-note runs. The spaces around them must not
         // be treated as formatting-only whitespace, or SVG would join the two beam groups.
         assert_eq!(svg.matches("acorde-beam").count(), 2);
+    }
+
+    #[wasm_bindgen_test]
+    fn viewer_abc_layout_playback_and_mscz_contract() {
+        let abc = "X:1\nT:Viewer contract\nM:4/4\nL:1/8\nK:C\nCDEF GABc|cBAG FEDC|\n";
+        let score_json = parse_abc(abc).expect("ABC parses");
+        let score: Score = serde_json::from_str(&score_json).expect("score JSON parses");
+        let voice = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(voice.len(), 8);
+        let notes_json = serde_json::to_string(voice).expect("notes serialize");
+        let time_json =
+            serde_json::to_string(&score.settings.time_signature).expect("meter serializes");
+        let beams: Vec<acorde_core::BeamState> =
+            serde_json::from_str(&compute_beams(&notes_json, &time_json).expect("beams compute"))
+                .expect("beam JSON parses");
+        assert_eq!(beams.len(), voice.len());
+        let layout =
+            compute_layout_ex(&score_json, r#"{"measures_per_row":4}"#).expect("layout computes");
+        let svg = render_score_svg_with_layout(&score_json, &layout, "{}").expect("SVG renders");
+        assert!(svg.contains("data-note-addr"));
+        assert!(svg.contains("acorde-beam"));
+        let events: Vec<acorde_core::PlaybackEvent> = serde_json::from_str(
+            &to_playback_events_ex(&score_json, "{}").expect("playback events compute"),
+        )
+        .expect("playback JSON parses");
+        assert_eq!(events.len(), 16);
+        let mscz = serialize_mscz(&score_json).expect("MSCZ exports");
+        let restored: Score = serde_json::from_str(&parse_mscz(&mscz).expect("MSCZ reparses"))
+            .expect("restored score JSON parses");
+        let restored_voice = &restored.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(restored_voice.len(), voice.len());
+        for (original, restored) in voice.iter().zip(restored_voice) {
+            assert_eq!(original.pitches, restored.pitches);
+            assert_eq!(original.duration, restored.duration);
+            assert_eq!(original.dot_count, restored.dot_count);
+        }
+        let restored_events: Vec<acorde_core::PlaybackEvent> = serde_json::from_str(
+            &to_playback_events_ex(&score_to_json(&restored).expect("score serializes"), "{}")
+                .expect("restored playback computes"),
+        )
+        .expect("restored playback JSON parses");
+        assert_eq!(
+            serde_json::to_value(events).expect("events serialize"),
+            serde_json::to_value(restored_events).expect("restored events serialize")
+        );
     }
 
     #[wasm_bindgen_test]
@@ -3145,6 +3215,7 @@ mod wasm_tests {
         assert!(report.contains("/score/part/1/staff/1/measure/1/text/1"));
     }
 
+    #[cfg(feature = "soundfont")]
     #[wasm_bindgen_test]
     fn browser_soundfont_snapshot_exposes_materialized_zone_metadata() {
         let snapshot = soundfont_preset_snapshot(

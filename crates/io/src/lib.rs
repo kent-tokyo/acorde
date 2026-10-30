@@ -25,6 +25,7 @@ pub(crate) const MAX_INPUT_BYTES: usize = 64 * 1024 * 1024;
 #[cfg(feature = "abc")]
 pub(crate) const MAX_ABC_LINE_BYTES: usize = 1024 * 1024;
 /// Baseline limit for decoded MIDI events before score construction.
+#[cfg(feature = "midi")]
 pub(crate) const MAX_MIDI_EVENTS: usize = 500_000;
 
 pub use error::Error;
