@@ -1,6 +1,6 @@
 use super::validation::validate_event_ranges;
 use crate::Error;
-use acorde_core::{Score, TupletInfo};
+use acorde_core::{Articulation, Score, TupletInfo};
 use midly::{
     Format, Header, MetaMessage, MidiMessage, Smf, Timing, TrackEvent, TrackEventKind,
     num::{u4, u7, u15, u24, u28},
@@ -63,36 +63,28 @@ fn serialize_midi_impl(score: &Score, seq: &[usize]) -> Result<Vec<u8>, Error> {
 /// `actual_length`, else the meter in force), so every voice and every meta event lines up with
 /// the bar it belongs to however full its voices are.
 fn measure_start_ticks(score: &Score, seq: &[usize]) -> Vec<u64> {
-    let Some(measures) = score
-        .parts
-        .first()
-        .and_then(|part| part.staves.first())
-        .map(|staff| &staff.measures)
-    else {
-        return vec![0; seq.len()];
-    };
-    let mut meter = score.settings.time_signature.clone();
-    let lengths: Vec<u64> = measures
-        .iter()
-        .map(|measure| {
-            if let Some(time) = &measure.time_sig {
-                meter = time.clone();
-            }
-            let beats = measure
-                .actual_length
-                .and_then(|length| length.beats())
-                .unwrap_or_else(|| meter.total_beats());
-            (beats * f64::from(PPQ)).round().max(0.0) as u64
-        })
-        .collect();
     let mut tick = 0u64;
     seq.iter()
         .map(|&index| {
             let start = tick;
-            tick += lengths.get(index).copied().unwrap_or(0);
+            let beats = score.playback_measure_beats(index);
+            tick += (beats * f64::from(PPQ)).round().max(0.0) as u64;
             start
         })
         .collect()
+}
+
+fn score_tempo_at(score: &Score, measure_index: usize) -> Option<u16> {
+    score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .find_map(|staff| {
+            staff
+                .measures
+                .get(measure_index)
+                .and_then(|measure| measure.tempo)
+        })
 }
 
 /// MIDI key signature meta: sharps (positive) or flats and whether the key is minor.
@@ -128,12 +120,9 @@ fn build_meta_track<'a>(
 
     // If measure 0 carries a tempo override, use it as the initial tempo so we
     // don't emit two conflicting Tempo events at tick 0.
-    let initial_bpm = first_staff_opt
-        .and_then(|s| {
-            seq.first()
-                .and_then(|&i| s.measures.get(i))
-                .and_then(|m| m.tempo)
-        })
+    let initial_bpm = seq
+        .first()
+        .and_then(|&index| score_tempo_at(score, index))
         .map(|b| b.max(1) as u32)
         .unwrap_or_else(|| score.settings.tempo_bpm.max(1) as u32);
     let us_per_beat = 60_000_000u32 / initial_bpm;
@@ -160,22 +149,19 @@ fn build_meta_track<'a>(
 
     // Emit per-measure Tempo meta events for measures after the first.
     // Measure 0 is already covered by the initial event above.
-    if let Some(first_staff) = first_staff_opt {
-        let mut prev_event_tick: u64 = 0;
-
-        for (position, &idx) in seq.iter().enumerate() {
-            let cursor_tick = starts.get(position).copied().unwrap_or(0);
-            if cursor_tick > 0
-                && let Some(measure) = first_staff.measures.get(idx)
-            {
-                if let Some(bpm) = measure.tempo {
-                    let us = 60_000_000u32 / bpm.max(1) as u32;
-                    events.push(TrackEvent {
-                        delta: checked_delta(cursor_tick - prev_event_tick)?,
-                        kind: TrackEventKind::Meta(MetaMessage::Tempo(u24::from(us))),
-                    });
-                    prev_event_tick = cursor_tick;
-                }
+    let mut prev_event_tick: u64 = 0;
+    for (position, &idx) in seq.iter().enumerate() {
+        let cursor_tick = starts.get(position).copied().unwrap_or(0);
+        if cursor_tick > 0 {
+            if let Some(bpm) = score_tempo_at(score, idx) {
+                let us = 60_000_000u32 / bpm.max(1) as u32;
+                events.push(TrackEvent {
+                    delta: checked_delta(cursor_tick - prev_event_tick)?,
+                    kind: TrackEventKind::Meta(MetaMessage::Tempo(u24::from(us))),
+                });
+                prev_event_tick = cursor_tick;
+            }
+            if let Some(measure) = first_staff_opt.and_then(|staff| staff.measures.get(idx)) {
                 if let Some(time_sig) = &measure.time_sig {
                     let den_log2 = time_sig.denominator.trailing_zeros() as u8;
                     events.push(TrackEvent {
@@ -320,11 +306,30 @@ fn build_part_track(
                 };
                 let mut written_beats = 0.0f64;
                 for note in &measure.voices[voice_idx] {
+                    if note.is_grace || note.is_cue {
+                        continue;
+                    }
                     let ticks = note_ticks(&note.duration, note.dot_count, note.tuplet.as_ref());
                     let onset_beats = written_beats;
                     written_beats += note.beats();
-                    if !note.is_rest && !note.is_grace {
-                        let vel = dynamics.velocity(seq_position, onset_beats, note.dynamic);
+                    if !note.is_rest {
+                        let mut vel = dynamics.velocity(seq_position, onset_beats, note.dynamic);
+                        let mut sounding_ticks = ticks as f64;
+                        for articulation in &note.articulations {
+                            match articulation {
+                                Articulation::Staccato | Articulation::Staccatissimo => {
+                                    sounding_ticks *= 0.5;
+                                }
+                                Articulation::Fermata => {
+                                    sounding_ticks *= 1.5;
+                                }
+                                Articulation::Accent | Articulation::Marcato => {
+                                    vel = vel.saturating_add(20).min(127);
+                                }
+                                _ => {}
+                            }
+                        }
+                        let sounding_ticks = sounding_ticks.round() as u64;
                         for (pitch_index, pitch) in note.pitches.iter().enumerate() {
                             // An unpitched note sounds its instrument's percussion key.
                             let midi = part.percussion_key(note, pitch_index).map_or_else(
@@ -335,7 +340,7 @@ fn build_part_track(
                             if note.pitch_tie_end(pitch_index)
                                 && let Some(&off) = open_ties.get(&midi)
                             {
-                                events[off].abs_tick = cursor + ticks;
+                                events[off].abs_tick = cursor + sounding_ticks;
                                 if !continues {
                                     open_ties.remove(&midi);
                                 }
@@ -351,7 +356,7 @@ fn build_part_track(
                                 },
                             });
                             events.push(TimedEvent {
-                                abs_tick: cursor + ticks,
+                                abs_tick: cursor + sounding_ticks,
                                 sort_key: 0,
                                 channel,
                                 message: MidiMessage::NoteOff {
@@ -366,9 +371,7 @@ fn build_part_track(
                             }
                         }
                     }
-                    if !note.is_grace {
-                        cursor += ticks;
-                    }
+                    cursor += ticks;
                 }
             }
         }
@@ -399,7 +402,31 @@ fn build_part_track(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    use acorde_core::{Duration, MeasureLength, Note, Pitch, Score, Step};
+
+    fn note_schedule(bytes: &[u8]) -> Vec<(u64, bool, u8, u8)> {
+        let smf = Smf::parse(bytes).expect("valid MIDI");
+        let mut schedule = Vec::new();
+        for track in smf.tracks.iter().skip(1) {
+            let mut tick = 0u64;
+            for event in track {
+                tick += u64::from(event.delta.as_int());
+                if let TrackEventKind::Midi { message, .. } = &event.kind {
+                    match message {
+                        MidiMessage::NoteOn { key, vel } if vel.as_int() > 0 => {
+                            schedule.push((tick, true, key.as_int(), vel.as_int()));
+                        }
+                        MidiMessage::NoteOff { key, .. } => {
+                            schedule.push((tick, false, key.as_int(), 0));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        schedule.sort_unstable();
+        schedule
+    }
 
     #[test]
     fn midi_delta_rejects_values_above_vlq_limit() {
@@ -638,6 +665,78 @@ mod tests {
         let bytes = serialize_midi(&score).unwrap();
         // 60 BPM = 1,000,000 µs = 0x0F4240
         assert!(bytes.windows(3).any(|w| w == [0x0F, 0x42, 0x40]));
+    }
+
+    #[test]
+    fn midi_tempo_on_other_part_governs_all_tracks() {
+        let mut score = Score::new("shared tempo", 120, 4, 4, 0, 2);
+        let mut second = score.parts[0].clone();
+        second.id = "second".into();
+        score.parts.push(second);
+        score.parts[1].staves[0].measures[0].tempo = Some(92);
+        score.parts[1].staves[0].measures[1].tempo = Some(60);
+        let bytes = serialize_midi(&score).unwrap();
+        let smf = Smf::parse(&bytes).unwrap();
+        let mut tick = 0u64;
+        let mut tempos = Vec::new();
+        for event in &smf.tracks[0] {
+            tick += u64::from(event.delta.as_int());
+            if let TrackEventKind::Meta(MetaMessage::Tempo(us)) = event.kind {
+                tempos.push((tick, us.as_int()));
+            }
+        }
+        assert_eq!(tempos, vec![(0, 652_173), (1_920, 1_000_000)]);
+    }
+
+    #[test]
+    fn midi_uses_irregular_length_written_on_other_part() {
+        let mut score = Score::new("shared bar", 120, 4, 4, 0, 2);
+        let mut second = score.parts[0].clone();
+        second.id = "second".into();
+        score.parts.push(second);
+        score.parts[1].staves[0].measures[0].actual_length = Some(MeasureLength {
+            numerator: 1,
+            denominator: 4,
+        });
+        score.parts[0].staves[0].measures[1].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        let schedule = note_schedule(&serialize_midi(&score).unwrap());
+        assert!(schedule.contains(&(480, true, 60, 64)));
+    }
+
+    #[test]
+    fn midi_cue_is_silent_and_does_not_advance_the_voice() {
+        let mut score = Score::new("cue", 120, 4, 4, 0, 1);
+        let mut cue = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        cue.is_cue = true;
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![cue, Note::new(Pitch::new(Step::D, 4), Duration::Quarter)];
+        let schedule = note_schedule(&serialize_midi(&score).unwrap());
+        assert_eq!(schedule, vec![(0, true, 62, 64), (480, false, 62, 0)]);
+    }
+
+    #[test]
+    fn midi_default_articulation_matches_playback_duration_and_velocity() {
+        let mut score = Score::new("articulations", 120, 4, 4, 0, 1);
+        let mut fermata = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        fermata.articulations.push(Articulation::Fermata);
+        let mut staccato = Note::new(Pitch::new(Step::D, 4), Duration::Quarter);
+        staccato.articulations.push(Articulation::Staccato);
+        let mut accent = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+        accent.articulations.push(Articulation::Accent);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![fermata, staccato, accent];
+        let schedule = note_schedule(&serialize_midi(&score).unwrap());
+        assert_eq!(
+            schedule,
+            vec![
+                (0, true, 60, 64),
+                (480, true, 62, 64),
+                (720, false, 60, 0),
+                (720, false, 62, 0),
+                (960, true, 64, 84),
+                (1440, false, 64, 0),
+            ]
+        );
     }
 
     #[test]
