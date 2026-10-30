@@ -44,14 +44,14 @@ SVGが必要な場合は `acorde-render-svg` を直接依存に追加します�
 
 ```toml
 [dependencies]
-acorde = "=1.3.1"
-acorde-render-svg = "=1.3.1"
+acorde = "=1.3.2"
+acorde-render-svg = "=1.3.2"
 ```
 
 標準ではMusicXMLとMIDIが有効です。ABC、MEI、MSCZ/MSCX、Guitar Pro 3〜8入力は明示的に有効化します。
 
 ```toml
-acorde = { version = "=1.3.1", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "=1.3.2", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust

@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## 1.3.2 - 2026-10-30
+
+- Preserved more authored MusicXML semantics during import: part labels, rest notation, beam
+  grouping, tempo words, text placement, and voice slots across measures.
+- Corrected playback timing for swing pairs, global tempo, irregular measures, cross-voice ties,
+  positioned rests, and MIDI export; cue notes no longer produce sounding attacks. Independent
+  alternate endings in MSCZ now unfold in the intended order.
+- Aligned tuplet beam starts with beat boundaries in SVG output.
+- Added an opt-in `playback-only` WASM profile for MSCZ playback event scheduling. The default
+  browser API remains available through the full profile.
+- Added Codecov reporting and README badges. Workspace line coverage reached 91.02% under the
+  all-feature `cargo llvm-cov` command used by CI.
+
 ## 1.3.1 - 2026-10-30
 
 - Fixed MSCZ alternate-ending markers that have an orphan closing marker or an open final
