@@ -4872,11 +4872,14 @@ fn note_annotation_lane_width_u(note: &Note, above: bool) -> f32 {
             width = width.max(fingering_width);
         }
     }
-    if note.lyric.is_some()
-        && !above
-        && let Some(lyric) = &note.lyric
-    {
-        width = width.max(lyric_width_u(&lyric.text));
+    if !above {
+        for lyric in note
+            .lyric
+            .iter()
+            .chain(note.additional_lyrics.iter().map(|entry| &entry.lyric))
+        {
+            width = width.max(lyric_width_u(&lyric.text));
+        }
     }
     if note.pitches.iter().any(|pitch| pitch.microtone_cents != 0) && above {
         width = width.max(
@@ -4912,6 +4915,9 @@ fn note_annotation_width_u(note: &Note) -> f32 {
     let mut width = 0.0_f32;
     if let Some(lyric) = &note.lyric {
         width = width.max(lyric_width_u(&lyric.text));
+    }
+    for entry in &note.additional_lyrics {
+        width = width.max(lyric_width_u(&entry.lyric.text));
     }
     if let Some(chord) = &note.chord_symbol {
         width = width.max(chord.display_text().chars().count() as f32 * 0.42);
