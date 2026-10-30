@@ -7978,8 +7978,8 @@ mod tests {
     use super::{
         MeasureSemanticAnnotationKinds, Note, OwnedTabTechniqueSegment, accidental_footprint_u,
         build_svg, content_horizontal_margins, measure_text_width_u, note_anchor_y,
-        note_notation_footprint_u, render_measure_semantic_annotations, render_measure_text,
-        resolve_adjacent_event_spacing, resolve_cross_voice_event_spacing,
+        note_notation_footprint_u, render_articulation, render_measure_semantic_annotations,
+        render_measure_text, resolve_adjacent_event_spacing, resolve_cross_voice_event_spacing,
         resolve_span_lane_offsets, resolve_tab_technique_lane_offsets, span_lane_baseline,
         tab_note_y, tab_technique_control_y,
     };
@@ -7991,6 +7991,73 @@ mod tests {
     };
     use acorde_layout::{LayoutConfig, SpanMark, compute_layout};
     use std::collections::HashMap;
+
+    #[test]
+    fn technique_and_ornament_marks_have_visible_svg_geometry() {
+        let visible = [
+            (Articulation::Tap, "acorde-tap"),
+            (Articulation::LeftHandTap, "acorde-left-hand-tap"),
+            (Articulation::Vibrato, "acorde-vibrato"),
+            (Articulation::Staccato, "acorde-staccato"),
+            (Articulation::Staccatissimo, "acorde-staccatissimo"),
+            (Articulation::Accent, "acorde-accent"),
+            (Articulation::Marcato, "acorde-accent"),
+            (Articulation::Tenuto, "acorde-tenuto"),
+            (Articulation::BreathMark, "acorde-breath-mark"),
+            (Articulation::Caesura, "acorde-caesura"),
+            (Articulation::DownBow, "acorde-down-bow"),
+            (Articulation::UpBow, "acorde-up-bow"),
+            (Articulation::Harmonic, "acorde-harmonic"),
+            (Articulation::OpenString, "acorde-open-string"),
+            (Articulation::Stopped, "acorde-stopped"),
+            (Articulation::SnapPizzicato, "acorde-snap-pizzicato"),
+            (Articulation::Fermata, "acorde-fermata"),
+            (Articulation::Mordent, "acorde-mordent"),
+            (Articulation::InvertedMordent, "acorde-inverted-mordent"),
+            (Articulation::Shake, "acorde-shake"),
+            (Articulation::Turn, "acorde-turn"),
+            (Articulation::InvertedTurn, "acorde-inverted-turn"),
+            (Articulation::Trill, "acorde-trill"),
+            (Articulation::Tremolo(3), "acorde-tremolo"),
+        ];
+        for (mark, class) in visible {
+            let mut svg = String::new();
+            render_articulation(&mut svg, &mark, 100.0, 50.0, -1.0, 10.0);
+            assert!(svg.contains(class), "{mark:?} lost its SVG class: {svg}");
+            assert!(
+                !svg.contains("NaN") && !svg.contains("inf"),
+                "{mark:?}: {svg}"
+            );
+        }
+
+        for mark in [
+            Articulation::Scoop,
+            Articulation::Plop,
+            Articulation::Doit,
+            Articulation::Falloff,
+        ] {
+            let mut svg = String::new();
+            render_articulation(&mut svg, &mark, 100.0, 50.0, -1.0, 10.0);
+            assert!(svg.is_empty(), "{mark:?} must be drawn by chord lines");
+        }
+    }
+
+    #[test]
+    fn fermata_and_tremolo_render_above_and_below_with_bounded_strokes() {
+        let mut above = String::new();
+        let mut below = String::new();
+        render_articulation(&mut above, &Articulation::Fermata, 100.0, 50.0, -1.0, 10.0);
+        render_articulation(&mut below, &Articulation::Fermata, 100.0, 50.0, 1.0, 10.0);
+        assert_ne!(above, below);
+        assert!(above.contains("acorde-fermata") && below.contains("acorde-fermata"));
+
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        note.articulations.push(Articulation::Tremolo(9));
+        let mut strokes = String::new();
+        super::write_stem_tremolo(&mut strokes, &note, 100.0, 50.0, true, 10.0);
+        assert!(strokes.contains("data-strokes=\"4\""));
+        assert_eq!(strokes.matches(" Z").count(), 4);
+    }
 
     #[test]
     fn adjacent_event_spacing_is_pitch_aware_and_atomic() {
