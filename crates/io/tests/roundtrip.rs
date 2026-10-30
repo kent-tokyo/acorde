@@ -383,6 +383,24 @@ fn independent_cc0_mxl_semantic_roundtrip() {
 }
 
 #[test]
+fn independent_cc0_mxl_playback_shares_tempo_and_excludes_cue_attacks() {
+    let score = acorde_io::parse_mxl(OPENSCORE_LIEDER_MXL).expect("CC0 MXL imports");
+    let events = acorde_core::to_playback_events(&score, &acorde_core::PlaybackOptions::default());
+    assert_eq!(events.len(), 579);
+    assert!(events.iter().all(|event| event.duration_beats > 0.0));
+    let piano_beat_one = events
+        .iter()
+        .find(|event| event.part_index == 1 && event.time_beats == 1.0)
+        .expect("piano has a note on beat one");
+    assert!((piano_beat_one.time_secs - 60.0 / 92.0).abs() < 1e-9);
+    let vocal_entry = events
+        .iter()
+        .find(|event| event.part_index == 0 && event.time_beats == 15.0)
+        .expect("vocal entry follows the same tempo");
+    assert!((vocal_entry.time_secs - 15.0 * 60.0 / 92.0).abs() < 1e-9);
+}
+
+#[test]
 fn rich_musicxml_fragment_fixture_roundtrips_and_pastes_undoably() {
     let score = parse_musicxml(FRAGMENT_RICH_XML).expect("rich fixture parses");
     assert_eq!(score.parts[0].staves[0].measures.len(), 2);
