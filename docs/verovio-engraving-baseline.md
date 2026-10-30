@@ -43,16 +43,53 @@ The Acorde import diagnostics are mostly unsupported MusicXML text styling;
 they remain unfixed. The PDF has a valid A4 media box on both pages. In the rendered
 images, the page title and four part labels are visible, and the pickup is no longer
 stretched into a standalone full-width system. Verovio uses three pages with visibly
-larger lyrics and clearer grand-staff grouping. Acorde's lyrics are very small at
-1400-pixel page preview size, and the final system is stretched to the full page width.
+larger lyrics. The follow-up staff-group change on this branch adds the missing
+brace across the piano's two staves; the updated A4 PDF was rendered at 1400 pixels
+and inspected. Acorde's lyrics are still very small at that preview size, and the
+final system is stretched to the full page width.
 The two-page Acorde result is therefore not evidence of superior print quality.
 Verovio chooses its own system breaks and fonts; this is a same-input, same-paper
 comparison rather than an identical-layout comparison.
 
+## Chamber-score check: Mozart K.464
+
+The second CC0 input is the OpenScore String Quartets MSCX pinned with its source
+commit, Git blob, and SHA-256 in [#185](https://github.com/kent-tokyo/acorde/issues/185).
+On 2026-10-31, Acorde imported its four main parts and exported MusicXML; the
+export report found no additional loss. The MSCX import separately reported four
+omitted linked excerpts and three hidden hairpins whose visibility is not preserved.
+Both renderers then consumed that **same Acorde-exported MusicXML**. This comparison
+tests engraving after a common interchange step, not either product's native MSCX
+import. Both used A4 with 16 mm top/bottom and 14 mm left/right margins.
+
+```bash
+acorde convert /path/to/sq7070781.mscx /tmp/k464.musicxml
+verovio -a --page-width 2100 --page-height 2970 \
+  --page-margin-top 160 --page-margin-bottom 160 \
+  --page-margin-left 140 --page-margin-right 140 \
+  -o /tmp/verovio-k464.svg /tmp/k464.musicxml
+cargo run -p acorde-pdf --example print_mxl -- \
+  /tmp/k464.musicxml crates/pdf/tests/fixtures/Tuffy.ttf /tmp/acorde-k464.pdf
+```
+
+| Result | Acorde with page SVG/PDF | Verovio 6.3.0 |
+| --- | ---: | ---: |
+| A4 pages | 11 PDF pages | 7 SVG pages |
+| Systems | 29 | 20 |
+| Main parts | 4 | 4 |
+
+The first and last pages were rasterized at the same 990 × 1400-pixel page size
+and inspected. Acorde's fixed four-measure rows leave substantially more white
+space, especially on the final page; Verovio fits more measures without making
+the notes illegible in those previews. Verovio reported one highly compressed
+system, so page count alone is not an endorsement of every Verovio break. Acorde
+needs density-aware print breaking, final-system ragging, and a broader visual
+collision review before this quartet can support a quality claim.
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.
-2. Improve lyric size, grand-staff braces, ragged final systems, and publication
+2. Improve lyric size, ragged final systems, and publication
    typography against the visual baseline.
 3. Pin a larger licensed piano/chamber corpus and compare missing symbols,
    clipped content, collisions, page geometry, and legibility at print size.

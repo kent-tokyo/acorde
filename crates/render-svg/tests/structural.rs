@@ -1082,6 +1082,42 @@ fn part_group_connectors_and_first_system_labels_are_rendered() {
 }
 
 #[test]
+fn piano_grand_staff_and_explicit_staff_groups_have_braces() {
+    use acorde_core::{PartGroupSymbol, ScoreTemplate, StaffGroup};
+
+    let piano = acorde_core::Score::template(ScoreTemplate::Piano);
+    let svg = render_svg(&piano, &opts()).unwrap();
+    assert_eq!(svg.matches("acorde-staff-brace").count(), 1);
+    assert_well_formed_xml(&svg);
+
+    let mut explicit = piano;
+    explicit.parts[0].name = "Keyboard".into();
+    explicit.parts[0].staff_groups.push(StaffGroup {
+        first_staff: 0,
+        last_staff: 1,
+        symbol: PartGroupSymbol::Bracket,
+        barlines_connect: true,
+    });
+    let svg = render_svg(&explicit, &opts()).unwrap();
+    assert_eq!(svg.matches("acorde-staff-bracket").count(), 1);
+    assert!(!svg.contains("acorde-staff-brace"));
+    assert_well_formed_xml(&svg);
+}
+
+#[test]
+fn openscore_piano_part_has_grand_staff_brace() {
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/openscore_lieder_aloha_oe.mxl"
+    );
+    let bytes = std::fs::read(path).expect("pinned CC0 piano score");
+    let score = acorde_io::parse_mxl(&bytes).expect("MXL import");
+    let svg = render_svg(&score, &opts()).expect("score renders");
+    assert!(svg.contains("acorde-staff-brace"));
+    assert_well_formed_xml(&svg);
+}
+
+#[test]
 fn precomputed_row_and_metadata_contracts_are_stable() {
     use acorde_layout::{LayoutConfig, compute_layout};
     let score = common::satb_major();
