@@ -33,7 +33,7 @@
 | `acorde-pdf` | Harumiによる任意のベクターPDF出力（Rust 1.88以上） |
 | `acorde-omr` | 任意の、レビュー必須のPNG認識提案アダプター |
 | `acorde-analysis` | 決定的で説明可能な和声・SATB分析 |
-| `acorde-soundfont` | 任意機能のSF2/SF3/プロバイダ連携境界 |
+| `acorde-soundfont` | 任意機能のSF2/SF3/プロバイダ連携とSF2 WAV生成 |
 | `acorde-wasm` | JavaScriptバインディング |
 | `acorde-cli` | ファイル変換・検査CLI |
 | `acorde` | core、I/O、layoutのアンブレラクレート |
@@ -44,14 +44,14 @@ SVGが必要な場合は `acorde-render-svg` を直接依存に追加します�
 
 ```toml
 [dependencies]
-acorde = "=1.3.3"
-acorde-render-svg = "=1.3.3"
+acorde = "=1.3.4"
+acorde-render-svg = "=1.3.4"
 ```
 
 標準ではMusicXMLとMIDIが有効です。ABC、MEI、MSCZ/MSCX、Guitar Pro 3〜8入力は明示的に有効化します。
 
 ```toml
-acorde = { version = "=1.3.3", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "=1.3.4", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust
@@ -72,7 +72,8 @@ MusicXML/MXLが最も広い交換経路です。MIDI、ABC、MEI、MSCZ/MSCX、G
 
 acordeはスコア意味論、論理ジオメトリ、決定的SVG、ブラウザ/WASM契約を担当します。`acorde-pdf` は
 Harumiを使う任意のメモリ内アダプターであり、フォント、UI、印刷、ブラウザE2Eはホスト側の責務です。
-SoundFontの合成と音源ライセンスもホストが管理します。
+任意のSF2 WAV生成機能はホストから渡された音源を使います。音源ライセンスとデバイス再生は
+ホストが管理します。
 
 対応範囲は[記譜対応マトリクス](docs/notation-coverage.md)、現行機能は
 [scorecard](docs/scorecard.md)、外部ツールの限定観測は
@@ -88,6 +89,7 @@ acorde print-report input.musicxml --preset a4-score --fail-on-issues
 acorde validate input.musicxml
 acorde compatibility-report source.musicxml candidate.musicxml --fail-on-differences
 acorde playback-report input.musicxml --bpm 120
+acorde audio-render input.musicxml licensed.sf2 output.wav --full-sf2
 acorde omr printed-score.png draft.mscz --report draft.omr.json
 acorde omr-evaluate printed-score.png reference.mscz --report evaluation.json
 acorde omr-apply-report provider-result.json draft.mscz --report application.json
