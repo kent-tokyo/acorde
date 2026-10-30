@@ -329,6 +329,7 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
             {
                 staff.measures.pop();
             }
+            close_abc_volta_spans(staff);
         }
     }
     // Pad last measure
@@ -386,6 +387,48 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
     }
 
     Ok(score)
+}
+
+/// ABC marks the start of an ending with `[1`, `[2`, etc. Its end is implicit
+/// at a repeat/final barline or just before the next ending. Record that end
+/// so playback can skip the complete ending on the other passes.
+fn close_abc_volta_spans(staff: &mut Staff) {
+    let starts: Vec<usize> = staff
+        .measures
+        .iter()
+        .enumerate()
+        .filter_map(|(index, measure)| {
+            measure
+                .volta
+                .as_ref()
+                .is_some_and(|volta| volta.kind == "begin")
+                .then_some(index)
+        })
+        .collect();
+
+    for (position, &start) in starts.iter().enumerate() {
+        let next_start = starts
+            .get(position + 1)
+            .copied()
+            .unwrap_or(staff.measures.len());
+        let end = (start..next_start)
+            .find(|&index| {
+                matches!(
+                    staff.measures[index].barline_right,
+                    Barline::RepeatEnd | Barline::RepeatBoth | Barline::Final
+                )
+            })
+            .unwrap_or(next_start - 1);
+        if end == start {
+            if let Some(volta) = staff.measures[start].volta.as_mut() {
+                volta.kind = "begin_end".to_string();
+            }
+        } else {
+            let mut volta = staff.measures[start].volta.clone().expect("volta start");
+            volta.kind = "end".to_string();
+            staff.measures[end].volta = Some(volta);
+        }
+    }
 }
 
 // ── body line parser ──────────────────────────────────────────────────────────
@@ -2607,6 +2650,51 @@ fn abc_note_export_losses(
     losses
 }
 
+fn abc_volta_round_trips(staff: &Staff, index: usize) -> bool {
+    let measures = &staff.measures;
+    let Some(volta) = &measures[index].volta else {
+        return true;
+    };
+    if volta.kind == "begin" {
+        return true;
+    }
+    // A closure can be reconstructed only where the ABC parser would infer
+    // one: at a repeat/final barline, before another ending, or at tune end.
+    let closes_here = matches!(
+        measures[index].barline_right,
+        Barline::RepeatEnd | Barline::RepeatBoth | Barline::Final
+    ) || index + 1 == measures.len()
+        || measures[index + 1]
+            .volta
+            .as_ref()
+            .is_some_and(|next| matches!(next.kind.as_str(), "begin" | "begin_end"));
+    match volta.kind.as_str() {
+        "begin_end" => closes_here,
+        "end" => {
+            let start = measures[..index].iter().rposition(|measure| {
+                measure
+                    .volta
+                    .as_ref()
+                    .is_some_and(|prior| prior.kind == "begin")
+            });
+            closes_here
+                && start.is_some_and(|start| {
+                    measures[start]
+                        .volta
+                        .as_ref()
+                        .is_some_and(|prior| prior.passes() == volta.passes())
+                        && !measures[start..index].iter().any(|measure| {
+                            matches!(
+                                measure.barline_right,
+                                Barline::RepeatEnd | Barline::RepeatBoth | Barline::Final
+                            )
+                        })
+                })
+        }
+        _ => false,
+    }
+}
+
 /// Report canonical score data that the deliberately small ABC exporter cannot emit.
 pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
     const MAX_DIAGNOSTICS: usize = 1_024;
@@ -2721,7 +2809,7 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                     }
                 }
                 if let Some(volta) = &measure.volta
-                    && volta.kind != "begin"
+                    && !abc_volta_round_trips(staff, measure_index)
                 {
                     push(
                         format!(
@@ -2731,7 +2819,7 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                             measure_index + 1
                         ),
                         format!("{}:{}", volta.number, volta.kind),
-                        "ABC export preserves only volta begin markers",
+                        "ABC export cannot preserve this volta boundary exactly",
                     );
                 }
                 let Some(first_voice) = measure.voices.first() else {
@@ -3144,11 +3232,11 @@ C D E F | G A B c |";
     }
 
     #[test]
-    fn export_loss_report_locates_non_begin_volta_kinds() {
+    fn export_loss_report_locates_non_abc_volta_kinds() {
         let mut score = Score::new("volta export", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].volta = Some(acorde_core::VoltaBracket {
             number: 1,
-            kind: "begin_end".to_string(),
+            kind: "mid".to_string(),
             numbers: Vec::new(),
         });
 
@@ -3160,7 +3248,7 @@ C D E F | G A B c |";
                     == Some("/score/part/1/staff/1/measure/1/volta")
             })
             .expect("volta loss diagnostic");
-        assert_eq!(diagnostic.preserved_value.as_deref(), Some("1:begin_end"));
+        assert_eq!(diagnostic.preserved_value.as_deref(), Some("1:mid"));
     }
 
     #[test]
@@ -3291,7 +3379,7 @@ C D E F | G A B c |";
     }
 
     #[test]
-    fn abc_volta_start_markers_round_trip_to_measure_metadata() {
+    fn abc_single_bar_voltas_round_trip_to_measure_metadata() {
         let text = "X:1\nT:Volta\nM:2/4\nL:1/4\nK:C\nC D|: E F :|[1 G A|[2 B c|\n";
         let score = parse_abc(text).expect("ABC volta markers parse");
         let measures = &score.parts[0].staves[0].measures;
@@ -3307,8 +3395,9 @@ C D E F | G A B c |";
             measures[2]
                 .volta
                 .as_ref()
-                .is_some_and(|volta| volta.kind == "begin")
+                .is_some_and(|volta| volta.kind == "begin_end")
         );
+        assert_eq!(measures[3].volta.as_ref().unwrap().kind, "begin_end");
 
         let serialized = serialize_abc(&score).expect("ABC volta markers serialize");
         assert!(serialized.contains("[1"));
@@ -3320,6 +3409,67 @@ C D E F | G A B c |";
                 .as_ref()
                 .map(|volta| volta.number),
             Some(1)
+        );
+        assert_eq!(
+            restored.parts[0].staves[0].measures[2].volta,
+            measures[2].volta
+        );
+    }
+
+    #[test]
+    fn abc_repeat_with_single_bar_endings_plays_second_ending() {
+        let text = "X:1\nT:Single-bar endings\nM:2/4\nL:1/4\nK:C\n|: C D | [1 E F :| [2 G A |]";
+        let score = parse_abc(text).expect("ABC endings parse");
+        assert!(!export_loss_diagnostics(&score).iter().any(|diagnostic| {
+            diagnostic
+                .source_location
+                .as_deref()
+                .is_some_and(|path| path.ends_with("/volta"))
+        }));
+        let check = |score: &Score| {
+            let measures = &score.parts[0].staves[0].measures;
+            assert_eq!(measures.len(), 3);
+            assert_eq!(measures[1].volta.as_ref().unwrap().kind, "begin_end");
+            assert_eq!(measures[2].volta.as_ref().unwrap().kind, "begin_end");
+            assert_eq!(acorde_core::measure_sequence(score), vec![0, 1, 0, 2]);
+            let pitches: Vec<_> =
+                acorde_core::to_playback_events(score, &acorde_core::PlaybackOptions::default())
+                    .iter()
+                    .map(|event| event.pitch_midi)
+                    .collect();
+            assert_eq!(pitches, vec![60, 62, 64, 65, 60, 62, 67, 69]);
+        };
+        check(&score);
+        let serialized = serialize_abc(&score).expect("ABC endings serialize");
+        check(&parse_abc(&serialized).expect("ABC endings reparse"));
+    }
+
+    #[test]
+    fn abc_multi_bar_endings_close_at_their_boundary() {
+        let text =
+            "X:1\nT:Multi-bar endings\nM:2/4\nL:1/4\nK:C\n|: C D | [1 E F | G A :| [2 B c | d e |]";
+        let score = parse_abc(text).expect("ABC endings parse");
+        assert!(!export_loss_diagnostics(&score).iter().any(|diagnostic| {
+            diagnostic
+                .source_location
+                .as_deref()
+                .is_some_and(|path| path.ends_with("/volta"))
+        }));
+        let measures = &score.parts[0].staves[0].measures;
+        assert_eq!(measures[1].volta.as_ref().unwrap().kind, "begin");
+        assert_eq!(measures[2].volta.as_ref().unwrap().kind, "end");
+        assert_eq!(measures[3].volta.as_ref().unwrap().kind, "begin");
+        assert_eq!(measures[4].volta.as_ref().unwrap().kind, "end");
+        assert_eq!(
+            acorde_core::measure_sequence(&score),
+            vec![0, 1, 2, 0, 3, 4]
+        );
+
+        let serialized = serialize_abc(&score).expect("ABC endings serialize");
+        let restored = parse_abc(&serialized).expect("ABC endings reparse");
+        assert_eq!(
+            acorde_core::measure_sequence(&restored),
+            acorde_core::measure_sequence(&score)
         );
     }
 
