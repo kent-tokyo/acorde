@@ -45,8 +45,9 @@ images, the page title and four part labels are visible, and the pickup is no lo
 stretched into a standalone full-width system. Verovio uses three pages with visibly
 larger lyrics. The follow-up staff-group change on this branch adds the missing
 brace across the piano's two staves; the updated A4 PDF was rendered at 1400 pixels
-and inspected. Acorde's lyrics are still very small at that preview size, and the
-final system is stretched to the full page width.
+and inspected. The follow-up print-row change on this branch also leaves a
+proportionate final system without scaling glyphs. Acorde's lyrics are still very
+small at that preview size.
 The two-page Acorde result is therefore not evidence of superior print quality.
 Verovio chooses its own system breaks and fonts; this is a same-input, same-paper
 comparison rather than an identical-layout comparison.
@@ -83,13 +84,13 @@ and inspected. Acorde's fixed four-measure rows leave substantially more white
 space, especially on the final page; Verovio fits more measures without making
 the notes illegible in those previews. Verovio reported one highly compressed
 system, so page count alone is not an endorsement of every Verovio break. Acorde
-needs density-aware print breaking, final-system ragging, and a broader visual
-collision review before this quartet can support a quality claim.
+now leaves a ragged final system, but still needs density-aware print breaking
+and a broader visual collision review before this quartet can support a quality claim.
 
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.
-2. Improve lyric size, ragged final systems, and publication
+2. Improve lyric size and publication
    typography against the visual baseline.
 3. Pin a larger licensed piano/chamber corpus and compare missing symbols,
    clipped content, collisions, page geometry, and legibility at print size.

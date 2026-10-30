@@ -63,6 +63,7 @@ pub(crate) type NotePoint = (f32, f32, bool, usize);
 /// pixels; the caller converts them to millimetres in the page SVG viewport.
 pub(crate) struct PrintRowPlacement<'a> {
     pub row_tops_px: &'a [f32],
+    pub row_width_factors: &'a [f32],
     pub canvas_height_px: f32,
 }
 
@@ -232,12 +233,17 @@ pub(crate) fn build_svg_with_metadata_placement(
         + bottom_margin_u * space;
     let total_height = if let Some(placement) = print_placement {
         if placement.row_tops_px.len() != layout.rows.len()
+            || placement.row_width_factors.len() != layout.rows.len()
             || !placement.canvas_height_px.is_finite()
             || placement.canvas_height_px <= 0.0
             || placement
                 .row_tops_px
                 .iter()
                 .any(|top| !top.is_finite() || *top < 0.0)
+            || placement
+                .row_width_factors
+                .iter()
+                .any(|factor| !factor.is_finite() || *factor <= 0.0 || *factor > 1.0)
         {
             return Err(RenderError::InvalidOptions {
                 reason: "print row positions and canvas height must be finite and valid".into(),
@@ -268,6 +274,8 @@ pub(crate) fn build_svg_with_metadata_placement(
             continue;
         }
         let row_top_y = row_tops[row_idx];
+        let row_content_width = content_width
+            * print_placement.map_or(1.0, |placement| placement.row_width_factors[row_idx]);
 
         // Effective clef/key/time per staff as of this row's first measure.
         let row_start_measure = row.measure_indices[0];
@@ -307,7 +315,7 @@ pub(crate) fn build_svg_with_metadata_placement(
             })
             .fold(0.0_f32, f32::max);
 
-        let measure_area_width = content_width - header_width_u * space;
+        let measure_area_width = row_content_width - header_width_u * space;
         if !measure_area_width.is_finite() || measure_area_width <= 0.0 {
             return Err(RenderError::InvalidOptions {
                 reason: "content-aware margins and notation header leave no usable measure width"
@@ -423,7 +431,7 @@ pub(crate) fn build_svg_with_metadata_placement(
             write_staff_lines(
                 &mut body,
                 left_margin_u * space,
-                options.width - right_margin_u * space,
+                left_margin_u * space + row_content_width,
                 bottom_y,
                 space,
                 staff_line_count(&score.parts[pi].staves[si]),
