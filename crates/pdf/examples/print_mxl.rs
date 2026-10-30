@@ -1,16 +1,19 @@
-//! `cargo run -p acorde-pdf --example print_mxl -- score.mxl font.ttf output.pdf`
+//! `cargo run -p acorde-pdf --example print_mxl -- score.mxl font.ttf output.pdf [measures-per-system] [density]`
 //! Plain `.musicxml` input is also accepted for same-input engraving comparisons.
 
 use std::path::Path;
 
-use acorde_layout::{PrintConfig, compute_print_layout};
+use acorde_layout::{PrintConfig, PrintSystemBreakStrategy, compute_print_layout};
 use acorde_pdf::export_print_layout_pdf;
 use acorde_render_svg::render_print_page_svgs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = std::env::args().collect::<Vec<_>>();
-    if args.len() != 4 {
-        return Err("usage: print_mxl INPUT.{mxl,musicxml} FONT.ttf OUTPUT.pdf".into());
+    if !(4..=6).contains(&args.len()) {
+        return Err(
+            "usage: print_mxl INPUT.{mxl,musicxml} FONT.ttf OUTPUT.pdf [measures-per-system] [density]"
+                .into(),
+        );
     }
     let source = std::fs::read(&args[1])?;
     let import = if Path::new(&args[1])
@@ -22,7 +25,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         acorde_io::parse_musicxml_with_report(std::str::from_utf8(&source)?)?
     };
     eprintln!("import diagnostics: {}", import.diagnostics.len());
-    let layout = compute_print_layout(&import.score, &PrintConfig::default())?;
+    let mut config = PrintConfig::default();
+    if let Some(measures_per_system) = args.get(4) {
+        config.measures_per_system = measures_per_system.parse::<usize>()?.max(1);
+    }
+    if let Some(strategy) = args.get(5) {
+        if strategy != "density" {
+            return Err("system break strategy must be 'density'".into());
+        }
+        config.system_break_strategy = PrintSystemBreakStrategy::NotationDensity;
+    }
+    let layout = compute_print_layout(&import.score, &config)?;
     for page in &layout.pages {
         eprintln!(
             "page {}: {:?}",

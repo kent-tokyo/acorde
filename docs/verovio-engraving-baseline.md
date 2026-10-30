@@ -52,6 +52,26 @@ The two-page Acorde result is therefore not evidence of superior print quality.
 Verovio chooses its own system breaks and fonts; this is a same-input, same-paper
 comparison rather than an identical-layout comparison.
 
+### Density-aware print break experiment (2026-10-31)
+
+The opt-in `PrintSystemBreakStrategy::NotationDensity` uses the shared SVG/layout
+notation-demand estimate. Its budget is the 90th percentile of this score's
+four-measure rows, scaled by available page width. `measures_per_system` is a
+maximum rather than a fixed row length. Authored page and system breaks remain
+in effect. The metric estimates noteheads, accidentals, lyrics, chord symbols,
+articulations, and measure text; it does not measure final glyph collisions.
+
+```bash
+cargo run -p acorde-pdf --example print_mxl -- \
+  tests/fixtures/openscore_lieder_aloha_oe.mxl \
+  crates/pdf/tests/fixtures/Tuffy.ttf /tmp/acorde-aloha-density.pdf 7 density
+```
+
+This produces **3 A4 pages and 7 systems**, compared with 2 pages and 6
+systems for fixed four-measure breaks and Verovio's 3 pages and 6 systems.
+The second page was rasterized at 1400 pixels and inspected. Lyrics remain
+too small at this size, so the added page is not evidence of better engraving.
+
 ## Chamber-score check: Mozart K.464
 
 The second CC0 input is the OpenScore String Quartets MSCX pinned with its source
@@ -84,8 +104,23 @@ and inspected. Acorde's fixed four-measure rows leave substantially more white
 space, especially on the final page; Verovio fits more measures without making
 the notes illegible in those previews. Verovio reported one highly compressed
 system, so page count alone is not an endorsement of every Verovio break. Acorde
-now leaves a ragged final system, but still needs density-aware print breaking
-and a broader visual collision review before this quartet can support a quality claim.
+now leaves a ragged final system. The fixed-break result still needs a broader
+visual collision review before this quartet can support a quality claim.
+
+The opt-in density mode with a seven-measure maximum produces **9 pages and 25
+systems** from the same MusicXML, improving on the fixed four-measure result's
+11 pages and 29 systems. A fixed six-measure setting produces 8 pages but visibly
+cramps the final dense measures. Density mode leaves measures 98–100 together
+on a full-width system and the final three measures on page 9. Pages 1 and 8
+were rasterized at 1400 pixels and inspected; they do not establish a
+corpus-wide collision or legibility result. Verovio remains more compact at
+7 pages and 20 systems on this input.
+
+```bash
+cargo run -p acorde-pdf --example print_mxl -- \
+  /tmp/k464.musicxml crates/pdf/tests/fixtures/Tuffy.ttf \
+  /tmp/acorde-k464-density.pdf 7 density
+```
 
 ## Gates before a quality claim
 
