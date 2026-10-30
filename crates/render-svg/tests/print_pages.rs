@@ -20,6 +20,31 @@ fn staff_line_right_edges(svg: &str) -> Vec<f32> {
         .collect()
 }
 
+fn first_system_barlines(svg: &str) -> Vec<f32> {
+    let mut first_y = None;
+    svg.split(r#"class="acorde-barline""#)
+        .skip(1)
+        .map(|line| {
+            let coordinate = |name: &str| {
+                line.split_once(name)
+                    .unwrap()
+                    .1
+                    .split('"')
+                    .next()
+                    .unwrap()
+                    .parse::<f32>()
+                    .unwrap()
+            };
+            (coordinate(r#"x1=""#), coordinate(r#"y1=""#))
+        })
+        .take_while(|(_, y)| {
+            let top = *first_y.get_or_insert(*y);
+            (*y - top).abs() < 0.01
+        })
+        .map(|(x, _)| x)
+        .collect()
+}
+
 #[test]
 fn short_final_print_system_is_ragged_without_scaling_staff_lines() {
     let config = PrintConfig {
@@ -182,10 +207,14 @@ fn dense_piano_opening_gets_room_for_clef_key_and_meter() {
         .map(|system| system.measure_indices.clone())
         .collect::<Vec<_>>();
     assert_eq!(systems, [vec![0, 1, 2], vec![3, 4, 5, 6], vec![7, 8, 9]]);
-    assert_eq!(
-        render_print_page_svgs(&import.score, &layout)
-            .unwrap()
-            .len(),
-        1
+    let pages = render_print_page_svgs(&import.score, &layout).unwrap();
+    assert_eq!(pages.len(), 1);
+    let barlines = first_system_barlines(&pages[0]);
+    assert_eq!(barlines.len(), 3);
+    let second_bar_width = barlines[1] - barlines[0];
+    let dense_third_bar_width = barlines[2] - barlines[1];
+    assert!(
+        dense_third_bar_width > second_bar_width * 1.1,
+        "dense third bar needs more room: {barlines:?}"
     );
 }

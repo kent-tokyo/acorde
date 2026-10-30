@@ -192,6 +192,25 @@ cargo run -p acorde-pdf --example print_mxl -- \
   /tmp/acorde-k464-density.pdf 7 density
 ```
 
+### Print measure-width check (2026-10-31)
+
+Physical page SVGs now allocate each row's width using both rhythmic duration
+(40%) and the shared notation-demand estimate (60%). The screen SVG renderer's
+rhythmic widths are unchanged. On Quilter's pinned first system, the second and
+third measures previously each received about 213 SVG units; they now receive
+about 176 and 219 units. The denser third measure gets 24% more width than the
+second. A fixture regression asserts this relationship rather than exact
+coordinates. The A4 page still has three systems and the same 3+4+3 breaks.
+
+The new Quilter PDF was rasterized at 1400 px. Its opening has more room for
+the busy bars, but text remains small and the page's lower area is largely
+unused. The CC0 Aloha Oe density PDF remains two A4 pages / five systems with
+73 import diagnostics; the same-input K.464 quartet remains nine pages / 25
+systems with zero reimport diagnostics. No broad collision-free or visual
+quality claim follows from these unchanged page counts. Increasing the
+staff-aware system height in a separate trial enlarged the notation but left
+visible lyric/staff collisions in Aloha Oe, so that trial was reverted.
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.
