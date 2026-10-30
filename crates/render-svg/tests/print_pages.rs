@@ -1,5 +1,7 @@
 use acorde_core::Score;
-use acorde_layout::{GlyphResourcePolicy, PrintConfig, compute_print_layout};
+use acorde_layout::{
+    GlyphResourcePolicy, PrintConfig, PrintSystemBreakStrategy, compute_print_layout,
+};
 use acorde_render_svg::{PrintRenderError, render_print_page_svgs};
 
 fn staff_line_right_edges(svg: &str) -> Vec<f32> {
@@ -117,4 +119,29 @@ fn openscore_five_staff_score_renders_two_physical_a4_pages() {
     }
     assert!(svgs[0].contains("acorde-print-title"));
     assert!(svgs[0].contains("acorde-print-part-label"));
+
+    let density = compute_print_layout(
+        &import.score,
+        &PrintConfig {
+            measures_per_system: 7,
+            system_break_strategy: PrintSystemBreakStrategy::NotationDensity,
+            ..PrintConfig::default()
+        },
+    )
+    .expect("A4 density layout");
+    assert_eq!(density.pages.len(), 2);
+    assert_eq!(
+        density
+            .pages
+            .iter()
+            .map(|page| page.systems.len())
+            .sum::<usize>(),
+        5
+    );
+    assert_eq!(
+        render_print_page_svgs(&import.score, &density)
+            .unwrap()
+            .len(),
+        2
+    );
 }

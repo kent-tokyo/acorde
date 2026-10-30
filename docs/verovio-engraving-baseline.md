@@ -67,10 +67,11 @@ cargo run -p acorde-pdf --example print_mxl -- \
   crates/pdf/tests/fixtures/Tuffy.ttf /tmp/acorde-aloha-density.pdf 7 density
 ```
 
-This produces **3 A4 pages and 7 systems**, compared with 2 pages and 6
+This produces **2 A4 pages and 5 systems**, compared with 2 pages and 6
 systems for fixed four-measure breaks and Verovio's 3 pages and 6 systems.
 The second page was rasterized at 1400 pixels and inspected. Lyrics remain
-too small at this size, so the added page is not evidence of better engraving.
+too small at this size, so the more compact result is not evidence of better
+engraving.
 
 ## Chamber-score check: Mozart K.464
 
