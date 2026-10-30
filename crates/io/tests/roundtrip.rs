@@ -45,6 +45,25 @@ static OPENSCORE_LIEDER_WEBERN_MXL: &[u8] =
     include_bytes!("../../../tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl");
 static OPENSCORE_LIEDER_QUILTER_MXL: &[u8] =
     include_bytes!("../../../tests/fixtures/openscore_lieder_quilter_prelude.mxl");
+
+#[test]
+fn quilter_publication_credits_survive_musicxml_roundtrip() {
+    let score = acorde_io::parse_mxl(OPENSCORE_LIEDER_QUILTER_MXL).expect("CC0 MXL imports");
+    assert_eq!(score.metadata.title, "To Julia, Op.8");
+    assert_eq!(score.metadata.movement_title, "Prelude");
+    assert_eq!(score.metadata.composer, "Roger Quilter");
+    assert_eq!(score.metadata.copyright, "OpenScore (CC0)");
+
+    let exported = serialize_musicxml(&score).expect("MusicXML exports");
+    let reparsed = parse_musicxml(&exported).expect("MusicXML reimports");
+    assert_eq!(reparsed.metadata.title, score.metadata.title);
+    assert_eq!(
+        reparsed.metadata.movement_title,
+        score.metadata.movement_title
+    );
+    assert_eq!(reparsed.metadata.composer, score.metadata.composer);
+    assert_eq!(reparsed.metadata.copyright, score.metadata.copyright);
+}
 #[cfg(feature = "mscz")]
 static OPENSCORE_OMR_MSCZ: &[u8] =
     include_bytes!("../../../tests/fixtures/openscore_omr_score_1003.mscz");

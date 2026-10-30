@@ -218,3 +218,20 @@ fn dense_piano_opening_gets_room_for_clef_key_and_meter() {
         "dense third bar needs more room: {barlines:?}"
     );
 }
+
+#[test]
+fn print_page_retains_quilter_publication_credits() {
+    let fixture = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/openscore_lieder_quilter_prelude.mxl"
+    );
+    let bytes = std::fs::read(fixture).expect("pinned CC0 piano fixture");
+    let score = acorde_io::parse_mxl(&bytes).expect("MXL import");
+    let layout = compute_print_layout(&score, &PrintConfig::default()).expect("A4 layout");
+    let pages = render_print_page_svgs(&score, &layout).expect("physical page SVG");
+    assert_eq!(pages.len(), 1);
+    assert!(pages[0].contains("class=\"acorde-print-composer\""));
+    assert!(pages[0].contains(">Roger Quilter</text>"));
+    assert!(pages[0].contains("class=\"acorde-print-movement-title\""));
+    assert!(pages[0].contains(">Prelude</text>"));
+}
