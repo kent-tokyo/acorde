@@ -45,13 +45,12 @@ pub fn render_offline_wav(
             action.kind,
             OfflineRenderSemanticEventKind::Controller { .. }
                 | OfflineRenderSemanticEventKind::PitchBend { .. }
+                | OfflineRenderSemanticEventKind::ProgramChange { .. }
                 | OfflineRenderSemanticEventKind::Aftertouch { .. }
                 | OfflineRenderSemanticEventKind::Pedal { .. }
                 | OfflineRenderSemanticEventKind::GuitarBend { .. }
         ) {
-            return Err(Error::UnsupportedOfflineFeature(
-                "controller or pedal automation",
-            ));
+            return Err(Error::UnsupportedOfflineFeature("MIDI automation or pedal"));
         }
     }
 
@@ -267,9 +266,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             render_offline_wav(&manifest, &[]),
-            Err(Error::UnsupportedOfflineFeature(
-                "controller or pedal automation"
-            ))
+            Err(Error::UnsupportedOfflineFeature("MIDI automation or pedal"))
         );
     }
 }

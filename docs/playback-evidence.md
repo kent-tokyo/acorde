@@ -67,7 +67,7 @@ repository still has no PCM-output comparison or cross-browser playback timing m
 `acorde audio-render` uses the core's integer-frame offline schedule and a caller-supplied SF2
 to write PCM16 WAV. The renderer decodes matching SoundFont zones, resamples with linear
 interpolation, mixes notes at their scheduled frame, and bounds the WAV at 64 MiB. It rejects
-unrealized pedal, pitch bend, ornament, guitar technique, microtonal, release-tail, and SF3
+unrealized pedal, MIDI program change, pitch bend, ornament, guitar technique, microtonal, release-tail, and SF3
 semantics. It has no effects or live audio device. A score whose requested preset is absent from
 the SF2 fails with a typed error.
 
