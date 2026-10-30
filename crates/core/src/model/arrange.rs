@@ -2123,7 +2123,8 @@ mod tests {
         let arranged = result.score.unwrap();
         let notes = &arranged.parts[0].staves[1].measures[1].voices[0];
         assert_eq!(notes.len(), 8);
-        for pair in notes.chunks_exact(2) {
+        for pair in notes.chunks(2) {
+            assert_eq!(pair.len(), 2);
             assert!((pair[0].beats() / pair[1].beats() - 2.0).abs() < 1e-9);
             assert_eq!(
                 pair[0]
