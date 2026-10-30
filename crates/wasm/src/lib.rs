@@ -61,7 +61,7 @@ fn score_to_json(score: &Score) -> Result<String, JsValue> {
 
 fn svg_render_options(
     options_json: &str,
-) -> Result<(acorde_render_svg::SvgRenderOptions, Option<f32>), JsValue> {
+) -> Result<(acorde_render_svg::SvgRenderOptions, Option<f32>, bool), JsValue> {
     let value: serde_json::Value = parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
     let staff_gap = value
         .get("staff_gap")
@@ -70,20 +70,44 @@ fn svg_render_options(
                 .map_err(|error| js_err(format!("invalid staff_gap: {error}")))
         })
         .transpose()?;
+    let auto_beam_unmarked = value
+        .get("auto_beam_unmarked")
+        .map(|value| {
+            serde_json::from_value::<bool>(value.clone())
+                .map_err(|error| js_err(format!("invalid auto_beam_unmarked: {error}")))
+        })
+        .transpose()?
+        .unwrap_or(false);
     let options = serde_json::from_value(value)
         .map_err(|error| js_err(format!("invalid options JSON: {error}")))?;
-    Ok((options, staff_gap))
+    Ok((options, staff_gap, auto_beam_unmarked))
+}
+
+fn svg_render_config(
+    options: acorde_render_svg::SvgRenderOptions,
+    staff_gap: Option<f32>,
+    auto_beam_unmarked: bool,
+) -> acorde_render_svg::SvgRenderConfig {
+    let mut config = acorde_render_svg::SvgRenderConfig::new(options);
+    if let Some(staff_gap) = staff_gap {
+        config = config.with_staff_gap(staff_gap);
+    }
+    if auto_beam_unmarked {
+        config = config.with_auto_beams();
+    }
+    config
 }
 
 fn render_svg_from_json(score: &Score, options_json: &str) -> Result<String, JsValue> {
-    let (options, staff_gap) = svg_render_options(options_json)?;
-    match staff_gap {
-        Some(staff_gap) => acorde_render_svg::render_svg_with_config(
+    let (options, staff_gap, auto_beam_unmarked) = svg_render_options(options_json)?;
+    if staff_gap.is_some() || auto_beam_unmarked {
+        acorde_render_svg::render_svg_with_config(
             score,
-            &acorde_render_svg::SvgRenderConfig::new(options).with_staff_gap(staff_gap),
+            &svg_render_config(options, staff_gap, auto_beam_unmarked),
         )
-        .map_err(js_err),
-        None => acorde_render_svg::render_svg(score, &options).map_err(js_err),
+        .map_err(js_err)
+    } else {
+        acorde_render_svg::render_svg(score, &options).map_err(js_err)
     }
 }
 
@@ -757,7 +781,9 @@ pub fn render_preflight(score_json: &str) -> Result<String, JsValue> {
 /// `options_json` is a (partial) [`acorde_render_svg::SvgRenderOptions`] JSON object, e.g.
 /// `{"width":900,"staff_size":24,"measures_per_system":4,"interactive":true}` — every field
 /// has a default, so `"{}"` renders with defaults. An optional `staff_gap` in staff spaces
-/// uses the native [`acorde_render_svg::SvgRenderConfig`] path. The four-field Rust options
+/// uses the native [`acorde_render_svg::SvgRenderConfig`] path. Set
+/// `"auto_beam_unmarked":true` to display meter-aware beams for unmarked short notes.
+/// The four-field Rust options
 /// struct remains source-compatible.
 #[wasm_bindgen]
 pub fn render_score_svg(score_json: &str, options_json: &str) -> Result<String, JsValue> {
@@ -775,17 +801,16 @@ pub fn render_score_svg_with_layout(
     let score = score_from_json(score_json)?;
     let layout: acorde_layout::LayoutResult =
         parse_json(layout_json, "layout", MAX_LAYOUT_JSON_BYTES)?;
-    let (options, staff_gap) = svg_render_options(options_json)?;
-    match staff_gap {
-        Some(staff_gap) => acorde_render_svg::render_svg_with_layout_config(
+    let (options, staff_gap, auto_beam_unmarked) = svg_render_options(options_json)?;
+    if staff_gap.is_some() || auto_beam_unmarked {
+        acorde_render_svg::render_svg_with_layout_config(
             &score,
             &layout,
-            &acorde_render_svg::SvgRenderConfig::new(options).with_staff_gap(staff_gap),
+            &svg_render_config(options, staff_gap, auto_beam_unmarked),
         )
-        .map_err(js_err),
-        None => {
-            acorde_render_svg::render_svg_with_layout(&score, &layout, &options).map_err(js_err)
-        }
+        .map_err(js_err)
+    } else {
+        acorde_render_svg::render_svg_with_layout(&score, &layout, &options).map_err(js_err)
     }
 }
 
@@ -800,9 +825,8 @@ pub fn render_score_svg_row(
     let score = score_from_json(score_json)?;
     let layout: acorde_layout::LayoutResult =
         parse_json(layout_json, "layout", MAX_LAYOUT_JSON_BYTES)?;
-    let (options, staff_gap) = svg_render_options(options_json)?;
-    match staff_gap {
-        Some(staff_gap) => {
+    let (options, staff_gap, auto_beam_unmarked) = svg_render_options(options_json)?;
+    if staff_gap.is_some() || auto_beam_unmarked {
             let mut subset = layout.clone();
             subset.rows = vec![
                 layout
@@ -814,11 +838,11 @@ pub fn render_score_svg_row(
             acorde_render_svg::render_svg_with_layout_config(
                 &score,
                 &subset,
-                &acorde_render_svg::SvgRenderConfig::new(options).with_staff_gap(staff_gap),
+                &svg_render_config(options, staff_gap, auto_beam_unmarked),
             )
             .map_err(js_err)
-        }
-        None => acorde_render_svg::render_svg_row(&score, &layout, row, &options).map_err(js_err),
+    } else {
+        acorde_render_svg::render_svg_row(&score, &layout, row, &options).map_err(js_err)
     }
 }
 
@@ -832,17 +856,16 @@ pub fn render_score_metadata(
     let score = score_from_json(score_json)?;
     let layout: acorde_layout::LayoutResult =
         parse_json(layout_json, "layout", MAX_LAYOUT_JSON_BYTES)?;
-    let (options, staff_gap) = svg_render_options(options_json)?;
-    let metadata = match staff_gap {
-        Some(staff_gap) => acorde_render_svg::render_svg_metadata_with_config(
+    let (options, staff_gap, auto_beam_unmarked) = svg_render_options(options_json)?;
+    let metadata = if staff_gap.is_some() || auto_beam_unmarked {
+        acorde_render_svg::render_svg_metadata_with_config(
             &score,
             &layout,
-            &acorde_render_svg::SvgRenderConfig::new(options).with_staff_gap(staff_gap),
+            &svg_render_config(options, staff_gap, auto_beam_unmarked),
         )
-        .map_err(js_err)?,
-        None => {
-            acorde_render_svg::render_svg_metadata(&score, &layout, &options).map_err(js_err)?
-        }
+        .map_err(js_err)?
+    } else {
+        acorde_render_svg::render_svg_metadata(&score, &layout, &options).map_err(js_err)?
     };
     serde_json::to_string(&metadata)
         .map_err(|e| js_err(format!("metadata serialization failed: {e}")))
@@ -2241,6 +2264,26 @@ impl ScoreEngine {
 mod tests {
     use super::*;
 
+    #[test]
+    fn viewer_auto_beam_json_is_opt_in_and_preserves_playback() {
+        let mut score = Score::new("viewer beams", 120, 4, 4, 1, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = (0..4)
+            .map(|_| acorde_core::Note::new(acorde_core::Pitch::from_midi(60, false), acorde_core::Duration::Eighth))
+            .collect();
+        let before = serde_json::to_value(&score).unwrap();
+        let playback_before = acorde_core::to_playback_events(&score, &Default::default());
+        let standard = render_svg_from_json(&score, "{}").unwrap();
+        let auto = render_svg_from_json(&score, r#"{"auto_beam_unmarked":true}"#).unwrap();
+        assert!(!standard.contains("acorde-beam"));
+        assert_eq!(auto.matches("class=\"acorde-beam\"").count(), 2);
+        assert_eq!(serde_json::to_value(&score).unwrap(), before);
+        assert_eq!(
+            serde_json::to_value(acorde_core::to_playback_events(&score, &Default::default()))
+                .unwrap(),
+            serde_json::to_value(playback_before).unwrap()
+        );
+    }
+
     #[cfg(feature = "omr")]
     fn synthetic_omr_png() -> Vec<u8> {
         use png::{BitDepth, ColorType, Encoder};
@@ -3632,6 +3675,23 @@ mod wasm_tests {
     use wasm_bindgen_test::wasm_bindgen_test;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test]
+    fn browser_auto_beams_work_with_precomputed_layout_and_rows() {
+        let mut score = Score::new("viewer beams", 120, 4, 4, 1, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = (0..4)
+            .map(|_| acorde_core::Note::new(acorde_core::Pitch::from_midi(60, false), acorde_core::Duration::Eighth))
+            .collect();
+        let score_json = score_to_json(&score).unwrap();
+        let layout_json = compute_layout_ex(&score_json, r#"{"measures_per_row":4}"#).unwrap();
+        let options = r#"{"auto_beam_unmarked":true}"#;
+        let whole = render_score_svg(&score_json, options).unwrap();
+        let with_layout = render_score_svg_with_layout(&score_json, &layout_json, options).unwrap();
+        let row = render_score_svg_row(&score_json, &layout_json, 0, options).unwrap();
+        assert_eq!(whole, with_layout);
+        assert!(row.contains("acorde-beam"));
+        assert!(render_score_svg(&score_json, "{}").unwrap().contains("acorde-flag"));
+    }
 
     #[wasm_bindgen_test]
     fn layered_arrangement_renders_plays_and_exports_in_viewer() {

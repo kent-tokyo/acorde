@@ -42,7 +42,7 @@ use acorde_core::{
 };
 use acorde_layout::{
     GlyphCollisionClass, GlyphCollisionDirection, LayoutConfig, LayoutResult, RowLayout,
-    compute_layout, notation_density_units,
+    add_display_beams, compute_layout, notation_density_units,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -135,6 +135,7 @@ pub struct SvgRenderConfig {
     options: SvgRenderOptions,
     staff_gap: f32,
     system_breaking: SvgSystemBreakStrategy,
+    auto_beam_unmarked: bool,
 }
 
 /// Strategy used when SVG rendering computes system breaks itself.
@@ -157,6 +158,7 @@ impl SvgRenderConfig {
             options,
             staff_gap: 10.0,
             system_breaking: SvgSystemBreakStrategy::FixedMeasureCount,
+            auto_beam_unmarked: false,
         }
     }
 
@@ -175,6 +177,13 @@ impl SvgRenderConfig {
         self
     }
 
+    /// Draw beat-aware beams for unmarked short-note runs without changing the score.
+    /// Explicit beams and explicitly unbeamed notes keep their authored appearance.
+    pub fn with_auto_beams(mut self) -> Self {
+        self.auto_beam_unmarked = true;
+        self
+    }
+
     pub fn options(&self) -> &SvgRenderOptions {
         &self.options
     }
@@ -183,6 +192,9 @@ impl SvgRenderConfig {
     }
     pub fn system_breaking(&self) -> SvgSystemBreakStrategy {
         self.system_breaking
+    }
+    pub fn auto_beam_unmarked(&self) -> bool {
+        self.auto_beam_unmarked
     }
 
     fn with_options(mut self, options: SvgRenderOptions) -> Self {
@@ -964,6 +976,9 @@ fn layout_for_config(score: &Score, config: &SvgRenderConfig) -> Result<LayoutRe
             ..Default::default()
         },
     );
+    if config.auto_beam_unmarked() {
+        add_display_beams(score, &mut layout);
+    }
     if config.system_breaking() == SvgSystemBreakStrategy::NotationDensity {
         layout.rows = density_aware_rows(score, &layout.vis_slots, config.options())?;
     }
@@ -1188,7 +1203,13 @@ pub fn render_svg_with_layout_config(
 ) -> Result<String, RenderError> {
     let options = options_for_score(config.options(), score)?;
     let config = config.clone().with_options(options);
-    render::build_svg_with_config(score, layout, &config)
+    if config.auto_beam_unmarked() {
+        let mut layout = layout.clone();
+        add_display_beams(score, &mut layout);
+        render::build_svg_with_config(score, &layout, &config)
+    } else {
+        render::build_svg_with_config(score, layout, &config)
+    }
 }
 
 /// Render a score and append deterministic, host-provided annotations.
@@ -1268,5 +1289,12 @@ pub fn render_svg_metadata_with_config(
 ) -> Result<RenderMetadata, RenderError> {
     let options = options_for_score(config.options(), score)?;
     let config = config.clone().with_options(options);
-    render::build_svg_with_metadata_config(score, layout, &config).map(|(_, metadata)| metadata)
+    if config.auto_beam_unmarked() {
+        let mut layout = layout.clone();
+        add_display_beams(score, &mut layout);
+        render::build_svg_with_metadata_config(score, &layout, &config)
+            .map(|(_, metadata)| metadata)
+    } else {
+        render::build_svg_with_metadata_config(score, layout, &config).map(|(_, metadata)| metadata)
+    }
 }

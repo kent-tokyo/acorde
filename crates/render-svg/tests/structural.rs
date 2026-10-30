@@ -371,6 +371,27 @@ fn mscx_implicit_terminal_beams_render_as_beams_not_flags() {
     assert!(!svg.contains("acorde-flag"));
 }
 
+#[test]
+fn auto_beams_are_opt_in_and_leave_authored_score_unchanged() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    use acorde_render_svg::render_svg_with_layout_config;
+    let mut score = Score::new("display beams", 120, 4, 4, 1, 1);
+    score.parts[0].staves[0].measures[0].voices[0] = (0..4)
+        .map(|_| Note::new(Pitch::new(Step::C, 4), Duration::Eighth))
+        .collect();
+    let original = serde_json::to_value(&score).unwrap();
+    let default_svg = render_svg(&score, &opts()).unwrap();
+    let config = SvgRenderConfig::new(opts()).with_auto_beams();
+    let auto_svg = render_svg_with_config(&score, &config).unwrap();
+    let layout = compute_layout(&score, &LayoutConfig::default());
+    let reused_layout_svg = render_svg_with_layout_config(&score, &layout, &config).unwrap();
+
+    assert!(!default_svg.contains("acorde-beam"));
+    assert_eq!(auto_svg.matches("class=\"acorde-beam\"").count(), 2);
+    assert_eq!(auto_svg, reused_layout_svg);
+    assert_eq!(serde_json::to_value(&score).unwrap(), original);
+}
+
 /// Well-formedness check: every opened tag closes, via quick-xml's reader (it errors on
 /// malformed XML). Cheaper than diffing full text against a golden file.
 fn assert_well_formed_xml(svg: &str) {

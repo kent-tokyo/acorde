@@ -52,6 +52,11 @@ WASM callers can pass `"staff_gap": 8` in `options_json` to `render_score_svg`,
 the `parse_*_render_svg` helpers, `render_score_svg_with_layout`,
 `render_score_svg_row`, and `render_score_metadata`. An invalid gap returns an error.
 
+Pass `"auto_beam_unmarked": true` in the same `options_json` to draw beat-aware beams for
+short notes whose beam state was unspecified. The option applies to full-score, precomputed-layout,
+and row rendering without changing Score JSON, playback, or export data. Explicit beams and
+explicitly unbeamed notes are preserved. The default is `false`.
+
 `to_playback_events_ex` produces the expected score schedule; it does not synthesize audio.
 `compute_playback_position` maps elapsed time to a typed musical position using the same tempo-ramp
 calculation. A host can compare its scheduler trace through `compare_playback_timing`; the default

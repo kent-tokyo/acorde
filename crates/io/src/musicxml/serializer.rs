@@ -967,12 +967,15 @@ fn serialize_note(
     // the whole voice is unmarked, for readers that do not auto-beam.
     let beam = voice_notes.as_ref().and_then(|(voice, time)| {
         let voice = (*voice)?;
-        let state =
-            if auto_beam_unmarked_voices && voice.iter().all(|note| note.beam == BeamState::None) {
-                compute_beams(voice, time).get(address.note).copied()?
-            } else {
-                voice.get(address.note)?.beam
-            };
+        let state = if auto_beam_unmarked_voices
+            && voice
+                .iter()
+                .all(|note| note.beam == BeamState::None && !note.explicit_unbeamed)
+        {
+            compute_beams(voice, time).get(address.note).copied()?
+        } else {
+            voice.get(address.note)?.beam
+        };
         match state {
             BeamState::Begin => Some("begin"),
             BeamState::Continue => Some("continue"),
@@ -2460,6 +2463,11 @@ mod tests {
         let display = serialize_musicxml_with_auto_beams(&score).expect("display export");
         assert!(display.contains("<beam number=\"1\">begin</beam>"));
         assert!(display.contains("<beam number=\"1\">end</beam>"));
+
+        score.parts[0].staves[0].measures[0].voices[0][1].explicit_unbeamed = true;
+        let protected =
+            serialize_musicxml_with_auto_beams(&score).expect("protected display export");
+        assert!(!protected.contains("<beam "));
     }
 
     #[test]

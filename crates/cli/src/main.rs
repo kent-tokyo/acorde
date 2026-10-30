@@ -196,6 +196,9 @@ enum Commands {
         /// Omit data-* note and score address hooks
         #[arg(long)]
         no_interactive: bool,
+        /// Infer beat-aware display beams for unmarked short notes
+        #[arg(long)]
+        auto_beams: bool,
     },
     /// Render a score file to SVG and print import/renderer diagnostics as JSON
     RenderReport {
@@ -535,6 +538,7 @@ fn run(cli: &Cli) -> Result<(), String> {
             staff_size,
             measures_per_system,
             no_interactive,
+            auto_beams,
         } => cmd_render(
             input,
             output,
@@ -542,6 +546,7 @@ fn run(cli: &Cli) -> Result<(), String> {
             *staff_size,
             *measures_per_system,
             !*no_interactive,
+            *auto_beams,
         ),
         Commands::RenderReport {
             input,
@@ -789,6 +794,7 @@ fn cmd_render(
     staff_size: f32,
     measures_per_system: usize,
     interactive: bool,
+    auto_beams: bool,
 ) -> Result<(), String> {
     let score = parse_score(input)?;
     let options = acorde_render_svg::SvgRenderOptions {
@@ -797,8 +803,15 @@ fn cmd_render(
         measures_per_system,
         interactive,
     };
-    let svg = acorde_render_svg::render_svg(&score, &options)
-        .map_err(|e| format!("SVG rendering failed: {e}"))?;
+    let svg = if auto_beams {
+        acorde_render_svg::render_svg_with_config(
+            &score,
+            &acorde_render_svg::SvgRenderConfig::new(options).with_auto_beams(),
+        )
+    } else {
+        acorde_render_svg::render_svg(&score, &options)
+    }
+    .map_err(|e| format!("SVG rendering failed: {e}"))?;
     std::fs::write(output, svg).map_err(|e| format!("cannot write '{}': {e}", output.display()))?;
     println!("rendered '{}' to '{}'", input.display(), output.display());
     Ok(())
@@ -2870,8 +2883,16 @@ mod tests {
     fn render_command_writes_deterministic_interactive_svg() {
         let output =
             std::env::temp_dir().join(format!("acorde-cli-render-{}.svg", std::process::id()));
-        cmd_render(&fixture("simple.musicxml"), &output, 900.0, 24.0, 4, true)
-            .expect("render command succeeds");
+        cmd_render(
+            &fixture("simple.musicxml"),
+            &output,
+            900.0,
+            24.0,
+            4,
+            true,
+            false,
+        )
+        .expect("render command succeeds");
         let svg = std::fs::read_to_string(&output).expect("render output exists");
         assert!(svg.starts_with("<svg"));
         assert!(svg.contains("data-note-addr"));

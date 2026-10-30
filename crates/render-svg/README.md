@@ -18,6 +18,11 @@ let svg = render_svg(&Score::default(), &SvgRenderOptions::default())?;
 # Ok::<(), acorde_render_svg::RenderError>(())
 ```
 
+For source files with unspecified eighth-note beams, use
+`render_svg_with_config(&score, &SvgRenderConfig::new(options).with_auto_beams())`.
+This groups short notes by the active meter for display only. Authored beams and explicit
+unbeamed marks are preserved; the score and interchange exports are unchanged.
+
 ## Host integration
 
 Interactive output includes stable note-address hooks. `render_svg_metadata` supplies the matching
