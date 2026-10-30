@@ -1,3 +1,17 @@
+#[cfg(all(
+    feature = "playback-only",
+    not(any(feature = "full", feature = "viewer"))
+))]
+mod playback_only;
+#[cfg(all(
+    feature = "playback-only",
+    not(any(feature = "full", feature = "viewer"))
+))]
+pub use playback_only::*;
+
+#[cfg(not(all(feature = "playback-only", not(any(feature = "full", feature = "viewer")))))]
+#[rustfmt::skip]
+mod full_api {
 use acorde_core::{Command, Score};
 use serde::de::DeserializeOwned;
 use wasm_bindgen::prelude::*;
@@ -3913,3 +3927,10 @@ mod wasm_tests {
         assert!(render_score_svg(&score_json, &oversized_options).is_err());
     }
 }
+}
+
+#[cfg(not(all(
+    feature = "playback-only",
+    not(any(feature = "full", feature = "viewer"))
+)))]
+pub use full_api::*;

@@ -157,6 +157,17 @@ jobs:
             exit 1
           fi
 
+      - name: Compare playback-only profile with full and viewer
+        shell: bash
+        run: |
+          wasm-pack build crates/wasm --target web --release \
+            --out-dir ../../target/wasm-profiles/full
+          wasm-pack build crates/wasm --target web --release \
+            --out-dir ../../target/wasm-profiles/playback-only \
+            --no-default-features --features playback-only
+          node scripts/check-wasm-playback-profile.mjs > target/wasm-playback-profile-report.json
+          node -e 'const d=require("./target/wasm-playback-profile-report.json"); console.log(JSON.stringify({sizes:Object.fromEntries(Object.entries(d.profiles).map(([name, profile])=>[name, profile.size])), parity:d.parity}))'
+
       - name: Check opt-in OMR bindings for wasm32
         run: cargo check -p acorde-wasm --target wasm32-unknown-unknown --all-features --locked
 
@@ -197,6 +208,8 @@ jobs:
         run: timeout 5m wasm-pack test --headless --chrome crates/wasm
       - name: Viewer browser tests
         run: timeout 5m wasm-pack test --headless --chrome crates/wasm --no-default-features --features viewer
+      - name: Playback-only browser tests
+        run: timeout 5m wasm-pack test --headless --chrome crates/wasm --no-default-features --features playback-only
 
   browser-matrix:
     name: Browser smoke (${{ matrix.browser }})

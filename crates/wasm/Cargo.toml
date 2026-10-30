@@ -18,6 +18,9 @@ default = ["full"]
 # `--no-default-features --features viewer`.
 full = ["musicxml", "midi", "gp", "mei", "soundfont"]
 viewer = []
+# Minimal opt-in binding for original-image pages that only parse MSCZ and
+# compute playback events. Build with --no-default-features --features playback-only.
+playback-only = []
 musicxml = ["acorde-io/musicxml"]
 midi = ["acorde-io/midi"]
 gp = ["acorde-io/gp"]

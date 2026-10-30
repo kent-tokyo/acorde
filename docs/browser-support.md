@@ -6,6 +6,8 @@ browser/WASM contract rather than providing a production UI.
 
 The default WASM build exposes the full API. For an opt-in ABC/MSCZ score viewer build,
 feature exclusions, and cold-start size measurements, see [the viewer profile](wasm-viewer-profile.md).
+For original-score-image pages that only parse MSCZ and schedule playback, see
+[the playback-only profile](wasm-playback-profile.md).
 
 | Surface | Required evidence | Current status |
 |---|---|---|
