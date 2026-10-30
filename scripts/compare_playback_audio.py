@@ -38,9 +38,16 @@ def load_alphatab(path):
     if sys.byteorder != "little":
         samples.byteswap()
     mono = array.array("f")
+    nonfinite = 0
+    first_nonfinite_frame = None
     for i in range(0, len(samples), 2):
+        invalid = not math.isfinite(samples[i]) or not math.isfinite(samples[i + 1])
+        if invalid:
+            nonfinite += (not math.isfinite(samples[i])) + (not math.isfinite(samples[i + 1]))
+            if first_nonfinite_frame is None:
+                first_nonfinite_frame = i // 2
         mono.append((samples[i] + samples[i + 1]) * 0.5)
-    return mono
+    return mono, nonfinite, first_nonfinite_frame
 
 
 def rms(values):
@@ -60,7 +67,7 @@ def window_alignment(acorde, alphatab, start, size, max_shift=16):
         if at < 0:
             continue
         y = alphatab[at : at + size]
-        if len(y) != size:
+        if len(y) != size or not all(map(math.isfinite, y)):
             continue
         power_y = sum(value * value for value in y)
         if power_y == 0:
@@ -77,7 +84,7 @@ def main():
     if len(sys.argv) != 4:
         raise SystemExit(__doc__)
     rate, acorde = load_acorde(sys.argv[1])
-    alphatab = load_alphatab(sys.argv[2])
+    alphatab, nonfinite, first_nonfinite_frame = load_alphatab(sys.argv[2])
     onsets = [float(value) for value in sys.argv[3].split(",")]
     if not onsets or any(not math.isfinite(value) or value < 0 for value in onsets):
         raise ValueError("onsets must be nonnegative finite milliseconds")
@@ -92,9 +99,11 @@ def main():
         "acorde_frames": len(acorde),
         "alphatab_frames": len(alphatab),
         "acorde_peak": round(max(map(abs, acorde), default=0), 6),
-        "alphatab_peak": round(max(map(abs, alphatab), default=0), 6),
+        "alphatab_peak": None if nonfinite else round(max(map(abs, alphatab), default=0), 6),
         "acorde_rms": round(rms(acorde), 6),
-        "alphatab_rms": round(rms(alphatab), 6),
+        "alphatab_rms": None if nonfinite else round(rms(alphatab), 6),
+        "alphatab_nonfinite_samples": nonfinite,
+        "alphatab_first_nonfinite_frame": first_nonfinite_frame,
         "windows": windows,
     }, indent=2))
 

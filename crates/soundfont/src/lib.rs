@@ -2,14 +2,18 @@
 //! SoundFont renderer.
 //!
 //! This crate validates SF2/SF3 metadata and produces lifecycle actions. It
-//! intentionally does not decode samples or ship a synthesizer; applications
-//! choose a licensed renderer on the other side of this stable boundary.
+//! includes bounded decoding helpers and an opt-in full-SF2 synthesizer;
+//! applications still choose their own licensed SoundFont assets.
 
 use acorde_core::PlaybackEvent;
 use serde::Serialize;
 
 mod offline;
 pub use offline::{MAX_OFFLINE_WAV_BYTES, render_offline_wav};
+#[cfg(feature = "full-sf2")]
+mod full_sf2;
+#[cfg(feature = "full-sf2")]
+pub use full_sf2::render_offline_wav_full_sf2;
 
 pub const PLAYBACK_CONTRACT_VERSION: u16 = 1;
 /// Version of the provider capability/decoder/renderer adapter contract.

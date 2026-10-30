@@ -29,6 +29,18 @@ program-change or pitch-bend automation, ornament realization, effects, SF3 inpu
 playback. Unsupported expressive events return errors. A supplied SF2 must contain every
 requested bank/program/key/velocity zone.
 
+The optional `full-sf2` feature adds `render_offline_wav_full_sf2`, backed by
+[RustySynth](https://github.com/sinshu/rustysynth) (MIT). The CLI enables it with
+`acorde audio-render score.musicxml gm.sf2 output.wav --full-sf2`. It interprets SF2 filters,
+modulation, and envelopes and keeps Acorde's frame schedule and 64 MiB PCM16 output bound.
+This mode requires 16–192 kHz. Reverb and chorus are disabled; its eight-frame synthesis blocks
+can delay a score-frame attack or release by up to seven samples. It routes simultaneous score
+voices and overlapping same-pitch notes to separate MIDI channels when available. It rejects
+unrepresentable channel counts, unsupported score expression, and SF3 input with errors. The
+provider-neutral zone materializer is unchanged and still reports unsupported generators.
+Each note's effective program is selected at its attack, including measure-local instrument
+changes from the score schedule.
+
 It does not require an asset or audio device. Applications may provide their own licensed assets
 and renderer; the bounded native renderer is optional. The checksum is path-independent FNV-1a
 64-bit over the asset bytes.

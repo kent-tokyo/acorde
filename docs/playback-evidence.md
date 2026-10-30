@@ -130,13 +130,59 @@ not independent note-onset error measurements. Different channel layouts and gai
 prevent interpreting the peaks (Acorde 0.520203, alphaTab 0.463316) as loudness quality. This
 single synthetic piano score does not establish audible or general playback superiority.
 
-As a range check, Acorde's current zone materializer cannot select bank 0/program 0 from the
+As a range check, Acorde's native zone materializer cannot select bank 0/program 0 from the
 1.3 MiB `sonivox.sf2` bundled with alphaTab 1.8.4: a render of the independent *Just for Today*
 MXL fails with `SoundFont preset (0, 0) was not found`. That SoundFont has a Piano 1 preset, but
 the materializer rejects its zones because it cannot represent several envelope/filter
 generators. This is a synthesis coverage gap tracked in
 [Issue #203](https://github.com/kent-tokyo/acorde/issues/203); the failed render is not an
 alphaTab quality comparison.
+
+## Full-SF2 GM render and fixed-rate comparison (2026-10-31)
+
+The optional `--full-sf2` CLI mode uses RustySynth 1.3.7 (MIT) for SF2 filters, modulation, and
+envelopes while retaining Acorde's frame schedule. It does not alter the provider-neutral zone
+materializer or the default native mode. Its synthesis block is eight frames, so note attacks and
+releases can be up to seven output samples later than their scheduled frame. Reverb and chorus are
+disabled. The mode is available at 16–192 kHz and continues to reject unsupported score
+expression. The alphaTab 1.8.4 bundled `sonivox.sf2` is loaded from its installed npm package,
+not copied into this repository.
+
+On the independent *Just for Today* MXL (score SHA-256
+`79a19736fcce71c0acf4b39feff63723d2ff75e29285ea2ab594f9b2b6a835ff`), Acorde rendered
+all 579 scheduled notes using that SF2 (SHA-256
+`4978cf37e7164206f2d22dc4fdf4020ffe040787210bf781e31bdc79961f59ef`). The 16 kHz mono
+PCM16 WAV has 1,315,131 frames, SHA-256
+`3dd31d0f22017fb2f617dd9c59d55ff3c032daf0397db0a0a550a7b2f9ecd740`, and zero clipped
+samples. At 48 kHz stereo, its WAV has 3,945,392 frames and zero clipped samples (SHA-256
+`bb93c4ce7567074c06e576b944eee34a01eb74b42992e19fe0f2a649efceb198`). The difference
+in full-file durations from alphaTab includes Acorde's fermata hold and release-tail policy; it
+is not a measured onset error.
+
+```sh
+npm install --prefix /tmp/acorde-alphatab-1_8_4 --no-save --no-package-lock @coderline/alphatab@1.8.4
+SF2=/tmp/acorde-alphatab-1_8_4/node_modules/@coderline/alphatab/dist/soundfont/sonivox.sf2
+cargo run -p acorde-cli --locked -- audio-render \
+  tests/fixtures/openscore_lieder_just_for_today.mxl "$SF2" /tmp/acorde-gm-16k.wav \
+  --full-sf2 --sample-rate 16000 --channels 1
+node scripts/export_alphatab_audio.mjs /tmp/acorde-alphatab-1_8_4 \
+  tests/fixtures/openscore_lieder_just_for_today.mxl "$SF2" \
+  /tmp/alphatab-gm-16k.f32le 16000
+python3 scripts/compare_playback_audio.py /tmp/acorde-gm-16k.wav \
+  /tmp/alphatab-gm-16k.f32le 0,652,1304,1957,2609
+```
+
+In this run, alphaTab's public export API emitted 1,283,520 stereo float32 frames at 16 kHz
+(SHA-256 `afd4eb0f1bb5ceff8dadb9e1a2bf8aa5b3f67a32cbbbac13d264241c274c7ee4`).
+**2,542,108 of 2,567,040 float samples were non-finite**, starting at frame 4,950. Its short
+`simple.musicxml` render with the same SF2 and rate also produced 33,160 non-finite samples.
+The comparison script now reports these explicitly and skips affected waveform correlations.
+At 48 kHz, alphaTab exported the same real score with zero non-finite samples (SHA-256
+`e35b715158b49ea6852e3844a2d69840d50badaf6ca2736e8ef86a645cdb0ef5`). Thus Acorde
+has a fixed-score, fixed-SF2 advantage in **finite 16 kHz output**, but this does not establish
+better 48 kHz sound quality, wider repertoire support, or an overall audio win. Full-SF2 rendering
+uses an external Rust synthesizer; broader Acorde-native generator coverage and a listening corpus
+remain open in [Issue #203](https://github.com/kent-tokyo/acorde/issues/203).
 
 ## alphaTab 1.8.4 / independent CC0 score (2026-10-30)
 
