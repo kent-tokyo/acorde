@@ -11,6 +11,26 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## v1.3.1
+
+No Rust source migration is required for the new WASM viewer profile or MSCZ fixes. Re-import an
+original MSCZ file if a previously imported canonical score has incorrect alternate endings,
+voice slots, or initial clefs. The corrected parser does not rewrite stored scores automatically.
+WASM hosts can opt into the `viewer` feature set; the existing full build remains the default.
+
+## v1.3.0
+
+`SvgRenderOptions` again has its original four public fields: `width`, `staff_size`,
+`measures_per_system`, and `interactive`. If you need a non-default inter-staff gap, use:
+
+```rust
+let config = SvgRenderConfig::new(options).with_staff_gap(8.0);
+let svg = render_svg_with_config(&score, &config)?;
+```
+
+Versions 1.2.19 and 1.2.20 added `staff_gap` directly to `SvgRenderOptions`; that was a
+source-breaking change in patch releases and those versions are withdrawn from use.
+
 ## v1.2 series
 
 | Release | Consumer action |
@@ -48,15 +68,3 @@ struct literals must still update for added variants and fields.
 4. Re-import original source files when a corrected parser interpretation changes their canonical
    score (for example hidden notation, clefs, or 8va/8vb direction).
 5. Run the focused format/browser/print checks for the surfaces your host uses.
-# 1.3.0
-
-`SvgRenderOptions` again has its original four public fields: `width`, `staff_size`,
-`measures_per_system`, and `interactive`. If you need a non-default inter-staff gap, use:
-
-```rust
-let config = SvgRenderConfig::new(options).with_staff_gap(8.0);
-let svg = render_svg_with_config(&score, &config)?;
-```
-
-Versions 1.2.19 and 1.2.20 added `staff_gap` directly to `SvgRenderOptions`; that was a
-source-breaking change in patch releases and those versions are withdrawn from use.

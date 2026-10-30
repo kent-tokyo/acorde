@@ -1,5 +1,22 @@
 # Changelog
 
+## [Unreleased]
+
+## 1.3.1 - 2026-10-30
+
+- Fixed MSCZ alternate-ending markers that have an orphan closing marker or an open final
+  beginning marker. Round-tripping now preserves repeat expansion and playback events.
+- Fixed MSCZ parsing of self-closing `<voice/>` elements so later voice slots and tied-note
+  playback remain aligned.
+- Fixed MuseScore 4.7 MSCZ imports whose `<Part><Staff>` declarations omit IDs. Initial
+  `defaultClef`, instrument-relative clefs, and transposition now follow the actual score staves;
+  an explicit first-measure clef still takes precedence.
+- Added an opt-in `viewer` WASM profile for ABC/MSCZ viewing while retaining the full API as the
+  default. The viewer build, browser contract, size, and cold-start evidence are documented in
+  `docs/wasm-viewer-profile.md`.
+- Fixed WASM SVG `options_json` handling of `staff_gap` across direct, layout, row, and metadata
+  rendering. Invalid gaps now return an error instead of being ignored.
+
 ## 1.3.0 - 2026-10-28
 
 - Restored `SvgRenderOptions` to its original four public fields. Versions 1.2.19 and 1.2.20
@@ -10,6 +27,8 @@
 - Renderer and analysis benchmark commands now record fixed-input repetition metadata and host
   information for reproducible local timing evidence; the analysis timing mode requires an explicit
   CPU label.
+- Simplified the scorecard and interchange evidence, and documented the published
+  `SvgRenderOptions` source-compatibility exception for Rust struct literals.
 
 All notable released changes are summarized here. The repository tags and commit history retain
 the full implementation record. Score JSON additions are backward-compatible unless marked
@@ -17,11 +36,6 @@ the full implementation record. Score JSON additions are backward-compatible unl
 compatibility.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-
-## [Unreleased]
-
-- **Documentation.** Simplified the scorecard and interchange evidence, and documented the
-  published `SvgRenderOptions` source-compatibility exception for Rust struct literals.
 
 ## [1.2.20] - 2026-10-28
 
