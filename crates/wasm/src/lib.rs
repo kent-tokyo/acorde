@@ -1402,6 +1402,21 @@ pub fn arrange_with_explicit_chords(
         .map_err(|error| js_err(format!("arrangement result serialization failed: {error}")))
 }
 
+/// Reduce selected source parts onto two accordion staves using an explicit loss policy.
+/// Returns a score or source-located diagnostics with no partial lossless output.
+#[wasm_bindgen]
+pub fn arrange_for_accordion_with_options(
+    score_json: &str,
+    options_json: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::AccordionReductionOptions =
+        parse_json(options_json, "reduction options", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_for_accordion_with_options(&score, options);
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("reduction result serialization failed: {error}")))
+}
+
 /// Return the total duration of a score in seconds (uses score tempo and repeat structure).
 #[wasm_bindgen]
 pub fn score_duration_secs(score_json: &str) -> Result<f64, JsValue> {
@@ -3251,6 +3266,45 @@ mod tests {
         };
         assert_eq!(events(web.score.as_ref().unwrap()), events(native.score.as_ref().unwrap()));
         assert_eq!(web.generated_notes, native.generated_notes);
+    }
+
+    #[test]
+    fn accordion_reduction_json_matches_native_provenance() {
+        let mut score = acorde_core::Score::new("reduction", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(
+            acorde_core::Pitch::from_midi(72, false),
+            acorde_core::Duration::Whole,
+        )];
+        let mut bass = score.parts[0].clone();
+        bass.staves[0].measures[0].voices[0][0].pitches[0] =
+            acorde_core::Pitch::from_midi(48, false);
+        score.parts.push(bass);
+        let options: acorde_core::AccordionReductionOptions = serde_json::from_value(serde_json::json!({
+            "right_hand_part_index": 0,
+            "left_hand_part_indices": [1],
+            "loss_policy": "require-all",
+            "octave_fit": false
+        }))
+        .unwrap();
+        let native = acorde_core::arrange_for_accordion_with_options(&score, options.clone());
+        let web: acorde_core::AccordionReductionResult = serde_json::from_str(
+            &arrange_for_accordion_with_options(
+                &serde_json::to_string(&score).unwrap(),
+                &serde_json::to_string(&options).unwrap(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(web.diagnostics, native.diagnostics);
+        assert_eq!(web.source_map, native.source_map);
+        assert_eq!(web.transposition_semitones, native.transposition_semitones);
+        let pitches = |score: &acorde_core::Score| {
+            acorde_core::to_playback_events(score, &Default::default())
+                .into_iter()
+                .map(|event| (event.pitch_midi, event.time_beats, event.duration_beats))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(pitches(web.score.as_ref().unwrap()), pitches(native.score.as_ref().unwrap()));
     }
 
     #[test]
