@@ -11,15 +11,16 @@ Score → PrintConfig → PrintLayoutResult → SVG/PDF/print host
 
 - `PrintPreset`: deterministic A4/Letter full-score and extracted-part starting configurations.
 - `PrintConfig`: paper, margins, bleed/safe area, scale, measures/systems capacity, pickup,
-  keep-together, notation-break, final-page, color, crop-mark, glyph-resource, and publication
-  policies.
+  keep-together, notation-break, final-page, system-height, color, crop-mark, glyph-resource,
+  and publication policies.
 - `PrintLayoutResult`: stable page/system addresses, physical measure spans, break reasons,
   multirest ownership, page-scoped span continuations, and publication metadata.
 - `PublicationConfig`: title-page, running title, header/footer, page number, part label,
   section, spacer, frame, and image-resource descriptors. Image bytes and drawing stay outside
   the contract.
 
-The serialized print-layout contract is version **32**. Consumers must validate a received
+The serialized print-layout contract is version **33**; the preset schema is version **2**.
+Consumers must validate a received
 `PrintLayoutResult` before reuse; incompatible contract versions, invalid page/system addresses,
 non-finite geometry, and invalid page metadata are rejected.
 
@@ -33,6 +34,12 @@ does not mutate the score.
 The configured system height and any explicit systems-per-page request must fit the usable page
 height. Persisted layouts reject systems that overlap or extend beyond the physical page instead
 of passing clipped geometry to a renderer.
+For multi-staff scores, the default `StaffAware` height policy reserves at least 24 mm for the
+first staff plus 16 mm for each additional staff, before applying `scale`. This changes page
+capacity for piano and chamber scores; extracted single-staff parts use their own staff count.
+Callers with measured system geometry can select `SystemHeightPolicy::Fixed` to use
+`system_height_mm` exactly. This is a pagination clearance floor, not a guarantee that lyrics,
+annotations, or shaped glyphs fit without collisions.
 
 `PageLayout::span_segments` and `SystemLayout::span_segments` identify continuation ownership so
 a renderer does not reconstruct spans by index arithmetic. `measure_marks` carries repeats,

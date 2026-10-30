@@ -1,11 +1,13 @@
 # Acorde scorecard
 
-The machine-readable scorecard is [`scorecard.json`](scorecard.json). It is a conservative
+The machine-readable scorecard is [`scorecard.json`](scorecard.json). Its `release` field is
+`unreleased` while these contract changes are on a development branch; `base_release` names the
+last published version. It is a conservative
 inventory of the current contracts, not a claim of parity with MuseScore, music21, OSMD, or
 Verovio. Capability labels must remain aligned with the [notation coverage matrix](notation-coverage.md)
 and backed by a fixture or focused test.
 
-Current contracts are SVG metadata 22, analysis result 13, print layout 32, glyph-resource
+Current contracts are SVG metadata 22, analysis result 13, print layout 33, glyph-resource
 metadata 1, and tablature performance 4. `scorecard.json`, its contract documentation, and their
 regression tests must change together.
 

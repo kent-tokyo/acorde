@@ -34,6 +34,14 @@ enum PrintFinalPagePolicyArg {
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
+enum PrintSystemHeightPolicyArg {
+    /// Reserve clearance for all visible staves.
+    StaffAware,
+    /// Use the preset system height exactly.
+    Fixed,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
 enum PrintNotationBreakPolicyArg {
     /// Preserve ordinary automatic breaks.
     Preserve,
@@ -67,6 +75,7 @@ struct PrintReportOptions<'a> {
     fail_on_issues: bool,
     scale: f32,
     first_system_measures: Option<usize>,
+    system_height_policy: PrintSystemHeightPolicyArg,
     final_page_policy: PrintFinalPagePolicyArg,
     notation_break_policy: PrintNotationBreakPolicyArg,
     pickup_policy: PrintPickupPolicyArg,
@@ -253,6 +262,9 @@ enum Commands {
         /// Optional first-system physical measure capacity
         #[arg(long)]
         first_system_measures: Option<usize>,
+        /// How system height is reserved for multiple staves
+        #[arg(long, value_enum, default_value_t = PrintSystemHeightPolicyArg::StaffAware)]
+        system_height_policy: PrintSystemHeightPolicyArg,
         /// Final-page distribution policy
         #[arg(long, value_enum, default_value_t = PrintFinalPagePolicyArg::AllowSingleSystem)]
         final_page_policy: PrintFinalPagePolicyArg,
@@ -563,6 +575,7 @@ fn run(cli: &Cli) -> Result<(), String> {
             fail_on_issues,
             scale,
             first_system_measures,
+            system_height_policy,
             final_page_policy,
             notation_break_policy,
             pickup_policy,
@@ -582,6 +595,7 @@ fn run(cli: &Cli) -> Result<(), String> {
                 fail_on_issues: *fail_on_issues,
                 scale: *scale,
                 first_system_measures: *first_system_measures,
+                system_height_policy: *system_height_policy,
                 final_page_policy: *final_page_policy,
                 notation_break_policy: *notation_break_policy,
                 pickup_policy: *pickup_policy,
@@ -947,6 +961,10 @@ fn build_print_config(
     config.systems_per_page = options.systems_per_page;
     config.scale = options.scale;
     config.first_system_measures = options.first_system_measures;
+    config.system_height_policy = match options.system_height_policy {
+        PrintSystemHeightPolicyArg::StaffAware => acorde_layout::SystemHeightPolicy::StaffAware,
+        PrintSystemHeightPolicyArg::Fixed => acorde_layout::SystemHeightPolicy::Fixed,
+    };
     config.final_page_policy = match options.final_page_policy {
         PrintFinalPagePolicyArg::AllowSingleSystem => {
             acorde_layout::FinalPagePolicy::AllowSingleSystem
@@ -3023,6 +3041,7 @@ mod tests {
             fail_on_issues: false,
             scale: 1.1,
             first_system_measures: Some(2),
+            system_height_policy: PrintSystemHeightPolicyArg::Fixed,
             final_page_policy: PrintFinalPagePolicyArg::Balance,
             notation_break_policy: PrintNotationBreakPolicyArg::KeepVoltaTogether,
             pickup_policy: PrintPickupPolicyArg::Preserve,
@@ -3037,6 +3056,10 @@ mod tests {
         assert_eq!(config.systems_per_page, Some(4));
         assert_eq!(config.scale, 1.1);
         assert_eq!(config.first_system_measures, Some(2));
+        assert_eq!(
+            config.system_height_policy,
+            acorde_layout::SystemHeightPolicy::Fixed
+        );
         assert_eq!(
             config.final_page_policy,
             acorde_layout::FinalPagePolicy::Balance
@@ -3070,12 +3093,46 @@ mod tests {
             fail_on_issues: false,
             scale: 1.0,
             first_system_measures: None,
+            system_height_policy: PrintSystemHeightPolicyArg::StaffAware,
             final_page_policy: PrintFinalPagePolicyArg::AllowSingleSystem,
             notation_break_policy: PrintNotationBreakPolicyArg::Preserve,
             pickup_policy: PrintPickupPolicyArg::Auto,
         })
         .expect_err("full score must reject part selection");
         assert!(error.contains("requires an extracted-part preset"));
+    }
+
+    #[test]
+    fn real_five_staff_score_paginates_without_truncating_measures() {
+        let import = parse_report(&fixture("openscore_lieder_aloha_oe.mxl"))
+            .expect("licensed MusicXML fixture imports");
+        assert_eq!(import.error_count(), 0);
+        let layout = acorde_layout::compute_print_layout(
+            &import.score,
+            &acorde_layout::PrintPreset::A4Score.config(),
+        )
+        .expect("five-staff A4 layout");
+        assert_eq!(layout.pages.len(), 3);
+        assert_eq!(
+            layout
+                .pages
+                .iter()
+                .map(|page| page.systems.len())
+                .collect::<Vec<_>>(),
+            vec![3, 3, 1]
+        );
+        assert!(
+            layout
+                .pages
+                .iter()
+                .flat_map(|page| &page.systems)
+                .all(|system| {
+                    system.height_mm == 88.0
+                        && system.top_mm >= 16.0
+                        && system.top_mm + system.height_mm <= 281.0
+                })
+        );
+        assert_eq!(layout.pages[2].systems[0].measure_indices.last(), Some(&22));
     }
 
     #[test]
