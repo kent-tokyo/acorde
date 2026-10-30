@@ -386,7 +386,12 @@ pub(crate) fn build_svg_with_metadata_config(
             }
             let _ = (pi, si); // staff-scoped state only; part/staff used below for data-* attrs
         }
-        if !score.part_groups.is_empty() {
+        if !score.part_groups.is_empty()
+            || score
+                .parts
+                .iter()
+                .any(|part| !part.staff_groups.is_empty() || implicit_piano_brace(part))
+        {
             render_part_groups(
                 &mut body,
                 score,
@@ -1593,8 +1598,17 @@ fn validate_score_text(value: &str) -> Result<(), RenderError> {
     Ok(())
 }
 
-/// Draw logical part connectors at the system edge. Part grouping is optional model data, so
-/// ordinary single-part scores retain the byte-for-byte output of the original renderer.
+/// Draw part and intra-part staff connectors at the system edge.
+fn implicit_piano_brace(part: &acorde_core::Part) -> bool {
+    part.staff_groups.is_empty()
+        && part.name.eq_ignore_ascii_case("piano")
+        && part.staves.len() == 2
+        && part.staves.iter().all(|staff| {
+            staff.presentation.visible
+                && staff.presentation.kind == acorde_core::StaffKind::Standard
+        })
+}
+
 #[allow(clippy::too_many_arguments)]
 fn render_part_groups(
     body: &mut String,
@@ -1620,40 +1634,7 @@ fn render_part_groups(
         let top = staff_y[first];
         let bottom = staff_y[last] + staff_heights_u[last] * space;
         let x = (left_margin_u - 0.35) * space;
-        let class = match group.symbol {
-            acorde_core::PartGroupSymbol::Bracket => "acorde-part-bracket",
-            acorde_core::PartGroupSymbol::Brace => "acorde-part-brace",
-            acorde_core::PartGroupSymbol::Line => "acorde-part-line",
-        };
-        let path = match group.symbol {
-            acorde_core::PartGroupSymbol::Brace => format!(
-                "M {},{} Q {},{} {},{} Q {},{} {},{}",
-                f(x),
-                f(top),
-                f(x - 0.45 * space),
-                f(top + 2.0 * space),
-                f(x),
-                f((top + bottom) / 2.0),
-                f(x - 0.45 * space),
-                f(bottom - 2.0 * space),
-                f(x),
-                f(bottom)
-            ),
-            _ => format!("M {},{} L {},{}", f(x), f(top), f(x), f(bottom)),
-        };
-        let _ = write!(
-            body,
-            r#"<path class="{}" d="{}" fill="none" stroke="black" stroke-width="{}"/>"#,
-            class,
-            path,
-            f(
-                if matches!(group.symbol, acorde_core::PartGroupSymbol::Bracket) {
-                    0.16 * space
-                } else {
-                    0.1 * space
-                }
-            )
-        );
+        write_group_connector(body, group.symbol.clone(), "part", x, top, bottom, space);
         if row_idx == 0 {
             let label = score
                 .parts
@@ -1672,6 +1653,76 @@ fn render_part_groups(
             }
         }
     }
+    for (part_index, part) in score.parts.iter().enumerate() {
+        let inferred = implicit_piano_brace(part);
+        let groups = part
+            .staff_groups
+            .iter()
+            .map(|group| (group.first_staff, group.last_staff, group.symbol.clone()))
+            .chain(inferred.then_some((0, 1, acorde_core::PartGroupSymbol::Brace)));
+        for (first_staff, last_staff, symbol) in groups {
+            let first = staff_refs
+                .iter()
+                .position(|&(pi, si)| pi == part_index && si == first_staff);
+            let last = staff_refs
+                .iter()
+                .position(|&(pi, si)| pi == part_index && si == last_staff);
+            let (Some(first), Some(last)) = (first, last) else {
+                continue;
+            };
+            if first >= last {
+                continue;
+            }
+            let top = staff_y[first];
+            let bottom = staff_y[last] + staff_heights_u[last] * space;
+            let x = (left_margin_u - 0.35) * space;
+            write_group_connector(body, symbol, "staff", x, top, bottom, space);
+        }
+    }
+}
+
+fn write_group_connector(
+    body: &mut String,
+    symbol: acorde_core::PartGroupSymbol,
+    kind: &str,
+    x: f32,
+    top: f32,
+    bottom: f32,
+    space: f32,
+) {
+    let class = match symbol {
+        acorde_core::PartGroupSymbol::Bracket => "bracket",
+        acorde_core::PartGroupSymbol::Brace => "brace",
+        acorde_core::PartGroupSymbol::Line => "line",
+    };
+    let path = match symbol {
+        acorde_core::PartGroupSymbol::Brace => format!(
+            "M {},{} Q {},{} {},{} Q {},{} {},{}",
+            f(x),
+            f(top),
+            f(x - 0.45 * space),
+            f(top + 2.0 * space),
+            f(x),
+            f((top + bottom) / 2.0),
+            f(x - 0.45 * space),
+            f(bottom - 2.0 * space),
+            f(x),
+            f(bottom)
+        ),
+        _ => format!("M {},{} L {},{}", f(x), f(top), f(x), f(bottom)),
+    };
+    let _ = write!(
+        body,
+        r#"<path class="acorde-{}-{}" d="{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+        kind,
+        class,
+        path,
+        f(if matches!(symbol, acorde_core::PartGroupSymbol::Bracket) {
+            0.16 * space
+        } else {
+            0.1 * space
+        })
+    );
 }
 
 // ── staff / state collection ─────────────────────────────────────────────────────
