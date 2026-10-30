@@ -1,6 +1,7 @@
 # acorde
 
 [![CI](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml)
+[![Codecov](https://codecov.io/gh/kent-tokyo/acorde/graph/badge.svg?branch=main)](https://app.codecov.io/gh/kent-tokyo/acorde)
 [![docs.rs](https://docs.rs/acorde/badge.svg)](https://docs.rs/acorde)
 
 プラットフォーム非依存の Rust / WebAssembly 楽譜基盤ライブラリです。
