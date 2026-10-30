@@ -1,10 +1,11 @@
 {
   "schema_version": 1,
-  "release": "1.3.3",
+  "release": "unreleased",
+  "base_release": "1.3.3",
   "contracts": {
     "svg_render_metadata": 22,
     "analysis_result": 13,
-    "print_layout": 32,
+    "print_layout": 33,
     "glyph_resource": 1,
     "tab_performance": 4
   },
@@ -52,6 +53,7 @@
   ],
   "evidence": {
     "coverage_matrix": "docs/notation-coverage.md",
+    "engraving_baseline": "docs/verovio-engraving-baseline.md (same paper and input; page count is not an engraving-quality score)",
     "analysis_corpus": "benchmarks/analysis.json (synthetic local benchmark; independent corpus pending)",
     "security_checks": [
       "cargo fmt --all -- --check",

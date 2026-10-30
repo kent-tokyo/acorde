@@ -655,6 +655,17 @@ pub enum FinalPagePolicy {
     Balance,
 }
 
+/// How the physical height reserved for each music system is selected.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum SystemHeightPolicy {
+    /// Reserve at least 16 mm for every staff beyond the first. This is a
+    /// conservative pagination floor, not a shaped-glyph collision guarantee.
+    #[default]
+    StaffAware,
+    /// Use `system_height_mm` exactly, for callers with measured system geometry.
+    Fixed,
+}
+
 /// Policy for reserving the first system for a partial pickup measure.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum PickupPolicy {
@@ -999,6 +1010,9 @@ pub struct PrintConfig {
     pub safe_bottom_mm: f32,
     pub safe_left_mm: f32,
     pub system_height_mm: f32,
+    /// Whether multiple staves increase the system's reserved physical height.
+    #[serde(default)]
+    pub system_height_policy: SystemHeightPolicy,
     /// Content scale factor. `1.0` preserves the configured system height.
     pub scale: f32,
     pub measures_per_system: usize,
@@ -1048,6 +1062,7 @@ impl Default for PrintConfig {
             safe_bottom_mm: 0.0,
             safe_left_mm: 0.0,
             system_height_mm: 24.0,
+            system_height_policy: SystemHeightPolicy::StaffAware,
             scale: 1.0,
             measures_per_system: 4,
             first_system_measures: None,
@@ -1067,9 +1082,9 @@ impl Default for PrintConfig {
 }
 
 /// Version of the built-in host-neutral print preset data.
-pub const PRINT_PRESET_SCHEMA_VERSION: u16 = 1;
+pub const PRINT_PRESET_SCHEMA_VERSION: u16 = 2;
 /// Version of the serialized host-neutral print layout contract.
-pub const PRINT_LAYOUT_CONTRACT_VERSION: u16 = 32;
+pub const PRINT_LAYOUT_CONTRACT_VERSION: u16 = 33;
 
 /// Reproducible starting configurations for common publication workflows.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -2849,7 +2864,26 @@ pub fn compute_print_layout(
     config: &PrintConfig,
 ) -> Result<PrintLayoutResult, PrintLayoutError> {
     let layout_score = score_for_part_layout(score, config.part_layout)?;
-    let (width_mm, height_mm, scaled_system_height_mm) = validate_print_config(config)?;
+    let (width_mm, height_mm, configured_system_height_mm) = validate_print_config(config)?;
+    let staff_count = layout_score
+        .parts
+        .iter()
+        .map(|part| part.staves.len())
+        .sum::<usize>();
+    let staff_clearance_mm = if staff_count <= 1 {
+        0.0
+    } else {
+        24.0 + staff_count.saturating_sub(1) as f32 * 16.0
+    };
+    let scaled_system_height_mm = match config.system_height_policy {
+        SystemHeightPolicy::StaffAware => {
+            configured_system_height_mm.max(staff_clearance_mm * config.scale)
+        }
+        SystemHeightPolicy::Fixed => configured_system_height_mm,
+    };
+    if !scaled_system_height_mm.is_finite() {
+        return Err(PrintLayoutError::InvalidSystemHeight);
+    }
 
     let content_width_mm = width_mm
         - config.margin_left_mm
@@ -4136,6 +4170,66 @@ mod tests {
     }
 
     #[test]
+    fn multi_staff_systems_reserve_clearance_before_paginating() {
+        let mut score = score_with_measures(10);
+        let mut lower = Staff::new(Clef::Bass);
+        lower.measures = vec![Measure::empty(4, 4); 10];
+        score.parts[0].staves.push(lower);
+        let config = PrintConfig {
+            measures_per_system: 1,
+            ..PrintConfig::default()
+        };
+        let layout = compute_print_layout(&score, &config).expect("piano print layout");
+        assert_eq!(layout.pages[0].systems[0].height_mm, 40.0);
+        assert_eq!(layout.pages[0].systems.len(), 6);
+        assert_eq!(layout.pages[1].systems.len(), 4);
+        assert_eq!(layout.pages[0].systems[1].top_mm, 56.0);
+
+        let fixed = compute_print_layout(
+            &score,
+            &PrintConfig {
+                system_height_policy: SystemHeightPolicy::Fixed,
+                ..config.clone()
+            },
+        )
+        .expect("caller-measured fixed-height layout");
+        assert_eq!(fixed.pages[0].systems[0].height_mm, 24.0);
+        assert_eq!(fixed.pages.len(), 1);
+
+        assert_eq!(
+            compute_print_layout(
+                &score,
+                &PrintConfig {
+                    systems_per_page: Some(7),
+                    ..config
+                }
+            ),
+            Err(PrintLayoutError::InvalidSystemHeight)
+        );
+    }
+
+    #[test]
+    fn extracted_single_staff_uses_its_own_system_clearance() {
+        let mut score = score_with_measures(2);
+        let mut second = Part::new("Violin", "Vln.");
+        let mut staff = Staff::new(Clef::Treble);
+        staff.measures = vec![Measure::empty(4, 4); 2];
+        second.staves.push(staff);
+        score.parts.push(second);
+        let full = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+        assert_eq!(full.pages[0].systems[0].height_mm, 40.0);
+        let part = compute_print_layout(
+            &score,
+            &PrintConfig {
+                part_layout: PartLayoutPolicy::ExtractedPart { part_index: 1 },
+                ..PrintConfig::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(part.pages[0].systems[0].height_mm, 24.0);
+    }
+
+    #[test]
     fn safe_area_reduces_content_and_bleed_is_exposed() {
         let score = score_with_measures(1);
         let result = compute_print_layout(
@@ -4750,7 +4844,7 @@ mod tests {
 
     #[test]
     fn print_presets_are_versioned_and_select_the_expected_scope() {
-        assert_eq!(PrintPreset::A4Score.schema_version(), 1);
+        assert_eq!(PrintPreset::A4Score.schema_version(), 2);
         assert_eq!(
             PrintPreset::A4Score.config().part_layout,
             PartLayoutPolicy::FullScore
@@ -4772,7 +4866,7 @@ mod tests {
                 .title_page
         );
         assert!(!PrintPreset::A4Score.config().publication.title_page);
-        assert_eq!(PRINT_PRESET_SCHEMA_VERSION, 1);
+        assert_eq!(PRINT_PRESET_SCHEMA_VERSION, 2);
     }
 
     #[test]
