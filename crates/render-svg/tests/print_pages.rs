@@ -2,6 +2,46 @@ use acorde_core::Score;
 use acorde_layout::{GlyphResourcePolicy, PrintConfig, compute_print_layout};
 use acorde_render_svg::{PrintRenderError, render_print_page_svgs};
 
+fn staff_line_right_edges(svg: &str) -> Vec<f32> {
+    svg.split(r#"class="acorde-staff-line""#)
+        .skip(1)
+        .map(|line| {
+            line.split_once(r#"x2=""#)
+                .expect("staff line right edge")
+                .1
+                .split('"')
+                .next()
+                .unwrap()
+                .parse::<f32>()
+                .unwrap()
+        })
+        .collect()
+}
+
+#[test]
+fn short_final_print_system_is_ragged_without_scaling_staff_lines() {
+    let config = PrintConfig {
+        measures_per_system: 4,
+        systems_per_page: Some(2),
+        ..PrintConfig::default()
+    };
+    let five_bars = Score::new("Piano", 120, 4, 4, 0, 5);
+    let layout = compute_print_layout(&five_bars, &config).unwrap();
+    assert_eq!(layout.pages[0].systems.len(), 2);
+    let pages = render_print_page_svgs(&five_bars, &layout).unwrap();
+    let ends = staff_line_right_edges(&pages[0]);
+    assert_eq!(ends.len(), 10);
+    assert!(ends[..5].iter().all(|end| (*end - ends[0]).abs() < 0.01));
+    assert!(ends[5..].iter().all(|end| (*end - ends[5]).abs() < 0.01));
+    assert!(ends[5] < ends[0] * 0.8);
+
+    let eight_bars = Score::new("Piano", 120, 4, 4, 0, 8);
+    let layout = compute_print_layout(&eight_bars, &config).unwrap();
+    let pages = render_print_page_svgs(&eight_bars, &layout).unwrap();
+    let ends = staff_line_right_edges(&pages[0]);
+    assert!((ends[5] - ends[0]).abs() < 0.01);
+}
+
 #[test]
 fn physical_pages_preserve_asymmetric_left_margin_and_page_numbers() {
     let score = Score::new("Piano & Strings", 120, 4, 4, 0, 2);

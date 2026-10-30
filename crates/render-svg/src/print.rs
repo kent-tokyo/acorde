@@ -246,8 +246,27 @@ pub fn render_print_page_svgs(
         .iter()
         .map(|top| top * PX_PER_MM + top_u * space_px)
         .collect::<Vec<_>>();
+    let full_row_columns = score_layout
+        .rows
+        .iter()
+        .map(|row| row.measure_indices.len())
+        .max()
+        .unwrap_or(1);
+    let row_width_factors = score_layout
+        .rows
+        .iter()
+        .enumerate()
+        .map(|(index, row)| {
+            if score_layout.rows.len() > 1 && index + 1 == score_layout.rows.len() {
+                (row.measure_indices.len() as f32 / full_row_columns as f32).clamp(0.55, 1.0)
+            } else {
+                1.0
+            }
+        })
+        .collect::<Vec<_>>();
     let placement = PrintRowPlacement {
         row_tops_px: &row_tops_px,
+        row_width_factors: &row_width_factors,
         canvas_height_px: offset_mm * PX_PER_MM,
     };
     let (full_svg, _) =
