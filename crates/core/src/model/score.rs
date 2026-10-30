@@ -1081,6 +1081,9 @@ pub fn optimize_tablature_positions(score: &mut Score) -> usize {
                         }
                     }
                 }
+                if locations.is_empty() {
+                    continue;
+                }
                 let candidates: Vec<Vec<Vec<TabPosition>>> = locations
                     .iter()
                     .map(|(measure_index, _, note)| {
@@ -5020,6 +5023,72 @@ mod tests {
                 TabPosition { string: 1, fret: 3 },
             ]
         );
+    }
+
+    #[test]
+    fn optimized_tablature_respects_an_authored_anchor_across_measures() {
+        let mut score = Score::new("Two-string bass", 120, 4, 4, 0, 2);
+        score.parts[0].staves[0].tablature = Some(TablatureConfig {
+            lines: 2,
+            tuning_midi: vec![40, 45],
+            capo: 0,
+        });
+        let a2 = Pitch::new(Step::A, 2);
+        let mut anchor = Note::new(a2.clone(), Duration::Quarter);
+        anchor.tab_position = Some(TabPosition { string: 1, fret: 5 });
+        score.parts[0].staves[0].measures[0].voices[0] = vec![anchor];
+        score.parts[0].staves[0].measures[1].voices[0] = vec![
+            Note::rest(Duration::Quarter),
+            Note::new(a2, Duration::Quarter),
+        ];
+
+        assert_eq!(optimize_tablature_positions(&mut score), 1);
+        let anchor = &score.parts[0].staves[0].measures[0].voices[0][0];
+        let assigned = &score.parts[0].staves[0].measures[1].voices[0][1];
+        assert_eq!(
+            anchor.tab_position,
+            Some(TabPosition { string: 1, fret: 5 })
+        );
+        // The open second string has a lower fret but would require a larger hand move.
+        assert_eq!(
+            assigned.tab_position,
+            Some(TabPosition { string: 1, fret: 5 })
+        );
+        assert_eq!(assigned.string_number, Some(1));
+        assert_eq!(
+            assigned.tab_positions,
+            vec![TabPosition { string: 1, fret: 5 }]
+        );
+        assert_eq!(optimize_tablature_positions(&mut score), 0);
+    }
+
+    #[test]
+    fn optimized_tablature_assigns_distinct_strings_to_a_chord() {
+        let mut score = Score::new("Guitar chord", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].tablature = Some(TablatureConfig {
+            lines: 6,
+            tuning_midi: vec![64, 59, 55, 50, 45, 40],
+            capo: 0,
+        });
+        let mut chord = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+        chord.pitches.push(Pitch::new(Step::G, 4));
+        score.parts[0].staves[0].measures[0].voices[0] = vec![chord];
+
+        assert_eq!(optimize_tablature_positions(&mut score), 1);
+        let assigned = &score.parts[0].staves[0].measures[0].voices[0][0];
+        assert_eq!(assigned.tab_positions.len(), 2);
+        assert_ne!(
+            assigned.tab_positions[0].string,
+            assigned.tab_positions[1].string
+        );
+        for (pitch, position) in assigned.pitches.iter().zip(&assigned.tab_positions) {
+            let open = score.parts[0].staves[0]
+                .tablature
+                .as_ref()
+                .unwrap()
+                .tuning_midi[usize::from(position.string - 1)];
+            assert_eq!(pitch.to_midi(), open + i16::from(position.fret));
+        }
     }
 
     #[test]

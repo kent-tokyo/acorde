@@ -1056,4 +1056,17 @@ mod tests {
             assert!(!accidental(alter, 0.0, 0.0, 20.0).is_empty());
         }
     }
+
+    #[test]
+    fn every_supported_dynamic_has_a_self_contained_vector_mark() {
+        for dynamic in acorde_core::Dynamic::ALL {
+            let name = dynamic.to_musicxml_str();
+            let svg = dynamic_mark("acorde-dynamic", name, 48.0, 64.0, 20.0)
+                .unwrap_or_else(|| panic!("{name} has no vector glyph"));
+            assert!(svg.starts_with("<g class=\"acorde-dynamic\""), "{name}");
+            assert!(svg.contains("<path"), "{name}");
+            assert!(svg.ends_with("</g>"), "{name}");
+            assert!(!svg.contains("NaN"), "{name}");
+        }
+    }
 }

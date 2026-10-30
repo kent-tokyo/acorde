@@ -3226,6 +3226,57 @@ mod tests {
     }
 
     #[test]
+    fn native_web_clipboards_preserve_music_and_refresh_fragment_ids() {
+        let score = parse_abc("X:1\nM:4/4\nL:1/4\nK:C\nCDEF|GABc|z4|z4|\n").unwrap();
+        let mut engine = ScoreEngine::new();
+        engine.replace_score(&score).unwrap();
+        let source = acorde_core::NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        };
+        let target = acorde_core::NoteAddr {
+            measure: 2,
+            ..source.clone()
+        };
+        let source_json = serde_json::to_string(&source).unwrap();
+        let target_json = serde_json::to_string(&target).unwrap();
+
+        engine.copy_range(&source_json, &source_json).unwrap();
+        engine.paste_range(&target_json).unwrap();
+        let pasted: acorde_core::Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        let first = &pasted.parts[0].staves[0].measures[0].voices[0];
+        let copied = &pasted.parts[0].staves[0].measures[2].voices[0];
+        assert_eq!(copied.len(), first.len());
+        assert_eq!(
+            copied.iter().map(acorde_core::Note::beats).sum::<f64>(),
+            first.iter().map(acorde_core::Note::beats).sum::<f64>()
+        );
+        engine.undo().unwrap();
+
+        let selection = acorde_core::ScoreFragmentSelection {
+            start: source,
+            end: acorde_core::NoteAddr {
+                measure: 1,
+                ..target.clone()
+            },
+        };
+        let fragment = extract_score_fragment(
+            &score,
+            &serde_json::to_string(&[selection]).unwrap(),
+        )
+        .unwrap();
+        engine.paste_score_fragment(&fragment, &target_json).unwrap();
+        let pasted: acorde_core::Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+        let original = &pasted.parts[0].staves[0].measures[0].voices[0][0];
+        let copied = &pasted.parts[0].staves[0].measures[2].voices[0][0];
+        assert_eq!(copied.pitches, original.pitches);
+        assert_ne!(copied.id, original.id);
+    }
+
+    #[test]
     fn native_web_theory_and_score_helpers_use_the_same_json_contract() {
         let score = parse_abc("X:1\nT:Theory\nM:4/4\nL:1/4\nK:C\nCEGc|\n").unwrap();
         assert!(validate_score(&score).unwrap().contains("errors"));
