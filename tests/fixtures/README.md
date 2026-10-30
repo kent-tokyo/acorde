@@ -73,6 +73,10 @@ its checksum and expected loss contract are pinned in `manifest.json`.
 recorded in `manifest.json`. The upstream repository declares the score corpus CC0. It is used as
 an import-only MuseScore 3.6.1 smoke corpus; MSCX export is not claimed.
 
+`openscore_lieder_aloha_oe.mxl` is the MusicXML export of the same CC0 score at the independently
+pinned revision in `manifest.json`. Its physical 3/4+1/4 and 7/8+1/8 split measures are used for
+an import-only playback onset regression; MusicXML export is not claimed.
+
 `openscore_omr_score_1003.mscz` is a small compressed MSCZ fixture from the MuseScore OMR
 benchmark dataset. The dataset README declares the underlying works Public Domain/CC0-1.0; the
 Hugging Face revision, source path, checksum, and import-only evidence mode are pinned in

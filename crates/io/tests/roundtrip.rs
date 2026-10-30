@@ -39,6 +39,8 @@ static OPENSCORE_LIEDER_MSCX: &str =
     include_str!("../../../tests/fixtures/openscore_lieder_aloha_oe.mscx");
 static OPENSCORE_LIEDER_MXL: &[u8] =
     include_bytes!("../../../tests/fixtures/openscore_lieder_just_for_today.mxl");
+static OPENSCORE_LIEDER_ALOHA_OE_MXL: &[u8] =
+    include_bytes!("../../../tests/fixtures/openscore_lieder_aloha_oe.mxl");
 #[cfg(feature = "mscz")]
 static OPENSCORE_OMR_MSCZ: &[u8] =
     include_bytes!("../../../tests/fixtures/openscore_omr_score_1003.mscz");
@@ -401,6 +403,44 @@ fn independent_cc0_mxl_playback_shares_tempo_and_excludes_cue_attacks() {
 }
 
 #[test]
+fn independent_cc0_mxl_playback_keeps_irregular_measure_starts() {
+    let score = acorde_io::parse_mxl(OPENSCORE_LIEDER_ALOHA_OE_MXL).expect("CC0 MXL imports");
+    let staff = &score.parts[0].staves[0];
+    assert_eq!(staff.measures.len(), 23);
+    for (measure, expected_beats) in [
+        (0, 1.0),
+        (4, 3.0),
+        (5, 1.0),
+        (13, 3.5),
+        (14, 0.5),
+        (22, 3.0),
+    ] {
+        assert_eq!(
+            staff.measure_beats(measure, &score.settings.time_signature),
+            expected_beats,
+            "physical measure {measure}"
+        );
+    }
+
+    let events = acorde_core::to_playback_events(&score, &acorde_core::PlaybackOptions::default());
+    assert_eq!(events.len(), 644);
+    for (measure, expected_start) in [(4, 13.0), (5, 16.0), (13, 45.0), (14, 48.5), (22, 77.0)] {
+        let first_attack = events
+            .iter()
+            .filter(|event| {
+                event
+                    .source
+                    .as_ref()
+                    .is_some_and(|source| source.measure == measure)
+            })
+            .map(|event| event.time_beats)
+            .min_by(f64::total_cmp)
+            .expect("measure has a sounding attack");
+        assert_eq!(first_attack, expected_start, "physical measure {measure}");
+    }
+}
+
+#[test]
 fn rich_musicxml_fragment_fixture_roundtrips_and_pastes_undoably() {
     let score = parse_musicxml(FRAGMENT_RICH_XML).expect("rich fixture parses");
     assert_eq!(score.parts[0].staves[0].measures.len(), 2);
@@ -740,6 +780,9 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
             }
             "openscore_lieder_just_for_today.mxl" => {
                 include_bytes!("../../../tests/fixtures/openscore_lieder_just_for_today.mxl")
+            }
+            "openscore_lieder_aloha_oe.mxl" => {
+                include_bytes!("../../../tests/fixtures/openscore_lieder_aloha_oe.mxl")
             }
             "openscore_omr_score_1003.mscz" => {
                 include_bytes!("../../../tests/fixtures/openscore_omr_score_1003.mscz")

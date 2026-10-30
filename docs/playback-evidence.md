@@ -95,6 +95,42 @@ multiplier is 1.5 while this alphaTab MIDI export keeps the written duration. Th
 not compare audio samples, velocities, sound quality, or broader score coverage. This one-score
 timing agreement is not evidence of overall playback superiority.
 
+## alphaTab 1.8.4 / split-measure CC0 score (2026-10-30)
+
+The independent OpenScore Lieder *Aloha Oe* MXL is pinned in the fixture manifest (23 physical
+measures, four parts; SHA-256
+`b195ae477a10cbaee281d9b728cac001ae1d50fe4527078ccae14092eee4936c`). The same
+repository's [source MSCX](https://github.com/OpenScore/Lieder/blob/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Liliuokalani,_Queen_of_the_Hawaiian_Islands/_/Aloha_Oe/lc6650166.mscx)
+explicitly marks a 3/4 measure followed by a 1/4 measure, then a 7/8 measure followed by a 1/8
+measure. The checked-in MSCX fixture has identical bytes (SHA-256
+`f588fc91a36629d6aa079721571ce6e2afb8c8dfafa77935c8198b2d3ec5fd51`).
+
+With default import settings, Acorde reads those physical measure lengths as **3, 1, 3.5, and
+0.5 quarter-note beats**. Its first attacks in physical measures 5 and 14 start at absolute beats
+**16 and 48.5**. alphaTab 1.8.4's `ScoreLoader` and `MidiFileGenerator` treat the preceding
+3-beat and 3.5-beat measures as **4 beats** each: `masterBars[5].start` is 17 beats and
+`masterBars[14].start` is 50 beats (960 ticks per beat). This is a concrete timing case where
+Acorde preserves the authored split-measure positions and alphaTab's default MIDI export does not.
+The Rust regression test checks Acorde's measure lengths and first sounding attacks.
+
+Reproduce with the same pinned alphaTab package, then inspect its bar starts and compare emitted
+note onsets:
+
+```sh
+node scripts/export_alphatab_midi.mjs /tmp/acorde-alphatab-1_8_4 tests/fixtures/openscore_lieder_aloha_oe.mxl /tmp/acorde-alphatab-1_8_4/aloha-oe.mid
+target/debug/acorde playback-report tests/fixtures/openscore_lieder_aloha_oe.mxl > /tmp/acorde-alphatab-1_8_4/aloha-oe.json
+uv run --no-project --with 'mido==1.3.3' python scripts/compare_playback_onsets.py /tmp/acorde-alphatab-1_8_4/aloha-oe.json /tmp/acorde-alphatab-1_8_4/aloha-oe.mid
+```
+
+The alphaTab MIDI SHA-256 is
+`ec3665d5ee2bf115d2ef32c6b9607d937112c14aeb772f324c5f6dda88a89ca5`; the Acorde
+JSON SHA-256 is `29af738accd117e14cc93db76ae88cf627677db0882ef0151154aa519fcf1d04`.
+Both exports contain **644** note attacks. **302** match by pitch and absolute beat; **342** on
+each side do not. Those aggregate unmatched attacks also include differences beyond the two bar
+boundaries, so the proven advantage is the source-backed physical-measure timing, not a claim that
+every note of this score or every playback feature is more accurate. The comparison does not
+cover audio synthesis or sound quality.
+
 ## Evidence boundary
 
 This local evidence proves deterministic score projection, event scheduling/position calculation,
