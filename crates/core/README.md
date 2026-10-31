@@ -36,6 +36,10 @@ confused with `Score.part_groups`, which connect distinct parts.
 Chord symbols preserve optional vertical placement and structured MusicXML degree
 value/alter/type data through `ChordSymbol.degrees`. MEI/MusicXML/MSCX harmonic-function metadata
 is preserved through the serde-defaulted `ChordSymbol.harmony_function` field.
+Source-positioned chord extraction and bounded, opt-in melody-aware proposals are documented in
+the [chord-plan contract](../../docs/chord-plans.md). The contract keeps written, analyzed,
+host-authored, and generated harmony origins distinct and reports positions the preset engine
+cannot play without rounding.
 `Pitch::try_with_microtone()` rejects cents outside the canonical `-99..=99` range without
 clamping; the legacy `with_microtone()` constructor retains its clamping behavior for
 compatibility. Measure-level styled text can be edited transactionally with

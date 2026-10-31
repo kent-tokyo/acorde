@@ -6,6 +6,55 @@ use acorde_core::{
 /// that key musical properties are preserved across the round-trip.
 use acorde_io::{parse_midi, parse_musicxml, serialize_musicxml};
 
+#[cfg(feature = "abc")]
+#[test]
+fn abc_midbar_chord_plan_uses_source_onsets_and_arranges_without_snapping() {
+    use acorde_core::{ChordPlanExtractionOptions, ChordPlanOrigin, extract_chord_plan};
+
+    let abc = "X:1\nT:Two chord changes in one bar\nM:4/4\nL:1/4\nK:C\n\"C\"C E \"G7\"G B|\"C\"c4|";
+    let score = acorde_io::parse_abc(abc).expect("ABC parses");
+    let original = serde_json::to_vec(&score).expect("score serializes");
+    let extraction = extract_chord_plan(
+        &score,
+        &ChordPlanExtractionOptions {
+            source_reference: Some("host:score-418".into()),
+            ..Default::default()
+        },
+    );
+    assert!(extraction.coverage.complete, "{:?}", extraction.diagnostics);
+    let plan = extraction.plan.expect("complete plan");
+    assert_eq!(plan.entries.len(), 3);
+    assert_eq!(
+        plan.entries
+            .iter()
+            .map(|entry| (entry.position.measure_index, entry.offset_beats))
+            .collect::<Vec<_>>(),
+        vec![(0, 0.0), (0, 2.0), (1, 0.0)]
+    );
+    assert_eq!(plan.entries[1].chord.kind, "dominant");
+    assert!(
+        plan.entries
+            .iter()
+            .all(|entry| entry.origin == ChordPlanOrigin::WrittenSymbol)
+    );
+    assert_eq!(plan.entries[1].sources[0].note.as_ref().unwrap().note, 2);
+    assert_eq!(
+        plan.entries[1].sources[0].reference.as_deref(),
+        Some("host:score-418")
+    );
+    let selection = extraction
+        .preset_selection
+        .expect("grid-compatible selection");
+    let arranged = acorde_core::arrange_accordion_preset(&score, selection, "held-chord");
+    assert!(
+        arranged.diagnostics.is_empty(),
+        "{:?}",
+        arranged.diagnostics
+    );
+    assert!(arranged.score.is_some());
+    assert_eq!(serde_json::to_vec(&score).unwrap(), original);
+}
+
 // Fixtures live at the workspace root under tests/fixtures/.
 // include_str! paths are relative to this source file:
 //   crates/io/tests/roundtrip.rs  →  ../../.. → workspace root → tests/fixtures/
