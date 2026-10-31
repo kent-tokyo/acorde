@@ -3537,6 +3537,55 @@ mod tests {
     }
 
     #[test]
+    fn viewer_json_replays_reparsed_abc_and_keeps_repeated_chord_phase() {
+        let abc = "X:1\nM:4/4\nL:1/4\nQ:1/4=60\nK:C\nC E G c|";
+        let first = parse_abc(abc).unwrap();
+        let second = parse_abc(abc).unwrap();
+        let first_score: acorde_core::Score = serde_json::from_str(&first).unwrap();
+        let second_score: acorde_core::Score = serde_json::from_str(&second).unwrap();
+        assert_ne!(first_score.id, second_score.id);
+        let chord = serde_json::json!({
+            "measure_index":0,"offset_beats":0.0,
+            "chord":{"root":"C","kind":"major","bass":null,"degrees":[]}
+        });
+        let mut redundant = chord.clone();
+        redundant["offset_beats"] = serde_json::json!(2.0);
+        let arrange = |chords: Vec<serde_json::Value>| -> acorde_core::GuidedAccordionResult {
+            serde_json::from_str(&arrange_with_explicit_chords(&first,
+                &serde_json::json!({"pattern":"alternating-bass-chord","chords":chords}).to_string()).unwrap()).unwrap()
+        };
+        let single = arrange(vec![chord.clone()]);
+        let repeated = arrange(vec![chord.clone(), redundant.clone()]);
+        let pitches = |result: &acorde_core::GuidedAccordionResult| {
+            result.score.as_ref().unwrap().parts[0].staves[1].measures[0].voices[0]
+                .iter().map(|note| note.pitches.iter().map(acorde_core::Pitch::to_midi).collect::<Vec<_>>())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(pitches(&single), pitches(&repeated));
+        assert_eq!(pitches(&repeated)[2], vec![43]);
+        let selection = serde_json::json!({
+            "chords":[chord, redundant], "alternative_chords":null,
+            "inversion":null,"bass_mode":"free-bass"
+        });
+        let selected: acorde_core::AccordionPresetResult = serde_json::from_str(
+            &arrange_accordion_preset(&first, &selection.to_string(), "alternating-bass").unwrap()).unwrap();
+        let config = selected.resolved_config.unwrap();
+        assert_eq!(config.input_fingerprint_version, 2);
+        let replay: acorde_core::AccordionPresetResult = serde_json::from_str(
+            &arrange_from_resolved_preset(&second, &serde_json::to_string(&config).unwrap()).unwrap()).unwrap();
+        assert!(replay.diagnostics.is_empty(), "{:?}", replay.diagnostics);
+        let native = acorde_core::arrange_from_resolved_preset(&second_score, config);
+        assert_eq!(replay.source_notes, native.source_notes);
+        assert_eq!(replay.generated_notes, native.generated_notes);
+        let replay_score = replay.score.unwrap();
+        assert_eq!(replay_score.parts[0].staves[0].measures[0].voices[0][0].id,
+            second_score.parts[0].staves[0].measures[0].voices[0][0].id);
+        let events = |score: &acorde_core::Score| acorde_core::to_playback_events(score, &Default::default())
+            .into_iter().map(|event| (event.pitch_midi, event.time_beats, event.duration_beats)).collect::<Vec<_>>();
+        assert_eq!(events(&replay_score), events(native.score.as_ref().unwrap()));
+    }
+
+    #[test]
     fn layered_accordion_json_matches_native_events_and_provenance() {
         let mut score = acorde_core::Score::new("layered", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(

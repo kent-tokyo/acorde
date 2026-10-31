@@ -17,6 +17,12 @@ region. Alternating bass and chord requires whole-beat regions; arpeggio require
 half-beat regions. A region that cannot be represented exactly is rejected. No
 rests are silently added to a short bar.
 
+The pattern phase starts at beat 0 of each authored measure, including a pickup.
+It continues across an actual chord change inside that measure; a new measure
+starts a new phase. Repeating an identical chord inside a measure does not
+restart the phase or change the generated notes. The supplied chord positions
+remain in `resolved_options`; repeating a chord does not request a pattern reset.
+
 The result contains `score` on success, the supplied `resolved_options`,
 `source_notes` and `generated_notes` address lists, `diagnostics`, and
 `contract_version: 1`. On failure `score` is `null`, so callers cannot use a
