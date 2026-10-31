@@ -238,6 +238,20 @@ const PRESETS: &[(
         AccordionSwingPolicy::Straight,
         true,
     ),
+    (
+        "waltz-bass",
+        Some(AccordionPattern::WaltzBassChord),
+        AccordionMelodicVoice::Unchanged,
+        AccordionSwingPolicy::Straight,
+        false,
+    ),
+    (
+        "waltz-alternating-bass",
+        Some(AccordionPattern::WaltzAlternatingBassChord),
+        AccordionMelodicVoice::Unchanged,
+        AccordionSwingPolicy::Straight,
+        false,
+    ),
 ];
 
 pub fn accordion_preset_capabilities() -> AccordionPresetCapabilities {
@@ -806,7 +820,7 @@ fn layer_shuffle_too_large(score: &Score, request: &AccordionLayerShuffleOptions
             .sum::<usize>()
             > MAX_SHUFFLE_NOTES
         || request.alternative_selections.len() + 1 > MAX_SHUFFLE_SELECTIONS
-        || request.allowed_accompaniments.len() > 10
+        || request.allowed_accompaniments.len() > 12
         || request.allowed_melodic_voices.len() > 4
         || request.allowed_swing_policies.len() > 2
         || combinations > MAX_LAYER_SHUFFLE_COMBINATIONS
@@ -1141,7 +1155,7 @@ mod tests {
     fn capability_ids_are_stable_and_unique() {
         let capabilities = accordion_preset_capabilities();
         assert_eq!(capabilities.contract_version, 1);
-        assert_eq!(capabilities.presets.len(), 13);
+        assert_eq!(capabilities.presets.len(), 15);
         let ids: std::collections::BTreeSet<_> = capabilities
             .presets
             .iter()
@@ -1150,6 +1164,8 @@ mod tests {
         assert_eq!(ids.len(), capabilities.presets.len());
         assert!(ids.contains("swing-third"));
         assert!(ids.contains("walking-bass"));
+        assert!(ids.contains("waltz-bass"));
+        assert!(ids.contains("waltz-alternating-bass"));
     }
 
     #[test]

@@ -12,7 +12,8 @@ note identity, notation, pickup, repeats and endings.
 
 - `accompaniment`: `held-bass-chord`, `bass-chord-pulse`,
   `alternating-bass-chord`, `arpeggio`, `rising-arpeggio`, `alberti-bass`,
-  `offbeat-chords`, `swing-accompaniment` or `walking-bass`; `null` leaves the
+  `offbeat-chords`, `swing-accompaniment`, `walking-bass`,
+  `waltz-bass-chord` or `waltz-alternating-bass-chord`; `null` leaves the
   left-hand voice empty.
 - `alternative_chords`: optional explicit replacement progression. Inversion
   may be `root`, `first`, `second`, `third` or `nearby`; the latter chooses the
@@ -32,9 +33,12 @@ note identity, notation, pickup, repeats and endings.
 Supported chord kinds are `major`, `minor`, `diminished`, `augmented`,
 `major-seventh`, `minor-seventh` and `dominant`. Slash bass and chord changes
 use the same positioned chord contract as `arrange_with_explicit_chords`.
-All accompaniment patterns use the authored measure's beat 0 as their phase
-anchor. A chord change keeps that phase; repeating the same chord within the
-measure leaves the sound and timing unchanged.
+The waltz patterns use 3/4: bass on beat 1, chord on beats 2 and 3. A first
+pickup starts at the matching final beat of the nominal bar and does not count
+toward root/fifth alternation; the first complete bar starts with root bass.
+Other patterns use their documented measure phase. A chord change keeps the
+phase; repeating the same chord within a measure leaves sound and timing
+unchanged.
 Generated notes are limited to the documented conservative hand ranges in
 `arrange.rs`; unsupported rhythms, source structures, harmony and ranges
 produce diagnostic codes with a measure index where available.

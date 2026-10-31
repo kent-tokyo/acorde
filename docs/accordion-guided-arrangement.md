@@ -13,7 +13,7 @@ kinds and chord degrees return a diagnostic.
 
 The accompaniment patterns include held bass chord, bass/chord pulse,
 alternating bass chord, arpeggio, rising arpeggio, Alberti bass, offbeat
-chords, swing accompaniment, and walking bass. Held notes can be tied to fill
+chords, swing accompaniment, walking bass, and two 3/4 waltz variants. Held notes can be tied to fill
 a chord region. Alternating bass and chord normally requires whole-beat regions;
 arpeggio requires half-beat regions. A fractional first pickup is a narrow
 exception for bass/chord pulse, alternating bass, and offbeat chords when its
@@ -30,6 +30,14 @@ The phase continues across an actual chord change inside a measure. Repeating
 an identical chord inside a measure does not restart the phase or change the
 generated notes. The supplied chord positions remain in `resolved_options`;
 repeating a chord does not request a pattern reset.
+
+The `waltz-bass-chord` and `waltz-alternating-bass-chord` patterns use bass on
+beat 1 and the current chord on beats 2 and 3 of 3/4. The alternating version
+uses the root in the first complete bar, fifth in the next, then repeats.
+A first pickup uses the final beats of the nominal bar and does not advance the
+alternation; a short final bar uses the first beats. Chord changes keep the
+metrical role of each beat. Other meters and irregular interior bars return
+diagnostics.
 
 The result contains `score` on success, the supplied `resolved_options`,
 `source_notes` and `generated_notes` address lists, `diagnostics`, and
