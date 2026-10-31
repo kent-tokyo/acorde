@@ -299,6 +299,28 @@ The same-input Verovio 6.3.0 Quilter preview still has larger notation and
 better page use. This focused text improvement does not establish superior
 layout, engraving, or print quality.
 
+### Verovio-guided title placement (2026-10-31)
+
+The pinned Quilter MXL was rendered again with Verovio 6.3.0 and Acorde on
+the same A4 paper and margins. Verovio uses three systems; Acorde's density
+mode uses four. At 1400 px, Acorde's title and composer were close to the top
+edge and visibly smaller. The print SVG now places the title 2 mm lower,
+the movement title and composer 2.5 mm lower, and slightly enlarges those
+three credits. A fixture regression checks that the title stays on the page,
+the title and movement title have a gap, and the credits stay above the first
+system. The updated one-page PDF was rasterized and inspected; its four
+system breaks, staff size, and 103 MusicXML import diagnostics are unchanged.
+The three-page Aloha Oe density PDF was regenerated; its first page was also
+rasterized and inspected for title/composer overlap. Its 73 import diagnostics
+and page/system counts are unchanged.
+
+Two other trials were rejected after raster review. Filling the page's unused
+vertical space only produced exaggerated gaps between small systems. Loosening
+the density budget to get three systems made the first and last rows crowded.
+Verovio remains more readable on this input: its notes and directions are
+larger, and its layout uses three balanced systems. The new title placement
+addresses only one print typography difference.
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.
