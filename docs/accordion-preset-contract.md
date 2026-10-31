@@ -53,6 +53,13 @@ full opening bar. Their accompaniment uses the last half-beat slots of the
 nominal measure; the following full measure restarts its pattern at beat 0. Shorter
 regions that the pattern cannot represent still return `unsupported-rhythm`.
 
+`waltz-bass` and `waltz-alternating-bass` are separate 3/4 presets. Both play
+bass on beat 1 and chord on beats 2 and 3. The second alternates root and fifth
+bass across complete bars, beginning with root in the first complete bar.
+A first pickup occupies the end of its nominal bar without advancing that
+alternation; a short final bar starts on beat 1. Existing `bass-pulse` and
+`alternating-bass` retain their four-beat pattern.
+
 ## Minimal browser flow
 
 ```js

@@ -66,6 +66,8 @@ pub enum AccordionPattern {
     OffbeatChords,
     SwingAccompaniment,
     WalkingBass,
+    WaltzBassChord,
+    WaltzAlternatingBassChord,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -203,6 +205,7 @@ fn guided_region(
     ticks: u32,
     next_bass_midi: Option<u8>,
     pickup_phase_tick: u32,
+    waltz_fifth_bass: bool,
 ) -> Option<Vec<Note>> {
     let mut notes = Vec::new();
     match pattern {
@@ -264,6 +267,31 @@ fn guided_region(
                     };
                     notes.push(guided_note(&pitches, Duration::Quarter));
                 }
+            }
+        }
+        AccordionPattern::WaltzBassChord | AccordionPattern::WaltzAlternatingBassChord => {
+            let phase_start = pickup_phase_tick.checked_add(start_tick)?;
+            if !phase_start.is_multiple_of(32) || !ticks.is_multiple_of(32) {
+                return None;
+            }
+            let mut phase = phase_start;
+            let phase_end = phase.checked_add(ticks)?;
+            while phase < phase_end {
+                let run = (phase_end - phase).min(64 - phase % 64);
+                let duration = match run {
+                    32 => Duration::Eighth,
+                    64 => Duration::Quarter,
+                    _ => return None,
+                };
+                let pitches = if (phase / 64).is_multiple_of(3) {
+                    let fifth =
+                        pattern == AccordionPattern::WaltzAlternatingBassChord && waltz_fifth_bass;
+                    vec![chord.bass_midi + u8::from(fifth) * 7]
+                } else {
+                    chord.chord_midi.to_vec()
+                };
+                notes.push(guided_note(&pitches, duration));
+                phase += run;
             }
         }
         AccordionPattern::Arpeggio => {
@@ -487,10 +515,41 @@ pub fn arrange_with_explicit_chords(
     let mut left = Staff::new(Clef::Bass);
     let mut generated_notes = Vec::new();
     let mut current_chord: Option<RealizedAccordionChord> = None;
+    let is_waltz = matches!(
+        options.pattern,
+        AccordionPattern::WaltzBassChord | AccordionPattern::WaltzAlternatingBassChord
+    );
+    let has_waltz_pickup = is_waltz && length_ticks.first().is_some_and(|length| *length < 3 * 64);
+    let mut running_meter = score.settings.time_signature.clone();
     for (index, source_measure) in source_staff.measures.iter().enumerate() {
+        if let Some(meter) = source_measure.time_sig.as_ref() {
+            running_meter = meter.clone();
+        }
+        if is_waltz && (running_meter.numerator != 3 || running_meter.denominator != 4) {
+            return guided_error(
+                options,
+                "unsupported-meter",
+                "waltz accompaniment requires 3/4",
+                Some(index),
+            );
+        }
+        if is_waltz
+            && (length_ticks[index] > 3 * 64
+                || !length_ticks[index].is_multiple_of(32)
+                || (index > 0 && index + 1 < length_ticks.len() && length_ticks[index] < 3 * 64))
+        {
+            return guided_error(
+                options,
+                "unsupported-rhythm",
+                "waltz accompaniment supports a short first pickup and short final bar on half-beat boundaries",
+                Some(index),
+            );
+        }
         // A fractional first pickup occupies the end of its nominal meter. Whole-beat
         // pickups retain the established measure-start phase for preset compatibility.
-        let pickup_phase_tick = if index == 0 && !length_ticks[index].is_multiple_of(64) {
+        let pickup_phase_tick = if is_waltz && index == 0 && has_waltz_pickup {
+            3 * 64 - length_ticks[index]
+        } else if index == 0 && !length_ticks[index].is_multiple_of(64) {
             let meter = source_measure
                 .time_sig
                 .as_ref()
@@ -502,6 +561,10 @@ pub fn arrange_with_explicit_chords(
         } else {
             0
         };
+        // The pickup fills the end of an implied bar but does not advance the
+        // root/fifth alternation. The first complete bar always starts on root bass.
+        let waltz_fifth_bass =
+            index.saturating_sub(usize::from(has_waltz_pickup)) % 2 == 1;
         regions[index].sort_by_key(|(offset, _)| *offset);
         if regions[index]
             .windows(2)
@@ -554,6 +617,7 @@ pub fn arrange_with_explicit_chords(
                 end - start,
                 next_bass,
                 pickup_phase_tick,
+                waltz_fifth_bass,
             ) else {
                 return guided_error(
                     options,
