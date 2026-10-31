@@ -5,7 +5,7 @@ use acorde_core::{
     KeySignature, Lyric, Measure, MeasureLength, MetronomeMark, MidiControlChange, NotationSpanner,
     NotationSpannerKind, Note, NoteAddr, NoteHead, OttavaKind, Part, PartGroup, PartGroupSymbol,
     PercussionInstrument, Pitch, Score, Staff, StaffKind, Step, StyledText, TextStyle,
-    TimeSignature, TupletBoundary, TupletInfo, VerseLyric, VoltaBracket,
+    TimeSignature, TimeSymbol, TupletBoundary, TupletInfo, VerseLyric, VoltaBracket,
 };
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
@@ -213,6 +213,8 @@ pub(crate) fn parse_musicxml_collecting(
     let mut current_measure_number = 0u32;
     let mut current_divisions = 480u32;
     let mut current_time = TimeSignature::default();
+    let mut current_time_symbol: Option<TimeSymbol> = None;
+    let mut pending_time_symbol: Option<String> = None;
     let mut current_key = KeySignature::default();
     let mut current_clef = Clef::Treble;
     let mut current_clef_staff_number = 1usize;
@@ -523,6 +525,7 @@ pub(crate) fn parse_musicxml_collecting(
                             }
                         }
                     }
+                    "time" => pending_time_symbol = attr_str(e, b"symbol"),
                     "score-instrument" if in_score_part => {
                         in_score_instrument = true;
                         score_instrument_id = attr_str(e, b"id").unwrap_or_default();
@@ -871,6 +874,8 @@ pub(crate) fn parse_musicxml_collecting(
                         part_index = Some(score.parts.len() - 1);
                         current_divisions = 480;
                         current_time = TimeSignature::default();
+                        current_time_symbol = None;
+                        pending_time_symbol = None;
                         current_key = KeySignature::default();
                         current_clef = Clef::Treble;
                         current_measure_number = 0;
@@ -892,6 +897,7 @@ pub(crate) fn parse_musicxml_collecting(
                             m.voices[0].clear();
                             if score.parts[pi].staves[0].measures.is_empty() {
                                 m.time_sig = Some(current_time.clone());
+                                m.time_symbol = current_time_symbol;
                                 m.key_sig = Some(current_key.clone());
                                 m.clef = Some(current_clef.clone());
                             }
@@ -1911,6 +1917,7 @@ pub(crate) fn parse_musicxml_collecting(
                             && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
                         {
                             m.time_sig = Some(current_time.clone());
+                            m.time_symbol = current_time_symbol;
                             m.key_sig = Some(current_key.clone());
                             if std::mem::take(&mut first_staff_bar_clef_read) {
                                 m.clef = Some(current_clef.clone());
@@ -1975,6 +1982,28 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "beat-type" => {
                         current_time.denominator = current_text.parse().unwrap_or(4);
+                    }
+                    "time" => {
+                        current_time_symbol = match pending_time_symbol.take().as_deref() {
+                            Some("common")
+                                if current_time.numerator == 4 && current_time.denominator == 4 =>
+                            {
+                                Some(TimeSymbol::Common)
+                            }
+                            Some("cut")
+                                if current_time.numerator == 2 && current_time.denominator == 2 =>
+                            {
+                                Some(TimeSymbol::Cut)
+                            }
+                            None | Some("normal") => None,
+                            Some(_) => {
+                                tolerated.push(crate::Diagnostic::warning(
+                                    "musicxml.unsupported-time-symbol",
+                                    "MusicXML time symbol is unsupported or disagrees with its beat values",
+                                ));
+                                None
+                            }
+                        };
                     }
                     "fifths" => {
                         current_key.fifths = current_text.parse().unwrap_or(0);
@@ -3153,6 +3182,9 @@ fn pad_declared_staff_measures(part: &mut Part) {
             };
             if measure.time_sig.is_none() && source.time_sig.is_some() {
                 measure.time_sig = source.time_sig.clone();
+            }
+            if measure.time_symbol.is_none() {
+                measure.time_symbol = source.time_symbol;
             }
             if measure.actual_length.is_none() {
                 measure.actual_length = source.actual_length;

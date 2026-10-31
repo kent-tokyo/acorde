@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- MusicXML now preserves written common-time and cut-time symbols separately
+  from the 4/4 and 2/2 rhythmic values. Screen SVG and print PDF draw vector
+  meter glyphs, including a change inside a system. The pinned Quilter piano
+  score now prints C on both staves as in the Verovio reference.
 - Native and full-SF2 WAV rendering now accepts written `tenuto` when the
   playback schedule has already retained the note's full duration. The pinned
   CC0 Webern score previously failed with `unrealized note expression`; it now

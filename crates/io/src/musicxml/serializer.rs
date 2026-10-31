@@ -203,15 +203,16 @@ fn serialize_musicxml_inner(
         };
 
         let mut skip_until = 0usize;
+        let mut serial_time = score.settings.time_signature.clone();
         for (i, measure) in staff.measures.iter().enumerate() {
             if i > 0 && i < skip_until {
                 continue;
             }
 
-            let measure_time = measure
-                .time_sig
-                .as_ref()
-                .unwrap_or(&score.settings.time_signature);
+            if let Some(time) = &measure.time_sig {
+                serial_time = time.clone();
+            }
+            let measure_time = &serial_time;
             let bar_ticks = time_signature_ticks(measure_time).unwrap_or(DIVISIONS * 4);
             let measure_ticks = measure
                 .actual_length
@@ -307,6 +308,7 @@ fn serialize_musicxml_inner(
             if i == 0
                 || measure.key_sig.is_some()
                 || measure.time_sig.is_some()
+                || measure.time_symbol.is_some()
                 || measure.clef.is_some()
                 || measure.tablature_change.is_some()
                 || extra_staff_clef_change
@@ -325,12 +327,14 @@ fn serialize_musicxml_inner(
                     xml.push_str(&format!("          <mode>{}</mode>\n", key.mode));
                     xml.push_str("        </key>\n");
                 }
-                if i == 0 || measure.time_sig.is_some() {
-                    let ts = measure
-                        .time_sig
-                        .as_ref()
-                        .unwrap_or(&score.settings.time_signature);
-                    xml.push_str("        <time>\n");
+                if i == 0 || measure.time_sig.is_some() || measure.time_symbol.is_some() {
+                    let ts = measure_time;
+                    let symbol = match (measure.time_symbol, ts.numerator, ts.denominator) {
+                        (Some(acorde_core::TimeSymbol::Common), 4, 4) => " symbol=\"common\"",
+                        (Some(acorde_core::TimeSymbol::Cut), 2, 2) => " symbol=\"cut\"",
+                        _ => "",
+                    };
+                    xml.push_str(&format!("        <time{symbol}>\n"));
                     xml.push_str(&format!("          <beats>{}</beats>\n", ts.numerator));
                     xml.push_str(&format!(
                         "          <beat-type>{}</beat-type>\n",

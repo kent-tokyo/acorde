@@ -1,6 +1,7 @@
 use acorde_core::{
     AddMeasureCmd, AddNoteCmd, Clef, Command, Duration, NoteAddr, Pitch, ScoreEngine,
-    ScoreFragmentSelection, SetMeasureTextCmd, Step, StyledText, TextStyle, extract_score_fragment,
+    ScoreFragmentSelection, SetMeasureTextCmd, Step, StyledText, TextStyle, TimeSymbol,
+    extract_score_fragment,
 };
 /// Integration tests: parse a fixture, serialize, re-parse, and verify
 /// that key musical properties are preserved across the round-trip.
@@ -94,6 +95,65 @@ static OPENSCORE_LIEDER_WEBERN_MXL: &[u8] =
     include_bytes!("../../../tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl");
 static OPENSCORE_LIEDER_QUILTER_MXL: &[u8] =
     include_bytes!("../../../tests/fixtures/openscore_lieder_quilter_prelude.mxl");
+
+#[test]
+fn quilter_common_time_symbol_survives_musicxml_roundtrip() {
+    let score = acorde_io::parse_mxl(OPENSCORE_LIEDER_QUILTER_MXL).expect("CC0 MXL imports");
+    assert_eq!(
+        score.parts[0].staves[0].measures[0].time_symbol,
+        Some(TimeSymbol::Common)
+    );
+    assert_eq!(
+        score.parts[0].staves[1].measures[0].time_symbol,
+        Some(TimeSymbol::Common)
+    );
+    let exported = serialize_musicxml(&score).expect("MusicXML exports");
+    assert!(exported.contains("<time symbol=\"common\">"));
+    let restored = parse_musicxml(&exported).expect("MusicXML reimports");
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].time_symbol,
+        Some(TimeSymbol::Common)
+    );
+    assert_eq!(
+        restored.parts[0].staves[1].measures[0].time_symbol,
+        Some(TimeSymbol::Common)
+    );
+}
+
+#[test]
+fn cut_time_symbol_survives_musicxml_roundtrip_without_changing_duration() {
+    let xml = SIMPLE_XML.replace(
+        "<time><beats>4</beats><beat-type>4</beat-type></time>",
+        "<time symbol=\"cut\"><beats>2</beats><beat-type>2</beat-type></time>",
+    );
+    let score = parse_musicxml(&xml).expect("MusicXML imports");
+    let opening = &score.parts[0].staves[0].measures[0];
+    assert_eq!(opening.time_symbol, Some(TimeSymbol::Cut));
+    assert_eq!(opening.time_sig.as_ref().unwrap().total_beats(), 4.0);
+    let exported = serialize_musicxml(&score).expect("MusicXML exports");
+    assert!(exported.contains("<time symbol=\"cut\">"));
+    let restored = parse_musicxml(&exported).expect("MusicXML reimports");
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].time_symbol,
+        Some(TimeSymbol::Cut)
+    );
+}
+
+#[test]
+fn mismatched_time_symbol_is_reported_and_keeps_numeric_meter() {
+    let xml = SIMPLE_XML.replace("<time>", "<time symbol=\"cut\">");
+    let report = acorde_io::parse_musicxml_with_report(&xml).expect("MusicXML imports");
+    assert_eq!(
+        report.score.parts[0].staves[0].measures[0].time_symbol,
+        None
+    );
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|diagnostic| { diagnostic.code == "musicxml.unsupported-time-symbol" })
+    );
+}
 
 #[test]
 fn quilter_publication_credits_survive_musicxml_roundtrip() {

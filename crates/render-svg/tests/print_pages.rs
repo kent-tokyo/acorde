@@ -1,4 +1,4 @@
-use acorde_core::Score;
+use acorde_core::{Score, TimeSignature, TimeSymbol};
 use acorde_layout::{
     GlyphResourcePolicy, PrintConfig, PrintSystemBreakStrategy, compute_print_layout,
 };
@@ -342,6 +342,7 @@ fn quilter_prints_all_directions_with_clearance_between_grand_staves() {
     .unwrap();
     let pages = render_print_page_svgs(&score, &layout).unwrap();
     assert_eq!(pages.len(), 1);
+    assert_eq!(pages[0].matches(r#"data-symbol="common""#).count(), 2);
     assert_eq!(pages[0].matches(r#"class="acorde-metronome""#).count(), 1);
     assert!(pages[0].contains(r#"data-beat-unit="quarter" data-bpm="69""#));
     let tempo_words = pages[0]
@@ -434,6 +435,41 @@ fn quilter_prints_all_directions_with_clearance_between_grand_staves() {
         overlapping_heads, 0,
         "rall. overlaps noteheads at x={later_x}, y={later_baseline}, width={later_width}"
     );
+}
+
+#[test]
+fn cut_time_prints_as_vector_symbol_instead_of_numerals() {
+    let mut score = Score::new("Cut meter", 120, 2, 2, 0, 1);
+    score.parts[0].staves[0].measures[0].time_sig = Some(TimeSignature {
+        numerator: 2,
+        denominator: 2,
+    });
+    score.parts[0].staves[0].measures[0].time_symbol = Some(TimeSymbol::Cut);
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    assert_eq!(pages[0].matches(r#"data-symbol="cut""#).count(), 1);
+    assert!(pages[0].contains(r#"class="acorde-time-sig acorde-time-symbol""#));
+}
+
+#[test]
+fn cut_time_change_inside_system_reserves_a_meter_column() {
+    let mut score = Score::new("Meter change", 120, 4, 4, 0, 2);
+    score.parts[0].staves[0].measures[1].time_sig = Some(TimeSignature {
+        numerator: 2,
+        denominator: 2,
+    });
+    score.parts[0].staves[0].measures[1].time_symbol = Some(TimeSymbol::Cut);
+    let layout = compute_print_layout(
+        &score,
+        &PrintConfig {
+            measures_per_system: 2,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    assert!(pages[0].contains(r#"class="acorde-time-sig-change""#));
+    assert_eq!(pages[0].matches(r#"data-symbol="cut""#).count(), 1);
 }
 
 #[test]

@@ -10,7 +10,7 @@ use std::fmt::Write as _;
 use acorde_core::Articulation;
 use acorde_core::{
     Barline, Clef, Duration, Measure, Note, Score, StyledText, TablatureRhythmDisplay, TextStyle,
-    TimeSignature,
+    TimeSignature, TimeSymbol,
 };
 use acorde_layout::{LayoutResult, SpanMark, notation_density_units};
 
@@ -313,8 +313,9 @@ pub(crate) fn build_svg_with_metadata_placement(
                     && score.parts[pi].staves[si]
                         .measures
                         .get(row_start_measure)
-                        .and_then(|measure| measure.time_sig.as_ref())
-                        .is_some()
+                        .is_some_and(|measure| {
+                            measure.time_sig.is_some() || measure.time_symbol.is_some()
+                        })
             });
         let header_width_u = staff_states
             .iter()
@@ -323,30 +324,36 @@ pub(crate) fn build_svg_with_metadata_placement(
                     &s.clef,
                     s.key_fifths,
                     if draw_time { Some(&s.time_sig) } else { None },
+                    s.time_symbol,
                 )
             })
             .fold(0.0_f32, f32::max);
 
         // Reserve a shared column before the notes whenever a staff changes meter inside
         // this system. All staves use the widest changed signature so their notes stay aligned.
-        let mut running_times: Vec<TimeSignature> = staff_states
+        let mut running_times: Vec<(TimeSignature, Option<TimeSymbol>)> = staff_states
             .iter()
-            .map(|state| state.time_sig.clone())
+            .map(|state| (state.time_sig.clone(), state.time_symbol))
             .collect();
         let mut inline_meters = vec![vec![None; staff_refs.len()]; row.measure_indices.len()];
         let mut inline_meter_widths_u = vec![0.0_f32; row.measure_indices.len()];
         for (col, &measure_idx) in row.measure_indices.iter().enumerate().skip(1) {
             for (si_idx, &(pi, si)) in staff_refs.iter().enumerate() {
-                if let Some(time) = score.parts[pi].staves[si].measures[measure_idx]
-                    .time_sig
-                    .as_ref()
-                {
-                    if row_staff_visible[si_idx] && *time != running_times[si_idx] {
-                        inline_meter_widths_u[col] =
-                            inline_meter_widths_u[col].max(time_signature_width_u(time) + 0.4);
-                        inline_meters[col][si_idx] = Some(time.clone());
+                let measure = &score.parts[pi].staves[si].measures[measure_idx];
+                if measure.time_sig.is_some() || measure.time_symbol.is_some() {
+                    let time = measure
+                        .time_sig
+                        .as_ref()
+                        .unwrap_or(&running_times[si_idx].0);
+                    let symbol = measure.time_symbol;
+                    if row_staff_visible[si_idx]
+                        && (*time != running_times[si_idx].0 || symbol != running_times[si_idx].1)
+                    {
+                        inline_meter_widths_u[col] = inline_meter_widths_u[col]
+                            .max(time_signature_width_u(time, symbol) + 0.4);
+                        inline_meters[col][si_idx] = Some((time.clone(), symbol));
                     }
-                    running_times[si_idx] = time.clone();
+                    running_times[si_idx] = (time.clone(), symbol);
                 }
             }
         }
@@ -524,7 +531,14 @@ pub(crate) fn build_svg_with_metadata_placement(
             }
             hx += HEADER_GAP_U * space;
             if draw_time {
-                write_time_signature(&mut body, &state.time_sig, hx, bottom_y, space);
+                write_time_signature(
+                    &mut body,
+                    &state.time_sig,
+                    state.time_symbol,
+                    hx,
+                    bottom_y,
+                    space,
+                );
             }
             if options.interactive {
                 body.push_str("</g>");
@@ -589,13 +603,13 @@ pub(crate) fn build_svg_with_metadata_placement(
                     clef_lead_u = 0.4 + width / space * 0.75;
                     row_clefs[si_idx] = change.clone();
                 }
-                if let Some(time) = inline_meters[col][si_idx].as_ref() {
+                if let Some((time, symbol)) = inline_meters[col][si_idx].as_ref() {
                     let time_x = mx + (clef_lead_u + 0.4) * space;
                     let _ = write!(
                         body,
                         r#"<g class="acorde-time-sig-change" data-part="{pi}" data-staff="{si}" data-measure="{measure_idx}">"#
                     );
-                    write_time_signature(&mut body, time, time_x, bottom_y, space);
+                    write_time_signature(&mut body, time, *symbol, time_x, bottom_y, space);
                     body.push_str("</g>");
                 }
                 let clef = &row_clefs[si_idx];
@@ -2595,6 +2609,7 @@ struct EffectiveState {
     clef: Clef,
     key_fifths: i8,
     time_sig: TimeSignature,
+    time_symbol: Option<TimeSymbol>,
 }
 
 fn effective_state(
@@ -2607,6 +2622,7 @@ fn effective_state(
     let mut clef = s.clef.clone();
     let mut key_fifths = score.settings.key_signature.fifths;
     let mut time_sig = score.settings.time_signature.clone();
+    let mut time_symbol = None;
     for (index, measure) in s.measures.iter().enumerate().take(up_to_measure + 1) {
         if let Some(c) = &measure.clef {
             clef = c.clone();
@@ -2621,6 +2637,9 @@ fn effective_state(
         }
         if let Some(t) = &measure.time_sig {
             time_sig = t.clone();
+            time_symbol = measure.time_symbol;
+        } else if measure.time_symbol.is_some() {
+            time_symbol = measure.time_symbol;
         }
     }
     geometry::clef_bottom_line(&clef)?;
@@ -2628,6 +2647,7 @@ fn effective_state(
         clef,
         key_fifths,
         time_sig,
+        time_symbol,
     })
 }
 
@@ -2638,7 +2658,12 @@ fn measure_total_beats(score: &Score, staff_ref: &(usize, usize), measure_idx: u
 
 // ── header widths ──────────────────────────────────────────────────────────────
 
-fn header_width_u(clef: &Clef, key_fifths: i8, time_sig: Option<&TimeSignature>) -> f32 {
+fn header_width_u(
+    clef: &Clef,
+    key_fifths: i8,
+    time_sig: Option<&TimeSignature>,
+    time_symbol: Option<TimeSymbol>,
+) -> f32 {
     let clef_w = match clef.without_octave() {
         Clef::Treble => 2.2,
         Clef::Bass => 2.6,
@@ -2651,11 +2676,19 @@ fn header_width_u(clef: &Clef, key_fifths: i8, time_sig: Option<&TimeSignature>)
     } else {
         0.0
     };
-    let time_w = time_sig.map(time_signature_width_u).unwrap_or(0.0);
+    let time_w = time_sig
+        .map(|time| time_signature_width_u(time, time_symbol))
+        .unwrap_or(0.0);
     clef_w + key_w + time_w
 }
 
-fn time_signature_width_u(time: &TimeSignature) -> f32 {
+fn time_signature_width_u(time: &TimeSignature, symbol: Option<TimeSymbol>) -> f32 {
+    if matches!(
+        (symbol, time.numerator, time.denominator),
+        (Some(TimeSymbol::Common), 4, 4) | (Some(TimeSymbol::Cut), 2, 2)
+    ) {
+        return 1.7 + HEADER_GAP_U + 0.5;
+    }
     // The bold numerals want a little more air before the first note.
     digit_count(time.numerator).max(digit_count(time.denominator)) as f32 * glyphs::DIGIT_WIDTH_U
         + HEADER_GAP_U
@@ -2816,8 +2849,66 @@ fn key_signature_positions(clef: &Clef, sharps: bool) -> [i32; 7] {
     }
 }
 
-fn write_time_signature(body: &mut String, ts: &TimeSignature, x: f32, bottom_y: f32, space: f32) {
+fn write_time_signature(
+    body: &mut String,
+    ts: &TimeSignature,
+    symbol: Option<TimeSymbol>,
+    x: f32,
+    bottom_y: f32,
+    space: f32,
+) {
     let top_y = bottom_y - STAFF_HEIGHT_U * space;
+    if matches!(
+        (symbol, ts.numerator, ts.denominator),
+        (Some(TimeSymbol::Common), 4, 4) | (Some(TimeSymbol::Cut), 2, 2)
+    ) {
+        let cut = symbol == Some(TimeSymbol::Cut);
+        let _ = write!(
+            body,
+            r#"<g class="acorde-time-sig acorde-time-symbol" data-symbol="{}"><path d="M {} {} C {} {} {} {} {} {} C {} {} {} {} {} {} C {} {} {} {} {} {} C {} {} {} {} {} {}" fill="none" stroke="black" stroke-width="{}" stroke-linecap="round"/>"#,
+            if cut { "cut" } else { "common" },
+            f(x + 1.45 * space),
+            f(top_y + 0.95 * space),
+            f(x + 1.25 * space),
+            f(top_y + 0.65 * space),
+            f(x + 0.95 * space),
+            f(top_y + 0.5 * space),
+            f(x + 0.7 * space),
+            f(top_y + 0.6 * space),
+            f(x + 0.15 * space),
+            f(top_y + 0.85 * space),
+            f(x + 0.08 * space),
+            f(top_y + 1.35 * space),
+            f(x + 0.08 * space),
+            f(top_y + 2.0 * space),
+            f(x + 0.08 * space),
+            f(top_y + 2.65 * space),
+            f(x + 0.15 * space),
+            f(top_y + 3.15 * space),
+            f(x + 0.7 * space),
+            f(top_y + 3.4 * space),
+            f(x + 0.95 * space),
+            f(top_y + 3.5 * space),
+            f(x + 1.25 * space),
+            f(top_y + 3.35 * space),
+            f(x + 1.45 * space),
+            f(top_y + 3.05 * space),
+            f(0.24 * space),
+        );
+        if cut {
+            let _ = write!(
+                body,
+                r#"<line x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
+                f(x + 0.82 * space),
+                f(top_y + 0.15 * space),
+                f(x + 0.82 * space),
+                f(top_y + 3.85 * space),
+                f(0.15 * space),
+            );
+        }
+        body.push_str("</g>");
+        return;
+    }
     // Numerator and denominator each fill half the staff, centred on the wider of the two.
     let width = |n: u8| digit_count(n) as f32 * glyphs::DIGIT_WIDTH_U;
     let column = width(ts.numerator).max(width(ts.denominator));
