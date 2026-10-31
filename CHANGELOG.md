@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Print layouts with opening title and movement/composer credits now reserve
+  16 mm before the first music system when the page has room. The physical
+  page SVG and vector PDF use the same shifted coordinates, keeping credits
+  clear of the opening staff and repaginating if the first page fills.
 - Offline PCM16 WAV export now accepts an explicit peak target through
   `audio-render --normalize-peak-dbfs`. The bounded, deterministic pass preserves
   timing and reports input rail samples, so earlier clipping is not hidden.

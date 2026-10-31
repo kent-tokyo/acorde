@@ -4,6 +4,12 @@ This is a reproducible starting point for the goal of exceeding Verovio on
 layout, engraving, and print for ordinary piano and chamber scores. Page count
 alone is not an engraving-quality score.
 
+Earlier Verovio Quick Look thumbnails in this log were 1400 × 1400 px, while
+the Acorde A4 PDF rasters were 990 × 1400 px. Those previews show missing
+symbols and collisions, but their apparent notation sizes are not a matched
+pixel-scale measurement. The opening-credit review below uses A4-matched
+rasters for its page-geometry observation.
+
 ## Fixed input and setup
 
 - Date: 2026-10-30.
@@ -383,6 +389,41 @@ are visibly smaller. The Acorde PDF media box is 595.276 × 841.89 pt. Acorde
 reports 103 MusicXML import diagnostics; Verovio reports two open hairpins.
 Those diagnostics are separate from the print observations. This change does
 not establish Verovio-level print quality.
+
+### Verovio-guided opening credit space (2026-10-31)
+
+The same pinned Quilter MXL was rendered again at A4 with Verovio 6.3.0 and
+Acorde's density print mode. For this review, both pages were rasterized at
+990 × 1400 px with a white background: Verovio's SVG through CairoSVG and
+Acorde's PDF through Poppler. The older Quick Look thumbnail was square
+(1400 × 1400 px) and is not a common-scale image for judging notation size.
+CairoSVG lacks the Verovio tempo-note font in this environment, so the one
+square tempo glyph in that raster is a rasterizer limit, not an input or
+engraving result. Verovio places the opening credits farther from the paper
+top. Acorde's title baseline was 38 SVG units (9.5 mm) from the paper top,
+and its first staff line was at 158.34 SVG
+units. The print layout now reserves 16 mm before the first system when a
+work title and movement or composer are present. Its title baseline becomes
+102 units (25.5 mm) and first staff line 222.34 units. The first page PDF
+remains A4 with one page and four systems, grouped 2+2+3+3. The publication
+block is visibly less cramped at the top; Acorde's fourth system still differs
+from Verovio's three systems. The 103 MusicXML import diagnostics remain unchanged.
+
+The separate pinned *Aloha Oe* MXL still produces three A4 pages in density
+mode, with six systems and 73 import diagnostics in this run. Its first and
+last pages were rasterized at 1400 px and inspected for clipping, title overlap,
+and page-number placement. The new first-page reserve keeps the title above
+the notation; the final page still has substantial unused space. A synthetic
+eight-system regression checks that the first page's smaller capacity moves
+later systems to page two without crossing the bottom margin. This is a
+page-geometry improvement, not a general engraving-quality result.
+
+```bash
+pdftoppm -f 1 -l 1 -scale-to 1400 -singlefile -png \
+  /tmp/acorde-quilter-20261031-after.pdf /tmp/acorde-quilter-20261031-after
+DYLD_LIBRARY_PATH=/opt/homebrew/lib python3 -c \
+  'import cairosvg; cairosvg.svg2png(url="/tmp/verovio-quilter-20261031.svg", write_to="/tmp/verovio-quilter-20261031-a4.png", output_width=990, output_height=1400, background_color="white")'
+```
 
 ## Gates before a quality claim
 

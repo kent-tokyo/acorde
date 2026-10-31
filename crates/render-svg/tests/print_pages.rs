@@ -433,6 +433,11 @@ fn print_page_retains_quilter_publication_credits() {
         .1;
     let title_y = svg_attribute_f32(title, "y");
     let movement_y = svg_attribute_f32(movement, "y");
+    assert!(layout.pages[0].systems[0].top_mm >= 32.0);
+    assert!(
+        title_y >= 100.0,
+        "opening credit is too close to the paper edge"
+    );
     assert!(title_y - svg_attribute_f32(title, "font-size") > 0.0);
     assert!(movement_y - svg_attribute_f32(movement, "font-size") - title_y >= 4.0);
     assert!(movement_y < layout.pages[0].systems[0].top_mm * 4.0);
