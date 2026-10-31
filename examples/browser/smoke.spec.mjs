@@ -53,6 +53,43 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test("browser chord plans preserve source timing and replay a chosen proposal", async ({ page }) => {
+  await page.goto("http://127.0.0.1:8000/examples/browser/");
+  const result = await page.evaluate(async () => {
+    const wasm = await import("/crates/wasm/pkg/acorde_wasm.js");
+    await wasm.default();
+    const abc = 'X:1\nT:Two chord changes\nM:4/4\nL:1/4\nK:C\n"C"C E "G7"G B|"C"c4|';
+    const score = wasm.parse_abc(abc);
+    const extracted = JSON.parse(wasm.extract_chord_plan(score, "{}"));
+    const proposals = JSON.parse(wasm.suggest_chord_plans(score, JSON.stringify({
+      source_plan: extracted.plan,
+    })));
+    const provided = proposals.candidates.find((candidate) => candidate.id === "provided-v1");
+    const replay = JSON.parse(wasm.arrange_from_chord_proposal(
+      score, JSON.stringify(provided.resolved), "held-chord",
+    ));
+    const arranged = JSON.stringify(replay.arrangement.score);
+    const restored = JSON.parse(wasm.parse_mscz(wasm.serialize_mscz(arranged)));
+    return {
+      offsets: extracted.plan.entries.map((entry) => [entry.position.measure_index, entry.offset_beats]),
+      origins: provided.plan.entries.map((entry) => entry.origin),
+      diagnostics: replay.diagnostics,
+      scoreReturned: Boolean(replay.arrangement.score),
+      rendered: wasm.render_score_svg(arranged, "{}").includes("<svg"),
+      played: JSON.parse(wasm.to_playback_events_ex(arranged, "{}")).length > 0,
+      exported: restored.parts[0].staves[0].measures[0].voices[0][0].pitches[0].step
+        === replay.arrangement.score.parts[0].staves[0].measures[0].voices[0][0].pitches[0].step,
+    };
+  });
+  expect(result.offsets).toEqual([[0, 0], [0, 2], [1, 0]]);
+  expect(result.origins).toEqual(["written-symbol", "written-symbol", "written-symbol"]);
+  expect(result.diagnostics).toEqual([]);
+  expect(result.scoreReturned).toBe(true);
+  expect(result.rendered).toBe(true);
+  expect(result.played).toBe(true);
+  expect(result.exported).toBe(true);
+});
+
 test("browser contract renders and exposes selectable notes", async ({ page }) => {
   await page.goto("http://127.0.0.1:8000/examples/browser/");
   const status = page.locator("#status");

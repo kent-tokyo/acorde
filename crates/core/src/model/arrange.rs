@@ -181,6 +181,12 @@ fn realize_accordion_chord(symbol: &ChordSymbol) -> Option<RealizedAccordionChor
     })
 }
 
+pub(crate) fn preset_chord_supported(symbol: &ChordSymbol, bass_mode: AccordionBassMode) -> bool {
+    realize_accordion_chord(symbol).is_some_and(|realized| {
+        bass_mode == AccordionBassMode::FreeBass || realized.chord_midi.len() <= 3
+    })
+}
+
 fn guided_note(pitches: &[u8], duration: Duration) -> Note {
     let mut note = Note::new(Pitch::from_midi(pitches[0], false), duration);
     note.pitches = pitches

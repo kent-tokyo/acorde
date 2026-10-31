@@ -2,6 +2,8 @@ pub mod arrange;
 pub mod arrange_presets;
 pub mod authored_chords;
 pub mod change_hint;
+pub mod chord_plan;
+pub mod chord_proposals;
 pub mod commands;
 pub mod duration;
 pub mod engine;

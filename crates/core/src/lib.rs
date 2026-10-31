@@ -24,6 +24,17 @@ pub use model::authored_chords::{
     annotate_from_authored_chords,
 };
 pub use model::change_hint::{ChangeHint, ChangeScope};
+pub use model::chord_plan::{
+    BeatFraction, CHORD_PLAN_CONTRACT_VERSION, ChordPlan, ChordPlanCoverage, ChordPlanDiagnostic,
+    ChordPlanEntry, ChordPlanExtractionMode, ChordPlanExtractionOptions, ChordPlanExtractionResult,
+    ChordPlanOrigin, ChordPlanPosition, ChordPlanPresetResult, ChordPlanSource,
+    chord_plan_to_preset_selection, extract_chord_plan,
+};
+pub use model::chord_proposals::{
+    CHORD_PROPOSAL_CONTRACT_VERSION, ChordChangedSpan, ChordProposalArrangementResult,
+    ChordProposalCandidate, ChordProposalDiagnostic, ChordProposalRequest, ChordProposalResult,
+    ResolvedChordProposal, arrange_from_chord_proposal, suggest_chord_plans,
+};
 pub use model::commands::{
     AddHairpinCmd, AddMeasureCmd, AddNoteCmd, AddPartCmd, AddPedalCmd, AddPitchCmd, AddSpannerCmd,
     AddStaffCmd, BatchCmd, Command, CommandStack, CycleEnharmonicSpellingCmd, DeleteMeasureCmd,

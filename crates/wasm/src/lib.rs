@@ -21,6 +21,7 @@ use wasm_bindgen::prelude::*;
 const MAX_SCORE_JSON_BYTES: usize = 16 * 1024 * 1024;
 const MAX_LAYOUT_JSON_BYTES: usize = 32 * 1024 * 1024;
 const MAX_OPTIONS_JSON_BYTES: usize = 64 * 1024;
+const MAX_CHORD_PLAN_JSON_BYTES: usize = 2 * 1024 * 1024;
 const MAX_SMALL_JSON_BYTES: usize = 256 * 1024;
 #[cfg(feature = "soundfont")]
 const MAX_SOUNDFONT_BYTES: usize = acorde_soundfont::MAX_ASSET_BYTES;
@@ -1698,6 +1699,42 @@ pub fn annotate_authored_chords(
         .map_err(|error| js_err(format!("authored chord serialization failed: {error}")))
 }
 
+/// Extract exact source chord positions and a loss-aware preset selection.
+#[wasm_bindgen]
+pub fn extract_chord_plan(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::ChordPlanExtractionOptions =
+        parse_json(options_json, "chord plan extraction", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::extract_chord_plan(&score, &options))
+        .map_err(|error| js_err(format!("chord plan serialization failed: {error}")))
+}
+
+/// Suggest bounded, explicitly attributed chord plans from a canonical melody.
+#[wasm_bindgen]
+pub fn suggest_chord_plans(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::ChordProposalRequest =
+        parse_json(request_json, "chord proposal", MAX_CHORD_PLAN_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::suggest_chord_plans(&score, &request))
+        .map_err(|error| js_err(format!("chord proposals serialization failed: {error}")))
+}
+
+/// Replay a persisted chord proposal through an independently selected preset.
+#[wasm_bindgen]
+pub fn arrange_from_chord_proposal(
+    score_json: &str,
+    resolved_json: &str,
+    preset_id: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedChordProposal =
+        parse_json(resolved_json, "resolved chord proposal", MAX_CHORD_PLAN_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_from_chord_proposal(
+        &score, &resolved, preset_id,
+    ))
+    .map_err(|error| js_err(format!("proposed arrangement serialization failed: {error}")))
+}
+
 /// Return the Roman numeral analysis of a chord in the context of a key.
 ///
 /// `chord_json`: JSON-encoded `ChordSymbol` (e.g. `{"root":"G","kind":"dominant","bass":null}`).
@@ -2311,6 +2348,35 @@ impl ScoreEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn chord_plan_and_proposal_json_match_native_contracts() {
+        let mut score = Score::new("chord plan JSON", 120, 4, 4, 0, 1);
+        let mut note = acorde_core::Note::new(
+            acorde_core::Pitch::from_midi(60, false), acorde_core::Duration::Whole,
+        );
+        note.chord_symbol = acorde_core::detect_chord(&[
+            acorde_core::Pitch::from_midi(60, false),
+            acorde_core::Pitch::from_midi(64, false),
+            acorde_core::Pitch::from_midi(67, false),
+        ]);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let input = score_to_json(&score).unwrap();
+        let wasm_extracted: serde_json::Value = serde_json::from_str(&extract_chord_plan(&input, "{}").unwrap()).unwrap();
+        let native_extracted = serde_json::to_value(acorde_core::extract_chord_plan(&score, &Default::default())).unwrap();
+        assert_eq!(wasm_extracted, native_extracted);
+        let source_plan = native_extracted["plan"].clone();
+        let request = serde_json::json!({"source_plan":source_plan});
+        let wasm_proposals: serde_json::Value = serde_json::from_str(&suggest_chord_plans(&input, &request.to_string()).unwrap()).unwrap();
+        let native_request: acorde_core::ChordProposalRequest = serde_json::from_value(request).unwrap();
+        let native_proposals = serde_json::to_value(acorde_core::suggest_chord_plans(&score, &native_request)).unwrap();
+        assert_eq!(wasm_proposals, native_proposals);
+        assert_eq!(wasm_proposals["candidates"][0]["id"], "provided-v1");
+        let resolved = wasm_proposals["candidates"][0]["resolved"].to_string();
+        let replay: serde_json::Value = serde_json::from_str(&arrange_from_chord_proposal(&input, &resolved, "held-chord").unwrap()).unwrap();
+        assert!(replay["diagnostics"].as_array().unwrap().is_empty());
+        assert!(replay["arrangement"]["score"].is_object());
+    }
 
     #[test]
     fn viewer_auto_beam_json_is_opt_in_and_preserves_playback() {
@@ -3723,6 +3789,31 @@ mod wasm_tests {
     use wasm_bindgen_test::wasm_bindgen_test;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test]
+    fn browser_chord_plan_proposals_replay_and_render() {
+        let mut score = Score::new("chord proposals browser", 120, 4, 4, 0, 1);
+        let mut note = acorde_core::Note::new(
+            acorde_core::Pitch::from_midi(60, false), acorde_core::Duration::Whole,
+        );
+        note.chord_symbol = acorde_core::detect_chord(&[
+            acorde_core::Pitch::from_midi(60, false),
+            acorde_core::Pitch::from_midi(64, false),
+            acorde_core::Pitch::from_midi(67, false),
+        ]);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let input = score_to_json(&score).unwrap();
+        let extracted: serde_json::Value = serde_json::from_str(&extract_chord_plan(&input, "{}").unwrap()).unwrap();
+        assert_eq!(extracted["plan"]["entries"][0]["position"]["offset"]["numerator"], 0);
+        let request = serde_json::json!({"source_plan":extracted["plan"]});
+        let proposals: serde_json::Value = serde_json::from_str(&suggest_chord_plans(&input, &request.to_string()).unwrap()).unwrap();
+        let resolved = proposals["candidates"][0]["resolved"].to_string();
+        let replay: serde_json::Value = serde_json::from_str(&arrange_from_chord_proposal(&input, &resolved, "held-chord").unwrap()).unwrap();
+        assert!(replay["diagnostics"].as_array().unwrap().is_empty());
+        let arranged = replay["arrangement"]["score"].to_string();
+        assert!(render_score_svg(&arranged, "{}").unwrap().contains("<svg"));
+        assert!(!to_playback_events_ex(&arranged, "{}").unwrap().is_empty());
+    }
 
     #[wasm_bindgen_test]
     fn browser_print_page_svgs_use_supplied_physical_layout() {
