@@ -5053,7 +5053,7 @@ fn mscx_keeps_every_part_of_a_multi_part_score() {
         })
         .collect();
     let mscx = acorde_io::serialize_mscx(&score).expect("exports");
-    assert!(mscx.contains("<Part><Staff id=\"2\"/>"));
+    assert!(mscx.contains("<Part><Staff id=\"2\"><defaultClef>F</defaultClef></Staff>"));
     let back = acorde_io::parse_mscx(&mscx).expect("imports");
     assert_eq!(back.parts.len(), 2);
     for (part, step) in back.parts.iter().zip([Step::E, Step::C]) {
@@ -5063,6 +5063,7 @@ fn mscx_keeps_every_part_of_a_multi_part_score() {
             step
         );
     }
+    assert_eq!(back.parts[1].staves[0].clef, Clef::Bass);
 }
 
 #[cfg(feature = "mscz")]
