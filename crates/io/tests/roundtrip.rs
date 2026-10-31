@@ -113,6 +113,57 @@ fn quilter_publication_credits_survive_musicxml_roundtrip() {
     assert_eq!(reparsed.metadata.composer, score.metadata.composer);
     assert_eq!(reparsed.metadata.copyright, score.metadata.copyright);
 }
+
+#[test]
+fn quilter_written_metronome_mark_survives_musicxml_roundtrip() {
+    let score = acorde_io::parse_mxl(OPENSCORE_LIEDER_QUILTER_MXL).expect("CC0 MXL imports");
+    let opening = &score.parts[0].staves[0].measures[0];
+    let mark = opening
+        .metronome_mark
+        .as_ref()
+        .expect("written mark imported");
+    assert_eq!(mark.beat_unit, Duration::Quarter);
+    assert_eq!(mark.beat_unit_dots, 0);
+    assert_eq!(mark.per_minute, 69);
+    assert!(mark.parentheses);
+    assert_eq!(opening.tempo, Some(69));
+
+    let exported = serialize_musicxml(&score).expect("MusicXML exports");
+    assert!(exported.contains("<metronome parentheses=\"yes\">"));
+    let restored = parse_musicxml(&exported).expect("MusicXML imports");
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].metronome_mark,
+        opening.metronome_mark
+    );
+}
+
+#[test]
+fn written_metronome_without_sound_keeps_notation_without_inventing_playback_tempo() {
+    let xml = SIMPLE_XML
+        .replace(
+            "<beat-unit>quarter</beat-unit><per-minute>120</per-minute>",
+            "<beat-unit>eighth</beat-unit><beat-unit-dot/><per-minute>96</per-minute>",
+        )
+        .replace("        <sound tempo=\"120\"/>\n", "");
+    let score = parse_musicxml(&xml).expect("MusicXML imports");
+    let opening = &score.parts[0].staves[0].measures[0];
+    let mark = opening.metronome_mark.as_ref().expect("written mark");
+    assert_eq!(mark.beat_unit, Duration::Eighth);
+    assert_eq!(mark.beat_unit_dots, 1);
+    assert_eq!(mark.per_minute, 96);
+    assert_eq!(opening.tempo, None);
+
+    let exported = serialize_musicxml(&score).expect("MusicXML exports");
+    assert!(exported.contains("<beat-unit>eighth</beat-unit>"));
+    assert!(exported.contains("<beat-unit-dot/>"));
+    assert!(exported.contains("<per-minute>96</per-minute>"));
+    assert!(!exported.contains("<sound tempo="));
+    let restored = parse_musicxml(&exported).expect("MusicXML reimports");
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].metronome_mark,
+        opening.metronome_mark
+    );
+}
 #[cfg(feature = "mscz")]
 static OPENSCORE_OMR_MSCZ: &[u8] =
     include_bytes!("../../../tests/fixtures/openscore_omr_score_1003.mscz");

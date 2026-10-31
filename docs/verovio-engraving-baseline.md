@@ -443,6 +443,23 @@ page was inspected, with no new visible text/staff collision. The import
 diagnostics remain 103 and 73 respectively. This narrow clearance result
 does not establish complete collision freedom or Verovio-level engraving.
 
+### Verovio-guided written metronome mark (2026-10-31)
+
+The pinned CC0 Quilter Prelude writes `Moderato tranquillo e con tenerezza`
+followed by a parenthesized quarter-note `=69`. Verovio 6.3.0 prints both on
+the same opening line. Acorde already read the `<sound tempo="69"/>` playback
+value, but discarded the separate MusicXML `<metronome>` notation. The typed
+model now keeps its beat unit, dots, numeric rate, and parentheses. MusicXML
+roundtrip and score patch preserve those fields; a mark with no `<sound>` stays
+visual notation without an invented playback value.
+
+The density A4 PDF still has one page with four systems (2+2+3+3), compared
+with Verovio's three systems on the same source and paper. At 1400 px, the
+new quarter-note equation is visible beside the opening words without touching
+the first staff. The importer still reports 103 diagnostics. This closes one
+missing printed symbol; note size, direction typography, spacing, and broad
+print quality remain below the Verovio reference on this score.
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.

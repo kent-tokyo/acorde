@@ -1193,6 +1193,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             clef: cur_clef_in_measure.clone(),
                             mid_clefs,
                             tempo: cur_tempo,
+                            metronome_mark: None,
                             tempo_ramp_to: None,
                             instrument_change: None,
                             tablature_change: None,

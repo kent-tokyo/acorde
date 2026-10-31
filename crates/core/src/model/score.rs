@@ -2125,6 +2125,17 @@ pub struct MidMeasureClef {
     pub clef: Clef,
 }
 
+/// A written MusicXML metronome mark, distinct from the playback tempo.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MetronomeMark {
+    pub beat_unit: Duration,
+    #[serde(default)]
+    pub beat_unit_dots: u8,
+    pub per_minute: u16,
+    #[serde(default)]
+    pub parentheses: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Measure {
     pub number: u32,
@@ -2136,6 +2147,9 @@ pub struct Measure {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub mid_clefs: Vec<MidMeasureClef>,
     pub tempo: Option<u16>,
+    /// Explicitly printed tempo equation; a bare playback `<sound tempo>` leaves this empty.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metronome_mark: Option<MetronomeMark>,
     /// Optional target BPM at this measure's end. The playback contract linearly interpolates
     /// BPM across the measure; `None` keeps a constant tempo until the next change.
     #[serde(default)]
@@ -2238,6 +2252,7 @@ impl Measure {
             clef: None,
             mid_clefs: Vec::new(),
             tempo: None,
+            metronome_mark: None,
             tempo_ramp_to: None,
             instrument_change: None,
             tablature_change: None,
@@ -3079,6 +3094,13 @@ pub enum ScoreChange {
         old: Option<u16>,
         new: Option<u16>,
     },
+    MeasureMetronomeMarkChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old: Option<MetronomeMark>,
+        new: Option<MetronomeMark>,
+    },
     MeasureTempoRampChanged {
         part: usize,
         staff: usize,
@@ -3361,6 +3383,15 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                         measure: mi,
                         old: am.tempo,
                         new: bm.tempo,
+                    });
+                }
+                if am.metronome_mark != bm.metronome_mark {
+                    changes.push(ScoreChange::MeasureMetronomeMarkChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.metronome_mark.clone(),
+                        new: bm.metronome_mark.clone(),
                     });
                 }
                 if am.tempo_ramp_to != bm.tempo_ramp_to {
@@ -3668,6 +3699,12 @@ pub enum ScorePatch {
         measure: usize,
         value: Option<u16>,
     },
+    SetMeasureMetronomeMark {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        value: Option<MetronomeMark>,
+    },
     SetMeasureTempoRamp {
         part: usize,
         staff: usize,
@@ -3930,6 +3967,14 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                         staff: si,
                         measure: mi,
                         value: bm.tempo,
+                    });
+                }
+                if am.metronome_mark != bm.metronome_mark {
+                    patches.push(ScorePatch::SetMeasureMetronomeMark {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: bm.metronome_mark.clone(),
                     });
                 }
                 if am.tempo_ramp_to != bm.tempo_ramp_to {
@@ -4458,6 +4503,23 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                     .get_mut(*measure)
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
                     .tempo_ramp_to = *value;
+            }
+            ScorePatch::SetMeasureMetronomeMark {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .metronome_mark = value.clone();
             }
         }
     }
@@ -6416,6 +6478,42 @@ mod tests {
         assert_eq!(
             apply_patch(&a, &patches).unwrap().parts[0].staves[0].tablature,
             b.parts[0].staves[0].tablature
+        );
+    }
+
+    #[test]
+    fn diff_and_patch_preserve_written_metronome_marks() {
+        let a = Score::new("T", 120, 4, 4, 0, 1);
+        let mut b = a.clone();
+        b.parts[0].staves[0].measures[0].metronome_mark = Some(MetronomeMark {
+            beat_unit: Duration::Quarter,
+            beat_unit_dots: 0,
+            per_minute: 69,
+            parentheses: true,
+        });
+        let changes = diff(&a, &b);
+        assert!(changes.iter().any(|change| matches!(
+            change,
+            ScoreChange::MeasureMetronomeMarkChanged {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                ..
+            }
+        )));
+        let patches = score_patch(&a, &b);
+        assert!(patches.iter().any(|patch| matches!(
+            patch,
+            ScorePatch::SetMeasureMetronomeMark {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                ..
+            }
+        )));
+        assert_eq!(
+            apply_patch(&a, &patches).unwrap().parts[0].staves[0].measures[0].metronome_mark,
+            b.parts[0].staves[0].measures[0].metronome_mark
         );
     }
 

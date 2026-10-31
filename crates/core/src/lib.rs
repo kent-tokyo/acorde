@@ -116,9 +116,9 @@ pub use model::repeat::measure_sequence;
 pub use model::scale::{Scale, ScaleKind};
 pub use model::score::{
     GuitarBendPoint, HarpPedalDiagram, HarpPedalPosition, InstrumentDefinition, InstrumentRange,
-    Measure, MeasureLength, MidMeasureClef, MidiAftertouch, MidiControlChange, MidiPitchBend,
-    MidiProgramChange, NotationSpanner, NotationSpannerKind, Note, NoteAddr, ObjectStyleOverride,
-    ObjectStyleTarget, Part, PartGroup, PartGroupSymbol, PercussionInstrument,
+    Measure, MeasureLength, MetronomeMark, MidMeasureClef, MidiAftertouch, MidiControlChange,
+    MidiPitchBend, MidiProgramChange, NotationSpanner, NotationSpannerKind, Note, NoteAddr,
+    ObjectStyleOverride, ObjectStyleTarget, Part, PartGroup, PartGroupSymbol, PercussionInstrument,
     RegionalTranspositionTarget, RespellPolicy, Score, ScoreChange, ScoreMetadata, ScorePatch,
     ScoreSettings, ScoreStats, ScoreTemplate, ScoreView, ScoreViewLayoutOverrides, Staff,
     StaffGroup, StaffKind, StaffNoteheadScheme, StaffPresentation, StyleImportProvenance,

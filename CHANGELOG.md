@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- MusicXML now retains explicit metronome equations, including beat unit, dots,
+  parentheses, and rate, separately from playback tempo. The Quilter Prelude's
+  written quarter-note `=69` appears beside its opening tempo words in screen
+  SVG and print PDF. MusicXML roundtrip and score patches preserve the mark;
+  a mark without `<sound>` does not invent a playback tempo.
 - `audio-render --realize-ornaments` now uses the opt-in deterministic ornament
   schedule for WAV output. Realized attacks no longer carry the ornament mark
   as an unsupported, unrendered instruction; other articulations remain.

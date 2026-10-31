@@ -4574,7 +4574,18 @@ fn render_measure_text(
         };
         let offset_y = styled.offset_y.unwrap_or(0.0) + styled.relative_y.unwrap_or(0.0);
         let offset_x = styled.offset_x.unwrap_or(0.0) + styled.relative_x.unwrap_or(0.0);
-        let text_width = styled.text.chars().count() as f32 * 0.46 * space * text_scale;
+        let base_text_width = styled.text.chars().count() as f32 * 0.46 * space * text_scale;
+        let has_tempo_mark = styled.style == TextStyle::Generic
+            && measure.tempo_text.as_deref() == Some(styled.text.as_str())
+            && measure.metronome_mark.is_some();
+        let text_width = base_text_width
+            + if has_tempo_mark {
+                let mark = measure.metronome_mark.as_ref().expect("checked above");
+                metronome_mark_width(mark, 0.78 * space * text_scale)
+                    + 0.4 * 0.78 * space * text_scale
+            } else {
+                0.0
+            };
         // The grand-staff lane for below-staff words is constrained by both staves.
         // Keep its established clearance placement until beat anchoring can fit that lane.
         let beat_x = (!placement_below && text_scale > 1.0)
@@ -4759,6 +4770,16 @@ fn render_measure_text(
             attributes = attributes,
             text = escape_xml(&styled.text),
         );
+        if styled.style == TextStyle::Generic
+            && measure.tempo_text.as_deref() == Some(styled.text.as_str())
+            && let Some(mark) = &measure.metronome_mark
+        {
+            let size = 0.78 * space * text_scale;
+            let mark_x = text_x
+                + styled.text.chars().count() as f32 * 0.46 * space * text_scale
+                + 0.4 * size;
+            render_metronome_mark(body, mark, mark_x, y, size);
+        }
         if styled.style == acorde_core::TextStyle::FiguredBass
             && measure.figured_bass.iter().any(|figure| figure.extender)
         {
@@ -4777,7 +4798,129 @@ fn render_measure_text(
             );
         }
     }
+    if measure.tempo_text.is_none()
+        && let Some(mark) = &measure.metronome_mark
+    {
+        render_metronome_mark(
+            body,
+            mark,
+            content_x0,
+            bottom_y - 8.0 * space,
+            0.78 * space * text_scale,
+        );
+    }
     Ok(())
+}
+
+fn metronome_mark_width(mark: &acorde_core::MetronomeMark, size: f32) -> f32 {
+    let digits = mark.per_minute.to_string().len() as f32;
+    (1.7 + 0.55 * digits
+        + 0.25 * f32::from(mark.beat_unit_dots)
+        + if mark.parentheses { 0.55 } else { 0.0 })
+        * size
+}
+
+fn render_metronome_mark(
+    body: &mut String,
+    mark: &acorde_core::MetronomeMark,
+    x: f32,
+    y: f32,
+    size: f32,
+) {
+    let parenthesis_width = if mark.parentheses { 0.3 * size } else { 0.0 };
+    if mark.parentheses {
+        let _ = write!(
+            body,
+            r#"<text x="{}" y="{}" font-family="serif" font-size="{}">(</text>"#,
+            f(x),
+            f(y),
+            f(size),
+        );
+    }
+    let head_x = x + parenthesis_width + 0.38 * size;
+    let head_y = y - 0.2 * size;
+    let open_head = matches!(
+        mark.beat_unit,
+        acorde_core::Duration::Half | acorde_core::Duration::Whole
+    );
+    let fill = if open_head { "white" } else { "black" };
+    let _ = write!(
+        body,
+        r#"<g class="acorde-metronome" data-beat-unit="{}" data-bpm="{}"><ellipse cx="{}" cy="{}" rx="{}" ry="{}" transform="rotate(-20 {} {})" fill="{}" stroke="black" stroke-width="{}"/>"#,
+        mark.beat_unit.to_musicxml_type(),
+        mark.per_minute,
+        f(head_x),
+        f(head_y),
+        f(0.24 * size),
+        f(0.15 * size),
+        f(head_x),
+        f(head_y),
+        fill,
+        f(0.07 * size),
+    );
+    if !matches!(mark.beat_unit, acorde_core::Duration::Whole) {
+        let stem_x = head_x + 0.22 * size;
+        let stem_top = y - 1.05 * size;
+        let _ = write!(
+            body,
+            r#"<line x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
+            f(stem_x),
+            f(head_y),
+            f(stem_x),
+            f(stem_top),
+            f(0.08 * size),
+        );
+        if matches!(
+            mark.beat_unit,
+            acorde_core::Duration::Eighth | acorde_core::Duration::Sixteenth
+        ) {
+            let _ = write!(
+                body,
+                r#"<path d="M {} {} Q {} {} {} {}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                f(stem_x),
+                f(stem_top),
+                f(stem_x + 0.52 * size),
+                f(stem_top + 0.2 * size),
+                f(stem_x + 0.34 * size),
+                f(stem_top + 0.48 * size),
+                f(0.1 * size),
+            );
+            if matches!(mark.beat_unit, acorde_core::Duration::Sixteenth) {
+                let _ = write!(
+                    body,
+                    r#"<path d="M {} {} Q {} {} {} {}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                    f(stem_x),
+                    f(stem_top + 0.2 * size),
+                    f(stem_x + 0.52 * size),
+                    f(stem_top + 0.4 * size),
+                    f(stem_x + 0.34 * size),
+                    f(stem_top + 0.68 * size),
+                    f(0.1 * size),
+                );
+            }
+        }
+    }
+    for dot in 0..mark.beat_unit_dots {
+        let dot_x = x + parenthesis_width + (0.76 + 0.25 * f32::from(dot)) * size;
+        let _ = write!(
+            body,
+            r#"<circle cx="{}" cy="{}" r="{}" fill="black"/>"#,
+            f(dot_x),
+            f(head_y),
+            f(0.055 * size),
+        );
+    }
+    let equation_x = x + parenthesis_width + (1.12 + 0.25 * f32::from(mark.beat_unit_dots)) * size;
+    let closing = if mark.parentheses { ")" } else { "" };
+    let _ = write!(
+        body,
+        r#"<text x="{}" y="{}" font-family="serif" font-size="{}">={}{}</text></g>"#,
+        f(equation_x),
+        f(y),
+        f(size),
+        mark.per_minute,
+        closing,
+    );
 }
 
 /// Anchor a MusicXML direction to the note spacing actually chosen for this row. Interpolating
