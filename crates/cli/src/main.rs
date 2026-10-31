@@ -440,6 +440,9 @@ enum Commands {
         /// Use complete SF2 synthesis (filters, modulation and envelopes); requires 16–192 kHz
         #[arg(long)]
         full_sf2: bool,
+        /// Realize written trills, turns and related ornaments as deterministic note attacks
+        #[arg(long)]
+        realize_ornaments: bool,
         /// Level the completed PCM16 WAV to a peak between -48 and -0.1 dBFS
         #[arg(long, value_name = "DBFS")]
         normalize_peak_dbfs: Option<f32>,
@@ -697,6 +700,7 @@ fn run(cli: &Cli) -> Result<(), String> {
             channels,
             release_tail_ms,
             full_sf2,
+            realize_ornaments,
             normalize_peak_dbfs,
         } => cmd_audio_render(
             input,
@@ -707,6 +711,7 @@ fn run(cli: &Cli) -> Result<(), String> {
                 channels: *channels,
                 release_tail_ms: *release_tail_ms,
                 full_sf2: *full_sf2,
+                realize_ornaments: *realize_ornaments,
                 normalize_peak_dbfs: *normalize_peak_dbfs,
             },
         ),
@@ -2198,6 +2203,7 @@ struct AudioRenderOptions {
     channels: u8,
     release_tail_ms: u32,
     full_sf2: bool,
+    realize_ornaments: bool,
     normalize_peak_dbfs: Option<f32>,
 }
 
@@ -2235,9 +2241,16 @@ fn cmd_audio_render(
         }),
         ..acorde_core::OfflineRenderRequest::default()
     };
-    let manifest =
-        acorde_core::build_offline_render_manifest(&score, &PlaybackOptions::default(), &request)
-            .map_err(|error| format!("cannot schedule audio: {error}"))?;
+    let playback_options = PlaybackOptions {
+        realization_profile: if options.realize_ornaments {
+            acorde_core::PlaybackRealizationProfile::OrnamentArpeggioV1
+        } else {
+            acorde_core::PlaybackRealizationProfile::Authored
+        },
+        ..PlaybackOptions::default()
+    };
+    let manifest = acorde_core::build_offline_render_manifest(&score, &playback_options, &request)
+        .map_err(|error| format!("cannot schedule audio: {error}"))?;
     let size = std::fs::metadata(soundfont)
         .map_err(|error| format!("cannot inspect '{}': {error}", soundfont.display()))?
         .len();
@@ -3332,6 +3345,42 @@ mod tests {
             .unwrap_err()
             .contains("issue")
         );
+    }
+
+    #[test]
+    fn audio_render_can_opt_in_to_realized_turns() {
+        use acorde_core::{Articulation, Duration, Note, Pitch, Step};
+
+        let directory =
+            std::env::temp_dir().join(format!("acorde-cli-turn-audio-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let input = directory.join("turn.musicxml");
+        let output = directory.join("turn.wav");
+        let soundfont = fixture("UprightPianoKW-small-20190703.sf2");
+        let mut score = Score::new("Turn", 120, 4, 4, 0, 1);
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        note.articulations.push(Articulation::Turn);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        std::fs::write(&input, acorde_io::serialize_musicxml(&score).unwrap()).unwrap();
+        let args = [
+            "audio-render",
+            input.to_str().unwrap(),
+            soundfont.to_str().unwrap(),
+            output.to_str().unwrap(),
+            "--full-sf2",
+            "--sample-rate",
+            "16000",
+            "--channels",
+            "1",
+        ];
+        assert!(
+            invoke(&args)
+                .unwrap_err()
+                .contains("unrealized note expression")
+        );
+        invoke(&[&args[..], &["--realize-ornaments"]].concat()).unwrap();
+        assert!(std::fs::metadata(&output).unwrap().len() > 44);
+        std::fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]

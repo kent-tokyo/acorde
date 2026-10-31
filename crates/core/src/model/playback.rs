@@ -2476,7 +2476,16 @@ fn apply_realization_profile(
     let mut realized = Vec::with_capacity(events.len());
     for event in events {
         let offsets = ornament_offsets(&event.articulations);
-        if offsets.is_empty() || event.is_metronome || event.duration_beats <= 0.0 {
+        if offsets.is_empty()
+            || event.is_metronome
+            || event.duration_beats <= 0.0
+            || event
+                .articulations
+                .iter()
+                .filter(|mark| is_playback_ornament(mark))
+                .count()
+                != 1
+        {
             realized.push(event);
             continue;
         }
@@ -2492,6 +2501,11 @@ fn apply_realization_profile(
             attack.time_secs += attack_secs * ordinal as f64;
             attack.duration_beats = attack_beats;
             attack.duration_secs = attack_secs;
+            // The selected ornament is already represented by these attacks.
+            // Keep unrelated articulations, so a renderer can still apply them.
+            attack
+                .articulations
+                .retain(|mark| !is_playback_ornament(mark));
             if ordinal > 0 {
                 attack.chord_symbol = None;
             }
@@ -2507,6 +2521,18 @@ fn shift_event_time(event: &mut PlaybackEvent, offset_beats: f64) {
     }
     event.time_beats += offset_beats;
     event.time_secs += event.duration_secs * (offset_beats / event.duration_beats);
+}
+
+fn is_playback_ornament(mark: &Articulation) -> bool {
+    matches!(
+        mark,
+        Articulation::Trill
+            | Articulation::Shake
+            | Articulation::Mordent
+            | Articulation::InvertedMordent
+            | Articulation::Turn
+            | Articulation::InvertedTurn
+    )
 }
 
 fn ornament_offsets(articulations: &[Articulation]) -> Vec<i8> {
@@ -3325,6 +3351,7 @@ mod tests {
             assert!((event.duration_beats - 0.25).abs() < 1e-9);
             assert!((event.time_secs - index as f64 * 0.125).abs() < 1e-9);
             assert!((event.duration_secs - 0.125).abs() < 1e-9);
+            assert!(!event.articulations.contains(&Articulation::Trill));
         }
     }
 

@@ -25,9 +25,11 @@ PCM16 WAV. The CLI exposes this as `acorde audio-render score.musicxml piano.sf2
 It uses linear sample interpolation and writes mono or stereo output. SF2 note releases decay
 through the requested tail, and score pedal spans hold notes until pedal-up on the same part.
 This basic native renderer does not implement MIDI controller automation (including CC64),
-program-change or pitch-bend automation, ornament realization, effects, SF3 input, or live audio
+program-change or pitch-bend automation, effects, SF3 input, or live audio
 playback. Unsupported expressive events return errors. A supplied SF2 must contain every
 requested bank/program/key/velocity zone.
+The CLI can opt into the core's deterministic trill, turn and related ornament attacks
+with `--realize-ornaments`; the renderer still rejects unhandled expression explicitly.
 
 The optional `full-sf2` feature adds `render_offline_wav_full_sf2`, backed by
 [RustySynth](https://github.com/sinshu/rustysynth) (MIT). The CLI enables it with

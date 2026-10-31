@@ -185,9 +185,10 @@ jobs:
           # channels and safe reimport measure 6,000,733 bytes locally. Exact
           # direction beats and their MusicXML roundtrip measure 6,020,159 bytes
           # locally. Written grace playback measures 6,028,234 bytes on macOS,
-          # 4,928 bytes above the pre-change build. Keep a narrow cap for the
-          # full print-aware binding while accounting for this added schedule.
-          test "$size" -le 6035000
+          # 4,928 bytes above the pre-change build. Opt-in ornament realization
+          # measures 6,033,188 bytes on macOS, 4,954 bytes above the grace build.
+          # Keep a narrow cap for the full print-aware binding.
+          test "$size" -le 6040000
 
   renderer-benchmark:
     name: Renderer performance budget

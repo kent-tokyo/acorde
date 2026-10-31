@@ -576,10 +576,47 @@ four onsets. The alphaTab MIDI has 603 attacks overall, so this focused result
 does not establish general playback or audio-quality superiority. A checked-in
 synthetic MusicXML → MSCZ regression reproduces the same rhythmic shape without
 depending on the private source file.
-The complete score's full-SF2 WAV remains blocked by an unrelated `Turn` in
-measure 17: `audio-render` reports `unrealized note expression` rather than
-silently dropping it. The note schedule improvement therefore does not establish
-full-score audio coverage; that gap remains in Issue #203.
+Without ornament realization, the complete score's full-SF2 WAV reports
+`unrealized note expression` for a `Turn` in measure 17. This remains an
+explicit default boundary rather than silently dropping the mark.
+
+### Opt-in ornament WAV on the same score
+
+`audio-render --realize-ornaments` uses the existing versioned
+`ornament-arpeggio-v1` event policy. Once a turn, trill or related mark has
+become individual attacks, those attacks no longer carry the same mark as an
+unhandled instruction; other articulations remain. A note with multiple
+different ornament marks is still left unhandled and produces an explicit
+provider error. The default playback policy is unchanged.
+
+On the same Chopin MusicXML after MSCZ round trip, using alphaTab 1.8.4's
+bundled `sonivox.sf2` (SHA-256
+`4978cf37e7164206f2d22dc4fdf4020ffe040787210bf781e31bdc79961f59ef`),
+Acorde full-SF2 renders **603 events** to a 48 kHz stereo PCM16 WAV. It has
+2,520,000 frames, SHA-256
+`e65b241d6bf7da6fe96f556cd8c710a0241fa1506c6dcabfd6df0a180d620dd9`,
+sample peak 0.174286 and zero PCM rail samples. alphaTab's public export on
+the same MusicXML, SF2 and rate gives 2,424,000 stereo float32 frames, SHA-256
+`f6b487319d722bf86cd6b509f863c2f9cffe64f8f26851f952dafe8e899e26b0`,
+sample peak 0.667700, no samples outside [-1, 1], and no non-finite samples.
+The different output lengths include Acorde's one-second release tail and its
+chosen final-fermata hold. The peak difference reflects different gain policies.
+These figures establish complete, finite output on this score, not better
+sound quality or equal interpretation. Gain-independent local waveform
+correlations vary substantially across the score, so listening and a broader
+permissioned corpus remain necessary under Issue #203.
+
+```sh
+SF2=/tmp/acorde-alphatab-1_8_4/node_modules/@coderline/alphatab/dist/soundfont/sonivox.sf2
+acorde audio-render /tmp/acorde-chopin-prelude-op28-4.mscz "$SF2" \
+  /tmp/acorde-chopin-grace-turn-48k.wav --full-sf2 --realize-ornaments \
+  --sample-rate 48000 --channels 2
+node scripts/export_alphatab_audio.mjs /tmp/acorde-alphatab-1_8_4 \
+  /tmp/acorde-chopin-prelude-op28-4.musicxml "$SF2" \
+  /tmp/alphatab-chopin-48k.f32le 48000
+python3 scripts/compare_playback_audio.py /tmp/acorde-chopin-grace-turn-48k.wav \
+  /tmp/alphatab-chopin-48k.f32le 0,500,1000,2000,5000,10000,20000,30000,40000
+```
 
 ## Evidence boundary
 
