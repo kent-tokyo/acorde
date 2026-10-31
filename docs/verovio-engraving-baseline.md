@@ -327,7 +327,7 @@ The same pinned Quilter MXL has two `L.H.` directions and `poco cresc.` in its
 fourth measure. Verovio 6.3.0 prints all three. Acorde's importer previously
 kept only the first words direction per measure; the later marks were absent
 from its PDF and from a MusicXML roundtrip. The importer and exporter now retain
-all three. The page SVG reserves an eight-space grand-staff gap and 56 mm system
+all three. The page SVG reserves a nine-space grand-staff gap and 60 mm system
 height for a piano score with below-staff words. It also moves the words below
 nearby noteheads when the source engraving's vertical hint would pull them into
 the notation. A fixture regression checks both `L.H.` marks and clearance for
@@ -338,7 +338,10 @@ The Acorde density PDF remains one A4 page, now with four systems grouped
 same-input Verovio SVG were inspected at 1400 px. Acorde's directions are
 present, but the two `L.H.` marks stack at one horizontal position because
 measure text does not yet retain its beat position. Its notation and publication
-type remain smaller than Verovio's. The MusicXML import still reports 103
+type remain smaller than Verovio's. A follow-up PDF review found `rall.` too
+close to the lower staff at the previous eight-space/56 mm setting; the
+nine-space/60 mm setting leaves about 10 px below its baseline at 1400 px.
+The MusicXML import still reports 103
 diagnostics, so this is a focused completeness and clearance improvement.
 
 ## Gates before a quality claim
