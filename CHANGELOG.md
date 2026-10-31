@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Playback now sounds written grace notes before the following main note, borrowing
+  a bounded slice from the preceding rhythmic slot (or the main note at the
+  beginning of playback). MusicXML-to-MSCZ round trips preserve those attacks.
+  On the pinned Chopin Prelude case, the two missing grace attacks now sound
+  without moving the following written main-note onsets.
 - Physical print pages now move a below-staff direction a short distance right
   when its text box still touches a chord after vertical clearance. The move is
   capped at three staff spaces so longer directions keep their measure anchor.

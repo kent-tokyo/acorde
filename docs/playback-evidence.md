@@ -544,6 +544,43 @@ reader does not classify. Those are not evidence of 173 alphaTab errors. The sam
 Acorde correctness only within the reader's supported subset and does not show general timing
 superiority over alphaTab.
 
+## Written grace timing against the same-score MIDI (2026-10-31)
+
+Issue [#249](https://github.com/kent-tokyo/acorde/issues/249) identifies two
+written B4 grace notes in Chopin's Prelude Op. 28 No. 4. Acorde previously
+preserved them in MusicXML and MSCZ but omitted both playback attacks. The
+default event schedule now gives each eighth grace a deterministic 0.125-beat
+slot before its following main note. It takes that slot from the preceding
+rhythmic position, truncating a preceding sounding note if necessary. A grace
+at playback start borrows from the following main note instead. Consecutive
+graces share the slot in written order. Cue notes remain silent. The policy
+does not claim to reproduce a particular pianist's grace interpretation.
+
+The issue's MusicXML was read locally from the private fisarmonica repository
+(SHA-256 `b774112bfdf99d60b600b8bb24996c99cad9fd1c19b2ced66cf45d8bbd75ed89`);
+it is not copied into Acorde. The independent [Mutopia source MIDI](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=468)
+has SHA-256 `c1d7e05aa4e6e2baeec2e9108402a969c16d5df302b82fd66d110634697f2e3b`.
+After MusicXML → MSCZ → playback, Acorde emits 600 attacks, matching the source
+MIDI's count. The two grace B4 onsets are 43.875 and 75.875 beats; the source
+MIDI has 43.885417 and 75.885417. The following A4 notes remain at 44 and 76
+beats in both. The preceding F♯4 notes end 0.010417 beat earlier than in the
+source MIDI. The final fermata duration still differs by design. The source
+MIDI's tempo map differs from the imported MusicXML's 120 BPM, so this is a
+beat-position comparison, not an absolute-seconds claim.
+
+With `@coderline/alphatab@1.8.4`, the same MusicXML produces a MIDI file
+(SHA-256 `f8dae2042c8d8786f7aaffb6f1928736f19c160e639eaa7325ac399d9f62ef5f`)
+whose two B4 attacks are at 44 and 76 beats and whose following A4 attacks are
+at 44.125 and 76.125. Acorde is closer to the independent source MIDI on these
+four onsets. The alphaTab MIDI has 603 attacks overall, so this focused result
+does not establish general playback or audio-quality superiority. A checked-in
+synthetic MusicXML → MSCZ regression reproduces the same rhythmic shape without
+depending on the private source file.
+The complete score's full-SF2 WAV remains blocked by an unrelated `Turn` in
+measure 17: `audio-render` reports `unrealized note expression` rather than
+silently dropping it. The note schedule improvement therefore does not establish
+full-score audio coverage; that gap remains in Issue #203.
+
 ## Evidence boundary
 
 This local evidence proves deterministic score projection, event scheduling/position calculation,

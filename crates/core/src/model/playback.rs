@@ -1965,6 +1965,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                 let mut time_beats = 0.0f64;
                 let mut time_secs_cursor = 0.0f64;
                 let mut current_bpm = bpm;
+                let mut prior_note_events = 0..0;
                 for (seq_position, &idx) in seq.iter().enumerate() {
                     let measure = match staff.measures.get(idx) {
                         Some(m) => m,
@@ -2088,6 +2089,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                                     instrument.map_or(0, |value| value.transpose_semitones),
                                 )
                             };
+                            let main_event_start = events.len();
                             for (pitch_index, pitch) in note.pitches.iter().enumerate() {
                                 // An unpitched note sounds its instrument's percussion key.
                                 let percussion = part.percussion_key(note, pitch_index);
@@ -2148,6 +2150,164 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                                     is_metronome: false,
                                 });
                             }
+                            let main_event_end = events.len();
+                            let voice = &measure.voices[voice_idx];
+                            let mut grace_start = note_index;
+                            while grace_start > 0 && voice[grace_start - 1].is_grace {
+                                grace_start -= 1;
+                            }
+                            if grace_start < note_index && main_event_start < main_event_end {
+                                let graces = &voice[grace_start..note_index];
+                                // A short written grace group occupies part of the preceding
+                                // rhythmic slot. At the start of playback it takes time from
+                                // the following main note instead; the bar length is unchanged.
+                                let written: Vec<f64> = graces
+                                    .iter()
+                                    .map(|grace| {
+                                        (grace.duration.beats(grace.dot_count) * 0.25).min(0.25)
+                                    })
+                                    .collect();
+                                let requested: f64 = written.iter().sum();
+                                let prior_onset = prior_note_events
+                                    .clone()
+                                    .next()
+                                    .map(|index| events[index].time_beats - measure_start_beats)
+                                    .unwrap_or(0.0);
+                                let before = requested
+                                    .min(local_beats * 0.5)
+                                    .min((local_beats - prior_onset).max(0.0) * 0.5);
+                                let take_from_previous = before > 0.0;
+                                let grace_total = if take_from_previous {
+                                    before
+                                } else {
+                                    requested.min(sounding_dur * 0.5)
+                                };
+                                if grace_total > 0.0 {
+                                    let grace_start_beat = if take_from_previous {
+                                        local_beats - grace_total
+                                    } else {
+                                        local_beats
+                                    };
+                                    let grace_start_secs = measure_start_secs
+                                        + tempo_ramp_seconds(
+                                            current_bpm,
+                                            ramp_end_bpm,
+                                            measure_beats,
+                                            grace_start_beat,
+                                        );
+                                    if take_from_previous {
+                                        for event in &mut events[prior_note_events.clone()] {
+                                            if event.time_beats + event.duration_beats
+                                                > measure_start_beats + grace_start_beat
+                                            {
+                                                event.duration_beats = measure_start_beats
+                                                    + grace_start_beat
+                                                    - event.time_beats;
+                                                event.duration_secs =
+                                                    grace_start_secs - event.time_secs;
+                                            }
+                                        }
+                                    } else {
+                                        let shifted_beat = local_beats + grace_total;
+                                        let shifted_secs = measure_start_secs
+                                            + tempo_ramp_seconds(
+                                                current_bpm,
+                                                ramp_end_bpm,
+                                                measure_beats,
+                                                shifted_beat,
+                                            );
+                                        for event in &mut events[main_event_start..main_event_end] {
+                                            event.time_beats = measure_start_beats + shifted_beat;
+                                            event.time_secs = shifted_secs;
+                                            event.duration_beats -= grace_total;
+                                            event.duration_secs = tempo_ramp_seconds(
+                                                current_bpm,
+                                                ramp_end_bpm,
+                                                measure_beats,
+                                                local_beats + sounding_dur,
+                                            ) - tempo_ramp_seconds(
+                                                current_bpm,
+                                                ramp_end_bpm,
+                                                measure_beats,
+                                                shifted_beat,
+                                            );
+                                        }
+                                    }
+                                    let mut cursor = grace_start_beat;
+                                    for (offset, grace) in graces.iter().enumerate() {
+                                        let grace_beats = grace_total * written[offset] / requested;
+                                        let grace_end = cursor + grace_beats;
+                                        for (pitch_index, pitch) in grace.pitches.iter().enumerate()
+                                        {
+                                            let percussion =
+                                                part.percussion_key(grace, pitch_index);
+                                            let pitch_transpose =
+                                                if percussion.is_some() { 0 } else { transpose };
+                                            let mut event = events[main_event_start].clone();
+                                            event.address = Some(format!(
+                                                "{part_index}:{staff_index}:{idx}:{voice_idx}:{}",
+                                                grace_start + offset
+                                            ));
+                                            event.source = Some(NoteAddr {
+                                                part: part_index,
+                                                staff: staff_index,
+                                                measure: idx,
+                                                voice: voice_idx,
+                                                note: grace_start + offset,
+                                            });
+                                            event.pitch_midi = percussion.map_or_else(
+                                                || {
+                                                    (pitch.to_midi() + pitch_transpose as i16)
+                                                        .clamp(0, 127)
+                                                        as u8
+                                                },
+                                                |key| key.min(127),
+                                            );
+                                            event.pitch_midi_cents = if percussion.is_some() {
+                                                i32::from(event.pitch_midi) * 100
+                                            } else {
+                                                pitch.to_midi_cents()
+                                                    + i32::from(pitch_transpose) * 100
+                                            };
+                                            event.time_beats = measure_start_beats + cursor;
+                                            event.time_secs = measure_start_secs
+                                                + tempo_ramp_seconds(
+                                                    current_bpm,
+                                                    ramp_end_bpm,
+                                                    measure_beats,
+                                                    cursor,
+                                                );
+                                            event.duration_beats = grace_beats;
+                                            event.duration_secs = tempo_ramp_seconds(
+                                                current_bpm,
+                                                ramp_end_bpm,
+                                                measure_beats,
+                                                grace_end,
+                                            ) - tempo_ramp_seconds(
+                                                current_bpm,
+                                                ramp_end_bpm,
+                                                measure_beats,
+                                                cursor,
+                                            );
+                                            event.articulations = grace.articulations.clone();
+                                            event.pitch_bend_curve =
+                                                grace.guitar_bend_curve.clone();
+                                            event.guitar_technique = grace.guitar_technique.clone();
+                                            event.chord_symbol = grace.chord_symbol.clone();
+                                            event.post_note_pause_beats = 0.0;
+                                            event.velocity = dynamics.velocity(
+                                                seq_position,
+                                                onset_written_beats,
+                                                grace.dynamic,
+                                            );
+                                            event.pedal = grace.pedal_start;
+                                            events.push(event);
+                                        }
+                                        cursor = grace_end;
+                                    }
+                                }
+                            }
+                            prior_note_events = main_event_start..main_event_end;
                         }
                         local_beats += dur;
                     }
@@ -3195,15 +3355,85 @@ mod tests {
     }
 
     #[test]
-    fn grace_notes_excluded() {
+    fn written_grace_steals_time_from_preceding_note() {
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        let previous = Note::new(Pitch::new(Step::F, 4), Duration::Half);
+        let mut grace = Note::new(Pitch::new(Step::B, 4), Duration::Eighth);
+        grace.is_grace = true;
+        let regular = Note::new(Pitch::new(Step::A, 4), Duration::Quarter);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![previous, grace, regular];
+        let events = to_playback_events(&score, &opts(None));
+        assert_eq!(events.len(), 3);
+        assert_eq!(
+            events
+                .iter()
+                .map(|event| event.pitch_midi)
+                .collect::<Vec<_>>(),
+            vec![65, 71, 69]
+        );
+        assert!((events[0].duration_beats - 1.875).abs() < 1e-9);
+        assert!((events[1].time_beats - 1.875).abs() < 1e-9);
+        assert!((events[1].duration_beats - 0.125).abs() < 1e-9);
+        assert!((events[2].time_beats - 2.0).abs() < 1e-9);
+        assert!((events[1].time_secs - 0.9375).abs() < 1e-9);
+    }
+
+    #[test]
+    fn opening_grace_borrows_from_main_note_without_moving_later_notes() {
+        let mut score = Score::new("opening grace", 120, 4, 4, 0, 1);
         let mut grace = Note::new(Pitch::new(Step::D, 4), Duration::Eighth);
         grace.is_grace = true;
-        let regular = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
-        score.parts[0].staves[0].measures[0].voices[0] = vec![grace, regular];
+        let main = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        let next = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![grace, main, next];
         let events = to_playback_events(&score, &opts(None));
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].pitch_midi, 60);
+        assert_eq!(events.len(), 3);
+        assert_eq!(
+            events
+                .iter()
+                .map(|event| event.pitch_midi)
+                .collect::<Vec<_>>(),
+            vec![62, 60, 64]
+        );
+        assert!((events[0].time_beats).abs() < 1e-9);
+        assert!((events[0].duration_beats - 0.125).abs() < 1e-9);
+        assert!((events[1].time_beats - 0.125).abs() < 1e-9);
+        assert!((events[1].duration_beats - 0.875).abs() < 1e-9);
+        assert!((events[2].time_beats - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn consecutive_graces_are_ordered_and_cue_notes_remain_silent() {
+        let mut score = Score::new("two graces", 120, 4, 4, 0, 1);
+        let mut first_grace = Note::new(Pitch::new(Step::D, 4), Duration::Sixteenth);
+        first_grace.is_grace = true;
+        let mut second_grace = Note::new(Pitch::new(Step::E, 4), Duration::Sixteenth);
+        second_grace.is_grace = true;
+        let mut cue = Note::new(Pitch::new(Step::B, 4), Duration::Eighth);
+        cue.is_cue = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            first_grace,
+            second_grace,
+            Note::new(Pitch::new(Step::F, 4), Duration::Quarter),
+            cue,
+        ];
+        let events = to_playback_events(&score, &opts(None));
+        assert_eq!(
+            events
+                .iter()
+                .map(|event| event.pitch_midi)
+                .collect::<Vec<_>>(),
+            vec![60, 62, 64, 65]
+        );
+        assert_eq!(
+            events
+                .iter()
+                .map(|event| event.time_beats)
+                .collect::<Vec<_>>(),
+            vec![0.0, 0.875, 0.9375, 1.0]
+        );
+        assert!((events[0].duration_beats - 0.875).abs() < 1e-9);
     }
 
     #[test]
