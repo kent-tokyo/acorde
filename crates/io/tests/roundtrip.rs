@@ -97,6 +97,32 @@ static OPENSCORE_LIEDER_QUILTER_MXL: &[u8] =
     include_bytes!("../../../tests/fixtures/openscore_lieder_quilter_prelude.mxl");
 
 #[test]
+fn quilter_slur_bezier_side_survives_musicxml_roundtrip() {
+    use acorde_core::NotationSpannerKind;
+
+    let score = acorde_io::parse_mxl(OPENSCORE_LIEDER_QUILTER_MXL).expect("CC0 MXL imports");
+    let opening_slur = |score: &acorde_core::Score, staff| {
+        score
+            .spanners
+            .iter()
+            .find(|span| {
+                span.kind == NotationSpannerKind::Slur
+                    && span.start.part == 0
+                    && span.start.staff == staff
+            })
+            .expect("first slur on staff")
+            .placement
+            .clone()
+    };
+    assert_eq!(opening_slur(&score, 0).as_deref(), Some("above"));
+    assert_eq!(opening_slur(&score, 1).as_deref(), Some("below"));
+    let xml = serialize_musicxml(&score).expect("MusicXML exports");
+    let restored = parse_musicxml(&xml).expect("MusicXML reimports");
+    assert_eq!(opening_slur(&restored, 0).as_deref(), Some("above"));
+    assert_eq!(opening_slur(&restored, 1).as_deref(), Some("below"));
+}
+
+#[test]
 fn quilter_common_time_symbol_survives_musicxml_roundtrip() {
     let score = acorde_io::parse_mxl(OPENSCORE_LIEDER_QUILTER_MXL).expect("CC0 MXL imports");
     assert_eq!(

@@ -477,6 +477,23 @@ page with four systems (2+2+3+3), while the same-input Verovio page has three;
 the 103 import diagnostics are unchanged. This fixes one notation mismatch,
 not the remaining differences in note size, line filling, and typography.
 
+### Verovio-guided slur side and taper after v1.3.7 (2026-10-31)
+
+The same Quilter A4 input starts a long upper-staff slur with positive MusicXML
+`bezier-y` but no explicit `placement`. Verovio 6.3.0 bows it above the notes;
+Acorde v1.3.7 used the up-stem fallback and drew it below, through the phrase.
+The importer now uses the starting Bezier control's sign only when `placement`
+is absent; an explicit side still wins. The first lower-staff slur has a
+negative control and remains below. MusicXML export/re-import retains both
+resolved sides. The exact authored curve controls are not preserved.
+
+The page SVG now draws a closed, tapered quadratic bow for both same-system
+slurs and continuations. The updated A4 PDF was rasterized at 1400 px and
+inspected against the same Verovio page. Quilter remains one page with four
+systems (2+2+3+3), compared with Verovio's three. The import still reports
+103 diagnostics. This fixes the direction and visibility of one prominent
+slur; it does not prove clearance for every slur or print-quality parity.
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.

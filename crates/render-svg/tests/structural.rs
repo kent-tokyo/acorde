@@ -29,8 +29,9 @@ fn slur_geometries(svg: &str) -> Vec<[f32; 6]> {
             let numbers = path
                 .split(['M', 'Q', ',', ' '])
                 .filter_map(|value| value.parse::<f32>().ok())
+                .take(6)
                 .collect::<Vec<_>>();
-            numbers.try_into().expect("quadratic slur geometry")
+            numbers.try_into().expect("outer slur bow geometry")
         })
         .collect()
 }

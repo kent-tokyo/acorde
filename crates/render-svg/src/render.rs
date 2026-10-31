@@ -5902,16 +5902,16 @@ fn render_same_row_span(
             let end_y = y2 + side * 0.65 * space;
             let extreme = slur_extreme.unwrap_or(if above { y1.min(y2) } else { y1.max(y2) });
             let control_y = extreme + side * 2.4 * space;
-            let _ = write!(
+            render_slur_ribbon(
                 body,
-                r#"<path class="acorde-slur" d="M {},{} Q {},{} {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
-                f(x1 + direction * 0.3 * space),
-                f(start_y),
-                f((x1 + x2) / 2.0),
-                f(control_y),
-                f(x2 - direction * 0.3 * space),
-                f(end_y),
-                f(0.08 * space)
+                x1 + direction * 0.3 * space,
+                start_y,
+                (x1 + x2) / 2.0,
+                control_y,
+                x2 - direction * 0.3 * space,
+                end_y,
+                above,
+                space,
             );
         }
         SpanMark::TrillLine { .. } | SpanMark::Glissando { .. } => {
@@ -6277,11 +6277,13 @@ fn render_span_segment(
             } else {
                 (x1, x2 - 0.3 * space)
             };
-            render_curve(
+            let control_y = anchor_y + side * 1.8 * space;
+            render_slur_ribbon(
                 body,
-                "acorde-slur",
                 start_x,
                 anchor_y,
+                (start_x + end_x) / 2.0,
+                control_y,
                 end_x,
                 anchor_y,
                 above,
@@ -6369,6 +6371,38 @@ fn render_curve(
         f(x2),
         f(y2),
         f(0.08 * space)
+    );
+}
+
+/// A closed, tapered bow remains visible at print scale without square stroke
+/// ends. The two coincident endpoints taper to zero; the inner control stays
+/// toward the noteheads, leaving the thickest part near the middle.
+#[allow(clippy::too_many_arguments)]
+fn render_slur_ribbon(
+    body: &mut String,
+    x1: f32,
+    y1: f32,
+    control_x: f32,
+    control_y: f32,
+    x2: f32,
+    y2: f32,
+    above: bool,
+    space: f32,
+) {
+    let inner_y = control_y + (if above { 0.36 } else { -0.36 }) * space;
+    let _ = write!(
+        body,
+        r#"<path class="acorde-slur" d="M {},{} Q {},{} {},{} Q {},{} {},{} Z" fill="black"/>"#,
+        f(x1),
+        f(y1),
+        f(control_x),
+        f(control_y),
+        f(x2),
+        f(y2),
+        f(control_x),
+        f(inner_y),
+        f(x1),
+        f(y1),
     );
 }
 
