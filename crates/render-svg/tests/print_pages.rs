@@ -192,6 +192,17 @@ fn openscore_five_staff_score_reserves_space_for_two_lyric_verses() {
                 .unwrap()
         })
         .collect::<Vec<_>>();
+    let tempo = svgs[0]
+        .split_once(r#"class="acorde-measure-text acorde-measure-text-generic""#)
+        .expect("opening tempo direction")
+        .1;
+    let tempo_size = svg_attribute_f32(tempo, "font-size");
+    let tempo_y = svg_attribute_f32(tempo, "y");
+    assert!(tempo_size >= 12.5, "tempo text below 3.1 mm: {tempo_size}");
+    assert!(
+        staff_line_ys[4] - (tempo_y + 0.25 * tempo_size) >= 16.0,
+        "tempo text enters the first staff: {tempo_y}, {staff_line_ys:?}"
+    );
     let second_verse_y = svgs[0]
         .split_once(r#"class="acorde-lyric-verse""#)
         .expect("second verse on first page")
@@ -302,9 +313,9 @@ fn dense_piano_opening_gets_room_for_clef_key_and_meter() {
         .1;
     let tempo_size = svg_attribute_f32(tempo, "font-size");
     let tempo_y = svg_attribute_f32(tempo, "y");
-    assert!(tempo_size >= 7.8, "tempo text below 1.95 mm: {tempo_size}");
+    assert!(tempo_size >= 13.5, "tempo text below 3.4 mm: {tempo_size}");
     assert!(
-        staff_lines[4] - tempo_y >= 20.0,
+        staff_lines[4] - (tempo_y + 0.25 * tempo_size) >= 16.0,
         "tempo text too close to first staff: {tempo_y}, {staff_lines:?}"
     );
     let brace = pages[0]
