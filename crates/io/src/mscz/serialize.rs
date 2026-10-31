@@ -263,8 +263,13 @@ pub fn serialize_mscx(score: &Score) -> Result<String, Error> {
     let mut declared_staff_id = 1usize;
     for part in &score.parts {
         xml.push_str("<Part>");
-        for _ in &part.staves {
-            write!(xml, "<Staff id=\"{declared_staff_id}\"/>").map_err(fmt_error)?;
+        for staff in &part.staves {
+            write!(
+                xml,
+                "<Staff id=\"{declared_staff_id}\"><defaultClef>{}</defaultClef></Staff>",
+                clef_name(&staff.clef)
+            )
+            .map_err(fmt_error)?;
             declared_staff_id = declared_staff_id.saturating_add(1);
         }
         write!(xml, "<trackName>{}</trackName>", escape(&part.name)).map_err(fmt_error)?;
