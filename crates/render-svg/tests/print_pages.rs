@@ -395,6 +395,29 @@ fn quilter_prints_all_directions_with_clearance_between_grand_staves() {
         later_lower_top - later_baseline >= later_font_size * 0.6,
         "later direction too close to lower staff: {later_baseline}, {later_lower_top}"
     );
+
+    let later_x = svg_attribute_f32(later_direction, "x");
+    let later_width = "rall.".chars().count() as f32 * later_font_size * (0.46 / 0.78);
+    let text_top = later_baseline - later_font_size;
+    let text_bottom = later_baseline + later_font_size * 0.16;
+    let overlapping_heads = pages[0]
+        .split(r#"class="acorde-notehead""#)
+        .skip(1)
+        .filter(|head| {
+            let x = svg_attribute_f32(head, "cx");
+            let y = svg_attribute_f32(head, "cy");
+            let rx = svg_attribute_f32(head, "rx");
+            let ry = svg_attribute_f32(head, "ry");
+            x + rx + 2.0 > later_x
+                && x - rx - 2.0 < later_x + later_width
+                && y + ry + 2.0 > text_top
+                && y - ry - 2.0 < text_bottom
+        })
+        .count();
+    assert_eq!(
+        overlapping_heads, 0,
+        "rall. overlaps noteheads at x={later_x}, y={later_baseline}, width={later_width}"
+    );
 }
 
 #[test]
