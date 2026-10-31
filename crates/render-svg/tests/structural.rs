@@ -1592,6 +1592,7 @@ fn metadata_exposes_measure_text_style_and_location() {
     use acorde_layout::{LayoutConfig, compute_layout};
     let mut score = common::satb_major();
     score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        position_beats: None,
         style: TextStyle::Technique,
         text: "con sordino".to_string(),
         placement: None,
@@ -1622,6 +1623,7 @@ fn metadata_exposes_score_level_text_for_browser_hosts() {
 
     let mut score = Score::default();
     score.texts.push(StyledText {
+        position_beats: None,
         style: TextStyle::Expression,
         text: "Subtitle".to_string(),
         placement: None,
@@ -1659,6 +1661,7 @@ fn measure_text_moves_outside_note_annotation_lane() {
         degrees: Vec::new(),
     });
     score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        position_beats: None,
         style: TextStyle::Expression,
         text: "above".to_string(),
         placement: None,
@@ -1691,6 +1694,7 @@ fn measure_text_uses_shared_priority_collision_lanes() {
     let measure = &mut score.parts[0].staves[0].measures[0];
     measure.texts = vec![
         StyledText {
+            position_beats: None,
             style: TextStyle::Generic,
             text: "tempo".to_string(),
             placement: None,
@@ -1700,6 +1704,7 @@ fn measure_text_uses_shared_priority_collision_lanes() {
             relative_y: None,
         },
         StyledText {
+            position_beats: None,
             style: TextStyle::RehearsalMark,
             text: "A".to_string(),
             placement: None,
@@ -1811,6 +1816,7 @@ fn metadata_preserves_positioned_direction_text_fields() {
     use acorde_layout::{LayoutConfig, compute_layout};
     let mut score = common::satb_major();
     score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        position_beats: None,
         style: TextStyle::Expression,
         text: "dolce".to_string(),
         placement: Some("below".to_string()),
@@ -1845,6 +1851,7 @@ fn content_aware_horizontal_margins_reach_staff_lines_and_labels() {
         barlines_connect: false,
     });
     score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        position_beats: None,
         style: TextStyle::Expression,
         text: "right offset".to_string(),
         placement: None,
@@ -1879,6 +1886,7 @@ fn measure_text_rejects_unbounded_or_non_finite_positioning() {
     use acorde_core::{StyledText, TextStyle};
     let mut score = common::satb_major();
     score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        position_beats: None,
         style: TextStyle::Generic,
         text: "x".to_string(),
         placement: None,
@@ -1920,6 +1928,7 @@ fn measure_text_extreme_vertical_offsets_expand_content_height() {
     offset.parts[0].staves[0].measures[0]
         .texts
         .push(StyledText {
+            position_beats: None,
             style: TextStyle::Expression,
             text: "above".to_string(),
             placement: None,
@@ -2086,6 +2095,7 @@ fn score_level_text_reuses_bounded_positioning_validation() {
     use acorde_core::{StyledText, TextStyle};
     let mut score = common::satb_major();
     score.texts.push(StyledText {
+        position_beats: None,
         style: TextStyle::Expression,
         text: "title".to_string(),
         placement: None,
@@ -2107,6 +2117,7 @@ fn multiple_measure_text_entries_are_stacked_deterministically() {
     let texts = &mut score.parts[0].staves[0].measures[0].texts;
     for text in ["first", "second"] {
         texts.push(StyledText {
+            position_beats: None,
             style: TextStyle::Expression,
             text: text.to_string(),
             placement: None,
@@ -2135,6 +2146,7 @@ fn negative_measure_text_offsets_expand_left_content_margin() {
     use acorde_core::{StyledText, TextStyle};
     let mut score = common::satb_major();
     score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        position_beats: None,
         style: TextStyle::Generic,
         text: "left".to_string(),
         placement: None,
@@ -3118,6 +3130,7 @@ fn metadata_exposes_validated_object_style_overrides() {
 
     let mut score = Score::new("object style", 120, 4, 4, 0, 1);
     score.texts.push(StyledText {
+        position_beats: None,
         text: "dolce".into(),
         style: TextStyle::Expression,
         placement: None,

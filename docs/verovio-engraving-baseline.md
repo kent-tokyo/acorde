@@ -363,6 +363,27 @@ farther down made it collide with the lower staff, so that trial was reverted.
 Quilter still uses four smaller systems where Verovio uses three. This change
 addresses one legibility defect and does not establish layout or print parity.
 
+### Verovio-guided direction beat placement (2026-10-31)
+
+The same pinned CC0 Quilter MXL places its two `L.H.` directions at beat 0 and
+beat 1 of measure 4. Acorde now retains the later beat in the score text model,
+round-trips it through MusicXML `<offset>`, and places above-staff words against
+the final note spacing on the physical print page. The first direction remains
+at the measure start; the second is 46.91 SVG units (11.73 mm) to its right.
+The earlier repeated-word heuristic placed it about 15.36 mm right. A regression
+checks the source beats and roundtrip, and another checks interpolation on a
+reflowed note row. Below-staff words retain their previous clearance position:
+anchoring `poco cresc.` to its beat caused a grand-staff clearance regression.
+
+The Acorde one-page A4 PDF and Verovio 6.3.0 SVG were regenerated from the
+same MXL at the same paper size and viewed at 1400 pixels. Both `L.H.` marks are
+separate and the existing `poco cresc.` clearance check passes. Acorde still
+uses four smaller systems against Verovio's three, and its notation and type
+are visibly smaller. The Acorde PDF media box is 595.276 × 841.89 pt. Acorde
+reports 103 MusicXML import diagnostics; Verovio reports two open hairpins.
+Those diagnostics are separate from the print observations. This change does
+not establish Verovio-level print quality.
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.

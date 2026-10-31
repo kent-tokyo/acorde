@@ -1608,6 +1608,7 @@ fn validate_styled_text_constraints(styled: &StyledText) -> Result<(), RenderErr
         });
     }
     for (field, value) in [
+        ("position_beats", styled.position_beats),
         ("offset_x", styled.offset_x),
         ("offset_y", styled.offset_y),
         ("relative_x", styled.relative_x),
@@ -2502,6 +2503,7 @@ pub(crate) fn measure_text_entries(measure: &Measure) -> Vec<StyledText> {
             continue;
         }
         entries.push(StyledText {
+            position_beats: None,
             style,
             text: text.to_owned(),
             placement: None,
@@ -2517,6 +2519,7 @@ pub(crate) fn measure_text_entries(measure: &Measure) -> Vec<StyledText> {
             .any(|entry| entry.style == TextStyle::FiguredBass && entry.text == text)
     {
         entries.push(StyledText {
+            position_beats: None,
             style: TextStyle::FiguredBass,
             text,
             placement: Some("below".to_owned()),
@@ -4522,13 +4525,14 @@ fn render_measure_text(
     classes.reserve(entries.len());
     directions.reserve(entries.len());
     for (text_index, styled) in entries.iter().enumerate() {
-        // A source can place repeated words at different beats without explicit x offsets.
-        // The canonical text model retains their order but not those beats. On print pages,
-        // spread identical directions horizontally instead of stacking them at one x.
+        // Older score data may have repeated words without beat positions. Spread those on
+        // print pages; positioned words use their authored beat against the final note spacing.
         let same_unpositioned = |other: &StyledText| {
             styled.style == other.style
                 && styled.text == other.text
                 && styled.placement == other.placement
+                && styled.position_beats.is_none()
+                && other.position_beats.is_none()
                 && styled.offset_x.is_none()
                 && styled.relative_x.is_none()
                 && other.offset_x.is_none()
@@ -4536,7 +4540,15 @@ fn render_measure_text(
         };
         let print_group = text_scale > 1.0 && styled.style == TextStyle::Expression;
         let previous_same = print_group
-            .then(|| entries[..text_index].iter().position(&same_unpositioned))
+            .then(|| {
+                entries[..text_index].iter().position(|other| {
+                    same_unpositioned(other)
+                        || ((styled.position_beats.is_some() || other.position_beats.is_some())
+                            && styled.style == other.style
+                            && styled.text == other.text
+                            && styled.placement == other.placement)
+                })
+            })
             .flatten();
         let placement_below = styled
             .placement
@@ -4563,8 +4575,22 @@ fn render_measure_text(
         let offset_y = styled.offset_y.unwrap_or(0.0) + styled.relative_y.unwrap_or(0.0);
         let offset_x = styled.offset_x.unwrap_or(0.0) + styled.relative_x.unwrap_or(0.0);
         let text_width = styled.text.chars().count() as f32 * 0.46 * space * text_scale;
-        let mut text_x = content_x0 + (offset_x as f32 / 10.0) * space;
-        if print_group {
+        // The grand-staff lane for below-staff words is constrained by both staves.
+        // Keep its established clearance placement until beat anchoring can fit that lane.
+        let beat_x = (!placement_below && text_scale > 1.0)
+            .then_some(styled.position_beats)
+            .flatten()
+            .and_then(|beats| {
+                measure_text_beat_x(measure, part, staff, measure_idx, beats, note_points)
+            });
+        let mut text_x = beat_x.unwrap_or(content_x0) + (offset_x as f32 / 10.0) * space;
+        if beat_x.is_some() && text_scale > 1.0 {
+            text_x = text_x.clamp(
+                content_x0,
+                (x + width - text_width - 0.5 * space).max(content_x0),
+            );
+        }
+        if print_group && styled.position_beats.is_none() {
             let group_size = entries
                 .iter()
                 .filter(|other| same_unpositioned(other))
@@ -4723,6 +4749,44 @@ fn render_measure_text(
         }
     }
     Ok(())
+}
+
+/// Anchor a MusicXML direction to the note spacing actually chosen for this row. Interpolating
+/// between note onsets keeps the source beat meaningful after print reflow.
+fn measure_text_beat_x(
+    measure: &Measure,
+    part: usize,
+    staff: usize,
+    measure_idx: usize,
+    beat: f64,
+    note_points: &HashMap<NoteKey, NotePoint>,
+) -> Option<f32> {
+    let mut anchors = Vec::new();
+    for (voice_index, voice) in measure.voices.iter().enumerate() {
+        let mut cursor = 0.0;
+        for (note_index, note) in voice.iter().enumerate() {
+            if let Some(&(note_x, _, _, _)) =
+                note_points.get(&(part, staff, measure_idx, voice_index, note_index))
+            {
+                anchors.push((cursor, note_x));
+            }
+            cursor += note.beats();
+        }
+    }
+    anchors.sort_by(|left, right| left.0.total_cmp(&right.0).then(left.1.total_cmp(&right.1)));
+    let first = *anchors.first()?;
+    if beat <= first.0 {
+        return Some(first.1);
+    }
+    for pair in anchors.windows(2) {
+        let (start_beat, start_x) = pair[0];
+        let (end_beat, end_x) = pair[1];
+        if beat <= end_beat && end_beat > start_beat {
+            let fraction = ((beat - start_beat) / (end_beat - start_beat)) as f32;
+            return Some(start_x + fraction * (end_x - start_x));
+        }
+    }
+    anchors.last().map(|anchor| anchor.1)
 }
 
 struct MeasureTextCollisionContext<'a> {
@@ -8404,11 +8468,12 @@ fn courtesy_wrapped(alter: i8, cx: f32, cy: f32, space: f32) -> String {
 mod tests {
     use super::{
         MeasureSemanticAnnotationKinds, Note, OwnedTabTechniqueSegment, accidental_footprint_u,
-        build_svg, content_horizontal_margins, measure_text_width_u, note_anchor_y,
-        note_notation_footprint_u, render_articulation, render_measure_semantic_annotations,
-        render_measure_text, resolve_adjacent_event_spacing, resolve_cross_voice_event_spacing,
-        resolve_span_lane_offsets, resolve_tab_technique_lane_offsets, span_lane_baseline,
-        tab_note_y, tab_technique_control_y,
+        build_svg, content_horizontal_margins, measure_text_beat_x, measure_text_width_u,
+        note_anchor_y, note_notation_footprint_u, render_articulation,
+        render_measure_semantic_annotations, render_measure_text, resolve_adjacent_event_spacing,
+        resolve_cross_voice_event_spacing, resolve_span_lane_offsets,
+        resolve_tab_technique_lane_offsets, span_lane_baseline, tab_note_y,
+        tab_technique_control_y,
     };
     use crate::SvgRenderOptions;
     use acorde_core::{
@@ -8418,6 +8483,76 @@ mod tests {
     };
     use acorde_layout::{LayoutConfig, SpanMark, compute_layout};
     use std::collections::HashMap;
+
+    #[test]
+    fn direction_beat_tracks_reflowed_note_spacing() {
+        let mut measure = Measure::empty(4, 4);
+        measure.voices[0] = (0..4)
+            .map(|_| Note::new(Pitch::new(Step::C, 4), Duration::Quarter))
+            .collect();
+        let note_points = HashMap::from([
+            ((0, 0, 0, 0, 0), (100.0, 200.0, true, 0)),
+            ((0, 0, 0, 0, 1), (142.0, 200.0, true, 0)),
+            ((0, 0, 0, 0, 2), (187.0, 200.0, true, 0)),
+            ((0, 0, 0, 0, 3), (221.0, 200.0, true, 0)),
+        ]);
+        assert_eq!(
+            measure_text_beat_x(&measure, 0, 0, 0, 1.0, &note_points),
+            Some(142.0)
+        );
+        assert_eq!(
+            measure_text_beat_x(&measure, 0, 0, 0, 0.5, &note_points),
+            Some(121.0)
+        );
+    }
+
+    #[test]
+    fn print_direction_uses_beat_anchor_instead_of_measure_start() {
+        let mut measure = Measure::empty(4, 4);
+        measure.voices[0] = (0..2)
+            .map(|_| Note::new(Pitch::new(Step::C, 4), Duration::Quarter))
+            .collect();
+        measure.texts.push(StyledText {
+            style: TextStyle::Expression,
+            text: "L.H.".into(),
+            position_beats: Some(1.0),
+            placement: Some("above".into()),
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        });
+        let note_points = HashMap::from([
+            ((0, 0, 0, 0, 0), (100.0, 200.0, true, 0)),
+            ((0, 0, 0, 0, 1), (160.0, 200.0, true, 0)),
+        ]);
+        let mut body = String::new();
+        render_measure_text(
+            &mut body,
+            &measure,
+            0,
+            0,
+            0,
+            100.0,
+            90.0,
+            200.0,
+            200.0,
+            10.0,
+            false,
+            3.0,
+            &note_points,
+            &[],
+        )
+        .expect("positioned print direction renders");
+        let text_x = body
+            .split("class=\"acorde-measure-text")
+            .nth(1)
+            .and_then(|value| value.split(" x=\"").nth(1))
+            .and_then(|value| value.split('"').next())
+            .and_then(|value| value.parse::<f32>().ok())
+            .expect("direction x coordinate");
+        assert!((text_x - 160.0).abs() < 0.01, "{body}");
+    }
 
     #[test]
     fn technique_and_ornament_marks_have_visible_svg_geometry() {
@@ -8656,6 +8791,7 @@ mod tests {
     fn measure_text_escapes_resolved_annotation_obstacle() {
         let mut measure = Measure::empty(4, 4);
         measure.texts.push(StyledText {
+            position_beats: None,
             style: TextStyle::Expression,
             text: "dolce".into(),
             placement: None,

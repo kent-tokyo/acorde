@@ -1049,6 +1049,7 @@ fn convert_beat(
     }
     if let Some(text) = beat.text_at("FreeText").filter(|text| !text.is_empty()) {
         measure.texts.push(StyledText {
+            position_beats: None,
             style: TextStyle::Generic,
             text: text.to_string(),
             placement: Some("above".to_string()),

@@ -687,6 +687,10 @@ impl VerseLyric {
 pub struct StyledText {
     pub style: TextStyle,
     pub text: String,
+    /// Position in quarter-note beats from the start of the measure. This is a
+    /// semantic direction anchor; it is independent of engraved x offsets.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position_beats: Option<f64>,
     /// Optional vertical placement hint from interchange formats.
     #[serde(default)]
     pub placement: Option<String>,

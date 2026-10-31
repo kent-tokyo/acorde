@@ -5309,6 +5309,7 @@ mod tests {
             measure_index: 0,
             text_index: 0,
             text: Some(StyledText {
+                position_beats: None,
                 style: crate::TextStyle::Technique,
                 text: "dolce".to_string(),
                 placement: None,
@@ -5322,6 +5323,7 @@ mod tests {
         assert_eq!(
             engine.score.parts[0].staves[0].measures[0].texts[0],
             StyledText {
+                position_beats: None,
                 style: crate::TextStyle::Technique,
                 text: "dolce".to_string(),
                 placement: None,
@@ -5336,6 +5338,7 @@ mod tests {
             .apply(Command::SetMeasureText(SetMeasureTextCmd {
                 text_index: 0,
                 text: Some(StyledText {
+                    position_beats: None,
                     style: crate::TextStyle::RehearsalMark,
                     text: "A".to_string(),
                     placement: None,
@@ -5388,6 +5391,7 @@ mod tests {
             measure_index: 0,
             text_index: 2,
             text: Some(StyledText {
+                position_beats: None,
                 style: crate::TextStyle::Expression,
                 text: "espressivo".to_string(),
                 placement: None,
@@ -5414,6 +5418,7 @@ mod tests {
     fn set_score_text_supports_append_replace_remove_and_undo_redo() {
         let mut engine = crate::ScoreEngine::new();
         let text = StyledText {
+            position_beats: None,
             style: crate::TextStyle::Expression,
             text: "Title".to_string(),
             placement: None,
@@ -5492,6 +5497,7 @@ mod tests {
     fn set_object_style_overrides_is_undoable_and_requires_existing_target() {
         let mut engine = crate::ScoreEngine::new();
         engine.score.texts.push(StyledText {
+            position_beats: None,
             style: crate::TextStyle::Expression,
             text: "Allegro".into(),
             placement: None,

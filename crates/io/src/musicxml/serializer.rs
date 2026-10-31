@@ -23,6 +23,20 @@ fn serialize_musicxml_inner(
     score: &Score,
     auto_beam_unmarked_voices: bool,
 ) -> Result<String, Error> {
+    for styled in score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .flat_map(|staff| &staff.measures)
+        .flat_map(|measure| &measure.texts)
+    {
+        if let Some(beats) = styled.position_beats {
+            let ticks = beats * f64::from(DIVISIONS);
+            if !ticks.is_finite() || ticks.abs() >= i64::MAX as f64 {
+                return Err(Error::Xml("measure direction beat is out of range".into()));
+            }
+        }
+    }
     let mut xml = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
     xml.push_str("<score-partwise version=\"4.0\">\n");
 
@@ -515,6 +529,11 @@ fn serialize_musicxml_inner(
                     escape_xml(reh)
                 ));
                 xml.push_str("        </direction-type>\n");
+                xml.push_str(&styled_text_offset_xml(measure_styled_text(
+                    measure,
+                    TextStyle::RehearsalMark,
+                    reh,
+                )));
                 xml.push_str("      </direction>\n");
             }
 
@@ -540,6 +559,11 @@ fn serialize_musicxml_inner(
                     escape_xml(text)
                 ));
                 xml.push_str("        </direction-type>\n");
+                xml.push_str(&styled_text_offset_xml(measure_styled_text(
+                    measure,
+                    TextStyle::Generic,
+                    text,
+                )));
                 xml.push_str("      </direction>\n");
             }
 
@@ -558,6 +582,11 @@ fn serialize_musicxml_inner(
                     escape_xml(text)
                 ));
                 xml.push_str("        </direction-type>\n");
+                xml.push_str(&styled_text_offset_xml(measure_styled_text(
+                    measure,
+                    TextStyle::Expression,
+                    text,
+                )));
                 xml.push_str("      </direction>\n");
             }
 
@@ -666,7 +695,9 @@ fn serialize_musicxml_inner(
                         styled_text_position_attrs(Some(styled))
                     ));
                     xml.push_str(&escape_xml(&styled.text));
-                    xml.push_str("</rehearsal></direction-type></direction>\n");
+                    xml.push_str("</rehearsal></direction-type>");
+                    xml.push_str(&styled_text_offset_xml(Some(styled)));
+                    xml.push_str("</direction>\n");
                     continue;
                 }
                 let attrs = styled_direction_attrs(styled);
@@ -676,7 +707,9 @@ fn serialize_musicxml_inner(
                     styled_text_position_attrs(Some(styled))
                 ));
                 xml.push_str(&escape_xml(&styled.text));
-                xml.push_str("</words></direction-type></direction>\n");
+                xml.push_str("</words></direction-type>");
+                xml.push_str(&styled_text_offset_xml(Some(styled)));
+                xml.push_str("</direction>\n");
             }
 
             // Emit each populated voice in stable model order. MusicXML advances one shared
@@ -1994,6 +2027,15 @@ fn push_tempo_direction(xml: &mut String, bpm: u16, measure: Option<&acorde_core
         ));
     }
     xml.push_str("        </direction-type>\n");
+    if let Some((measure, text)) =
+        measure.and_then(|measure| measure.tempo_text.as_deref().map(|text| (measure, text)))
+    {
+        xml.push_str(&styled_text_offset_xml(measure_styled_text(
+            measure,
+            TextStyle::Generic,
+            text,
+        )));
+    }
     xml.push_str(&format!("        <sound tempo=\"{bpm}\"/>\n"));
     xml.push_str("      </direction>\n");
 }
@@ -2024,6 +2066,19 @@ fn styled_direction_attrs(styled: &acorde_core::StyledText) -> String {
         .placement
         .as_ref()
         .map(|placement| format!(" placement=\"{}\"", escape_xml(placement)))
+        .unwrap_or_default()
+}
+
+fn styled_text_offset_xml(styled: Option<&acorde_core::StyledText>) -> String {
+    styled
+        .and_then(|text| text.position_beats)
+        .filter(|beats| *beats != 0.0)
+        .map(|beats| {
+            format!(
+                "<offset>{}</offset>",
+                (beats * f64::from(DIVISIONS)).round() as i64
+            )
+        })
         .unwrap_or_default()
 }
 

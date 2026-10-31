@@ -372,6 +372,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut pending_direction_offset_y: Option<f64> = None;
     let mut pending_direction_relative_x: Option<f64> = None;
     let mut pending_direction_relative_y: Option<f64> = None;
+    let mut pending_direction_position_beats: Option<f64> = None;
     let mut pending_harp_pedal_diagrams: Vec<HarpPedalDiagram> = Vec::new();
     let mut pending_harp_pedal_diagram: Option<HarpPedalDiagram> = None;
     let mut in_harp_pedals = false;
@@ -597,6 +598,9 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "direction" => {
                         in_direction = true;
+                        pending_direction_position_beats = (measure_cursor_ticks != 0).then(|| {
+                            f64::from(measure_cursor_ticks) / f64::from(current_divisions.max(1))
+                        });
                         pending_direction_placement = attr_str(e, b"placement");
                         pending_direction_offset_x = attr_str(e, b"default-x")
                             .and_then(|value| value.parse::<f64>().ok())
@@ -1659,6 +1663,7 @@ pub(crate) fn parse_musicxml_collecting(
                             }
                             if !figured_bass_text.trim().is_empty() {
                                 measure.texts.push(StyledText {
+                                    position_beats: None,
                                     style: TextStyle::FiguredBass,
                                     text: figured_bass_text.trim().to_string(),
                                     placement: None,
@@ -1748,6 +1753,7 @@ pub(crate) fn parse_musicxml_collecting(
                                         m.tempo_text = Some(text.clone());
                                     }
                                     m.texts.push(StyledText {
+                                        position_beats: pending_direction_position_beats,
                                         style: TextStyle::Generic,
                                         text,
                                         placement: pending_direction_placement.clone(),
@@ -1762,6 +1768,7 @@ pub(crate) fn parse_musicxml_collecting(
                                     m.expression_text = Some(text.clone());
                                 }
                                 m.texts.push(StyledText {
+                                    position_beats: pending_direction_position_beats,
                                     style: TextStyle::Expression,
                                     text,
                                     placement: pending_direction_placement.clone(),
@@ -1776,6 +1783,7 @@ pub(crate) fn parse_musicxml_collecting(
                             {
                                 m.rehearsal = Some(reh.clone());
                                 m.texts.push(StyledText {
+                                    position_beats: pending_direction_position_beats,
                                     style: TextStyle::RehearsalMark,
                                     text: reh,
                                     placement: pending_direction_placement.clone(),
@@ -1795,6 +1803,7 @@ pub(crate) fn parse_musicxml_collecting(
                         }
                         pending_sound_tempo = None;
                         pending_direction_placement = None;
+                        pending_direction_position_beats = None;
                         pending_direction_offset_x = None;
                         pending_direction_offset_y = None;
                         pending_direction_relative_x = None;
@@ -2173,6 +2182,15 @@ pub(crate) fn parse_musicxml_collecting(
                         }
                         lyric_extend = false;
                         lyric_syllabic = "single".to_string();
+                    }
+                    "offset" if in_direction => {
+                        if let Ok(offset_ticks) = current_text.trim().parse::<f64>() {
+                            let beats = (f64::from(measure_cursor_ticks) + offset_ticks)
+                                / f64::from(current_divisions.max(1));
+                            if beats.is_finite() {
+                                pending_direction_position_beats = (beats != 0.0).then_some(beats);
+                            }
+                        }
                     }
                     "duration" if in_backup => {
                         let duration = current_text

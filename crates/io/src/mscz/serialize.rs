@@ -574,6 +574,7 @@ fn write_staff(
             write_styled_text(
                 xml,
                 &acorde_core::StyledText {
+                    position_beats: None,
                     style: acorde_core::TextStyle::Expression,
                     text: text.clone(),
                     placement: None,
@@ -1635,6 +1636,7 @@ mod tests {
     fn offset_staff_text_round_trips_through_mscx() {
         let mut score = Score::default();
         let styled = acorde_core::StyledText {
+            position_beats: None,
             style: acorde_core::TextStyle::Expression,
             text: "Chorus".to_string(),
             placement: None,
@@ -1657,6 +1659,7 @@ mod tests {
         let mut score = Score::default();
         let texts = vec![
             acorde_core::StyledText {
+                position_beats: None,
                 style: acorde_core::TextStyle::Lyrics,
                 text: "la".to_string(),
                 placement: None,
@@ -1666,6 +1669,7 @@ mod tests {
                 relative_y: None,
             },
             acorde_core::StyledText {
+                position_beats: None,
                 style: acorde_core::TextStyle::FiguredBass,
                 text: "6".to_string(),
                 placement: None,
@@ -1686,6 +1690,7 @@ mod tests {
     fn score_level_text_round_trips_through_mscx_vbox() {
         let score = Score {
             texts: vec![acorde_core::StyledText {
+                position_beats: None,
                 style: acorde_core::TextStyle::Expression,
                 text: "Title".to_string(),
                 placement: None,

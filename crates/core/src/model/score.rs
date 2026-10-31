@@ -5871,6 +5871,7 @@ mod tests {
             numbers: Vec::new(),
         });
         measure.texts.push(StyledText {
+            position_beats: None,
             style: TextStyle::RehearsalMark,
             text: "A".to_string(),
             placement: None,
@@ -5959,6 +5960,7 @@ mod tests {
         let a = Score::new("T", 120, 4, 4, 0, 1);
         let mut b = a.clone();
         b.texts.push(StyledText {
+            position_beats: None,
             style: TextStyle::Expression,
             text: "Prelude".to_string(),
             placement: Some("above".to_string()),
@@ -6354,6 +6356,7 @@ mod tests {
         let mut b = a.clone();
         let measure = &mut b.parts[0].staves[0].measures[0];
         measure.texts.push(StyledText {
+            position_beats: None,
             style: TextStyle::Lyrics,
             text: "la".to_string(),
             placement: None,

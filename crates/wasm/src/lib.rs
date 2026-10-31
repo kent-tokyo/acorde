@@ -2884,6 +2884,7 @@ mod tests {
         let score_text = acorde_core::Command::SetScoreText(acorde_core::SetScoreTextCmd {
             text_index: 0,
             text: Some(acorde_core::StyledText {
+                position_beats: None,
                 style: acorde_core::TextStyle::Expression,
                 text: "dolce".into(),
                 placement: None,
@@ -3003,6 +3004,7 @@ mod tests {
             measure_index: 0,
             text_index: 0,
             text: Some(acorde_core::StyledText {
+                position_beats: None,
                 style: acorde_core::TextStyle::RehearsalMark,
                 text: "A".to_owned(),
                 placement: None,
@@ -3033,6 +3035,7 @@ mod tests {
         let command = acorde_core::Command::SetScoreText(acorde_core::SetScoreTextCmd {
             text_index: 0,
             text: Some(acorde_core::StyledText {
+                position_beats: None,
                 style: acorde_core::TextStyle::Expression,
                 text: "Prelude".to_owned(),
                 placement: None,
@@ -3122,6 +3125,7 @@ mod tests {
         after.metadata.title = "After".to_string();
         after.settings.tempo_bpm = 96;
         after.texts.push(acorde_core::StyledText {
+            position_beats: None,
             style: acorde_core::TextStyle::Expression,
             text: "Prelude".to_owned(),
             placement: None,
@@ -4523,6 +4527,7 @@ mod wasm_tests {
         score.parts[0].staves[0].measures[0]
             .texts
             .push(acorde_core::StyledText {
+                position_beats: None,
                 style: acorde_core::TextStyle::Expression,
                 text: "bad\u{1}".to_string(),
                 placement: None,
