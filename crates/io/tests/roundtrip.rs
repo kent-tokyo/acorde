@@ -302,6 +302,7 @@ fn styled_measure_text_command_roundtrips_supported_musicxml_styles() {
     let mut score = parse_musicxml(SIMPLE_XML).expect("parse fixture");
     for (text_index, styled) in [
         StyledText {
+            position_beats: None,
             style: TextStyle::Expression,
             text: "dolce".to_string(),
             placement: None,
@@ -311,6 +312,7 @@ fn styled_measure_text_command_roundtrips_supported_musicxml_styles() {
             relative_y: None,
         },
         StyledText {
+            position_beats: None,
             style: TextStyle::RehearsalMark,
             text: "A".to_string(),
             placement: Some("below".to_string()),
@@ -339,6 +341,7 @@ fn styled_measure_text_command_roundtrips_supported_musicxml_styles() {
     let restored = parse_musicxml(&serialized).expect("reparse styled text");
     let texts = &restored.parts[0].staves[0].measures[0].texts;
     assert!(texts.contains(&StyledText {
+        position_beats: None,
         style: TextStyle::Expression,
         text: "dolce".to_string(),
         placement: None,
@@ -348,6 +351,7 @@ fn styled_measure_text_command_roundtrips_supported_musicxml_styles() {
         relative_y: None,
     }));
     assert!(texts.contains(&StyledText {
+        position_beats: None,
         style: TextStyle::RehearsalMark,
         text: "A".to_string(),
         placement: Some("below".to_string()),
@@ -420,9 +424,50 @@ fn musicxml_keeps_repeated_and_later_words_in_one_measure() {
 }
 
 #[test]
+fn musicxml_direction_offset_keeps_beat_after_roundtrip() {
+    let direction = "<direction placement=\"above\"><direction-type><words>dolce</words></direction-type><offset>1</offset></direction>";
+    let xml = SIMPLE_XML.replacen("<note>", &format!("{direction}<note>"), 1);
+    let score = parse_musicxml(&xml).expect("direction with one-division offset");
+    assert_eq!(
+        score.parts[0].staves[0].measures[0].texts[0].position_beats,
+        Some(1.0)
+    );
+    let exported = serialize_musicxml(&score).expect("exports positioned direction");
+    assert!(exported.contains("<offset>480</offset>"));
+    let restored = parse_musicxml(&exported).expect("reimports positioned direction");
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].texts[0].position_beats,
+        Some(1.0)
+    );
+}
+
+#[test]
+fn musicxml_rejects_nonfinite_direction_beat_on_export() {
+    let mut score = parse_musicxml(SIMPLE_XML).expect("simple score");
+    score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        style: TextStyle::Expression,
+        text: "dolce".into(),
+        position_beats: Some(f64::NAN),
+        placement: None,
+        offset_x: None,
+        offset_y: None,
+        relative_x: None,
+        relative_y: None,
+    });
+    assert!(serialize_musicxml(&score).is_err());
+}
+
+#[test]
 fn quilter_keeps_all_same_measure_directions_seen_in_verovio() {
     let score = acorde_io::parse_mxl(OPENSCORE_LIEDER_QUILTER_MXL).expect("CC0 MXL imports");
     let measure = &score.parts[0].staves[0].measures[3];
+    let left_hand_beats = measure
+        .texts
+        .iter()
+        .filter(|text| text.text == "L.H.")
+        .map(|text| text.position_beats)
+        .collect::<Vec<_>>();
+    assert_eq!(left_hand_beats, vec![None, Some(1.0)]);
     assert_eq!(
         measure
             .texts
@@ -436,6 +481,14 @@ fn quilter_keeps_all_same_measure_directions_seen_in_verovio() {
             text.text == "poco cresc." && text.placement.as_deref() == Some("below")
         })
     );
+    let restored = parse_musicxml(&serialize_musicxml(&score).expect("exports")).expect("imports");
+    let restored_beats = restored.parts[0].staves[0].measures[3]
+        .texts
+        .iter()
+        .filter(|text| text.text == "L.H.")
+        .map(|text| text.position_beats)
+        .collect::<Vec<_>>();
+    assert_eq!(restored_beats, left_hand_beats);
 }
 
 #[test]
@@ -1416,6 +1469,7 @@ fn musicxml_simple_figured_bass_display_text_roundtrips() {
     assert_eq!(
         texts,
         &[acorde_core::StyledText {
+            position_beats: None,
             style: acorde_core::TextStyle::FiguredBass,
             text: "6".to_string(),
             placement: None,
@@ -1739,6 +1793,7 @@ fn mei_simple_figured_bass_display_text_roundtrips() {
     assert_eq!(
         texts,
         &[acorde_core::StyledText {
+            position_beats: None,
             style: acorde_core::TextStyle::FiguredBass,
             text: "6".to_string(),
             placement: None,
@@ -1883,6 +1938,7 @@ fn manifest_interchange_fixtures_parse_without_declared_losses() {
     assert_eq!(
         mei_measure.texts,
         vec![acorde_core::StyledText {
+            position_beats: None,
             style: acorde_core::TextStyle::ChordSymbol,
             text: "Cmaj7".to_string(),
             placement: None,
@@ -1913,6 +1969,7 @@ fn manifest_interchange_fixtures_parse_without_declared_losses() {
         mscx_measure.texts,
         vec![
             acorde_core::StyledText {
+                position_beats: None,
                 style: acorde_core::TextStyle::ChordSymbol,
                 text: "Cmaj7".to_string(),
                 placement: None,
@@ -1922,6 +1979,7 @@ fn manifest_interchange_fixtures_parse_without_declared_losses() {
                 relative_y: None,
             },
             acorde_core::StyledText {
+                position_beats: None,
                 style: acorde_core::TextStyle::Expression,
                 text: "dolce".to_string(),
                 placement: None,
@@ -1956,6 +2014,7 @@ fn mscx_figured_bass_fixture_roundtrips_structured_order() {
     assert_eq!(
         measure.texts,
         vec![acorde_core::StyledText {
+            position_beats: None,
             style: acorde_core::TextStyle::FiguredBass,
             text: "6 4".to_string(),
             placement: None,

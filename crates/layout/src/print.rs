@@ -2203,6 +2203,7 @@ fn measure_text_entries(measure: &acorde_core::Measure) -> Vec<StyledText> {
             continue;
         }
         entries.push(StyledText {
+            position_beats: None,
             style,
             text: text.to_owned(),
             placement: None,
@@ -3840,6 +3841,7 @@ mod tests {
                 rehearsal: Some("B".to_string()),
                 text_annotations: vec![
                     acorde_core::StyledText {
+                        position_beats: None,
                         style: acorde_core::TextStyle::RehearsalMark,
                         text: "B".to_string(),
                         placement: None,
@@ -3849,6 +3851,7 @@ mod tests {
                         relative_y: None,
                     },
                     acorde_core::StyledText {
+                        position_beats: None,
                         style: acorde_core::TextStyle::Generic,
                         text: "ToCoda".to_string(),
                         placement: None,
@@ -3868,6 +3871,7 @@ mod tests {
         score.parts[0].staves[0].measures[0]
             .texts
             .push(acorde_core::StyledText {
+                position_beats: None,
                 style: acorde_core::TextStyle::Expression,
                 text: "dolce".to_string(),
                 placement: Some("above".to_string()),
@@ -4476,6 +4480,7 @@ mod tests {
         score.parts[0].staves[0].measures[0]
             .texts
             .push(acorde_core::StyledText {
+                position_beats: None,
                 style: acorde_core::TextStyle::Expression,
                 text: "poco cresc.".to_owned(),
                 placement: Some("below".to_owned()),
@@ -5071,6 +5076,7 @@ mod tests {
     fn title_page_is_inserted_without_consuming_music_page_capacity() {
         let mut score = score_with_measures(3);
         score.texts.push(StyledText {
+            position_beats: None,
             style: TextStyle::Expression,
             text: "Dedication".into(),
             placement: None,

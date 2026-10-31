@@ -50,6 +50,10 @@ The default `PickupPolicy::Auto` keeps a short pickup with following music. Sele
 `PageLayout::span_segments` and `SystemLayout::span_segments` identify continuation ownership so
 a renderer does not reconstruct spans by index arithmetic. `measure_marks` carries repeats,
 voltas, navigation, rehearsal marks, and normalized text annotations for the primary score staff.
+MusicXML measure directions retain their optional quarter-note beat in `StyledText.position_beats`.
+On physical print pages, above-staff words use this beat against the row's final note spacing.
+Below-staff words use the established clearance lane between staves until that lane can safely
+combine exact beat anchors and collision constraints.
 
 ## Host boundary
 

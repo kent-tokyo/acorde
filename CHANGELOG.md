@@ -11,10 +11,11 @@
   now fill 9/8 with three dotted-quarter pulses. Pickup and shortened bars
   retain their measure phase; eighth-aligned chord changes, playback, MSCZ
   export, and bass-staff SVG addresses are covered by regressions.
-- Print SVG now places repeated, unpositioned expression directions in one horizontal lane
-  instead of stacking them at the same measure start. The two `L.H.` marks in the pinned
-  Quilter Prelude become independently readable; exact source beat positions are still not
-  retained by the score text model.
+- MusicXML now retains a direction word's quarter-note position in `StyledText` and
+  round-trips it with `<offset>`. Print SVG anchors above-staff words to the notes'
+  reflowed beat positions; the two `L.H.` marks in the pinned Quilter Prelude are
+  placed at their authored beats rather than spread by a repeated-word heuristic.
+  Below-staff words keep their established grand-staff clearance placement.
 - MusicXML/MXL now imports each part's initial MIDI volume and front-hemisphere pan into
   CC7/CC10. These settings reach MIDI export and full-SF2 stereo audio and survive MusicXML
   roundtrip at seven-bit controller precision. Rear-hemisphere pan is reported as an import

@@ -2975,6 +2975,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                     {
                         // Words in a `<dynam>` (Verovio writes cresc. and dim. there).
                         measure.texts.push(StyledText {
+                            position_beats: None,
                             style: TextStyle::Expression,
                             text: text.to_string(),
                             placement,
@@ -3088,6 +3089,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 score.parts[0].staves[current_staff].measures[measure_index]
                                     .texts
                                     .push(StyledText {
+                                        position_beats: None,
                                         style: TextStyle::ChordSymbol,
                                         text: text.to_string(),
                                         placement: None,
@@ -3126,6 +3128,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             let measure =
                                 &mut score.parts[0].staves[current_staff].measures[measure_index];
                             measure.texts.push(StyledText {
+                                position_beats: None,
                                 style: TextStyle::FiguredBass,
                                 text,
                                 placement: None,
@@ -3177,6 +3180,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 .and_then(|staff| staff.measures.get_mut(measure_index))
                         {
                             measure.texts.push(StyledText {
+                                position_beats: None,
                                 style,
                                 text: text.to_string(),
                                 placement,
@@ -3205,6 +3209,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                     measure.expression_text = Some(text.to_string());
                                 } else {
                                     measure.texts.push(StyledText {
+                                        position_beats: None,
                                         style: TextStyle::Expression,
                                         text: text.to_string(),
                                         placement,
@@ -3681,6 +3686,7 @@ fn apply_pending_harm_symbols(
             .and_then(|staff| staff.measures.get_mut(pending.measure))
         {
             measure.texts.push(StyledText {
+                position_beats: None,
                 style: TextStyle::ChordSymbol,
                 text: pending.label,
                 placement: None,
@@ -6796,6 +6802,7 @@ mod tests {
     fn typed_measure_texts_round_trip_as_dir() {
         let mut score = Score::new("texts", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].texts.push(StyledText {
+            position_beats: None,
             style: TextStyle::Technique,
             text: "pizz. & sul tasto".into(),
             placement: Some("above".into()),
@@ -7320,6 +7327,7 @@ mod tests {
         assert_eq!(
             measure.texts,
             vec![StyledText {
+                position_beats: None,
                 style: TextStyle::FiguredBass,
                 text: "6".to_string(),
                 placement: None,
