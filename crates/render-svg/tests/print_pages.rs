@@ -133,6 +133,172 @@ fn print_slur_considers_an_interior_down_stem() {
 }
 
 #[test]
+fn print_cross_staff_mixed_duration_keeps_backward_hook() {
+    let score = acorde_io::parse_musicxml(include_str!(
+        "fixtures/verovio_cross_staff_mixed_durations.musicxml"
+    ))
+    .unwrap();
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = &pages[0];
+    let beams: Vec<Vec<(f32, f32)>> = svg
+        .split(r#"class="acorde-beam" points=""#)
+        .skip(1)
+        .map(|fragment| {
+            fragment
+                .split('"')
+                .next()
+                .unwrap()
+                .split_whitespace()
+                .map(|point| {
+                    let (x, y) = point.split_once(',').unwrap();
+                    (x.parse().unwrap(), y.parse().unwrap())
+                })
+                .collect()
+        })
+        .collect();
+    let lines: Vec<_> = svg
+        .split(r#"class="acorde-staff-line""#)
+        .skip(1)
+        .take(2)
+        .map(|line| svg_attribute_f32(line, "y1"))
+        .collect();
+    assert_eq!(beams.len(), 2);
+    let space = (lines[0] - lines[1]).abs();
+    assert!((beams[1][1].0 - beams[1][0].0 + 1.25 * space).abs() < 0.02);
+}
+
+#[test]
+fn print_verovio_cross_staff_sixteenths_keep_parallel_beams() {
+    let score = acorde_io::parse_musicxml(include_str!(
+        "fixtures/verovio_cross_staff_sixteenths.musicxml"
+    ))
+    .unwrap();
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = &pages[0];
+    let tips: Vec<_> = svg
+        .split(r#"class="acorde-stem" x1=""#)
+        .skip(1)
+        .map(|stem| svg_attribute_f32(stem, "y2"))
+        .collect();
+    let lines: Vec<_> = svg
+        .split(r#"class="acorde-staff-line""#)
+        .skip(1)
+        .take(2)
+        .map(|line| svg_attribute_f32(line, "y1"))
+        .collect();
+    assert_eq!(svg.matches(r#"class="acorde-beam""#).count(), 2);
+    assert_eq!(tips.len(), 2);
+    let space = (lines[0] - lines[1]).abs();
+    assert!((tips[1] - tips[0] + 0.25 * space).abs() < 0.02, "{tips:?}");
+}
+
+#[test]
+fn print_verovio_cross_staff_musicxml_pair_has_a_sloped_beam() {
+    let score =
+        acorde_io::parse_musicxml(include_str!("fixtures/verovio_cross_staff_pair.musicxml"))
+            .unwrap();
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = &pages[0];
+    let tips: Vec<_> = svg
+        .split(r#"class="acorde-stem" x1=""#)
+        .skip(1)
+        .map(|stem| svg_attribute_f32(stem, "y2"))
+        .collect();
+    let lines: Vec<_> = svg
+        .split(r#"class="acorde-staff-line""#)
+        .skip(1)
+        .take(2)
+        .map(|line| svg_attribute_f32(line, "y1"))
+        .collect();
+    assert_eq!(tips.len(), 2);
+    let space = (lines[0] - lines[1]).abs();
+    assert!((tips[1] - tips[0] - 0.75 * space).abs() < 0.02, "{tips:?}");
+}
+
+#[test]
+fn print_cross_staff_chords_clear_the_beam() {
+    use acorde_core::{
+        BeamState, Clef, CrossStaff, Duration, Measure, Note, Part, Pitch, Staff, Step,
+    };
+    let mut score = Score::new("cross staff chords", 120, 2, 8, 0, 1);
+    let mut upper = Staff::new(Clef::Treble);
+    let mut lower = Staff::new(Clef::Bass);
+    upper.measures.push(Measure::empty(2, 8));
+    lower.measures.push(Measure::empty(2, 8));
+    let mut first = Note::new(Pitch::new(Step::C, 5), Duration::Eighth);
+    first.pitches.push(Pitch::new(Step::E, 5));
+    first.beam = BeamState::Begin;
+    let mut second = Note::new(Pitch::new(Step::G, 3), Duration::Eighth);
+    second.pitches.push(Pitch::new(Step::B, 3));
+    second.beam = BeamState::End;
+    second.cross_staff = Some(CrossStaff {
+        target_staff: 1,
+        target_voice: None,
+    });
+    upper.measures[0].voices[0] = vec![first, second];
+    lower.measures[0].voices[0] = vec![Note::rest(Duration::Quarter)];
+    let mut part = Part::new("P", "");
+    part.staves = vec![upper, lower];
+    score.parts = vec![part];
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = &pages[0];
+    let heads: Vec<_> = svg
+        .split(r#"class="acorde-notehead""#)
+        .skip(1)
+        .map(|head| svg_attribute_f32(head, "cy"))
+        .collect();
+    let tips: Vec<_> = svg
+        .split(r#"class="acorde-stem" x1=""#)
+        .skip(1)
+        .map(|stem| svg_attribute_f32(stem, "y2"))
+        .collect();
+    assert_eq!(heads.len(), 4);
+    assert_eq!(tips.len(), 2);
+    assert!(tips[0] > heads[0].max(heads[1]) && tips[1] < heads[2].min(heads[3]));
+    let staff_lines: Vec<_> = svg
+        .split(r#"class="acorde-staff-line""#)
+        .skip(1)
+        .take(2)
+        .map(|line| svg_attribute_f32(line, "y1"))
+        .collect();
+    let space = (staff_lines[0] - staff_lines[1]).abs();
+    assert!((tips[1] - tips[0] - 0.75 * space).abs() < 0.02, "{tips:?}");
+}
+
+#[test]
+fn print_two_note_beam_rise_respects_spacing() {
+    let score =
+        acorde_io::parse_musicxml(include_str!("fixtures/verovio_partial_stem_slur.musicxml"))
+            .unwrap();
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = &pages[0];
+    let stems: Vec<_> = svg.split(r#"class="acorde-stem" x1=""#).skip(1).collect();
+    let lines: Vec<_> = svg
+        .split(r#"class="acorde-staff-line""#)
+        .skip(1)
+        .take(2)
+        .map(|line| svg_attribute_f32(line, "y1"))
+        .collect();
+    assert_eq!(stems.len(), 2);
+    let space = (lines[0] - lines[1]).abs();
+    let tips = [
+        svg_attribute_f32(stems[0], "y2"),
+        svg_attribute_f32(stems[1], "y2"),
+    ];
+    let distance = (svg_attribute_f32(stems[1], "x2") - svg_attribute_f32(stems[0], "x2")).abs();
+    let expected = if distance <= 3.0 * space { 0.25 } else { 0.5 };
+    assert!(
+        (tips[1] - tips[0] + expected * space).abs() < 0.02,
+        "{tips:?}"
+    );
+}
+
+#[test]
 fn print_beam_with_an_interior_peak_is_horizontal() {
     use acorde_core::{BeamState, Duration, Note, Pitch, Step};
     let mut score = Score::new("beam contour", 120, 3, 8, 0, 1);

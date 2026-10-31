@@ -3725,6 +3725,207 @@ fn key_signature_sharps_follow_the_engraved_zigzag_per_clef() {
 }
 
 #[test]
+fn verovio_cross_staff_mixed_duration_has_a_backward_hook() {
+    let score = acorde_io::parse_musicxml(include_str!(
+        "fixtures/verovio_cross_staff_mixed_durations.musicxml"
+    ))
+    .unwrap();
+    let svg = render_svg(&score, &opts()).unwrap();
+    let beams: Vec<Vec<(f32, f32)>> = svg
+        .split(r#"class="acorde-beam" points=""#)
+        .skip(1)
+        .map(|part| {
+            part.split('"')
+                .next()
+                .unwrap()
+                .split_whitespace()
+                .map(|point| {
+                    let (x, y) = point.split_once(',').unwrap();
+                    (x.parse().unwrap(), y.parse().unwrap())
+                })
+                .collect()
+        })
+        .collect();
+    assert_eq!(beams.len(), 2);
+    let primary_slope = (beams[0][1].1 - beams[0][0].1) / (beams[0][1].0 - beams[0][0].0);
+    let hook = &beams[1];
+    assert!((hook[1].0 - hook[0].0 + 1.25 * opts().staff_size).abs() < 0.02);
+    let primary_y = beams[0][0].1 + primary_slope * (hook[0].0 - beams[0][0].0);
+    assert!((hook[0].1 - primary_y - 0.75 * opts().staff_size).abs() < 0.03);
+    let tips: Vec<f32> = svg
+        .split(r#"class="acorde-stem" x1=""#)
+        .skip(1)
+        .map(|stem| {
+            stem.split(r#"y2=""#)
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap()
+                .parse()
+                .unwrap()
+        })
+        .collect();
+    assert_eq!(tips.len(), 2);
+    assert!((tips[1] - tips[0] - 0.75 * opts().staff_size).abs() < 0.02);
+}
+
+#[test]
+fn verovio_cross_staff_sixteenths_keep_parallel_beams() {
+    let score = acorde_io::parse_musicxml(include_str!(
+        "fixtures/verovio_cross_staff_sixteenths.musicxml"
+    ))
+    .unwrap();
+    let svg = render_svg(&score, &opts()).unwrap();
+    let polygons: Vec<Vec<(f32, f32)>> = svg
+        .split(r#"class="acorde-beam" points=""#)
+        .skip(1)
+        .map(|fragment| {
+            fragment
+                .split('"')
+                .next()
+                .unwrap()
+                .split_whitespace()
+                .map(|point| {
+                    let (x, y) = point.split_once(',').unwrap();
+                    (x.parse().unwrap(), y.parse().unwrap())
+                })
+                .collect()
+        })
+        .collect();
+    assert_eq!(polygons.len(), 2);
+    let slope0 = (polygons[0][1].1 - polygons[0][0].1) / (polygons[0][1].0 - polygons[0][0].0);
+    let slope1 = (polygons[1][1].1 - polygons[1][0].1) / (polygons[1][1].0 - polygons[1][0].0);
+    let first_at_same_x = polygons[0][0].1 + slope0 * (polygons[1][0].0 - polygons[0][0].0);
+    assert!((polygons[1][0].1 - first_at_same_x + 0.75 * opts().staff_size).abs() < 0.02);
+    assert!((slope0 - slope1).abs() < 0.001);
+    let tips: Vec<f32> = svg
+        .split(r#"class="acorde-stem" x1=""#)
+        .skip(1)
+        .map(|stem| {
+            stem.split(r#"y2=""#)
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap()
+                .parse()
+                .unwrap()
+        })
+        .collect();
+    assert_eq!(tips.len(), 2);
+    assert!(
+        (tips[1] - tips[0] + 0.25 * opts().staff_size).abs() < 0.02,
+        "{tips:?}"
+    );
+}
+
+#[test]
+fn verovio_cross_staff_musicxml_pair_has_a_sloped_beam() {
+    let score =
+        acorde_io::parse_musicxml(include_str!("fixtures/verovio_cross_staff_pair.musicxml"))
+            .unwrap();
+    let svg = render_svg(&score, &opts()).unwrap();
+    let stems: Vec<(f32, f32, f32)> = svg
+        .split(r#"class="acorde-stem" x1=""#)
+        .skip(1)
+        .map(|stem| {
+            let y = |key: &str| -> f32 {
+                stem.split(&format!(r#"{key}=""#))
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap()
+                    .parse()
+                    .unwrap()
+            };
+            (y("y1"), y("y2"), y("x2"))
+        })
+        .collect();
+    assert_eq!(stems.len(), 2);
+    assert!(stems[0].1 > stems[0].0 && stems[1].1 < stems[1].0);
+    assert!(
+        (stems[1].1 - stems[0].1 - 0.75 * opts().staff_size).abs() < 0.02,
+        "{stems:?}"
+    );
+    assert_eq!(svg.matches(r#"class="acorde-beam""#).count(), 1);
+    let points: Vec<(f32, f32)> = svg
+        .split(r#"class="acorde-beam" points=""#)
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap()
+        .split_whitespace()
+        .map(|p| {
+            let (x, y) = p.split_once(',').unwrap();
+            (x.parse().unwrap(), y.parse().unwrap())
+        })
+        .collect();
+    let edge_y = |x: f32, left: usize, right: usize| {
+        let t = (x - points[left].0) / (points[right].0 - points[left].0);
+        points[left].1 + t * (points[right].1 - points[left].1)
+    };
+    let first_bottom = edge_y(stems[0].2, 3, 2);
+    let last_center = (edge_y(stems[1].2, 0, 1) + edge_y(stems[1].2, 3, 2)) / 2.0;
+    assert!((stems[0].1 - first_bottom).abs() < 0.02);
+    assert!((stems[1].1 - last_center).abs() < 0.02);
+}
+
+#[test]
+fn cross_staff_beam_clears_the_nearest_heads_of_chords() {
+    use acorde_core::{
+        BeamState, Clef, CrossStaff, Duration, Measure, Note, Part, Pitch, Score, Staff, Step,
+    };
+    let mut score = Score::new("cross staff chords", 120, 2, 8, 0, 1);
+    let mut upper = Staff::new(Clef::Treble);
+    let mut lower = Staff::new(Clef::Bass);
+    upper.measures.push(Measure::empty(2, 8));
+    lower.measures.push(Measure::empty(2, 8));
+    let mut first = Note::new(Pitch::new(Step::C, 5), Duration::Eighth);
+    first.pitches.push(Pitch::new(Step::E, 5));
+    first.beam = BeamState::Begin;
+    let mut second = Note::new(Pitch::new(Step::G, 3), Duration::Eighth);
+    second.pitches.push(Pitch::new(Step::B, 3));
+    second.beam = BeamState::End;
+    second.cross_staff = Some(CrossStaff {
+        target_staff: 1,
+        target_voice: None,
+    });
+    upper.measures[0].voices[0] = vec![first, second];
+    lower.measures[0].voices[0] = vec![Note::rest(Duration::Quarter)];
+    let mut part = Part::new("P", "");
+    part.staves = vec![upper, lower];
+    score.parts = vec![part];
+    let svg = render_svg(&score, &opts()).unwrap();
+    let heads = notehead_centers(&svg);
+    let stems: Vec<f32> = svg
+        .split(r#"class="acorde-stem" x1=""#)
+        .skip(1)
+        .map(|stem| {
+            stem.split(r#"y2=""#)
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap()
+                .parse()
+                .unwrap()
+        })
+        .collect();
+    assert_eq!(heads.len(), 4);
+    assert_eq!(stems.len(), 2);
+    let upper_near = heads[0].1.max(heads[1].1);
+    let lower_near = heads[2].1.min(heads[3].1);
+    assert!(
+        stems[0] - upper_near >= 2.0 * opts().staff_size - 0.1
+            && lower_near - stems[1] >= 2.0 * opts().staff_size - 0.1,
+        "{heads:?}, {stems:?}"
+    );
+}
+
+#[test]
 fn cross_staff_beam_group_is_kneed_between_the_staves() {
     use acorde_core::{
         Clef, CrossStaff, Duration, Measure, Note, Part, Pitch, Score, Staff, Step, TimeSignature,
@@ -3780,10 +3981,10 @@ fn cross_staff_beam_group_is_kneed_between_the_staves() {
         })
         .collect();
     assert_eq!(stems.len(), 2);
-    // Upper note stems down, lower note stems up, and both meet at the same beam.
+    // Upper note stems down, lower note stems up, and the shared beam slopes down.
     assert!(stems[0].1 > stems[0].0);
     assert!(stems[1].1 < stems[1].0);
-    assert!((stems[0].1 - stems[1].1).abs() < 0.01);
+    assert!((stems[1].1 - stems[0].1 - 0.75 * opts().staff_size).abs() < 0.02);
 }
 
 #[test]
@@ -4195,6 +4396,91 @@ fn dashes_spanners_draw_a_dashed_line_under_their_notes() {
     let svg = render_svg(&score, &opts()).unwrap();
     assert_eq!(svg.matches(r#"class="acorde-dashes""#).count(), 1);
     assert!(svg.contains("stroke-dasharray"));
+}
+
+#[test]
+fn two_note_beam_rise_accounts_for_horizontal_spacing() {
+    let score =
+        acorde_io::parse_musicxml(include_str!("fixtures/verovio_partial_stem_slur.musicxml"))
+            .unwrap();
+    for width in [500.0, 900.0] {
+        let mut options = opts();
+        options.width = width;
+        let svg = render_svg(&score, &options).unwrap();
+        let stems: Vec<&str> = svg.split(r#"class="acorde-stem" x1=""#).skip(1).collect();
+        assert_eq!(stems.len(), 2);
+        let attr = |stem: &str, key: &str| -> f32 {
+            stem.split(&format!(r#"{key}=""#))
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap()
+                .parse()
+                .unwrap()
+        };
+        // The leading x1 value was consumed by split; x2 is the same stem x.
+        let distance = (attr(stems[1], "x2") - attr(stems[0], "x2")).abs();
+        let tips = [attr(stems[0], "y2"), attr(stems[1], "y2")];
+        let expected = if distance <= 3.0 * options.staff_size {
+            0.25
+        } else {
+            0.5
+        };
+        assert!(
+            (tips[1] - tips[0] + expected * options.staff_size).abs() < 0.02,
+            "{tips:?}"
+        );
+        assert_eq!(slur_geometries(&svg).len(), 1);
+    }
+}
+
+#[test]
+fn beam_clears_every_head_of_wide_chords() {
+    use acorde_core::{BeamState, Duration, Note, Pitch, Score, Step};
+    for up in [true, false] {
+        let mut score = Score::new("wide beamed chords", 120, 2, 8, 0, 1);
+        let mut notes = [Step::C, Step::D].map(|step| {
+            let mut note = Note::new(Pitch::new(step.clone(), 4), Duration::Eighth);
+            note.pitches.push(Pitch::new(step, 6));
+            note.stem_up = Some(up);
+            note
+        });
+        notes[0].beam = BeamState::Begin;
+        notes[1].beam = BeamState::End;
+        score.parts[0].staves[0].measures[0].voices[0] = notes.to_vec();
+        let svg = render_svg(&score, &opts()).unwrap();
+        let heads = notehead_centers(&svg);
+        let stems: Vec<f32> = svg
+            .split(r#"class="acorde-stem" x1=""#)
+            .skip(1)
+            .map(|stem| {
+                stem.split(r#"y2=""#)
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap()
+                    .parse()
+                    .unwrap()
+            })
+            .collect();
+        assert_eq!(heads.len(), 4);
+        assert_eq!(stems.len(), 2);
+        for (index, &tip) in stems.iter().enumerate() {
+            let ys = [heads[2 * index].1, heads[2 * index + 1].1];
+            let closest = if up {
+                ys[0].min(ys[1])
+            } else {
+                ys[0].max(ys[1])
+            };
+            let clearance = (tip - closest) * if up { -1.0 } else { 1.0 };
+            assert!(
+                clearance >= 2.0 * opts().staff_size - 0.1,
+                "{heads:?}, {stems:?}"
+            );
+        }
+    }
 }
 
 #[test]
