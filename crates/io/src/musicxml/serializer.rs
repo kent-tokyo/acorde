@@ -182,7 +182,11 @@ fn serialize_musicxml_inner(
         .enumerate()
         .find_map(|(part_index, part)| {
             let measure = part.staves.first()?.measures.first()?;
-            measure.tempo.map(|bpm| (part_index, bpm, measure))
+            (measure.tempo.is_some() || measure.metronome_mark.is_some()).then_some((
+                part_index,
+                measure.tempo,
+                measure,
+            ))
         });
 
     for (pi, part) in score.parts.iter().enumerate() {
@@ -465,13 +469,9 @@ fn serialize_musicxml_inner(
                 }
                 if i == 0
                     && pi == 0
-                    && let Some((source_part, bpm, tempo_measure)) = opening_mark
+                    && let Some((_, bpm, tempo_measure)) = opening_mark
                 {
-                    push_tempo_direction(
-                        &mut xml,
-                        bpm,
-                        (source_part == 0).then_some(tempo_measure),
-                    );
+                    push_tempo_direction(&mut xml, bpm, Some(tempo_measure));
                 }
             } else if let Some(count) = measure.multi_rest_count
                 && count >= 2
@@ -495,10 +495,8 @@ fn serialize_musicxml_inner(
             }
 
             // Per-measure tempo change (measures after the first)
-            if i > 0
-                && let Some(bpm) = measure.tempo
-            {
-                push_tempo_direction(&mut xml, bpm, Some(measure));
+            if i > 0 && (measure.tempo.is_some() || measure.metronome_mark.is_some()) {
+                push_tempo_direction(&mut xml, measure.tempo, Some(measure));
             }
 
             // Navigation mark
@@ -539,9 +537,9 @@ fn serialize_musicxml_inner(
 
             // Tempo text
             let tempo_text_emitted_with_sound = if i == 0 {
-                pi == 0 && opening_mark.is_some_and(|(source_part, _, _)| source_part == 0)
+                opening_mark.is_some_and(|(source_part, _, _)| source_part == pi)
             } else {
-                measure.tempo.is_some()
+                measure.tempo.is_some() || measure.metronome_mark.is_some()
             };
             if let Some(text) = &measure.tempo_text
                 && !tempo_text_emitted_with_sound
@@ -2006,27 +2004,40 @@ fn musicxml_part_id(id: &str) -> String {
     }
 }
 
-fn push_tempo_direction(xml: &mut String, bpm: u16, measure: Option<&acorde_core::Measure>) {
+fn push_tempo_direction(
+    xml: &mut String,
+    bpm: Option<u16>,
+    measure: Option<&acorde_core::Measure>,
+) {
+    let words = measure.and_then(|measure| measure.tempo_text.as_deref());
+    let attrs = words
+        .and_then(|text| {
+            measure.map(|measure| measure_text_direction_attrs(measure, TextStyle::Generic, text))
+        })
+        .unwrap_or_else(|| " placement=\"above\"".to_string());
+    xml.push_str(&format!("      <direction{attrs}>\n"));
     if let Some((measure, text)) =
         measure.and_then(|measure| measure.tempo_text.as_deref().map(|text| (measure, text)))
     {
-        let styled = measure_styled_text(measure, TextStyle::Generic, text);
-        let attrs = measure_text_direction_attrs(measure, TextStyle::Generic, text);
-        xml.push_str(&format!("      <direction{attrs}>\n"));
         xml.push_str("        <direction-type>\n");
         xml.push_str(&format!(
             "          <words{}>{}</words>\n",
-            styled_text_position_attrs(styled),
+            styled_text_position_attrs(measure_styled_text(measure, TextStyle::Generic, text)),
             escape_xml(text)
         ));
-    } else {
-        xml.push_str("      <direction placement=\"above\">\n");
-        xml.push_str("        <direction-type>\n");
-        xml.push_str(&format!(
-            "          <metronome><beat-unit>quarter</beat-unit><per-minute>{bpm}</per-minute></metronome>\n"
-        ));
+        xml.push_str("        </direction-type>\n");
     }
-    xml.push_str("        </direction-type>\n");
+    if let Some(mark) = measure.and_then(|measure| measure.metronome_mark.as_ref()) {
+        push_metronome_type(xml, mark);
+    } else if words.is_none()
+        && let Some(bpm) = bpm
+    {
+        // Keep the established explicit tempo mark for a score-authored tempo
+        // without a descriptive word, while a bare opening setting stays silent.
+        xml.push_str("        <direction-type>\n");
+        xml.push_str(&format!("          <metronome><beat-unit>quarter</beat-unit><per-minute>{bpm}</per-minute></metronome>\n"));
+        xml.push_str("        </direction-type>\n");
+    }
     if let Some((measure, text)) =
         measure.and_then(|measure| measure.tempo_text.as_deref().map(|text| (measure, text)))
     {
@@ -2036,8 +2047,31 @@ fn push_tempo_direction(xml: &mut String, bpm: u16, measure: Option<&acorde_core
             text,
         )));
     }
-    xml.push_str(&format!("        <sound tempo=\"{bpm}\"/>\n"));
+    if let Some(bpm) = bpm {
+        xml.push_str(&format!("        <sound tempo=\"{bpm}\"/>\n"));
+    }
     xml.push_str("      </direction>\n");
+}
+
+fn push_metronome_type(xml: &mut String, mark: &acorde_core::MetronomeMark) {
+    xml.push_str("        <direction-type>\n");
+    let parentheses = if mark.parentheses { "yes" } else { "no" };
+    xml.push_str(&format!(
+        "          <metronome parentheses=\"{parentheses}\">\n"
+    ));
+    xml.push_str(&format!(
+        "            <beat-unit>{}</beat-unit>\n",
+        mark.beat_unit.to_musicxml_type()
+    ));
+    for _ in 0..mark.beat_unit_dots {
+        xml.push_str("            <beat-unit-dot/>\n");
+    }
+    xml.push_str(&format!(
+        "            <per-minute>{}</per-minute>\n",
+        mark.per_minute
+    ));
+    xml.push_str("          </metronome>\n");
+    xml.push_str("        </direction-type>\n");
 }
 
 fn measure_styled_text<'a>(

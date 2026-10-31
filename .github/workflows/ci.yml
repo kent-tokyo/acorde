@@ -187,8 +187,10 @@ jobs:
           # locally. Written grace playback measures 6,028,234 bytes on macOS,
           # 4,928 bytes above the pre-change build. Opt-in ornament realization
           # measures 6,033,188 bytes on macOS, 4,954 bytes above the grace build.
+          # Written MusicXML metronome marks and SVG note glyphs measure
+          # 6,058,136 bytes on macOS, 24,948 bytes above that build.
           # Keep a narrow cap for the full print-aware binding.
-          test "$size" -le 6040000
+          test "$size" -le 6065000
 
   renderer-benchmark:
     name: Renderer performance budget

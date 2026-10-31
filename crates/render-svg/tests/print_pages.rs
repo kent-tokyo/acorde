@@ -342,6 +342,22 @@ fn quilter_prints_all_directions_with_clearance_between_grand_staves() {
     .unwrap();
     let pages = render_print_page_svgs(&score, &layout).unwrap();
     assert_eq!(pages.len(), 1);
+    assert_eq!(pages[0].matches(r#"class="acorde-metronome""#).count(), 1);
+    assert!(pages[0].contains(r#"data-beat-unit="quarter" data-bpm="69""#));
+    let tempo_words = pages[0]
+        .split("<text ")
+        .find(|fragment| fragment.contains("Moderato tranquillo e con tenerezza"))
+        .expect("tempo words print");
+    let tempo_x = svg_attribute_f32(tempo_words, "x");
+    let tempo_y = svg_attribute_f32(tempo_words, "y");
+    let mark = pages[0]
+        .split(r#"class="acorde-metronome""#)
+        .nth(1)
+        .expect("metronome vector prints");
+    let mark_x = svg_attribute_f32(mark, "cx");
+    let mark_y = svg_attribute_f32(mark, "cy");
+    assert!(mark_x > tempo_x + 30.0, "mark follows tempo words");
+    assert!((mark_y - tempo_y).abs() < 10.0, "mark shares tempo lane");
     assert_eq!(pages[0].matches(">L.H.</text>").count(), 2);
     let left_hand = pages[0]
         .split("<text ")

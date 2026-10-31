@@ -2,7 +2,7 @@ use crate::Error;
 use acorde_core::{
     AccidentalDisplay, Articulation, Barline, ChordDegree, ChordSymbol, Clef, Duration, Dynamic,
     FiguredBassFigure, GuitarTechnique, HairpinKind, HarpPedalDiagram, HarpPedalPosition,
-    KeySignature, Lyric, Measure, MeasureLength, MidiControlChange, NotationSpanner,
+    KeySignature, Lyric, Measure, MeasureLength, MetronomeMark, MidiControlChange, NotationSpanner,
     NotationSpannerKind, Note, NoteAddr, NoteHead, OttavaKind, Part, PartGroup, PartGroupSymbol,
     PercussionInstrument, Pitch, Score, Staff, StaffKind, Step, StyledText, TextStyle,
     TimeSignature, TupletBoundary, TupletInfo, VerseLyric, VoltaBracket,
@@ -367,6 +367,12 @@ pub(crate) fn parse_musicxml_collecting(
     let mut pending_navigation: Option<String> = None;
     let mut pending_section_break = false;
     let mut pending_sound_tempo: Option<u16> = None;
+    let mut in_metronome = false;
+    let mut metronome_beat_unit: Option<Duration> = None;
+    let mut metronome_dots = 0u8;
+    let mut metronome_per_minute: Option<u16> = None;
+    let mut metronome_parentheses = false;
+    let mut pending_metronome: Option<MetronomeMark> = None;
     let mut pending_direction_placement: Option<String> = None;
     let mut pending_direction_offset_x: Option<f64> = None;
     let mut pending_direction_offset_y: Option<f64> = None;
@@ -616,6 +622,16 @@ pub(crate) fn parse_musicxml_collecting(
                             .filter(|value| value.is_finite());
                     }
                     "direction-type" => in_direction_type = true,
+                    "metronome" if in_direction_type => {
+                        in_metronome = true;
+                        metronome_beat_unit = None;
+                        metronome_dots = 0;
+                        metronome_per_minute = None;
+                        metronome_parentheses = attr_is_yes(e, b"parentheses");
+                    }
+                    "beat-unit-dot" if in_metronome => {
+                        metronome_dots = metronome_dots.saturating_add(1).min(4);
+                    }
                     "dynamics" if in_direction_type || in_notations => in_dynamics = true,
                     "other-dynamics" if in_dynamics => {
                         let mut diagnostic = crate::Diagnostic::warning(
@@ -946,6 +962,9 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "instrument" if in_note => note_instrument_id = attr_str(e, b"id"),
                     "dot" if in_note => note_dots = note_dots.saturating_add(1).min(4),
+                    "beat-unit-dot" if in_metronome => {
+                        metronome_dots = metronome_dots.saturating_add(1).min(4);
+                    }
                     "chord" if in_note => note_chord = true,
                     "tuplet" if in_notations => add_tuplet_boundary(
                         &mut note_tuplet_boundary,
@@ -1732,6 +1751,41 @@ pub(crate) fn parse_musicxml_collecting(
                         }
                     }
                     "direction-type" => in_direction_type = false,
+                    "beat-unit" if in_metronome => {
+                        metronome_beat_unit = match current_text.trim() {
+                            "whole" => Some(Duration::Whole),
+                            "half" => Some(Duration::Half),
+                            "quarter" => Some(Duration::Quarter),
+                            "eighth" => Some(Duration::Eighth),
+                            "16th" => Some(Duration::Sixteenth),
+                            _ => None,
+                        };
+                    }
+                    "per-minute" if in_metronome => {
+                        metronome_per_minute = current_text
+                            .trim()
+                            .parse::<u16>()
+                            .ok()
+                            .filter(|bpm| *bpm > 0);
+                    }
+                    "metronome" if in_metronome => {
+                        in_metronome = false;
+                        if let (Some(beat_unit), Some(per_minute)) =
+                            (metronome_beat_unit.take(), metronome_per_minute.take())
+                        {
+                            pending_metronome = Some(MetronomeMark {
+                                beat_unit,
+                                beat_unit_dots: metronome_dots,
+                                per_minute,
+                                parentheses: metronome_parentheses,
+                            });
+                        } else {
+                            tolerated.push(crate::Diagnostic::warning(
+                                "musicxml.unsupported-metronome",
+                                "MusicXML metronome mark is not a supported beat-unit/per-minute equation",
+                            ));
+                        }
+                    }
                     "direction" => {
                         if pending_section_break && let Some(pi) = part_index {
                             for staff in &mut score.parts[pi].staves {
@@ -1796,12 +1850,16 @@ pub(crate) fn parse_musicxml_collecting(
                             if let Some(bpm) = pending_sound_tempo.take() {
                                 m.tempo = Some(bpm);
                             }
+                            if let Some(mark) = pending_metronome.take() {
+                                m.metronome_mark = Some(mark);
+                            }
                             for mut diagram in std::mem::take(&mut pending_harp_pedal_diagrams) {
                                 diagram.placement = pending_direction_placement.clone();
                                 m.harp_pedal_diagrams.push(diagram);
                             }
                         }
                         pending_sound_tempo = None;
+                        pending_metronome = None;
                         pending_direction_placement = None;
                         pending_direction_position_beats = None;
                         pending_direction_offset_x = None;
