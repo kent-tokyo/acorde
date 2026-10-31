@@ -59,8 +59,8 @@ rhythmic units; a rest can occupy either unit. The first measure's authored pick
 positioned on the full bar's beat grid. Non-finite or out-of-range ratios leave timing straight.
 The `swing_*` tests in `crates/core/src/model/playback.rs` cover these cases.
 
-This is a bounded event-timing correction, not a same-input alphaTab audio comparison. The
-repository still has no PCM-output comparison or cross-browser playback timing measurement.
+This swing correction is a bounded event-timing result. The same-input PCM comparison below
+uses a straight-timing score; cross-browser playback timing remains unmeasured.
 
 ## Native SF2 WAV output (2026-10-31)
 
@@ -151,9 +151,9 @@ not copied into this repository.
 The full-SF2 mode also applies authored signed 14-bit pitch bend and MIDI CC 1, 7, 10, 11, and 64
 on the frame schedule. A two-voice real-SF2 regression checks that CC7 reaches both channels
 after voice splitting; another checks that a bend changes only audio after its authored frame.
-CC64 holds sound across a rest. Unsupported or unrouted automation, including raw MIDI program
-changes, fails explicitly. These regressions show control realization, not alphaTab audio parity
-on a real-score controller corpus.
+CC64 holds sound across a rest. Authored MIDI program changes also select the next note's preset,
+as tested below; other unsupported or unrouted automation fails explicitly. These regressions
+show control realization, not alphaTab audio parity on a real-score controller corpus.
 
 On the independent *Just for Today* MXL (score SHA-256
 `79a19736fcce71c0acf4b39feff63723d2ff75e29285ea2ab594f9b2b6a835ff`), Acorde rendered
