@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- MusicXML slurs without an explicit `placement` now use the starting Bezier
+  control's vertical sign as a bounded above/below hint. The pinned Quilter
+  opening phrase bows above its notes, as in Verovio 6.3.0, instead of below
+  them. SVG and print slurs use a filled, tapered curve rather than a hairline.
+
 ## 1.3.7 - 2026-10-31
 
 - **[breaking for exhaustive Rust source]** `Measure` now has serde-defaulted

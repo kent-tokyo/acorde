@@ -96,6 +96,19 @@ fn parse_spanner_number(value: Option<String>) -> Result<u16, Error> {
     }
 }
 
+/// A slur's explicit side wins. Some exporters omit `placement` while writing
+/// the starting endpoint's Bezier control in MusicXML tenths. Its sign gives a
+/// bounded bow-side hint; `default-y` alone is staff-relative and insufficient.
+/// The exact curve remains renderer-owned.
+fn slur_start_placement(e: &quick_xml::events::BytesStart<'_>) -> Option<String> {
+    attr_str(e, b"placement").or_else(|| {
+        attr_str(e, b"bezier-y")
+            .and_then(|value| value.parse::<f32>().ok())
+            .filter(|y| y.is_finite() && *y != 0.0)
+            .map(|y| if y > 0.0 { "above" } else { "below" }.to_string())
+    })
+}
+
 /// How far a measure's content may run past its time signature (cadenzas, un-barred passages)
 /// before the input is treated as corrupt.
 const MAX_OVERFULL_FACTOR: u32 = 16;
@@ -985,7 +998,7 @@ pub(crate) fn parse_musicxml_collecting(
                                 number: parse_spanner_number(attr_str(e, b"number"))?,
                                 line_type: attr_str(e, b"line-type"),
                                 text: None,
-                                placement: attr_str(e, b"placement"),
+                                placement: slur_start_placement(e),
                                 ottava_size: None,
                             });
                         }
@@ -3546,6 +3559,29 @@ fn musicxml_dynamic(tag: &str) -> Option<Dynamic> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn slur_start_prefers_explicit_placement_over_curve_hint() {
+        let mut above = quick_xml::events::BytesStart::new("slur");
+        above.push_attribute(("bezier-y", "24"));
+        assert_eq!(slur_start_placement(&above).as_deref(), Some("above"));
+
+        let mut below = quick_xml::events::BytesStart::new("slur");
+        below.push_attribute(("default-y", "9"));
+        below.push_attribute(("bezier-y", "-18"));
+        assert_eq!(slur_start_placement(&below).as_deref(), Some("below"));
+
+        below.push_attribute(("placement", "above"));
+        assert_eq!(slur_start_placement(&below).as_deref(), Some("above"));
+
+        let mut staff_relative = quick_xml::events::BytesStart::new("slur");
+        staff_relative.push_attribute(("default-y", "-12"));
+        assert_eq!(slur_start_placement(&staff_relative), None);
+
+        let mut unsigned = quick_xml::events::BytesStart::new("slur");
+        unsigned.push_attribute(("bezier-y", "0"));
+        assert_eq!(slur_start_placement(&unsigned), None);
+    }
 
     #[test]
     fn empty_input_returns_err() {

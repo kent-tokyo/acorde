@@ -342,6 +342,29 @@ fn quilter_prints_all_directions_with_clearance_between_grand_staves() {
     .unwrap();
     let pages = render_print_page_svgs(&score, &layout).unwrap();
     assert_eq!(pages.len(), 1);
+    let first_slur = pages[0]
+        .split_once(r#"class="acorde-slur" d=""#)
+        .expect("opening slur prints")
+        .1
+        .split('"')
+        .next()
+        .unwrap();
+    let bow = first_slur
+        .split(['M', 'Q', 'Z', ',', ' '])
+        .filter_map(|value| value.parse::<f32>().ok())
+        .take(6)
+        .collect::<Vec<_>>();
+    assert_eq!(bow.len(), 6);
+    assert!(
+        bow[3] < bow[1].min(bow[5]),
+        "opening slur bows above: {first_slur}"
+    );
+    assert_eq!(
+        first_slur.matches('Q').count(),
+        2,
+        "filled ribbon has two edges"
+    );
+    assert!(first_slur.ends_with(" Z"));
     assert_eq!(pages[0].matches(r#"data-symbol="common""#).count(), 2);
     assert_eq!(pages[0].matches(r#"class="acorde-metronome""#).count(), 1);
     assert!(pages[0].contains(r#"data-beat-unit="quarter" data-bpm="69""#));
