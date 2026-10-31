@@ -629,10 +629,12 @@ fn serialize_musicxml_inner(
                             escape_xml(prefix)
                         ));
                     }
-                    xml.push_str(&format!(
-                        "          <figure-number>{}</figure-number>\n",
-                        escape_xml(&figure.number)
-                    ));
+                    if !figure.number.is_empty() {
+                        xml.push_str(&format!(
+                            "          <figure-number>{}</figure-number>\n",
+                            escape_xml(&figure.number)
+                        ));
+                    }
                     if let Some(alter) = &figure.alter {
                         xml.push_str(&format!(
                             "          <figure-alter>{}</figure-alter>\n",
@@ -644,6 +646,9 @@ fn serialize_musicxml_inner(
                             "          <suffix>{}</suffix>\n",
                             escape_xml(suffix)
                         ));
+                    }
+                    if figure.extender {
+                        xml.push_str("          <extend type=\"start\"/>\n");
                     }
                     xml.push_str("        </figure>\n");
                 }

@@ -2549,6 +2549,17 @@ pub(crate) fn measure_text_entries(measure: &Measure) -> Vec<StyledText> {
     entries
 }
 
+fn figured_bass_modifier_display(value: &str) -> &str {
+    match value {
+        "sharp" => "♯",
+        "flat" => "♭",
+        "natural" => "♮",
+        "double-sharp" => "𝄪",
+        "flat-flat" => "𝄫",
+        other => other,
+    }
+}
+
 fn figured_bass_display_text(measure: &Measure) -> Option<String> {
     if measure.figured_bass.is_empty() {
         return None;
@@ -2566,10 +2577,10 @@ fn figured_bass_display_text(measure: &Measure) -> Option<String> {
             };
             format!(
                 "{}{}{}{}",
-                figure.prefix.as_deref().unwrap_or(""),
+                figured_bass_modifier_display(figure.prefix.as_deref().unwrap_or("")),
                 alter,
                 figure.number,
-                figure.suffix.as_deref().unwrap_or("")
+                figured_bass_modifier_display(figure.suffix.as_deref().unwrap_or(""))
             )
         })
         .collect::<Vec<_>>()
@@ -8862,6 +8873,22 @@ mod tests {
     };
     use acorde_layout::{LayoutConfig, SpanMark, compute_layout};
     use std::collections::HashMap;
+
+    #[test]
+    fn figured_bass_standalone_accidental_uses_music_symbol() {
+        let mut measure = Measure::empty(4, 4);
+        measure.figured_bass.push(acorde_core::FiguredBassFigure {
+            number: String::new(),
+            alter: None,
+            prefix: Some("sharp".into()),
+            suffix: None,
+            extender: false,
+        });
+        assert_eq!(
+            super::figured_bass_display_text(&measure).as_deref(),
+            Some("♯")
+        );
+    }
 
     #[test]
     fn direction_beat_tracks_reflowed_note_spacing() {

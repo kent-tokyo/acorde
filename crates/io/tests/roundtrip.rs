@@ -1781,6 +1781,29 @@ fn musicxml_simple_figured_bass_display_text_roundtrips() {
 }
 
 #[test]
+fn musicxml_figured_bass_prefix_and_extender_roundtrip() {
+    for figure in [
+        "<prefix>sharp</prefix>",
+        "<figure-number>6</figure-number><extend type=\"start\"/>",
+    ] {
+        let xml = SIMPLE_XML.replacen(
+            "<note",
+            &format!("<figured-bass><figure>{figure}</figure></figured-bass><note"),
+            1,
+        );
+        let score = acorde_io::parse_musicxml(&xml).expect("figure imports");
+        let expected = score.parts[0].staves[0].measures[0].figured_bass.clone();
+        assert_eq!(expected.len(), 1);
+        if figure.contains("sharp") {
+            assert_eq!(score.parts[0].staves[0].measures[0].texts[0].text, "♯");
+        }
+        let serialized = acorde_io::serialize_musicxml(&score).unwrap();
+        let actual = acorde_io::parse_musicxml(&serialized).unwrap();
+        assert_eq!(actual.parts[0].staves[0].measures[0].figured_bass, expected);
+    }
+}
+
+#[test]
 fn musicxml_structured_chord_degrees_roundtrip() {
     let xml = SIMPLE_XML.replacen(
         "<note",

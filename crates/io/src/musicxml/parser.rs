@@ -14,6 +14,17 @@ use std::collections::HashMap;
 use super::attributes::{attr_is_yes, attr_present, attr_str};
 use super::{pan_to_cc, volume_to_cc};
 
+fn figured_bass_modifier_display(value: &str) -> &str {
+    match value {
+        "sharp" => "♯",
+        "flat" => "♭",
+        "natural" => "♮",
+        "double-sharp" => "𝄪",
+        "flat-flat" => "𝄫",
+        other => other,
+    }
+}
+
 const MAX_ELEMENTS: usize = 500_000;
 const MAX_MUSICXML_BYTES: usize = 64 * 1024 * 1024;
 const MAX_PARTS: usize = 64;
@@ -356,6 +367,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut figured_figure_alter = String::new();
     let mut figured_figure_prefix = String::new();
     let mut figured_figure_suffix = String::new();
+    let mut figured_figure_extender = false;
     let mut figured_bass_figures: Vec<FiguredBassFigure> = Vec::new();
     let mut pending_ottava_start: Option<OttavaKind> = None;
     let mut pending_pedal_start = false;
@@ -600,6 +612,7 @@ pub(crate) fn parse_musicxml_collecting(
                         figured_bass_figures.clear();
                     }
                     "figure" if in_figured_bass => {
+                        figured_figure_extender = false;
                         in_figured_figure = true;
                         figured_figure_number.clear();
                         figured_figure_alter.clear();
@@ -972,6 +985,12 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                 }
                 match tag.as_str() {
+                    "extend" if in_figured_figure => {
+                        figured_figure_extender = matches!(
+                            attr_str(e, b"type").as_deref(),
+                            None | Some("start") | Some("continue")
+                        );
+                    }
                     "elision" if in_lyric => lyric_elision = Some(LYRIC_ELISION.to_string()),
                     "extend" if in_lyric => {
                         lyric_extend =
@@ -1687,11 +1706,15 @@ pub(crate) fn parse_musicxml_collecting(
                         figured_figure_suffix = current_text.trim().to_string();
                     }
                     "figure" if in_figured_figure => {
-                        if !figured_figure_number.is_empty() {
+                        if !figured_figure_number.is_empty()
+                            || !figured_figure_prefix.is_empty()
+                            || !figured_figure_suffix.is_empty()
+                        {
                             if !figured_bass_text.is_empty() {
                                 figured_bass_text.push(' ');
                             }
-                            figured_bass_text.push_str(&figured_figure_prefix);
+                            figured_bass_text
+                                .push_str(figured_bass_modifier_display(&figured_figure_prefix));
                             figured_bass_text.push_str(match figured_figure_alter.as_str() {
                                 "1" => "#",
                                 "-1" => "b",
@@ -1704,7 +1727,8 @@ pub(crate) fn parse_musicxml_collecting(
                                 }
                             });
                             figured_bass_text.push_str(&figured_figure_number);
-                            figured_bass_text.push_str(&figured_figure_suffix);
+                            figured_bass_text
+                                .push_str(figured_bass_modifier_display(&figured_figure_suffix));
                             figured_bass_figures.push(FiguredBassFigure {
                                 number: figured_figure_number.clone(),
                                 alter: (!figured_figure_alter.is_empty())
@@ -1713,7 +1737,7 @@ pub(crate) fn parse_musicxml_collecting(
                                     .then(|| figured_figure_prefix.clone()),
                                 suffix: (!figured_figure_suffix.is_empty())
                                     .then(|| figured_figure_suffix.clone()),
-                                extender: false,
+                                extender: figured_figure_extender,
                             });
                         }
                         in_figured_figure = false;
@@ -1731,7 +1755,10 @@ pub(crate) fn parse_musicxml_collecting(
                             }
                             if !figured_bass_text.trim().is_empty() {
                                 measure.texts.push(StyledText {
-                                    position_beats: None,
+                                    position_beats: (measure_cursor_ticks != 0).then(|| {
+                                        f64::from(measure_cursor_ticks)
+                                            / f64::from(current_divisions.max(1))
+                                    }),
                                     style: TextStyle::FiguredBass,
                                     text: figured_bass_text.trim().to_string(),
                                     placement: None,
