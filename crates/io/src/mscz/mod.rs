@@ -1189,6 +1189,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         let meas = Measure {
                             number: cur_measure_num,
                             time_sig: cur_time.clone(),
+                            time_symbol: None,
                             key_sig: cur_key.clone(),
                             clef: cur_clef_in_measure.clone(),
                             mid_clefs,

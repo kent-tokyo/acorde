@@ -292,6 +292,13 @@ pub struct TimeSignature {
     pub denominator: u8,
 }
 
+/// Written display of a 4/4 or 2/2 meter, separate from its rhythmic value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TimeSymbol {
+    Common,
+    Cut,
+}
+
 impl Default for TimeSignature {
     fn default() -> Self {
         Self {

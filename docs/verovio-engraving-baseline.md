@@ -460,6 +460,23 @@ the first staff. The importer still reports 103 diagnostics. This closes one
 missing printed symbol; note size, direction typography, spacing, and broad
 print quality remain below the Verovio reference on this score.
 
+### Verovio-guided common and cut meter glyphs (2026-10-31)
+
+The pinned Quilter MXL has `<time symbol="common"><beats>4</beats><beat-type>4</beat-type>`.
+Verovio 6.3.0 prints C on both piano staves; Acorde previously printed 4/4.
+The [MusicXML time-symbol contract](https://www.w3.org/2021/06/musicxml40/tutorial/notation-basics/)
+distinguishes the written common or cut sign from its 4/4 or 2/2 rhythmic
+value. Acorde now keeps that distinction in the score, MusicXML roundtrip,
+diff/patch, and SVG/PDF renderer. A change to cut time inside one system also
+gets a dedicated aligned meter column. Unsupported or mismatched symbols are
+reported on import and rendered as numerals rather than guessed.
+
+The revised Quilter A4 PDF was rasterized at 1400 px and inspected. C appears
+on both opening staves without touching the first notes. The page is still one
+page with four systems (2+2+3+3), while the same-input Verovio page has three;
+the 103 import diagnostics are unchanged. This fixes one notation mismatch,
+not the remaining differences in note size, line filling, and typography.
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.

@@ -3,7 +3,7 @@ use super::{
     notation::{
         AccidentalDisplay, Articulation, Barline, BeamState, ChordDefinition, ChordSymbol, Clef,
         CrossStaff, Dynamic, FiguredBassFigure, GuitarTechnique, HairpinKind, KeySignature, Lyric,
-        NoteHead, OttavaKind, StyledText, TabPosition, TablatureConfig, TimeSignature,
+        NoteHead, OttavaKind, StyledText, TabPosition, TablatureConfig, TimeSignature, TimeSymbol,
         TupletBoundary, TupletInfo, VerseLyric,
     },
     pitch::Pitch,
@@ -2140,6 +2140,9 @@ pub struct MetronomeMark {
 pub struct Measure {
     pub number: u32,
     pub time_sig: Option<TimeSignature>,
+    /// Common or cut meter glyph selected by the source; `None` prints numerals.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub time_symbol: Option<TimeSymbol>,
     pub key_sig: Option<KeySignature>,
     pub clef: Option<Clef>,
     /// Clef changes inside the bar, in increasing `offset` order, each strictly after the
@@ -2248,6 +2251,7 @@ impl Measure {
         Self {
             number: 0,
             time_sig: None,
+            time_symbol: None,
             key_sig: None,
             clef: None,
             mid_clefs: Vec::new(),
@@ -3087,6 +3091,13 @@ pub enum ScoreChange {
         old: Option<TimeSignature>,
         new: Option<TimeSignature>,
     },
+    TimeSymbolChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old: Option<TimeSymbol>,
+        new: Option<TimeSymbol>,
+    },
     MeasureTempoChanged {
         part: usize,
         staff: usize,
@@ -3376,6 +3387,15 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                         new: bm.time_sig.clone(),
                     });
                 }
+                if am.time_symbol != bm.time_symbol {
+                    changes.push(ScoreChange::TimeSymbolChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.time_symbol,
+                        new: bm.time_symbol,
+                    });
+                }
                 if am.tempo != bm.tempo {
                     changes.push(ScoreChange::MeasureTempoChanged {
                         part: pi,
@@ -3646,6 +3666,12 @@ pub enum ScorePatch {
         staff: usize,
         measure: usize,
         value: Option<TimeSignature>,
+    },
+    SetTimeSymbol {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        value: Option<TimeSymbol>,
     },
     SetBarlines {
         part: usize,
@@ -3934,6 +3960,14 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                         staff: si,
                         measure: mi,
                         value: bm.time_sig.clone(),
+                    });
+                }
+                if am.time_symbol != bm.time_symbol {
+                    patches.push(ScorePatch::SetTimeSymbol {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: bm.time_symbol,
                     });
                 }
                 if am.barline_left != bm.barline_left || am.barline_right != bm.barline_right {
@@ -4325,6 +4359,23 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                     .get_mut(*measure)
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
                     .time_sig = value.clone();
+            }
+            ScorePatch::SetTimeSymbol {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .time_symbol = *value;
             }
             ScorePatch::SetBarlines {
                 part,
@@ -6478,6 +6529,37 @@ mod tests {
         assert_eq!(
             apply_patch(&a, &patches).unwrap().parts[0].staves[0].tablature,
             b.parts[0].staves[0].tablature
+        );
+    }
+
+    #[test]
+    fn diff_and_patch_preserve_common_time_symbol() {
+        let a = Score::new("Meter", 120, 4, 4, 0, 1);
+        let mut b = a.clone();
+        b.parts[0].staves[0].measures[0].time_symbol = Some(TimeSymbol::Common);
+        assert!(diff(&a, &b).iter().any(|change| matches!(
+            change,
+            ScoreChange::TimeSymbolChanged {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                new: Some(TimeSymbol::Common),
+                ..
+            }
+        )));
+        let patches = score_patch(&a, &b);
+        assert!(patches.iter().any(|patch| matches!(
+            patch,
+            ScorePatch::SetTimeSymbol {
+                part: 0,
+                staff: 0,
+                measure: 0,
+                value: Some(TimeSymbol::Common)
+            }
+        )));
+        assert_eq!(
+            apply_patch(&a, &patches).unwrap().parts[0].staves[0].measures[0].time_symbol,
+            Some(TimeSymbol::Common)
         );
     }
 
