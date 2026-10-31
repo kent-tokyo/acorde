@@ -343,6 +343,26 @@ fn quilter_prints_all_directions_with_clearance_between_grand_staves() {
     let pages = render_print_page_svgs(&score, &layout).unwrap();
     assert_eq!(pages.len(), 1);
     assert_eq!(pages[0].matches(">L.H.</text>").count(), 2);
+    let left_hand = pages[0]
+        .split("<text ")
+        .filter(|fragment| fragment.contains(">L.H.</text>"))
+        .map(|fragment| {
+            (
+                svg_attribute_f32(fragment, "x"),
+                svg_attribute_f32(fragment, "y"),
+                svg_attribute_f32(fragment, "font-size"),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(left_hand.len(), 2);
+    assert!(
+        left_hand[1].0 - left_hand[0].0 >= 2.0 * left_hand[0].2,
+        "repeated directions should read left to right: {left_hand:?}"
+    );
+    assert!(
+        (left_hand[1].1 - left_hand[0].1).abs() <= 0.5,
+        "repeated directions should share a print lane: {left_hand:?}"
+    );
     let direction = pages[0]
         .split("<text ")
         .find(|fragment| fragment.contains(">poco cresc.</text>"))

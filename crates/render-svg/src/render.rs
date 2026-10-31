@@ -4510,6 +4510,7 @@ fn render_measure_text(
     let mut above_texts = 0usize;
     let mut below_texts = 0usize;
     let entries = measure_text_entries(measure);
+    let mut text_lanes = Vec::with_capacity(entries.len());
     let annotation_count = resolved_annotations.len();
     let mut placements = resolved_annotations.to_vec();
     let mut classes = vec![acorde_layout::GlyphCollisionClass::Critical; annotation_count];
@@ -4521,20 +4522,39 @@ fn render_measure_text(
     classes.reserve(entries.len());
     directions.reserve(entries.len());
     for (text_index, styled) in entries.iter().enumerate() {
+        // A source can place repeated words at different beats without explicit x offsets.
+        // The canonical text model retains their order but not those beats. On print pages,
+        // spread identical directions horizontally instead of stacking them at one x.
+        let same_unpositioned = |other: &StyledText| {
+            styled.style == other.style
+                && styled.text == other.text
+                && styled.placement == other.placement
+                && styled.offset_x.is_none()
+                && styled.relative_x.is_none()
+                && other.offset_x.is_none()
+                && other.relative_x.is_none()
+        };
+        let print_group = text_scale > 1.0 && styled.style == TextStyle::Expression;
+        let previous_same = print_group
+            .then(|| entries[..text_index].iter().position(&same_unpositioned))
+            .flatten();
         let placement_below = styled
             .placement
             .as_deref()
             .is_some_and(|placement| placement.eq_ignore_ascii_case("below"))
             || matches!(styled.style, acorde_core::TextStyle::Lyrics);
-        let stack_index = if placement_below {
-            let index = below_texts;
+        let stack_index = if let Some(previous) = previous_same {
+            text_lanes[previous]
+        } else if placement_below {
+            let lane = below_texts;
             below_texts += 1;
-            index
+            lane
         } else {
-            let index = above_texts;
+            let lane = above_texts;
             above_texts += 1;
-            index
+            lane
         };
+        text_lanes.push(stack_index);
         let default_y = if placement_below {
             bottom_y + (2.8 + stack_index as f32 * 0.95 * text_scale) * space
         } else {
@@ -4542,8 +4562,22 @@ fn render_measure_text(
         };
         let offset_y = styled.offset_y.unwrap_or(0.0) + styled.relative_y.unwrap_or(0.0);
         let offset_x = styled.offset_x.unwrap_or(0.0) + styled.relative_x.unwrap_or(0.0);
-        let text_x = content_x0 + (offset_x as f32 / 10.0) * space;
         let text_width = styled.text.chars().count() as f32 * 0.46 * space * text_scale;
+        let mut text_x = content_x0 + (offset_x as f32 / 10.0) * space;
+        if print_group {
+            let group_size = entries
+                .iter()
+                .filter(|other| same_unpositioned(other))
+                .count();
+            if group_size > 1 {
+                let ordinal = entries[..text_index]
+                    .iter()
+                    .filter(|other| same_unpositioned(other))
+                    .count();
+                let available = (x + width - text_x - text_width - 0.5 * space).max(0.0);
+                text_x += ordinal as f32 * available / (group_size + 2) as f32;
+            }
+        }
         let collision_y = measure_text_collision_y(&MeasureTextCollisionContext {
             measure,
             part,
