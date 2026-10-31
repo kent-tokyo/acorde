@@ -206,6 +206,60 @@ fn slur_curve_clears_the_middle_note_of_a_peaked_phrase() {
 }
 
 #[test]
+fn slur_curve_clears_an_off_center_peak_and_valley() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    for (steps, octave, above, peak) in [
+        ([Step::C, Step::A, Step::C, Step::C, Step::C], 5, true, 1),
+        ([Step::C, Step::C, Step::C, Step::A, Step::C], 5, true, 3),
+        ([Step::A, Step::C, Step::A, Step::A, Step::A], 4, false, 1),
+        ([Step::A, Step::A, Step::A, Step::C, Step::A], 4, false, 3),
+    ] {
+        let mut score = Score::new("off-center slur", 120, 5, 4, 0, 1);
+        let mut notes = steps.map(|step| Note::new(Pitch::new(step, octave), Duration::Quarter));
+        notes[0].slur_start = true;
+        notes[4].slur_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = notes.to_vec();
+        let svg = render_svg(&score, &opts()).unwrap();
+        let path = slur_geometries(&svg)[0];
+        let heads = notehead_centers(&svg);
+        let t = (heads[peak].0 - path[0]) / (path[4] - path[0]);
+        let y = (1.0 - t).powi(2) * path[1] + 2.0 * (1.0 - t) * t * path[3] + t.powi(2) * path[5];
+        assert!(
+            if above {
+                y < heads[peak].1 - 0.3 * opts().staff_size
+            } else {
+                y > heads[peak].1 + 0.3 * opts().staff_size
+            },
+            "curve {y} at head {:?}",
+            heads[peak]
+        );
+    }
+}
+
+#[test]
+fn high_off_center_slur_does_not_leave_the_svg() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("high off-center", 120, 5, 4, 0, 1);
+    let mut notes = [
+        Note::new(Pitch::new(Step::C, 5), Duration::Quarter),
+        Note::new(Pitch::new(Step::A, 6), Duration::Quarter),
+        Note::new(Pitch::new(Step::C, 5), Duration::Quarter),
+        Note::new(Pitch::new(Step::C, 5), Duration::Quarter),
+        Note::new(Pitch::new(Step::C, 5), Duration::Quarter),
+    ];
+    notes[0].slur_start = true;
+    notes[4].slur_end = true;
+    score.parts[0].staves[0].measures[0].voices[0] = notes.to_vec();
+    let svg = render_svg(&score, &opts()).unwrap();
+    let path = slur_geometries(&svg)[0];
+    for i in 0..=100 {
+        let t = i as f32 / 100.0;
+        let y = (1.0 - t).powi(2) * path[1] + 2.0 * (1.0 - t) * t * path[3] + t.powi(2) * path[5];
+        assert!(y >= 0.0, "slur exits SVG at {y}");
+    }
+}
+
+#[test]
 fn issue_176_abc_phrase_bows_below_up_stems() {
     let score = acorde_io::parse_abc("X:1\nT:Slur side\nM:9/8\nL:1/8\nK:G\nd2G G(FG/A/) B3|]")
         .expect("ABC phrase parses");

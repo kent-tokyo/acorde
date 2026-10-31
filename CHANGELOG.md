@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Same-system slurs now consider the horizontal positions of intermediate
+  notes when determining their quadratic bow, improving clearance for peaks
+  away from the middle of a phrase.
 - Same-system slurs now account for the actual quadratic bow when clearing a
   central high or low note in a phrase.
 - Physical print SVG/PDF now keeps a short final system at a notation-demand

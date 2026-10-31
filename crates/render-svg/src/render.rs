@@ -5652,6 +5652,38 @@ fn render_all_spans(
                 .map(|(_, (_, y, _, _))| *y + offset)
                 .reduce(|a, b| if above { a.min(b) } else { a.max(b) })
         });
+        let slur_clearance_control = slur_above.and_then(|above| {
+            let side = if above { -1.0 } else { 1.0 };
+            let direction = if x2 >= x1 { 1.0 } else { -1.0 };
+            let left = x1 + direction * 0.3 * space;
+            let right = x2 - direction * 0.3 * space;
+            if (right - left).abs() < f32::EPSILON {
+                return None;
+            }
+            let start_y = y1 + offset + side * 0.65 * space;
+            let end_y = y2 + offset + side * 0.65 * space;
+            points
+                .iter()
+                .filter_map(|((part, staff, _, voice, _), (x, y, _, row))| {
+                    if *part != start.part
+                        || *staff != start.staff
+                        || *voice != start.voice
+                        || *row != row1
+                    {
+                        return None;
+                    }
+                    let t = (x - left) / (right - left);
+                    if !(0.0..1.0).contains(&t) || t == 0.0 {
+                        return None;
+                    }
+                    let desired = y + offset + side * 0.8 * space;
+                    Some(
+                        (desired - (1.0 - t).powi(2) * start_y - t.powi(2) * end_y)
+                            / (2.0 * t * (1.0 - t)),
+                    )
+                })
+                .reduce(|a, b| if above { a.min(b) } else { a.max(b) })
+        });
         render_same_row_span(
             body,
             span,
@@ -5664,6 +5696,7 @@ fn render_all_spans(
             space,
             slur_above,
             slur_extreme,
+            slur_clearance_control,
         );
         if interactive {
             body.push_str("</g>");
@@ -5885,6 +5918,7 @@ fn render_same_row_span(
     space: f32,
     slur_above: Option<bool>,
     slur_extreme: Option<f32>,
+    slur_clearance_control: Option<f32>,
 ) {
     let (left, right) = if x1 <= x2 { (x1, x2) } else { (x2, x1) };
     match span {
@@ -5929,6 +5963,13 @@ fn render_same_row_span(
                 baseline_control.min(clearance_control)
             } else {
                 baseline_control.max(clearance_control)
+            };
+            // Keep very close endpoints from producing an unbounded bow. The cap
+            // makes clearance best-effort when notation is already too crowded.
+            let control_y = match slur_clearance_control {
+                Some(required) if above => control_y.min(required.max(control_y - 8.0 * space)),
+                Some(required) => control_y.max(required.min(control_y + 8.0 * space)),
+                None => control_y,
             };
             render_slur_ribbon(
                 body,

@@ -565,6 +565,25 @@ note for both a high peak and a low valley. This is a midpoint clearance
 improvement; it does not guarantee collision-free slurs for off-center notes,
 stems, chords, or system continuations.
 
+### Slur clearance away from the middle (2026-10-31)
+
+The self-authored 5/4 ABC phrase `(c a c c c) |]` was converted to MusicXML
+and rendered by both Acorde and Verovio 6.3.0. Verovio's slur bows above the
+second note; Acorde's prior midpoint-only calculation passed within 0.1 staff
+space of that notehead in screen SVG. Acorde now evaluates each intermediate
+same-voice note at its horizontal position on the quadratic bow, and adjusts
+the control point to seek 0.8 staff spaces of clearance. Additional curvature
+is capped at eight staff spaces, so very crowded phrases remain best-effort.
+Screen tests cover peaks and valleys on either side of the midpoint; a physical
+page SVG test covers the high second note. The matching A4 PDF was rasterized
+at 1400 px and inspected. This does not solve collisions with stems, chord
+extremes, other voices, or cross-system continuation segments.
+
+The pinned Quilter Prelude was also regenerated in density mode: it remains
+one A4 page with four systems and 103 import diagnostics. The PDF was
+rasterized and inspected; the comparison does not establish general
+collision-free or Verovio-equivalent typography and spacing.
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.

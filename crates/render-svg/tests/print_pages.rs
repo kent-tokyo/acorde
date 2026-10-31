@@ -83,6 +83,39 @@ fn print_page_keeps_verovio_reference_beam_stems_and_slur_side() {
 }
 
 #[test]
+fn print_slur_clears_an_off_center_high_note() {
+    let score = acorde_io::parse_abc("X:1\nM:5/4\nL:1/4\nK:C\n(c a c c c) |]\n").unwrap();
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = &pages[0];
+    let head = svg.split(r#"class="acorde-notehead""#).nth(2).unwrap();
+    let x = svg_attribute_f32(head, "cx");
+    let y = svg_attribute_f32(head, "cy");
+    let path = svg
+        .split(r#"class="acorde-slur" d=""#)
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap();
+    let values = path
+        .split(['M', 'Q', ',', ' '])
+        .filter_map(|s| s.parse::<f32>().ok())
+        .take(6)
+        .collect::<Vec<_>>();
+    let t = (x - values[0]) / (values[4] - values[0]);
+    let curve_y =
+        (1.0 - t).powi(2) * values[1] + 2.0 * (1.0 - t) * t * values[3] + t.powi(2) * values[5];
+    let lines = svg
+        .split(r#"class="acorde-staff-line""#)
+        .skip(1)
+        .take(2)
+        .map(|line| svg_attribute_f32(line, "y1"))
+        .collect::<Vec<_>>();
+    assert!(curve_y < y - 0.3 * (lines[0] - lines[1]).abs());
+}
+
+#[test]
 fn one_short_print_system_keeps_a_natural_width() {
     let score =
         acorde_io::parse_musicxml(include_str!("fixtures/verovio_partial_stem_slur.musicxml"))
