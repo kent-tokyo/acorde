@@ -14,10 +14,12 @@ pub use model::arrange::{
     arrange_for_accordion_with_options, arrange_with_explicit_chords, arrange_with_layers,
 };
 pub use model::arrange_presets::{
+    AccordionLayerConfig, AccordionLayerResult, AccordionLayerShuffleOptions,
     AccordionPresetCapabilities, AccordionPresetConfig, AccordionPresetDescription,
-    AccordionPresetResult, AccordionPresetSelection, AccordionShuffleOptions,
-    accordion_preset_capabilities, arrange_accordion_preset, arrange_from_resolved_preset,
-    shuffle_accordion_preset,
+    AccordionPresetResult, AccordionPresetSelection, AccordionPreviousConfig,
+    AccordionShuffleOptions, accordion_preset_capabilities, arrange_accordion_layers,
+    arrange_accordion_preset, arrange_from_resolved_layers, arrange_from_resolved_preset,
+    shuffle_accordion_layers, shuffle_accordion_preset,
 };
 pub use model::authored_chords::{
     AuthoredChordAnnotation, AuthoredChordDiagnostic, AuthoredChordOptions, AuthoredChordResult,

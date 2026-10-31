@@ -61,6 +61,9 @@ import init, {
   arrange_accordion_preset,
   shuffle_accordion_preset,
   arrange_from_resolved_preset,
+  arrange_accordion_layers,
+  arrange_from_resolved_layers,
+  shuffle_accordion_layers,
   render_score_svg,
   to_playback_events_ex,
 } from './acorde_wasm.js';
@@ -100,3 +103,57 @@ click-to-play permission, cancellation, history and UI. The engine owns pitches,
 rhythm, score generation and random selection. Shuffle is bounded to 128
 measures, 8192 source notes, 512 explicit chords per selection, four selections and 32 allowed IDs. The existing arrangement
 exports remain available.
+
+## Free layer combinations
+
+`arrange_accordion_layers`, `arrange_from_resolved_layers`, and
+`shuffle_accordion_layers` are separate Rust and viewer WASM exports for
+combinations that do not have a built-in preset ID. The direct call accepts
+`LayeredAccordionOptions` and returns the score, diagnostics, resolved chords,
+source and generated note addresses, and a versioned `resolved_config`.
+Save that config as JSON and pass it with the same source after re-parsing to
+`arrange_from_resolved_layers`. Its `v2:` fingerprint, contract version, and
+`arrangement-layers.1` engine version are validated before generation.
+Built-in preset configs continue to use `arrange_from_resolved_preset`; changing
+their options still returns `invalid-configuration`.
+
+The free-layer shuffle takes an explicit chord `selection`, up to three
+`alternative_selections`, and allowed sets of accompaniment patterns, melodic
+voices, and swing policies. Put `null` in `allowed_accompaniments` to allow no
+accompaniment. Acorde tests each permitted combination, discards unsupported
+ones, and samples distinct playback results with the decimal `seed`. The pool
+is bounded to 64 combinations, 128 measures, 8192 source notes, and 512 chords
+per selection. An empty pool returns `empty-eligible-pool`; a pool containing
+only the previous musical result returns `no-different-result`. Invalid seeds,
+oversized requests, and a previous config from another input or engine have
+their own diagnostics.
+
+```js
+const layers = {
+  ...selected.resolved_config.options,
+  melodic_voice: 'sixth-below',
+};
+const combined = JSON.parse(arrange_accordion_layers(
+  scoreJson, JSON.stringify(layers),
+));
+const savedConfig = JSON.stringify(combined.resolved_config);
+const replay = JSON.parse(arrange_from_resolved_layers(
+  reparsedScoreJson, savedConfig,
+));
+const next = JSON.parse(shuffle_accordion_layers(
+  reparsedScoreJson, JSON.stringify({
+    selection,
+    alternative_selections: [],
+    allowed_accompaniments: ['held-bass-chord', 'rising-arpeggio'],
+    allowed_melodic_voices: ['sixth-below', 'octave-below'],
+    allowed_swing_policies: ['straight'],
+    seed: '42',
+    previous_config: { kind: 'layers', config: combined.resolved_config },
+  }),
+));
+```
+
+For a previous fixed preset, use
+`{ kind: 'preset', config: selected.resolved_config }`. Acorde compares the
+playback events, so the same result under a different technique ID is not
+selected again. The host still owns source IDs, sharing URLs, labels and UI.
