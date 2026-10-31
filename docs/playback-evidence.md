@@ -269,6 +269,53 @@ This is a same-score win on written note onset timing for this fixture. The orac
 features it does not implement, and this result does not establish broader repertoire accuracy,
 audio synthesis, velocity, or sound quality.
 
+### Same-score PCM lag at the split bar (2026-10-31)
+
+The same Aloha Oe MXL and alphaTab 1.8.4 bundled `sonivox.sf2` were rendered again at
+48 kHz. The source MXL contains an initial 80 BPM tempo and starts physical measure 5 at
+beat 16 (12.0 seconds); alphaTab's exported MIDI starts it at beat 17 (12.75 seconds).
+Acorde's full-SF2 path rendered 2,928,000 mono PCM16 frames and alphaTab's public
+audio exporter rendered 2,970,048 stereo float32 frames. The alphaTab export had no
+non-finite samples. The input MXL and SF2 hashes are pinned above; the rerendered
+Acorde WAV SHA-256 is `4ebdbec8048a2d20bd3a19f9ab2c983552395ed3c72e82c5182c744c34d6a803`
+and alphaTab raw audio SHA-256 is
+`6c91393e3f60723766ec3676a57f74bcbf1bda132a0412c2020800919217d3a1`.
+
+`compare_playback_pcm_lag.py` downmixes both outputs to mono and finds the maximum
+gain-independent normalized waveform correlation in each 500 ms window within a
+±1 second search. Positive lag means the matching alphaTab audio occurs later:
+
+| Acorde window start | alphaTab lag | Cosine |
+| ---: | ---: | ---: |
+| 9 s | 0.000 ms | 0.865940 |
+| 10 s | −0.625 ms | 0.983777 |
+| 12 s | +749.312 ms | 0.782256 |
+| 15 s | +749.292 ms | 0.747214 |
+| 18 s | +749.333 ms | 0.863830 |
+
+The shift is visible in actual 48 kHz PCM after the authored split bar, while the
+earlier windows align within one millisecond. Together with the independent
+MusicXML onset oracle and the exported-MIDI timing, this supports the narrow
+conclusion that Acorde follows this score's split-measure timing more faithfully
+than alphaTab 1.8.4's default export. Correlation identifies matching audio
+passages, not individual note attacks or an absolute hardware playback latency.
+It does not establish better timbre, dynamics, release behavior, or overall audio
+quality. The unequal tail lengths, output channels, and gain policies are not
+compared as quality metrics.
+
+```sh
+SF2=/tmp/acorde-alphatab-1_8_4/node_modules/@coderline/alphatab/dist/soundfont/sonivox.sf2
+cargo run -q -p acorde-cli --locked -- audio-render \
+  tests/fixtures/openscore_lieder_aloha_oe.mxl "$SF2" /tmp/acorde-aloha-48k.wav \
+  --sample-rate 48000 --channels 1 --full-sf2
+node scripts/export_alphatab_audio.mjs /tmp/acorde-alphatab-1_8_4 \
+  tests/fixtures/openscore_lieder_aloha_oe.mxl "$SF2" /tmp/alphatab-aloha-48k.f32le 48000
+uv run --no-project --with 'numpy==2.5.3' --with 'scipy==1.17.1' \
+  python3 -B scripts/compare_playback_pcm_lag.py \
+  /tmp/acorde-aloha-48k.wav /tmp/alphatab-aloha-48k.f32le \
+  --sample-rate-hz 48000 --windows 9,10,12,15,18
+```
+
 ## MIDI export timing parity (2026-10-30)
 
 The core playback schedule and `acorde convert … .mid` are separate delivery paths. On *Just for
