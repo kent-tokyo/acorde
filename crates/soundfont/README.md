@@ -47,6 +47,13 @@ the same part and source channel; the change is routed to split voice channels b
 the same frame. Missing presets fail explicitly. An unrouted event, unsupported controller,
 aftertouch, or simultaneous score-pedal and CC64 control returns an error rather than disappearing.
 
+`normalize_pcm16_wav_peak` can level either Acorde renderer's completed WAV to a caller-selected
+linear peak. The CLI exposes it as `--normalize-peak-dbfs=-1`, with an explicit range of
+-48 to -0.1 dBFS. The pass preserves the sample count, channels, silence, and relative
+dynamics, and reports any samples already at the PCM rail. It operates after PCM16
+quantization, so it cannot recover pre-existing clipping or add bit depth. The default
+rendering output is unchanged when the option is omitted.
+
 It does not require an asset or audio device. Applications may provide their own licensed assets
 and renderer; the bounded native renderer is optional. The checksum is path-independent FNV-1a
 64-bit over the asset bytes.

@@ -10,6 +10,8 @@ use serde::Serialize;
 
 mod offline;
 pub use offline::{MAX_OFFLINE_WAV_BYTES, render_offline_wav};
+mod pcm;
+pub use pcm::{PcmPeakReport, normalize_pcm16_wav_peak};
 #[cfg(feature = "full-sf2")]
 mod full_sf2;
 #[cfg(feature = "full-sf2")]

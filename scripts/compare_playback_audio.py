@@ -6,6 +6,7 @@ The alphaTab file is interleaved stereo float32 at the WAV sample rate.
 """
 
 import array
+import hashlib
 import json
 import math
 import pathlib
@@ -24,9 +25,11 @@ def load_acorde(path):
     if sys.byteorder != "little":
         samples.byteswap()
     mono = array.array("f")
+    sample_peak = max((abs(int(value)) for value in samples), default=0) / 32768
+    rail_samples = sum(abs(int(value)) >= 32767 for value in samples)
     for i in range(0, len(samples), channels):
         mono.append(sum(samples[i : i + channels]) / (32768 * channels))
-    return rate, mono
+    return rate, mono, channels, sample_peak, rail_samples
 
 
 def load_alphatab(path):
@@ -40,14 +43,25 @@ def load_alphatab(path):
     mono = array.array("f")
     nonfinite = 0
     first_nonfinite_frame = None
+    sample_peak = 0.0
+    over_unit_samples = 0
     for i in range(0, len(samples), 2):
         invalid = not math.isfinite(samples[i]) or not math.isfinite(samples[i + 1])
         if invalid:
             nonfinite += (not math.isfinite(samples[i])) + (not math.isfinite(samples[i + 1]))
             if first_nonfinite_frame is None:
                 first_nonfinite_frame = i // 2
+        for sample in samples[i : i + 2]:
+            if math.isfinite(sample):
+                sample_peak = max(sample_peak, abs(sample))
+                over_unit_samples += abs(sample) > 1.0
         mono.append((samples[i] + samples[i + 1]) * 0.5)
-    return mono, nonfinite, first_nonfinite_frame
+    return mono, nonfinite, first_nonfinite_frame, sample_peak, over_unit_samples
+
+
+def sha256(path):
+    with open(path, "rb") as source:
+        return hashlib.file_digest(source, "sha256").hexdigest()
 
 
 def rms(values):
@@ -83,8 +97,8 @@ def window_alignment(acorde, alphatab, start, size, max_shift=16):
 def main():
     if len(sys.argv) != 4:
         raise SystemExit(__doc__)
-    rate, acorde = load_acorde(sys.argv[1])
-    alphatab, nonfinite, first_nonfinite_frame = load_alphatab(sys.argv[2])
+    rate, acorde, channels, acorde_sample_peak, acorde_rail_samples = load_acorde(sys.argv[1])
+    alphatab, nonfinite, first_nonfinite_frame, alphatab_sample_peak, alphatab_over_unit_samples = load_alphatab(sys.argv[2])
     onsets = [float(value) for value in sys.argv[3].split(",")]
     if not onsets or any(not math.isfinite(value) or value < 0 for value in onsets):
         raise ValueError("onsets must be nonnegative finite milliseconds")
@@ -96,8 +110,15 @@ def main():
                         "alignment": window_alignment(acorde, alphatab, start, size)})
     print(json.dumps({
         "sample_rate": rate,
+        "acorde_channels": channels,
         "acorde_frames": len(acorde),
         "alphatab_frames": len(alphatab),
+        "acorde_sha256": sha256(sys.argv[1]),
+        "alphatab_sha256": sha256(sys.argv[2]),
+        "acorde_sample_peak": round(acorde_sample_peak, 6),
+        "acorde_rail_samples": acorde_rail_samples,
+        "alphatab_sample_peak": None if nonfinite else round(alphatab_sample_peak, 6),
+        "alphatab_over_unit_samples": alphatab_over_unit_samples,
         "acorde_peak": round(max(map(abs, acorde), default=0), 6),
         "alphatab_peak": None if nonfinite else round(max(map(abs, alphatab), default=0), 6),
         "acorde_rms": round(rms(acorde), 6),
