@@ -5638,52 +5638,45 @@ fn render_all_spans(
             .get(&(span_index, row1))
             .copied()
             .unwrap_or_default();
-        let slur_extreme = slur_above.and_then(|above| {
-            points
-                .iter()
-                .filter(|((part, staff, _, voice, _), (x, _, _, row))| {
-                    *part == start.part
-                        && *staff == start.staff
-                        && *voice == start.voice
-                        && *row == row1
-                        && *x >= x1.min(x2)
-                        && *x <= x1.max(x2)
-                })
-                .map(|(_, (_, y, _, _))| *y + offset)
-                .reduce(|a, b| if above { a.min(b) } else { a.max(b) })
-        });
-        let slur_clearance_control = slur_above.and_then(|above| {
+        let (slur_extreme, slur_clearance_control) = if let Some(above) = slur_above {
             let side = if above { -1.0 } else { 1.0 };
             let direction = if x2 >= x1 { 1.0 } else { -1.0 };
             let left = x1 + direction * 0.3 * space;
             let right = x2 - direction * 0.3 * space;
-            if (right - left).abs() < f32::EPSILON {
-                return None;
-            }
             let start_y = y1 + offset + side * 0.65 * space;
             let end_y = y2 + offset + side * 0.65 * space;
-            points
-                .iter()
-                .filter_map(|((part, staff, _, voice, _), (x, y, _, row))| {
-                    if *part != start.part
-                        || *staff != start.staff
-                        || *voice != start.voice
-                        || *row != row1
-                    {
-                        return None;
-                    }
-                    let t = (x - left) / (right - left);
-                    if !(0.0..1.0).contains(&t) || t == 0.0 {
-                        return None;
-                    }
-                    let desired = y + offset + side * 0.8 * space;
-                    Some(
-                        (desired - (1.0 - t).powi(2) * start_y - t.powi(2) * end_y)
-                            / (2.0 * t * (1.0 - t)),
-                    )
-                })
-                .reduce(|a, b| if above { a.min(b) } else { a.max(b) })
-        });
+            let mut extreme: Option<f32> = None;
+            let mut control: Option<f32> = None;
+            for ((part, staff, _, voice, _), (x, y, _, row)) in points {
+                if *part != start.part
+                    || *staff != start.staff
+                    || *voice != start.voice
+                    || *row != row1
+                {
+                    continue;
+                }
+                let select = |a: f32, b: f32| if above { a.min(b) } else { a.max(b) };
+                if *x >= x1.min(x2) && *x <= x1.max(x2) {
+                    let value = *y + offset;
+                    extreme = Some(extreme.map_or(value, |a| select(a, value)));
+                }
+                if (right - left).abs() < f32::EPSILON {
+                    continue;
+                }
+                let t = (x - left) / (right - left);
+                if !(t > 0.0 && t < 1.0) {
+                    continue;
+                }
+                let remaining = 1.0 - t;
+                let desired = y + offset + side * 0.8 * space;
+                let value = (desired - remaining * remaining * start_y - t * t * end_y)
+                    / (2.0 * t * remaining);
+                control = Some(control.map_or(value, |a| select(a, value)));
+            }
+            (extreme, control)
+        } else {
+            (None, None)
+        };
         render_same_row_span(
             body,
             span,
