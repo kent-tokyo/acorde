@@ -32,6 +32,9 @@ note identity, notation, pickup, repeats and endings.
 Supported chord kinds are `major`, `minor`, `diminished`, `augmented`,
 `major-seventh`, `minor-seventh` and `dominant`. Slash bass and chord changes
 use the same positioned chord contract as `arrange_with_explicit_chords`.
+All accompaniment patterns use the authored measure's beat 0 as their phase
+anchor. A chord change keeps that phase; repeating the same chord within the
+measure leaves the sound and timing unchanged.
 Generated notes are limited to the documented conservative hand ranges in
 `arrange.rs`; unsupported rhythms, source structures, harmony and ranges
 produce diagnostic codes with a measure index where available.

@@ -90,6 +90,69 @@ test("browser chord plans preserve source timing and replay a chosen proposal", 
   expect(result.exported).toBe(true);
 });
 
+test("reparsed ABC replays a preset and redundant chords keep accompaniment phase", async ({ page }) => {
+  await page.goto("http://127.0.0.1:8000/examples/browser/");
+  const result = await page.evaluate(async () => {
+    const wasm = await import("/crates/wasm/pkg/acorde_wasm.js");
+    await wasm.default();
+    const abc = "X:1\nM:4/4\nL:1/4\nQ:1/4=60\nK:C\nC E G c|";
+    const first = wasm.parse_abc(abc);
+    const second = wasm.parse_abc(abc);
+    const chord = (offset_beats) => ({
+      measure_index: 0, offset_beats,
+      chord: { root: "C", kind: "major", bass: null, degrees: [] },
+    });
+    const direct = (chords) => JSON.parse(wasm.arrange_with_explicit_chords(first,
+      JSON.stringify({ pattern: "alternating-bass-chord", chords })));
+    const single = direct([chord(0)]);
+    const repeated = direct([chord(0), chord(2)]);
+    const left = (score) => score.parts[0].staves[1].measures[0].voices[0]
+      .map((note) => [note.pitches.map((pitch) => `${pitch.step}${pitch.octave}`), note.duration]);
+    const selection = {
+      chords: [chord(0), chord(2)], alternative_chords: null,
+      inversion: null, bass_mode: "free-bass",
+    };
+    const selected = JSON.parse(wasm.arrange_accordion_preset(first,
+      JSON.stringify(selection), "alternating-bass"));
+    const replayed = JSON.parse(wasm.arrange_from_resolved_preset(second,
+      JSON.stringify(selected.resolved_config)));
+    const changed = JSON.parse(wasm.arrange_from_resolved_preset(
+      wasm.parse_abc(abc.replace("C E G c", "C E A c")),
+      JSON.stringify(selected.resolved_config)));
+    const arrangedJson = JSON.stringify(replayed.score);
+    const restored = JSON.parse(wasm.parse_mscz(wasm.serialize_mscz(arrangedJson)));
+    const events = (score) => JSON.parse(wasm.to_playback_events_ex(JSON.stringify(score), "{}"))
+      .map((event) => [event.pitch_midi, event.time_beats, event.duration_beats]);
+    return {
+      idsDiffer: JSON.parse(first).parts[0].staves[0].measures[0].voices[0][0].id
+        !== JSON.parse(second).parts[0].staves[0].measures[0].voices[0][0].id,
+      fingerprintVersion: selected.resolved_config.input_fingerprint_version,
+      samePattern: JSON.stringify(left(single.score)) === JSON.stringify(left(repeated.score)),
+      samePlayback: JSON.stringify(events(single.score)) === JSON.stringify(events(repeated.score)),
+      thirdBass: left(repeated.score)[2][0],
+      replayDiagnostics: replayed.diagnostics,
+      sourceIdMatches: replayed.score.parts[0].staves[0].measures[0].voices[0][0].id
+        === JSON.parse(second).parts[0].staves[0].measures[0].voices[0][0].id,
+      playbackMatches: JSON.stringify(events(selected.score)) === JSON.stringify(events(replayed.score)),
+      changedCode: changed.diagnostics[0].code,
+      rendered: wasm.render_score_svg(arrangedJson, "{}").includes("<svg"),
+      exported: restored.parts[0].staves[0].measures[0].voices[0][0].pitches[0].step
+        === replayed.score.parts[0].staves[0].measures[0].voices[0][0].pitches[0].step,
+    };
+  });
+  expect(result.idsDiffer).toBe(true);
+  expect(result.fingerprintVersion).toBe(2);
+  expect(result.samePattern).toBe(true);
+  expect(result.samePlayback).toBe(true);
+  expect(result.thirdBass).toEqual(["G2"]);
+  expect(result.replayDiagnostics).toEqual([]);
+  expect(result.sourceIdMatches).toBe(true);
+  expect(result.playbackMatches).toBe(true);
+  expect(result.changedCode).toBe("input-mismatch");
+  expect(result.rendered).toBe(true);
+  expect(result.exported).toBe(true);
+});
+
 test("browser contract renders and exposes selectable notes", async ({ page }) => {
   await page.goto("http://127.0.0.1:8000/examples/browser/");
   const status = page.locator("#status");

@@ -199,6 +199,7 @@ fn guided_note(pitches: &[u8], duration: Duration) -> Note {
 fn guided_region(
     pattern: AccordionPattern,
     chord: &RealizedAccordionChord,
+    start_tick: u32,
     ticks: u32,
     next_bass_midi: Option<u8>,
 ) -> Option<Vec<Note>> {
@@ -226,7 +227,7 @@ fn guided_region(
                 return None;
             }
             for pulse in 0..ticks / 64 {
-                let pitches: Vec<u8> = match pulse % 4 {
+                let pitches: Vec<u8> = match (start_tick / 64 + pulse) % 4 {
                     0 => vec![chord.bass_midi],
                     2 if pattern == AccordionPattern::AlternatingBassChord => {
                         vec![chord.bass_midi + 7]
@@ -242,7 +243,7 @@ fn guided_region(
                 return None;
             }
             for pulse in 0..ticks / 32 {
-                let midi = match pulse % 4 {
+                let midi = match (start_tick / 32 + pulse) % 4 {
                     0 => chord.bass_midi + 12,
                     1 | 3 => chord.chord_midi[1],
                     _ => chord.chord_midi[2],
@@ -255,8 +256,9 @@ fn guided_region(
                 return None;
             }
             for pulse in 0..ticks / 32 {
+                let phase = (start_tick / 32 + pulse) % 4;
                 let midi = if pattern == AccordionPattern::RisingArpeggio {
-                    match pulse % 4 {
+                    match phase {
                         0 => chord.bass_midi + 12,
                         1 => chord.chord_midi[1],
                         2 => chord.chord_midi[2],
@@ -267,7 +269,7 @@ fn guided_region(
                             .unwrap_or(chord.chord_midi[0] + 12),
                     }
                 } else {
-                    match pulse % 4 {
+                    match phase {
                         0 => chord.bass_midi + 12,
                         1 | 3 => chord.chord_midi[2],
                         _ => chord.chord_midi[1],
@@ -319,7 +321,7 @@ fn guided_region(
                         }
                     })
                 } else {
-                    match pulse % 3 {
+                    match (start_tick / 64 + pulse) % 3 {
                         0 => chord.bass_midi,
                         1 => chord.bass_midi + (chord.chord_midi[1] - chord.chord_midi[0]),
                         _ => chord.bass_midi + 7,
@@ -470,6 +472,9 @@ pub fn arrange_with_explicit_chords(
             };
             regions[index].insert(0, (0, chord));
         }
+        // A repeated spelling of the same harmony is an annotation, not a
+        // request to restart the accompaniment or its walking-bass approach.
+        regions[index].dedup_by(|later, earlier| later.1.symbol == earlier.1.symbol);
         let mut generated = Vec::new();
         for position in 0..regions[index].len() {
             let (start, chord) = &regions[index][position];
@@ -486,7 +491,8 @@ pub fn arrange_with_explicit_chords(
                             .map(|(_, next)| next.bass_midi)
                     })
                 });
-            let Some(mut notes) = guided_region(options.pattern, chord, end - start, next_bass)
+            let Some(mut notes) =
+                guided_region(options.pattern, chord, *start, end - start, next_bass)
             else {
                 return guided_error(
                     options,
@@ -1899,6 +1905,153 @@ mod tests {
         assert_ne!(bass_patterns[0], bass_patterns[1]);
         assert_ne!(bass_patterns[1], bass_patterns[2]);
         assert_eq!(serde_json::to_value(&score).unwrap(), before);
+    }
+
+    #[test]
+    fn repeated_harmony_does_not_restart_pulse_arpeggio_or_walking_patterns() {
+        let mut score = Score::new("same harmony", 60, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note(Step::C, 5, Duration::Whole)];
+        for pattern in [
+            AccordionPattern::AlternatingBassChord,
+            AccordionPattern::Arpeggio,
+            AccordionPattern::RisingArpeggio,
+            AccordionPattern::AlbertiBass,
+            AccordionPattern::WalkingBass,
+        ] {
+            let mut single = guided_options(pattern);
+            single.chords.truncate(1);
+            let mut repeated = single.clone();
+            let mut redundant = single.chords[0].clone();
+            redundant.offset_beats = 2.0;
+            repeated.chords.push(redundant);
+            let baseline = arrange_with_explicit_chords(&score, single);
+            let actual = arrange_with_explicit_chords(&score, repeated.clone());
+            assert!(
+                baseline.diagnostics.is_empty(),
+                "{pattern:?}: {:?}",
+                baseline.diagnostics
+            );
+            assert!(
+                actual.diagnostics.is_empty(),
+                "{pattern:?}: {:?}",
+                actual.diagnostics
+            );
+            assert_eq!(actual.resolved_options, repeated);
+            let left = |score: &Score| {
+                score.parts[0].staves[1].measures[0].voices[0]
+                    .iter()
+                    .map(|note| {
+                        (
+                            note.pitches.iter().map(Pitch::to_midi).collect::<Vec<_>>(),
+                            note.beats(),
+                        )
+                    })
+                    .collect::<Vec<_>>()
+            };
+            assert_eq!(
+                left(baseline.score.as_ref().unwrap()),
+                left(actual.score.as_ref().unwrap()),
+                "{pattern:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn changed_harmony_keeps_measure_phase_across_pickup_and_three_four() {
+        let mut score = Score::new("pickup phase", 60, 3, 4, 0, 2);
+        score.parts[0].staves[0].measures[0].actual_length =
+            super::super::score::MeasureLength::from_beats(1.0);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note(Step::C, 5, Duration::Quarter)];
+        let mut dotted = note(Step::G, 5, Duration::Half);
+        dotted.dot_count = 1;
+        score.parts[0].staves[0].measures[1].voices[0] = vec![dotted];
+        let mut options = guided_options(AccordionPattern::AlternatingBassChord);
+        options.chords[1].offset_beats = 1.0;
+        let result = arrange_with_explicit_chords(&score, options);
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        let arranged = result.score.unwrap();
+        let midi = |bar: usize| {
+            arranged.parts[0].staves[1].measures[bar].voices[0]
+                .iter()
+                .map(|note| note.pitches.iter().map(Pitch::to_midi).collect::<Vec<_>>())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(midi(0), vec![vec![36]]);
+        // The inherited C starts the new bar. G begins on its second beat,
+        // where the measure-anchored pattern calls for the chord, then D bass.
+        assert_eq!(midi(1), vec![vec![36], vec![67, 71, 74], vec![50]]);
+        assert_eq!(
+            arranged.parts[0].staves[0].measures[0].actual_length,
+            score.parts[0].staves[0].measures[0].actual_length
+        );
+    }
+
+    #[test]
+    fn four_four_arpeggios_keep_phase_after_weak_beat_chord_change() {
+        let mut score = Score::new("arpeggio change", 60, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note(Step::C, 5, Duration::Whole)];
+        for (pattern, expected) in [
+            (AccordionPattern::Arpeggio, 74),
+            (AccordionPattern::RisingArpeggio, 74),
+            (AccordionPattern::AlbertiBass, 71),
+        ] {
+            let mut options = guided_options(pattern);
+            options.chords[1].measure_index = 0;
+            options.chords[1].offset_beats = 1.0;
+            let result = arrange_with_explicit_chords(&score, options);
+            assert!(
+                result.diagnostics.is_empty(),
+                "{pattern:?}: {:?}",
+                result.diagnostics
+            );
+            let arranged = result.score.unwrap();
+            let left = &arranged.parts[0].staves[1].measures[0].voices[0];
+            assert_eq!(left.len(), 8);
+            assert_eq!(left[2].pitches[0].to_midi(), expected, "{pattern:?}");
+        }
+    }
+
+    #[test]
+    fn layered_and_preset_paths_use_the_same_continuous_pattern() {
+        let mut score = Score::new("layered pulse", 60, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note(Step::C, 5, Duration::Whole)];
+        let mut guided = guided_options(AccordionPattern::AlternatingBassChord);
+        guided.chords.truncate(1);
+        let mut repeated = guided.chords[0].clone();
+        repeated.offset_beats = 2.0;
+        guided.chords.push(repeated);
+        let direct = arrange_with_explicit_chords(&score, guided.clone());
+        let layered = arrange_with_layers(
+            &score,
+            LayeredAccordionOptions {
+                chords: guided.chords.clone(),
+                alternative_chords: None,
+                inversion: None,
+                accompaniment: Some(AccordionPattern::AlternatingBassChord),
+                melodic_voice: AccordionMelodicVoice::Unchanged,
+                swing: AccordionSwingPolicy::Straight,
+                bass_mode: AccordionBassMode::FreeBass,
+            },
+        );
+        let preset = crate::arrange_accordion_preset(
+            &score,
+            crate::AccordionPresetSelection {
+                chords: guided.chords,
+                alternative_chords: None,
+                inversion: None,
+                bass_mode: AccordionBassMode::FreeBass,
+            },
+            "alternating-bass",
+        );
+        for arranged in [
+            direct.score.unwrap(),
+            layered.score.unwrap(),
+            preset.score.unwrap(),
+        ] {
+            let left = &arranged.parts[0].staves[1].measures[0].voices[0];
+            assert_eq!(left[2].pitches[0].to_midi(), 43);
+            assert_eq!(left.len(), 4);
+        }
     }
 
     #[test]

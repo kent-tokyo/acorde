@@ -1,6 +1,8 @@
 //! Versioned, on-demand preset selection over the explicit layered arrangement engine.
 
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use uuid::Uuid;
 
 use super::arrange::{
     AccordionBassMode, AccordionInversion, AccordionMelodicVoice, AccordionPattern,
@@ -10,7 +12,10 @@ use super::arrange::{
 use super::score::{NoteAddr, Score};
 
 const CONTRACT_VERSION: u16 = 1;
-const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "+arrangement-presets.1");
+const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "+arrangement-presets.2");
+const LEGACY_ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "+arrangement-presets.1");
+const LEGACY_FINGERPRINT_VERSION: u16 = 1;
+const CONTENT_FINGERPRINT_VERSION: u16 = 2;
 const MAX_SHUFFLE_MEASURES: usize = 128;
 const MAX_SHUFFLE_CHORDS: usize = 512;
 const MAX_SHUFFLE_POOL: usize = 32;
@@ -29,6 +34,9 @@ pub struct AccordionPresetSelection {
 pub struct AccordionPresetConfig {
     pub contract_version: u16,
     pub engine_version: String,
+    /// Version 1 hashes every ID; version 2 normalizes regenerated object UUIDs.
+    #[serde(default = "legacy_fingerprint_version")]
+    pub input_fingerprint_version: u16,
     pub input_fingerprint: String,
     pub preset_id: String,
     pub options: LayeredAccordionOptions,
@@ -74,6 +82,7 @@ pub struct AccordionPresetDescription {
 pub struct AccordionPresetCapabilities {
     pub contract_version: u16,
     pub engine_version: String,
+    pub input_fingerprint_version: u16,
     pub source_profile: String,
     pub max_shuffled_measures: usize,
     pub max_shuffled_chords: usize,
@@ -187,6 +196,7 @@ pub fn accordion_preset_capabilities() -> AccordionPresetCapabilities {
     AccordionPresetCapabilities {
         contract_version: CONTRACT_VERSION,
         engine_version: ENGINE_VERSION.to_string(),
+        input_fingerprint_version: CONTENT_FINGERPRINT_VERSION,
         source_profile:
             "validated one-part, one-staff monophonic melody with explicit positioned chords"
                 .to_string(),
@@ -212,12 +222,78 @@ pub fn accordion_preset_capabilities() -> AccordionPresetCapabilities {
     }
 }
 
-fn input_fingerprint(score: &Score) -> Result<String, serde_json::Error> {
+const fn legacy_fingerprint_version() -> u16 {
+    LEGACY_FINGERPRINT_VERSION
+}
+
+fn hash_score(score: &Score) -> Result<String, serde_json::Error> {
     let data = serde_json::to_vec(score)?;
     let hash = data.iter().fold(0xcbf29ce484222325u64, |hash, byte| {
         (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3)
     });
     Ok(format!("{hash:016x}"))
+}
+
+fn normalize_object_uuid(id: &mut String, seen: &mut BTreeMap<String, String>) {
+    if Uuid::parse_str(id).is_err() {
+        return;
+    }
+    if let Some(normalized) = seen.get(id) {
+        *id = normalized.clone();
+    } else {
+        let normalized = format!("acorde-object-uuid-{}", seen.len());
+        seen.insert(id.clone(), normalized.clone());
+        *id = normalized;
+    }
+}
+
+fn content_fingerprint(score: &Score) -> Result<String, serde_json::Error> {
+    let mut canonical = score.clone();
+    let mut seen = BTreeMap::new();
+    normalize_object_uuid(&mut canonical.id, &mut seen);
+    for part in &mut canonical.parts {
+        normalize_object_uuid(&mut part.id, &mut seen);
+        for staff in &mut part.staves {
+            for measure in &mut staff.measures {
+                for voice in &mut measure.voices {
+                    for note in voice {
+                        normalize_object_uuid(&mut note.id, &mut seen);
+                    }
+                }
+            }
+        }
+    }
+    // Spanners refer to note addresses, which remain in the hashed score.
+    for spanner in &mut canonical.spanners {
+        normalize_object_uuid(&mut spanner.id, &mut seen);
+    }
+    for view in &mut canonical.views {
+        normalize_object_uuid(&mut view.id, &mut seen);
+    }
+    hash_score(&canonical)
+}
+
+fn input_fingerprint(score: &Score) -> Result<String, serde_json::Error> {
+    content_fingerprint(score)
+}
+
+fn fingerprint_for_version(
+    score: &Score,
+    version: u16,
+) -> Result<Option<String>, serde_json::Error> {
+    match version {
+        LEGACY_FINGERPRINT_VERSION => hash_score(score).map(Some),
+        CONTENT_FINGERPRINT_VERSION => content_fingerprint(score).map(Some),
+        _ => Ok(None),
+    }
+}
+
+fn engine_matches_config(config: &AccordionPresetConfig) -> bool {
+    match config.input_fingerprint_version {
+        LEGACY_FINGERPRINT_VERSION => config.engine_version == LEGACY_ENGINE_VERSION,
+        CONTENT_FINGERPRINT_VERSION => config.engine_version == ENGINE_VERSION,
+        _ => false,
+    }
 }
 
 fn error(
@@ -305,6 +381,7 @@ pub fn arrange_accordion_preset(
         AccordionPresetConfig {
             contract_version: CONTRACT_VERSION,
             engine_version: ENGINE_VERSION.to_string(),
+            input_fingerprint_version: CONTENT_FINGERPRINT_VERSION,
             input_fingerprint: fingerprint,
             preset_id: preset_id.to_string(),
             options,
@@ -326,7 +403,7 @@ pub fn arrange_from_resolved_preset(
             "source score cannot be serialized",
         );
     };
-    if config.contract_version != CONTRACT_VERSION || config.engine_version != ENGINE_VERSION {
+    if config.contract_version != CONTRACT_VERSION || !engine_matches_config(&config) {
         return error(
             fingerprint,
             None,
@@ -334,7 +411,10 @@ pub fn arrange_from_resolved_preset(
             "resolved configuration requires another arrangement engine/contract version",
         );
     }
-    if config.input_fingerprint != fingerprint {
+    let expected = fingerprint_for_version(score, config.input_fingerprint_version)
+        .ok()
+        .flatten();
+    if expected.as_deref() != Some(config.input_fingerprint.as_str()) {
         return error(
             fingerprint,
             None,
@@ -448,8 +528,12 @@ pub fn shuffle_accordion_preset(
     }
     if request.previous_config.as_ref().is_some_and(|previous| {
         previous.contract_version != CONTRACT_VERSION
-            || previous.engine_version != ENGINE_VERSION
-            || previous.input_fingerprint != fingerprint
+            || !engine_matches_config(previous)
+            || fingerprint_for_version(score, previous.input_fingerprint_version)
+                .ok()
+                .flatten()
+                .as_deref()
+                != Some(previous.input_fingerprint.as_str())
     }) {
         return error(
             fingerprint,
@@ -586,6 +670,147 @@ mod tests {
         assert_eq!(
             score.parts[0].staves[0].measures[0].voices[0][0].pitches[0].to_midi(),
             67
+        );
+    }
+
+    #[test]
+    fn reparsed_equivalent_score_replays_with_new_source_ids() {
+        let (first, selection) = fixture();
+        let (second, _) = fixture();
+        assert_ne!(first.id, second.id);
+        assert_ne!(first.parts[0].id, second.parts[0].id);
+        assert_ne!(
+            first.parts[0].staves[0].measures[0].voices[0][0].id,
+            second.parts[0].staves[0].measures[0].voices[0][0].id
+        );
+        let selected = arrange_accordion_preset(&first, selection, "rising-arpeggio");
+        let config = selected.resolved_config.clone().unwrap();
+        assert_eq!(
+            config.input_fingerprint_version,
+            CONTENT_FINGERPRINT_VERSION
+        );
+        assert_eq!(config.engine_version, ENGINE_VERSION);
+        let mut mismatched_engine = config.clone();
+        mismatched_engine.engine_version = LEGACY_ENGINE_VERSION.to_string();
+        assert_eq!(
+            arrange_from_resolved_preset(&second, mismatched_engine).diagnostics[0].code,
+            "unsupported-version"
+        );
+        let replay = arrange_from_resolved_preset(&second, config);
+        assert!(replay.diagnostics.is_empty(), "{:?}", replay.diagnostics);
+        let replayed = replay.score.unwrap();
+        assert_eq!(
+            replayed.parts[0].staves[0].measures[0].voices[0][0].id,
+            second.parts[0].staves[0].measures[0].voices[0][0].id
+        );
+        assert_eq!(replay.source_notes, selected.source_notes);
+        assert_eq!(replay.generated_notes, selected.generated_notes);
+        assert_eq!(
+            event_signature(&replayed),
+            event_signature(selected.score.as_ref().unwrap())
+        );
+    }
+
+    #[test]
+    fn content_fingerprint_rejects_changed_music_and_preserves_legacy_strict_replay() {
+        let (first, selection) = fixture();
+        let selected = arrange_accordion_preset(&first, selection, "held-chord");
+        let config = selected.resolved_config.unwrap();
+        let mut variants = Vec::new();
+        let (mut changed_pitch, _) = fixture();
+        changed_pitch.parts[0].staves[0].measures[0].voices[0][0].pitches[0] =
+            Pitch::from_midi(68, false);
+        variants.push(changed_pitch);
+        let (mut changed_duration, _) = fixture();
+        changed_duration.parts[0].staves[0].measures[0].voices[0][0].duration = Duration::Half;
+        variants.push(changed_duration);
+        let (mut changed_tie, _) = fixture();
+        changed_tie.parts[0].staves[0].measures[0].voices[0][0].tie_start = true;
+        variants.push(changed_tie);
+        let (mut changed_tuplet, _) = fixture();
+        changed_tuplet.parts[0].staves[0].measures[0].voices[0][0].tuplet_boundary =
+            Some(crate::TupletBoundary::Start);
+        variants.push(changed_tuplet);
+        let (mut changed_repeat, _) = fixture();
+        changed_repeat.parts[0].staves[0].measures[0].barline_right = crate::Barline::RepeatEnd;
+        variants.push(changed_repeat);
+        let (mut changed_chord, _) = fixture();
+        changed_chord.parts[0].staves[0].measures[0].voices[0][0].chord_symbol =
+            Some(config.options.chords[0].chord.clone());
+        variants.push(changed_chord);
+        let (mut changed_setting, _) = fixture();
+        changed_setting.settings.tempo_bpm += 1;
+        variants.push(changed_setting);
+        for changed in variants {
+            let replay = arrange_from_resolved_preset(&changed, config.clone());
+            assert!(replay.score.is_none());
+            assert_eq!(replay.diagnostics[0].code, "input-mismatch");
+        }
+
+        let mut legacy = config.clone();
+        legacy.input_fingerprint_version = LEGACY_FINGERPRINT_VERSION;
+        legacy.engine_version = LEGACY_ENGINE_VERSION.to_string();
+        legacy.input_fingerprint = hash_score(&first).unwrap();
+        let json = serde_json::to_value(&legacy).unwrap();
+        let mut old_json = json.as_object().unwrap().clone();
+        old_json.remove("input_fingerprint_version");
+        let restored: AccordionPresetConfig =
+            serde_json::from_value(serde_json::Value::Object(old_json)).unwrap();
+        assert_eq!(
+            restored.input_fingerprint_version,
+            LEGACY_FINGERPRINT_VERSION
+        );
+        assert!(
+            arrange_from_resolved_preset(&first, restored.clone())
+                .score
+                .is_some()
+        );
+        let (reparsed, _) = fixture();
+        assert_eq!(
+            arrange_from_resolved_preset(&reparsed, restored).diagnostics[0].code,
+            "input-mismatch"
+        );
+    }
+
+    #[test]
+    fn content_fingerprint_preserves_spanner_addresses_and_id_topology() {
+        let (mut first, _) = fixture();
+        first.spanners.push(
+            serde_json::from_value(serde_json::json!({
+                "id": Uuid::new_v4().to_string(),
+                "kind": "Slur",
+                "start": {"part":0,"staff":0,"measure":0,"voice":0,"note":0},
+                "end": {"part":0,"staff":0,"measure":0,"voice":0,"note":0}
+            }))
+            .unwrap(),
+        );
+        let mut reparsed = first.clone();
+        reparsed.id = Uuid::new_v4().to_string();
+        reparsed.parts[0].id = Uuid::new_v4().to_string();
+        reparsed.parts[0].staves[0].measures[0].voices[0][0].id = Uuid::new_v4().to_string();
+        reparsed.spanners[0].id = Uuid::new_v4().to_string();
+        assert_eq!(
+            content_fingerprint(&first).unwrap(),
+            content_fingerprint(&reparsed).unwrap()
+        );
+        reparsed.spanners[0].end.note = 1;
+        assert_ne!(
+            content_fingerprint(&first).unwrap(),
+            content_fingerprint(&reparsed).unwrap()
+        );
+
+        let (mut two_notes, _) = fixture();
+        two_notes.parts[0].staves[0].measures[0].voices[0][0].duration = Duration::Half;
+        two_notes.parts[0].staves[0].measures[0].voices[0]
+            .push(Note::new(Pitch::from_midi(67, false), Duration::Half));
+        let mut aliased = two_notes.clone();
+        aliased.parts[0].staves[0].measures[0].voices[0][1].id =
+            aliased.parts[0].staves[0].measures[0].voices[0][0]
+                .id
+                .clone();
+        assert_ne!(
+            content_fingerprint(&two_notes).unwrap(),
+            content_fingerprint(&aliased).unwrap()
         );
     }
 
