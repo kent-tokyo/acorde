@@ -2031,10 +2031,12 @@ fn content_margins(
                     .pitches
                     .iter()
                     .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, clef_bottom));
+                // The beam must clear the chord head nearest the beam, while the
+                // visible stem starts at the opposite outer head.
                 let outer = if stem_up {
-                    positions.min().unwrap_or(0)
-                } else {
                     positions.max().unwrap_or(0)
+                } else {
+                    positions.min().unwrap_or(0)
                 };
                 geometry::position_y(outer, 1.0) + note_placement_offsets_u(note).1
             })
@@ -4564,7 +4566,7 @@ fn plan_measure_beams(
             .map(|&i| {
                 let (clef_bottom, bottom_y) =
                     note_staff_frame(&notes[i], (own_bottoms[i], bottom_y), cross_frames);
-                note_attach_y(&notes[i], clef_bottom, group_stem_up, bottom_y, space)
+                note_beam_head_y(&notes[i], clef_bottom, group_stem_up, bottom_y, space)
                     + note_placement_offsets_u(&notes[i]).1 * space
             })
             .collect();
@@ -4595,14 +4597,21 @@ fn plan_measure_beams(
                 .map(|(&i, &stem_up)| {
                     let (clef_bottom, bottom_y) =
                         note_staff_frame(&notes[i], (own_bottoms[i], bottom_y), cross_frames);
-                    note_attach_y(&notes[i], clef_bottom, stem_up, bottom_y, space)
+                    note_beam_head_y(&notes[i], clef_bottom, stem_up, bottom_y, space)
                         + note_placement_offsets_u(&notes[i]).1 * space
                 })
                 .collect();
             for (&i, &stem_up) in valid_indices.iter().zip(&stem_ups) {
                 stem_dirs.insert(i, stem_up);
             }
-            beams::plan_kneed_beam_group(&durations, &group_xs, &attach_ys, &stem_ups, space)
+            beams::plan_kneed_beam_group(
+                &durations,
+                &group_xs,
+                &attach_ys,
+                &stem_ups,
+                space,
+                spans_staves,
+            )
         } else {
             beams::plan_beam_group(&durations, &group_xs, &attach_ys, group_stem_up, space)
         };
@@ -6509,6 +6518,17 @@ fn note_attach_y(
         positions.iter().copied().max().unwrap_or(0)
     };
     staff_bottom_y + geometry::position_y(outer, space)
+}
+
+/// The outer head closest to the beam, as opposed to the visible stem's starting head.
+fn note_beam_head_y(
+    note: &Note,
+    clef_bottom: i32,
+    stem_up: bool,
+    staff_bottom_y: f32,
+    space: f32,
+) -> f32 {
+    note_attach_y(note, clef_bottom, !stem_up, staff_bottom_y, space)
 }
 
 /// Return the rendered anchor point for a note, including authored placement offsets.

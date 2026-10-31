@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Improve beam clearance for chords and refine two-note beam slopes using
+  Verovio comparisons. Two-staff pairs now account for secondary beams,
+  mixed durations, stem attachment, and available clearance in SVG and print.
 - Single-voice slur side selection now considers mixed stem directions within
   a phrase. Chord stems use inner notes to resolve symmetric outer pitches;
   beams avoid crossing interior noteheads and flatten for beam-side interior
