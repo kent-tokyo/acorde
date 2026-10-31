@@ -1,8 +1,7 @@
 # Acorde scorecard
 
-The machine-readable scorecard is [`scorecard.json`](scorecard.json). Its `release` field is
-`unreleased` while these contract changes are on a development branch; `base_release` names the
-last published version. It is a conservative
+The machine-readable scorecard is [`scorecard.json`](scorecard.json). Its `release` field names
+the current release, and `base_release` names the previous published version. It is a conservative
 inventory of the current contracts, not a claim of parity with MuseScore, music21, OSMD, or
 Verovio. Capability labels must remain aligned with the [notation coverage matrix](notation-coverage.md)
 and backed by a fixture or focused test.

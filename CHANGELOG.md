@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## 1.3.6 - 2026-10-31
+
+- Preserved ABC closing bars and corrected marcato orientation. MSCZ export now keeps the
+  initial staff clefs, and SVG reserves space for inline meter changes and improves print
+  direction legibility. These focused fixes do not establish overall engraving parity.
+- Recorded a same-score PCM timing comparison with alphaTab for the pinned fixture. The
+  measurement does not establish general playback or audio-quality superiority.
+- Kept accordion preset phase through fractional pickups and added versioned free-layer
+  combinations and shuffle. New 3/4 waltz patterns provide bass–chord–chord accompaniment;
+  an explicit one-note drone sustains through each authored bar independently of chord changes.
+  The Rust and viewer WASM APIs preserve source melody, short bars, rests, and repeat playback
+  within their documented ranges and rhythm limits.
+
 ## 1.3.5 - 2026-10-31
 
 - Fixed ABC alternate-ending closure so repeated sections and playback retain their intended
