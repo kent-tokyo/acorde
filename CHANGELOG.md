@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- MusicXML pedal stop followed by start at one score cursor now puts both
+  playback actions on the following note while preserving the printed spanner
+  endpoint. Full-SF2 rendering releases the old pedal before pressing the new
+  one, so the new note keeps its intended sustain. The pinned Webern MXL and a
+  synthetic WAV regression cover the retake.
 - MusicXML slurs without an explicit `placement` now use the starting Bezier
   control's vertical sign as a bounded above/below hint. The pinned Quilter
   opening phrase bows above its notes, as in Verovio 6.3.0, instead of below

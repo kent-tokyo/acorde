@@ -5136,6 +5136,44 @@ fn typed_direction_spanners_keep_their_end_note_and_reach_other_exporters() {
 }
 
 #[test]
+fn webern_same_cursor_pedal_change_reaches_one_playback_note() {
+    let score = acorde_io::parse_mxl(include_bytes!(
+        "../../../tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl"
+    ))
+    .expect("CC0 Webern MXL imports");
+    let repedal_notes = score
+        .parts
+        .iter()
+        .enumerate()
+        .flat_map(|(part, value)| {
+            value
+                .staves
+                .iter()
+                .enumerate()
+                .flat_map(move |(staff, value)| {
+                    value
+                        .measures
+                        .iter()
+                        .enumerate()
+                        .flat_map(move |(measure, value)| {
+                            value
+                                .voices
+                                .iter()
+                                .enumerate()
+                                .flat_map(move |(voice, notes)| {
+                                    notes.iter().enumerate().filter_map(move |(note, value)| {
+                                        (value.pedal_end && value.pedal_start)
+                                            .then_some((part, staff, measure, voice, note))
+                                    })
+                                })
+                        })
+                })
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(repedal_notes, vec![(1, 1, 11, 0, 1)]);
+}
+
+#[test]
 fn musicxml_hairpins_stay_on_their_staff_and_voice() {
     // A left-hand hairpin: the wedge directions name staff 2, and the stop comes after the
     // right hand's notes in the file.

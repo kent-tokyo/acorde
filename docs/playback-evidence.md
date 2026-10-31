@@ -678,6 +678,48 @@ uv run --no-project --with 'mido==1.3.3' python scripts/compare_musicxml_onsets.
   /tmp/acorde-webern-tenuto-playback.json /tmp/alphatab-webern.mid
 ```
 
+## Webern same-cursor pedal retake (2026-10-31)
+
+The pinned Webern MXL has `<pedal type="stop"/>` immediately followed by
+`<pedal type="start"/>` at the same position in its second part's measure 11.
+MusicXML import now places both playback flags on the following note while
+retaining the preceding note as the printed span endpoint. Full-SF2 synthesis
+processes pedal-up before pedal-down and same-frame note-off. A synthetic
+real-SF2 regression checks that the retaken pedal sustains the next note across
+a rest; an MXL regression pins the actual Webern note address. The source's
+later `resume` marking remains outside this correction.
+
+Using alphaTab 1.8.4's `sonivox.sf2` (SHA-256
+`4978cf37e7164206f2d22dc4fdf4020ffe040787210bf781e31bdc79961f59ef`)
+and the same Webern MXL (SHA-256
+`609b32d0829c48ab9a134308d8694fd5b1ee7de89acba11f76084a32f56ca8a3`),
+Acorde's 48 kHz stereo PCM16 render still has 132 events and 1,710,858 frames.
+Its SHA-256 changes from
+`b5895178564e61777e9008a6301aa2a7f154a24fb43219d447744a548737c085`
+to `b89a097931a761deb181dd8805da44307b457129c6538595ebed13d369796bd6`.
+The first changed sample is at frame 720,002 (15.00004 seconds), at the
+retake; the first 250 ms after that frame has mean absolute PCM sample level
+615.253 instead of 514.544. The corrected WAV has zero PCM rail samples.
+alphaTab's exported 48 kHz float32 output remains
+`5d59d08a43e7a91e3d855340c3ec54a2303a853239996f84dbd19feea42b7c43`
+with 1,634,368 frames and zero non-finite samples. Different duration and
+gain policies prevent a sound-quality ranking from these numbers. Broader
+pedal timing, including directions at rests or with offsets, is still open.
+
+```sh
+npm install --prefix /tmp/acorde-alphatab-1_8_4 --no-save --no-package-lock @coderline/alphatab@1.8.4
+SF2=/tmp/acorde-alphatab-1_8_4/node_modules/@coderline/alphatab/dist/soundfont/sonivox.sf2
+cargo run -q -p acorde-cli --locked -- audio-render \
+  tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl "$SF2" \
+  /tmp/acorde-webern-repedal-48k.wav --full-sf2 --realize-ornaments \
+  --sample-rate 48000 --channels 2
+node scripts/export_alphatab_audio.mjs /tmp/acorde-alphatab-1_8_4 \
+  tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl "$SF2" \
+  /tmp/alphatab-webern-repedal-48k.f32le 48000
+python3 -B scripts/compare_playback_audio.py /tmp/acorde-webern-repedal-48k.wav \
+  /tmp/alphatab-webern-repedal-48k.f32le 0,500,1000,2000,5000,10000,20000,30000
+```
+
 ## Evidence boundary
 
 This local evidence proves deterministic score projection, event scheduling/position calculation,
