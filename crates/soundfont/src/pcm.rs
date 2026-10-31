@@ -49,7 +49,7 @@ pub fn normalize_pcm16_wav_peak(wav: &mut [u8], target_peak: f32) -> Result<PcmP
 
     let mut peak = 0_i32;
     let mut rail_samples = 0;
-    for sample in wav[44..].chunks_exact(2) {
+    for sample in wav[44..].as_chunks::<2>().0 {
         let magnitude = i32::from(i16::from_le_bytes([sample[0], sample[1]])).abs();
         peak = peak.max(magnitude);
         rail_samples += usize::from(magnitude >= 32767);
@@ -65,7 +65,7 @@ pub fn normalize_pcm16_wav_peak(wav: &mut [u8], target_peak: f32) -> Result<PcmP
     let target_sample = (f64::from(target_peak) * 32767.0).round() as i32;
     let gain = f64::from(target_sample) / f64::from(peak);
     let mut output_peak = 0_i32;
-    for sample in wav[44..].chunks_exact_mut(2) {
+    for sample in wav[44..].as_chunks_mut::<2>().0 {
         let original = f64::from(i16::from_le_bytes([sample[0], sample[1]]));
         let leveled = (original * gain)
             .round()
@@ -113,7 +113,9 @@ mod tests {
         let length = audio.len();
         let report = normalize_pcm16_wav_peak(&mut audio, 0.5).unwrap();
         let samples = audio[44..]
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|bytes| i16::from_le_bytes([bytes[0], bytes[1]]))
             .collect::<Vec<_>>();
         assert_eq!(audio.len(), length);
