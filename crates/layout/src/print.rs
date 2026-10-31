@@ -3068,6 +3068,18 @@ pub fn compute_print_layout(
     if scaled_system_height_mm > content_height_mm {
         return Err(PrintLayoutError::InvalidSystemHeight);
     }
+    // A first-page work title plus movement/composer needs a real print lane above
+    // the opening system. Keep the reservation in the layout so page SVGs and PDF
+    // use the same physical coordinates, and leave room for one full system.
+    let has_opening_credits = !config.publication.title_page
+        && !score.metadata.title.trim().is_empty()
+        && (!score.metadata.movement_title.trim().is_empty()
+            || !score.metadata.composer.trim().is_empty());
+    let opening_credit_reserve_mm = if has_opening_credits {
+        16.0_f32.min((content_height_mm - scaled_system_height_mm).max(0.0))
+    } else {
+        0.0
+    };
     let geometric_capacity = (content_height_mm / scaled_system_height_mm).floor() as usize;
     if config
         .systems_per_page
@@ -3143,6 +3155,14 @@ pub fn compute_print_layout(
             )
             .collect::<Vec<_>>(),
     );
+    let first_spacer_mm = rows
+        .first()
+        .and_then(|row| row.measure_indices.first())
+        .map_or(0.0, |measure_index| {
+            spacer_height_before_measure(&config.publication.spacers, *measure_index)
+        });
+    let opening_credit_reserve_mm = opening_credit_reserve_mm
+        .min((content_height_mm - scaled_system_height_mm - first_spacer_mm).max(0.0));
 
     let has_explicit_page_break = rows.iter().any(|row| {
         row.measure_indices.last().is_some_and(|&measure_index| {
@@ -3192,7 +3212,7 @@ pub fn compute_print_layout(
 
     let mut pages = Vec::new();
     let mut page_systems = Vec::new();
-    let mut page_used_height_mm = 0.0;
+    let mut page_used_height_mm = opening_credit_reserve_mm;
     let mut page_index = 0;
     for (system_index, row) in rows.iter().enumerate() {
         let repeat_starts_here = repeat_system_ranges
@@ -3459,6 +3479,31 @@ mod tests {
         part.staves = vec![staff];
         score.parts = vec![part];
         score
+    }
+
+    #[test]
+    fn opening_credits_reserve_first_page_space_without_overflowing_systems() {
+        let mut score = score_with_measures(8);
+        score.metadata.title = "Suite".into();
+        score.metadata.movement_title = "Prelude".into();
+        score.metadata.composer = "Composer".into();
+        let layout = compute_print_layout(
+            &score,
+            &PrintConfig {
+                measures_per_system: 1,
+                system_height_mm: 50.0,
+                system_height_policy: SystemHeightPolicy::Fixed,
+                ..PrintConfig::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(layout.pages.len(), 2);
+        assert_eq!(layout.pages[0].systems.len(), 4);
+        assert_eq!(layout.pages[0].systems[0].top_mm, 32.0);
+        assert_eq!(layout.pages[1].systems[0].top_mm, 16.0);
+        for page in &layout.pages {
+            assert!(page.systems.last().unwrap().top_mm + 50.0 <= 281.0);
+        }
     }
 
     #[test]
