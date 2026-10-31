@@ -3570,7 +3570,7 @@ mod tests {
         let selected: acorde_core::AccordionPresetResult = serde_json::from_str(
             &arrange_accordion_preset(&first, &selection.to_string(), "alternating-bass").unwrap()).unwrap();
         let config = selected.resolved_config.unwrap();
-        assert_eq!(config.input_fingerprint_version, 2);
+        assert!(config.input_fingerprint.starts_with("v2:"));
         let replay: acorde_core::AccordionPresetResult = serde_json::from_str(
             &arrange_from_resolved_preset(&second, &serde_json::to_string(&config).unwrap()).unwrap()).unwrap();
         assert!(replay.diagnostics.is_empty(), "{:?}", replay.diagnostics);

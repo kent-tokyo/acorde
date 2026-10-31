@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## 1.3.5 - 2026-10-31
+
+- Fixed ABC alternate-ending closure so repeated sections and playback retain their intended
+  span when the ending marker is implicit.
+- Added source-positioned chord-plan extraction with exact beat fractions, provenance,
+  coverage diagnostics, and an opt-in written-accompaniment analysis. Bounded melody-aware
+  chord proposals and replay are available through Rust and viewer WASM. Generated harmony is
+  a suggestion and is not presented as historical source evidence.
+- Kept accompaniment patterns on the authored measure phase when a chord changes; repeating
+  the same chord no longer restarts alternating bass or arpeggios. Preset configurations now
+  use a versioned content fingerprint to replay on an equivalent re-parsed score while
+  retaining the new input's note IDs. Legacy exact-ID configurations remain accepted with
+  their original score and engine version.
+- Kept the v1.3.4 Rust struct-literal shape of `AccordionPresetConfig` and
+  `AccordionPresetCapabilities`; the fingerprint version is encoded in the existing string.
+
 ## 1.3.4 - 2026-10-31
 
 - Added physical page SVG and vector PDF export from validated print layouts, including WASM page
