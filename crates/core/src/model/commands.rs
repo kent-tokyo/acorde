@@ -7967,6 +7967,20 @@ mod tests {
             let command: Command = serde_json::from_value(value).unwrap();
             assert_eq!(command_key(&command), key);
             assert!(!command_label(&command).is_empty());
+            let hint = command_hint(&command);
+            match key {
+                "SetTablatureConfig" => assert_eq!(hint.scope, ChangeScope::Part(0)),
+                "SetExpressionText" => assert_eq!(hint.scope, ChangeScope::Global),
+                _ => assert_eq!(
+                    hint.scope,
+                    ChangeScope::Measures {
+                        part: 0,
+                        staff: 0,
+                        start: 0,
+                        end: 1
+                    }
+                ),
+            }
             apply_command(&command, &mut score).unwrap();
         }
         let note = &score.parts[0].staves[0].measures[0].voices[0][0];
@@ -7988,5 +8002,75 @@ mod tests {
             Some("dolce")
         );
         assert!(validate(&score).is_valid());
+    }
+
+    #[test]
+    fn note_edits_reject_invalid_values_without_changing_the_score() {
+        let mut score = Score::new("Note edits", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            Note::rest(Duration::Quarter),
+        ];
+        let grace = |note_index| {
+            Command::SetGrace(SetGraceCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                note_index,
+                is_grace: true,
+                slash: true,
+            })
+        };
+        let before = serde_json::to_value(&score).unwrap();
+        assert!(apply_command(&grace(1), &mut score).is_err());
+        assert_eq!(serde_json::to_value(&score).unwrap(), before);
+        apply_command(&grace(0), &mut score).unwrap();
+        assert!(score.parts[0].staves[0].measures[0].voices[0][0].is_grace);
+
+        let placement = |offset_x| {
+            Command::SetNotePlacement(SetNotePlacementCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                note_index: 0,
+                offset_x,
+                offset_y: None,
+                relative_x: None,
+                relative_y: None,
+            })
+        };
+        let before = serde_json::to_value(&score).unwrap();
+        assert!(apply_command(&placement(Some(f64::NAN)), &mut score).is_err());
+        assert_eq!(serde_json::to_value(&score).unwrap(), before);
+        apply_command(&placement(Some(1.5)), &mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].offset_x,
+            Some(1.5)
+        );
+        apply_command(&placement(None), &mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].offset_x,
+            None
+        );
+
+        let cross_staff = |target_staff| {
+            Command::SetCrossStaff(SetCrossStaffCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                note_index: 0,
+                placement: Some(CrossStaff {
+                    target_staff,
+                    target_voice: None,
+                }),
+            })
+        };
+        let before = serde_json::to_value(&score).unwrap();
+        assert!(apply_command(&cross_staff(0), &mut score).is_err());
+        assert!(apply_command(&cross_staff(2), &mut score).is_err());
+        assert_eq!(serde_json::to_value(&score).unwrap(), before);
     }
 }

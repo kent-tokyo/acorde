@@ -3017,6 +3017,41 @@ mod tests {
     }
 
     #[test]
+    fn reduction_rejects_invalid_selections_and_misaligned_parts_without_mutation() {
+        let score = reduction_fixture();
+        let original = serde_json::to_value(&score).unwrap();
+        let mut options = reduction_options(AccordionLossPolicy::RequireAll);
+        for (right, left) in [(99, vec![1]), (0, vec![0]), (0, vec![1, 1]), (0, vec![99])] {
+            options.right_hand_part_index = Some(right);
+            options.left_hand_part_indices = left;
+            let result = arrange_for_accordion_with_options(&score, options.clone());
+            assert!(result.score.is_none());
+            assert_eq!(result.diagnostics[0].code, "invalid-selection");
+            assert!(result.source_map.is_empty());
+            assert_eq!(serde_json::to_value(&score).unwrap(), original);
+        }
+        options = reduction_options(AccordionLossPolicy::RequireAll);
+        let mut missing_right = score.clone();
+        missing_right.parts[0].staves.clear();
+        assert_eq!(
+            arrange_for_accordion_with_options(&missing_right, options.clone()).diagnostics[0].code,
+            "unsupported-source"
+        );
+        let mut missing_left = score.clone();
+        missing_left.parts[1].staves.clear();
+        assert_eq!(
+            arrange_for_accordion_with_options(&missing_left, options.clone()).diagnostics[0].code,
+            "unsupported-source"
+        );
+        let mut misaligned = score.clone();
+        misaligned.parts[1].staves[0].measures.pop();
+        assert_eq!(
+            arrange_for_accordion_with_options(&misaligned, options).diagnostics[0].code,
+            "misaligned-bars"
+        );
+    }
+
+    #[test]
     fn explicit_reduction_preserves_three_parts_and_source_timing() {
         let score = reduction_fixture();
         let before = serde_json::to_value(&score).unwrap();

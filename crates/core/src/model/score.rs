@@ -5660,6 +5660,46 @@ mod tests {
     }
 
     #[test]
+    fn linked_view_checks_staff_references_and_projects_part_groups() {
+        let mut score = Score::template(ScoreTemplate::StringQuartet);
+        score.part_groups.push(PartGroup {
+            first_part: 1,
+            last_part: 2,
+            symbol: PartGroupSymbol::Bracket,
+            barlines_connect: true,
+        });
+        let mut view = ScoreView::linked_standard_staff("middle", "Middle voices", 1, 0);
+        view.parts.push(2);
+        view.layout
+            .hidden_staves
+            .push(ViewStaffRef { part: 2, staff: 0 });
+        score.views.push(view);
+        let before = serde_json::to_value(&score).unwrap();
+        let projected = score.resolve_view("middle").unwrap();
+        assert_eq!(projected.parts.len(), 2);
+        assert_eq!(
+            (
+                projected.part_groups[0].first_part,
+                projected.part_groups[0].last_part
+            ),
+            (0, 1)
+        );
+        assert_eq!(projected.views[0].layout.hidden_staves[0].part, 1);
+        assert_eq!(serde_json::to_value(&score).unwrap(), before);
+
+        let mut invalid = score.clone();
+        invalid.views[0].parts.push(1);
+        assert!(invalid.resolve_view("middle").is_err());
+        invalid.views[0].parts.pop();
+        invalid.views[0].layout.hidden_staves[0].part = 3;
+        assert!(invalid.resolve_view("middle").is_err());
+        invalid.views[0].layout.hidden_staves[0].part = 2;
+        invalid.views[0].staff_kind_overrides[0].staff.staff = 9;
+        assert!(invalid.resolve_view("middle").is_err());
+        assert!(score.resolve_view("missing").is_err());
+    }
+
+    #[test]
     fn resolve_view_applies_linked_standard_and_tablature_presentations_non_destructively() {
         let mut score = Score::new("Guitar", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].tablature = Some(TablatureConfig {
@@ -6066,6 +6106,50 @@ mod tests {
             expected.harp_pedal_diagrams
         );
         assert_eq!(result_measure.voices[0].len(), expected.voices[0].len());
+    }
+
+    #[test]
+    fn malformed_note_patches_do_not_mutate_the_original_score() {
+        let score = Score::new("Patch boundary", 120, 4, 4, 0, 1);
+        let before = serde_json::to_value(&score).unwrap();
+        let note = Box::new(Note::new(Pitch::new(Step::C, 4), Duration::Quarter));
+        for (part, staff, measure, voice, note_index) in [
+            (8, 0, 0, 0, 0),
+            (0, 8, 0, 0, 0),
+            (0, 0, 8, 0, 0),
+            (0, 0, 0, 8, 0),
+            (0, 0, 0, 0, 99),
+        ] {
+            let patches = [
+                ScorePatch::AddNote {
+                    part,
+                    staff,
+                    measure,
+                    voice,
+                    note_index,
+                    note: note.clone(),
+                },
+                ScorePatch::RemoveNote {
+                    part,
+                    staff,
+                    measure,
+                    voice,
+                    note_index,
+                },
+                ScorePatch::ReplaceNote {
+                    part,
+                    staff,
+                    measure,
+                    voice,
+                    note_index,
+                    note: note.clone(),
+                },
+            ];
+            for patch in patches {
+                assert!(apply_patch(&score, &[patch]).is_err());
+                assert_eq!(serde_json::to_value(&score).unwrap(), before);
+            }
+        }
     }
 
     #[test]

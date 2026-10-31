@@ -1576,6 +1576,20 @@ mod tests {
     }
 
     #[test]
+    fn gp3_truncation_at_every_byte_is_reported_without_a_panic() {
+        let data = gp3_file();
+        assert!(crate::parse_gp_with_report(&data).is_ok());
+        for end in 0..data.len() {
+            let outcome = std::panic::catch_unwind(|| crate::parse_gp_with_report(&data[..end]));
+            assert!(outcome.is_ok(), "GP3 prefix of {end} bytes panicked");
+            assert!(
+                outcome.unwrap().is_err(),
+                "truncated prefix {end} was accepted"
+            );
+        }
+    }
+
+    #[test]
     fn truncated_and_foreign_gp3_input_is_rejected() {
         let data = gp3_file();
         for cut in [10, 40, 200, data.len() - 1] {

@@ -96,6 +96,54 @@ static OPENSCORE_LIEDER_WEBERN_MXL: &[u8] =
 static OPENSCORE_LIEDER_QUILTER_MXL: &[u8] =
     include_bytes!("../../../tests/fixtures/openscore_lieder_quilter_prelude.mxl");
 
+#[cfg(all(feature = "mei", feature = "mscz"))]
+#[test]
+fn cc0_mxl_scores_export_to_mei_and_mscz_with_parts_intact() {
+    for (name, bytes) in [
+        ("Just for Today", OPENSCORE_LIEDER_MXL),
+        ("Aloha Oe", OPENSCORE_LIEDER_ALOHA_OE_MXL),
+        ("Webern", OPENSCORE_LIEDER_WEBERN_MXL),
+        ("Quilter", OPENSCORE_LIEDER_QUILTER_MXL),
+    ] {
+        let source = acorde_io::parse_mxl(bytes).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let mei = acorde_io::serialize_mei(&source).unwrap_or_else(|e| panic!("{name} MEI: {e}"));
+        let from_mei = acorde_io::parse_mei(&mei).unwrap_or_else(|e| panic!("{name} MEI: {e}"));
+        let mscz =
+            acorde_io::serialize_mscz(&source).unwrap_or_else(|e| panic!("{name} MSCZ: {e}"));
+        let from_mscz = acorde_io::parse_mscz(&mscz).unwrap_or_else(|e| panic!("{name} MSCZ: {e}"));
+        assert_eq!(from_mei.parts.len(), source.parts.len(), "{name} MEI parts");
+        assert_eq!(
+            from_mscz.parts.len(),
+            source.parts.len(),
+            "{name} MSCZ parts"
+        );
+        assert_eq!(
+            from_mei.metadata.title, source.metadata.title,
+            "{name} MEI title"
+        );
+        assert_eq!(
+            from_mscz.metadata.title, source.metadata.title,
+            "{name} MSCZ title"
+        );
+        let pitches = |score: &acorde_core::Score| {
+            let mut pitches = score
+                .parts
+                .iter()
+                .flat_map(|part| &part.staves)
+                .flat_map(|staff| &staff.measures)
+                .flat_map(|measure| &measure.voices)
+                .flatten()
+                .flat_map(|note| &note.pitches)
+                .map(|pitch| pitch.to_midi())
+                .collect::<Vec<_>>();
+            pitches.sort_unstable();
+            pitches
+        };
+        assert_eq!(pitches(&from_mei), pitches(&source), "{name} MEI pitches");
+        assert_eq!(pitches(&from_mscz), pitches(&source), "{name} MSCZ pitches");
+    }
+}
+
 #[test]
 fn quilter_slur_bezier_side_survives_musicxml_roundtrip() {
     use acorde_core::NotationSpannerKind;
@@ -744,6 +792,49 @@ fn cc0_mscz_part_names_survive_musicxml_roundtrip() {
             assert_eq!(before.name, after.name);
             assert_eq!(before.short_name, after.short_name);
         }
+    }
+}
+
+#[cfg(all(feature = "mei", feature = "mscz"))]
+#[test]
+fn cc0_mscz_scores_keep_pitches_when_exported_to_mei() {
+    let pitches = |score: &acorde_core::Score| {
+        let mut result = score
+            .parts
+            .iter()
+            .flat_map(|part| &part.staves)
+            .flat_map(|staff| &staff.measures)
+            .flat_map(|measure| &measure.voices)
+            .flatten()
+            .flat_map(|note| &note.pitches)
+            .map(|pitch| pitch.to_midi())
+            .collect::<Vec<_>>();
+        result.sort_unstable();
+        result
+    };
+    for (index, bytes) in [
+        OPENSCORE_OMR_MSCZ,
+        OPENSCORE_OMR_MSCZ_SECOND,
+        OPENSCORE_OMR_MSCZ_THIRD,
+        OPENSCORE_OMR_MSCZ_FOURTH,
+        OPENSCORE_OMR_MSCZ_FIFTH,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let source = acorde_io::parse_mscz(bytes).unwrap();
+        let mei = acorde_io::serialize_mei(&source).unwrap();
+        let restored = acorde_io::parse_mei(&mei).unwrap();
+        assert_eq!(
+            restored.parts.len(),
+            source.parts.len(),
+            "fixture {index} parts"
+        );
+        assert_eq!(
+            pitches(&restored),
+            pitches(&source),
+            "fixture {index} pitches"
+        );
     }
 }
 
