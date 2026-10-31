@@ -191,6 +191,45 @@ better 48 kHz sound quality, wider repertoire support, or an overall audio win. 
 uses an external Rust synthesizer; broader Acorde-native generator coverage and a listening corpus
 remain open in [Issue #203](https://github.com/kent-tokyo/acorde/issues/203).
 
+### Authored program changes in full-SF2 audio (2026-10-31)
+
+Full-SF2 rendering now applies a MIDI program change at its scheduled frame to
+every voice channel routed from the same source part and MIDI channel. Later
+note-ons retain that selected program instead of resetting to the score's
+initial program. The core playback report for the violin fixture now lists
+programs 0 and 40 at 0 and 0.5 seconds. A requested preset absent from the SF2 returns
+`PresetNotFound`; the basic native SF2 path still rejects this automation.
+
+The two self-authored MIDI fixtures in `tests/fixtures/` play C4 at tick 0 and
+E4 at tick 480 (120 BPM). One selects violin program 40 at tick 480; the other
+reselects piano program 0. Both were rendered at 16 kHz mono using alphaTab
+1.8.4's bundled `sonivox.sf2` (SHA-256
+`4978cf37e7164206f2d22dc4fdf4020ffe040787210bf781e31bdc79961f59ef`).
+Both Acorde WAVs have 32,000 frames. Their first 8,000 frames are byte-identical;
+their later samples differ. The violin-change WAV SHA-256 is
+`101817b61abdee6d491aa0395436d377b1a4c583cf5eb46c7441fd2ca4fefd63`;
+the piano-control WAV SHA-256 is
+`a34b2377e9d9fa84134f6271989fc19a5f8360b5da2d180485c4d1942844744a`.
+The Rust regression also checks same-frame routing and that a program change
+overrides a stale per-note program in the offline manifest.
+
+```sh
+SF2=/tmp/acorde-alphatab-1_8_4/node_modules/@coderline/alphatab/dist/soundfont/sonivox.sf2
+cargo run -q -p acorde-cli -- audio-render \
+  tests/fixtures/program_change_piano_violin.mid "$SF2" /tmp/acorde-program-change.wav \
+  --sample-rate 16000 --channels 1 --full-sf2
+cargo run -q -p acorde-cli -- audio-render \
+  tests/fixtures/program_change_piano_piano.mid "$SF2" /tmp/acorde-program-control.wav \
+  --sample-rate 16000 --channels 1 --full-sf2
+```
+
+The repository's alphaTab audio-export script uses `ScoreLoader`; that API
+returned `UnsupportedFormatError` for the synthetic MIDI fixture, so this
+check is an Acorde audio regression, not a same-input alphaTab comparison.
+It does not establish timbre, dynamic, or release superiority. A licensed
+MusicXML score with an equivalent mid-score program change and a wider
+listening corpus remain needed for Issue #203.
+
 ## alphaTab 1.8.4 / independent CC0 score (2026-10-30)
 
 The checked-in OpenScore Lieder *Just for Today* MXL is an independent 41-measure, two-part

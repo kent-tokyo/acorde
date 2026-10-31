@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Full-SF2 audio rendering now applies authored MIDI program changes at their scheduled frames
+  and uses the selected preset for later attacks on the source part and channel. Missing presets
+  still fail explicitly. This closes one instrument-change gap; same-input alphaTab sound-quality
+  superiority is unproven.
+
 ## 1.3.6 - 2026-10-31
 
 - Preserved ABC closing bars and corrected marcato orientation. MSCZ export now keeps the

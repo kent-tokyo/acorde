@@ -267,6 +267,22 @@
       "expected_losses": ["unsupported ABC header and decoration extensions"]
     },
     {
+      "path": "program_change_piano_violin.mid",
+      "format": "midi",
+      "license": "self-authored",
+      "sha256": "0bd69bda36092a267b35750a54af3c8953cfc1ab8e9ea93bcd38a806ed84f444",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
+      "path": "program_change_piano_piano.mid",
+      "format": "midi",
+      "license": "self-authored",
+      "sha256": "a0c3587cf9bb6ebc41d1943ebc66ba9402725d32b93344a3ff8ade52f7bdaba2",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
       "path": "just_perfect_fifth_on_c.mid",
       "format": "midi",
       "license": "public-domain",
