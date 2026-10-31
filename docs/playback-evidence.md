@@ -379,6 +379,24 @@ its 2,970,048-frame length reflects the already documented timing difference. Th
 gain, and voice balance still differ, so these figures demonstrate restored stereo placement
 on this score, not superior sound quality.
 
+The same-output-channel timing check uses the stereo WAV above and alphaTab's
+48 kHz stereo float32 export (SHA-256
+`6c91393e3f60723766ec3676a57f74bcbf1bda132a0412c2020800919217d3a1`).
+After downmixing each to mono for gain-independent correlation, the windows at
+9 and 10 seconds align within 0.625 ms. The windows at 12, 15 and 18 seconds
+place alphaTab 749.312, 749.292 and 749.333 ms later respectively. Both
+exports now have two channels, so their channel-count difference no longer
+explains this fixed-score timing result. The source-derived MusicXML onset
+oracle still supplies the expected side of the split-bar boundary. This
+comparison does not judge stereo imaging or sound quality.
+
+```sh
+uv run --no-project --with 'numpy==2.5.3' --with 'scipy==1.17.1' \
+  python3 -B scripts/compare_playback_pcm_lag.py \
+  /tmp/acorde-aloha-stereo-after.wav /tmp/alphatab-aloha-stereo-review.f32le \
+  --sample-rate-hz 48000 --windows 9,10,12,15,18
+```
+
 ```sh
 SF2=/tmp/acorde-alphatab-1_8_4/node_modules/@coderline/alphatab/dist/soundfont/sonivox.sf2
 cargo run -q -p acorde-cli --locked -- audio-render \
