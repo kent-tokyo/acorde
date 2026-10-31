@@ -97,6 +97,120 @@ static OPENSCORE_LIEDER_QUILTER_MXL: &[u8] =
     include_bytes!("../../../tests/fixtures/openscore_lieder_quilter_prelude.mxl");
 
 #[test]
+fn musicxml_export_reports_unrepresented_notation_with_source_locations() {
+    use acorde_core::{
+        Duration, FiguredBassFigure, GuitarBendPoint, MidiAftertouch, Note, NoteHead,
+        PercussionInstrument, Pitch, Score, Step, TablatureFretMarkStyle,
+    };
+    let mut score = Score::new("Export losses", 120, 4, 4, 0, 1);
+    score.parts[0].midi_aftertouch.push(MidiAftertouch {
+        tick: 120,
+        channel: 0,
+        key: Some(60),
+        value: 64,
+    });
+    score.parts[0]
+        .percussion_instruments
+        .push(PercussionInstrument {
+            id: "drum-1".into(),
+            name: Some("Snare".into()),
+            midi_unpitched: Some(38),
+            staff_position: Some(0),
+            notehead: Some(NoteHead::X),
+            preferred_voice: Some(1),
+            techniques: vec!["rimshot".into()],
+        });
+    let staff = &mut score.parts[0].staves[0];
+    staff.presentation.tablature_fret_mark_style = TablatureFretMarkStyle::RomanUpper;
+    let measure = &mut staff.measures[0];
+    measure.figured_bass.push(FiguredBassFigure {
+        number: "6".into(),
+        alter: None,
+        prefix: None,
+        suffix: None,
+        extender: true,
+    });
+    measure.tempo_ramp_to = Some(140);
+    let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+    note.guitar_bend_curve.push(GuitarBendPoint {
+        position_per_mille: 500,
+        alter_cents: 100,
+    });
+    measure.voices[0] = vec![note];
+    let report = acorde_io::serialize_musicxml_with_report(&score).unwrap();
+    for code in [
+        "musicxml.export-unsupported-midi-aftertouch",
+        "musicxml.export-unsupported-percussion-kit-notation",
+        "musicxml.export-unsupported-tablature-fret-mark-style",
+        "musicxml.export-unsupported-figured-bass-extender",
+        "musicxml.export-unsupported-guitar-bend-curve",
+        "musicxml.export-unsupported-tempo-ramp",
+    ] {
+        let diagnostic = report
+            .diagnostics
+            .iter()
+            .find(|item| item.code == code)
+            .unwrap_or_else(|| panic!("missing {code}"));
+        assert!(
+            diagnostic
+                .source_location
+                .as_deref()
+                .is_some_and(|path| path.starts_with("/score/part/1/"))
+        );
+        assert!(diagnostic.preserved_value.is_some());
+    }
+    assert!(acorde_io::parse_musicxml(&report.output).is_ok());
+}
+
+#[cfg(all(feature = "mei", feature = "mscz"))]
+#[test]
+fn cc0_mxl_scores_export_to_mei_and_mscz_with_parts_intact() {
+    for (name, bytes) in [
+        ("Just for Today", OPENSCORE_LIEDER_MXL),
+        ("Aloha Oe", OPENSCORE_LIEDER_ALOHA_OE_MXL),
+        ("Webern", OPENSCORE_LIEDER_WEBERN_MXL),
+        ("Quilter", OPENSCORE_LIEDER_QUILTER_MXL),
+    ] {
+        let source = acorde_io::parse_mxl(bytes).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let mei = acorde_io::serialize_mei(&source).unwrap_or_else(|e| panic!("{name} MEI: {e}"));
+        let from_mei = acorde_io::parse_mei(&mei).unwrap_or_else(|e| panic!("{name} MEI: {e}"));
+        let mscz =
+            acorde_io::serialize_mscz(&source).unwrap_or_else(|e| panic!("{name} MSCZ: {e}"));
+        let from_mscz = acorde_io::parse_mscz(&mscz).unwrap_or_else(|e| panic!("{name} MSCZ: {e}"));
+        assert_eq!(from_mei.parts.len(), source.parts.len(), "{name} MEI parts");
+        assert_eq!(
+            from_mscz.parts.len(),
+            source.parts.len(),
+            "{name} MSCZ parts"
+        );
+        assert_eq!(
+            from_mei.metadata.title, source.metadata.title,
+            "{name} MEI title"
+        );
+        assert_eq!(
+            from_mscz.metadata.title, source.metadata.title,
+            "{name} MSCZ title"
+        );
+        let pitches = |score: &acorde_core::Score| {
+            let mut pitches = score
+                .parts
+                .iter()
+                .flat_map(|part| &part.staves)
+                .flat_map(|staff| &staff.measures)
+                .flat_map(|measure| &measure.voices)
+                .flatten()
+                .flat_map(|note| &note.pitches)
+                .map(|pitch| pitch.to_midi())
+                .collect::<Vec<_>>();
+            pitches.sort_unstable();
+            pitches
+        };
+        assert_eq!(pitches(&from_mei), pitches(&source), "{name} MEI pitches");
+        assert_eq!(pitches(&from_mscz), pitches(&source), "{name} MSCZ pitches");
+    }
+}
+
+#[test]
 fn quilter_slur_bezier_side_survives_musicxml_roundtrip() {
     use acorde_core::NotationSpannerKind;
 
@@ -744,6 +858,49 @@ fn cc0_mscz_part_names_survive_musicxml_roundtrip() {
             assert_eq!(before.name, after.name);
             assert_eq!(before.short_name, after.short_name);
         }
+    }
+}
+
+#[cfg(all(feature = "mei", feature = "mscz"))]
+#[test]
+fn cc0_mscz_scores_keep_pitches_when_exported_to_mei() {
+    let pitches = |score: &acorde_core::Score| {
+        let mut result = score
+            .parts
+            .iter()
+            .flat_map(|part| &part.staves)
+            .flat_map(|staff| &staff.measures)
+            .flat_map(|measure| &measure.voices)
+            .flatten()
+            .flat_map(|note| &note.pitches)
+            .map(|pitch| pitch.to_midi())
+            .collect::<Vec<_>>();
+        result.sort_unstable();
+        result
+    };
+    for (index, bytes) in [
+        OPENSCORE_OMR_MSCZ,
+        OPENSCORE_OMR_MSCZ_SECOND,
+        OPENSCORE_OMR_MSCZ_THIRD,
+        OPENSCORE_OMR_MSCZ_FOURTH,
+        OPENSCORE_OMR_MSCZ_FIFTH,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let source = acorde_io::parse_mscz(bytes).unwrap();
+        let mei = acorde_io::serialize_mei(&source).unwrap();
+        let restored = acorde_io::parse_mei(&mei).unwrap();
+        assert_eq!(
+            restored.parts.len(),
+            source.parts.len(),
+            "fixture {index} parts"
+        );
+        assert_eq!(
+            pitches(&restored),
+            pitches(&source),
+            "fixture {index} pitches"
+        );
     }
 }
 

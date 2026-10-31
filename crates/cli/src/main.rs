@@ -3466,6 +3466,137 @@ mod tests {
     }
 
     #[test]
+    fn export_reports_reopen_each_format_and_auto_tab_handles_real_tablature() {
+        let directory =
+            std::env::temp_dir().join(format!("acorde-cli-export-formats-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let input = fixture("simple.musicxml");
+        for extension in ["musicxml", "mid", "abc", "mei", "mscx", "mscz"] {
+            let output = directory.join(format!("report.{extension}"));
+            invoke(&[
+                "export-report",
+                input.to_str().unwrap(),
+                output.to_str().unwrap(),
+            ])
+            .unwrap_or_else(|error| panic!("{extension}: {error}"));
+            assert!(parse_score(&output).is_ok(), "{extension} must reopen");
+        }
+        let unsupported = directory.join("report.invalid");
+        assert!(
+            invoke(&[
+                "export-report",
+                input.to_str().unwrap(),
+                unsupported.to_str().unwrap()
+            ])
+            .is_err()
+        );
+        assert!(!unsupported.exists());
+
+        let tab = fixture("external_tab.musicxml");
+        let output = directory.join("auto-tab.musicxml");
+        invoke(&[
+            "auto-tab-report",
+            tab.to_str().unwrap(),
+            output.to_str().unwrap(),
+        ])
+        .unwrap();
+        let score = parse_score(&output).unwrap();
+        assert!(
+            score
+                .parts
+                .iter()
+                .flat_map(|part| &part.staves)
+                .any(|staff| {
+                    staff.tablature.is_some()
+                        && staff
+                            .measures
+                            .iter()
+                            .flat_map(|measure| &measure.voices)
+                            .flatten()
+                            .any(|note| {
+                                note.tab_position.is_some() || !note.tab_positions.is_empty()
+                            })
+                })
+        );
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn tablature_cli_requires_a_valid_position_and_can_clear_one() {
+        let directory =
+            std::env::temp_dir().join(format!("acorde-cli-tab-clear-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let input = fixture("external_tab.musicxml");
+        let output = directory.join("cleared.musicxml");
+        let source = input.to_str().unwrap();
+        let target = output.to_str().unwrap();
+        assert!(
+            invoke(&[
+                "tab-position",
+                source,
+                target,
+                "--part",
+                "0",
+                "--measure",
+                "0",
+                "--note",
+                "0",
+                "--string",
+                "0",
+                "--fret",
+                "3"
+            ])
+            .unwrap_err()
+            .contains("one-based")
+        );
+        assert!(
+            invoke(&[
+                "tab-position",
+                source,
+                target,
+                "--part",
+                "0",
+                "--measure",
+                "0",
+                "--note",
+                "0",
+                "--string",
+                "1"
+            ])
+            .unwrap_err()
+            .contains("--fret")
+        );
+        assert!(!output.exists());
+        invoke(&[
+            "tab-position",
+            source,
+            target,
+            "--part",
+            "0",
+            "--measure",
+            "0",
+            "--note",
+            "0",
+            "--clear",
+        ])
+        .unwrap();
+        let score = parse_score(&output).unwrap();
+        let note = &score.parts[0].staves[0].measures[0].voices[0][0];
+        assert!(note.tab_position.is_none());
+        assert!(note.tab_positions.is_empty());
+        assert!(matches!(
+            parse_fingering_policy("lowest"),
+            Ok(FingeringSelectionPolicy::LowestNumber)
+        ));
+        assert!(matches!(
+            parse_fingering_policy("highest"),
+            Ok(FingeringSelectionPolicy::HighestNumber)
+        ));
+        assert!(parse_fingering_policy("unknown").is_err());
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
     fn cli_benchmark_checks_pinned_corpus_and_timing_metadata() {
         let directory = std::env::temp_dir().join(format!(
             "acorde-cli-coverage-{}-benchmark",

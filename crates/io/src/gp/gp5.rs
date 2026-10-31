@@ -1576,6 +1576,39 @@ mod tests {
     }
 
     #[test]
+    fn gp3_truncation_at_every_byte_is_reported_without_a_panic() {
+        let data = gp3_file();
+        assert!(crate::parse_gp_with_report(&data).is_ok());
+        for end in 0..data.len() {
+            let outcome = std::panic::catch_unwind(|| crate::parse_gp_with_report(&data[..end]));
+            assert!(outcome.is_ok(), "GP3 prefix of {end} bytes panicked");
+            assert!(
+                outcome.unwrap().is_err(),
+                "truncated prefix {end} was accepted"
+            );
+        }
+    }
+
+    #[test]
+    fn gp5_effect_flag_combinations_keep_independent_note_articulations() {
+        for flags in 0_u8..=127 {
+            let mut bytes = vec![0x0a, flags]; // hammer and let-ring, followed by GP5 effects
+            bytes.resize(64, 0);
+            let mut reader = gp5_record_reader(&bytes);
+            let mut note = NoteRead::default();
+            reader.read_note_effects(&mut note).unwrap();
+            assert!(note.hammer && note.let_ring);
+            assert_eq!(note.staccato, flags & 1 != 0);
+            assert_eq!(note.palm_mute, flags & 2 != 0);
+            assert_eq!(note.vibrato, flags & 0x40 != 0);
+            assert_eq!(note.harmonic, flags & 0x10 != 0);
+            assert_eq!(note.trill, flags & 0x20 != 0);
+            assert_eq!(note.tremolo.is_some(), flags & 4 != 0);
+            assert!(reader.bin.pos <= bytes.len());
+        }
+    }
+
+    #[test]
     fn truncated_and_foreign_gp3_input_is_rejected() {
         let data = gp3_file();
         for cut in [10, 40, 200, data.len() - 1] {
