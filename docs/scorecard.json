@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "release": "1.3.6",
-  "base_release": "1.3.5",
+  "release": "1.3.7",
+  "base_release": "1.3.6",
   "contracts": {
     "svg_render_metadata": 22,
     "analysis_result": 13,

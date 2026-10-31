@@ -11,6 +11,20 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## v1.3.7
+
+Re-import MusicXML to retain common/cut time symbols, written metronome marks,
+positioned direction words, and part volume/pan. Regenerate print SVG/PDF,
+MIDI, or WAV output to apply the placement and playback corrections.
+
+The new `Measure.time_symbol` and `Measure.metronome_mark` fields and
+`StyledText.position_beats` require values in complete Rust struct literals;
+the new score change/patch variants require updates to exhaustive matches.
+Older score JSON remains readable through the fields' defaults.
+Preset and free-layer engine markers include the workspace
+version; reselect saved inputs to create a v1.3.7 configuration before replay.
+The new WAV peak target and ornament realization are opt-in.
+
 ## v1.3.6
 
 The new `AccordionPattern` waltz variants require updates to exhaustive Rust matches.
