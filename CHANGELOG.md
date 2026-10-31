@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 1.3.8 - 2026-11-01
+
 - Improve beam clearance for chords and refine two-note beam slopes using
   Verovio comparisons. Two-staff pairs now account for secondary beams,
   mixed durations, stem attachment, and available clearance in SVG and print.
