@@ -8073,4 +8073,206 @@ mod tests {
         assert!(apply_command(&cross_staff(2), &mut score).is_err());
         assert_eq!(serde_json::to_value(&score).unwrap(), before);
     }
+
+    #[test]
+    fn editor_command_metadata_survives_json_roundtrip() {
+        let commands = [
+            (
+                serde_json::json!({"type":"set_tempo", "bpm":96}),
+                "SetTempo",
+            ),
+            (
+                serde_json::json!({"type":"add_measure", "after_index":0}),
+                "AddMeasure",
+            ),
+            (
+                serde_json::json!({"type":"delete_measure", "measure_index":0}),
+                "DeleteMeasure",
+            ),
+            (
+                serde_json::json!({"type":"set_key_signature", "fifths":2}),
+                "SetKeySignature",
+            ),
+            (
+                serde_json::json!({"type":"set_time_signature", "numerator":3,"denominator":4}),
+                "SetTimeSignature",
+            ),
+            (
+                serde_json::json!({"type":"set_rehearsal_mark", "measure_index":0,"text":"A"}),
+                "SetRehearsalMark",
+            ),
+            (
+                serde_json::json!({"type":"set_navigation_mark", "measure_index":0,"mark":"Coda"}),
+                "SetNavigationMark",
+            ),
+            (
+                serde_json::json!({"type":"set_figured_bass", "measure_index":0,"figures":[]}),
+                "SetFiguredBass",
+            ),
+            (
+                serde_json::json!({"type":"set_multi_rest", "measure_index":0,"count":2}),
+                "SetMultiRest",
+            ),
+            (
+                serde_json::json!({"type":"set_volta", "measure_index":0,"volta":null}),
+                "SetVolta",
+            ),
+            (
+                serde_json::json!({"type":"set_clef", "part_index":0,"staff_index":0,"clef":"Treble"}),
+                "SetClef",
+            ),
+            (
+                serde_json::json!({"type":"set_part_name", "part_index":0,"name":"Piano","short_name":"Pno."}),
+                "SetPartName",
+            ),
+            (
+                serde_json::json!({"type":"set_midi_instrument", "part_index":0,"midi_channel":0,"midi_program":1}),
+                "SetMidiInstrument",
+            ),
+            (
+                serde_json::json!({"type":"set_percussion_kit", "part_index":0,"instruments":[]}),
+                "SetPercussionKit",
+            ),
+            (
+                serde_json::json!({"type":"set_instrument_definition", "part_index":0,"definition":null}),
+                "SetInstrumentDefinition",
+            ),
+            (
+                serde_json::json!({"type":"set_measure_instrument_change", "part_index":0,"staff_index":0,"measure_index":0,"definition":null}),
+                "SetMeasureInstrumentChange",
+            ),
+            (
+                serde_json::json!({"type":"set_measure_tablature_change", "part_index":0,"staff_index":0,"measure_index":0,"config":null}),
+                "SetMeasureTablatureChange",
+            ),
+            (
+                serde_json::json!({"type":"set_mid_measure_clefs", "part_index":0,"staff_index":0,"measure_index":0,"clefs":[]}),
+                "SetMidMeasureClefs",
+            ),
+            (
+                serde_json::json!({"type":"remove_score_view", "id":"part"}),
+                "RemoveScoreView",
+            ),
+            (
+                serde_json::json!({"type":"set_transpose", "part_index":0,"staff_index":0,"semitones":-2}),
+                "SetTranspose",
+            ),
+            (
+                serde_json::json!({"type":"set_tempo_at_measure", "measure_index":0,"bpm":100}),
+                "SetTempoAtMeasure",
+            ),
+            (
+                serde_json::json!({"type":"set_tempo_ramp_at_measure", "measure_index":0,"target_bpm":120}),
+                "SetTempoRampAtMeasure",
+            ),
+            (
+                serde_json::json!({"type":"set_system_break", "measure_index":0,"value":true}),
+                "SetSystemBreak",
+            ),
+            (
+                serde_json::json!({"type":"set_page_break", "measure_index":0,"value":true}),
+                "SetPageBreak",
+            ),
+            (
+                serde_json::json!({"type":"set_section_break", "measure_index":0,"value":true}),
+                "SetSectionBreak",
+            ),
+            (
+                serde_json::json!({"type":"set_part_group", "group":null}),
+                "SetPartGroup",
+            ),
+            (
+                serde_json::json!({"type":"remove_spanner", "id":"s1"}),
+                "RemoveSpanner",
+            ),
+            (
+                serde_json::json!({"type":"set_grace", "part_index":0,"staff_index":0,"measure_index":0,"voice":0,"note_index":0,"is_grace":true,"slash":true}),
+                "SetGrace",
+            ),
+            (
+                serde_json::json!({"type":"set_ottava", "part_index":0,"staff_index":0,"measure_index":0,"voice":0,"note_index":0,"ottava_start":null,"ottava_end":true}),
+                "SetOttava",
+            ),
+            (
+                serde_json::json!({"type":"set_lyric", "part_index":0,"staff_index":0,"measure_index":0,"voice":0,"note_index":0,"lyric":null}),
+                "SetLyric",
+            ),
+            (
+                serde_json::json!({"type":"set_chord_symbol", "part_index":0,"staff_index":0,"measure_index":0,"voice":0,"note_index":0,"chord":null}),
+                "SetChordSymbol",
+            ),
+            (
+                serde_json::json!({"type":"set_harmony_range", "part_index":0,"staff_index":0,"measure_index":0,"voice":0,"note_index":0,"end":null}),
+                "SetHarmonyRange",
+            ),
+            (
+                serde_json::json!({"type":"set_harp_pedal_diagrams", "part_index":0,"staff_index":0,"measure_index":0,"diagrams":[]}),
+                "SetHarpPedalDiagrams",
+            ),
+            (
+                serde_json::json!({"type":"paste_voice", "part_index":0,"staff_index":0,"measure_index":0,"voice_index":0,"notes":[]}),
+                "PasteVoice",
+            ),
+            (
+                serde_json::json!({"type":"paste_range", "part_index":0,"staff_index":0,"voice_index":0,"target_measure":0,"measures":[]}),
+                "PasteRange",
+            ),
+            (
+                serde_json::json!({"type":"exchange_voices", "part_index":0,"staff_index":0,"start_measure":0,"end_measure":0,"first_voice":0,"second_voice":1}),
+                "ExchangeVoices",
+            ),
+            (
+                serde_json::json!({"type":"split_measure", "measure_index":0,"split_at_beats":2.0}),
+                "SplitMeasure",
+            ),
+            (
+                serde_json::json!({"type":"join_measures", "measure_index":0}),
+                "JoinMeasures",
+            ),
+            (
+                serde_json::json!({"type":"implode_staves", "part_index":0,"source_staves":[0,1],"target_staff":0,"start_measure":0,"end_measure":0}),
+                "ImplodeStaves",
+            ),
+            (
+                serde_json::json!({"type":"explode_voices", "part_index":0,"source_staff":0,"target_staves":[0,1],"start_measure":0,"end_measure":0}),
+                "ExplodeVoices",
+            ),
+            (
+                serde_json::json!({"type":"explode_chord_pitches", "part_index":0,"source_staff":0,"target_staves":[0,1],"start_measure":0,"end_measure":0}),
+                "ExplodeChordPitches",
+            ),
+            (
+                serde_json::json!({"type":"scale_voice_range", "part_index":0,"staff_index":0,"voice":0,"start_measure":0,"end_measure":0,"scale":"half"}),
+                "ScaleVoiceRange",
+            ),
+            (
+                serde_json::json!({"type":"add_staff", "part_index":0,"clef":"Bass"}),
+                "AddStaff",
+            ),
+            (
+                serde_json::json!({"type":"delete_staff", "part_index":0,"staff_index":1}),
+                "DeleteStaff",
+            ),
+            (
+                serde_json::json!({"type":"set_tuplet", "part_index":0,"staff_index":0,"measure_index":0,"voice_index":0,"note_index":0,"tuplet":null}),
+                "SetTuplet",
+            ),
+            (
+                serde_json::json!({"type":"set_stem", "part_index":0,"staff_index":0,"measure_index":0,"voice_index":0,"note_index":0,"stem_up":true}),
+                "SetStem",
+            ),
+        ];
+        for (value, expected_key) in commands {
+            let command: Command = serde_json::from_value(value).unwrap();
+            let restored: Command =
+                serde_json::from_slice(&serde_json::to_vec(&command).unwrap()).unwrap();
+            assert_eq!(command_key(&restored), expected_key);
+            assert!(!command_label(&restored).is_empty(), "{expected_key}");
+            let before = command_hint(&command);
+            let after = command_hint(&restored);
+            assert_eq!(after.scope, before.scope);
+            assert_eq!(after.layout_dirty, before.layout_dirty);
+            assert_eq!(after.playback_dirty, before.playback_dirty);
+        }
+    }
 }
