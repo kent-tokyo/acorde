@@ -176,6 +176,89 @@ fn simple_musicxml_parses() {
 }
 
 #[test]
+fn musicxml_initial_volume_and_pan_survive_roundtrip() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name><midi-instrument id="I1"><midi-channel>2</midi-channel><midi-program>1</midi-program><volume>75</volume><pan>-30</pan></midi-instrument></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>480</divisions></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type></note></measure></part></score-partwise>"#;
+    let score = parse_musicxml(xml).expect("mix settings import");
+    assert_eq!(score.parts[0].midi_channel, 1);
+    let cc = &score.parts[0].midi_control_changes;
+    assert_eq!(
+        cc.iter()
+            .map(|event| (event.tick, event.channel, event.controller, event.value))
+            .collect::<Vec<_>>(),
+        vec![(0, 1, 7, 95), (0, 1, 10, 42)]
+    );
+
+    let output = serialize_musicxml(&score).expect("mix settings export");
+    assert!(output.contains("<volume>"));
+    assert!(output.contains("<pan>"));
+    assert_eq!(
+        parse_musicxml(&output).unwrap().parts[0].midi_control_changes,
+        *cc
+    );
+    let midi = acorde_io::serialize_midi(&score).expect("mix settings MIDI export");
+    let midi_score = parse_midi(&midi).expect("mix settings MIDI import");
+    assert!(
+        midi_score
+            .parts
+            .iter()
+            .flat_map(|part| &part.midi_control_changes)
+            .any(|event| event.tick == 0
+                && event.channel == 1
+                && event.controller == 7
+                && event.value == 95)
+    );
+    assert!(
+        midi_score
+            .parts
+            .iter()
+            .flat_map(|part| &part.midi_control_changes)
+            .any(|event| event.tick == 0
+                && event.channel == 1
+                && event.controller == 10
+                && event.value == 42)
+    );
+    assert!(
+        !acorde_io::serialize_musicxml_with_report(&score)
+            .unwrap()
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "musicxml.export-unsupported-midi-control-change")
+    );
+}
+
+#[test]
+fn musicxml_rear_pan_reports_unrepresentable_mix() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name><midi-instrument id="I1"><pan>135</pan></midi-instrument></score-part></part-list><part id="P1"><measure number="1"><note><rest/><duration>480</duration><type>quarter</type></note></measure></part></score-partwise>"#;
+    let report =
+        acorde_io::parse_musicxml_with_report(xml).expect("rear pan imports with loss report");
+    assert!(report.score.parts[0].midi_control_changes.is_empty());
+    assert!(report.diagnostics.iter().any(|diagnostic| diagnostic.code
+        == "musicxml.unsupported-midi-mix-value"
+        && diagnostic.preserved_value.as_deref() == Some("135")));
+}
+
+#[test]
+fn independent_aloha_oe_part_mix_is_preserved() {
+    let score = acorde_io::parse_mxl(OPENSCORE_LIEDER_ALOHA_OE_MXL).expect("CC0 MXL imports");
+    let pan = score
+        .parts
+        .iter()
+        .map(|part| {
+            part.midi_control_changes
+                .iter()
+                .find(|event| event.controller == 10)
+                .map(|event| event.value)
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(pan, vec![Some(40), Some(64), Some(40), Some(89)]);
+    assert!(score.parts.iter().all(|part| {
+        part.midi_control_changes
+            .iter()
+            .any(|event| event.tick == 0 && event.controller == 7 && event.value == 100)
+    }));
+}
+
+#[test]
 fn musicxml_typed_spanner_survives_structural_edit_and_roundtrip() {
     let xml = r#"<score-partwise version="4.0">
   <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>

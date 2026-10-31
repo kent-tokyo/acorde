@@ -2,16 +2,17 @@ use crate::Error;
 use acorde_core::{
     AccidentalDisplay, Articulation, Barline, ChordDegree, ChordSymbol, Clef, Duration, Dynamic,
     FiguredBassFigure, GuitarTechnique, HairpinKind, HarpPedalDiagram, HarpPedalPosition,
-    KeySignature, Lyric, Measure, MeasureLength, NotationSpanner, NotationSpannerKind, Note,
-    NoteAddr, NoteHead, OttavaKind, Part, PartGroup, PartGroupSymbol, PercussionInstrument, Pitch,
-    Score, Staff, StaffKind, Step, StyledText, TextStyle, TimeSignature, TupletBoundary,
-    TupletInfo, VerseLyric, VoltaBracket,
+    KeySignature, Lyric, Measure, MeasureLength, MidiControlChange, NotationSpanner,
+    NotationSpannerKind, Note, NoteAddr, NoteHead, OttavaKind, Part, PartGroup, PartGroupSymbol,
+    PercussionInstrument, Pitch, Score, Staff, StaffKind, Step, StyledText, TextStyle,
+    TimeSignature, TupletBoundary, TupletInfo, VerseLyric, VoltaBracket,
 };
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use std::collections::HashMap;
 
 use super::attributes::{attr_is_yes, attr_present, attr_str};
+use super::{pan_to_cc, volume_to_cc};
 
 const MAX_ELEMENTS: usize = 500_000;
 const MAX_MUSICXML_BYTES: usize = 64 * 1024 * 1024;
@@ -400,7 +401,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut part_index: Option<usize> = None;
 
     // Collect <midi-instrument> data from <score-part> declarations.
-    let mut part_midi: HashMap<String, (u8, u8)> = HashMap::new();
+    let mut part_midi: HashMap<String, (u8, u8, Option<u8>, Option<u8>)> = HashMap::new();
     let mut part_names: HashMap<String, (String, String)> = HashMap::new();
     let mut part_percussion: HashMap<String, Vec<PercussionInstrument>> = HashMap::new();
     let mut in_score_part = false;
@@ -409,6 +410,8 @@ pub(crate) fn parse_musicxml_collecting(
     let mut pending_part_abbreviation = String::new();
     let mut pending_midi_channel: u8 = 0;
     let mut pending_midi_program: u8 = 0;
+    let mut pending_midi_volume: Option<u8> = None;
+    let mut pending_midi_pan: Option<u8> = None;
     let mut in_midi_instrument = false;
     let mut midi_instrument_id = String::new();
     // Standard MusicXML puts <midi-unpitched> in <midi-instrument id="..."> matching a
@@ -490,6 +493,8 @@ pub(crate) fn parse_musicxml_collecting(
                         pending_part_abbreviation.clear();
                         pending_midi_channel = 0;
                         pending_midi_program = 0;
+                        pending_midi_volume = None;
+                        pending_midi_pan = None;
                         part_list_part_count += 1;
                     }
                     "part-name" | "part-abbreviation" if in_score_part => {
@@ -825,9 +830,19 @@ pub(crate) fn parse_musicxml_collecting(
                             .unwrap_or_else(|| (id.clone(), String::new()));
                         let mut part =
                             Part::new(if name.is_empty() { &id } else { &name }, &abbreviation);
-                        if let Some(&(ch, prog)) = part_midi.get(&id) {
+                        if let Some(&(ch, prog, volume, pan)) = part_midi.get(&id) {
                             part.midi_channel = ch;
                             part.midi_program = prog;
+                            for (controller, value) in [(7, volume), (10, pan)] {
+                                if let Some(value) = value {
+                                    part.midi_control_changes.push(MidiControlChange {
+                                        tick: 0,
+                                        channel: ch,
+                                        controller,
+                                        value,
+                                    });
+                                }
+                            }
                         }
                         part.percussion_instruments =
                             part_percussion.remove(&id).unwrap_or_default();
@@ -1444,7 +1459,12 @@ pub(crate) fn parse_musicxml_collecting(
                         midi_unpitched_by_id.clear();
                         part_midi.insert(
                             score_part_id.clone(),
-                            (pending_midi_channel, pending_midi_program),
+                            (
+                                pending_midi_channel,
+                                pending_midi_program,
+                                pending_midi_volume,
+                                pending_midi_pan,
+                            ),
                         );
                         part_names.insert(
                             score_part_id.clone(),
@@ -1503,6 +1523,12 @@ pub(crate) fn parse_musicxml_collecting(
                             .unwrap_or(1)
                             .saturating_sub(1)
                             .min(127) as u8;
+                    }
+                    "volume" if in_midi_instrument => {
+                        pending_midi_volume = volume_to_cc(current_text.trim());
+                    }
+                    "pan" if in_midi_instrument => {
+                        pending_midi_pan = pan_to_cc(current_text.trim());
                     }
                     "root" if in_harmony => in_harmony_root = false,
                     "bass" if in_harmony => in_harmony_bass = false,

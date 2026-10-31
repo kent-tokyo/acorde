@@ -9,6 +9,32 @@ pub use parser::parse_musicxml;
 pub(crate) use parser::parse_musicxml_collecting;
 pub use serializer::{serialize_musicxml, serialize_musicxml_with_auto_beams};
 
+// MusicXML stores initial mix settings as percentages and degrees. MIDI CC7/CC10
+// are seven-bit, so the conversion is intentionally quantized at the I/O edge.
+fn volume_to_cc(value: &str) -> Option<u8> {
+    let value = value.parse::<f64>().ok()?;
+    (value.is_finite() && (0.0..=100.0).contains(&value))
+        .then(|| (value * 127.0 / 100.0).round() as u8)
+}
+
+fn pan_to_cc(value: &str) -> Option<u8> {
+    let value = value.parse::<f64>().ok()?;
+    // MIDI pan cannot represent MusicXML's rear hemisphere (up to +/-180 degrees).
+    (value.is_finite() && (-90.0..=90.0).contains(&value))
+        .then(|| ((value + 90.0) * 127.0 / 180.0).round() as u8)
+}
+
+fn initial_mix_controller(part: &acorde_core::Part, controller: u8) -> Option<(usize, u8)> {
+    part.midi_control_changes
+        .iter()
+        .enumerate()
+        .filter(|(_, event)| {
+            event.tick == 0 && event.channel == part.midi_channel && event.controller == controller
+        })
+        .map(|(index, event)| (index, event.value))
+        .next_back()
+}
+
 const UNSUPPORTED_ELEMENTS: &[&str] = &[];
 
 /// Report MusicXML elements that are currently outside the canonical score subset.
@@ -160,6 +186,24 @@ pub fn loss_diagnostics(xml: &str) -> Vec<crate::Diagnostic> {
                 );
                 if let Some(field @ ("string" | "fret")) = path.last().map(String::as_str) {
                     push_tablature_value_diagnostic(field, value.trim(), &path, &mut diagnostics);
+                }
+                if path.iter().rev().nth(1).map(String::as_str) == Some("midi-instrument") {
+                    let (field, supported) = match path.last().map(String::as_str) {
+                        Some("volume") => ("volume", volume_to_cc(value.trim()).is_some()),
+                        Some("pan") => ("pan", pan_to_cc(value.trim()).is_some()),
+                        _ => ("", true),
+                    };
+                    if !supported {
+                        let mut diagnostic = crate::Diagnostic::warning(
+                            "musicxml.unsupported-midi-mix-value",
+                            format!(
+                                "MusicXML midi-instrument {field} cannot be represented by MIDI CC"
+                            ),
+                        );
+                        diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                        diagnostic.preserved_value = Some(value.trim().to_string());
+                        diagnostics.push(diagnostic);
+                    }
                 }
                 if path.last().map(String::as_str) == Some("alter")
                     && path.iter().rev().nth(1).map(String::as_str) == Some("pitch")
@@ -644,6 +688,12 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<crate::Diagnos
             diagnostics.push(diagnostic);
         }
         for (event_index, event) in part.midi_control_changes.iter().enumerate() {
+            if matches!(event.controller, 7 | 10)
+                && initial_mix_controller(part, event.controller)
+                    .is_some_and(|(index, _)| index == event_index)
+            {
+                continue;
+            }
             let mut diagnostic = crate::Diagnostic::warning(
                 "musicxml.export-unsupported-midi-control-change",
                 "MIDI control-change is not represented by MusicXML export",

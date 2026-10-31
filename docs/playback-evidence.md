@@ -355,6 +355,40 @@ uv run --no-project --with 'numpy==2.5.3' --with 'scipy==1.17.1' \
   --sample-rate-hz 48000 --windows 9,10,12,15,18
 ```
 
+### Part mix in stereo on the same score (2026-10-31)
+
+The *Aloha Oe* MXL declares four initial part volumes of `78.7402` percent and pans of
+`-33, 0, -33, 36` degrees. Before this change, the importer discarded them. It now maps
+volume to MIDI CC7 and front-hemisphere pan to CC10 at tick zero. The imported values are
+`(100,40), (100,64), (100,40), (100,89)` for `(CC7,CC10)`. The conversion quantizes to
+seven bits; MusicXML's rear-hemisphere pan is diagnosed because CC10 has no corresponding
+position. MusicXML's [volume](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/volume/)
+and [pan](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/pan/) definitions
+provide the source scales.
+
+Using alphaTab 1.8.4's bundled `sonivox.sf2` (SHA-256
+`4978cf37e7164206f2d22dc4fdf4020ffe040787210bf781e31bdc79961f59ef`),
+both Acorde stereo renders have 2,928,000 frames at 48 kHz and 644 authored playback events.
+The prior WAV SHA-256 is `f78bdaee8c7bef1e01245cf7cfbd0759cc6d88dcd7ca183cfa024be2f1a90460`;
+the corrected WAV SHA-256 is `7078ce89dd8382119a51231b6d508e10b28dac490ba612e11040e1296ce6f5b7`.
+In the first five seconds, right/left RMS changes from **1.0001** to **1.9287** and the
+number of frames with different left/right PCM values changes from 349,274 to 2,896,840
+over the full output. The revised PCM16 output has zero clipped samples. alphaTab's float32
+export for the same score and SF2 has a first-five-second right/left RMS ratio of **1.4834**;
+its 2,970,048-frame length reflects the already documented timing difference. The pan law,
+gain, and voice balance still differ, so these figures demonstrate restored stereo placement
+on this score, not superior sound quality.
+
+```sh
+SF2=/tmp/acorde-alphatab-1_8_4/node_modules/@coderline/alphatab/dist/soundfont/sonivox.sf2
+cargo run -q -p acorde-cli --locked -- audio-render \
+  tests/fixtures/openscore_lieder_aloha_oe.mxl "$SF2" /tmp/acorde-aloha-stereo-after.wav \
+  --sample-rate 48000 --channels 2 --full-sf2
+node scripts/export_alphatab_audio.mjs /tmp/acorde-alphatab-1_8_4 \
+  tests/fixtures/openscore_lieder_aloha_oe.mxl "$SF2" \
+  /tmp/alphatab-aloha-stereo-review.f32le 48000
+```
+
 ## MIDI export timing parity (2026-10-30)
 
 The core playback schedule and `acorde convert … .mid` are separate delivery paths. On *Just for
