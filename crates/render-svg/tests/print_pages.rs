@@ -83,6 +83,44 @@ fn print_page_keeps_verovio_reference_beam_stems_and_slur_side() {
 }
 
 #[test]
+fn one_short_print_system_keeps_a_natural_width() {
+    let score =
+        acorde_io::parse_musicxml(include_str!("fixtures/verovio_partial_stem_slur.musicxml"))
+            .unwrap();
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let staff = pages[0]
+        .split(r#"class="acorde-staff-line""#)
+        .nth(1)
+        .expect("staff line");
+    let staff_width_mm = (svg_attribute_f32(staff, "x2") - svg_attribute_f32(staff, "x1")) / 4.0;
+    // Verovio 6.3.0 uses 21.96 mm for this same-input A4 probe. Keep some
+    // tolerance for Acorde's smaller staff and different glyph metrics.
+    assert!(
+        (18.0..38.0).contains(&staff_width_mm),
+        "short final staff should not fill the page: {staff_width_mm} mm"
+    );
+}
+
+#[test]
+fn sparse_final_system_with_wide_key_signature_still_renders() {
+    let mut score = Score::new("Wide header", 120, 4, 4, 7, 1);
+    score.parts[0].staves[0].measures[0].voices[0].push(acorde_core::Note::new(
+        acorde_core::Pitch::new(acorde_core::Step::C, 4),
+        acorde_core::Duration::Quarter,
+    ));
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    assert!(pages[0].contains(r#"class="acorde-key-sig""#));
+    let staff = pages[0]
+        .split(r#"class="acorde-staff-line""#)
+        .nth(1)
+        .unwrap();
+    let note = pages[0].split(r#"class="acorde-notehead""#).nth(1).unwrap();
+    assert!(svg_attribute_f32(note, "cx") < svg_attribute_f32(staff, "x2"));
+}
+
+#[test]
 fn short_final_print_system_is_ragged_without_scaling_staff_lines() {
     let config = PrintConfig {
         measures_per_system: 4,
@@ -102,6 +140,22 @@ fn short_final_print_system_is_ragged_without_scaling_staff_lines() {
     let eight_bars = Score::new("Piano", 120, 4, 4, 0, 8);
     let layout = compute_print_layout(&eight_bars, &config).unwrap();
     let pages = render_print_page_svgs(&eight_bars, &layout).unwrap();
+    let ends = staff_line_right_edges(&pages[0]);
+    assert!((ends[5] - ends[0]).abs() < 0.01);
+
+    // A short final row can still need a full line when its notation is much
+    // denser than the preceding four bars.
+    let mut dense_final = Score::new("Dense ending", 120, 4, 4, 0, 5);
+    dense_final.parts[0].staves[0].measures[4].voices[0] = (0..16)
+        .map(|_| {
+            acorde_core::Note::new(
+                acorde_core::Pitch::new(acorde_core::Step::C, 4),
+                acorde_core::Duration::Sixteenth,
+            )
+        })
+        .collect();
+    let layout = compute_print_layout(&dense_final, &config).unwrap();
+    let pages = render_print_page_svgs(&dense_final, &layout).unwrap();
     let ends = staff_line_right_edges(&pages[0]);
     assert!((ends[5] - ends[0]).abs() < 0.01);
 }

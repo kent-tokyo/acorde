@@ -522,6 +522,37 @@ cargo run -q -p acorde-cli --locked -- render \
   /tmp/acorde-partial-stem.svg --width 900 --staff-size 24
 ```
 
+### Verovio-guided short final print system after v1.3.7 (2026-10-31)
+
+The same self-authored MusicXML probe has only one short bar. On A4 with
+16/14 mm margins, Verovio 6.3.0 gives its staff a 21.96 mm width. Before this
+change, Acorde's one-system print SVG stretched it to 176.60 mm. The print
+renderer now sizes a short final row from its notation demand and, when there
+are preceding rows, their density. It still justifies earlier rows and a
+final row with the same number of columns as the fullest preceding row. The
+probe's Acorde staff is now 24.51 mm, with both notes and the slur inside it.
+The print SVG and vector PDF were generated from the same input, and the PDF
+was rasterized at 1400 px for inspection. The import has zero diagnostics.
+
+The pinned *Aloha Oe* density example remains three A4 pages and five systems,
+with 73 import diagnostics. Its last page was rasterized at 1400 px; the
+changed rule did not visibly crowd that page. A dense single-measure ending
+has a regression that leaves its final line full width. These checks concern
+horizontal extent only: the probe's Acorde staff and publication type are
+still smaller than Verovio's, and the two renderers do not yet have matching
+overall print quality.
+
+```sh
+verovio -a --page-width 2100 --page-height 2970 \
+  --page-margin-top 160 --page-margin-bottom 160 \
+  --page-margin-left 140 --page-margin-right 140 \
+  -o /tmp/verovio-partial-a4.svg \
+  crates/render-svg/tests/fixtures/verovio_partial_stem_slur.musicxml
+cargo run -q -p acorde-pdf --example print_mxl -- \
+  crates/render-svg/tests/fixtures/verovio_partial_stem_slur.musicxml \
+  crates/pdf/tests/fixtures/Tuffy.ttf /tmp/acorde-partial-a4.pdf
+```
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.
