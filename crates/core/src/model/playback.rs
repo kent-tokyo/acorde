@@ -1959,16 +1959,6 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
         if options.muted_parts.contains(&part_index) {
             continue;
         }
-        let mut program_changes = BTreeMap::<u8, Vec<(u64, u8)>>::new();
-        for change in &part.midi_program_changes {
-            program_changes
-                .entry(change.channel)
-                .or_default()
-                .push((change.tick, change.program));
-        }
-        for changes in program_changes.values_mut() {
-            changes.sort_by_key(|(tick, _)| *tick);
-        }
         for (staff_index, staff) in part.staves.iter().enumerate() {
             let dynamics = DynamicTimeline::for_staff(staff, &seq);
             for voice_idx in 0..4usize {
@@ -2046,16 +2036,17 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                             // change across the note it belongs to.
                             let source_tick = measure_tick_starts[idx]
                                 .saturating_add((onset_written_beats * 480.0).round() as u64);
-                            let program = program_changes
-                                .get(&channel)
-                                .and_then(|changes| {
-                                    changes.get(
-                                        changes
-                                            .partition_point(|(tick, _)| *tick <= source_tick)
-                                            .checked_sub(1)?,
-                                    )
-                                })
-                                .map_or(default_program, |(_, program)| *program);
+                            let mut program = default_program;
+                            let mut latest_change_tick = 0_u64;
+                            for change in &part.midi_program_changes {
+                                if change.channel == channel
+                                    && change.tick <= source_tick
+                                    && change.tick >= latest_change_tick
+                                {
+                                    program = change.program;
+                                    latest_change_tick = change.tick;
+                                }
+                            }
                             let mut velocity =
                                 dynamics.velocity(seq_position, onset_written_beats, note.dynamic);
                             let mut sounding_dur = dur;
