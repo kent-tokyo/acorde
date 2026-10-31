@@ -310,6 +310,52 @@ fn musicxml_direction_default_offsets_roundtrip_on_styled_text() {
 }
 
 #[test]
+fn musicxml_keeps_repeated_and_later_words_in_one_measure() {
+    let directions = "<direction placement=\"above\"><direction-type><words>L.H.</words></direction-type></direction><direction placement=\"above\"><direction-type><words>L.H.</words></direction-type></direction><direction placement=\"below\"><direction-type><words>poco cresc.</words></direction-type></direction>";
+    let xml = SIMPLE_XML.replacen("<note", &format!("{directions}<note"), 1);
+    let check = |score: &acorde_core::Score| {
+        let measure = &score.parts[0].staves[0].measures[0];
+        assert_eq!(measure.expression_text.as_deref(), Some("L.H."));
+        assert_eq!(
+            measure
+                .texts
+                .iter()
+                .filter(|text| text.text == "L.H.")
+                .count(),
+            2
+        );
+        assert!(measure.texts.iter().any(|text| {
+            text.text == "poco cresc." && text.placement.as_deref() == Some("below")
+        }));
+    };
+    let score = parse_musicxml(&xml).expect("parse multiple directions");
+    check(&score);
+    let restored =
+        parse_musicxml(&serialize_musicxml(&score).expect("serialize multiple directions"))
+            .expect("reparse multiple directions");
+    check(&restored);
+}
+
+#[test]
+fn quilter_keeps_all_same_measure_directions_seen_in_verovio() {
+    let score = acorde_io::parse_mxl(OPENSCORE_LIEDER_QUILTER_MXL).expect("CC0 MXL imports");
+    let measure = &score.parts[0].staves[0].measures[3];
+    assert_eq!(
+        measure
+            .texts
+            .iter()
+            .filter(|text| text.text == "L.H.")
+            .count(),
+        2
+    );
+    assert!(
+        measure.texts.iter().any(|text| {
+            text.text == "poco cresc." && text.placement.as_deref() == Some("below")
+        })
+    );
+}
+
+#[test]
 fn musicxml_note_placement_offsets_roundtrip_and_are_not_reported_as_loss() {
     // default-x/default-y are the source engraver's absolute layout, not nudges: they are not
     // imported (applying them to acorde's own layout pushed notes out of their bars).

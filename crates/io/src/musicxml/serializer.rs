@@ -606,13 +606,34 @@ fn serialize_musicxml_inner(
                 xml.push_str("      </figured-bass>\n");
             }
 
+            let mut tempo_text_emitted = measure.tempo_text.is_some();
+            let mut expression_text_emitted = measure.expression_text.is_some();
+            let mut rehearsal_emitted = measure.rehearsal.is_some();
             for styled in &measure.texts {
-                let already_emitted = matches!(styled.style, TextStyle::Generic)
-                    && measure.tempo_text.as_deref() == Some(styled.text.as_str())
-                    || matches!(styled.style, TextStyle::Expression)
-                        && measure.expression_text.as_deref() == Some(styled.text.as_str())
-                    || matches!(styled.style, TextStyle::RehearsalMark)
-                        && measure.rehearsal.as_deref() == Some(styled.text.as_str());
+                let already_emitted = match styled.style {
+                    TextStyle::Generic
+                        if tempo_text_emitted
+                            && measure.tempo_text.as_deref() == Some(styled.text.as_str()) =>
+                    {
+                        tempo_text_emitted = false;
+                        true
+                    }
+                    TextStyle::Expression
+                        if expression_text_emitted
+                            && measure.expression_text.as_deref() == Some(styled.text.as_str()) =>
+                    {
+                        expression_text_emitted = false;
+                        true
+                    }
+                    TextStyle::RehearsalMark
+                        if rehearsal_emitted
+                            && measure.rehearsal.as_deref() == Some(styled.text.as_str()) =>
+                    {
+                        rehearsal_emitted = false;
+                        true
+                    }
+                    _ => false,
+                };
                 if already_emitted {
                     continue;
                 }

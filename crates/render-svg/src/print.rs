@@ -14,6 +14,7 @@ use crate::{RenderError, SvgRenderConfig, SvgRenderOptions, is_valid_xml_char};
 
 const PX_PER_MM: f32 = 4.0;
 const PRINT_STAFF_GAP: f32 = 6.0;
+const GRAND_STAFF_PRINT_GAP: f32 = 8.0;
 const MULTIVERSE_PRINT_STAFF_GAP: f32 = 9.0;
 const PREFERRED_STAFF_SPACE_MM: f32 = 1.7;
 const MIN_STAFF_SPACE_MM: f32 = 1.1;
@@ -109,7 +110,7 @@ pub fn render_print_page_svgs(
     layout.validate()?;
     // Match the staff-aware layout's extra page reservation for an additional
     // lyric lane. A fixed-height layout may instead fail the legibility preflight.
-    let staff_gap = if score
+    let has_multiple_lyric_verses = score
         .parts
         .iter()
         .flat_map(|part| &part.staves)
@@ -120,8 +121,20 @@ pub fn render_print_page_svgs(
                 .flat_map(|measure| &measure.voices)
                 .flatten()
                 .any(|note| !note.additional_lyrics.is_empty())
-        }) {
+        });
+    let grand_staff_has_below_text = score.parts.len() == 1
+        && score.parts[0].staves.len() == 2
+        && score.parts[0].staves[0].measures.iter().any(|measure| {
+            measure.texts.iter().any(|text| {
+                text.placement
+                    .as_deref()
+                    .is_some_and(|placement| placement.eq_ignore_ascii_case("below"))
+            })
+        });
+    let staff_gap = if has_multiple_lyric_verses {
         MULTIVERSE_PRINT_STAFF_GAP
+    } else if grand_staff_has_below_text {
+        GRAND_STAFF_PRINT_GAP
     } else {
         PRINT_STAFF_GAP
     };

@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- MusicXML import now keeps later and repeated direction words within one measure, including
+  both `L.H.` marks and `poco cresc.` in the pinned Quilter piano score. Print rendering reserves
+  a text lane between those grand staves and keeps below-staff words clear of noteheads.
 - Full-SF2 audio rendering now applies authored MIDI program changes at their scheduled frames
   and uses the selected preset for later attacks on the source part and channel. Missing presets
   still fail explicitly. This closes one instrument-change gap; same-input alphaTab sound-quality

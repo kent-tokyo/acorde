@@ -2992,14 +2992,28 @@ pub fn compute_print_layout(
         .sum::<usize>();
     // A two-staff grand staff needs enough physical height for readable notes.
     // The previous 40 mm reservation made dense piano systems fit four bars by
-    // shrinking the staff; the density budget below must track this increase.
+    // shrinking the staff; the density budget below tracks the notation portion
+    // of the height, not the additional lane reserved for below-staff words.
     const TWO_STAFF_BASELINE_HEIGHT_MM: f32 = 40.0;
     const TWO_STAFF_MIN_HEIGHT_MM: f32 = 50.0;
+    const TWO_STAFF_DENSITY_HEIGHT_MM: f32 = 50.0;
+    let grand_staff_has_below_text = layout_score.parts.len() == 1
+        && layout_score.parts[0].staves.len() == 2
+        && layout_score.parts[0].staves[0]
+            .measures
+            .iter()
+            .any(|measure| {
+                measure.texts.iter().any(|text| {
+                    text.placement
+                        .as_deref()
+                        .is_some_and(|placement| placement.eq_ignore_ascii_case("below"))
+                })
+            });
     let staff_clearance_mm = if staff_count <= 1 {
         0.0
     } else {
         (24.0 + staff_count.saturating_sub(1) as f32 * 16.0).max(if staff_count == 2 {
-            TWO_STAFF_MIN_HEIGHT_MM
+            TWO_STAFF_MIN_HEIGHT_MM + if grand_staff_has_below_text { 6.0 } else { 0.0 }
         } else {
             0.0
         })
@@ -3077,7 +3091,9 @@ pub fn compute_print_layout(
             first_row_measures,
             content_width_mm,
             if staff_count == 2 {
-                (scaled_system_height_mm / TWO_STAFF_BASELINE_HEIGHT_MM).max(1.0)
+                (scaled_system_height_mm.min(TWO_STAFF_DENSITY_HEIGHT_MM)
+                    / TWO_STAFF_BASELINE_HEIGHT_MM)
+                    .max(1.0)
             } else {
                 1.0
             },
@@ -4444,6 +4460,27 @@ mod tests {
             ),
             Err(PrintLayoutError::InvalidSystemHeight)
         );
+    }
+
+    #[test]
+    fn grand_staff_with_below_direction_reserves_text_lane() {
+        let mut score = score_with_measures(1);
+        let mut lower = Staff::new(Clef::Bass);
+        lower.measures = vec![Measure::empty(4, 4)];
+        score.parts[0].staves.push(lower);
+        score.parts[0].staves[0].measures[0]
+            .texts
+            .push(acorde_core::StyledText {
+                style: acorde_core::TextStyle::Expression,
+                text: "poco cresc.".to_owned(),
+                placement: Some("below".to_owned()),
+                offset_x: None,
+                offset_y: None,
+                relative_x: None,
+                relative_y: None,
+            });
+        let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+        assert_eq!(layout.pages[0].systems[0].height_mm, 56.0);
     }
 
     #[test]

@@ -4541,7 +4541,10 @@ fn render_measure_text(
             bottom_y - (6.2 + stack_index as f32 * 0.95 * text_scale) * space
         };
         let offset_y = styled.offset_y.unwrap_or(0.0) + styled.relative_y.unwrap_or(0.0);
-        let mut y = measure_text_collision_y(&MeasureTextCollisionContext {
+        let offset_x = styled.offset_x.unwrap_or(0.0) + styled.relative_x.unwrap_or(0.0);
+        let text_x = content_x0 + (offset_x as f32 / 10.0) * space;
+        let text_width = styled.text.chars().count() as f32 * 0.46 * space * text_scale;
+        let collision_y = measure_text_collision_y(&MeasureTextCollisionContext {
             measure,
             part,
             staff,
@@ -4550,15 +4553,54 @@ fn render_measure_text(
             default_y,
             space,
             below: placement_below,
-        }) + (offset_y as f32 / 10.0) * space;
-        if text_scale > 1.0 && !placement_below {
-            // Imported default-y is a hint from the source engraving. Keep
-            // enlarged print text above the staff even when that hint would
-            // pull it back into the note and stem lane after reflow.
-            y = y.min(bottom_y - 8.0 * space);
+        });
+        let mut y = collision_y + (offset_y as f32 / 10.0) * space;
+        if text_scale > 1.0 {
+            // Source-engraver default-y is only a hint after print reflow. Do
+            // not let it pull enlarged text into the staff or note lane.
+            y = if placement_below {
+                y.max(collision_y)
+            } else {
+                y.min(bottom_y - 8.0 * space)
+            };
         }
-        let offset_x = styled.offset_x.unwrap_or(0.0) + styled.relative_x.unwrap_or(0.0);
-        let text_x = content_x0 + (offset_x as f32 / 10.0) * space;
+        if placement_below && text_scale > 1.0 {
+            for (voice_index, voice) in measure.voices.iter().enumerate() {
+                for (note_index, note) in voice.iter().enumerate() {
+                    if note.is_rest {
+                        continue;
+                    }
+                    let Some(&(note_x, note_y, stem_up, _)) =
+                        note_points.get(&(part, staff, measure_idx, voice_index, note_index))
+                    else {
+                        continue;
+                    };
+                    if note_x + 0.5 * space >= text_x && note_x - 0.5 * space <= text_x + text_width
+                    {
+                        // A down-stem chord anchors its highest head; text below
+                        // the staff must clear its lowest head as well.
+                        let lowest_head_y = if stem_up {
+                            note_y
+                        } else {
+                            let lowest = note
+                                .pitches
+                                .iter()
+                                .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, 0))
+                                .min()
+                                .unwrap_or(0);
+                            let highest = note
+                                .pitches
+                                .iter()
+                                .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, 0))
+                                .max()
+                                .unwrap_or(lowest);
+                            note_y + ((highest - lowest) as f32 * 0.5) * space
+                        };
+                        y = y.max(lowest_head_y + (0.5 + 0.78 * text_scale) * space + 1.0);
+                    }
+                }
+            }
+        }
         let class = match styled.style {
             acorde_core::TextStyle::RehearsalMark => acorde_layout::GlyphCollisionClass::Critical,
             acorde_core::TextStyle::FiguredBass => acorde_layout::GlyphCollisionClass::Spacing,
@@ -4575,7 +4617,7 @@ fn render_measure_text(
                 advance_mm: 0.0,
                 left_mm: 0.0,
                 top_mm: -0.78 * space * text_scale,
-                width_mm: styled.text.chars().count() as f32 * 0.46 * space * text_scale,
+                width_mm: text_width,
                 height_mm: 0.9 * space * text_scale,
             },
             x_mm: text_x,
