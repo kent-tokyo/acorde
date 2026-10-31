@@ -65,6 +65,24 @@ fn system_barlines(svg: &str, system_index: usize) -> Vec<f32> {
 }
 
 #[test]
+fn print_page_keeps_verovio_reference_beam_stems_and_slur_side() {
+    let score =
+        acorde_io::parse_musicxml(include_str!("fixtures/verovio_partial_stem_slur.musicxml"))
+            .unwrap();
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    assert_eq!(pages.len(), 1);
+    let svg = &pages[0];
+    let stems = svg
+        .split(r#"class="acorde-stem" x1=""#)
+        .skip(1)
+        .map(|stem| svg_attribute_f32(stem, "y2") < svg_attribute_f32(stem, "y1"))
+        .collect::<Vec<_>>();
+    assert_eq!(stems, vec![true, true]);
+    assert!(svg.contains(r#"class="acorde-slur""#));
+}
+
+#[test]
 fn short_final_print_system_is_ragged_without_scaling_staff_lines() {
     let config = PrintConfig {
         measures_per_system: 4,

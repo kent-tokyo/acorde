@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- A partially authored beam now carries its explicit stem direction to the
+  unmarked notes in the group. Same-input Verovio 6.3.0 probes with upper and
+  lower two-note slurs match the resulting up/down stem and opposite-side slur
+  placement in both screen and print SVG.
 - MusicXML pedal stop followed by start at one score cursor now puts both
   playback actions on the following note while preserving the printed spanner
   endpoint. Full-SF2 rendering releases the old pedal before pressing the new

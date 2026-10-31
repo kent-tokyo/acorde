@@ -494,6 +494,34 @@ systems (2+2+3+3), compared with Verovio's three. The import still reports
 103 diagnostics. This fixes the direction and visibility of one prominent
 slur; it does not prove clearance for every slur or print-quality parity.
 
+### Verovio-guided partial beam stems and slurs after v1.3.7 (2026-10-31)
+
+The self-authored MusicXML probe at
+`crates/render-svg/tests/fixtures/verovio_partial_stem_slur.musicxml` has two
+high eighth notes under one beam and slur. Only the first note explicitly says
+`<stem>up</stem>`. Verovio 6.3.0 draws **both** stems up and the slur below.
+The mirrored low-note probe with one `<stem>down</stem>` draws both stems down
+and the slur above. Moving the sole up-stem instruction to the last note also
+keeps both stems up in Verovio. Before this change Acorde drew the first probe
+with one up stem and one down stem under the same beam.
+
+The renderer now propagates a consistent authored direction to the other
+unmarked notes in that beam. Explicit conflicting directions remain untouched.
+The four up/down and first/last variants have screen-SVG assertions; the pinned
+upper probe also has a physical print-page SVG assertion. The comparison SVGs
+were rasterized and inspected. This corrects the beam/stem relation and keeps
+the slur on the same side as Verovio. Acorde stretches this isolated one-bar
+system much wider, making its slur longer; this probe does not establish equal
+horizontal spacing or general slur geometry.
+
+```sh
+verovio -o /tmp/verovio-partial-stem.svg \
+  crates/render-svg/tests/fixtures/verovio_partial_stem_slur.musicxml
+cargo run -q -p acorde-cli --locked -- render \
+  crates/render-svg/tests/fixtures/verovio_partial_stem_slur.musicxml \
+  /tmp/acorde-partial-stem.svg --width 900 --staff-size 24
+```
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.
