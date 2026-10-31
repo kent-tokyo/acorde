@@ -5920,7 +5920,16 @@ fn render_same_row_span(
             let start_y = y1 + side * 0.65 * space;
             let end_y = y2 + side * 0.65 * space;
             let extreme = slur_extreme.unwrap_or(if above { y1.min(y2) } else { y1.max(y2) });
-            let control_y = extreme + side * 2.4 * space;
+            // A quadratic passes halfway between its control and the midpoint of
+            // its endpoints. Placing the control beyond an intermediate note is
+            // therefore not enough to keep the curve itself beyond that note.
+            let baseline_control = extreme + side * 2.4 * space;
+            let clearance_control = 2.0 * (extreme + side * 0.8 * space) - (start_y + end_y) / 2.0;
+            let control_y = if above {
+                baseline_control.min(clearance_control)
+            } else {
+                baseline_control.max(clearance_control)
+            };
             render_slur_ribbon(
                 body,
                 x1 + direction * 0.3 * space,

@@ -553,6 +553,18 @@ cargo run -q -p acorde-pdf --example print_mxl -- \
   crates/pdf/tests/fixtures/Tuffy.ttf /tmp/acorde-partial-a4.pdf
 ```
 
+### Slur clearance at the middle of a phrase (2026-10-31)
+
+For the self-authored ABC phrase `X:1`, `M:3/4`, `L:1/4`, `K:C`,
+`(c a c) |]`, Acorde exported MusicXML and Verovio 6.3.0 rendered the
+same file. Verovio stems the three notes down and bows the slur above the
+central high note. Acorde previously put the quadratic control above that
+note, but the actual curve crossed it. The control calculation now accounts
+for the curve's midpoint. Regression tests evaluate the curve at the central
+note for both a high peak and a low valley. This is a midpoint clearance
+improvement; it does not guarantee collision-free slurs for off-center notes,
+stems, chords, or system continuations.
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.

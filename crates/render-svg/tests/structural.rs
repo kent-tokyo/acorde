@@ -177,6 +177,35 @@ fn single_voice_slurs_attach_outside_heads_opposite_stems() {
 }
 
 #[test]
+fn slur_curve_clears_the_middle_note_of_a_peaked_phrase() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("peaked slur", 120, 3, 4, 0, 1);
+    let mut notes =
+        [Step::C, Step::A, Step::C].map(|step| Note::new(Pitch::new(step, 5), Duration::Quarter));
+    notes[0].slur_start = true;
+    notes[2].slur_end = true;
+    score.parts[0].staves[0].measures[0].voices[0] = notes.to_vec();
+    let svg = render_svg(&score, &opts()).unwrap();
+    let path = slur_geometries(&svg)[0];
+    let heads = notehead_centers(&svg);
+    let t = (heads[1].0 - path[0]) / (path[4] - path[0]);
+    let curve_y = (1.0 - t).powi(2) * path[1] + 2.0 * (1.0 - t) * t * path[3] + t.powi(2) * path[5];
+    assert!(curve_y < heads[1].1 - 0.3 * opts().staff_size);
+
+    let mut valley =
+        [Step::A, Step::C, Step::A].map(|step| Note::new(Pitch::new(step, 4), Duration::Quarter));
+    valley[0].slur_start = true;
+    valley[2].slur_end = true;
+    score.parts[0].staves[0].measures[0].voices[0] = valley.to_vec();
+    let svg = render_svg(&score, &opts()).unwrap();
+    let path = slur_geometries(&svg)[0];
+    let heads = notehead_centers(&svg);
+    let t = (heads[1].0 - path[0]) / (path[4] - path[0]);
+    let curve_y = (1.0 - t).powi(2) * path[1] + 2.0 * (1.0 - t) * t * path[3] + t.powi(2) * path[5];
+    assert!(curve_y > heads[1].1 + 0.3 * opts().staff_size);
+}
+
+#[test]
 fn issue_176_abc_phrase_bows_below_up_stems() {
     let score = acorde_io::parse_abc("X:1\nT:Slur side\nM:9/8\nL:1/8\nK:G\nd2G G(FG/A/) B3|]")
         .expect("ABC phrase parses");
