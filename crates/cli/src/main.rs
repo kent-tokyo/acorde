@@ -3522,6 +3522,81 @@ mod tests {
     }
 
     #[test]
+    fn tablature_cli_requires_a_valid_position_and_can_clear_one() {
+        let directory =
+            std::env::temp_dir().join(format!("acorde-cli-tab-clear-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let input = fixture("external_tab.musicxml");
+        let output = directory.join("cleared.musicxml");
+        let source = input.to_str().unwrap();
+        let target = output.to_str().unwrap();
+        assert!(
+            invoke(&[
+                "tab-position",
+                source,
+                target,
+                "--part",
+                "0",
+                "--measure",
+                "0",
+                "--note",
+                "0",
+                "--string",
+                "0",
+                "--fret",
+                "3"
+            ])
+            .unwrap_err()
+            .contains("one-based")
+        );
+        assert!(
+            invoke(&[
+                "tab-position",
+                source,
+                target,
+                "--part",
+                "0",
+                "--measure",
+                "0",
+                "--note",
+                "0",
+                "--string",
+                "1"
+            ])
+            .unwrap_err()
+            .contains("--fret")
+        );
+        assert!(!output.exists());
+        invoke(&[
+            "tab-position",
+            source,
+            target,
+            "--part",
+            "0",
+            "--measure",
+            "0",
+            "--note",
+            "0",
+            "--clear",
+        ])
+        .unwrap();
+        let score = parse_score(&output).unwrap();
+        let note = &score.parts[0].staves[0].measures[0].voices[0][0];
+        assert!(note.tab_position.is_none());
+        assert!(note.tab_positions.is_empty());
+        assert!(matches!(
+            parse_fingering_policy("lowest"),
+            Ok(FingeringSelectionPolicy::LowestNumber)
+        ));
+        assert!(matches!(
+            parse_fingering_policy("highest"),
+            Ok(FingeringSelectionPolicy::HighestNumber)
+        ));
+        assert!(parse_fingering_policy("unknown").is_err());
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
     fn cli_benchmark_checks_pinned_corpus_and_timing_metadata() {
         let directory = std::env::temp_dir().join(format!(
             "acorde-cli-coverage-{}-benchmark",

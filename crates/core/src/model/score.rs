@@ -5596,6 +5596,24 @@ mod tests {
     }
 
     #[test]
+    fn chromatic_transposition_covers_every_pitch_class_and_keeps_microtones() {
+        for midi in 1..=126 {
+            let mut original = Pitch::from_midi(midi, false);
+            original.microtone_cents = 25;
+            for shift in [-1_i8, 1] {
+                let shifted = transpose_pitch(&original, shift);
+                assert_eq!(shifted.to_midi(), i16::from(midi) + i16::from(shift));
+                assert_eq!(shifted.microtone_cents, 25);
+                assert!(if shift > 0 {
+                    shifted.alter >= 0
+                } else {
+                    shifted.alter <= 0
+                });
+            }
+        }
+    }
+
+    #[test]
     fn score_without_schema_version_deserializes_to_zero() {
         let json = r#"{"id":"abc","metadata":{"title":"T","composer":"","lyricist":"","copyright":"","work_number":"","movement_title":""},"settings":{"tempo_bpm":120,"time_signature":{"numerator":4,"denominator":4},"key_signature":{"fifths":0,"mode":"major"}},"parts":[]}"#;
         let score: Score = serde_json::from_str(json).unwrap();
@@ -6150,6 +6168,159 @@ mod tests {
                 assert_eq!(serde_json::to_value(&score).unwrap(), before);
             }
         }
+    }
+
+    #[test]
+    fn measure_patches_reject_missing_part_staff_and_measure() {
+        let score = Score::new("Patch boundary", 120, 4, 4, 0, 1);
+        let before = serde_json::to_value(&score).unwrap();
+        for (part, staff, measure) in [(8, 0, 0), (0, 8, 0), (0, 0, 8)] {
+            let patches = vec![
+                ScorePatch::SetMeasureTexts {
+                    part,
+                    staff,
+                    measure,
+                    value: vec![],
+                },
+                ScorePatch::SetFiguredBass {
+                    part,
+                    staff,
+                    measure,
+                    value: vec![],
+                },
+                ScorePatch::SetHarpPedalDiagrams {
+                    part,
+                    staff,
+                    measure,
+                    value: vec![],
+                },
+                ScorePatch::SetMeasureTablatureChange {
+                    part,
+                    staff,
+                    measure,
+                    value: None,
+                },
+                ScorePatch::SetMeasureMidClefs {
+                    part,
+                    staff,
+                    measure,
+                    value: vec![],
+                },
+                ScorePatch::SetKeySignature {
+                    part,
+                    staff,
+                    measure,
+                    value: None,
+                },
+                ScorePatch::SetTimeSignature {
+                    part,
+                    staff,
+                    measure,
+                    value: None,
+                },
+                ScorePatch::SetTimeSymbol {
+                    part,
+                    staff,
+                    measure,
+                    value: None,
+                },
+                ScorePatch::SetBarlines {
+                    part,
+                    staff,
+                    measure,
+                    left: Barline::default(),
+                    right: Barline::default(),
+                },
+                ScorePatch::SetRehearsal {
+                    part,
+                    staff,
+                    measure,
+                    value: None,
+                },
+                ScorePatch::SetVolta {
+                    part,
+                    staff,
+                    measure,
+                    value: None,
+                },
+                ScorePatch::SetMeasureTempo {
+                    part,
+                    staff,
+                    measure,
+                    value: None,
+                },
+                ScorePatch::SetMeasureTempoRamp {
+                    part,
+                    staff,
+                    measure,
+                    value: None,
+                },
+                ScorePatch::SetMeasureMetronomeMark {
+                    part,
+                    staff,
+                    measure,
+                    value: None,
+                },
+            ];
+            for patch in patches {
+                assert!(apply_patch(&score, &[patch]).is_err());
+                assert_eq!(serde_json::to_value(&score).unwrap(), before);
+            }
+        }
+    }
+
+    #[test]
+    fn part_and_staff_patches_reject_missing_targets() {
+        let score = Score::new("Patch targets", 120, 4, 4, 0, 1);
+        let original = serde_json::to_value(&score).unwrap();
+        let part = 99;
+        let patches = vec![
+            ScorePatch::SetPartNames {
+                part,
+                name: "Violin".into(),
+                short_name: "Vln".into(),
+            },
+            ScorePatch::SetPartMidi {
+                part,
+                channel: 1,
+                program: 40,
+            },
+            ScorePatch::SetInstrumentDefinition { part, value: None },
+            ScorePatch::SetPartMidiAutomation {
+                part,
+                pitch_bends: vec![],
+                control_changes: vec![],
+                program_changes: vec![],
+                aftertouch: vec![],
+            },
+        ];
+        for patch in patches {
+            assert!(apply_patch(&score, &[patch]).is_err());
+        }
+        for (part, staff) in [(99, 0), (0, 99)] {
+            let patches = vec![
+                ScorePatch::SetStaffConfiguration {
+                    part,
+                    staff,
+                    clef: Clef::Treble,
+                    transpose_semitones: 0,
+                },
+                ScorePatch::SetStaffPresentation {
+                    part,
+                    staff,
+                    value: StaffPresentation::default(),
+                },
+                ScorePatch::SetTablatureConfig {
+                    part,
+                    staff,
+                    value: None,
+                },
+            ];
+            for patch in patches {
+                assert!(apply_patch(&score, &[patch]).is_err());
+            }
+        }
+        assert_eq!(serde_json::to_value(&score).unwrap(), original);
     }
 
     #[test]
