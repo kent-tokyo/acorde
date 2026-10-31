@@ -371,14 +371,17 @@ fn write_publication(
     {
         let has_movement_title = !page.publication.movement_title.trim().is_empty()
             && page.publication.movement_title != page.publication.title;
-        let title_y = (system.top_mm - if has_movement_title { 8.5 } else { 5.0 }) * scale;
-        let credit_y = (system.top_mm - if has_movement_title { 3.0 } else { 5.0 }) * scale;
+        // Keep the title inside the top print margin. The former 7.5 mm
+        // baseline on a default A4 page placed most of its capitals only
+        // 2.5 mm from the paper edge in the pinned Verovio comparison.
+        let title_y = (system.top_mm - if has_movement_title { 6.5 } else { 5.0 }) * scale;
+        let credit_y = (system.top_mm - if has_movement_title { 0.5 } else { 5.0 }) * scale;
         if !page.publication.title.is_empty() {
             let _ = write!(
                 svg,
                 "<text class=\"acorde-print-title\" x=\"{:.3}\" y=\"{title_y:.3}\" text-anchor=\"middle\" font-family=\"serif\" font-weight=\"bold\" font-size=\"{:.3}\">{}</text>",
                 page.width_mm * scale / 2.0,
-                5.0 * scale,
+                5.5 * scale,
                 escape_xml(&page.publication.title)
             );
         }
@@ -387,7 +390,7 @@ fn write_publication(
                 svg,
                 "<text class=\"acorde-print-movement-title\" x=\"{:.3}\" y=\"{credit_y:.3}\" text-anchor=\"middle\" font-family=\"serif\" font-size=\"{:.3}\">{}</text>",
                 page.width_mm * scale / 2.0,
-                3.8 * scale,
+                4.0 * scale,
                 escape_xml(&page.publication.movement_title)
             );
         }
@@ -396,7 +399,7 @@ fn write_publication(
                 svg,
                 "<text class=\"acorde-print-composer\" x=\"{:.3}\" y=\"{credit_y:.3}\" text-anchor=\"end\" font-family=\"serif\" font-size=\"{:.3}\">{}</text>",
                 (page.content_left_mm + page.content_width_mm) * scale,
-                3.0 * scale,
+                4.0 * scale,
                 escape_xml(&page.publication.composer)
             );
         }

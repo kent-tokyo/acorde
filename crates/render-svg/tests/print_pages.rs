@@ -342,9 +342,9 @@ fn print_page_retains_quilter_publication_credits() {
     assert!(pages[0].contains("class=\"acorde-print-movement-title\""));
     assert!(pages[0].contains(">Prelude</text>"));
     for (class, minimum_px) in [
-        ("acorde-print-title", 20.0),
-        ("acorde-print-movement-title", 15.0),
-        ("acorde-print-composer", 12.0),
+        ("acorde-print-title", 22.0),
+        ("acorde-print-movement-title", 16.0),
+        ("acorde-print-composer", 16.0),
     ] {
         let credit = pages[0]
             .split_once(&format!("class=\"{class}\""))
@@ -352,4 +352,17 @@ fn print_page_retains_quilter_publication_credits() {
             .1;
         assert!(svg_attribute_f32(credit, "font-size") >= minimum_px);
     }
+    let title = pages[0]
+        .split_once("class=\"acorde-print-title\"")
+        .unwrap()
+        .1;
+    let movement = pages[0]
+        .split_once("class=\"acorde-print-movement-title\"")
+        .unwrap()
+        .1;
+    let title_y = svg_attribute_f32(title, "y");
+    let movement_y = svg_attribute_f32(movement, "y");
+    assert!(title_y - svg_attribute_f32(title, "font-size") > 0.0);
+    assert!(movement_y - svg_attribute_f32(movement, "font-size") - title_y >= 4.0);
+    assert!(movement_y < layout.pages[0].systems[0].top_mm * 4.0);
 }
