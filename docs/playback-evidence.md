@@ -618,6 +618,66 @@ python3 scripts/compare_playback_audio.py /tmp/acorde-chopin-grace-turn-48k.wav 
   /tmp/alphatab-chopin-48k.f32le 0,500,1000,2000,5000,10000,20000,30000,40000
 ```
 
+## Webern tenuto and same-score audio export (2026-10-31)
+
+The pinned CC0 Webern MXL (`openscore_lieder_webern_so_ich_traurig_bin.mxl`,
+SHA-256 `609b32d0829c48ab9a134308d8694fd5b1ee7de89acba11f76084a32f56ca8a3`)
+contains `tenuto` notes. Acorde's playback schedule already gives them their
+full written duration, but both SF2 WAV renderers rejected the retained mark as
+`unrealized note expression`. They now accept `tenuto` as an instruction already
+resolved by that schedule. Synthetic native and full-SF2 regressions verify
+that a tenuto note has the same scheduled duration and PCM as the corresponding
+unmarked full-length note.
+
+At 16 kHz stereo, using alphaTab 1.8.4's bundled `sonivox.sf2` (SHA-256
+`4978cf37e7164206f2d22dc4fdf4020ffe040787210bf781e31bdc79961f59ef`),
+Acorde full-SF2 now renders 132 events to 570,286 PCM16 frames, SHA-256
+`7042d9a3a628fc197b9df2ced7a29986446e1f11010b0c6903e9d4a14711ddae`,
+with zero rail samples. The pinned alphaTab export harness emits 544,832
+float32 stereo frames but 923,731 non-finite samples, starting at frame 5,726;
+its SHA-256 is `8102a80afb2cd46d0b398cf9ba0092ac51795961864db15d3eb5f4fe227dd8a9`.
+A second export on each renderer reproduced its respective hash, and alphaTab's
+non-finite count was unchanged. This is a **fixed-input,
+fixed-rate export-finiteness result**, not a general sound-quality ranking or
+a claim about alphaTab's live player.
+
+At 48 kHz, both exports are finite: Acorde produces 1,710,858 PCM16 frames
+(SHA-256 `b5895178564e61777e9008a6301aa2a7f154a24fb43219d447744a548737c085`,
+zero rail samples) and alphaTab produces 1,634,368 float32 frames (SHA-256
+`5d59d08a43e7a91e3d855340c3ec54a2303a853239996f84dbd19feea42b7c43`,
+zero non-finite or out-of-range samples). The different lengths include
+Acorde's release-tail policy; the default gain policies also differ. The
+independent MusicXML onset reader finds
+132 written attacks; Acorde and alphaTab each match all 132 with no extras.
+Acorde's import report still lists 22 losses or warnings (18 rendering
+attributes, two unsupported metronome forms, one unsupported dynamic, and one
+orphan spanner stop), which are separate from the tenuto synthesis fix.
+
+```sh
+SF2=/tmp/acorde-alphatab-1_8_4/node_modules/@coderline/alphatab/dist/soundfont/sonivox.sf2
+target/debug/acorde audio-render tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl "$SF2" \
+  /tmp/acorde-webern-tenuto-16k.wav --full-sf2 --realize-ornaments --sample-rate 16000 --channels 2
+node scripts/export_alphatab_audio.mjs /tmp/acorde-alphatab-1_8_4 \
+  tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl "$SF2" \
+  /tmp/alphatab-webern-16k.f32le 16000
+python3 -B scripts/compare_playback_audio.py /tmp/acorde-webern-tenuto-16k.wav \
+  /tmp/alphatab-webern-16k.f32le 0,500,1000,2000,5000
+target/debug/acorde audio-render tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl "$SF2" \
+  /tmp/acorde-webern-tenuto-48k.wav --full-sf2 --realize-ornaments --sample-rate 48000 --channels 2
+node scripts/export_alphatab_audio.mjs /tmp/acorde-alphatab-1_8_4 \
+  tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl "$SF2" \
+  /tmp/alphatab-webern-48k.f32le 48000
+python3 -B scripts/compare_playback_audio.py /tmp/acorde-webern-tenuto-48k.wav \
+  /tmp/alphatab-webern-48k.f32le 0,500,1000,2000,5000,10000,20000,30000
+target/debug/acorde playback-report tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl \
+  > /tmp/acorde-webern-tenuto-playback.json
+node scripts/export_alphatab_midi.mjs /tmp/acorde-alphatab-1_8_4 \
+  tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl /tmp/alphatab-webern.mid
+uv run --no-project --with 'mido==1.3.3' python scripts/compare_musicxml_onsets.py \
+  tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl \
+  /tmp/acorde-webern-tenuto-playback.json /tmp/alphatab-webern.mid
+```
+
 ## Evidence boundary
 
 This local evidence proves deterministic score projection, event scheduling/position calculation,

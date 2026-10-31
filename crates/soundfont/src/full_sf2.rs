@@ -233,6 +233,7 @@ pub fn render_offline_wav_full_sf2(
                     Articulation::Staccato
                         | Articulation::Staccatissimo
                         | Articulation::Accent
+                        | Articulation::Tenuto
                         | Articulation::Marcato
                         | Articulation::Fermata
                 )
@@ -582,6 +583,28 @@ mod tests {
         let wav = render_offline_wav_full_sf2(&schedule, PIANO).expect("overlapping WAV");
         assert_eq!(wav.len(), 44 + schedule.duration_frames as usize * 2);
         assert!(wav[44..].iter().any(|byte| *byte != 0));
+    }
+
+    #[test]
+    fn full_sf2_tenuto_uses_the_full_scheduled_note_duration() {
+        let mut score = Score::new("Tenuto", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        let plain = manifest(&score);
+        let plain_wav = render_offline_wav_full_sf2(&plain, PIANO).unwrap();
+
+        score.parts[0].staves[0].measures[0].voices[0][0]
+            .articulations
+            .push(Articulation::Tenuto);
+        let tenuto = manifest(&score);
+        assert_eq!(
+            tenuto.frame_events[0].duration_frames,
+            plain.frame_events[0].duration_frames
+        );
+        assert_eq!(
+            render_offline_wav_full_sf2(&tenuto, PIANO).unwrap(),
+            plain_wav
+        );
     }
 
     #[test]
