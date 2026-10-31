@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- MIDI export now assigns overlapping same-pitch notes to separate channels and
+  mirrors their program and controller events. Reimport recognizes mirrored
+  control streams without adding duplicate score automation. On the pinned *Just for Today*
+  score, all 579 note onsets and durations match Acorde's playback schedule;
+  previously eight note durations were ambiguous on one channel.
 - The `bass-pulse`, `alternating-bass`, and `offbeat-chords` accordion presets
   now fill 9/8 with three dotted-quarter pulses. Pickup and shortened bars
   retain their measure phase; eighth-aligned chord changes, playback, MSCZ
