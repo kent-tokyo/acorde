@@ -46,3 +46,7 @@ produce diagnostic codes with a measure index where available.
 The output score feeds the ordinary SVG, playback, MusicXML and other export
 paths. The API does not migrate any host application by itself. A host can
 replace its local pattern and pitch algorithms after it adopts this contract.
+
+For a single sustained bass pitch without a chord progression, use
+[`arrange_with_drone`](accordion-drone.md). Its optional `layers` setting can
+add a chord-derived melodic voice while the bass pitch stays fixed.

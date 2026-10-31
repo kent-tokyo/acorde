@@ -795,6 +795,263 @@ pub struct LayeredAccordionResult {
     pub contract_version: u16,
 }
 
+/// One explicitly selected sustained bass pitch. Chords are only needed when
+/// an optional melodic layer uses harmony; they never change the drone pitch.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AccordionDroneOptions {
+    pub pitch_midi: u8,
+    pub bass_mode: AccordionBassMode,
+    /// Optional harmony/added-voice layers. Accompaniment must be `None`.
+    #[serde(default)]
+    pub layers: Option<LayeredAccordionOptions>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccordionDroneResult {
+    pub score: Option<Score>,
+    pub resolved_options: AccordionDroneOptions,
+    pub diagnostics: Vec<GuidedArrangeDiagnostic>,
+    pub source_notes: Vec<NoteAddr>,
+    pub generated_notes: Vec<NoteAddr>,
+    pub contract_version: u16,
+}
+
+fn drone_error(
+    options: AccordionDroneOptions,
+    code: &str,
+    message: impl Into<String>,
+    measure_index: Option<usize>,
+) -> AccordionDroneResult {
+    AccordionDroneResult {
+        score: None,
+        resolved_options: options,
+        diagnostics: vec![GuidedArrangeDiagnostic {
+            code: code.to_string(),
+            message: message.into(),
+            measure_index,
+        }],
+        source_notes: Vec::new(),
+        generated_notes: Vec::new(),
+        contract_version: 1,
+    }
+}
+
+/// Sustain one bass pitch through each authored bar, including melody rests.
+/// The drone reattacks at every bar boundary; split notes inside a bar are tied.
+/// Repeat playback follows the source barlines. No chord is inferred or required.
+pub fn arrange_with_drone(score: &Score, options: AccordionDroneOptions) -> AccordionDroneResult {
+    let range = match options.bass_mode {
+        AccordionBassMode::StandardBass => (36, 47),
+        AccordionBassMode::FreeBass => GUIDED_LEFT_HAND_RANGE,
+    };
+    if !(range.0..=range.1).contains(&i16::from(options.pitch_midi)) {
+        return drone_error(
+            options,
+            "out-of-range",
+            format!(
+                "drone pitch must be MIDI {}..={} for the selected bass mode",
+                range.0, range.1
+            ),
+            None,
+        );
+    }
+    if score.parts.len() != 1 || score.parts[0].staves.len() != 1 {
+        return drone_error(
+            options,
+            "unsupported-source",
+            "expected one melody part and one staff",
+            None,
+        );
+    }
+    let source_staff = &score.parts[0].staves[0];
+    if source_staff.measures.is_empty() || source_staff.measures.len() > 2048 {
+        return drone_error(
+            options,
+            "unsupported-source",
+            "measure count is empty or exceeds 2048",
+            None,
+        );
+    }
+    for (index, measure) in source_staff.measures.iter().enumerate() {
+        if measure.voices.iter().skip(1).any(|voice| !voice.is_empty())
+            || measure.voices[0]
+                .iter()
+                .any(|note| !note.is_rest && note.pitches.len() != 1)
+            || measure.multi_rest_count.is_some()
+        {
+            return drone_error(
+                options,
+                "unsupported-source",
+                "expected a monophonic melody without measure repeats",
+                Some(index),
+            );
+        }
+        if measure.voices[0]
+            .iter()
+            .flat_map(|note| &note.pitches)
+            .any(|pitch| {
+                !(GUIDED_RIGHT_HAND_RANGE.0..=GUIDED_RIGHT_HAND_RANGE.1).contains(&pitch.to_midi())
+            })
+        {
+            return drone_error(
+                options,
+                "out-of-range",
+                "melody exceeds the right-hand MIDI range 48..=96",
+                Some(index),
+            );
+        }
+    }
+    let validation = super::validate::validate(score);
+    if !validation.is_valid() {
+        return drone_error(
+            options,
+            "invalid-source",
+            format!("source validation failed: {:?}", validation.errors[0]),
+            None,
+        );
+    }
+    let mut generated_notes = Vec::new();
+    let (mut output, source_notes) = if let Some(layers) = &options.layers {
+        if layers.accompaniment.is_some()
+            || layers.swing != AccordionSwingPolicy::Straight
+            || layers.bass_mode != options.bass_mode
+        {
+            return drone_error(
+                options,
+                "invalid-layers",
+                "drone layers require no other accompaniment, straight timing and the same bass mode",
+                None,
+            );
+        }
+        let layered = arrange_with_layers(score, layers.clone());
+        let Some(output) = layered.score else {
+            return AccordionDroneResult {
+                score: None,
+                resolved_options: options,
+                diagnostics: layered.diagnostics,
+                source_notes: Vec::new(),
+                generated_notes: Vec::new(),
+                contract_version: 1,
+            };
+        };
+        generated_notes = layered.generated_notes;
+        (output, layered.source_notes)
+    } else {
+        let mut output = score.clone();
+        output.id = uuid::Uuid::new_v4().to_string();
+        let mut part = Part::new("Accordion", "Acc.");
+        part.midi_program = ACCORDION_PROGRAM;
+        part.staves = vec![source_staff.clone(), Staff::new(Clef::Bass)];
+        output.parts = vec![part];
+        output.part_groups.clear();
+        output.views.clear();
+        let source_notes = source_staff
+            .measures
+            .iter()
+            .enumerate()
+            .flat_map(|(measure, bar)| {
+                bar.voices[0]
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, note)| !note.is_rest)
+                    .map(move |(note, _)| NoteAddr {
+                        part: 0,
+                        staff: 0,
+                        measure,
+                        voice: 0,
+                        note,
+                    })
+            })
+            .collect();
+        (output, source_notes)
+    };
+    let left = &mut output.parts[0].staves[1];
+    left.measures.clear();
+    for (index, source_measure) in source_staff.measures.iter().enumerate() {
+        let beats = score.playback_measure_beats(index);
+        let ticks = (beats * GRID).round();
+        if !ticks.is_finite() || ticks <= 0.0 || (ticks / GRID - beats).abs() > 1e-9 {
+            return drone_error(
+                options,
+                "unsupported-rhythm",
+                "measure length must be on a 1/64-beat grid",
+                Some(index),
+            );
+        }
+        let mut measure = Measure::empty(
+            source_measure
+                .time_sig
+                .as_ref()
+                .map_or(score.settings.time_signature.numerator, |ts| ts.numerator),
+            source_measure
+                .time_sig
+                .as_ref()
+                .map_or(score.settings.time_signature.denominator, |ts| {
+                    ts.denominator
+                }),
+        );
+        measure.number = source_measure.number;
+        measure.time_sig = source_measure.time_sig.clone();
+        measure.key_sig = source_measure.key_sig.clone();
+        measure.tempo = source_measure.tempo;
+        measure.tempo_ramp_to = source_measure.tempo_ramp_to;
+        measure.barline_left = source_measure.barline_left.clone();
+        measure.barline_right = source_measure.barline_right.clone();
+        measure.volta = source_measure.volta.clone();
+        measure.system_break = source_measure.system_break;
+        measure.page_break = source_measure.page_break;
+        measure.section_break = source_measure.section_break;
+        measure.actual_length = source_measure.actual_length;
+        measure.voices[0].clear();
+        let mut remaining = ticks as u32;
+        while remaining > 0 {
+            let duration = Duration::whole_filling_beats(f64::from(remaining) / GRID);
+            let filled = (duration.beats(0) * GRID).round() as u32;
+            if filled == 0 || filled > remaining {
+                return drone_error(
+                    options,
+                    "unsupported-rhythm",
+                    "drone cannot fill the measure exactly",
+                    Some(index),
+                );
+            }
+            let mut note = guided_note(&[options.pitch_midi], duration);
+            note.tie_end = !measure.voices[0].is_empty();
+            note.tie_start = remaining > filled;
+            generated_notes.push(NoteAddr {
+                part: 0,
+                staff: 1,
+                measure: index,
+                voice: 0,
+                note: measure.voices[0].len(),
+            });
+            measure.voices[0].push(note);
+            remaining -= filled;
+        }
+        left.measures.push(measure);
+    }
+    let validation = super::validate::validate(&output);
+    if !validation.is_valid() {
+        return drone_error(
+            options,
+            "invalid-output",
+            format!(
+                "generated score validation failed: {:?}",
+                validation.errors[0]
+            ),
+            None,
+        );
+    }
+    AccordionDroneResult {
+        score: Some(output),
+        resolved_options: options,
+        diagnostics: Vec::new(),
+        source_notes,
+        generated_notes,
+        contract_version: 1,
+    }
+}
+
 fn layered_error(
     options: LayeredAccordionOptions,
     code: &str,

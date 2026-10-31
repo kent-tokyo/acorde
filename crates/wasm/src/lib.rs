@@ -1482,6 +1482,16 @@ pub fn arrange_with_layers(score_json: &str, options_json: &str) -> Result<Strin
         .map_err(|error| js_err(format!("layered arrangement serialization failed: {error}")))
 }
 
+/// Sustain an explicitly selected bass note, with optional chord-based melodic layers.
+#[wasm_bindgen]
+pub fn arrange_with_drone(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::AccordionDroneOptions =
+        parse_json(options_json, "drone arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_with_drone(&score, options))
+        .map_err(|error| js_err(format!("drone arrangement serialization failed: {error}")))
+}
+
 /// Compose arbitrary supported layers and return a versioned, replayable configuration.
 #[wasm_bindgen]
 pub fn arrange_accordion_layers(score_json: &str, options_json: &str) -> Result<String, JsValue> {
