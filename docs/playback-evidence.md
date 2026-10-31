@@ -416,6 +416,50 @@ uv run --no-project --with 'mido==1.3.3' python scripts/compare_playback_onsets.
 uv run --no-project --with 'mido==1.3.3' python scripts/compare_musicxml_onsets.py tests/fixtures/openscore_lieder_aloha_oe.mxl /tmp/acorde-alphatab-1_8_4/aloha-oe.json /tmp/acorde-aloha-oe.mid
 ```
 
+### Overlapping unison duration in MIDI export (2026-10-31)
+
+On the pinned CC0 *Just for Today* MXL (SHA-256
+`79a19736fcce71c0acf4b39feff63723d2ff75e29285ea2ab594f9b2b6a835ff`), the
+current playback JSON contains 579 attacks. Four fermata notes overlap later
+attacks at the same pitch across two passages. The previous MIDI export put each
+pair on one channel. A FIFO reader then assigned the earlier note-off to the
+held note and the later note-off to the short note: eight durations differed
+from Acorde's own playback schedule by 0.5 beat.
+
+The exporter now puts a colliding attack on a spare channel that is not used by
+another authored part or control stream. It mirrors that part's program,
+pitch-bend, controller and aftertouch messages. The revised MIDI SHA-256 is
+`4a0ff3442928b3309a67d3f303a1fbf28ed4c88a80055a2f8fac1b388cd7b3a2`.
+The same FIFO comparison reports **579/579** matching pitch-and-beat attacks,
+**0** duration differences over 0.01 beat, and at most **0.110 ms** onset-time
+difference from MIDI tempo quantization. It reports eight duration differences
+against the pre-change MIDI (SHA-256
+`a26c8e9daf965408197e4898e5e96a9fc7342a7d67819f323a15c2fc2f631092`).
+MIDI reimport sees the mirrored automation as additional events on auxiliary
+channels; the original channel's automation remains unchanged. If all 15
+pitched channels are occupied, export fails explicitly rather than emitting
+ambiguous overlapping note-offs.
+
+alphaTab 1.8.4's MIDI export of this same MXL (SHA-256
+`a46691fe284051a3cdb3d6f66588f68e06dd746b7aff8ccc11d24481aea283b8`)
+also matches 579/579 pitch-and-beat attacks; 22 note durations differ from
+Acorde's *chosen* default fermata hold. A fermata has no fixed performance
+duration in the source, so this is not evidence that either renderer has more
+accurate fermatas. This change improves Acorde's internal MIDI/playback
+consistency; it does not change PCM synthesis or establish an audio-quality win.
+
+```sh
+target/debug/acorde playback-report tests/fixtures/openscore_lieder_just_for_today.mxl \
+  > target/just-for-today-playback.json
+target/debug/acorde convert tests/fixtures/openscore_lieder_just_for_today.mxl \
+  target/just-for-today-separated.mid
+node scripts/export_alphatab_midi.mjs /tmp/acorde-alphatab-1_8_4 \
+  tests/fixtures/openscore_lieder_just_for_today.mxl target/just-for-today-alphatab.mid
+uv run --no-project --with 'mido==1.3.3' \
+  python scripts/compare_playback_onsets.py \
+  target/just-for-today-playback.json target/just-for-today-separated.mid
+```
+
 ## Pinned OpenScore Lieder timing sample (2026-10-30)
 
 The [40-score selection and per-file results](playback-corpus-2026-10-30.json) use OpenScore/Lieder

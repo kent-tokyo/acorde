@@ -833,12 +833,53 @@ mod tests {
 
         let reparsed = parse_midi(&serialize_midi(&score).expect("generated MIDI serializes"))
             .expect("serialized generated MIDI reparses");
-        assert_eq!(reparsed.parts[0].midi_pitch_bends, part.midi_pitch_bends);
+        // An overlapping unison is exported on a spare channel. Its control
+        // stream is mirrored there so both notes retain the same expression.
         assert_eq!(
-            reparsed.parts[0].midi_control_changes,
+            reparsed.parts[0]
+                .midi_pitch_bends
+                .iter()
+                .filter(|bend| bend.channel == 0)
+                .cloned()
+                .collect::<Vec<_>>(),
+            part.midi_pitch_bends
+        );
+        assert_eq!(
+            reparsed.parts[0]
+                .midi_control_changes
+                .iter()
+                .filter(|control| control.channel == 0)
+                .cloned()
+                .collect::<Vec<_>>(),
             part.midi_control_changes
         );
-        assert_eq!(reparsed.parts[0].midi_aftertouch, part.midi_aftertouch);
+        assert_eq!(
+            reparsed.parts[0]
+                .midi_aftertouch
+                .iter()
+                .filter(|aftertouch| aftertouch.channel == 0)
+                .cloned()
+                .collect::<Vec<_>>(),
+            part.midi_aftertouch
+        );
+        assert!(
+            reparsed.parts[0]
+                .midi_pitch_bends
+                .iter()
+                .any(|bend| bend.channel == 1)
+        );
+        assert!(
+            reparsed.parts[0]
+                .midi_control_changes
+                .iter()
+                .any(|control| control.channel == 1)
+        );
+        assert!(
+            reparsed.parts[0]
+                .midi_aftertouch
+                .iter()
+                .any(|aftertouch| aftertouch.channel == 1)
+        );
     }
 
     #[test]

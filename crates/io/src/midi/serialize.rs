@@ -5,6 +5,7 @@ use midly::{
     Format, Header, MetaMessage, MidiMessage, Smf, Timing, TrackEvent, TrackEventKind,
     num::{u4, u7, u15, u24, u28},
 };
+use std::collections::BTreeSet;
 
 const PPQ: u32 = 480;
 
@@ -49,8 +50,40 @@ fn serialize_midi_impl(score: &Score, seq: &[usize]) -> Result<Vec<u8>, Error> {
 
     let starts = measure_start_ticks(score, seq);
     smf.tracks.push(build_meta_track(score, seq, &starts)?);
+    // Reserve every authored channel before assigning temporary channels to
+    // overlapping notes. A spare in one part must not steal another part's
+    // instrument or controller stream.
+    let mut occupied_channels = BTreeSet::new();
     for part in &score.parts {
-        smf.tracks.push(build_part_track(part, seq, &starts)?);
+        occupied_channels.insert(part.midi_channel.min(15));
+        occupied_channels.extend(
+            part.midi_program_changes
+                .iter()
+                .map(|event| event.channel.min(15)),
+        );
+        occupied_channels.extend(
+            part.midi_pitch_bends
+                .iter()
+                .map(|event| event.channel.min(15)),
+        );
+        occupied_channels.extend(
+            part.midi_control_changes
+                .iter()
+                .map(|event| event.channel.min(15)),
+        );
+        occupied_channels.extend(
+            part.midi_aftertouch
+                .iter()
+                .map(|event| event.channel.min(15)),
+        );
+    }
+    for part in &score.parts {
+        smf.tracks.push(build_part_track(
+            part,
+            seq,
+            &starts,
+            &mut occupied_channels,
+        )?);
     }
 
     let mut bytes = Vec::new();
@@ -195,6 +228,7 @@ fn build_meta_track<'a>(
 
 // ── part track ────────────────────────────────────────────────────────────────
 
+#[derive(Clone)]
 struct TimedEvent {
     abs_tick: u64,
     /// 0 = NoteOff (sort before NoteOn at same tick), 1 = NoteOn
@@ -220,6 +254,12 @@ struct OpenMidiTie {
     voice: usize,
 }
 
+struct MidiNoteEventPair {
+    on_event: usize,
+    off_event: usize,
+    pitch: u8,
+}
+
 fn note_ticks(duration: &acorde_core::Duration, dot_count: u8, tuplet: Option<&TupletInfo>) -> u64 {
     let base = duration.to_ticks(dot_count) as u64;
     match tuplet {
@@ -234,6 +274,7 @@ fn build_part_track(
     part: &acorde_core::Part,
     seq: &[usize],
     starts: &[u64],
+    occupied_channels: &mut BTreeSet<u8>,
 ) -> Result<Vec<TrackEvent<'static>>, Error> {
     let channel = u4::from(part.midi_channel.min(15));
     let mut events: Vec<TimedEvent> = Vec::new();
@@ -302,6 +343,11 @@ fn build_part_track(
             message,
         });
     }
+    let base_messages = events
+        .iter()
+        .filter(|event| event.channel == channel)
+        .cloned()
+        .collect::<Vec<_>>();
 
     for (staff_index, staff) in part.staves.iter().enumerate() {
         let dynamics = acorde_core::DynamicTimeline::for_staff(staff, seq);
@@ -374,6 +420,7 @@ fn build_part_track(
     notes.sort_by_key(|note| note.start_tick);
     let mut open_ties: std::collections::HashMap<u8, Vec<OpenMidiTie>> =
         std::collections::HashMap::new();
+    let mut note_pairs = Vec::new();
     for note in notes {
         if let Some(candidates) = open_ties.get_mut(&note.pitch) {
             candidates.retain(|candidate| events[candidate.off_event].abs_tick >= note.start_tick);
@@ -400,6 +447,7 @@ fn build_part_track(
                 }
             }
         }
+        let on_event = events.len();
         events.push(TimedEvent {
             abs_tick: note.start_tick,
             sort_key: 1,
@@ -409,6 +457,7 @@ fn build_part_track(
                 vel: u7::from(note.velocity),
             },
         });
+        let off_event = events.len();
         events.push(TimedEvent {
             abs_tick: note.start_tick + note.sounding_ticks,
             sort_key: 0,
@@ -418,12 +467,59 @@ fn build_part_track(
                 vel: u7::from(0u8),
             },
         });
+        note_pairs.push(MidiNoteEventPair {
+            on_event,
+            off_event,
+            pitch: note.pitch,
+        });
         if note.tie_start {
             open_ties.entry(note.pitch).or_default().push(OpenMidiTie {
                 off_event: events.len() - 1,
                 staff: note.staff,
                 voice: note.voice,
             });
+        }
+    }
+
+    // An overlapping unison cannot be released independently on one MIDI
+    // channel: its note-offs carry only a key, not a voice identity. Put the
+    // later attack on a spare channel and mirror the part's channel messages.
+    let mut last_off = std::collections::BTreeMap::<(u8, u8), u64>::new();
+    let mut spare_channels = Vec::<u8>::new();
+    for pair in note_pairs {
+        let start = events[pair.on_event].abs_tick;
+        let end = events[pair.off_event].abs_tick;
+        let free_for_pitch = |candidate: u8| {
+            last_off
+                .get(&(candidate, pair.pitch))
+                .is_none_or(|&off| off <= start)
+        };
+        let assigned = if free_for_pitch(channel.as_int()) {
+            channel.as_int()
+        } else if let Some(&spare) = spare_channels.iter().find(|&&spare| free_for_pitch(spare)) {
+            spare
+        } else {
+            if channel.as_int() == 9 {
+                return Err(Error::Midi(
+                    "overlapping percussion pitch has no independent MIDI voice".into(),
+                ));
+            }
+            let spare = (0..16)
+                .find(|candidate| *candidate != 9 && !occupied_channels.contains(candidate))
+                .ok_or_else(|| Error::Midi("no free MIDI channel for overlapping pitch".into()))?;
+            occupied_channels.insert(spare);
+            spare_channels.push(spare);
+            spare
+        };
+        events[pair.on_event].channel = u4::from(assigned);
+        events[pair.off_event].channel = u4::from(assigned);
+        last_off.insert((assigned, pair.pitch), end);
+    }
+    for spare in spare_channels {
+        for message in &base_messages {
+            let mut copy = message.clone();
+            copy.channel = u4::from(spare);
+            events.push(copy);
         }
     }
 
@@ -787,6 +883,149 @@ mod tests {
                 (1440, false, 64, 0),
             ]
         );
+    }
+
+    #[test]
+    fn overlapping_unison_uses_spare_channel_with_program_and_controls() {
+        let mut score = Score::new("unison", 120, 4, 4, 0, 1);
+        score.parts[0].midi_program = 21;
+        score.parts[0].midi_control_changes = vec![acorde_core::MidiControlChange {
+            tick: 0,
+            channel: 0,
+            controller: 7,
+            value: 90,
+        }];
+        let mut held = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        held.articulations.push(Articulation::Fermata);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![held];
+        score.parts[0].staves[0].measures[0].voices[1] = vec![
+            Note::rest(Duration::Quarter),
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+        ];
+        let mut other = score.parts[0].clone();
+        other.id = "reserved-channel".into();
+        other.midi_channel = 1;
+        other.midi_control_changes.clear();
+        for voice in &mut other.staves[0].measures[0].voices {
+            voice.clear();
+        }
+        score.parts.push(other);
+
+        let bytes = serialize_midi(&score).unwrap();
+        let smf = Smf::parse(&bytes).unwrap();
+        let mut tick = 0_u64;
+        let mut notes = Vec::new();
+        let mut spare_program = false;
+        let mut spare_volume = false;
+        for event in &smf.tracks[1] {
+            tick += u64::from(event.delta.as_int());
+            if let TrackEventKind::Midi { channel, message } = event.kind {
+                match message {
+                    MidiMessage::NoteOn { key, vel } if vel.as_int() > 0 => {
+                        notes.push((tick, true, channel.as_int(), key.as_int()));
+                    }
+                    MidiMessage::NoteOff { key, .. } => {
+                        notes.push((tick, false, channel.as_int(), key.as_int()));
+                    }
+                    MidiMessage::ProgramChange { program } if channel.as_int() == 2 => {
+                        spare_program = program.as_int() == 21;
+                    }
+                    MidiMessage::Controller { controller, value }
+                        if channel.as_int() == 2 && controller.as_int() == 7 =>
+                    {
+                        spare_volume = value.as_int() == 90;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        assert_eq!(
+            notes,
+            vec![
+                (0, true, 0, 60),
+                (480, true, 2, 60),
+                (720, false, 0, 60),
+                (960, false, 2, 60),
+            ]
+        );
+        assert!(spare_program && spare_volume);
+    }
+
+    #[test]
+    fn overlapping_unison_rejects_exhausted_channel_pool() {
+        let mut score = Score::new("no spare channel", 120, 4, 4, 0, 1);
+        let mut held = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        held.articulations.push(Articulation::Fermata);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![held];
+        score.parts[0].staves[0].measures[0].voices[1] = vec![
+            Note::rest(Duration::Quarter),
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+        ];
+        score.parts[0].midi_control_changes = (1..16)
+            .map(|channel| acorde_core::MidiControlChange {
+                tick: 0,
+                channel,
+                controller: 7,
+                value: 100,
+            })
+            .collect();
+        let error = serialize_midi(&score).expect_err("no spare channel is available");
+        assert!(error.to_string().contains("no free MIDI channel"));
+    }
+
+    #[cfg(feature = "musicxml")]
+    #[test]
+    fn just_for_today_midi_durations_match_playback_events() {
+        use std::collections::{BTreeMap, VecDeque};
+
+        let source =
+            include_bytes!("../../../../tests/fixtures/openscore_lieder_just_for_today.mxl");
+        let score = crate::parse_mxl(source).unwrap();
+        let mut expected = BTreeMap::<(u64, u8, u64), usize>::new();
+        for event in acorde_core::to_playback_events(&score, &Default::default()) {
+            if event.is_metronome {
+                continue;
+            }
+            let onset = (event.time_beats * f64::from(PPQ)).round() as u64;
+            let duration = (event.duration_beats * f64::from(PPQ)).round() as u64;
+            *expected
+                .entry((onset, event.pitch_midi, duration))
+                .or_default() += 1;
+        }
+
+        let bytes = serialize_midi(&score).unwrap();
+        let smf = Smf::parse(&bytes).unwrap();
+        let mut actual = BTreeMap::<(u64, u8, u64), usize>::new();
+        for track in smf.tracks.iter().skip(1) {
+            let mut tick = 0_u64;
+            let mut active = BTreeMap::<(u8, u8), VecDeque<u64>>::new();
+            for event in track {
+                tick += u64::from(event.delta.as_int());
+                if let TrackEventKind::Midi { channel, message } = event.kind {
+                    match message {
+                        MidiMessage::NoteOn { key, vel } if vel.as_int() > 0 => {
+                            active
+                                .entry((channel.as_int(), key.as_int()))
+                                .or_default()
+                                .push_back(tick);
+                        }
+                        MidiMessage::NoteOff { key, .. } | MidiMessage::NoteOn { key, .. } => {
+                            let onset = active
+                                .get_mut(&(channel.as_int(), key.as_int()))
+                                .and_then(VecDeque::pop_front)
+                                .expect("note-off matches a note-on on its channel");
+                            *actual
+                                .entry((onset, key.as_int(), tick - onset))
+                                .or_default() += 1;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            assert!(active.values().all(VecDeque::is_empty));
+        }
+        assert_eq!(expected.values().sum::<usize>(), 579);
+        assert_eq!(actual, expected);
     }
 
     #[test]
