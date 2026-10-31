@@ -992,6 +992,68 @@ mod tests {
     }
 
     #[test]
+    fn svg_paths_keep_relative_lines_and_smooth_curve_endpoints() {
+        let paths = super::flatten_path("M 10 10 h 5 v 5 H 0 V 0 z").unwrap();
+        assert_eq!(paths.len(), 1);
+        assert_eq!(
+            paths[0].points,
+            vec![
+                [10.0, 10.0],
+                [15.0, 10.0],
+                [15.0, 15.0],
+                [0.0, 15.0],
+                [0.0, 0.0]
+            ]
+        );
+        assert!(paths[0].closed);
+        for path in [
+            "M0 0 C 2 0 3 4 5 4 S 8 8 10 0",
+            "M0 0 Q 2 4 5 4 T 10 0",
+            "M0 0 c 2 0 3 4 5 4 s 3 4 5 -4",
+            "M0 0 q 2 4 5 4 t 5 -4",
+        ] {
+            let paths = super::flatten_path(path).unwrap();
+            assert_eq!(paths.len(), 1);
+            assert_eq!(paths[0].points.last(), Some(&[10.0, 0.0]));
+            assert!(paths[0].points.len() > 3);
+        }
+        assert!(matches!(
+            super::flatten_path("M 1e 2"),
+            Err(SvgPathError::InvalidNumber)
+        ));
+        assert!(matches!(
+            super::flatten_path("M 1e999 2"),
+            Err(SvgPathError::NonFiniteGeometry)
+        ));
+    }
+
+    #[test]
+    fn svg_arcs_keep_endpoints_and_reject_invalid_commands() {
+        for path in [
+            "M 0 0 A 5 3 30 0 0 10 0",
+            "M 0 0 A 5 3 30 1 1 10 0",
+            "M 0 0 a 5 3 0 0 1 10 0",
+            "M 0 0 A 0 3 0 0 1 10 0",
+        ] {
+            let paths = super::flatten_path(path).unwrap();
+            let endpoint = paths[0].points.last().unwrap();
+            assert!((endpoint[0] - 10.0).abs() < 0.01 && endpoint[1].abs() < 0.01);
+        }
+        assert!(matches!(
+            super::flatten_path("M 0 0 A 5 5 0 2 1 10 0"),
+            Err(SvgPathError::InvalidArcFlag)
+        ));
+        assert!(matches!(
+            super::flatten_path("L 1 2"),
+            Err(SvgPathError::MissingMove)
+        ));
+        assert!(matches!(
+            super::flatten_path("M 0 0 X 1 2"),
+            Err(SvgPathError::UnsupportedCommand { .. })
+        ));
+    }
+
+    #[test]
     fn preserves_text_and_supported_lines() {
         let source = r#"<svg width="10" height="10"><line x1="0" y1="0" x2="10" y2="10" stroke="black"/><text x="5" y="5" text-anchor="middle">A&amp;B</text></svg>"#;
         let normalized = normalize_svg_for_harumi(source).expect("normalizes SVG");

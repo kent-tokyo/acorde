@@ -96,6 +96,72 @@ static OPENSCORE_LIEDER_WEBERN_MXL: &[u8] =
 static OPENSCORE_LIEDER_QUILTER_MXL: &[u8] =
     include_bytes!("../../../tests/fixtures/openscore_lieder_quilter_prelude.mxl");
 
+#[test]
+fn musicxml_export_reports_unrepresented_notation_with_source_locations() {
+    use acorde_core::{
+        Duration, FiguredBassFigure, GuitarBendPoint, MidiAftertouch, Note, NoteHead,
+        PercussionInstrument, Pitch, Score, Step, TablatureFretMarkStyle,
+    };
+    let mut score = Score::new("Export losses", 120, 4, 4, 0, 1);
+    score.parts[0].midi_aftertouch.push(MidiAftertouch {
+        tick: 120,
+        channel: 0,
+        key: Some(60),
+        value: 64,
+    });
+    score.parts[0]
+        .percussion_instruments
+        .push(PercussionInstrument {
+            id: "drum-1".into(),
+            name: Some("Snare".into()),
+            midi_unpitched: Some(38),
+            staff_position: Some(0),
+            notehead: Some(NoteHead::X),
+            preferred_voice: Some(1),
+            techniques: vec!["rimshot".into()],
+        });
+    let staff = &mut score.parts[0].staves[0];
+    staff.presentation.tablature_fret_mark_style = TablatureFretMarkStyle::RomanUpper;
+    let measure = &mut staff.measures[0];
+    measure.figured_bass.push(FiguredBassFigure {
+        number: "6".into(),
+        alter: None,
+        prefix: None,
+        suffix: None,
+        extender: true,
+    });
+    measure.tempo_ramp_to = Some(140);
+    let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+    note.guitar_bend_curve.push(GuitarBendPoint {
+        position_per_mille: 500,
+        alter_cents: 100,
+    });
+    measure.voices[0] = vec![note];
+    let report = acorde_io::serialize_musicxml_with_report(&score).unwrap();
+    for code in [
+        "musicxml.export-unsupported-midi-aftertouch",
+        "musicxml.export-unsupported-percussion-kit-notation",
+        "musicxml.export-unsupported-tablature-fret-mark-style",
+        "musicxml.export-unsupported-figured-bass-extender",
+        "musicxml.export-unsupported-guitar-bend-curve",
+        "musicxml.export-unsupported-tempo-ramp",
+    ] {
+        let diagnostic = report
+            .diagnostics
+            .iter()
+            .find(|item| item.code == code)
+            .unwrap_or_else(|| panic!("missing {code}"));
+        assert!(
+            diagnostic
+                .source_location
+                .as_deref()
+                .is_some_and(|path| path.starts_with("/score/part/1/"))
+        );
+        assert!(diagnostic.preserved_value.is_some());
+    }
+    assert!(acorde_io::parse_musicxml(&report.output).is_ok());
+}
+
 #[cfg(all(feature = "mei", feature = "mscz"))]
 #[test]
 fn cc0_mxl_scores_export_to_mei_and_mscz_with_parts_intact() {

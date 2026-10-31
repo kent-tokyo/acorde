@@ -170,6 +170,21 @@ fn json_bindings_share_layout_print_and_edit_contracts() {
     let svg = bindings::render_score_svg(&score_json, "{}").unwrap();
     let with_layout = bindings::render_score_svg_with_layout(&score_json, &layout, "{}").unwrap();
     assert_eq!(svg, with_layout);
+    let custom = r#"{"staff_gap":9.0,"auto_beam_unmarked":true}"#;
+    assert!(
+        bindings::render_score_svg_with_layout(&score_json, &layout, custom)
+            .unwrap()
+            .contains("<svg")
+    );
+    assert!(
+        bindings::render_score_svg_row(&score_json, &layout, 0, custom)
+            .unwrap()
+            .contains("<svg")
+    );
+    let _: Value = serde_json::from_str(
+        &bindings::render_score_metadata(&score_json, &layout, custom).unwrap(),
+    )
+    .unwrap();
     assert!(
         bindings::render_score_svg_row(&score_json, &layout, 0, "{}")
             .unwrap()
@@ -180,6 +195,18 @@ fn json_bindings_share_layout_print_and_edit_contracts() {
             .unwrap();
     let _: Value = serde_json::from_str(&bindings::render_preflight(&score_json).unwrap()).unwrap();
     let print_config = serde_json::to_string(&acorde_layout::PrintConfig::default()).unwrap();
+    let glyph = acorde_layout::GlyphResourceDescriptor {
+        contract_version: acorde_layout::GLYPH_RESOURCE_CONTRACT_VERSION,
+        resource_key: "publisher-font".into(),
+        metrics_contract_version: 1,
+        license_notice: "publisher license".into(),
+        fallback: acorde_layout::GlyphFallbackPolicy::UseResource("acorde-vector-glyphs-v1".into()),
+    };
+    let glyph_json = serde_json::to_string(&glyph).unwrap();
+    let validated: acorde_layout::GlyphResourceDescriptor =
+        serde_json::from_str(&bindings::validate_glyph_resource_descriptor(&glyph_json).unwrap())
+            .unwrap();
+    assert_eq!(validated, glyph);
     let print_layout = bindings::compute_print_layout(&score_json, &print_config).unwrap();
     let pages: Vec<String> = serde_json::from_str(
         &bindings::render_print_page_svgs(&score_json, &print_layout).unwrap(),
@@ -200,6 +227,40 @@ fn json_bindings_share_layout_print_and_edit_contracts() {
     assert_eq!(patched["settings"]["tempo_bpm"], 90);
     let _: Value =
         serde_json::from_str(&bindings::diff_scores(&score_json, &changed_score).unwrap()).unwrap();
+    let options = serde_json::to_string(&acorde_core::MusicalComparisonOptions::default()).unwrap();
+    let compared: Value = serde_json::from_str(
+        &bindings::compare_musical_positions(&score_json, &score_json, &options).unwrap(),
+    )
+    .unwrap();
+    let original: acorde_core::Score = serde_json::from_str(&score_json).unwrap();
+    assert_eq!(
+        compared,
+        serde_json::to_value(acorde_core::compare_musical_positions(
+            &original,
+            &original,
+            &Default::default()
+        ))
+        .unwrap()
+    );
+    let _: Value =
+        serde_json::from_str(&bindings::compatibility_report(&score_json, &score_json).unwrap())
+            .unwrap();
+    let chord_options = acorde_core::AuthoredChordOptions::default();
+    let annotations: Value = serde_json::from_str(
+        &bindings::annotate_authored_chords(
+            &score_json,
+            &score_json,
+            &serde_json::to_string(&chord_options).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let native_annotations =
+        acorde_core::annotate_from_authored_chords(&original, &original, &chord_options);
+    assert_eq!(
+        annotations,
+        serde_json::to_value(native_annotations).unwrap()
+    );
     let _: Value =
         serde_json::from_str(&bindings::compute_playback_position(&score_json, "{}", 0.5).unwrap())
             .unwrap();
@@ -372,6 +433,33 @@ fn stateful_web_engine_edits_undoes_and_preserves_history() {
     )
     .unwrap();
     assert_eq!(comparison, "Equivalent");
+    let conflict: Value =
+        serde_json::from_str(&bindings::ScoreEngine::history_conflict(&history, &history).unwrap())
+            .unwrap();
+    assert!(conflict.is_null());
+}
+
+#[test]
+fn web_history_restores_and_appends_a_simple_remote_edit() {
+    let mut local = bindings::ScoreEngine::new();
+    let base = local.export_history().unwrap();
+    let mut remote = bindings::ScoreEngine::new();
+    remote.restore_history(&base).unwrap();
+    remote.apply(r#"{"type":"set_tempo","bpm":90}"#).unwrap();
+    let remote_history = remote.export_history().unwrap();
+    assert_eq!(local.append_history_extension(&remote_history).unwrap(), 1);
+    let local_score: Value = serde_json::from_str(&local.get_score().unwrap()).unwrap();
+    let remote_score: Value = serde_json::from_str(&remote.get_score().unwrap()).unwrap();
+    assert_eq!(local_score, remote_score);
+    let relation: Value = serde_json::from_str(
+        &bindings::ScoreEngine::compare_histories(
+            &local.export_history().unwrap(),
+            &remote_history,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(relation, "Equivalent");
 }
 
 #[test]
@@ -442,4 +530,238 @@ fn web_analysis_cache_updates_and_invalidates_score_snapshots() {
     cache.reset_stats();
     cache.clear();
     assert!(cache.is_empty());
+}
+
+#[test]
+fn accordion_binding_presets_replay_the_selected_arrangement() {
+    let source = bindings::parse_abc("X:1\nM:4/4\nL:1/4\nK:C\nG4 |\n").unwrap();
+    let selection = r#"{"chords":[{"measure_index":0,"offset_beats":0,"chord":{"root":"C","kind":"major","bass":null}}],"alternative_chords":null,"inversion":null,"bass_mode":"free-bass"}"#;
+    let capabilities: Value =
+        serde_json::from_str(&bindings::accordion_preset_capabilities().unwrap()).unwrap();
+    assert_eq!(capabilities["contract_version"], 1);
+    let analysis: Value =
+        serde_json::from_str(&bindings::analyze_for_accordion(&source).unwrap()).unwrap();
+    assert!(!analysis["candidates"].as_array().unwrap().is_empty());
+    let arranged: acorde_core::AccordionPresetResult = serde_json::from_str(
+        &bindings::arrange_accordion_preset(&source, selection, "walking-bass").unwrap(),
+    )
+    .unwrap();
+    assert!(arranged.diagnostics.is_empty());
+    let request = format!(
+        r#"{{"selection":{selection},"allowed_preset_ids":["walking-bass"],"seed":"42","previous_config":null}}"#
+    );
+    let shuffled: acorde_core::AccordionPresetResult =
+        serde_json::from_str(&bindings::shuffle_accordion_preset(&source, &request).unwrap())
+            .unwrap();
+    let config = serde_json::to_string(shuffled.resolved_config.as_ref().unwrap()).unwrap();
+    let replay: acorde_core::AccordionPresetResult =
+        serde_json::from_str(&bindings::arrange_from_resolved_preset(&source, &config).unwrap())
+            .unwrap();
+    assert_eq!(shuffled.resolved_config, replay.resolved_config);
+    let score = serde_json::to_string(replay.score.as_ref().unwrap()).unwrap();
+    let events: Vec<acorde_core::PlaybackEvent> =
+        serde_json::from_str(&bindings::to_playback_events_ex(&score, "{}").unwrap()).unwrap();
+    assert!(events.iter().any(|event| {
+        event
+            .source
+            .as_ref()
+            .is_some_and(|address| address.staff == 1)
+    }));
+}
+
+#[test]
+fn accordion_web_layers_and_drone_match_native_outputs() {
+    let source = bindings::parse_abc("X:1\nM:4/4\nL:1/4\nK:C\nG4 |\n").unwrap();
+    let score: acorde_core::Score = serde_json::from_str(&source).unwrap();
+    let chord = serde_json::json!({"measure_index":0,"offset_beats":0.0,"chord":{"root":"C","kind":"major","bass":null}});
+    let guided_json =
+        serde_json::json!({"pattern":"alternating-bass-chord","chords":[chord.clone()]});
+    let guided: acorde_core::GuidedAccordionOptions =
+        serde_json::from_value(guided_json.clone()).unwrap();
+    let web: acorde_core::GuidedAccordionResult = serde_json::from_str(
+        &bindings::arrange_with_explicit_chords(&source, &guided_json.to_string()).unwrap(),
+    )
+    .unwrap();
+    let native = acorde_core::arrange_with_explicit_chords(&score, guided);
+    assert_eq!(web.diagnostics, native.diagnostics);
+    assert_eq!(web.generated_notes, native.generated_notes);
+    let options = serde_json::json!({"chords":[chord],"alternative_chords":null,"inversion":null,"accompaniment":"walking-bass","melodic_voice":"third-below","swing":"straight","bass_mode":"free-bass"});
+    let layers: acorde_core::LayeredAccordionResult = serde_json::from_str(
+        &bindings::arrange_with_layers(&source, &options.to_string()).unwrap(),
+    )
+    .unwrap();
+    assert!(layers.diagnostics.is_empty());
+    let reusable: acorde_core::AccordionLayerResult = serde_json::from_str(
+        &bindings::arrange_accordion_layers(&source, &options.to_string()).unwrap(),
+    )
+    .unwrap();
+    let config = serde_json::to_string(reusable.resolved_config.as_ref().unwrap()).unwrap();
+    let replay: acorde_core::AccordionLayerResult =
+        serde_json::from_str(&bindings::arrange_from_resolved_layers(&source, &config).unwrap())
+            .unwrap();
+    assert_eq!(reusable.generated_notes, replay.generated_notes);
+    let selection = serde_json::json!({"chords":[{"measure_index":0,"offset_beats":0,"chord":{"root":"C","kind":"major","bass":null}}],"alternative_chords":null,"inversion":null,"bass_mode":"free-bass"});
+    let shuffle = serde_json::json!({"selection":selection,"alternative_selections":[],"allowed_accompaniments":["walking-bass"],"allowed_melodic_voices":["third-below"],"allowed_swing_policies":["straight"],"seed":"42","previous_config":null});
+    let shuffled: acorde_core::AccordionLayerResult = serde_json::from_str(
+        &bindings::shuffle_accordion_layers(&source, &shuffle.to_string()).unwrap(),
+    )
+    .unwrap();
+    let shuffled_config =
+        serde_json::to_string(shuffled.resolved_config.as_ref().unwrap()).unwrap();
+    let replayed: acorde_core::AccordionLayerResult = serde_json::from_str(
+        &bindings::arrange_from_resolved_layers(&source, &shuffled_config).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(shuffled.generated_notes, replayed.generated_notes);
+    let drone_options = serde_json::json!({"pitch_midi":48,"bass_mode":"free-bass","layers":null});
+    let drone: acorde_core::AccordionDroneResult = serde_json::from_str(
+        &bindings::arrange_with_drone(&source, &drone_options.to_string()).unwrap(),
+    )
+    .unwrap();
+    assert!(drone.diagnostics.is_empty());
+    assert!(!drone.generated_notes.is_empty());
+}
+
+#[test]
+fn accordion_web_reduction_reports_the_same_selection_as_native() {
+    let xml = include_str!("../../../tests/fixtures/multipart.musicxml");
+    let json = bindings::parse_musicxml(xml).unwrap();
+    let score: acorde_core::Score = serde_json::from_str(&json).unwrap();
+    let options = acorde_core::AccordionReductionOptions {
+        right_hand_part_index: Some(0),
+        left_hand_part_indices: vec![1],
+        loss_policy: acorde_core::AccordionLossPolicy::RequireAll,
+        octave_fit: false,
+    };
+    let native = acorde_core::arrange_for_accordion_with_options(&score, options.clone());
+    let web: acorde_core::AccordionReductionResult = serde_json::from_str(
+        &bindings::arrange_for_accordion_with_options(
+            &json,
+            &serde_json::to_string(&options).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(web.diagnostics, native.diagnostics);
+    assert_eq!(web.source_map, native.source_map);
+    let legacy: Value =
+        serde_json::from_str(&bindings::arrange_for_accordion(&json, 0).unwrap()).unwrap();
+    assert!(legacy["score"].is_object());
+}
+
+#[cfg(feature = "soundfont")]
+#[test]
+fn playback_and_soundfont_bindings_report_real_inputs() {
+    let score = bindings::parse_abc("X:1\nM:4/4\nL:1/4\nK:C\nC D E F |\n").unwrap();
+    let events_json = bindings::to_playback_events_ex(&score, "{}").unwrap();
+    let events: Vec<acorde_core::PlaybackEvent> = serde_json::from_str(&events_json).unwrap();
+    let tolerance = acorde_core::PlaybackTimingTolerance::default();
+    let result: Value = serde_json::from_str(
+        &bindings::compare_playback_timing(
+            &events_json,
+            &events_json,
+            &serde_json::to_string(&tolerance).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        result,
+        serde_json::to_value(
+            acorde_core::compare_playback_timing(&events, &events, &tolerance).unwrap()
+        )
+        .unwrap()
+    );
+    let soundfont = include_bytes!("../../../tests/fixtures/UprightPianoKW-small-20190703.sf2");
+    let snapshot: Value = serde_json::from_str(
+        &bindings::soundfont_preset_snapshot(soundfont, "test-provider", 0, 0).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(snapshot["provider_version"], "test-provider");
+    assert!(!snapshot["zones"].as_array().unwrap().is_empty());
+}
+
+#[test]
+fn tablature_bindings_match_native_performance_and_roundtrip_reports() {
+    let xml = include_str!("../../../tests/fixtures/external_tab.musicxml");
+    let json = bindings::parse_musicxml(xml).unwrap();
+    let score: acorde_core::Score = serde_json::from_str(&json).unwrap();
+    let web: Value =
+        serde_json::from_str(&bindings::project_tablature_performance(&json, "{}").unwrap())
+            .unwrap();
+    let native = acorde_core::project_tablature_performance(&score, &Default::default()).unwrap();
+    assert_eq!(web, serde_json::to_value(native).unwrap());
+    let web: Value =
+        serde_json::from_str(&bindings::tablature_round_trip_report(&json).unwrap()).unwrap();
+    let native = acorde_core::tablature_round_trip_report(&score).unwrap();
+    assert_eq!(web, serde_json::to_value(native).unwrap());
+    let assigned: acorde_core::Score =
+        serde_json::from_str(&bindings::assign_tablature_positions(&json).unwrap()).unwrap();
+    assert_eq!(assigned.parts.len(), score.parts.len());
+}
+
+#[test]
+fn web_fragment_copy_and_linked_view_use_canonical_addresses() {
+    let source = bindings::parse_abc("X:1\nM:4/4\nL:1/4\nK:C\nC D E F | G A B c |\n").unwrap();
+    let mut score: acorde_core::Score = serde_json::from_str(&source).unwrap();
+    score
+        .views
+        .push(acorde_core::ScoreView::linked_part("piano", "Piano", 0));
+    let source = serde_json::to_string(&score).unwrap();
+    let start = acorde_core::NoteAddr {
+        part: 0,
+        staff: 0,
+        measure: 0,
+        voice: 0,
+        note: 0,
+    };
+    let end = acorde_core::NoteAddr {
+        note: 3,
+        ..start.clone()
+    };
+    let target = acorde_core::NoteAddr {
+        measure: 1,
+        note: 0,
+        ..start.clone()
+    };
+    let selections = vec![acorde_core::ScoreFragmentSelection { start, end }];
+    let fragment =
+        bindings::extract_score_fragment(&source, &serde_json::to_string(&selections).unwrap())
+            .unwrap();
+    let web: Value = serde_json::from_str(&fragment).unwrap();
+    assert_eq!(
+        web,
+        serde_json::to_value(acorde_core::extract_score_fragment(&score, &selections).unwrap())
+            .unwrap()
+    );
+    let mut engine = bindings::ScoreEngine::new();
+    engine.replace_score(&source).unwrap();
+    engine
+        .paste_score_fragment(&fragment, &serde_json::to_string(&target).unwrap())
+        .unwrap();
+    let pasted: acorde_core::Score = serde_json::from_str(&engine.get_score().unwrap()).unwrap();
+    assert_eq!(
+        pasted.parts[0].staves[0].measures[1].voices[0][0].pitches[0].to_midi(),
+        60
+    );
+    let plan: Value = serde_json::from_str(
+        &bindings::plan_structural_change(
+            &source,
+            r#"{"type":"split_measure","measure_index":0,"split_at_beats":2.0}"#,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(plan.is_object());
+    let config = serde_json::to_string(&acorde_layout::PrintConfig::default()).unwrap();
+    let layout: acorde_layout::PrintLayoutResult = serde_json::from_str(
+        &bindings::compute_print_layout_for_view(&source, &config, "piano").unwrap(),
+    )
+    .unwrap();
+    assert!(!layout.pages.is_empty());
+    let trees: Value = serde_json::from_str(
+        &bindings::export_page_render_trees_for_view(&source, &config, "piano").unwrap(),
+    )
+    .unwrap();
+    assert!(!trees.as_array().unwrap().is_empty());
 }
