@@ -244,9 +244,9 @@ pub struct LayoutResult {
 
     /// Courtesy (cautionary) accidentals across all parts, staves, measures, and voices.
     ///
-    /// A courtesy accidental is emitted when the same pitch (step + octave) was chromatically
-    /// altered in the immediately preceding measure, reminding the performer the alteration
-    /// no longer applies. Ordered by (part, staff, measure, voice, note_index, pitch_index).
+    /// Explicit parenthesized accidentals and first-occurrence natural reminders after a
+    /// previous-measure chromatic alteration. Ordered by (part, staff, measure, voice,
+    /// note_index, pitch_index).
     #[serde(default)]
     pub courtesy_accidentals: Vec<CourtesyAccidental>,
 

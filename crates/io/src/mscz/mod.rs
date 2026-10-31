@@ -792,7 +792,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         in_chord_line = true;
                         chord_line_subtype.clear();
                     }
-                    "Articulation" if in_chord && !in_note_elem => {
+                    "Articulation" | "Ornament" if in_chord && !in_note_elem => {
                         in_articulation = true;
                         articulation_subtype.clear();
                     }
@@ -1879,7 +1879,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             cur_voices[last_voice_index.min(3)].len();
                         in_beam = false;
                     }
-                    "Articulation" if in_articulation => {
+                    "Articulation" | "Ornament" if in_articulation => {
                         if let Some(articulation) = mscx_articulation(&articulation_subtype) {
                             chord_articulations.push(articulation);
                         }
@@ -2552,6 +2552,18 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                         &path,
                         value.clone(),
                     );
+                }
+                if field == Some("subtype")
+                    && path.iter().rev().nth(1).map(String::as_str) == Some("Ornament")
+                    && mscx_articulation(&value).is_none()
+                {
+                    let mut diagnostic = Diagnostic::warning(
+                        "mscx.unsupported-ornament-subtype",
+                        "MuseScore ornament subtype is not represented in the canonical score",
+                    );
+                    diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                    diagnostic.preserved_value = Some(value.clone());
+                    diagnostics.push(diagnostic);
                 }
                 if field == Some("head")
                     && path.iter().rev().nth(1).map(String::as_str) == Some("Note")
@@ -4389,6 +4401,41 @@ mod tests {
         let report = crate::parse_mscx_with_report(&xml).expect("MSCX continuation line parses");
         assert!(report.diagnostics.is_empty());
         assert!(report.score.parts[0].staves[0].measures[0].figured_bass[0].extender);
+    }
+
+    #[test]
+    fn mscx_chord_ornaments_support_known_subtypes() {
+        for (name, expected) in [
+            ("ornamentTrill", Articulation::Trill),
+            ("ornamentMordent", Articulation::Mordent),
+            ("ornamentShortTrill", Articulation::InvertedMordent),
+            ("ornamentMordentInverted", Articulation::InvertedMordent),
+            ("ornamentTurn", Articulation::Turn),
+            ("ornamentTurnInverted", Articulation::InvertedTurn),
+        ] {
+            let xml = simple_mscx(&format!(
+                "<Measure number=\"1\"><Chord><durationType>quarter</durationType><Ornament><subtype>{name}</subtype></Ornament><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord></Measure>"
+            ));
+            let score = parse_mscx(&xml).unwrap();
+            assert!(
+                score.parts[0].staves[0].measures[0].voices[0][0]
+                    .articulations
+                    .contains(&expected),
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn mscx_unknown_ornament_is_reported() {
+        let xml = simple_mscx(
+            "<Measure number=\"1\"><Chord><durationType>quarter</durationType><Ornament><subtype>ornamentUnsupported</subtype></Ornament><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord></Measure>",
+        );
+        let report = crate::parse_mscx_with_report(&xml).unwrap();
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "mscx.unsupported-ornament-subtype"
+                && diagnostic.preserved_value.as_deref() == Some("ornamentUnsupported")
+        }));
     }
 
     // ── Feature L: Slur ──────────────────────────────────────────────────────

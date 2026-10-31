@@ -3853,6 +3853,86 @@ fn musicxml_stem_down_roundtrip() {
 }
 
 #[test]
+fn musicxml_cross_staff_slurs_resolve_by_score_time_and_reused_number() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><forward><duration>1</duration><voice>1</voice><staff>1</staff></forward><note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff><notations><slur type="stop" number="1"/></notations></note><backup><duration>2</duration></backup><note><pitch><step>G</step><octave>3</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>2</staff><notations><slur type="start" number="1"/></notations></note></measure><measure number="2"><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff><notations><slur type="start" number="1"/></notations></note><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff><notations><slur type="stop" number="1"/></notations></note></measure></part></score-partwise>"#;
+    let report = acorde_io::parse_musicxml_with_report(xml).unwrap();
+    let slurs: Vec<_> = report
+        .score
+        .spanners
+        .iter()
+        .filter(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .collect();
+    assert_eq!(slurs.len(), 2, "{:?}", report.diagnostics);
+    assert_eq!(
+        (
+            slurs[0].start.measure,
+            slurs[0].start.staff,
+            slurs[0].end.measure,
+            slurs[0].end.staff
+        ),
+        (0, 1, 0, 0)
+    );
+    assert_eq!((slurs[1].start.measure, slurs[1].end.measure), (1, 1));
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "musicxml.orphan-spanner-stop")
+    );
+}
+
+#[test]
+fn mscz_export_reports_cross_staff_slur_loss() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><note><pitch><step>G</step><octave>3</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>2</staff><notations><slur type="start" number="1"/></notations></note><note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff><notations><slur type="stop" number="1"/></notations></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let slur = score
+        .spanners
+        .iter()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .expect("cross-staff slur");
+    assert_ne!(slur.start.staff, slur.end.staff);
+    for report in [
+        acorde_io::serialize_mscx_with_report(&score)
+            .unwrap()
+            .diagnostics,
+        acorde_io::serialize_mscz_with_report(&score)
+            .unwrap()
+            .diagnostics,
+    ] {
+        assert!(report.iter().any(|d| d.source_location.as_deref()
+            == Some(format!("/score/spanners/{}", slur.id).as_str())
+            && d.code == "mscx.export-unsupported-field"));
+    }
+}
+
+#[test]
+fn musicxml_triplet_forward_gap_keeps_voice_entry_time() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>240</divisions><time><beats>2</beats><beat-type>8</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><forward><duration>40</duration><voice>1</voice></forward><note><pitch><step>C</step><octave>4</octave></pitch><duration>40</duration><voice>1</voice><type>16th</type><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).expect("triplet gap parses");
+    let notes = &score.parts[0].staves[0].measures[0].voices[0];
+    assert_eq!(notes.len(), 2);
+    assert!(notes[0].is_rest && notes[0].hidden);
+    assert!((notes[0].beats() - 1.0 / 6.0).abs() < 1e-9);
+    assert!((notes[1].beats() - 1.0 / 6.0).abs() < 1e-9);
+    let encoded = acorde_io::serialize_musicxml(&score).unwrap();
+    let reparsed = acorde_io::parse_musicxml(&encoded).unwrap();
+    let voice = &reparsed.parts[0].staves[0].measures[0].voices[0];
+    assert!((voice[0].beats() - 1.0 / 6.0).abs() < 1e-9);
+}
+
+#[test]
+fn musescore4_generated_mscz_preserves_inverted_mordent() {
+    let bytes =
+        include_bytes!("../../../tests/fixtures/issue_267_musescore4_inverted_mordent.mscz");
+    let score = acorde_io::parse_mscz(bytes).expect("MuseScore 4.7.5 archive parses");
+    let note = &score.parts[0].staves[0].measures[0].voices[0][0];
+    assert!(
+        note.articulations
+            .contains(&acorde_core::Articulation::InvertedMordent)
+    );
+}
+
+#[test]
 fn musicxml_inverted_mordent_roundtrip() {
     use acorde_core::{Articulation, Duration, Note, Pitch, Score, Step};
     let mut score = Score::new("Ornament", 120, 4, 4, 0, 1);

@@ -50,6 +50,16 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
             "MSCX subset export does not emit dashed text-continuation lines",
         );
     }
+    for spanner in score.spanners.iter().filter(|spanner| {
+        spanner.kind == acorde_core::NotationSpannerKind::Slur
+            && (spanner.start.part != spanner.end.part || spanner.start.staff != spanner.end.staff)
+    }) {
+        push(
+            format!("/score/spanners/{}", spanner.id),
+            format!("start={:?}, end={:?}", spanner.start, spanner.end),
+            "MSCX subset export cannot preserve a slur across staves or parts",
+        );
+    }
     if !score.part_groups.is_empty() {
         push(
             "/score/part-groups".to_string(),

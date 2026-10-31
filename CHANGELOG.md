@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- MusicXML accepts exactly representable triplet voice-entry gaps and resolves
+  numbered slurs by score time across staves. MSCX/MSCZ import MuseScore 4
+  chord ornaments and report unsupported cross-staff slur export. Accidental
+  reminders no longer repeat after the first occurrence or override the key.
 - Single-voice slur side selection now considers mixed stem directions within
   a phrase. Chord stems use inner notes to resolve symmetric outer pitches;
   beams avoid crossing interior noteheads and flatten for beam-side interior

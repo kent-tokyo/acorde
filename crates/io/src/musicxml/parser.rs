@@ -134,7 +134,24 @@ fn apply_spanner_event(
         SpannerAction::Stop => {
             // A stop with no open start (common in real files) is dropped and reported rather
             // than failing the whole import, as MuseScore does.
-            let Some(open) = open_spanners.get_mut(&key).and_then(Vec::pop) else {
+            let Some(open) = open_spanners.get_mut(&key).and_then(|opens| {
+                if event.kind != NotationSpannerKind::Slur {
+                    return opens.pop();
+                }
+                // Simultaneous voices may reuse the same MusicXML slur number.
+                // Prefer a matching staff and voice; only fall back across staves
+                // when no same-staff start is available.
+                let exact = opens.iter().rposition(|open| {
+                    open.start.staff == address.staff && open.start.voice == address.voice
+                });
+                let same_staff = opens
+                    .iter()
+                    .rposition(|open| open.start.staff == address.staff);
+                let index = exact
+                    .or(same_staff)
+                    .or_else(|| opens.len().checked_sub(1))?;
+                Some(opens.remove(index))
+            }) else {
                 let mut diagnostic = crate::Diagnostic::warning(
                     "musicxml.orphan-spanner-stop",
                     format!(
@@ -252,6 +269,9 @@ pub(crate) fn parse_musicxml_collecting(
     let mut note_spanner_events: Vec<ParsedSpannerEvent> = Vec::new();
     let mut pending_direction_spanner_events: Vec<ParsedSpannerEvent> = Vec::new();
     let mut open_spanners: HashMap<(NotationSpannerKind, u16), Vec<OpenSpanner>> = HashMap::new();
+    // MusicXML can serialize an upper staff before an earlier event on a lower staff.
+    // Resolve note slurs after parsing, ordered by their musical position within each part.
+    let mut slur_events: Vec<(NoteAddr, f64, ParsedSpannerEvent)> = Vec::new();
     let mut open_ottava_types: HashMap<u16, String> = HashMap::new();
     let mut in_notations = false;
     let mut in_artic_block = false;
@@ -2979,6 +2999,16 @@ pub(crate) fn parse_musicxml_collecting(
                                     )?;
                                 }
                                 for event in std::mem::take(&mut note_spanner_events) {
+                                    if event.kind == NotationSpannerKind::Slur {
+                                        let onset = last_note_start
+                                            .map(|(_, _, ticks)| {
+                                                f64::from(ticks)
+                                                    / f64::from(current_divisions.max(1))
+                                            })
+                                            .unwrap_or_default();
+                                        slur_events.push((address.clone(), onset, event));
+                                        continue;
+                                    }
                                     apply_spanner_event(
                                         &mut score,
                                         &mut open_spanners,
@@ -3006,6 +3036,21 @@ pub(crate) fn parse_musicxml_collecting(
 
     if score.parts.is_empty() {
         return Err(Error::Empty);
+    }
+    slur_events.sort_by(|(a, a_time, _), (b, b_time, _)| {
+        a.part
+            .cmp(&b.part)
+            .then(a.measure.cmp(&b.measure))
+            .then_with(|| a_time.total_cmp(b_time))
+    });
+    let mut slur_open = HashMap::new();
+    let mut slur_part = None;
+    for (address, _, event) in slur_events {
+        if slur_part != Some(address.part) {
+            slur_open.clear();
+            slur_part = Some(address.part);
+        }
+        apply_spanner_event(&mut score, &mut slur_open, event, address, tolerated)?;
     }
     for (part_index, id, position) in kit_display_positions {
         if let Some(instrument) = score.parts.get_mut(part_index).and_then(|part| {
@@ -3300,16 +3345,47 @@ fn append_musicxml_gap_rests(
         (Duration::Whole, divisions.checked_mul(4)),
         (Duration::Half, divisions.checked_mul(2)),
         (Duration::Quarter, Some(divisions)),
-        (Duration::Eighth, divisions.checked_div(2)),
-        (Duration::Sixteenth, divisions.checked_div(4)),
-        (Duration::ThirtySecond, divisions.checked_div(8)),
-        (Duration::SixtyFourth, divisions.checked_div(16)),
+        (
+            Duration::Eighth,
+            divisions.is_multiple_of(2).then_some(divisions / 2),
+        ),
+        (
+            Duration::Sixteenth,
+            divisions.is_multiple_of(4).then_some(divisions / 4),
+        ),
+        (
+            Duration::ThirtySecond,
+            divisions.is_multiple_of(8).then_some(divisions / 8),
+        ),
+        (
+            Duration::SixtyFourth,
+            divisions.is_multiple_of(16).then_some(divisions / 16),
+        ),
         (
             Duration::HundredTwentyEighth,
             divisions.is_multiple_of(32).then_some(divisions / 32),
         ),
     ];
     while ticks > 0 {
+        // Prefer one hidden, exact triplet rest over several approximate ordinary rests.
+        // MusicXML <forward> is rhythmic positioning, so it must not draw a visible rest.
+        let triplet = candidates.iter().find_map(|(duration, base_ticks)| {
+            let base = (*base_ticks)?;
+            (u64::from(base) * 2 == u64::from(ticks) * 3).then(|| duration.clone())
+        });
+        if let Some(duration) = triplet {
+            if voice.len() >= MAX_NOTES_PER_VOICE {
+                return Err(Error::Xml("too many notes in voice".into()));
+            }
+            let mut rest = Note::rest(duration);
+            rest.hidden = true;
+            rest.tuplet = Some(TupletInfo {
+                actual_notes: 3,
+                normal_notes: 2,
+            });
+            voice.push(rest);
+            break;
+        }
         let mut selected = None;
         for (duration, duration_ticks) in &candidates {
             if let Some(duration_ticks) = duration_ticks
@@ -3573,6 +3649,13 @@ fn musicxml_dynamic(tag: &str) -> Option<Dynamic> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn forward_gap_never_uses_truncated_tick_durations() {
+        let mut notes = Vec::new();
+        assert!(append_musicxml_gap_rests(&mut notes, 1, 10).is_err());
+        assert!(notes.is_empty());
+    }
 
     #[test]
     fn slur_start_prefers_explicit_placement_over_curve_hint() {
