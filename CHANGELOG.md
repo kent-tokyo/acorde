@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Physical print pages now move a below-staff direction a short distance right
+  when its text box still touches a chord after vertical clearance. The move is
+  capped at three staff spaces so longer directions keep their measure anchor.
 - Print layouts with opening title and movement/composer credits now reserve
   16 mm before the first music system when the page has room. The physical
   page SVG and vector PDF use the same shifted coordinates, keeping credits

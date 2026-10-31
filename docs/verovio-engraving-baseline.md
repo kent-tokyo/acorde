@@ -425,6 +425,24 @@ DYLD_LIBRARY_PATH=/opt/homebrew/lib python3 -c \
   'import cairosvg; cairosvg.svg2png(url="/tmp/verovio-quilter-20261031.svg", write_to="/tmp/verovio-quilter-20261031-a4.png", output_width=990, output_height=1400, background_color="white")'
 ```
 
+### Verovio-guided below-staff direction clearance (2026-10-31)
+
+The same Quilter MXL puts `rall.` between the two piano staves in measure 9.
+Verovio separates the word from nearby noteheads. In Acorde's page SVG,
+the word started at x=324.85 and its conservative text box touched three
+noteheads. The print renderer now checks its own low chord heads after vertical
+placement and may shift a below-staff word right by at most three staff spaces.
+On this score, `rall.` moves to x=342.89 (4.51 mm), with the same y=991.94;
+the three box overlaps fall to zero. A fixture regression checks all page
+noteheads against the word box. The longer `poco cresc.` and `poco rall.`
+stay at their prior x positions rather than moving to the far end of a bar.
+
+The one-page A4 Quilter PDF was rasterized at 1400 px and inspected after the
+change. The three-page A4 *Aloha Oe* density PDF was regenerated; its first
+page was inspected, with no new visible text/staff collision. The import
+diagnostics remain 103 and 73 respectively. This narrow clearance result
+does not establish complete collision freedom or Verovio-level engraving.
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.

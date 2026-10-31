@@ -4625,6 +4625,7 @@ fn render_measure_text(
             };
         }
         if placement_below && text_scale > 1.0 {
+            let mut note_heads = Vec::new();
             for (voice_index, voice) in measure.voices.iter().enumerate() {
                 for (note_index, note) in voice.iter().enumerate() {
                     if note.is_rest {
@@ -4635,28 +4636,56 @@ fn render_measure_text(
                     else {
                         continue;
                     };
+                    // A down-stem chord anchors its highest head; text below
+                    // the staff must clear its lowest head as well.
+                    let lowest_head_y = if stem_up {
+                        note_y
+                    } else {
+                        let lowest = note
+                            .pitches
+                            .iter()
+                            .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, 0))
+                            .min()
+                            .unwrap_or(0);
+                        let highest = note
+                            .pitches
+                            .iter()
+                            .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, 0))
+                            .max()
+                            .unwrap_or(lowest);
+                        note_y + ((highest - lowest) as f32 * 0.5) * space
+                    };
+                    note_heads.push((note_x, lowest_head_y));
                     if note_x + 0.5 * space >= text_x && note_x - 0.5 * space <= text_x + text_width
                     {
-                        // A down-stem chord anchors its highest head; text below
-                        // the staff must clear its lowest head as well.
-                        let lowest_head_y = if stem_up {
-                            note_y
-                        } else {
-                            let lowest = note
-                                .pitches
-                                .iter()
-                                .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, 0))
-                                .min()
-                                .unwrap_or(0);
-                            let highest = note
-                                .pitches
-                                .iter()
-                                .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, 0))
-                                .max()
-                                .unwrap_or(lowest);
-                            note_y + ((highest - lowest) as f32 * 0.5) * space
-                        };
                         y = y.max(lowest_head_y + (0.5 + 0.78 * text_scale) * space + 1.0);
+                    }
+                }
+            }
+            // Moving below-staff text farther down may collide with the next
+            // staff. When it still touches a chord, move it right within the
+            // measure. Sort the anchors to keep this pass deterministic.
+            note_heads.sort_by(|left, right| left.0.total_cmp(&right.0));
+            let text_top = y - 0.78 * space * text_scale;
+            let text_bottom = y + 0.12 * space * text_scale;
+            let right_limit = x + width - text_width - 0.5 * space;
+            let original_text_x = text_x;
+            for (note_x, note_y) in note_heads {
+                let note_clearance = 0.85 * space + 2.0;
+                if note_y + note_clearance > text_top
+                    && note_y - note_clearance < text_bottom
+                    && note_x + note_clearance > text_x
+                    && note_x - note_clearance < text_x + text_width
+                {
+                    let shifted_x = note_x + 1.5 * space;
+                    if shifted_x - original_text_x > 3.0 * space {
+                        // Keep the authored measure anchor rather than sending
+                        // a long direction to the far side of the bar.
+                        text_x = original_text_x;
+                        break;
+                    }
+                    if shifted_x <= right_limit {
+                        text_x = text_x.max(shifted_x);
                     }
                 }
             }
