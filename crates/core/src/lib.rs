@@ -5,13 +5,14 @@
 pub mod model;
 
 pub use model::arrange::{
-    AccordionAnalysis, AccordionBassMode, AccordionInversion, AccordionLossPolicy,
-    AccordionMelodicVoice, AccordionPattern, AccordionReductionDiagnostic,
-    AccordionReductionOptions, AccordionReductionResult, AccordionSourceMapping,
-    AccordionSwingPolicy, ArrangeResult, GuidedAccordionOptions, GuidedAccordionResult,
-    GuidedArrangeDiagnostic, LayeredAccordionOptions, LayeredAccordionResult, PartCandidate,
-    PositionedAccordionChord, analyze_for_accordion, arrange_for_accordion,
-    arrange_for_accordion_with_options, arrange_with_explicit_chords, arrange_with_layers,
+    AccordionAnalysis, AccordionBassMode, AccordionDroneOptions, AccordionDroneResult,
+    AccordionInversion, AccordionLossPolicy, AccordionMelodicVoice, AccordionPattern,
+    AccordionReductionDiagnostic, AccordionReductionOptions, AccordionReductionResult,
+    AccordionSourceMapping, AccordionSwingPolicy, ArrangeResult, GuidedAccordionOptions,
+    GuidedAccordionResult, GuidedArrangeDiagnostic, LayeredAccordionOptions,
+    LayeredAccordionResult, PartCandidate, PositionedAccordionChord, analyze_for_accordion,
+    arrange_for_accordion, arrange_for_accordion_with_options, arrange_with_drone,
+    arrange_with_explicit_chords, arrange_with_layers,
 };
 pub use model::arrange_presets::{
     AccordionLayerConfig, AccordionLayerResult, AccordionLayerShuffleOptions,
