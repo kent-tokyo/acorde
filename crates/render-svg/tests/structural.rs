@@ -65,6 +65,66 @@ fn marcato_paths(svg: &str) -> Vec<[f32; 6]> {
 }
 
 #[test]
+fn issue_264_wide_abc_beam_stays_clear_of_all_noteheads() {
+    let mut score = acorde_io::parse_abc("X:1\nM:1/4\nL:1/16\nK:Dm\nG, B _e g |\n").unwrap();
+    let time = score.settings.time_signature.clone();
+    let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+    let beam_states = acorde_core::compute_beams(voice, &time);
+    for (note, beam) in voice.iter_mut().zip(beam_states) {
+        note.beam = beam;
+    }
+    let mut options = opts();
+    options.width = 900.0;
+    options.measures_per_system = 1;
+    let svg = render_svg(&score, &options).unwrap();
+    let heads = notehead_centers(&svg);
+    let stems: Vec<_> = svg
+        .split(r#"class="acorde-stem" x1=""#)
+        .skip(1)
+        .map(|stem| {
+            let attr = |key: &str| -> f32 {
+                stem.split(&format!(r#"{key}=""#))
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap()
+                    .parse()
+                    .unwrap()
+            };
+            (attr("y1"), attr("y2"))
+        })
+        .collect();
+    assert_eq!(heads.len(), 4);
+    assert_eq!(stems.len(), 4);
+    let stem_up = stems[0].1 < stems[0].0;
+    for (head, stem) in heads.iter().zip(stems) {
+        let clearance = (stem.1 - head.1) * if stem_up { -1.0 } else { 1.0 };
+        assert!(
+            clearance >= 2.0 * options.staff_size - 0.1,
+            "{head:?} {stem:?}"
+        );
+    }
+}
+
+#[test]
+fn accidentals_do_not_repeat_or_restore_previous_bar_state() {
+    for (abc, expected_sharps) in [
+        ("X:1\nM:3/4\nL:1/8\nK:D\n^G2 z4 | ^G F G A B d |\n", 4),
+        ("X:1\nM:3/4\nL:1/8\nK:D\n=C2 z4 | F E D C B A |\n", 2),
+    ] {
+        let score = acorde_io::parse_abc(abc).unwrap();
+        let svg = render_svg(&score, &opts()).unwrap();
+        // D major contributes two key-signature sharps in each example.
+        assert_eq!(
+            svg.matches(r#"class="acorde-accidental acorde-sharp""#)
+                .count(),
+            expected_sharps
+        );
+    }
+}
+
+#[test]
 fn issue_218_marcato_apex_follows_staff_placement_for_both_stem_directions() {
     use acorde_core::{Articulation, Duration, Note, Pitch, Score, Step};
 

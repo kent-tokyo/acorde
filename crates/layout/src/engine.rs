@@ -601,7 +601,15 @@ fn collect_courtesy_accidentals(score: &Score) -> Vec<CourtesyAccidental> {
                             // A parenthesized accidental the source asked for is always drawn.
                             let requested = note.accidental_display(pitch_idx)
                                 == AccidentalDisplay::Parenthesized;
-                            if requested || (!note.tie_end && prev_alters.contains_key(&key)) {
+                            // Consume the previous-bar state on the first occurrence. A
+                            // mandatory accidental already covers a chromatic pitch; do not
+                            // repeat it, or add a reminder for a key-signature sharp/flat.
+                            let previous = prev_alters.remove(&key);
+                            let natural_reminder = !note.tie_end
+                                && pitch.alter == 0
+                                && key_alter(current_fifths, &pitch.step) == 0
+                                && previous.is_some_and(|alter| alter != 0);
+                            if requested || natural_reminder {
                                 result.push(CourtesyAccidental {
                                     part: pi,
                                     staff: si,
@@ -1434,10 +1442,7 @@ mod tests {
     #[test]
     fn courtesy_same_alteration_no_courtesy() {
         // Measure 0: F#. Measure 1: F# again.
-        // F# in measure 1 does NOT need a courtesy — no prior alteration conflict.
-        // (prev_alters records F# alter=1; measure 1 F# has same alter=1 → NOT in prev_alters
-        // because phase 2 only records notes that differ from key_alter.)
-        // Actually: F# IS in prev_alters → courtesy IS emitted, alter=1.
+        // The first F# needs a mandatory accidental, not an extra courtesy.
         use acorde_core::{Duration, Note, Pitch, Step};
         let mut score = score_with_measures(2);
 
@@ -1450,9 +1455,7 @@ mod tests {
         score.parts[0].staves[0].measures[1].voices[0] = vec![fsharp2];
 
         let result = compute_layout(&score, &LayoutConfig::default());
-        // F# appears in prev_alters → courtesy emitted with alter=1
-        assert_eq!(result.courtesy_accidentals.len(), 1);
-        assert_eq!(result.courtesy_accidentals[0].alter, 1);
+        assert!(result.courtesy_accidentals.is_empty());
     }
 
     #[test]
@@ -1598,9 +1601,7 @@ mod tests {
         let result = compute_layout(&score, &LayoutConfig::default());
         assert_eq!(result.accidentals.len(), 2);
         assert!(result.accidentals.iter().any(|a| a.measure == 1));
-        // The same address also produced a courtesy mark — renderer precedence resolves it.
-        assert_eq!(result.courtesy_accidentals.len(), 1);
-        assert_eq!(result.courtesy_accidentals[0].measure, 1);
+        assert!(result.courtesy_accidentals.is_empty());
     }
 
     #[test]
