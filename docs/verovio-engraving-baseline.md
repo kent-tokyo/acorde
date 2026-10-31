@@ -584,6 +584,74 @@ one A4 page with four systems and 103 import diagnostics. The PDF was
 rasterized and inspected; the comparison does not establish general
 collision-free or Verovio-equivalent typography and spacing.
 
+### Slurs with mixed endpoint stems (2026-10-31)
+
+Self-authored single-voice quarter-note MusicXML phrases `C4 C4 C5` and
+`C5 C4 C4` were rendered by Verovio 6.3.0. Their endpoint stems point in
+opposite directions, and both Verovio slurs bow above the notes. Acorde used
+to select the side from the first stem alone, so it placed the ascending
+example below. It now places mixed-endpoint single-voice slurs above, while
+preserving explicit slur placement and the separate lower-voice rule. Screen
+tests cover both directions and explicit placement; a page SVG test covers
+the ascending case.
+
+### Mixed stems inside a slur (2026-11-01)
+
+Verovio 6.3.0 puts the slur above `C4 C5 C4`, whose endpoints stem up but
+whose interior stem points down. The slur goes below in `C4 G4 C4` and in
+`C4 rest C4`. Acorde now inspects intervening same-voice, same-staff notes and
+uses the upper side when they include a down stem. Rests, stemless durations,
+other voices, and cross-staff notes do not count as interior stems; explicit
+slur placement still takes precedence. Screen regressions cover these cases
+and a system break, and a page SVG regression covers `C4 C5 C4`.
+
+These comparisons concern side selection for a few simple phrases; matching
+Verovio's curve shape, stem clearance, chords, cross-staff notation, and
+system-break geometry needs further comparisons.
+
+### Chord stems with symmetric outer notes (2026-11-01)
+
+In self-authored treble-clef quarter-note MusicXML, Verovio 6.3.0 stems the
+chord `E4 F5 A4` up, but `E4 F5 C5` down. Its `E4 F5 A4 C5` stems down,
+and `E4 F5 G4 C5` stems up. The outer E4 and F5 are equally distant from the
+middle line in each case; the next outer pair determines the direction, with
+an exact tie going down. Acorde previously always chose down when the outer
+pair tied. Its isolated chord rule now examines successive pairs, and the
+four examples are covered by screen SVG tests; the first also has a print
+page regression.
+
+The corresponding three eighth notes `E4 F5 G4`, explicitly beamed as one
+group, all stem down in Verovio. Acorde retains its existing separate beam
+group rule, with a regression for this example. These probes do not establish
+the behavior of all chord and beam configurations or cross-staff notation.
+
+### Beam clearance at large pitch leaps (2026-11-01)
+
+Self-authored MusicXML eighth-note beams `C4 C6 C4` with explicitly upward
+stems, and `C6 C4 C6` with explicitly downward stems, were rendered in
+Verovio 6.3.0. Both beams stay on the requested side of every notehead. In
+Acorde, the old clearance calculation used the absolute stem length, so an
+interior head far beyond the beam could be mistaken for a sufficiently long
+stem. Clearance now uses signed distance and shifts the beam to the correct
+side. Unit and screen tests cover both directions; screen tests also exercise
+the slur, and a page SVG test verifies stem direction in print. This checks
+clearance, not equality of beam angle, stem length, or slur shape with Verovio.
+
+### Horizontal beams for interior extrema (2026-11-01)
+
+Verovio 6.3.0 renders the explicitly up-stemmed eighth-note group `C4 E4 D4`
+with a horizontal beam; it slopes the monotonic `C4 D4 E4` group. Mirrored
+down-stem groups `C5 A4 B4` and `C5 B4 A4` show the corresponding flat and
+sloped behavior. Verovio also flattens `C4 D4 D4` with up-stems and
+`C5 B4 B4` with down-stems. These are self-authored MusicXML probes.
+
+Acorde previously calculated slope solely from the endpoints. It now flattens
+when an interior stem-side head reaches or passes the outer endpoint on the
+beam side. Tests cover both directions, equal-height plateaus, monotonic
+groups, a slur, and physical page SVG. This is a limited contour rule: the
+reference probes do not establish matching beam angles, exact stem lengths,
+or behavior for all chords, cross-staff beams, and secondary levels.
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.

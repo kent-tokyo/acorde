@@ -177,6 +177,94 @@ fn single_voice_slurs_attach_outside_heads_opposite_stems() {
 }
 
 #[test]
+fn mixed_endpoint_stems_place_single_voice_slurs_above() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    // Verovio 6.3.0 puts these ascending and descending mixed-stem phrases above.
+    for pitches in [
+        [(Step::C, 4), (Step::C, 4), (Step::C, 5)],
+        [(Step::C, 5), (Step::C, 4), (Step::C, 4)],
+    ] {
+        let mut score = Score::new("mixed stem slur", 120, 3, 4, 0, 1);
+        let mut notes =
+            pitches.map(|(step, octave)| Note::new(Pitch::new(step, octave), Duration::Quarter));
+        notes[0].slur_start = true;
+        notes[2].slur_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = notes.to_vec();
+        let svg = render_svg(&score, &opts()).expect("mixed stem slur renders");
+        let path = slur_geometries(&svg)[0];
+        let heads = notehead_centers(&svg);
+        assert!(path[1] < heads[0].1 && path[5] < heads[2].1);
+        assert!(path[3] < path[1].min(path[5]));
+    }
+}
+
+#[test]
+fn interior_stems_change_slur_side_but_rests_and_stemless_notes_do_not() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    for (middle, above) in [
+        (Note::new(Pitch::new(Step::C, 5), Duration::Quarter), true),
+        (Note::new(Pitch::new(Step::G, 4), Duration::Quarter), false),
+        (Note::new(Pitch::new(Step::C, 5), Duration::Whole), false),
+        (
+            {
+                let mut rest = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
+                rest.is_rest = true;
+                rest.stem_up = Some(false);
+                rest
+            },
+            false,
+        ),
+    ] {
+        let mut score = Score::new("interior stem", 120, 6, 4, 0, 1);
+        let mut start = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        let mut end = start.clone();
+        start.slur_start = true;
+        end.slur_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![start, middle, end];
+        let svg = render_svg(&score, &opts()).unwrap();
+        let path = slur_geometries(&svg)[0];
+        let heads = notehead_centers(&svg);
+        let last = heads.last().unwrap();
+        assert_eq!(path[1] < heads[0].1 && path[5] < last.1, above);
+        if !above {
+            assert!(path[1] > heads[0].1 && path[5] > last.1);
+        }
+    }
+}
+
+#[test]
+fn cross_system_slur_uses_interior_stem_direction_on_both_systems() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("cross-system mixed stems", 120, 2, 4, 0, 2);
+    let note = |octave| Note::new(Pitch::new(Step::C, octave), Duration::Quarter);
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note(4), note(5)];
+    score.parts[0].staves[0].measures[1].voices[0] = vec![note(4), note(4)];
+    score.parts[0].staves[0].measures[0].voices[0][0].slur_start = true;
+    score.parts[0].staves[0].measures[1].voices[0][0].slur_end = true;
+    let mut options = opts();
+    options.measures_per_system = 1;
+    let svg = render_svg(&score, &options).unwrap();
+    let paths = slur_geometries(&svg);
+    assert_eq!(paths.len(), 2);
+    assert!(paths.iter().all(|path| path[3] < path[1].min(path[5])));
+}
+
+#[test]
+fn slur_ignores_stems_from_another_voice() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("other voice", 120, 3, 4, 0, 1);
+    let mut upper = vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter); 3];
+    upper[0].slur_start = true;
+    upper[2].slur_end = true;
+    let lower = vec![Note::new(Pitch::new(Step::C, 5), Duration::Quarter); 3];
+    score.parts[0].staves[0].measures[0].voices[0] = upper;
+    score.parts[0].staves[0].measures[0].voices[1] = lower;
+    let svg = render_svg(&score, &opts()).unwrap();
+    let path = slur_geometries(&svg)[0];
+    assert!(path[3] > path[1].max(path[5]));
+}
+
+#[test]
 fn slur_curve_clears_the_middle_note_of_a_peaked_phrase() {
     use acorde_core::{Duration, Note, Pitch, Score, Step};
     let mut score = Score::new("peaked slur", 120, 3, 4, 0, 1);
@@ -336,6 +424,14 @@ fn authored_slur_placement_overrides_default_stem_side() {
     let path = slur_geometries(&svg)[0];
     let heads = notehead_centers(&svg);
     assert!(path[1] < heads[0].1 && path[5] < heads[2].1);
+
+    // An explicit below placement still wins when the endpoint stems differ.
+    score.parts[0].staves[0].measures[0].voices[0][2].pitches = vec![Pitch::new(Step::C, 5)];
+    score.spanners[0].placement = Some("below".into());
+    let svg = render_svg(&score, &opts()).expect("explicitly placed mixed-stem slur renders");
+    let path = slur_geometries(&svg)[0];
+    let heads = notehead_centers(&svg);
+    assert!(path[1] > heads[0].1 && path[5] > heads[2].1);
 }
 
 #[test]
@@ -4099,6 +4195,180 @@ fn dashes_spanners_draw_a_dashed_line_under_their_notes() {
     let svg = render_svg(&score, &opts()).unwrap();
     assert_eq!(svg.matches(r#"class="acorde-dashes""#).count(), 1);
     assert!(svg.contains("stroke-dasharray"));
+}
+
+#[test]
+fn beam_slope_follows_interior_peaks_and_valleys() {
+    use acorde_core::{BeamState, Duration, Note, Pitch, Score, Step};
+    for (pitches, up, flat) in [
+        ([(Step::C, 4), (Step::E, 4), (Step::D, 4)], true, true),
+        ([(Step::C, 5), (Step::A, 4), (Step::B, 4)], false, true),
+        ([(Step::C, 4), (Step::D, 4), (Step::E, 4)], true, false),
+        ([(Step::C, 5), (Step::B, 4), (Step::A, 4)], false, false),
+    ] {
+        let mut score = Score::new("beam contour", 120, 3, 8, 0, 1);
+        let mut notes =
+            pitches.map(|(step, octave)| Note::new(Pitch::new(step, octave), Duration::Eighth));
+        for (note, beam) in
+            notes
+                .iter_mut()
+                .zip([BeamState::Begin, BeamState::Continue, BeamState::End])
+        {
+            note.stem_up = Some(up);
+            note.beam = beam;
+        }
+        notes[0].slur_start = true;
+        notes[2].slur_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = notes.to_vec();
+        let svg = render_svg(&score, &opts()).unwrap();
+        assert_eq!(slur_geometries(&svg).len(), 1);
+        let tips: Vec<f32> = svg
+            .split(r#"class="acorde-stem" x1=""#)
+            .skip(1)
+            .map(|stem| {
+                stem.split(r#"y2=""#)
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap()
+                    .parse()
+                    .unwrap()
+            })
+            .collect();
+        assert_eq!(tips.len(), 3);
+        assert_eq!((tips[0] - tips[2]).abs() < 0.01, flat, "{tips:?}");
+    }
+}
+
+#[test]
+fn wide_beamed_leaps_keep_every_stem_on_the_authored_side() {
+    use acorde_core::{BeamState, Duration, Note, Pitch, Score, Step};
+    for (octaves, up) in [([4, 6, 4], true), ([6, 4, 6], false)] {
+        let mut score = Score::new("wide beamed leap", 120, 3, 8, 0, 1);
+        let mut notes =
+            octaves.map(|octave| Note::new(Pitch::new(Step::C, octave), Duration::Eighth));
+        for (note, beam) in
+            notes
+                .iter_mut()
+                .zip([BeamState::Begin, BeamState::Continue, BeamState::End])
+        {
+            note.stem_up = Some(up);
+            note.beam = beam;
+        }
+        notes[0].slur_start = true;
+        notes[2].slur_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = notes.to_vec();
+        let svg = render_svg(&score, &opts()).unwrap();
+        assert_eq!(slur_geometries(&svg).len(), 1);
+        let stems: Vec<f32> = svg
+            .split(r#"class="acorde-stem" x1=""#)
+            .skip(1)
+            .map(|fragment| {
+                let y = |name: &str| -> f32 {
+                    fragment
+                        .split(&format!(r#"{name}=""#))
+                        .nth(1)
+                        .unwrap()
+                        .split('"')
+                        .next()
+                        .unwrap()
+                        .parse()
+                        .unwrap()
+                };
+                (y("y2") - y("y1")) * if up { -1.0 } else { 1.0 }
+            })
+            .collect();
+        assert_eq!(stems.len(), 3);
+        assert!(
+            stems
+                .iter()
+                .all(|length| *length >= 2.0 * opts().staff_size - 0.1),
+            "{stems:?}"
+        );
+    }
+}
+
+#[test]
+fn chord_stem_direction_uses_inner_notes_when_outer_distances_tie() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("symmetric chords", 120, 4, 4, 0, 1);
+    let chord = |steps: &[Step]| {
+        let mut note = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+        note.pitches = steps
+            .iter()
+            .map(|step| {
+                Pitch::new(
+                    step.clone(),
+                    if matches!(step, Step::F | Step::C) {
+                        5
+                    } else {
+                        4
+                    },
+                )
+            })
+            .collect();
+        note
+    };
+    score.parts[0].staves[0].measures[0].voices[0] = vec![
+        chord(&[Step::E, Step::F, Step::A]),
+        chord(&[Step::E, Step::F, Step::C]),
+        chord(&[Step::E, Step::F, Step::A, Step::C]),
+        chord(&[Step::E, Step::F, Step::G, Step::C]),
+    ];
+    let svg = render_svg(&score, &opts()).unwrap();
+    let stems: Vec<bool> = svg
+        .split(r#"class="acorde-stem" x1=""#)
+        .skip(1)
+        .map(|fragment| {
+            let value = |name: &str| -> f32 {
+                fragment
+                    .split(&format!(r#"{name}=""#))
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap()
+                    .parse()
+                    .unwrap()
+            };
+            value("y2") < value("y1")
+        })
+        .collect();
+    // The expected directions come from Verovio 6.3.0 for the same chords.
+    assert_eq!(stems, [true, false, false, true]);
+}
+
+#[test]
+fn symmetric_beam_keeps_its_group_direction() {
+    use acorde_core::{BeamState, Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("symmetric beam", 120, 3, 8, 0, 1);
+    let mut notes = [(Step::E, 4), (Step::F, 5), (Step::G, 4)]
+        .map(|(step, octave)| Note::new(Pitch::new(step, octave), Duration::Eighth));
+    notes[0].beam = BeamState::Begin;
+    notes[1].beam = BeamState::Continue;
+    notes[2].beam = BeamState::End;
+    score.parts[0].staves[0].measures[0].voices[0] = notes.to_vec();
+    let svg = render_svg(&score, &opts()).unwrap();
+    let stems: Vec<bool> = svg
+        .split(r#"class="acorde-stem" x1=""#)
+        .skip(1)
+        .map(|fragment| {
+            let y = |name: &str| -> f32 {
+                fragment
+                    .split(&format!(r#"{name}=""#))
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap()
+                    .parse()
+                    .unwrap()
+            };
+            y("y2") < y("y1")
+        })
+        .collect();
+    assert_eq!(stems, [false, false, false]);
 }
 
 #[test]

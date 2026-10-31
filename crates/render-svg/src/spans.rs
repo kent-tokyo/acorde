@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use acorde_core::{Duration, Score};
 use acorde_layout::{
     GlyphCollisionClass, GlyphCollisionDirection, GlyphMetrics, GlyphPlacement, LayoutResult,
     NoteAddr, SpanMark,
@@ -13,9 +14,11 @@ use crate::render::{NoteKey, NotePoint};
 
 /// Conventional single-voice slurs sit opposite stems. For a lower voice,
 /// keep the slur below the staff to distinguish it from the upper voice;
-/// mixed stems follow the starting note's side consistently across systems.
+/// a single-voice phrase with mixed stem directions uses the upper side.
 pub(crate) fn slur_above(
+    score: &Score,
     layout: &LayoutResult,
+    points: &HashMap<NoteKey, NotePoint>,
     start: &NoteAddr,
     end: &NoteAddr,
     up1: bool,
@@ -43,14 +46,48 @@ pub(crate) fn slur_above(
     if start.voice > 0 {
         return false;
     }
-    match (up1, up2) {
-        (true, true) | (true, false) => false,
-        (false, false) | (false, true) => true,
+    if !(up1 && up2) {
+        return true;
     }
+    if start.part != end.part || start.staff != end.staff {
+        return false;
+    }
+    let lower = (start.measure, start.note).min((end.measure, end.note));
+    let upper = (start.measure, start.note).max((end.measure, end.note));
+    points
+        .iter()
+        .any(|(&(part, staff, measure, voice, index), &(_, _, up, _))| {
+            if up
+                || part != start.part
+                || staff != start.staff
+                || voice != start.voice
+                || (measure, index) <= lower
+                || (measure, index) >= upper
+            {
+                return false;
+            }
+            score
+                .parts
+                .get(part)
+                .and_then(|p| p.staves.get(staff))
+                .and_then(|s| s.measures.get(measure))
+                .and_then(|m| m.voices.get(voice))
+                .and_then(|v| v.get(index))
+                .is_some_and(|note| {
+                    !note.is_rest
+                        && note.cross_staff.is_none()
+                        && !matches!(
+                            note.duration,
+                            Duration::Whole | Duration::Breve | Duration::Longa
+                        )
+                })
+        })
 }
 
 /// Allocate deterministic escape lanes for spans sharing a system.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn resolve_lane_offsets(
+    score: &Score,
     layout: &LayoutResult,
     points: &HashMap<NoteKey, NotePoint>,
     width: f32,
@@ -85,8 +122,8 @@ pub(crate) fn resolve_lane_offsets(
         ) else {
             continue;
         };
-        let slur_side =
-            matches!(span, SpanMark::Slur { .. }).then(|| slur_above(layout, start, end, up1, up2));
+        let slur_side = matches!(span, SpanMark::Slur { .. })
+            .then(|| slur_above(score, layout, points, start, end, up1, up2));
         let mut add_segment = |row: usize, left: f32, right: f32, anchor_y: f32, stem_up: bool| {
             let (baseline, above) = slur_side
                 .map(|above| (anchor_y, above))

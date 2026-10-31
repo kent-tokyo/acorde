@@ -3945,6 +3945,25 @@ fn stem_up_for_positions(positions: &[i32]) -> Option<bool> {
     Some(4 - lowest > highest - 4)
 }
 
+/// For an isolated chord with equally distant outer notes, compare the next outer pair.
+/// This is deliberately separate from a beam's group direction.
+fn stem_up_for_chord(positions: &[i32]) -> Option<bool> {
+    let mut ordered = positions.to_vec();
+    ordered.sort_unstable();
+    let (mut low, mut high) = (0, ordered.len().checked_sub(1)?);
+    while low < high {
+        match (4 - ordered[low]).cmp(&(ordered[high] - 4)) {
+            std::cmp::Ordering::Greater => return Some(true),
+            std::cmp::Ordering::Less => return Some(false),
+            std::cmp::Ordering::Equal => {
+                low += 1;
+                high -= 1;
+            }
+        }
+    }
+    Some(ordered[low] < 4)
+}
+
 /// `notes` with each stem left open by the score set by [`stem_up_for_positions`], a beamed
 /// group taking one direction from all its notes. Rests, grace, unpitched and cross-staff notes, and
 /// groups with an authored stem, are left as they are.
@@ -3972,7 +3991,7 @@ fn auto_stem_directions(
     let mut directions: Vec<Option<bool>> = (0..notes.len())
         .map(|index| {
             if open(&notes[index]) {
-                stem_up_for_positions(&positions(index))
+                stem_up_for_chord(&positions(index))
             } else {
                 None
             }
@@ -5517,6 +5536,7 @@ fn render_all_spans(
     resolved_annotation_obstacles: &[acorde_layout::GlyphPlacement],
 ) {
     let lane_offsets = spans::resolve_lane_offsets(
+        score,
         layout,
         points,
         width,
@@ -5566,7 +5586,7 @@ fn render_all_spans(
             SpanMark::Harmony { .. } => "harmony",
         };
         let slur_above = matches!(span, SpanMark::Slur { .. })
-            .then(|| spans::slur_above(layout, start, end, up1, up2));
+            .then(|| spans::slur_above(score, layout, points, start, end, up1, up2));
         if interactive {
             let _ = write!(
                 body,
