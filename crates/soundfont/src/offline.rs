@@ -82,6 +82,7 @@ pub fn render_offline_wav(
                     Articulation::Staccato
                         | Articulation::Staccatissimo
                         | Articulation::Accent
+                        | Articulation::Tenuto
                         | Articulation::Marcato
                         | Articulation::Fermata
                 )
@@ -273,11 +274,41 @@ fn encode_wav(mix: &[f32], sample_rate_hz: u32, channels: u8) -> Result<Vec<u8>,
 #[cfg(test)]
 mod tests {
     use acorde_core::{
-        Duration, Note, OfflineRenderRequest, Pitch, PlaybackOptions, Score, Step,
+        Articulation, Duration, Note, OfflineRenderRequest, Pitch, PlaybackOptions, Score, Step,
         build_offline_render_manifest,
     };
 
     use super::*;
+
+    #[test]
+    fn native_sf2_tenuto_uses_the_full_scheduled_note_duration() {
+        let mut score = Score::new("Tenuto", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        let request = OfflineRenderRequest {
+            sample_rate_hz: 8_000,
+            channels: 1,
+            ..Default::default()
+        };
+        let sf2 = include_bytes!("../../../tests/fixtures/UprightPianoKW-small-20190703.sf2");
+        let plain = build_offline_render_manifest(&score, &PlaybackOptions::default(), &request)
+            .expect("plain schedule");
+        let plain_wav = render_offline_wav(&plain, sf2).expect("plain WAV");
+
+        score.parts[0].staves[0].measures[0].voices[0][0]
+            .articulations
+            .push(Articulation::Tenuto);
+        let tenuto = build_offline_render_manifest(&score, &PlaybackOptions::default(), &request)
+            .expect("tenuto schedule");
+        assert_eq!(
+            tenuto.frame_events[0].duration_frames,
+            plain.frame_events[0].duration_frames
+        );
+        assert_eq!(
+            render_offline_wav(&tenuto, sf2).expect("tenuto WAV"),
+            plain_wav
+        );
+    }
 
     #[test]
     fn renders_real_sf2_after_exact_silent_frame_prefix() {

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Native and full-SF2 WAV rendering now accepts written `tenuto` when the
+  playback schedule has already retained the note's full duration. The pinned
+  CC0 Webern score previously failed with `unrealized note expression`; it now
+  renders 132 events at both 16 and 48 kHz with the alphaTab-bundled SF2.
 - MusicXML now retains explicit metronome equations, including beat unit, dots,
   parentheses, and rate, separately from playback tempo. The Quilter Prelude's
   written quarter-note `=69` appears beside its opening tempo words in screen
