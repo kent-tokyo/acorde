@@ -308,11 +308,14 @@ pub(crate) fn build_svg_with_metadata_placement(
         // Header (clef + key + time) width — same for every staff of this system, keyed off
         // the tallest header among the staves so measures still line up across staves.
         let draw_time = row_idx == 0
-            || score.parts[staff_refs[0].0].staves[staff_refs[0].1]
-                .measures
-                .get(row_start_measure)
-                .and_then(|m| m.time_sig.as_ref())
-                .is_some();
+            || staff_refs.iter().enumerate().any(|(si_idx, &(pi, si))| {
+                row_staff_visible[si_idx]
+                    && score.parts[pi].staves[si]
+                        .measures
+                        .get(row_start_measure)
+                        .and_then(|measure| measure.time_sig.as_ref())
+                        .is_some()
+            });
         let header_width_u = staff_states
             .iter()
             .map(|s| {
@@ -324,11 +327,42 @@ pub(crate) fn build_svg_with_metadata_placement(
             })
             .fold(0.0_f32, f32::max);
 
+        // Reserve a shared column before the notes whenever a staff changes meter inside
+        // this system. All staves use the widest changed signature so their notes stay aligned.
+        let mut running_times: Vec<TimeSignature> = staff_states
+            .iter()
+            .map(|state| state.time_sig.clone())
+            .collect();
+        let mut inline_meters = vec![vec![None; staff_refs.len()]; row.measure_indices.len()];
+        let mut inline_meter_widths_u = vec![0.0_f32; row.measure_indices.len()];
+        for (col, &measure_idx) in row.measure_indices.iter().enumerate().skip(1) {
+            for (si_idx, &(pi, si)) in staff_refs.iter().enumerate() {
+                if let Some(time) = score.parts[pi].staves[si].measures[measure_idx]
+                    .time_sig
+                    .as_ref()
+                {
+                    if row_staff_visible[si_idx] && *time != running_times[si_idx] {
+                        inline_meter_widths_u[col] =
+                            inline_meter_widths_u[col].max(time_signature_width_u(time) + 0.4);
+                        inline_meters[col][si_idx] = Some(time.clone());
+                    }
+                    running_times[si_idx] = time.clone();
+                }
+            }
+        }
+
         let measure_area_width = row_content_width - header_width_u * space;
         if !measure_area_width.is_finite() || measure_area_width <= 0.0 {
             return Err(RenderError::InvalidOptions {
                 reason: "content-aware margins and notation header leave no usable measure width"
                     .into(),
+            });
+        }
+        let rhythmic_area_width =
+            measure_area_width - inline_meter_widths_u.iter().sum::<f32>() * space;
+        if rhythmic_area_width <= 0.0 {
+            return Err(RenderError::InvalidOptions {
+                reason: "inline time signatures leave no usable measure width".into(),
             });
         }
         let beats: Vec<f64> = row
@@ -358,14 +392,14 @@ pub(crate) fn build_svg_with_metadata_placement(
         // Every measure keeps at least one staff space; the space those minimums take is
         // removed from the others instead of overflowing the row (a very short bar next to
         // long ones previously failed the whole render).
-        let mut measure_widths: Vec<f32> = width_weights
+        let mut rhythmic_widths: Vec<f32> = width_weights
             .iter()
-            .map(|weight| (measure_area_width * *weight as f32).max(space))
+            .map(|weight| (rhythmic_area_width * *weight as f32).max(space))
             .collect();
-        for _ in 0..measure_widths.len() {
+        for _ in 0..rhythmic_widths.len() {
             let clamped: Vec<bool> = width_weights
                 .iter()
-                .zip(&measure_widths)
+                .zip(&rhythmic_widths)
                 .map(|(_, width)| *width <= space + f32::EPSILON)
                 .collect();
             let fixed = clamped.iter().filter(|c| **c).count() as f32 * space;
@@ -375,7 +409,7 @@ pub(crate) fn build_svg_with_metadata_placement(
                 .filter(|(_, c)| !**c)
                 .map(|(weight, _)| *weight)
                 .sum();
-            let free_width = measure_area_width - fixed;
+            let free_width = rhythmic_area_width - fixed;
             if free_weight <= 0.0 || free_width <= 0.0 {
                 break;
             }
@@ -390,11 +424,16 @@ pub(crate) fn build_svg_with_metadata_placement(
                     }
                 })
                 .collect();
-            if next == measure_widths {
+            if next == rhythmic_widths {
                 break;
             }
-            measure_widths = next;
+            rhythmic_widths = next;
         }
+        let measure_widths: Vec<f32> = rhythmic_widths
+            .iter()
+            .zip(&inline_meter_widths_u)
+            .map(|(rhythm, meter)| rhythm + meter * space)
+            .collect();
         let allocated_measure_width: f32 = measure_widths.iter().sum();
         // Proportional widths sum to the area up to f32 rounding, which grows with the width in
         // pixels; f32::EPSILON alone rejected ordinary rows (for example a four-part Guitar Pro
@@ -550,6 +589,15 @@ pub(crate) fn build_svg_with_metadata_placement(
                     clef_lead_u = 0.4 + width / space * 0.75;
                     row_clefs[si_idx] = change.clone();
                 }
+                if let Some(time) = inline_meters[col][si_idx].as_ref() {
+                    let time_x = mx + (clef_lead_u + 0.4) * space;
+                    let _ = write!(
+                        body,
+                        r#"<g class="acorde-time-sig-change" data-part="{pi}" data-staff="{si}" data-measure="{measure_idx}">"#
+                    );
+                    write_time_signature(&mut body, time, time_x, bottom_y, space);
+                    body.push_str("</g>");
+                }
                 let clef = &row_clefs[si_idx];
                 // Where this part's other staves sit, for notes written across to them.
                 let mut cross_frames: HashMap<usize, (i32, f32)> = HashMap::new();
@@ -580,7 +628,7 @@ pub(crate) fn build_svg_with_metadata_placement(
                     mx,
                     bottom_y,
                     mwidth,
-                    clef_lead_u,
+                    clef_lead_u + inline_meter_widths_u[col],
                     &cross_frames,
                     space,
                     options.interactive,
@@ -2600,16 +2648,15 @@ fn header_width_u(clef: &Clef, key_fifths: i8, time_sig: Option<&TimeSignature>)
     } else {
         0.0
     };
-    let time_w = time_sig
-        .map(|ts| {
-            // The bold numerals want a little more air before the first note.
-            digit_count(ts.numerator).max(digit_count(ts.denominator)) as f32
-                * glyphs::DIGIT_WIDTH_U
-                + HEADER_GAP_U
-                + 0.5
-        })
-        .unwrap_or(0.0);
+    let time_w = time_sig.map(time_signature_width_u).unwrap_or(0.0);
     clef_w + key_w + time_w
+}
+
+fn time_signature_width_u(time: &TimeSignature) -> f32 {
+    // The bold numerals want a little more air before the first note.
+    digit_count(time.numerator).max(digit_count(time.denominator)) as f32 * glyphs::DIGIT_WIDTH_U
+        + HEADER_GAP_U
+        + 0.5
 }
 
 /// "TAB" clef: the three letters stacked over the middle of a tablature staff.
