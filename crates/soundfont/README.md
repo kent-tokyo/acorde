@@ -42,8 +42,10 @@ Each note's effective program is selected at its attack, including measure-local
 changes from the score schedule.
 Authored MIDI pitch bend and CC 1 (modulation), 7 (volume), 10 (pan), 11 (expression), and 64
 (sustain) are applied at their scheduled frames to every voice channel routed from the source
-part and MIDI channel. An unrouted event, unsupported controller, aftertouch, raw MIDI program
-change, or simultaneous score-pedal and CC64 control returns an error rather than disappearing.
+part and MIDI channel. Authored MIDI program changes select the preset for subsequent notes on
+the same part and source channel; the change is routed to split voice channels before attacks at
+the same frame. Missing presets fail explicitly. An unrouted event, unsupported controller,
+aftertouch, or simultaneous score-pedal and CC64 control returns an error rather than disappearing.
 
 It does not require an asset or audio device. Applications may provide their own licensed assets
 and renderer; the bounded native renderer is optional. The checksum is path-independent FNV-1a

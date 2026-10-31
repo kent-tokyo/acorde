@@ -1032,6 +1032,12 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
                 include_bytes!("../../../tests/fixtures/openscore_omr_score_1033.mscx")
             }
             "sample.abc" => include_bytes!("../../../tests/fixtures/sample.abc"),
+            "program_change_piano_violin.mid" => {
+                include_bytes!("../../../tests/fixtures/program_change_piano_violin.mid")
+            }
+            "program_change_piano_piano.mid" => {
+                include_bytes!("../../../tests/fixtures/program_change_piano_piano.mid")
+            }
             "just_perfect_fifth_on_c.mid" => {
                 include_bytes!("../../../tests/fixtures/just_perfect_fifth_on_c.mid")
             }
@@ -2201,6 +2207,26 @@ fn multivoice_musicxml_preserves_voice_structure_and_playback_addresses() {
             .iter()
             .any(|event| event.address.as_deref() == Some("0:0:0:1:0"))
     );
+}
+
+#[test]
+fn authored_program_change_fixture_projects_two_distinct_note_programs() {
+    let changed = parse_midi(include_bytes!(
+        "../../../tests/fixtures/program_change_piano_violin.mid"
+    ))
+    .expect("self-authored MIDI parses");
+    let control = parse_midi(include_bytes!(
+        "../../../tests/fixtures/program_change_piano_piano.mid"
+    ))
+    .expect("control MIDI parses");
+    let events = |score| {
+        acorde_core::to_playback_events(score, &acorde_core::PlaybackOptions::default())
+            .into_iter()
+            .map(|event| (event.time_secs, event.pitch_midi, event.program))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(events(&changed), [(0.0, 60, 0), (0.5, 64, 40)]);
+    assert_eq!(events(&control), [(0.0, 60, 0), (0.5, 64, 0)]);
 }
 
 #[test]

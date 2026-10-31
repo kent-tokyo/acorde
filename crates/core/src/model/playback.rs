@@ -1935,6 +1935,12 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
     let measure_lengths: Vec<f64> = (0..tempo_marks.len())
         .map(|index| score.playback_measure_beats(index))
         .collect();
+    let mut measure_tick_starts = Vec::with_capacity(measure_lengths.len());
+    let mut next_tick = 0_u64;
+    for beats in &measure_lengths {
+        measure_tick_starts.push(next_tick);
+        next_tick = next_tick.saturating_add((beats * 480.0).round() as u64);
+    }
     let swing_ratio = options
         .swing
         .filter(|ratio| ratio.is_finite() && *ratio > 0.5 && *ratio < 1.0);
@@ -1969,7 +1975,8 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                         .as_ref()
                         .or(part.instrument.as_ref());
                     let channel = instrument.map_or(part.midi_channel, |value| value.midi_channel);
-                    let program = instrument.map_or(part.midi_program, |value| value.midi_program);
+                    let default_program =
+                        instrument.map_or(part.midi_program, |value| value.midi_program);
                     let instrument_id = instrument.map(|value| value.id.clone());
                     let mark = tempo_marks.get(idx).copied().unwrap_or_default();
                     if let Some(b) = mark.bpm.and_then(|tempo| written_tempo_bpm(options, tempo)) {
@@ -2024,6 +2031,22 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                             note.beats()
                         };
                         if !note.is_rest {
+                            // MIDI program changes are keyed to the source's physical tick
+                            // timeline. Use the written onset, so opt-in swing does not move a
+                            // change across the note it belongs to.
+                            let source_tick = measure_tick_starts[idx]
+                                .saturating_add((onset_written_beats * 480.0).round() as u64);
+                            let mut program = default_program;
+                            let mut latest_change_tick = 0_u64;
+                            for change in &part.midi_program_changes {
+                                if change.channel == channel
+                                    && change.tick <= source_tick
+                                    && change.tick >= latest_change_tick
+                                {
+                                    program = change.program;
+                                    latest_change_tick = change.tick;
+                                }
+                            }
                             let mut velocity =
                                 dynamics.velocity(seq_position, onset_written_beats, note.dynamic);
                             let mut sounding_dur = dur;
@@ -4773,6 +4796,31 @@ mod tests {
         );
         assert_eq!(events[0].pitch_midi, 60);
         assert_eq!(events[1].pitch_midi, 58);
+    }
+
+    #[test]
+    fn authored_midi_program_change_selects_the_next_note_at_its_source_tick() {
+        let mut score = Score::new("program", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::E, 4), Duration::Quarter),
+        ];
+        score.parts[0].midi_program_changes = vec![
+            MidiProgramChange {
+                tick: 480,
+                channel: 1,
+                program: 73,
+            },
+            MidiProgramChange {
+                tick: 480,
+                channel: 0,
+                program: 40,
+            },
+        ];
+        let events = to_playback_events(&score, &PlaybackOptions::default());
+        assert_eq!(events.len(), 2);
+        assert_eq!((events[0].program, events[1].program), (0, 40));
+        assert_eq!((events[0].time_secs, events[1].time_secs), (0.0, 0.5));
     }
 
     #[test]

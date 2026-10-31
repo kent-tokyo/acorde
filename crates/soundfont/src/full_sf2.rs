@@ -35,6 +35,10 @@ enum Action {
         channel: u8,
         value: i16,
     },
+    ProgramChange {
+        channel: u8,
+        program: u8,
+    },
     NoteOn {
         channel: u8,
         program: u8,
@@ -55,7 +59,7 @@ impl Action {
                 ..
             } if value >= 64 => 0,
             Self::Controller { controller: 64, .. } => 2,
-            Self::Controller { .. } | Self::PitchBend { .. } => 3,
+            Self::Controller { .. } | Self::PitchBend { .. } | Self::ProgramChange { .. } => 3,
             Self::NoteOn { .. } => 4,
         }
     }
@@ -95,8 +99,7 @@ pub fn render_offline_wav_full_sf2(
     for action in &manifest.semantic_events {
         if matches!(
             action.kind,
-            OfflineRenderSemanticEventKind::ProgramChange { .. }
-                | OfflineRenderSemanticEventKind::Aftertouch { .. }
+            OfflineRenderSemanticEventKind::Aftertouch { .. }
                 | OfflineRenderSemanticEventKind::GuitarBend { .. }
         ) {
             return Err(Error::UnsupportedOfflineFeature("MIDI automation"));
@@ -175,6 +178,33 @@ pub fn render_offline_wav_full_sf2(
             .entry((lane.0, requested))
             .or_default()
             .insert(channel);
+    }
+
+    // Imported MIDI program changes are a separate semantic timeline. Resolve
+    // them before note actions: each note-on below normally selects its score
+    // program, which would otherwise immediately undo an authored change.
+    let mut program_changes = BTreeMap::<(usize, u8), Vec<(u64, u8)>>::new();
+    for semantic in &manifest.semantic_events {
+        let OfflineRenderSemanticEventKind::ProgramChange { channel, program } = semantic.kind
+        else {
+            continue;
+        };
+        if channel >= 16 || program >= 128 {
+            return Err(Error::InvalidEvent);
+        }
+        let part = semantic
+            .source
+            .as_ref()
+            .map(|source| source.part)
+            .or_else(|| semantic.measure.as_ref().map(|measure| measure.part))
+            .ok_or(Error::UnsupportedOfflineFeature("unrouted MIDI automation"))?;
+        program_changes
+            .entry((part, channel))
+            .or_default()
+            .push((semantic.frame, program));
+    }
+    for changes in program_changes.values_mut() {
+        changes.sort_by_key(|(frame, _)| *frame);
     }
 
     let mut actions = BTreeMap::<usize, Vec<Action>>::new();
@@ -267,19 +297,30 @@ pub fn render_offline_wav_full_sf2(
             base_channel
         };
         active_keys.insert((channel, event.pitch_midi), end);
+        let program = program_changes
+            .get(&(event.part_index, event.channel))
+            .and_then(|changes| {
+                changes
+                    .get(
+                        changes
+                            .partition_point(|(frame, _)| *frame <= frame_event.start_frame)
+                            .checked_sub(1)?,
+                    )
+                    .map(|(_, program)| *program)
+            })
+            .unwrap_or(event.program);
         let bank = if channel == 9 { 128 } else { 0 };
         if !sound_font.get_presets().iter().any(|preset| {
-            preset.get_bank_number() == bank
-                && preset.get_patch_number() == i32::from(event.program)
+            preset.get_bank_number() == bank && preset.get_patch_number() == i32::from(program)
         }) {
             return Err(Error::PresetNotFound {
                 bank: bank as u16,
-                program: u16::from(event.program),
+                program: u16::from(program),
             });
         }
         actions.entry(start).or_default().push(Action::NoteOn {
             channel,
-            program: event.program,
+            program,
             key: event.pitch_midi,
             velocity: event.velocity,
         });
@@ -313,6 +354,19 @@ pub fn render_offline_wav_full_sf2(
                 }
                 (channel, Action::PitchBend { channel, value })
             }
+            OfflineRenderSemanticEventKind::ProgramChange { channel, program } => {
+                let bank = if channel == 9 { 128 } else { 0 };
+                if !sound_font.get_presets().iter().any(|preset| {
+                    preset.get_bank_number() == bank
+                        && preset.get_patch_number() == i32::from(program)
+                }) {
+                    return Err(Error::PresetNotFound {
+                        bank: bank as u16,
+                        program: u16::from(program),
+                    });
+                }
+                (channel, Action::ProgramChange { channel, program })
+            }
             _ => continue,
         };
         let part = semantic
@@ -345,6 +399,9 @@ pub fn render_offline_wav_full_sf2(
                         value,
                     },
                     Action::PitchBend { value, .. } => Action::PitchBend { channel, value },
+                    Action::ProgramChange { program, .. } => {
+                        Action::ProgramChange { channel, program }
+                    }
                     _ => unreachable!("only MIDI automation actions are routed"),
                 };
                 actions.entry(frame).or_default().push(routed_action);
@@ -421,6 +478,9 @@ pub fn render_offline_wav_full_sf2(
                         unsigned & 0x7f,
                         unsigned >> 7,
                     );
+                }
+                Action::ProgramChange { channel, program } => {
+                    synth.process_midi_message(i32::from(channel), 0xC0, i32::from(program), 0);
                 }
                 Action::NoteOn {
                     channel,
@@ -669,8 +729,40 @@ mod tests {
         });
         assert_eq!(
             render_offline_wav_full_sf2(&manifest(&score), PIANO),
-            Err(Error::UnsupportedOfflineFeature("MIDI automation"))
+            Err(Error::PresetNotFound {
+                bank: 0,
+                program: 40
+            })
         );
+    }
+
+    #[test]
+    fn full_sf2_program_change_overrides_the_next_notes_static_program() {
+        let mut score = Score::new("Program", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::E, 4), Duration::Quarter),
+        ];
+        let expected = render_offline_wav_full_sf2(&manifest(&score), PIANO).unwrap();
+        score.parts[0].midi_program_changes.push(MidiProgramChange {
+            tick: 480,
+            channel: 0,
+            program: 0,
+        });
+        let mut schedule = manifest(&score);
+        assert!(schedule.semantic_events.iter().any(|event| matches!(
+            event.kind,
+            OfflineRenderSemanticEventKind::ProgramChange {
+                channel: 0,
+                program: 0
+            }
+        ) && event.frame == 8_000));
+        // Imported MIDI notes can carry only an initial/static program. A
+        // later authored change must win even if the note projection differs.
+        schedule.events[1].program = 1;
+        schedule.frame_events[1].event.program = 1;
+        let actual = render_offline_wav_full_sf2(&schedule, PIANO).unwrap();
+        assert_eq!(actual, expected);
     }
 
     #[test]

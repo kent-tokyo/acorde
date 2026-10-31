@@ -18,6 +18,12 @@ Their source URLs and SHA-256 values are pinned in `manifest.json`.
 
 ## MIDI corpus policy
 
+`program_change_piano_violin.mid` and `program_change_piano_piano.mid` are
+self-authored two-note MIDI files at 480 ticks per quarter. Both start with
+piano program 0 and C4; at tick 480 the first selects violin program 40 before
+E4, while the control selects piano program 0. They are used only for a bounded
+full-SF2 audio-render check; their hashes are in `manifest.json`.
+
 The checked-in MIDI set is intentionally a small, legally conservative smoke corpus. New
 reproducible boundary cases should be self-authored or explicitly dedicated to CC0/public domain;
 the manifest must record the source, license, checksum, and expected semantic fields. The target
