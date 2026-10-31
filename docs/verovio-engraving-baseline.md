@@ -321,6 +321,26 @@ Verovio remains more readable on this input: its notes and directions are
 larger, and its layout uses three balanced systems. The new title placement
 addresses only one print typography difference.
 
+### Verovio-guided direction completeness and clearance (2026-10-31)
+
+The same pinned Quilter MXL has two `L.H.` directions and `poco cresc.` in its
+fourth measure. Verovio 6.3.0 prints all three. Acorde's importer previously
+kept only the first words direction per measure; the later marks were absent
+from its PDF and from a MusicXML roundtrip. The importer and exporter now retain
+all three. The page SVG reserves an eight-space grand-staff gap and 56 mm system
+height for a piano score with below-staff words. It also moves the words below
+nearby noteheads when the source engraving's vertical hint would pull them into
+the notation. A fixture regression checks both `L.H.` marks and clearance for
+`poco cresc.` between the two staves.
+
+The Acorde density PDF remains one A4 page, now with four systems grouped
+2+2+3+3; Verovio uses one page with three systems. The Acorde PDF and the
+same-input Verovio SVG were inspected at 1400 px. Acorde's directions are
+present, but the two `L.H.` marks stack at one horizontal position because
+measure text does not yet retain its beat position. Its notation and publication
+type remain smaller than Verovio's. The MusicXML import still reports 103
+diagnostics, so this is a focused completeness and clearance improvement.
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.

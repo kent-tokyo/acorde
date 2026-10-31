@@ -38,6 +38,9 @@ of passing clipped geometry to a renderer.
 For multi-staff scores, the default `StaffAware` height policy reserves at least 24 mm for the
 first staff plus 16 mm for each additional staff, before applying `scale`. This changes page
 capacity for piano and chamber scores; extracted single-staff parts use their own staff count.
+A two-staff piano score reserves at least 50 mm per system; when its upper staff has a
+below-staff direction, the reservation rises to 56 mm and the page SVG uses a wider inter-staff
+text lane. The density break budget remains bounded while that vertical lane grows.
 Callers with measured system geometry can select `SystemHeightPolicy::Fixed` to use
 `system_height_mm` exactly. This is a pagination clearance floor, not a guarantee that lyrics,
 annotations, or shaped glyphs fit without collisions.

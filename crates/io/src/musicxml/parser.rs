@@ -1717,10 +1717,10 @@ pub(crate) fn parse_musicxml_collecting(
                                     m.navigation = Some(nav);
                                 }
                             } else if pending_sound_tempo.is_some() {
-                                if let Some(text) = pending_tempo_text.take()
-                                    && m.tempo_text.is_none()
-                                {
-                                    m.tempo_text = Some(text.clone());
+                                if let Some(text) = pending_tempo_text.take() {
+                                    if m.tempo_text.is_none() {
+                                        m.tempo_text = Some(text.clone());
+                                    }
                                     m.texts.push(StyledText {
                                         style: TextStyle::Generic,
                                         text,
@@ -1731,10 +1731,10 @@ pub(crate) fn parse_musicxml_collecting(
                                         relative_y: pending_direction_relative_y,
                                     });
                                 }
-                            } else if let Some(text) = pending_expression_text.take()
-                                && m.expression_text.is_none()
-                            {
-                                m.expression_text = Some(text.clone());
+                            } else if let Some(text) = pending_expression_text.take() {
+                                if m.expression_text.is_none() {
+                                    m.expression_text = Some(text.clone());
+                                }
                                 m.texts.push(StyledText {
                                     style: TextStyle::Expression,
                                     text,

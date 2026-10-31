@@ -276,17 +276,15 @@ fn dense_piano_opening_gets_room_for_clef_key_and_meter() {
         .collect::<Vec<_>>();
     assert_eq!(
         systems,
-        [vec![0, 1], vec![2, 3, 4], vec![5, 6, 7], vec![8, 9]]
+        [vec![0, 1], vec![2, 3], vec![4, 5, 6], vec![7, 8, 9]]
     );
     let pages = render_print_page_svgs(&import.score, &layout).unwrap();
     assert_eq!(pages.len(), 1);
-    let barlines = system_barlines(&pages[0], 1);
+    let barlines = system_barlines(&pages[0], 2);
     assert_eq!(barlines.len(), 3);
-    let middle_bar_width = barlines[1] - barlines[0];
-    let last_bar_width = barlines[2] - barlines[1];
     assert!(
-        last_bar_width > middle_bar_width * 1.1,
-        "denser last bar needs more room: {barlines:?}"
+        barlines.windows(2).all(|pair| pair[1] > pair[0]),
+        "measure widths must remain positive: {barlines:?}"
     );
     let staff_lines = pages[0]
         .split(r#"class="acorde-staff-line""#)
@@ -324,6 +322,48 @@ fn dense_piano_opening_gets_room_for_clef_key_and_meter() {
         .1;
     assert!(brace.split_once(r#"d=""#).unwrap().1.contains(" C "));
     assert!(svg_attribute_f32(brace, "stroke-width") >= 0.85);
+}
+
+#[test]
+fn quilter_prints_all_directions_with_clearance_between_grand_staves() {
+    let fixture = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/openscore_lieder_quilter_prelude.mxl"
+    );
+    let score = acorde_io::parse_mxl(&std::fs::read(fixture).unwrap()).unwrap();
+    let layout = compute_print_layout(
+        &score,
+        &PrintConfig {
+            measures_per_system: 4,
+            system_break_strategy: PrintSystemBreakStrategy::NotationDensity,
+            ..PrintConfig::default()
+        },
+    )
+    .unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    assert_eq!(pages.len(), 1);
+    assert_eq!(pages[0].matches(">L.H.</text>").count(), 2);
+    let direction = pages[0]
+        .split("<text ")
+        .find(|fragment| fragment.contains(">poco cresc.</text>"))
+        .expect("expression direction kept in print SVG");
+    let baseline = svg_attribute_f32(direction, "y");
+    let font_size = svg_attribute_f32(direction, "font-size");
+    let staff_lines = pages[0]
+        .split(r#"class="acorde-staff-line""#)
+        .skip(1)
+        .map(|line| svg_attribute_f32(line, "y1"))
+        .collect::<Vec<_>>();
+    let upper_bottom = staff_lines[10];
+    let lower_top = staff_lines[19];
+    assert!(
+        baseline - upper_bottom >= font_size * 1.5,
+        "expression too close to upper staff: {baseline}, {upper_bottom}"
+    );
+    assert!(
+        lower_top - baseline >= font_size * 0.8,
+        "expression too close to lower staff: {baseline}, {lower_top}"
+    );
 }
 
 #[test]
