@@ -266,7 +266,7 @@ pub fn render_print_page_svgs(
     };
     let config = SvgRenderConfig::new(options)
         .with_staff_gap(staff_gap)
-        .with_measure_text_scale(1.7);
+        .with_measure_text_scale(3.0);
     let row_tops_px = row_tops_mm
         .iter()
         .map(|top| top * PX_PER_MM + top_u * space_px)

@@ -280,6 +280,25 @@ Quilter page still has unused lower space, dense chords need a measured
 collision review, and neither score proves Verovio-level typography or
 publication quality. Import diagnostics remain 103 and 73 respectively.
 
+### Print direction legibility check after v1.3.5 (2026-10-31)
+
+The physical-page renderer now uses a 3.0 measure-text scale in place of 1.7;
+the regular screen renderer is unchanged. On the pinned Quilter Prelude, the
+first tempo direction grows from about 2.0 to 3.5 mm. A page-SVG regression
+requires at least 3.4 mm font size and 4 mm clearance from its baseline and
+descender allowance to the top staff line. The five-staff Aloha Oe fixture has
+a corresponding 3.1 mm and 4 mm regression. Its two-verse staff clearance
+remains covered separately.
+
+The Quilter (one A4 page, four systems), Aloha Oe (three pages, five density
+systems), and Webern *So ich traurig bin* (two pages, five systems) PDFs were
+rasterized at 1400 px and inspected. The larger directions are readable in
+these previews without a new visible overlap, clipping, or changed system
+break. Their MusicXML import diagnostics remain 103, 73, and 20 respectively.
+The same-input Verovio 6.3.0 Quilter preview still has larger notation and
+better page use. This focused text improvement does not establish superior
+layout, engraving, or print quality.
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.
