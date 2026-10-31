@@ -39,6 +39,9 @@ load its original Score and call `arrange_accordion_preset`
 again with its saved chord selection and preset ID, then save the new version 2
 `resolved_config`. A legacy config cannot be upgraded from a re-parsed Score
 alone.
+New v1.3.6 preset configs use engine `1.3.6+arrangement-presets.2`. The engine
+marker changes with the workspace release; select the saved chords and preset
+again to create a v1.3.6 config before replaying a v1.3.5 result.
 Generated score and note IDs can differ between runs; note addresses, pitches,
 durations and musical timing are reproducible.
 
@@ -121,6 +124,8 @@ source and generated note addresses, and a versioned `resolved_config`.
 Save that config as JSON and pass it with the same source after re-parsing to
 `arrange_from_resolved_layers`. Its `v2:` fingerprint, contract version, and
 `arrangement-layers.1` engine version are validated before generation.
+For v1.3.6 the full marker is `1.3.6+arrangement-layers.1`; reselect the saved
+free-layer options to create a config with the current engine marker.
 Built-in preset configs continue to use `arrange_from_resolved_preset`; changing
 their options still returns `invalid-configuration`.
 

@@ -11,6 +11,18 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## v1.3.6
+
+The new `AccordionPattern` waltz variants require updates to exhaustive Rust matches.
+Existing preset and free-layer configuration structs keep their field shapes. Their engine
+markers include the workspace version, so select the saved chords and technique again to
+create a v1.3.6 configuration before replaying under v1.3.6. The new drone API is separate:
+pass an explicit MIDI bass pitch and omit `layers` when no chord-derived voice is needed.
+
+Re-import ABC with closing bars or MSCZ with initial staff clefs to apply those parser and
+export fixes. Regenerate SVG where inline meter changes or print directions affected layout.
+The same-score alphaTab timing observation is fixture-specific, not a compatibility claim.
+
 ## v1.3.5
 
 No Rust struct-literal change is required for the preset configuration types. New
