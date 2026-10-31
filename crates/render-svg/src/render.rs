@@ -4665,7 +4665,7 @@ fn render_measure_text(
             // Moving below-staff text farther down may collide with the next
             // staff. When it still touches a chord, move it right within the
             // measure. Sort the anchors to keep this pass deterministic.
-            note_heads.sort_by(|left, right| left.0.total_cmp(&right.0));
+            note_heads.sort_unstable_by(|left, right| left.0.total_cmp(&right.0));
             let text_top = y - 0.78 * space * text_scale;
             let text_bottom = y + 0.12 * space * text_scale;
             let right_limit = x + width - text_width - 0.5 * space;
