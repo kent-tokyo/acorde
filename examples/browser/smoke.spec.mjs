@@ -126,7 +126,7 @@ test("reparsed ABC replays a preset and redundant chords keep accompaniment phas
     return {
       idsDiffer: JSON.parse(first).parts[0].staves[0].measures[0].voices[0][0].id
         !== JSON.parse(second).parts[0].staves[0].measures[0].voices[0][0].id,
-      fingerprintVersion: selected.resolved_config.input_fingerprint_version,
+      fingerprintVersion: selected.resolved_config.input_fingerprint.startsWith("v2:"),
       samePattern: JSON.stringify(left(single.score)) === JSON.stringify(left(repeated.score)),
       samePlayback: JSON.stringify(events(single.score)) === JSON.stringify(events(repeated.score)),
       thirdBass: left(repeated.score)[2][0],
@@ -141,7 +141,7 @@ test("reparsed ABC replays a preset and redundant chords keep accompaniment phas
     };
   });
   expect(result.idsDiffer).toBe(true);
-  expect(result.fingerprintVersion).toBe(2);
+  expect(result.fingerprintVersion).toBe(true);
   expect(result.samePattern).toBe(true);
   expect(result.samePlayback).toBe(true);
   expect(result.thirdBass).toEqual(["G2"]);

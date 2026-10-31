@@ -13,9 +13,10 @@ use super::score::{NoteAddr, Score};
 
 const CONTRACT_VERSION: u16 = 1;
 const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "+arrangement-presets.2");
-const LEGACY_ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "+arrangement-presets.1");
+const LEGACY_ENGINE_VERSION: &str = "1.3.4+arrangement-presets.1";
 const LEGACY_FINGERPRINT_VERSION: u16 = 1;
 const CONTENT_FINGERPRINT_VERSION: u16 = 2;
+const CONTENT_FINGERPRINT_PREFIX: &str = "v2:";
 const MAX_SHUFFLE_MEASURES: usize = 128;
 const MAX_SHUFFLE_CHORDS: usize = 512;
 const MAX_SHUFFLE_POOL: usize = 32;
@@ -34,9 +35,7 @@ pub struct AccordionPresetSelection {
 pub struct AccordionPresetConfig {
     pub contract_version: u16,
     pub engine_version: String,
-    /// Version 1 hashes every ID; version 2 normalizes regenerated object UUIDs.
-    #[serde(default = "legacy_fingerprint_version")]
-    pub input_fingerprint_version: u16,
+    /// Legacy values are 16 hex digits; `v2:` normalizes regenerated object UUIDs.
     pub input_fingerprint: String,
     pub preset_id: String,
     pub options: LayeredAccordionOptions,
@@ -82,7 +81,6 @@ pub struct AccordionPresetDescription {
 pub struct AccordionPresetCapabilities {
     pub contract_version: u16,
     pub engine_version: String,
-    pub input_fingerprint_version: u16,
     pub source_profile: String,
     pub max_shuffled_measures: usize,
     pub max_shuffled_chords: usize,
@@ -196,7 +194,6 @@ pub fn accordion_preset_capabilities() -> AccordionPresetCapabilities {
     AccordionPresetCapabilities {
         contract_version: CONTRACT_VERSION,
         engine_version: ENGINE_VERSION.to_string(),
-        input_fingerprint_version: CONTENT_FINGERPRINT_VERSION,
         source_profile:
             "validated one-part, one-staff monophonic melody with explicit positioned chords"
                 .to_string(),
@@ -220,10 +217,6 @@ pub fn accordion_preset_capabilities() -> AccordionPresetCapabilities {
             )
             .collect(),
     }
-}
-
-const fn legacy_fingerprint_version() -> u16 {
-    LEGACY_FINGERPRINT_VERSION
 }
 
 fn hash_score(score: &Score) -> Result<String, serde_json::Error> {
@@ -274,7 +267,22 @@ fn content_fingerprint(score: &Score) -> Result<String, serde_json::Error> {
 }
 
 fn input_fingerprint(score: &Score) -> Result<String, serde_json::Error> {
-    content_fingerprint(score)
+    content_fingerprint(score).map(|hash| format!("{CONTENT_FINGERPRINT_PREFIX}{hash}"))
+}
+
+fn fingerprint_version(fingerprint: &str) -> Option<u16> {
+    if fingerprint.starts_with(CONTENT_FINGERPRINT_PREFIX)
+        && fingerprint.len() == CONTENT_FINGERPRINT_PREFIX.len() + 16
+        && fingerprint[CONTENT_FINGERPRINT_PREFIX.len()..]
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit())
+    {
+        Some(CONTENT_FINGERPRINT_VERSION)
+    } else if fingerprint.len() == 16 && fingerprint.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        Some(LEGACY_FINGERPRINT_VERSION)
+    } else {
+        None
+    }
 }
 
 fn fingerprint_for_version(
@@ -283,15 +291,15 @@ fn fingerprint_for_version(
 ) -> Result<Option<String>, serde_json::Error> {
     match version {
         LEGACY_FINGERPRINT_VERSION => hash_score(score).map(Some),
-        CONTENT_FINGERPRINT_VERSION => content_fingerprint(score).map(Some),
+        CONTENT_FINGERPRINT_VERSION => input_fingerprint(score).map(Some),
         _ => Ok(None),
     }
 }
 
 fn engine_matches_config(config: &AccordionPresetConfig) -> bool {
-    match config.input_fingerprint_version {
-        LEGACY_FINGERPRINT_VERSION => config.engine_version == LEGACY_ENGINE_VERSION,
-        CONTENT_FINGERPRINT_VERSION => config.engine_version == ENGINE_VERSION,
+    match fingerprint_version(&config.input_fingerprint) {
+        Some(LEGACY_FINGERPRINT_VERSION) => config.engine_version == LEGACY_ENGINE_VERSION,
+        Some(CONTENT_FINGERPRINT_VERSION) => config.engine_version == ENGINE_VERSION,
         _ => false,
     }
 }
@@ -381,7 +389,6 @@ pub fn arrange_accordion_preset(
         AccordionPresetConfig {
             contract_version: CONTRACT_VERSION,
             engine_version: ENGINE_VERSION.to_string(),
-            input_fingerprint_version: CONTENT_FINGERPRINT_VERSION,
             input_fingerprint: fingerprint,
             preset_id: preset_id.to_string(),
             options,
@@ -411,9 +418,12 @@ pub fn arrange_from_resolved_preset(
             "resolved configuration requires another arrangement engine/contract version",
         );
     }
-    let expected = fingerprint_for_version(score, config.input_fingerprint_version)
-        .ok()
-        .flatten();
+    let expected = fingerprint_for_version(
+        score,
+        fingerprint_version(&config.input_fingerprint).unwrap_or_default(),
+    )
+    .ok()
+    .flatten();
     if expected.as_deref() != Some(config.input_fingerprint.as_str()) {
         return error(
             fingerprint,
@@ -529,10 +539,13 @@ pub fn shuffle_accordion_preset(
     if request.previous_config.as_ref().is_some_and(|previous| {
         previous.contract_version != CONTRACT_VERSION
             || !engine_matches_config(previous)
-            || fingerprint_for_version(score, previous.input_fingerprint_version)
-                .ok()
-                .flatten()
-                .as_deref()
+            || fingerprint_for_version(
+                score,
+                fingerprint_version(&previous.input_fingerprint).unwrap_or_default(),
+            )
+            .ok()
+            .flatten()
+            .as_deref()
                 != Some(previous.input_fingerprint.as_str())
     }) {
         return error(
@@ -598,7 +611,13 @@ pub fn shuffle_accordion_preset(
             );
         }
     }
-    let fingerprint_seed = u64::from_str_radix(&fingerprint, 16).unwrap_or(0);
+    let fingerprint_seed = u64::from_str_radix(
+        fingerprint
+            .strip_prefix(CONTENT_FINGERPRINT_PREFIX)
+            .unwrap_or(&fingerprint),
+        16,
+    )
+    .unwrap_or(0);
     let selected = eligible
         [(splitmix64(parsed_seed ^ fingerprint_seed) % eligible.len() as u64) as usize]
         .1
@@ -685,10 +704,7 @@ mod tests {
         );
         let selected = arrange_accordion_preset(&first, selection, "rising-arpeggio");
         let config = selected.resolved_config.clone().unwrap();
-        assert_eq!(
-            config.input_fingerprint_version,
-            CONTENT_FINGERPRINT_VERSION
-        );
+        assert_eq!(fingerprint_version(&config.input_fingerprint), Some(2));
         assert_eq!(config.engine_version, ENGINE_VERSION);
         let mut mismatched_engine = config.clone();
         mismatched_engine.engine_version = LEGACY_ENGINE_VERSION.to_string();
@@ -748,18 +764,11 @@ mod tests {
         }
 
         let mut legacy = config.clone();
-        legacy.input_fingerprint_version = LEGACY_FINGERPRINT_VERSION;
         legacy.engine_version = LEGACY_ENGINE_VERSION.to_string();
         legacy.input_fingerprint = hash_score(&first).unwrap();
-        let json = serde_json::to_value(&legacy).unwrap();
-        let mut old_json = json.as_object().unwrap().clone();
-        old_json.remove("input_fingerprint_version");
         let restored: AccordionPresetConfig =
-            serde_json::from_value(serde_json::Value::Object(old_json)).unwrap();
-        assert_eq!(
-            restored.input_fingerprint_version,
-            LEGACY_FINGERPRINT_VERSION
-        );
+            serde_json::from_value(serde_json::to_value(&legacy).unwrap()).unwrap();
+        assert_eq!(fingerprint_version(&restored.input_fingerprint), Some(1));
         assert!(
             arrange_from_resolved_preset(&first, restored.clone())
                 .score
@@ -942,7 +951,7 @@ mod tests {
             "unsupported-version"
         );
         let mut wrong_input = valid.clone();
-        wrong_input.input_fingerprint = "0000000000000000".into();
+        wrong_input.input_fingerprint = "v2:0000000000000000".into();
         assert_eq!(
             arrange_from_resolved_preset(&score, wrong_input).diagnostics[0].code,
             "input-mismatch"

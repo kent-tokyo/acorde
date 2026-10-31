@@ -20,9 +20,9 @@ The host may provide up to four explicit `AccordionPresetSelection` values
 choices; Acorde samples the compatible technique and selection pairs.
 
 The seed is decimal text for full 64-bit precision in JavaScript. The returned
-`resolved_config` includes the input fingerprint and its version, selected ID,
-full options, contract version and engine version. Version 2 fingerprints
-normalize generated UUIDs of the Score, Parts, Notes, spanners and views while
+`resolved_config` includes the input fingerprint, selected ID, full options,
+contract version and engine version. Fingerprints beginning with `v2:` use
+version 2 and normalize generated UUIDs of the Score, Parts, Notes, spanners and views while
 hashing all other score content, including note order, ties, tuplets, repeats,
 chord symbols, spanner addresses and settings. It permits replay after parsing
 the same source again; the replay uses the newly parsed source note IDs.
@@ -31,10 +31,10 @@ source again before replay. A seed alone is not a durable representation across
 engine changes. Replay rejects changed input, engine version, contract version,
 unsupported fingerprint versions, and preset IDs whose options do not match
 their defined technique. Chord selections remain caller-owned.
-Configs without `input_fingerprint_version` are treated as legacy version 1
-under engine `+arrangement-presets.1`: they continue to replay only against the
-exact original Score, including its IDs. New configs use engine
-`+arrangement-presets.2` and fingerprint version 2. To migrate an old config,
+Legacy 16-digit fingerprints use version 1 under engine
+`1.3.4+arrangement-presets.1`: they continue to replay only against the
+exact original Score, including its IDs. New v1.3.5 configs use engine
+`1.3.5+arrangement-presets.2` and fingerprint version 2. To migrate an old config,
 load its original Score and call `arrange_accordion_preset`
 again with its saved chord selection and preset ID, then save the new version 2
 `resolved_config`. A legacy config cannot be upgraded from a re-parsed Score

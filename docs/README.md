@@ -2,7 +2,7 @@
 
 This directory records public contracts and their evidence. It describes current `main`; a release
 claim also needs its tag, CI, registry, and release artifact. The latest published release is
-[`v1.3.4`](https://github.com/kent-tokyo/acorde/releases/tag/v1.3.4); follow the migration notes
+[`v1.3.5`](https://github.com/kent-tokyo/acorde/releases/tag/v1.3.5); follow the migration notes
 before selecting a version.
 
 ## Start here
@@ -14,6 +14,7 @@ before selecting a version.
 | Format checks and reports | [Interchange evidence](interchange-evidence.md) |
 | Browser/WASM host | [Browser contract](browser-rendering.md), [browser checks](browser-support.md) |
 | Written accompaniment chord symbols | [Authored chord annotation](authored-chords.md) |
+| Extract or propose positioned harmony | [Chord plans and proposals](chord-plans.md) |
 | Compare arrangements by musical position | [Musical position comparison](musical-position-diff.md) |
 | Print/PDF host | [Print layout](print-layout.md), [page SVG](print-svg-contract.md), [PDF export](pdf-export.md) |
 

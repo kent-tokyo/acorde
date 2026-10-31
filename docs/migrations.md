@@ -11,6 +11,21 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## v1.3.5
+
+No Rust struct-literal change is required for the preset configuration types. New
+`AccordionPresetConfig.input_fingerprint` values start with `v2:`; the existing string field
+still carries the full replay identity. Re-parse the same source score, then pass the saved
+configuration to `arrange_from_resolved_preset`. The new score's source note IDs are used in
+the output. An older 16-digit fingerprint from v1.3.4 remains valid only with the exact
+original Score and `1.3.4+arrangement-presets.1` engine marker. To migrate it, load that
+original Score and select the saved preset and chords again to obtain a `v2:` configuration.
+
+Re-import ABC sources that rely on implicit alternate-ending closure; previously parsed score
+JSON does not gain that correction automatically. Regenerate accompaniment if an in-measure
+chord change or redundant chord label affected the old pattern phase. Chord extraction and
+melody-aware proposals are opt-in and bounded; inspect their diagnostics before arranging.
+
 ## v1.3.4
 
 No intentional Rust source migration is required for the added print, comparison, and audio APIs.
