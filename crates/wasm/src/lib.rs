@@ -4030,6 +4030,28 @@ mod wasm_tests {
     }
 
     #[wasm_bindgen_test]
+    fn browser_nine_eight_preset_writes_bass_staff_and_playback() {
+        let source = parse_abc("X:1\nM:9/8\nL:1/8\nK:C\nC3 C3 C3 |]").unwrap();
+        let selection = r#"{"chords":[{"measure_index":0,"offset_beats":0,"chord":{"root":"C","kind":"major","bass":null}}],"alternative_chords":null,"inversion":null,"bass_mode":"standard-bass"}"#;
+        for preset in ["bass-pulse", "alternating-bass", "offbeat-chords"] {
+            let result: acorde_core::AccordionPresetResult = serde_json::from_str(
+                &arrange_accordion_preset(&source, selection, preset).unwrap(),
+            )
+            .unwrap();
+            assert!(result.diagnostics.is_empty(), "{preset}: {:?}", result.diagnostics);
+            assert!(result.generated_notes.iter().all(|address| address.staff == 1));
+            let arranged = score_to_json(result.score.as_ref().unwrap()).unwrap();
+            let svg = render_score_svg(&arranged, "{}").unwrap();
+            assert!(svg.contains("<svg"));
+            let events: Vec<acorde_core::PlaybackEvent> =
+                serde_json::from_str(&to_playback_events_ex(&arranged, "{}").unwrap()).unwrap();
+            assert!(events.iter().any(|event| {
+                event.source.as_ref().is_some_and(|address| address.staff == 1)
+            }));
+        }
+    }
+
+    #[wasm_bindgen_test]
     fn preset_choose_shuffle_replay_and_render_in_viewer() {
         let mut source = Score::new("presets browser", 120, 4, 4, 0, 1);
         source.parts[0].staves[0].measures[0].voices[0] = vec![acorde_core::Note::new(

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- The `bass-pulse`, `alternating-bass`, and `offbeat-chords` accordion presets
+  now fill 9/8 with three dotted-quarter pulses. Pickup and shortened bars
+  retain their measure phase; eighth-aligned chord changes, playback, MSCZ
+  export, and bass-staff SVG addresses are covered by regressions.
 - Print SVG now places repeated, unpositioned expression directions in one horizontal lane
   instead of stacking them at the same measure start. The two `L.H.` marks in the pinned
   Quilter Prelude become independently readable; exact source beat positions are still not
