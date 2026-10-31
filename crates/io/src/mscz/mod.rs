@@ -277,6 +277,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     // Feature M: MuseScore 4.x voice wrapper container
     let mut in_measure_voice_wrapper = false;
     let mut measure_voice_index: usize = 0;
+    let mut voice_wrapper_depth = 0usize;
+    let mut voice_location_depth: Option<usize> = None;
 
     // MuseScore tab staff metadata (3.x/4.x use StaffType/StringData).
     let mut in_staff_type = false;
@@ -831,6 +833,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     // Feature M: MuseScore 4.x voice wrapper container at Measure level
                     "voice" if in_measure && !in_chord && !in_rest_elem => {
                         in_measure_voice_wrapper = true;
+                        voice_wrapper_depth = element_depth;
+                    }
+                    "location"
+                        if in_measure_voice_wrapper && element_depth == voice_wrapper_depth + 1 =>
+                    {
+                        voice_location_depth = Some(element_depth);
                     }
                     // Feature J: Volta Spanner at Measure level
                     "Spanner" if in_measure && !in_chord && !in_rest_elem => {
@@ -947,6 +955,35 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                 }
 
                 match name.as_str() {
+                    "fractions"
+                        if voice_location_depth.is_some_and(|depth| closing_depth == depth + 1) =>
+                    {
+                        let (numerator, denominator) = t.split_once('/').ok_or_else(|| {
+                            Error::Xml("invalid MSCX voice location fraction".into())
+                        })?;
+                        let numerator: u32 = numerator.trim().parse().map_err(|_| {
+                            Error::Xml("unsupported MSCX voice location offset".into())
+                        })?;
+                        let denominator: u32 = denominator.trim().parse().map_err(|_| {
+                            Error::Xml("invalid MSCX voice location denominator".into())
+                        })?;
+                        if denominator == 0 {
+                            return Err(Error::Xml(
+                                "invalid MSCX voice location denominator".into(),
+                            ));
+                        }
+                        let ticks = numerator
+                            .checked_mul(4)
+                            .ok_or_else(|| Error::Xml("MSCX voice location overflow".into()))?;
+                        crate::gap::append_gap_rests(
+                            &mut cur_voices[measure_voice_index.min(3)],
+                            ticks,
+                            denominator,
+                        )?;
+                    }
+                    "location" if voice_location_depth == Some(closing_depth) => {
+                        voice_location_depth = None;
+                    }
                     // Voice-level line spanners (HairPin, Pedal, MuseScore 3.x Slur)
                     "subtype" if in_line_body && !in_line_segment => {
                         line_subtype = Some(t.to_string());
@@ -5010,6 +5047,45 @@ mod tests {
         assert_eq!(m.voices[1].len(), 1, "voice 1 should have 1 note");
         assert_eq!(m.voices[0][0].pitches[0].step, Step::C);
         assert_eq!(m.voices[1][0].pitches[0].step, Step::E);
+    }
+
+    #[test]
+    fn voice_level_location_preserves_gap_without_visible_rest() {
+        let xml = simple_mscx(
+            r#"<Measure number="1"><voice><Rest><durationType>whole</durationType></Rest></voice><voice>
+          <Chord><durationType>quarter</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord>
+          <location><fractions>1/4</fractions></location>
+          <Chord><durationType>quarter</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord>
+          </voice></Measure>"#,
+        );
+        let score = parse_mscz(&zipped_mscx(&xml)).unwrap();
+        let voice = &score.parts[0].staves[0].measures[0].voices[1];
+        assert_eq!(voice.len(), 3);
+        assert!(voice[1].is_rest && voice[1].hidden);
+        assert_eq!(voice[1].beats(), 1.0);
+        let events = acorde_core::to_playback_events(&score, &Default::default());
+        assert_eq!(
+            events.iter().map(|e| e.time_beats).collect::<Vec<_>>(),
+            vec![0.0, 2.0]
+        );
+    }
+
+    #[test]
+    fn voice_location_ignores_spanner_offsets_and_preserves_fractional_gaps() {
+        let xml = simple_mscx(
+            r#"<Measure number="1"><voice>
+          <Spanner type="Slur"><next><location><fractions>1/2</fractions></location></next></Spanner>
+          <location><fractions>1/12</fractions></location>
+          <Chord><durationType>quarter</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord>
+          </voice></Measure>"#,
+        );
+        let score = parse_mscx(&xml).unwrap();
+        let voice = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(voice.len(), 2);
+        assert!(voice[0].hidden && voice[0].is_rest);
+        assert!((voice[0].beats() - 1.0 / 3.0).abs() < 1e-9);
+        let bad = xml.replace("1/12", "-1/12");
+        assert!(parse_mscx(&bad).is_err());
     }
 
     #[test]
