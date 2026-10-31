@@ -563,8 +563,7 @@ pub fn arrange_with_explicit_chords(
         };
         // The pickup fills the end of an implied bar but does not advance the
         // root/fifth alternation. The first complete bar always starts on root bass.
-        let waltz_fifth_bass =
-            index.saturating_sub(usize::from(has_waltz_pickup)) % 2 == 1;
+        let waltz_fifth_bass = index.saturating_sub(usize::from(has_waltz_pickup)) % 2 == 1;
         regions[index].sort_by_key(|(offset, _)| *offset);
         if regions[index]
             .windows(2)
