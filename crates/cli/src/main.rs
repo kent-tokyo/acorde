@@ -440,6 +440,9 @@ enum Commands {
         /// Use complete SF2 synthesis (filters, modulation and envelopes); requires 16–192 kHz
         #[arg(long)]
         full_sf2: bool,
+        /// Level the completed PCM16 WAV to a peak between -48 and -0.1 dBFS
+        #[arg(long, value_name = "DBFS")]
+        normalize_peak_dbfs: Option<f32>,
     },
     /// Compare expected and host-observed playback event JSON files
     PlaybackCompare {
@@ -694,14 +697,18 @@ fn run(cli: &Cli) -> Result<(), String> {
             channels,
             release_tail_ms,
             full_sf2,
+            normalize_peak_dbfs,
         } => cmd_audio_render(
             input,
             soundfont,
             output,
-            *sample_rate,
-            *channels,
-            *release_tail_ms,
-            *full_sf2,
+            AudioRenderOptions {
+                sample_rate: *sample_rate,
+                channels: *channels,
+                release_tail_ms: *release_tail_ms,
+                full_sf2: *full_sf2,
+                normalize_peak_dbfs: *normalize_peak_dbfs,
+            },
         ),
         Commands::PlaybackCompare {
             expected,
@@ -2186,14 +2193,19 @@ fn cmd_tab_performance_report(
     Ok(())
 }
 
-fn cmd_audio_render(
-    input: &Path,
-    soundfont: &Path,
-    output: &Path,
+struct AudioRenderOptions {
     sample_rate: u32,
     channels: u8,
     release_tail_ms: u32,
     full_sf2: bool,
+    normalize_peak_dbfs: Option<f32>,
+}
+
+fn cmd_audio_render(
+    input: &Path,
+    soundfont: &Path,
+    output: &Path,
+    options: AudioRenderOptions,
 ) -> Result<(), String> {
     if !output
         .extension()
@@ -2202,12 +2214,21 @@ fn cmd_audio_render(
     {
         return Err("audio output must use the .wav extension".to_string());
     }
+    let target_peak = options
+        .normalize_peak_dbfs
+        .map(|dbfs| {
+            if !dbfs.is_finite() || !(-48.0..=-0.1).contains(&dbfs) {
+                return Err("normalize peak must be between -48 and -0.1 dBFS".to_string());
+            }
+            Ok(10_f32.powf(dbfs / 20.0))
+        })
+        .transpose()?;
     let score = parse_score(input)?;
     let request = acorde_core::OfflineRenderRequest {
-        sample_rate_hz: sample_rate,
-        channels,
-        release_tail_millis: release_tail_ms,
-        provider_identity: Some(if full_sf2 {
+        sample_rate_hz: options.sample_rate,
+        channels: options.channels,
+        release_tail_millis: options.release_tail_ms,
+        provider_identity: Some(if options.full_sf2 {
             "acorde-rustysynth-sf2-v1".to_string()
         } else {
             "acorde-native-sf2-v1".to_string()
@@ -2228,12 +2249,23 @@ fn cmd_audio_render(
     }
     let asset = std::fs::read(soundfont)
         .map_err(|error| format!("cannot read '{}': {error}", soundfont.display()))?;
-    let wav = if full_sf2 {
+    let mut wav = if options.full_sf2 {
         acorde_soundfont::render_offline_wav_full_sf2(&manifest, &asset)
     } else {
         acorde_soundfont::render_offline_wav(&manifest, &asset)
     }
     .map_err(|error| format!("cannot render WAV: {error}"))?;
+    if let Some(target_peak) = target_peak {
+        let report = acorde_soundfont::normalize_pcm16_wav_peak(&mut wav, target_peak)
+            .map_err(|error| format!("cannot normalize WAV peak: {error}"))?;
+        eprintln!(
+            "peak leveling: {:.6} -> {:.6}, gain {:+.2} dB, input rail samples {}",
+            report.input_peak,
+            report.output_peak,
+            20.0 * report.gain.log10(),
+            report.input_rail_samples,
+        );
+    }
     std::fs::write(output, wav)
         .map_err(|error| format!("cannot write '{}': {error}", output.display()))?;
     eprintln!(

@@ -191,6 +191,49 @@ better 48 kHz sound quality, wider repertoire support, or an overall audio win. 
 uses an external Rust synthesizer; broader Acorde-native generator coverage and a listening corpus
 remain open in [Issue #203](https://github.com/kent-tokyo/acorde/issues/203).
 
+### Explicit PCM16 peak leveling and channel-level audit (2026-10-31)
+
+`acorde audio-render` now accepts `--normalize-peak-dbfs` from -48 to -0.1.
+The option scales the completed PCM16 WAV deterministically, without changing
+its sample count or relative note levels, and reports samples already at the
+PCM rail. It is opt-in and cannot repair clipping or recover precision lost
+before PCM16 encoding. `scripts/compare_playback_audio.py` now reports each
+file's hash, the peak of individual channel samples, PCM rail samples, and
+alphaTab float samples outside [-1, 1], separately from downmixed metrics.
+
+On `simple.musicxml` with the same alphaTab-bundled `sonivox.sf2`, 48 kHz and
+two channels, both exports have 192,000 frames. The unmodified Acorde WAV
+(SHA-256 `5924323107446e40972f5eddd46ea1aae265bdb437353bda716c52886a2edd02`)
+has per-channel peak 0.075897 and RMS 0.012075; alphaTab 1.8.4's float32
+export (SHA-256 `781fc384d6480e691ebe9de12d3ef0c45680d0dbd00257a833fb084d3e96b57c`)
+has peak 0.592075 and RMS 0.093004. The chosen -4.56 dBFS Acorde export
+(SHA-256 `66fdbf239aa45dfcbd00bbb073b3a753c652aa5cfd38a6afd7ccdcce27663095`)
+has peak 0.591553, RMS 0.094117 and zero rail samples. This peak was chosen
+after observing alphaTab's output; it is a level-control demonstration, not
+an independent sound-quality result. A short periodic-wave correlation has
+an ambiguous window near 1 second and does not measure onset accuracy.
+
+The pinned CC0 *Aloha Oe* MXL, same SF2, 48 kHz stereo, and a standard
+-1 dBFS Acorde target produces 2,928,000 frames, peak 0.891235 and zero
+rail samples (SHA-256
+`6dcf2cda0cc1800afd0818e866584844b2cbd5988b7cbd61c0a82e13cfe7abb2`).
+The existing alphaTab float32 export has 2,970,048 frames, peak 1.244791
+and 76 finite channel samples whose absolute value exceeds 1.0. Float output
+above 1.0 is not by itself evidence of audible clipping; playback gain and
+device conversion are outside this measurement. The known split-bar timing
+difference and 73 Acorde MusicXML import diagnostics remain separate issues.
+
+```sh
+SF2=/tmp/acorde-alphatab-1_8_4/node_modules/@coderline/alphatab/dist/soundfont/sonivox.sf2
+acorde audio-render tests/fixtures/simple.musicxml "$SF2" /tmp/acorde-simple-leveled.wav \
+  --sample-rate 48000 --channels 2 --full-sf2 --normalize-peak-dbfs=-4.56
+acorde audio-render tests/fixtures/openscore_lieder_aloha_oe.mxl "$SF2" \
+  /tmp/acorde-aloha-leveled.wav --sample-rate 48000 --channels 2 \
+  --full-sf2 --normalize-peak-dbfs=-1
+python3 -B scripts/compare_playback_audio.py /tmp/acorde-simple-leveled.wav \
+  /tmp/alphatab-sonivox-simple-48k.f32le 0,500,1000,1500,2000
+```
+
 ### Authored program changes in full-SF2 audio (2026-10-31)
 
 Full-SF2 rendering now applies a MIDI program change at its scheduled frame to

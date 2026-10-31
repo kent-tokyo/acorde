@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Offline PCM16 WAV export now accepts an explicit peak target through
+  `audio-render --normalize-peak-dbfs`. The bounded, deterministic pass preserves
+  timing and reports input rail samples, so earlier clipping is not hidden.
+  The comparison script also reports per-channel peaks and out-of-range
+  float samples instead of relying only on a stereo downmix.
 - MIDI export now assigns overlapping same-pitch notes to separate channels and
   mirrors their program and controller events. Reimport recognizes mirrored
   control streams without adding duplicate score automation. On the pinned *Just for Today*
