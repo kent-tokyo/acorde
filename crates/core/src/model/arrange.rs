@@ -198,15 +198,89 @@ fn guided_note(pitches: &[u8], duration: Duration) -> Note {
     note
 }
 
+/// Three dotted-quarter pulses per 9/8 bar. Chord regions may split a pulse on
+/// an eighth-note boundary; the meter phase stays anchored to the authored bar.
+fn nine_eight_region(
+    pattern: AccordionPattern,
+    chord: &RealizedAccordionChord,
+    phase_start: u32,
+    ticks: u32,
+) -> Option<Vec<Note>> {
+    if !phase_start.is_multiple_of(32) || !ticks.is_multiple_of(32) {
+        return None;
+    }
+    let end = phase_start.checked_add(ticks)?;
+    let mut phase = phase_start;
+    let mut notes = Vec::new();
+    while phase < end {
+        let within_pulse = phase % 96;
+        let pulse = (phase / 96) % 3;
+        let (run, pitches): (u32, Option<Vec<u8>>) = if pattern == AccordionPattern::OffbeatChords {
+            if within_pulse == 0 {
+                ((end - phase).min(32), None)
+            } else {
+                (
+                    (end - phase).min(96 - within_pulse),
+                    Some(chord.chord_midi.clone()),
+                )
+            }
+        } else {
+            let pitches = match pulse {
+                0 => vec![chord.bass_midi],
+                1 => chord.chord_midi.clone(),
+                _ if pattern == AccordionPattern::AlternatingBassChord => {
+                    vec![chord.bass_midi + 7]
+                }
+                _ => vec![chord.bass_midi],
+            };
+            ((end - phase).min(96 - within_pulse), Some(pitches))
+        };
+        let (duration, dotted) = match run {
+            32 => (Duration::Eighth, false),
+            64 => (Duration::Quarter, false),
+            96 => (Duration::Quarter, true),
+            _ => return None,
+        };
+        let mut note = match pitches {
+            Some(pitches) => guided_note(&pitches, duration),
+            None => Note::rest(duration),
+        };
+        note.dot_count = u8::from(dotted);
+        notes.push(note);
+        phase += run;
+    }
+    Some(notes)
+}
+
+struct GuidedRegionPhase {
+    pickup_tick: u32,
+    waltz_fifth_bass: bool,
+    nine_eight: bool,
+}
+
 fn guided_region(
     pattern: AccordionPattern,
     chord: &RealizedAccordionChord,
     start_tick: u32,
     ticks: u32,
     next_bass_midi: Option<u8>,
-    pickup_phase_tick: u32,
-    waltz_fifth_bass: bool,
+    region_phase: GuidedRegionPhase,
 ) -> Option<Vec<Note>> {
+    if region_phase.nine_eight
+        && matches!(
+            pattern,
+            AccordionPattern::BassChordPulse
+                | AccordionPattern::AlternatingBassChord
+                | AccordionPattern::OffbeatChords
+        )
+    {
+        let phase_start = region_phase.pickup_tick.checked_add(start_tick)?;
+        let mut notes = nine_eight_region(pattern, chord, phase_start, ticks)?;
+        if let Some(first) = notes.iter_mut().find(|note| !note.is_rest) {
+            first.chord_symbol = Some(chord.symbol.clone());
+        }
+        return Some(notes);
+    }
     let mut notes = Vec::new();
     match pattern {
         AccordionPattern::HeldBassChord => {
@@ -227,8 +301,8 @@ fn guided_region(
             }
         }
         AccordionPattern::BassChordPulse | AccordionPattern::AlternatingBassChord => {
-            if pickup_phase_tick > 0 {
-                let phase_start = pickup_phase_tick.checked_add(start_tick)?;
+            if region_phase.pickup_tick > 0 {
+                let phase_start = region_phase.pickup_tick.checked_add(start_tick)?;
                 if !phase_start.is_multiple_of(32) || !ticks.is_multiple_of(32) {
                     return None;
                 }
@@ -270,7 +344,7 @@ fn guided_region(
             }
         }
         AccordionPattern::WaltzBassChord | AccordionPattern::WaltzAlternatingBassChord => {
-            let phase_start = pickup_phase_tick.checked_add(start_tick)?;
+            let phase_start = region_phase.pickup_tick.checked_add(start_tick)?;
             if !phase_start.is_multiple_of(32) || !ticks.is_multiple_of(32) {
                 return None;
             }
@@ -284,8 +358,8 @@ fn guided_region(
                     _ => return None,
                 };
                 let pitches = if (phase / 64).is_multiple_of(3) {
-                    let fifth =
-                        pattern == AccordionPattern::WaltzAlternatingBassChord && waltz_fifth_bass;
+                    let fifth = pattern == AccordionPattern::WaltzAlternatingBassChord
+                        && region_phase.waltz_fifth_bass;
                     vec![chord.bass_midi + u8::from(fifth) * 7]
                 } else {
                     chord.chord_midi.to_vec()
@@ -335,8 +409,8 @@ fn guided_region(
             }
         }
         AccordionPattern::OffbeatChords => {
-            if pickup_phase_tick > 0 {
-                let phase_start = pickup_phase_tick.checked_add(start_tick)?;
+            if region_phase.pickup_tick > 0 {
+                let phase_start = region_phase.pickup_tick.checked_add(start_tick)?;
                 if !phase_start.is_multiple_of(32) || !ticks.is_multiple_of(32) {
                     return None;
                 }
@@ -547,7 +621,10 @@ pub fn arrange_with_explicit_chords(
         }
         // A fractional first pickup occupies the end of its nominal meter. Whole-beat
         // pickups retain the established measure-start phase for preset compatibility.
-        let pickup_phase_tick = if is_waltz && index == 0 && has_waltz_pickup {
+        let nine_eight = running_meter.numerator == 9 && running_meter.denominator == 8;
+        let pickup_phase_tick = if nine_eight && index == 0 && length_ticks[index] < 9 * 32 {
+            9 * 32 - length_ticks[index]
+        } else if is_waltz && index == 0 && has_waltz_pickup {
             3 * 64 - length_ticks[index]
         } else if index == 0 && !length_ticks[index].is_multiple_of(64) {
             let meter = source_measure
@@ -615,15 +692,24 @@ pub fn arrange_with_explicit_chords(
                 *start,
                 end - start,
                 next_bass,
-                pickup_phase_tick,
-                waltz_fifth_bass,
+                GuidedRegionPhase {
+                    pickup_tick: pickup_phase_tick,
+                    waltz_fifth_bass,
+                    nine_eight,
+                },
             ) else {
-                return guided_error(
-                    options,
-                    "unsupported-rhythm",
-                    "pattern cannot fill the chord region exactly",
-                    Some(index),
-                );
+                let message = if nine_eight
+                    && matches!(
+                        options.pattern,
+                        AccordionPattern::BassChordPulse
+                            | AccordionPattern::AlternatingBassChord
+                            | AccordionPattern::OffbeatChords
+                    ) {
+                    "9/8 accompaniment requires eighth-note-aligned chord changes and short bars"
+                } else {
+                    "pattern cannot fill the chord region exactly"
+                };
+                return guided_error(options, "unsupported-rhythm", message, Some(index));
             };
             for (offset, note) in notes.iter().enumerate() {
                 if !note.is_rest {

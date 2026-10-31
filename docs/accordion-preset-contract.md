@@ -56,6 +56,15 @@ full opening bar. Their accompaniment uses the last half-beat slots of the
 nominal measure; the following full measure restarts its pattern at beat 0. Shorter
 regions that the pattern cannot represent still return `unsupported-rhythm`.
 
+In 9/8, these same three presets use three dotted-quarter pulses per complete
+bar. `bass-pulse` plays bass–chord–bass, `alternating-bass` plays
+bass–chord–fifth bass, and `offbeat-chords` rests an eighth then plays a quarter
+chord in each pulse. A first pickup occupies the end of its nominal bar; a
+short final bar starts at the beginning. Chord changes may split a pulse at an
+eighth-note boundary. Finer changes return `unsupported-rhythm` with the
+required alignment. Both standard-bass and free-bass selections use this
+timing; the generated notes remain on the bass staff for playback and export.
+
 `waltz-bass` and `waltz-alternating-bass` are separate 3/4 presets. Both play
 bass on beat 1 and chord on beats 2 and 3. The second alternates root and fifth
 bass across complete bars, beginning with root in the first complete bar.
