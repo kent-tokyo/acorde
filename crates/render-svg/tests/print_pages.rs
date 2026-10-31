@@ -364,6 +364,17 @@ fn quilter_prints_all_directions_with_clearance_between_grand_staves() {
         lower_top - baseline >= font_size * 0.8,
         "expression too close to lower staff: {baseline}, {lower_top}"
     );
+    let later_direction = pages[0]
+        .split("<text ")
+        .find(|fragment| fragment.contains(">rall.</text>"))
+        .expect("later direction kept in print SVG");
+    let later_baseline = svg_attribute_f32(later_direction, "y");
+    let later_font_size = svg_attribute_f32(later_direction, "font-size");
+    let later_lower_top = staff_lines[39];
+    assert!(
+        later_lower_top - later_baseline >= later_font_size * 0.6,
+        "later direction too close to lower staff: {later_baseline}, {later_lower_top}"
+    );
 }
 
 #[test]

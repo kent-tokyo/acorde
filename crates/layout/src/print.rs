@@ -3013,7 +3013,12 @@ pub fn compute_print_layout(
         0.0
     } else {
         (24.0 + staff_count.saturating_sub(1) as f32 * 16.0).max(if staff_count == 2 {
-            TWO_STAFF_MIN_HEIGHT_MM + if grand_staff_has_below_text { 6.0 } else { 0.0 }
+            TWO_STAFF_MIN_HEIGHT_MM
+                + if grand_staff_has_below_text {
+                    10.0
+                } else {
+                    0.0
+                }
         } else {
             0.0
         })
@@ -4480,7 +4485,7 @@ mod tests {
                 relative_y: None,
             });
         let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
-        assert_eq!(layout.pages[0].systems[0].height_mm, 56.0);
+        assert_eq!(layout.pages[0].systems[0].height_mm, 60.0);
     }
 
     #[test]

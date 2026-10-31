@@ -14,7 +14,7 @@ use crate::{RenderError, SvgRenderConfig, SvgRenderOptions, is_valid_xml_char};
 
 const PX_PER_MM: f32 = 4.0;
 const PRINT_STAFF_GAP: f32 = 6.0;
-const GRAND_STAFF_PRINT_GAP: f32 = 8.0;
+const GRAND_STAFF_PRINT_GAP: f32 = 9.0;
 const MULTIVERSE_PRINT_STAFF_GAP: f32 = 9.0;
 const PREFERRED_STAFF_SPACE_MM: f32 = 1.7;
 const MIN_STAFF_SPACE_MM: f32 = 1.1;
