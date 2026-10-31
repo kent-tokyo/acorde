@@ -50,15 +50,17 @@ enum Action {
 impl Action {
     fn priority(self) -> u8 {
         match self {
-            Self::Pedal { down: true, .. } => 0,
-            Self::NoteOff { .. } => 1,
-            Self::Pedal { down: false, .. } => 2,
+            // A pedal change at one frame releases the old pedal before
+            // pressing it again; the new pedal then catches note-offs here.
+            Self::Pedal { down: false, .. } => 0,
+            Self::Pedal { down: true, .. } => 1,
+            Self::NoteOff { .. } => 2,
             Self::Controller {
                 controller: 64,
                 value,
                 ..
-            } if value >= 64 => 0,
-            Self::Controller { controller: 64, .. } => 2,
+            } if value >= 64 => 1,
+            Self::Controller { controller: 64, .. } => 0,
             Self::Controller { .. } | Self::PitchBend { .. } | Self::ProgramChange { .. } => 3,
             Self::NoteOn { .. } => 4,
         }
@@ -713,6 +715,48 @@ mod tests {
                 .sum()
         };
         assert!(gap_energy(&held) > gap_energy(&dry) * 2);
+    }
+
+    #[test]
+    fn full_sf2_repedal_at_one_frame_holds_the_new_note() {
+        let mut score = Score::new("Repedal", 120, 4, 4, 0, 1);
+        let mut first = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        first.pedal_start = true;
+        let mut second = Note::new(Pitch::new(Step::D, 4), Duration::Quarter);
+        second.pedal_end = true;
+        second.pedal_start = true;
+        let mut last = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
+        last.pedal_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![first, second, Note::rest(Duration::Quarter), last];
+        let repedaled_schedule = manifest(&score);
+        assert!(repedaled_schedule.semantic_events.iter().any(|event| {
+            event.frame == 8_000
+                && matches!(
+                    event.kind,
+                    OfflineRenderSemanticEventKind::Pedal { down: true }
+                )
+        }));
+        assert!(repedaled_schedule.semantic_events.iter().any(|event| {
+            event.frame == 8_000
+                && matches!(
+                    event.kind,
+                    OfflineRenderSemanticEventKind::Pedal { down: false }
+                )
+        }));
+        let repedaled = render_offline_wav_full_sf2(&repedaled_schedule, PIANO).unwrap();
+
+        score.parts[0].staves[0].measures[0].voices[0][1].pedal_start = false;
+        let released = render_offline_wav_full_sf2(&manifest(&score), PIANO).unwrap();
+        let gap_energy = |wav: &[u8]| -> i64 {
+            wav[44 + 20_000 * 2..44 + 22_000 * 2]
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|bytes| i64::from(i16::from_le_bytes(*bytes)).abs())
+                .sum()
+        };
+        assert!(gap_energy(&repedaled) > gap_energy(&released) * 2);
     }
 
     #[test]

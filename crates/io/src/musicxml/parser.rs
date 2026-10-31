@@ -339,6 +339,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut figured_bass_figures: Vec<FiguredBassFigure> = Vec::new();
     let mut pending_ottava_start: Option<OttavaKind> = None;
     let mut pending_pedal_start = false;
+    let mut pending_pedal_end = false;
     let mut in_lyric = false;
     // `<extend>` (start, or untyped) under the current lyric: a melisma line follows it.
     let mut lyric_extend = false;
@@ -1321,17 +1322,8 @@ pub(crate) fn parse_musicxml_collecting(
                             });
                         }
                         Some("stop") => {
-                            // The legacy flag marks the same note as the typed stop: the latest one read.
-                            if let Some(address) = last_note_address.as_ref()
-                                && let Some(n) = score.parts[address.part]
-                                    .staves
-                                    .get_mut(address.staff)
-                                    .and_then(|staff| staff.measures.get_mut(address.measure))
-                                    .and_then(|measure| measure.voices.get_mut(address.voice))
-                                    .and_then(|voice| voice.get_mut(address.note))
-                            {
-                                n.pedal_end = true;
-                            }
+                            // The drawn span ends at the preceding note. The
+                            // playback release occurs at the next note's onset.
                             let address = last_note_address.clone().ok_or_else(|| {
                                 Error::Xml("MusicXML pedal stop has no preceding note".into())
                             })?;
@@ -1350,6 +1342,7 @@ pub(crate) fn parse_musicxml_collecting(
                                 address,
                                 tolerated,
                             )?;
+                            pending_pedal_end = true;
                         }
                         _ => {}
                     },
@@ -1432,6 +1425,23 @@ pub(crate) fn parse_musicxml_collecting(
                     .unwrap_or("")
                     .to_string();
                 match tag.as_str() {
+                    "part" => {
+                        // Keep the legacy fallback when a final pedal-up has no
+                        // following note to carry its playback release.
+                        if pending_pedal_end
+                            && let Some(address) = last_note_address.as_ref()
+                            && let Some(note) = score.parts[address.part]
+                                .staves
+                                .get_mut(address.staff)
+                                .and_then(|staff| staff.measures.get_mut(address.measure))
+                                .and_then(|measure| measure.voices.get_mut(address.voice))
+                                .and_then(|voice| voice.get_mut(address.note))
+                        {
+                            note.pedal_end = true;
+                        }
+                        pending_pedal_end = false;
+                        pending_pedal_start = false;
+                    }
                     "glissando" if in_notations => {
                         let text = current_text.trim();
                         if !text.is_empty()
@@ -2850,6 +2860,10 @@ pub(crate) fn parse_musicxml_collecting(
                                         note.pedal_start = true;
                                         pending_pedal_start = false;
                                     }
+                                    if pending_pedal_end {
+                                        note.pedal_end = true;
+                                        pending_pedal_end = false;
+                                    }
                                     if note_slur_start {
                                         note.slur_start = true;
                                     }
@@ -3929,6 +3943,60 @@ mod tests {
         assert_eq!(ottava.ottava_size, Some(15));
         assert_eq!(ottava.ottava_type.as_deref(), Some("down"));
         assert_eq!(by_number(NotationSpannerKind::TrillLine, 6).end.note, 1);
+    }
+
+    #[test]
+    fn pedal_stop_and_start_before_one_note_share_its_onset() {
+        let xml = r#"<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1"><measure number="1">
+    <attributes><divisions>480</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+    <direction><direction-type><pedal type="start"/></direction-type></direction>
+    <note><pitch><step>C</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type></note>
+    <direction><direction-type><pedal type="stop"/></direction-type></direction>
+    <direction><direction-type><pedal type="start"/></direction-type></direction>
+    <note><pitch><step>D</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type></note>
+    <note><rest/><duration>480</duration><type>quarter</type></note>
+    <note><pitch><step>E</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type></note>
+    <direction><direction-type><pedal type="stop"/></direction-type></direction>
+  </measure></part>
+</score-partwise>"#;
+        let score = parse_musicxml(xml).unwrap();
+        let notes = &score.parts[0].staves[0].measures[0].voices[0];
+        assert!(notes[0].pedal_start);
+        assert!(!notes[0].pedal_end);
+        assert!(notes[1].pedal_end && notes[1].pedal_start);
+        assert!(notes[3].pedal_end);
+        let spans = score
+            .spanners
+            .iter()
+            .filter(|spanner| spanner.kind == NotationSpannerKind::Pedal)
+            .collect::<Vec<_>>();
+        assert_eq!(spans.len(), 2);
+        assert_eq!((spans[0].start.note, spans[0].end.note), (0, 0));
+        assert_eq!((spans[1].start.note, spans[1].end.note), (1, 3));
+
+        let manifest = acorde_core::build_offline_render_manifest(
+            &score,
+            &acorde_core::PlaybackOptions::default(),
+            &acorde_core::OfflineRenderRequest {
+                sample_rate_hz: 16_000,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let repedal = manifest
+            .semantic_events
+            .iter()
+            .filter(|event| {
+                event.frame == 8_000
+                    && matches!(
+                        event.kind,
+                        acorde_core::OfflineRenderSemanticEventKind::Pedal { .. }
+                    )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(repedal.len(), 2);
     }
 
     #[test]
