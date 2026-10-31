@@ -7,6 +7,7 @@ use acorde_core::Score;
 use acorde_layout::{
     CropMarkPolicy, GlyphResourcePolicy, LayoutConfig, PrintColorPolicy, PrintLayoutError,
     PrintLayoutResult, PublicationTextAlignment, PublicationTextRole, RowLayout, compute_layout,
+    notation_density_units,
 };
 
 use crate::render::{self, PrintRowPlacement};
@@ -284,24 +285,8 @@ pub fn render_print_page_svgs(
         .iter()
         .map(|top| top * PX_PER_MM + top_u * space_px)
         .collect::<Vec<_>>();
-    let full_row_columns = score_layout
-        .rows
-        .iter()
-        .map(|row| row.measure_indices.len())
-        .max()
-        .unwrap_or(1);
-    let row_width_factors = score_layout
-        .rows
-        .iter()
-        .enumerate()
-        .map(|(index, row)| {
-            if score_layout.rows.len() > 1 && index + 1 == score_layout.rows.len() {
-                (row.measure_indices.len() as f32 / full_row_columns as f32).clamp(0.55, 1.0)
-            } else {
-                1.0
-            }
-        })
-        .collect::<Vec<_>>();
+    let row_width_factors =
+        print_row_width_factors(score, &score_layout.rows, first.content_width_mm, space_mm);
     let placement = PrintRowPlacement {
         row_tops_px: &row_tops_px,
         row_width_factors: &row_width_factors,
@@ -367,6 +352,56 @@ pub fn render_print_page_svgs(
         pages.push(svg);
     }
     Ok(pages)
+}
+
+/// Leave a short final line ragged according to its notation demand. A single-line
+/// score is also a final line: stretching a short pickup across A4 greatly changes
+/// note and slur proportions. Earlier full rows remain justified, and a final row
+/// with the same number of columns as those rows keeps their full width.
+fn print_row_width_factors(
+    score: &Score,
+    rows: &[RowLayout],
+    content_width_mm: f32,
+    space_mm: f32,
+) -> Vec<f32> {
+    let full_row_columns = rows
+        .iter()
+        .map(|row| row.measure_indices.len())
+        .max()
+        .unwrap_or(1);
+    let row_demand = |row: &RowLayout| {
+        row.measure_indices
+            .iter()
+            .map(|&measure| notation_density_units(score, measure))
+            .sum::<usize>() as f32
+    };
+    let prior_demand = rows
+        .iter()
+        .take(rows.len().saturating_sub(1))
+        .map(row_demand)
+        .fold(0.0_f32, f32::max);
+    let available_spaces = content_width_mm / space_mm;
+    rows.iter()
+        .enumerate()
+        .map(|(index, row)| {
+            if index + 1 != rows.len()
+                || (rows.len() > 1 && row.measure_indices.len() == full_row_columns)
+            {
+                return 1.0;
+            }
+            let demand = row_demand(row);
+            // Six spaces cover the opening clef and closing barline. Two spaces
+            // per notation-demand unit provide clearance at Acorde's smaller
+            // print staff size without making an isolated bar page-wide.
+            let natural = (6.0 + 2.0 * demand) / available_spaces;
+            let relative = if prior_demand > 0.0 {
+                demand / prior_demand
+            } else {
+                0.0
+            };
+            natural.max(relative).clamp(0.08, 1.0)
+        })
+        .collect()
 }
 
 fn write_publication(

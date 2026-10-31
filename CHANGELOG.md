@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Physical print SVG/PDF now keeps a short final system at a notation-demand
+  width, including a one-system score. On a same-input Verovio 6.3.0 A4 probe,
+  Acorde's one-bar staff shrank from 176.6 to 24.5 mm versus Verovio's 22.0 mm;
+  a dense final bar still receives a full line.
 - A partially authored beam now carries its explicit stem direction to the
   unmarked notes in the group. Same-input Verovio 6.3.0 probes with upper and
   lower two-note slurs match the resulting up/down stem and opposite-side slur
