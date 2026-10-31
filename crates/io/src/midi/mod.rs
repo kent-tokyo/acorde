@@ -89,14 +89,27 @@ pub fn parse_midi(data: &[u8]) -> Result<Score, Error> {
         let program_info = extract_program(track);
         let notes = raw;
         let name = track_name(track).unwrap_or_else(|| format!("Track {}", ti + 1));
+        let auxiliary = recognized_auxiliary_channels(track);
         parts_data.push((
             name,
             notes,
             program_info,
-            collect_pitch_bends(track, ppq),
-            collect_control_changes(track, ppq),
-            collect_program_changes(track, ppq),
-            collect_aftertouch(track, ppq),
+            collect_pitch_bends(track, ppq)
+                .into_iter()
+                .filter(|event| !auxiliary[usize::from(event.channel)])
+                .collect(),
+            collect_control_changes(track, ppq)
+                .into_iter()
+                .filter(|event| !auxiliary[usize::from(event.channel)])
+                .collect(),
+            collect_program_changes(track, ppq)
+                .into_iter()
+                .filter(|event| !auxiliary[usize::from(event.channel)])
+                .collect(),
+            collect_aftertouch(track, ppq)
+                .into_iter()
+                .filter(|event| !auxiliary[usize::from(event.channel)])
+                .collect(),
         ));
     }
 
@@ -155,6 +168,80 @@ pub fn parse_midi(data: &[u8]) -> Result<Score, Error> {
     }
 
     Ok(score)
+}
+
+/// Suppress only automation that exactly mirrors an authored channel and is
+/// marked as Acorde's auxiliary voice. A foreign or edited marker cannot hide
+/// an independently authored controller stream.
+fn recognized_auxiliary_channels(track: &[midly::TrackEvent<'_>]) -> [bool; 16] {
+    let mut pairs = [None; 16];
+    let mut pair_count = 0;
+    for event in track {
+        let TrackEventKind::Meta(MetaMessage::SequencerSpecific(marker)) = event.kind else {
+            continue;
+        };
+        if marker.len() != serialize::AUX_MARKER_LEN || !marker.starts_with(serialize::AUX_PREFIX) {
+            continue;
+        }
+        let base = marker[serialize::AUX_PREFIX.len()];
+        let spare = marker[serialize::AUX_PREFIX.len() + 1];
+        if base >= 16 || spare >= 16 || base == spare {
+            continue;
+        }
+        match pairs[usize::from(spare)] {
+            Some(previous) if previous != base => return [false; 16],
+            Some(_) => {}
+            None => {
+                pairs[usize::from(spare)] = Some(base);
+                pair_count += 1;
+                if pair_count > 15 {
+                    return [false; 16];
+                }
+            }
+        }
+    }
+    if pairs
+        .iter()
+        .flatten()
+        .any(|&base| pairs[usize::from(base)].is_some())
+    {
+        return [false; 16];
+    }
+    let mut auxiliary = [false; 16];
+    for (spare, base) in pairs.into_iter().enumerate() {
+        if let Some(base) = base {
+            auxiliary[spare] = mirrored_automation(track, base, spare as u8);
+        }
+    }
+    auxiliary
+}
+
+fn mirrored_automation(track: &[midly::TrackEvent<'_>], base: u8, spare: u8) -> bool {
+    let mut tick = 0_u64;
+    let mut base_events = Vec::new();
+    let mut spare_events = Vec::new();
+    for event in track {
+        tick += u64::from(event.delta.as_int());
+        let TrackEventKind::Midi { channel, message } = event.kind else {
+            continue;
+        };
+        if !matches!(
+            message,
+            MidiMessage::ProgramChange { .. }
+                | MidiMessage::PitchBend { .. }
+                | MidiMessage::Controller { .. }
+                | MidiMessage::Aftertouch { .. }
+                | MidiMessage::ChannelAftertouch { .. }
+        ) {
+            continue;
+        }
+        if channel.as_int() == base {
+            base_events.push((tick, message));
+        } else if channel.as_int() == spare {
+            spare_events.push((tick, message));
+        }
+    }
+    base_events == spare_events
 }
 
 /// Report MIDI channel events that have no canonical `Score` representation.
@@ -833,53 +920,12 @@ mod tests {
 
         let reparsed = parse_midi(&serialize_midi(&score).expect("generated MIDI serializes"))
             .expect("serialized generated MIDI reparses");
-        // An overlapping unison is exported on a spare channel. Its control
-        // stream is mirrored there so both notes retain the same expression.
+        assert_eq!(reparsed.parts[0].midi_pitch_bends, part.midi_pitch_bends);
         assert_eq!(
-            reparsed.parts[0]
-                .midi_pitch_bends
-                .iter()
-                .filter(|bend| bend.channel == 0)
-                .cloned()
-                .collect::<Vec<_>>(),
-            part.midi_pitch_bends
-        );
-        assert_eq!(
-            reparsed.parts[0]
-                .midi_control_changes
-                .iter()
-                .filter(|control| control.channel == 0)
-                .cloned()
-                .collect::<Vec<_>>(),
+            reparsed.parts[0].midi_control_changes,
             part.midi_control_changes
         );
-        assert_eq!(
-            reparsed.parts[0]
-                .midi_aftertouch
-                .iter()
-                .filter(|aftertouch| aftertouch.channel == 0)
-                .cloned()
-                .collect::<Vec<_>>(),
-            part.midi_aftertouch
-        );
-        assert!(
-            reparsed.parts[0]
-                .midi_pitch_bends
-                .iter()
-                .any(|bend| bend.channel == 1)
-        );
-        assert!(
-            reparsed.parts[0]
-                .midi_control_changes
-                .iter()
-                .any(|control| control.channel == 1)
-        );
-        assert!(
-            reparsed.parts[0]
-                .midi_aftertouch
-                .iter()
-                .any(|aftertouch| aftertouch.channel == 1)
-        );
+        assert_eq!(reparsed.parts[0].midi_aftertouch, part.midi_aftertouch);
     }
 
     #[test]

@@ -8,6 +8,27 @@ use midly::{
 use std::collections::BTreeSet;
 
 const PPQ: u32 = 480;
+pub(super) const AUX_PREFIX: &[u8] = b"ACRD1";
+pub(super) const AUX_MARKER_LEN: usize = AUX_PREFIX.len() + 2;
+const AUX_CHANNEL_MARKERS: [[[u8; AUX_MARKER_LEN]; 16]; 16] = {
+    let mut markers = [[[0; AUX_MARKER_LEN]; 16]; 16];
+    let mut base = 0;
+    while base < 16 {
+        let mut spare = 0;
+        while spare < 16 {
+            let mut index = 0;
+            while index < AUX_PREFIX.len() {
+                markers[base][spare][index] = AUX_PREFIX[index];
+                index += 1;
+            }
+            markers[base][spare][AUX_PREFIX.len()] = base as u8;
+            markers[base][spare][AUX_PREFIX.len() + 1] = spare as u8;
+            spare += 1;
+        }
+        base += 1;
+    }
+    markers
+};
 
 /// Serialize a [`Score`] to Standard MIDI File (SMF Type 1) bytes.
 ///
@@ -515,7 +536,7 @@ fn build_part_track(
         events[pair.off_event].channel = u4::from(assigned);
         last_off.insert((assigned, pair.pitch), end);
     }
-    for spare in spare_channels {
+    for &spare in &spare_channels {
         for message in &base_messages {
             let mut copy = message.clone();
             copy.channel = u4::from(spare);
@@ -526,7 +547,16 @@ fn build_part_track(
     // NoteOff (sort_key=0) before NoteOn (sort_key=1) at the same tick
     events.sort_by_key(|e| (e.abs_tick, e.sort_key));
 
-    let mut track: Vec<TrackEvent<'static>> = Vec::with_capacity(events.len() + 1);
+    let mut track: Vec<TrackEvent<'static>> =
+        Vec::with_capacity(events.len() + spare_channels.len() + 1);
+    for spare in spare_channels {
+        track.push(TrackEvent {
+            delta: u28::from(0u32),
+            kind: TrackEventKind::Meta(MetaMessage::SequencerSpecific(
+                &AUX_CHANNEL_MARKERS[channel.as_int() as usize][spare as usize],
+            )),
+        });
+    }
     let mut prev: u64 = 0;
     for ev in events {
         track.push(TrackEvent {
@@ -912,7 +942,7 @@ mod tests {
         score.parts.push(other);
 
         let bytes = serialize_midi(&score).unwrap();
-        let smf = Smf::parse(&bytes).unwrap();
+        let mut smf = Smf::parse(&bytes).unwrap();
         let mut tick = 0_u64;
         let mut notes = Vec::new();
         let mut spare_program = false;
@@ -949,6 +979,32 @@ mod tests {
             ]
         );
         assert!(spare_program && spare_volume);
+        let restored = crate::parse_midi(&bytes).unwrap();
+        assert_eq!(
+            restored.parts[0].midi_control_changes,
+            score.parts[0].midi_control_changes
+        );
+        assert_eq!(restored.parts[0].midi_program, score.parts[0].midi_program);
+        for event in &mut smf.tracks[1] {
+            if let TrackEventKind::Midi {
+                channel,
+                message: MidiMessage::Controller { controller, value },
+            } = &mut event.kind
+                && channel.as_int() == 2
+                && controller.as_int() == 7
+            {
+                *value = u7::from(91);
+            }
+        }
+        let mut edited = Vec::new();
+        smf.write_std(&mut edited).unwrap();
+        let independently_edited = crate::parse_midi(&edited).unwrap();
+        assert!(
+            independently_edited.parts[0]
+                .midi_control_changes
+                .iter()
+                .any(|control| control.channel == 2 && control.value == 91)
+        );
     }
 
     #[test]
@@ -1026,6 +1082,29 @@ mod tests {
         }
         assert_eq!(expected.values().sum::<usize>(), 579);
         assert_eq!(actual, expected);
+        let restored = crate::parse_midi(&bytes).unwrap();
+        let reexported = serialize_midi(&restored).unwrap();
+        let automation_count = |data: &[u8]| {
+            let midi = Smf::parse(data).unwrap();
+            midi.tracks
+                .iter()
+                .flat_map(|track| track.iter())
+                .filter(|event| {
+                    matches!(
+                        event.kind,
+                        TrackEventKind::Midi {
+                            message: MidiMessage::Controller { .. }
+                                | MidiMessage::PitchBend { .. }
+                                | MidiMessage::ProgramChange { .. }
+                                | MidiMessage::Aftertouch { .. }
+                                | MidiMessage::ChannelAftertouch { .. },
+                            ..
+                        }
+                    )
+                })
+                .count()
+        };
+        assert_eq!(automation_count(&reexported), automation_count(&bytes));
     }
 
     #[test]

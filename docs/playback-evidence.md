@@ -447,16 +447,20 @@ from Acorde's own playback schedule by 0.5 beat.
 The exporter now puts a colliding attack on a spare channel that is not used by
 another authored part or control stream. It mirrors that part's program,
 pitch-bend, controller and aftertouch messages. The revised MIDI SHA-256 is
-`4a0ff3442928b3309a67d3f303a1fbf28ed4c88a80055a2f8fac1b388cd7b3a2`.
+`94ad48e9300f1655903a2174c48a0dcf81eee9dd5c43f30ed81fe2c5832a51d9`.
 The same FIFO comparison reports **579/579** matching pitch-and-beat attacks,
 **0** duration differences over 0.01 beat, and at most **0.110 ms** onset-time
 difference from MIDI tempo quantization. It reports eight duration differences
 against the pre-change MIDI (SHA-256
 `a26c8e9daf965408197e4898e5e96a9fc7342a7d67819f323a15c2fc2f631092`).
-MIDI reimport sees the mirrored automation as additional events on auxiliary
-channels; the original channel's automation remains unchanged. If all 15
-pitched channels are occupied, export fails explicitly rather than emitting
-ambiguous overlapping note-offs.
+The exported track marks each auxiliary channel. On reimport, Acorde suppresses
+its extra score automation only when that channel's events exactly mirror the
+original. An edited or foreign marker cannot hide a distinct control stream.
+Other MIDI readers still receive the mirrored events needed for playback. If
+all 15 pitched channels are occupied, export fails explicitly rather than
+emitting ambiguous overlapping note-offs. On this fixture, reimport and a
+second export retain 579 note-ons, 579 note-offs, six controller events and
+three program changes; these counts no longer grow.
 
 alphaTab 1.8.4's MIDI export of this same MXL (SHA-256
 `a46691fe284051a3cdb3d6f66588f68e06dd746b7aff8ccc11d24481aea283b8`)

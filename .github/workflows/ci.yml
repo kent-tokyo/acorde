@@ -182,8 +182,8 @@ jobs:
           # 5,977,433 bytes in CI. The repeated print-direction lane adds
           # 1,189 bytes to the macOS WASM artifact. The 9/8 accompaniment
           # change measures 5,991,322 bytes on Linux. Independent MIDI voice
-          # channels measure 5,995,876 bytes locally; retain a narrow cap.
-          test "$size" -le 6002000
+          # channels and safe reimport measure 6,000,733 bytes locally; retain a narrow cap.
+          test "$size" -le 6006000
 
   renderer-benchmark:
     name: Renderer performance budget
