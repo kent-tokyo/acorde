@@ -5282,6 +5282,42 @@ fn mscx_keeps_every_part_of_a_multi_part_score() {
 
 #[cfg(feature = "mscz")]
 #[test]
+fn musicxml_grace_remains_a_playback_attack_after_mscz_round_trip() {
+    // Small public-domain-style piano excerpt with the same rhythmic shape as the
+    // two grace passages in Mutopia Chopin Prelude Op. 28 No. 4 (ID 468).
+    let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<score-partwise version="4.0">
+  <work><work-title>Grace timing</work-title></work>
+  <movement-title>Grace timing</movement-title>
+  <identification><creator type="composer">Test</creator></identification>
+  <defaults/>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1"><measure number="1">
+    <attributes><divisions>96</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>
+    <note><pitch><step>F</step><alter>1</alter><octave>4</octave></pitch><duration>288</duration><type>half</type><dot/></note>
+    <note><grace/><pitch><step>B</step><octave>4</octave></pitch><type>eighth</type></note>
+    <note><pitch><step>A</step><octave>4</octave></pitch><duration>96</duration><type>quarter</type></note>
+  </measure></part>
+</score-partwise>"#;
+    let score = parse_musicxml(xml).expect("MusicXML parses");
+    let mscz = acorde_io::serialize_mscz(&score).expect("MSCZ exports");
+    let restored = acorde_io::parse_mscz(&mscz).expect("MSCZ imports");
+    assert!(restored.parts[0].staves[0].measures[0].voices[0][1].is_grace);
+    let events = acorde_core::to_playback_events(&restored, &Default::default());
+    assert_eq!(
+        events
+            .iter()
+            .map(|event| event.pitch_midi)
+            .collect::<Vec<_>>(),
+        vec![66, 71, 69]
+    );
+    assert!((events[0].duration_beats - 2.875).abs() < 1e-9);
+    assert!((events[1].time_beats - 2.875).abs() < 1e-9);
+    assert!((events[2].time_beats - 3.0).abs() < 1e-9);
+}
+
+#[cfg(feature = "mscz")]
+#[test]
 fn mscx_round_trips_tuplets_graces_fermatas_ornaments_repeats_voltas_and_chords() {
     use acorde_core::{
         Articulation, Barline, ChordSymbol, Duration, Note, Pitch, Score, Step, TupletInfo,

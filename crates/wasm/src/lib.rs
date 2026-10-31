@@ -2668,7 +2668,11 @@ mod tests {
 
         let events =
             acorde_core::to_playback_events(&restored, &acorde_core::PlaybackOptions::default());
-        assert_eq!(events.len(), 2, "grace note is excluded and chord expands");
+        assert_eq!(events.len(), 3, "written grace sounds and chord expands");
+        assert_eq!(events[0].source.as_ref().map(|source| source.note), Some(0));
+        assert_eq!(events[0].time_beats, 0.0);
+        assert_eq!(events[1].time_beats, 0.125);
+        assert_eq!(events[2].time_beats, 0.125);
         assert!(
             events
                 .iter()
