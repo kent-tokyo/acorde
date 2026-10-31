@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- `audio-render --realize-ornaments` now uses the opt-in deterministic ornament
+  schedule for WAV output. Realized attacks no longer carry the ornament mark
+  as an unsupported, unrendered instruction; other articulations remain.
+  The pinned Chopin Prelude now exports a complete full-SF2 WAV with 603 events.
 - Playback now sounds written grace notes before the following main note, borrowing
   a bounded slice from the preceding rhythmic slot (or the main note at the
   beginning of playback). MusicXML-to-MSCZ round trips preserve those attacks.

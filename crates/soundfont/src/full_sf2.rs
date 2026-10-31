@@ -585,6 +585,53 @@ mod tests {
     }
 
     #[test]
+    fn full_sf2_renders_opt_in_turn_realization() {
+        let mut score = Score::new("Turn", 120, 4, 4, 0, 1);
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        note.articulations.push(Articulation::Turn);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let schedule = build_offline_render_manifest(
+            &score,
+            &PlaybackOptions {
+                realization_profile: acorde_core::PlaybackRealizationProfile::OrnamentArpeggioV1,
+                ..Default::default()
+            },
+            &OfflineRenderRequest {
+                sample_rate_hz: 16_000,
+                channels: 1,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(schedule.events.len(), 4);
+        let wav = render_offline_wav_full_sf2(&schedule, PIANO).expect("realized turn renders");
+        assert!(wav[44..].iter().any(|byte| *byte != 0));
+
+        score.parts[0].staves[0].measures[0].voices[0][0]
+            .articulations
+            .push(Articulation::Trill);
+        let ambiguous = build_offline_render_manifest(
+            &score,
+            &PlaybackOptions {
+                realization_profile: acorde_core::PlaybackRealizationProfile::OrnamentArpeggioV1,
+                ..Default::default()
+            },
+            &OfflineRenderRequest {
+                sample_rate_hz: 16_000,
+                channels: 1,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            render_offline_wav_full_sf2(&ambiguous, PIANO),
+            Err(Error::UnsupportedOfflineFeature(
+                "unrealized note expression"
+            ))
+        );
+    }
+
+    #[test]
     fn full_sf2_rejects_out_of_range_sample_rate() {
         let mut score = Score::new("Rate", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].voices[0] =
