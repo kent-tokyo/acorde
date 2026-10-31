@@ -447,7 +447,7 @@ from Acorde's own playback schedule by 0.5 beat.
 The exporter now puts a colliding attack on a spare channel that is not used by
 another authored part or control stream. It mirrors that part's program,
 pitch-bend, controller and aftertouch messages. The revised MIDI SHA-256 is
-`94ad48e9300f1655903a2174c48a0dcf81eee9dd5c43f30ed81fe2c5832a51d9`.
+`6f92936d0826714280c3cf2ccd0fbabac68f7560e656f6009dcc96d94631b809`.
 The same FIFO comparison reports **579/579** matching pitch-and-beat attacks,
 **0** duration differences over 0.01 beat, and at most **0.110 ms** onset-time
 difference from MIDI tempo quantization. It reports eight duration differences

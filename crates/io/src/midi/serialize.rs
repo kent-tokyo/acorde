@@ -252,7 +252,7 @@ fn build_meta_track<'a>(
 #[derive(Clone)]
 struct TimedEvent {
     abs_tick: u64,
-    /// 0 = NoteOff (sort before NoteOn at same tick), 1 = NoteOn
+    /// 0 = NoteOff, 1 = program/controller expression, 2 = NoteOn.
     sort_key: u8,
     channel: u4,
     message: MidiMessage,
@@ -305,7 +305,7 @@ fn build_part_track(
         // Always emit ProgramChange at tick 0 to initialize the channel's timbre.
         events.push(TimedEvent {
             abs_tick: 0,
-            sort_key: 0,
+            sort_key: 1,
             channel,
             message: MidiMessage::ProgramChange {
                 program: u7::from(part.midi_program),
@@ -471,7 +471,7 @@ fn build_part_track(
         let on_event = events.len();
         events.push(TimedEvent {
             abs_tick: note.start_tick,
-            sort_key: 1,
+            sort_key: 2,
             channel,
             message: MidiMessage::NoteOn {
                 key: u7::from(note.pitch),
@@ -544,7 +544,7 @@ fn build_part_track(
         }
     }
 
-    // NoteOff (sort_key=0) before NoteOn (sort_key=1) at the same tick
+    // Release, update expression, then attack at the same tick.
     events.sort_by_key(|e| (e.abs_tick, e.sort_key));
 
     let mut track: Vec<TrackEvent<'static>> =
@@ -919,12 +919,20 @@ mod tests {
     fn overlapping_unison_uses_spare_channel_with_program_and_controls() {
         let mut score = Score::new("unison", 120, 4, 4, 0, 1);
         score.parts[0].midi_program = 21;
-        score.parts[0].midi_control_changes = vec![acorde_core::MidiControlChange {
-            tick: 0,
-            channel: 0,
-            controller: 7,
-            value: 90,
-        }];
+        score.parts[0].midi_control_changes = vec![
+            acorde_core::MidiControlChange {
+                tick: 0,
+                channel: 0,
+                controller: 7,
+                value: 90,
+            },
+            acorde_core::MidiControlChange {
+                tick: 480,
+                channel: 0,
+                controller: 7,
+                value: 70,
+            },
+        ];
         let mut held = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
         held.articulations.push(Articulation::Fermata);
         score.parts[0].staves[0].measures[0].voices[0] = vec![held];
@@ -947,12 +955,17 @@ mod tests {
         let mut notes = Vec::new();
         let mut spare_program = false;
         let mut spare_volume = false;
-        for event in &smf.tracks[1] {
+        let mut spare_attack_index = None;
+        let mut coincident_control_index = None;
+        for (index, event) in smf.tracks[1].iter().enumerate() {
             tick += u64::from(event.delta.as_int());
             if let TrackEventKind::Midi { channel, message } = event.kind {
                 match message {
                     MidiMessage::NoteOn { key, vel } if vel.as_int() > 0 => {
                         notes.push((tick, true, channel.as_int(), key.as_int()));
+                        if tick == 480 && channel.as_int() == 2 {
+                            spare_attack_index = Some(index);
+                        }
                     }
                     MidiMessage::NoteOff { key, .. } => {
                         notes.push((tick, false, channel.as_int(), key.as_int()));
@@ -963,7 +976,10 @@ mod tests {
                     MidiMessage::Controller { controller, value }
                         if channel.as_int() == 2 && controller.as_int() == 7 =>
                     {
-                        spare_volume = value.as_int() == 90;
+                        spare_volume |= value.as_int() == 90;
+                        if tick == 480 && value.as_int() == 70 {
+                            coincident_control_index = Some(index);
+                        }
                     }
                     _ => {}
                 }
@@ -979,6 +995,7 @@ mod tests {
             ]
         );
         assert!(spare_program && spare_volume);
+        assert!(coincident_control_index.unwrap() < spare_attack_index.unwrap());
         let restored = crate::parse_midi(&bytes).unwrap();
         assert_eq!(
             restored.parts[0].midi_control_changes,
