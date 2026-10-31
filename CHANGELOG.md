@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## 1.3.7 - 2026-10-31
+
+- **[breaking for exhaustive Rust source]** `Measure` now has serde-defaulted
+  `time_symbol` and `metronome_mark` fields; `StyledText` has a serde-defaulted
+  beat position. Score diff/patch enums gained corresponding variants.
+  Complete struct literals and exhaustive matches need updating; stored score
+  JSON remains readable.
 - MusicXML now preserves written common-time and cut-time symbols separately
   from the 4/4 and 2/2 rhythmic values. Screen SVG and print PDF draw vector
   meter glyphs, including a change inside a system. The pinned Quilter piano

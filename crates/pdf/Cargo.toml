@@ -14,15 +14,15 @@ keywords = ["music", "notation", "pdf", "sheet-music", "svg"]
 categories = ["multimedia::audio", "rendering"]
 
 [dependencies]
-acorde-core = { path = "../core", version = "1.3.6" }
-acorde-layout = { path = "../layout", version = "1.3.6" }
-acorde-render-svg = { path = "../render-svg", version = "1.3.6" }
+acorde-core = { path = "../core", version = "1.3.7" }
+acorde-layout = { path = "../layout", version = "1.3.7" }
+acorde-render-svg = { path = "../render-svg", version = "1.3.7" }
 harumi = { version = "1.23.7", features = ["svg"] }
 roxmltree = "0.21"
 thiserror = "2"
 
 [dev-dependencies]
-acorde-io = { path = "../io", version = "1.3.6" }
+acorde-io = { path = "../io", version = "1.3.7" }
 
 [lints]
 workspace = true
