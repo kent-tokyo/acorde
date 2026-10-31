@@ -3386,6 +3386,39 @@ fn append_musicxml_gap_rests(
             voice.push(rest);
             break;
         }
+        // Preserve other exactly representable fractional gaps using a hidden
+        // tuplet rest. Choose the shortest usable base and never round ticks.
+        let exact_canonical = candidates.iter().any(|(_, base)| *base == Some(ticks));
+        let fractional = if exact_canonical {
+            None
+        } else {
+            candidates.iter().rev().find_map(|(duration, base)| {
+                let base = (*base)?;
+                if base <= ticks {
+                    return None;
+                }
+                let (mut a, mut b) = (base, ticks);
+                while b != 0 {
+                    (a, b) = (b, a % b);
+                }
+                let actual = u8::try_from(base / a).ok()?;
+                let normal = u8::try_from(ticks / a).ok()?;
+                Some((duration.clone(), actual, normal))
+            })
+        };
+        if let Some((duration, actual_notes, normal_notes)) = fractional {
+            if voice.len() >= MAX_NOTES_PER_VOICE {
+                return Err(Error::Xml("too many notes in voice".into()));
+            }
+            let mut rest = Note::rest(duration);
+            rest.hidden = true;
+            rest.tuplet = Some(TupletInfo {
+                actual_notes,
+                normal_notes,
+            });
+            voice.push(rest);
+            break;
+        }
         let mut selected = None;
         for (duration, duration_ticks) in &candidates {
             if let Some(duration_ticks) = duration_ticks
@@ -3653,8 +3686,9 @@ mod tests {
     #[test]
     fn forward_gap_never_uses_truncated_tick_durations() {
         let mut notes = Vec::new();
-        assert!(append_musicxml_gap_rests(&mut notes, 1, 10).is_err());
-        assert!(notes.is_empty());
+        append_musicxml_gap_rests(&mut notes, 1, 10).unwrap();
+        assert_eq!(notes.len(), 1);
+        assert!((notes[0].beats() - 0.1).abs() < 1e-9);
     }
 
     #[test]
