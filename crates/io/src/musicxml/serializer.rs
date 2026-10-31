@@ -1,3 +1,4 @@
+use super::initial_mix_controller;
 use crate::Error;
 use acorde_core::{
     AccidentalDisplay, Articulation, Barline, BeamState, Duration, GuitarTechnique, HairpinKind,
@@ -128,6 +129,18 @@ fn serialize_musicxml_inner(
             "        <midi-program>{}</midi-program>\n",
             part.midi_program + 1
         ));
+        if let Some((_, value)) = initial_mix_controller(part, 7) {
+            xml.push_str(&format!(
+                "        <volume>{}</volume>\n",
+                f64::from(value) * 100.0 / 127.0
+            ));
+        }
+        if let Some((_, value)) = initial_mix_controller(part, 10) {
+            xml.push_str(&format!(
+                "        <pan>{}</pan>\n",
+                f64::from(value) * 180.0 / 127.0 - 90.0
+            ));
+        }
         xml.push_str("      </midi-instrument>\n");
         for instrument in &part.percussion_instruments {
             // MusicXML numbers percussion keys from 1; the model holds the 0-based GM key.

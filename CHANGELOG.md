@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- MusicXML/MXL now imports each part's initial MIDI volume and front-hemisphere pan into
+  CC7/CC10. These settings reach MIDI export and full-SF2 stereo audio and survive MusicXML
+  roundtrip at seven-bit controller precision. Rear-hemisphere pan is reported as an import
+  loss because MIDI pan cannot encode it. The pinned *Aloha Oe* render now has distinct left
+  and right channels; this is a fixed-score correction, not a general audio-quality ranking.
 - MusicXML import now keeps later and repeated direction words within one measure, including
   both `L.H.` marks and `poco cresc.` in the pinned Quilter piano score. Print rendering reserves
   a text lane between those grand staves and keeps below-staff words clear of noteheads.
