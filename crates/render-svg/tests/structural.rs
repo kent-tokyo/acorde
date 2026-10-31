@@ -4051,6 +4051,74 @@ fn single_voice_stems_follow_the_middle_line_rule_unless_authored() {
 }
 
 #[test]
+fn a_partial_authored_beam_stem_sets_the_whole_groups_direction() {
+    let xml = include_str!("fixtures/verovio_partial_stem_slur.musicxml");
+    let check = |xml: &str, expected_up: bool| {
+        let score = acorde_io::parse_musicxml(xml).expect("partial-stem MusicXML");
+        let svg = render_svg(&score, &opts()).expect("beam and slur render");
+        let stem_up: Vec<bool> = svg
+            .split(r#"class="acorde-stem" x1=""#)
+            .skip(1)
+            .map(|fragment| {
+                let y = |name: &str| -> f32 {
+                    fragment
+                        .split(&format!(r#"{name}=""#))
+                        .nth(1)
+                        .unwrap()
+                        .split('"')
+                        .next()
+                        .unwrap()
+                        .parse()
+                        .unwrap()
+                };
+                y("y2") < y("y1")
+            })
+            .collect();
+        assert_eq!(stem_up, vec![expected_up; 2]);
+        let bow = slur_geometries(&svg)[0];
+        let heads = notehead_centers(&svg);
+        if expected_up {
+            assert!(bow[1] > heads[0].1 && bow[5] > heads[1].1);
+        } else {
+            assert!(bow[1] < heads[0].1 && bow[5] < heads[1].1);
+        }
+    };
+    check(xml, true);
+    let last_up = xml
+        .replace(
+            "<stem>up</stem><beam number=\"1\">begin</beam>",
+            "<beam number=\"1\">begin</beam>",
+        )
+        .replace(
+            "<beam number=\"1\">end</beam>",
+            "<stem>up</stem><beam number=\"1\">end</beam>",
+        );
+    check(&last_up, true);
+    let down = xml
+        .replace(
+            "<step>E</step><octave>5</octave>",
+            "<step>C</step><octave>4</octave>",
+        )
+        .replace(
+            "<step>F</step><octave>5</octave>",
+            "<step>D</step><octave>4</octave>",
+        )
+        .replace("<stem>up</stem>", "<stem>down</stem>");
+    check(&down, false);
+    let last_down = last_up
+        .replace(
+            "<step>E</step><octave>5</octave>",
+            "<step>C</step><octave>4</octave>",
+        )
+        .replace(
+            "<step>F</step><octave>5</octave>",
+            "<step>D</step><octave>4</octave>",
+        )
+        .replace("<stem>up</stem>", "<stem>down</stem>");
+    check(&last_down, false);
+}
+
+#[test]
 fn hidden_notes_and_rests_keep_their_place_but_draw_nothing() {
     use acorde_core::{Duration, Note, Pitch, Score, Step};
     let mut score = Score::new("hidden", 120, 4, 4, 0, 1);

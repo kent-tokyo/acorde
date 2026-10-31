@@ -2019,7 +2019,10 @@ fn content_margins(
             .filter(|voice| voice.iter().any(|note| !note.is_rest))
             .count();
         let voice_stem_up = active_voices <= 1 || group.voice.is_multiple_of(2);
-        let stem_up = notes[valid_indices[0]].stem_up.unwrap_or(voice_stem_up);
+        let stem_up = valid_indices
+            .iter()
+            .find_map(|&index| notes[index].stem_up)
+            .unwrap_or(voice_stem_up);
         let attach_ys: Vec<f32> = valid_indices
             .iter()
             .map(|&index| {
@@ -3987,13 +3990,29 @@ fn auto_stem_directions(
             .copied()
             .filter(|&index| index < notes.len() && !notes[index].is_rest)
             .collect();
-        if members.is_empty() || members.iter().any(|&index| !open(&notes[index])) {
+        if members.is_empty()
+            || members
+                .iter()
+                .any(|&index| notes[index].stem_up.is_none() && !open(&notes[index]))
+        {
             continue;
         }
-        let all: Vec<i32> = members.iter().flat_map(|&index| positions(index)).collect();
-        let direction = stem_up_for_positions(&all);
+        let authored = members
+            .iter()
+            .filter_map(|&index| notes[index].stem_up)
+            .collect::<Vec<_>>();
+        if authored.iter().any(|&up| up != authored[0]) {
+            // Explicit mixed directions may describe a cross-staff or kneed beam.
+            continue;
+        }
+        let direction = authored.first().copied().or_else(|| {
+            let all: Vec<i32> = members.iter().flat_map(|&index| positions(index)).collect();
+            stem_up_for_positions(&all)
+        });
         for index in members {
-            directions[index] = direction;
+            if open(&notes[index]) {
+                directions[index] = direction;
+            }
         }
     }
     notes

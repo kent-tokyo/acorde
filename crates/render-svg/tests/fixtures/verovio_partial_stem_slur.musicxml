@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE score-partwise  PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="4.0">
+  <work><work-title>Stem and slur reference</work-title></work>
+  <movement-title>Stem and slur reference</movement-title>
+  <identification><creator type="composer">Acorde test</creator></identification>
+  <defaults><scaling><millimeters>7</millimeters><tenths>40</tenths></scaling></defaults>
+  <part-list><score-part id="P1"><part-name>Piano</part-name><part-abbreviation>Pno.</part-abbreviation><score-instrument id="I1"><instrument-name>Piano</instrument-name></score-instrument><midi-instrument id="I1"><midi-channel>1</midi-channel><midi-program>1</midi-program></midi-instrument></score-part></part-list>
+  <part id="P1"><measure implicit="no" number="1">
+    <attributes><divisions>10080</divisions><key><fifths>0</fifths></key><time><beats>1</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>
+    <note default-x="100"><pitch><step>E</step><octave>5</octave></pitch><duration>5040</duration><type>eighth</type><stem>up</stem><beam number="1">begin</beam><notations><slur number="1" type="start"/></notations></note>
+    <note default-x="150"><pitch><step>F</step><octave>5</octave></pitch><duration>5040</duration><type>eighth</type><beam number="1">end</beam><notations><slur number="1" type="stop"/></notations></note>
+  </measure></part>
+</score-partwise>
