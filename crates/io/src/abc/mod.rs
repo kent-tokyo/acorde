@@ -332,7 +332,8 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
             close_abc_volta_spans(staff);
         }
     }
-    // Pad last measure
+    // Finish a final bar even when the source omits its closing barline. A short
+    // cadence has its own written length and must not acquire synthetic rests.
     let beats = time.total_beats();
     for part in &mut score.parts {
         if let Some(m) = part
@@ -340,7 +341,7 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
             .first_mut()
             .and_then(|staff| staff.measures.last_mut())
         {
-            pad_voice(&mut m.voices[0], beats);
+            finish_abc_measure(m, beats);
         }
     }
 
@@ -941,15 +942,7 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
                 continue;
             }
             if let Some(m) = staff.measures.last_mut() {
-                let used: f64 = m.voices[0].iter().map(Note::beats).sum();
-                // A barline ends the actual bar, including internal pickups and short
-                // cadences before a section boundary.
-                if used > 1e-9 && used < time.total_beats() - 1e-9 {
-                    m.actual_length = acorde_core::MeasureLength::from_beats(used);
-                }
-                if m.actual_length.is_none() {
-                    pad_voice(&mut m.voices[0], time.total_beats());
-                }
+                finish_abc_measure(m, time.total_beats());
                 m.barline_right = right_barline;
             }
             // The next bar opens here even at the end of a line (a tune's next line continues
@@ -1904,6 +1897,18 @@ fn parse_duration_suffix(chars: &[char], mut i: usize) -> (u32, u32, usize) {
         }
     }
     (num, den, i)
+}
+
+fn finish_abc_measure(measure: &mut Measure, beats: f64) {
+    let used: f64 = measure.voices[0].iter().map(Note::beats).sum();
+    // A written short bar, including a pickup or closing cadence, has no
+    // implicit rests. Keep the older padding behavior for an empty bar.
+    if used > 1e-9 && used < beats - 1e-9 {
+        measure.actual_length = acorde_core::MeasureLength::from_beats(used);
+    }
+    if measure.actual_length.is_none() {
+        pad_voice(&mut measure.voices[0], beats);
+    }
 }
 
 fn pad_voice(voice: &mut Vec<Note>, max_beats: f64) {
@@ -3108,12 +3113,9 @@ C D E F | G A B c |";
         let score = parse_abc(abc).expect("parses beam boundaries");
         let notes = &score.parts[0].staves[0].measures[0].voices[0];
 
+        assert_eq!(notes.len(), 9, "short written bar has no padding rest");
         assert_eq!(
-            notes
-                .iter()
-                .take(10)
-                .map(|note| note.beam)
-                .collect::<Vec<_>>(),
+            notes.iter().map(|note| note.beam).collect::<Vec<_>>(),
             vec![
                 BeamState::Begin,
                 BeamState::Continue,
@@ -3124,7 +3126,6 @@ C D E F | G A B c |";
                 BeamState::None,
                 BeamState::Begin,
                 BeamState::End,
-                BeamState::None,
             ]
         );
     }

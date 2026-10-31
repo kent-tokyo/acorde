@@ -46,6 +46,95 @@ fn notehead_centers(svg: &str) -> Vec<(f32, f32)> {
         .collect()
 }
 
+fn marcato_paths(svg: &str) -> Vec<[f32; 6]> {
+    svg.split(r#"class="acorde-articulation acorde-accent acorde-marcato" d=""#)
+        .skip(1)
+        .map(|fragment| {
+            fragment
+                .split('"')
+                .next()
+                .unwrap()
+                .split(['M', 'L', ',', ' '])
+                .filter_map(|value| value.parse::<f32>().ok())
+                .collect::<Vec<_>>()
+                .try_into()
+                .expect("three-point marcato path")
+        })
+        .collect()
+}
+
+#[test]
+fn issue_218_marcato_apex_follows_staff_placement_for_both_stem_directions() {
+    use acorde_core::{Articulation, Duration, Note, Pitch, Score, Step};
+
+    let score = acorde_io::parse_abc(
+        "X:1\nM:4/4\nL:1/4\nK:C\n!marcato!C !marcato!c !marcato!C !marcato!c |]",
+    )
+    .expect("ABC marcato parses");
+    let voice = &score.parts[0].staves[0].measures[0].voices[0];
+    assert!(
+        voice
+            .iter()
+            .all(|note| note.articulations == [Articulation::Marcato])
+    );
+    let svg = render_svg(&score, &opts()).expect("marcato renders");
+    let paths = marcato_paths(&svg);
+    let heads = notehead_centers(&svg);
+    assert_eq!(paths.len(), 4);
+    assert_eq!(heads.len(), 4);
+    for (path, head) in paths.iter().zip(&heads) {
+        assert!(
+            path[3] < path[1] && path[3] < path[5],
+            "upward apex: {path:?}"
+        );
+        assert!(path[3] < head.1, "mark stays above its note: {path:?}");
+    }
+    // The fixture exercises both directions, independently of the mark's placement.
+    let stem_directions = svg
+        .split(r#"class="acorde-stem" x1=""#)
+        .skip(1)
+        .map(|fragment| {
+            let y1 = fragment.split(r#"" y1=""#).nth(1).unwrap();
+            let y2 = y1.split(r#"" x2=""#).nth(1).unwrap();
+            let y2 = y2.split(r#"" y2=""#).nth(1).unwrap();
+            let start: f32 = y1.split('"').next().unwrap().parse().unwrap();
+            let end: f32 = y2.split('"').next().unwrap().parse().unwrap();
+            end.total_cmp(&start)
+        })
+        .collect::<Vec<_>>();
+    assert!(stem_directions.contains(&std::cmp::Ordering::Less));
+    assert!(stem_directions.contains(&std::cmp::Ordering::Greater));
+
+    let mut lower_voice = Score::new("lower-voice marcato", 120, 4, 4, 0, 1);
+    let measure = &mut lower_voice.parts[0].staves[0].measures[0];
+    measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 5), Duration::Whole)];
+    let mut low_note = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+    low_note.articulations.push(Articulation::Marcato);
+    measure.voices[1] = vec![low_note];
+    let below_svg = render_svg(&lower_voice, &opts()).expect("lower voice renders");
+    let below = marcato_paths(&below_svg);
+    assert_eq!(below.len(), 1);
+    assert!(below[0][3] > below[0][1] && below[0][3] > below[0][5]);
+    let lowest_head = notehead_centers(&below_svg)
+        .iter()
+        .map(|head| head.1)
+        .fold(f32::NEG_INFINITY, f32::max);
+    assert!(below[0][3] > lowest_head, "mark stays below its voice");
+}
+
+#[test]
+fn issue_219_abc_short_final_bar_renders_without_padding_rest() {
+    let score = acorde_io::parse_abc("X:1\nM:6/8\nL:1/8\nK:D\nA | D6 | D3-!fermata!D2 |]")
+        .expect("ABC parses");
+    let final_bar = score.parts[0].staves[0].measures.last().unwrap();
+    assert_eq!(final_bar.voices[0].len(), 2);
+    assert!(final_bar.voices[0].iter().all(|note| !note.is_rest));
+    let svg = render_svg(&score, &opts()).expect("short final bar renders");
+    assert!(!svg.contains(r#"class="acorde-rest""#));
+    assert!(svg.contains("acorde-fermata"));
+    assert!(svg.contains("acorde-tie"));
+}
+
 #[test]
 fn single_voice_slurs_attach_outside_heads_opposite_stems() {
     use acorde_core::{Duration, Note, Pitch, Score, Step};

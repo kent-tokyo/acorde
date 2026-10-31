@@ -3691,6 +3691,62 @@ fn musicxml_pickup_and_incomplete_final_bar_keep_their_length() {
     assert_eq!(restored[0].voices[0].len(), 1);
 }
 
+#[cfg(all(feature = "abc", feature = "mscz"))]
+#[test]
+fn abc_short_tied_final_bar_keeps_written_duration_through_mscz() {
+    use acorde_core::{Articulation, MeasureLength};
+
+    for (ending, has_fermata) in [
+        ("D3-D2 |]", false),
+        ("D3-!fermata!D2 |]", true),
+        ("D3-D2", false),
+    ] {
+        let abc = format!("X:1\nM:6/8\nL:1/8\nK:D\nA | D6 | {ending}\n");
+        let score = acorde_io::parse_abc(&abc).expect("ABC parses");
+        let final_bar = score.parts[0].staves[0].measures.last().unwrap();
+        let expected_length = Some(MeasureLength {
+            numerator: 5,
+            denominator: 8,
+        });
+        assert_eq!(final_bar.actual_length, expected_length, "{ending}");
+        let voice = &final_bar.voices[0];
+        assert_eq!(voice.len(), 2, "no synthetic closing rest: {ending}");
+        assert!(voice.iter().all(|note| !note.is_rest), "{ending}");
+        assert!((voice.iter().map(|note| note.beats()).sum::<f64>() - 2.5).abs() < 1e-9);
+        assert!(voice[0].tie_start && voice[1].tie_end, "{ending}");
+        assert_eq!(
+            voice[1].articulations.contains(&Articulation::Fermata),
+            has_fermata,
+            "{ending}"
+        );
+
+        let encoded = acorde_io::serialize_mscz(&score).expect("MSCZ serializes");
+        let restored = acorde_io::parse_mscz(&encoded).expect("MSCZ reparses");
+        let restored_final = restored.parts[0].staves[0].measures.last().unwrap();
+        assert_eq!(restored_final.actual_length, expected_length, "{ending}");
+        assert_eq!(restored_final.voices[0].len(), 2, "{ending}");
+        assert!(restored_final.voices[0].iter().all(|note| !note.is_rest));
+        assert!(
+            (restored_final.voices[0]
+                .iter()
+                .map(|note| note.beats())
+                .sum::<f64>()
+                - 2.5)
+                .abs()
+                < 1e-9
+        );
+        assert!(restored_final.voices[0][0].tie_start);
+        assert!(restored_final.voices[0][1].tie_end);
+        assert_eq!(
+            restored_final.voices[0][1]
+                .articulations
+                .contains(&Articulation::Fermata),
+            has_fermata,
+            "{ending}"
+        );
+    }
+}
+
 #[cfg(feature = "mscz")]
 #[test]
 fn mscx_measure_len_round_trips_as_actual_length() {

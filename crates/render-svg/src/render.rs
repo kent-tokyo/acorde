@@ -7215,7 +7215,7 @@ pub(crate) fn render_articulation(
                 f(y + dir * 0.42 * space)
             );
         }
-        acorde_core::Articulation::Accent | acorde_core::Articulation::Marcato => {
+        acorde_core::Articulation::Accent => {
             let _ = write!(
                 body,
                 r#"<path class="acorde-articulation acorde-accent" d="M {},{} L {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
@@ -7225,6 +7225,20 @@ pub(crate) fn render_articulation(
                 f(y - dir * 0.15 * space),
                 f(x + 0.35 * space),
                 f(y + dir * 0.25 * space),
+                f(0.09 * space)
+            );
+        }
+        acorde_core::Articulation::Marcato => {
+            // The apex points away from the staff: upward above, downward below.
+            let _ = write!(
+                body,
+                r#"<path class="acorde-articulation acorde-accent acorde-marcato" d="M {},{} L {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                f(x - 0.35 * space),
+                f(y - dir * 0.15 * space),
+                f(x),
+                f(y + dir * 0.25 * space),
+                f(x + 0.35 * space),
+                f(y - dir * 0.15 * space),
                 f(0.09 * space)
             );
         }
