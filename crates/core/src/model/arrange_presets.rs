@@ -22,6 +22,9 @@ const MAX_SHUFFLE_CHORDS: usize = 512;
 const MAX_SHUFFLE_POOL: usize = 32;
 const MAX_SHUFFLE_NOTES: usize = 8192;
 const MAX_SHUFFLE_SELECTIONS: usize = 4;
+const LAYER_CONTRACT_VERSION: u16 = 1;
+const LAYER_ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "+arrangement-layers.1");
+const MAX_LAYER_SHUFFLE_COMBINATIONS: usize = 64;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AccordionPresetSelection {
@@ -66,6 +69,53 @@ pub struct AccordionShuffleOptions {
     /// Unsigned 64-bit decimal text; identical input and seed select the same eligible ID.
     pub seed: String,
     pub previous_config: Option<AccordionPresetConfig>,
+}
+
+/// A resolved composition of the supported layers, independent of any built-in preset ID.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AccordionLayerConfig {
+    pub contract_version: u16,
+    pub engine_version: String,
+    pub input_fingerprint: String,
+    pub options: LayeredAccordionOptions,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccordionLayerResult {
+    pub score: Option<Score>,
+    pub resolved_config: Option<AccordionLayerConfig>,
+    pub resolved_chords: Vec<PositionedAccordionChord>,
+    pub diagnostics: Vec<GuidedArrangeDiagnostic>,
+    pub source_notes: Vec<NoteAddr>,
+    pub generated_notes: Vec<NoteAddr>,
+    pub notated_swing: bool,
+    /// The seed is decimal text so JavaScript does not lose 64-bit precision.
+    pub seed: Option<String>,
+    pub contract_version: u16,
+    pub engine_version: String,
+    pub input_fingerprint: String,
+}
+
+/// A prior result can come from the free layer API or a built-in preset.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "config", rename_all = "kebab-case")]
+pub enum AccordionPreviousConfig {
+    Layers(AccordionLayerConfig),
+    Preset(AccordionPresetConfig),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AccordionLayerShuffleOptions {
+    pub selection: AccordionPresetSelection,
+    #[serde(default)]
+    pub alternative_selections: Vec<AccordionPresetSelection>,
+    /// Include `null` to allow no accompaniment layer.
+    pub allowed_accompaniments: Vec<Option<AccordionPattern>>,
+    pub allowed_melodic_voices: Vec<AccordionMelodicVoice>,
+    pub allowed_swing_policies: Vec<AccordionSwingPolicy>,
+    /// Unsigned 64-bit decimal text.
+    pub seed: String,
+    pub previous_config: Option<AccordionPreviousConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -456,7 +506,9 @@ fn splitmix64(mut value: u64) -> u64 {
     value ^ (value >> 31)
 }
 
-fn event_signature(score: &Score) -> Vec<(u8, u64, u64)> {
+type PlaybackSignature = Vec<(u8, u64, u64)>;
+
+fn event_signature(score: &Score) -> PlaybackSignature {
     crate::to_playback_events(score, &Default::default())
         .into_iter()
         .map(|event| {
@@ -623,6 +675,260 @@ pub fn shuffle_accordion_preset(
         .1
         .clone();
     let mut result = arrange_from_resolved_preset(score, selected);
+    result.seed = seed;
+    result
+}
+
+fn layer_error(
+    fingerprint: String,
+    seed: Option<String>,
+    code: &str,
+    message: impl Into<String>,
+) -> AccordionLayerResult {
+    AccordionLayerResult {
+        score: None,
+        resolved_config: None,
+        resolved_chords: Vec::new(),
+        diagnostics: vec![GuidedArrangeDiagnostic {
+            code: code.to_string(),
+            message: message.into(),
+            measure_index: None,
+        }],
+        source_notes: Vec::new(),
+        generated_notes: Vec::new(),
+        notated_swing: false,
+        seed,
+        contract_version: LAYER_CONTRACT_VERSION,
+        engine_version: LAYER_ENGINE_VERSION.to_string(),
+        input_fingerprint: fingerprint,
+    }
+}
+
+fn run_layers(
+    score: &Score,
+    config: AccordionLayerConfig,
+    seed: Option<String>,
+) -> AccordionLayerResult {
+    let result = arrange_with_layers(score, config.options.clone());
+    AccordionLayerResult {
+        score: result.score,
+        resolved_config: Some(config.clone()),
+        resolved_chords: result.resolved_chords,
+        diagnostics: result.diagnostics,
+        source_notes: result.source_notes,
+        generated_notes: result.generated_notes,
+        notated_swing: result.notated_swing,
+        seed,
+        contract_version: LAYER_CONTRACT_VERSION,
+        engine_version: LAYER_ENGINE_VERSION.to_string(),
+        input_fingerprint: config.input_fingerprint,
+    }
+}
+
+/// Resolve and arrange any supported layer combination into a shareable configuration.
+pub fn arrange_accordion_layers(
+    score: &Score,
+    options: LayeredAccordionOptions,
+) -> AccordionLayerResult {
+    let Ok(fingerprint) = input_fingerprint(score) else {
+        return layer_error(
+            String::new(),
+            None,
+            "invalid-input",
+            "source score cannot be serialized",
+        );
+    };
+    run_layers(
+        score,
+        AccordionLayerConfig {
+            contract_version: LAYER_CONTRACT_VERSION,
+            engine_version: LAYER_ENGINE_VERSION.to_string(),
+            input_fingerprint: fingerprint,
+            options,
+        },
+        None,
+    )
+}
+
+/// Replay a free layer configuration after validating its contract, engine and source score.
+pub fn arrange_from_resolved_layers(
+    score: &Score,
+    config: AccordionLayerConfig,
+) -> AccordionLayerResult {
+    let Ok(fingerprint) = input_fingerprint(score) else {
+        return layer_error(
+            String::new(),
+            None,
+            "invalid-input",
+            "source score cannot be serialized",
+        );
+    };
+    if config.contract_version != LAYER_CONTRACT_VERSION
+        || config.engine_version != LAYER_ENGINE_VERSION
+        || fingerprint_version(&config.input_fingerprint) != Some(CONTENT_FINGERPRINT_VERSION)
+    {
+        return layer_error(
+            fingerprint,
+            None,
+            "unsupported-version",
+            "resolved layer configuration requires another arrangement engine/contract version",
+        );
+    }
+    if config.input_fingerprint != fingerprint {
+        return layer_error(
+            fingerprint,
+            None,
+            "input-mismatch",
+            "resolved layer configuration belongs to another input Score",
+        );
+    }
+    run_layers(score, config, None)
+}
+
+fn layer_shuffle_too_large(score: &Score, request: &AccordionLayerShuffleOptions) -> bool {
+    let selections = std::iter::once(&request.selection).chain(&request.alternative_selections);
+    let combinations = [
+        request.alternative_selections.len().saturating_add(1),
+        request.allowed_accompaniments.len(),
+        request.allowed_melodic_voices.len(),
+        request.allowed_swing_policies.len(),
+    ]
+    .into_iter()
+    .fold(1usize, usize::saturating_mul);
+    score.parts.len() != 1
+        || score.parts[0].staves.len() != 1
+        || score.parts[0].staves[0].measures.len() > MAX_SHUFFLE_MEASURES
+        || score.parts[0].staves[0]
+            .measures
+            .iter()
+            .flat_map(|measure| measure.voices.iter())
+            .map(Vec::len)
+            .sum::<usize>()
+            > MAX_SHUFFLE_NOTES
+        || request.alternative_selections.len() + 1 > MAX_SHUFFLE_SELECTIONS
+        || request.allowed_accompaniments.len() > 10
+        || request.allowed_melodic_voices.len() > 4
+        || request.allowed_swing_policies.len() > 2
+        || combinations > MAX_LAYER_SHUFFLE_COMBINATIONS
+        || selections.into_iter().any(|selection| {
+            selection.chords.len() > MAX_SHUFFLE_CHORDS
+                || selection
+                    .alternative_chords
+                    .as_ref()
+                    .is_some_and(|chords| chords.len() > MAX_SHUFFLE_CHORDS)
+        })
+}
+
+/// Sample compatible, explicit layer combinations from a bounded cartesian pool.
+pub fn shuffle_accordion_layers(
+    score: &Score,
+    request: AccordionLayerShuffleOptions,
+) -> AccordionLayerResult {
+    let Ok(fingerprint) = input_fingerprint(score) else {
+        return layer_error(
+            String::new(),
+            Some(request.seed),
+            "invalid-input",
+            "source score cannot be serialized",
+        );
+    };
+    let seed = Some(request.seed.clone());
+    let Ok(parsed_seed) = request.seed.parse::<u64>() else {
+        return layer_error(
+            fingerprint,
+            seed,
+            "invalid-seed",
+            "seed must be unsigned 64-bit decimal text",
+        );
+    };
+    if layer_shuffle_too_large(score, &request) {
+        return layer_error(
+            fingerprint,
+            seed,
+            "input-too-large",
+            "layer shuffle supports one melody staff, 128 measures, 8192 notes, 512 chords per selection, 4 selections and 64 combinations",
+        );
+    }
+    let previous_signature = if let Some(previous) = &request.previous_config {
+        let previous_score = match previous {
+            AccordionPreviousConfig::Layers(config) => {
+                arrange_from_resolved_layers(score, config.clone()).score
+            }
+            AccordionPreviousConfig::Preset(config) => {
+                arrange_from_resolved_preset(score, config.clone()).score
+            }
+        };
+        let Some(previous_score) = previous_score else {
+            return layer_error(
+                fingerprint,
+                seed,
+                "previous-mismatch",
+                "previous configuration cannot be reproduced on this input and engine",
+            );
+        };
+        Some(event_signature(&previous_score))
+    } else {
+        None
+    };
+
+    let mut eligible: Vec<(AccordionLayerConfig, PlaybackSignature)> = Vec::new();
+    for selection in std::iter::once(&request.selection).chain(&request.alternative_selections) {
+        for &accompaniment in &request.allowed_accompaniments {
+            for &melodic_voice in &request.allowed_melodic_voices {
+                for &swing in &request.allowed_swing_policies {
+                    let options = LayeredAccordionOptions {
+                        chords: selection.chords.clone(),
+                        alternative_chords: selection.alternative_chords.clone(),
+                        inversion: selection.inversion,
+                        accompaniment,
+                        melodic_voice,
+                        swing,
+                        bass_mode: selection.bass_mode,
+                    };
+                    let trial = arrange_accordion_layers(score, options);
+                    let (Some(candidate), Some(config)) = (trial.score, trial.resolved_config)
+                    else {
+                        continue;
+                    };
+                    let signature = event_signature(&candidate);
+                    if eligible.iter().all(|(_, known)| known != &signature) {
+                        eligible.push((config, signature));
+                    }
+                }
+            }
+        }
+    }
+    if eligible.is_empty() {
+        return layer_error(
+            fingerprint,
+            seed,
+            "empty-eligible-pool",
+            "no allowed layer combination can realize this input and harmony",
+        );
+    }
+    if let Some(previous_signature) = previous_signature.as_ref() {
+        eligible.retain(|(_, signature)| signature != previous_signature);
+        if eligible.is_empty() {
+            return layer_error(
+                fingerprint,
+                seed,
+                "no-different-result",
+                "no eligible layer combination differs musically from the previous result",
+            );
+        }
+    }
+    let fingerprint_seed = u64::from_str_radix(
+        fingerprint
+            .strip_prefix(CONTENT_FINGERPRINT_PREFIX)
+            .unwrap_or(&fingerprint),
+        16,
+    )
+    .unwrap_or(0);
+    let selected = eligible
+        [(splitmix64(parsed_seed ^ fingerprint_seed) % eligible.len() as u64) as usize]
+        .0
+        .clone();
+    let mut result = arrange_from_resolved_layers(score, selected);
     result.seed = seed;
     result
 }
