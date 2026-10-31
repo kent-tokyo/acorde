@@ -653,6 +653,185 @@ mod tests {
     }
 
     #[test]
+    fn half_beat_pickups_keep_preset_phase_and_full_following_bars() {
+        for (pickup_beats, duration, dotted) in [
+            (0.5, Duration::Eighth, false),
+            (1.5, Duration::Quarter, true),
+        ] {
+            let mut score = Score::new("six-eight pickup", 120, 6, 8, 0, 3);
+            let first = &mut score.parts[0].staves[0].measures[0];
+            first.actual_length = super::super::score::MeasureLength::from_beats(pickup_beats);
+            let mut pickup = Note::new(Pitch::from_midi(69, false), duration);
+            pickup.dot_count = u8::from(dotted);
+            first.voices[0] = vec![pickup];
+            for measure in score.parts[0].staves[0].measures.iter_mut().skip(1) {
+                let mut note = Note::new(Pitch::from_midi(74, false), Duration::Half);
+                note.dot_count = 1;
+                measure.voices[0] = vec![note];
+            }
+            let original = serde_json::to_value(&score.parts[0].staves[0]).unwrap();
+            let selection = AccordionPresetSelection {
+                chords: vec![PositionedAccordionChord {
+                    measure_index: 0,
+                    offset_beats: 0.0,
+                    chord: serde_json::from_value(serde_json::json!({
+                        "root": "D", "kind": "major", "bass": null
+                    }))
+                    .unwrap(),
+                }],
+                alternative_chords: None,
+                inversion: None,
+                bass_mode: AccordionBassMode::FreeBass,
+            };
+            for preset in ["bass-pulse", "alternating-bass", "offbeat-chords"] {
+                let result = arrange_accordion_preset(&score, selection.clone(), preset);
+                assert!(
+                    result.diagnostics.is_empty(),
+                    "{pickup_beats} {preset}: {:?}",
+                    result.diagnostics
+                );
+                let arranged = result.score.as_ref().unwrap();
+                assert_eq!(
+                    serde_json::to_value(&arranged.parts[0].staves[0]).unwrap(),
+                    original
+                );
+                let rhythm = |bar: usize| {
+                    arranged.parts[0].staves[1].measures[bar].voices[0]
+                        .iter()
+                        .map(|note| {
+                            (
+                                note.is_rest,
+                                note.pitches.iter().map(Pitch::to_midi).collect::<Vec<_>>(),
+                                note.beats(),
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                };
+                let pickup = rhythm(0);
+                assert_eq!(pickup.iter().map(|note| note.2).sum::<f64>(), pickup_beats);
+                match (preset, pickup_beats) {
+                    ("bass-pulse", 0.5) => assert_eq!(pickup, vec![(false, vec![38], 0.5)]),
+                    ("bass-pulse", 1.5) => assert_eq!(
+                        pickup,
+                        vec![(false, vec![62, 66, 69], 0.5), (false, vec![38], 1.0)]
+                    ),
+                    ("alternating-bass", 0.5) => {
+                        assert_eq!(pickup, vec![(false, vec![45], 0.5)])
+                    }
+                    ("alternating-bass", 1.5) => assert_eq!(
+                        pickup,
+                        vec![(false, vec![62, 66, 69], 0.5), (false, vec![45], 1.0)]
+                    ),
+                    ("offbeat-chords", 0.5) => {
+                        assert_eq!(pickup, vec![(false, vec![62, 66, 69], 0.5)])
+                    }
+                    ("offbeat-chords", 1.5) => assert_eq!(
+                        pickup,
+                        vec![
+                            (false, vec![62, 66, 69], 0.5),
+                            (true, vec![], 0.5),
+                            (false, vec![62, 66, 69], 0.5),
+                        ]
+                    ),
+                    _ => unreachable!(),
+                }
+                let full = rhythm(1);
+                if preset == "bass-pulse" || preset == "alternating-bass" {
+                    assert_eq!(
+                        full,
+                        vec![
+                            (false, vec![38], 1.0),
+                            (false, vec![62, 66, 69], 1.0),
+                            (
+                                false,
+                                vec![if preset == "bass-pulse" { 38 } else { 45 }],
+                                1.0
+                            ),
+                        ]
+                    );
+                } else {
+                    assert_eq!(full.len(), 6);
+                    assert_eq!(full.iter().map(|note| note.2).sum::<f64>(), 3.0);
+                    assert!(
+                        full.iter()
+                            .enumerate()
+                            .all(|(index, note)| note.0 == index.is_multiple_of(2))
+                    );
+                }
+                let replay = arrange_from_resolved_preset(&score, result.resolved_config.unwrap());
+                assert!(replay.diagnostics.is_empty(), "{:?}", replay.diagnostics);
+                assert_eq!(
+                    event_signature(arranged),
+                    event_signature(replay.score.as_ref().unwrap())
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn pickup_chord_change_preserves_half_beat_pattern_phase() {
+        let mut score = Score::new("pickup chord change", 120, 6, 8, 0, 1);
+        let first = &mut score.parts[0].staves[0].measures[0];
+        first.actual_length = super::super::score::MeasureLength::from_beats(1.5);
+        let mut melody = Note::new(Pitch::from_midi(69, false), Duration::Quarter);
+        melody.dot_count = 1;
+        first.voices[0] = vec![melody];
+        let selection = AccordionPresetSelection {
+            chords: [(0.0, "D"), (0.5, "G")]
+                .into_iter()
+                .map(|(offset_beats, root)| PositionedAccordionChord {
+                    measure_index: 0,
+                    offset_beats,
+                    chord: serde_json::from_value(serde_json::json!({
+                        "root": root, "kind": "major", "bass": null
+                    }))
+                    .unwrap(),
+                })
+                .collect(),
+            alternative_chords: None,
+            inversion: None,
+            bass_mode: AccordionBassMode::FreeBass,
+        };
+        let pulse = arrange_accordion_preset(&score, selection.clone(), "bass-pulse");
+        assert!(pulse.diagnostics.is_empty(), "{:?}", pulse.diagnostics);
+        let notes = &pulse.score.as_ref().unwrap().parts[0].staves[1].measures[0].voices[0];
+        assert_eq!(notes.len(), 2);
+        assert_eq!(
+            notes[0]
+                .pitches
+                .iter()
+                .map(Pitch::to_midi)
+                .collect::<Vec<_>>(),
+            vec![62, 66, 69]
+        );
+        assert_eq!(notes[0].beats(), 0.5);
+        assert_eq!(notes[1].pitches[0].to_midi(), 43);
+        assert_eq!(notes[1].beats(), 1.0);
+
+        let offbeat = arrange_accordion_preset(&score, selection, "offbeat-chords");
+        assert!(offbeat.diagnostics.is_empty(), "{:?}", offbeat.diagnostics);
+        let notes = &offbeat.score.as_ref().unwrap().parts[0].staves[1].measures[0].voices[0];
+        assert_eq!(notes.len(), 3);
+        assert_eq!(
+            notes[0]
+                .pitches
+                .iter()
+                .map(Pitch::to_midi)
+                .collect::<Vec<_>>(),
+            vec![62, 66, 69]
+        );
+        assert!(notes[1].is_rest);
+        assert_eq!(
+            notes[2]
+                .pitches
+                .iter()
+                .map(Pitch::to_midi)
+                .collect::<Vec<_>>(),
+            vec![67, 71, 74]
+        );
+    }
+
+    #[test]
     fn capability_ids_are_stable_and_unique() {
         let capabilities = accordion_preset_capabilities();
         assert_eq!(capabilities.contract_version, 1);

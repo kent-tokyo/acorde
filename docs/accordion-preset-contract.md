@@ -47,6 +47,12 @@ The fixed 2:1 swing preset writes triplets into the score and sets
 or leave `PlaybackOptions.swing` unset. A host may choose a separate
 performance swing policy on straight notation.
 
+`bass-pulse`, `alternating-bass`, and `offbeat-chords` accept a 0.5- or
+1.5-beat first pickup in 6/8 without lengthening the melody or inserting a
+full opening bar. Their accompaniment uses the last half-beat slots of the
+nominal measure; the following full measure restarts its pattern at beat 0. Shorter
+regions that the pattern cannot represent still return `unsupported-rhythm`.
+
 ## Minimal browser flow
 
 ```js

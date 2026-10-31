@@ -11,17 +11,25 @@ additional chords can begin inside a measure. The first scope accepts major,
 minor, diminished and augmented triads, with an optional slash bass. Unsupported
 kinds and chord degrees return a diagnostic.
 
-The three `AccordionPattern` values are `held-bass-chord`,
-`alternating-bass-chord`, and `arpeggio`. Held notes can be tied to fill a chord
-region. Alternating bass and chord requires whole-beat regions; arpeggio requires
-half-beat regions. A region that cannot be represented exactly is rejected. No
-rests are silently added to a short bar.
+The accompaniment patterns include held bass chord, bass/chord pulse,
+alternating bass chord, arpeggio, rising arpeggio, Alberti bass, offbeat
+chords, swing accompaniment, and walking bass. Held notes can be tied to fill
+a chord region. Alternating bass and chord normally requires whole-beat regions;
+arpeggio requires half-beat regions. A fractional first pickup is a narrow
+exception for bass/chord pulse, alternating bass, and offbeat chords when its
+start and chord changes fall on half-beat boundaries. A region that cannot be
+represented exactly is rejected. No rests are silently added to a short bar.
 
-The pattern phase starts at beat 0 of each authored measure, including a pickup.
-It continues across an actual chord change inside that measure; a new measure
-starts a new phase. Repeating an identical chord inside a measure does not
-restart the phase or change the generated notes. The supplied chord positions
-remain in `resolved_options`; repeating a chord does not request a pattern reset.
+The pattern phase starts at beat 0 of each authored measure. For a fractional
+first pickup, bass/chord pulse, alternating bass, and offbeat chords instead
+use the suffix of the nominal meter: a 0.5-beat pickup in 6/8 starts at
+virtual beat 2.5, while a 1.5-beat pickup starts at virtual beat 1.5.
+The next full measure starts at beat 0. Whole-beat pickups retain their
+established measure-start phase.
+The phase continues across an actual chord change inside a measure. Repeating
+an identical chord inside a measure does not restart the phase or change the
+generated notes. The supplied chord positions remain in `resolved_options`;
+repeating a chord does not request a pattern reset.
 
 The result contains `score` on success, the supplied `resolved_options`,
 `source_notes` and `generated_notes` address lists, `diagnostics`, and

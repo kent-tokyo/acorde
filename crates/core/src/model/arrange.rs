@@ -202,6 +202,7 @@ fn guided_region(
     start_tick: u32,
     ticks: u32,
     next_bass_midi: Option<u8>,
+    pickup_phase_tick: u32,
 ) -> Option<Vec<Note>> {
     let mut notes = Vec::new();
     match pattern {
@@ -223,19 +224,46 @@ fn guided_region(
             }
         }
         AccordionPattern::BassChordPulse | AccordionPattern::AlternatingBassChord => {
-            if !ticks.is_multiple_of(64) {
-                return None;
-            }
-            for pulse in 0..ticks / 64 {
-                let pitches: Vec<u8> = match (start_tick / 64 + pulse) % 4 {
-                    0 => vec![chord.bass_midi],
-                    2 if pattern == AccordionPattern::AlternatingBassChord => {
-                        vec![chord.bass_midi + 7]
-                    }
-                    2 => vec![chord.bass_midi],
-                    _ => chord.chord_midi.to_vec(),
-                };
-                notes.push(guided_note(&pitches, Duration::Quarter));
+            if pickup_phase_tick > 0 {
+                let phase_start = pickup_phase_tick.checked_add(start_tick)?;
+                if !phase_start.is_multiple_of(32) || !ticks.is_multiple_of(32) {
+                    return None;
+                }
+                let mut phase = phase_start;
+                let phase_end = phase.checked_add(ticks)?;
+                while phase < phase_end {
+                    let run = (phase_end - phase).min(64 - phase % 64);
+                    let duration = match run {
+                        32 => Duration::Eighth,
+                        64 => Duration::Quarter,
+                        _ => return None,
+                    };
+                    let pitches: Vec<u8> = match (phase / 64) % 4 {
+                        0 => vec![chord.bass_midi],
+                        2 if pattern == AccordionPattern::AlternatingBassChord => {
+                            vec![chord.bass_midi + 7]
+                        }
+                        2 => vec![chord.bass_midi],
+                        _ => chord.chord_midi.to_vec(),
+                    };
+                    notes.push(guided_note(&pitches, duration));
+                    phase += run;
+                }
+            } else {
+                if !ticks.is_multiple_of(64) {
+                    return None;
+                }
+                for pulse in 0..ticks / 64 {
+                    let pitches: Vec<u8> = match (start_tick / 64 + pulse) % 4 {
+                        0 => vec![chord.bass_midi],
+                        2 if pattern == AccordionPattern::AlternatingBassChord => {
+                            vec![chord.bass_midi + 7]
+                        }
+                        2 => vec![chord.bass_midi],
+                        _ => chord.chord_midi.to_vec(),
+                    };
+                    notes.push(guided_note(&pitches, Duration::Quarter));
+                }
             }
         }
         AccordionPattern::Arpeggio => {
@@ -279,12 +307,26 @@ fn guided_region(
             }
         }
         AccordionPattern::OffbeatChords => {
-            if !ticks.is_multiple_of(64) {
-                return None;
-            }
-            for _ in 0..ticks / 64 {
-                notes.push(Note::rest(Duration::Eighth));
-                notes.push(guided_note(&chord.chord_midi, Duration::Eighth));
+            if pickup_phase_tick > 0 {
+                let phase_start = pickup_phase_tick.checked_add(start_tick)?;
+                if !phase_start.is_multiple_of(32) || !ticks.is_multiple_of(32) {
+                    return None;
+                }
+                for step in 0..ticks / 32 {
+                    if (phase_start / 32 + step).is_multiple_of(2) {
+                        notes.push(Note::rest(Duration::Eighth));
+                    } else {
+                        notes.push(guided_note(&chord.chord_midi, Duration::Eighth));
+                    }
+                }
+            } else {
+                if !ticks.is_multiple_of(64) {
+                    return None;
+                }
+                for _ in 0..ticks / 64 {
+                    notes.push(Note::rest(Duration::Eighth));
+                    notes.push(guided_note(&chord.chord_midi, Duration::Eighth));
+                }
             }
         }
         AccordionPattern::SwingAccompaniment => {
@@ -446,6 +488,20 @@ pub fn arrange_with_explicit_chords(
     let mut generated_notes = Vec::new();
     let mut current_chord: Option<RealizedAccordionChord> = None;
     for (index, source_measure) in source_staff.measures.iter().enumerate() {
+        // A fractional first pickup occupies the end of its nominal meter. Whole-beat
+        // pickups retain the established measure-start phase for preset compatibility.
+        let pickup_phase_tick = if index == 0 && !length_ticks[index].is_multiple_of(64) {
+            let meter = source_measure
+                .time_sig
+                .as_ref()
+                .unwrap_or(&score.settings.time_signature);
+            let meter_ticks = (f64::from(meter.numerator) * 4.0 / f64::from(meter.denominator)
+                * GRID)
+                .round() as u32;
+            meter_ticks.saturating_sub(length_ticks[index])
+        } else {
+            0
+        };
         regions[index].sort_by_key(|(offset, _)| *offset);
         if regions[index]
             .windows(2)
@@ -491,9 +547,14 @@ pub fn arrange_with_explicit_chords(
                             .map(|(_, next)| next.bass_midi)
                     })
                 });
-            let Some(mut notes) =
-                guided_region(options.pattern, chord, *start, end - start, next_bass)
-            else {
+            let Some(mut notes) = guided_region(
+                options.pattern,
+                chord,
+                *start,
+                end - start,
+                next_bass,
+                pickup_phase_tick,
+            ) else {
                 return guided_error(
                     options,
                     "unsupported-rhythm",
