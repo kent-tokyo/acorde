@@ -192,10 +192,11 @@ jobs:
           # Common and cut meter symbols measure 6,066,488 bytes on macOS,
           # 8,352 bytes above the metronome build.
           # Cross-staff beam work measured 6,076,806 bytes on Linux. The additional
-          # MusicXML timing/slur ordering and MuseScore loss diagnostics measure
-          # 6,078,920 bytes on macOS. Allow a small platform-dependent margin while
-          # continuing to enforce a hard budget on the full print-aware binding.
-          test "$size" -le 6090000
+          # MusicXML timing/slur ordering and MuseScore loss diagnostics measured
+          # 6,078,920 bytes on macOS. Opt-in shared-unison playback, rest pedal
+          # controls, and noncontiguous-tie diagnostics measure 6,096,487 bytes
+          # locally. Keep a small platform-dependent margin and a hard cap.
+          test "$size" -le 6110000
 
   renderer-benchmark:
     name: Renderer performance budget

@@ -3853,6 +3853,84 @@ fn musicxml_stem_down_roundtrip() {
 }
 
 #[test]
+fn shared_unison_playback_is_opt_in_and_retains_both_sources() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Keyboard</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>A</step><octave>3</octave></pitch><duration>4</duration><voice>1</voice><type>whole</type></note><backup><duration>4</duration></backup><note><pitch><step>A</step><octave>3</octave></pitch><duration>4</duration><voice>2</voice><type>whole</type></note></measure></part></score-partwise>"#;
+    let mut score = acorde_io::parse_musicxml(xml).unwrap();
+    let events = acorde_core::to_playback_events(&score, &Default::default());
+    assert_eq!(events.len(), 2);
+    let shared = acorde_core::coalesce_shared_unisons(events);
+    assert_eq!(shared.len(), 1);
+    assert_eq!(shared[0].event.pitch_midi, 57);
+    assert_eq!(shared[0].sources.len(), 2);
+    assert_ne!(shared[0].sources[0].voice, shared[0].sources[1].voice);
+    assert_eq!(
+        score.parts[0].staves[0].measures[0]
+            .voices
+            .iter()
+            .map(Vec::len)
+            .sum::<usize>(),
+        2
+    );
+    let mut two_parts = score.clone();
+    two_parts.parts.push(two_parts.parts[0].clone());
+    let events = acorde_core::to_playback_events(&two_parts, &Default::default());
+    assert_eq!(acorde_core::coalesce_shared_unisons(events).len(), 2);
+    // Different durations are not a shared attack.
+    score.parts[0].staves[0].measures[0].voices[1][0].duration = acorde_core::Duration::Half;
+    let events = acorde_core::to_playback_events(&score, &Default::default());
+    assert_eq!(acorde_core::coalesce_shared_unisons(events).len(), 2);
+}
+
+#[test]
+fn musicxml_pedal_on_rest_has_exact_offline_controls() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><direction><direction-type><pedal type="start" line="no"/></direction-type></direction><note><rest/><duration>1</duration><voice>1</voice><type>quarter</type></note><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note><direction><direction-type><pedal type="stop" line="no"/></direction-type></direction><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let manifest = acorde_core::build_offline_render_manifest(
+        &score,
+        &Default::default(),
+        &Default::default(),
+    )
+    .unwrap();
+    let pedals: Vec<_> = manifest
+        .semantic_events
+        .iter()
+        .filter_map(|event| {
+            if let acorde_core::OfflineRenderSemanticEventKind::Pedal { down } = event.kind {
+                Some((event.frame, down))
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(pedals, vec![(0, true), (72000, false)]);
+}
+
+#[test]
+fn musicxml_report_warns_for_noncontiguous_ties_without_merging_them() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Keyboard</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><tie type="start"/><voice>1</voice><type>quarter</type></note><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note><note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note></measure><measure number="2"><note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><tie type="stop"/><voice>1</voice><type>whole</type></note></measure></part></score-partwise>"#;
+    let report = acorde_io::parse_musicxml_with_report(xml).unwrap();
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "musicxml.noncontiguous-tie")
+    );
+    let events = acorde_core::to_playback_events(&report.score, &Default::default());
+    let cs: Vec<_> = events.iter().filter(|e| e.pitch_midi == 60).collect();
+    assert_eq!(cs.len(), 2);
+    assert_eq!((cs[0].time_beats, cs[1].time_beats), (0.0, 4.0));
+
+    let adjacent = xml.replace("<note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note><note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note>", "").replace("<beats>4</beats>", "<beats>1</beats>");
+    let report = acorde_io::parse_musicxml_with_report(&adjacent).unwrap();
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "musicxml.noncontiguous-tie")
+    );
+}
+
+#[test]
 fn musicxml_cross_staff_slurs_resolve_by_score_time_and_reused_number() {
     let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><forward><duration>1</duration><voice>1</voice><staff>1</staff></forward><note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff><notations><slur type="stop" number="1"/></notations></note><backup><duration>2</duration></backup><note><pitch><step>G</step><octave>3</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>2</staff><notations><slur type="start" number="1"/></notations></note></measure><measure number="2"><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff><notations><slur type="start" number="1"/></notations></note><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff><notations><slur type="stop" number="1"/></notations></note></measure></part></score-partwise>"#;
     let report = acorde_io::parse_musicxml_with_report(xml).unwrap();
