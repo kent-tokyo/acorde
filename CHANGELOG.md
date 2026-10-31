@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Print SVG now places repeated, unpositioned expression directions in one horizontal lane
+  instead of stacking them at the same measure start. The two `L.H.` marks in the pinned
+  Quilter Prelude become independently readable; exact source beat positions are still not
+  retained by the score text model.
 - MusicXML/MXL now imports each part's initial MIDI volume and front-hemisphere pan into
   CC7/CC10. These settings reach MIDI export and full-SF2 stereo audio and survive MusicXML
   roundtrip at seven-bit controller precision. Rear-hemisphere pan is reported as an import

@@ -344,6 +344,25 @@ nine-space/60 mm setting leaves about 10 px below its baseline at 1400 px.
 The MusicXML import still reports 103
 diagnostics, so this is a focused completeness and clearance improvement.
 
+### Repeated piano directions on one print line (2026-10-31)
+
+The same pinned Quilter MXL places two `L.H.` words at the beginning of measure 4
+and one quarter-note beat later. Verovio 6.3.0 prints them side by side. Acorde
+kept both words but previously stacked them vertically at the measure start.
+Its physical-page SVG now spreads repeated expression words without explicit
+horizontal offsets across one print lane. The generated SVG moves the second
+`L.H.` from the first one's x coordinate to 15.36 mm farther right; both
+baselines remain equal. The A4 PDF was rasterized at 1400 px and the two marks
+were inspected beside Verovio's A4 SVG. The screen SVG's existing placement
+is unchanged. This is a deterministic engraving heuristic: the canonical
+`StyledText` still does not retain the source direction's beat position, so
+the x coordinate is not asserted to match Verovio's exact placement.
+
+The `poco cresc.` direction remains close to a down-stem chord. Moving it
+farther down made it collide with the lower staff, so that trial was reverted.
+Quilter still uses four smaller systems where Verovio uses three. This change
+addresses one legibility defect and does not establish layout or print parity.
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.
