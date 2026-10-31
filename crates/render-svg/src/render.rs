@@ -3945,6 +3945,25 @@ fn stem_up_for_positions(positions: &[i32]) -> Option<bool> {
     Some(4 - lowest > highest - 4)
 }
 
+/// For an isolated chord with equally distant outer notes, compare the next outer pair.
+/// This is deliberately separate from a beam's group direction.
+fn stem_up_for_chord(positions: &[i32]) -> Option<bool> {
+    let mut ordered = positions.to_vec();
+    ordered.sort_unstable();
+    let (mut low, mut high) = (0, ordered.len().checked_sub(1)?);
+    while low < high {
+        match (4 - ordered[low]).cmp(&(ordered[high] - 4)) {
+            std::cmp::Ordering::Greater => return Some(true),
+            std::cmp::Ordering::Less => return Some(false),
+            std::cmp::Ordering::Equal => {
+                low += 1;
+                high -= 1;
+            }
+        }
+    }
+    Some(ordered[low] < 4)
+}
+
 /// `notes` with each stem left open by the score set by [`stem_up_for_positions`], a beamed
 /// group taking one direction from all its notes. Rests, grace, unpitched and cross-staff notes, and
 /// groups with an authored stem, are left as they are.
@@ -3972,7 +3991,7 @@ fn auto_stem_directions(
     let mut directions: Vec<Option<bool>> = (0..notes.len())
         .map(|index| {
             if open(&notes[index]) {
-                stem_up_for_positions(&positions(index))
+                stem_up_for_chord(&positions(index))
             } else {
                 None
             }
@@ -5517,6 +5536,7 @@ fn render_all_spans(
     resolved_annotation_obstacles: &[acorde_layout::GlyphPlacement],
 ) {
     let lane_offsets = spans::resolve_lane_offsets(
+        score,
         layout,
         points,
         width,
@@ -5566,7 +5586,7 @@ fn render_all_spans(
             SpanMark::Harmony { .. } => "harmony",
         };
         let slur_above = matches!(span, SpanMark::Slur { .. })
-            .then(|| spans::slur_above(layout, start, end, up1, up2));
+            .then(|| spans::slur_above(score, layout, points, start, end, up1, up2));
         if interactive {
             let _ = write!(
                 body,
@@ -5638,20 +5658,45 @@ fn render_all_spans(
             .get(&(span_index, row1))
             .copied()
             .unwrap_or_default();
-        let slur_extreme = slur_above.and_then(|above| {
-            points
-                .iter()
-                .filter(|((part, staff, _, voice, _), (x, _, _, row))| {
-                    *part == start.part
-                        && *staff == start.staff
-                        && *voice == start.voice
-                        && *row == row1
-                        && *x >= x1.min(x2)
-                        && *x <= x1.max(x2)
-                })
-                .map(|(_, (_, y, _, _))| *y + offset)
-                .reduce(|a, b| if above { a.min(b) } else { a.max(b) })
-        });
+        let (slur_extreme, slur_clearance_control) = if let Some(above) = slur_above {
+            let side = if above { -1.0 } else { 1.0 };
+            let direction = if x2 >= x1 { 1.0 } else { -1.0 };
+            let left = x1 + direction * 0.3 * space;
+            let right = x2 - direction * 0.3 * space;
+            let start_y = y1 + offset + side * 0.65 * space;
+            let end_y = y2 + offset + side * 0.65 * space;
+            let mut extreme: Option<f32> = None;
+            let mut control: Option<f32> = None;
+            for ((part, staff, _, voice, _), (x, y, _, row)) in points {
+                if *part != start.part
+                    || *staff != start.staff
+                    || *voice != start.voice
+                    || *row != row1
+                {
+                    continue;
+                }
+                let select = |a: f32, b: f32| if above { a.min(b) } else { a.max(b) };
+                if *x >= x1.min(x2) && *x <= x1.max(x2) {
+                    let value = *y + offset;
+                    extreme = Some(extreme.map_or(value, |a| select(a, value)));
+                }
+                if (right - left).abs() < f32::EPSILON {
+                    continue;
+                }
+                let t = (x - left) / (right - left);
+                if !(t > 0.0 && t < 1.0) {
+                    continue;
+                }
+                let remaining = 1.0 - t;
+                let desired = y + offset + side * 0.8 * space;
+                let value = (desired - remaining * remaining * start_y - t * t * end_y)
+                    / (2.0 * t * remaining);
+                control = Some(control.map_or(value, |a| select(a, value)));
+            }
+            (extreme, control)
+        } else {
+            (None, None)
+        };
         render_same_row_span(
             body,
             span,
@@ -5664,6 +5709,7 @@ fn render_all_spans(
             space,
             slur_above,
             slur_extreme,
+            slur_clearance_control,
         );
         if interactive {
             body.push_str("</g>");
@@ -5885,6 +5931,7 @@ fn render_same_row_span(
     space: f32,
     slur_above: Option<bool>,
     slur_extreme: Option<f32>,
+    slur_clearance_control: Option<f32>,
 ) {
     let (left, right) = if x1 <= x2 { (x1, x2) } else { (x2, x1) };
     match span {
@@ -5929,6 +5976,13 @@ fn render_same_row_span(
                 baseline_control.min(clearance_control)
             } else {
                 baseline_control.max(clearance_control)
+            };
+            // Keep very close endpoints from producing an unbounded bow. The cap
+            // makes clearance best-effort when notation is already too crowded.
+            let control_y = match slur_clearance_control {
+                Some(required) if above => control_y.min(required.max(control_y - 8.0 * space)),
+                Some(required) => control_y.max(required.min(control_y + 8.0 * space)),
+                None => control_y,
             };
             render_slur_ribbon(
                 body,

@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+- Single-voice slur side selection now considers mixed stem directions within
+  a phrase. Chord stems use inner notes to resolve symmetric outer pitches;
+  beams avoid crossing interior noteheads and flatten for beam-side interior
+  extrema. Screen and print regressions cover the Verovio-guided cases.
+- Same-system slurs now consider the horizontal positions of intermediate
+  notes when determining their quadratic bow, improving clearance for peaks
+  away from the middle of a phrase.
 - Same-system slurs now account for the actual quadratic bow when clearing a
   central high or low note in a phrase.
 - Physical print SVG/PDF now keeps a short final system at a notation-demand

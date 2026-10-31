@@ -83,6 +83,158 @@ fn print_page_keeps_verovio_reference_beam_stems_and_slur_side() {
 }
 
 #[test]
+fn print_slur_with_mixed_endpoint_stems_bows_above() {
+    let score = acorde_io::parse_abc("X:1\nM:3/4\nL:1/4\nK:C\n(C C c) |]\n").unwrap();
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = &pages[0];
+    let heads = svg
+        .split(r#"class="acorde-notehead""#)
+        .skip(1)
+        .map(|head| svg_attribute_f32(head, "cy"))
+        .collect::<Vec<_>>();
+    let values = svg
+        .split(r#"class="acorde-slur" d=""#)
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap()
+        .split(['M', 'Q', ',', ' '])
+        .filter_map(|s| s.parse::<f32>().ok())
+        .take(6)
+        .collect::<Vec<_>>();
+    assert!(values[1] < heads[0] && values[5] < heads[2]);
+}
+
+#[test]
+fn print_slur_considers_an_interior_down_stem() {
+    let score = acorde_io::parse_abc("X:1\nM:3/4\nL:1/4\nK:C\n(C c C) |]\n").unwrap();
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = &pages[0];
+    let heads = svg
+        .split(r#"class="acorde-notehead""#)
+        .skip(1)
+        .map(|head| svg_attribute_f32(head, "cy"))
+        .collect::<Vec<_>>();
+    let values = svg
+        .split(r#"class="acorde-slur" d=""#)
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap()
+        .split(['M', 'Q', ',', ' '])
+        .filter_map(|s| s.parse::<f32>().ok())
+        .take(6)
+        .collect::<Vec<_>>();
+    assert!(values[1] < heads[0] && values[5] < heads[2]);
+}
+
+#[test]
+fn print_beam_with_an_interior_peak_is_horizontal() {
+    use acorde_core::{BeamState, Duration, Note, Pitch, Step};
+    let mut score = Score::new("beam contour", 120, 3, 8, 0, 1);
+    let mut notes =
+        [Step::C, Step::E, Step::D].map(|step| Note::new(Pitch::new(step, 4), Duration::Eighth));
+    for (note, beam) in
+        notes
+            .iter_mut()
+            .zip([BeamState::Begin, BeamState::Continue, BeamState::End])
+    {
+        note.stem_up = Some(true);
+        note.beam = beam;
+    }
+    score.parts[0].staves[0].measures[0].voices[0] = notes.to_vec();
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let tips: Vec<_> = pages[0]
+        .split(r#"class="acorde-stem" x1=""#)
+        .skip(1)
+        .map(|stem| svg_attribute_f32(stem, "y2"))
+        .collect();
+    assert_eq!(tips.len(), 3);
+    assert!((tips[0] - tips[2]).abs() < 0.01, "{tips:?}");
+}
+
+#[test]
+fn print_wide_beamed_leaps_keep_stems_on_the_correct_side() {
+    use acorde_core::{BeamState, Duration, Note, Pitch, Step};
+    for (octaves, up) in [([4, 6, 4], true), ([6, 4, 6], false)] {
+        let mut score = Score::new("wide beamed leap", 120, 3, 8, 0, 1);
+        let mut notes =
+            octaves.map(|octave| Note::new(Pitch::new(Step::C, octave), Duration::Eighth));
+        for (note, beam) in
+            notes
+                .iter_mut()
+                .zip([BeamState::Begin, BeamState::Continue, BeamState::End])
+        {
+            note.stem_up = Some(up);
+            note.beam = beam;
+        }
+        score.parts[0].staves[0].measures[0].voices[0] = notes.to_vec();
+        let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+        let pages = render_print_page_svgs(&score, &layout).unwrap();
+        let stems: Vec<_> = pages[0]
+            .split(r#"class="acorde-stem" x1=""#)
+            .skip(1)
+            .map(|stem| {
+                let length = svg_attribute_f32(stem, "y2") - svg_attribute_f32(stem, "y1");
+                length * if up { -1.0 } else { 1.0 }
+            })
+            .collect();
+        assert_eq!(stems.len(), 3);
+        assert!(stems.iter().all(|length| *length > 0.0), "{stems:?}");
+    }
+}
+
+#[test]
+fn print_symmetric_chord_uses_its_inner_note_for_stem_direction() {
+    let score = acorde_io::parse_abc("X:1\nM:1/4\nL:1/4\nK:C\n[EfA] |]\n").unwrap();
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let stem = pages[0]
+        .split(r#"class="acorde-stem" x1=""#)
+        .nth(1)
+        .unwrap();
+    assert!(svg_attribute_f32(stem, "y2") < svg_attribute_f32(stem, "y1"));
+}
+
+#[test]
+fn print_slur_clears_an_off_center_high_note() {
+    let score = acorde_io::parse_abc("X:1\nM:5/4\nL:1/4\nK:C\n(c a c c c) |]\n").unwrap();
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = &pages[0];
+    let head = svg.split(r#"class="acorde-notehead""#).nth(2).unwrap();
+    let x = svg_attribute_f32(head, "cx");
+    let y = svg_attribute_f32(head, "cy");
+    let path = svg
+        .split(r#"class="acorde-slur" d=""#)
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap();
+    let values = path
+        .split(['M', 'Q', ',', ' '])
+        .filter_map(|s| s.parse::<f32>().ok())
+        .take(6)
+        .collect::<Vec<_>>();
+    let t = (x - values[0]) / (values[4] - values[0]);
+    let curve_y =
+        (1.0 - t).powi(2) * values[1] + 2.0 * (1.0 - t) * t * values[3] + t.powi(2) * values[5];
+    let lines = svg
+        .split(r#"class="acorde-staff-line""#)
+        .skip(1)
+        .take(2)
+        .map(|line| svg_attribute_f32(line, "y1"))
+        .collect::<Vec<_>>();
+    assert!(curve_y < y - 0.3 * (lines[0] - lines[1]).abs());
+}
+
+#[test]
 fn one_short_print_system_keeps_a_natural_width() {
     let score =
         acorde_io::parse_musicxml(include_str!("fixtures/verovio_partial_stem_slur.musicxml"))

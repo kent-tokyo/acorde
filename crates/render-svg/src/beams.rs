@@ -10,7 +10,8 @@
 //! wide pitch range. Instead:
 //!
 //! 1. Compute the "natural" (default-length) stem tip for the first and last note.
-//! 2. Clamp the rise between them to [`MAX_BEAM_RISE_U`] staff-spaces — a shallow-slope cap,
+//! 2. Flatten when an interior head reaches the outermost endpoint on the beam side; otherwise
+//!    clamp the rise between endpoints to [`MAX_BEAM_RISE_U`] staff-spaces — a shallow-slope cap,
 //!    not a full spacing optimizer, but enough to prevent extreme angles.
 //! 3. Shift the whole beam (parallel, away from the noteheads) if any *interior* note's
 //!    resulting stem would be shorter than [`MIN_STEM_LEN_U`] — the "beam must clear every
@@ -115,7 +116,19 @@ pub(crate) fn plan_beam_group(
 
     let natural = |i: usize| attach_ys[i] + dir * glyphs::DEFAULT_STEM_LEN_U * space;
     let raw_rise = natural(n - 1) - natural(0);
-    let clamped_rise = raw_rise.clamp(-MAX_BEAM_RISE_U * space, MAX_BEAM_RISE_U * space);
+    let outer = if stem_up {
+        attach_ys[0].min(attach_ys[n - 1])
+    } else {
+        attach_ys[0].max(attach_ys[n - 1])
+    };
+    let flatten = attach_ys[1..n - 1]
+        .iter()
+        .any(|&y| (y - outer) * dir >= 0.0);
+    let clamped_rise = if flatten {
+        0.0
+    } else {
+        raw_rise.clamp(-MAX_BEAM_RISE_U * space, MAX_BEAM_RISE_U * space)
+    };
     let dx = xs[n - 1] - xs[0];
     let slope = if dx.abs() > 1e-6 {
         clamped_rise / dx
@@ -130,7 +143,9 @@ pub(crate) fn plan_beam_group(
     let min_stem = (MIN_STEM_LEN_U + f32::from(levels - 1) * BEAM_LEVEL_GAP_U) * space;
     let mut max_deficit = 0.0f32;
     for (&x, &attach_y) in xs.iter().zip(attach_ys) {
-        let stem_len = (base_y(x) - attach_y).abs();
+        // A beam on the wrong side of a head has a negative length. Taking an
+        // absolute value would leave large interior pitch leaps intersecting it.
+        let stem_len = (base_y(x) - attach_y) * dir;
         let deficit = min_stem - stem_len;
         if deficit > max_deficit {
             max_deficit = deficit;
@@ -328,6 +343,25 @@ mod tests {
     }
 
     #[test]
+    fn interior_beam_side_extreme_makes_the_beam_horizontal() {
+        let durations = vec![Duration::Eighth; 3];
+        let xs = vec![0.0, 20.0, 40.0];
+        for (stem_up, ys) in [
+            (true, [100.0, 80.0, 90.0]),
+            (true, [100.0, 90.0, 90.0]),
+            (false, [80.0, 100.0, 90.0]),
+            (false, [80.0, 90.0, 90.0]),
+        ] {
+            let plan = plan_beam_group(&durations, &xs, &ys, stem_up, 20.0);
+            assert!((plan.tips[&0] - plan.tips[&2]).abs() < 0.01);
+        }
+        for (stem_up, ys) in [(true, [100.0, 90.0, 80.0]), (false, [80.0, 90.0, 100.0])] {
+            let plan = plan_beam_group(&durations, &xs, &ys, stem_up, 20.0);
+            assert!((plan.tips[&0] - plan.tips[&2]).abs() > 0.01);
+        }
+    }
+
+    #[test]
     fn steep_pitch_span_clamps_beam_rise() {
         // A huge pitch difference (10 staff-spaces) must not produce a 10-space beam rise.
         let durations = vec![Duration::Eighth, Duration::Eighth];
@@ -365,6 +399,22 @@ mod tests {
                 stem_len >= MIN_STEM_LEN_U * space - 0.01,
                 "note {i} stem length {stem_len} is below the {MIN_STEM_LEN_U}-space minimum"
             );
+        }
+    }
+
+    #[test]
+    fn beam_moves_past_an_interior_head_on_the_wrong_side() {
+        let durations = vec![Duration::Eighth; 3];
+        let xs = vec![0.0, 20.0, 40.0];
+        let space = 20.0;
+        for stem_up in [true, false] {
+            let dir = if stem_up { -1.0 } else { 1.0 };
+            let ys = vec![100.0, 100.0 + dir * 7.0 * space, 100.0];
+            let plan = plan_beam_group(&durations, &xs, &ys, stem_up, space);
+            for (index, y) in ys.iter().enumerate() {
+                let signed_length = (plan.tips[&index] - y) * dir;
+                assert!(signed_length >= MIN_STEM_LEN_U * space - 0.01);
+            }
         }
     }
 
