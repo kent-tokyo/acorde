@@ -149,7 +149,7 @@ jobs:
             --out-dir ../../target/wasm-profiles/viewer \
             --no-default-features --features viewer
           declarations=target/wasm-profiles/viewer/acorde_wasm.d.ts
-          for binding in parse_abc parse_mscz compute_beams detect_chord extract_chord_plan suggest_chord_plans arrange_from_chord_proposal render_score_svg render_print_page_svgs to_playback_events_ex serialize_mscz; do
+          for binding in parse_abc parse_mscz compute_beams detect_chord extract_chord_plan suggest_chord_plans arrange_from_chord_proposal arrange_with_drone render_score_svg render_print_page_svgs to_playback_events_ex serialize_mscz; do
             grep -q "^export function $binding(" "$declarations"
           done
           if grep -q '^export function parse_musicxml(' "$declarations"; then
@@ -178,8 +178,9 @@ jobs:
           echo "WASM bytes: $size"
           # The full web binding includes score I/O, physical print-page SVGs,
           # layout, analysis, and chord-plan extraction/proposals. The latter
-          # measured 5,886,216 bytes locally, so allow a narrow 5.7 MiB cap.
-          test "$size" -le 5976883
+          # measured 5,886,216 bytes locally. The explicit-drone export measured
+          # 5,977,433 bytes in CI, so keep a narrow 5.71 MiB cap.
+          test "$size" -le 5987368
 
   renderer-benchmark:
     name: Renderer performance budget
