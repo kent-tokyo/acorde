@@ -5175,6 +5175,75 @@ fn musescore_475_native_cross_voice_slur_renders_across_systems() {
 }
 
 #[test]
+fn upper_voice_slur_clears_unbeamed_stems() {
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem><notations><slur type="start"/></notations></note><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem></note><note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem><notations><slur type="stop"/></notations></note><backup><duration>3</duration></backup><note><pitch><step>G</step><octave>4</octave></pitch><duration>3</duration><voice>2</voice><type>half</type><dot/><stem>down</stem></note></measure></part></score-partwise>"#;
+    for (source, above) in [
+        (xml.to_owned(), true),
+        (xml.replace("<stem>up</stem>", "<stem>down</stem>").replace("slur type=\"start\"", "slur type=\"start\" placement=\"below\""), false),
+        (xml.replace("<note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem></note>", "<note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem></note><note><chord/><pitch><step>G</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note>"), true),
+    ] {
+        let score = acorde_io::parse_musicxml(&source).unwrap();
+        let svg = render_svg(&score, &opts()).unwrap();
+        let path = slur_geometries(&svg)[0];
+        let stem = svg.split(r#"class="acorde-stem" x1=""#).nth(2).unwrap();
+        let x: f32 = stem.split('"').next().unwrap().parse().unwrap();
+        let tip: f32 = stem.split("y2=\"").nth(1).unwrap().split('"').next().unwrap().parse().unwrap();
+        let t = (x - path[0]) / (path[4] - path[0]);
+        assert!(t > 0.0 && t < 1.0);
+        let y = (1.0 - t).powi(2) * path[1] + 2.0 * t * (1.0 - t) * path[3] + t * t * path[5];
+        assert!(if above { y < tip - 0.1 } else { y > tip + 0.1 }, "slur y={y} crosses un-beamed stem tip y={tip}");
+        assert!(y > 0.0, "slur is clipped above SVG viewport");
+    }
+}
+
+#[test]
+fn cross_system_slur_clears_unbeamed_upper_voice_stems() {
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem><notations><slur type="start"/></notations></note><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem></note><note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem></note><backup><duration>3</duration></backup><note><pitch><step>G</step><octave>4</octave></pitch><duration>3</duration><voice>2</voice><type>half</type><dot/><stem>down</stem></note></measure><measure number="2"><note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem></note><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem></note><note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem><notations><slur type="stop"/></notations></note><backup><duration>3</duration></backup><note><pitch><step>G</step><octave>4</octave></pitch><duration>3</duration><voice>2</voice><type>half</type><dot/><stem>down</stem></note></measure></part></score-partwise>"#;
+    let beamed = xml
+        .replace("<divisions>1</divisions>", "<divisions>2</divisions>")
+        .replace("<type>quarter</type>", "<type>eighth</type>")
+        .replace("<duration>3</duration>", "<duration>6</duration>");
+    for (source, auto_beam) in [(xml, false), (beamed.as_str(), true)] {
+        let score = acorde_io::parse_musicxml(source).unwrap();
+        let mut options = opts();
+        options.measures_per_system = 1;
+        let svg = if auto_beam {
+            render_svg_with_config(&score, &SvgRenderConfig::new(options).with_auto_beams())
+                .unwrap()
+        } else {
+            render_svg(&score, &options).unwrap()
+        };
+        if auto_beam {
+            assert!(svg.contains("acorde-beam"));
+        }
+        let curves = slur_geometries(&svg);
+        assert_eq!(curves.len(), 2);
+        let stems: Vec<_> = svg.split(r#"class="acorde-stem" x1=""#).skip(1).collect();
+        for (curve, stem) in [(curves[0], stems[1]), (curves[1], stems[5])] {
+            let x: f32 = stem.split('"').next().unwrap().parse().unwrap();
+            let tip: f32 = stem
+                .split("y2=\"")
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap()
+                .parse()
+                .unwrap();
+            let t = (x - curve[0]) / (curve[4] - curve[0]);
+            assert!(t > 0.0 && t < 1.0);
+            let y =
+                (1.0 - t).powi(2) * curve[1] + 2.0 * t * (1.0 - t) * curve[3] + t * t * curve[5];
+            assert!(
+                y < tip - 0.1,
+                "cross-system slur y={y} crosses stem tip y={tip}"
+            );
+            assert!(y > 0.0, "cross-system slur is clipped");
+        }
+    }
+}
+
+#[test]
 fn hidden_time_signatures_keep_duration_across_musicxml_and_mscz() {
     let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes><note><rest/><duration>3</duration><type>half</type><dot/></note></measure><measure number="2"><attributes><time print-object="no"><beats>2</beats><beat-type>4</beat-type></time></attributes><note><rest/><duration>2</duration><type>half</type></note></measure><measure number="3"><attributes><time><beats>2</beats><beat-type>4</beat-type></time></attributes><note><rest/><duration>2</duration><type>half</type></note></measure></part></score-partwise>"#;
     let score = acorde_io::parse_musicxml(xml).unwrap();
@@ -5413,6 +5482,244 @@ fn shared_dynamic_playback_does_not_duplicate_the_printed_mark() {
     let after = render_svg(&score, &opts()).unwrap();
     assert_eq!(before, after);
     assert_eq!(after.matches("class=\"acorde-dynamic\"").count(), 1);
+}
+
+#[test]
+fn upper_voice_slur_clears_stem_from_other_voice() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("overlapping voice", 120, 3, 4, 0, 1);
+    let mut upper = vec![Note::new(Pitch::new(Step::C, 5), Duration::Quarter); 3];
+    upper.iter_mut().for_each(|note| note.stem_up = Some(false));
+    upper[0].slur_start = true;
+    upper[2].slur_end = true;
+    let mut lower = vec![Note::new(Pitch::new(Step::C, 5), Duration::Quarter); 3];
+    lower.iter_mut().for_each(|note| note.stem_up = Some(true));
+    lower[1].pitches[0] = Pitch::new(Step::G, 5);
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.voices[0] = upper;
+    measure.voices[1] = lower;
+    let svg = render_svg(&score, &opts()).unwrap();
+    let curve = slur_geometries(&svg)[0];
+    let stem = svg.split(r#"class="acorde-stem" x1=""#).nth(5).unwrap();
+    let x: f32 = stem.split('"').next().unwrap().parse().unwrap();
+    let tip: f32 = stem
+        .split("y2=\"")
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap()
+        .parse()
+        .unwrap();
+    let t = (x - curve[0]) / (curve[4] - curve[0]);
+    assert!(t > 0.0 && t < 1.0);
+    let y = (1.0 - t).powi(2) * curve[1] + 2.0 * t * (1.0 - t) * curve[3] + t * t * curve[5];
+    assert!(y < tip - 0.1, "slur y={y}, other voice stem tip y={tip}");
+}
+
+#[test]
+fn slur_clears_an_unpitched_interior_stem() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("unpitched stem", 120, 3, 4, 0, 1);
+    let mut notes = vec![Note::new(Pitch::new(Step::C, 5), Duration::Quarter); 3];
+    notes.iter_mut().for_each(|note| note.stem_up = Some(true));
+    notes[0].slur_start = true;
+    notes[2].slur_end = true;
+    notes[1].is_unpitched = true;
+    notes[1].pitches[0] = Pitch::new(Step::G, 5);
+    score.parts[0].staves[0].measures[0].voices[0] = notes;
+    let mut lower = Note::new(Pitch::new(Step::C, 4), Duration::Half);
+    lower.dot_count = 1;
+    score.parts[0].staves[0].measures[0].voices[1] = vec![lower];
+    let svg = render_svg(&score, &opts()).unwrap();
+    let curve = slur_geometries(&svg)[0];
+    let stem = svg.split(r#"class="acorde-stem" x1=""#).nth(2).unwrap();
+    let x: f32 = stem.split('"').next().unwrap().parse().unwrap();
+    let tip: f32 = stem
+        .split("y2=\"")
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap()
+        .parse()
+        .unwrap();
+    let t = (x - curve[0]) / (curve[4] - curve[0]);
+    let y = (1.0 - t).powi(2) * curve[1] + 2.0 * t * (1.0 - t) * curve[3] + t * t * curve[5];
+    assert!(
+        t > 0.0 && t < 1.0 && y < tip - 0.1,
+        "t={t}, slur y={y}, percussion stem tip y={tip}"
+    );
+}
+
+#[test]
+fn slur_clears_scaled_grace_and_cue_stems() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    for is_cue in [false, true] {
+        let mut score = Score::new("grace stem", 120, 2, 4, 0, 1);
+        let mut first = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
+        first.stem_up = Some(true);
+        first.slur_start = true;
+        let mut grace = Note::new(Pitch::new(Step::G, 5), Duration::Eighth);
+        grace.is_grace = !is_cue;
+        grace.is_cue = is_cue;
+        grace.stem_up = Some(true);
+        let mut last = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
+        last.stem_up = Some(true);
+        last.slur_end = true;
+        let measure = &mut score.parts[0].staves[0].measures[0];
+        measure.voices[0] = vec![first, grace, last];
+        measure.voices[1] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Half)];
+        let svg = render_svg(&score, &opts()).unwrap();
+        let curve = slur_geometries(&svg)[0];
+        let heads = notehead_centers(&svg);
+        let stem = svg.split(r#"class="acorde-stem" x1=""#).nth(2).unwrap();
+        let raw_x: f32 = stem.split('"').next().unwrap().parse().unwrap();
+        let raw_tip: f32 = stem
+            .split("y2=\"")
+            .nth(1)
+            .unwrap()
+            .split('"')
+            .next()
+            .unwrap()
+            .parse()
+            .unwrap();
+        let x = heads[1].0 + 0.68 * (raw_x - heads[1].0);
+        let tip = heads[1].1 + 0.68 * (raw_tip - heads[1].1);
+        let t = (x - curve[0]) / (curve[4] - curve[0]);
+        let y = (1.0 - t).powi(2) * curve[1] + 2.0 * t * (1.0 - t) * curve[3] + t * t * curve[5];
+        assert!(
+            t > 0.0 && t < 1.0 && y < tip - 0.1,
+            "t={t}, slur y={y}, scaled grace stem tip y={tip}"
+        );
+        for index in 0..=20 {
+            let t = index as f32 / 20.0;
+            let y =
+                (1.0 - t).powi(2) * curve[1] + 2.0 * t * (1.0 - t) * curve[3] + t * t * curve[5];
+            assert!(
+                y >= 0.0,
+                "slur leaves the SVG viewport at y={y}, curve={curve:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn cross_system_slur_clears_other_voice_stems_on_both_rows() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("cross-system voices", 120, 3, 4, 0, 2);
+    for (index, measure) in score.parts[0].staves[0].measures.iter_mut().enumerate() {
+        let mut upper = vec![Note::new(Pitch::new(Step::C, 5), Duration::Quarter); 3];
+        upper.iter_mut().for_each(|note| note.stem_up = Some(false));
+        upper[0].slur_start = index == 0;
+        upper[2].slur_end = index == 1;
+        let mut lower = vec![Note::new(Pitch::new(Step::C, 5), Duration::Quarter); 3];
+        lower.iter_mut().for_each(|note| note.stem_up = Some(true));
+        lower[1].pitches[0] = Pitch::new(Step::G, 5);
+        measure.voices[0] = upper;
+        measure.voices[1] = lower;
+    }
+    let mut options = opts();
+    options.measures_per_system = 1;
+    let svg = render_svg(&score, &options).unwrap();
+    let curves = slur_geometries(&svg);
+    assert_eq!(curves.len(), 2);
+    let stems: Vec<_> = svg.split(r#"class="acorde-stem" x1=""#).skip(1).collect();
+    for (curve, stem) in [(curves[0], stems[4]), (curves[1], stems[10])] {
+        let x: f32 = stem.split('"').next().unwrap().parse().unwrap();
+        let tip: f32 = stem
+            .split("y2=\"")
+            .nth(1)
+            .unwrap()
+            .split('"')
+            .next()
+            .unwrap()
+            .parse()
+            .unwrap();
+        let t = (x - curve[0]) / (curve[4] - curve[0]);
+        let y = (1.0 - t).powi(2) * curve[1] + 2.0 * t * (1.0 - t) * curve[3] + t * t * curve[5];
+        assert!(
+            t > 0.0 && t < 1.0 && y < tip - 0.1 && y > 0.0,
+            "t={t}, y={y}, stem={tip}, curve={curve:?}, stemdata={stem}"
+        );
+    }
+}
+
+#[test]
+fn cross_staff_system_slur_clears_other_voice_stems() {
+    use acorde_core::{
+        Clef, Duration, NotationSpanner, NotationSpannerKind, Note, NoteAddr, Pitch, Score, Staff,
+        Step,
+    };
+    let mut score = Score::new("cross staff slur", 120, 3, 4, 0, 2);
+    let mut lower = Staff::new(Clef::Bass);
+    lower.measures = score.parts[0].staves[0].measures.clone();
+    score.parts[0].staves.push(lower);
+    for staff in &mut score.parts[0].staves {
+        for measure in &mut staff.measures {
+            let mut voice = vec![Note::new(Pitch::new(Step::C, 5), Duration::Quarter); 3];
+            voice.iter_mut().for_each(|note| note.stem_up = Some(true));
+            voice[1].pitches[0] = Pitch::new(Step::G, 5);
+            measure.voices[0] = voice;
+        }
+    }
+    let start = NoteAddr {
+        part: 0,
+        staff: 0,
+        measure: 0,
+        voice: 0,
+        note: 0,
+    };
+    let end = NoteAddr {
+        part: 0,
+        staff: 1,
+        measure: 1,
+        voice: 0,
+        note: 2,
+    };
+    score.spanners.push(NotationSpanner {
+        id: "cross".into(),
+        kind: NotationSpannerKind::Slur,
+        start,
+        end,
+        number: None,
+        line_type: None,
+        text: None,
+        placement: Some("above".into()),
+        ottava_size: None,
+        ottava_type: None,
+    });
+    let mut options = opts();
+    options.measures_per_system = 1;
+    let svg = render_svg(&score, &options).unwrap();
+    let curves = slur_geometries(&svg);
+    assert_eq!(curves.len(), 2);
+    for (curve, address) in [(curves[0], "0:0:0:0:1"), (curves[1], "0:1:1:0:1")] {
+        let note = svg
+            .split(&format!("data-note-addr=\"{address}\""))
+            .nth(1)
+            .unwrap()
+            .split("</g>")
+            .next()
+            .unwrap();
+        let stem = note.split(r#"class="acorde-stem" x1=""#).nth(1).unwrap();
+        let x: f32 = stem.split('"').next().unwrap().parse().unwrap();
+        let tip: f32 = stem
+            .split("y2=\"")
+            .nth(1)
+            .unwrap()
+            .split('"')
+            .next()
+            .unwrap()
+            .parse()
+            .unwrap();
+        let t = (x - curve[0]) / (curve[4] - curve[0]);
+        let y = (1.0 - t).powi(2) * curve[1] + 2.0 * t * (1.0 - t) * curve[3] + t * t * curve[5];
+        assert!(
+            t > 0.0 && t < 1.0 && y < tip - 0.1,
+            "{address}: t={t}, y={y}, tip={tip}, curve={curve:?}"
+        );
+    }
 }
 
 #[test]
