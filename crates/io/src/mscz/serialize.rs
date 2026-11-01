@@ -1677,8 +1677,12 @@ fn write_note(
                 .and_then(Option::as_ref)
             {
                 xml.push_str("<prev><location>");
-                for (name, value) in &location.invalid_components {
-                    if matches!(name.as_str(), "staves" | "voices" | "measures") {
+                for (name, value) in [
+                    ("staves", &location.invalid_staves),
+                    ("voices", &location.invalid_voices),
+                    ("measures", &location.invalid_measures),
+                ] {
+                    if let Some(value) = value {
                         write!(xml, "<{name}>{}</{name}>", escape(value)).map_err(fmt_error)?;
                     }
                 }

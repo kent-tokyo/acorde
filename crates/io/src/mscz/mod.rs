@@ -1876,24 +1876,23 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
 
                     "measures" | "staves" | "voices" if in_tie_prev_location => {
                         if let Some(location) = note_tie_source.as_mut() {
-                            if let Ok(value) = t.trim().parse::<i32>() {
-                                location.invalid_components.remove(&name);
-                                match name.as_str() {
-                                    "measures" => location.measures = value,
-                                    "staves" => location.staves = value,
-                                    "voices" => location.voices = value,
-                                    _ => unreachable!(),
+                            let (number, invalid) = match name.as_str() {
+                                "measures" => {
+                                    (&mut location.measures, &mut location.invalid_measures)
                                 }
-                            } else {
-                                match name.as_str() {
-                                    "measures" => location.measures = 0,
-                                    "staves" => location.staves = 0,
-                                    "voices" => location.voices = 0,
-                                    _ => unreachable!(),
+                                "staves" => (&mut location.staves, &mut location.invalid_staves),
+                                "voices" => (&mut location.voices, &mut location.invalid_voices),
+                                _ => unreachable!(),
+                            };
+                            match t.trim().parse::<i32>() {
+                                Ok(value) => {
+                                    *number = value;
+                                    *invalid = None;
                                 }
-                                location
-                                    .invalid_components
-                                    .insert(name.clone(), t.trim().to_string());
+                                Err(_) => {
+                                    *number = 0;
+                                    *invalid = Some(t.trim().to_string());
+                                }
                             }
                         }
                     }
