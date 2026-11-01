@@ -1436,6 +1436,9 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
         let path = fixture["path"].as_str().expect("fixture path");
         let expected = fixture["sha256"].as_str().expect("fixture sha256");
         let bytes: &[u8] = match path {
+            "issue_292_hidden_time.musicxml" => {
+                include_bytes!("../../../tests/fixtures/issue_292_hidden_time.musicxml")
+            }
             "issue_283_overlapping_ottavas.mscx" => {
                 include_bytes!("../../../tests/fixtures/issue_283_overlapping_ottavas.mscx")
             }
@@ -7659,4 +7662,16 @@ fn hidden_musicxml_meter_does_not_report_a_supported_attribute_as_lost() {
             .iter()
             .any(|item| item.code == "musicxml.invalid-time-visibility")
     );
+}
+
+#[cfg(all(feature = "musicxml", feature = "mscz"))]
+#[test]
+fn hidden_meter_external_fixture_survives_mscz_roundtrip() {
+    let source = include_str!("../../../tests/fixtures/issue_292_hidden_time.musicxml");
+    let score = parse_musicxml(source).unwrap();
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let measures = &restored.parts[0].staves[0].measures;
+    assert!(!measures[0].time_sig_hidden);
+    assert!(measures[1].time_sig_hidden);
+    assert_eq!(measures[1].time_sig.as_ref().unwrap().numerator, 2);
 }
