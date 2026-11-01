@@ -785,3 +785,14 @@ fn playback_options_share_only_selected_dynamic_marks() {
     assert_eq!(events.len(), 2);
     assert!(events.iter().all(|event| event.velocity == 48));
 }
+
+#[test]
+fn musicxml_measured_tremolo_is_repeated_in_default_playback_binding() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>half</type><notations><ornaments><tremolo type="single">3</tremolo></ornaments></notations></note><note><pitch><step>D</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>half</type></note></measure></part></score-partwise>"#;
+    let score = bindings::parse_musicxml(xml).unwrap();
+    let events: Vec<Value> =
+        serde_json::from_str(&bindings::to_playback_events_ex(&score, "{}").unwrap()).unwrap();
+    assert_eq!(events.len(), 17);
+    assert_eq!(events[15]["time_beats"], 1.875);
+    assert_eq!(events[16]["time_beats"], 2.0);
+}

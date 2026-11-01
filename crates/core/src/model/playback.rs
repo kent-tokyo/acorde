@@ -36,8 +36,8 @@ fn default_beat_velocity() -> u8 {
 /// Explicit opt-in event realization policy.
 ///
 /// [`Authored`](Self::Authored) is the default: ornaments and arpeggiation remain notation
-/// semantics on one event. The versioned realization profile is deliberately opt-in so hosts
-/// never receive invented attacks merely by upgrading acorde.
+/// semantics on one event. Measured single-note tremolos are an exception: their written
+/// strokes determine repeated attacks in every profile. Other ornament realization remains opt-in.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum PlaybackRealizationProfile {
@@ -2667,6 +2667,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     events = merge_tied_events(score, options, events);
+    events = realize_single_tremolos(score, options, events);
     apply_fermata_holds(&mut events, &score_fermata_holds(score, options));
     events = apply_realization_profile(score, events, options.realization_profile);
     events.sort_by(|a, b| {
@@ -2675,6 +2676,90 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     events
+}
+
+// Expand measured tremolo before score-wide fermata holds, using the same tempo clock as
+// the rest of playback. A tremolo mark adds strokes to any flags already on the note.
+fn realize_single_tremolos(
+    score: &Score,
+    options: &PlaybackOptions,
+    events: Vec<PlaybackEvent>,
+) -> Vec<PlaybackEvent> {
+    let mut realized = Vec::with_capacity(events.len());
+    let mut clock = None;
+    for event in events {
+        let strokes = event.articulations.iter().find_map(|mark| match mark {
+            Articulation::Tremolo(n @ 1..=8) => Some(*n),
+            _ => None,
+        });
+        let note = event.source.as_ref().and_then(|source| {
+            score
+                .parts
+                .get(source.part)
+                .and_then(|part| part.staves.get(source.staff))
+                .and_then(|staff| staff.measures.get(source.measure))
+                .and_then(|measure| measure.voices.get(source.voice))
+                .and_then(|voice| voice.get(source.note))
+        });
+        let (Some(strokes), Some(note)) = (strokes, note) else {
+            realized.push(event);
+            continue;
+        };
+        if note.tremolo_pair.is_some() {
+            realized.push(event);
+            continue;
+        }
+        let tuplet_scale = note.tuplet.as_ref().map_or(1.0, |tuplet| {
+            f64::from(tuplet.normal_notes) / f64::from(tuplet.actual_notes.max(1))
+        });
+        let attack_beats =
+            note.duration.beats(0).min(1.0) * tuplet_scale / f64::from(1_u32 << strokes);
+        if !attack_beats.is_finite() || attack_beats <= 0.0 {
+            realized.push(event);
+            continue;
+        }
+        if !event.duration_beats.is_finite() || event.duration_beats <= 0.0 {
+            realized.push(event);
+            continue;
+        }
+        let count = (event.duration_beats / attack_beats - 1e-9).ceil() as usize;
+        // Bound expansion of malformed or exceptionally long tied values.
+        if count <= 1 || count > 65_536 {
+            realized.push(event);
+            continue;
+        }
+        let timeline = clock.get_or_insert_with(|| playback_measure_clock(score, options));
+        for ordinal in 0..count {
+            let start = event.time_beats + ordinal as f64 * attack_beats;
+            let end = (start + attack_beats).min(event.time_beats + event.duration_beats);
+            let mut attack = event.clone();
+            attack.time_beats = start;
+            attack.duration_beats = end - start;
+            let start_secs = playback_secs_at_beat(timeline, start);
+            let end_secs = playback_secs_at_beat(timeline, end);
+            if let (Some(start_secs), Some(end_secs)) = (start_secs, end_secs) {
+                attack.time_secs = start_secs;
+                attack.duration_secs = end_secs - start_secs;
+            } else {
+                attack.time_secs +=
+                    event.duration_secs * (start - event.time_beats) / event.duration_beats;
+                attack.duration_secs =
+                    event.duration_secs * attack.duration_beats / event.duration_beats;
+            }
+            attack
+                .articulations
+                .retain(|mark| !matches!(mark, Articulation::Tremolo(_)));
+            if ordinal > 0 {
+                attack.pedal = false;
+                attack.chord_symbol = None;
+            }
+            if ordinal + 1 < count {
+                attack.post_note_pause_beats = 0.0;
+            }
+            realized.push(attack);
+        }
+    }
+    realized
 }
 
 const ORNAMENT_ATTACK_COUNT: usize = 4;
@@ -2689,12 +2774,15 @@ fn apply_realization_profile(
         return events;
     }
 
-    let mut chord_groups: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+    let mut chord_groups: BTreeMap<(String, u64), Vec<usize>> = BTreeMap::new();
     for (index, event) in events.iter().enumerate() {
         if !event.is_metronome
             && let Some(address) = &event.address
         {
-            chord_groups.entry(address.clone()).or_default().push(index);
+            chord_groups
+                .entry((address.clone(), event.time_beats.to_bits()))
+                .or_default()
+                .push(index);
         }
     }
     for indices in chord_groups.into_values() {

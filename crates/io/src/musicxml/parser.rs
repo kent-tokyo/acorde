@@ -368,6 +368,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut pending_technique_text: Option<String> = None;
     let mut pending_articulations: Vec<Articulation> = Vec::new();
     let mut pending_tremolo = false;
+    let mut pending_tremolo_pair: Option<String> = None;
     let mut note_arpeggiate: Option<bool> = None;
     let mut pending_note_head: Option<NoteHead> = None;
     let mut in_pitch = false;
@@ -868,6 +869,8 @@ pub(crate) fn parse_musicxml_collecting(
                         _ => {}
                     },
                     "tremolo" if in_ornament_block => {
+                        pending_tremolo_pair =
+                            attr_str(e, b"type").filter(|kind| kind == "start" || kind == "stop");
                         pending_tremolo = true;
                     }
                     "lyric" if in_note => {
@@ -942,6 +945,7 @@ pub(crate) fn parse_musicxml_collecting(
                         note_spanner_events.clear();
                         pending_articulations.clear();
                         pending_tremolo = false;
+                        pending_tremolo_pair = None;
                         note_arpeggiate = None;
                         pending_fingerings.clear();
                         pending_string_number = None;
@@ -2922,6 +2926,18 @@ pub(crate) fn parse_musicxml_collecting(
                                             "MusicXML chord cannot contain a rest".into(),
                                         ));
                                     }
+                                    // MusicXML permits an ornament on any chord member;
+                                    // the canonical note stores the chord as one event.
+                                    for mark in pending_articulations.drain(..) {
+                                        if matches!(mark, Articulation::Tremolo(_))
+                                            && !last.articulations.contains(&mark)
+                                        {
+                                            last.articulations.push(mark);
+                                        }
+                                    }
+                                    if pending_tremolo_pair.is_some() {
+                                        last.tremolo_pair = pending_tremolo_pair.take();
+                                    }
                                     merge_musicxml_chord_note(
                                         last,
                                         &note,
@@ -3052,6 +3068,7 @@ pub(crate) fn parse_musicxml_collecting(
                                             target_voice: None,
                                         });
                                     }
+                                    note.tremolo_pair = pending_tremolo_pair.take();
                                     if !pending_articulations.is_empty() {
                                         note.articulations =
                                             std::mem::take(&mut pending_articulations);
