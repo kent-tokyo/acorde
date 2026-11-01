@@ -43,6 +43,7 @@ pub fn loss_diagnostics(xml: &str) -> Vec<crate::Diagnostic> {
     let mut path = Vec::new();
     let mut diagnostics = Vec::new();
     let mut figured_bass: Option<(Vec<String>, bool, bool)> = None;
+    let mut figured_bass_groups_in_measure = 0usize;
     let mut degree_context: Option<(Vec<String>, Option<String>, Option<String>)> = None;
     // Staff count declared by `<staves>` for the current part, if any.
     let mut declared_staves: Option<u16> = None;
@@ -54,7 +55,19 @@ pub fn loss_diagnostics(xml: &str) -> Vec<crate::Diagnostic> {
                 if name == "part" {
                     declared_staves = None;
                 }
+                if name == "measure" {
+                    figured_bass_groups_in_measure = 0;
+                }
                 if name == "figured-bass" {
+                    figured_bass_groups_in_measure += 1;
+                    if figured_bass_groups_in_measure > 1 {
+                        let mut diagnostic = crate::Diagnostic::warning(
+                            "musicxml.unsupported-detail.multiple-figured-bass-groups",
+                            "Multiple figured-bass groups in a measure are not retained independently",
+                        );
+                        diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                        diagnostics.push(diagnostic);
+                    }
                     figured_bass = Some((path.clone(), false, false));
                 } else if let Some((_, has_number, has_unsupported_child)) = figured_bass.as_mut() {
                     if name == "figure-number" {

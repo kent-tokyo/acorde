@@ -1811,6 +1811,20 @@ fn musicxml_simple_figured_bass_display_text_roundtrips() {
 }
 
 #[test]
+fn multiple_figured_bass_groups_are_reported_as_loss() {
+    let xml = SIMPLE_XML.replacen(
+        "<note",
+        "<figured-bass><figure><figure-number>6</figure-number></figure></figured-bass><figured-bass><figure><figure-number>5</figure-number></figure></figured-bass><note",
+        1,
+    );
+    let report = acorde_io::parse_musicxml_with_report(&xml).unwrap();
+    assert!(
+        report.diagnostics.iter().any(|diagnostic| diagnostic.code
+            == "musicxml.unsupported-detail.multiple-figured-bass-groups")
+    );
+}
+
+#[test]
 fn musicxml_figured_bass_prefix_and_extender_roundtrip() {
     for figure in [
         "<prefix>sharp</prefix>",
