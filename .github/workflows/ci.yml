@@ -199,9 +199,9 @@ jobs:
           # 6,111,598 bytes on Linux. Hairpin and beam-clearance rendering
           # measured 6,118,357 bytes; independently, MuseScore cross-voice and
           # cross-staff slur import/export measured 6,145,645 bytes on Linux.
-          # Fermata and hidden-meter support measured 6,198,774 bytes on Linux.
-          # Slur clearance added 3,808 bytes on the earlier base; measure the
-          # complete combination in this CI run.
+          # Fermata, hidden-meter and accidental support measured 6,198,811 bytes
+          # on Linux. Slur clearance added 3,808 bytes on the earlier base; measure
+          # the complete combination in this CI run.
           test "$size" -le 6205000
 
   renderer-benchmark:

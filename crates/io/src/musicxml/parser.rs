@@ -530,7 +530,7 @@ pub(crate) fn parse_musicxml_collecting(
                         } else if yes(b"cautionary") {
                             AccidentalDisplay::Cautionary
                         } else {
-                            AccidentalDisplay::Auto
+                            AccidentalDisplay::Explicit
                         };
                     }
                     "score-part" => {
@@ -4062,7 +4062,7 @@ mod tests {
                 voice[0].accidental_display(0),
                 AccidentalDisplay::Cautionary
             );
-            assert_eq!(voice[1].accidental_display(0), AccidentalDisplay::Auto);
+            assert_eq!(voice[1].accidental_display(0), AccidentalDisplay::Explicit);
             assert_eq!(
                 voice[1].accidental_display(1),
                 AccidentalDisplay::Parenthesized
@@ -4072,7 +4072,7 @@ mod tests {
         check(&score);
         let written = crate::serialize_musicxml(&score).expect("serializes");
         assert!(written.contains(r#"<accidental parentheses="yes">sharp</accidental>"#));
-        assert_eq!(written.matches("<accidental").count(), 2);
+        assert_eq!(written.matches("<accidental").count(), 3);
         check(&parse_musicxml(&written).expect("reparses"));
     }
 
