@@ -5279,30 +5279,6 @@ fn hidden_time_signatures_keep_duration_across_musicxml_and_mscz() {
 }
 
 #[test]
-fn simultaneous_voices_align_with_measure_text() {
-    use acorde_core::{Duration, Note, Pitch, Score, Step, StyledText, TextStyle};
-    let mut score = Score::new("voice alignment", 120, 4, 4, 0, 1);
-    let measure = &mut score.parts[0].staves[0].measures[0];
-    measure.voices[0] = vec![Note::new(Pitch::new(Step::A, 4), Duration::Quarter)];
-    measure.voices[1] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
-    measure.texts.push(StyledText {
-        position_beats: Some(0.0),
-        style: TextStyle::Expression,
-        text: "dolce".into(),
-        placement: Some("above".into()),
-        offset_x: None,
-        offset_y: None,
-        relative_x: None,
-        relative_y: None,
-    });
-    let svg = render_svg(&score, &opts()).unwrap();
-    let heads = notehead_centers(&svg);
-    assert_eq!(heads.len(), 2);
-    assert!((heads[0].0 - heads[1].0).abs() < 0.1, "{heads:?}");
-    assert!(svg.contains(">dolce</text>"));
-}
-
-#[test]
 fn shared_dynamic_playback_does_not_duplicate_the_printed_mark() {
     use acorde_core::{
         Clef, Duration, Dynamic, Measure, Note, NoteAddr, Pitch, PlaybackOptions, Score, Staff,
@@ -5622,6 +5598,81 @@ fn timed_pedal_signs_show_at_distinct_positions_inside_a_sustained_note() {
     let hidden = render_svg(&score, &opts()).unwrap();
     assert!(!hidden.contains(">Ped.</text>"));
     assert!(hidden.contains(">*</text>"));
+}
+
+#[test]
+fn incoming_partial_tie_renders_a_stub_for_only_the_marked_chord_pitch() {
+    let mut score = acorde_core::Score::new("partial tie", 120, 4, 4, 0, 1);
+    let mut note = acorde_core::Note::new(
+        acorde_core::Pitch::from_midi(60, false),
+        acorde_core::Duration::Whole,
+    );
+    note.pitches.push(acorde_core::Pitch::from_midi(64, false));
+    note.pitch_incoming_partial_ties = vec![true, false];
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(svg.matches("class=\"acorde-tie\"").count(), 1);
+    let fragment = svg.split("class=\"acorde-tie\" d=\"M ").nth(1).unwrap();
+    let start_x: f32 = fragment.split(',').next().unwrap().parse().unwrap();
+    assert!(start_x < notehead_centers(&svg)[0].0);
+}
+
+#[test]
+fn incoming_partial_tie_stays_inside_its_own_measure() {
+    let mut score = acorde_core::Score::new("partial tie at barline", 120, 4, 4, 0, 2);
+    let first = acorde_core::Note::new(
+        acorde_core::Pitch::from_midi(60, false),
+        acorde_core::Duration::Whole,
+    );
+    let mut second = first.clone();
+    second.pitch_incoming_partial_ties = vec![true];
+    score.parts[0].staves[0].measures[0].voices[0] = vec![first];
+    score.parts[0].staves[0].measures[1].voices[0] = vec![second];
+    let svg = render_svg(&score, &opts()).unwrap();
+    let fragment = svg.split("class=\"acorde-tie\" d=\"M ").nth(1).unwrap();
+    let start: f32 = fragment.split(',').next().unwrap().parse().unwrap();
+    let barline: f32 = svg
+        .split("class=\"acorde-barline\" x1=\"")
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(
+        start > barline,
+        "partial tie starts at {start}, before barline {barline}"
+    );
+    let end = notehead_centers(&svg)[1].0;
+    assert!(
+        end - start > opts().staff_size,
+        "partial tie has no readable horizontal space"
+    );
+}
+
+#[test]
+fn simultaneous_voices_align_with_measure_text() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step, StyledText, TextStyle};
+    let mut score = Score::new("voice alignment", 120, 4, 4, 0, 1);
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.voices[0] = vec![Note::new(Pitch::new(Step::A, 4), Duration::Quarter)];
+    measure.voices[1] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+    measure.texts.push(StyledText {
+        position_beats: Some(0.0),
+        style: TextStyle::Expression,
+        text: "dolce".into(),
+        placement: Some("above".into()),
+        offset_x: None,
+        offset_y: None,
+        relative_x: None,
+        relative_y: None,
+    });
+    let svg = render_svg(&score, &opts()).unwrap();
+    let heads = notehead_centers(&svg);
+    assert_eq!(heads.len(), 2);
+    assert!((heads[0].0 - heads[1].0).abs() < 0.1, "{heads:?}");
+    assert!(svg.contains(">dolce</text>"));
 }
 
 #[test]

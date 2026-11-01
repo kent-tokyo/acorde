@@ -370,6 +370,13 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut note_ghost = false;
     let mut note_accidental_display = AccidentalDisplay::Auto;
     let mut chord_tie_ends: Vec<bool> = Vec::new();
+    let mut chord_partial_incoming: Vec<bool> = Vec::new();
+    let mut chord_tie_sources: Vec<Option<acorde_core::TieSourceLocation>> = Vec::new();
+    let mut note_tie_source: Option<acorde_core::TieSourceLocation> = None;
+    let mut in_tie_prev = false;
+    let mut in_tie_prev_location = false;
+    let mut note_partial_incoming = false;
+    let mut in_partial_tie = false;
     let mut note_tie_start = false;
     let mut note_tie_end = false;
     let mut chord_slur_start = false; // Feature L
@@ -796,6 +803,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         chord_pitch_fingerings.clear();
                         chord_fingerings.clear();
                         chord_tie_ends.clear();
+                        chord_partial_incoming.clear();
+                        chord_tie_sources.clear();
                         chord_slur_start = false;
                         chord_slur_end = false;
                         chord_cross_slurs.clear();
@@ -839,6 +848,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         note_hidden = false;
                         note_tie_start = false;
                         note_tie_end = false;
+                        note_partial_incoming = false;
+                        note_tie_source = None;
                         note_midi = 60;
                         note_tpc = 14;
                         note_tpc2 = None;
@@ -894,6 +905,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "Slide" if in_note_elem => note_technique = Some(GuitarTechnique::Slide),
                     "HammerOn" if in_note_elem => note_technique = Some(GuitarTechnique::HammerOn),
                     "PullOff" if in_note_elem => note_technique = Some(GuitarTechnique::PullOff),
+                    "PartialTie" if in_note_elem => in_partial_tie = true,
                     // Note-level Tie Spanner
                     "Spanner" if in_note_elem => {
                         in_spanner = true;
@@ -907,6 +919,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "prev" if in_spanner => {
                         spanner_has_prev = true;
+                        in_tie_prev = spanner_is_tie;
+                    }
+                    "location" if in_tie_prev => {
+                        in_tie_prev_location = true;
+                        note_tie_source = Some(acorde_core::TieSourceLocation::default());
                     }
                     // Feature M: MuseScore 4.x voice wrapper container at Measure level
                     "voice" if in_measure && !in_chord && !in_rest_elem => {
@@ -1857,6 +1874,39 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         in_accidental = false;
                     }
 
+                    "measures" | "staves" | "voices" if in_tie_prev_location => {
+                        if let Some(location) = note_tie_source.as_mut() {
+                            let (number, invalid) = match name.as_str() {
+                                "measures" => {
+                                    (&mut location.measures, &mut location.invalid_measures)
+                                }
+                                "staves" => (&mut location.staves, &mut location.invalid_staves),
+                                "voices" => (&mut location.voices, &mut location.invalid_voices),
+                                _ => unreachable!(),
+                            };
+                            match t.trim().parse::<i32>() {
+                                Ok(value) => {
+                                    *number = value;
+                                    *invalid = None;
+                                }
+                                Err(_) => {
+                                    *number = 0;
+                                    *invalid = Some(t.trim().to_string());
+                                }
+                            }
+                        }
+                    }
+                    "fractions" if in_tie_prev_location => {
+                        if let Some(location) = note_tie_source.as_mut() {
+                            location.fractions = Some(t.trim().to_string());
+                        }
+                    }
+                    "location" if in_tie_prev_location => in_tie_prev_location = false,
+                    "prev" if in_tie_prev => in_tie_prev = false,
+                    "partialSpannerDirection" if in_partial_tie => {
+                        note_partial_incoming = t.trim() == "incoming";
+                    }
+                    "PartialTie" if in_partial_tie => in_partial_tie = false,
                     // Note-level Spanner/Tie
                     "next" if in_spanner => {}
                     "Spanner" if in_spanner => {
@@ -1872,6 +1922,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         }
                         spanner_is_glissando = false;
                         in_spanner = false;
+                        in_tie_prev = false;
+                        in_tie_prev_location = false;
                         spanner_is_tie = false;
                         spanner_has_next = false;
                         spanner_has_prev = false;
@@ -2149,6 +2201,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         chord_pitch_fingerings.push(note_fingerings.first().copied());
                         chord_fingerings.extend(note_fingerings.iter().copied());
                         chord_tie_ends.push(note_tie_end);
+                        chord_partial_incoming.push(note_partial_incoming);
+                        chord_tie_sources.push(note_tie_source.take());
                         chord_notes_hidden += usize::from(note_hidden);
                         in_note_elem = false;
                     }
@@ -2169,6 +2223,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             note.slur_end = chord_slur_end;
                             note.pitches = chord_pitches.clone();
                             note.set_pitch_ties(&chord_tie_starts, &chord_tie_ends);
+                            if chord_partial_incoming.contains(&true) {
+                                note.pitch_incoming_partial_ties = chord_partial_incoming.clone();
+                            }
+                            if chord_tie_sources.iter().any(Option::is_some) {
+                                note.pitch_tie_sources = chord_tie_sources.clone();
+                            }
                             if chord_accidentals
                                 .iter()
                                 .any(|display| *display != AccidentalDisplay::Auto)
@@ -2517,6 +2577,7 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
     let mut reader = Reader::from_str(xml);
     let mut path: Vec<String> = Vec::new();
     let mut main_score_seen = false;
+    let mut in_note_tie_spanner = false;
     let mut ignored_score_depth = None;
     let mut diagnostics = Vec::new();
     let mut harmony_context: Option<(String, bool, bool, bool)> = None;
@@ -2547,6 +2608,9 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                 }
                 if ignored_score_depth.is_some() {
                     continue;
+                }
+                if name == "Spanner" && path.iter().any(|element| element == "Note") {
+                    in_note_tie_spanner = attr_str(&event, b"type").as_deref() == Some("Tie");
                 }
                 if matches!(name.as_str(), "Harmony" | "harmonyInfo") {
                     push_harmony_attribute_diagnostics(&mut diagnostics, &path, &event, &name);
@@ -2705,6 +2769,9 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                     continue;
                 }
                 let name = local_name_str(event.local_name().as_ref());
+                if name == "Spanner" {
+                    in_note_tie_spanner = false;
+                }
                 if name == "Harmony"
                     && let Some((harmony_path, has_name, has_root, has_unsupported_child)) =
                         harmony_context.take()
@@ -2909,6 +2976,84 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                     diagnostic.source_location = Some(format!("/{}", path.join("/")));
                     diagnostic.preserved_value = Some(value);
                     diagnostics.push(diagnostic);
+                }
+                if matches!(field, Some("measures" | "staves" | "voices"))
+                    && in_note_tie_spanner
+                    && path.iter().any(|element| element == "Note")
+                    && path.iter().any(|element| element == "Spanner")
+                    && path.iter().any(|element| element == "prev")
+                    && path.iter().any(|element| element == "location")
+                {
+                    let value = String::from_utf8_lossy(event.as_ref());
+                    if value.trim().parse::<i32>().is_err() {
+                        let mut diagnostic = Diagnostic::warning(
+                            "mscx.invalid-tie-source-location",
+                            "MSCX tie source contains an invalid numeric offset and cannot be matched",
+                        );
+                        diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                        diagnostic.preserved_value = Some(value.trim().to_string());
+                        diagnostics.push(diagnostic);
+                    }
+                }
+                if field == Some("fractions")
+                    && in_note_tie_spanner
+                    && path.iter().any(|element| element == "Note")
+                    && path.iter().any(|element| element == "Spanner")
+                    && path.iter().any(|element| element == "prev")
+                    && path.iter().any(|element| element == "location")
+                {
+                    let value = String::from_utf8_lossy(event.as_ref());
+                    let valid =
+                        value
+                            .trim()
+                            .split_once('/')
+                            .is_some_and(|(numerator, denominator)| {
+                                numerator.parse::<i32>().is_ok()
+                                    && denominator.parse::<u32>().is_ok_and(|d| d != 0)
+                            });
+                    if !valid {
+                        let mut diagnostic = Diagnostic::warning(
+                            "mscx.invalid-tie-source-location",
+                            "MSCX tie source contains an invalid fractional offset and cannot be matched",
+                        );
+                        diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                        diagnostic.preserved_value = Some(value.trim().to_string());
+                        diagnostics.push(diagnostic);
+                    }
+                }
+                if field == Some("measures")
+                    && path.iter().any(|element| element == "Note")
+                    && path.iter().any(|element| element == "Spanner")
+                    && path.iter().any(|element| element == "location")
+                {
+                    let value = String::from_utf8_lossy(event.as_ref());
+                    if value
+                        .trim()
+                        .parse::<i32>()
+                        .is_ok_and(|offset| !(-1..=1).contains(&offset))
+                    {
+                        let mut diagnostic = Diagnostic::warning(
+                            "mscx.unsupported-nonadjacent-note-spanner-location",
+                            "Some MSCX nonadjacent note-spanner endpoints or their navigation semantics may not be fully retained",
+                        );
+                        diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                        diagnostic.preserved_value = Some(value.trim().to_string());
+                        diagnostics.push(diagnostic);
+                    }
+                }
+                if field == Some("partialSpannerDirection")
+                    && path.iter().rev().nth(1).map(String::as_str) == Some("PartialTie")
+                {
+                    let value = String::from_utf8_lossy(event.as_ref());
+                    if !value.trim().is_empty() && value.trim() != "incoming" {
+                        let mut diagnostic = Diagnostic::warning(
+                            "mscx.unsupported-partial-tie-direction",
+                            "MSCX outgoing or unknown partial-tie directions are not preserved",
+                        );
+                        diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                        diagnostic.preserved_value = Some(value.trim().to_string());
+                        diagnostics.push(diagnostic);
+                    }
                 }
                 if field == Some("subtype")
                     && path.iter().rev().nth(1).map(String::as_str) == Some("Accidental")

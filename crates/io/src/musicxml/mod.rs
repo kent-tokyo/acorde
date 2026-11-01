@@ -608,6 +608,27 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<crate::Diagnos
         diagnostics.push(diagnostic);
     }
     for (part_index, part) in score.parts.iter().enumerate() {
+        let partial_count = part
+            .staves
+            .iter()
+            .flat_map(|staff| &staff.measures)
+            .flat_map(|measure| &measure.voices)
+            .flatten()
+            .flat_map(|note| &note.pitch_incoming_partial_ties)
+            .filter(|&&incoming| incoming)
+            .count();
+        if partial_count > 0 {
+            let mut diagnostic = crate::Diagnostic::warning(
+                "musicxml.export-unsupported-incoming-partial-tie",
+                "MusicXML export does not preserve incoming partial ties across jumps",
+            );
+            diagnostic.source_location = Some(format!(
+                "/score/part/{}/incoming-partial-ties",
+                part_index + 1
+            ));
+            diagnostic.preserved_value = Some(partial_count.to_string());
+            diagnostics.push(diagnostic);
+        }
         let switch_count: usize = part
             .staves
             .iter()

@@ -123,6 +123,27 @@ fn staff_tie_locations(
                                 pending.get(&pitch_key).copied()
                             && (prior_end - onset).abs() < 1e-7
                             && mscx_offset_is_exact((offset - prior_point.1).abs())
+                            && note
+                                .pitch_tie_sources
+                                .get(pitch_index)
+                                .and_then(Option::as_ref)
+                                .is_none_or(|location| {
+                                    let target = acorde_core::NoteAddr {
+                                        part: 0,
+                                        staff: 0,
+                                        measure: measure_index,
+                                        voice,
+                                        note: note_index,
+                                    };
+                                    let previous = acorde_core::NoteAddr {
+                                        part: 0,
+                                        staff: 0,
+                                        measure: prior_key.0,
+                                        voice: prior_key.1,
+                                        note: prior_key.2,
+                                    };
+                                    location.matches(&target, &previous, prior_point.1 - offset)
+                                })
                         {
                             result.entry(prior_key).or_default().next = Some(point);
                             result.entry(key).or_default().previous = Some(prior_point);
@@ -498,7 +519,10 @@ fn note_has_unsupported_fields(note: &Note) -> bool {
         )
 }
 
-/// Serialize the bounded canonical score subset as MuseScore 3-compatible MSCX.
+/// Serialize the bounded canonical score subset as MSCX.
+///
+/// MuseScore 4 partial ties require the version 4 reader; scores without them
+/// retain the MuseScore 3-compatible version.
 ///
 /// This is intentionally a canonical subset serializer: it emits score structure, voices,
 /// durations, pitches, tablature positions, common note techniques, lyrics, and basic measure
@@ -522,11 +546,21 @@ pub fn serialize_mscx(score: &Score) -> Result<String, Error> {
     if score.parts.is_empty() {
         return Err(Error::Empty);
     }
+    let has_partial_ties = score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .flat_map(|staff| &staff.measures)
+        .flat_map(|measure| &measure.voices)
+        .flatten()
+        .any(|note| note.pitch_incoming_partial_ties.contains(&true));
+    let version = if has_partial_ties { "4.50" } else { "3.02" };
     let mut xml = String::with_capacity(4096);
-    xml.push_str(
-        r#"<?xml version="1.0" encoding="UTF-8"?>
-<museScore version="3.02"><Score>"#,
-    );
+    write!(
+        xml,
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<museScore version=\"{version}\"><Score>"
+    )
+    .expect("writing to a String cannot fail");
     // MuseScore draws multi-measure rests from a style setting rather than per bar.
     if score
         .parts
@@ -1630,11 +1664,43 @@ fn write_note(
         if pitch_index == 0 {
             xml.push_str(marks.map_or("", |marks| marks.note.as_str()));
         }
+        if note.pitch_incoming_partial_ties.get(pitch_index) == Some(&true) {
+            xml.push_str("<PartialTie><partialSpannerDirection>incoming</partialSpannerDirection></PartialTie>");
+        }
         let (measure, voice, index, beats) = note_position;
         let locations = tie_locations.get(&(measure, voice, index, pitch_index));
         if tie_end {
             xml.push_str("<Spanner type=\"Tie\">");
-            if let Some(previous) = locations.and_then(|tie| tie.previous) {
+            if let Some(location) = note
+                .pitch_tie_sources
+                .get(pitch_index)
+                .and_then(Option::as_ref)
+            {
+                xml.push_str("<prev><location>");
+                for (name, value) in [
+                    ("staves", &location.invalid_staves),
+                    ("voices", &location.invalid_voices),
+                    ("measures", &location.invalid_measures),
+                ] {
+                    if let Some(value) = value {
+                        write!(xml, "<{name}>{}</{name}>", escape(value)).map_err(fmt_error)?;
+                    }
+                }
+                if location.staves != 0 {
+                    write!(xml, "<staves>{}</staves>", location.staves).map_err(fmt_error)?;
+                }
+                if location.voices != 0 {
+                    write!(xml, "<voices>{}</voices>", location.voices).map_err(fmt_error)?;
+                }
+                if location.measures != 0 {
+                    write!(xml, "<measures>{}</measures>", location.measures).map_err(fmt_error)?;
+                }
+                if let Some(fractions) = &location.fractions {
+                    write!(xml, "<fractions>{}</fractions>", escape(fractions))
+                        .map_err(fmt_error)?;
+                }
+                xml.push_str("</location></prev>");
+            } else if let Some(previous) = locations.and_then(|tie| tie.previous) {
                 write!(
                     xml,
                     "<prev>{}</prev>",

@@ -13,6 +13,7 @@ fn tied_notes_have_bidirectional_locations_across_bars_and_roundtrip() {
         measure.voices[0] = vec![note];
     }
     let xml = serialize_mscx(&score).unwrap();
+    assert!(xml.contains(r#"<museScore version="3.02">"#));
     assert_eq!(
         xml.matches("<Tie/><next><location><measures>1</measures></location></next>")
             .count(),
