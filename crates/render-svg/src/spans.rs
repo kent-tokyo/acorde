@@ -84,6 +84,30 @@ pub(crate) fn slur_above(
         })
 }
 
+/// Place an unqualified hairpin below the notes of its staff. The canonical hairpin model
+/// currently does not retain an authored above/below placement.
+pub(crate) fn hairpin_baseline(
+    points: &HashMap<NoteKey, NotePoint>,
+    start: &NoteAddr,
+    row: usize,
+    x_range: (f32, f32),
+    fallback_y: f32,
+    space: f32,
+) -> (f32, bool) {
+    let mut bottom: Option<f32> = None;
+    for (&(part, staff, _, _, _), &(x, y, _, point_row)) in points {
+        if part == start.part
+            && staff == start.staff
+            && point_row == row
+            && x >= x_range.0.min(x_range.1) - 0.5 * space
+            && x <= x_range.0.max(x_range.1) + 0.5 * space
+        {
+            bottom = Some(bottom.map_or(y, |v| v.max(y)));
+        }
+    }
+    (bottom.unwrap_or(fallback_y) + 4.0 * space, false)
+}
+
 /// Allocate deterministic escape lanes for spans sharing a system.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn resolve_lane_offsets(
@@ -125,9 +149,13 @@ pub(crate) fn resolve_lane_offsets(
         let slur_side = matches!(span, SpanMark::Slur { .. })
             .then(|| slur_above(score, layout, points, start, end, up1, up2));
         let mut add_segment = |row: usize, left: f32, right: f32, anchor_y: f32, stem_up: bool| {
-            let (baseline, above) = slur_side
-                .map(|above| (anchor_y, above))
-                .unwrap_or_else(|| lane_baseline(span, anchor_y, stem_up, space));
+            let (baseline, above) = if matches!(span, SpanMark::Hairpin { .. }) {
+                hairpin_baseline(points, start, row, (left, right), anchor_y, space)
+            } else {
+                slur_side
+                    .map(|above| (anchor_y, above))
+                    .unwrap_or_else(|| lane_baseline(span, anchor_y, stem_up, space))
+            };
             keys.push((span_index, row));
             original_y.push(baseline);
             owner.push(

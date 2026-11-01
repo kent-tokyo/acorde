@@ -5645,6 +5645,13 @@ fn render_all_spans(
                 end.note
             );
         }
+        let hairpin_y = |row: usize, left: f32, right: f32, fallback: f32| {
+            if matches!(span, SpanMark::Hairpin { .. }) {
+                spans::hairpin_baseline(points, start, row, (left, right), fallback, space).0
+            } else {
+                fallback
+            }
+        };
         if row1 != row2 {
             let start_offset = lane_offsets
                 .get(&(span_index, row1))
@@ -5658,7 +5665,7 @@ fn render_all_spans(
                 body,
                 span,
                 x1,
-                y1 + start_offset,
+                hairpin_y(row1, x1, width - right_margin_u * space, y1) + start_offset,
                 up1,
                 slur_above,
                 width - right_margin_u * space,
@@ -5670,7 +5677,7 @@ fn render_all_spans(
                 body,
                 span,
                 left_margin_u * space,
-                y2 + end_offset,
+                hairpin_y(row2, left_margin_u * space, x2, y2) + end_offset,
                 up2,
                 slur_above,
                 x2,
@@ -5684,7 +5691,12 @@ fn render_all_spans(
                     body,
                     span,
                     left_margin_u * space,
-                    y,
+                    hairpin_y(
+                        middle_row,
+                        left_margin_u * space,
+                        width - right_margin_u * space,
+                        y,
+                    ),
                     up1,
                     slur_above,
                     width - right_margin_u * space,
@@ -5748,7 +5760,7 @@ fn render_all_spans(
             body,
             span,
             x1,
-            y1 + offset,
+            hairpin_y(row1, x1, x2, y1) + offset,
             up1,
             x2,
             y2 + offset,
@@ -6014,7 +6026,7 @@ fn render_same_row_span(
     let (left, right) = if x1 <= x2 { (x1, x2) } else { (x2, x1) };
     match span {
         SpanMark::Hairpin { kind, .. } => {
-            let y = y1 + (if up1 { 2.0 } else { -4.0 }) * space;
+            let y = y1;
             let crescendo = matches!(kind, acorde_core::HairpinKind::Crescendo);
             let left_half = if crescendo { 0.0 } else { 0.45 * space };
             let right_half = if crescendo { 0.45 * space } else { 0.0 };
@@ -6393,7 +6405,7 @@ fn render_span_segment(
 ) {
     match span {
         SpanMark::Hairpin { kind, .. } => {
-            let y = y1 + (if up { 2.0 } else { -4.0 }) * space;
+            let y = y1;
             let crescendo = matches!(kind, acorde_core::HairpinKind::Crescendo);
             let half_width = |t: f32| 0.45 * space * if crescendo { t } else { 1.0 - t };
             write_hairpin_wedge(

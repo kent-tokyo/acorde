@@ -4786,3 +4786,19 @@ fn cross_system_hairpins_keep_their_opening_without_crossing() {
         }
     }
 }
+
+#[test]
+fn hairpin_stays_below_all_voice_noteheads_with_down_stems() {
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time></attributes><direction placement="below"><direction-type><wedge type="diminuendo" number="1"/></direction-type></direction><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type><stem>down</stem></note><note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type><stem>down</stem></note><direction><direction-type><wedge type="stop" number="1"/></direction-type></direction></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let svg = render_svg(&score, &opts()).unwrap();
+    let hairpin = hairpin_path_coordinates(&svg)[0];
+    let lowest = notehead_centers(&svg)
+        .iter()
+        .map(|(_, y)| *y)
+        .fold(f32::NEG_INFINITY, f32::max);
+    assert!(
+        hairpin[1].min(hairpin[3]).min(hairpin[5]).min(hairpin[7])
+            > lowest + 2.0 * opts().staff_size
+    );
+}
