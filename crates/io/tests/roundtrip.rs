@@ -7254,7 +7254,7 @@ fn mscz_cross_voice_slur_with_unsupported_placement_reports_loss() {
         .iter_mut()
         .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
         .unwrap();
-    span.placement = Some("above".into());
+    span.placement = Some("unsupported".into());
     let id = span.id.clone();
     let report = acorde_io::serialize_mscz_with_report(&score).unwrap();
     assert!(
@@ -7422,4 +7422,38 @@ fn cross_voice_slur_with_unrepresentable_offset_reports_loss() {
             .any(|d| d.code == "mscx.export-unsupported-field"
                 && d.source_location.as_deref() == Some(format!("/score/spanners/{id}").as_str()))
     );
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscz_cross_voice_slur_preserves_explicit_placement() {
+    for (placement, tag) in [("above", "<up>up</up>"), ("below", "<up>down</up>")] {
+        let mut score = acorde_io::parse_musicxml(include_str!(
+            "../../../tests/fixtures/cross_voice_slur.musicxml"
+        ))
+        .unwrap();
+        let span = score
+            .spanners
+            .iter_mut()
+            .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+            .unwrap();
+        span.placement = Some(placement.into());
+        let output = acorde_io::serialize_mscx_with_report(&score).unwrap();
+        assert!(output.output.contains(tag));
+        assert!(
+            !output
+                .diagnostics
+                .iter()
+                .any(|d| d.code == "mscx.export-unsupported-field"
+                    && d.source_location.as_deref()
+                        == Some(format!("/score/spanners/{}", score.spanners[0].id).as_str()))
+        );
+        let restored = acorde_io::parse_mscx(&output.output).unwrap();
+        let slur = restored
+            .spanners
+            .iter()
+            .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+            .unwrap();
+        assert_eq!(slur.placement.as_deref(), Some(placement));
+    }
 }

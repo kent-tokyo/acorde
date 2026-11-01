@@ -100,7 +100,10 @@ fn can_emit_cross_staff_or_voice_slur(
     let b = &span.end;
     if a.part != b.part
         || (a.staff == b.staff && a.voice == b.voice)
-        || span.placement.is_some()
+        || span
+            .placement
+            .as_deref()
+            .is_some_and(|value| !matches!(value, "above" | "below"))
         || span.line_type.is_some()
         || span.text.is_some()
         || index.local_starts.contains(&SlurEmissionIndex::note_key(a))
@@ -995,7 +998,12 @@ fn staff_span_marks(
         if span.start.staff == staff_index {
             let _ = write!(
                 marks.entry(start_key).or_default().inside,
-                "<Spanner type=\"Slur\"><Slur></Slur><next>{}</next></Spanner>",
+                "<Spanner type=\"Slur\"><Slur>{}</Slur><next>{}</next></Spanner>",
+                match span.placement.as_deref() {
+                    Some("above") => "<up>up</up>",
+                    Some("below") => "<up>down</up>",
+                    _ => "",
+                },
                 location(start, end, voice_delta, staff_delta)
             );
             typed_starts.insert(start_key);

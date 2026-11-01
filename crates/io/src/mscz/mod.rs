@@ -17,6 +17,7 @@ struct SlurLocation {
     measure_delta: i32,
     beat_delta: f64,
     staff_delta: i32,
+    placement: Option<String>,
     invalid: bool,
 }
 
@@ -1003,6 +1004,13 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                 }
 
                 match name.as_str() {
+                    "up" if in_chord_slur_spanner && !chord_slur_in_next => {
+                        chord_slur_location.placement = match t {
+                            "up" => Some("above".into()),
+                            "down" => Some("below".into()),
+                            _ => None,
+                        };
+                    }
                     "voices" if in_chord_slur_spanner && chord_slur_in_next => {
                         if let Ok(value) = t.parse() {
                             chord_slur_location.voice_delta = value;
@@ -3383,7 +3391,7 @@ fn resolve_cross_voice_slurs(score: &mut Score, ids: &[Vec<usize>], slurs: Vec<C
         score.spanners.push(NotationSpanner {
             id: format!("mscx-slur-{part}-{staff}-{}-{}-{}-{target_staff}-{target_measure}-{target_voice}-{note}", raw.measure, raw.voice, raw.note),
             kind: NotationSpannerKind::Slur, start, end, number: None, line_type: None,
-            text: None, placement: None, ottava_size: None, ottava_type: None,
+            text: None, placement: raw.location.placement, ottava_size: None, ottava_type: None,
         });
     }
 }
