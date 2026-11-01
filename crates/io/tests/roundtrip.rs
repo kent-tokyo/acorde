@@ -7783,6 +7783,7 @@ fn musicxml_figured_bass_groups_preserve_position_and_extend_types() {
         roundtrip.parts[0].staves[0].measures[0].figured_bass_groups,
         *groups
     );
+    #[cfg(all(feature = "mscz", feature = "mei", feature = "abc"))]
     for diagnostics in [
         acorde_io::serialize_mscx_with_report(&score)
             .unwrap()
