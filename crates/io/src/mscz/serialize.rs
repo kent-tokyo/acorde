@@ -1469,9 +1469,9 @@ fn write_accidental_role(xml: &mut String, display: AccidentalDisplay) -> Result
         AccidentalDisplay::Parenthesized => {
             write!(xml, "<bracket>1</bracket><role>1</role>").map_err(fmt_error)
         }
-        AccidentalDisplay::Cautionary | AccidentalDisplay::Editorial => {
-            write!(xml, "<role>1</role>").map_err(fmt_error)
-        }
+        AccidentalDisplay::Explicit
+        | AccidentalDisplay::Cautionary
+        | AccidentalDisplay::Editorial => write!(xml, "<role>1</role>").map_err(fmt_error),
     }
 }
 

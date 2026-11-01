@@ -4713,3 +4713,21 @@ fn navigation_labels_are_musical_and_deduplicate_source_text() {
     assert!(svg.contains("Da Capo al Fine"));
     assert!(!svg.contains("D.C. al Fine"));
 }
+
+#[test]
+fn explicitly_repeated_musicxml_accidentals_survive_render_and_roundtrip() {
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><alter>1</alter><octave>4</octave></pitch><duration>1</duration><type>quarter</type><accidental>sharp</accidental></note><note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>C</step><alter>1</alter><octave>4</octave></pitch><duration>1</duration><type>quarter</type><accidental>sharp</accidental></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(svg.matches("acorde-accidental acorde-sharp").count(), 2);
+    let output = acorde_io::serialize_musicxml(&score).unwrap();
+    assert_eq!(output.matches("<accidental>sharp</accidental>").count(), 2);
+    let restored = acorde_io::parse_musicxml(&output).unwrap();
+    assert_eq!(
+        render_svg(&restored, &opts())
+            .unwrap()
+            .matches("acorde-accidental acorde-sharp")
+            .count(),
+        2
+    );
+}

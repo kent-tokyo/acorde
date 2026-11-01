@@ -2781,6 +2781,9 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             match attr(&event, b"func").as_deref() {
                                 Some("caution") => AccidentalDisplay::Cautionary,
                                 Some("edit") => AccidentalDisplay::Editorial,
+                                _ if attr(&event, b"accid").is_some() => {
+                                    AccidentalDisplay::Explicit
+                                }
                                 _ => AccidentalDisplay::Auto,
                             }
                         };
@@ -4106,6 +4109,7 @@ fn append_mei_pname_oct(out: &mut String, pitch: &Pitch) {
 fn mei_requested_accid(pitch: &Pitch, display: AccidentalDisplay) -> Option<String> {
     let role = match display {
         AccidentalDisplay::Auto => return None,
+        AccidentalDisplay::Explicit => "",
         AccidentalDisplay::Cautionary => r#" func="caution""#,
         AccidentalDisplay::Parenthesized => r#" enclose="paren""#,
         AccidentalDisplay::Editorial => r#" func="edit""#,

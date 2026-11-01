@@ -678,7 +678,9 @@ fn collect_accidental_marks(score: &Score) -> Vec<AccidentalMark> {
                             let parenthesized = display == AccidentalDisplay::Parenthesized;
                             if pitch.alter != baseline {
                                 // A parenthesized one is drawn with the courtesy marks.
-                                if !note.tie_end && !parenthesized {
+                                if (!note.tie_end || display == AccidentalDisplay::Explicit)
+                                    && !parenthesized
+                                {
                                     result.push(AccidentalMark {
                                         part: pi,
                                         staff: si,
@@ -692,7 +694,9 @@ fn collect_accidental_marks(score: &Score) -> Vec<AccidentalMark> {
                                 active.insert(key, pitch.alter);
                             } else if matches!(
                                 display,
-                                AccidentalDisplay::Cautionary | AccidentalDisplay::Editorial
+                                AccidentalDisplay::Explicit
+                                    | AccidentalDisplay::Cautionary
+                                    | AccidentalDisplay::Editorial
                             ) {
                                 // Cautionary and editorial accidentals are drawn even when the
                                 // key and the bar already imply them.
