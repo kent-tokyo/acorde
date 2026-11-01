@@ -70,3 +70,30 @@ and produced 16 events. The dense archive was 3,260 bytes (SHA-256
 `da4dcce9f1e476b1e9e135c2caa555dbdd3c81d43b9033825676de60f86ab0a9`)
 and produced 2,048 events. All compared event fields matched exactly across
 the three profiles for both inputs.
+
+## Shared dynamics across staves
+
+Dynamics and hairpins are staff-local by default. To share a particular written mark with
+all staves of its own part, provide its zero-based note address in `shared_dynamics` or,
+for the first note of a hairpin, in `shared_hairpins`:
+
+```json
+{
+  "shared_dynamics": [{"part": 0, "staff": 0, "measure": 0, "voice": 0, "note": 0}],
+  "shared_hairpins": [{"part": 0, "staff": 0, "measure": 0, "voice": 0, "note": 0}]
+}
+```
+
+Pass this object as `options_json` to `to_playback_events_ex`. The two lists are independent:
+a dynamic and hairpin on the same note must each be selected if both should be shared.
+Unselected markings remain local. At the same time, a staff-local dynamic takes precedence
+over a shared mark on that staff; a local hairpin likewise takes precedence over an overlapping
+shared hairpin. A note's own explicit dynamic retains its attack. Repeated measures use the
+same physical addresses. Addresses that do not point to the relevant
+mark have no effect; hosts should update them after score edits.
+
+This choice belongs to playback options, not the score or MusicXML/MuseScore import: those
+formats do not automatically imply that every marking between staves is shared. The host must
+persist its choice separately. Rendering does not duplicate or modify the mark. The offline
+render manifest uses the same playback options; the current MIDI serializer has no option
+parameter and continues to export staff-local dynamics.

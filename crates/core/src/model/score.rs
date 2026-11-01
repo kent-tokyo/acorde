@@ -1601,6 +1601,22 @@ impl InstrumentDefinition {
     }
 }
 
+/// One named instrument channel, such as a MuseScore arco or pizzicato channel.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NamedInstrumentChannel {
+    pub name: String,
+    pub program: u8,
+    pub midi_channel: u8,
+}
+
+/// A named instrument-channel switch for one voice at a position within a measure.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VoiceChannelSwitch {
+    pub voice: usize,
+    pub position_beats: f64,
+    pub channel_name: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Part {
     pub id: String,
@@ -1613,6 +1629,9 @@ pub struct Part {
     /// General MIDI program number (0–127). Default 0 = Acoustic Grand Piano.
     #[serde(default)]
     pub midi_program: u8,
+    /// Named alternate channels declared by the source instrument.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub named_channels: Vec<NamedInstrumentChannel>,
     /// MIDI pitch-bend events preserved from interchange input, in canonical 480 PPQ ticks.
     #[serde(default)]
     pub midi_pitch_bends: Vec<MidiPitchBend>,
@@ -1723,6 +1742,7 @@ impl Part {
             staves: Vec::new(),
             midi_channel: 0,
             midi_program: 0,
+            named_channels: Vec::new(),
             midi_pitch_bends: Vec::new(),
             midi_control_changes: Vec::new(),
             midi_program_changes: Vec::new(),
@@ -2136,6 +2156,23 @@ pub struct MetronomeMark {
     pub parentheses: bool,
 }
 
+/// A pedal direction at a score-time position within this staff's measure.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TimedPedalDirection {
+    /// Position in quarter-note beats from the start of this measure.
+    pub position_beats: f64,
+    /// True for pedal down, false for pedal release.
+    pub down: bool,
+    /// MusicXML pedal line number.
+    pub number: u16,
+    /// The source explicitly hides the pedal sign.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hide_sign: bool,
+    /// Optional authored placement, such as "above" or "below".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placement: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Measure {
     pub number: u32,
@@ -2189,6 +2226,12 @@ pub struct Measure {
     /// Concert-harp pedal diagrams declared by MusicXML `<harp-pedals>` directions.
     #[serde(default)]
     pub harp_pedal_diagrams: Vec<HarpPedalDiagram>,
+    /// Voice-specific named channel changes at written score positions.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub channel_switches: Vec<VoiceChannelSwitch>,
+    /// Pedal signs whose score-time positions need not coincide with notes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub timed_pedals: Vec<TimedPedalDirection>,
     /// When ≥ 2, this measure is displayed as a multi-measure rest spanning N measures.
     #[serde(default)]
     pub multi_rest_count: Option<u8>,
@@ -2274,6 +2317,8 @@ impl Measure {
             texts: Vec::new(),
             figured_bass: Vec::new(),
             harp_pedal_diagrams: Vec::new(),
+            channel_switches: Vec::new(),
+            timed_pedals: Vec::new(),
             multi_rest_count: None,
             system_break: false,
             page_break: false,
@@ -2395,6 +2440,9 @@ pub struct Note {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub explicit_unbeamed: bool,
     pub articulations: Vec<Articulation>,
+    /// Two-note tremolo endpoint ("start" or "stop"); absent for a single-note tremolo.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tremolo_pair: Option<String>,
     pub dynamic: Option<Dynamic>,
     pub stem_up: Option<bool>,
     #[serde(default)]
@@ -2533,6 +2581,7 @@ impl Note {
             beam: BeamState::None,
             explicit_unbeamed: false,
             articulations: Vec::new(),
+            tremolo_pair: None,
             dynamic: None,
             stem_up: None,
             hairpin_start: None,
@@ -2594,6 +2643,7 @@ impl Note {
             beam: BeamState::None,
             explicit_unbeamed: false,
             articulations: Vec::new(),
+            tremolo_pair: None,
             dynamic: None,
             stem_up: None,
             hairpin_start: None,
@@ -2946,6 +2996,13 @@ pub enum ScoreChange {
         measure: usize,
         old: Vec<HarpPedalDiagram>,
         new: Vec<HarpPedalDiagram>,
+    },
+    TimedPedalsChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old: Vec<TimedPedalDirection>,
+        new: Vec<TimedPedalDirection>,
     },
     ChordDefinitionsChanged {
         old: Vec<ChordDefinition>,
@@ -3493,6 +3550,15 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                         new: bm.harp_pedal_diagrams.clone(),
                     });
                 }
+                if am.timed_pedals != bm.timed_pedals {
+                    changes.push(ScoreChange::TimedPedalsChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.timed_pedals.clone(),
+                        new: bm.timed_pedals.clone(),
+                    });
+                }
             }
         }
     }
@@ -3523,6 +3589,9 @@ fn first_unrepresented_field_change(a: &Score, b: &Score) -> Option<String> {
 
 fn first_unrepresented_part_change(part_index: usize, a: &Part, b: &Part) -> Option<String> {
     let prefix = format!("parts[{part_index}]");
+    if a.named_channels != b.named_channels {
+        return Some(format!("{prefix}.named_channels"));
+    }
     if a.percussion_instruments != b.percussion_instruments {
         return Some(format!("{prefix}.percussion_instruments"));
     }
@@ -3561,12 +3630,13 @@ fn first_unrepresented_staff_change(
 }
 
 fn first_unrepresented_measure_change(
-    _staff_prefix: &str,
-    _measure_index: usize,
-    _a: &Measure,
-    _b: &Measure,
+    staff_prefix: &str,
+    measure_index: usize,
+    a: &Measure,
+    b: &Measure,
 ) -> Option<String> {
-    None
+    (a.channel_switches != b.channel_switches)
+        .then(|| format!("{staff_prefix}.measures[{measure_index}].channel_switches"))
 }
 
 // ── ScorePatch ────────────────────────────────────────────────────────────────
@@ -3600,6 +3670,12 @@ pub enum ScorePatch {
         staff: usize,
         measure: usize,
         value: Vec<HarpPedalDiagram>,
+    },
+    SetTimedPedals {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        value: Vec<TimedPedalDirection>,
     },
     SetChordDefinitions {
         value: Vec<ChordDefinition>,
@@ -3795,13 +3871,20 @@ fn patch_requires_replace(a: &Score, b: &Score) -> bool {
     }
     for (ap, bp) in a.parts.iter().zip(&b.parts) {
         if ap.percussion_instruments != bp.percussion_instruments
+            || ap.named_channels != bp.named_channels
             || ap.staff_groups != bp.staff_groups
             || ap.staves.len() != bp.staves.len()
         {
             return true;
         }
         for (as_, bs) in ap.staves.iter().zip(&bp.staves) {
-            if as_.measures.len() != bs.measures.len() {
+            if as_.measures.len() != bs.measures.len()
+                || as_
+                    .measures
+                    .iter()
+                    .zip(&bs.measures)
+                    .any(|(a, b)| a.channel_switches != b.channel_switches)
+            {
                 return true;
             }
         }
@@ -4078,6 +4161,15 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                     });
                 }
 
+                if am.timed_pedals != bm.timed_pedals {
+                    patches.push(ScorePatch::SetTimedPedals {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: bm.timed_pedals.clone(),
+                    });
+                }
+
                 for vi in 0..4usize {
                     let av = &am.voices[vi];
                     let bv = &bm.voices[vi];
@@ -4189,6 +4281,23 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                     .get_mut(*measure)
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
                     .harp_pedal_diagrams = value.clone();
+            }
+            ScorePatch::SetTimedPedals {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .timed_pedals = value.clone();
             }
             ScorePatch::SetChordDefinitions { value } => {
                 s.chord_definitions = value.clone();

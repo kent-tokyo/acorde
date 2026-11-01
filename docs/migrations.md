@@ -11,6 +11,13 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## Unreleased: selectable shared dynamics
+
+`PlaybackOptions.shared_dynamics` and `shared_hairpins` select individual marks to share across
+a part's staves. Existing JSON defaults both lists to empty; complete Rust `PlaybackOptions`
+struct literals must add them or use `..Default::default()`. Selection is a playback option,
+not a persisted score or an automatic interpretation of imported placement.
+
 ## Unreleased: explicitly written accidentals
 
 `AccidentalDisplay::Explicit` distinguishes an ordinary written accidental from an automatic or
@@ -150,3 +157,35 @@ source-breaking change in patch releases and those versions are withdrawn from u
 4. Re-import original source files when a corrected parser interpretation changes their canonical
    score (for example hidden notation, clefs, or 8va/8vb direction).
 5. Run the focused format/browser/print checks for the surfaces your host uses.
+
+### Measured tremolo playback
+
+`Note` now includes the serde-defaulted `tremolo_pair` field, so Rust callers constructing
+`Note` with a complete struct literal must set it (usually `None`). MusicXML two-note tremolo
+start/stop endpoints are retained here. In default playback, a measured single-note tremolo is
+now expanded into attacks at its written stroke rate, including all chord pitches; hosts should
+not expand its `Tremolo` articulation again. Two-note alternating playback is not implemented.
+The MIDI serializer has its own timing path and does not yet expand these attacks.
+
+### MuseScore named instrument channels
+
+`Part::named_channels` and `Measure::channel_switches` retain named instrument programs and
+voice-specific switches from MuseScore. Both fields default to empty when older JSON is read;
+Rust callers using complete `Part` or `Measure` literals must initialize them. Default playback
+sets each event's program according to its voice's authored switch. MIDI output assigns separate
+available channels to simultaneous programs and reports an error if no channel is available.
+MSCX export preserves switches at representable positions within that voice's rhythmic extent;
+its export report identifies positions it cannot write exactly. MusicXML, MEI and ABC export reports
+identify the unsupported named-channel data. Channel-specific controller differences and some
+source formatting remain outside this partial implementation.
+
+### Timed pedal directions
+
+`Measure::timed_pedals` retains MusicXML no-line pedal directions at positions that can fall
+inside a note. Full `Measure` struct literals must initialize this serde-defaulted field.
+MusicXML exports these directions with offsets; MIDI and the offline render manifest emit their
+press and release at the corresponding score time, including repeated measures. In full or
+viewer WASM builds, hosts can read these controls from `build_offline_render_manifest`'s
+`semantic_events`; `to_playback_events_ex` returns note events and cannot express a release in
+the middle of a held note. The playback-only WASM profile does not expose the manifest API.
+MSCX, MEI and ABC export reports warn when these timed directions cannot be represented.

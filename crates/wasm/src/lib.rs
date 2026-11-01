@@ -483,7 +483,8 @@ pub fn to_playback_events(
 ///
 /// Omitted fields use [`acorde_core::PlaybackOptions::default`]. For example,
 /// `{"loop_region":[2,5]}` restricts playback while retaining the default tempo,
-/// swing, and metronome behavior.
+/// swing, and metronome behavior. `shared_dynamics` and `shared_hairpins` accept
+/// arrays of physical note addresses to share individual marks across a part's staves.
 #[wasm_bindgen]
 pub fn to_playback_events_ex(score_json: &str, options_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
@@ -2435,6 +2436,20 @@ mod tests {
     }
 
     #[test]
+    fn long_abc_melody_chord_proposals_replay_through_json_api() {
+        for count in [129, 261] {
+            let abc = format!("X:1\nM:4/4\nL:1/4\nK:C\n{}", "C D E F|".repeat(count));
+            let score = parse_abc(&abc).unwrap();
+            let proposals: serde_json::Value = serde_json::from_str(&suggest_chord_plans(&score, "{}").unwrap()).unwrap();
+            assert!(proposals["diagnostics"].as_array().unwrap().is_empty(), "{proposals}");
+            let resolved = proposals["candidates"][0]["resolved"].to_string();
+            let replay: serde_json::Value = serde_json::from_str(&arrange_from_chord_proposal(&score, &resolved, "held-chord").unwrap()).unwrap();
+            assert!(replay["diagnostics"].as_array().unwrap().is_empty(), "{replay}");
+            assert!(replay["arrangement"]["score"].is_object());
+        }
+    }
+
+    #[test]
     fn viewer_auto_beam_json_is_opt_in_and_preserves_playback() {
         let mut score = Score::new("viewer beams", 120, 4, 4, 1, 1);
         score.parts[0].staves[0].measures[0].voices[0] = (0..4)
@@ -3938,6 +3953,18 @@ mod wasm_tests {
         let arranged = replay["arrangement"]["score"].to_string();
         assert!(render_score_svg(&arranged, "{}").unwrap().contains("<svg"));
         assert!(!to_playback_events_ex(&arranged, "{}").unwrap().is_empty());
+    }
+
+    #[wasm_bindgen_test]
+    fn browser_long_abc_chord_proposals_are_replayable() {
+        let abc = format!("X:1\nM:4/4\nL:1/4\nK:C\n{}", "C D E F|".repeat(261));
+        let score = parse_abc(&abc).unwrap();
+        let proposals: serde_json::Value = serde_json::from_str(&suggest_chord_plans(&score, "{}").unwrap()).unwrap();
+        assert!(proposals["diagnostics"].as_array().unwrap().is_empty());
+        let resolved = proposals["candidates"][0]["resolved"].to_string();
+        let replay: serde_json::Value = serde_json::from_str(&arrange_from_chord_proposal(&score, &resolved, "held-chord").unwrap()).unwrap();
+        assert!(replay["diagnostics"].as_array().unwrap().is_empty());
+        assert!(replay["arrangement"]["score"].is_object());
     }
 
     #[wasm_bindgen_test]

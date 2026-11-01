@@ -368,6 +368,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut pending_technique_text: Option<String> = None;
     let mut pending_articulations: Vec<Articulation> = Vec::new();
     let mut pending_tremolo = false;
+    let mut pending_tremolo_pair: Option<String> = None;
     let mut note_arpeggiate: Option<bool> = None;
     let mut pending_note_head: Option<NoteHead> = None;
     let mut in_pitch = false;
@@ -445,6 +446,10 @@ pub(crate) fn parse_musicxml_collecting(
     let mut pending_ottava_start: Option<OttavaKind> = None;
     let mut pending_pedal_start = false;
     let mut pending_pedal_end = false;
+    // Independent score-time directions: document order need not match playback order.
+    let mut pending_timed_pedals: Vec<(bool, u16, bool)> = Vec::new();
+    let mut timed_pedal_events: Vec<(usize, usize, usize, acorde_core::TimedPedalDirection)> =
+        Vec::new();
     let mut in_lyric = false;
     // `<extend>` (start, or untyped) under the current lyric: a melisma line follows it.
     let mut lyric_extend = false;
@@ -868,6 +873,8 @@ pub(crate) fn parse_musicxml_collecting(
                         _ => {}
                     },
                     "tremolo" if in_ornament_block => {
+                        pending_tremolo_pair =
+                            attr_str(e, b"type").filter(|kind| kind == "start" || kind == "stop");
                         pending_tremolo = true;
                     }
                     "lyric" if in_note => {
@@ -942,6 +949,7 @@ pub(crate) fn parse_musicxml_collecting(
                         note_spanner_events.clear();
                         pending_articulations.clear();
                         pending_tremolo = false;
+                        pending_tremolo_pair = None;
                         note_arpeggiate = None;
                         pending_fingerings.clear();
                         pending_string_number = None;
@@ -1420,6 +1428,15 @@ pub(crate) fn parse_musicxml_collecting(
                         }
                         _ => {}
                     },
+                    "pedal" if attr_str(e, b"line").as_deref() == Some("no") => {
+                        if let Some(kind @ ("start" | "stop")) = attr_str(e, b"type").as_deref() {
+                            pending_timed_pedals.push((
+                                kind == "start",
+                                parse_spanner_number(attr_str(e, b"number"))?,
+                                attr_str(e, b"sign").as_deref() == Some("no"),
+                            ));
+                        }
+                    }
                     "pedal" => match attr_str(e, b"type").as_deref() {
                         Some("start") => {
                             pending_pedal_start = true;
@@ -1434,27 +1451,30 @@ pub(crate) fn parse_musicxml_collecting(
                             });
                         }
                         Some("stop") => {
-                            // The drawn span ends at the preceding note. The
-                            // playback release occurs at the next note's onset.
-                            let address = last_note_address.clone().ok_or_else(|| {
-                                Error::Xml("MusicXML pedal stop has no preceding note".into())
-                            })?;
-                            apply_spanner_event(
-                                &mut score,
-                                &mut open_spanners,
-                                ParsedSpannerEvent {
-                                    kind: NotationSpannerKind::Pedal,
-                                    action: SpannerAction::Stop,
-                                    number: parse_spanner_number(attr_str(e, b"number"))?,
-                                    line_type: attr_str(e, b"line"),
-                                    text: None,
-                                    placement: pending_direction_placement.clone(),
-                                    ottava_size: None,
-                                },
-                                address,
-                                tolerated,
-                            )?;
-                            pending_pedal_end = true;
+                            // The drawn span ends at the preceding note. The playback release
+                            // normally occurs at the next note's onset.
+                            if let Some(address) = last_note_address.clone() {
+                                apply_spanner_event(
+                                    &mut score,
+                                    &mut open_spanners,
+                                    ParsedSpannerEvent {
+                                        kind: NotationSpannerKind::Pedal,
+                                        action: SpannerAction::Stop,
+                                        number: parse_spanner_number(attr_str(e, b"number"))?,
+                                        line_type: attr_str(e, b"line"),
+                                        text: None,
+                                        placement: pending_direction_placement.clone(),
+                                        ottava_size: None,
+                                    },
+                                    address,
+                                    tolerated,
+                                )?;
+                                pending_pedal_end = true;
+                            } else {
+                                return Err(Error::Xml(
+                                    "MusicXML pedal stop has no preceding note".into(),
+                                ));
+                            }
                         }
                         _ => {}
                     },
@@ -2007,6 +2027,24 @@ pub(crate) fn parse_musicxml_collecting(
                             for mut diagram in std::mem::take(&mut pending_harp_pedal_diagrams) {
                                 diagram.placement = pending_direction_placement.clone();
                                 m.harp_pedal_diagrams.push(diagram);
+                            }
+                        }
+                        if let Some(pi) = part_index {
+                            let mi = score.parts[pi].staves[0].measures.len().saturating_sub(1);
+                            for (down, number, hide_sign) in pending_timed_pedals.drain(..) {
+                                timed_pedal_events.push((
+                                    pi,
+                                    pending_direction_staff,
+                                    mi,
+                                    acorde_core::TimedPedalDirection {
+                                        position_beats: pending_direction_position_beats
+                                            .unwrap_or(0.0),
+                                        down,
+                                        number,
+                                        hide_sign,
+                                        placement: pending_direction_placement.clone(),
+                                    },
+                                ));
                             }
                         }
                         if let (Some(dynamic), Some(pi)) =
@@ -2922,6 +2960,18 @@ pub(crate) fn parse_musicxml_collecting(
                                             "MusicXML chord cannot contain a rest".into(),
                                         ));
                                     }
+                                    // MusicXML permits an ornament on any chord member;
+                                    // the canonical note stores the chord as one event.
+                                    for mark in pending_articulations.drain(..) {
+                                        if matches!(mark, Articulation::Tremolo(_))
+                                            && !last.articulations.contains(&mark)
+                                        {
+                                            last.articulations.push(mark);
+                                        }
+                                    }
+                                    if pending_tremolo_pair.is_some() {
+                                        last.tremolo_pair = pending_tremolo_pair.take();
+                                    }
                                     merge_musicxml_chord_note(
                                         last,
                                         &note,
@@ -3052,6 +3102,7 @@ pub(crate) fn parse_musicxml_collecting(
                                             target_voice: None,
                                         });
                                     }
+                                    note.tremolo_pair = pending_tremolo_pair.take();
                                     if !pending_articulations.is_empty() {
                                         note.articulations =
                                             std::mem::take(&mut pending_articulations);
@@ -3207,6 +3258,75 @@ pub(crate) fn parse_musicxml_collecting(
                 .and_then(|measure| measure.clef.clone())
         {
             staff.clef = clef;
+        }
+    }
+    let bar_count = score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .map(|staff| staff.measures.len())
+        .max()
+        .unwrap_or(0);
+    let mut bar_starts = vec![0.0];
+    for measure in 0..bar_count {
+        bar_starts.push(bar_starts[measure] + score.playback_measure_beats(measure));
+    }
+    for (pi, staff, mi, mut event) in timed_pedal_events {
+        let Some(&start) = bar_starts.get(mi) else {
+            continue;
+        };
+        let absolute = start + event.position_beats;
+        if absolute < 0.0 || absolute > *bar_starts.last().unwrap_or(&0.0) {
+            tolerated.push(crate::Diagnostic::warning(
+                "musicxml.timed-pedal-outside-score",
+                "A pedal direction outside the score could not be assigned to a measure",
+            ));
+            continue;
+        }
+        let target = bar_starts
+            .partition_point(|&value| value <= absolute)
+            .saturating_sub(1)
+            .min(bar_count.saturating_sub(1));
+        event.position_beats = absolute - bar_starts[target];
+        if let Some(measure) = score
+            .parts
+            .get_mut(pi)
+            .and_then(|part| part.staves.get_mut(staff))
+            .and_then(|staff| staff.measures.get_mut(target))
+        {
+            measure.timed_pedals.push(event);
+        } else {
+            tolerated.push(crate::Diagnostic::warning(
+                "musicxml.timed-pedal-missing-staff",
+                "A pedal direction references a missing staff",
+            ));
+        }
+    }
+    // Retain the legacy note flags when a direction lands exactly on a note. The
+    // independent events remain authoritative for timed output and rendering.
+    for part in &mut score.parts {
+        for staff in &mut part.staves {
+            for measure in &mut staff.measures {
+                for pedal in &measure.timed_pedals {
+                    let target = measure.voices.iter_mut().find_map(|voice| {
+                        let mut beat = 0.0;
+                        voice.iter_mut().find(|note| {
+                            let here = !note.is_grace
+                                && !note.is_cue
+                                && (beat - pedal.position_beats).abs() < 1e-9;
+                            beat += note.beats();
+                            here
+                        })
+                    });
+                    if let Some(note) = target {
+                        if pedal.down {
+                            note.pedal_start = true;
+                        } else {
+                            note.pedal_end = true;
+                        }
+                    }
+                }
+            }
         }
     }
     resolve_direction_dynamics(&mut score, direction_dynamics, tolerated);
