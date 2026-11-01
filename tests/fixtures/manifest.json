@@ -394,6 +394,17 @@
       "expected_losses": [
         "Only trill import, rendering and playback metadata are evaluated"
       ]
+    },
+    {
+      "path": "issue_280_channel_switch.mscx",
+      "format": "mscx",
+      "license": "self-authored",
+      "source": "Self-authored MusicXML converted by MuseScore 4.7.5, with explicit native channel switches; MuseScore MIDI validated",
+      "sha256": "8c93bcb883665ede83d8059a5200cdd01905b6fa2e6c7072a11e5aa5028f2b74",
+      "round_trip": "import-only",
+      "expected_losses": [
+        "Voice-specific channel switches are diagnosed but not yet applied"
+      ]
     }
   ]
 }
