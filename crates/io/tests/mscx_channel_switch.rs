@@ -276,10 +276,9 @@ fn timed_pedals_reach_all_named_program_channels() {
             channel,
             message: MidiMessage::Controller { controller, value },
         } = event.kind
+            && controller.as_int() == 64
         {
-            if controller.as_int() == 64 {
-                controls.push((channel.as_int(), tick, value.as_int()));
-            }
+            controls.push((channel.as_int(), tick, value.as_int()));
         }
     }
     controls.sort_unstable();
