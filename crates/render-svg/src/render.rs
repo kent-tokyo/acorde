@@ -63,6 +63,19 @@ type AccKey = (usize, usize, usize, usize, usize, usize);
 pub(crate) type NoteKey = (usize, usize, usize, usize, usize);
 pub(crate) type NotePoint = (f32, f32, bool, usize);
 
+struct DeferredMeasureText {
+    part: usize,
+    staff: usize,
+    measure: usize,
+    row: usize,
+    content_x0: f32,
+    x: f32,
+    bottom_y: f32,
+    width: f32,
+    semantic_placements: Vec<acorde_layout::GlyphPlacement>,
+    measure_body: String,
+}
+
 /// Physical print placement of the already chosen logical rows. Coordinates are in renderer
 /// pixels; the caller converts them to millimetres in the page SVG viewport.
 pub(crate) struct PrintRowPlacement<'a> {
@@ -633,6 +646,7 @@ pub(crate) fn build_svg_with_metadata_placement(
         let mut volta_segments: Vec<(f32, f32, Option<u8>, bool)> = Vec::new();
         for (col, &measure_idx) in row.measure_indices.iter().enumerate() {
             let mwidth = measure_widths[col];
+            let mut deferred_texts = Vec::new();
             for (si_idx, &(pi, si)) in staff_refs.iter().enumerate() {
                 if !row_staff_visible[si_idx] {
                     continue;
@@ -707,8 +721,9 @@ pub(crate) fn build_svg_with_metadata_placement(
                         );
                     }
                 }
+                let mut measure_body = String::new();
                 render_measure(
-                    &mut body,
+                    &mut measure_body,
                     score,
                     layout,
                     pi,
@@ -723,19 +738,86 @@ pub(crate) fn build_svg_with_metadata_placement(
                     &cross_frames,
                     space,
                     options.interactive,
-                    config.measure_text_scale(),
                     &mandatory,
                     &courtesy,
                     &mut note_points,
                     &mut beam_tip_points,
                     &mut resolved_annotation_obstacles,
+                    &mut deferred_texts,
                     &ottava_shifts,
                 )?;
+                deferred_texts
+                    .last_mut()
+                    .expect("each measure queues its text")
+                    .measure_body = measure_body;
                 if staff_ref.tablature_at(measure_idx).is_none()
                     && let Some(change) = staff_ref.measures[measure_idx].mid_clefs.last()
                 {
                     row_clefs[si_idx] = change.clef.clone();
                 }
+            }
+            // Notes on every staff must be placed before inter-staff text collision checks.
+            for text in deferred_texts {
+                let mut neighbor_heads = Vec::new();
+                for &(pi, si) in &staff_refs {
+                    let Some(measure) = score.parts[pi].staves[si].measures.get(text.measure)
+                    else {
+                        continue;
+                    };
+                    for (vi, voice) in measure.voices.iter().enumerate() {
+                        for (ni, note) in voice.iter().enumerate() {
+                            let Some(&(head_x, head_y, stem_up, row)) =
+                                note_points.get(&(pi, si, text.measure, vi, ni))
+                            else {
+                                continue;
+                            };
+                            if row != text.row || note.is_rest {
+                                continue;
+                            }
+                            let positions: Vec<_> = note
+                                .pitches
+                                .iter()
+                                .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, 0))
+                                .collect();
+                            let reference = if stem_up {
+                                positions.iter().min()
+                            } else {
+                                positions.iter().max()
+                            };
+                            if let Some(reference) = reference {
+                                for position in &positions {
+                                    neighbor_heads.push((
+                                        head_x,
+                                        head_y - ((*position - *reference) as f32 * 0.5) * space,
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
+                body.push_str(
+                    text.measure_body
+                        .strip_suffix("</g>")
+                        .expect("measure group closes"),
+                );
+                render_measure_text(
+                    &mut body,
+                    &score.parts[text.part].staves[text.staff].measures[text.measure],
+                    text.part,
+                    text.staff,
+                    text.measure,
+                    text.content_x0,
+                    text.x,
+                    text.bottom_y,
+                    text.width,
+                    space,
+                    options.interactive,
+                    config.measure_text_scale(),
+                    &note_points,
+                    &text.semantic_placements,
+                    &neighbor_heads,
+                )?;
+                body.push_str("</g>");
             }
             // Barline spans the whole system, drawn once per column (not per staff).
             let bar_x = mx + mwidth;
@@ -3284,12 +3366,12 @@ fn render_measure(
     cross_frames: &HashMap<usize, (i32, f32)>,
     space: f32,
     interactive: bool,
-    measure_text_scale: f32,
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
     note_points: &mut HashMap<NoteKey, NotePoint>,
     beam_tip_points: &mut HashMap<NoteKey, f32>,
     resolved_annotation_obstacles: &mut Vec<acorde_layout::GlyphPlacement>,
+    deferred_texts: &mut Vec<DeferredMeasureText>,
     ottava_shifts: &HashMap<NoteKey, i32>,
 ) -> Result<(), RenderError> {
     let measure = &score.parts[part].staves[staff].measures[measure_idx];
@@ -3382,21 +3464,7 @@ fn render_measure(
         .enumerate()
         .filter_map(|(index, voice)| (!voice.is_empty()).then_some(index))
         .collect();
-    // Measure-level text on any staff can occupy the shared inter-staff lane. Keep the
-    // established spacing there until text and note collision placement are solved jointly.
-    let allow_shared_alignment = score
-        .parts
-        .iter()
-        .flat_map(|p| &p.staves)
-        .filter_map(|s| s.measures.get(measure_idx))
-        .all(|m| {
-            m.texts.is_empty()
-                && m.tempo_text.is_none()
-                && m.rehearsal.is_none()
-                && m.navigation.is_none()
-                && m.expression_text.is_none()
-                && m.figured_bass.is_empty()
-        });
+    let allow_shared_alignment = true;
     let mut prior_voice_events = Vec::new();
 
     let mut opened = String::new();
@@ -3544,22 +3612,18 @@ fn render_measure(
         )?;
     }
 
-    render_measure_text(
-        body,
-        measure,
+    deferred_texts.push(DeferredMeasureText {
         part,
         staff,
-        measure_idx,
+        measure: measure_idx,
+        row: row_idx,
         content_x0,
         x,
         bottom_y,
         width,
-        space,
-        interactive,
-        measure_text_scale,
-        note_points,
-        &semantic_placements,
-    )?;
+        semantic_placements,
+        measure_body: String::new(),
+    });
 
     body.push_str("</g>");
     Ok(())
@@ -4824,6 +4888,7 @@ fn render_measure_text(
     text_scale: f32,
     note_points: &HashMap<NoteKey, NotePoint>,
     resolved_annotations: &[acorde_layout::GlyphPlacement],
+    neighbor_heads: &[(f32, f32)],
 ) -> Result<(), RenderError> {
     let mut above_texts = 0usize;
     let mut below_texts = 0usize;
@@ -5012,6 +5077,25 @@ fn render_measure_text(
                     }
                     if shifted_x <= right_limit {
                         text_x = text_x.max(shifted_x);
+                    }
+                }
+            }
+        }
+        {
+            let text_top = y - 0.78 * space * text_scale;
+            let text_bottom = y + 0.12 * space * text_scale;
+            let mut neighbors = neighbor_heads.to_vec();
+            neighbors.sort_by(|a, b| a.0.total_cmp(&b.0));
+            for (head_x, head_y) in neighbors {
+                let clearance = 0.85 * space + 2.0;
+                if head_y + clearance > text_top
+                    && head_y - clearance < text_bottom
+                    && head_x + clearance > text_x
+                    && head_x - clearance < text_x + text_width
+                {
+                    let shifted = head_x + clearance;
+                    if shifted + text_width <= x + width - 0.5 * space {
+                        text_x = shifted;
                     }
                 }
             }
@@ -9238,6 +9322,7 @@ mod tests {
             3.0,
             &note_points,
             &[],
+            &[],
         )
         .expect("positioned print direction renders");
         let text_x = body
@@ -9525,6 +9610,7 @@ mod tests {
             1.0,
             &HashMap::new(),
             &[obstacle],
+            &[],
         )
         .expect("measure text renders");
         let text_y = body

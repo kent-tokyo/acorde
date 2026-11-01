@@ -5208,3 +5208,27 @@ fn hidden_time_signatures_keep_duration_across_musicxml_and_mscz() {
         acorde_io::parse_musicxml(&xml).unwrap().parts[0].staves[0].measures[0].time_sig_hidden
     );
 }
+
+#[test]
+fn simultaneous_voices_align_with_measure_text() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step, StyledText, TextStyle};
+    let mut score = Score::new("voice alignment", 120, 4, 4, 0, 1);
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.voices[0] = vec![Note::new(Pitch::new(Step::A, 4), Duration::Quarter)];
+    measure.voices[1] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+    measure.texts.push(StyledText {
+        position_beats: Some(0.0),
+        style: TextStyle::Expression,
+        text: "dolce".into(),
+        placement: Some("above".into()),
+        offset_x: None,
+        offset_y: None,
+        relative_x: None,
+        relative_y: None,
+    });
+    let svg = render_svg(&score, &opts()).unwrap();
+    let heads = notehead_centers(&svg);
+    assert_eq!(heads.len(), 2);
+    assert!((heads[0].0 - heads[1].0).abs() < 0.1, "{heads:?}");
+    assert!(svg.contains(">dolce</text>"));
+}
