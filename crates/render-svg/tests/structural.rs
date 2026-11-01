@@ -4804,6 +4804,85 @@ fn hairpin_stays_below_all_voice_noteheads_with_down_stems() {
 }
 
 #[test]
+fn musicxml_upper_voice_slur_avoids_simultaneous_lower_voice() {
+    for (placement, above) in [("", true), (" placement=\"below\"", false)] {
+        let xml = format!(
+            r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>2</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>B</step><alter>-1</alter><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type><stem>up</stem><notations><slur type="start" number="1"{placement}/></notations></note><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type><stem>up</stem></note><note><pitch><step>B</step><alter>-1</alter><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type><stem>up</stem><notations><slur type="stop" number="1"/></notations></note><note><rest/><duration>3</duration><voice>1</voice><type>quarter</type><dot/></note><backup><duration>6</duration></backup><note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type><stem>down</stem></note><note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type><stem>down</stem></note><note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type><stem>down</stem></note><note><rest/><duration>3</duration><voice>2</voice><type>quarter</type><dot/></note></measure></part></score-partwise>"#
+        );
+        let score = acorde_io::parse_musicxml(&xml).unwrap();
+        let config = SvgRenderConfig::new(opts()).with_auto_beams();
+        let svg = render_svg_with_config(&score, &config).unwrap();
+        assert!(svg.contains("acorde-beam"));
+        let slurs = slur_geometries(&svg);
+        assert_eq!(slurs.len(), 1);
+        let path = slurs[0];
+        if above {
+            assert!(path[3] < path[1].min(path[5]));
+            for i in 0..=100 {
+                let t = i as f32 / 100.0;
+                let y =
+                    (1.0 - t).powi(2) * path[1] + 2.0 * t * (1.0 - t) * path[3] + t * t * path[5];
+                assert!(y > 0.0, "slur clipped above the SVG viewbox: {y}");
+            }
+            let beam = svg
+                .split(r#"class="acorde-beam" points=""#)
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap();
+            let vertices = beam
+                .split([' ', ','])
+                .filter_map(|v| v.parse::<f32>().ok())
+                .collect::<Vec<_>>();
+            let (bx1, by1, bx2, by2) = (vertices[0], vertices[1], vertices[2], vertices[3]);
+            let from = bx1.max(path[0]);
+            let to = bx2.min(path[4]);
+            assert!(to > from);
+            for i in 0..=20 {
+                let x = from + (to - from) * i as f32 / 20.0;
+                let t = (x - path[0]) / (path[4] - path[0]);
+                let curve_y =
+                    (1.0 - t).powi(2) * path[1] + 2.0 * t * (1.0 - t) * path[3] + t * t * path[5];
+                let beam_y = by1 + (by2 - by1) * (x - bx1) / (bx2 - bx1);
+                assert!(
+                    curve_y < beam_y - 0.1,
+                    "slur at {curve_y} crosses beam at {beam_y}, x={x}"
+                );
+            }
+            // Evaluate the outer quadratic at each upper-voice stem within the slur.
+            // A direction-only test misses a curve passing through the stem and beam.
+            for stem in svg.split(r#"class="acorde-stem" x1=""#).skip(1).take(3) {
+                let attr = |key: &str| -> f32 {
+                    stem.split(&format!(r#"{key}=""#))
+                        .nth(1)
+                        .unwrap()
+                        .split('"')
+                        .next()
+                        .unwrap()
+                        .parse()
+                        .unwrap()
+                };
+                let x = stem.split('"').next().unwrap().parse::<f32>().unwrap();
+                if x <= path[0] || x >= path[4] {
+                    continue;
+                }
+                let t = (x - path[0]) / (path[4] - path[0]);
+                let curve_y =
+                    (1.0 - t).powi(2) * path[1] + 2.0 * t * (1.0 - t) * path[3] + t * t * path[5];
+                assert!(
+                    curve_y < attr("y2") - 0.1,
+                    "slur at {curve_y} intersects stem ending at {}",
+                    attr("y2")
+                );
+            }
+        } else {
+            assert!(path[3] > path[1].max(path[5]));
+        }
+    }
+}
+
+#[test]
 fn key_changes_cancel_removed_accidentals_within_and_between_systems() {
     use acorde_core::{Duration, KeySignature, Note, Score};
     for (old, new, expected) in [(3, 0, 3), (3, 1, 2), (-3, 0, 3), (3, -2, 3), (0, 3, 0)] {
