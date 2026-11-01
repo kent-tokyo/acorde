@@ -334,7 +334,12 @@ fn serialize_musicxml_inner(
                         (Some(acorde_core::TimeSymbol::Cut), 2, 2) => " symbol=\"cut\"",
                         _ => "",
                     };
-                    xml.push_str(&format!("        <time{symbol}>\n"));
+                    let hidden = if measure.time_sig_hidden {
+                        " print-object=\"no\""
+                    } else {
+                        ""
+                    };
+                    xml.push_str(&format!("        <time{symbol}{hidden}>\n"));
                     xml.push_str(&format!("          <beats>{}</beats>\n", ts.numerator));
                     xml.push_str(&format!(
                         "          <beat-type>{}</beat-type>\n",
