@@ -3930,6 +3930,46 @@ fn render_measure_voice<'a>(
             .collect();
         &kneed_notes
     };
+    // Slurs need the true ends of ordinary stems as well as beam-attached stems.
+    // Grace/cue stems are scaled by a later SVG transform and need separate geometry.
+    if tablature.is_none() {
+        for (index, note) in notes.iter().enumerate() {
+            if beam_tips.contains_key(&index)
+                || note.is_rest
+                || note.hidden
+                || note.is_grace
+                || note.is_cue
+                || note.is_unpitched
+                || note.pitches.is_empty()
+                || matches!(
+                    note.duration,
+                    Duration::Whole | Duration::Breve | Duration::Longa
+                )
+            {
+                continue;
+            }
+            let stem_up = note.stem_up.unwrap_or(up);
+            let (clef_bottom, staff_bottom) =
+                note_staff_frame(note, (own_bottoms[index], bottom_y), cross_frames);
+            let far_pos = note
+                .pitches
+                .iter()
+                .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, clef_bottom))
+                .reduce(|a, b| if stem_up { a.max(b) } else { a.min(b) })
+                .unwrap();
+            let flag_count = match note.duration {
+                Duration::Eighth => 1u8,
+                Duration::Sixteenth => 2,
+                Duration::ThirtySecond => 3,
+                Duration::SixtyFourth => 4,
+                Duration::HundredTwentyEighth => 5,
+                _ => 0,
+            };
+            let bottom = staff_bottom + note_placement_offsets_u(note).1 * space;
+            let tip = unbeamed_stem_tip(far_pos, bottom, space, stem_up, flag_count);
+            beam_tip_points.insert((part, staff, measure_idx, voice_idx, index), tip);
+        }
+    }
     render_measure_voice_notes(
         body,
         &mut VoiceNotesRenderContext {
@@ -8694,6 +8734,22 @@ struct PitchedNoteStemContext<'a> {
     flag_count: u8,
 }
 
+fn unbeamed_stem_tip(
+    far_pos: i32,
+    staff_bottom: f32,
+    space: f32,
+    stem_up: bool,
+    flag_count: u8,
+) -> f32 {
+    let far_y = staff_bottom + geometry::position_y(far_pos, space);
+    let length = (3.5 + 0.75 * f32::from(flag_count.saturating_sub(2))) * space;
+    if stem_up {
+        (far_y - length).min(staff_bottom - 2.0 * space)
+    } else {
+        (far_y + length).max(staff_bottom - 2.0 * space)
+    }
+}
+
 fn render_pitched_note_stem_and_flags(context: &mut PitchedNoteStemContext<'_>) {
     if !context.has_stem {
         return;
@@ -8716,20 +8772,18 @@ fn render_pitched_note_stem_and_flags(context: &mut PitchedNoteStemContext<'_>) 
 
     // An unbeamed stem runs 3.5 spaces past the chord's stem-side note, a further 0.75 per flag
     // beyond two, and reaches the middle line from notes far outside the staff.
-    let (far_pos, dir) = if context.stem_up {
-        (context.max_pos, -1.0)
+    let far_pos = if context.stem_up {
+        context.max_pos
     } else {
-        (context.min_pos, 1.0)
+        context.min_pos
     };
-    let length_u = 3.5 + 0.75 * (context.flag_count.saturating_sub(2)) as f32;
-    let far_y = context.staff_bottom_y + geometry::position_y(far_pos, context.space);
-    let middle_y = context.staff_bottom_y - 2.0 * context.space;
-    let mut tip_y = far_y + dir * length_u * context.space;
-    tip_y = if context.stem_up {
-        tip_y.min(middle_y)
-    } else {
-        tip_y.max(middle_y)
-    };
+    let tip_y = unbeamed_stem_tip(
+        far_pos,
+        context.staff_bottom_y,
+        context.space,
+        context.stem_up,
+        context.flag_count,
+    );
     let stem_svg = glyphs::stem_to(context.x, notehead_y, tip_y, context.space, context.stem_up);
     context.body.push_str(&stem_svg);
     for i in 0..context.flag_count {

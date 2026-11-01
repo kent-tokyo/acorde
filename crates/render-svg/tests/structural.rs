@@ -5076,3 +5076,29 @@ fn musescore_475_native_cross_voice_slur_renders_across_systems() {
     let svg = render_svg(&restored, &options).unwrap();
     assert_eq!(svg.matches("class=\"acorde-slur\"").count(), 2);
 }
+
+#[test]
+fn upper_voice_slur_clears_unbeamed_stems() {
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem><notations><slur type="start"/></notations></note><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem></note><note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem><notations><slur type="stop"/></notations></note><backup><duration>3</duration></backup><note><pitch><step>G</step><octave>4</octave></pitch><duration>3</duration><voice>2</voice><type>half</type><dot/><stem>down</stem></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let svg = render_svg(&score, &opts()).unwrap();
+    let path = slur_geometries(&svg)[0];
+    let stem = svg.split(r#"class="acorde-stem" x1=""#).nth(2).unwrap();
+    let x: f32 = stem.split('"').next().unwrap().parse().unwrap();
+    let tip: f32 = stem
+        .split("y2=\"")
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap()
+        .parse()
+        .unwrap();
+    let t = (x - path[0]) / (path[4] - path[0]);
+    assert!(t > 0.0 && t < 1.0);
+    let y = (1.0 - t).powi(2) * path[1] + 2.0 * t * (1.0 - t) * path[3] + t * t * path[5];
+    assert!(
+        y < tip - 0.1,
+        "slur y={y} crosses un-beamed stem tip y={tip}"
+    );
+}
