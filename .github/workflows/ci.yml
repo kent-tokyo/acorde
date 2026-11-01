@@ -220,7 +220,9 @@ jobs:
           # Incoming partial ties and explicit source-location validation measured
           # 6,435,621 bytes in Linux CI, 60,113 bytes above the tie-location build.
           # Keep approximately 6 KB headroom for the integrated artifact.
-          test "$size" -le 6442000
+          # Integration with voice alignment measured 6,442,274 bytes on
+          # Linux CI for commit 283de1d. Retain about 6 KB of headroom.
+          test "$size" -le 6449000
 
   renderer-benchmark:
     name: Renderer performance budget
