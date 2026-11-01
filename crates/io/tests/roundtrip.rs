@@ -7590,3 +7590,29 @@ fn musescore_475_native_cross_voice_slur_roundtrips() {
         .unwrap();
     assert_eq!((span.start.clone(), span.end.clone()), expected);
 }
+
+#[cfg(all(feature = "abc", feature = "mei", feature = "midi"))]
+#[test]
+fn hidden_time_visibility_is_reported_by_unsupported_export_formats() {
+    let mut score = acorde_core::Score::new("Hidden meter", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].measures[0].time_sig_hidden = true;
+    let path = "/score/part/1/staff/1/measure/1/time_sig_hidden";
+    for diagnostics in [
+        acorde_io::serialize_abc_with_report(&score)
+            .unwrap()
+            .diagnostics,
+        acorde_io::serialize_mei_with_report(&score)
+            .unwrap()
+            .diagnostics,
+        acorde_io::serialize_midi_with_report(&score)
+            .unwrap()
+            .diagnostics,
+    ] {
+        assert!(
+            diagnostics
+                .iter()
+                .any(|item| item.source_location.as_deref() == Some(path)),
+            "missing hidden-meter diagnostic: {diagnostics:?}"
+        );
+    }
+}
