@@ -2669,6 +2669,7 @@ impl Note {
         copy.id = Uuid::new_v4().to_string();
         copy.tie_start = false;
         copy.tie_end = false;
+        copy.pitch_incoming_partial_ties.clear();
         copy.slur_start = false;
         copy.slur_end = false;
         copy.hairpin_start = None;
@@ -5202,6 +5203,7 @@ fn note_content_eq(a: &Note, b: &Note) -> bool {
         && a.dot_count == b.dot_count
         && a.tie_start == b.tie_start
         && a.tie_end == b.tie_end
+        && a.pitch_incoming_partial_ties == b.pitch_incoming_partial_ties
         && a.beam == b.beam
         && a.explicit_unbeamed == b.explicit_unbeamed
         && a.articulations == b.articulations

@@ -82,3 +82,47 @@ fn incoming_partial_tie_does_not_join_written_adjacent_notes() {
         assert_eq!(attacks, 2);
     }
 }
+
+#[test]
+fn exporting_to_other_notation_formats_reports_partial_tie_loss() {
+    let xml = r#"<museScore version="4.50"><Score><Part id="1"><Staff id="1"/></Part><Staff id="1"><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc><PartialTie><partialSpannerDirection>incoming</partialSpannerDirection></PartialTie></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let score = parse_mscx(xml).unwrap();
+    for diagnostics in [
+        acorde_io::serialize_musicxml_with_report(&score)
+            .unwrap()
+            .diagnostics,
+        acorde_io::serialize_mei_with_report(&score)
+            .unwrap()
+            .diagnostics,
+        acorde_io::serialize_abc_with_report(&score)
+            .unwrap()
+            .diagnostics,
+    ] {
+        assert!(
+            diagnostics.iter().any(|diagnostic| diagnostic
+                .source_location
+                .as_deref()
+                .is_some_and(|path| path.ends_with("/incoming-partial-ties"))),
+            "{diagnostics:?}"
+        );
+    }
+}
+
+#[test]
+fn incoming_partial_tie_survives_score_diff_and_patch() {
+    use acorde_core::{apply_patch, diff, score_patch};
+    let xml = r#"<museScore version="4.50"><Score><Part id="1"><Staff id="1"/></Part><Staff id="1"><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc><PartialTie><partialSpannerDirection>incoming</partialSpannerDirection></PartialTie></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let target = parse_mscx(xml).unwrap();
+    let mut original = target.clone();
+    original.parts[0].staves[0].measures[0].voices[0][0]
+        .pitch_incoming_partial_ties
+        .clear();
+    let changes = diff(&original, &target);
+    assert!(!changes.is_empty());
+    let patch = score_patch(&original, &target);
+    let restored = apply_patch(&original, &patch).unwrap();
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].voices[0][0].pitch_incoming_partial_ties,
+        vec![true]
+    );
+}

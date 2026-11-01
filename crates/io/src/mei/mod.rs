@@ -5695,6 +5695,22 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
     }
     for (part_index, part) in score.parts.iter().enumerate() {
         let part_path = format!("/score/part/{}", part_index + 1);
+        let partial_count = part
+            .staves
+            .iter()
+            .flat_map(|staff| &staff.measures)
+            .flat_map(|measure| &measure.voices)
+            .flatten()
+            .flat_map(|note| &note.pitch_incoming_partial_ties)
+            .filter(|&&incoming| incoming)
+            .count();
+        if partial_count > 0 {
+            push(
+                &mut diagnostics,
+                format!("{part_path}/incoming-partial-ties"),
+                partial_count.to_string(),
+            );
+        }
         let timed_pedal_count: usize = part
             .staves
             .iter()
