@@ -7070,3 +7070,51 @@ fn endings_for_several_passes_round_trip_and_play() {
     assert!(mscx.contains("<endings>1,2</endings>"));
     check(&acorde_io::parse_mscx(&mscx).expect("MSCX"), "MSCX");
 }
+
+#[test]
+fn musicxml_fermata_empty_forms_and_shapes_match_playback() {
+    for fermata in [
+        "<fermata type=\"upright\"/>",
+        "<fermata type=\"upright\"></fermata>",
+        "<fermata type=\"inverted\"></fermata>",
+        "<fermata>normal</fermata>",
+    ] {
+        let xml = format!(
+            r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>whole</type><notations>{fermata}</notations></note></measure></part></score-partwise>"#
+        );
+        let score = acorde_io::parse_musicxml(&xml).unwrap();
+        let events = acorde_core::to_playback_events(&score, &Default::default());
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].duration_beats, 6.0);
+        assert!(
+            events[0]
+                .articulations
+                .contains(&acorde_core::Articulation::Fermata)
+        );
+    }
+}
+
+#[test]
+fn musicxml_dacapo_sound_preserves_explicit_al_fine_words() {
+    for (words, expected, notes) in [
+        ("D.C. al Fine", "DaCapoAlFine", vec![60, 62, 60]),
+        ("D.C.", "DaCapo", vec![60, 62, 60, 62]),
+    ] {
+        let xml = format!(
+            r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><direction><direction-type><words>Fine</words></direction-type><sound fine="yes"/></direction></measure><measure number="2"><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><direction><direction-type><words>{words}</words></direction-type><sound dacapo="yes"/></direction></measure></part></score-partwise>"#
+        );
+        let score = acorde_io::parse_musicxml(&xml).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[1].navigation.as_deref(),
+            Some(expected)
+        );
+        let events = acorde_core::to_playback_events(&score, &Default::default());
+        assert_eq!(
+            events
+                .iter()
+                .map(|e| e.pitch_midi_cents / 100)
+                .collect::<Vec<_>>(),
+            notes
+        );
+    }
+}

@@ -4664,3 +4664,52 @@ fn tapping_and_vibrato_marks_render() {
         assert_eq!(svg.matches(&format!("{class}\"")).count(), 1, "{class}");
     }
 }
+
+#[test]
+fn mscx_later_key_change_does_not_draw_sharps_at_opening() {
+    let xml = r#"<museScore version="4.20"><Score><Part><Staff id="1"/><trackName>Piano</trackName></Part><Staff id="1">
+        <Measure><voice><Rest><durationType>whole</durationType></Rest></voice></Measure>
+        <Measure><voice><KeySig><concertKey>3</concertKey><mode>major</mode></KeySig><Rest><durationType>whole</durationType></Rest></voice></Measure>
+        </Staff></Score></museScore>"#;
+    let score = acorde_io::parse_mscx(xml).unwrap();
+    let mut opening = score.clone();
+    opening.parts[0].staves[0].measures.truncate(1);
+    let svg = render_svg(&opening, &opts()).unwrap();
+    assert!(!svg.contains("acorde-sharp"));
+    let mut options = opts();
+    options.measures_per_system = 1;
+    let svg = render_svg(&score, &options).unwrap();
+    assert!(svg.matches("acorde-sharp").count() >= 3);
+}
+
+#[test]
+fn navigation_labels_are_musical_and_deduplicate_source_text() {
+    let mut score = acorde_core::Score::new("Navigation", 120, 4, 4, 0, 1);
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.navigation = Some("DaCapoAlFine".into());
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert!(svg.contains("D.C. al Fine"));
+    assert!(!svg.contains("DaCapoAlFine"));
+    score.parts[0].staves[0].measures[0]
+        .texts
+        .push(acorde_core::StyledText {
+            position_beats: None,
+            style: acorde_core::TextStyle::Generic,
+            text: "Da Capo al Fine".into(),
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        });
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert!(svg.contains("Da Capo al Fine"));
+    assert!(!svg.contains("D.C. al Fine"));
+    assert!(!svg.contains("DaCapoAlFine"));
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.texts.clear();
+    measure.expression_text = Some("Da Capo al Fine".into());
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert!(svg.contains("Da Capo al Fine"));
+    assert!(!svg.contains("D.C. al Fine"));
+}
