@@ -1779,7 +1779,12 @@ fn serialize_notations(
                 xml.push_str("            <shake/>\n");
             }
             if let Some(n) = tremolo_n {
-                xml.push_str(&format!("            <tremolo>{}</tremolo>\n", n));
+                let kind = match note.tremolo_pair.as_deref() {
+                    Some("start") => " type=\"start\"",
+                    Some("stop") => " type=\"stop\"",
+                    _ => "",
+                };
+                xml.push_str(&format!("            <tremolo{kind}>{n}</tremolo>\n"));
             }
             xml.push_str("          </ornaments>\n");
         }

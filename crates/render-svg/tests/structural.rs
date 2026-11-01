@@ -5277,3 +5277,36 @@ fn hidden_time_signatures_keep_duration_across_musicxml_and_mscz() {
         acorde_io::parse_musicxml(&xml).unwrap().parts[0].staves[0].measures[0].time_sig_hidden
     );
 }
+
+#[test]
+fn shared_dynamic_playback_does_not_duplicate_the_printed_mark() {
+    use acorde_core::{
+        Clef, Duration, Dynamic, Measure, Note, NoteAddr, Pitch, PlaybackOptions, Score, Staff,
+        Step,
+    };
+    let mut score = Score::new("shared dynamic", 120, 4, 4, 0, 1);
+    let mut upper = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+    upper.dynamic = Some(Dynamic::P);
+    score.parts[0].staves[0].measures[0].voices[0] = vec![upper];
+    let mut lower = Staff::new(Clef::Bass);
+    let mut bar = Measure::empty(4, 4);
+    bar.voices[0] = vec![Note::new(Pitch::new(Step::C, 3), Duration::Whole)];
+    lower.measures.push(bar);
+    score.parts[0].staves.push(lower);
+    let before = render_svg(&score, &opts()).unwrap();
+    let options = PlaybackOptions {
+        shared_dynamics: vec![NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        }],
+        ..Default::default()
+    };
+    let events = acorde_core::to_playback_events(&score, &options);
+    assert!(events.iter().all(|event| event.velocity == 48));
+    let after = render_svg(&score, &opts()).unwrap();
+    assert_eq!(before, after);
+    assert_eq!(after.matches("class=\"acorde-dynamic\"").count(), 1);
+}

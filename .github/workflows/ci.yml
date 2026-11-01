@@ -199,10 +199,16 @@ jobs:
           # 6,111,598 bytes on Linux. Hairpin and beam-clearance rendering
           # measured 6,118,357 bytes; independently, MuseScore cross-voice and
           # cross-staff slur import/export measured 6,145,645 bytes on Linux.
-          # Fermata, hidden-meter and accidental support measured 6,198,811 bytes
-          # on Linux. Slur clearance added 3,808 bytes on the earlier base; measure
-          # the complete combination in this CI run.
-          test "$size" -le 6205000
+          # Their combined Linux artifact measured 6,149,693 bytes; staff-wide
+          # ottava support measured 6,158,651 bytes. With shared fermata timing,
+          # The fermata and hidden-meter combination measured 6,198,774 bytes.
+          # Explicit accidentals and fermata/hidden-meter changes measured 6,198,811 bytes.
+          # Written-time dynamic resolution measured 6,220,072 bytes on that base.
+          # The MuseScore time-symbol change adds 271 bytes on its measured base.
+          # Shared staff dynamics measured 6,237,850 bytes in Linux CI; measured
+          # single-note tremolo increased that to 6,247,902 bytes. Keep roughly
+          # 5 KB headroom for these documented playback features.
+          test "$size" -le 6253000
 
   renderer-benchmark:
     name: Renderer performance budget

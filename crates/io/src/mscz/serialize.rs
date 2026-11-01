@@ -703,11 +703,16 @@ fn write_staff(
         if let Some(time) = &measure.time_sig {
             write!(
                 xml,
-                "<TimeSig>{}<sigN>{}</sigN><sigD>{}</sigD></TimeSig>",
+                "<TimeSig>{}{}<sigN>{}</sigN><sigD>{}</sigD></TimeSig>",
                 if measure.time_sig_hidden {
                     "<visible>0</visible>"
                 } else {
                     ""
+                },
+                match (measure.time_symbol, time.numerator, time.denominator) {
+                    (Some(acorde_core::TimeSymbol::Common), 4, 4) => "<subtype>1</subtype>",
+                    (Some(acorde_core::TimeSymbol::Cut), 2, 2) => "<subtype>2</subtype>",
+                    _ => "",
                 },
                 time.numerator,
                 time.denominator
@@ -1437,8 +1442,13 @@ fn write_note(
             Articulation::Tremolo(level) => {
                 write!(
                     xml,
-                    "<Tremolo><subtype>c{}</subtype></Tremolo>",
-                    1u32 << (level + 1)
+                    "<Tremolo><subtype>{}{}</subtype></Tremolo>",
+                    if note.tremolo_pair.is_some() {
+                        "c"
+                    } else {
+                        "r"
+                    },
+                    1u32 << (level.min(&8) + 2)
                 )
                 .map_err(fmt_error)?;
             }

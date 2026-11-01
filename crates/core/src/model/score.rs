@@ -2395,6 +2395,9 @@ pub struct Note {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub explicit_unbeamed: bool,
     pub articulations: Vec<Articulation>,
+    /// Two-note tremolo endpoint ("start" or "stop"); absent for a single-note tremolo.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tremolo_pair: Option<String>,
     pub dynamic: Option<Dynamic>,
     pub stem_up: Option<bool>,
     #[serde(default)]
@@ -2533,6 +2536,7 @@ impl Note {
             beam: BeamState::None,
             explicit_unbeamed: false,
             articulations: Vec::new(),
+            tremolo_pair: None,
             dynamic: None,
             stem_up: None,
             hairpin_start: None,
@@ -2594,6 +2598,7 @@ impl Note {
             beam: BeamState::None,
             explicit_unbeamed: false,
             articulations: Vec::new(),
+            tremolo_pair: None,
             dynamic: None,
             stem_up: None,
             hairpin_start: None,

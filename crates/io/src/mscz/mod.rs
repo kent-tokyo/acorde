@@ -4,7 +4,7 @@ use acorde_core::{
     AccidentalDisplay, Articulation, Barline, BeamState, ChordDegree, ChordSymbol, Clef, Duration,
     Dynamic, FiguredBassFigure, GuitarTechnique, KeySignature, Lyric, Measure, Note, NoteHead,
     Part, PartGroupSymbol, Pitch, Score, Staff, StaffGroup, StaffKind, Step, StyledText,
-    TabPosition, TablatureConfig, TextStyle, TimeSignature, TupletInfo, VoltaBracket,
+    TabPosition, TablatureConfig, TextStyle, TimeSignature, TimeSymbol, TupletInfo, VoltaBracket,
 };
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
@@ -270,6 +270,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     // Per-measure state
     let mut cur_key: Option<KeySignature> = None;
     let mut cur_time: Option<TimeSignature> = None;
+    let mut cur_time_symbol: Option<TimeSymbol> = None;
     // Clefs read in this measure: (voice slot, beats into that voice, clef).
     let mut cur_clef_events: Vec<(usize, f64, Clef)> = Vec::new();
     // A clef written after the last note of a bar (where MuseScore keeps a change that
@@ -323,6 +324,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut timesig_n: u8 = 4;
     let mut timesig_d: u8 = 4;
     let mut timesig_hidden = false;
+    let mut timesig_subtype = 0u8;
 
     // Clef parsing
     let mut in_clef_elem = false;
@@ -384,6 +386,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut chord_notes_hidden = 0usize;
     let mut in_arpeggio = false;
     let mut chord_tremolo: Option<u8> = None;
+    let mut chord_tremolo_pair = false;
     let mut in_tremolo = false;
     let mut chord_articulations: Vec<Articulation> = Vec::new();
     let mut in_articulation = false;
@@ -631,6 +634,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             attr_str(e, b"len").and_then(|value| parse_mscx_measure_len(&value));
                         cur_key = None;
                         cur_time = None;
+                        cur_time_symbol = None;
                         timesig_hidden = false;
                         cur_clef_events.clear();
                         cur_tempo = None;
@@ -660,6 +664,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         timesig_n = 4;
                         timesig_d = 4;
                         timesig_hidden = false;
+                        timesig_subtype = 0;
                     }
                     "Clef" if in_measure => {
                         in_clef_elem = true;
@@ -775,6 +780,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         chord_grace_slash = false;
                         chord_arpeggiate = None;
                         chord_tremolo = None;
+                        chord_tremolo_pair = false;
                         chord_articulations.clear();
                         chord_staff_move = 0;
                         chord_notes_hidden = 0;
@@ -1339,7 +1345,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             number: cur_measure_num,
                             time_sig: cur_time.clone(),
                             time_sig_hidden: timesig_hidden,
-                            time_symbol: None,
+                            time_symbol: cur_time_symbol,
                             key_sig: cur_key.clone(),
                             clef: cur_clef_in_measure.clone(),
                             mid_clefs,
@@ -1413,6 +1419,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
 
                     // TimeSig
+                    "subtype" if in_timesig => {
+                        timesig_subtype = t.parse().unwrap_or(0);
+                    }
                     "visible" if in_timesig => {
                         timesig_hidden = t == "0";
                     }
@@ -1423,6 +1432,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         timesig_d = t.parse().unwrap_or(4);
                     }
                     "TimeSig" if in_timesig => {
+                        cur_time_symbol = match (timesig_subtype, timesig_n, timesig_d) {
+                            (1, 4, 4) => Some(TimeSymbol::Common),
+                            (2, 2, 2) => Some(TimeSymbol::Cut),
+                            _ => None,
+                        };
                         cur_time = Some(TimeSignature {
                             numerator: timesig_n,
                             denominator: timesig_d,
@@ -1976,6 +1990,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "subtype" if in_tremolo => {
                         chord_tremolo = Some(mscx_tremolo_level(t));
+                        chord_tremolo_pair = t.trim().to_ascii_lowercase().starts_with('c');
                     }
                     "Tremolo" if in_tremolo => {
                         in_tremolo = false;
@@ -2157,6 +2172,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             note.note_head = note_head.clone();
                             note.chord_symbol = pending_chord_symbol.take();
                             if let Some(level) = chord_tremolo {
+                                if chord_tremolo_pair {
+                                    note.tremolo_pair = Some("start".into());
+                                }
                                 note.articulations.push(Articulation::Tremolo(level));
                             }
                             note.articulations
@@ -4787,6 +4805,34 @@ mod tests {
         let report = crate::parse_mscx_with_report(&xml).expect("MSCX continuation line parses");
         assert!(report.diagnostics.is_empty());
         assert!(report.score.parts[0].staves[0].measures[0].figured_bass[0].extender);
+    }
+
+    #[test]
+    fn mscz_time_symbols_preserve_meter_and_round_trip() {
+        for (subtype, numerator, denominator, expected) in [
+            ("<subtype>1</subtype>", 4, 4, Some(TimeSymbol::Common)),
+            ("<subtype>2</subtype>", 2, 2, Some(TimeSymbol::Cut)),
+            ("", 4, 4, None),
+            ("<subtype>1</subtype>", 3, 4, None),
+        ] {
+            let xml = simple_mscx(&format!(
+                "<Measure><voice><TimeSig>{subtype}<sigN>{numerator}</sigN><sigD>{denominator}</sigD></TimeSig><Rest><durationType>whole</durationType></Rest></voice></Measure><Measure><voice><Rest><durationType>whole</durationType></Rest></voice></Measure>"
+            ));
+            let score = parse_mscz(&zipped_mscx(&xml)).unwrap();
+            let measures = &score.parts[0].staves[0].measures;
+            assert_eq!(measures[0].time_symbol, expected);
+            assert_eq!(measures[0].time_sig.as_ref().unwrap().numerator, numerator);
+            assert_eq!(
+                measures[0].time_sig.as_ref().unwrap().denominator,
+                denominator
+            );
+            assert_eq!(measures[1].time_symbol, None);
+            let restored = parse_mscz(&serialize::serialize_mscz(&score).unwrap()).unwrap();
+            assert_eq!(
+                restored.parts[0].staves[0].measures[0].time_symbol,
+                expected
+            );
+        }
     }
 
     #[test]
