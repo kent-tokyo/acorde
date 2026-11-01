@@ -110,8 +110,9 @@ pub use model::playback::{
     TablaturePerformanceDiagnostic, TablaturePerformanceEvent, TablaturePerformanceReport,
     TablatureRoundTripDiagnostic, TablatureRoundTripReport, build_offline_render_manifest,
     build_playback_routing_manifest, coalesce_shared_unisons, compare_playback_timing,
-    compute_playback_position, evaluate_playback_timing_corpus, project_tablature_performance,
-    tablature_round_trip_report, to_playback_events, to_playback_events_bounded,
+    compute_playback_position, evaluate_playback_timing_corpus, playback_fermata_pauses,
+    project_tablature_performance, tablature_round_trip_report, to_playback_events,
+    to_playback_events_bounded,
 };
 pub use model::repeat::measure_sequence;
 pub use model::scale::{Scale, ScaleKind};

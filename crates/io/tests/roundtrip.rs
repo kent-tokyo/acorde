@@ -943,11 +943,17 @@ fn independent_cc0_mxl_playback_shares_tempo_and_excludes_cue_attacks() {
         .find(|event| event.part_index == 1 && event.time_beats == 1.0)
         .expect("piano has a note on beat one");
     assert!((piano_beat_one.time_secs - 60.0 / 92.0).abs() < 1e-9);
+    // A notated fermata ending at beat 14 adds one beat before the vocal entry.
     let vocal_entry = events
         .iter()
-        .find(|event| event.part_index == 0 && event.time_beats == 15.0)
-        .expect("vocal entry follows the same tempo");
-    assert!((vocal_entry.time_secs - 15.0 * 60.0 / 92.0).abs() < 1e-9);
+        .find(|event| {
+            event.source.as_ref().is_some_and(|source| {
+                source.part == 0 && source.measure == 5 && source.voice == 0 && source.note == 0
+            })
+        })
+        .expect("vocal entry follows the same tempo and shared fermata");
+    assert!((vocal_entry.time_beats - 16.0).abs() < 1e-9);
+    assert!((vocal_entry.time_secs - 16.0 * 60.0 / 92.0).abs() < 1e-9);
 }
 
 #[test]
@@ -7589,4 +7595,18 @@ fn musescore_475_native_cross_voice_slur_roundtrips() {
         .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
         .unwrap();
     assert_eq!((span.start.clone(), span.end.clone()), expected);
+}
+
+#[test]
+fn musicxml_fermata_delays_following_attacks_on_shared_clock() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notations><fermata/></notations></note><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#;
+    let score = parse_musicxml(xml).unwrap();
+    let events = acorde_core::to_playback_events(&score, &Default::default());
+    assert_eq!(
+        events
+            .iter()
+            .map(|event| (event.pitch_midi, event.time_beats, event.duration_beats))
+            .collect::<Vec<_>>(),
+        [(60, 0.0, 1.5), (62, 1.5, 1.0), (64, 2.5, 1.0)]
+    );
 }
