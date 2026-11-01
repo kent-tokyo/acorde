@@ -4588,6 +4588,16 @@ pub fn staff_ottava_octave_shifts(
     staff: &Staff,
     default_time: &TimeSignature,
 ) -> std::collections::HashMap<(usize, usize, usize), i8> {
+    // Most staves have no ottava; avoid allocating and sorting every note in those scores.
+    if !staff
+        .measures
+        .iter()
+        .flat_map(|m| &m.voices)
+        .flatten()
+        .any(|n| n.ottava_start.is_some())
+    {
+        return std::collections::HashMap::new();
+    }
     // Events sort by time, then end, start, and note, respectively.
     type OttavaEvent = (f64, u8, i8, (usize, usize, usize));
     let mut events: Vec<OttavaEvent> = Vec::new();
