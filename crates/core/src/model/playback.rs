@@ -3064,6 +3064,8 @@ fn merge_tied_events(
         index: usize,
         staff: usize,
         voice: usize,
+        measure: usize,
+        note: usize,
         notated_end_beats: f64,
         staccato: bool,
     }
@@ -3094,9 +3096,13 @@ fn merge_tied_events(
             .pitches
             .iter()
             .position(|pitch| pitch.to_midi_cents() + transpose_cents == event.pitch_midi_cents);
-        let (tie_start, tie_end) = match pitch_index {
-            Some(index) => (note.pitch_tie_start(index), note.pitch_tie_end(index)),
-            None => (note.tie_start, note.tie_end),
+        let (tie_start, tie_end, partial_end) = match pitch_index {
+            Some(index) => (
+                note.pitch_tie_start(index),
+                note.pitch_tie_end(index),
+                note.pitch_incoming_partial_ties.get(index) == Some(&true),
+            ),
+            None => (note.tie_start, note.tie_end, false),
         };
         let mut articulation_scale = 1.0;
         let mut staccato = false;
@@ -3125,15 +3131,21 @@ fn merge_tied_events(
         };
         let source_staff = source.staff;
         let source_voice = source.voice;
+        let source_measure = source.measure;
+        let source_note = source.note;
         let key = (source.part, event.pitch_midi_cents);
         if let Some(candidates) = pending.get_mut(&key) {
             candidates.retain(|candidate| candidate.notated_end_beats >= event.time_beats - 1e-9);
-            if tie_end {
+            if tie_end || partial_end {
                 let matching = candidates
                     .iter()
                     .enumerate()
                     .filter(|(_, candidate)| {
-                        (candidate.notated_end_beats - event.time_beats).abs() < 1e-9
+                        let jumped = source.measure != candidate.measure.saturating_add(1)
+                            && (source.measure != candidate.measure
+                                || source.note <= candidate.note);
+                        (tie_end || (partial_end && jumped))
+                            && (candidate.notated_end_beats - event.time_beats).abs() < 1e-9
                     })
                     .max_by_key(|(_, candidate)| {
                         (
@@ -3174,6 +3186,8 @@ fn merge_tied_events(
                     if tie_start {
                         candidate.staff = source.staff;
                         candidate.voice = source.voice;
+                        candidate.measure = source.measure;
+                        candidate.note = source.note;
                         candidates.push(candidate);
                     }
                     continue;
@@ -3188,6 +3202,8 @@ fn merge_tied_events(
                 index,
                 staff: source_staff,
                 voice: source_voice,
+                measure: source_measure,
+                note: source_note,
                 notated_end_beats: merged[index].time_beats + notated_duration,
                 staccato,
             });

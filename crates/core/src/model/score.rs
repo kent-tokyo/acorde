@@ -2393,6 +2393,10 @@ pub struct Note {
     /// Per-pitch tie ends, parallel to `pitches`; empty means `tie_end` applies to every pitch.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub pitch_tie_ends: Vec<bool>,
+    /// MuseScore incoming partial ties, parallel to `pitches`. These indicate
+    /// ties from a repeat or jump and are distinct from ordinary tie endpoints.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pitch_incoming_partial_ties: Vec<bool>,
     /// Per-pitch accidental display, parallel to `pitches`. Empty (the usual case) leaves every
     /// accidental to the notation rules; pitches past the end are `Auto`, and a vector longer
     /// than `pitches` is ignored. See [`Note::accidental_display`].
@@ -2551,6 +2555,7 @@ impl Note {
             tie_end: false,
             pitch_tie_starts: Vec::new(),
             pitch_tie_ends: Vec::new(),
+            pitch_incoming_partial_ties: Vec::new(),
             pitch_accidentals: Vec::new(),
             pitch_parentheses: Vec::new(),
             pitch_fingerings: Vec::new(),
@@ -2613,6 +2618,7 @@ impl Note {
             tie_end: false,
             pitch_tie_starts: Vec::new(),
             pitch_tie_ends: Vec::new(),
+            pitch_incoming_partial_ties: Vec::new(),
             pitch_accidentals: Vec::new(),
             pitch_parentheses: Vec::new(),
             pitch_fingerings: Vec::new(),

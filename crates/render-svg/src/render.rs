@@ -6679,6 +6679,55 @@ fn render_ties(
             }
         }
     }
+    for (part, p) in score.parts.iter().enumerate() {
+        for (staff, s) in p.staves.iter().enumerate() {
+            for (measure, bar) in s.measures.iter().enumerate() {
+                for (voice, notes) in bar.voices.iter().enumerate() {
+                    for (index, note) in notes.iter().enumerate() {
+                        if note.is_rest || !note.pitch_incoming_partial_ties.contains(&true) {
+                            continue;
+                        }
+                        let Some(&(x, y, stem_up, _)) =
+                            points.get(&(part, staff, measure, voice, index))
+                        else {
+                            continue;
+                        };
+                        let offsets =
+                            pitch_offsets_from_anchor(note, s.tablature.as_ref(), stem_up, space);
+                        for (pitch_index, incoming) in note
+                            .pitch_incoming_partial_ties
+                            .iter()
+                            .copied()
+                            .enumerate()
+                            .take(note.pitches.len())
+                        {
+                            if !incoming {
+                                continue;
+                            }
+                            let rank = note
+                                .pitches
+                                .iter()
+                                .filter(|pitch| {
+                                    pitch.to_midi() < note.pitches[pitch_index].to_midi()
+                                })
+                                .count();
+                            let doubled = 2 * rank + 1;
+                            let above = if note.pitches.len() > 1 && doubled != note.pitches.len() {
+                                doubled > note.pitches.len()
+                            } else {
+                                !stem_up
+                            };
+                            let y = y
+                                + offsets.get(pitch_index).copied().unwrap_or(0.0)
+                                + if above { -0.45 * space } else { 0.45 * space };
+                            let end = x - glyphs::NOTEHEAD_RX_U * space;
+                            write_tie_curve(body, end - 1.5 * space, y, end, y, above, space);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

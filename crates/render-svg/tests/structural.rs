@@ -5292,3 +5292,20 @@ fn timed_pedal_signs_show_at_distinct_positions_inside_a_sustained_note() {
     assert!(!hidden.contains(">Ped.</text>"));
     assert!(hidden.contains(">*</text>"));
 }
+
+#[test]
+fn incoming_partial_tie_renders_a_stub_for_only_the_marked_chord_pitch() {
+    let mut score = acorde_core::Score::new("partial tie", 120, 4, 4, 0, 1);
+    let mut note = acorde_core::Note::new(
+        acorde_core::Pitch::from_midi(60, false),
+        acorde_core::Duration::Whole,
+    );
+    note.pitches.push(acorde_core::Pitch::from_midi(64, false));
+    note.pitch_incoming_partial_ties = vec![true, false];
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(svg.matches("class=\"acorde-tie\"").count(), 1);
+    let fragment = svg.split("class=\"acorde-tie\" d=\"M ").nth(1).unwrap();
+    let start_x: f32 = fragment.split(',').next().unwrap().parse().unwrap();
+    assert!(start_x < notehead_centers(&svg)[0].0);
+}

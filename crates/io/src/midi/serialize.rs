@@ -293,14 +293,19 @@ struct MidiNoteCandidate {
     velocity: u8,
     tie_start: bool,
     tie_end: bool,
+    partial_end: bool,
     staff: usize,
     voice: usize,
+    measure: usize,
+    note: usize,
 }
 
 struct OpenMidiTie {
     off_event: usize,
     staff: usize,
     voice: usize,
+    measure: usize,
+    note: usize,
 }
 
 struct MidiNoteEventPair {
@@ -432,7 +437,7 @@ fn build_part_track(
                     staff.transpose_semitones
                 };
                 let mut written_beats = 0.0f64;
-                for note in &measure.voices[voice_idx] {
+                for (note_index, note) in measure.voices[voice_idx].iter().enumerate() {
                     if note.is_grace || note.is_cue {
                         continue;
                     }
@@ -467,8 +472,12 @@ fn build_part_track(
                                 velocity: vel,
                                 tie_start: note.pitch_tie_start(pitch_index),
                                 tie_end: note.pitch_tie_end(pitch_index),
+                                partial_end: note.pitch_incoming_partial_ties.get(pitch_index)
+                                    == Some(&true),
                                 staff: staff_index,
                                 voice: voice_idx,
+                                measure: idx,
+                                note: note_index,
                             });
                         }
                     }
@@ -487,12 +496,15 @@ fn build_part_track(
     for note in notes {
         if let Some(candidates) = open_ties.get_mut(&note.pitch) {
             candidates.retain(|candidate| events[candidate.off_event].abs_tick >= note.start_tick);
-            if note.tie_end {
+            if note.tie_end || note.partial_end {
                 let matching = candidates
                     .iter()
                     .enumerate()
                     .filter(|(_, candidate)| {
-                        events[candidate.off_event].abs_tick == note.start_tick
+                        let jumped = note.measure != candidate.measure.saturating_add(1)
+                            && (note.measure != candidate.measure || note.note <= candidate.note);
+                        (note.tie_end || (note.partial_end && jumped))
+                            && events[candidate.off_event].abs_tick == note.start_tick
                     })
                     .max_by_key(|(_, candidate)| {
                         (candidate.staff == note.staff, candidate.voice == note.voice)
@@ -504,6 +516,8 @@ fn build_part_track(
                     if note.tie_start {
                         candidate.staff = note.staff;
                         candidate.voice = note.voice;
+                        candidate.measure = note.measure;
+                        candidate.note = note.note;
                         candidates.push(candidate);
                     }
                     continue;
@@ -540,6 +554,8 @@ fn build_part_track(
                 off_event: events.len() - 1,
                 staff: note.staff,
                 voice: note.voice,
+                measure: note.measure,
+                note: note.note,
             });
         }
     }

@@ -365,6 +365,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut note_ghost = false;
     let mut note_accidental_display = AccidentalDisplay::Auto;
     let mut chord_tie_ends: Vec<bool> = Vec::new();
+    let mut chord_partial_incoming: Vec<bool> = Vec::new();
+    let mut note_partial_incoming = false;
+    let mut in_partial_tie = false;
     let mut note_tie_start = false;
     let mut note_tie_end = false;
     let mut chord_slur_start = false; // Feature L
@@ -773,6 +776,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         chord_pitch_fingerings.clear();
                         chord_fingerings.clear();
                         chord_tie_ends.clear();
+                        chord_partial_incoming.clear();
                         chord_slur_start = false;
                         chord_slur_end = false;
                         chord_cross_slurs.clear();
@@ -816,6 +820,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         note_hidden = false;
                         note_tie_start = false;
                         note_tie_end = false;
+                        note_partial_incoming = false;
                         note_midi = 60;
                         note_tpc = 14;
                         note_tpc2 = None;
@@ -871,6 +876,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "Slide" if in_note_elem => note_technique = Some(GuitarTechnique::Slide),
                     "HammerOn" if in_note_elem => note_technique = Some(GuitarTechnique::HammerOn),
                     "PullOff" if in_note_elem => note_technique = Some(GuitarTechnique::PullOff),
+                    "PartialTie" if in_note_elem => in_partial_tie = true,
                     // Note-level Tie Spanner
                     "Spanner" if in_note_elem => {
                         in_spanner = true;
@@ -1820,6 +1826,10 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         in_accidental = false;
                     }
 
+                    "partialSpannerDirection" if in_partial_tie => {
+                        note_partial_incoming = t.trim() == "incoming";
+                    }
+                    "PartialTie" if in_partial_tie => in_partial_tie = false,
                     // Note-level Spanner/Tie
                     "next" if in_spanner => {}
                     "Spanner" if in_spanner => {
@@ -2112,6 +2122,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         chord_pitch_fingerings.push(note_fingerings.first().copied());
                         chord_fingerings.extend(note_fingerings.iter().copied());
                         chord_tie_ends.push(note_tie_end);
+                        chord_partial_incoming.push(note_partial_incoming);
                         chord_notes_hidden += usize::from(note_hidden);
                         in_note_elem = false;
                     }
@@ -2132,6 +2143,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             note.slur_end = chord_slur_end;
                             note.pitches = chord_pitches.clone();
                             note.set_pitch_ties(&chord_tie_starts, &chord_tie_ends);
+                            if chord_partial_incoming.contains(&true) {
+                                note.pitch_incoming_partial_ties = chord_partial_incoming.clone();
+                            }
                             if chord_accidentals
                                 .iter()
                                 .any(|display| *display != AccidentalDisplay::Auto)

@@ -1433,6 +1433,9 @@ fn write_note(
         if pitch_index == 0 {
             xml.push_str(marks.map_or("", |marks| marks.note.as_str()));
         }
+        if note.pitch_incoming_partial_ties.get(pitch_index) == Some(&true) {
+            xml.push_str("<PartialTie><partialSpannerDirection>incoming</partialSpannerDirection></PartialTie>");
+        }
         if tie_start || tie_end {
             xml.push_str("<Spanner type=\"Tie\">");
             if tie_end {
