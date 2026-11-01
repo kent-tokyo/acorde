@@ -178,3 +178,14 @@ MSCX export preserves switches at representable positions within that voice's rh
 its export report identifies positions it cannot write exactly. MusicXML, MEI and ABC export reports
 identify the unsupported named-channel data. Channel-specific controller differences and some
 source formatting remain outside this partial implementation.
+
+### Timed pedal directions
+
+`Measure::timed_pedals` retains MusicXML no-line pedal directions at positions that can fall
+inside a note. Full `Measure` struct literals must initialize this serde-defaulted field.
+MusicXML exports these directions with offsets; MIDI and the offline render manifest emit their
+press and release at the corresponding score time, including repeated measures. In full or
+viewer WASM builds, hosts can read these controls from `build_offline_render_manifest`'s
+`semantic_events`; `to_playback_events_ex` returns note events and cannot express a release in
+the middle of a held note. The playback-only WASM profile does not expose the manifest API.
+MSCX, MEI and ABC export reports warn when these timed directions cannot be represented.

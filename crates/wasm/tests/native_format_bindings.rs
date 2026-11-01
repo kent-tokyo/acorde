@@ -796,3 +796,25 @@ fn musicxml_measured_tremolo_is_repeated_in_default_playback_binding() {
     assert_eq!(events[15]["time_beats"], 1.875);
     assert_eq!(events[16]["time_beats"], 2.0);
 }
+
+#[test]
+fn timed_musicxml_pedal_is_available_in_offline_manifest() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><direction><direction-type><pedal type="start" line="no"/></direction-type></direction><direction><direction-type><pedal type="stop" line="no"/></direction-type><offset>3</offset></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure></part></score-partwise>"#;
+    let score = bindings::parse_musicxml(xml).unwrap();
+    let manifest: Value = serde_json::from_str(
+        &bindings::build_offline_render_manifest(
+            &score,
+            r#"{"bpm_override":60}"#,
+            r#"{"sample_rate_hz":8000}"#,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let events = manifest["semantic_events"].as_array().unwrap();
+    let pedals: Vec<_> = events
+        .iter()
+        .filter(|event| event["kind"]["pedal"].is_object())
+        .map(|event| event["frame"].as_u64().unwrap())
+        .collect();
+    assert_eq!(pedals, vec![0, 24000]);
+}

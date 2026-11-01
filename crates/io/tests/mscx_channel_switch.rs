@@ -240,3 +240,64 @@ fn exporting_named_channels_to_musicxml_reports_the_loss() {
             .any(|d| d.code == "musicxml.export-unsupported-named-channels")
     );
 }
+
+#[cfg(feature = "midi")]
+#[test]
+fn timed_pedals_reach_all_named_program_channels() {
+    use acorde_core::TimedPedalDirection;
+    use midly::{MidiMessage, Smf, TrackEventKind};
+    let mut score = parse_mscx(include_str!(
+        "../../../tests/fixtures/issue_280_channel_switch.mscx"
+    ))
+    .unwrap();
+    score.parts[0].staves[0].measures[0].timed_pedals = vec![
+        TimedPedalDirection {
+            position_beats: 0.0,
+            down: true,
+            number: 1,
+            hide_sign: false,
+            placement: None,
+        },
+        TimedPedalDirection {
+            position_beats: 0.5,
+            down: false,
+            number: 1,
+            hide_sign: false,
+            placement: None,
+        },
+    ];
+    let bytes = acorde_io::serialize_midi(&score).unwrap();
+    let midi = Smf::parse(&bytes).unwrap();
+    let mut tick = 0u64;
+    let mut controls = Vec::new();
+    for event in &midi.tracks[1] {
+        tick += u64::from(event.delta.as_int());
+        if let TrackEventKind::Midi {
+            channel,
+            message: MidiMessage::Controller { controller, value },
+        } = event.kind
+        {
+            if controller.as_int() == 64 {
+                controls.push((channel.as_int(), tick, value.as_int()));
+            }
+        }
+    }
+    controls.sort_unstable();
+    let channels: Vec<_> = controls
+        .iter()
+        .map(|event| event.0)
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    assert_eq!(channels.len(), 2, "{controls:?}");
+    for channel in channels {
+        assert_eq!(
+            controls
+                .iter()
+                .filter(|event| event.0 == channel)
+                .map(|event| (event.1, event.2))
+                .collect::<Vec<_>>(),
+            vec![(0, 127), (240, 0)]
+        );
+    }
+}

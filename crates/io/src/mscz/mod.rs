@@ -1400,6 +1400,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             figured_bass: std::mem::take(&mut cur_figured_bass),
                             harp_pedal_diagrams: Vec::new(),
                             channel_switches: std::mem::take(&mut cur_channel_switches),
+                            timed_pedals: Vec::new(),
                             multi_rest_count: None,
                             system_break: cur_system_break,
                             page_break: cur_page_break,
