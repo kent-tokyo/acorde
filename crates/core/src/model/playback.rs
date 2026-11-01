@@ -1275,6 +1275,49 @@ fn append_measure_semantic_events(
                     measure: Some(address.clone()),
                 });
             }
+            for (staff_index, event) in part
+                .staves
+                .iter()
+                .enumerate()
+                .filter_map(|(staff_index, staff)| {
+                    staff
+                        .measures
+                        .get(time.measure)
+                        .map(|measure| (staff_index, measure))
+                })
+                .flat_map(|(staff_index, measure)| {
+                    measure
+                        .timed_pedals
+                        .iter()
+                        .map(move |event| (staff_index, event))
+                })
+            {
+                if !event.position_beats.is_finite()
+                    || event.position_beats < 0.0
+                    || event.position_beats > time.beats
+                {
+                    continue;
+                }
+                let secs = time.start_secs
+                    + tempo_ramp_seconds(
+                        time.bpm,
+                        time.ramp_to_bpm,
+                        time.beats,
+                        event.position_beats,
+                    );
+                events.push(OfflineRenderSemanticFrameEvent {
+                    kind: OfflineRenderSemanticEventKind::Pedal { down: event.down },
+                    frame: ((fermata_warp_secs(secs, &holds) - origin_secs).max(0.0)
+                        * f64::from(sample_rate_hz))
+                    .round() as u64,
+                    source: None,
+                    measure: Some(OfflineRenderMeasureAddress {
+                        part: part_index,
+                        staff: staff_index,
+                        measure: time.measure,
+                    }),
+                });
+            }
             let start_tick = tick_starts[time.measure];
             let end_tick = start_tick.saturating_add((time.beats * 480.0).round() as u64);
             for control in &part.midi_control_changes {

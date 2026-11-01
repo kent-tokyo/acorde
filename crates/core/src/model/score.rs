@@ -2136,6 +2136,20 @@ pub struct MetronomeMark {
     pub parentheses: bool,
 }
 
+/// A pedal direction at a score-time position within this staff's measure.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TimedPedalDirection {
+    /// Position in quarter-note beats from the start of this measure.
+    pub position_beats: f64,
+    /// True for pedal down, false for pedal release.
+    pub down: bool,
+    /// MusicXML pedal line number.
+    pub number: u16,
+    /// Optional authored placement, such as "above" or "below".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placement: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Measure {
     pub number: u32,
@@ -2189,6 +2203,9 @@ pub struct Measure {
     /// Concert-harp pedal diagrams declared by MusicXML `<harp-pedals>` directions.
     #[serde(default)]
     pub harp_pedal_diagrams: Vec<HarpPedalDiagram>,
+    /// Pedal signs whose score-time positions need not coincide with notes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub timed_pedals: Vec<TimedPedalDirection>,
     /// When ≥ 2, this measure is displayed as a multi-measure rest spanning N measures.
     #[serde(default)]
     pub multi_rest_count: Option<u8>,
@@ -2274,6 +2291,7 @@ impl Measure {
             texts: Vec::new(),
             figured_bass: Vec::new(),
             harp_pedal_diagrams: Vec::new(),
+            timed_pedals: Vec::new(),
             multi_rest_count: None,
             system_break: false,
             page_break: false,
@@ -2952,6 +2970,13 @@ pub enum ScoreChange {
         old: Vec<HarpPedalDiagram>,
         new: Vec<HarpPedalDiagram>,
     },
+    TimedPedalsChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old: Vec<TimedPedalDirection>,
+        new: Vec<TimedPedalDirection>,
+    },
     ChordDefinitionsChanged {
         old: Vec<ChordDefinition>,
         new: Vec<ChordDefinition>,
@@ -3498,6 +3523,15 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                         new: bm.harp_pedal_diagrams.clone(),
                     });
                 }
+                if am.timed_pedals != bm.timed_pedals {
+                    changes.push(ScoreChange::TimedPedalsChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.timed_pedals.clone(),
+                        new: bm.timed_pedals.clone(),
+                    });
+                }
             }
         }
     }
@@ -3605,6 +3639,12 @@ pub enum ScorePatch {
         staff: usize,
         measure: usize,
         value: Vec<HarpPedalDiagram>,
+    },
+    SetTimedPedals {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        value: Vec<TimedPedalDirection>,
     },
     SetChordDefinitions {
         value: Vec<ChordDefinition>,
@@ -4083,6 +4123,15 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                     });
                 }
 
+                if am.timed_pedals != bm.timed_pedals {
+                    patches.push(ScorePatch::SetTimedPedals {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: bm.timed_pedals.clone(),
+                    });
+                }
+
                 for vi in 0..4usize {
                     let av = &am.voices[vi];
                     let bv = &bm.voices[vi];
@@ -4194,6 +4243,23 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                     .get_mut(*measure)
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
                     .harp_pedal_diagrams = value.clone();
+            }
+            ScorePatch::SetTimedPedals {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .timed_pedals = value.clone();
             }
             ScorePatch::SetChordDefinitions { value } => {
                 s.chord_definitions = value.clone();

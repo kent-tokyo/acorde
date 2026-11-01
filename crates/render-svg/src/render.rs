@@ -2667,6 +2667,18 @@ pub(crate) fn measure_text_entries(measure: &Measure) -> Vec<StyledText> {
             relative_y: None,
         });
     }
+    for pedal in &measure.timed_pedals {
+        entries.push(StyledText {
+            position_beats: Some(pedal.position_beats),
+            style: TextStyle::Technique,
+            text: if pedal.down { "Ped." } else { "*" }.to_owned(),
+            placement: pedal.placement.clone().or_else(|| Some("below".to_owned())),
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        });
+    }
     entries
 }
 
@@ -4828,6 +4840,7 @@ fn render_measure_text(
     let mut above_texts = 0usize;
     let mut below_texts = 0usize;
     let entries = measure_text_entries(measure);
+    let timed_pedal_start = entries.len().saturating_sub(measure.timed_pedals.len());
     let mut text_lanes = Vec::with_capacity(entries.len());
     let annotation_count = resolved_annotations.len();
     let mut placements = resolved_annotations.to_vec();
@@ -4870,7 +4883,13 @@ fn render_measure_text(
             .as_deref()
             .is_some_and(|placement| placement.eq_ignore_ascii_case("below"))
             || matches!(styled.style, acorde_core::TextStyle::Lyrics);
-        let stack_index = if let Some(previous) = previous_same {
+        let previous_pedal = (text_index >= timed_pedal_start)
+            .then(|| {
+                (timed_pedal_start..text_index)
+                    .find(|&index| entries[index].placement == styled.placement)
+            })
+            .flatten();
+        let stack_index = if let Some(previous) = previous_pedal.or(previous_same) {
             text_lanes[previous]
         } else if placement_below {
             let lane = below_texts;
@@ -4903,11 +4922,33 @@ fn render_measure_text(
             };
         // The grand-staff lane for below-staff words is constrained by both staves.
         // Keep its established clearance placement until beat anchoring can fit that lane.
-        let beat_x = (!placement_below && text_scale > 1.0)
+        let is_timed_pedal = text_index >= timed_pedal_start;
+        let measure_beats = measure
+            .actual_length
+            .and_then(|length| length.beats())
+            .or_else(|| measure.time_sig.as_ref().map(|time| time.total_beats()))
+            .unwrap_or_else(|| {
+                measure
+                    .voices
+                    .iter()
+                    .map(|voice| voice.iter().map(Note::beats).sum::<f64>())
+                    .fold(0.0, f64::max)
+            });
+        let end_anchor =
+            (is_timed_pedal && measure_beats > 0.0).then_some((measure_beats, x + width - space));
+        let beat_x = (is_timed_pedal || (!placement_below && text_scale > 1.0))
             .then_some(styled.position_beats)
             .flatten()
             .and_then(|beats| {
-                measure_text_beat_x(measure, part, staff, measure_idx, beats, note_points)
+                measure_text_beat_x(
+                    measure,
+                    part,
+                    staff,
+                    measure_idx,
+                    beats,
+                    note_points,
+                    end_anchor,
+                )
             });
         let mut text_x = beat_x.unwrap_or(content_x0) + (offset_x as f32 / 10.0) * space;
         if beat_x.is_some() && text_scale > 1.0 {
@@ -5247,6 +5288,7 @@ fn measure_text_beat_x(
     measure_idx: usize,
     beat: f64,
     note_points: &HashMap<NoteKey, NotePoint>,
+    end_anchor: Option<(f64, f32)>,
 ) -> Option<f32> {
     let mut anchors = Vec::new();
     for (voice_index, voice) in measure.voices.iter().enumerate() {
@@ -5259,6 +5301,9 @@ fn measure_text_beat_x(
             }
             cursor += note.beats();
         }
+    }
+    if let Some(anchor) = end_anchor {
+        anchors.push(anchor);
     }
     anchors.sort_by(|left, right| left.0.total_cmp(&right.0).then(left.1.total_cmp(&right.1)));
     let first = *anchors.first()?;

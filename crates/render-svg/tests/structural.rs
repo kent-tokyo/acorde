@@ -5241,3 +5241,48 @@ fn shared_dynamic_playback_does_not_duplicate_the_printed_mark() {
     assert_eq!(before, after);
     assert_eq!(after.matches("class=\"acorde-dynamic\"").count(), 1);
 }
+
+#[test]
+fn timed_pedal_signs_show_at_distinct_positions_inside_a_sustained_note() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step, TimedPedalDirection};
+    let mut score = Score::new("timed pedal", 120, 4, 4, 0, 1);
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+    measure.timed_pedals = vec![
+        TimedPedalDirection {
+            position_beats: 0.0,
+            down: true,
+            number: 1,
+            placement: None,
+        },
+        TimedPedalDirection {
+            position_beats: 3.0,
+            down: false,
+            number: 1,
+            placement: None,
+        },
+    ];
+    let svg = render_svg(&score, &opts()).unwrap();
+    let position = |label: &str| -> (f32, f32) {
+        let tag = svg
+            .split("<text ")
+            .skip(1)
+            .find(|tag| tag.contains(&format!(">{label}</text>")))
+            .unwrap();
+        let attr = |name: &str| -> f32 {
+            tag.split(&format!("{name}=\""))
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap()
+                .parse()
+                .unwrap()
+        };
+        (attr("x"), attr("y"))
+    };
+    let start = position("Ped.");
+    let stop = position("*");
+    assert!(stop.0 > start.0 + 20.0, "{start:?}, {stop:?}");
+    assert!((stop.1 - start.1).abs() < 1.0, "{start:?}, {stop:?}");
+}

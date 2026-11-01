@@ -446,12 +446,10 @@ pub(crate) fn parse_musicxml_collecting(
     let mut pending_ottava_start: Option<OttavaKind> = None;
     let mut pending_pedal_start = false;
     let mut pending_pedal_end = false;
-    // Directions can precede all notes even though their offsets place them inside a note.
-    // Keep this bounded fallback separate from legacy note-anchored pedal spans.
-    let mut early_pedal_start: Option<(usize, usize, usize, u16, f64)> = None;
-    let mut direction_early_pedal_start: Option<u16> = None;
-    let mut direction_early_pedal_stop: Option<u16> = None;
-    let mut timed_pedal_pairs: Vec<(usize, usize, f64, f64)> = Vec::new();
+    // Independent score-time directions: document order need not match playback order.
+    let mut pending_timed_pedals: Vec<(bool, u16)> = Vec::new();
+    let mut timed_pedal_events: Vec<(usize, usize, usize, acorde_core::TimedPedalDirection)> =
+        Vec::new();
     let mut in_lyric = false;
     // `<extend>` (start, or untyped) under the current lyric: a melisma line follows it.
     let mut lyric_extend = false;
@@ -1430,15 +1428,17 @@ pub(crate) fn parse_musicxml_collecting(
                         }
                         _ => {}
                     },
+                    "pedal" if attr_str(e, b"line").as_deref() == Some("no") => {
+                        if let Some(kind @ ("start" | "stop")) = attr_str(e, b"type").as_deref() {
+                            pending_timed_pedals.push((
+                                kind == "start",
+                                parse_spanner_number(attr_str(e, b"number"))?,
+                            ));
+                        }
+                    }
                     "pedal" => match attr_str(e, b"type").as_deref() {
                         Some("start") => {
                             pending_pedal_start = true;
-                            if last_note_address.is_none()
-                                && attr_str(e, b"line").as_deref() == Some("no")
-                            {
-                                direction_early_pedal_start =
-                                    Some(parse_spanner_number(attr_str(e, b"number"))?);
-                            }
                             pending_direction_spanner_events.push(ParsedSpannerEvent {
                                 kind: NotationSpannerKind::Pedal,
                                 action: SpannerAction::Start,
@@ -1469,11 +1469,6 @@ pub(crate) fn parse_musicxml_collecting(
                                     tolerated,
                                 )?;
                                 pending_pedal_end = true;
-                            } else if attr_str(e, b"line").as_deref() == Some("no")
-                                && pending_pedal_start
-                            {
-                                direction_early_pedal_stop =
-                                    Some(parse_spanner_number(attr_str(e, b"number"))?);
                             } else {
                                 return Err(Error::Xml(
                                     "MusicXML pedal stop has no preceding note".into(),
@@ -2033,43 +2028,22 @@ pub(crate) fn parse_musicxml_collecting(
                                 m.harp_pedal_diagrams.push(diagram);
                             }
                         }
-                        if let (Some(number), Some(pi)) =
-                            (direction_early_pedal_start.take(), part_index)
-                        {
+                        if let Some(pi) = part_index {
                             let mi = score.parts[pi].staves[0].measures.len().saturating_sub(1);
-                            early_pedal_start = Some((
-                                pi,
-                                pending_direction_staff,
-                                mi,
-                                number,
-                                pending_direction_position_beats.unwrap_or(0.0),
-                            ));
-                        }
-                        if let Some(number) = direction_early_pedal_stop.take() {
-                            let (pi, staff, mi, start_number, start) =
-                                early_pedal_start.take().ok_or_else(|| {
-                                    Error::Xml("MusicXML pedal stop has no preceding start".into())
-                                })?;
-                            let stop = pending_direction_position_beats.unwrap_or(0.0);
-                            let current_measure =
-                                score.parts[pi].staves[0].measures.len().saturating_sub(1);
-                            if Some(pi) != part_index
-                                || staff != pending_direction_staff
-                                || mi != current_measure
-                                || start_number != number
-                                || stop <= start
-                            {
-                                return Err(Error::Xml(
-                                    "MusicXML early pedal interval is unsupported".into(),
+                            for (down, number) in pending_timed_pedals.drain(..) {
+                                timed_pedal_events.push((
+                                    pi,
+                                    pending_direction_staff,
+                                    mi,
+                                    acorde_core::TimedPedalDirection {
+                                        position_beats: pending_direction_position_beats
+                                            .unwrap_or(0.0),
+                                        down,
+                                        number,
+                                        placement: pending_direction_placement.clone(),
+                                    },
                                 ));
                             }
-                            pending_direction_spanner_events.retain(|event| {
-                                !(event.kind == NotationSpannerKind::Pedal
-                                    && event.number == number)
-                            });
-                            pending_pedal_start = false;
-                            timed_pedal_pairs.push((pi, mi, start, stop));
-                            tolerated.push(crate::Diagnostic::warning("musicxml.timed-pedal-notation-unsupported", "Timed pedal controls are retained for playback, but their notation and MusicXML round trip are not represented"));
                         }
                         if let (Some(dynamic), Some(pi)) =
                             (pending_direction_dynamic.take(), part_index)
@@ -3284,21 +3258,46 @@ pub(crate) fn parse_musicxml_collecting(
             staff.clef = clef;
         }
     }
-    for (pi, mi, start, stop) in timed_pedal_pairs {
-        let measure_start = (0..mi)
-            .map(|index| score.playback_measure_beats(index))
-            .sum::<f64>();
-        let channel = score.parts[pi].midi_channel;
-        for (beat, value) in [(start, 127), (stop, 0)] {
-            let tick = ((measure_start + beat).max(0.0) * 480.0).round() as u64;
-            score.parts[pi]
-                .midi_control_changes
-                .push(MidiControlChange {
-                    tick,
-                    channel,
-                    controller: 64,
-                    value,
-                });
+    let bar_count = score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .map(|staff| staff.measures.len())
+        .max()
+        .unwrap_or(0);
+    let mut bar_starts = vec![0.0];
+    for measure in 0..bar_count {
+        bar_starts.push(bar_starts[measure] + score.playback_measure_beats(measure));
+    }
+    for (pi, staff, mi, mut event) in timed_pedal_events {
+        let Some(&start) = bar_starts.get(mi) else {
+            continue;
+        };
+        let absolute = start + event.position_beats;
+        if absolute < 0.0 || absolute > *bar_starts.last().unwrap_or(&0.0) {
+            tolerated.push(crate::Diagnostic::warning(
+                "musicxml.timed-pedal-outside-score",
+                "A pedal direction outside the score could not be assigned to a measure",
+            ));
+            continue;
+        }
+        let target = bar_starts
+            .partition_point(|&value| value <= absolute)
+            .saturating_sub(1)
+            .min(bar_count.saturating_sub(1));
+        event.position_beats = absolute - bar_starts[target];
+        if let Some(measure) = score
+            .parts
+            .get_mut(pi)
+            .and_then(|part| part.staves.get_mut(staff))
+            .and_then(|staff| staff.measures.get_mut(target))
+        {
+            measure.timed_pedals.push(event);
+        } else {
+            tolerated.push(crate::Diagnostic::warning(
+                "musicxml.timed-pedal-missing-staff",
+                "A pedal direction references a missing staff",
+            ));
         }
     }
     resolve_direction_dynamics(&mut score, direction_dynamics, tolerated);

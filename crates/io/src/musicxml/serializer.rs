@@ -655,6 +655,36 @@ fn serialize_musicxml_inner(
                 xml.push_str("      </figured-bass>\n");
             }
 
+            // These directions are emitted at the measure cursor origin; offset preserves
+            // their independent score-time position even when it falls inside a note.
+            for (staff_index, direction) in part
+                .staves
+                .iter()
+                .enumerate()
+                .filter_map(|(staff_index, staff)| {
+                    staff.measures.get(i).map(|measure| (staff_index, measure))
+                })
+                .flat_map(|(staff_index, measure)| {
+                    measure
+                        .timed_pedals
+                        .iter()
+                        .map(move |direction| (staff_index, direction))
+                })
+            {
+                if !direction.position_beats.is_finite() || direction.position_beats < 0.0 {
+                    continue;
+                }
+                let placement = direction
+                    .placement
+                    .as_deref()
+                    .filter(|value| matches!(*value, "above" | "below"))
+                    .map(|value| format!(" placement=\"{value}\""))
+                    .unwrap_or_default();
+                let kind = if direction.down { "start" } else { "stop" };
+                let offset = (direction.position_beats * f64::from(DIVISIONS)).round() as u64;
+                xml.push_str(&format!("      <direction{placement}><direction-type><pedal type=\"{kind}\" line=\"no\" number=\"{}\"/></direction-type><offset>{offset}</offset><staff>{}</staff></direction>\n", direction.number, staff_index + 1));
+            }
+
             let mut tempo_text_emitted = measure.tempo_text.is_some();
             let mut expression_text_emitted = measure.expression_text.is_some();
             let mut rehearsal_emitted = measure.rehearsal.is_some();
