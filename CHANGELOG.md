@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- MSCX/MSCZ import accepts partial forward moves between directions after a
+  backward voice location, without inserting rests or moving later notes.
+  Notes and rests at an unresolved backward position still fail explicitly;
+  the existing direction-position loss diagnostic remains.
+
 ## 1.3.8 - 2026-11-02
 
 - **Compatibility.** Rust 1.89 is now the workspace minimum. Explicit accidentals,
