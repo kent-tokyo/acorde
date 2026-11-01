@@ -4908,7 +4908,8 @@ pub fn respell_score_to_key(score: &mut Score) {
 /// Compute total playback duration in seconds.
 ///
 /// Uses `measure_sequence` for correct repeat handling. Lighter than generating
-/// full playback events — suitable for progress bars and UI display.
+/// full playback events — suitable for progress bars and UI display. Includes
+/// the default score-wide fermata holds.
 pub fn score_duration_secs(score: &Score) -> f64 {
     if score.settings.tempo_bpm == 0 {
         return 0.0;
@@ -4936,13 +4937,14 @@ pub fn score_duration_secs(score: &Score) -> f64 {
             }
         }
     }
-    total_secs
+    total_secs + super::playback::fermata_total_secs(score, None)
 }
 
 /// Compute playback duration in seconds for a specific measure range (inclusive).
 ///
 /// `region` is `(start_measure, end_measure)`, both 0-based. Measures outside the range
-/// are excluded. Uses `measure_sequence` for correct repeat handling.
+/// are excluded. Uses `measure_sequence` for correct repeat handling and includes
+/// the default score-wide fermata holds.
 pub fn score_duration_secs_region(score: &Score, region: (usize, usize)) -> f64 {
     if score.settings.tempo_bpm == 0 {
         return 0.0;
@@ -4973,7 +4975,7 @@ pub fn score_duration_secs_region(score: &Score, region: (usize, usize)) -> f64 
             }
         }
     }
-    total_secs
+    total_secs + super::playback::fermata_total_secs(score, Some(region))
 }
 
 fn tempo_ramp_duration_secs(start_bpm: f64, target_bpm: Option<u16>, beats: f64) -> f64 {

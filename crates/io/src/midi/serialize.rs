@@ -70,7 +70,29 @@ fn serialize_midi_impl(score: &Score, seq: &[usize]) -> Result<Vec<u8>, Error> {
     let mut smf = Smf::new(header);
 
     let starts = measure_start_ticks(score, seq);
-    smf.tracks.push(build_meta_track(score, seq, &starts)?);
+    let region = seq.iter().copied().min().zip(seq.iter().copied().max());
+    let options = acorde_core::PlaybackOptions {
+        loop_region: region,
+        ..Default::default()
+    };
+    let pauses: Vec<(u64, u64)> = acorde_core::playback_fermata_pauses(score, &options)
+        .into_iter()
+        .map(|(at, length)| {
+            (
+                (at * f64::from(PPQ)).round() as u64,
+                (length * f64::from(PPQ)).round() as u64,
+            )
+        })
+        .scan(0u64, |cumulative, (at, length)| {
+            *cumulative = cumulative.saturating_add(length);
+            Some((at, *cumulative))
+        })
+        .collect();
+    let meta_starts: Vec<u64> = starts
+        .iter()
+        .map(|&tick| warp_midi_tick(tick, &pauses))
+        .collect();
+    smf.tracks.push(build_meta_track(score, seq, &meta_starts)?);
     // Reserve every authored channel before assigning temporary channels to
     // overlapping notes. A spare in one part must not steal another part's
     // instrument or controller stream.
@@ -103,6 +125,7 @@ fn serialize_midi_impl(score: &Score, seq: &[usize]) -> Result<Vec<u8>, Error> {
             part,
             seq,
             &starts,
+            &pauses,
             &mut occupied_channels,
         )?);
     }
@@ -126,6 +149,11 @@ fn measure_start_ticks(score: &Score, seq: &[usize]) -> Vec<u64> {
             start
         })
         .collect()
+}
+
+fn warp_midi_tick(tick: u64, pauses: &[(u64, u64)]) -> u64 {
+    let count = pauses.partition_point(|(at, _)| *at <= tick);
+    tick.saturating_add(count.checked_sub(1).map_or(0, |index| pauses[index].1))
 }
 
 fn score_tempo_at(score: &Score, measure_index: usize) -> Option<u16> {
@@ -295,6 +323,7 @@ fn build_part_track(
     part: &acorde_core::Part,
     seq: &[usize],
     starts: &[u64],
+    pauses: &[(u64, u64)],
     occupied_channels: &mut BTreeSet<u8>,
 ) -> Result<Vec<TrackEvent<'static>>, Error> {
     let channel = u4::from(part.midi_channel.min(15));
@@ -364,12 +393,6 @@ fn build_part_track(
             message,
         });
     }
-    let base_messages = events
-        .iter()
-        .filter(|event| event.channel == channel)
-        .cloned()
-        .collect::<Vec<_>>();
-
     for (staff_index, staff) in part.staves.iter().enumerate() {
         let dynamics = acorde_core::DynamicTimeline::for_staff(staff, seq);
         for voice_idx in 0..4usize {
@@ -401,9 +424,6 @@ fn build_part_track(
                             match articulation {
                                 Articulation::Staccato | Articulation::Staccatissimo => {
                                     sounding_ticks *= 0.5;
-                                }
-                                Articulation::Fermata => {
-                                    sounding_ticks *= 1.5;
                                 }
                                 Articulation::Accent | Articulation::Marcato => {
                                     vel = vel.saturating_add(20).min(127);
@@ -501,6 +521,17 @@ fn build_part_track(
             });
         }
     }
+
+    // Resolve ties in written time, then place all note and controller events on the
+    // same fermata-adjusted clock before allocating channels for overlapping unisons.
+    for event in &mut events {
+        event.abs_tick = warp_midi_tick(event.abs_tick, pauses);
+    }
+    let base_messages = events
+        .iter()
+        .filter(|event| event.channel == channel && event.sort_key == 1)
+        .cloned()
+        .collect::<Vec<_>>();
 
     // An overlapping unison cannot be released independently on one MIDI
     // channel: its note-offs carry only a key, not a voice identity. Put the
@@ -892,6 +923,53 @@ mod tests {
     }
 
     #[test]
+    fn fermata_delays_midi_notes_and_measure_metadata_on_each_repeat() {
+        use acorde_core::Barline;
+        let mut score = Score::new("fermata", 120, 3, 4, 0, 2);
+        let first = &mut score.parts[0].staves[0].measures[0];
+        first.barline_left = Barline::RepeatStart;
+        let mut held = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        held.articulations.push(Articulation::Fermata);
+        first.voices[0] = vec![held, Note::new(Pitch::new(Step::D, 4), Duration::Half)];
+        score.parts[0].staves[0].measures[1].barline_right = Barline::RepeatEnd;
+        score.parts[0].staves[0].measures[1].tempo = Some(90);
+        let mut lower = score.parts[0].staves[0].clone();
+        lower.measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 3), Duration::Half),
+            Note::rest(Duration::Quarter),
+        ];
+        lower.measures[1].voices[0] = vec![Note::rest(Duration::Half)];
+        score.parts[0].staves.push(lower);
+        let bytes = serialize_midi(&score).unwrap();
+        let schedule = note_schedule(&bytes);
+        for event in [
+            (0, true, 60, 64),
+            (720, false, 60, 0),
+            (720, true, 62, 64),
+            (1200, false, 48, 0),
+        ] {
+            assert!(schedule.contains(&event), "missing {event:?}: {schedule:?}");
+        }
+        let midi = Smf::parse(&bytes).unwrap();
+        let mut tick = 0u64;
+        let tempos: Vec<u64> = midi.tracks[0]
+            .iter()
+            .filter_map(|event| {
+                tick += u64::from(event.delta.as_int());
+                matches!(event.kind, TrackEventKind::Meta(MetaMessage::Tempo(_))).then_some(tick)
+            })
+            .collect();
+        assert!(
+            tempos.contains(&1680),
+            "tempo did not follow first held bar: {tempos:?}"
+        );
+        assert!(
+            schedule.contains(&(3120, true, 60, 64)),
+            "repeat did not follow hold: {schedule:?}"
+        );
+    }
+
+    #[test]
     fn midi_default_articulation_matches_playback_duration_and_velocity() {
         let mut score = Score::new("articulations", 120, 4, 4, 0, 1);
         let mut fermata = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
@@ -906,11 +984,11 @@ mod tests {
             schedule,
             vec![
                 (0, true, 60, 64),
-                (480, true, 62, 64),
                 (720, false, 60, 0),
-                (720, false, 62, 0),
-                (960, true, 64, 84),
-                (1440, false, 64, 0),
+                (720, true, 62, 64),
+                (960, false, 62, 0),
+                (1200, true, 64, 84),
+                (1680, false, 64, 0),
             ]
         );
     }
@@ -933,8 +1011,7 @@ mod tests {
                 value: 70,
             },
         ];
-        let mut held = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
-        held.articulations.push(Articulation::Fermata);
+        let held = Note::new(Pitch::new(Step::C, 4), Duration::Half);
         score.parts[0].staves[0].measures[0].voices[0] = vec![held];
         score.parts[0].staves[0].measures[0].voices[1] = vec![
             Note::rest(Duration::Quarter),
@@ -990,7 +1067,7 @@ mod tests {
             vec![
                 (0, true, 0, 60),
                 (480, true, 2, 60),
-                (720, false, 0, 60),
+                (960, false, 0, 60),
                 (960, false, 2, 60),
             ]
         );
@@ -1027,8 +1104,7 @@ mod tests {
     #[test]
     fn overlapping_unison_rejects_exhausted_channel_pool() {
         let mut score = Score::new("no spare channel", 120, 4, 4, 0, 1);
-        let mut held = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
-        held.articulations.push(Articulation::Fermata);
+        let held = Note::new(Pitch::new(Step::C, 4), Duration::Half);
         score.parts[0].staves[0].measures[0].voices[0] = vec![held];
         score.parts[0].staves[0].measures[0].voices[1] = vec![
             Note::rest(Duration::Quarter),
