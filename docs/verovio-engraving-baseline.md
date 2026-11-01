@@ -661,3 +661,17 @@ or behavior for all chords, cross-staff beams, and secondary levels.
    clipped content, collisions, page geometry, and legibility at print size.
 4. Run blind human review of the resulting PDFs and record the rubric and
    individual scores. Do not infer superiority from page count or preflight.
+
+### Inter-staff wedge and high lower-staff notes
+
+The self-authored `tests/fixtures/issue_295_interstaff_hairpin.musicxml` places a crescendo
+between piano staves and high notes on the lower staff. On this single deliberately extreme
+example, Acorde and Verovio 6.3.0 both place the wedge clear of the noteheads and stems. Acorde's
+inter-staff space is visibly larger; this comparison does not establish engraving parity or
+performance on ordinary scores. The screen outputs can be reproduced with:
+
+```sh
+cargo run -p acorde-cli --locked -- render --width 1000 \
+  tests/fixtures/issue_295_interstaff_hairpin.musicxml /tmp/acorde-interstaff.svg
+verovio -o /tmp/verovio-interstaff.svg tests/fixtures/issue_295_interstaff_hairpin.musicxml
+```

@@ -5671,3 +5671,44 @@ fn above_hairpin_clears_lower_beam_on_adjacent_upper_staff() {
         "beam {points:?} intersects wedge {path:?}"
     );
 }
+
+#[test]
+fn interstaff_hairpin_comparison_fixture_avoids_lower_stems() {
+    let score = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/issue_295_interstaff_hairpin.musicxml"
+    ))
+    .unwrap();
+    let svg = render_svg(&score, &opts()).unwrap();
+    let path = hairpin_path_coordinates(&svg)[0];
+    let top = path[1].min(path[3]).min(path[5]).min(path[7]);
+    let bottom = path[1].max(path[3]).max(path[5]).max(path[7]);
+    let stems: Vec<_> = svg
+        .split("<line class=\"acorde-stem\"")
+        .skip(1)
+        .map(|tag| {
+            let attr = |name: &str| -> f32 {
+                tag.split(&format!("{name}=\""))
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap()
+                    .parse()
+                    .unwrap()
+            };
+            (attr("x1"), attr("y1"), attr("y2"))
+        })
+        .collect();
+    assert_eq!(stems.len(), 4);
+    let mut checked = 0;
+    for &(x, y1, y2) in &stems[2..] {
+        if x >= path[0].min(path[2]) && x <= path[0].max(path[2]) {
+            checked += 1;
+            assert!(
+                y1.max(y2) < top || y1.min(y2) > bottom,
+                "lower stem ({x}, {y1}, {y2}) intersects {path:?}"
+            );
+        }
+    }
+    assert!(checked > 0);
+}

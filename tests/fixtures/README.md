@@ -126,3 +126,8 @@ trill mark, SVG and playback metadata; it does not establish general compatibili
 by MuseScore Studio 4.7.5, then given explicit native pizzicato/arco channel
 switches. MuseScore exported MIDI with programs 45 and 40 respectively before
 crashing at shutdown. The fixture currently documents a diagnosed playback loss.
+
+`issue_295_interstaff_hairpin.musicxml` is a self-authored piano score with a below-staff
+crescendo and high notes on the lower staff. It is a focused inter-staff clearance example, not a
+representative corpus. Verovio 6.3.0 and Acorde were rendered from this same input; both avoided
+a wedge/note collision in this example, while Acorde used more inter-staff space.
