@@ -7636,3 +7636,27 @@ fn musicxml_fermata_delays_following_attacks_on_shared_clock() {
         [(60, 0.0, 1.5), (62, 1.5, 1.0), (64, 2.5, 1.0)]
     );
 }
+
+#[cfg(feature = "musicxml")]
+#[test]
+fn hidden_musicxml_meter_does_not_report_a_supported_attribute_as_lost() {
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time print-object="no"><beats>2</beats><beat-type>4</beat-type></time></attributes><note><rest/><duration>2</duration><type>half</type></note></measure></part></score-partwise>"#;
+    let report = acorde_io::parse_musicxml_with_report(xml).unwrap();
+    assert!(report.score.parts[0].staves[0].measures[0].time_sig_hidden);
+    assert!(
+        !report.diagnostics.iter().any(|item| item
+            .source_location
+            .as_deref()
+            .is_some_and(|path| path.ends_with("time@print-object"))),
+        "supported visibility reported as lost: {:?}",
+        report.diagnostics
+    );
+    let invalid = xml.replace("print-object=\"no\"", "print-object=\"unknown\"");
+    let report = acorde_io::parse_musicxml_with_report(&invalid).unwrap();
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|item| item.code == "musicxml.invalid-time-visibility")
+    );
+}
