@@ -646,178 +646,202 @@ pub(crate) fn build_svg_with_metadata_placement(
         let mut volta_segments: Vec<(f32, f32, Option<u8>, bool)> = Vec::new();
         for (col, &measure_idx) in row.measure_indices.iter().enumerate() {
             let mwidth = measure_widths[col];
-            let mut deferred_texts = Vec::new();
-            for (si_idx, &(pi, si)) in staff_refs.iter().enumerate() {
-                if !row_staff_visible[si_idx] {
-                    continue;
-                }
-                let bottom_y = staff_y[si_idx] + staff_heights_u[si_idx] * space;
-                let staff_ref = &score.parts[pi].staves[si];
-                let mut clef_lead_u = 0.0;
-                if col > 0
-                    && staff_ref.tablature_at(measure_idx).is_none()
-                    && let Some(change) = staff_ref.measures[measure_idx].clef.as_ref()
-                    && *change != row_clefs[si_idx]
-                {
-                    geometry::clef_bottom_line(change)?;
-                    let clef_x = mx + 0.4 * space;
-                    let mut glyph = String::new();
-                    let width = write_clef(&mut glyph, change, clef_x, bottom_y, space)?;
-                    let _ = write!(
-                        body,
-                        r#"<g class="acorde-clef-change" transform="translate({x} {y}) scale(0.75) translate({nx} {ny})">{glyph}</g>"#,
-                        x = f(clef_x),
-                        y = f(bottom_y),
-                        nx = f(-clef_x),
-                        ny = f(-bottom_y)
-                    );
-                    clef_lead_u = 0.4 + width / space * 0.75;
-                    row_clefs[si_idx] = change.clone();
-                }
-                if let Some((old, new)) = inline_keys[col][si_idx] {
-                    let key_x = mx + (clef_lead_u + 0.4) * space;
-                    let width = write_key_cancellations(
-                        &mut body,
-                        &row_clefs[si_idx],
-                        old,
-                        new,
-                        key_x,
-                        bottom_y,
-                        space,
-                    );
-                    write_key_signature(
-                        &mut body,
-                        &row_clefs[si_idx],
-                        new,
-                        key_x + width,
-                        bottom_y,
-                        space,
-                    )?;
-                }
-                if let Some((time, symbol)) = inline_meters[col][si_idx].as_ref() {
-                    let time_x = mx + (clef_lead_u + inline_key_widths_u[col] + 0.4) * space;
-                    let _ = write!(
-                        body,
-                        r#"<g class="acorde-time-sig-change" data-part="{pi}" data-staff="{si}" data-measure="{measure_idx}">"#
-                    );
-                    write_time_signature(&mut body, time, *symbol, time_x, bottom_y, space);
-                    body.push_str("</g>");
-                }
-                let clef = &row_clefs[si_idx];
-                // Where this part's other staves sit, for notes written across to them.
-                let mut cross_frames: HashMap<usize, (i32, f32)> = HashMap::new();
-                for (other_idx, &(other_pi, other_si)) in staff_refs.iter().enumerate() {
-                    if other_pi == pi
-                        && other_si != si
-                        && row_staff_visible[other_idx]
-                        && let Ok(bottom_line) = geometry::clef_bottom_line(&row_clefs[other_idx])
+            let saved_clefs = row_clefs.clone();
+            let body_checkpoint = body.len();
+            let obstacle_checkpoint = resolved_annotation_obstacles.len();
+            let mut shared_alignment = true;
+            loop {
+                let mut text_clear = true;
+                let mut deferred_texts = Vec::new();
+                for (si_idx, &(pi, si)) in staff_refs.iter().enumerate() {
+                    if !row_staff_visible[si_idx] {
+                        continue;
+                    }
+                    let bottom_y = staff_y[si_idx] + staff_heights_u[si_idx] * space;
+                    let staff_ref = &score.parts[pi].staves[si];
+                    let mut clef_lead_u = 0.0;
+                    if col > 0
+                        && staff_ref.tablature_at(measure_idx).is_none()
+                        && let Some(change) = staff_ref.measures[measure_idx].clef.as_ref()
+                        && *change != row_clefs[si_idx]
                     {
-                        cross_frames.insert(
-                            other_si,
-                            (
-                                bottom_line,
-                                staff_y[other_idx] + staff_heights_u[other_idx] * space,
-                            ),
+                        geometry::clef_bottom_line(change)?;
+                        let clef_x = mx + 0.4 * space;
+                        let mut glyph = String::new();
+                        let width = write_clef(&mut glyph, change, clef_x, bottom_y, space)?;
+                        let _ = write!(
+                            body,
+                            r#"<g class="acorde-clef-change" transform="translate({x} {y}) scale(0.75) translate({nx} {ny})">{glyph}</g>"#,
+                            x = f(clef_x),
+                            y = f(bottom_y),
+                            nx = f(-clef_x),
+                            ny = f(-bottom_y)
                         );
+                        clef_lead_u = 0.4 + width / space * 0.75;
+                        row_clefs[si_idx] = change.clone();
+                    }
+                    if let Some((old, new)) = inline_keys[col][si_idx] {
+                        let key_x = mx + (clef_lead_u + 0.4) * space;
+                        let width = write_key_cancellations(
+                            &mut body,
+                            &row_clefs[si_idx],
+                            old,
+                            new,
+                            key_x,
+                            bottom_y,
+                            space,
+                        );
+                        write_key_signature(
+                            &mut body,
+                            &row_clefs[si_idx],
+                            new,
+                            key_x + width,
+                            bottom_y,
+                            space,
+                        )?;
+                    }
+                    if let Some((time, symbol)) = inline_meters[col][si_idx].as_ref() {
+                        let time_x = mx + (clef_lead_u + inline_key_widths_u[col] + 0.4) * space;
+                        let _ = write!(
+                            body,
+                            r#"<g class="acorde-time-sig-change" data-part="{pi}" data-staff="{si}" data-measure="{measure_idx}">"#
+                        );
+                        write_time_signature(&mut body, time, *symbol, time_x, bottom_y, space);
+                        body.push_str("</g>");
+                    }
+                    let clef = &row_clefs[si_idx];
+                    // Where this part's other staves sit, for notes written across to them.
+                    let mut cross_frames: HashMap<usize, (i32, f32)> = HashMap::new();
+                    for (other_idx, &(other_pi, other_si)) in staff_refs.iter().enumerate() {
+                        if other_pi == pi
+                            && other_si != si
+                            && row_staff_visible[other_idx]
+                            && let Ok(bottom_line) =
+                                geometry::clef_bottom_line(&row_clefs[other_idx])
+                        {
+                            cross_frames.insert(
+                                other_si,
+                                (
+                                    bottom_line,
+                                    staff_y[other_idx] + staff_heights_u[other_idx] * space,
+                                ),
+                            );
+                        }
+                    }
+                    let mut measure_body = String::new();
+                    render_measure(
+                        &mut measure_body,
+                        score,
+                        layout,
+                        pi,
+                        si,
+                        measure_idx,
+                        row_idx,
+                        clef,
+                        mx,
+                        bottom_y,
+                        mwidth,
+                        clef_lead_u + inline_meter_widths_u[col] + inline_key_widths_u[col],
+                        &cross_frames,
+                        space,
+                        options.interactive,
+                        &mandatory,
+                        &courtesy,
+                        &mut note_points,
+                        &mut beam_tip_points,
+                        &mut resolved_annotation_obstacles,
+                        &mut deferred_texts,
+                        shared_alignment,
+                        &ottava_shifts,
+                    )?;
+                    deferred_texts
+                        .last_mut()
+                        .expect("each measure queues its text")
+                        .measure_body = measure_body;
+                    if staff_ref.tablature_at(measure_idx).is_none()
+                        && let Some(change) = staff_ref.measures[measure_idx].mid_clefs.last()
+                    {
+                        row_clefs[si_idx] = change.clef.clone();
                     }
                 }
-                let mut measure_body = String::new();
-                render_measure(
-                    &mut measure_body,
-                    score,
-                    layout,
-                    pi,
-                    si,
-                    measure_idx,
-                    row_idx,
-                    clef,
-                    mx,
-                    bottom_y,
-                    mwidth,
-                    clef_lead_u + inline_meter_widths_u[col] + inline_key_widths_u[col],
-                    &cross_frames,
-                    space,
-                    options.interactive,
-                    &mandatory,
-                    &courtesy,
-                    &mut note_points,
-                    &mut beam_tip_points,
-                    &mut resolved_annotation_obstacles,
-                    &mut deferred_texts,
-                    &ottava_shifts,
-                )?;
-                deferred_texts
-                    .last_mut()
-                    .expect("each measure queues its text")
-                    .measure_body = measure_body;
-                if staff_ref.tablature_at(measure_idx).is_none()
-                    && let Some(change) = staff_ref.measures[measure_idx].mid_clefs.last()
-                {
-                    row_clefs[si_idx] = change.clef.clone();
-                }
-            }
-            // Notes on every staff must be placed before inter-staff text collision checks.
-            for text in deferred_texts {
-                let mut neighbor_heads = Vec::new();
-                for &(pi, si) in &staff_refs {
-                    let Some(measure) = score.parts[pi].staves[si].measures.get(text.measure)
-                    else {
-                        continue;
-                    };
-                    for (vi, voice) in measure.voices.iter().enumerate() {
-                        for (ni, note) in voice.iter().enumerate() {
-                            let Some(&(head_x, head_y, stem_up, row)) =
-                                note_points.get(&(pi, si, text.measure, vi, ni))
-                            else {
-                                continue;
-                            };
-                            if row != text.row || note.is_rest {
-                                continue;
-                            }
-                            let positions: Vec<_> = note
-                                .pitches
-                                .iter()
-                                .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, 0))
-                                .collect();
-                            let reference = if stem_up {
-                                positions.iter().min()
-                            } else {
-                                positions.iter().max()
-                            };
-                            if let Some(reference) = reference {
-                                for position in &positions {
-                                    neighbor_heads.push((
-                                        head_x,
-                                        head_y - ((*position - *reference) as f32 * 0.5) * space,
-                                    ));
+                // Notes on every staff must be placed before inter-staff text collision checks.
+                for text in deferred_texts {
+                    let mut neighbor_heads = Vec::new();
+                    for &(pi, si) in &staff_refs {
+                        let Some(measure) = score.parts[pi].staves[si].measures.get(text.measure)
+                        else {
+                            continue;
+                        };
+                        for (vi, voice) in measure.voices.iter().enumerate() {
+                            for (ni, note) in voice.iter().enumerate() {
+                                let Some(&(head_x, head_y, stem_up, row)) =
+                                    note_points.get(&(pi, si, text.measure, vi, ni))
+                                else {
+                                    continue;
+                                };
+                                if row != text.row || note.is_rest {
+                                    continue;
+                                }
+                                let positions: Vec<_> = note
+                                    .pitches
+                                    .iter()
+                                    .map(|pitch| {
+                                        geometry::staff_position(&pitch.step, pitch.octave, 0)
+                                    })
+                                    .collect();
+                                let reference = if stem_up {
+                                    positions.iter().min()
+                                } else {
+                                    positions.iter().max()
+                                };
+                                if let Some(reference) = reference {
+                                    let offsets = chord_notehead_offsets(&positions, stem_up);
+                                    for (position, offset) in positions.iter().zip(offsets) {
+                                        neighbor_heads.push((
+                                            head_x + offset * space,
+                                            head_y
+                                                - ((*position - *reference) as f32 * 0.5) * space,
+                                        ));
+                                    }
                                 }
                             }
                         }
                     }
+                    body.push_str(
+                        text.measure_body
+                            .strip_suffix("</g>")
+                            .expect("measure group closes"),
+                    );
+                    text_clear &= render_measure_text(
+                        &mut body,
+                        &score.parts[text.part].staves[text.staff].measures[text.measure],
+                        text.part,
+                        text.staff,
+                        text.measure,
+                        text.content_x0,
+                        text.x,
+                        text.bottom_y,
+                        text.width,
+                        space,
+                        options.interactive,
+                        config.measure_text_scale(),
+                        &note_points,
+                        &text.semantic_placements,
+                        &neighbor_heads,
+                    )?;
+                    body.push_str("</g>");
                 }
-                body.push_str(
-                    text.measure_body
-                        .strip_suffix("</g>")
-                        .expect("measure group closes"),
-                );
-                render_measure_text(
-                    &mut body,
-                    &score.parts[text.part].staves[text.staff].measures[text.measure],
-                    text.part,
-                    text.staff,
-                    text.measure,
-                    text.content_x0,
-                    text.x,
-                    text.bottom_y,
-                    text.width,
-                    space,
-                    options.interactive,
-                    config.measure_text_scale(),
-                    &note_points,
-                    &text.semantic_placements,
-                    &neighbor_heads,
-                )?;
-                body.push_str("</g>");
+                if text_clear || !shared_alignment {
+                    break;
+                }
+                // If an aligned attempt has no usable lane, restore the previous
+                // conservative spacing instead of introducing a new collision.
+                body.truncate(body_checkpoint);
+                resolved_annotation_obstacles.truncate(obstacle_checkpoint);
+                row_clefs.clone_from(&saved_clefs);
+                note_points.retain(|&(_, _, measure, _, _), _| measure != measure_idx);
+                beam_tip_points.retain(|&(_, _, measure, _, _), _| measure != measure_idx);
+                shared_alignment = false;
             }
             // Barline spans the whole system, drawn once per column (not per staff).
             let bar_x = mx + mwidth;
@@ -3372,6 +3396,7 @@ fn render_measure(
     beam_tip_points: &mut HashMap<NoteKey, f32>,
     resolved_annotation_obstacles: &mut Vec<acorde_layout::GlyphPlacement>,
     deferred_texts: &mut Vec<DeferredMeasureText>,
+    allow_shared_alignment: bool,
     ottava_shifts: &HashMap<NoteKey, i32>,
 ) -> Result<(), RenderError> {
     let measure = &score.parts[part].staves[staff].measures[measure_idx];
@@ -3464,7 +3489,6 @@ fn render_measure(
         .enumerate()
         .filter_map(|(index, voice)| (!voice.is_empty()).then_some(index))
         .collect();
-    let allow_shared_alignment = true;
     let mut prior_voice_events = Vec::new();
 
     let mut opened = String::new();
@@ -4924,7 +4948,8 @@ fn render_measure_text(
     note_points: &HashMap<NoteKey, NotePoint>,
     resolved_annotations: &[acorde_layout::GlyphPlacement],
     neighbor_heads: &[(f32, f32)],
-) -> Result<(), RenderError> {
+) -> Result<bool, RenderError> {
+    let mut text_clear = true;
     let mut above_texts = 0usize;
     let mut below_texts = 0usize;
     let entries = measure_text_entries(measure);
@@ -5138,12 +5163,16 @@ fn render_measure_text(
                     ));
                 }
             }
-            if let Some(candidate) = nearest_text_gap(
-                text_x,
-                x + 0.5 * space,
-                x + width - text_width - 0.5 * space,
-                blocked,
-            ) {
+            if blocked
+                .iter()
+                .any(|&(left, right)| text_x > left && text_x < right)
+                && let Some(candidate) = nearest_text_gap(
+                    text_x,
+                    x + 0.5 * space,
+                    x + width - text_width - 0.5 * space,
+                    blocked,
+                )
+            {
                 text_x = candidate;
             }
         }
@@ -5210,13 +5239,20 @@ fn render_measure_text(
                 blocked.push((left - text_width - 1.0, left + other.metrics.width_mm + 1.0));
             }
         }
-        if let Some(candidate) = nearest_text_gap(
-            text.x_mm,
-            x + 0.5 * space,
-            x + width - text_width - 0.5 * space,
-            blocked,
-        ) {
-            placements[index].x_mm = candidate;
+        if blocked
+            .iter()
+            .any(|&(left, right)| text.x_mm > left && text.x_mm < right)
+        {
+            if let Some(candidate) = nearest_text_gap(
+                text.x_mm,
+                x + 0.5 * space,
+                x + width - text_width - 0.5 * space,
+                blocked,
+            ) {
+                placements[index].x_mm = candidate;
+            } else {
+                text_clear = false;
+            }
         }
     }
 
@@ -5290,7 +5326,7 @@ fn render_measure_text(
             0.78 * space * text_scale,
         );
     }
-    Ok(())
+    Ok(text_clear)
 }
 
 fn metronome_mark_width(mark: &acorde_core::MetronomeMark, size: f32) -> f32 {
@@ -9328,6 +9364,41 @@ fn courtesy_wrapped(alter: i8, cx: f32, cy: f32, space: f32) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn text_render_reports_when_no_horizontal_gap_remains() {
+        let mut measure = acorde_core::Measure::empty(4, 4);
+        measure.texts.push(acorde_core::StyledText {
+            position_beats: None,
+            style: acorde_core::TextStyle::Expression,
+            text: "a long instruction".into(),
+            placement: Some("above".into()),
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        });
+        let mut svg = String::new();
+        let clear = super::render_measure_text(
+            &mut svg,
+            &measure,
+            0,
+            0,
+            0,
+            10.0,
+            0.0,
+            200.0,
+            20.0,
+            10.0,
+            false,
+            1.0,
+            &std::collections::HashMap::new(),
+            &[],
+            &[(10.0, 138.0)],
+        )
+        .unwrap();
+        assert!(!clear);
+    }
+
     #[test]
     fn text_gap_selects_nearest_available_side_and_reports_no_room() {
         assert_eq!(
