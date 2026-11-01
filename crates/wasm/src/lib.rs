@@ -483,7 +483,8 @@ pub fn to_playback_events(
 ///
 /// Omitted fields use [`acorde_core::PlaybackOptions::default`]. For example,
 /// `{"loop_region":[2,5]}` restricts playback while retaining the default tempo,
-/// swing, and metronome behavior.
+/// swing, and metronome behavior. `shared_dynamics` and `shared_hairpins` accept
+/// arrays of physical note addresses to share individual marks across a part's staves.
 #[wasm_bindgen]
 pub fn to_playback_events_ex(score_json: &str, options_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
