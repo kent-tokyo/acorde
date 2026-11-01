@@ -641,6 +641,8 @@ impl OttavaKind {
 pub enum AccidentalDisplay {
     #[default]
     Auto,
+    /// Explicitly written without a cautionary or editorial role.
+    Explicit,
     /// Always shown, without parentheses (MusicXML `cautionary="yes"`, MEI `@func="caution"`).
     Cautionary,
     /// Always shown, in parentheses (MusicXML `parentheses="yes"`/`bracket="yes"`, MEI

@@ -201,10 +201,10 @@ jobs:
           # cross-staff slur import/export measured 6,145,645 bytes on Linux.
           # Their combined Linux artifact measured 6,149,693 bytes; staff-wide
           # ottava support measured 6,158,651 bytes. With shared fermata timing,
-          # Linux CI measured 6,192,355 bytes. Hidden-meter support with its loss
-          # diagnostics added 8,510 bytes against the earlier base; measure the
-          # combined artifact in this CI run.
-          test "$size" -le 6202500
+          # The fermata and hidden-meter combination measured 6,198,774 bytes.
+          # Explicit-accidental diagnostics added 4,137 bytes on the earlier base;
+          # measure the complete combination in this CI run.
+          test "$size" -le 6205000
 
   renderer-benchmark:
     name: Renderer performance budget

@@ -324,6 +324,15 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
                             voice_index + 1,
                             note_index + 1
                         );
+                        for pitch_index in 0..note.pitches.len() {
+                            if note.accidental_display(pitch_index) == AccidentalDisplay::Explicit {
+                                push(
+                                    format!("{note_path}/accidental-display/{}", pitch_index + 1),
+                                    "Explicit".to_string(),
+                                    "MuseScore user-placed accidental imports as cautionary; the explicit role is not retained",
+                                );
+                            }
+                        }
                         if note_has_unsupported_fields(note) {
                             push(
                                 note_path,
@@ -1691,9 +1700,9 @@ fn write_accidental_role(xml: &mut String, display: AccidentalDisplay) -> Result
         AccidentalDisplay::Parenthesized => {
             write!(xml, "<bracket>1</bracket><role>1</role>").map_err(fmt_error)
         }
-        AccidentalDisplay::Cautionary | AccidentalDisplay::Editorial => {
-            write!(xml, "<role>1</role>").map_err(fmt_error)
-        }
+        AccidentalDisplay::Explicit
+        | AccidentalDisplay::Cautionary
+        | AccidentalDisplay::Editorial => write!(xml, "<role>1</role>").map_err(fmt_error),
     }
 }
 

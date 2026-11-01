@@ -330,6 +330,25 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<Diagnostic> {
                             voice_index + 1,
                             note_index + 1
                         );
+                        for pitch_index in 0..note.pitches.len() {
+                            if note.accidental_display(pitch_index)
+                                == acorde_core::AccidentalDisplay::Explicit
+                            {
+                                if diagnostics.len() >= MAX_DIAGNOSTICS {
+                                    return diagnostics;
+                                }
+                                let mut diagnostic = Diagnostic::warning(
+                                    "midi.export-unsupported-accidental-display",
+                                    "MIDI export does not retain explicitly written accidental display",
+                                );
+                                diagnostic.source_location = Some(format!(
+                                    "{note_path}/accidental-display/{}",
+                                    pitch_index + 1
+                                ));
+                                diagnostic.preserved_value = Some("Explicit".to_string());
+                                diagnostics.push(diagnostic);
+                            }
+                        }
                         for (field, present, value, reason) in [
                             (
                                 "chord-symbol",

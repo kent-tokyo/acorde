@@ -2217,6 +2217,7 @@ fn musicxml_clef(number: Option<usize>, clef: &acorde_core::Clef) -> String {
 fn push_accidental(xml: &mut String, pitch: &acorde_core::Pitch, display: AccidentalDisplay) {
     let attribute = match display {
         AccidentalDisplay::Auto => return,
+        AccidentalDisplay::Explicit => "",
         AccidentalDisplay::Cautionary => "cautionary",
         AccidentalDisplay::Parenthesized => "parentheses",
         AccidentalDisplay::Editorial => "editorial",
@@ -2228,9 +2229,13 @@ fn push_accidental(xml: &mut String, pitch: &acorde_core::Pitch, display: Accide
         1 => "sharp",
         _ => "double-sharp",
     };
-    xml.push_str(&format!(
-        "        <accidental {attribute}=\"yes\">{name}</accidental>\n"
-    ));
+    if attribute.is_empty() {
+        xml.push_str(&format!("        <accidental>{name}</accidental>\n"));
+    } else {
+        xml.push_str(&format!(
+            "        <accidental {attribute}=\"yes\">{name}</accidental>\n"
+        ));
+    }
 }
 
 #[cfg(test)]
