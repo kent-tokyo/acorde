@@ -323,6 +323,37 @@
       "sha256": "cfcd66d89e8386823400eca64934b14fbea7bf48ba1f00d21189af1262794ec2",
       "round_trip": "decode-render",
       "expected_losses": ["SoundFont preset/provider metadata is outside Score interchange"]
+    },
+    {
+      "path": "issue_283_overlapping_ottavas.mscx",
+      "format": "mscx",
+      "license": "self-authored",
+      "source": "Synthetic overlapping ottava reproduction validated with MuseScore 4.7.5",
+      "sha256": "e08004010808a26e020c26e020ecb97657b4da6967b864ee0714acab3e254d6b",
+      "round_trip": "import-only",
+      "expected_losses": [
+        "Only overlapping ottava sounding pitches are evaluated"
+      ]
+    },
+    {
+      "path": "cross_voice_slur.musicxml",
+      "format": "musicxml",
+      "license": "project issue reproduction",
+      "source": "https://github.com/kent-tokyo/acorde/issues/293",
+      "sha256": "2afe446e4986066bf7ebc1b3c54fc9779322420e3af637a2bdffa96802eefc68",
+      "round_trip": "import-only",
+      "expected_losses": []
+    },
+    {
+      "path": "issue_293_musescore475_cross_voice.mscz",
+      "format": "mscz",
+      "license": "project issue reproduction",
+      "source": "https://github.com/kent-tokyo/acorde/issues/293",
+      "sha256": "7557dec27cac3f30036aa82fbef616784205ae5a8d459f5fe6bbfd9341ec32db",
+      "round_trip": "import-only",
+      "expected_losses": [
+        "Only cross-voice slur endpoints and rendering are evaluated"
+      ]
     }
   ]
 }

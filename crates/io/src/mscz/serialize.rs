@@ -18,6 +18,143 @@ const MSCZ_CONTAINER_XML: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 </container>
 "#;
 
+type SlurVoiceKey = (usize, usize, usize, usize);
+type SlurNoteKey = (usize, usize, usize, usize, usize);
+
+/// Cache note onsets and shared legacy endpoints once, so many cross-voice slurs do not
+/// repeatedly scan the whole score or each voice.
+#[derive(Default)]
+struct SlurEmissionIndex {
+    onsets: std::collections::HashMap<SlurVoiceKey, Vec<f64>>,
+    ends: std::collections::HashMap<(SlurVoiceKey, u64), usize>,
+    local_starts: std::collections::HashSet<SlurNoteKey>,
+    local_ends: std::collections::HashSet<SlurNoteKey>,
+}
+
+impl SlurEmissionIndex {
+    fn new(score: &Score) -> Self {
+        let mut index = Self::default();
+        if !score.spanners.iter().any(|s| {
+            s.kind == acorde_core::NotationSpannerKind::Slur
+                && (s.start.part != s.end.part
+                    || s.start.staff != s.end.staff
+                    || s.start.voice != s.end.voice)
+        }) {
+            return index;
+        }
+        for (part, p) in score.parts.iter().enumerate() {
+            for (staff, st) in p.staves.iter().enumerate() {
+                for (measure, m) in st.measures.iter().enumerate() {
+                    for (voice, notes) in m.voices.iter().enumerate() {
+                        if notes.is_empty() {
+                            continue;
+                        }
+                        let key = (part, staff, measure, voice);
+                        let mut time = 0.0_f64;
+                        let mut onsets = Vec::with_capacity(notes.len());
+                        for note in notes {
+                            onsets.push(time);
+                            if note.slur_end {
+                                *index.ends.entry((key, time.to_bits())).or_default() += 1;
+                            }
+                            time += note.beats();
+                        }
+                        index.onsets.insert(key, onsets);
+                    }
+                }
+            }
+        }
+        for span in &score.spanners {
+            if span.kind == acorde_core::NotationSpannerKind::Slur
+                && span.start.part == span.end.part
+                && span.start.staff == span.end.staff
+                && span.start.voice == span.end.voice
+            {
+                index.local_starts.insert(Self::note_key(&span.start));
+                index.local_ends.insert(Self::note_key(&span.end));
+            }
+        }
+        index
+    }
+
+    fn note_key(a: &acorde_core::NoteAddr) -> SlurNoteKey {
+        (a.part, a.staff, a.measure, a.voice, a.note)
+    }
+
+    fn onset(&self, a: &acorde_core::NoteAddr) -> Option<f64> {
+        self.onsets
+            .get(&(a.part, a.staff, a.measure, a.voice))?
+            .get(a.note)
+            .copied()
+    }
+}
+
+/// Cross-staff/voice MSCX links are unambiguous only for pitched, non-grace
+/// endpoints and a single slur end at the target onset.
+fn can_emit_cross_staff_or_voice_slur(
+    score: &Score,
+    span: &acorde_core::NotationSpanner,
+    index: &SlurEmissionIndex,
+) -> bool {
+    let a = &span.start;
+    let b = &span.end;
+    if a.part != b.part
+        || (a.staff == b.staff && a.voice == b.voice)
+        || span
+            .placement
+            .as_deref()
+            .is_some_and(|value| !matches!(value, "above" | "below"))
+        || span.line_type.is_some()
+        || span.text.is_some()
+        || index.local_starts.contains(&SlurEmissionIndex::note_key(a))
+        || index.local_ends.contains(&SlurEmissionIndex::note_key(b))
+    {
+        return false;
+    }
+    let note = |addr: &acorde_core::NoteAddr| {
+        score
+            .parts
+            .get(addr.part)?
+            .staves
+            .get(addr.staff)?
+            .measures
+            .get(addr.measure)?
+            .voices
+            .get(addr.voice)?
+            .get(addr.note)
+    };
+    let (Some(start), Some(end), Some(start_time), Some(end_time)) =
+        (note(a), note(b), index.onset(a), index.onset(b))
+    else {
+        return false;
+    };
+    if start.is_rest
+        || start.is_grace
+        || start.is_cue
+        || end.is_rest
+        || end.is_grace
+        || end.is_cue
+        || !start_time.is_finite()
+        || !end_time.is_finite()
+        || b.measure < a.measure
+        || (b.measure == a.measure && end_time < start_time)
+    {
+        return false;
+    }
+    // mscx_location uses a bounded rational grid. Do not silently emit an
+    // approximation that will resolve to a different onset on reimport.
+    let delta = (end_time - start_time).abs();
+    if delta > 1e-7
+        && !acorde_core::MeasureLength::from_beats(delta)
+            .and_then(|length| length.beats())
+            .is_some_and(|beats| (beats - delta).abs() < 1e-7)
+    {
+        return false;
+    }
+    let end_voice = (b.part, b.staff, b.measure, b.voice);
+    index.ends.get(&(end_voice, end_time.to_bits())) == Some(&1)
+}
+
 /// Report canonical score fields that the deliberately bounded MSCX serializer cannot emit.
 pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
     const MAX_DIAGNOSTICS: usize = 1_024;
@@ -50,14 +187,18 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
             "MSCX subset export does not emit dashed text-continuation lines",
         );
     }
+    let slur_index = SlurEmissionIndex::new(score);
     for spanner in score.spanners.iter().filter(|spanner| {
         spanner.kind == acorde_core::NotationSpannerKind::Slur
-            && (spanner.start.part != spanner.end.part || spanner.start.staff != spanner.end.staff)
+            && (spanner.start.part != spanner.end.part
+                || ((spanner.start.staff != spanner.end.staff
+                    || spanner.start.voice != spanner.end.voice)
+                    && !can_emit_cross_staff_or_voice_slur(score, spanner, &slur_index)))
     }) {
         push(
             format!("/score/spanners/{}", spanner.id),
             format!("start={:?}, end={:?}", spanner.start, spanner.end),
-            "MSCX subset export cannot preserve a slur across staves or parts",
+            "MSCX subset export cannot preserve a slur across voices, staves, or parts",
         );
     }
     if !score.part_groups.is_empty() {
@@ -236,7 +377,18 @@ fn note_has_unsupported_fields(note: &Note) -> bool {
 /// be surfaced by the caller's export diagnostics.
 pub fn serialize_mscx(score: &Score) -> Result<String, Error> {
     // Export reads span endpoints from note flags; include spans held only as typed spanners.
-    let materialized = score.with_legacy_spanner_flags();
+    let mut materialized = score.with_legacy_spanner_flags();
+    if materialized
+        .parts
+        .iter()
+        .flat_map(|p| &p.staves)
+        .flat_map(|s| &s.measures)
+        .flat_map(|m| &m.voices)
+        .flatten()
+        .any(|note| note.ottava_start.is_some())
+    {
+        super::convert_ottava_pitches(materialized.to_mut(), false)?;
+    }
     let score: &Score = &materialized;
     if score.parts.is_empty() {
         return Err(Error::Empty);
@@ -309,9 +461,10 @@ pub fn serialize_mscx(score: &Score) -> Result<String, Error> {
         .map_err(fmt_error)?;
         xml.push_str("</Part>");
     }
+    let slur_index = SlurEmissionIndex::new(score);
     let mut staff_id = 1usize;
     let mut score_texts_pending = Some(score.texts.as_slice());
-    for part in &score.parts {
+    for (part_index, part) in score.parts.iter().enumerate() {
         for (staff_in_part, staff) in part.staves.iter().enumerate() {
             let score_texts = score_texts_pending.take().unwrap_or_default();
             write_staff(
@@ -320,6 +473,7 @@ pub fn serialize_mscx(score: &Score) -> Result<String, Error> {
                 staff,
                 score_texts,
                 &score.settings.time_signature,
+                (score, &slur_index, part_index),
             )?;
             staff_id = staff_id.saturating_add(1);
         }
@@ -360,9 +514,10 @@ fn write_staff(
     staff: &Staff,
     score_texts: &[acorde_core::StyledText],
     default_time: &acorde_core::TimeSignature,
+    (score, slur_index, part_index): (&Score, &SlurEmissionIndex, usize),
 ) -> Result<(), Error> {
     let mut running_time = default_time.clone();
-    let span_marks = staff_span_marks(staff);
+    let span_marks = staff_span_marks(staff, score, slur_index, part_index, staff_in_part);
     // Voltas as (first bar, last bar, number). An end marker without a matching
     // start has no opening spanner, but still needs a closing marker.
     let volta_spans = staff_volta_spans(staff);
@@ -810,9 +965,69 @@ fn mscx_location(from: (usize, f64), to: (usize, f64)) -> String {
 /// Pair each voice's slur, hairpin, pedal and ottava flags (as layout does) and place their
 /// MuseScore spanner markup. Slurs are chord-level from the first to the last chord; lines
 /// run from their first note's start to their last note's end, at voice level.
-fn staff_span_marks(staff: &Staff) -> std::collections::HashMap<NoteKey, SpanMarks> {
-    use std::collections::HashMap;
+fn staff_span_marks(
+    staff: &Staff,
+    score: &Score,
+    slur_index: &SlurEmissionIndex,
+    part: usize,
+    staff_index: usize,
+) -> std::collections::HashMap<NoteKey, SpanMarks> {
+    use std::collections::{HashMap, HashSet};
     let mut marks: HashMap<NoteKey, SpanMarks> = HashMap::new();
+    let mut typed_starts = HashSet::new();
+    let mut typed_ends = HashSet::new();
+    for span in score.spanners.iter().filter(|s| {
+        s.kind == acorde_core::NotationSpannerKind::Slur
+            && s.start.part == part
+            && s.end.part == part
+            && (s.start.staff == staff_index || s.end.staff == staff_index)
+            && (s.start.staff != s.end.staff || s.start.voice != s.end.voice)
+            && can_emit_cross_staff_or_voice_slur(score, s, slur_index)
+    }) {
+        let (Some(start_time), Some(end_time)) =
+            (slur_index.onset(&span.start), slur_index.onset(&span.end))
+        else {
+            continue;
+        };
+        let start = (span.start.measure, start_time);
+        let end = (span.end.measure, end_time);
+        let start_key = (span.start.measure, span.start.voice, span.start.note);
+        let end_key = (span.end.measure, span.end.voice, span.end.note);
+        let voice_delta = span.end.voice as i64 - span.start.voice as i64;
+        let staff_delta = span.end.staff as i64 - span.start.staff as i64;
+        // MuseScore Location::toRelative computes staff and voice deltas independently.
+        let location = |from, to, voices, staves| {
+            let mut delta = String::new();
+            if staves != 0 {
+                let _ = write!(delta, "<staves>{staves}</staves>");
+            }
+            if voices != 0 {
+                let _ = write!(delta, "<voices>{voices}</voices>");
+            }
+            mscx_location(from, to).replace("</location>", &format!("{delta}</location>"))
+        };
+        if span.start.staff == staff_index {
+            let _ = write!(
+                marks.entry(start_key).or_default().inside,
+                "<Spanner type=\"Slur\"><Slur>{}</Slur><next>{}</next></Spanner>",
+                match span.placement.as_deref() {
+                    Some("above") => "<up>up</up>",
+                    Some("below") => "<up>down</up>",
+                    _ => "",
+                },
+                location(start, end, voice_delta, staff_delta)
+            );
+            typed_starts.insert(start_key);
+        }
+        if span.end.staff == staff_index {
+            let _ = write!(
+                marks.entry(end_key).or_default().inside,
+                "<Spanner type=\"Slur\"><prev>{}</prev></Spanner>",
+                location(end, start, -voice_delta, -staff_delta)
+            );
+            typed_ends.insert(end_key);
+        }
+    }
     // The length of each bar: its longest voice.
     let bar_beats: Vec<f64> = staff
         .measures
@@ -849,6 +1064,7 @@ fn staff_span_marks(staff: &Staff) -> std::collections::HashMap<NoteKey, SpanMar
                 let onset = (measure_index, beats);
                 let end = normalize((measure_index, beats + note.beats()));
                 if note.slur_end
+                    && !typed_ends.contains(&key)
                     && let Some((start_key, start)) = open_slur.take()
                 {
                     let location = mscx_location(start, onset);
@@ -862,7 +1078,7 @@ fn staff_span_marks(staff: &Staff) -> std::collections::HashMap<NoteKey, SpanMar
                         "<Spanner type=\"Slur\"><prev>{back}</prev></Spanner>"
                     );
                 }
-                if note.slur_start && !note.is_rest {
+                if note.slur_start && !note.is_rest && !typed_starts.contains(&key) {
                     open_slur = Some((key, onset));
                 }
                 // Glissandos run from one note to another, held in their `<Note>`s.

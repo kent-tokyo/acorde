@@ -11,6 +11,25 @@ use quick_xml::reader::Reader;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+#[derive(Debug, Clone, Default)]
+struct SlurLocation {
+    voice_delta: i32,
+    measure_delta: i32,
+    beat_delta: f64,
+    staff_delta: i32,
+    placement: Option<String>,
+    invalid: bool,
+}
+
+#[derive(Debug)]
+struct CrossVoiceSlur {
+    staff_id: usize,
+    measure: usize,
+    voice: usize,
+    note: usize,
+    location: SlurLocation,
+}
+
 /// Voice-level MuseScore line spanners mapped onto note-level start/end flags.
 #[derive(Clone, Copy)]
 enum MscxLineKind {
@@ -222,6 +241,10 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut in_bar_line_span = false;
     let mut in_instrument = false;
     let mut in_channel = false;
+    let mut selected_channel_priority: u8 = 0;
+    let mut candidate_channel_priority: u8 = 0;
+    let mut candidate_channel_program: u8 = 0;
+    let mut candidate_midi_channel: u8 = 0;
 
     // Staff data: 1-based staff ID → measures
     let mut staff_measures: HashMap<usize, Vec<Measure>> = HashMap::new();
@@ -418,6 +441,10 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut chord_slur_has_next = false;
     let mut chord_slur_has_prev = false;
     let mut chord_slur_end = false;
+    let mut chord_slur_in_next = false;
+    let mut chord_slur_location = SlurLocation::default();
+    let mut chord_cross_slurs: Vec<SlurLocation> = Vec::new();
+    let mut cross_voice_slurs: Vec<CrossVoiceSlur> = Vec::new();
 
     // Voice-level line spanners (HairPin, Pedal, and MuseScore 3.x Slur). A `<next>` marker
     // starts the line at the following chord of that voice; a `<prev>` marker ends it at the
@@ -519,6 +546,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         cur_part_short_name.clear();
                         cur_part_program = 0;
                         cur_part_channel = 0;
+                        selected_channel_priority = 0;
                         cur_part_transpose = 0;
                         cur_part_staff_ids.clear();
                         cur_part_staff_count = 0;
@@ -534,6 +562,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "Channel" if in_instrument => {
                         in_channel = true;
+                        candidate_channel_priority = match attr_str(e, b"name").as_deref() {
+                            None | Some("") | Some("normal") | Some("arco") => 2,
+                            _ => 1,
+                        };
+                        candidate_channel_program = 0;
+                        candidate_midi_channel = 0;
                     }
                     "barLineSpan" if in_part => {
                         in_bar_line_span = true;
@@ -733,6 +767,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         chord_tie_ends.clear();
                         chord_slur_start = false;
                         chord_slur_end = false;
+                        chord_cross_slurs.clear();
                         chord_is_grace = false;
                         chord_grace_slash = false;
                         chord_arpeggiate = None;
@@ -919,10 +954,13 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             in_chord_slur_spanner = true;
                             chord_slur_has_next = false;
                             chord_slur_has_prev = false;
+                            chord_slur_in_next = false;
+                            chord_slur_location = SlurLocation::default();
                         }
                     }
                     "next" if in_chord_slur_spanner => {
                         chord_slur_has_next = true;
+                        chord_slur_in_next = true;
                     }
                     // The `<prev>` marker sits in the chord where the slur ends.
                     "prev" if in_chord_slur_spanner => {
@@ -966,6 +1004,47 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                 }
 
                 match name.as_str() {
+                    "up" if in_chord_slur_spanner && !chord_slur_in_next => {
+                        chord_slur_location.placement = match t {
+                            "up" => Some("above".into()),
+                            "down" => Some("below".into()),
+                            _ => None,
+                        };
+                    }
+                    "voices" if in_chord_slur_spanner && chord_slur_in_next => {
+                        if let Ok(value) = t.parse() {
+                            chord_slur_location.voice_delta = value;
+                        } else {
+                            chord_slur_location.invalid = true;
+                        }
+                    }
+                    "staves" if in_chord_slur_spanner && chord_slur_in_next => {
+                        if let Ok(value) = t.parse() {
+                            chord_slur_location.staff_delta = value;
+                        } else {
+                            chord_slur_location.invalid = true;
+                        }
+                    }
+                    "measures" if in_chord_slur_spanner && chord_slur_in_next => {
+                        if let Ok(value) = t.parse() {
+                            chord_slur_location.measure_delta = value;
+                        } else {
+                            chord_slur_location.invalid = true;
+                        }
+                    }
+                    "fractions" if in_chord_slur_spanner && chord_slur_in_next => {
+                        if let Some((n, d)) = t.split_once('/')
+                            && let (Ok(n), Ok(d)) = (n.parse::<i32>(), d.parse::<u32>())
+                            && d != 0
+                        {
+                            chord_slur_location.beat_delta = f64::from(n) * 4.0 / f64::from(d);
+                        } else {
+                            chord_slur_location.invalid = true;
+                        }
+                    }
+                    "next" if in_chord_slur_spanner => {
+                        chord_slur_in_next = false;
+                    }
                     "fractions"
                         if voice_location_depth.is_some_and(|depth| closing_depth == depth + 1) =>
                     {
@@ -1143,10 +1222,15 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         in_instrument = false;
                     }
                     "Channel" if in_instrument => {
+                        if candidate_channel_priority > selected_channel_priority {
+                            selected_channel_priority = candidate_channel_priority;
+                            cur_part_program = candidate_channel_program;
+                            cur_part_channel = candidate_midi_channel;
+                        }
                         in_channel = false;
                     }
                     "midiChannel" if in_channel => {
-                        cur_part_channel = t.parse::<u8>().unwrap_or(0).min(15);
+                        candidate_midi_channel = t.parse::<u8>().unwrap_or(0).min(15);
                     }
                     "barLineSpan" if in_bar_line_span => {
                         if let Some(spec) = cur_part_staff_group_specs.last_mut() {
@@ -1738,6 +1822,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "Spanner" if in_chord_slur_spanner => {
                         if chord_slur_has_next {
                             chord_slur_start = true;
+                            if !chord_slur_location.invalid
+                                && (chord_slur_location.voice_delta != 0
+                                    || chord_slur_location.staff_delta != 0)
+                            {
+                                chord_cross_slurs.push(chord_slur_location.clone());
+                            }
                         }
                         if chord_slur_has_prev {
                             chord_slur_end = true;
@@ -2085,6 +2175,17 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                     }
                                 }
                             }
+                            let staff_id = current_staff_id.unwrap_or(1);
+                            let measure = staff_measures.get(&staff_id).map_or(0, Vec::len);
+                            for location in chord_cross_slurs.drain(..) {
+                                cross_voice_slurs.push(CrossVoiceSlur {
+                                    staff_id,
+                                    measure,
+                                    voice: v,
+                                    note: cur_voices[v].len(),
+                                    location,
+                                });
+                            }
                             cur_voices[v].push(note);
                         }
                         in_chord = false;
@@ -2148,7 +2249,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "program" if in_channel => {
                         if let Some(v) = attr_str(e, b"value") {
-                            cur_part_program = v.parse().unwrap_or(0);
+                            candidate_channel_program = v.parse().unwrap_or(0);
                         }
                     }
                     "Bend" if in_note_elem => {
@@ -2231,7 +2332,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
         close_final_volta(measures);
     }
 
-    let mut score = assemble_score(
+    let (mut score, staff_ids) = assemble_score(
         base_score,
         metadata,
         score_texts,
@@ -2245,6 +2346,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
             order: score_staff_order,
         },
     )?;
+    resolve_cross_voice_slurs(&mut score, &staff_ids, cross_voice_slurs);
     if create_multi_measure_rests {
         mark_multi_measure_rests(&mut score);
     }
@@ -3018,7 +3120,8 @@ fn assemble_score(
     mut staff_measures: HashMap<usize, Vec<Measure>>,
     mut staff_clefs: HashMap<usize, Clef>,
     staff_data: StaffAssemblyData,
-) -> Result<Score, Error> {
+) -> Result<(Score, Vec<Vec<usize>>), Error> {
+    let mut staff_ids = Vec::new();
     // Replace the default Score parts with the parsed content.
     score.parts.clear();
     score.metadata = metadata;
@@ -3080,6 +3183,7 @@ fn assemble_score(
             &staff_presentation_lines,
         );
         score.parts.push(part);
+        staff_ids.push(all_ids);
     } else {
         let explicit_ids: HashSet<usize> = parts_meta
             .iter()
@@ -3144,6 +3248,7 @@ fn assemble_score(
                 }
             }
             score.parts.push(part);
+            staff_ids.push(ids);
         }
     }
 
@@ -3161,10 +3266,161 @@ fn assemble_score(
         }
     }
 
-    Ok(score)
+    convert_ottava_pitches(&mut score, true)?;
+    Ok((score, staff_ids))
+}
+
+fn resolve_cross_voice_slurs(score: &mut Score, ids: &[Vec<usize>], slurs: Vec<CrossVoiceSlur>) {
+    use acorde_core::{NotationSpanner, NotationSpannerKind, NoteAddr};
+    if slurs.is_empty() {
+        return;
+    }
+    type VoiceKey = (usize, usize, usize, usize);
+    type SlurEnd = (f64, usize, bool);
+    let mut onsets: HashMap<VoiceKey, Vec<f64>> = HashMap::new();
+    let mut endings: HashMap<VoiceKey, Vec<SlurEnd>> = HashMap::new();
+    for (part, p) in score.parts.iter().enumerate() {
+        for (staff, st) in p.staves.iter().enumerate() {
+            for (measure, bar) in st.measures.iter().enumerate() {
+                for (voice, notes) in bar.voices.iter().enumerate() {
+                    if notes.is_empty() {
+                        continue;
+                    }
+                    let key = (part, staff, measure, voice);
+                    let mut time = 0.0_f64;
+                    let mut times = Vec::with_capacity(notes.len());
+                    let mut ends = Vec::new();
+                    for (index, note) in notes.iter().enumerate() {
+                        times.push(time);
+                        if note.slur_end && time.is_finite() {
+                            ends.push((time, index, note.is_grace || note.is_cue));
+                        }
+                        time += note.beats();
+                    }
+                    ends.sort_by(|a, b| a.0.total_cmp(&b.0));
+                    onsets.insert(key, times);
+                    endings.insert(key, ends);
+                }
+            }
+        }
+    }
+    let staff_ids: HashMap<usize, (usize, usize)> = ids
+        .iter()
+        .enumerate()
+        .flat_map(|(part, staves)| {
+            staves
+                .iter()
+                .enumerate()
+                .map(move |(staff, id)| (*id, (part, staff)))
+        })
+        .collect();
+    for raw in slurs {
+        let Some(&(part, staff)) = staff_ids.get(&raw.staff_id) else {
+            continue;
+        };
+        let Some(target_staff) = staff.checked_add_signed(raw.location.staff_delta as isize) else {
+            continue;
+        };
+        let Some(target_voice) = raw
+            .voice
+            .checked_add_signed(raw.location.voice_delta as isize)
+            .filter(|v| *v < 4)
+        else {
+            continue;
+        };
+        let Some(target_measure) = raw
+            .measure
+            .checked_add_signed(raw.location.measure_delta as isize)
+        else {
+            continue;
+        };
+        let source_key = (part, staff, raw.measure, raw.voice);
+        let Some(source_voice) = score
+            .parts
+            .get(part)
+            .and_then(|p| p.staves.get(staff))
+            .and_then(|s| s.measures.get(raw.measure))
+            .and_then(|m| m.voices.get(raw.voice))
+        else {
+            continue;
+        };
+        let Some(source_note) = source_voice.get(raw.note) else {
+            continue;
+        };
+        if source_note.is_grace || source_note.is_cue {
+            continue;
+        }
+        let Some(&start_time) = onsets
+            .get(&source_key)
+            .and_then(|times| times.get(raw.note))
+        else {
+            continue;
+        };
+        let target_time = start_time + raw.location.beat_delta;
+        if !target_time.is_finite() {
+            continue;
+        }
+        let Some(ends) = endings.get(&(part, target_staff, target_measure, target_voice)) else {
+            continue;
+        };
+        let first = ends.partition_point(|(time, _, _)| *time < target_time - 1e-7);
+        let Some(&(time, note, grace)) = ends.get(first) else {
+            continue;
+        };
+        if grace
+            || (time - target_time).abs() >= 1e-7
+            || ends
+                .get(first + 1)
+                .is_some_and(|(time, _, _)| (*time - target_time).abs() < 1e-7)
+        {
+            continue;
+        }
+        let start = NoteAddr {
+            part,
+            staff,
+            measure: raw.measure,
+            voice: raw.voice,
+            note: raw.note,
+        };
+        let end = NoteAddr {
+            part,
+            staff: target_staff,
+            measure: target_measure,
+            voice: target_voice,
+            note,
+        };
+        score.spanners.push(NotationSpanner {
+            id: format!("mscx-slur-{part}-{staff}-{}-{}-{}-{target_staff}-{target_measure}-{target_voice}-{note}", raw.measure, raw.voice, raw.note),
+            kind: NotationSpannerKind::Slur, start, end, number: None, line_type: None,
+            text: None, placement: raw.location.placement, ottava_size: None, ottava_type: None,
+        });
+    }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/// Convert between MuseScore's written pitch and canonical sounding pitch.
+fn convert_ottava_pitches(score: &mut Score, to_sounding: bool) -> Result<(), Error> {
+    for staff in score.parts.iter_mut().flat_map(|part| &mut part.staves) {
+        let shifts = acorde_core::staff_ottava_octave_shifts(staff, &score.settings.time_signature);
+        for ((measure, voice, index), active) in shifts {
+            let note = &mut staff.measures[measure].voices[voice][index];
+            let shift = if to_sounding { active } else { -active };
+            if !note.is_unpitched {
+                for pitch in &mut note.pitches {
+                    pitch.octave = pitch
+                        .octave
+                        .checked_add(shift)
+                        .ok_or_else(|| Error::Xml("MSCX ottava pitch overflows octave".into()))?;
+                    if !(0..=127).contains(&pitch.to_midi()) {
+                        return Err(Error::Xml("MSCX ottava pitch is outside MIDI range".into()));
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
 
 /// Convert a MuseScore TPC value + MIDI number to a acorde Pitch.
 ///
@@ -3645,6 +3901,31 @@ mod tests {
         let diagnostics = loss_diagnostics(xml);
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].code, "mscx.unimported-excerpt");
+    }
+
+    #[test]
+    fn instrument_channel_prefers_arco_over_alternates_regardless_of_order() {
+        let make = |channels: &str| {
+            format!(
+                r#"<museScore version="4.20"><Score>
+          <Part id="1"><Staff id="1"/><trackName>Violin</trackName><Instrument id="violin">{channels}</Instrument></Part>
+          <Staff id="1"><Measure><voice><Chord><durationType>quarter</durationType>
+          <Note><pitch>60</pitch><tpc>14</tpc></Note></Chord></voice></Measure></Staff></Score></museScore>"#
+            )
+        };
+        let arco =
+            r#"<Channel name="arco"><program value="40"/><midiChannel>2</midiChannel></Channel>"#;
+        let pizz = r#"<Channel name="pizzicato"><program value="45"/><midiChannel>3</midiChannel></Channel>"#;
+        let tremolo = r#"<Channel name="tremolo"><program value="44"/><midiChannel>4</midiChannel></Channel>"#;
+        for channels in [
+            format!("{arco}{pizz}{tremolo}"),
+            format!("{tremolo}{pizz}{arco}"),
+        ] {
+            let score = parse_mscz(&zipped_mscx(&make(&channels))).unwrap();
+            let events = acorde_core::to_playback_events(&score, &Default::default());
+            assert_eq!(events[0].program, 40);
+            assert_eq!(events[0].channel, 2);
+        }
     }
 
     #[test]
