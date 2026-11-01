@@ -34,9 +34,10 @@ pub use model::chord_plan::{
     chord_plan_to_preset_selection, extract_chord_plan,
 };
 pub use model::chord_proposals::{
-    CHORD_PROPOSAL_CONTRACT_VERSION, ChordChangedSpan, ChordProposalArrangementResult,
-    ChordProposalCandidate, ChordProposalDiagnostic, ChordProposalRequest, ChordProposalResult,
-    ResolvedChordProposal, arrange_from_chord_proposal, suggest_chord_plans,
+    CHORD_PROPOSAL_CONTRACT_VERSION, CHORD_PROPOSAL_MAX_MEASURES, ChordChangedSpan,
+    ChordProposalArrangementResult, ChordProposalCandidate, ChordProposalDiagnostic,
+    ChordProposalRequest, ChordProposalResult, ResolvedChordProposal, arrange_from_chord_proposal,
+    suggest_chord_plans,
 };
 pub use model::commands::{
     AddHairpinCmd, AddMeasureCmd, AddNoteCmd, AddPartCmd, AddPedalCmd, AddPitchCmd, AddSpannerCmd,
