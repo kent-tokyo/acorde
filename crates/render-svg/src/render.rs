@@ -4194,36 +4194,18 @@ fn auto_stem_directions(
         .collect()
 }
 
-/// Display shift (diatonic steps) of every note under an ottava line, pairing each voice's
-/// start and end flags as layout does; the start and end notes are included.
+/// Display sounding pitches at their written positions under staff-wide ottava lines.
 fn ottava_display_shifts(score: &Score) -> HashMap<NoteKey, i32> {
     let mut shifts = HashMap::new();
     for (part_index, part) in score.parts.iter().enumerate() {
         for (staff_index, staff) in part.staves.iter().enumerate() {
-            for voice_index in 0..4 {
-                let mut active: Option<i32> = None;
-                for (measure_index, measure) in staff.measures.iter().enumerate() {
-                    for (note_index, note) in measure.voices[voice_index].iter().enumerate() {
-                        if let Some(kind) = note.ottava_start {
-                            active = Some(kind.display_shift_steps());
-                        }
-                        if let Some(shift) = active {
-                            shifts.insert(
-                                (
-                                    part_index,
-                                    staff_index,
-                                    measure_index,
-                                    voice_index,
-                                    note_index,
-                                ),
-                                shift,
-                            );
-                        }
-                        if note.ottava_end {
-                            active = None;
-                        }
-                    }
-                }
+            for ((measure, voice, note), octaves) in
+                acorde_core::staff_ottava_octave_shifts(staff, &score.settings.time_signature)
+            {
+                shifts.insert(
+                    (part_index, staff_index, measure, voice, note),
+                    -7 * i32::from(octaves),
+                );
             }
         }
     }

@@ -3161,10 +3161,34 @@ fn assemble_score(
         }
     }
 
+    convert_ottava_pitches(&mut score, true)?;
     Ok(score)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/// Convert between MuseScore's written pitch and canonical sounding pitch.
+fn convert_ottava_pitches(score: &mut Score, to_sounding: bool) -> Result<(), Error> {
+    for staff in score.parts.iter_mut().flat_map(|part| &mut part.staves) {
+        let shifts = acorde_core::staff_ottava_octave_shifts(staff, &score.settings.time_signature);
+        for ((measure, voice, index), active) in shifts {
+            let note = &mut staff.measures[measure].voices[voice][index];
+            let shift = if to_sounding { active } else { -active };
+            if !note.is_unpitched {
+                for pitch in &mut note.pitches {
+                    pitch.octave = pitch
+                        .octave
+                        .checked_add(shift)
+                        .ok_or_else(|| Error::Xml("MSCX ottava pitch overflows octave".into()))?;
+                    if !(0..=127).contains(&pitch.to_midi()) {
+                        return Err(Error::Xml("MSCX ottava pitch is outside MIDI range".into()));
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
 
 /// Convert a MuseScore TPC value + MIDI number to a acorde Pitch.
 ///

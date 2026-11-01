@@ -7118,3 +7118,49 @@ fn musicxml_dacapo_sound_preserves_explicit_al_fine_words() {
         );
     }
 }
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_ottava_sounds_correct_octave_and_roundtrips_across_measures() {
+    for (subtype, sounded) in [("8va", 91), ("8vb", 67), ("15ma", 103), ("15mb", 55)] {
+        let xml = format!(
+            r#"<museScore version="4.50"><Score><Division>480</Division><Part id="1"><Staff id="1"/><trackName>Piano</trackName></Part><Staff id="1"><Measure><voice><Spanner type="Ottava"><Ottava><subtype>{subtype}</subtype></Ottava><next><location><measures>1</measures></location></next></Spanner><Chord><durationType>quarter</durationType><Note><pitch>79</pitch><tpc>15</tpc></Note></Chord><Rest><durationType>half</durationType><dots>1</dots></Rest></voice><voice><Chord><durationType>quarter</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord></voice></Measure><Measure><voice><Chord><durationType>quarter</durationType><Note><pitch>79</pitch><tpc>15</tpc></Note></Chord><Spanner type="Ottava"><prev><location><measures>-1</measures></location></prev></Spanner><Chord><durationType>quarter</durationType><Note><pitch>79</pitch><tpc>15</tpc></Note></Chord><Rest><durationType>half</durationType></Rest></voice></Measure></Staff></Score></museScore>"#
+        );
+        let score = acorde_io::parse_mscx(&xml).unwrap();
+        let pitches = |score: &acorde_core::Score| {
+            let events = acorde_core::to_playback_events(score, &Default::default());
+            events
+                .into_iter()
+                .filter(|e| e.source.as_ref().is_some_and(|s| s.voice == 0))
+                .map(|e| e.pitch_midi)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(pitches(&score), vec![sounded, sounded, 79], "{subtype}");
+        let other = acorde_core::to_playback_events(&score, &Default::default())
+            .into_iter()
+            .find(|e| e.source.as_ref().is_some_and(|s| s.voice == 1))
+            .unwrap();
+        assert_eq!(other.pitch_midi, 60 + sounded - 79);
+        let archive = acorde_io::serialize_mscz(&score).unwrap();
+        let restored = acorde_io::parse_mscz(&archive).unwrap();
+        assert_eq!(pitches(&restored), pitches(&score), "MSCZ {subtype}");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[1][0].pitches[0].to_midi(),
+            60 + i16::from(sounded) - 79
+        );
+        let musicxml = acorde_io::serialize_musicxml(&score).unwrap();
+        let restored = acorde_io::parse_musicxml(&musicxml).unwrap();
+        assert_eq!(pitches(&restored), pitches(&score), "MusicXML {subtype}");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[1][0].pitches[0].to_midi(),
+            60 + i16::from(sounded) - 79
+        );
+    }
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_ottava_rejects_out_of_range_sounding_pitch() {
+    let xml = r#"<museScore version="4.50"><Score><Part><Staff id="1"/><trackName>Piano</trackName></Part><Staff id="1"><Measure><voice><Spanner type="Ottava"><Ottava><subtype>8va</subtype></Ottava><next><location><measures>1</measures></location></next></Spanner><Chord><durationType>quarter</durationType><Note><pitch>127</pitch><tpc>15</tpc></Note></Chord><Spanner type="Ottava"><prev/></Spanner></voice></Measure></Staff></Score></museScore>"#;
+    assert!(acorde_io::parse_mscx(xml).is_err());
+}
