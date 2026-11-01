@@ -3956,6 +3956,18 @@ mod wasm_tests {
     }
 
     #[wasm_bindgen_test]
+    fn browser_long_abc_chord_proposals_are_replayable() {
+        let abc = format!("X:1\nM:4/4\nL:1/4\nK:C\n{}", "C D E F|".repeat(261));
+        let score = parse_abc(&abc).unwrap();
+        let proposals: serde_json::Value = serde_json::from_str(&suggest_chord_plans(&score, "{}").unwrap()).unwrap();
+        assert!(proposals["diagnostics"].as_array().unwrap().is_empty());
+        let resolved = proposals["candidates"][0]["resolved"].to_string();
+        let replay: serde_json::Value = serde_json::from_str(&arrange_from_chord_proposal(&score, &resolved, "held-chord").unwrap()).unwrap();
+        assert!(replay["diagnostics"].as_array().unwrap().is_empty());
+        assert!(replay["arrangement"]["score"].is_object());
+    }
+
+    #[wasm_bindgen_test]
     fn browser_print_page_svgs_use_supplied_physical_layout() {
         let score = score_to_json(&Score::new("Print", 120, 4, 4, 0, 2)).unwrap();
         let layout = compute_print_layout(&score, r#"{"measures_per_system":1,"systems_per_page":1}"#).unwrap();
