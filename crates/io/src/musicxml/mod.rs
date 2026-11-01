@@ -485,6 +485,15 @@ fn push_advanced_attribute_diagnostics(
                     "MusicXML note placement is not a finite number; the value cannot be applied",
                 )
             }
+            "print-object" if path.last().map(String::as_str) == Some("time") => {
+                if matches!(value.as_str(), "yes" | "no") {
+                    continue;
+                }
+                (
+                    "musicxml.invalid-time-visibility",
+                    "MusicXML time print-object must be yes or no; the value cannot be preserved",
+                )
+            }
             "default-x" | "default-y" | "relative-x" | "relative-y" => (
                 "musicxml.unsupported-placement-attribute",
                 "MusicXML placement attribute is outside the canonical score model",

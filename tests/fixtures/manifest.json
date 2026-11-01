@@ -363,6 +363,15 @@
       "sha256": "1336a8c3e56755941418524511ef5130fec50542033246171c66e34b1c780953",
       "round_trip": "import-only",
       "expected_losses": ["Only repeated accidental display is evaluated"]
+    },
+    {
+      "path": "issue_292_hidden_time.musicxml",
+      "format": "musicxml",
+      "license": "self-authored",
+      "source": "Synthetic hidden-meter reproduction tested with MuseScore 4.7.5",
+      "sha256": "0efb847de415daeeb2d3b9a08c612aca1532ae91953cd5f967d82b31b2c14308",
+      "round_trip": "import-only",
+      "expected_losses": ["Only hidden time signature visibility is evaluated"]
     }
   ]
 }

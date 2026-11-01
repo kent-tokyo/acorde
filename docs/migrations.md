@@ -18,6 +18,13 @@ cautionary one. Rust code that exhaustively matches this enum must handle the ne
 score JSON remains readable; older consumers may not recognize newly serialized `Explicit` values.
 ABC, MIDI, and MuseScore export reports identify the cases where this distinction cannot round-trip.
 
+## Unreleased: hidden time signatures
+
+`Measure.time_sig_hidden` preserves hidden MusicXML and MuseScore meter changes. Set it in
+complete Rust `Measure` literals; existing score JSON defaults to `false`. Exhaustive matches on
+`ScoreChange` and `ScorePatch` must also handle the new time-visibility variants. ABC, MEI and
+MIDI export reports identify the unsupported visibility separately from the musical meter.
+
 ## v1.3.7
 
 Re-import MusicXML to retain common/cut time symbols, written metronome marks,

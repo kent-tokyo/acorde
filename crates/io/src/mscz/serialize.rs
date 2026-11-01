@@ -703,8 +703,14 @@ fn write_staff(
         if let Some(time) = &measure.time_sig {
             write!(
                 xml,
-                "<TimeSig><sigN>{}</sigN><sigD>{}</sigD></TimeSig>",
-                time.numerator, time.denominator
+                "<TimeSig>{}<sigN>{}</sigN><sigD>{}</sigD></TimeSig>",
+                if measure.time_sig_hidden {
+                    "<visible>0</visible>"
+                } else {
+                    ""
+                },
+                time.numerator,
+                time.denominator
             )
             .map_err(fmt_error)?;
         }

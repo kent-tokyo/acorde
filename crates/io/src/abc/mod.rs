@@ -2805,6 +2805,18 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                 );
             }
             for (measure_index, measure) in staff.measures.iter().enumerate() {
+                if measure.time_sig_hidden {
+                    push(
+                        format!(
+                            "/score/part/{}/staff/{}/measure/{}/time_sig_hidden",
+                            part_index + 1,
+                            staff_index + 1,
+                            measure_index + 1
+                        ),
+                        "true".to_string(),
+                        "ABC export does not preserve time-signature visibility",
+                    );
+                }
                 for (side, barline) in [
                     ("barline-left", &measure.barline_left),
                     ("barline-right", &measure.barline_right),

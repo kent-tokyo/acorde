@@ -5173,3 +5173,38 @@ fn musescore_475_native_cross_voice_slur_renders_across_systems() {
     let svg = render_svg(&restored, &options).unwrap();
     assert_eq!(svg.matches("class=\"acorde-slur\"").count(), 2);
 }
+
+#[test]
+fn hidden_time_signatures_keep_duration_across_musicxml_and_mscz() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes><note><rest/><duration>3</duration><type>half</type><dot/></note></measure><measure number="2"><attributes><time print-object="no"><beats>2</beats><beat-type>4</beat-type></time></attributes><note><rest/><duration>2</duration><type>half</type></note></measure><measure number="3"><attributes><time><beats>2</beats><beat-type>4</beat-type></time></attributes><note><rest/><duration>2</duration><type>half</type></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let check = |score: &acorde_core::Score| {
+        let bars = &score.parts[0].staves[0].measures;
+        assert!(!bars[0].time_sig_hidden && bars[1].time_sig_hidden && !bars[2].time_sig_hidden);
+        assert_eq!(bars[1].time_sig.as_ref().unwrap().numerator, 2);
+        let svg = render_svg(score, &opts()).unwrap();
+        assert_eq!(
+            svg.matches("acorde-time-sig-change").count(),
+            1,
+            "only the later visible change should render"
+        );
+    };
+    check(&score);
+    let musicxml = acorde_io::serialize_musicxml(&score).unwrap();
+    assert!(musicxml.contains("print-object=\"no\""));
+    check(&acorde_io::parse_musicxml(&musicxml).unwrap());
+    let mscz = acorde_io::serialize_mscz(&score).unwrap();
+    check(&acorde_io::parse_mscz(&mscz).unwrap());
+    let native = r#"<museScore version="4.50"><Score><Division>480</Division><Part id="1"><Staff id="1"/><trackName>Piano</trackName></Part><Staff id="1"><Measure><voice><TimeSig><visible>0</visible><sigN>2</sigN><sigD>4</sigD></TimeSig><Rest><durationType>half</durationType></Rest></voice></Measure></Staff></Score></museScore>"#;
+    let native_score = acorde_io::parse_mscx(native).unwrap();
+    assert!(native_score.parts[0].staves[0].measures[0].time_sig_hidden);
+    assert!(
+        !render_svg(&native_score, &opts())
+            .unwrap()
+            .contains("acorde-time-sig")
+    );
+    let xml = acorde_io::serialize_musicxml(&native_score).unwrap();
+    assert!(
+        acorde_io::parse_musicxml(&xml).unwrap().parts[0].staves[0].measures[0].time_sig_hidden
+    );
+}

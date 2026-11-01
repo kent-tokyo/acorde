@@ -111,3 +111,8 @@ compressed and uncompressed representations can be tested as a pair.
 MuseScore 4.7.5 rendered two accidental glyphs from Acorde's MSCZ export; it wrote
 the SVG before crashing at shutdown. The input hash is pinned in `manifest.json`;
 this verifies the example, not general engraving quality.
+
+`issue_292_hidden_time.musicxml` is a self-authored two-measure hidden-meter fixture.
+MuseScore 4.7.5 reopened the Acorde-exported MSCZ and preserved the hidden second meter
+in MusicXML; it wrote its output before crashing at shutdown. Its input hash is pinned in
+`manifest.json`; this checks the visibility example, not general interchange quality.
