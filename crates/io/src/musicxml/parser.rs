@@ -223,6 +223,89 @@ fn add_tuplet_boundary(boundary: &mut Option<TupletBoundary>, kind: Option<&str>
     };
 }
 
+// Resolve after all voices are known: MusicXML directions may precede their target in
+// document order, or use a negative offset after a backup. Dynamics remain staff scoped.
+fn resolve_direction_dynamics(
+    score: &mut Score,
+    events: Vec<(usize, usize, usize, f64, Dynamic)>,
+    tolerated: &mut Vec<crate::Diagnostic>,
+) {
+    let max_bars = score
+        .parts
+        .iter()
+        .flat_map(|p| &p.staves)
+        .map(|s| s.measures.len())
+        .max()
+        .unwrap_or(0);
+    let mut starts = Vec::with_capacity(max_bars + 1);
+    starts.push(0.0);
+    for i in 0..max_bars {
+        starts.push(starts[i] + score.playback_measure_beats(i));
+    }
+    let mut candidates: HashMap<(usize, usize), Vec<(f64, NoteAddr)>> = HashMap::new();
+    for (pi, part) in score.parts.iter().enumerate() {
+        for (si, staff) in part.staves.iter().enumerate() {
+            let list = candidates.entry((pi, si)).or_default();
+            for (mi, measure) in staff.measures.iter().enumerate() {
+                for (vi, voice) in measure.voices.iter().enumerate() {
+                    let mut beat = starts[mi];
+                    for (ni, note) in voice.iter().enumerate() {
+                        if !note.is_rest && !note.is_grace && !note.is_cue {
+                            list.push((
+                                beat,
+                                NoteAddr {
+                                    part: pi,
+                                    staff: si,
+                                    measure: mi,
+                                    voice: vi,
+                                    note: ni,
+                                },
+                            ));
+                        }
+                        beat += note.beats();
+                    }
+                }
+            }
+            list.sort_by(|a, b| a.0.total_cmp(&b.0));
+        }
+    }
+    let mut ordered: Vec<_> = events
+        .into_iter()
+        .enumerate()
+        .map(|(i, (p, s, m, offset, dynamic))| {
+            (
+                starts.get(m).copied().unwrap_or(0.0) + offset,
+                i,
+                p,
+                s,
+                dynamic,
+            )
+        })
+        .collect();
+    ordered.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
+    let mut assigned: HashMap<(usize, usize, usize, usize, usize), Dynamic> = HashMap::new();
+    for (beat, _, pi, si, dynamic) in ordered {
+        let target = candidates.get(&(pi, si)).and_then(|list| {
+            let index = list.partition_point(|(onset, _)| *onset < beat - 1e-9);
+            list.get(index)
+        });
+        if let Some((_, addr)) = target {
+            assigned.insert((pi, si, addr.measure, addr.voice, addr.note), dynamic);
+        } else {
+            tolerated.push(crate::Diagnostic::warning(
+                "musicxml.unattached-dynamic",
+                "MusicXML dynamic has no following sounding note on its staff",
+            ));
+        }
+    }
+    for ((pi, si, mi, vi, ni), dynamic) in assigned {
+        let note = &mut score.parts[pi].staves[si].measures[mi].voices[vi][ni];
+        if note.dynamic.is_none() {
+            note.dynamic = Some(dynamic);
+        }
+    }
+}
+
 /// Parse MusicXML, recording recoverable source problems (orphan spanner stops, overfull
 /// measures, backups past the measure start, chord members on another staff) in `tolerated`
 /// instead of failing.
@@ -398,12 +481,12 @@ pub(crate) fn parse_musicxml_collecting(
     let mut barline_location = String::new();
     let mut in_direction = false;
     let mut in_direction_type = false;
-    // Dynamics: <direction><direction-type><dynamics> marks wait for the next sounding note of
-    // their staff; <notations><dynamics> belongs to its note.
+    // Direction dynamics are resolved by written time after parsing all voices; inline
+    // notations belong to their note.
     let mut in_dynamics = false;
     let mut pending_direction_dynamic: Option<Dynamic> = None;
     let mut pending_direction_staff = 0usize;
-    let mut staff_dynamics: HashMap<usize, Dynamic> = HashMap::new();
+    let mut direction_dynamics: Vec<(usize, usize, usize, f64, Dynamic)> = Vec::new();
     let mut note_inline_dynamic: Option<Dynamic> = None;
     let mut pending_tempo_text: Option<String> = None;
     let mut pending_expression_text: Option<String> = None;
@@ -1984,6 +2067,19 @@ pub(crate) fn parse_musicxml_collecting(
                             timed_pedal_pairs.push((pi, mi, start, stop));
                             tolerated.push(crate::Diagnostic::warning("musicxml.timed-pedal-notation-unsupported", "Timed pedal controls are retained for playback, but their notation and MusicXML round trip are not represented"));
                         }
+                        if let (Some(dynamic), Some(pi)) =
+                            (pending_direction_dynamic.take(), part_index)
+                        {
+                            let measure =
+                                score.parts[pi].staves[0].measures.len().saturating_sub(1);
+                            direction_dynamics.push((
+                                pi,
+                                pending_direction_staff,
+                                measure,
+                                pending_direction_position_beats.unwrap_or(0.0),
+                                dynamic,
+                            ));
+                        }
                         pending_sound_tempo = None;
                         pending_metronome = None;
                         pending_direction_placement = None;
@@ -1997,9 +2093,6 @@ pub(crate) fn parse_musicxml_collecting(
                         pending_rehearsal = None;
                         pending_navigation = None;
                         pending_section_break = false;
-                        if let Some(dynamic) = pending_direction_dynamic.take() {
-                            staff_dynamics.insert(pending_direction_staff, dynamic);
-                        }
                         match pending_direction_wedge.take() {
                             Some(Some(kind)) => {
                                 staff_hairpin_starts.insert(pending_direction_staff, kind);
@@ -3026,8 +3119,7 @@ pub(crate) fn parse_musicxml_collecting(
                                         std::mem::take(&mut note_lyrics),
                                     );
                                     if !note.is_rest && !note.is_grace {
-                                        let direction = staff_dynamics.remove(&target_staff_index);
-                                        note.dynamic = note_inline_dynamic.take().or(direction);
+                                        note.dynamic = note_inline_dynamic.take();
                                     }
                                     note.hidden = note_hidden;
                                     voice.push(note);
@@ -3192,6 +3284,7 @@ pub(crate) fn parse_musicxml_collecting(
                 });
         }
     }
+    resolve_direction_dynamics(&mut score, direction_dynamics, tolerated);
     // A clef read before a staff's notes in a bar changes that bar. One read partway through
     // is a mid-bar change at that point, and one read after the bar's content (a cue for the
     // next system) takes effect at the next barline. A pitch never depends on its clef.

@@ -11,6 +11,13 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## Unreleased: selectable shared dynamics
+
+`PlaybackOptions.shared_dynamics` and `shared_hairpins` select individual marks to share across
+a part's staves. Existing JSON defaults both lists to empty; complete Rust `PlaybackOptions`
+struct literals must add them or use `..Default::default()`. Selection is a playback option,
+not a persisted score or an automatic interpretation of imported placement.
+
 ## Unreleased: explicitly written accidentals
 
 `AccidentalDisplay::Explicit` distinguishes an ordinary written accidental from an automatic or

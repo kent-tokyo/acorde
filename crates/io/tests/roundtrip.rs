@@ -1528,6 +1528,12 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
             "openscore_omr_score_1033.mscx" => {
                 include_bytes!("../../../tests/fixtures/openscore_omr_score_1033.mscx")
             }
+            "issue_311_trill.musicxml" => {
+                include_bytes!("../../../tests/fixtures/issue_311_trill.musicxml")
+            }
+            "issue_311_musescore_trill.mscz" => {
+                include_bytes!("../../../tests/fixtures/issue_311_musescore_trill.mscz")
+            }
             "sample.abc" => include_bytes!("../../../tests/fixtures/sample.abc"),
             "program_change_piano_violin.mid" => {
                 include_bytes!("../../../tests/fixtures/program_change_piano_violin.mid")
