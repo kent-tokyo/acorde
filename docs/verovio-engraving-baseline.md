@@ -668,7 +668,10 @@ The self-authored `tests/fixtures/issue_295_interstaff_hairpin.musicxml` places 
 between piano staves and high notes on the lower staff. On this single deliberately extreme
 example, Acorde and Verovio 6.3.0 both place the wedge clear of the noteheads and stems. Acorde's
 inter-staff space is visibly larger; this comparison does not establish engraving parity or
-performance on ordinary scores. The screen outputs can be reproduced with:
+performance on ordinary scores. A default Acorde page SVG, produced by `compute_print_layout`
+and `render_print_page_svgs`, was also visually checked on the same input and did not show the
+wedge crossing a notehead or stem. This is not a size-matched print-quality comparison. The
+screen outputs can be reproduced with:
 
 ```sh
 cargo run -p acorde-cli --locked -- render --width 1000 \
