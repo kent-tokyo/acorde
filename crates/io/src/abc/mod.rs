@@ -2564,6 +2564,12 @@ fn abc_note_export_losses(
     }
     for (field, present, value, reason) in [
         (
+            "hairpin-placement",
+            note.hairpin_above.is_some(),
+            format!("{:?}", note.hairpin_above),
+            "ABC export does not retain authored hairpin placement",
+        ),
+        (
             "placement",
             note.offset_x.is_some()
                 || note.offset_y.is_some()

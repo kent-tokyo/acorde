@@ -462,9 +462,10 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut in_line_body = false;
     let mut in_line_segment = false;
     let mut line_subtype: Option<String> = None;
+    let mut line_hairpin_above: Option<bool> = None;
     let mut line_has_next = false;
     let mut line_has_prev = false;
-    let mut pending_hairpin: [Option<HairpinKind>; 4] = [None; 4];
+    let mut pending_hairpin: [Option<(HairpinKind, Option<bool>)>; 4] = [None; 4];
     let mut pending_pedal: [bool; 4] = [false; 4];
     // A MuseScore trill line: the "tr" sign and its wavy line.
     let mut pending_trill: [bool; 4] = [false; 4];
@@ -942,6 +943,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 in_line_body = false;
                                 in_line_segment = false;
                                 line_subtype = None;
+                                line_hairpin_above = None;
                                 line_has_next = false;
                                 line_has_prev = false;
                             }
@@ -1128,6 +1130,17 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "subtype" if in_line_body && !in_line_segment => {
                         line_subtype = Some(t.to_string());
                     }
+                    "placement"
+                        if in_line_body
+                            && !in_line_segment
+                            && matches!(line_spanner, Some(MscxLineKind::HairPin)) =>
+                    {
+                        line_hairpin_above = match t {
+                            "above" => Some(true),
+                            "below" => Some(false),
+                            _ => None,
+                        };
+                    }
                     "Segment" if in_line_segment => {
                         in_line_segment = false;
                     }
@@ -1145,11 +1158,13 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             match kind {
                                 MscxLineKind::HairPin => {
                                     // MuseScore subtypes 1 and 3 are decrescendo hairpins/lines.
-                                    pending_hairpin[voice] =
-                                        Some(match line_subtype.as_deref().map(str::trim) {
+                                    pending_hairpin[voice] = Some((
+                                        match line_subtype.as_deref().map(str::trim) {
                                             Some("1" | "3") => HairpinKind::Decrescendo,
                                             _ => HairpinKind::Crescendo,
-                                        });
+                                        },
+                                        line_hairpin_above,
+                                    ));
                                 }
                                 MscxLineKind::Pedal => pending_pedal[voice] = true,
                                 MscxLineKind::Trill => pending_trill[voice] = true,
@@ -2223,8 +2238,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             crate::assign_note_verses(&mut note, std::mem::take(&mut chord_lyrics));
                             let v = chord_voice.min(3);
                             if !note.is_grace {
-                                if let Some(kind) = pending_hairpin[v].take() {
+                                if let Some((kind, above)) = pending_hairpin[v].take() {
                                     note.hairpin_start = Some(kind);
+                                    note.hairpin_above = above;
                                 }
                                 note.pedal_start |= std::mem::take(&mut pending_pedal[v]);
                                 if let Some(kind) = pending_ottava[v].take() {
@@ -2266,7 +2282,10 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         rest.hidden = rest_hidden;
                         let v = chord_voice.min(3);
                         // Lines may start on a rest (a hairpin under a rest before the entry).
-                        rest.hairpin_start = pending_hairpin[v].take();
+                        if let Some((kind, above)) = pending_hairpin[v].take() {
+                            rest.hairpin_start = Some(kind);
+                            rest.hairpin_above = above;
+                        }
                         rest.pedal_start = std::mem::take(&mut pending_pedal[v]);
                         rest.ottava_start = pending_ottava[v].take();
                         cur_voices[v].push(rest);

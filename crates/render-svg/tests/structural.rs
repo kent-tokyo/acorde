@@ -5279,27 +5279,176 @@ fn hidden_time_signatures_keep_duration_across_musicxml_and_mscz() {
 }
 
 #[test]
-fn simultaneous_voices_align_with_measure_text() {
-    use acorde_core::{Duration, Note, Pitch, Score, Step, StyledText, TextStyle};
-    let mut score = Score::new("voice alignment", 120, 4, 4, 0, 1);
-    let measure = &mut score.parts[0].staves[0].measures[0];
-    measure.voices[0] = vec![Note::new(Pitch::new(Step::A, 4), Duration::Quarter)];
-    measure.voices[1] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
-    measure.texts.push(StyledText {
-        position_beats: Some(0.0),
-        style: TextStyle::Expression,
-        text: "dolce".into(),
-        placement: Some("above".into()),
-        offset_x: None,
-        offset_y: None,
-        relative_x: None,
-        relative_y: None,
-    });
+fn musicxml_hairpin_preserves_authored_above_and_below_placement() {
+    for (placement, above) in [("above", true), ("below", false)] {
+        let xml = format!(
+            r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time></attributes><direction placement="{placement}"><direction-type><wedge type="crescendo"/></direction-type></direction><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>E</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note><direction><direction-type><wedge type="stop"/></direction-type></direction></measure></part></score-partwise>"#
+        );
+        let score = acorde_io::parse_musicxml(&xml).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].hairpin_above,
+            Some(above)
+        );
+        let svg = render_svg(&score, &opts()).unwrap();
+        let p = hairpin_path_coordinates(&svg)[0];
+        let ys: Vec<_> = notehead_centers(&svg).into_iter().map(|(_, y)| y).collect();
+        if above {
+            assert!(
+                p[1].max(p[3]).max(p[5]).max(p[7])
+                    < ys.iter().copied().fold(f32::INFINITY, f32::min)
+            );
+        } else {
+            assert!(
+                p[1].min(p[3]).min(p[5]).min(p[7])
+                    > ys.iter().copied().fold(f32::NEG_INFINITY, f32::max)
+            );
+        }
+        let output = acorde_io::serialize_musicxml(&score).unwrap();
+        let restored = acorde_io::parse_musicxml(&output).unwrap();
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[0][0].hairpin_above,
+            Some(above)
+        );
+    }
+}
+
+#[test]
+fn above_hairpin_clears_up_stems_and_beams() {
+    use acorde_core::{BeamState, Duration, HairpinKind, Note, Pitch, Score, Step};
+    let mut score = Score::new("above wedge", 120, 4, 4, 0, 1);
+    let mut notes: Vec<_> = [Step::C, Step::E, Step::G]
+        .into_iter()
+        .map(|step| {
+            let mut note = Note::new(Pitch::new(step, 5), Duration::Eighth);
+            note.stem_up = Some(true);
+            note
+        })
+        .collect();
+    notes[0].beam = BeamState::Begin;
+    notes[1].beam = BeamState::Continue;
+    notes[2].beam = BeamState::End;
+    notes[0].hairpin_start = Some(HairpinKind::Crescendo);
+    notes[0].hairpin_above = Some(true);
+    notes[2].hairpin_end = true;
+    score.parts[0].staves[0].measures[0].voices[0] = notes;
     let svg = render_svg(&score, &opts()).unwrap();
+    let p = hairpin_path_coordinates(&svg)[0];
+    let bottom = p[1].max(p[3]).max(p[5]).max(p[7]);
+    let stem_tips: Vec<f32> = svg
+        .split("<line class=\"acorde-stem\"")
+        .skip(1)
+        .map(|part| {
+            part.split("y2=\"")
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap()
+                .parse()
+                .unwrap()
+        })
+        .collect();
+    assert_eq!(stem_tips.len(), 3);
+    assert!(
+        stem_tips.iter().all(|tip| bottom < *tip),
+        "hairpin bottom {bottom}, stems {stem_tips:?}"
+    );
+    assert!(
+        p[1] >= 0.0 && p[3] >= 0.0 && p[5] >= 0.0 && p[7] >= 0.0,
+        "hairpin is clipped: {p:?}"
+    );
+}
+
+#[test]
+fn above_hairpin_stays_above_notes_on_both_systems() {
+    use acorde_core::{Duration, HairpinKind, Note, Pitch, Score, Step};
+    let mut score = Score::new("cross-system above", 120, 4, 4, 0, 2);
+    let measures = &mut score.parts[0].staves[0].measures;
+    measures[0].voices[0] = vec![Note::new(Pitch::new(Step::C, 5), Duration::Whole)];
+    measures[1].voices[0] = vec![Note::new(Pitch::new(Step::D, 5), Duration::Whole)];
+    measures[0].voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+    measures[0].voices[0][0].hairpin_above = Some(true);
+    measures[1].voices[0][0].hairpin_end = true;
+    let mut options = opts();
+    options.measures_per_system = 1;
+    let svg = render_svg(&score, &options).unwrap();
+    let paths = hairpin_path_coordinates(&svg);
     let heads = notehead_centers(&svg);
+    assert_eq!(paths.len(), 2);
     assert_eq!(heads.len(), 2);
-    assert!((heads[0].0 - heads[1].0).abs() < 0.1, "{heads:?}");
-    assert!(svg.contains(">dolce</text>"));
+    for (path, (_, head_y)) in paths.iter().zip(heads) {
+        assert!(
+            path[1].max(path[3]).max(path[5]).max(path[7]) < head_y,
+            "{path:?}, {head_y}"
+        );
+    }
+}
+
+#[test]
+fn below_hairpin_does_not_cross_high_notes_on_lower_staff() {
+    use acorde_core::{Clef, Duration, HairpinKind, Measure, Note, Pitch, Score, Staff, Step};
+    let mut score = Score::new("grand staff wedge", 120, 4, 4, 0, 1);
+    let upper = &mut score.parts[0].staves[0].measures[0];
+    upper.voices[0] = vec![
+        Note::new(Pitch::new(Step::C, 4), Duration::Half),
+        Note::new(Pitch::new(Step::D, 4), Duration::Half),
+    ];
+    upper.voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+    upper.voices[0][0].hairpin_above = Some(false);
+    upper.voices[0][1].hairpin_end = true;
+    let mut lower = Staff::new(Clef::Bass);
+    let mut bar = Measure::empty(4, 4);
+    bar.voices[0] = vec![
+        Note::new(Pitch::new(Step::G, 5), Duration::Half),
+        Note::new(Pitch::new(Step::A, 5), Duration::Half),
+    ];
+    lower.measures.push(bar);
+    score.parts[0].staves.push(lower);
+    let svg = render_svg(&score, &opts()).unwrap();
+    let path = hairpin_path_coordinates(&svg)[0];
+    let heads = notehead_centers(&svg);
+    let top = path[1].min(path[3]).min(path[5]).min(path[7]);
+    let bottom = path[1].max(path[3]).max(path[5]).max(path[7]);
+    let mut checked = 0;
+    for &(x, y) in &heads[2..] {
+        if x >= path[0].min(path[2]) && x <= path[0].max(path[2]) {
+            checked += 1;
+            assert!(
+                y + 0.5 * opts().staff_size < top || y - 0.5 * opts().staff_size > bottom,
+                "lower head ({x}, {y}) overlaps wedge {path:?}"
+            );
+        }
+    }
+    assert!(
+        checked > 0,
+        "no lower head shared the wedge span: {heads:?}, {path:?}"
+    );
+    let stems: Vec<_> = svg
+        .split("<line class=\"acorde-stem\"")
+        .skip(1)
+        .map(|fragment| {
+            let attr = |name: &str| -> f32 {
+                fragment
+                    .split(&format!("{name}=\""))
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap()
+                    .parse()
+                    .unwrap()
+            };
+            (attr("x1"), attr("y1"), attr("y2"))
+        })
+        .collect();
+    for &(x, y1, y2) in &stems[2..] {
+        if x >= path[0].min(path[2]) && x <= path[0].max(path[2]) {
+            assert!(
+                y1.max(y2) < top || y1.min(y2) > bottom,
+                "lower stem ({x}, {y1}, {y2}) intersects wedge {path:?}"
+            );
+        }
+    }
 }
 
 #[test]
@@ -5622,6 +5771,433 @@ fn timed_pedal_signs_show_at_distinct_positions_inside_a_sustained_note() {
     let hidden = render_svg(&score, &opts()).unwrap();
     assert!(!hidden.contains(">Ped.</text>"));
     assert!(hidden.contains(">*</text>"));
+}
+
+#[test]
+fn above_hairpin_does_not_cross_low_stems_on_upper_staff() {
+    use acorde_core::{Clef, Duration, HairpinKind, Measure, Note, Pitch, Score, Staff, Step};
+    let mut score = Score::new("above lower staff wedge", 120, 4, 4, 0, 1);
+    let upper = &mut score.parts[0].staves[0].measures[0];
+    upper.voices[0] = vec![
+        Note::new(Pitch::new(Step::C, 3), Duration::Half),
+        Note::new(Pitch::new(Step::D, 3), Duration::Half),
+    ];
+    for note in &mut upper.voices[0] {
+        note.stem_up = Some(false);
+    }
+    let mut lower = Staff::new(Clef::Bass);
+    let mut bar = Measure::empty(4, 4);
+    bar.voices[0] = vec![
+        Note::new(Pitch::new(Step::G, 3), Duration::Half),
+        Note::new(Pitch::new(Step::A, 3), Duration::Half),
+    ];
+    bar.voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+    bar.voices[0][0].hairpin_above = Some(true);
+    bar.voices[0][1].hairpin_end = true;
+    lower.measures.push(bar);
+    score.parts[0].staves.push(lower);
+    let svg = render_svg(&score, &opts()).unwrap();
+    let path = hairpin_path_coordinates(&svg)[0];
+    let top = path[1].min(path[3]).min(path[5]).min(path[7]);
+    let bottom = path[1].max(path[3]).max(path[5]).max(path[7]);
+    let stems: Vec<_> = svg
+        .split("<line class=\"acorde-stem\"")
+        .skip(1)
+        .map(|fragment| {
+            let attr = |name: &str| -> f32 {
+                fragment
+                    .split(&format!("{name}=\""))
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap()
+                    .parse()
+                    .unwrap()
+            };
+            (attr("x1"), attr("y1"), attr("y2"))
+        })
+        .collect();
+    assert_eq!(stems.len(), 4);
+    let mut checked = 0;
+    for &(x, y1, y2) in &stems[..2] {
+        if x >= path[0].min(path[2]) && x <= path[0].max(path[2]) {
+            checked += 1;
+            assert!(
+                y1.max(y2) < top || y1.min(y2) > bottom,
+                "upper stem ({x}, {y1}, {y2}) intersects wedge {path:?}"
+            );
+        }
+    }
+    assert!(checked > 0);
+}
+
+#[test]
+fn interstaff_hairpin_clearance_is_kept_across_system_breaks() {
+    use acorde_core::{Clef, Duration, HairpinKind, Measure, Note, Pitch, Score, Staff, Step};
+    let mut score = Score::new("cross-system interstaff wedge", 120, 4, 4, 0, 2);
+    for (index, measure) in score.parts[0].staves[0].measures.iter_mut().enumerate() {
+        measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        if index == 0 {
+            measure.voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+        } else {
+            measure.voices[0][0].hairpin_end = true;
+        }
+    }
+    let mut lower = Staff::new(Clef::Bass);
+    for _ in 0..2 {
+        let mut bar = Measure::empty(4, 4);
+        bar.voices[0] = vec![Note::new(Pitch::new(Step::G, 5), Duration::Whole)];
+        lower.measures.push(bar);
+    }
+    score.parts[0].staves.push(lower);
+    let mut options = opts();
+    options.measures_per_system = 1;
+    let svg = render_svg(&score, &options).unwrap();
+    let paths = hairpin_path_coordinates(&svg);
+    let heads = notehead_centers(&svg);
+    assert_eq!(paths.len(), 2);
+    assert_eq!(heads.len(), 4);
+    for (row, path) in paths.iter().enumerate() {
+        let bottom = path[1].max(path[3]).max(path[5]).max(path[7]);
+        let (_, lower_y) = heads[row * 2 + 1];
+        assert!(
+            lower_y - options.staff_size * 0.5 > bottom,
+            "system {row}: lower head {lower_y}, wedge {path:?}"
+        );
+    }
+}
+
+#[test]
+fn below_hairpin_clears_upper_beam_on_adjacent_lower_staff() {
+    use acorde_core::{
+        BeamState, Clef, Duration, HairpinKind, Measure, Note, Pitch, Score, Staff, Step,
+    };
+    let mut score = Score::new("interstaff beam wedge", 120, 4, 4, 0, 1);
+    let upper = &mut score.parts[0].staves[0].measures[0];
+    upper.voices[0] = vec![
+        Note::new(Pitch::new(Step::C, 4), Duration::Half),
+        Note::new(Pitch::new(Step::D, 4), Duration::Half),
+    ];
+    upper.voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+    upper.voices[0][1].hairpin_end = true;
+    let mut lower = Staff::new(Clef::Bass);
+    let mut bar = Measure::empty(4, 4);
+    bar.voices[0] = [Step::C, Step::E, Step::G]
+        .into_iter()
+        .map(|step| {
+            let mut note = Note::new(Pitch::new(step, 5), Duration::Eighth);
+            note.stem_up = Some(true);
+            note
+        })
+        .collect();
+    bar.voices[0][0].beam = BeamState::Begin;
+    bar.voices[0][1].beam = BeamState::Continue;
+    bar.voices[0][2].beam = BeamState::End;
+    lower.measures.push(bar);
+    score.parts[0].staves.push(lower);
+    let svg = render_svg(&score, &opts()).unwrap();
+    let path = hairpin_path_coordinates(&svg)[0];
+    let bottom = path[1].max(path[3]).max(path[5]).max(path[7]);
+    let beam = svg
+        .split(r#"class="acorde-beam" points=""#)
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap();
+    let points: Vec<f32> = beam
+        .split([',', ' '])
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    assert_eq!(points.len(), 8);
+    let beam_top = points
+        .iter()
+        .skip(1)
+        .step_by(2)
+        .copied()
+        .fold(f32::INFINITY, f32::min);
+    assert!(
+        beam_top > bottom,
+        "beam {points:?} intersects wedge {path:?}"
+    );
+}
+
+#[test]
+fn above_hairpin_clears_lower_beam_on_adjacent_upper_staff() {
+    use acorde_core::{
+        BeamState, Clef, Duration, HairpinKind, Measure, Note, Pitch, Score, Staff, Step,
+    };
+    let mut score = Score::new("interstaff upper beam wedge", 120, 4, 4, 0, 1);
+    let upper = &mut score.parts[0].staves[0].measures[0];
+    upper.voices[0] = [Step::C, Step::E, Step::G]
+        .into_iter()
+        .map(|step| {
+            let mut note = Note::new(Pitch::new(step, 3), Duration::Eighth);
+            note.stem_up = Some(false);
+            note
+        })
+        .collect();
+    upper.voices[0][0].beam = BeamState::Begin;
+    upper.voices[0][1].beam = BeamState::Continue;
+    upper.voices[0][2].beam = BeamState::End;
+    let mut lower = Staff::new(Clef::Bass);
+    let mut bar = Measure::empty(4, 4);
+    bar.voices[0] = vec![
+        Note::new(Pitch::new(Step::G, 3), Duration::Half),
+        Note::new(Pitch::new(Step::A, 3), Duration::Half),
+    ];
+    bar.voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+    bar.voices[0][0].hairpin_above = Some(true);
+    bar.voices[0][1].hairpin_end = true;
+    lower.measures.push(bar);
+    score.parts[0].staves.push(lower);
+    let svg = render_svg(&score, &opts()).unwrap();
+    let path = hairpin_path_coordinates(&svg)[0];
+    let top = path[1].min(path[3]).min(path[5]).min(path[7]);
+    let beam = svg
+        .split(r#"class="acorde-beam" points=""#)
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap();
+    let points: Vec<f32> = beam
+        .split([',', ' '])
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    assert_eq!(points.len(), 8);
+    let beam_bottom = points
+        .iter()
+        .skip(1)
+        .step_by(2)
+        .copied()
+        .fold(f32::NEG_INFINITY, f32::max);
+    assert!(
+        beam_bottom < top,
+        "beam {points:?} intersects wedge {path:?}"
+    );
+}
+
+#[test]
+fn interstaff_hairpin_comparison_fixture_avoids_lower_stems() {
+    let score = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/issue_295_interstaff_hairpin.musicxml"
+    ))
+    .unwrap();
+    let svg = render_svg(&score, &opts()).unwrap();
+    let path = hairpin_path_coordinates(&svg)[0];
+    let top = path[1].min(path[3]).min(path[5]).min(path[7]);
+    let bottom = path[1].max(path[3]).max(path[5]).max(path[7]);
+    let stems: Vec<_> = svg
+        .split("<line class=\"acorde-stem\"")
+        .skip(1)
+        .map(|tag| {
+            let attr = |name: &str| -> f32 {
+                tag.split(&format!("{name}=\""))
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap()
+                    .parse()
+                    .unwrap()
+            };
+            (attr("x1"), attr("y1"), attr("y2"))
+        })
+        .collect();
+    assert_eq!(stems.len(), 4);
+    let mut checked = 0;
+    for &(x, y1, y2) in &stems[2..] {
+        if x >= path[0].min(path[2]) && x <= path[0].max(path[2]) {
+            checked += 1;
+            assert!(
+                y1.max(y2) < top || y1.min(y2) > bottom,
+                "lower stem ({x}, {y1}, {y2}) intersects {path:?}"
+            );
+        }
+    }
+    assert!(checked > 0);
+}
+
+#[test]
+fn interstaff_hairpin_clears_lower_stems_after_dynamic_lane_resolution() {
+    use acorde_core::{
+        Clef, Duration, Dynamic, HairpinKind, Measure, Note, Pitch, Score, Staff, Step,
+    };
+    let mut score = Score::new("interstaff dynamics", 120, 4, 4, 0, 1);
+    let upper = &mut score.parts[0].staves[0].measures[0];
+    upper.voices[0] = vec![
+        Note::new(Pitch::new(Step::C, 4), Duration::Half),
+        Note::new(Pitch::new(Step::D, 4), Duration::Half),
+    ];
+    upper.voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+    upper.voices[0][0].dynamic = Some(Dynamic::P);
+    upper.voices[0][1].hairpin_end = true;
+    let mut lower = Staff::new(Clef::Bass);
+    let mut bar = Measure::empty(4, 4);
+    bar.voices[0] = vec![
+        Note::new(Pitch::new(Step::G, 5), Duration::Half),
+        Note::new(Pitch::new(Step::A, 5), Duration::Half),
+    ];
+    lower.measures.push(bar);
+    score.parts[0].staves.push(lower);
+    let svg = render_svg(&score, &opts()).unwrap();
+    let path = hairpin_path_coordinates(&svg)[0];
+    let (top, bottom) = (
+        path[1].min(path[3]).min(path[5]).min(path[7]),
+        path[1].max(path[3]).max(path[5]).max(path[7]),
+    );
+    let stems: Vec<_> = svg
+        .split("<line class=\"acorde-stem\"")
+        .skip(1)
+        .map(|tag| {
+            let attr = |name: &str| -> f32 {
+                tag.split(&format!("{name}=\""))
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap()
+                    .parse()
+                    .unwrap()
+            };
+            (attr("x1"), attr("y1"), attr("y2"))
+        })
+        .collect();
+    assert_eq!(stems.len(), 4);
+    for &(x, y1, y2) in &stems[2..] {
+        if x >= path[0].min(path[2]) && x <= path[0].max(path[2]) {
+            assert!(
+                y1.max(y2) < top || y1.min(y2) > bottom,
+                "lower stem ({x}, {y1}, {y2}) crosses {path:?}"
+            );
+        }
+    }
+}
+#[test]
+fn interstaff_hairpin_clears_notes_in_next_part() {
+    use acorde_core::{
+        Clef, Duration, HairpinKind, Measure, Note, Part, Pitch, Score, Staff, Step,
+    };
+    let mut score = Score::new("two-part interstaff wedge", 120, 4, 4, 0, 1);
+    let upper = &mut score.parts[0].staves[0].measures[0];
+    upper.voices[0] = vec![
+        Note::new(Pitch::new(Step::C, 4), Duration::Half),
+        Note::new(Pitch::new(Step::D, 4), Duration::Half),
+    ];
+    upper.voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+    upper.voices[0][1].hairpin_end = true;
+    let mut lower = Staff::new(Clef::Bass);
+    let mut bar = Measure::empty(4, 4);
+    bar.voices[0] = vec![
+        Note::new(Pitch::new(Step::G, 5), Duration::Half),
+        Note::new(Pitch::new(Step::A, 5), Duration::Half),
+    ];
+    lower.measures.push(bar);
+    let mut part = Part::new("Lower", "L");
+    part.staves.push(lower);
+    score.parts.push(part);
+    let svg = render_svg(&score, &opts()).unwrap();
+    let path = hairpin_path_coordinates(&svg)[0];
+    let (top, bottom) = (
+        path[1].min(path[3]).min(path[5]).min(path[7]),
+        path[1].max(path[3]).max(path[5]).max(path[7]),
+    );
+    let stems: Vec<_> = svg
+        .split("<line class=\"acorde-stem\"")
+        .skip(1)
+        .map(|tag| {
+            let attr = |name: &str| -> f32 {
+                tag.split(&format!("{name}=\""))
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap()
+                    .parse()
+                    .unwrap()
+            };
+            (attr("x1"), attr("y1"), attr("y2"))
+        })
+        .collect();
+    assert_eq!(stems.len(), 4);
+    let mut checked = 0;
+    for &(x, y1, y2) in &stems[2..] {
+        if x >= path[0].min(path[2]) && x <= path[0].max(path[2]) {
+            checked += 1;
+            assert!(
+                y1.max(y2) < top || y1.min(y2) > bottom,
+                "next-part stem ({x}, {y1}, {y2}) crosses {path:?}"
+            );
+        }
+    }
+    assert!(checked > 0);
+}
+
+#[test]
+fn musicxml_hairpin_starting_on_rest_keeps_placement_and_visible_span() {
+    for (placement, above) in [("above", true), ("below", false)] {
+        let xml = format!(
+            r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes><direction placement="{placement}"><direction-type><wedge type="crescendo"/></direction-type></direction><note><rest/><duration>1</duration><type>quarter</type></note><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note><direction><direction-type><wedge type="stop"/></direction-type></direction><note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#
+        );
+        let score = acorde_io::parse_musicxml(&xml).unwrap();
+        let first = &score.parts[0].staves[0].measures[0].voices[0][0];
+        assert!(first.is_rest);
+        assert_eq!(first.hairpin_above, Some(above));
+        let svg = render_svg(&score, &opts()).unwrap();
+        let paths = hairpin_path_coordinates(&svg);
+        assert_eq!(paths.len(), 1, "{svg}");
+        assert!(paths[0][2] > paths[0][0]);
+        let head_y = notehead_centers(&svg)[0].1;
+        if above {
+            assert!(
+                paths[0][1]
+                    .max(paths[0][3])
+                    .max(paths[0][5])
+                    .max(paths[0][7])
+                    < head_y
+            );
+        } else {
+            assert!(
+                paths[0][1]
+                    .min(paths[0][3])
+                    .min(paths[0][5])
+                    .min(paths[0][7])
+                    > head_y
+            );
+        }
+        let restored =
+            acorde_io::parse_musicxml(&acorde_io::serialize_musicxml(&score).unwrap()).unwrap();
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[0][0].hairpin_above,
+            Some(above)
+        );
+    }
+}
+
+#[test]
+fn simultaneous_voices_align_with_measure_text() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step, StyledText, TextStyle};
+    let mut score = Score::new("voice alignment", 120, 4, 4, 0, 1);
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.voices[0] = vec![Note::new(Pitch::new(Step::A, 4), Duration::Quarter)];
+    measure.voices[1] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+    measure.texts.push(StyledText {
+        position_beats: Some(0.0),
+        style: TextStyle::Expression,
+        text: "dolce".into(),
+        placement: Some("above".into()),
+        offset_x: None,
+        offset_y: None,
+        relative_x: None,
+        relative_y: None,
+    });
+    let svg = render_svg(&score, &opts()).unwrap();
+    let heads = notehead_centers(&svg);
+    assert_eq!(heads.len(), 2);
+    assert!((heads[0].0 - heads[1].0).abs() < 0.1, "{heads:?}");
+    assert!(svg.contains(">dolce</text>"));
 }
 
 #[test]
