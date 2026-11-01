@@ -303,6 +303,8 @@ struct MidiNoteCandidate {
     tie_start: bool,
     tie_end: bool,
     partial_end: bool,
+    source_location: Option<acorde_core::TieSourceLocation>,
+    written_onset: f64,
     staff: usize,
     voice: usize,
     measure: usize,
@@ -312,6 +314,7 @@ struct MidiNoteCandidate {
 
 struct OpenMidiTie {
     off_event: usize,
+    written_onset: f64,
     staff: usize,
     voice: usize,
     measure: usize,
@@ -578,6 +581,12 @@ fn build_part_track(
                                 tie_end: note.pitch_tie_end(pitch_index),
                                 partial_end: note.pitch_incoming_partial_ties.get(pitch_index)
                                     == Some(&true),
+                                source_location: note
+                                    .pitch_tie_sources
+                                    .get(pitch_index)
+                                    .cloned()
+                                    .flatten(),
+                                written_onset: onset_beats,
                                 staff: staff_index,
                                 voice: voice_idx,
                                 measure: idx,
@@ -617,7 +626,29 @@ fn build_part_track(
                     .filter(|(_, candidate)| {
                         let jumped = note.measure != candidate.measure.saturating_add(1)
                             && (note.measure != candidate.measure || note.note <= candidate.note);
-                        (note.tie_end || (note.partial_end && jumped))
+                        let target = acorde_core::NoteAddr {
+                            part: 0,
+                            staff: note.staff,
+                            measure: note.measure,
+                            voice: note.voice,
+                            note: note.note,
+                        };
+                        let previous = acorde_core::NoteAddr {
+                            part: 0,
+                            staff: candidate.staff,
+                            measure: candidate.measure,
+                            voice: candidate.voice,
+                            note: candidate.note,
+                        };
+                        let ordinary_matches = note.tie_end
+                            && note.source_location.as_ref().is_none_or(|location| {
+                                location.matches(
+                                    &target,
+                                    &previous,
+                                    candidate.written_onset - note.written_onset,
+                                )
+                            });
+                        (ordinary_matches || (note.partial_end && jumped))
                             && events[candidate.off_event].abs_tick == note.start_tick
                     })
                     .max_by_key(|(_, candidate)| {
@@ -632,6 +663,7 @@ fn build_part_track(
                         candidate.voice = note.voice;
                         candidate.measure = note.measure;
                         candidate.note = note.note;
+                        candidate.written_onset = note.written_onset;
                         candidates.push(candidate);
                     }
                     continue;
@@ -666,6 +698,7 @@ fn build_part_track(
         if note.tie_start {
             open_ties.entry(note.pitch).or_default().push(OpenMidiTie {
                 off_event: events.len() - 1,
+                written_onset: note.written_onset,
                 staff: note.staff,
                 voice: note.voice,
                 measure: note.measure,

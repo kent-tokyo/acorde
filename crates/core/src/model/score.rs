@@ -2373,6 +2373,37 @@ impl Measure {
     }
 }
 
+/// Relative MuseScore location of an explicitly referenced tie predecessor.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TieSourceLocation {
+    pub measures: i32,
+    pub staves: i32,
+    pub voices: i32,
+    /// Signed difference between within-measure onsets, in whole-note units.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fractions: Option<String>,
+}
+
+impl TieSourceLocation {
+    /// Check whether `previous` is the source referenced from `target`.
+    pub fn matches(&self, target: &NoteAddr, previous: &NoteAddr, beat_difference: f64) -> bool {
+        let shifted = |value: usize, delta: i32| value.checked_add_signed(delta as isize);
+        let beat = match self.fractions.as_deref() {
+            None => Some(0.0),
+            Some(value) => value.split_once('/').and_then(|(n, d)| {
+                let numerator = n.parse::<i32>().ok()?;
+                let denominator = d.parse::<u32>().ok()?;
+                (denominator != 0).then_some(f64::from(numerator) * 4.0 / f64::from(denominator))
+            }),
+        };
+        target.part == previous.part
+            && shifted(target.measure, self.measures) == Some(previous.measure)
+            && shifted(target.staff, self.staves) == Some(previous.staff)
+            && shifted(target.voice, self.voices) == Some(previous.voice)
+            && beat.is_some_and(|value| (value - beat_difference).abs() < 1e-7)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Note {
     pub id: String,
@@ -2421,6 +2452,9 @@ pub struct Note {
     /// ties from a repeat or jump and are distinct from ordinary tie endpoints.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub pitch_incoming_partial_ties: Vec<bool>,
+    /// Per-pitch explicit relative predecessor locations, if supplied by the source.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pitch_tie_sources: Vec<Option<TieSourceLocation>>,
     /// Per-pitch accidental display, parallel to `pitches`. Empty (the usual case) leaves every
     /// accidental to the notation rules; pitches past the end are `Auto`, and a vector longer
     /// than `pitches` is ignored. See [`Note::accidental_display`].
@@ -2580,6 +2614,7 @@ impl Note {
             pitch_tie_starts: Vec::new(),
             pitch_tie_ends: Vec::new(),
             pitch_incoming_partial_ties: Vec::new(),
+            pitch_tie_sources: Vec::new(),
             pitch_accidentals: Vec::new(),
             pitch_parentheses: Vec::new(),
             pitch_fingerings: Vec::new(),
@@ -2643,6 +2678,7 @@ impl Note {
             pitch_tie_starts: Vec::new(),
             pitch_tie_ends: Vec::new(),
             pitch_incoming_partial_ties: Vec::new(),
+            pitch_tie_sources: Vec::new(),
             pitch_accidentals: Vec::new(),
             pitch_parentheses: Vec::new(),
             pitch_fingerings: Vec::new(),
@@ -2694,6 +2730,7 @@ impl Note {
         copy.tie_start = false;
         copy.tie_end = false;
         copy.pitch_incoming_partial_ties.clear();
+        copy.pitch_tie_sources.clear();
         copy.slur_start = false;
         copy.slur_end = false;
         copy.hairpin_start = None;
@@ -5239,6 +5276,7 @@ fn note_content_eq(a: &Note, b: &Note) -> bool {
         && a.tie_start == b.tie_start
         && a.tie_end == b.tie_end
         && a.pitch_incoming_partial_ties == b.pitch_incoming_partial_ties
+        && a.pitch_tie_sources == b.pitch_tie_sources
         && a.beam == b.beam
         && a.explicit_unbeamed == b.explicit_unbeamed
         && a.articulations == b.articulations

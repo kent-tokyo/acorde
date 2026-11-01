@@ -1542,7 +1542,30 @@ fn write_note(
         if tie_start || tie_end {
             xml.push_str("<Spanner type=\"Tie\">");
             if tie_end {
-                xml.push_str("<prev/>");
+                if let Some(location) = note
+                    .pitch_tie_sources
+                    .get(pitch_index)
+                    .and_then(Option::as_ref)
+                {
+                    xml.push_str("<prev><location>");
+                    if location.staves != 0 {
+                        write!(xml, "<staves>{}</staves>", location.staves).map_err(fmt_error)?;
+                    }
+                    if location.voices != 0 {
+                        write!(xml, "<voices>{}</voices>", location.voices).map_err(fmt_error)?;
+                    }
+                    if location.measures != 0 {
+                        write!(xml, "<measures>{}</measures>", location.measures)
+                            .map_err(fmt_error)?;
+                    }
+                    if let Some(fractions) = &location.fractions {
+                        write!(xml, "<fractions>{}</fractions>", escape(fractions))
+                            .map_err(fmt_error)?;
+                    }
+                    xml.push_str("</location></prev>");
+                } else {
+                    xml.push_str("<prev/>");
+                }
             }
             if tie_start {
                 xml.push_str("<next/>");

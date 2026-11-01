@@ -192,10 +192,12 @@ MSCX, MEI and ABC export reports warn when these timed directions cannot be repr
 
 ### Incoming MuseScore partial ties
 
-`Note::pitch_incoming_partial_ties` is a serde-defaulted vector parallel to the chord's pitches.
-Rust code using complete `Note` struct literals must initialize it, usually with `Vec::new()`.
+`Note::pitch_incoming_partial_ties` and `Note::pitch_tie_sources` are serde-defaulted vectors
+parallel to the chord's pitches. Rust code using complete `Note` struct literals must initialize
+both, usually with `Vec::new()`.
 An incoming partial tie is distinct from `tie_end`: it represents a continuation across a repeat
 or jump and is retained through MSCX. Re-import original MuseScore files to recover it. MusicXML,
 MEI, and ABC export reports identify this data as unsupported rather than silently claiming it
-survives conversion. Nonadjacent note-spanner locations and outgoing partial ties are reported
-on import and are not retained; other MuseScore jump-tie metadata is not yet complete.
+survives conversion. Explicit predecessor locations are retained in MSCX; other nonadjacent
+note-spanner endpoints and outgoing partial ties are reported when they may not be retained.
+MuseScore jump-tie metadata and complex navigation are not yet fully supported.

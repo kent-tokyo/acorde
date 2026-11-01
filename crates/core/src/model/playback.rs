@@ -3199,6 +3199,29 @@ fn merge_tied_events(
         } else {
             note.beats()
         };
+        let explicit_source = pitch_index
+            .and_then(|index| note.pitch_tie_sources.get(index))
+            .and_then(Option::as_ref);
+        let written_onset = |address: &NoteAddr| -> Option<f64> {
+            let notes = &score
+                .parts
+                .get(address.part)?
+                .staves
+                .get(address.staff)?
+                .measures
+                .get(address.measure)?
+                .voices
+                .get(address.voice)?;
+            Some(
+                notes
+                    .iter()
+                    .take(address.note)
+                    .filter(|note| !note.is_grace && !note.is_cue)
+                    .map(Note::beats)
+                    .sum(),
+            )
+        };
+        let target_onset = written_onset(source);
         let source_staff = source.staff;
         let source_voice = source.voice;
         let source_measure = source.measure;
@@ -3214,7 +3237,26 @@ fn merge_tied_events(
                         let jumped = source.measure != candidate.measure.saturating_add(1)
                             && (source.measure != candidate.measure
                                 || source.note <= candidate.note);
-                        (tie_end || (partial_end && jumped))
+                        let previous_address = NoteAddr {
+                            part: source.part,
+                            staff: candidate.staff,
+                            measure: candidate.measure,
+                            voice: candidate.voice,
+                            note: candidate.note,
+                        };
+                        let ordinary_matches = tie_end
+                            && explicit_source.is_none_or(|location| {
+                                written_onset(&previous_address)
+                                    .zip(target_onset)
+                                    .is_some_and(|(previous, target)| {
+                                        location.matches(
+                                            source,
+                                            &previous_address,
+                                            previous - target,
+                                        )
+                                    })
+                            });
+                        (ordinary_matches || (partial_end && jumped))
                             && (candidate.notated_end_beats - event.time_beats).abs() < 1e-9
                     })
                     .max_by_key(|(_, candidate)| {

@@ -174,6 +174,17 @@ fn nonadjacent_tie_source_location_is_reported() {
         .find(|item| item.code == "mscx.unsupported-nonadjacent-note-spanner-location")
         .unwrap();
     assert_eq!(diagnostic.preserved_value.as_deref(), Some("-3"));
+    let note = &report.score.parts[0].staves[0].measures[0].voices[0][0];
+    let location = note.pitch_tie_sources[0].as_ref().unwrap();
+    assert_eq!(
+        (location.measures, location.fractions.as_deref()),
+        (-3, Some("7/16"))
+    );
+    let roundtrip = parse_mscx(&serialize_mscx(&report.score).unwrap()).unwrap();
+    assert_eq!(
+        roundtrip.parts[0].staves[0].measures[0].voices[0][0].pitch_tie_sources,
+        note.pitch_tie_sources
+    );
     assert!(
         diagnostic
             .source_location
@@ -181,4 +192,60 @@ fn nonadjacent_tie_source_location_is_reported() {
             .unwrap()
             .ends_with("/Spanner/prev/location/measures")
     );
+}
+
+#[test]
+fn nonadjacent_explicit_tie_source_must_not_match_an_unrelated_adjacent_pitch() {
+    let xml = r#"<museScore version="4.50"><Score><Part id="1"><Staff id="1"/></Part><Staff id="1"><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc><Spanner type="Tie"><next/></Spanner></Note></Chord></voice></Measure><Measure><voice><Rest><durationType>whole</durationType></Rest></voice></Measure><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc><Spanner type="Tie"><next/></Spanner></Note></Chord></voice></Measure><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc><PartialTie><partialSpannerDirection>incoming</partialSpannerDirection></PartialTie><Spanner type="Tie"><prev><location><measures>-3</measures></location></prev></Spanner></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let score = parse_mscx(xml).unwrap();
+    let events = acorde_core::to_playback_events(&score, &acorde_core::PlaybackOptions::default());
+    assert_eq!(
+        events
+            .iter()
+            .map(|event| (event.time_beats, event.duration_beats))
+            .collect::<Vec<_>>(),
+        vec![(0.0, 4.0), (8.0, 4.0), (12.0, 4.0)]
+    );
+    #[cfg(feature = "midi")]
+    {
+        use midly::{MidiMessage, Smf, TrackEventKind};
+        let bytes = acorde_io::serialize_midi(&score).unwrap();
+        let midi = Smf::parse(&bytes).unwrap();
+        let attacks = midi.tracks[1].iter().filter(|event| matches!(event.kind,
+            TrackEventKind::Midi { message: MidiMessage::NoteOn { vel, .. }, .. } if vel.as_int() > 0)).count();
+        assert_eq!(attacks, 3);
+    }
+}
+
+#[test]
+fn explicit_source_measure_and_fraction_select_the_matching_note() {
+    let xml = r#"<museScore version="4.50"><Score><Part id="1"><Staff id="1"/></Part><Staff id="1"><Measure><voice><Chord><durationType>quarter</durationType><Note><pitch>62</pitch><tpc>16</tpc></Note></Chord><Chord><durationType>half</durationType><dots>1</dots><Note><pitch>60</pitch><tpc>14</tpc><Spanner type="Tie"><next/></Spanner></Note></Chord></voice></Measure><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc><Spanner type="Tie"><prev><location><measures>-1</measures><fractions>1/4</fractions></location></prev></Spanner></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let score = parse_mscx(xml).unwrap();
+    let events = acorde_core::to_playback_events(&score, &acorde_core::PlaybackOptions::default());
+    assert_eq!(
+        events
+            .iter()
+            .map(|event| (event.pitch_midi, event.time_beats, event.duration_beats))
+            .collect::<Vec<_>>(),
+        vec![(62, 0.0, 1.0), (60, 1.0, 7.0)]
+    );
+    let output = serialize_mscx(&score).unwrap();
+    let roundtrip = parse_mscx(&output).unwrap();
+    let events2 =
+        acorde_core::to_playback_events(&roundtrip, &acorde_core::PlaybackOptions::default());
+    assert_eq!(
+        events2
+            .iter()
+            .map(|event| (event.pitch_midi, event.time_beats, event.duration_beats))
+            .collect::<Vec<_>>(),
+        vec![(62, 0.0, 1.0), (60, 1.0, 7.0)]
+    );
+    #[cfg(feature = "midi")]
+    {
+        use midly::{MidiMessage, Smf, TrackEventKind};
+        let bytes = acorde_io::serialize_midi(&roundtrip).unwrap();
+        let midi = Smf::parse(&bytes).unwrap();
+        let attacks = midi.tracks[1].iter().filter(|event| matches!(event.kind, TrackEventKind::Midi { message: MidiMessage::NoteOn { key, vel }, .. } if key.as_int() == 60 && vel.as_int() > 0)).count();
+        assert_eq!(attacks, 1);
+    }
 }
