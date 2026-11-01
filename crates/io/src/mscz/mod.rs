@@ -141,6 +141,7 @@ struct PartMeta {
     short_name: String,
     midi_program: u8,
     midi_channel: u8,
+    named_channels: Vec<acorde_core::NamedInstrumentChannel>,
     staff_ids: Vec<Option<usize>>,
     staff_count: usize,
     default_clefs: Vec<Option<Clef>>,
@@ -245,6 +246,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut candidate_channel_priority: u8 = 0;
     let mut candidate_channel_program: u8 = 0;
     let mut candidate_midi_channel: u8 = 0;
+    let mut candidate_channel_name = String::new();
+    let mut cur_named_channels = Vec::new();
 
     // Staff data: 1-based staff ID → measures
     let mut staff_measures: HashMap<usize, Vec<Measure>> = HashMap::new();
@@ -278,6 +281,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut pending_next_clefs: HashMap<usize, Clef> = HashMap::new();
     let mut cur_tempo: Option<u16> = None;
     let mut cur_voices: [Vec<Note>; 4] = [vec![], vec![], vec![], vec![]];
+    let mut cur_channel_switches: Vec<acorde_core::VoiceChannelSwitch> = Vec::new();
 
     // Feature J: repeat barlines and volta
     let mut cur_barline_left = Barline::Normal;
@@ -551,6 +555,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         cur_part_program = 0;
                         cur_part_channel = 0;
                         selected_channel_priority = 0;
+                        cur_named_channels.clear();
                         cur_part_transpose = 0;
                         cur_part_staff_ids.clear();
                         cur_part_staff_count = 0;
@@ -566,7 +571,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "Channel" if in_instrument => {
                         in_channel = true;
-                        candidate_channel_priority = match attr_str(e, b"name").as_deref() {
+                        candidate_channel_name = attr_str(e, b"name").unwrap_or_default();
+                        candidate_channel_priority = match Some(candidate_channel_name.as_str()) {
                             None | Some("") | Some("normal") | Some("arco") => 2,
                             _ => 1,
                         };
@@ -639,6 +645,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         cur_clef_events.clear();
                         cur_tempo = None;
                         cur_voices = [vec![], vec![], vec![], vec![]];
+                        cur_channel_switches.clear();
                         cur_barline_left = Barline::Normal;
                         cur_barline_right = Barline::Normal;
                         cur_system_break = false;
@@ -720,6 +727,20 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         mscx_text_value.clear();
                         mscx_text_offset_x = None;
                         mscx_text_offset_y = None;
+                    }
+                    "channelSwitch" if in_measure && in_text_element => {
+                        if let Some(channel_name) = attr_str(e, b"name") {
+                            let voice = attr_usize(e, b"voice").unwrap_or(0);
+                            let position_beats = cur_voices[measure_voice_index.min(3)]
+                                .iter()
+                                .map(Note::beats)
+                                .sum();
+                            cur_channel_switches.push(acorde_core::VoiceChannelSwitch {
+                                voice,
+                                position_beats,
+                                channel_name,
+                            });
+                        }
                     }
                     "Text" | "StaffText" if in_vbox && !in_measure => {
                         in_text_element = true;
@@ -1236,6 +1257,13 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             cur_part_program = candidate_channel_program;
                             cur_part_channel = candidate_midi_channel;
                         }
+                        if !candidate_channel_name.is_empty() {
+                            cur_named_channels.push(acorde_core::NamedInstrumentChannel {
+                                name: candidate_channel_name.clone(),
+                                program: candidate_channel_program,
+                                midi_channel: candidate_midi_channel,
+                            });
+                        }
                         in_channel = false;
                     }
                     "midiChannel" if in_channel => {
@@ -1265,6 +1293,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             short_name: cur_part_short_name.clone(),
                             midi_program: cur_part_program,
                             midi_channel: cur_part_channel,
+                            named_channels: std::mem::take(&mut cur_named_channels),
                             staff_ids: cur_part_staff_ids.clone(),
                             staff_count: cur_part_staff_count,
                             default_clefs: cur_part_default_clefs.clone(),
@@ -1364,6 +1393,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             texts: std::mem::take(&mut cur_texts),
                             figured_bass: std::mem::take(&mut cur_figured_bass),
                             harp_pedal_diagrams: Vec::new(),
+                            channel_switches: std::mem::take(&mut cur_channel_switches),
                             multi_rest_count: None,
                             system_break: cur_system_break,
                             page_break: cur_page_break,
@@ -2248,6 +2278,20 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                 }
                 let name = local_name_str(e.local_name().as_ref());
                 match name.as_str() {
+                    "channelSwitch" if in_measure && in_text_element => {
+                        if let Some(channel_name) = attr_str(e, b"name") {
+                            let voice = attr_usize(e, b"voice").unwrap_or(0);
+                            let position_beats = cur_voices[measure_voice_index.min(3)]
+                                .iter()
+                                .map(Note::beats)
+                                .sum();
+                            cur_channel_switches.push(acorde_core::VoiceChannelSwitch {
+                                voice,
+                                position_beats,
+                                channel_name,
+                            });
+                        }
+                    }
                     // An empty MuseScore 4 voice wrapper occupies a slot just as
                     // <voice></voice> does; otherwise later voices shift left.
                     "voice" if in_measure && !in_chord && !in_rest_elem => {
@@ -2546,7 +2590,7 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                 if name == "channelSwitch" && path.iter().any(|element| element == "StaffText") {
                     let mut diagnostic = Diagnostic::warning(
                         "mscx.unsupported-channel-switch",
-                        "MuseScore voice channel switch is not applied to playback",
+                        "MuseScore voice channel switch is preserved; some export and routing cases are not yet supported",
                     );
                     diagnostic.source_location = Some(format!("/{}", path.join("/")));
                     diagnostic.preserved_value = Some(format!(
@@ -2622,7 +2666,7 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                 if name == "channelSwitch" && path.iter().any(|element| element == "StaffText") {
                     let mut diagnostic = Diagnostic::warning(
                         "mscx.unsupported-channel-switch",
-                        "MuseScore voice channel switch is not applied to playback",
+                        "MuseScore voice channel switch is preserved; some export and routing cases are not yet supported",
                     );
                     diagnostic.source_location = Some(format!("/{}/channelSwitch", path.join("/")));
                     diagnostic.preserved_value = Some(format!(
@@ -3260,6 +3304,7 @@ fn assemble_score(
             );
             part.midi_program = meta.midi_program;
             part.midi_channel = meta.midi_channel;
+            part.named_channels = meta.named_channels;
             let mut ids = Vec::new();
             for slot in 0..meta.staff_count.max(1) {
                 let id = meta.staff_ids.get(slot).copied().flatten().or_else(|| {

@@ -2,7 +2,6 @@ use acorde_core::{PlaybackOptions, to_playback_events};
 use acorde_io::{parse_mscx, parse_mscx_with_report};
 
 #[test]
-#[ignore = "voice-specific channel switches are not implemented yet"]
 fn explicit_musescore_channel_switch_selects_the_written_voice_program() {
     // A self-authored MusicXML example converted to MSCX by MuseScore 4.7.5,
     // then given the native voice-0 channelSwitch elements. MuseScore MIDI output
@@ -63,5 +62,165 @@ fn channel_switch_expanded_xml_retains_location_and_default_voice() {
             .as_deref()
             .unwrap()
             .ends_with("/StaffText/channelSwitch")
+    );
+}
+
+#[test]
+fn simultaneous_voices_keep_their_own_named_channels() {
+    let xml = r#"<museScore version="4.70"><Score><Part id="1"><Staff id="1"/><trackName>Violin</trackName><Instrument id="violin"><Channel name="arco"><program value="40"/></Channel><Channel name="pizzicato"><program value="45"/></Channel></Instrument></Part><Staff id="1"><Measure><voice><StaffText><channelSwitch voice="0" name="pizzicato"/><text>pizz.</text></StaffText><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord></voice><voice><Chord><durationType>whole</durationType><Note><pitch>64</pitch><tpc>18</tpc></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let score = parse_mscx(xml).unwrap();
+    let events = to_playback_events(&score, &PlaybackOptions::default());
+    assert_eq!(
+        events
+            .iter()
+            .map(|e| (e.pitch_midi, e.program))
+            .collect::<Vec<_>>(),
+        vec![(60, 45), (64, 40)]
+    );
+}
+
+#[test]
+fn a_switch_after_last_note_carries_to_the_next_bar() {
+    let xml = r#"<museScore version="4.70"><Score><Part id="1"><Staff id="1"/><trackName>Violin</trackName><Instrument id="violin"><Channel name="arco"><program value="40"/></Channel><Channel name="pizzicato"><program value="45"/></Channel></Instrument></Part><Staff id="1"><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord><StaffText><channelSwitch voice="0" name="pizzicato"/><text>pizz.</text></StaffText></voice></Measure><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>62</pitch><tpc>16</tpc></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let score = parse_mscx(xml).unwrap();
+    let events = to_playback_events(&score, &PlaybackOptions::default());
+    assert_eq!(
+        events
+            .iter()
+            .map(|e| (e.pitch_midi, e.program))
+            .collect::<Vec<_>>(),
+        vec![(60, 40), (62, 45)]
+    );
+}
+
+#[test]
+fn named_channel_and_note_aligned_switches_survive_mscx_roundtrip() {
+    let xml = include_str!("../../../tests/fixtures/issue_280_channel_switch.mscx");
+    let score = parse_mscx(xml).unwrap();
+    let output = acorde_io::serialize_mscx(&score).unwrap();
+    let restored = parse_mscx(&output).unwrap();
+    assert_eq!(
+        restored.parts[0].named_channels,
+        score.parts[0].named_channels
+    );
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].channel_switches,
+        score.parts[0].staves[0].measures[0].channel_switches
+    );
+    let events = to_playback_events(&restored, &PlaybackOptions::default());
+    assert_eq!(
+        events
+            .iter()
+            .map(|e| (e.pitch_midi, e.program))
+            .collect::<Vec<_>>(),
+        vec![(60, 45), (62, 40)]
+    );
+}
+
+#[cfg(feature = "midi")]
+#[test]
+fn simultaneous_voices_export_to_independent_midi_programs() {
+    use midly::{MidiMessage, Smf, TrackEventKind};
+    let xml = r#"<museScore version="4.70"><Score><Part id="1"><Staff id="1"/><trackName>Violin</trackName><Instrument id="violin"><Channel name="arco"><program value="40"/></Channel><Channel name="pizzicato"><program value="45"/></Channel></Instrument></Part><Staff id="1"><Measure><voice><StaffText><channelSwitch voice="0" name="pizzicato"/><text>pizz.</text></StaffText><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord></voice><voice><Chord><durationType>whole</durationType><Note><pitch>64</pitch><tpc>18</tpc></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let score = parse_mscx(xml).unwrap();
+    let bytes = acorde_io::serialize_midi(&score).unwrap();
+    let midi = Smf::parse(&bytes).unwrap();
+    let mut programs = [0u8; 16];
+    let mut observed = Vec::new();
+    for event in &midi.tracks[1] {
+        if let TrackEventKind::Midi { channel, message } = event.kind {
+            match message {
+                MidiMessage::ProgramChange { program } => {
+                    programs[channel.as_int() as usize] = program.as_int()
+                }
+                MidiMessage::NoteOn { key, vel } if vel.as_int() > 0 => observed.push((
+                    key.as_int(),
+                    channel.as_int(),
+                    programs[channel.as_int() as usize],
+                )),
+                _ => {}
+            }
+        }
+    }
+    observed.sort_unstable();
+    assert_eq!(observed.len(), 2);
+    assert_eq!((observed[0].0, observed[0].2), (60, 45));
+    assert_eq!((observed[1].0, observed[1].2), (64, 40));
+    assert_ne!(observed[0].1, observed[1].1);
+}
+
+#[test]
+fn channel_semantics_are_retained_by_score_diff_and_patch() {
+    use acorde_core::{apply_patch, diff, score_patch};
+    let score = parse_mscx(include_str!(
+        "../../../tests/fixtures/issue_280_channel_switch.mscx"
+    ))
+    .unwrap();
+    let mut before = score.clone();
+    before.parts[0].named_channels.clear();
+    before.parts[0].staves[0].measures[0]
+        .channel_switches
+        .clear();
+    assert!(!diff(&before, &score).is_empty());
+    let restored = apply_patch(&before, &score_patch(&before, &score)).unwrap();
+    assert_eq!(
+        restored.parts[0].named_channels,
+        score.parts[0].named_channels
+    );
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].channel_switches,
+        score.parts[0].staves[0].measures[0].channel_switches
+    );
+}
+
+#[test]
+fn non_note_boundary_switch_is_reported_as_a_native_export_loss() {
+    let mut score = parse_mscx(include_str!(
+        "../../../tests/fixtures/issue_280_channel_switch.mscx"
+    ))
+    .unwrap();
+    score.parts[0].staves[0].measures[0].channel_switches[0].position_beats = 0.25;
+    let report = acorde_io::serialize_mscx_with_report(&score).unwrap();
+    assert!(report.diagnostics.iter().any(|diagnostic| {
+        diagnostic
+            .source_location
+            .as_deref()
+            .is_some_and(|path| path.ends_with("/channel-switch"))
+    }));
+    assert!(!report.output.contains("name=\"pizzicato\"/></StaffText>"));
+}
+
+#[cfg(feature = "midi")]
+#[test]
+fn midi_reports_channel_exhaustion_instead_of_changing_another_part() {
+    let mut score = parse_mscx(include_str!(
+        "../../../tests/fixtures/issue_280_channel_switch.mscx"
+    ))
+    .unwrap();
+    score.parts[0].midi_aftertouch = (1..16)
+        .map(|channel| acorde_core::MidiAftertouch {
+            tick: 0,
+            channel,
+            key: None,
+            value: 0,
+        })
+        .collect();
+    let error = acorde_io::serialize_midi(&score).unwrap_err().to_string();
+    assert!(error.contains("no free MIDI channel"), "{error}");
+}
+
+#[cfg(feature = "musicxml")]
+#[test]
+fn exporting_named_channels_to_musicxml_reports_the_loss() {
+    let score = parse_mscx(include_str!(
+        "../../../tests/fixtures/issue_280_channel_switch.mscx"
+    ))
+    .unwrap();
+    let report = acorde_io::serialize_musicxml_with_report(&score).unwrap();
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "musicxml.export-unsupported-named-channels")
     );
 }

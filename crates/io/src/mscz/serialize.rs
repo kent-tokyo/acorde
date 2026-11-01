@@ -265,6 +265,31 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
             }
             for (measure_index, measure) in staff.measures.iter().enumerate() {
                 let measure_path = format!("{staff_path}/measure/{}", measure_index + 1);
+                for switch in &measure.channel_switches {
+                    let aligned = measure.voices.get(switch.voice).is_some_and(|voice| {
+                        let mut beat = 0.0;
+                        if switch.position_beats.abs() < 1e-9 {
+                            return true;
+                        }
+                        for note in voice {
+                            beat += note.beats();
+                            if (beat - switch.position_beats).abs() < 1e-9 {
+                                return true;
+                            }
+                        }
+                        false
+                    });
+                    if !aligned {
+                        push(
+                            format!("{measure_path}/channel-switch"),
+                            format!(
+                                "voice={},beat={},name={}",
+                                switch.voice, switch.position_beats, switch.channel_name
+                            ),
+                            "MSCX export cannot retain a switch between this voice's note boundaries",
+                        );
+                    }
+                }
                 for (field, present, value, reason) in [
                     (
                         "tempo-text",
@@ -463,11 +488,15 @@ pub fn serialize_mscx(score: &Score) -> Result<String, Error> {
         }
         write!(
             xml,
-            "<Channel><program value=\"{}\"/><midiChannel>{}</midiChannel></Channel></Instrument>",
+            "<Channel><program value=\"{}\"/><midiChannel>{}</midiChannel></Channel>",
             part.midi_program.min(127),
             part.midi_channel.min(15)
         )
         .map_err(fmt_error)?;
+        for channel in &part.named_channels {
+            write!(xml, "<Channel name=\"{}\"><program value=\"{}\"/><midiChannel>{}</midiChannel></Channel>", escape(&channel.name), channel.program.min(127), channel.midi_channel.min(15)).map_err(fmt_error)?;
+        }
+        xml.push_str("</Instrument>");
         xml.push_str("</Part>");
     }
     let slur_index = SlurEmissionIndex::new(score);
@@ -788,6 +817,14 @@ fn write_staff(
                 .iter()
                 .rposition(|voice| !voice.is_empty())
                 .unwrap_or(0)
+                .max(
+                    measure
+                        .channel_switches
+                        .iter()
+                        .map(|switch| switch.voice.min(3))
+                        .max()
+                        .unwrap_or(0),
+                )
         };
         let first_voice_end = format!("{}</voice>", mscx_barline_markup(measure));
         let mut first_voice_closed = false;
@@ -798,7 +835,13 @@ fn write_staff(
                 }
                 xml.push_str("<voice>");
             }
-            if voice.is_empty() || measure.measure_repeat.is_some() {
+            if (voice.is_empty()
+                && !measure
+                    .channel_switches
+                    .iter()
+                    .any(|switch| switch.voice == voice_index))
+                || measure.measure_repeat.is_some()
+            {
                 if voice_index > 0 {
                     xml.push_str("</voice>");
                 }
@@ -806,6 +849,10 @@ fn write_staff(
             }
             if let [only] = voice.as_slice()
                 && only.is_plain_whole_rest()
+                && !measure
+                    .channel_switches
+                    .iter()
+                    .any(|switch| switch.voice == voice_index)
             {
                 write!(
                     xml,
@@ -821,10 +868,34 @@ fn write_staff(
                     [].iter().peekable()
                 };
                 let mut beats = 0.0;
+                let mut switches: Vec<_> = measure
+                    .channel_switches
+                    .iter()
+                    .filter(|switch| {
+                        switch.voice == voice_index && switch.position_beats.is_finite()
+                    })
+                    .collect();
+                switches.sort_by(|a, b| a.position_beats.total_cmp(&b.position_beats));
+                let mut next_switch = 0;
                 // MuseScore brackets a tuplet's chords and rests between `<Tuplet>` and
                 // `<endTuplet/>`.
                 let tuplets = crate::tuplet_groups(voice);
                 for (note_index, note) in voice.iter().enumerate() {
+                    while let Some(switch) = switches
+                        .get(next_switch)
+                        .filter(|switch| switch.position_beats <= beats + 1e-9)
+                    {
+                        if (switch.position_beats - beats).abs() < 1e-9 {
+                            write!(
+                                xml,
+                                "<StaffText><channelSwitch voice=\"{}\" name=\"{}\"/></StaffText>",
+                                switch.voice,
+                                escape(&switch.channel_name)
+                            )
+                            .map_err(fmt_error)?;
+                        }
+                        next_switch += 1;
+                    }
                     if let Some(tuplet) = note
                         .tuplet
                         .as_ref()
@@ -884,6 +955,19 @@ fn write_staff(
                     if !note.is_grace {
                         beats += note.beats();
                     }
+                }
+                for switch in switches
+                    .iter()
+                    .skip(next_switch)
+                    .filter(|switch| (switch.position_beats - beats).abs() < 1e-9)
+                {
+                    write!(
+                        xml,
+                        "<StaffText><channelSwitch voice=\"{}\" name=\"{}\"/></StaffText>",
+                        switch.voice,
+                        escape(&switch.channel_name)
+                    )
+                    .map_err(fmt_error)?;
                 }
             }
             if voice_index > 0 {

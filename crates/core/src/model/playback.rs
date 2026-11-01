@@ -2218,6 +2218,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                 let mut time_secs_cursor = 0.0f64;
                 let mut current_bpm = bpm;
                 let mut prior_note_events = 0..0;
+                let mut active_named_channel = None;
                 for (seq_position, &idx) in seq.iter().enumerate() {
                     let measure = match staff.measures.get(idx) {
                         Some(m) => m,
@@ -2227,7 +2228,8 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                         .instrument_change
                         .as_ref()
                         .or(part.instrument.as_ref());
-                    let channel = instrument.map_or(part.midi_channel, |value| value.midi_channel);
+                    let base_channel =
+                        instrument.map_or(part.midi_channel, |value| value.midi_channel);
                     let default_program =
                         instrument.map_or(part.midi_program, |value| value.midi_program);
                     let instrument_id = instrument.map(|value| value.id.clone());
@@ -2257,11 +2259,35 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                     // Unswung position, which dynamic markings are keyed by.
                     let mut written_beats = 0.0f64;
                     let mut swing_second = false;
+                    let mut switches: Vec<_> = measure
+                        .channel_switches
+                        .iter()
+                        .filter(|switch| {
+                            switch.voice == voice_idx && switch.position_beats.is_finite()
+                        })
+                        .collect();
+                    switches.sort_by(|a, b| a.position_beats.total_cmp(&b.position_beats));
+                    let mut next_switch = 0;
                     for (note_index, note) in measure.voices[voice_idx].iter().enumerate() {
                         if note.is_grace || note.is_cue {
                             continue;
                         }
                         let onset_written_beats = written_beats;
+                        while let Some(switch) = switches
+                            .get(next_switch)
+                            .filter(|switch| switch.position_beats <= onset_written_beats + 1e-9)
+                        {
+                            if let Some(channel) = part
+                                .named_channels
+                                .iter()
+                                .find(|channel| channel.name == switch.channel_name)
+                            {
+                                active_named_channel = Some(channel);
+                            }
+                            next_switch += 1;
+                        }
+                        let channel =
+                            active_named_channel.map_or(base_channel, |value| value.midi_channel);
                         written_beats += note.beats();
                         let dur = if let Some(ratio) = swing_ratio {
                             if swing_second {
@@ -2299,6 +2325,9 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                                     program = change.program;
                                     latest_change_tick = change.tick;
                                 }
+                            }
+                            if let Some(named) = active_named_channel {
+                                program = named.program;
                             }
                             let mut velocity =
                                 dynamics.velocity(seq_position, onset_written_beats, note.dynamic);
@@ -2567,6 +2596,21 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                             prior_note_events = main_event_start..main_event_end;
                         }
                         local_beats += dur;
+                    }
+                    // A direction can occur after the final note or in an otherwise silent
+                    // measure and must still affect this voice in the following measure.
+                    for switch in switches
+                        .iter()
+                        .skip(next_switch)
+                        .filter(|switch| switch.position_beats <= measure_beats + 1e-9)
+                    {
+                        if let Some(channel) = part
+                            .named_channels
+                            .iter()
+                            .find(|channel| channel.name == switch.channel_name)
+                        {
+                            active_named_channel = Some(channel);
+                        }
                     }
                     // A voice may omit rests, but the next measure still starts
                     // at the notated bar boundary. This also keeps sparse voices
