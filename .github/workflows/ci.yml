@@ -220,7 +220,9 @@ jobs:
           # Authored hairpin placement and inter-staff collision clearance
           # measured 6,398,198 bytes in Linux CI, 22,690 bytes above the
           # tie-location build. Keep approximately 6 KB headroom.
-          test "$size" -le 6405000
+          # Integration with voice alignment measured 6,416,401 bytes on
+          # Linux CI for commit 4f184b6. Retain about 6 KB of headroom.
+          test "$size" -le 6423000
 
   renderer-benchmark:
     name: Renderer performance budget
