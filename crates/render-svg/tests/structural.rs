@@ -5560,3 +5560,114 @@ fn interstaff_hairpin_clearance_is_kept_across_system_breaks() {
         );
     }
 }
+
+#[test]
+fn below_hairpin_clears_upper_beam_on_adjacent_lower_staff() {
+    use acorde_core::{
+        BeamState, Clef, Duration, HairpinKind, Measure, Note, Pitch, Score, Staff, Step,
+    };
+    let mut score = Score::new("interstaff beam wedge", 120, 4, 4, 0, 1);
+    let upper = &mut score.parts[0].staves[0].measures[0];
+    upper.voices[0] = vec![
+        Note::new(Pitch::new(Step::C, 4), Duration::Half),
+        Note::new(Pitch::new(Step::D, 4), Duration::Half),
+    ];
+    upper.voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+    upper.voices[0][1].hairpin_end = true;
+    let mut lower = Staff::new(Clef::Bass);
+    let mut bar = Measure::empty(4, 4);
+    bar.voices[0] = [Step::C, Step::E, Step::G]
+        .into_iter()
+        .map(|step| {
+            let mut note = Note::new(Pitch::new(step, 5), Duration::Eighth);
+            note.stem_up = Some(true);
+            note
+        })
+        .collect();
+    bar.voices[0][0].beam = BeamState::Begin;
+    bar.voices[0][1].beam = BeamState::Continue;
+    bar.voices[0][2].beam = BeamState::End;
+    lower.measures.push(bar);
+    score.parts[0].staves.push(lower);
+    let svg = render_svg(&score, &opts()).unwrap();
+    let path = hairpin_path_coordinates(&svg)[0];
+    let bottom = path[1].max(path[3]).max(path[5]).max(path[7]);
+    let beam = svg
+        .split(r#"class="acorde-beam" points=""#)
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap();
+    let points: Vec<f32> = beam
+        .split([',', ' '])
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    assert_eq!(points.len(), 8);
+    let beam_top = points
+        .iter()
+        .skip(1)
+        .step_by(2)
+        .copied()
+        .fold(f32::INFINITY, f32::min);
+    assert!(
+        beam_top > bottom,
+        "beam {points:?} intersects wedge {path:?}"
+    );
+}
+
+#[test]
+fn above_hairpin_clears_lower_beam_on_adjacent_upper_staff() {
+    use acorde_core::{
+        BeamState, Clef, Duration, HairpinKind, Measure, Note, Pitch, Score, Staff, Step,
+    };
+    let mut score = Score::new("interstaff upper beam wedge", 120, 4, 4, 0, 1);
+    let upper = &mut score.parts[0].staves[0].measures[0];
+    upper.voices[0] = [Step::C, Step::E, Step::G]
+        .into_iter()
+        .map(|step| {
+            let mut note = Note::new(Pitch::new(step, 3), Duration::Eighth);
+            note.stem_up = Some(false);
+            note
+        })
+        .collect();
+    upper.voices[0][0].beam = BeamState::Begin;
+    upper.voices[0][1].beam = BeamState::Continue;
+    upper.voices[0][2].beam = BeamState::End;
+    let mut lower = Staff::new(Clef::Bass);
+    let mut bar = Measure::empty(4, 4);
+    bar.voices[0] = vec![
+        Note::new(Pitch::new(Step::G, 3), Duration::Half),
+        Note::new(Pitch::new(Step::A, 3), Duration::Half),
+    ];
+    bar.voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+    bar.voices[0][0].hairpin_above = Some(true);
+    bar.voices[0][1].hairpin_end = true;
+    lower.measures.push(bar);
+    score.parts[0].staves.push(lower);
+    let svg = render_svg(&score, &opts()).unwrap();
+    let path = hairpin_path_coordinates(&svg)[0];
+    let top = path[1].min(path[3]).min(path[5]).min(path[7]);
+    let beam = svg
+        .split(r#"class="acorde-beam" points=""#)
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap();
+    let points: Vec<f32> = beam
+        .split([',', ' '])
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    assert_eq!(points.len(), 8);
+    let beam_bottom = points
+        .iter()
+        .skip(1)
+        .step_by(2)
+        .copied()
+        .fold(f32::NEG_INFINITY, f32::max);
+    assert!(
+        beam_bottom < top,
+        "beam {points:?} intersects wedge {path:?}"
+    );
+}
