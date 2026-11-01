@@ -3969,6 +3969,38 @@ fn musicxml_cross_staff_slurs_resolve_by_score_time_and_reused_number() {
     );
 }
 
+#[cfg(feature = "mscz")]
+#[test]
+fn mscz_export_reports_cross_voice_slur_loss() {
+    let score = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/cross_voice_slur.musicxml"
+    ))
+    .unwrap();
+    let slur = score
+        .spanners
+        .iter()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .expect("cross-voice slur");
+    assert_eq!(slur.start.staff, slur.end.staff);
+    assert_ne!(slur.start.voice, slur.end.voice);
+    for diagnostics in [
+        acorde_io::serialize_mscx_with_report(&score)
+            .unwrap()
+            .diagnostics,
+        acorde_io::serialize_mscz_with_report(&score)
+            .unwrap()
+            .diagnostics,
+    ] {
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.code == "mscx.export-unsupported-field"
+                    && d.source_location.as_deref()
+                        == Some(format!("/score/spanners/{}", slur.id).as_str()))
+        );
+    }
+}
+
 #[test]
 fn mscz_export_reports_cross_staff_slur_loss() {
     let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><note><pitch><step>G</step><octave>3</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>2</staff><notations><slur type="start" number="1"/></notations></note><note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff><notations><slur type="stop" number="1"/></notations></note></measure></part></score-partwise>"#;

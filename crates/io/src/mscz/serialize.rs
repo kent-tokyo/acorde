@@ -52,12 +52,14 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
     }
     for spanner in score.spanners.iter().filter(|spanner| {
         spanner.kind == acorde_core::NotationSpannerKind::Slur
-            && (spanner.start.part != spanner.end.part || spanner.start.staff != spanner.end.staff)
+            && (spanner.start.part != spanner.end.part
+                || spanner.start.staff != spanner.end.staff
+                || spanner.start.voice != spanner.end.voice)
     }) {
         push(
             format!("/score/spanners/{}", spanner.id),
             format!("start={:?}, end={:?}", spanner.start, spanner.end),
-            "MSCX subset export cannot preserve a slur across staves or parts",
+            "MSCX subset export cannot preserve a slur across voices, staves, or parts",
         );
     }
     if !score.part_groups.is_empty() {
