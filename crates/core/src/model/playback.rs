@@ -36,8 +36,8 @@ fn default_beat_velocity() -> u8 {
 /// Explicit opt-in event realization policy.
 ///
 /// [`Authored`](Self::Authored) is the default: ornaments and arpeggiation remain notation
-/// semantics on one event. The versioned realization profile is deliberately opt-in so hosts
-/// never receive invented attacks merely by upgrading acorde.
+/// semantics on one event. Measured single-note tremolos are an exception: their written
+/// strokes determine repeated attacks in every profile. Other ornament realization remains opt-in.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum PlaybackRealizationProfile {
@@ -105,6 +105,14 @@ pub struct PlaybackOptions {
     pub tempo_multiplier: f64,
     /// Part indices to silence. Events from these parts are omitted entirely.
     pub muted_parts: Vec<usize>,
+    /// Written dynamic marks to apply to every staff of their own part. Entries are
+    /// physical note addresses; all other dynamics retain staff-local scope.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub shared_dynamics: Vec<NoteAddr>,
+    /// Hairpin start addresses to apply to every staff of their own part. Select
+    /// a dynamic separately when both marks occur on the same note.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub shared_hairpins: Vec<NoteAddr>,
     /// Restrict playback to measures in the inclusive range `[start, end]`.
     /// Physical measure indices (0-based). `None` plays the full sequence.
     /// Events within the region start at `time_beats = 0`.
@@ -145,6 +153,8 @@ impl Default for PlaybackOptions {
             bpm_override: None,
             tempo_multiplier: 1.0,
             muted_parts: Vec::new(),
+            shared_dynamics: Vec::new(),
+            shared_hairpins: Vec::new(),
             loop_region: None,
             fermata_multiplier: 1.5,
             fermata_hold_beats: 0.0,
@@ -927,7 +937,27 @@ pub fn build_offline_render_manifest(
     let mut semantic_events = Vec::new();
     for event in &frame_events {
         let source = event.event.source.clone();
-        if event.event.pedal {
+        let timed_pedal_at_note = source
+            .as_ref()
+            .and_then(|address| {
+                let measure = resolved_score
+                    .parts
+                    .get(address.part)?
+                    .staves
+                    .get(address.staff)?
+                    .measures
+                    .get(address.measure)?;
+                let voice = measure.voices.get(address.voice)?;
+                let onset: f64 = voice.iter().take(address.note).map(Note::beats).sum();
+                Some(
+                    measure
+                        .timed_pedals
+                        .iter()
+                        .any(|pedal| pedal.down && (pedal.position_beats - onset).abs() < 1e-9),
+                )
+            })
+            .unwrap_or(false);
+        if event.event.pedal && !timed_pedal_at_note {
             semantic_events.push(OfflineRenderSemanticFrameEvent {
                 kind: OfflineRenderSemanticEventKind::Pedal { down: true },
                 frame: event.start_frame,
@@ -941,9 +971,20 @@ pub fn build_offline_render_manifest(
                 .get(address.part)
                 .and_then(|part| part.staves.get(address.staff))
                 .and_then(|staff| staff.measures.get(address.measure))
-                .and_then(|measure| measure.voices.get(address.voice))
-                .and_then(|voice| voice.get(address.note))
-                .is_some_and(|note| note.pedal_end)
+                .and_then(|measure| {
+                    measure
+                        .voices
+                        .get(address.voice)
+                        .map(|voice| (measure, voice))
+                })
+                .is_some_and(|(measure, voice)| {
+                    let onset: f64 = voice.iter().take(address.note).map(Note::beats).sum();
+                    voice.get(address.note).is_some_and(|note| note.pedal_end)
+                        && !measure
+                            .timed_pedals
+                            .iter()
+                            .any(|pedal| !pedal.down && (pedal.position_beats - onset).abs() < 1e-9)
+                })
         }) {
             semantic_events.push(OfflineRenderSemanticFrameEvent {
                 kind: OfflineRenderSemanticEventKind::Pedal { down: false },
@@ -1100,7 +1141,12 @@ fn append_rest_pedal_events(
                             for (present, down) in
                                 [(note.pedal_end, false), (note.pedal_start, true)]
                             {
-                                if present {
+                                if present
+                                    && !measure.timed_pedals.iter().any(|pedal| {
+                                        pedal.down == down
+                                            && (pedal.position_beats - written).abs() < 1e-9
+                                    })
+                                {
                                     events.push(OfflineRenderSemanticFrameEvent {
                                         kind: OfflineRenderSemanticEventKind::Pedal { down },
                                         frame,
@@ -1263,6 +1309,49 @@ fn append_measure_semantic_events(
                     frame,
                     source: None,
                     measure: Some(address.clone()),
+                });
+            }
+            for (staff_index, event) in part
+                .staves
+                .iter()
+                .enumerate()
+                .filter_map(|(staff_index, staff)| {
+                    staff
+                        .measures
+                        .get(time.measure)
+                        .map(|measure| (staff_index, measure))
+                })
+                .flat_map(|(staff_index, measure)| {
+                    measure
+                        .timed_pedals
+                        .iter()
+                        .map(move |event| (staff_index, event))
+                })
+            {
+                if !event.position_beats.is_finite()
+                    || event.position_beats < 0.0
+                    || event.position_beats > time.beats
+                {
+                    continue;
+                }
+                let secs = time.start_secs
+                    + tempo_ramp_seconds(
+                        time.bpm,
+                        time.ramp_to_bpm,
+                        time.beats,
+                        event.position_beats,
+                    );
+                events.push(OfflineRenderSemanticFrameEvent {
+                    kind: OfflineRenderSemanticEventKind::Pedal { down: event.down },
+                    frame: ((fermata_warp_secs(secs, &holds) - origin_secs).max(0.0)
+                        * f64::from(sample_rate_hz))
+                    .round() as u64,
+                    source: None,
+                    measure: Some(OfflineRenderMeasureAddress {
+                        part: part_index,
+                        staff: staff_index,
+                        measure: time.measure,
+                    }),
                 });
             }
             let start_tick = tick_starts[time.measure];
@@ -1872,6 +1961,18 @@ fn push_tab_diagnostic(
     }
 }
 
+type ExpressionKey = (usize, usize, usize, usize, usize);
+
+fn expression_key(address: &NoteAddr) -> ExpressionKey {
+    (
+        address.part,
+        address.staff,
+        address.measure,
+        address.voice,
+        address.note,
+    )
+}
+
 /// Dynamic levels of one staff along a played measure order, so a marking carries on until
 /// the next one as in engraved music: a level (p, f, …) holds, an accent (sf, sfz, fz, rfz,
 /// sffz) lifts only its own moment, and a compound (fp, sfp, pf, …) attacks at the first
@@ -1891,8 +1992,36 @@ pub struct DynamicTimeline {
 /// One dynamic event on a staff timeline: a written marking or the level a hairpin reaches.
 #[derive(Clone, Copy)]
 enum DynamicMark {
-    Marking(crate::Dynamic),
-    Level(u8),
+    Marking(crate::Dynamic, bool),
+    Level(u8, bool),
+}
+
+fn mark_priority(mark: DynamicMark) -> u8 {
+    match mark {
+        DynamicMark::Level(_, false) => 0,
+        DynamicMark::Level(_, true) => 1,
+        DynamicMark::Marking(_, false) => 2,
+        DynamicMark::Marking(_, true) => 3,
+    }
+}
+
+// Group near-equal times using the timeline tolerance and keep explicit/local
+// events after shared/synthetic events within each simultaneous group.
+fn order_dynamic_marks(marks: &mut [(f64, DynamicMark)]) {
+    marks.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let mut group_start = 0;
+    while group_start < marks.len() {
+        let time = marks[group_start].0;
+        let mut group_end = group_start + 1;
+        while group_end < marks.len() && marks[group_end].0 <= time + 1e-9 {
+            group_end += 1;
+        }
+        for mark in &mut marks[group_start..group_end] {
+            mark.0 = time;
+        }
+        marks[group_start..group_end].sort_by_key(|(_, mark)| mark_priority(*mark));
+        group_start = group_end;
+    }
 }
 
 impl DynamicTimeline {
@@ -1904,63 +2033,103 @@ impl DynamicTimeline {
     /// Collect the markings and hairpins of every voice of `staff` along `order` (measure
     /// indices as played, repeats expanded). Grace and cue notes take no time.
     pub fn for_staff(staff: &crate::Staff, order: &[usize]) -> Self {
+        Self::for_staves(std::slice::from_ref(staff), order, None, None)
+    }
+
+    fn for_staves(
+        staves: &[crate::Staff],
+        order: &[usize],
+        measure_lengths: Option<&[f64]>,
+        shared: Option<(
+            usize,
+            usize,
+            &BTreeSet<ExpressionKey>,
+            &BTreeSet<ExpressionKey>,
+        )>,
+    ) -> Self {
         let mut position_beats = Vec::with_capacity(order.len());
         let mut marks: Vec<(f64, DynamicMark)> = Vec::new();
-        // (start, end, crescendo)
-        let mut hairpins: Vec<(f64, f64, bool)> = Vec::new();
-        let mut open_hairpins: [Option<(f64, bool)>; 4] = [None; 4];
+        let mut hairpins: Vec<(f64, f64, bool, bool)> = Vec::new();
+        // Identical voice numbers in different staves are independent span owners.
+        let mut open_hairpins = vec![[None; 4]; staves.len()];
         let mut elapsed = 0.0;
         for &measure_index in order {
             position_beats.push(elapsed);
-            let Some(measure) = staff.measures.get(measure_index) else {
-                continue;
-            };
             let mut length: f64 = 0.0;
-            for (voice_index, voice) in measure.voices.iter().enumerate() {
-                let mut beats = 0.0;
-                for note in voice {
-                    let onset = elapsed + beats;
-                    if let Some(dynamic) = note.dynamic
-                        && !note.is_rest
-                    {
-                        marks.push((onset, DynamicMark::Marking(dynamic)));
+            for (staff_index, staff) in staves.iter().enumerate() {
+                let Some(measure) = staff.measures.get(measure_index) else {
+                    continue;
+                };
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    let mut beats = 0.0;
+                    for (note_index, note) in voice.iter().enumerate() {
+                        let onset = elapsed + beats;
+                        let local = shared.is_none_or(|(_, target, _, _)| staff_index == target);
+                        let key = shared.map(|(part, _, _, _)| {
+                            (part, staff_index, measure_index, voice_index, note_index)
+                        });
+                        let shared_dynamic = shared.is_some_and(|(_, _, dynamics, _)| {
+                            key.is_some_and(|key| dynamics.contains(&key))
+                        });
+                        let shared_hairpin = shared.is_some_and(|(_, _, _, hairpins)| {
+                            key.is_some_and(|key| hairpins.contains(&key))
+                        });
+                        if (local || shared_dynamic)
+                            && let Some(dynamic) = note.dynamic
+                            && !note.is_rest
+                        {
+                            marks.push((onset, DynamicMark::Marking(dynamic, local)));
+                        }
+                        let end = onset + note.beats();
+                        let slot = &mut open_hairpins[staff_index][voice_index];
+                        let ends_earlier = note.hairpin_end && slot.is_some();
+                        if ends_earlier && let Some((start, up, source_local)) = slot.take() {
+                            hairpins.push((start, end, up, source_local));
+                        }
+                        if (local || shared_hairpin)
+                            && let Some(kind) = note.hairpin_start
+                        {
+                            *slot = Some((onset, kind == crate::HairpinKind::Crescendo, local));
+                        }
+                        if note.hairpin_end
+                            && !ends_earlier
+                            && let Some((start, up, source_local)) = slot.take()
+                        {
+                            hairpins.push((start, end, up, source_local));
+                        }
+                        beats += note.beats();
                     }
-                    let end = onset + note.beats();
-                    // A note may end one hairpin and start the next.
-                    let ends_earlier = note.hairpin_end && open_hairpins[voice_index].is_some();
-                    if ends_earlier && let Some((start, up)) = open_hairpins[voice_index].take() {
-                        hairpins.push((start, end, up));
-                    }
-                    if let Some(kind) = note.hairpin_start {
-                        open_hairpins[voice_index] =
-                            Some((onset, kind == crate::HairpinKind::Crescendo));
-                    }
-                    if note.hairpin_end
-                        && !ends_earlier
-                        && let Some((start, up)) = open_hairpins[voice_index].take()
-                    {
-                        hairpins.push((start, end, up));
-                    }
-                    beats += note.beats();
+                    length = length.max(beats);
                 }
-                length = length.max(beats);
             }
-            elapsed += length;
+            elapsed += measure_lengths
+                .and_then(|values| values.get(measure_index))
+                .copied()
+                .unwrap_or(length);
         }
-        marks.sort_by(|a, b| a.0.total_cmp(&b.0));
+        order_dynamic_marks(&mut marks);
         let written = Self::resolve(&marks);
         let mut ramps = Vec::new();
-        for (start, end, up) in hairpins {
+        // A staff-local hairpin wins over an overlapping shared hairpin.
+        hairpins.sort_by_key(|(_, _, _, local)| *local);
+        for (start, end, up, local) in hairpins {
             if end <= start {
                 continue;
             }
             let from = Self::level_at(&written, start);
             // The marking the hairpin leads to, if one comes within a beat of its end.
+            let first = written.partition_point(|&(time, _, _)| time < end - 1e-9);
             let next = written
-                .iter()
-                .find(|&&(time, _, _)| time >= end - 1e-9)
-                .filter(|&&(time, _, _)| time <= end + 1.0)
-                .map(|&(_, attack, _)| attack)
+                .get(first)
+                .and_then(|&(time, _, _)| {
+                    if time > end + 1.0 {
+                        return None;
+                    }
+                    let last = written
+                        .partition_point(|&(other, _, _)| other <= time + 1e-9)
+                        .saturating_sub(1);
+                    written.get(last).map(|&(_, attack, _)| attack)
+                })
                 .filter(|&attack| if up { attack > from } else { attack < from });
             let to = next.unwrap_or_else(|| {
                 let step = if up {
@@ -1971,28 +2140,12 @@ impl DynamicTimeline {
                 (i16::from(from) + step).clamp(1, 127) as u8
             });
             if next.is_none() {
-                marks.push((end, DynamicMark::Level(to)));
+                marks.push((end, DynamicMark::Level(to, local)));
             }
             ramps.push((start, end, from, to));
         }
-        marks.sort_by(|a, b| a.0.total_cmp(&b.0));
-        // A written marking at the hairpin endpoint must override its synthetic
-        // terminal level for every voice, even when accumulated beat sums differ
-        // by less than the timeline's existing comparison tolerance.
-        let mut group_start = 0;
-        while group_start < marks.len() {
-            let time = marks[group_start].0;
-            let mut group_end = group_start + 1;
-            while group_end < marks.len() && marks[group_end].0 <= time + 1e-9 {
-                group_end += 1;
-            }
-            for mark in &mut marks[group_start..group_end] {
-                mark.0 = time;
-            }
-            marks[group_start..group_end]
-                .sort_by_key(|(_, mark)| matches!(mark, DynamicMark::Marking(_)));
-            group_start = group_end;
-        }
+        // Written marks override synthetic endpoints at the same score time.
+        order_dynamic_marks(&mut marks);
         Self {
             position_beats,
             changes: Self::resolve(&marks),
@@ -2005,13 +2158,13 @@ impl DynamicTimeline {
         marks
             .iter()
             .map(|&(time, mark)| match mark {
-                DynamicMark::Marking(dynamic) => {
+                DynamicMark::Marking(dynamic, _) => {
                     if let Some(next) = dynamic.sustained_level() {
                         level = next.to_velocity();
                     }
                     (time, dynamic.to_velocity(), level)
                 }
-                DynamicMark::Level(velocity) => {
+                DynamicMark::Level(velocity, _) => {
                     level = velocity;
                     (time, velocity, level)
                 }
@@ -2081,11 +2234,12 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
     let full_seq = measure_sequence(score);
     let seq: Vec<usize> = if let Some((lo, hi)) = options.loop_region {
         full_seq
-            .into_iter()
+            .iter()
+            .copied()
             .filter(|&idx| idx >= lo && idx <= hi)
             .collect()
     } else {
-        full_seq
+        full_seq.clone()
     };
     let mut events: Vec<PlaybackEvent> = Vec::new();
 
@@ -2093,13 +2247,83 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
         if options.muted_parts.contains(&part_index) {
             continue;
         }
+        let selected_note = |address: &NoteAddr| {
+            (address.part == part_index).then_some(())?;
+            part.staves
+                .get(address.staff)?
+                .measures
+                .get(address.measure)?
+                .voices
+                .get(address.voice)?
+                .get(address.note)
+        };
+        let shared_dynamic_keys: BTreeSet<ExpressionKey> = options
+            .shared_dynamics
+            .iter()
+            .filter(|address| {
+                selected_note(address).is_some_and(|note| !note.is_rest && note.dynamic.is_some())
+            })
+            .map(expression_key)
+            .collect();
+        let shared_hairpin_keys: BTreeSet<ExpressionKey> = options
+            .shared_hairpins
+            .iter()
+            .filter(|address| {
+                selected_note(address).is_some_and(|note| note.hairpin_start.is_some())
+            })
+            .map(expression_key)
+            .collect();
         for (staff_index, staff) in part.staves.iter().enumerate() {
-            let dynamics = DynamicTimeline::for_staff(staff, &seq);
+            let has_shared_foreign = shared_dynamic_keys
+                .iter()
+                .chain(&shared_hairpin_keys)
+                .any(|key| key.1 != staff_index);
+            let dynamics = if !has_shared_foreign {
+                DynamicTimeline::for_staff(staff, &seq)
+            } else {
+                DynamicTimeline::for_staves(
+                    &part.staves,
+                    &seq,
+                    Some(&measure_lengths),
+                    Some((
+                        part_index,
+                        staff_index,
+                        &shared_dynamic_keys,
+                        &shared_hairpin_keys,
+                    )),
+                )
+            };
             for voice_idx in 0..4usize {
                 let mut time_beats = 0.0f64;
                 let mut time_secs_cursor = 0.0f64;
                 let mut current_bpm = bpm;
                 let mut prior_note_events = 0..0;
+                // Reconstruct channel state along the played prefix when playback starts
+                // inside a selection, including repeats and skipped endings.
+                let mut active_named_channel = None;
+                if let Some(&first) = seq.first() {
+                    for &idx in full_seq.iter().take_while(|&&idx| idx != first) {
+                        if let Some(measure) = staff.measures.get(idx) {
+                            let mut switches: Vec<_> = measure
+                                .channel_switches
+                                .iter()
+                                .filter(|switch| {
+                                    switch.voice == voice_idx && switch.position_beats.is_finite()
+                                })
+                                .collect();
+                            switches.sort_by(|a, b| a.position_beats.total_cmp(&b.position_beats));
+                            for switch in switches {
+                                if let Some(channel) = part
+                                    .named_channels
+                                    .iter()
+                                    .find(|channel| channel.name == switch.channel_name)
+                                {
+                                    active_named_channel = Some(channel);
+                                }
+                            }
+                        }
+                    }
+                }
                 for (seq_position, &idx) in seq.iter().enumerate() {
                     let measure = match staff.measures.get(idx) {
                         Some(m) => m,
@@ -2109,7 +2333,8 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                         .instrument_change
                         .as_ref()
                         .or(part.instrument.as_ref());
-                    let channel = instrument.map_or(part.midi_channel, |value| value.midi_channel);
+                    let base_channel =
+                        instrument.map_or(part.midi_channel, |value| value.midi_channel);
                     let default_program =
                         instrument.map_or(part.midi_program, |value| value.midi_program);
                     let instrument_id = instrument.map(|value| value.id.clone());
@@ -2139,11 +2364,35 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                     // Unswung position, which dynamic markings are keyed by.
                     let mut written_beats = 0.0f64;
                     let mut swing_second = false;
+                    let mut switches: Vec<_> = measure
+                        .channel_switches
+                        .iter()
+                        .filter(|switch| {
+                            switch.voice == voice_idx && switch.position_beats.is_finite()
+                        })
+                        .collect();
+                    switches.sort_by(|a, b| a.position_beats.total_cmp(&b.position_beats));
+                    let mut next_switch = 0;
                     for (note_index, note) in measure.voices[voice_idx].iter().enumerate() {
                         if note.is_grace || note.is_cue {
                             continue;
                         }
                         let onset_written_beats = written_beats;
+                        while let Some(switch) = switches
+                            .get(next_switch)
+                            .filter(|switch| switch.position_beats <= onset_written_beats + 1e-9)
+                        {
+                            if let Some(channel) = part
+                                .named_channels
+                                .iter()
+                                .find(|channel| channel.name == switch.channel_name)
+                            {
+                                active_named_channel = Some(channel);
+                            }
+                            next_switch += 1;
+                        }
+                        let channel =
+                            active_named_channel.map_or(base_channel, |value| value.midi_channel);
                         written_beats += note.beats();
                         let dur = if let Some(ratio) = swing_ratio {
                             if swing_second {
@@ -2182,6 +2431,9 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                                     latest_change_tick = change.tick;
                                 }
                             }
+                            if let Some(named) = active_named_channel {
+                                program = named.program;
+                            }
                             let mut velocity =
                                 dynamics.velocity(seq_position, onset_written_beats, note.dynamic);
                             let mut sounding_dur = dur;
@@ -2204,7 +2456,13 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                                     _ => {}
                                 }
                             }
-                            let pedal = note.pedal_start;
+                            // Keep the legacy note-on hint when an independent pedal-down
+                            // happens exactly at this note's written onset.
+                            let pedal = note.pedal_start
+                                || measure.timed_pedals.iter().any(|pedal| {
+                                    pedal.down
+                                        && (pedal.position_beats - onset_written_beats).abs() < 1e-9
+                                });
                             let fermata_hold_beats = if options.fermata_hold_beats.is_finite() {
                                 options.fermata_hold_beats.max(0.0)
                             } else {
@@ -2450,6 +2708,21 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                         }
                         local_beats += dur;
                     }
+                    // A direction can occur after the final note or in an otherwise silent
+                    // measure and must still affect this voice in the following measure.
+                    for switch in switches
+                        .iter()
+                        .skip(next_switch)
+                        .filter(|switch| switch.position_beats <= measure_beats + 1e-9)
+                    {
+                        if let Some(channel) = part
+                            .named_channels
+                            .iter()
+                            .find(|channel| channel.name == switch.channel_name)
+                        {
+                            active_named_channel = Some(channel);
+                        }
+                    }
                     // A voice may omit rests, but the next measure still starts
                     // at the notated bar boundary. This also keeps sparse voices
                     // aligned with compute_playback_position and other voices.
@@ -2549,6 +2822,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     events = merge_tied_events(score, options, events);
+    events = realize_single_tremolos(score, options, events);
     apply_fermata_holds(&mut events, &score_fermata_holds(score, options));
     events = apply_realization_profile(score, events, options.realization_profile);
     events.sort_by(|a, b| {
@@ -2557,6 +2831,90 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     events
+}
+
+// Expand measured tremolo before score-wide fermata holds, using the same tempo clock as
+// the rest of playback. A tremolo mark adds strokes to any flags already on the note.
+fn realize_single_tremolos(
+    score: &Score,
+    options: &PlaybackOptions,
+    events: Vec<PlaybackEvent>,
+) -> Vec<PlaybackEvent> {
+    let mut realized = Vec::with_capacity(events.len());
+    let mut clock = None;
+    for event in events {
+        let strokes = event.articulations.iter().find_map(|mark| match mark {
+            Articulation::Tremolo(n @ 1..=8) => Some(*n),
+            _ => None,
+        });
+        let note = event.source.as_ref().and_then(|source| {
+            score
+                .parts
+                .get(source.part)
+                .and_then(|part| part.staves.get(source.staff))
+                .and_then(|staff| staff.measures.get(source.measure))
+                .and_then(|measure| measure.voices.get(source.voice))
+                .and_then(|voice| voice.get(source.note))
+        });
+        let (Some(strokes), Some(note)) = (strokes, note) else {
+            realized.push(event);
+            continue;
+        };
+        if note.tremolo_pair.is_some() {
+            realized.push(event);
+            continue;
+        }
+        let tuplet_scale = note.tuplet.as_ref().map_or(1.0, |tuplet| {
+            f64::from(tuplet.normal_notes) / f64::from(tuplet.actual_notes.max(1))
+        });
+        let attack_beats =
+            note.duration.beats(0).min(1.0) * tuplet_scale / f64::from(1_u32 << strokes);
+        if !attack_beats.is_finite() || attack_beats <= 0.0 {
+            realized.push(event);
+            continue;
+        }
+        if !event.duration_beats.is_finite() || event.duration_beats <= 0.0 {
+            realized.push(event);
+            continue;
+        }
+        let count = (event.duration_beats / attack_beats - 1e-9).ceil() as usize;
+        // Bound expansion of malformed or exceptionally long tied values.
+        if count <= 1 || count > 65_536 {
+            realized.push(event);
+            continue;
+        }
+        let timeline = clock.get_or_insert_with(|| playback_measure_clock(score, options));
+        for ordinal in 0..count {
+            let start = event.time_beats + ordinal as f64 * attack_beats;
+            let end = (start + attack_beats).min(event.time_beats + event.duration_beats);
+            let mut attack = event.clone();
+            attack.time_beats = start;
+            attack.duration_beats = end - start;
+            let start_secs = playback_secs_at_beat(timeline, start);
+            let end_secs = playback_secs_at_beat(timeline, end);
+            if let (Some(start_secs), Some(end_secs)) = (start_secs, end_secs) {
+                attack.time_secs = start_secs;
+                attack.duration_secs = end_secs - start_secs;
+            } else {
+                attack.time_secs +=
+                    event.duration_secs * (start - event.time_beats) / event.duration_beats;
+                attack.duration_secs =
+                    event.duration_secs * attack.duration_beats / event.duration_beats;
+            }
+            attack
+                .articulations
+                .retain(|mark| !matches!(mark, Articulation::Tremolo(_)));
+            if ordinal > 0 {
+                attack.pedal = false;
+                attack.chord_symbol = None;
+            }
+            if ordinal + 1 < count {
+                attack.post_note_pause_beats = 0.0;
+            }
+            realized.push(attack);
+        }
+    }
+    realized
 }
 
 const ORNAMENT_ATTACK_COUNT: usize = 4;
@@ -2571,12 +2929,15 @@ fn apply_realization_profile(
         return events;
     }
 
-    let mut chord_groups: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+    let mut chord_groups: BTreeMap<(String, u64), Vec<usize>> = BTreeMap::new();
     for (index, event) in events.iter().enumerate() {
         if !event.is_metronome
             && let Some(address) = &event.address
         {
-            chord_groups.entry(address.clone()).or_default().push(index);
+            chord_groups
+                .entry((address.clone(), event.time_beats.to_bits()))
+                .or_default()
+                .push(index);
         }
     }
     for indices in chord_groups.into_values() {

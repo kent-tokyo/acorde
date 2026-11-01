@@ -655,6 +655,41 @@ fn serialize_musicxml_inner(
                 xml.push_str("      </figured-bass>\n");
             }
 
+            // These directions are emitted at the measure cursor origin; offset preserves
+            // their independent score-time position even when it falls inside a note.
+            for (staff_index, direction) in part
+                .staves
+                .iter()
+                .enumerate()
+                .filter_map(|(staff_index, staff)| {
+                    staff.measures.get(i).map(|measure| (staff_index, measure))
+                })
+                .flat_map(|(staff_index, measure)| {
+                    measure
+                        .timed_pedals
+                        .iter()
+                        .map(move |direction| (staff_index, direction))
+                })
+            {
+                if !direction.position_beats.is_finite() || direction.position_beats < 0.0 {
+                    continue;
+                }
+                let placement = direction
+                    .placement
+                    .as_deref()
+                    .filter(|value| matches!(*value, "above" | "below"))
+                    .map(|value| format!(" placement=\"{value}\""))
+                    .unwrap_or_default();
+                let kind = if direction.down { "start" } else { "stop" };
+                let sign = if direction.hide_sign {
+                    " sign=\"no\""
+                } else {
+                    ""
+                };
+                let offset = (direction.position_beats * f64::from(DIVISIONS)).round() as u64;
+                xml.push_str(&format!("      <direction{placement}><direction-type><pedal type=\"{kind}\" line=\"no\" number=\"{}\"{sign}/></direction-type><offset>{offset}</offset><staff>{}</staff></direction>\n", direction.number, staff_index + 1));
+            }
+
             let mut tempo_text_emitted = measure.tempo_text.is_some();
             let mut expression_text_emitted = measure.expression_text.is_some();
             let mut rehearsal_emitted = measure.rehearsal.is_some();
@@ -909,8 +944,32 @@ fn serialize_note(
     let has_typed_endpoint =
         |kind: NotationSpannerKind| typed_spanners.iter().any(|spanner| spanner.kind == kind);
 
+    let timed_pedal_here = |down| {
+        score
+            .parts
+            .get(address.part)
+            .and_then(|part| part.staves.get(address.staff))
+            .and_then(|staff| staff.measures.get(address.measure))
+            .and_then(|measure| {
+                measure
+                    .voices
+                    .get(address.voice)
+                    .map(|voice| (measure, voice))
+            })
+            .is_some_and(|(measure, voice)| {
+                let onset: f64 = voice.iter().take(address.note).map(Note::beats).sum();
+                measure
+                    .timed_pedals
+                    .iter()
+                    .any(|pedal| pedal.down == down && (pedal.position_beats - onset).abs() < 1e-9)
+            })
+    };
+
     // Pedal start
-    if note.pedal_start && !has_typed_endpoint(NotationSpannerKind::Pedal) {
+    if note.pedal_start
+        && !timed_pedal_here(true)
+        && !has_typed_endpoint(NotationSpannerKind::Pedal)
+    {
         xml.push_str("      <direction placement=\"below\">\n");
         xml.push_str("        <direction-type>\n");
         xml.push_str("          <pedal type=\"start\" line=\"no\"/>\n");
@@ -1341,7 +1400,8 @@ fn serialize_note(
     serialize_typed_direction_spanners(xml, &typed_spanners, address, "stop");
 
     // Pedal stop
-    if note.pedal_end && !has_typed_endpoint(NotationSpannerKind::Pedal) {
+    if note.pedal_end && !timed_pedal_here(false) && !has_typed_endpoint(NotationSpannerKind::Pedal)
+    {
         xml.push_str("      <direction placement=\"below\">\n");
         xml.push_str("        <direction-type>\n");
         xml.push_str("          <pedal type=\"stop\" line=\"no\"/>\n");
@@ -1784,7 +1844,12 @@ fn serialize_notations(
                 xml.push_str("            <shake/>\n");
             }
             if let Some(n) = tremolo_n {
-                xml.push_str(&format!("            <tremolo>{}</tremolo>\n", n));
+                let kind = match note.tremolo_pair.as_deref() {
+                    Some("start") => " type=\"start\"",
+                    Some("stop") => " type=\"stop\"",
+                    _ => "",
+                };
+                xml.push_str(&format!("            <tremolo{kind}>{n}</tremolo>\n"));
             }
             xml.push_str("          </ornaments>\n");
         }

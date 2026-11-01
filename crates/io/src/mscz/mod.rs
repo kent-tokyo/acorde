@@ -141,6 +141,7 @@ struct PartMeta {
     short_name: String,
     midi_program: u8,
     midi_channel: u8,
+    named_channels: Vec<acorde_core::NamedInstrumentChannel>,
     staff_ids: Vec<Option<usize>>,
     staff_count: usize,
     default_clefs: Vec<Option<Clef>>,
@@ -245,6 +246,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut candidate_channel_priority: u8 = 0;
     let mut candidate_channel_program: u8 = 0;
     let mut candidate_midi_channel: u8 = 0;
+    let mut candidate_channel_name = String::new();
+    let mut cur_named_channels = Vec::new();
 
     // Staff data: 1-based staff ID → measures
     let mut staff_measures: HashMap<usize, Vec<Measure>> = HashMap::new();
@@ -278,6 +281,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut pending_next_clefs: HashMap<usize, Clef> = HashMap::new();
     let mut cur_tempo: Option<u16> = None;
     let mut cur_voices: [Vec<Note>; 4] = [vec![], vec![], vec![], vec![]];
+    let mut cur_channel_switches: Vec<acorde_core::VoiceChannelSwitch> = Vec::new();
 
     // Feature J: repeat barlines and volta
     let mut cur_barline_left = Barline::Normal;
@@ -304,6 +308,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut voice_wrapper_depth = 0usize;
     let mut voice_location_depth: Option<usize> = None;
     let mut voice_has_backward_location = false;
+    let mut voice_backward_beats = 0.0f64;
 
     // MuseScore tab staff metadata (3.x/4.x use StaffType/StringData).
     let mut in_staff_type = false;
@@ -386,6 +391,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut chord_notes_hidden = 0usize;
     let mut in_arpeggio = false;
     let mut chord_tremolo: Option<u8> = None;
+    let mut chord_tremolo_pair = false;
     let mut in_tremolo = false;
     let mut chord_articulations: Vec<Articulation> = Vec::new();
     let mut in_articulation = false;
@@ -551,6 +557,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         cur_part_program = 0;
                         cur_part_channel = 0;
                         selected_channel_priority = 0;
+                        cur_named_channels.clear();
                         cur_part_transpose = 0;
                         cur_part_staff_ids.clear();
                         cur_part_staff_count = 0;
@@ -566,7 +573,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "Channel" if in_instrument => {
                         in_channel = true;
-                        candidate_channel_priority = match attr_str(e, b"name").as_deref() {
+                        candidate_channel_name = attr_str(e, b"name").unwrap_or_default();
+                        candidate_channel_priority = match Some(candidate_channel_name.as_str()) {
                             None | Some("") | Some("normal") | Some("arco") => 2,
                             _ => 1,
                         };
@@ -639,6 +647,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         cur_clef_events.clear();
                         cur_tempo = None;
                         cur_voices = [vec![], vec![], vec![], vec![]];
+                        cur_channel_switches.clear();
                         cur_barline_left = Barline::Normal;
                         cur_barline_right = Barline::Normal;
                         cur_system_break = false;
@@ -721,6 +730,21 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         mscx_text_offset_x = None;
                         mscx_text_offset_y = None;
                     }
+                    "channelSwitch" if in_measure && in_text_element => {
+                        if let Some(channel_name) = attr_str(e, b"name") {
+                            let voice = attr_usize(e, b"voice").unwrap_or(0);
+                            let position_beats = cur_voices[measure_voice_index.min(3)]
+                                .iter()
+                                .map(Note::beats)
+                                .sum::<f64>()
+                                + voice_backward_beats;
+                            cur_channel_switches.push(acorde_core::VoiceChannelSwitch {
+                                voice,
+                                position_beats,
+                                channel_name,
+                            });
+                        }
+                    }
                     "Text" | "StaffText" if in_vbox && !in_measure => {
                         in_text_element = true;
                         mscx_text_is_score_level = true;
@@ -780,6 +804,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         chord_grace_slash = false;
                         chord_arpeggiate = None;
                         chord_tremolo = None;
+                        chord_tremolo_pair = false;
                         chord_articulations.clear();
                         chord_staff_move = 0;
                         chord_notes_hidden = 0;
@@ -1071,18 +1096,22 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 "invalid MSCX voice location denominator".into(),
                             ));
                         }
+                        let delta = numerator as f64 * 4.0 / f64::from(denominator);
                         if numerator < 0 {
-                            // A later direction may point backwards (common for a trailing
-                            // tempo). Preserve the prior parser behavior and report its loss;
-                            // a following rhythmic event cannot safely use this timeline.
+                            voice_backward_beats += delta;
                             voice_has_backward_location = true;
-                        } else {
-                            if voice_has_backward_location && numerator != 0 {
+                        } else if voice_has_backward_location {
+                            voice_backward_beats += delta;
+                            if voice_backward_beats.abs() < 1e-9 {
+                                voice_backward_beats = 0.0;
+                                voice_has_backward_location = false;
+                            } else if numerator != 0 {
                                 return Err(Error::Xml(
                                     "MSCX location after a backward voice offset is unsupported"
                                         .into(),
                                 ));
                             }
+                        } else {
                             let ticks = u32::try_from(numerator)
                                 .ok()
                                 .and_then(|n| n.checked_mul(4))
@@ -1249,6 +1278,13 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             cur_part_program = candidate_channel_program;
                             cur_part_channel = candidate_midi_channel;
                         }
+                        if !candidate_channel_name.is_empty() {
+                            cur_named_channels.push(acorde_core::NamedInstrumentChannel {
+                                name: candidate_channel_name.clone(),
+                                program: candidate_channel_program,
+                                midi_channel: candidate_midi_channel,
+                            });
+                        }
                         in_channel = false;
                     }
                     "midiChannel" if in_channel => {
@@ -1278,6 +1314,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             short_name: cur_part_short_name.clone(),
                             midi_program: cur_part_program,
                             midi_channel: cur_part_channel,
+                            named_channels: std::mem::take(&mut cur_named_channels),
                             staff_ids: cur_part_staff_ids.clone(),
                             staff_count: cur_part_staff_count,
                             default_clefs: cur_part_default_clefs.clone(),
@@ -1377,6 +1414,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             texts: std::mem::take(&mut cur_texts),
                             figured_bass: std::mem::take(&mut cur_figured_bass),
                             harp_pedal_diagrams: Vec::new(),
+                            channel_switches: std::mem::take(&mut cur_channel_switches),
+                            timed_pedals: Vec::new(),
                             multi_rest_count: None,
                             system_break: cur_system_break,
                             page_break: cur_page_break,
@@ -1732,6 +1771,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "voice" if in_measure_voice_wrapper && !in_chord && !in_rest_elem => {
                         in_measure_voice_wrapper = false;
                         voice_has_backward_location = false;
+                        voice_backward_beats = 0.0;
                         measure_voice_index += 1;
                     }
 
@@ -2003,6 +2043,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "subtype" if in_tremolo => {
                         chord_tremolo = Some(mscx_tremolo_level(t));
+                        chord_tremolo_pair = t.trim().to_ascii_lowercase().starts_with('c');
                     }
                     "Tremolo" if in_tremolo => {
                         in_tremolo = false;
@@ -2184,6 +2225,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             note.note_head = note_head.clone();
                             note.chord_symbol = pending_chord_symbol.take();
                             if let Some(level) = chord_tremolo {
+                                if chord_tremolo_pair {
+                                    note.tremolo_pair = Some("start".into());
+                                }
                                 note.articulations.push(Articulation::Tremolo(level));
                             }
                             note.articulations
@@ -2261,6 +2305,21 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                 }
                 let name = local_name_str(e.local_name().as_ref());
                 match name.as_str() {
+                    "channelSwitch" if in_measure && in_text_element => {
+                        if let Some(channel_name) = attr_str(e, b"name") {
+                            let voice = attr_usize(e, b"voice").unwrap_or(0);
+                            let position_beats = cur_voices[measure_voice_index.min(3)]
+                                .iter()
+                                .map(Note::beats)
+                                .sum::<f64>()
+                                + voice_backward_beats;
+                            cur_channel_switches.push(acorde_core::VoiceChannelSwitch {
+                                voice,
+                                position_beats,
+                                channel_name,
+                            });
+                        }
+                    }
                     // An empty MuseScore 4 voice wrapper occupies a slot just as
                     // <voice></voice> does; otherwise later voices shift left.
                     "voice" if in_measure && !in_chord && !in_rest_elem => {
@@ -2556,6 +2615,19 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                 {
                     *unsupported = Some(name.clone());
                 }
+                if name == "channelSwitch" && path.iter().any(|element| element == "StaffText") {
+                    let mut diagnostic = Diagnostic::warning(
+                        "mscx.unsupported-channel-switch",
+                        "MuseScore voice channel switch is preserved; some export and routing cases are not yet supported",
+                    );
+                    diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                    diagnostic.preserved_value = Some(format!(
+                        "voice={},name={}",
+                        attr_str(&event, b"voice").unwrap_or_else(|| "0".into()),
+                        attr_str(&event, b"name").unwrap_or_default()
+                    ));
+                    diagnostics.push(diagnostic);
+                }
                 if UNSUPPORTED_MSCX_ELEMENTS.contains(&name.as_str()) {
                     let mut diagnostic = Diagnostic::warning(
                         format!("mscx.unsupported-element.{name}"),
@@ -2618,6 +2690,19 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                     diagnostics.push(diagnostic);
                 } else if let Some((_, _, _, has_unsupported_child)) = harmony_context.as_mut() {
                     *has_unsupported_child = true;
+                }
+                if name == "channelSwitch" && path.iter().any(|element| element == "StaffText") {
+                    let mut diagnostic = Diagnostic::warning(
+                        "mscx.unsupported-channel-switch",
+                        "MuseScore voice channel switch is preserved; some export and routing cases are not yet supported",
+                    );
+                    diagnostic.source_location = Some(format!("/{}/channelSwitch", path.join("/")));
+                    diagnostic.preserved_value = Some(format!(
+                        "voice={},name={}",
+                        attr_str(&event, b"voice").unwrap_or_else(|| "0".into()),
+                        attr_str(&event, b"name").unwrap_or_default()
+                    ));
+                    diagnostics.push(diagnostic);
                 }
                 if UNSUPPORTED_MSCX_ELEMENTS.contains(&name.as_str()) {
                     let mut element_path = path.clone();
@@ -3247,6 +3332,7 @@ fn assemble_score(
             );
             part.midi_program = meta.midi_program;
             part.midi_channel = meta.midi_channel;
+            part.named_channels = meta.named_channels;
             let mut ids = Vec::new();
             for slot in 0..meta.staff_count.max(1) {
                 let id = meta.staff_ids.get(slot).copied().flatten().or_else(|| {

@@ -10,7 +10,7 @@ use super::notation::{
 };
 use super::score::{
     HarpPedalDiagram, InstrumentDefinition, Measure, MidMeasureClef, NotationSpanner, Note,
-    NoteAddr, Score, VoltaBracket,
+    NoteAddr, Score, TimedPedalDirection, VoiceChannelSwitch, VoltaBracket,
 };
 use crate::Error;
 use serde::{Deserialize, Serialize};
@@ -125,6 +125,10 @@ pub struct ScoreFragmentMeasureAttributes {
     pub figured_bass: Vec<FiguredBassFigure>,
     #[serde(default)]
     pub harp_pedal_diagrams: Vec<HarpPedalDiagram>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub channel_switches: Vec<VoiceChannelSwitch>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub timed_pedals: Vec<TimedPedalDirection>,
     #[serde(default)]
     pub multi_rest_count: Option<u8>,
     #[serde(default)]
@@ -157,6 +161,8 @@ impl ScoreFragmentMeasureAttributes {
             texts: measure.texts.clone(),
             figured_bass: measure.figured_bass.clone(),
             harp_pedal_diagrams: measure.harp_pedal_diagrams.clone(),
+            channel_switches: measure.channel_switches.clone(),
+            timed_pedals: measure.timed_pedals.clone(),
             multi_rest_count: measure.multi_rest_count,
             system_break: measure.system_break,
             page_break: measure.page_break,
@@ -192,6 +198,8 @@ impl ScoreFragmentMeasureAttributes {
         measure.texts = self.texts.clone();
         measure.figured_bass = self.figured_bass.clone();
         measure.harp_pedal_diagrams = self.harp_pedal_diagrams.clone();
+        measure.channel_switches = self.channel_switches.clone();
+        measure.timed_pedals = self.timed_pedals.clone();
         measure.multi_rest_count = self.multi_rest_count;
         measure.system_break = self.system_break;
         measure.page_break = self.page_break;

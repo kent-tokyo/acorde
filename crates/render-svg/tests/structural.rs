@@ -5382,3 +5382,87 @@ fn below_hairpin_does_not_cross_high_notes_on_lower_staff() {
         }
     }
 }
+
+#[test]
+fn shared_dynamic_playback_does_not_duplicate_the_printed_mark() {
+    use acorde_core::{
+        Clef, Duration, Dynamic, Measure, Note, NoteAddr, Pitch, PlaybackOptions, Score, Staff,
+        Step,
+    };
+    let mut score = Score::new("shared dynamic", 120, 4, 4, 0, 1);
+    let mut upper = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+    upper.dynamic = Some(Dynamic::P);
+    score.parts[0].staves[0].measures[0].voices[0] = vec![upper];
+    let mut lower = Staff::new(Clef::Bass);
+    let mut bar = Measure::empty(4, 4);
+    bar.voices[0] = vec![Note::new(Pitch::new(Step::C, 3), Duration::Whole)];
+    lower.measures.push(bar);
+    score.parts[0].staves.push(lower);
+    let before = render_svg(&score, &opts()).unwrap();
+    let options = PlaybackOptions {
+        shared_dynamics: vec![NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        }],
+        ..Default::default()
+    };
+    let events = acorde_core::to_playback_events(&score, &options);
+    assert!(events.iter().all(|event| event.velocity == 48));
+    let after = render_svg(&score, &opts()).unwrap();
+    assert_eq!(before, after);
+    assert_eq!(after.matches("class=\"acorde-dynamic\"").count(), 1);
+}
+
+#[test]
+fn timed_pedal_signs_show_at_distinct_positions_inside_a_sustained_note() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step, TimedPedalDirection};
+    let mut score = Score::new("timed pedal", 120, 4, 4, 0, 1);
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+    measure.timed_pedals = vec![
+        TimedPedalDirection {
+            position_beats: 0.0,
+            down: true,
+            number: 1,
+            hide_sign: false,
+            placement: None,
+        },
+        TimedPedalDirection {
+            position_beats: 3.0,
+            down: false,
+            number: 1,
+            hide_sign: false,
+            placement: None,
+        },
+    ];
+    let svg = render_svg(&score, &opts()).unwrap();
+    let position = |label: &str| -> (f32, f32) {
+        let tag = svg
+            .split("<text ")
+            .skip(1)
+            .find(|tag| tag.contains(&format!(">{label}</text>")))
+            .unwrap();
+        let attr = |name: &str| -> f32 {
+            tag.split(&format!("{name}=\""))
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap()
+                .parse()
+                .unwrap()
+        };
+        (attr("x"), attr("y"))
+    };
+    let start = position("Ped.");
+    let stop = position("*");
+    assert!(stop.0 > start.0 + 20.0, "{start:?}, {stop:?}");
+    assert!((stop.1 - start.1).abs() < 1.0, "{start:?}, {stop:?}");
+    score.parts[0].staves[0].measures[0].timed_pedals[0].hide_sign = true;
+    let hidden = render_svg(&score, &opts()).unwrap();
+    assert!(!hidden.contains(">Ped.</text>"));
+    assert!(hidden.contains(">*</text>"));
+}
