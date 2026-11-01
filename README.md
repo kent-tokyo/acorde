@@ -14,7 +14,7 @@ acorde provides a serializable score model, undoable edits, bounded notation I/O
 deterministic SVG, playback-event projection, analysis primitives, and WASM bindings. Library
 crates are synchronous, UI-free, and do not read or write files.
 
-The workspace minimum supported Rust version (MSRV) is **Rust 1.88**.
+The workspace minimum supported Rust version (MSRV) is **Rust 1.89**.
 
 ```text
 input bytes/text → acorde-io → Score → acorde-layout → LayoutResult
@@ -30,7 +30,7 @@ input bytes/text → acorde-io → Score → acorde-layout → LayoutResult
 | `acorde-io` | MusicXML/MXL and MIDI; optional ABC, MEI, MSCZ/MSCX, Guitar Pro 3–8 import |
 | `acorde-layout` | Pixel-free logical layout and print-page metadata |
 | `acorde-render-svg` | Deterministic Rust/WASM SVG renderer |
-| `acorde-pdf` | Optional vector PDF export through Harumi (Rust 1.88+) |
+| `acorde-pdf` | Optional vector PDF export through Harumi (Rust 1.89+) |
 | `acorde-omr` | Optional bounded PNG analysis that produces reviewable OMR proposals |
 | `acorde-analysis` | Deterministic explainable harmony and SATB analysis |
 | `acorde-soundfont` | Optional bounded SF2/SF3/provider integration and SF2 WAV rendering |
