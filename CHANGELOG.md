@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## 1.3.8 - 2026-11-02
+
+- **Compatibility.** Rust 1.89 is now the workspace minimum. Explicit accidentals,
+  hidden time signatures, and shared dynamics add public model fields or variants;
+  see the migration notes before updating exhaustive Rust matches or struct literals.
+- SVG engraving improves slur clearance around stems and beams, simultaneous-voice
+  alignment, and grace-note placement. Some dense or multi-part collisions remain open.
+- MusicXML import and playback preserve timed pedal changes and dynamics; measured
+  single-note tremolo and shared fermata timing are supported. MuseScore instrument
+  channels and supported tie locations are retained.
+- Update png to 0.18.1, zip to 9.1.3, harumi to 1.23.8, uuid to 1.29.0, and
+  rustysynth to 1.3.8.
+
 - **MSRV.** The workspace minimum supported Rust version is now 1.89. The lockfile
   updates `uuid` to 1.29.0.
 

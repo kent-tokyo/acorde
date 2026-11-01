@@ -6,8 +6,8 @@ quality or of compatibility with every scanned score.
 | Component | Version / source | License evidence | Distribution role |
 |---|---|---|---|
 | `acorde-omr` | workspace crate | repository dual license | optional local PNG analysis |
-| `png` | 0.17.16 from crates.io | package manifest: `MIT OR Apache-2.0` | in-memory PNG decoding/encoding in tests |
-| `bitflags` | 1.3.2, transitive from `png` | package manifest: `MIT/Apache-2.0` | PNG decoder dependency |
+| `png` | 0.18.1 from crates.io | package manifest: `MIT OR Apache-2.0` | in-memory PNG decoding/encoding in tests |
+| `bitflags` | 2.13.2, transitive from `png` | package manifest: `MIT/Apache-2.0` | PNG decoder dependency |
 | `fdeflate` | 0.3.7, transitive from `png` | package manifest: `MIT OR Apache-2.0` | PNG decoder dependency |
 | external OMR / AI provider | none | not applicable | not bundled or contacted |
 
