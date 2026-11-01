@@ -110,7 +110,9 @@ pub struct PlaybackOptions {
     /// Events within the region start at `time_beats = 0`.
     #[serde(default)]
     pub loop_region: Option<(usize, usize)>,
-    /// Duration multiplier for notes with `Fermata` articulation. Default 1.5.
+    /// Fermata duration multiplier. Values above 1 insert a shared score-wide hold
+    /// at the end of the marked note or rest; other sounding notes are sustained and
+    /// later events wait. The default is 1.5.
     #[serde(default = "default_fermata_multiplier")]
     pub fermata_multiplier: f64,
     /// Additional beat-domain hold requested after a fermata note. Default 0 keeps legacy
@@ -1047,6 +1049,7 @@ fn append_rest_pedal_events(
     events: &mut Vec<OfflineRenderSemanticFrameEvent>,
 ) {
     let marks = score_tempo_marks(score);
+    let holds = score_fermata_holds(score, options);
     let swing = options
         .swing
         .filter(|ratio| ratio.is_finite() && *ratio > 0.5 && *ratio < 1.0);
@@ -1090,8 +1093,9 @@ fn append_rest_pedal_events(
                         if note.is_rest && selected && (note.pedal_start || note.pedal_end) {
                             let secs = time.start_secs
                                 + tempo_ramp_seconds(time.bpm, time.ramp_to_bpm, time.beats, local);
-                            let frame = ((secs - origin_secs).max(0.0) * f64::from(sample_rate_hz))
-                                .round() as u64;
+                            let frame = ((fermata_warp_secs(secs, &holds) - origin_secs).max(0.0)
+                                * f64::from(sample_rate_hz))
+                            .round() as u64;
                             // At a pedal retake, release before pressing again.
                             for (present, down) in
                                 [(note.pedal_end, false), (note.pedal_start, true)]
@@ -1191,6 +1195,7 @@ fn append_measure_semantic_events(
     events: &mut Vec<OfflineRenderSemanticFrameEvent>,
 ) {
     let tempo_marks = score_tempo_marks(score);
+    let holds = score_fermata_holds(score, options);
     for (part_index, part) in score.parts.iter().enumerate() {
         let timeline = offline_measure_times(score, options, part_index, 0, &tempo_marks);
         let Some(staff) = part.staves.first() else {
@@ -1216,8 +1221,9 @@ fn append_measure_semantic_events(
                 staff: 0,
                 measure: time.measure,
             };
-            let frame = ((time.start_secs - origin_secs).max(0.0) * f64::from(sample_rate_hz))
-                .round() as u64;
+            let frame = ((fermata_warp_secs(time.start_secs, &holds) - origin_secs).max(0.0)
+                * f64::from(sample_rate_hz))
+            .round() as u64;
             let measure = &staff.measures[time.measure];
             let mark = tempo_marks.get(time.measure).copied().unwrap_or_default();
             if part_index == 0
@@ -1274,8 +1280,9 @@ fn append_measure_semantic_events(
                         controller: control.controller,
                         value: control.value,
                     },
-                    frame: ((secs - origin_secs).max(0.0) * f64::from(sample_rate_hz)).round()
-                        as u64,
+                    frame: ((fermata_warp_secs(secs, &holds) - origin_secs).max(0.0)
+                        * f64::from(sample_rate_hz))
+                    .round() as u64,
                     source: None,
                     measure: Some(address.clone()),
                 });
@@ -1292,8 +1299,9 @@ fn append_measure_semantic_events(
                         channel: bend.channel,
                         value: bend.value,
                     },
-                    frame: ((secs - origin_secs).max(0.0) * f64::from(sample_rate_hz)).round()
-                        as u64,
+                    frame: ((fermata_warp_secs(secs, &holds) - origin_secs).max(0.0)
+                        * f64::from(sample_rate_hz))
+                    .round() as u64,
                     source: None,
                     measure: Some(address.clone()),
                 });
@@ -1310,8 +1318,9 @@ fn append_measure_semantic_events(
                         channel: program.channel,
                         program: program.program,
                     },
-                    frame: ((secs - origin_secs).max(0.0) * f64::from(sample_rate_hz)).round()
-                        as u64,
+                    frame: ((fermata_warp_secs(secs, &holds) - origin_secs).max(0.0)
+                        * f64::from(sample_rate_hz))
+                    .round() as u64,
                     source: None,
                     measure: Some(address.clone()),
                 });
@@ -1329,8 +1338,9 @@ fn append_measure_semantic_events(
                         key: aftertouch.key,
                         value: aftertouch.value,
                     },
-                    frame: ((secs - origin_secs).max(0.0) * f64::from(sample_rate_hz)).round()
-                        as u64,
+                    frame: ((fermata_warp_secs(secs, &holds) - origin_secs).max(0.0)
+                        * f64::from(sample_rate_hz))
+                    .round() as u64,
                     source: None,
                     measure: Some(address.clone()),
                 });
@@ -2166,8 +2176,13 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                                     Articulation::Accent | Articulation::Marcato => {
                                         velocity = velocity.saturating_add(20).min(127);
                                     }
-                                    Articulation::Fermata => {
-                                        sounding_dur *= options.fermata_multiplier;
+                                    // Extensions are applied score-wide after tie resolution.
+                                    // Values below one retain their existing shortening behavior.
+                                    Articulation::Fermata
+                                        if options.fermata_multiplier.is_finite()
+                                            && options.fermata_multiplier < 1.0 =>
+                                    {
+                                        sounding_dur *= options.fermata_multiplier.max(0.0);
                                     }
                                     _ => {}
                                 }
@@ -2517,6 +2532,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     events = merge_tied_events(score, options, events);
+    apply_fermata_holds(&mut events, &score_fermata_holds(score, options));
     events = apply_realization_profile(score, events, options.realization_profile);
     events.sort_by(|a, b| {
         a.time_beats
@@ -2782,7 +2798,12 @@ fn merge_tied_events(
                     articulation_scale *= 0.5;
                     staccato = true;
                 }
-                Articulation::Fermata => articulation_scale *= options.fermata_multiplier,
+                Articulation::Fermata
+                    if options.fermata_multiplier.is_finite()
+                        && options.fermata_multiplier < 1.0 =>
+                {
+                    articulation_scale *= options.fermata_multiplier.max(0.0)
+                }
                 _ => {}
             }
         }
@@ -2907,6 +2928,192 @@ fn playback_measure_clock(score: &Score, options: &PlaybackOptions) -> Vec<Playb
         }
     }
     clock
+}
+
+/// A pause inserted into the shared score clock at a written note/rest end.
+#[derive(Clone, Copy, Debug)]
+struct FermataHold {
+    at_beat: f64,
+    at_secs: f64,
+    extra_beats: f64,
+    extra_secs: f64,
+    cumulative_beats: f64,
+    cumulative_secs: f64,
+}
+
+fn score_fermata_holds(score: &Score, options: &PlaybackOptions) -> Vec<FermataHold> {
+    let multiplier = options.fermata_multiplier;
+    if !multiplier.is_finite()
+        || multiplier <= 1.0
+        || !score
+            .parts
+            .iter()
+            .flat_map(|part| &part.staves)
+            .flat_map(|staff| &staff.measures)
+            .flat_map(|measure| &measure.voices)
+            .flatten()
+            .any(|note| note.articulations.contains(&Articulation::Fermata))
+    {
+        return Vec::new();
+    }
+    let sequence = measure_sequence(score).into_iter().filter(|index| {
+        options
+            .loop_region
+            .is_none_or(|(start, end)| *index >= start && *index <= end)
+    });
+    let clock = playback_measure_clock(score, options);
+    let swing = options
+        .swing
+        .filter(|ratio| ratio.is_finite() && *ratio > 0.5 && *ratio < 1.0);
+    let mut holds = Vec::new();
+    for (index, measure_clock) in sequence.zip(clock.iter()) {
+        for staff in score.parts.iter().flat_map(|part| &part.staves) {
+            let Some(measure) = staff.measures.get(index) else {
+                continue;
+            };
+            let grid_offset = if index == 0 {
+                let meter = staff
+                    .meter_at(index, &score.settings.time_signature)
+                    .total_beats();
+                (meter - measure_clock.beats).max(0.0)
+            } else {
+                0.0
+            };
+            for voice in &measure.voices {
+                let (mut local, mut written) = (0.0, 0.0);
+                let mut swing_second = false;
+                for (note_index, note) in voice.iter().enumerate() {
+                    if note.is_grace || note.is_cue {
+                        continue;
+                    }
+                    let duration = if let Some(ratio) = swing {
+                        if swing_second {
+                            swing_second = false;
+                            (1.0 - ratio) * note.beats() * 2.0
+                        } else if starts_swing_pair(
+                            voice,
+                            note_index,
+                            written,
+                            grid_offset,
+                            measure_clock.beats,
+                            &options.swing_unit,
+                        ) {
+                            swing_second = true;
+                            ratio * note.beats() * 2.0
+                        } else {
+                            note.beats()
+                        }
+                    } else {
+                        note.beats()
+                    };
+                    written += note.beats();
+                    local += duration;
+                    if note.articulations.contains(&Articulation::Fermata) && duration > 0.0 {
+                        let at_beat = measure_clock.start_beats + local;
+                        let Some(at_secs) = playback_secs_at_beat(&clock, at_beat) else {
+                            continue;
+                        };
+                        let bpm = measure_clock.ramp_to_bpm.map_or(measure_clock.bpm, |end| {
+                            measure_clock.bpm
+                                + (end - measure_clock.bpm)
+                                    * (local / measure_clock.beats.max(f64::EPSILON))
+                                        .clamp(0.0, 1.0)
+                        });
+                        let extra_beats = duration * (multiplier - 1.0);
+                        holds.push(FermataHold {
+                            at_beat,
+                            at_secs,
+                            extra_beats,
+                            extra_secs: extra_beats * 60.0 / bpm,
+                            cumulative_beats: 0.0,
+                            cumulative_secs: 0.0,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    holds.sort_by(|a, b| a.at_beat.total_cmp(&b.at_beat));
+    let mut unique: Vec<FermataHold> = Vec::new();
+    for hold in holds {
+        if let Some(last) = unique.last_mut()
+            && (last.at_beat - hold.at_beat).abs() < 1e-9
+        {
+            if hold.extra_beats > last.extra_beats {
+                *last = hold;
+            }
+        } else {
+            unique.push(hold);
+        }
+    }
+    let (mut beats, mut seconds) = (0.0, 0.0);
+    for hold in &mut unique {
+        beats += hold.extra_beats;
+        seconds += hold.extra_secs;
+        hold.cumulative_beats = beats;
+        hold.cumulative_secs = seconds;
+    }
+    unique
+}
+
+pub(super) fn fermata_total_secs(score: &Score, region: Option<(usize, usize)>) -> f64 {
+    let options = PlaybackOptions {
+        loop_region: region,
+        ..Default::default()
+    };
+    score_fermata_holds(score, &options)
+        .last()
+        .map_or(0.0, |hold| hold.cumulative_secs)
+}
+
+/// Score-clock pauses as (written beat, added beats), including repeats and loop filtering.
+/// Use these when projecting the same score to a separate beat-based transport such as MIDI.
+pub fn playback_fermata_pauses(score: &Score, options: &PlaybackOptions) -> Vec<(f64, f64)> {
+    score_fermata_holds(score, options)
+        .into_iter()
+        .map(|hold| (hold.at_beat, hold.extra_beats))
+        .collect()
+}
+
+fn apply_fermata_holds(events: &mut [PlaybackEvent], holds: &[FermataHold]) {
+    let before = |index: usize| index.checked_sub(1).and_then(|i| holds.get(i));
+    for event in events {
+        let start = event.time_beats;
+        let end = start + event.duration_beats;
+        let first = holds.partition_point(|hold| hold.at_beat <= start + 1e-9);
+        let last = holds.partition_point(|hold| hold.at_beat <= end + 1e-9);
+        let start_beats = before(first).map_or(0.0, |hold| hold.cumulative_beats);
+        let start_secs = before(first).map_or(0.0, |hold| hold.cumulative_secs);
+        let end_beats = before(last).map_or(0.0, |hold| hold.cumulative_beats);
+        let end_secs = before(last).map_or(0.0, |hold| hold.cumulative_secs);
+        event.time_beats += start_beats;
+        event.time_secs += start_secs;
+        event.duration_beats += end_beats - start_beats;
+        event.duration_secs += end_secs - start_secs;
+    }
+}
+
+fn fermata_warp_secs(seconds: f64, holds: &[FermataHold]) -> f64 {
+    let count = holds.partition_point(|hold| hold.at_secs <= seconds + 1e-9);
+    seconds
+        + count
+            .checked_sub(1)
+            .map_or(0.0, |index| holds[index].cumulative_secs)
+}
+
+fn fermata_unwarp_secs(seconds: f64, holds: &[FermataHold]) -> f64 {
+    let count = holds
+        .partition_point(|hold| hold.at_secs + hold.cumulative_secs - hold.extra_secs <= seconds);
+    if count == 0 {
+        return seconds;
+    }
+    let hold = holds[count - 1];
+    let start = hold.at_secs + hold.cumulative_secs - hold.extra_secs;
+    if seconds < start + hold.extra_secs {
+        hold.at_secs
+    } else {
+        seconds - hold.cumulative_secs
+    }
 }
 
 fn playback_secs_at_beat(clock: &[PlaybackClockMeasure], beat: f64) -> Option<f64> {
@@ -3083,6 +3290,8 @@ pub fn compute_playback_position(
     if elapsed_secs < 0.0 {
         return None;
     }
+    let holds = score_fermata_holds(score, options);
+    let elapsed_secs = fermata_unwarp_secs(elapsed_secs, &holds);
     let segments = build_measure_segments(score, options);
     for seg in &segments {
         if elapsed_secs < seg.start_secs + seg.duration_secs + 1e-9 {
@@ -4117,6 +4326,105 @@ mod tests {
     // ── Fermata ───────────────────────────────────────────────────────────────
 
     #[test]
+    fn fermata_holds_a_shared_clock_across_voices_and_repeat_traversal() {
+        use crate::model::notation::Barline;
+        let mut score = Score::new("Shared fermata", 120, 3, 4, 0, 1);
+        let measure = &mut score.parts[0].staves[0].measures[0];
+        measure.barline_left = Barline::RepeatStart;
+        measure.barline_right = Barline::RepeatEnd;
+        let mut held = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        held.articulations.push(Articulation::Fermata);
+        measure.voices[0] = vec![
+            held,
+            Note::new(Pitch::new(Step::D, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::E, 4), Duration::Quarter),
+        ];
+        measure.voices[1] = vec![
+            Note::new(Pitch::new(Step::C, 3), Duration::Half),
+            Note::new(Pitch::new(Step::G, 3), Duration::Quarter),
+        ];
+        let events = to_playback_events(&score, &PlaybackOptions::default());
+        let onsets = |pitch| {
+            events
+                .iter()
+                .filter(|event| event.pitch_midi == pitch)
+                .map(|event| event.time_beats)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(onsets(60), vec![0.0, 3.5]);
+        assert_eq!(onsets(62), vec![1.5, 5.0]);
+        assert_eq!(onsets(64), vec![2.5, 6.0]);
+        assert_eq!(onsets(55), vec![2.5, 6.0]);
+        let bass = events.iter().find(|event| event.pitch_midi == 48).unwrap();
+        assert_eq!(bass.duration_beats, 2.5);
+        assert_eq!(bass.duration_secs, 1.25);
+        assert!((super::super::score::score_duration_secs(&score) - 3.5).abs() < 1e-9);
+        assert!(
+            (super::super::score::score_duration_secs_region(&score, (0, 0)) - 3.5).abs() < 1e-9
+        );
+    }
+
+    #[test]
+    fn simultaneous_fermatas_hold_once_and_delay_rest_pedal_and_position() {
+        let mut score = Score::new("Two staves", 120, 3, 4, 0, 1);
+        let mut held = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        held.articulations.push(Articulation::Fermata);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            held.clone(),
+            Note::new(Pitch::new(Step::D, 4), Duration::Half),
+        ];
+        let mut lower = score.parts[0].staves[0].clone();
+        held.pitches[0] = Pitch::new(Step::C, 3);
+        let mut rest = Note::rest(Duration::Quarter);
+        rest.pedal_start = true;
+        lower.measures[0].voices[0] = vec![
+            held,
+            rest,
+            Note::new(Pitch::new(Step::E, 3), Duration::Quarter),
+        ];
+        lower.measures[0].voices[1] = vec![
+            Note::new(Pitch::new(Step::C, 2), Duration::Half),
+            Note::rest(Duration::Quarter),
+        ];
+        score.parts[0].staves.push(lower);
+        let opts = PlaybackOptions::default();
+        let events = to_playback_events(&score, &opts);
+        assert_eq!(
+            events
+                .iter()
+                .find(|event| event.pitch_midi == 62)
+                .unwrap()
+                .time_beats,
+            1.5
+        );
+        assert_eq!(
+            events
+                .iter()
+                .find(|event| event.pitch_midi == 36)
+                .unwrap()
+                .duration_beats,
+            2.5
+        );
+        let manifest = build_offline_render_manifest(
+            &score,
+            &opts,
+            &OfflineRenderRequest {
+                sample_rate_hz: 48_000,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert!(manifest.semantic_events.iter().any(|event| matches!(
+            event.kind,
+            OfflineRenderSemanticEventKind::Pedal { down: true }
+        ) && event.frame == 36_000));
+        let position = compute_playback_position(&score, &opts, 0.625).unwrap();
+        assert!((position.beat - 1.0).abs() < 1e-9);
+        let position = compute_playback_position(&score, &opts, 1.0).unwrap();
+        assert!((position.beat - 1.5).abs() < 1e-9);
+    }
+
+    #[test]
     fn fermata_multiplier_extends_duration() {
         let mut score = Score::new("T", 120, 4, 4, 0, 1);
         let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
@@ -4935,13 +5243,26 @@ mod tests {
         assert_eq!(navigation_events, 2);
         assert_eq!(control_frames.len(), 2);
         let ramp_duration = tempo_ramp_seconds(120.0, Some(60.0), 4.0, 4.0);
+        // The first fermata holds for half a beat at the ramp's beat-one tempo.
+        // On the repeat the ramp starts at 60 BPM, so the second hold is 0.5 s.
+        let first_hold = 0.5 * 60.0 / 105.0;
+        let second_hold = 0.5;
         assert_eq!(
             control_frames[0],
-            (tempo_ramp_seconds(120.0, Some(60.0), 4.0, 1.0) * 48_000.0).round() as u64
+            ((tempo_ramp_seconds(120.0, Some(60.0), 4.0, 1.0) + first_hold) * 48_000.0).round()
+                as u64
         );
-        assert_eq!(control_frames[1], 373_084);
+        assert_eq!(
+            control_frames[1],
+            ((ramp_duration + 5.0 + first_hold + second_hold) * 48_000.0).round() as u64
+        );
 
-        let expected_starts = [0.0, ramp_duration, ramp_duration + 4.0, ramp_duration + 8.0];
+        let expected_starts = [
+            0.0,
+            ramp_duration + first_hold,
+            ramp_duration + first_hold + 4.0,
+            ramp_duration + first_hold + 8.0 + second_hold,
+        ];
         for (frame_event, expected_secs) in manifest.frame_events.iter().zip(expected_starts) {
             assert_eq!(
                 frame_event.start_frame,

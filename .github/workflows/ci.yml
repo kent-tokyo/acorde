@@ -199,10 +199,10 @@ jobs:
           # 6,111,598 bytes on Linux. Hairpin and beam-clearance rendering
           # measured 6,118,357 bytes; independently, MuseScore cross-voice and
           # cross-staff slur import/export measured 6,145,645 bytes on Linux.
-          # Their combined Linux artifact measured 6,149,693 bytes; with staff-wide
-          # ottava support it measured 6,158,651 bytes. Explicit accidentals on this
-          # head measured 6,160,496 bytes in Linux CI.
-          test "$size" -le 6162000
+          # Their combined Linux artifact measured 6,149,693 bytes; staff-wide
+          # ottava support measured 6,158,651 bytes. With shared fermata timing,
+          # Linux CI measured 6,192,355 bytes.
+          test "$size" -le 6194000
 
   renderer-benchmark:
     name: Renderer performance budget
