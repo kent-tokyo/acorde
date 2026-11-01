@@ -4731,3 +4731,11 @@ fn explicitly_repeated_musicxml_accidentals_survive_render_and_roundtrip() {
         2
     );
 }
+
+#[test]
+fn explicit_natural_after_barline_is_drawn_once() {
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><alter>1</alter><octave>4</octave></pitch><duration>1</duration><type>quarter</type><accidental>sharp</accidental></note></measure><measure number="2"><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><accidental>natural</accidental></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(svg.matches("acorde-accidental acorde-natural").count(), 1);
+}

@@ -606,6 +606,7 @@ fn collect_courtesy_accidentals(score: &Score) -> Vec<CourtesyAccidental> {
                             // repeat it, or add a reminder for a key-signature sharp/flat.
                             let previous = prev_alters.remove(&key);
                             let natural_reminder = !note.tie_end
+                                && note.accidental_display(pitch_idx) == AccidentalDisplay::Auto
                                 && pitch.alter == 0
                                 && key_alter(current_fifths, &pitch.step) == 0
                                 && previous.is_some_and(|alter| alter != 0);
