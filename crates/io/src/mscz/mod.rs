@@ -386,6 +386,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut chord_notes_hidden = 0usize;
     let mut in_arpeggio = false;
     let mut chord_tremolo: Option<u8> = None;
+    let mut chord_tremolo_pair = false;
     let mut in_tremolo = false;
     let mut chord_articulations: Vec<Articulation> = Vec::new();
     let mut in_articulation = false;
@@ -779,6 +780,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         chord_grace_slash = false;
                         chord_arpeggiate = None;
                         chord_tremolo = None;
+                        chord_tremolo_pair = false;
                         chord_articulations.clear();
                         chord_staff_move = 0;
                         chord_notes_hidden = 0;
@@ -1988,6 +1990,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "subtype" if in_tremolo => {
                         chord_tremolo = Some(mscx_tremolo_level(t));
+                        chord_tremolo_pair = t.trim().to_ascii_lowercase().starts_with('c');
                     }
                     "Tremolo" if in_tremolo => {
                         in_tremolo = false;
@@ -2169,6 +2172,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             note.note_head = note_head.clone();
                             note.chord_symbol = pending_chord_symbol.take();
                             if let Some(level) = chord_tremolo {
+                                if chord_tremolo_pair {
+                                    note.tremolo_pair = Some("start".into());
+                                }
                                 note.articulations.push(Articulation::Tremolo(level));
                             }
                             note.articulations
