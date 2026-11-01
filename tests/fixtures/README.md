@@ -106,3 +106,8 @@ compressed and uncompressed representations can be tested as a pair.
 `issue_283_overlapping_ottavas.mscx` is a self-authored synthetic score. MuseScore 4.7.5 MIDI export gives pitches 91, 67, 60, 79 at beats 0, 1, 1, 2; it wrote valid MIDI before crashing on shutdown. The fixture isolates staff-wide octave offset precedence and is not evidence of general MuseScore interchange fidelity. Its SHA-256 is pinned in `manifest.json`.
 
 `cross_voice_slur.musicxml` is the synthetic reproduction from [Issue #293](https://github.com/kent-tokyo/acorde/issues/293). `issue_293_musescore475_cross_voice.mscz` was generated from that reproduction by MuseScore Studio 4.7.5 (revision 3654226). MuseScore produced a valid archive and then crashed during shutdown. Tests evaluate the cross-voice slur endpoints and SVG continuation; they do not claim lossless preservation of every other field. Both fixture hashes are pinned in `manifest.json`.
+
+`issue_297_repeated_accidentals.musicxml` is a self-authored three-note fixture.
+MuseScore 4.7.5 rendered two accidental glyphs from Acorde's MSCZ export; it wrote
+the SVG before crashing at shutdown. The input hash is pinned in `manifest.json`;
+this verifies the example, not general engraving quality.

@@ -1436,6 +1436,9 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
         let path = fixture["path"].as_str().expect("fixture path");
         let expected = fixture["sha256"].as_str().expect("fixture sha256");
         let bytes: &[u8] = match path {
+            "issue_297_repeated_accidentals.musicxml" => {
+                include_bytes!("../../../tests/fixtures/issue_297_repeated_accidentals.musicxml")
+            }
             "issue_283_overlapping_ottavas.mscx" => {
                 include_bytes!("../../../tests/fixtures/issue_283_overlapping_ottavas.mscx")
             }
@@ -7638,4 +7641,16 @@ fn musicxml_fermata_delays_following_attacks_on_shared_clock() {
             .collect::<Vec<_>>(),
         [(60, 0.0, 1.5), (62, 1.5, 1.0), (64, 2.5, 1.0)]
     );
+}
+
+#[cfg(feature = "musicxml")]
+#[test]
+fn repeated_accidental_external_fixture_survives_musicxml_roundtrip() {
+    use acorde_core::AccidentalDisplay;
+    let source = include_str!("../../../tests/fixtures/issue_297_repeated_accidentals.musicxml");
+    let score = parse_musicxml(source).unwrap();
+    let restored = parse_musicxml(&serialize_musicxml(&score).unwrap()).unwrap();
+    let voice = &restored.parts[0].staves[0].measures[0].voices[0];
+    assert_eq!(voice[0].accidental_display(0), AccidentalDisplay::Explicit);
+    assert_eq!(voice[2].accidental_display(0), AccidentalDisplay::Explicit);
 }
