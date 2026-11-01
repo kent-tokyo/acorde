@@ -11,26 +11,31 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
-## Unreleased: selectable shared dynamics
+## v1.3.8: selectable shared dynamics
 
 `PlaybackOptions.shared_dynamics` and `shared_hairpins` select individual marks to share across
 a part's staves. Existing JSON defaults both lists to empty; complete Rust `PlaybackOptions`
 struct literals must add them or use `..Default::default()`. Selection is a playback option,
 not a persisted score or an automatic interpretation of imported placement.
 
-## Unreleased: explicitly written accidentals
+## v1.3.8: explicitly written accidentals
 
 `AccidentalDisplay::Explicit` distinguishes an ordinary written accidental from an automatic or
 cautionary one. Rust code that exhaustively matches this enum must handle the new variant. Older
 score JSON remains readable; older consumers may not recognize newly serialized `Explicit` values.
 ABC, MIDI, and MuseScore export reports identify the cases where this distinction cannot round-trip.
 
-## Unreleased: hidden time signatures
+## v1.3.8: hidden time signatures
 
 `Measure.time_sig_hidden` preserves hidden MusicXML and MuseScore meter changes. Set it in
 complete Rust `Measure` literals; existing score JSON defaults to `false`. Exhaustive matches on
 `ScoreChange` and `ScorePatch` must also handle the new time-visibility variants. ABC, MEI and
 MIDI export reports identify the unsupported visibility separately from the musical meter.
+
+## v1.3.8: Rust toolchain and saved arrangements
+
+The workspace now requires Rust 1.89 or newer. Preset and free-layer engine markers include
+the workspace version; reselect saved inputs to create a v1.3.8 configuration before replay.
 
 ## v1.3.7
 
