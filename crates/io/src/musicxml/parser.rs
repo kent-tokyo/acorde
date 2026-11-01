@@ -246,6 +246,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut current_time = TimeSignature::default();
     let mut current_time_symbol: Option<TimeSymbol> = None;
     let mut pending_time_symbol: Option<String> = None;
+    let mut current_time_hidden = false;
     let mut current_key = KeySignature::default();
     let mut current_clef = Clef::Treble;
     let mut current_clef_staff_number = 1usize;
@@ -562,7 +563,10 @@ pub(crate) fn parse_musicxml_collecting(
                             }
                         }
                     }
-                    "time" => pending_time_symbol = attr_str(e, b"symbol"),
+                    "time" => {
+                        pending_time_symbol = attr_str(e, b"symbol");
+                        current_time_hidden = attr_str(e, b"print-object").as_deref() == Some("no");
+                    }
                     "score-instrument" if in_score_part => {
                         in_score_instrument = true;
                         score_instrument_id = attr_str(e, b"id").unwrap_or_default();
@@ -913,6 +917,7 @@ pub(crate) fn parse_musicxml_collecting(
                         current_time = TimeSignature::default();
                         current_time_symbol = None;
                         pending_time_symbol = None;
+                        current_time_hidden = false;
                         current_key = KeySignature::default();
                         current_clef = Clef::Treble;
                         current_measure_number = 0;
@@ -935,6 +940,7 @@ pub(crate) fn parse_musicxml_collecting(
                             if score.parts[pi].staves[0].measures.is_empty() {
                                 m.time_sig = Some(current_time.clone());
                                 m.time_symbol = current_time_symbol;
+                                m.time_sig_hidden = current_time_hidden;
                                 m.key_sig = Some(current_key.clone());
                                 m.clef = Some(current_clef.clone());
                             }
@@ -1974,6 +1980,7 @@ pub(crate) fn parse_musicxml_collecting(
                         {
                             m.time_sig = Some(current_time.clone());
                             m.time_symbol = current_time_symbol;
+                            m.time_sig_hidden = current_time_hidden;
                             m.key_sig = Some(current_key.clone());
                             if std::mem::take(&mut first_staff_bar_clef_read) {
                                 m.clef = Some(current_clef.clone());
@@ -3267,6 +3274,7 @@ fn pad_declared_staff_measures(part: &mut Part) {
             };
             if measure.time_sig.is_none() && source.time_sig.is_some() {
                 measure.time_sig = source.time_sig.clone();
+                measure.time_sig_hidden = source.time_sig_hidden;
             }
             if measure.time_symbol.is_none() {
                 measure.time_symbol = source.time_symbol;

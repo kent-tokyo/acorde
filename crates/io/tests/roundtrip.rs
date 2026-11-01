@@ -1436,6 +1436,9 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
         let path = fixture["path"].as_str().expect("fixture path");
         let expected = fixture["sha256"].as_str().expect("fixture sha256");
         let bytes: &[u8] = match path {
+            "issue_292_hidden_time.musicxml" => {
+                include_bytes!("../../../tests/fixtures/issue_292_hidden_time.musicxml")
+            }
             "issue_283_overlapping_ottavas.mscx" => {
                 include_bytes!("../../../tests/fixtures/issue_283_overlapping_ottavas.mscx")
             }
@@ -7597,6 +7600,32 @@ fn musescore_475_native_cross_voice_slur_roundtrips() {
     assert_eq!((span.start.clone(), span.end.clone()), expected);
 }
 
+#[cfg(all(feature = "abc", feature = "mei", feature = "midi"))]
+#[test]
+fn hidden_time_visibility_is_reported_by_unsupported_export_formats() {
+    let mut score = acorde_core::Score::new("Hidden meter", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].measures[0].time_sig_hidden = true;
+    let path = "/score/part/1/staff/1/measure/1/time_sig_hidden";
+    for diagnostics in [
+        acorde_io::serialize_abc_with_report(&score)
+            .unwrap()
+            .diagnostics,
+        acorde_io::serialize_mei_with_report(&score)
+            .unwrap()
+            .diagnostics,
+        acorde_io::serialize_midi_with_report(&score)
+            .unwrap()
+            .diagnostics,
+    ] {
+        assert!(
+            diagnostics
+                .iter()
+                .any(|item| item.source_location.as_deref() == Some(path)),
+            "missing hidden-meter diagnostic: {diagnostics:?}"
+        );
+    }
+}
+
 #[test]
 fn musicxml_fermata_delays_following_attacks_on_shared_clock() {
     let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notations><fermata/></notations></note><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#;
@@ -7609,4 +7638,40 @@ fn musicxml_fermata_delays_following_attacks_on_shared_clock() {
             .collect::<Vec<_>>(),
         [(60, 0.0, 1.5), (62, 1.5, 1.0), (64, 2.5, 1.0)]
     );
+}
+
+#[cfg(feature = "musicxml")]
+#[test]
+fn hidden_musicxml_meter_does_not_report_a_supported_attribute_as_lost() {
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time print-object="no"><beats>2</beats><beat-type>4</beat-type></time></attributes><note><rest/><duration>2</duration><type>half</type></note></measure></part></score-partwise>"#;
+    let report = acorde_io::parse_musicxml_with_report(xml).unwrap();
+    assert!(report.score.parts[0].staves[0].measures[0].time_sig_hidden);
+    assert!(
+        !report.diagnostics.iter().any(|item| item
+            .source_location
+            .as_deref()
+            .is_some_and(|path| path.ends_with("time@print-object"))),
+        "supported visibility reported as lost: {:?}",
+        report.diagnostics
+    );
+    let invalid = xml.replace("print-object=\"no\"", "print-object=\"unknown\"");
+    let report = acorde_io::parse_musicxml_with_report(&invalid).unwrap();
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|item| item.code == "musicxml.invalid-time-visibility")
+    );
+}
+
+#[cfg(all(feature = "musicxml", feature = "mscz"))]
+#[test]
+fn hidden_meter_external_fixture_survives_mscz_roundtrip() {
+    let source = include_str!("../../../tests/fixtures/issue_292_hidden_time.musicxml");
+    let score = parse_musicxml(source).unwrap();
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let measures = &restored.parts[0].staves[0].measures;
+    assert!(!measures[0].time_sig_hidden);
+    assert!(measures[1].time_sig_hidden);
+    assert_eq!(measures[1].time_sig.as_ref().unwrap().numerator, 2);
 }

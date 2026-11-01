@@ -354,6 +354,15 @@
       "expected_losses": [
         "Only cross-voice slur endpoints and rendering are evaluated"
       ]
+    },
+    {
+      "path": "issue_292_hidden_time.musicxml",
+      "format": "musicxml",
+      "license": "self-authored",
+      "source": "Synthetic hidden-meter reproduction tested with MuseScore 4.7.5",
+      "sha256": "0efb847de415daeeb2d3b9a08c612aca1532ae91953cd5f967d82b31b2c14308",
+      "round_trip": "import-only",
+      "expected_losses": ["Only hidden time signature visibility is evaluated"]
     }
   ]
 }
