@@ -2436,6 +2436,20 @@ mod tests {
     }
 
     #[test]
+    fn long_abc_melody_chord_proposals_replay_through_json_api() {
+        for count in [129, 261] {
+            let abc = format!("X:1\nM:4/4\nL:1/4\nK:C\n{}", "C D E F|".repeat(count));
+            let score = parse_abc(&abc).unwrap();
+            let proposals: serde_json::Value = serde_json::from_str(&suggest_chord_plans(&score, "{}").unwrap()).unwrap();
+            assert!(proposals["diagnostics"].as_array().unwrap().is_empty(), "{proposals}");
+            let resolved = proposals["candidates"][0]["resolved"].to_string();
+            let replay: serde_json::Value = serde_json::from_str(&arrange_from_chord_proposal(&score, &resolved, "held-chord").unwrap()).unwrap();
+            assert!(replay["diagnostics"].as_array().unwrap().is_empty(), "{replay}");
+            assert!(replay["arrangement"]["score"].is_object());
+        }
+    }
+
+    #[test]
     fn viewer_auto_beam_json_is_opt_in_and_preserves_playback() {
         let mut score = Score::new("viewer beams", 120, 4, 4, 1, 1);
         score.parts[0].staves[0].measures[0].voices[0] = (0..4)

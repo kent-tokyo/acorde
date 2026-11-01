@@ -17,7 +17,8 @@ use super::notation::{ChordSymbol, KeySignature};
 use super::score::Score;
 
 pub const CHORD_PROPOSAL_CONTRACT_VERSION: u16 = 1;
-const MAX_MEASURES: usize = 128;
+/// Maximum number of written measures accepted for a chord proposal.
+pub const CHORD_PROPOSAL_MAX_MEASURES: usize = 512;
 const MAX_NOTES: usize = 8192;
 const MAX_CHANGES: usize = 512;
 
@@ -121,7 +122,7 @@ fn melody_events(score: &Score) -> Result<Vec<MelodyEvent>, ChordProposalDiagnos
         return Err(diagnostic("unsupported-source", None));
     }
     let staff = &score.parts[0].staves[0];
-    if staff.measures.is_empty() || staff.measures.len() > MAX_MEASURES {
+    if staff.measures.is_empty() || staff.measures.len() > CHORD_PROPOSAL_MAX_MEASURES {
         return Err(diagnostic("source-limit", None));
     }
     let mut events = Vec::new();
@@ -771,6 +772,71 @@ mod tests {
         measures[1].voices[0][0].chord_symbol = Some(chord(7, "major", false));
         measures[2].voices[0][0].chord_symbol = Some(chord(0, "major", false));
         score
+    }
+
+    #[test]
+    fn long_melodies_produce_replayable_candidates_without_splitting_context() {
+        for count in [129, 130, 261, CHORD_PROPOSAL_MAX_MEASURES] {
+            let mut score = Score::new("long melody", 120, 4, 4, 0, count as u32);
+            for measure in &mut score.parts[0].staves[0].measures {
+                measure.voices[0] = vec![
+                    note(60, Duration::Quarter),
+                    note(62, Duration::Quarter),
+                    note(64, Duration::Quarter),
+                    note(65, Duration::Quarter),
+                ];
+            }
+            score.parts[0].staves[0].measures[0].barline_left = Barline::RepeatStart;
+            score.parts[0].staves[0].measures[count - 1].barline_right = Barline::RepeatEnd;
+            let result = suggest_chord_plans(&score, &ChordProposalRequest::default());
+            assert!(
+                !result.candidates.is_empty(),
+                "{count}: {:?}",
+                result.diagnostics
+            );
+            assert!(
+                result.diagnostics.is_empty(),
+                "{count}: {:?}",
+                result.diagnostics
+            );
+            for candidate in &result.candidates {
+                assert_eq!(candidate.plan.entries[0].position.measure_index, 0);
+                assert!(
+                    candidate
+                        .plan
+                        .entries
+                        .iter()
+                        .all(|entry| entry.position.measure_index < count)
+                );
+            }
+            let replay =
+                arrange_from_chord_proposal(&score, &result.candidates[0].resolved, "held-chord");
+            assert!(
+                replay.diagnostics.is_empty(),
+                "{count}: {:?}",
+                replay.diagnostics
+            );
+            let arranged = replay.arrangement.unwrap().score.unwrap();
+            assert_eq!(
+                serde_json::to_value(&arranged.parts[0].staves[0].measures).unwrap(),
+                serde_json::to_value(&score.parts[0].staves[0].measures).unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn proposals_reject_measures_above_documented_limit() {
+        let score = Score::new(
+            "too long",
+            120,
+            4,
+            4,
+            0,
+            (CHORD_PROPOSAL_MAX_MEASURES + 1) as u32,
+        );
+        let result = suggest_chord_plans(&score, &ChordProposalRequest::default());
+        assert!(result.candidates.is_empty());
+        assert_eq!(result.diagnostics[0].code, "source-limit");
     }
 
     #[test]
