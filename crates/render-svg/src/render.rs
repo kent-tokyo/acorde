@@ -267,6 +267,7 @@ pub(crate) fn build_svg_with_metadata_placement(
     let mut note_points: HashMap<NoteKey, NotePoint> = HashMap::new();
     let mut beam_tip_points: HashMap<NoteKey, f32> = HashMap::new();
     let mut staff_bottoms: HashMap<(usize, usize, usize), f32> = HashMap::new();
+    let mut measure_lefts: HashMap<(usize, usize), f32> = HashMap::new();
     let ottava_shifts = ottava_display_shifts(score);
     let mut resolved_annotation_obstacles = Vec::new();
     // A volta (1st/2nd ending) still open at the end of a system, by ending number.
@@ -633,6 +634,7 @@ pub(crate) fn build_svg_with_metadata_placement(
         let mut volta_segments: Vec<(f32, f32, Option<u8>, bool)> = Vec::new();
         for (col, &measure_idx) in row.measure_indices.iter().enumerate() {
             let mwidth = measure_widths[col];
+            measure_lefts.insert((row_idx, measure_idx), mx);
             for (si_idx, &(pi, si)) in staff_refs.iter().enumerate() {
                 if !row_staff_visible[si_idx] {
                     continue;
@@ -878,6 +880,7 @@ pub(crate) fn build_svg_with_metadata_placement(
         &beam_tip_points,
         &row_tops,
         &staff_bottoms,
+        &measure_lefts,
         options.width,
         left_margin_u,
         right_margin_u,
@@ -3358,7 +3361,22 @@ fn render_measure(
     } else {
         0.0
     };
-    let lead_u = lead_u + clef_lead_u + repeat_lead_u + arpeggio_lead_u;
+    // Reserve room for an incoming partial tie on every staff in this column,
+    // so simultaneous voices remain aligned across a grand staff.
+    let partial_tie_lead_u = if score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .filter_map(|staff| staff.measures.get(measure_idx))
+        .flat_map(|bar| &bar.voices)
+        .filter_map(|voice| voice.iter().find(|note| !note.is_grace))
+        .any(|note| !note.is_rest && note.pitch_incoming_partial_ties.contains(&true))
+    {
+        1.5
+    } else {
+        0.0
+    };
+    let lead_u = lead_u + clef_lead_u + repeat_lead_u + arpeggio_lead_u + partial_tie_lead_u;
     let content_x0 = x + lead_u * space;
     let content_w = (width - (lead_u + MEASURE_PAD_U) * space).max(space);
     let clef_bottom = geometry::clef_bottom_line(clef)?;
@@ -5810,6 +5828,7 @@ fn render_all_spans(
     beam_tip_points: &HashMap<NoteKey, f32>,
     row_tops: &[f32],
     staff_bottoms: &HashMap<(usize, usize, usize), f32>,
+    measure_lefts: &HashMap<(usize, usize), f32>,
     width: f32,
     left_margin_u: f32,
     right_margin_u: f32,
@@ -5832,6 +5851,7 @@ fn render_all_spans(
         body,
         score,
         points,
+        measure_lefts,
         width,
         left_margin_u,
         right_margin_u,
@@ -6565,10 +6585,12 @@ fn tied_pitch_pairs(current: &Note, next: &Note) -> Vec<(usize, usize)> {
         .collect()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_ties(
     body: &mut String,
     score: &Score,
     points: &HashMap<NoteKey, NotePoint>,
+    measure_lefts: &HashMap<(usize, usize), f32>,
     width: f32,
     left_margin_u: f32,
     right_margin_u: f32,
@@ -6687,7 +6709,7 @@ fn render_ties(
                         if note.is_rest || !note.pitch_incoming_partial_ties.contains(&true) {
                             continue;
                         }
-                        let Some(&(x, y, stem_up, _)) =
+                        let Some(&(x, y, stem_up, row)) =
                             points.get(&(part, staff, measure, voice, index))
                         else {
                             continue;
@@ -6721,7 +6743,12 @@ fn render_ties(
                                 + offsets.get(pitch_index).copied().unwrap_or(0.0)
                                 + if above { -0.45 * space } else { 0.45 * space };
                             let end = x - glyphs::NOTEHEAD_RX_U * space;
-                            write_tie_curve(body, end - 1.5 * space, y, end, y, above, space);
+                            let left = measure_lefts
+                                .get(&(row, measure))
+                                .copied()
+                                .unwrap_or(end - 1.5 * space);
+                            let start = (end - 1.5 * space).max(left + 0.12 * space);
+                            write_tie_curve(body, start, y, end, y, above, space);
                         }
                     }
                 }

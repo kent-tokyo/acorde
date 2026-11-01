@@ -2924,6 +2924,20 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                     diagnostic.preserved_value = Some(value);
                     diagnostics.push(diagnostic);
                 }
+                if field == Some("partialSpannerDirection")
+                    && path.iter().rev().nth(1).map(String::as_str) == Some("PartialTie")
+                {
+                    let value = String::from_utf8_lossy(event.as_ref());
+                    if !value.trim().is_empty() && value.trim() != "incoming" {
+                        let mut diagnostic = Diagnostic::warning(
+                            "mscx.unsupported-partial-tie-direction",
+                            "MSCX outgoing or unknown partial-tie directions are not preserved",
+                        );
+                        diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                        diagnostic.preserved_value = Some(value.trim().to_string());
+                        diagnostics.push(diagnostic);
+                    }
+                }
                 if field == Some("subtype")
                     && path.iter().rev().nth(1).map(String::as_str) == Some("Accidental")
                 {

@@ -144,3 +144,22 @@ fn incoming_partial_tie_survives_score_diff_and_patch() {
         vec![true]
     );
 }
+
+#[test]
+fn outgoing_partial_tie_is_reported_as_unsupported_on_import() {
+    let xml = r#"<museScore version="4.50"><Score><Part id="1"><Staff id="1"/></Part><Staff id="1"><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc><PartialTie><partialSpannerDirection>outgoing</partialSpannerDirection></PartialTie></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let report = acorde_io::parse_mscx_with_report(xml).unwrap();
+    let diagnostic = report
+        .diagnostics
+        .iter()
+        .find(|item| item.code == "mscx.unsupported-partial-tie-direction")
+        .unwrap();
+    assert_eq!(diagnostic.preserved_value.as_deref(), Some("outgoing"));
+    assert!(
+        diagnostic
+            .source_location
+            .as_deref()
+            .unwrap()
+            .ends_with("/PartialTie/partialSpannerDirection")
+    );
+}
