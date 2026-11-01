@@ -1442,8 +1442,13 @@ fn write_note(
             Articulation::Tremolo(level) => {
                 write!(
                     xml,
-                    "<Tremolo><subtype>c{}</subtype></Tremolo>",
-                    1u32 << (level + 1)
+                    "<Tremolo><subtype>{}{}</subtype></Tremolo>",
+                    if note.tremolo_pair.is_some() {
+                        "c"
+                    } else {
+                        "r"
+                    },
+                    1u32 << (level.min(&8) + 2)
                 )
                 .map_err(fmt_error)?;
             }
