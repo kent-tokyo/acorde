@@ -317,15 +317,30 @@ pub(crate) fn build_svg_with_metadata_placement(
                             measure.time_sig.is_some() || measure.time_symbol.is_some()
                         })
             });
+        let previous_keys: Vec<i8> = staff_refs
+            .iter()
+            .enumerate()
+            .map(|(i, &(pi, si))| {
+                if row_start_measure == 0 {
+                    staff_states[i].key_fifths
+                } else {
+                    effective_state(score, pi, si, row_start_measure - 1)
+                        .map(|s| s.key_fifths)
+                        .unwrap_or(staff_states[i].key_fifths)
+                }
+            })
+            .collect();
         let header_width_u = staff_states
             .iter()
-            .map(|s| {
+            .enumerate()
+            .map(|(i, s)| {
                 header_width_u(
                     &s.clef,
                     s.key_fifths,
                     if draw_time { Some(&s.time_sig) } else { None },
                     s.time_symbol,
-                )
+                ) + cancellation_count(previous_keys[i], s.key_fifths) as f32
+                    * key_signature_step_u(0)
             })
             .fold(0.0_f32, f32::max);
 
@@ -335,11 +350,27 @@ pub(crate) fn build_svg_with_metadata_placement(
             .iter()
             .map(|state| (state.time_sig.clone(), state.time_symbol))
             .collect();
+        let mut running_keys: Vec<i8> = staff_states.iter().map(|s| s.key_fifths).collect();
+        let mut inline_keys = vec![vec![None; staff_refs.len()]; row.measure_indices.len()];
+        let mut inline_key_widths_u = vec![0.0_f32; row.measure_indices.len()];
         let mut inline_meters = vec![vec![None; staff_refs.len()]; row.measure_indices.len()];
         let mut inline_meter_widths_u = vec![0.0_f32; row.measure_indices.len()];
         for (col, &measure_idx) in row.measure_indices.iter().enumerate().skip(1) {
             for (si_idx, &(pi, si)) in staff_refs.iter().enumerate() {
                 let measure = &score.parts[pi].staves[si].measures[measure_idx];
+                if let Some(key) = &measure.key_sig {
+                    let old = running_keys[si_idx];
+                    if old != key.fifths && row_staff_visible[si_idx] {
+                        inline_keys[col][si_idx] = Some((old, key.fifths));
+                        let width = cancellation_count(old, key.fifths) as f32
+                            * key_signature_step_u(0)
+                            + key.fifths.unsigned_abs().min(7) as f32
+                                * key_signature_step_u(key.fifths.signum())
+                            + 0.4;
+                        inline_key_widths_u[col] = inline_key_widths_u[col].max(width);
+                    }
+                    running_keys[si_idx] = key.fifths;
+                }
                 if measure.time_sig.is_some() || measure.time_symbol.is_some() {
                     let time = measure
                         .time_sig
@@ -365,8 +396,9 @@ pub(crate) fn build_svg_with_metadata_placement(
                     .into(),
             });
         }
-        let rhythmic_area_width =
-            measure_area_width - inline_meter_widths_u.iter().sum::<f32>() * space;
+        let rhythmic_area_width = measure_area_width
+            - (inline_meter_widths_u.iter().sum::<f32>() + inline_key_widths_u.iter().sum::<f32>())
+                * space;
         if rhythmic_area_width <= 0.0 {
             return Err(RenderError::InvalidOptions {
                 reason: "inline time signatures leave no usable measure width".into(),
@@ -439,7 +471,8 @@ pub(crate) fn build_svg_with_metadata_placement(
         let measure_widths: Vec<f32> = rhythmic_widths
             .iter()
             .zip(&inline_meter_widths_u)
-            .map(|(rhythm, meter)| rhythm + meter * space)
+            .zip(&inline_key_widths_u)
+            .map(|((rhythm, meter), key)| rhythm + (meter + key) * space)
             .collect();
         let allocated_measure_width: f32 = measure_widths.iter().sum();
         // Proportional widths sum to the area up to f32 rounding, which grows with the width in
@@ -520,6 +553,15 @@ pub(crate) fn build_svg_with_metadata_placement(
             } else {
                 hx += write_clef(&mut body, &state.clef, hx, bottom_y, space)?;
                 hx += HEADER_GAP_U * space;
+                hx += write_key_cancellations(
+                    &mut body,
+                    &state.clef,
+                    previous_keys[si_idx],
+                    state.key_fifths,
+                    hx,
+                    bottom_y,
+                    space,
+                );
                 hx += write_key_signature(
                     &mut body,
                     &state.clef,
@@ -603,8 +645,28 @@ pub(crate) fn build_svg_with_metadata_placement(
                     clef_lead_u = 0.4 + width / space * 0.75;
                     row_clefs[si_idx] = change.clone();
                 }
+                if let Some((old, new)) = inline_keys[col][si_idx] {
+                    let key_x = mx + (clef_lead_u + 0.4) * space;
+                    let width = write_key_cancellations(
+                        &mut body,
+                        &row_clefs[si_idx],
+                        old,
+                        new,
+                        key_x,
+                        bottom_y,
+                        space,
+                    );
+                    write_key_signature(
+                        &mut body,
+                        &row_clefs[si_idx],
+                        new,
+                        key_x + width,
+                        bottom_y,
+                        space,
+                    )?;
+                }
                 if let Some((time, symbol)) = inline_meters[col][si_idx].as_ref() {
-                    let time_x = mx + (clef_lead_u + 0.4) * space;
+                    let time_x = mx + (clef_lead_u + inline_key_widths_u[col] + 0.4) * space;
                     let _ = write!(
                         body,
                         r#"<g class="acorde-time-sig-change" data-part="{pi}" data-staff="{si}" data-measure="{measure_idx}">"#
@@ -642,7 +704,7 @@ pub(crate) fn build_svg_with_metadata_placement(
                     mx,
                     bottom_y,
                     mwidth,
-                    clef_lead_u + inline_meter_widths_u[col],
+                    clef_lead_u + inline_meter_widths_u[col] + inline_key_widths_u[col],
                     &cross_frames,
                     space,
                     options.interactive,
@@ -2823,6 +2885,50 @@ fn write_clef(
             Ok(1.2 * space)
         }
     }
+}
+
+fn cancellation_count(old: i8, new: i8) -> usize {
+    let old_count = old.unsigned_abs().min(7) as usize;
+    if old == 0 {
+        0
+    } else if new == 0 || old.signum() != new.signum() {
+        old_count
+    } else {
+        old_count.saturating_sub(new.unsigned_abs().min(7) as usize)
+    }
+}
+
+fn write_key_cancellations(
+    body: &mut String,
+    clef: &Clef,
+    old: i8,
+    new: i8,
+    x: f32,
+    bottom_y: f32,
+    space: f32,
+) -> f32 {
+    let count = cancellation_count(old, new);
+    if count == 0 {
+        return 0.0;
+    }
+    let positions = key_signature_positions(clef, old > 0);
+    let skip = if old.signum() == new.signum() && new != 0 {
+        new.unsigned_abs().min(7) as usize
+    } else {
+        0
+    };
+    let step = key_signature_step_u(0) * space;
+    body.push_str(r#"<g class="acorde-key-sig acorde-key-cancellation">"#);
+    for (i, &position) in positions.iter().skip(skip).take(count).enumerate() {
+        body.push_str(&glyphs::accidental(
+            0,
+            x + (i as f32 + 0.5) * step,
+            bottom_y + geometry::position_y(position, space),
+            space,
+        ));
+    }
+    body.push_str("</g>");
+    count as f32 * step
 }
 
 /// Key signature accidentals at the conventional engraved staff positions for each clef
