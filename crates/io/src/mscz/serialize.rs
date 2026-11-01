@@ -264,6 +264,31 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
 
     for (part_index, part) in score.parts.iter().enumerate() {
         let part_path = format!("/score/part/{}", part_index + 1);
+        let figured_group_measures = part
+            .staves
+            .iter()
+            .flat_map(|staff| &staff.measures)
+            .filter(|measure| {
+                measure.figured_bass_groups.len() > 1
+                    || measure.figured_bass_groups.iter().any(|group| {
+                        group.voice != 0
+                            || group.position_beats != 0.0
+                            || group.duration_beats.is_some()
+                            || group.extend_types.iter().any(|kind| {
+                                kind.as_deref()
+                                    .is_some_and(|kind| !matches!(kind, "" | "start"))
+                            })
+                    })
+            })
+            .count();
+        if figured_group_measures > 0 {
+            push(
+                format!("{part_path}/figured-bass-groups"),
+                figured_group_measures.to_string(),
+                "MSCX export does not preserve positioned figured-bass groups",
+            );
+        }
+
         let timed_pedal_count: usize = part
             .staves
             .iter()

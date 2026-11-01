@@ -2759,21 +2759,54 @@ pub(crate) fn measure_text_entries(measure: &Measure) -> Vec<StyledText> {
             relative_y: None,
         });
     }
-    if let Some(text) = figured_bass_display_text(measure)
-        && !entries
-            .iter()
-            .any(|entry| entry.style == TextStyle::FiguredBass && entry.text == text)
-    {
-        entries.push(StyledText {
-            position_beats: None,
-            style: TextStyle::FiguredBass,
-            text,
-            placement: Some("below".to_owned()),
-            offset_x: None,
-            offset_y: None,
-            relative_x: None,
-            relative_y: None,
-        });
+    if measure.figured_bass_groups.is_empty() {
+        if let Some(text) = figured_bass_display_text(measure)
+            && !entries
+                .iter()
+                .any(|entry| entry.style == TextStyle::FiguredBass && entry.text == text)
+        {
+            entries.push(StyledText {
+                position_beats: None,
+                style: TextStyle::FiguredBass,
+                text,
+                placement: Some("below".to_owned()),
+                offset_x: None,
+                offset_y: None,
+                relative_x: None,
+                relative_y: None,
+            });
+        }
+    } else {
+        // Imported figures can have a styled text carrying source offsets, while
+        // callers creating or editing groups need not maintain a parallel text.
+        // Match each existing text once so equal simultaneous groups remain distinct.
+        let mut used = vec![false; entries.len()];
+        for group in &measure.figured_bass_groups {
+            let Some(text) = figured_bass_figures_display_text(&group.figures) else {
+                continue;
+            };
+            if let Some(index) = entries.iter().enumerate().find_map(|(index, entry)| {
+                (!used[index]
+                    && entry.style == TextStyle::FiguredBass
+                    && entry.text == text
+                    && (entry.position_beats.unwrap_or(0.0) - group.position_beats).abs() < 1e-7)
+                    .then_some(index)
+            }) {
+                used[index] = true;
+            } else {
+                entries.push(StyledText {
+                    position_beats: Some(group.position_beats),
+                    style: TextStyle::FiguredBass,
+                    text,
+                    placement: Some("below".to_owned()),
+                    offset_x: None,
+                    offset_y: None,
+                    relative_x: None,
+                    relative_y: None,
+                });
+                used.push(true);
+            }
+        }
     }
     for pedal in measure.timed_pedals.iter().filter(|pedal| !pedal.hide_sign) {
         entries.push(StyledText {
@@ -2790,12 +2823,26 @@ pub(crate) fn measure_text_entries(measure: &Measure) -> Vec<StyledText> {
     entries
 }
 
+fn figured_bass_modifier_display(value: &str) -> &str {
+    match value {
+        "sharp" => "♯",
+        "flat" => "♭",
+        "natural" => "♮",
+        "double-sharp" => "𝄪",
+        "flat-flat" => "𝄫",
+        other => other,
+    }
+}
+
 fn figured_bass_display_text(measure: &Measure) -> Option<String> {
-    if measure.figured_bass.is_empty() {
+    figured_bass_figures_display_text(&measure.figured_bass)
+}
+
+fn figured_bass_figures_display_text(figures: &[acorde_core::FiguredBassFigure]) -> Option<String> {
+    if figures.is_empty() {
         return None;
     }
-    let text = measure
-        .figured_bass
+    let text = figures
         .iter()
         .map(|figure| {
             let alter = match figure.alter.as_deref() {
@@ -2807,10 +2854,10 @@ fn figured_bass_display_text(measure: &Measure) -> Option<String> {
             };
             format!(
                 "{}{}{}{}",
-                figure.prefix.as_deref().unwrap_or(""),
+                figured_bass_modifier_display(figure.prefix.as_deref().unwrap_or("")),
                 alter,
                 figure.number,
-                figure.suffix.as_deref().unwrap_or("")
+                figured_bass_modifier_display(figure.suffix.as_deref().unwrap_or(""))
             )
         })
         .collect::<Vec<_>>()
@@ -5054,10 +5101,11 @@ fn render_measure_text(
                 })
             })
             .flatten();
-        let placement_below = styled
-            .placement
-            .as_deref()
-            .is_some_and(|placement| placement.eq_ignore_ascii_case("below"))
+        let placement_below = styled.style == TextStyle::FiguredBass
+            || styled
+                .placement
+                .as_deref()
+                .is_some_and(|placement| placement.eq_ignore_ascii_case("below"))
             || matches!(styled.style, acorde_core::TextStyle::Lyrics);
         let previous_pedal = (text_index >= timed_pedal_start)
             .then(|| {
@@ -5065,17 +5113,25 @@ fn render_measure_text(
                     .find(|&index| entries[index].placement == styled.placement)
             })
             .flatten();
-        let stack_index = if let Some(previous) = previous_pedal.or(previous_same) {
-            text_lanes[previous]
-        } else if placement_below {
-            let lane = below_texts;
-            below_texts += 1;
-            lane
-        } else {
-            let lane = above_texts;
-            above_texts += 1;
-            lane
-        };
+        let previous_figure = (styled.style == TextStyle::FiguredBass)
+            .then(|| {
+                entries[..text_index]
+                    .iter()
+                    .position(|other| other.style == TextStyle::FiguredBass)
+            })
+            .flatten();
+        let stack_index =
+            if let Some(previous) = previous_pedal.or(previous_same).or(previous_figure) {
+                text_lanes[previous]
+            } else if placement_below {
+                let lane = below_texts;
+                below_texts += 1;
+                lane
+            } else {
+                let lane = above_texts;
+                above_texts += 1;
+                lane
+            };
         text_lanes.push(stack_index);
         let default_y = if placement_below {
             bottom_y + (2.8 + stack_index as f32 * 0.95 * text_scale) * space
@@ -5101,7 +5157,9 @@ fn render_measure_text(
         let is_timed_pedal = text_index >= timed_pedal_start;
         let end_anchor =
             (is_timed_pedal && measure_beats > 0.0).then_some((measure_beats, x + width - space));
-        let beat_x = (is_timed_pedal || (!placement_below && text_scale > 1.0))
+        let beat_x = (is_timed_pedal
+            || styled.style == TextStyle::FiguredBass
+            || (!placement_below && text_scale > 1.0))
             .then_some(styled.position_beats)
             .flatten()
             .and_then(|beats| {
@@ -5337,6 +5395,7 @@ fn render_measure_text(
         }
     }
 
+    let mut used_figured_groups = vec![false; measure.figured_bass_groups.len()];
     for ((text_index, styled), placement) in entries
         .into_iter()
         .enumerate()
@@ -5378,13 +5437,55 @@ fn render_measure_text(
                 + 0.4 * size;
             render_metronome_mark(body, mark, mark_x, y, size);
         }
-        if styled.style == acorde_core::TextStyle::FiguredBass
-            && measure.figured_bass.iter().any(|figure| figure.extender)
-        {
+        let matching_figured_group = (styled.style == TextStyle::FiguredBass)
+            .then(|| {
+                measure
+                    .figured_bass_groups
+                    .iter()
+                    .enumerate()
+                    .find(|(index, group)| {
+                        !used_figured_groups[*index]
+                            && (group.position_beats - styled.position_beats.unwrap_or(0.0)).abs()
+                                < 1e-7
+                            && figured_bass_figures_display_text(&group.figures).as_deref()
+                                == Some(styled.text.as_str())
+                    })
+            })
+            .flatten()
+            .map(|(index, group)| {
+                used_figured_groups[index] = true;
+                group
+            });
+        let figured_extends = matching_figured_group.map_or_else(
+            || {
+                measure.figured_bass_groups.is_empty()
+                    && measure.figured_bass.iter().any(|figure| figure.extender)
+            },
+            |group| group.figures.iter().any(|figure| figure.extender),
+        );
+        if styled.style == acorde_core::TextStyle::FiguredBass && figured_extends {
             let line_start = text_x
                 + styled.text.chars().count() as f32 * 0.42 * space * text_scale
                 + 0.25 * space;
-            let line_end = (x + width - MEASURE_PAD_U * space).max(line_start);
+            let line_end = matching_figured_group
+                .and_then(|group| {
+                    group
+                        .duration_beats
+                        .map(|duration| group.position_beats + duration)
+                })
+                .and_then(|beat| {
+                    measure_text_beat_x(
+                        measure,
+                        part,
+                        staff,
+                        measure_idx,
+                        beat,
+                        note_points,
+                        (measure_beats > 0.0).then_some((measure_beats, x + width - space)),
+                    )
+                })
+                .unwrap_or(x + width - MEASURE_PAD_U * space)
+                .max(line_start);
             let _ = write!(
                 body,
                 r#"<line class="acorde-figured-bass-extender" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
@@ -9687,6 +9788,22 @@ mod tests {
     };
     use acorde_layout::{LayoutConfig, SpanMark, compute_layout};
     use std::collections::HashMap;
+
+    #[test]
+    fn figured_bass_standalone_accidental_uses_music_symbol() {
+        let mut measure = Measure::empty(4, 4);
+        measure.figured_bass.push(acorde_core::FiguredBassFigure {
+            number: String::new(),
+            alter: None,
+            prefix: Some("sharp".into()),
+            suffix: None,
+            extender: false,
+        });
+        assert_eq!(
+            super::figured_bass_display_text(&measure).as_deref(),
+            Some("♯")
+        );
+    }
 
     #[test]
     fn direction_beat_tracks_reflowed_note_spacing() {

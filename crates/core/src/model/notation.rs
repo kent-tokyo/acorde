@@ -880,6 +880,24 @@ pub struct FiguredBassFigure {
     pub extender: bool,
 }
 
+/// A MusicXML figured-bass group at a score-time position in the measure.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FiguredBassGroup {
+    /// Editable voice slot containing the following note.
+    #[serde(default)]
+    pub voice: usize,
+    /// Position in quarter-note beats from the start of the measure.
+    pub position_beats: f64,
+    /// Duration in quarter-note beats, when explicitly present in the source.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duration_beats: Option<f64>,
+    /// Figures in source order.
+    pub figures: Vec<FiguredBassFigure>,
+    /// Raw extend type for each figure; an empty string represents an untyped extend.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub extend_types: Vec<Option<String>>,
+}
+
 impl ChordDegree {
     /// Render the degree using the compact chord-label convention.
     pub fn display_text(&self) -> String {

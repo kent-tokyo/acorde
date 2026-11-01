@@ -5279,30 +5279,6 @@ fn hidden_time_signatures_keep_duration_across_musicxml_and_mscz() {
 }
 
 #[test]
-fn simultaneous_voices_align_with_measure_text() {
-    use acorde_core::{Duration, Note, Pitch, Score, Step, StyledText, TextStyle};
-    let mut score = Score::new("voice alignment", 120, 4, 4, 0, 1);
-    let measure = &mut score.parts[0].staves[0].measures[0];
-    measure.voices[0] = vec![Note::new(Pitch::new(Step::A, 4), Duration::Quarter)];
-    measure.voices[1] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
-    measure.texts.push(StyledText {
-        position_beats: Some(0.0),
-        style: TextStyle::Expression,
-        text: "dolce".into(),
-        placement: Some("above".into()),
-        offset_x: None,
-        offset_y: None,
-        relative_x: None,
-        relative_y: None,
-    });
-    let svg = render_svg(&score, &opts()).unwrap();
-    let heads = notehead_centers(&svg);
-    assert_eq!(heads.len(), 2);
-    assert!((heads[0].0 - heads[1].0).abs() < 0.1, "{heads:?}");
-    assert!(svg.contains(">dolce</text>"));
-}
-
-#[test]
 fn shared_dynamic_playback_does_not_duplicate_the_printed_mark() {
     use acorde_core::{
         Clef, Duration, Dynamic, Measure, Note, NoteAddr, Pitch, PlaybackOptions, Score, Staff,
@@ -5622,6 +5598,87 @@ fn timed_pedal_signs_show_at_distinct_positions_inside_a_sustained_note() {
     let hidden = render_svg(&score, &opts()).unwrap();
     assert!(!hidden.contains(">Ped.</text>"));
     assert!(hidden.contains(">*</text>"));
+}
+
+#[test]
+fn positioned_figured_bass_groups_follow_their_note_positions() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Bass</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>2</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><figured-bass><figure><prefix>sharp</prefix></figure></figured-bass><note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><type>half</type></note><figured-bass><figure><figure-number>6</figure-number><extend type="start"/></figure><duration>2</duration></figured-bass><note><pitch><step>D</step><octave>3</octave></pitch><duration>4</duration><type>half</type></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let svg = render_svg(&score, &opts()).unwrap();
+    let xs: Vec<f32> = svg
+        .split(r#"class="acorde-measure-text acorde-measure-text-figured-bass" x=""#)
+        .skip(1)
+        .map(|text| text.split('"').next().unwrap().parse().unwrap())
+        .collect();
+    assert_eq!(xs.len(), 2, "{svg}");
+    assert!(
+        xs[1] > xs[0],
+        "figures must follow their note positions: {xs:?}"
+    );
+    assert_eq!(svg.matches("acorde-figured-bass-extender").count(), 1);
+}
+
+#[test]
+fn simultaneous_figured_bass_extender_follows_its_own_figure() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Bass</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><figured-bass><figure><figure-number>6</figure-number></figure></figured-bass><note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><voice>1</voice><type>whole</type></note><backup><duration>4</duration></backup><figured-bass><figure><figure-number>4</figure-number><extend type="start"/></figure></figured-bass><note><pitch><step>E</step><octave>3</octave></pitch><duration>4</duration><voice>2</voice><type>whole</type></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(
+        svg.matches("acorde-figured-bass-extender").count(),
+        1,
+        "{svg}"
+    );
+    let six = svg.find(">6</text>").expect("first figure");
+    let four = svg.find(">4</text>").expect("second figure");
+    let line = svg.find("acorde-figured-bass-extender").unwrap();
+    assert!(
+        six < four && four < line,
+        "extender must belong to 4: {svg}"
+    );
+}
+
+#[test]
+fn positioned_figured_bass_groups_render_without_parallel_text_entries() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Bass</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><figured-bass><figure><prefix>sharp</prefix></figure></figured-bass><note><pitch><step>C</step><octave>3</octave></pitch><duration>2</duration><type>half</type></note><figured-bass><figure><figure-number>6</figure-number><extend type="start"/></figure></figured-bass><note><pitch><step>D</step><octave>3</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>"#;
+    let mut score = acorde_io::parse_musicxml(xml).unwrap();
+    score.parts[0].staves[0].measures[0].texts.clear();
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(
+        svg.matches("acorde-measure-text-figured-bass").count(),
+        2,
+        "{svg}"
+    );
+    assert!(svg.contains(">♯</text>"), "{svg}");
+    assert!(svg.contains(">6</text>"), "{svg}");
+    assert_eq!(
+        svg.matches("acorde-figured-bass-extender").count(),
+        1,
+        "{svg}"
+    );
+}
+
+#[test]
+fn simultaneous_voices_align_with_measure_text() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step, StyledText, TextStyle};
+    let mut score = Score::new("voice alignment", 120, 4, 4, 0, 1);
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.voices[0] = vec![Note::new(Pitch::new(Step::A, 4), Duration::Quarter)];
+    measure.voices[1] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+    measure.texts.push(StyledText {
+        position_beats: Some(0.0),
+        style: TextStyle::Expression,
+        text: "dolce".into(),
+        placement: Some("above".into()),
+        offset_x: None,
+        offset_y: None,
+        relative_x: None,
+        relative_y: None,
+    });
+    let svg = render_svg(&score, &opts()).unwrap();
+    let heads = notehead_centers(&svg);
+    assert_eq!(heads.len(), 2);
+    assert!((heads[0].0 - heads[1].0).abs() < 0.1, "{heads:?}");
+    assert!(svg.contains(">dolce</text>"));
 }
 
 #[test]

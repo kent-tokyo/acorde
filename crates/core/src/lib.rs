@@ -84,9 +84,9 @@ pub use model::musical_diff::{
 pub use model::notation::{
     AccidentalDisplay, Articulation, Barline, BeamState, ChordBarre, ChordDefinition,
     ChordDefinitionMember, ChordDegree, ChordSymbol, Clef, CrossStaff, Dynamic, FiguredBassFigure,
-    FingeringSelectionPolicy, GuitarTechnique, HairpinKind, KeySignature, Lyric, NoteHead,
-    OttavaKind, StyledText, TabPosition, TablatureConfig, TextStyle, TimeSignature, TimeSymbol,
-    TupletBoundary, TupletInfo, VerseLyric,
+    FiguredBassGroup, FingeringSelectionPolicy, GuitarTechnique, HairpinKind, KeySignature, Lyric,
+    NoteHead, OttavaKind, StyledText, TabPosition, TablatureConfig, TextStyle, TimeSignature,
+    TimeSymbol, TupletBoundary, TupletInfo, VerseLyric,
 };
 pub use model::omr::{
     MAX_OMR_ANNOTATIONS, MAX_OMR_EVENTS_PER_MEASURE, MAX_OMR_MEASURES, MAX_OMR_PAGES,

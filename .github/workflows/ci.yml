@@ -217,10 +217,12 @@ jobs:
           # increases the measured integrated artifact to 6,365,662 bytes
           # (+6,625 bytes). An initial tie-location build measured
           # 6,375,508 bytes on Linux CI, 9,846 bytes above that build.
-          # Simultaneous voice alignment with deferred measure text measured
-          # 6,389,699 bytes in Linux CI, 14,191 bytes above the tie-location
-          # build. Keep approximately 6 KB headroom for the integrated artifact.
-          test "$size" -le 6396000
+          # Positioned MusicXML figured-bass groups and their editing/rendering
+          # support measured 6,426,227 bytes in Linux CI, 50,719 bytes above
+          # the tie-location build. Keep approximately 6 KB headroom.
+          # Integration with voice alignment measured 6,442,707 bytes on
+          # Linux CI for commit 2893e3e. Retain about 6 KB of headroom.
+          test "$size" -le 6449000
 
   renderer-benchmark:
     name: Renderer performance budget

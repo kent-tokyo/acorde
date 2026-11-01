@@ -189,3 +189,16 @@ viewer WASM builds, hosts can read these controls from `build_offline_render_man
 `semantic_events`; `to_playback_events_ex` returns note events and cannot express a release in
 the middle of a held note. The playback-only WASM profile does not expose the manifest API.
 MSCX, MEI and ABC export reports warn when these timed directions cannot be represented.
+
+### Positioned figured-bass groups
+
+`Measure::figured_bass_groups` retains separate MusicXML figure groups, their beat positions,
+explicit durations, following-note voice slots, and per-figure extender types. Older JSON defaults
+this field to an empty vector; complete Rust `Measure` literals and `ScoreFragmentMeasureAttributes` literals must
+initialize it. On imported MusicXML, `figured_bass` retains the final group for compatibility.
+When editing the final group, update both fields before MusicXML export; conflicting values are
+reported as an error rather than silently discarding either edit. Positioned groups are emitted
+before their corresponding voice note when their timing can be represented. The export
+report warns when MSCX, MEI, or ABC cannot preserve these positions or extender types. Groups
+must be ordered by voice and beat for export. Continuation across measures and full engraving
+validation remain open.

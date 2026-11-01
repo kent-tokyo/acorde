@@ -2,11 +2,12 @@ use crate::Error;
 use crate::gap::append_gap_rests;
 use acorde_core::{
     AccidentalDisplay, Articulation, Barline, ChordDegree, ChordSymbol, Clef, Duration, Dynamic,
-    FiguredBassFigure, GuitarTechnique, HairpinKind, HarpPedalDiagram, HarpPedalPosition,
-    KeySignature, Lyric, Measure, MeasureLength, MetronomeMark, MidiControlChange, NotationSpanner,
-    NotationSpannerKind, Note, NoteAddr, NoteHead, OttavaKind, Part, PartGroup, PartGroupSymbol,
-    PercussionInstrument, Pitch, Score, Staff, StaffKind, Step, StyledText, TextStyle,
-    TimeSignature, TimeSymbol, TupletBoundary, TupletInfo, VerseLyric, VoltaBracket,
+    FiguredBassFigure, FiguredBassGroup, GuitarTechnique, HairpinKind, HarpPedalDiagram,
+    HarpPedalPosition, KeySignature, Lyric, Measure, MeasureLength, MetronomeMark,
+    MidiControlChange, NotationSpanner, NotationSpannerKind, Note, NoteAddr, NoteHead, OttavaKind,
+    Part, PartGroup, PartGroupSymbol, PercussionInstrument, Pitch, Score, Staff, StaffKind, Step,
+    StyledText, TextStyle, TimeSignature, TimeSymbol, TupletBoundary, TupletInfo, VerseLyric,
+    VoltaBracket,
 };
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
@@ -14,6 +15,36 @@ use std::collections::HashMap;
 
 use super::attributes::{attr_is_yes, attr_present, attr_str};
 use super::{pan_to_cc, volume_to_cc};
+
+fn attach_pending_figured_bass(
+    measure: &mut Measure,
+    groups: &mut Vec<FiguredBassGroup>,
+    texts: &mut Vec<StyledText>,
+    note_position_beats: f64,
+    voice: usize,
+) {
+    for group in groups.iter_mut() {
+        group.position_beats += note_position_beats;
+        group.voice = voice;
+    }
+    for text in texts.iter_mut() {
+        let position = text.position_beats.unwrap_or(0.0) + note_position_beats;
+        text.position_beats = (position != 0.0).then_some(position);
+    }
+    measure.figured_bass_groups.append(groups);
+    measure.texts.append(texts);
+}
+
+fn figured_bass_modifier_display(value: &str) -> &str {
+    match value {
+        "sharp" => "♯",
+        "flat" => "♭",
+        "natural" => "♮",
+        "double-sharp" => "𝄪",
+        "flat-flat" => "𝄫",
+        other => other,
+    }
+}
 
 const MAX_ELEMENTS: usize = 500_000;
 const MAX_MUSICXML_BYTES: usize = 64 * 1024 * 1024;
@@ -442,7 +473,15 @@ pub(crate) fn parse_musicxml_collecting(
     let mut figured_figure_alter = String::new();
     let mut figured_figure_prefix = String::new();
     let mut figured_figure_suffix = String::new();
+    let mut figured_figure_extender = false;
+    let mut figured_extend_type: Option<String> = None;
+    let mut figured_extend_types: Vec<Option<String>> = Vec::new();
+    let mut figured_bass_duration: Option<f64> = None;
+    let mut figured_bass_offset_beats = 0.0f64;
     let mut figured_bass_figures: Vec<FiguredBassFigure> = Vec::new();
+    // Figure groups belong to the next regular note, whose staff is not known yet.
+    let mut pending_figured_groups: Vec<FiguredBassGroup> = Vec::new();
+    let mut pending_figured_texts: Vec<StyledText> = Vec::new();
     let mut pending_ottava_start: Option<OttavaKind> = None;
     let mut pending_pedal_start = false;
     let mut pending_pedal_end = false;
@@ -693,13 +732,24 @@ pub(crate) fn parse_musicxml_collecting(
                         figured_figure_prefix.clear();
                         figured_figure_suffix.clear();
                         figured_bass_figures.clear();
+                        figured_extend_types.clear();
+                        figured_bass_duration = None;
                     }
                     "figure" if in_figured_bass => {
+                        figured_figure_extender = false;
+                        figured_extend_type = None;
                         in_figured_figure = true;
                         figured_figure_number.clear();
                         figured_figure_alter.clear();
                         figured_figure_prefix.clear();
                         figured_figure_suffix.clear();
+                    }
+                    "extend" if in_figured_figure => {
+                        figured_extend_type = Some(attr_str(e, b"type").unwrap_or_default());
+                        figured_figure_extender = matches!(
+                            figured_extend_type.as_deref(),
+                            Some("") | Some("start") | Some("continue")
+                        );
                     }
                     "root" if in_harmony => in_harmony_root = true,
                     "bass" if in_harmony => in_harmony_bass = true,
@@ -1038,6 +1088,7 @@ pub(crate) fn parse_musicxml_collecting(
                             score.parts[pi].staves[0].measures.push(m);
                         }
                         measure_cursor_ticks = 0;
+                        figured_bass_offset_beats = 0.0;
                         measure_content_ticks = 0;
                         voice_cursor_ticks.clear();
                         source_voice_slots.clear();
@@ -1072,6 +1123,13 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                 }
                 match tag.as_str() {
+                    "extend" if in_figured_figure => {
+                        figured_extend_type = Some(attr_str(e, b"type").unwrap_or_default());
+                        figured_figure_extender = matches!(
+                            figured_extend_type.as_deref(),
+                            Some("") | Some("start") | Some("continue")
+                        );
+                    }
                     "elision" if in_lyric => lyric_elision = Some(LYRIC_ELISION.to_string()),
                     "extend" if in_lyric => {
                         lyric_extend =
@@ -1809,11 +1867,16 @@ pub(crate) fn parse_musicxml_collecting(
                         figured_figure_suffix = current_text.trim().to_string();
                     }
                     "figure" if in_figured_figure => {
-                        if !figured_figure_number.is_empty() {
+                        if !figured_figure_number.is_empty()
+                            || !figured_figure_prefix.is_empty()
+                            || !figured_figure_suffix.is_empty()
+                            || figured_extend_type.is_some()
+                        {
                             if !figured_bass_text.is_empty() {
                                 figured_bass_text.push(' ');
                             }
-                            figured_bass_text.push_str(&figured_figure_prefix);
+                            figured_bass_text
+                                .push_str(figured_bass_modifier_display(&figured_figure_prefix));
                             figured_bass_text.push_str(match figured_figure_alter.as_str() {
                                 "1" => "#",
                                 "-1" => "b",
@@ -1826,7 +1889,9 @@ pub(crate) fn parse_musicxml_collecting(
                                 }
                             });
                             figured_bass_text.push_str(&figured_figure_number);
-                            figured_bass_text.push_str(&figured_figure_suffix);
+                            figured_bass_text
+                                .push_str(figured_bass_modifier_display(&figured_figure_suffix));
+                            figured_extend_types.push(figured_extend_type.clone());
                             figured_bass_figures.push(FiguredBassFigure {
                                 number: figured_figure_number.clone(),
                                 alter: (!figured_figure_alter.is_empty())
@@ -1835,7 +1900,7 @@ pub(crate) fn parse_musicxml_collecting(
                                     .then(|| figured_figure_prefix.clone()),
                                 suffix: (!figured_figure_suffix.is_empty())
                                     .then(|| figured_figure_suffix.clone()),
-                                extender: false,
+                                extender: figured_figure_extender,
                             });
                         }
                         in_figured_figure = false;
@@ -1845,25 +1910,28 @@ pub(crate) fn parse_musicxml_collecting(
                         figured_figure_suffix.clear();
                     }
                     "figured-bass" => {
-                        if let Some(pi) = part_index
-                            && let Some(measure) = score.parts[pi].staves[0].measures.last_mut()
-                        {
-                            if !figured_bass_figures.is_empty() {
-                                measure.figured_bass = std::mem::take(&mut figured_bass_figures);
-                            }
-                            if !figured_bass_text.trim().is_empty() {
-                                measure.texts.push(StyledText {
-                                    position_beats: None,
-                                    style: TextStyle::FiguredBass,
-                                    text: figured_bass_text.trim().to_string(),
-                                    placement: None,
-                                    offset_x: None,
-                                    offset_y: None,
-                                    relative_x: None,
-                                    relative_y: None,
-                                });
-                            }
+                        if !figured_bass_figures.is_empty() {
+                            pending_figured_groups.push(FiguredBassGroup {
+                                voice: 0,
+                                position_beats: figured_bass_offset_beats,
+                                duration_beats: figured_bass_duration,
+                                figures: std::mem::take(&mut figured_bass_figures),
+                                extend_types: figured_extend_types.clone(),
+                            });
                         }
+                        if !figured_bass_text.trim().is_empty() {
+                            pending_figured_texts.push(StyledText {
+                                position_beats: Some(figured_bass_offset_beats),
+                                style: TextStyle::FiguredBass,
+                                text: figured_bass_text.trim().to_string(),
+                                placement: None,
+                                offset_x: None,
+                                offset_y: None,
+                                relative_x: None,
+                                relative_y: None,
+                            });
+                        }
+                        figured_bass_offset_beats += figured_bass_duration.unwrap_or(0.0);
                         figured_bass_text.clear();
                         in_figured_figure = false;
                         figured_figure_number.clear();
@@ -2512,6 +2580,12 @@ pub(crate) fn parse_musicxml_collecting(
                         last_note_start = None;
                         last_note_cross_home = None;
                     }
+                    "duration" if in_figured_bass => {
+                        figured_bass_duration =
+                            current_text.trim().parse::<u32>().ok().map(|ticks| {
+                                f64::from(ticks) / f64::from(current_divisions.max(1))
+                            });
+                    }
                     "duration" if in_note => {
                         note_duration_ticks = Some(
                             current_text
@@ -2654,6 +2728,26 @@ pub(crate) fn parse_musicxml_collecting(
                         });
                     }
                     "measure" => {
+                        if !pending_figured_groups.is_empty() {
+                            if let Some(pi) = part_index
+                                && let Some(measure) = score.parts[pi].staves[0].measures.last_mut()
+                            {
+                                attach_pending_figured_bass(
+                                    measure,
+                                    &mut pending_figured_groups,
+                                    &mut pending_figured_texts,
+                                    f64::from(measure_cursor_ticks)
+                                        / f64::from(current_divisions.max(1)),
+                                    0,
+                                );
+                            }
+                            pending_figured_groups.clear();
+                            pending_figured_texts.clear();
+                            tolerated.push(crate::Diagnostic::warning(
+                                "musicxml.figured-bass-without-following-note",
+                                "Figured bass has no following regular note; staff ownership is uncertain",
+                            ));
+                        }
                         // Content shorter than the time signature is an authored pickup or
                         // irregular bar: keep its length instead of padding it with rests. Notes
                         // whose written values fill the bar exactly keep it regular even when
@@ -2744,6 +2838,9 @@ pub(crate) fn parse_musicxml_collecting(
                         }
                     }
                     "note" => {
+                        if !note_is_grace && !note_chord {
+                            figured_bass_offset_beats = 0.0;
+                        }
                         if let Some(pi) = part_index {
                             let requested_staff_index = note_staff.saturating_sub(1);
                             let staff_count = score.parts[pi].staves.len();
@@ -2799,6 +2896,19 @@ pub(crate) fn parse_musicxml_collecting(
                                     target_staff_index,
                                     note_voice,
                                 )?;
+                                if !note_is_grace
+                                    && !note_chord
+                                    && !pending_figured_groups.is_empty()
+                                {
+                                    attach_pending_figured_bass(
+                                        m,
+                                        &mut pending_figured_groups,
+                                        &mut pending_figured_texts,
+                                        f64::from(measure_cursor_ticks)
+                                            / f64::from(current_divisions.max(1)),
+                                        voice_index,
+                                    );
+                                }
                                 let mut drop_chord_member = false;
                                 // Cue notes take time in MusicXML (their <duration> moves the
                                 // cursor, and a later <backup> counts it) even though the model
@@ -3382,6 +3492,21 @@ pub(crate) fn parse_musicxml_collecting(
             staff.clef = clef.clone();
         } else if let Some(measure) = staff.measures.get_mut(target) {
             measure.clef = (clef != previous || measure.clef.is_some()).then(|| clef.clone());
+        }
+    }
+    for measure in score
+        .parts
+        .iter_mut()
+        .flat_map(|part| &mut part.staves)
+        .flat_map(|staff| &mut staff.measures)
+    {
+        measure.figured_bass_groups.sort_by(|a, b| {
+            a.voice
+                .cmp(&b.voice)
+                .then_with(|| a.position_beats.total_cmp(&b.position_beats))
+        });
+        if let Some(last) = measure.figured_bass_groups.last() {
+            measure.figured_bass = last.figures.clone();
         }
     }
     score.settings.time_signature = current_time;

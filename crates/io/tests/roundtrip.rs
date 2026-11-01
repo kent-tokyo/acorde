@@ -1811,6 +1811,43 @@ fn musicxml_simple_figured_bass_display_text_roundtrips() {
 }
 
 #[test]
+fn multiple_figured_bass_groups_are_reported_as_loss() {
+    let xml = SIMPLE_XML.replacen(
+        "<note",
+        "<figured-bass><figure><figure-number>6</figure-number></figure></figured-bass><figured-bass><figure><figure-number>5</figure-number></figure></figured-bass><note",
+        1,
+    );
+    let report = acorde_io::parse_musicxml_with_report(&xml).unwrap();
+    assert!(
+        report.diagnostics.iter().any(|diagnostic| diagnostic.code
+            == "musicxml.unsupported-detail.multiple-figured-bass-groups")
+    );
+}
+
+#[test]
+fn musicxml_figured_bass_prefix_and_extender_roundtrip() {
+    for figure in [
+        "<prefix>sharp</prefix>",
+        "<figure-number>6</figure-number><extend type=\"start\"/>",
+    ] {
+        let xml = SIMPLE_XML.replacen(
+            "<note",
+            &format!("<figured-bass><figure>{figure}</figure></figured-bass><note"),
+            1,
+        );
+        let score = acorde_io::parse_musicxml(&xml).expect("figure imports");
+        let expected = score.parts[0].staves[0].measures[0].figured_bass.clone();
+        assert_eq!(expected.len(), 1);
+        if figure.contains("sharp") {
+            assert_eq!(score.parts[0].staves[0].measures[0].texts[0].text, "♯");
+        }
+        let serialized = acorde_io::serialize_musicxml(&score).unwrap();
+        let actual = acorde_io::parse_musicxml(&serialized).unwrap();
+        assert_eq!(actual.parts[0].staves[0].measures[0].figured_bass, expected);
+    }
+}
+
+#[test]
 fn musicxml_structured_chord_degrees_roundtrip() {
     let xml = SIMPLE_XML.replacen(
         "<note",
@@ -7727,4 +7764,226 @@ fn hidden_meter_external_fixture_survives_mscz_roundtrip() {
     assert!(!measures[0].time_sig_hidden);
     assert!(measures[1].time_sig_hidden);
     assert_eq!(measures[1].time_sig.as_ref().unwrap().numerator, 2);
+}
+
+#[test]
+fn musicxml_figured_bass_groups_preserve_position_and_extend_types() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Bass</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>2</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><figured-bass><figure><prefix>sharp</prefix></figure></figured-bass><note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><type>half</type></note><figured-bass><figure><figure-number>6</figure-number><extend type="continue"/></figure><duration>2</duration></figured-bass><note><pitch><step>D</step><octave>3</octave></pitch><duration>4</duration><type>half</type></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let groups = &score.parts[0].staves[0].measures[0].figured_bass_groups;
+    assert_eq!(groups.len(), 2);
+    assert_eq!(groups[0].position_beats, 0.0);
+    assert_eq!(groups[0].figures[0].prefix.as_deref(), Some("sharp"));
+    assert_eq!(groups[1].position_beats, 2.0);
+    assert_eq!(groups[1].duration_beats, Some(1.0));
+    assert_eq!(groups[1].extend_types, vec![Some("continue".into())]);
+    let serialized = acorde_io::serialize_musicxml(&score).unwrap();
+    let roundtrip = acorde_io::parse_musicxml(&serialized).unwrap();
+    assert_eq!(
+        roundtrip.parts[0].staves[0].measures[0].figured_bass_groups,
+        *groups
+    );
+    #[cfg(all(feature = "mscz", feature = "mei", feature = "abc"))]
+    for diagnostics in [
+        acorde_io::serialize_mscx_with_report(&score)
+            .unwrap()
+            .diagnostics,
+        acorde_io::serialize_mei_with_report(&score)
+            .unwrap()
+            .diagnostics,
+        acorde_io::serialize_abc_with_report(&score)
+            .unwrap()
+            .diagnostics,
+    ] {
+        assert!(
+            diagnostics.iter().any(|diagnostic| diagnostic
+                .source_location
+                .as_deref()
+                .is_some_and(|path| path.ends_with("/figured-bass-groups"))),
+            "{diagnostics:?}"
+        );
+    }
+    let mut inconsistent = score.clone();
+    inconsistent.parts[0].staves[0].measures[0]
+        .figured_bass
+        .clear();
+    assert!(acorde_io::serialize_musicxml(&inconsistent).is_err());
+    let mut original = score.clone();
+    original.parts[0].staves[0].measures[0]
+        .figured_bass_groups
+        .clear();
+    let patch = acorde_core::score_patch(&original, &score);
+    let restored = acorde_core::apply_patch(&original, &patch).unwrap();
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].figured_bass_groups,
+        *groups
+    );
+    let address = acorde_core::NoteAddr {
+        part: 0,
+        staff: 0,
+        measure: 0,
+        voice: 0,
+        note: 0,
+    };
+    let fragment = acorde_core::extract_score_fragment(
+        &score,
+        &[acorde_core::ScoreFragmentSelection {
+            start: address.clone(),
+            end: address,
+        }],
+    )
+    .unwrap();
+    let mut pasted = acorde_core::Measure::empty(4, 4);
+    fragment.voices[0].measures[0]
+        .attributes
+        .apply_to_measure(&mut pasted);
+    assert_eq!(pasted.figured_bass_groups, *groups);
+}
+
+#[test]
+fn musicxml_figured_bass_changes_under_one_note_use_figure_durations() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Bass</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>2</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><figured-bass><figure><figure-number>6</figure-number><extend type="start"/></figure><duration>2</duration></figured-bass><figured-bass><figure><extend type="stop"/></figure><duration>2</duration></figured-bass><note><pitch><step>C</step><octave>3</octave></pitch><duration>8</duration><type>whole</type></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let groups = &score.parts[0].staves[0].measures[0].figured_bass_groups;
+    assert_eq!(groups.len(), 2);
+    assert_eq!(
+        (groups[0].position_beats, groups[1].position_beats),
+        (0.0, 1.0)
+    );
+    assert_eq!(groups[1].extend_types, vec![Some("stop".into())]);
+    assert!(groups[1].figures[0].number.is_empty());
+    let serialized = acorde_io::serialize_musicxml(&score).unwrap();
+    let restored = acorde_io::parse_musicxml(&serialized).unwrap();
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].figured_bass_groups,
+        *groups
+    );
+    let expanded = xml.replace("<extend type=\"stop\"/>", "<extend type=\"stop\"></extend>");
+    let expanded_score = acorde_io::parse_musicxml(&expanded).unwrap();
+    assert_eq!(
+        expanded_score.parts[0].staves[0].measures[0].figured_bass_groups,
+        *groups
+    );
+}
+
+#[test]
+fn figured_bass_belongs_to_the_following_notes_staff() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><staves>2</staves><time><beats>4</beats><beat-type>4</beat-type></time><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><note><pitch><step>C</step><octave>5</octave></pitch><duration>4</duration><voice>1</voice><type>whole</type><staff>1</staff></note><backup><duration>4</duration></backup><figured-bass><figure><prefix>sharp</prefix></figure></figured-bass><note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><voice>2</voice><type>whole</type><staff>2</staff></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    assert!(
+        score.parts[0].staves[0].measures[0]
+            .figured_bass_groups
+            .is_empty()
+    );
+    let groups = &score.parts[0].staves[1].measures[0].figured_bass_groups;
+    assert_eq!(groups.len(), 1);
+    assert_eq!(groups[0].figures[0].prefix.as_deref(), Some("sharp"));
+    let output = acorde_io::serialize_musicxml(&score).unwrap();
+    let restored = acorde_io::parse_musicxml(&output).unwrap();
+    assert!(
+        restored.parts[0].staves[0].measures[0]
+            .figured_bass_groups
+            .is_empty()
+    );
+    assert_eq!(
+        restored.parts[0].staves[1].measures[0].figured_bass_groups,
+        *groups
+    );
+    let with_upper = xml.replacen("<note><pitch><step>C</step><octave>5", "<figured-bass><figure><figure-number>5</figure-number></figure></figured-bass><note><pitch><step>C</step><octave>5", 1);
+    let two = acorde_io::parse_musicxml(&with_upper).unwrap();
+    assert_eq!(
+        two.parts[0].staves[0].measures[0].figured_bass_groups[0].figures[0].number,
+        "5"
+    );
+    assert_eq!(
+        two.parts[0].staves[1].measures[0].figured_bass_groups[0].figures[0]
+            .prefix
+            .as_deref(),
+        Some("sharp")
+    );
+    let restored_two =
+        acorde_io::parse_musicxml(&acorde_io::serialize_musicxml(&two).unwrap()).unwrap();
+    for staff in 0..2 {
+        assert_eq!(
+            restored_two.parts[0].staves[staff].measures[0].figured_bass_groups,
+            two.parts[0].staves[staff].measures[0].figured_bass_groups
+        );
+    }
+}
+
+#[test]
+fn figured_bass_position_follows_the_next_note_after_forward() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Bass</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><figured-bass><figure><figure-number>6</figure-number></figure></figured-bass><forward><duration>1</duration></forward><note><pitch><step>C</step><octave>3</octave></pitch><duration>3</duration><type>half</type><dot/></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    assert_eq!(
+        score.parts[0].staves[0].measures[0].figured_bass_groups[0].position_beats,
+        1.0
+    );
+    let output = acorde_io::serialize_musicxml(&score).unwrap();
+    let restored = acorde_io::parse_musicxml(&output).unwrap();
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].figured_bass_groups[0].position_beats,
+        1.0
+    );
+}
+
+#[test]
+fn figured_bass_without_following_note_is_reported_and_not_moved_to_next_measure() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Bass</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><figured-bass><figure><figure-number>6</figure-number></figure></figured-bass></measure><measure number="2"><note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><type>whole</type></note></measure></part></score-partwise>"#;
+    let report = acorde_io::parse_musicxml_with_report(xml).unwrap();
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "musicxml.figured-bass-without-following-note")
+    );
+    let measures = &report.score.parts[0].staves[0].measures;
+    assert_eq!(measures[0].figured_bass_groups.len(), 1);
+    assert!(measures[1].figured_bass_groups.is_empty());
+}
+
+#[test]
+fn figured_bass_belongs_to_the_following_notes_voice() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Bass</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><figured-bass><figure><figure-number>5</figure-number></figure></figured-bass><note><pitch><step>C</step><octave>5</octave></pitch><duration>4</duration><voice>1</voice><type>whole</type></note><backup><duration>4</duration></backup><figured-bass><figure><prefix>sharp</prefix></figure></figured-bass><note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><voice>2</voice><type>whole</type></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let groups = &score.parts[0].staves[0].measures[0].figured_bass_groups;
+    assert_eq!(
+        groups.iter().map(|group| group.voice).collect::<Vec<_>>(),
+        vec![0, 1]
+    );
+    let output = acorde_io::serialize_musicxml(&score).unwrap();
+    let restored = acorde_io::parse_musicxml(&output).unwrap();
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].figured_bass_groups,
+        *groups
+    );
+    let mut invalid = score.clone();
+    invalid.parts[0].staves[0].measures[0].figured_bass_groups[0].voice = 4;
+    assert!(acorde_io::serialize_musicxml(&invalid).is_err());
+    #[cfg(all(feature = "mscz", feature = "mei", feature = "abc"))]
+    {
+        let mut single = score.clone();
+        single.parts[0].staves[0].measures[0]
+            .figured_bass_groups
+            .remove(0);
+        for diagnostics in [
+            acorde_io::serialize_mscx_with_report(&single)
+                .unwrap()
+                .diagnostics,
+            acorde_io::serialize_mei_with_report(&single)
+                .unwrap()
+                .diagnostics,
+            acorde_io::serialize_abc_with_report(&single)
+                .unwrap()
+                .diagnostics,
+        ] {
+            assert!(
+                diagnostics.iter().any(|d| d
+                    .source_location
+                    .as_deref()
+                    .is_some_and(|path| path.ends_with("/figured-bass-groups"))),
+                "{diagnostics:?}"
+            );
+        }
+    }
 }

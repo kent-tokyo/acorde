@@ -624,7 +624,14 @@ fn serialize_musicxml_inner(
                 );
             }
 
-            if !measure.figured_bass.is_empty() {
+            if let Some(last_group) = measure.figured_bass_groups.last()
+                && last_group.figures != measure.figured_bass
+            {
+                return Err(Error::Xml(
+                    "legacy figured-bass figures disagree with the final positioned group".into(),
+                ));
+            }
+            if measure.figured_bass_groups.is_empty() && !measure.figured_bass.is_empty() {
                 xml.push_str("      <figured-bass>\n");
                 for figure in &measure.figured_bass {
                     xml.push_str("        <figure>\n");
@@ -634,10 +641,12 @@ fn serialize_musicxml_inner(
                             escape_xml(prefix)
                         ));
                     }
-                    xml.push_str(&format!(
-                        "          <figure-number>{}</figure-number>\n",
-                        escape_xml(&figure.number)
-                    ));
+                    if !figure.number.is_empty() {
+                        xml.push_str(&format!(
+                            "          <figure-number>{}</figure-number>\n",
+                            escape_xml(&figure.number)
+                        ));
+                    }
                     if let Some(alter) = &figure.alter {
                         xml.push_str(&format!(
                             "          <figure-alter>{}</figure-alter>\n",
@@ -649,6 +658,9 @@ fn serialize_musicxml_inner(
                             "          <suffix>{}</suffix>\n",
                             escape_xml(suffix)
                         ));
+                    }
+                    if figure.extender {
+                        xml.push_str("          <extend type=\"start\"/>\n");
                     }
                     xml.push_str("        </figure>\n");
                 }
@@ -757,6 +769,8 @@ fn serialize_musicxml_inner(
             // Emit each populated voice in stable model order. MusicXML advances one shared
             // measure cursor, so return to the measure start before every subsequent voice.
             let mut emitted_voice = false;
+            validate_figured_group_order(measure)?;
+            let mut emitted_figured_groups = 0usize;
             let mut cursor_ticks = 0u32;
             let mut staff_clefs: Vec<&acorde_core::MidMeasureClef> =
                 measure.mid_clefs.iter().collect();
@@ -769,13 +783,29 @@ fn serialize_musicxml_inner(
                     xml.push_str(&format!("        <duration>{}</duration>\n", cursor_ticks));
                     xml.push_str("      </backup>\n");
                 }
+                let voice_groups: Vec<_> = measure
+                    .figured_bass_groups
+                    .iter()
+                    .filter(|group| group.voice == voice_index)
+                    .collect();
+                let mut next_figured_group = 0usize;
                 let hosted = take_hostable_mid_clefs(&mut staff_clefs, voice, measure_ticks);
                 let mut clefs = hosted.iter().copied().peekable();
                 let mut note_tick = 0u32;
                 for (note_index, note) in voice.iter().enumerate() {
                     push_due_mid_clefs(&mut xml, &mut clefs, note_tick, 1);
-                    note_tick =
+                    let next_tick =
                         note_tick.saturating_add(serialized_note_timing(note, measure_ticks).0);
+                    if !note.is_grace && !note.is_cue {
+                        emit_figured_groups_for_note(
+                            &mut xml,
+                            &voice_groups,
+                            &mut next_figured_group,
+                            note_tick,
+                            next_tick,
+                        )?;
+                    }
+                    note_tick = next_tick;
                     serialize_note(
                         &mut xml,
                         note,
@@ -795,8 +825,20 @@ fn serialize_musicxml_inner(
                         },
                     );
                 }
+                if next_figured_group != voice_groups.len() {
+                    return Err(Error::Xml(
+                        "figured-bass groups have no following voice note".into(),
+                    ));
+                }
+                emitted_figured_groups += next_figured_group;
                 cursor_ticks = serialized_voice_ticks(voice, measure_ticks);
                 emitted_voice = true;
+            }
+
+            if emitted_figured_groups != measure.figured_bass_groups.len() {
+                return Err(Error::Xml(
+                    "figured-bass groups have no following primary-voice note".into(),
+                ));
             }
 
             // A part may contain multiple staves (for example, a piano grand
@@ -811,7 +853,18 @@ fn serialize_musicxml_inner(
                     xml.push_str(&format!("        <duration>{}</duration>\n", cursor_ticks));
                     xml.push_str("      </backup>\n");
                 }
+                if let Some(last_group) = extra_measure.figured_bass_groups.last()
+                    && last_group.figures != extra_measure.figured_bass
+                {
+                    return Err(Error::Xml(
+                        "legacy figured-bass figures disagree with the final positioned group"
+                            .into(),
+                    ));
+                }
                 let mut extra_emitted_voice = false;
+                validate_figured_group_order(extra_measure)?;
+                let mut emitted_extra_figured_groups = 0usize;
+                let mut extra_legacy_emitted = false;
                 let mut staff_clefs: Vec<&acorde_core::MidMeasureClef> =
                     extra_measure.mid_clefs.iter().collect();
                 for (voice_index, voice) in extra_measure.voices.iter().enumerate() {
@@ -823,13 +876,41 @@ fn serialize_musicxml_inner(
                         xml.push_str(&format!("        <duration>{}</duration>\n", cursor_ticks));
                         xml.push_str("      </backup>\n");
                     }
+                    let voice_groups: Vec<_> = extra_measure
+                        .figured_bass_groups
+                        .iter()
+                        .filter(|group| group.voice == voice_index)
+                        .collect();
+                    let mut next_extra_figured_group = 0usize;
                     let hosted = take_hostable_mid_clefs(&mut staff_clefs, voice, measure_ticks);
                     let mut clefs = hosted.iter().copied().peekable();
                     let mut note_tick = 0u32;
                     for (note_index, note) in voice.iter().enumerate() {
                         push_due_mid_clefs(&mut xml, &mut clefs, note_tick, staff_index + 1);
-                        note_tick =
+                        let next_tick =
                             note_tick.saturating_add(serialized_note_timing(note, measure_ticks).0);
+                        if !note.is_grace && !note.is_cue {
+                            if !extra_emitted_voice
+                                && !extra_legacy_emitted
+                                && extra_measure.figured_bass_groups.is_empty()
+                                && !extra_measure.figured_bass.is_empty()
+                            {
+                                xml.push_str("      <figured-bass>\n");
+                                for figure in &extra_measure.figured_bass {
+                                    write_figured_bass_figure(&mut xml, figure, None);
+                                }
+                                xml.push_str("      </figured-bass>\n");
+                                extra_legacy_emitted = true;
+                            }
+                            emit_figured_groups_for_note(
+                                &mut xml,
+                                &voice_groups,
+                                &mut next_extra_figured_group,
+                                note_tick,
+                                next_tick,
+                            )?;
+                        }
+                        note_tick = next_tick;
                         serialize_note(
                             &mut xml,
                             note,
@@ -849,9 +930,20 @@ fn serialize_musicxml_inner(
                             },
                         );
                     }
+                    if next_extra_figured_group != voice_groups.len() {
+                        return Err(Error::Xml(
+                            "figured-bass groups have no following voice note".into(),
+                        ));
+                    }
+                    emitted_extra_figured_groups += next_extra_figured_group;
                     cursor_ticks = serialized_voice_ticks(voice, measure_ticks);
                     extra_emitted_voice = true;
                     emitted_voice = true;
+                }
+                if emitted_extra_figured_groups != extra_measure.figured_bass_groups.len() {
+                    return Err(Error::Xml(
+                        "figured-bass groups have no following staff note".into(),
+                    ));
                 }
             }
 
@@ -2235,6 +2327,126 @@ fn note_placement_attrs(note: &Note) -> String {
         }
     }
     attrs
+}
+
+fn validate_figured_group_order(measure: &acorde_core::Measure) -> Result<(), Error> {
+    if measure
+        .figured_bass_groups
+        .iter()
+        .any(|group| group.voice >= measure.voices.len())
+        || measure.figured_bass_groups.windows(2).any(|pair| {
+            pair[0].voice > pair[1].voice
+                || (pair[0].voice == pair[1].voice
+                    && pair[0].position_beats > pair[1].position_beats)
+        })
+    {
+        return Err(Error::Xml(
+            "figured-bass groups must be ordered by voice and position".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn emit_figured_groups_for_note(
+    xml: &mut String,
+    groups: &[&acorde_core::FiguredBassGroup],
+    next_group: &mut usize,
+    note_tick: u32,
+    next_tick: u32,
+) -> Result<(), Error> {
+    let mut figured_tick = note_tick;
+    while let Some(group) = groups.get(*next_group) {
+        let group_tick = figured_bass_ticks(group.position_beats)?;
+        if group_tick >= next_tick {
+            break;
+        }
+        if group_tick != figured_tick {
+            return Err(Error::Xml(
+                "figured-bass groups do not align with a following note and preceding durations"
+                    .into(),
+            ));
+        }
+        xml.push_str("      <figured-bass>\n");
+        for (index, figure) in group.figures.iter().enumerate() {
+            write_figured_bass_figure(
+                xml,
+                figure,
+                group.extend_types.get(index).and_then(Option::as_deref),
+            );
+        }
+        if let Some(duration) = group.duration_beats {
+            let ticks = figured_bass_ticks(duration)?;
+            if ticks == 0 {
+                return Err(Error::Xml("figured-bass duration must be positive".into()));
+            }
+            figured_tick = figured_tick
+                .checked_add(ticks)
+                .ok_or_else(|| Error::Xml("figured-bass duration overflow".into()))?;
+            xml.push_str(&format!("        <duration>{ticks}</duration>\n"));
+        }
+        xml.push_str("      </figured-bass>\n");
+        *next_group += 1;
+    }
+    Ok(())
+}
+
+fn figured_bass_ticks(beats: f64) -> Result<u32, Error> {
+    let ticks = beats * f64::from(DIVISIONS);
+    if !ticks.is_finite()
+        || ticks < 0.0
+        || ticks > f64::from(u32::MAX)
+        || (ticks - ticks.round()).abs() > 1e-7
+    {
+        return Err(Error::Xml(
+            "figured-bass timing is not representable in MusicXML".into(),
+        ));
+    }
+    Ok(ticks.round() as u32)
+}
+
+fn write_figured_bass_figure(
+    xml: &mut String,
+    figure: &acorde_core::FiguredBassFigure,
+    extend_type: Option<&str>,
+) {
+    xml.push_str("        <figure>\n");
+    if let Some(prefix) = &figure.prefix {
+        xml.push_str(&format!(
+            "          <prefix>{}</prefix>\n",
+            escape_xml(prefix)
+        ));
+    }
+    if !figure.number.is_empty() {
+        xml.push_str(&format!(
+            "          <figure-number>{}</figure-number>\n",
+            escape_xml(&figure.number)
+        ));
+    }
+    if let Some(alter) = &figure.alter {
+        xml.push_str(&format!(
+            "          <figure-alter>{}</figure-alter>\n",
+            escape_xml(alter)
+        ));
+    }
+    if let Some(suffix) = &figure.suffix {
+        xml.push_str(&format!(
+            "          <suffix>{}</suffix>\n",
+            escape_xml(suffix)
+        ));
+    }
+    if let Some(kind) = extend_type {
+        if kind.is_empty() {
+            xml.push_str("          <extend/>\n");
+        } else {
+            xml.push_str(&format!(
+                "          <extend type=\"{}\"/>\n",
+                escape_xml(kind)
+            ));
+        }
+    } else if figure.extender {
+        xml.push_str("          <extend type=\"start\"/>\n");
+    }
+    xml.push_str("        </figure>\n");
 }
 
 fn escape_xml(s: &str) -> String {
