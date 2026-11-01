@@ -2382,6 +2382,9 @@ pub struct TieSourceLocation {
     /// Signed difference between within-measure onsets, in whole-note units.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fractions: Option<String>,
+    /// Invalid numeric components retained for round-tripping; these never match a note.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub invalid_components: std::collections::BTreeMap<String, String>,
 }
 
 impl TieSourceLocation {
@@ -2396,7 +2399,8 @@ impl TieSourceLocation {
                 (denominator != 0).then_some(f64::from(numerator) * 4.0 / f64::from(denominator))
             }),
         };
-        target.part == previous.part
+        self.invalid_components.is_empty()
+            && target.part == previous.part
             && shifted(target.measure, self.measures) == Some(previous.measure)
             && shifted(target.staff, self.staves) == Some(previous.staff)
             && shifted(target.voice, self.voices) == Some(previous.voice)

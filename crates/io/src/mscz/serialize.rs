@@ -1677,6 +1677,11 @@ fn write_note(
                 .and_then(Option::as_ref)
             {
                 xml.push_str("<prev><location>");
+                for (name, value) in &location.invalid_components {
+                    if matches!(name.as_str(), "staves" | "voices" | "measures") {
+                        write!(xml, "<{name}>{}</{name}>", escape(value)).map_err(fmt_error)?;
+                    }
+                }
                 if location.staves != 0 {
                     write!(xml, "<staves>{}</staves>", location.staves).map_err(fmt_error)?;
                 }

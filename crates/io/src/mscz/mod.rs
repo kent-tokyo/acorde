@@ -1875,14 +1875,25 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
 
                     "measures" | "staves" | "voices" if in_tie_prev_location => {
-                        if let Some(location) = note_tie_source.as_mut()
-                            && let Ok(value) = t.trim().parse::<i32>()
-                        {
-                            match name.as_str() {
-                                "measures" => location.measures = value,
-                                "staves" => location.staves = value,
-                                "voices" => location.voices = value,
-                                _ => unreachable!(),
+                        if let Some(location) = note_tie_source.as_mut() {
+                            if let Ok(value) = t.trim().parse::<i32>() {
+                                location.invalid_components.remove(&name);
+                                match name.as_str() {
+                                    "measures" => location.measures = value,
+                                    "staves" => location.staves = value,
+                                    "voices" => location.voices = value,
+                                    _ => unreachable!(),
+                                }
+                            } else {
+                                match name.as_str() {
+                                    "measures" => location.measures = 0,
+                                    "staves" => location.staves = 0,
+                                    "voices" => location.voices = 0,
+                                    _ => unreachable!(),
+                                }
+                                location
+                                    .invalid_components
+                                    .insert(name.clone(), t.trim().to_string());
                             }
                         }
                     }
@@ -2567,6 +2578,7 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
     let mut reader = Reader::from_str(xml);
     let mut path: Vec<String> = Vec::new();
     let mut main_score_seen = false;
+    let mut in_note_tie_spanner = false;
     let mut ignored_score_depth = None;
     let mut diagnostics = Vec::new();
     let mut harmony_context: Option<(String, bool, bool, bool)> = None;
@@ -2597,6 +2609,9 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                 }
                 if ignored_score_depth.is_some() {
                     continue;
+                }
+                if name == "Spanner" && path.iter().any(|element| element == "Note") {
+                    in_note_tie_spanner = attr_str(&event, b"type").as_deref() == Some("Tie");
                 }
                 if matches!(name.as_str(), "Harmony" | "harmonyInfo") {
                     push_harmony_attribute_diagnostics(&mut diagnostics, &path, &event, &name);
@@ -2755,6 +2770,9 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                     continue;
                 }
                 let name = local_name_str(event.local_name().as_ref());
+                if name == "Spanner" {
+                    in_note_tie_spanner = false;
+                }
                 if name == "Harmony"
                     && let Some((harmony_path, has_name, has_root, has_unsupported_child)) =
                         harmony_context.take()
@@ -2959,6 +2977,50 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                     diagnostic.source_location = Some(format!("/{}", path.join("/")));
                     diagnostic.preserved_value = Some(value);
                     diagnostics.push(diagnostic);
+                }
+                if matches!(field, Some("measures" | "staves" | "voices"))
+                    && in_note_tie_spanner
+                    && path.iter().any(|element| element == "Note")
+                    && path.iter().any(|element| element == "Spanner")
+                    && path.iter().any(|element| element == "prev")
+                    && path.iter().any(|element| element == "location")
+                {
+                    let value = String::from_utf8_lossy(event.as_ref());
+                    if value.trim().parse::<i32>().is_err() {
+                        let mut diagnostic = Diagnostic::warning(
+                            "mscx.invalid-tie-source-location",
+                            "MSCX tie source contains an invalid numeric offset and cannot be matched",
+                        );
+                        diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                        diagnostic.preserved_value = Some(value.trim().to_string());
+                        diagnostics.push(diagnostic);
+                    }
+                }
+                if field == Some("fractions")
+                    && in_note_tie_spanner
+                    && path.iter().any(|element| element == "Note")
+                    && path.iter().any(|element| element == "Spanner")
+                    && path.iter().any(|element| element == "prev")
+                    && path.iter().any(|element| element == "location")
+                {
+                    let value = String::from_utf8_lossy(event.as_ref());
+                    let valid =
+                        value
+                            .trim()
+                            .split_once('/')
+                            .is_some_and(|(numerator, denominator)| {
+                                numerator.parse::<i32>().is_ok()
+                                    && denominator.parse::<u32>().is_ok_and(|d| d != 0)
+                            });
+                    if !valid {
+                        let mut diagnostic = Diagnostic::warning(
+                            "mscx.invalid-tie-source-location",
+                            "MSCX tie source contains an invalid fractional offset and cannot be matched",
+                        );
+                        diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                        diagnostic.preserved_value = Some(value.trim().to_string());
+                        diagnostics.push(diagnostic);
+                    }
                 }
                 if field == Some("measures")
                     && path.iter().any(|element| element == "Note")

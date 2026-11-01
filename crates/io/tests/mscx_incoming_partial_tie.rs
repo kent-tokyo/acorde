@@ -352,3 +352,65 @@ fn musescore_external_partial_tie_does_not_reattack_on_second_ending() {
     );
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn malformed_tie_source_does_not_link_and_is_reported() {
+    let xml = r#"<museScore version="4.50"><Score><Part id="1"><Staff id="1"/></Part><Staff id="1"><Measure><voice><Chord><durationType>quarter</durationType><Note><pitch>60</pitch><tpc>14</tpc><Spanner type="Tie"><next/></Spanner></Note></Chord><Chord><durationType>quarter</durationType><Note><pitch>60</pitch><tpc>14</tpc><Spanner type="Tie"><prev><location><measures>oops</measures><fractions>-1/4</fractions></location></prev></Spanner></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let report = acorde_io::parse_mscx_with_report(xml).unwrap();
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "mscx.invalid-tie-source-location"
+                && d.preserved_value.as_deref() == Some("oops"))
+    );
+    let events =
+        acorde_core::to_playback_events(&report.score, &acorde_core::PlaybackOptions::default());
+    assert_eq!(
+        events.len(),
+        2,
+        "an invalid source must not be interpreted as zero"
+    );
+    #[cfg(feature = "midi")]
+    {
+        use midly::{MidiMessage, Smf, TrackEventKind};
+        let bytes = acorde_io::serialize_midi(&report.score).unwrap();
+        let midi = Smf::parse(&bytes).unwrap();
+        let attacks = midi.tracks[1].iter().filter(|event| matches!(event.kind,
+            TrackEventKind::Midi { message: MidiMessage::NoteOn { vel, .. }, .. } if vel.as_int() > 0)).count();
+        assert_eq!(attacks, 2);
+    }
+    let output = serialize_mscx(&report.score).unwrap();
+    assert!(output.contains("<measures>oops</measures>"));
+    let non_tie = xml.replace("type=\"Tie\"", "type=\"Glissando\"");
+    let report = acorde_io::parse_mscx_with_report(&non_tie).unwrap();
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "mscx.invalid-tie-source-location")
+    );
+}
+
+#[test]
+fn malformed_fractional_tie_source_is_reported_and_never_matches() {
+    let xml = r#"<museScore version="4.50"><Score><Part id="1"><Staff id="1"/></Part><Staff id="1"><Measure><voice><Chord><durationType>quarter</durationType><Note><pitch>60</pitch><Spanner type="Tie"><next/></Spanner></Note></Chord><Chord><durationType>quarter</durationType><Note><pitch>60</pitch><Spanner type="Tie"><prev><location><fractions>1/0</fractions></location></prev></Spanner></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let report = acorde_io::parse_mscx_with_report(xml).unwrap();
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "mscx.invalid-tie-source-location"
+                && d.preserved_value.as_deref() == Some("1/0"))
+    );
+    assert_eq!(
+        acorde_core::to_playback_events(&report.score, &acorde_core::PlaybackOptions::default())
+            .len(),
+        2
+    );
+    assert!(
+        serialize_mscx(&report.score)
+            .unwrap()
+            .contains("<fractions>1/0</fractions>")
+    );
+}
