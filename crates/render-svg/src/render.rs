@@ -265,6 +265,7 @@ pub(crate) fn build_svg_with_metadata_placement(
 
     let mut body = String::new();
     let mut note_points: HashMap<NoteKey, NotePoint> = HashMap::new();
+    let mut staff_bottoms: HashMap<(usize, usize, usize), f32> = HashMap::new();
     let ottava_shifts = ottava_display_shifts(score);
     let mut resolved_annotation_obstacles = Vec::new();
     // A volta (1st/2nd ending) still open at the end of a system, by ending number.
@@ -495,6 +496,12 @@ pub(crate) fn build_svg_with_metadata_placement(
                 staff_y.push(y);
                 y += (staff_height + config.staff_gap()) * space;
             }
+        }
+        for (i, &(part, staff)) in staff_refs.iter().enumerate() {
+            staff_bottoms.insert(
+                (part, staff, row_idx),
+                staff_y[i] + staff_heights_u[i] * space,
+            );
         }
         let system_top_y = row_top_y;
         let system_bottom_y = row_top_y + system_height_u * space;
@@ -860,6 +867,7 @@ pub(crate) fn build_svg_with_metadata_placement(
         layout,
         &note_points,
         &row_tops,
+        &staff_bottoms,
         options.width,
         left_margin_u,
         right_margin_u,
@@ -5686,6 +5694,7 @@ fn render_all_spans(
     layout: &LayoutResult,
     points: &HashMap<NoteKey, NotePoint>,
     row_tops: &[f32],
+    staff_bottoms: &HashMap<(usize, usize, usize), f32>,
     width: f32,
     left_margin_u: f32,
     right_margin_u: f32,
@@ -5697,6 +5706,7 @@ fn render_all_spans(
         score,
         layout,
         points,
+        staff_bottoms,
         width,
         left_margin_u,
         right_margin_u,
@@ -5762,6 +5772,22 @@ fn render_all_spans(
                 end.note
             );
         }
+        let hairpin_y = |row: usize, left: f32, right: f32, fallback: f32| {
+            if matches!(span, SpanMark::Hairpin { .. }) {
+                spans::hairpin_baseline(
+                    points,
+                    staff_bottoms,
+                    start,
+                    row,
+                    (left, right),
+                    fallback,
+                    space,
+                )
+                .0
+            } else {
+                fallback
+            }
+        };
         if row1 != row2 {
             let start_offset = lane_offsets
                 .get(&(span_index, row1))
@@ -5775,23 +5801,25 @@ fn render_all_spans(
                 body,
                 span,
                 x1,
-                y1 + start_offset,
+                hairpin_y(row1, x1, width - right_margin_u * space, y1) + start_offset,
                 up1,
                 slur_above,
                 width - right_margin_u * space,
                 space,
                 true,
+                (0.0, 1.0 / (row2 - row1 + 1) as f32),
             );
             render_span_segment(
                 body,
                 span,
                 left_margin_u * space,
-                y2 + end_offset,
+                hairpin_y(row2, left_margin_u * space, x2, y2) + end_offset,
                 up2,
                 slur_above,
                 x2,
                 space,
                 false,
+                ((row2 - row1) as f32 / (row2 - row1 + 1) as f32, 1.0),
             );
             for middle_row in row1.saturating_add(1)..row2 {
                 let y = y1 + row_tops[middle_row] - row_tops[row1];
@@ -5799,12 +5827,21 @@ fn render_all_spans(
                     body,
                     span,
                     left_margin_u * space,
-                    y,
+                    hairpin_y(
+                        middle_row,
+                        left_margin_u * space,
+                        width - right_margin_u * space,
+                        y,
+                    ),
                     up1,
                     slur_above,
                     width - right_margin_u * space,
                     space,
                     false,
+                    (
+                        (middle_row - row1) as f32 / (row2 - row1 + 1) as f32,
+                        (middle_row - row1 + 1) as f32 / (row2 - row1 + 1) as f32,
+                    ),
                 );
             }
             if interactive {
@@ -5859,7 +5896,7 @@ fn render_all_spans(
             body,
             span,
             x1,
-            y1 + offset,
+            hairpin_y(row1, x1, x2, y1) + offset,
             up1,
             x2,
             y2 + offset,
@@ -6076,6 +6113,37 @@ fn span_lane_baseline(span: &SpanMark, anchor_y: f32, stem_up: bool, space: f32)
     }
 }
 
+fn write_hairpin_wedge(
+    body: &mut String,
+    x1: f32,
+    x2: f32,
+    y: f32,
+    halves: (f32, f32),
+    space: f32,
+    continuation: bool,
+) {
+    let (left_half, right_half) = halves;
+    let continuation_attr = if continuation {
+        r#" data-continuation="true""#
+    } else {
+        ""
+    };
+    let _ = write!(
+        body,
+        r#"<path class="acorde-hairpin"{} d="M {},{} L {},{} M {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+        continuation_attr,
+        f(x1),
+        f(y - left_half),
+        f(x2),
+        f(y - right_half),
+        f(x1),
+        f(y + left_half),
+        f(x2),
+        f(y + right_half),
+        f(0.08 * space)
+    );
+}
+
 #[allow(clippy::too_many_arguments)]
 fn render_same_row_span(
     body: &mut String,
@@ -6094,26 +6162,11 @@ fn render_same_row_span(
     let (left, right) = if x1 <= x2 { (x1, x2) } else { (x2, x1) };
     match span {
         SpanMark::Hairpin { kind, .. } => {
-            let y = y1 + (if up1 { 2.0 } else { -4.0 }) * space;
-            let open = matches!(kind, acorde_core::HairpinKind::Crescendo);
-            let (a, b) = if open {
-                (y + 0.45 * space, y)
-            } else {
-                (y, y + 0.45 * space)
-            };
-            let _ = write!(
-                body,
-                r#"<path class="acorde-hairpin" d="M {},{} L {},{} M {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
-                f(left),
-                f(a),
-                f((left + right) / 2.0),
-                f(b),
-                f((left + right) / 2.0),
-                f(b),
-                f(right),
-                f(a),
-                f(0.08 * space)
-            );
+            let y = y1;
+            let crescendo = matches!(kind, acorde_core::HairpinKind::Crescendo);
+            let left_half = if crescendo { 0.0 } else { 0.45 * space };
+            let right_half = if crescendo { 0.45 * space } else { 0.0 };
+            write_hairpin_wedge(body, left, right, y, (left_half, right_half), space, false);
         }
         SpanMark::Slur { .. } => {
             if (x2 - x1).abs() < 0.6 * space {
@@ -6484,28 +6537,21 @@ fn render_span_segment(
     x2: f32,
     space: f32,
     start: bool,
+    progress: (f32, f32),
 ) {
     match span {
         SpanMark::Hairpin { kind, .. } => {
-            let y = y1 + (if up { 2.0 } else { -4.0 }) * space;
-            let open = matches!(kind, acorde_core::HairpinKind::Crescendo);
-            let (a, b) = if open {
-                (y + 0.45 * space, y)
-            } else {
-                (y, y + 0.45 * space)
-            };
-            let _ = write!(
+            let y = y1;
+            let crescendo = matches!(kind, acorde_core::HairpinKind::Crescendo);
+            let half_width = |t: f32| 0.45 * space * if crescendo { t } else { 1.0 - t };
+            write_hairpin_wedge(
                 body,
-                r#"<path class="acorde-hairpin" data-continuation="true" d="M {},{} L {},{} M {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
-                f(x1),
-                f(a),
-                f(x2),
-                f(b),
-                f(x1),
-                f(b),
-                f(x2),
-                f(a),
-                f(0.08 * space)
+                x1,
+                x2,
+                y,
+                (half_width(progress.0), half_width(progress.1)),
+                space,
+                true,
             );
         }
         SpanMark::Slur { .. } => {
