@@ -3971,7 +3971,7 @@ fn musicxml_cross_staff_slurs_resolve_by_score_time_and_reused_number() {
 
 #[cfg(feature = "mscz")]
 #[test]
-fn mscz_export_reports_cross_voice_slur_loss() {
+fn mscz_export_preserves_cross_voice_slur_without_loss_warning() {
     let score = acorde_io::parse_musicxml(include_str!(
         "../../../tests/fixtures/cross_voice_slur.musicxml"
     ))
@@ -3992,7 +3992,7 @@ fn mscz_export_reports_cross_voice_slur_loss() {
             .diagnostics,
     ] {
         assert!(
-            diagnostics
+            !diagnostics
                 .iter()
                 .any(|d| d.code == "mscx.export-unsupported-field"
                     && d.source_location.as_deref()
@@ -4002,7 +4002,7 @@ fn mscz_export_reports_cross_voice_slur_loss() {
 }
 
 #[test]
-fn mscz_export_reports_cross_staff_slur_loss() {
+fn mscz_export_preserves_cross_staff_slur_without_loss_warning() {
     let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><note><pitch><step>G</step><octave>3</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>2</staff><notations><slur type="start" number="1"/></notations></note><note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff><notations><slur type="stop" number="1"/></notations></note></measure></part></score-partwise>"#;
     let score = acorde_io::parse_musicxml(xml).unwrap();
     let slur = score
@@ -4019,10 +4019,18 @@ fn mscz_export_reports_cross_staff_slur_loss() {
             .unwrap()
             .diagnostics,
     ] {
-        assert!(report.iter().any(|d| d.source_location.as_deref()
+        assert!(!report.iter().any(|d| d.source_location.as_deref()
             == Some(format!("/score/spanners/{}", slur.id).as_str())
             && d.code == "mscx.export-unsupported-field"));
     }
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let roundtrip = restored
+        .spanners
+        .iter()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap();
+    assert_eq!(roundtrip.start, slur.start);
+    assert_eq!(roundtrip.end, slur.end);
 }
 
 #[test]
@@ -7149,4 +7157,269 @@ fn musicxml_dacapo_sound_preserves_explicit_al_fine_words() {
             notes
         );
     }
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_cross_voice_slur_resolves_relative_location_across_measures() {
+    let xml = r#"<museScore version="4.50"><Score><Division>480</Division><Part id="1"><Staff id="1"/><trackName>Piano</trackName></Part><Staff id="1"><Measure><voice><Chord><durationType>quarter</durationType><Spanner type="Slur"><Slur></Slur><next><location><voices>1</voices><measures>1</measures></location></next></Spanner><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord><Chord><durationType>quarter</durationType><Note><pitch>62</pitch><tpc>16</tpc></Note></Chord></voice></Measure><Measure><voice><Chord><durationType>half</durationType><Note><pitch>67</pitch><tpc>15</tpc></Note></Chord></voice><voice><Chord><durationType>quarter</durationType><Spanner type="Slur"><prev><location><voices>-1</voices><measures>-1</measures></location></prev></Spanner><Note><pitch>64</pitch><tpc>18</tpc></Note></Chord><Chord><durationType>quarter</durationType><Note><pitch>65</pitch><tpc>13</tpc></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let score = acorde_io::parse_mscx(xml).unwrap();
+    let slurs = score
+        .spanners
+        .iter()
+        .filter(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .collect::<Vec<_>>();
+    assert_eq!(slurs.len(), 1);
+    assert_eq!(
+        (
+            slurs[0].start.measure,
+            slurs[0].start.voice,
+            slurs[0].start.note
+        ),
+        (0, 0, 0)
+    );
+    assert_eq!(
+        (slurs[0].end.measure, slurs[0].end.voice, slurs[0].end.note),
+        (1, 1, 0)
+    );
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn musicxml_cross_voice_slur_survives_mscz_roundtrip() {
+    let source = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/cross_voice_slur.musicxml"
+    ))
+    .unwrap();
+    let span = source
+        .spanners
+        .iter()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap();
+    assert_ne!(span.start.voice, span.end.voice);
+    let archive = acorde_io::serialize_mscz(&source).unwrap();
+    let restored = acorde_io::parse_mscz(&archive).unwrap();
+    let slurs = restored
+        .spanners
+        .iter()
+        .filter(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .collect::<Vec<_>>();
+    assert_eq!(slurs.len(), 1);
+    assert_eq!(slurs[0].start, span.start);
+    assert_eq!(slurs[0].end, span.end);
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn overlapping_cross_voice_slurs_keep_their_matching_endpoints() {
+    let mut score = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/cross_voice_slur.musicxml"
+    ))
+    .unwrap();
+    let mut second = score
+        .spanners
+        .iter()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap()
+        .clone();
+    second.id = "second-overlapping-cross-voice-slur".into();
+    second.start.note = 1;
+    second.end.note = 1;
+    score.spanners.push(second);
+    let expected = score
+        .spanners
+        .iter()
+        .filter(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .map(|s| (s.start.clone(), s.end.clone()))
+        .collect::<Vec<_>>();
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let actual = restored
+        .spanners
+        .iter()
+        .filter(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .map(|s| (s.start.clone(), s.end.clone()))
+        .collect::<Vec<_>>();
+    assert_eq!(actual, expected);
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscz_cross_voice_slur_with_unsupported_placement_reports_loss() {
+    let mut score = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/cross_voice_slur.musicxml"
+    ))
+    .unwrap();
+    let span = score
+        .spanners
+        .iter_mut()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap();
+    span.placement = Some("above".into());
+    let id = span.id.clone();
+    let report = acorde_io::serialize_mscz_with_report(&score).unwrap();
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "mscx.export-unsupported-field"
+                && d.source_location.as_deref() == Some(format!("/score/spanners/{id}").as_str()))
+    );
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn cross_voice_slur_roundtrip_handles_negative_relative_beat_offset() {
+    let mut score = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/cross_voice_slur.musicxml"
+    ))
+    .unwrap();
+    let span = score
+        .spanners
+        .iter_mut()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap();
+    span.start.note = 1;
+    let expected = (span.start.clone(), span.end.clone());
+    let xml = acorde_io::serialize_mscx(&score).unwrap();
+    assert!(xml.contains("<fractions>-1/4</fractions>"));
+    let restored = acorde_io::parse_mscx(&xml).unwrap();
+    let slur = restored
+        .spanners
+        .iter()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap();
+    assert_eq!((slur.start.clone(), slur.end.clone()), expected);
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn malformed_cross_voice_location_does_not_create_a_false_slur() {
+    let score = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/cross_voice_slur.musicxml"
+    ))
+    .unwrap();
+    let xml = acorde_io::serialize_mscx(&score).unwrap();
+    let malformed = xml.replacen("<measures>1</measures>", "<measures>invalid</measures>", 1);
+    assert_ne!(malformed, xml);
+    let restored = acorde_io::parse_mscx(&malformed).unwrap();
+    assert!(
+        !restored
+            .spanners
+            .iter()
+            .any(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+    );
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn cross_voice_slur_sharing_endpoint_with_same_voice_reports_loss() {
+    let mut score = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/cross_voice_slur.musicxml"
+    ))
+    .unwrap();
+    let mut same_voice = score
+        .spanners
+        .iter()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap()
+        .clone();
+    let cross_id = same_voice.id.clone();
+    same_voice.id = "same-voice-shared-start".into();
+    same_voice.end = same_voice.start.clone();
+    same_voice.end.note = 1;
+    score.spanners.push(same_voice);
+    let report = acorde_io::serialize_mscx_with_report(&score).unwrap();
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "mscx.export-unsupported-field"
+                && d.source_location.as_deref()
+                    == Some(format!("/score/spanners/{cross_id}").as_str()))
+    );
+    let restored = acorde_io::parse_mscx(&report.output).unwrap();
+    let notes = &restored.parts[0].staves[0].measures[0].voices[0];
+    assert!(notes[0].slur_start && notes[1].slur_end);
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn many_cross_voice_slurs_roundtrip_without_losing_endpoints() {
+    use acorde_core::{
+        Duration, NotationSpanner, NotationSpannerKind, Note, NoteAddr, Pitch, Score, Step,
+    };
+    let mut score = Score::new("many slurs", 120, 1, 4, 0, 512);
+    for bar in &mut score.parts[0].staves[0].measures {
+        bar.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        bar.voices[1] = vec![Note::new(Pitch::new(Step::G, 4), Duration::Quarter)];
+    }
+    for measure in 0..511 {
+        score.spanners.push(NotationSpanner {
+            id: format!("cross-{measure}"),
+            kind: NotationSpannerKind::Slur,
+            start: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure,
+                voice: 0,
+                note: 0,
+            },
+            end: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: measure + 1,
+                voice: 1,
+                note: 0,
+            },
+            number: None,
+            line_type: None,
+            text: None,
+            placement: None,
+            ottava_size: None,
+            ottava_type: None,
+        });
+    }
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let slurs = restored
+        .spanners
+        .iter()
+        .filter(|s| s.kind == NotationSpannerKind::Slur)
+        .collect::<Vec<_>>();
+    assert_eq!(slurs.len(), 511);
+    assert_eq!(
+        (
+            slurs[510].start.measure,
+            slurs[510].end.measure,
+            slurs[510].end.voice
+        ),
+        (510, 511, 1)
+    );
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn cross_voice_slur_with_unrepresentable_offset_reports_loss() {
+    let mut score = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/cross_voice_slur.musicxml"
+    ))
+    .unwrap();
+    score.parts[0].staves[0].measures[0].voices[0][0].tuplet = Some(acorde_core::TupletInfo {
+        actual_notes: 11,
+        normal_notes: 8,
+    });
+    let span = score
+        .spanners
+        .iter_mut()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap();
+    span.start.note = 1;
+    let id = span.id.clone();
+    let report = acorde_io::serialize_mscz_with_report(&score).unwrap();
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "mscx.export-unsupported-field"
+                && d.source_location.as_deref() == Some(format!("/score/spanners/{id}").as_str()))
+    );
 }
