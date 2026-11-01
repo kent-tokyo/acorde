@@ -31,5 +31,4 @@ std::fs::write("score.pdf", pdf)?;
 # }
 ```
 
-`acorde-pdf` needs Rust 1.88 or newer because of its Harumi dependency. This is also the Acorde
-workspace MSRV.
+`acorde-pdf` requires Rust 1.89 or newer, matching the Acorde workspace MSRV.

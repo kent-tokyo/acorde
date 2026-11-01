@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- **MSRV.** The workspace minimum supported Rust version is now 1.89. The lockfile
+  updates `uuid` to 1.29.0.
+
 - Offline render manifests preserve pedal controls attached to rests, including
   swing timing. Hosts can explicitly coalesce identical shared unisons while
   retaining each source address; ordinary playback remains independent.
