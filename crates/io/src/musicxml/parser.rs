@@ -447,7 +447,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut pending_pedal_start = false;
     let mut pending_pedal_end = false;
     // Independent score-time directions: document order need not match playback order.
-    let mut pending_timed_pedals: Vec<(bool, u16)> = Vec::new();
+    let mut pending_timed_pedals: Vec<(bool, u16, bool)> = Vec::new();
     let mut timed_pedal_events: Vec<(usize, usize, usize, acorde_core::TimedPedalDirection)> =
         Vec::new();
     let mut in_lyric = false;
@@ -1433,6 +1433,7 @@ pub(crate) fn parse_musicxml_collecting(
                             pending_timed_pedals.push((
                                 kind == "start",
                                 parse_spanner_number(attr_str(e, b"number"))?,
+                                attr_str(e, b"sign").as_deref() == Some("no"),
                             ));
                         }
                     }
@@ -2030,7 +2031,7 @@ pub(crate) fn parse_musicxml_collecting(
                         }
                         if let Some(pi) = part_index {
                             let mi = score.parts[pi].staves[0].measures.len().saturating_sub(1);
-                            for (down, number) in pending_timed_pedals.drain(..) {
+                            for (down, number, hide_sign) in pending_timed_pedals.drain(..) {
                                 timed_pedal_events.push((
                                     pi,
                                     pending_direction_staff,
@@ -2040,6 +2041,7 @@ pub(crate) fn parse_musicxml_collecting(
                                             .unwrap_or(0.0),
                                         down,
                                         number,
+                                        hide_sign,
                                         placement: pending_direction_placement.clone(),
                                     },
                                 ));
@@ -3298,6 +3300,33 @@ pub(crate) fn parse_musicxml_collecting(
                 "musicxml.timed-pedal-missing-staff",
                 "A pedal direction references a missing staff",
             ));
+        }
+    }
+    // Retain the legacy note flags when a direction lands exactly on a note. The
+    // independent events remain authoritative for timed output and rendering.
+    for part in &mut score.parts {
+        for staff in &mut part.staves {
+            for measure in &mut staff.measures {
+                for pedal in &measure.timed_pedals {
+                    let target = measure.voices.iter_mut().find_map(|voice| {
+                        let mut beat = 0.0;
+                        voice.iter_mut().find(|note| {
+                            let here = !note.is_grace
+                                && !note.is_cue
+                                && (beat - pedal.position_beats).abs() < 1e-9;
+                            beat += note.beats();
+                            here
+                        })
+                    });
+                    if let Some(note) = target {
+                        if pedal.down {
+                            note.pedal_start = true;
+                        } else {
+                            note.pedal_end = true;
+                        }
+                    }
+                }
+            }
         }
     }
     resolve_direction_dynamics(&mut score, direction_dynamics, tolerated);

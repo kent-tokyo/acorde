@@ -313,10 +313,21 @@ fn resolve_spans(score: &Score, typed_spanners: &[NotationSpanner]) -> Vec<SpanM
                             });
                         }
 
-                        if note.pedal_start {
+                        let onset: f64 = measure.voices[voice]
+                            .iter()
+                            .take(ni)
+                            .map(|note| note.beats())
+                            .sum();
+                        let timed_here = |down| {
+                            measure.timed_pedals.iter().any(|pedal| {
+                                pedal.down == down && (pedal.position_beats - onset).abs() < 1e-9
+                            })
+                        };
+                        if note.pedal_start && !timed_here(true) {
                             open_pedal = Some(addr.clone());
                         }
                         if note.pedal_end
+                            && !timed_here(false)
                             && let Some(start) = open_pedal.take()
                         {
                             spans.push(SpanMark::Pedal {

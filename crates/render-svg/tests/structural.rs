@@ -5253,12 +5253,14 @@ fn timed_pedal_signs_show_at_distinct_positions_inside_a_sustained_note() {
             position_beats: 0.0,
             down: true,
             number: 1,
+            hide_sign: false,
             placement: None,
         },
         TimedPedalDirection {
             position_beats: 3.0,
             down: false,
             number: 1,
+            hide_sign: false,
             placement: None,
         },
     ];
@@ -5285,4 +5287,8 @@ fn timed_pedal_signs_show_at_distinct_positions_inside_a_sustained_note() {
     let stop = position("*");
     assert!(stop.0 > start.0 + 20.0, "{start:?}, {stop:?}");
     assert!((stop.1 - start.1).abs() < 1.0, "{start:?}, {stop:?}");
+    score.parts[0].staves[0].measures[0].timed_pedals[0].hide_sign = true;
+    let hidden = render_svg(&score, &opts()).unwrap();
+    assert!(!hidden.contains(">Ped.</text>"));
+    assert!(hidden.contains(">*</text>"));
 }

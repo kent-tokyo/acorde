@@ -68,12 +68,14 @@ fn timed_pedal_follows_repeated_measures_in_midi_and_offline_playback() {
             position_beats: 0.0,
             down: true,
             number: 1,
+            hide_sign: false,
             placement: None,
         },
         TimedPedalDirection {
             position_beats: 3.0,
             down: false,
             number: 1,
+            hide_sign: false,
             placement: None,
         },
     ];
@@ -147,4 +149,15 @@ fn timed_pedals_keep_staff_ownership_and_survive_diff_patch() {
         restored.parts[0].staves[1].measures[0].timed_pedals,
         *events
     );
+}
+
+#[test]
+fn explicitly_hidden_pedal_signs_remain_hidden_after_roundtrip() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><direction><direction-type><pedal type="start" line="no" sign="no"/></direction-type></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure></part></score-partwise>"#;
+    let score = parse_musicxml(xml).unwrap();
+    assert!(score.parts[0].staves[0].measures[0].timed_pedals[0].hide_sign);
+    assert!(score.parts[0].staves[0].measures[0].voices[0][0].pedal_start);
+    let out = acorde_io::serialize_musicxml(&score).unwrap();
+    let restored = parse_musicxml(&out).unwrap();
+    assert!(restored.parts[0].staves[0].measures[0].timed_pedals[0].hide_sign);
 }

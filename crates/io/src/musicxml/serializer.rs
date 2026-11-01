@@ -681,8 +681,13 @@ fn serialize_musicxml_inner(
                     .map(|value| format!(" placement=\"{value}\""))
                     .unwrap_or_default();
                 let kind = if direction.down { "start" } else { "stop" };
+                let sign = if direction.hide_sign {
+                    " sign=\"no\""
+                } else {
+                    ""
+                };
                 let offset = (direction.position_beats * f64::from(DIVISIONS)).round() as u64;
-                xml.push_str(&format!("      <direction{placement}><direction-type><pedal type=\"{kind}\" line=\"no\" number=\"{}\"/></direction-type><offset>{offset}</offset><staff>{}</staff></direction>\n", direction.number, staff_index + 1));
+                xml.push_str(&format!("      <direction{placement}><direction-type><pedal type=\"{kind}\" line=\"no\" number=\"{}\"{sign}/></direction-type><offset>{offset}</offset><staff>{}</staff></direction>\n", direction.number, staff_index + 1));
             }
 
             let mut tempo_text_emitted = measure.tempo_text.is_some();
@@ -939,8 +944,32 @@ fn serialize_note(
     let has_typed_endpoint =
         |kind: NotationSpannerKind| typed_spanners.iter().any(|spanner| spanner.kind == kind);
 
+    let timed_pedal_here = |down| {
+        score
+            .parts
+            .get(address.part)
+            .and_then(|part| part.staves.get(address.staff))
+            .and_then(|staff| staff.measures.get(address.measure))
+            .and_then(|measure| {
+                measure
+                    .voices
+                    .get(address.voice)
+                    .map(|voice| (measure, voice))
+            })
+            .is_some_and(|(measure, voice)| {
+                let onset: f64 = voice.iter().take(address.note).map(Note::beats).sum();
+                measure
+                    .timed_pedals
+                    .iter()
+                    .any(|pedal| pedal.down == down && (pedal.position_beats - onset).abs() < 1e-9)
+            })
+    };
+
     // Pedal start
-    if note.pedal_start && !has_typed_endpoint(NotationSpannerKind::Pedal) {
+    if note.pedal_start
+        && !timed_pedal_here(true)
+        && !has_typed_endpoint(NotationSpannerKind::Pedal)
+    {
         xml.push_str("      <direction placement=\"below\">\n");
         xml.push_str("        <direction-type>\n");
         xml.push_str("          <pedal type=\"start\" line=\"no\"/>\n");
@@ -1366,7 +1395,8 @@ fn serialize_note(
     serialize_typed_direction_spanners(xml, &typed_spanners, address, "stop");
 
     // Pedal stop
-    if note.pedal_end && !has_typed_endpoint(NotationSpannerKind::Pedal) {
+    if note.pedal_end && !timed_pedal_here(false) && !has_typed_endpoint(NotationSpannerKind::Pedal)
+    {
         xml.push_str("      <direction placement=\"below\">\n");
         xml.push_str("        <direction-type>\n");
         xml.push_str("          <pedal type=\"stop\" line=\"no\"/>\n");

@@ -2667,7 +2667,7 @@ pub(crate) fn measure_text_entries(measure: &Measure) -> Vec<StyledText> {
             relative_y: None,
         });
     }
-    for pedal in &measure.timed_pedals {
+    for pedal in measure.timed_pedals.iter().filter(|pedal| !pedal.hide_sign) {
         entries.push(StyledText {
             position_beats: Some(pedal.position_beats),
             style: TextStyle::Technique,
@@ -3562,6 +3562,7 @@ fn render_measure(
         part,
         staff,
         measure_idx,
+        total_beats,
         content_x0,
         x,
         bottom_y,
@@ -4827,6 +4828,7 @@ fn render_measure_text(
     part: usize,
     staff: usize,
     measure_idx: usize,
+    measure_beats: f64,
     content_x0: f32,
     x: f32,
     bottom_y: f32,
@@ -4840,7 +4842,13 @@ fn render_measure_text(
     let mut above_texts = 0usize;
     let mut below_texts = 0usize;
     let entries = measure_text_entries(measure);
-    let timed_pedal_start = entries.len().saturating_sub(measure.timed_pedals.len());
+    let timed_pedal_start = entries.len().saturating_sub(
+        measure
+            .timed_pedals
+            .iter()
+            .filter(|pedal| !pedal.hide_sign)
+            .count(),
+    );
     let mut text_lanes = Vec::with_capacity(entries.len());
     let annotation_count = resolved_annotations.len();
     let mut placements = resolved_annotations.to_vec();
@@ -4923,17 +4931,6 @@ fn render_measure_text(
         // The grand-staff lane for below-staff words is constrained by both staves.
         // Keep its established clearance placement until beat anchoring can fit that lane.
         let is_timed_pedal = text_index >= timed_pedal_start;
-        let measure_beats = measure
-            .actual_length
-            .and_then(|length| length.beats())
-            .or_else(|| measure.time_sig.as_ref().map(|time| time.total_beats()))
-            .unwrap_or_else(|| {
-                measure
-                    .voices
-                    .iter()
-                    .map(|voice| voice.iter().map(Note::beats).sum::<f64>())
-                    .fold(0.0, f64::max)
-            });
         let end_anchor =
             (is_timed_pedal && measure_beats > 0.0).then_some((measure_beats, x + width - space));
         let beat_x = (is_timed_pedal || (!placement_below && text_scale > 1.0))
@@ -9238,11 +9235,11 @@ mod tests {
             ((0, 0, 0, 0, 3), (221.0, 200.0, true, 0)),
         ]);
         assert_eq!(
-            measure_text_beat_x(&measure, 0, 0, 0, 1.0, &note_points),
+            measure_text_beat_x(&measure, 0, 0, 0, 1.0, &note_points, None),
             Some(142.0)
         );
         assert_eq!(
-            measure_text_beat_x(&measure, 0, 0, 0, 0.5, &note_points),
+            measure_text_beat_x(&measure, 0, 0, 0, 0.5, &note_points, None),
             Some(121.0)
         );
     }
@@ -9274,6 +9271,7 @@ mod tests {
             0,
             0,
             0,
+            4.0,
             100.0,
             90.0,
             200.0,
@@ -9561,6 +9559,7 @@ mod tests {
             0,
             0,
             0,
+            4.0,
             10.0,
             0.0,
             200.0,

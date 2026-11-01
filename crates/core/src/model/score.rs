@@ -2145,6 +2145,9 @@ pub struct TimedPedalDirection {
     pub down: bool,
     /// MusicXML pedal line number.
     pub number: u16,
+    /// The source explicitly hides the pedal sign.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hide_sign: bool,
     /// Optional authored placement, such as "above" or "below".
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub placement: Option<String>,
