@@ -220,7 +220,9 @@ jobs:
           # Positioned MusicXML figured-bass groups and their editing/rendering
           # support measured 6,426,227 bytes in Linux CI, 50,719 bytes above
           # the tie-location build. Keep approximately 6 KB headroom.
-          test "$size" -le 6433000
+          # Integration with voice alignment measured 6,442,707 bytes on
+          # Linux CI for commit 2893e3e. Retain about 6 KB of headroom.
+          test "$size" -le 6449000
 
   renderer-benchmark:
     name: Renderer performance budget
