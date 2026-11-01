@@ -281,6 +281,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     // Feature M: MuseScore 4.x voice wrapper container
     let mut in_measure_voice_wrapper = false;
     let mut measure_voice_index: usize = 0;
+    let mut voice_wrapper_depth = 0usize;
+    let mut voice_location_depth: Option<usize> = None;
+    let mut voice_has_backward_location = false;
 
     // MuseScore tab staff metadata (3.x/4.x use StaffType/StringData).
     let mut in_staff_type = false;
@@ -711,6 +714,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         figured_bass_extender = false;
                     }
                     "Chord" if in_measure && !in_chord && !in_rest_elem => {
+                        if voice_has_backward_location {
+                            return Err(Error::Xml(
+                                "MSCX backward voice location before a chord is unsupported".into(),
+                            ));
+                        }
                         in_chord = true;
                         chord_duration = None;
                         chord_dots = 0;
@@ -753,6 +761,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         tuplet_normal_notes = None;
                     }
                     "Rest" if in_measure && !in_chord && !in_rest_elem => {
+                        if voice_has_backward_location {
+                            return Err(Error::Xml(
+                                "MSCX backward voice location before a rest is unsupported".into(),
+                            ));
+                        }
                         in_rest_elem = true;
                         rest_depth = element_depth;
                         rest_hidden = false;
@@ -842,6 +855,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     // Feature M: MuseScore 4.x voice wrapper container at Measure level
                     "voice" if in_measure && !in_chord && !in_rest_elem => {
                         in_measure_voice_wrapper = true;
+                        voice_wrapper_depth = element_depth;
+                    }
+                    "location"
+                        if in_measure_voice_wrapper && element_depth == voice_wrapper_depth + 1 =>
+                    {
+                        voice_location_depth = Some(element_depth);
                     }
                     // Feature J: Volta Spanner at Measure level
                     "Spanner" if in_measure && !in_chord && !in_rest_elem => {
@@ -958,6 +977,49 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                 }
 
                 match name.as_str() {
+                    "fractions"
+                        if voice_location_depth.is_some_and(|depth| closing_depth == depth + 1) =>
+                    {
+                        let (numerator, denominator) = t.split_once('/').ok_or_else(|| {
+                            Error::Xml("invalid MSCX voice location fraction".into())
+                        })?;
+                        let numerator: i64 = numerator.trim().parse().map_err(|_| {
+                            Error::Xml("unsupported MSCX voice location offset".into())
+                        })?;
+                        let denominator: u32 = denominator.trim().parse().map_err(|_| {
+                            Error::Xml("invalid MSCX voice location denominator".into())
+                        })?;
+                        if denominator == 0 {
+                            return Err(Error::Xml(
+                                "invalid MSCX voice location denominator".into(),
+                            ));
+                        }
+                        if numerator < 0 {
+                            // A later direction may point backwards (common for a trailing
+                            // tempo). Preserve the prior parser behavior and report its loss;
+                            // a following rhythmic event cannot safely use this timeline.
+                            voice_has_backward_location = true;
+                        } else {
+                            if voice_has_backward_location && numerator != 0 {
+                                return Err(Error::Xml(
+                                    "MSCX location after a backward voice offset is unsupported"
+                                        .into(),
+                                ));
+                            }
+                            let ticks = u32::try_from(numerator)
+                                .ok()
+                                .and_then(|n| n.checked_mul(4))
+                                .ok_or_else(|| Error::Xml("MSCX voice location overflow".into()))?;
+                            crate::gap::append_gap_rests(
+                                &mut cur_voices[measure_voice_index.min(3)],
+                                ticks,
+                                denominator,
+                            )?;
+                        }
+                    }
+                    "location" if voice_location_depth == Some(closing_depth) => {
+                        voice_location_depth = None;
+                    }
                     // Voice-level line spanners (HairPin, Pedal, MuseScore 3.x Slur)
                     "subtype" if in_line_body && !in_line_segment => {
                         line_subtype = Some(t.to_string());
@@ -1567,6 +1629,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     // Feature M: MuseScore 4.x voice wrapper end
                     "voice" if in_measure_voice_wrapper && !in_chord && !in_rest_elem => {
                         in_measure_voice_wrapper = false;
+                        voice_has_backward_location = false;
                         measure_voice_index += 1;
                     }
 
@@ -2505,6 +2568,22 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                 let field = path.last().map(String::as_str);
                 let event_bytes: &[u8] = event.as_ref();
                 let value = String::from_utf8_lossy(event_bytes).trim().to_string();
+                if field == Some("fractions")
+                    && path.iter().rev().nth(1).map(String::as_str) == Some("location")
+                    && path.iter().rev().nth(2).map(String::as_str) == Some("voice")
+                    && value
+                        .split_once('/')
+                        .and_then(|(n, _)| n.trim().parse::<i64>().ok())
+                        .is_some_and(|n| n < 0)
+                {
+                    push_invalid_numeric_diagnostic(
+                        &mut diagnostics,
+                        "mscx.unsupported-voice-location",
+                        "The timing of a backward voice-level location is not preserved for non-note directions",
+                        &path,
+                        value.clone(),
+                    );
+                }
                 if field == Some("accidental")
                     && path.iter().rev().nth(1).map(String::as_str) == Some("KeySig")
                     && value.parse::<i8>().is_err()
@@ -3093,7 +3172,7 @@ fn assemble_score(
         if let Some(ts) = measures.iter().find_map(|m| m.time_sig.clone()) {
             score.settings.time_signature = ts;
         }
-        if let Some(ks) = measures.iter().find_map(|m| m.key_sig.clone()) {
+        if let Some(ks) = measures.first().and_then(|m| m.key_sig.clone()) {
             score.settings.key_signature = ks;
         }
     }
@@ -3607,6 +3686,25 @@ mod tests {
             assert_eq!(events[0].program, 40);
             assert_eq!(events[0].channel, 2);
         }
+    }
+
+    #[test]
+    fn absent_initial_key_signature_does_not_promote_later_change() {
+        let xml = simple_mscx(
+            r#"<Measure><voice><Rest><durationType>whole</durationType></Rest></voice></Measure>
+            <Measure><voice><KeySig><concertKey>3</concertKey><mode>major</mode></KeySig>
+            <Rest><durationType>whole</durationType></Rest></voice></Measure>"#,
+        );
+        let score = parse_mscz(&zipped_mscx(&xml)).unwrap();
+        assert_eq!(score.settings.key_signature.fifths, 0);
+        assert_eq!(
+            score.parts[0].staves[0].measures[1]
+                .key_sig
+                .as_ref()
+                .unwrap()
+                .fifths,
+            3
+        );
     }
 
     #[test]
@@ -5051,6 +5149,45 @@ mod tests {
         assert_eq!(m.voices[1].len(), 1, "voice 1 should have 1 note");
         assert_eq!(m.voices[0][0].pitches[0].step, Step::C);
         assert_eq!(m.voices[1][0].pitches[0].step, Step::E);
+    }
+
+    #[test]
+    fn voice_level_location_preserves_gap_without_visible_rest() {
+        let xml = simple_mscx(
+            r#"<Measure number="1"><voice><Rest><durationType>whole</durationType></Rest></voice><voice>
+          <Chord><durationType>quarter</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord>
+          <location><fractions>1/4</fractions></location>
+          <Chord><durationType>quarter</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord>
+          </voice></Measure>"#,
+        );
+        let score = parse_mscz(&zipped_mscx(&xml)).unwrap();
+        let voice = &score.parts[0].staves[0].measures[0].voices[1];
+        assert_eq!(voice.len(), 3);
+        assert!(voice[1].is_rest && voice[1].hidden);
+        assert_eq!(voice[1].beats(), 1.0);
+        let events = acorde_core::to_playback_events(&score, &Default::default());
+        assert_eq!(
+            events.iter().map(|e| e.time_beats).collect::<Vec<_>>(),
+            vec![0.0, 2.0]
+        );
+    }
+
+    #[test]
+    fn voice_location_ignores_spanner_offsets_and_preserves_fractional_gaps() {
+        let xml = simple_mscx(
+            r#"<Measure number="1"><voice>
+          <Spanner type="Slur"><next><location><fractions>1/2</fractions></location></next></Spanner>
+          <location><fractions>1/12</fractions></location>
+          <Chord><durationType>quarter</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord>
+          </voice></Measure>"#,
+        );
+        let score = parse_mscx(&xml).unwrap();
+        let voice = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(voice.len(), 2);
+        assert!(voice[0].hidden && voice[0].is_rest);
+        assert!((voice[0].beats() - 1.0 / 3.0).abs() < 1e-9);
+        let bad = xml.replace("1/12", "-1/12");
+        assert!(parse_mscx(&bad).is_err());
     }
 
     #[test]

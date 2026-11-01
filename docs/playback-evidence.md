@@ -733,3 +733,32 @@ typed diagnostics, bounded JSON boundaries, and basic native SF2-to-WAV output. 
 
 Those items remain open until permissioned fixtures, pinned host/tool versions, and the required
 external review environments are available.
+
+## Explicit shared-unison playback and rest pedal controls
+
+`coalesce_shared_unisons` is an opt-in Rust post-processing policy for hosts
+that know coincident notes in separate voices of the same part share an attack.
+It retains the primary playback event and the source addresses of every merged
+notation event. The WASM binding `to_playback_events_shared_unisons` returns
+the same `{event, sources}` records. The existing playback APIs and offline
+render manifest keep their default independent attacks. Only otherwise equal
+events with matching time, duration, pitch, routing and expression can merge;
+different parts and events from the same voice remain separate. At most 256
+distinct candidates per simultaneous pitch are considered; overflow is left
+unmerged. This opt-in policy does not infer whether a score's voices are
+independent, and it does not automatically change the built-in SF2 renderer.
+
+The offline manifest also emits time-positioned pedal controls attached to
+rests. Their frame position follows the playback measure sequence, tempo map,
+swing and muted-part settings. For an explicit selection it includes only
+rest controls whose addresses are selected; it does not reconstruct a pedal
+state from before the selection. An import report warns when a tie stop occurs
+after intervening time; playback still keeps separate attacks rather than
+guessing that a deferred tie was intended.
+
+The public Noctave MusicXML of Chopin's Prelude Op. 28 No. 1 (Mutopia
+2014/02/24-411, CC BY-SA 4.0; input SHA-256
+`3fe6fcd14c9e402c3e8e0d094c6adab58cf24d527950bd8a4b6f930263c69e38`)
+now imports and emits five `musicxml.noncontiguous-tie` diagnostics from
+measure 33 to measure 34. These are loss warnings; no deferred sustain is
+realized. The score is not redistributed here.

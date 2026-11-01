@@ -494,6 +494,16 @@ pub fn to_playback_events_ex(score_json: &str, options_json: &str) -> Result<Str
         .map_err(|e| js_err(format!("playback serialization failed: {e}")))
 }
 
+/// Opt-in shared-unison playback. Each result contains one event and its source note addresses.
+#[wasm_bindgen]
+pub fn to_playback_events_shared_unisons(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::PlaybackOptions = parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
+    let events = acorde_core::to_playback_events_bounded(&score, &options).map_err(js_err)?;
+    serde_json::to_string(&acorde_core::coalesce_shared_unisons(events))
+        .map_err(|e| js_err(format!("playback serialization failed: {e}")))
+}
+
 /// Build the provider-neutral offline-render timing manifest as JSON.
 ///
 /// This produces semantic scheduling data only; audio synthesis, sample assets and
@@ -3255,6 +3265,18 @@ mod tests {
         let exported_abc = serialize_abc(&original).unwrap();
         assert!(parse_abc(&exported_abc).unwrap().contains("parts"));
         assert!(serialize_abc_report(&original).unwrap().contains("output"));
+    }
+
+    #[test]
+    #[cfg(feature = "musicxml")]
+    fn shared_unison_playback_binding_retains_sources() {
+        let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>A</step><octave>3</octave></pitch><duration>4</duration><voice>1</voice><type>whole</type></note><backup><duration>4</duration></backup><note><pitch><step>A</step><octave>3</octave></pitch><duration>4</duration><voice>2</voice><type>whole</type></note></measure></part></score-partwise>"#;
+        let score = parse_musicxml(xml).unwrap();
+        let ordinary: Vec<acorde_core::PlaybackEvent> = serde_json::from_str(&to_playback_events_ex(&score, "{}").unwrap()).unwrap();
+        let shared: Vec<acorde_core::SharedUnisonPlaybackEvent> = serde_json::from_str(&to_playback_events_shared_unisons(&score, "{}").unwrap()).unwrap();
+        assert_eq!(ordinary.len(), 2);
+        assert_eq!(shared.len(), 1);
+        assert_eq!(shared[0].sources.len(), 2);
     }
 
     #[test]

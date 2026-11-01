@@ -7,6 +7,8 @@ pub mod abc;
 #[cfg(any(feature = "mei", feature = "gp"))]
 mod chord_label;
 mod error;
+#[cfg(any(feature = "musicxml", feature = "mscz"))]
+mod gap;
 #[cfg(feature = "gp")]
 pub mod gp;
 #[cfg(feature = "mei")]
@@ -82,6 +84,7 @@ pub fn parse_musicxml_with_report(xml: &str) -> Result<ImportReport, Error> {
     let score = musicxml::parse_musicxml_collecting(xml, &mut tolerated)?;
     let mut diagnostics = musicxml::loss_diagnostics(xml);
     diagnostics.extend(tolerated);
+    diagnostics.extend(musicxml::deferred_tie_diagnostics(&score));
     Ok(ImportReport {
         schema_version: REPORT_SCHEMA_VERSION,
         format: "musicxml".to_string(),
@@ -97,6 +100,7 @@ pub fn parse_mxl_with_report(data: &[u8]) -> Result<ImportReport, Error> {
     let score = musicxml::parse_musicxml_collecting(&xml, &mut tolerated)?;
     let mut diagnostics = musicxml::loss_diagnostics(&xml);
     diagnostics.extend(tolerated);
+    diagnostics.extend(musicxml::deferred_tie_diagnostics(&score));
     Ok(ImportReport {
         schema_version: REPORT_SCHEMA_VERSION,
         format: "mxl".to_string(),
