@@ -3141,7 +3141,7 @@ fn multi_voice_two_voices_get_opposite_stem_directions() {
 }
 
 #[test]
-fn simultaneous_voice_noteheads_get_deterministic_horizontal_separation() {
+fn noncolliding_simultaneous_voice_noteheads_share_rhythmic_column() {
     let svg = render_svg(&common::satb_major(), &opts()).unwrap();
     let centers: Vec<f32> = svg
         .split(r#"class="acorde-notehead""#)
@@ -3152,8 +3152,7 @@ fn simultaneous_voice_noteheads_get_deterministic_horizontal_separation() {
         .collect();
     assert!(centers.len() >= 8);
     // The first staff's voice-0 and voice-1 notes occur at indexes 0 and 4.
-    assert!((centers[0] - centers[4]).abs() >= 0.65 * opts().staff_size - 0.01);
-    assert_ne!(centers[0], centers[4]);
+    assert!((centers[0] - centers[4]).abs() < 0.01);
 }
 
 #[test]
@@ -3193,7 +3192,8 @@ fn wide_simultaneous_voice_annotations_expand_notehead_separation() {
 
     let mut accidental_score = score;
     accidental_score.parts[0].staves[0].measures[0].voices[1][0].lyric = None;
-    accidental_score.parts[0].staves[0].measures[0].voices[1][0].pitches[0].alter = 1;
+    accidental_score.parts[0].staves[0].measures[0].voices[1][0].pitches[0] =
+        Pitch::with_alter(Step::B, 4, 1);
     let accidental = centers(&render_svg(&accidental_score, &wide_options).unwrap());
     assert_eq!(accidental.len(), 2);
     assert!(
@@ -4924,6 +4924,77 @@ fn musicxml_upper_voice_slur_avoids_simultaneous_lower_voice() {
             assert!(path[3] > path[1].max(path[5]));
         }
     }
+}
+
+#[test]
+fn simultaneous_noncolliding_voices_align_despite_key_accidentals() {
+    for fifths in [3, 0, -2] {
+        for (sign, line, octave) in [("G", 2, -1), ("F", 4, 0)] {
+            let xml = format!(
+                r#"<score-partwise><part-list><score-part id="P1"><part-name>Guitar</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><key><fifths>{fifths}</fifths></key><time><beats>2</beats><beat-type>4</beat-type></time><clef><sign>{sign}</sign><line>{line}</line><clef-octave-change>{octave}</clef-octave-change></clef></attributes><note><pitch><step>A</step><octave>3</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem></note><note><pitch><step>G</step><alter>1</alter><octave>3</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem></note><backup><duration>2</duration></backup><note><pitch><step>C</step><alter>1</alter><octave>3</octave></pitch><duration>1</duration><voice>2</voice><type>quarter</type><stem>down</stem></note><note><pitch><step>B</step><octave>2</octave></pitch><duration>1</duration><voice>2</voice><type>quarter</type><stem>down</stem></note></measure></part></score-partwise>"#
+            );
+            let score = acorde_io::parse_musicxml(&xml).unwrap();
+            let svg = render_svg(&score, &opts()).unwrap();
+            let heads = notehead_centers(&svg);
+            assert_eq!(heads.len(), 4);
+            let time_group = svg
+                .split(r#"<g class="acorde-time-sig">"#)
+                .nth(1)
+                .unwrap()
+                .split("</g>")
+                .next()
+                .unwrap();
+            let mut time_right = f32::NEG_INFINITY;
+            for path in time_group.split(" d=\"").skip(1) {
+                let data = path.split('"').next().unwrap();
+                let values: Vec<f32> = data
+                    .split(|c: char| c.is_whitespace() || c == ',' || "MLCQZ".contains(c))
+                    .filter_map(|s| s.parse().ok())
+                    .collect();
+                for &x in values.iter().step_by(2) {
+                    time_right = time_right.max(x);
+                }
+            }
+            let note_left = heads[0].0 - 0.56 * opts().staff_size;
+            assert!(
+                note_left > time_right + 0.17 * opts().staff_size,
+                "key {fifths}: note left {note_left}, time right {time_right}"
+            );
+            assert!(
+                (heads[0].0 - heads[2].0).abs() < 0.1,
+                "key {fifths}: {heads:?}"
+            );
+            assert!(
+                (heads[1].0 - heads[3].0).abs() < 0.1,
+                "key {fifths}: {heads:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn simultaneous_voice_alignment_survives_pickup_and_unequal_durations() {
+    use acorde_core::{AccidentalDisplay, Duration, MeasureLength, Note, Pitch, Score, Step};
+    let mut score = Score::new("pickup", 120, 4, 4, 0, 1);
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.actual_length = Some(MeasureLength {
+        numerator: 1,
+        denominator: 2,
+    });
+    measure.voices[0] = vec![
+        Note::new(Pitch::new(Step::A, 4), Duration::Quarter),
+        Note::new(Pitch::new(Step::B, 4), Duration::Quarter),
+    ];
+    let mut lower = Note::new(Pitch::with_alter(Step::C, 4, 1), Duration::Half);
+    lower.set_accidental_display(0, AccidentalDisplay::Cautionary);
+    measure.voices[1] = vec![lower];
+    let svg = render_svg(&score, &opts()).unwrap();
+    let heads = notehead_centers(&svg);
+    assert_eq!(heads.len(), 3);
+    assert!((heads[0].0 - heads[2].0).abs() < 0.1, "{heads:?}");
+    assert!(svg.contains("acorde-accidental acorde-sharp"));
+    let events = acorde_core::to_playback_events(&score, &Default::default());
+    assert_eq!(events.iter().filter(|e| e.time_beats == 0.0).count(), 2);
 }
 
 #[test]
