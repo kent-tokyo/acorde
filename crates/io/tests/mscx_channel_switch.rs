@@ -174,20 +174,36 @@ fn channel_semantics_are_retained_by_score_diff_and_patch() {
 }
 
 #[test]
-fn non_note_boundary_switch_is_reported_as_a_native_export_loss() {
+fn switch_inside_note_roundtrips_without_moving_note_onsets() {
     let mut score = parse_mscx(include_str!(
         "../../../tests/fixtures/issue_280_channel_switch.mscx"
     ))
     .unwrap();
+    score.parts[0].staves[0].measures[0]
+        .channel_switches
+        .truncate(1);
     score.parts[0].staves[0].measures[0].channel_switches[0].position_beats = 0.25;
     let report = acorde_io::serialize_mscx_with_report(&score).unwrap();
-    assert!(report.diagnostics.iter().any(|diagnostic| {
+    assert!(!report.diagnostics.iter().any(|diagnostic| {
         diagnostic
             .source_location
             .as_deref()
             .is_some_and(|path| path.ends_with("/channel-switch"))
     }));
-    assert!(!report.output.contains("name=\"pizzicato\"/></StaffText>"));
+    let restored = parse_mscx(&report.output).unwrap();
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].channel_switches,
+        score.parts[0].staves[0].measures[0].channel_switches
+    );
+    let events = to_playback_events(&restored, &PlaybackOptions::default());
+    assert_eq!(
+        events.iter().map(|e| e.time_beats).collect::<Vec<_>>(),
+        vec![0.0, 2.0]
+    );
+    assert_eq!(
+        events.iter().map(|event| event.program).collect::<Vec<_>>(),
+        vec![40, 45]
+    );
 }
 
 #[cfg(feature = "midi")]

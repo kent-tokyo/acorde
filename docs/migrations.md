@@ -174,7 +174,7 @@ voice-specific switches from MuseScore. Both fields default to empty when older 
 Rust callers using complete `Part` or `Measure` literals must initialize them. Default playback
 sets each event's program according to its voice's authored switch. MIDI output assigns separate
 available channels to simultaneous programs and reports an error if no channel is available.
-MSCX export preserves switches on that voice's note boundaries; its export report identifies
-switches between boundaries that it cannot yet write. MusicXML, MEI and ABC export reports
+MSCX export preserves switches at representable positions within that voice's rhythmic extent;
+its export report identifies positions it cannot write exactly. MusicXML, MEI and ABC export reports
 identify the unsupported named-channel data. Channel-specific controller differences and some
 source formatting remain outside this partial implementation.

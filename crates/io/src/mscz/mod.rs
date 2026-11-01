@@ -308,6 +308,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut voice_wrapper_depth = 0usize;
     let mut voice_location_depth: Option<usize> = None;
     let mut voice_has_backward_location = false;
+    let mut voice_backward_beats = 0.0f64;
 
     // MuseScore tab staff metadata (3.x/4.x use StaffType/StringData).
     let mut in_staff_type = false;
@@ -734,7 +735,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             let position_beats = cur_voices[measure_voice_index.min(3)]
                                 .iter()
                                 .map(Note::beats)
-                                .sum();
+                                .sum::<f64>()
+                                + voice_backward_beats;
                             cur_channel_switches.push(acorde_core::VoiceChannelSwitch {
                                 voice,
                                 position_beats,
@@ -1092,18 +1094,22 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 "invalid MSCX voice location denominator".into(),
                             ));
                         }
+                        let delta = numerator as f64 * 4.0 / f64::from(denominator);
                         if numerator < 0 {
-                            // A later direction may point backwards (common for a trailing
-                            // tempo). Preserve the prior parser behavior and report its loss;
-                            // a following rhythmic event cannot safely use this timeline.
+                            voice_backward_beats += delta;
                             voice_has_backward_location = true;
-                        } else {
-                            if voice_has_backward_location && numerator != 0 {
+                        } else if voice_has_backward_location {
+                            voice_backward_beats += delta;
+                            if voice_backward_beats.abs() < 1e-9 {
+                                voice_backward_beats = 0.0;
+                                voice_has_backward_location = false;
+                            } else if numerator != 0 {
                                 return Err(Error::Xml(
                                     "MSCX location after a backward voice offset is unsupported"
                                         .into(),
                                 ));
                             }
+                        } else {
                             let ticks = u32::try_from(numerator)
                                 .ok()
                                 .and_then(|n| n.checked_mul(4))
@@ -1749,6 +1755,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "voice" if in_measure_voice_wrapper && !in_chord && !in_rest_elem => {
                         in_measure_voice_wrapper = false;
                         voice_has_backward_location = false;
+                        voice_backward_beats = 0.0;
                         measure_voice_index += 1;
                     }
 
@@ -2284,7 +2291,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             let position_beats = cur_voices[measure_voice_index.min(3)]
                                 .iter()
                                 .map(Note::beats)
-                                .sum();
+                                .sum::<f64>()
+                                + voice_backward_beats;
                             cur_channel_switches.push(acorde_core::VoiceChannelSwitch {
                                 voice,
                                 position_beats,

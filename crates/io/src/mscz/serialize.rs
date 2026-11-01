@@ -266,27 +266,28 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
             for (measure_index, measure) in staff.measures.iter().enumerate() {
                 let measure_path = format!("{staff_path}/measure/{}", measure_index + 1);
                 for switch in &measure.channel_switches {
-                    let aligned = measure.voices.get(switch.voice).is_some_and(|voice| {
+                    let writable = measure.voices.get(switch.voice).is_some_and(|voice| {
                         let mut beat = 0.0;
                         if switch.position_beats.abs() < 1e-9 {
                             return true;
                         }
                         for note in voice {
                             beat += note.beats();
-                            if (beat - switch.position_beats).abs() < 1e-9 {
-                                return true;
+                            if beat + 1e-9 >= switch.position_beats {
+                                return switch.position_beats >= 0.0
+                                    && channel_switch_offset_exact(beat - switch.position_beats);
                             }
                         }
                         false
                     });
-                    if !aligned {
+                    if !writable {
                         push(
                             format!("{measure_path}/channel-switch"),
                             format!(
                                 "voice={},beat={},name={}",
                                 switch.voice, switch.position_beats, switch.channel_name
                             ),
-                            "MSCX export cannot retain a switch between this voice's note boundaries",
+                            "MSCX export cannot retain this switch position",
                         );
                     }
                 }
@@ -543,6 +544,38 @@ pub fn serialize_mscz(score: &Score) -> Result<Vec<u8>, Error> {
         .finish()
         .map(|cursor| cursor.into_inner())
         .map_err(|error| Error::Zip(error.to_string()))
+}
+
+fn channel_switch_offset_exact(delta: f64) -> bool {
+    delta.abs() < 1e-9
+        || acorde_core::MeasureLength::from_beats(delta)
+            .and_then(|length| length.beats())
+            .is_some_and(|beats| (beats - delta).abs() < 1e-7)
+}
+
+fn write_channel_switch(
+    xml: &mut String,
+    switch: &acorde_core::VoiceChannelSwitch,
+    cursor: f64,
+) -> Result<(), Error> {
+    let delta = cursor - switch.position_beats;
+    if switch.position_beats < 0.0 || !channel_switch_offset_exact(delta) {
+        return Ok(());
+    }
+    if delta > 1e-9 {
+        xml.push_str(&mscx_location((0, cursor), (0, switch.position_beats)));
+    }
+    write!(
+        xml,
+        "<StaffText><channelSwitch voice=\"{}\" name=\"{}\"/></StaffText>",
+        switch.voice,
+        escape(&switch.channel_name)
+    )
+    .map_err(fmt_error)?;
+    if delta > 1e-9 {
+        xml.push_str(&mscx_location((0, switch.position_beats), (0, cursor)));
+    }
+    Ok(())
 }
 
 /// `ids` is the staff's score-wide `<Staff id>` and its index within its part.
@@ -885,15 +918,7 @@ fn write_staff(
                         .get(next_switch)
                         .filter(|switch| switch.position_beats <= beats + 1e-9)
                     {
-                        if (switch.position_beats - beats).abs() < 1e-9 {
-                            write!(
-                                xml,
-                                "<StaffText><channelSwitch voice=\"{}\" name=\"{}\"/></StaffText>",
-                                switch.voice,
-                                escape(&switch.channel_name)
-                            )
-                            .map_err(fmt_error)?;
-                        }
+                        write_channel_switch(xml, switch, beats)?;
                         next_switch += 1;
                     }
                     if let Some(tuplet) = note
@@ -959,15 +984,9 @@ fn write_staff(
                 for switch in switches
                     .iter()
                     .skip(next_switch)
-                    .filter(|switch| (switch.position_beats - beats).abs() < 1e-9)
+                    .filter(|switch| switch.position_beats <= beats + 1e-9)
                 {
-                    write!(
-                        xml,
-                        "<StaffText><channelSwitch voice=\"{}\" name=\"{}\"/></StaffText>",
-                        switch.voice,
-                        escape(&switch.channel_name)
-                    )
-                    .map_err(fmt_error)?;
+                    write_channel_switch(xml, switch, beats)?;
                 }
             }
             if voice_index > 0 {
