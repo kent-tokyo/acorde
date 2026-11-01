@@ -5827,3 +5827,44 @@ fn interstaff_hairpin_clears_notes_in_next_part() {
     }
     assert!(checked > 0);
 }
+
+#[test]
+fn musicxml_hairpin_starting_on_rest_keeps_placement_and_visible_span() {
+    for (placement, above) in [("above", true), ("below", false)] {
+        let xml = format!(
+            r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes><direction placement="{placement}"><direction-type><wedge type="crescendo"/></direction-type></direction><note><rest/><duration>1</duration><type>quarter</type></note><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note><direction><direction-type><wedge type="stop"/></direction-type></direction><note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#
+        );
+        let score = acorde_io::parse_musicxml(&xml).unwrap();
+        let first = &score.parts[0].staves[0].measures[0].voices[0][0];
+        assert!(first.is_rest);
+        assert_eq!(first.hairpin_above, Some(above));
+        let svg = render_svg(&score, &opts()).unwrap();
+        let paths = hairpin_path_coordinates(&svg);
+        assert_eq!(paths.len(), 1, "{svg}");
+        assert!(paths[0][2] > paths[0][0]);
+        let head_y = notehead_centers(&svg)[0].1;
+        if above {
+            assert!(
+                paths[0][1]
+                    .max(paths[0][3])
+                    .max(paths[0][5])
+                    .max(paths[0][7])
+                    < head_y
+            );
+        } else {
+            assert!(
+                paths[0][1]
+                    .min(paths[0][3])
+                    .min(paths[0][5])
+                    .min(paths[0][7])
+                    > head_y
+            );
+        }
+        let restored =
+            acorde_io::parse_musicxml(&acorde_io::serialize_musicxml(&score).unwrap()).unwrap();
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[0][0].hairpin_above,
+            Some(above)
+        );
+    }
+}
