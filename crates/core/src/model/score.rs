@@ -4634,24 +4634,19 @@ pub fn staff_ottava_octave_shifts(
         }
     }
     events.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
-    let mut counts = [0_usize; 4];
-    let index = |shift: i8| match shift {
-        -2 => 0,
-        -1 => 1,
-        1 => 2,
-        2 => 3,
-        _ => unreachable!(),
-    };
+    // MuseScore keeps one staff pitch-offset state. A later start replaces the
+    // previous value, and an end resets it instead of reviving an older line.
+    // Equal-time starts retain the original voice order (the last wins).
+    let mut current = 0_i8;
     let mut result = std::collections::HashMap::new();
     for (_, kind, shift, key) in events {
         match kind {
-            0 => counts[index(shift)] = counts[index(shift)].saturating_sub(1),
-            1 => counts[index(shift)] += 1,
-            _ => {
-                if let Some(shift) = [-2, -1, 1, 2].into_iter().find(|&s| counts[index(s)] > 0) {
-                    result.insert(key, shift);
-                }
+            0 => current = 0,
+            1 => current = shift,
+            _ if current != 0 => {
+                result.insert(key, current);
             }
+            _ => {}
         }
     }
     result
