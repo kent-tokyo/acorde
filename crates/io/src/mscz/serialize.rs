@@ -211,6 +211,19 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
 
     for (part_index, part) in score.parts.iter().enumerate() {
         let part_path = format!("/score/part/{}", part_index + 1);
+        let timed_pedal_count: usize = part
+            .staves
+            .iter()
+            .flat_map(|staff| &staff.measures)
+            .map(|measure| measure.timed_pedals.len())
+            .sum();
+        if timed_pedal_count > 0 {
+            push(
+                format!("{part_path}/timed-pedals"),
+                timed_pedal_count.to_string(),
+                "MSCX subset export does not represent timed pedal directions",
+            );
+        }
         for (field, present, value, reason) in [
             (
                 "midi-pitch-bends",

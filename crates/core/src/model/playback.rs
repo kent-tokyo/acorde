@@ -937,7 +937,27 @@ pub fn build_offline_render_manifest(
     let mut semantic_events = Vec::new();
     for event in &frame_events {
         let source = event.event.source.clone();
-        if event.event.pedal {
+        let timed_pedal_at_note = source
+            .as_ref()
+            .and_then(|address| {
+                let measure = resolved_score
+                    .parts
+                    .get(address.part)?
+                    .staves
+                    .get(address.staff)?
+                    .measures
+                    .get(address.measure)?;
+                let voice = measure.voices.get(address.voice)?;
+                let onset: f64 = voice.iter().take(address.note).map(Note::beats).sum();
+                Some(
+                    measure
+                        .timed_pedals
+                        .iter()
+                        .any(|pedal| pedal.down && (pedal.position_beats - onset).abs() < 1e-9),
+                )
+            })
+            .unwrap_or(false);
+        if event.event.pedal && !timed_pedal_at_note {
             semantic_events.push(OfflineRenderSemanticFrameEvent {
                 kind: OfflineRenderSemanticEventKind::Pedal { down: true },
                 frame: event.start_frame,
@@ -951,9 +971,20 @@ pub fn build_offline_render_manifest(
                 .get(address.part)
                 .and_then(|part| part.staves.get(address.staff))
                 .and_then(|staff| staff.measures.get(address.measure))
-                .and_then(|measure| measure.voices.get(address.voice))
-                .and_then(|voice| voice.get(address.note))
-                .is_some_and(|note| note.pedal_end)
+                .and_then(|measure| {
+                    measure
+                        .voices
+                        .get(address.voice)
+                        .map(|voice| (measure, voice))
+                })
+                .is_some_and(|(measure, voice)| {
+                    let onset: f64 = voice.iter().take(address.note).map(Note::beats).sum();
+                    voice.get(address.note).is_some_and(|note| note.pedal_end)
+                        && !measure
+                            .timed_pedals
+                            .iter()
+                            .any(|pedal| !pedal.down && (pedal.position_beats - onset).abs() < 1e-9)
+                })
         }) {
             semantic_events.push(OfflineRenderSemanticFrameEvent {
                 kind: OfflineRenderSemanticEventKind::Pedal { down: false },
@@ -1110,7 +1141,12 @@ fn append_rest_pedal_events(
                             for (present, down) in
                                 [(note.pedal_end, false), (note.pedal_start, true)]
                             {
-                                if present {
+                                if present
+                                    && !measure.timed_pedals.iter().any(|pedal| {
+                                        pedal.down == down
+                                            && (pedal.position_beats - written).abs() < 1e-9
+                                    })
+                                {
                                     events.push(OfflineRenderSemanticFrameEvent {
                                         kind: OfflineRenderSemanticEventKind::Pedal { down },
                                         frame,
@@ -1273,6 +1309,49 @@ fn append_measure_semantic_events(
                     frame,
                     source: None,
                     measure: Some(address.clone()),
+                });
+            }
+            for (staff_index, event) in part
+                .staves
+                .iter()
+                .enumerate()
+                .filter_map(|(staff_index, staff)| {
+                    staff
+                        .measures
+                        .get(time.measure)
+                        .map(|measure| (staff_index, measure))
+                })
+                .flat_map(|(staff_index, measure)| {
+                    measure
+                        .timed_pedals
+                        .iter()
+                        .map(move |event| (staff_index, event))
+                })
+            {
+                if !event.position_beats.is_finite()
+                    || event.position_beats < 0.0
+                    || event.position_beats > time.beats
+                {
+                    continue;
+                }
+                let secs = time.start_secs
+                    + tempo_ramp_seconds(
+                        time.bpm,
+                        time.ramp_to_bpm,
+                        time.beats,
+                        event.position_beats,
+                    );
+                events.push(OfflineRenderSemanticFrameEvent {
+                    kind: OfflineRenderSemanticEventKind::Pedal { down: event.down },
+                    frame: ((fermata_warp_secs(secs, &holds) - origin_secs).max(0.0)
+                        * f64::from(sample_rate_hz))
+                    .round() as u64,
+                    source: None,
+                    measure: Some(OfflineRenderMeasureAddress {
+                        part: part_index,
+                        staff: staff_index,
+                        measure: time.measure,
+                    }),
                 });
             }
             let start_tick = tick_starts[time.measure];
@@ -2322,7 +2401,13 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                                     _ => {}
                                 }
                             }
-                            let pedal = note.pedal_start;
+                            // Keep the legacy note-on hint when an independent pedal-down
+                            // happens exactly at this note's written onset.
+                            let pedal = note.pedal_start
+                                || measure.timed_pedals.iter().any(|pedal| {
+                                    pedal.down
+                                        && (pedal.position_beats - onset_written_beats).abs() < 1e-9
+                                });
                             let fermata_hold_beats = if options.fermata_hold_beats.is_finite() {
                                 options.fermata_hold_beats.max(0.0)
                             } else {

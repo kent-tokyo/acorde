@@ -393,6 +393,28 @@ fn build_part_track(
             message,
         });
     }
+    for staff in &part.staves {
+        for (sequence_index, &measure_index) in seq.iter().enumerate() {
+            let Some(measure) = staff.measures.get(measure_index) else {
+                continue;
+            };
+            for direction in &measure.timed_pedals {
+                if !direction.position_beats.is_finite() || direction.position_beats < 0.0 {
+                    continue;
+                }
+                events.push(TimedEvent {
+                    abs_tick: starts[sequence_index]
+                        .saturating_add((direction.position_beats * f64::from(PPQ)).round() as u64),
+                    sort_key: 1,
+                    channel,
+                    message: MidiMessage::Controller {
+                        controller: u7::from(64),
+                        value: u7::from(if direction.down { 127 } else { 0 }),
+                    },
+                });
+            }
+        }
+    }
     for (staff_index, staff) in part.staves.iter().enumerate() {
         let dynamics = acorde_core::DynamicTimeline::for_staff(staff, seq);
         for voice_idx in 0..4usize {
