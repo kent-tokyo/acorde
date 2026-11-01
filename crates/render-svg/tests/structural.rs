@@ -4739,8 +4739,8 @@ fn simultaneous_noncolliding_voices_align_despite_key_accidentals() {
                     .split(|c: char| c.is_whitespace() || c == ',' || "MLCQZ".contains(c))
                     .filter_map(|s| s.parse().ok())
                     .collect();
-                for pair in values.chunks_exact(2) {
-                    time_right = time_right.max(pair[0]);
+                for &x in values.iter().step_by(2) {
+                    time_right = time_right.max(x);
                 }
             }
             let note_left = heads[0].0 - 0.56 * opts().staff_size;
