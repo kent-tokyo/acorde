@@ -196,9 +196,10 @@ jobs:
           # 6,078,920 bytes on macOS. Opt-in shared-unison playback, rest pedal
           # controls, and noncontiguous-tie diagnostics measure 6,096,487 bytes
           # locally. Key-signature cancellations and inline changes measured
-          # 6,111,598 bytes on Linux. The MuseScore cross-voice and cross-staff
-          # slur import/export implementation measured 6,145,645 bytes on Linux;
-          # retain a narrow margin above the measured artifact and a hard cap.
+          # 6,111,598 bytes on Linux. Hairpin and beam-clearance rendering
+          # measured 6,118,357 bytes; independently, MuseScore cross-voice and
+          # cross-staff slur import/export measured 6,145,645 bytes on Linux.
+          # Keep a hard cap and measure their combination on this head.
           test "$size" -le 6149000
 
   renderer-benchmark:

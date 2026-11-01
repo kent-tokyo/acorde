@@ -52,6 +52,9 @@ pub(crate) fn slur_above(
     if start.part != end.part || start.staff != end.staff {
         return false;
     }
+    if has_overlapping_lower_voice(score, start, end) {
+        return true;
+    }
     let lower = (start.measure, start.note).min((end.measure, end.note));
     let upper = (start.measure, start.note).max((end.measure, end.note));
     points
@@ -82,6 +85,72 @@ pub(crate) fn slur_above(
                         )
                 })
         })
+}
+
+/// Detect another written voice sounding below the slurred first voice at the same time.
+/// The merge scan is linear in the number of notes, including for untrusted scores.
+fn has_overlapping_lower_voice(score: &Score, start: &NoteAddr, end: &NoteAddr) -> bool {
+    let Some(staff) = score
+        .parts
+        .get(start.part)
+        .and_then(|p| p.staves.get(start.staff))
+    else {
+        return false;
+    };
+    if start.measure > end.measure {
+        return false;
+    }
+    for mi in start.measure..=end.measure.min(staff.measures.len().saturating_sub(1)) {
+        let Some(measure) = staff.measures.get(mi) else {
+            break;
+        };
+        let mut time = 0.0;
+        let mut upper = Vec::new();
+        for (index, note) in measure.voices[start.voice].iter().enumerate() {
+            if note.is_grace || note.is_cue {
+                continue;
+            }
+            let end_time = time + note.beats();
+            let in_span = (mi != start.measure || index >= start.note)
+                && (mi != end.measure || index <= end.note);
+            if in_span
+                && !note.is_rest
+                && note.cross_staff.is_none()
+                && let Some(lowest) = note.pitches.iter().map(|p| p.to_midi_cents()).min()
+            {
+                upper.push((time, end_time, lowest));
+            }
+            time = end_time;
+        }
+        for (voice_index, voice) in measure.voices.iter().enumerate() {
+            if voice_index == start.voice {
+                continue;
+            }
+            let mut time = 0.0;
+            let mut upper_index = 0;
+            for note in voice {
+                if note.is_grace || note.is_cue {
+                    continue;
+                }
+                let end_time = time + note.beats();
+                while upper_index < upper.len() && upper[upper_index].1 <= time + 1e-9 {
+                    upper_index += 1;
+                }
+                if !note.is_rest && note.cross_staff.is_none() {
+                    let low = note.pitches.iter().map(|p| p.to_midi_cents()).min();
+                    let mut index = upper_index;
+                    while index < upper.len() && upper[index].0 < end_time - 1e-9 {
+                        if low.is_some_and(|pitch| pitch < upper[index].2) {
+                            return true;
+                        }
+                        index += 1;
+                    }
+                }
+                time = end_time;
+            }
+        }
+    }
+    false
 }
 
 /// Place an unqualified hairpin below the notes of its staff. The canonical hairpin model
