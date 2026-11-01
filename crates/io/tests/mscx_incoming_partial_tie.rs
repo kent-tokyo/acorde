@@ -72,6 +72,31 @@ fn incoming_partial_tie_connects_only_when_the_performed_predecessor_ties() {
             TrackEventKind::Midi { message: MidiMessage::NoteOn { vel, .. }, .. } if vel.as_int() > 0)).count();
         assert_eq!(attacks, 2);
     }
+    // An explicit source that points elsewhere must not tie an unrelated pitch
+    // merely because a repeat jumped to the same pitch at the right time.
+    let mut mismatched = score.clone();
+    mismatched.parts[0].staves[0].measures[2].voices[0][0].pitch_tie_sources =
+        vec![Some(acorde_core::TieSourceLocation {
+            measures: -1,
+            ..Default::default()
+        })];
+    let events = to_playback_events(&mismatched, &PlaybackOptions::default());
+    assert_eq!(
+        events
+            .iter()
+            .map(|event| (event.time_beats, event.duration_beats))
+            .collect::<Vec<_>>(),
+        vec![(0.0, 8.0), (8.0, 4.0), (12.0, 4.0)]
+    );
+    #[cfg(feature = "midi")]
+    {
+        use midly::{MidiMessage, Smf, TrackEventKind};
+        let bytes = acorde_io::serialize_midi(&mismatched).unwrap();
+        let midi = Smf::parse(&bytes).unwrap();
+        let attacks = midi.tracks[1].iter().filter(|event| matches!(event.kind,
+            TrackEventKind::Midi { message: MidiMessage::NoteOn { vel, .. }, .. } if vel.as_int() > 0)).count();
+        assert_eq!(attacks, 3);
+    }
     score.parts[0].staves[0].measures[0].voices[0][0].tie_start = false;
     let events = to_playback_events(&score, &PlaybackOptions::default());
     assert_eq!(

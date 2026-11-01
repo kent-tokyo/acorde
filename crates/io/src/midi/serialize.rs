@@ -640,15 +640,19 @@ fn build_part_track(
                             voice: candidate.voice,
                             note: candidate.note,
                         };
-                        let ordinary_matches = note.tie_end
-                            && note.source_location.as_ref().is_none_or(|location| {
-                                location.matches(
-                                    &target,
-                                    &previous,
-                                    candidate.written_onset - note.written_onset,
-                                )
-                            });
-                        (ordinary_matches || (note.partial_end && jumped))
+                        let source_matches = note.source_location.as_ref().is_none_or(|location| {
+                            location.matches(
+                                &target,
+                                &previous,
+                                candidate.written_onset - note.written_onset,
+                            )
+                        });
+                        let partial_matches = note.partial_end
+                            && jumped
+                            && candidate.staff == note.staff
+                            && candidate.voice == note.voice;
+                        source_matches
+                            && (note.tie_end || partial_matches)
                             && events[candidate.off_event].abs_tick == note.start_tick
                     })
                     .max_by_key(|(_, candidate)| {

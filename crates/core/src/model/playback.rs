@@ -3244,19 +3244,19 @@ fn merge_tied_events(
                             voice: candidate.voice,
                             note: candidate.note,
                         };
-                        let ordinary_matches = tie_end
-                            && explicit_source.is_none_or(|location| {
-                                written_onset(&previous_address)
-                                    .zip(target_onset)
-                                    .is_some_and(|(previous, target)| {
-                                        location.matches(
-                                            source,
-                                            &previous_address,
-                                            previous - target,
-                                        )
-                                    })
-                            });
-                        (ordinary_matches || (partial_end && jumped))
+                        let source_matches = explicit_source.is_none_or(|location| {
+                            written_onset(&previous_address)
+                                .zip(target_onset)
+                                .is_some_and(|(previous, target)| {
+                                    location.matches(source, &previous_address, previous - target)
+                                })
+                        });
+                        let partial_matches = partial_end
+                            && jumped
+                            && candidate.staff == source.staff
+                            && candidate.voice == source.voice;
+                        source_matches
+                            && (tie_end || partial_matches)
                             && (candidate.notated_end_beats - event.time_beats).abs() < 1e-9
                     })
                     .max_by_key(|(_, candidate)| {
