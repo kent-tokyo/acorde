@@ -5768,3 +5768,62 @@ fn interstaff_hairpin_clears_lower_stems_after_dynamic_lane_resolution() {
         }
     }
 }
+#[test]
+fn interstaff_hairpin_clears_notes_in_next_part() {
+    use acorde_core::{
+        Clef, Duration, HairpinKind, Measure, Note, Part, Pitch, Score, Staff, Step,
+    };
+    let mut score = Score::new("two-part interstaff wedge", 120, 4, 4, 0, 1);
+    let upper = &mut score.parts[0].staves[0].measures[0];
+    upper.voices[0] = vec![
+        Note::new(Pitch::new(Step::C, 4), Duration::Half),
+        Note::new(Pitch::new(Step::D, 4), Duration::Half),
+    ];
+    upper.voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+    upper.voices[0][1].hairpin_end = true;
+    let mut lower = Staff::new(Clef::Bass);
+    let mut bar = Measure::empty(4, 4);
+    bar.voices[0] = vec![
+        Note::new(Pitch::new(Step::G, 5), Duration::Half),
+        Note::new(Pitch::new(Step::A, 5), Duration::Half),
+    ];
+    lower.measures.push(bar);
+    let mut part = Part::new("Lower", "L");
+    part.staves.push(lower);
+    score.parts.push(part);
+    let svg = render_svg(&score, &opts()).unwrap();
+    let path = hairpin_path_coordinates(&svg)[0];
+    let (top, bottom) = (
+        path[1].min(path[3]).min(path[5]).min(path[7]),
+        path[1].max(path[3]).max(path[5]).max(path[7]),
+    );
+    let stems: Vec<_> = svg
+        .split("<line class=\"acorde-stem\"")
+        .skip(1)
+        .map(|tag| {
+            let attr = |name: &str| -> f32 {
+                tag.split(&format!("{name}=\""))
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap()
+                    .parse()
+                    .unwrap()
+            };
+            (attr("x1"), attr("y1"), attr("y2"))
+        })
+        .collect();
+    assert_eq!(stems.len(), 4);
+    let mut checked = 0;
+    for &(x, y1, y2) in &stems[2..] {
+        if x >= path[0].min(path[2]) && x <= path[0].max(path[2]) {
+            checked += 1;
+            assert!(
+                y1.max(y2) < top || y1.min(y2) > bottom,
+                "next-part stem ({x}, {y1}, {y2}) crosses {path:?}"
+            );
+        }
+    }
+    assert!(checked > 0);
+}
