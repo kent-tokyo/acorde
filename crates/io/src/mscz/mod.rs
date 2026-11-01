@@ -279,6 +279,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut measure_voice_index: usize = 0;
     let mut voice_wrapper_depth = 0usize;
     let mut voice_location_depth: Option<usize> = None;
+    let mut voice_has_backward_location = false;
 
     // MuseScore tab staff metadata (3.x/4.x use StaffType/StringData).
     let mut in_staff_type = false;
@@ -702,6 +703,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         figured_bass_extender = false;
                     }
                     "Chord" if in_measure && !in_chord && !in_rest_elem => {
+                        if voice_has_backward_location {
+                            return Err(Error::Xml(
+                                "MSCX backward voice location before a chord is unsupported".into(),
+                            ));
+                        }
                         in_chord = true;
                         chord_duration = None;
                         chord_dots = 0;
@@ -744,6 +750,11 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         tuplet_normal_notes = None;
                     }
                     "Rest" if in_measure && !in_chord && !in_rest_elem => {
+                        if voice_has_backward_location {
+                            return Err(Error::Xml(
+                                "MSCX backward voice location before a rest is unsupported".into(),
+                            ));
+                        }
                         in_rest_elem = true;
                         rest_depth = element_depth;
                         rest_hidden = false;
@@ -961,7 +972,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         let (numerator, denominator) = t.split_once('/').ok_or_else(|| {
                             Error::Xml("invalid MSCX voice location fraction".into())
                         })?;
-                        let numerator: u32 = numerator.trim().parse().map_err(|_| {
+                        let numerator: i64 = numerator.trim().parse().map_err(|_| {
                             Error::Xml("unsupported MSCX voice location offset".into())
                         })?;
                         let denominator: u32 = denominator.trim().parse().map_err(|_| {
@@ -972,14 +983,28 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 "invalid MSCX voice location denominator".into(),
                             ));
                         }
-                        let ticks = numerator
-                            .checked_mul(4)
-                            .ok_or_else(|| Error::Xml("MSCX voice location overflow".into()))?;
-                        crate::gap::append_gap_rests(
-                            &mut cur_voices[measure_voice_index.min(3)],
-                            ticks,
-                            denominator,
-                        )?;
+                        if numerator < 0 {
+                            // A later direction may point backwards (common for a trailing
+                            // tempo). Preserve the prior parser behavior and report its loss;
+                            // a following rhythmic event cannot safely use this timeline.
+                            voice_has_backward_location = true;
+                        } else {
+                            if voice_has_backward_location && numerator != 0 {
+                                return Err(Error::Xml(
+                                    "MSCX location after a backward voice offset is unsupported"
+                                        .into(),
+                                ));
+                            }
+                            let ticks = u32::try_from(numerator)
+                                .ok()
+                                .and_then(|n| n.checked_mul(4))
+                                .ok_or_else(|| Error::Xml("MSCX voice location overflow".into()))?;
+                            crate::gap::append_gap_rests(
+                                &mut cur_voices[measure_voice_index.min(3)],
+                                ticks,
+                                denominator,
+                            )?;
+                        }
                     }
                     "location" if voice_location_depth == Some(closing_depth) => {
                         voice_location_depth = None;
@@ -1588,6 +1613,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     // Feature M: MuseScore 4.x voice wrapper end
                     "voice" if in_measure_voice_wrapper && !in_chord && !in_rest_elem => {
                         in_measure_voice_wrapper = false;
+                        voice_has_backward_location = false;
                         measure_voice_index += 1;
                     }
 
@@ -2526,6 +2552,22 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                 let field = path.last().map(String::as_str);
                 let event_bytes: &[u8] = event.as_ref();
                 let value = String::from_utf8_lossy(event_bytes).trim().to_string();
+                if field == Some("fractions")
+                    && path.iter().rev().nth(1).map(String::as_str) == Some("location")
+                    && path.iter().rev().nth(2).map(String::as_str) == Some("voice")
+                    && value
+                        .split_once('/')
+                        .and_then(|(n, _)| n.trim().parse::<i64>().ok())
+                        .is_some_and(|n| n < 0)
+                {
+                    push_invalid_numeric_diagnostic(
+                        &mut diagnostics,
+                        "mscx.unsupported-voice-location",
+                        "The timing of a backward voice-level location is not preserved for non-note directions",
+                        &path,
+                        value.clone(),
+                    );
+                }
                 if field == Some("accidental")
                     && path.iter().rev().nth(1).map(String::as_str) == Some("KeySig")
                     && value.parse::<i8>().is_err()

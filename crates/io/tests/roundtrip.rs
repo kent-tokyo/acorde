@@ -2365,13 +2365,23 @@ fn openscore_lieder_cc0_fixture_parses_as_external_smoke_corpus() {
         .expect("OpenScore Lieder MSCX fixture parses");
     // OpenScore keeps playback hairpins, pedal lines, and most dynamics hidden; they import as
     // visible marks and each hidden flag is reported rather than silently dropped.
-    assert_eq!(report.diagnostics.len(), 61);
-    assert!(
+    assert_eq!(
         report
             .diagnostics
             .iter()
-            .all(|diagnostic| diagnostic.code == "mscx.unsupported-visibility")
+            .filter(|d| d.code == "mscx.unsupported-visibility")
+            .count(),
+        61
     );
+    assert_eq!(
+        report
+            .diagnostics
+            .iter()
+            .filter(|d| d.code == "mscx.unsupported-voice-location")
+            .count(),
+        2
+    );
+    assert_eq!(report.diagnostics.len(), 63);
     assert!(acorde_core::validate(&report.score).is_valid());
     let notes: Vec<&acorde_core::Note> = report
         .score
