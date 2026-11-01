@@ -88,6 +88,7 @@ pub(crate) fn slur_above(
 /// currently does not retain an authored above/below placement.
 pub(crate) fn hairpin_baseline(
     points: &HashMap<NoteKey, NotePoint>,
+    staff_bottoms: &HashMap<(usize, usize, usize), f32>,
     start: &NoteAddr,
     row: usize,
     x_range: (f32, f32),
@@ -105,7 +106,14 @@ pub(crate) fn hairpin_baseline(
             bottom = Some(bottom.map_or(y, |v| v.max(y)));
         }
     }
-    (bottom.unwrap_or(fallback_y) + 4.0 * space, false)
+    let staff_floor = staff_bottoms
+        .get(&(start.part, start.staff, row))
+        .copied()
+        .unwrap_or(fallback_y);
+    (
+        (bottom.unwrap_or(fallback_y) + 4.0 * space).max(staff_floor + 1.2 * space),
+        false,
+    )
 }
 
 /// Allocate deterministic escape lanes for spans sharing a system.
@@ -114,6 +122,7 @@ pub(crate) fn resolve_lane_offsets(
     score: &Score,
     layout: &LayoutResult,
     points: &HashMap<NoteKey, NotePoint>,
+    staff_bottoms: &HashMap<(usize, usize, usize), f32>,
     width: f32,
     left_margin_u: f32,
     right_margin_u: f32,
@@ -150,7 +159,15 @@ pub(crate) fn resolve_lane_offsets(
             .then(|| slur_above(score, layout, points, start, end, up1, up2));
         let mut add_segment = |row: usize, left: f32, right: f32, anchor_y: f32, stem_up: bool| {
             let (baseline, above) = if matches!(span, SpanMark::Hairpin { .. }) {
-                hairpin_baseline(points, start, row, (left, right), anchor_y, space)
+                hairpin_baseline(
+                    points,
+                    staff_bottoms,
+                    start,
+                    row,
+                    (left, right),
+                    anchor_y,
+                    space,
+                )
             } else {
                 slur_side
                     .map(|above| (anchor_y, above))

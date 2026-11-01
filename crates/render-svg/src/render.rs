@@ -265,6 +265,7 @@ pub(crate) fn build_svg_with_metadata_placement(
 
     let mut body = String::new();
     let mut note_points: HashMap<NoteKey, NotePoint> = HashMap::new();
+    let mut staff_bottoms: HashMap<(usize, usize, usize), f32> = HashMap::new();
     let ottava_shifts = ottava_display_shifts(score);
     let mut resolved_annotation_obstacles = Vec::new();
     // A volta (1st/2nd ending) still open at the end of a system, by ending number.
@@ -495,6 +496,12 @@ pub(crate) fn build_svg_with_metadata_placement(
                 staff_y.push(y);
                 y += (staff_height + config.staff_gap()) * space;
             }
+        }
+        for (i, &(part, staff)) in staff_refs.iter().enumerate() {
+            staff_bottoms.insert(
+                (part, staff, row_idx),
+                staff_y[i] + staff_heights_u[i] * space,
+            );
         }
         let system_top_y = row_top_y;
         let system_bottom_y = row_top_y + system_height_u * space;
@@ -860,6 +867,7 @@ pub(crate) fn build_svg_with_metadata_placement(
         layout,
         &note_points,
         &row_tops,
+        &staff_bottoms,
         options.width,
         left_margin_u,
         right_margin_u,
@@ -5675,6 +5683,7 @@ fn render_all_spans(
     layout: &LayoutResult,
     points: &HashMap<NoteKey, NotePoint>,
     row_tops: &[f32],
+    staff_bottoms: &HashMap<(usize, usize, usize), f32>,
     width: f32,
     left_margin_u: f32,
     right_margin_u: f32,
@@ -5686,6 +5695,7 @@ fn render_all_spans(
         score,
         layout,
         points,
+        staff_bottoms,
         width,
         left_margin_u,
         right_margin_u,
@@ -5753,7 +5763,16 @@ fn render_all_spans(
         }
         let hairpin_y = |row: usize, left: f32, right: f32, fallback: f32| {
             if matches!(span, SpanMark::Hairpin { .. }) {
-                spans::hairpin_baseline(points, start, row, (left, right), fallback, space).0
+                spans::hairpin_baseline(
+                    points,
+                    staff_bottoms,
+                    start,
+                    row,
+                    (left, right),
+                    fallback,
+                    space,
+                )
+                .0
             } else {
                 fallback
             }

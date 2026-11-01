@@ -4845,3 +4845,30 @@ fn key_cancellation_keeps_later_note_accidentals_independent() {
     assert_eq!(svg.matches("acorde-accidental acorde-natural").count(), 3);
     assert_eq!(svg.matches("acorde-accidental acorde-sharp").count(), 4);
 }
+
+#[test]
+fn hairpin_under_high_notes_is_below_staff_bottom() {
+    use acorde_core::{Duration, HairpinKind, Note, Pitch, Score, Step};
+    let mut score = Score::new("high notes", 120, 4, 4, 0, 1);
+    let mut first = Note::new(Pitch::new(Step::C, 6), Duration::Half);
+    first.hairpin_start = Some(HairpinKind::Crescendo);
+    let mut second = Note::new(Pitch::new(Step::D, 6), Duration::Half);
+    second.hairpin_end = true;
+    score.parts[0].staves[0].measures[0].voices[0] = vec![first, second];
+    let svg = render_svg(&score, &opts()).unwrap();
+    let first_line = svg
+        .split(r#"<line class="acorde-staff-line""#)
+        .nth(1)
+        .unwrap();
+    let staff_bottom: f32 = first_line
+        .split("y1=\"")
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap()
+        .parse()
+        .unwrap();
+    let p = hairpin_path_coordinates(&svg)[0];
+    assert!(p[1].min(p[3]).min(p[5]).min(p[7]) > staff_bottom + 0.5 * opts().staff_size);
+}
