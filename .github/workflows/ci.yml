@@ -213,8 +213,10 @@ jobs:
           # Keep approximately 6 KB headroom for the integrated artifact.
           # Named MuseScore channels, voice switches, and the timed-pedal changes
           # together measured 6,359,037 bytes in Linux CI, 77,000 bytes above
-          # the timed-pedal-only build. Retain about 6 KB of headroom.
-          test "$size" -le 6365000
+          # the timed-pedal-only build. Region playback state restoration
+          # increases the measured integrated artifact to 6,365,662 bytes
+          # (+6,625 bytes). Keep approximately 6 KB of headroom.
+          test "$size" -le 6372000
 
   renderer-benchmark:
     name: Renderer performance budget
