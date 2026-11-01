@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Offline render manifests preserve pedal controls attached to rests, including
+  swing timing. Hosts can explicitly coalesce identical shared unisons while
+  retaining each source address; ordinary playback remains independent.
+  MusicXML import reports noncontiguous ties without guessing a sustain.
 - MusicXML accepts exactly representable triplet voice-entry gaps and resolves
   numbered slurs by score time across staves. MSCX/MSCZ import MuseScore 4
   chord ornaments and report unsupported cross-staff slur export. Accidental
