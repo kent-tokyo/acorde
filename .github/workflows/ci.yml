@@ -220,7 +220,11 @@ jobs:
           # Simultaneous voice alignment with deferred measure text measured
           # 6,389,699 bytes in Linux CI, 14,191 bytes above the tie-location
           # build. Keep approximately 6 KB headroom for the integrated artifact.
-          test "$size" -le 6396000
+          # Linux CI measured 6,394,235 bytes on eff6367 and 6,408,264
+          # bytes with only zip 9.1.3 changed (b4c0b7a): +14,029 bytes.
+          # The current uuid-updated baseline measured 6,395,262 bytes;
+          # allow for that observed increase plus roughly 6 KB headroom.
+          test "$size" -le 6416000
 
   renderer-benchmark:
     name: Renderer performance budget
