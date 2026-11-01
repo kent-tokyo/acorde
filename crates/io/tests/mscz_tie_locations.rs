@@ -224,3 +224,28 @@ fn musescore_external_roundtrip_keeps_a_sustained_midi_note() {
     }
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn cross_voice_endpoints_are_reported_without_inventing_a_tie_location() {
+    let mut score = Score::new("cross voice", 120, 4, 4, 0, 1);
+    let mut first = Note::new(Pitch::from_midi(60, false), Duration::Quarter);
+    first.tie_start = true;
+    let mut last = Note::new(Pitch::from_midi(60, false), Duration::Quarter);
+    last.tie_end = true;
+    let bar = &mut score.parts[0].staves[0].measures[0];
+    bar.voices[0] = vec![first];
+    bar.voices[1] = vec![Note::rest(Duration::Quarter), last];
+    let report = acorde_io::serialize_mscx_with_report(&score).unwrap();
+    assert_eq!(
+        report
+            .diagnostics
+            .iter()
+            .filter(|item| item
+                .source_location
+                .as_deref()
+                .is_some_and(|path| path.ends_with("/tie")))
+            .count(),
+        2
+    );
+    assert!(!report.output.contains("<Tie/><next>"));
+}
