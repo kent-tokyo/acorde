@@ -208,7 +208,10 @@ jobs:
           # Shared staff dynamics measured 6,237,850 bytes in Linux CI; measured
           # single-note tremolo increased that to 6,247,902 bytes. Keep roughly
           # 5 KB headroom for these documented playback features.
-          test "$size" -le 6253000
+          # The timed pedal model, MusicXML roundtrip and SVG/MIDI handling
+          # measured 6,282,037 bytes in Linux CI, 34,135 bytes above that build.
+          # Keep approximately 6 KB headroom for the integrated artifact.
+          test "$size" -le 6288000
 
   renderer-benchmark:
     name: Renderer performance budget
