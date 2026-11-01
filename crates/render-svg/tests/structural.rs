@@ -5329,3 +5329,23 @@ fn simultaneous_figured_bass_extender_follows_its_own_figure() {
         "extender must belong to 4: {svg}"
     );
 }
+
+#[test]
+fn positioned_figured_bass_groups_render_without_parallel_text_entries() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Bass</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><figured-bass><figure><prefix>sharp</prefix></figure></figured-bass><note><pitch><step>C</step><octave>3</octave></pitch><duration>2</duration><type>half</type></note><figured-bass><figure><figure-number>6</figure-number><extend type="start"/></figure></figured-bass><note><pitch><step>D</step><octave>3</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>"#;
+    let mut score = acorde_io::parse_musicxml(xml).unwrap();
+    score.parts[0].staves[0].measures[0].texts.clear();
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(
+        svg.matches("acorde-measure-text-figured-bass").count(),
+        2,
+        "{svg}"
+    );
+    assert!(svg.contains(">♯</text>"), "{svg}");
+    assert!(svg.contains(">6</text>"), "{svg}");
+    assert_eq!(
+        svg.matches("acorde-figured-bass-extender").count(),
+        1,
+        "{svg}"
+    );
+}

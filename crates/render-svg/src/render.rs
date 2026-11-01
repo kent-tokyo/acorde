@@ -2651,21 +2651,54 @@ pub(crate) fn measure_text_entries(measure: &Measure) -> Vec<StyledText> {
             relative_y: None,
         });
     }
-    if let Some(text) = figured_bass_display_text(measure)
-        && !entries
-            .iter()
-            .any(|entry| entry.style == TextStyle::FiguredBass && entry.text == text)
-    {
-        entries.push(StyledText {
-            position_beats: None,
-            style: TextStyle::FiguredBass,
-            text,
-            placement: Some("below".to_owned()),
-            offset_x: None,
-            offset_y: None,
-            relative_x: None,
-            relative_y: None,
-        });
+    if measure.figured_bass_groups.is_empty() {
+        if let Some(text) = figured_bass_display_text(measure)
+            && !entries
+                .iter()
+                .any(|entry| entry.style == TextStyle::FiguredBass && entry.text == text)
+        {
+            entries.push(StyledText {
+                position_beats: None,
+                style: TextStyle::FiguredBass,
+                text,
+                placement: Some("below".to_owned()),
+                offset_x: None,
+                offset_y: None,
+                relative_x: None,
+                relative_y: None,
+            });
+        }
+    } else {
+        // Imported figures can have a styled text carrying source offsets, while
+        // callers creating or editing groups need not maintain a parallel text.
+        // Match each existing text once so equal simultaneous groups remain distinct.
+        let mut used = vec![false; entries.len()];
+        for group in &measure.figured_bass_groups {
+            let Some(text) = figured_bass_figures_display_text(&group.figures) else {
+                continue;
+            };
+            if let Some(index) = entries.iter().enumerate().find_map(|(index, entry)| {
+                (!used[index]
+                    && entry.style == TextStyle::FiguredBass
+                    && entry.text == text
+                    && (entry.position_beats.unwrap_or(0.0) - group.position_beats).abs() < 1e-7)
+                    .then_some(index)
+            }) {
+                used[index] = true;
+            } else {
+                entries.push(StyledText {
+                    position_beats: Some(group.position_beats),
+                    style: TextStyle::FiguredBass,
+                    text,
+                    placement: Some("below".to_owned()),
+                    offset_x: None,
+                    offset_y: None,
+                    relative_x: None,
+                    relative_y: None,
+                });
+                used.push(true);
+            }
+        }
     }
     for pedal in measure.timed_pedals.iter().filter(|pedal| !pedal.hide_sign) {
         entries.push(StyledText {
