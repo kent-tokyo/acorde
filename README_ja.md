@@ -14,7 +14,7 @@
 決定的SVG、再生イベント、分析、WASMバインディングを提供します。
 ライブラリ本体は同期・UI非依存で、ファイルを読み書きしません。
 
-ワークスペースの最小サポート Rust バージョン（MSRV）は **Rust 1.88** です。
+ワークスペースの最小サポート Rust バージョン（MSRV）は **Rust 1.89** です。
 
 ```text
 入力バイト列/文字列 → acorde-io → Score → acorde-layout → LayoutResult
@@ -30,7 +30,7 @@
 | `acorde-io` | MusicXML/MXL、MIDI、任意機能のABC・MEI・MSCZ/MSCX・Guitar Pro 3〜8入力 |
 | `acorde-layout` | ピクセル非依存の論理配置と印刷ページメタデータ |
 | `acorde-render-svg` | 決定的なRust/WASM SVGレンダラー |
-| `acorde-pdf` | Harumiによる任意のベクターPDF出力（Rust 1.88以上） |
+| `acorde-pdf` | Harumiによる任意のベクターPDF出力（Rust 1.89以上） |
 | `acorde-omr` | 任意の、レビュー必須のPNG認識提案アダプター |
 | `acorde-analysis` | 決定的で説明可能な和声・SATB分析 |
 | `acorde-soundfont` | 任意機能のSF2/SF3/プロバイダ連携とSF2 WAV生成 |

@@ -35,6 +35,6 @@ source of truth for system and page planning.
 
 ## Compatibility
 
-`acorde-pdf` and the Acorde workspace require Rust 1.88 because Harumi does. Core Acorde crates
-still do not depend on Harumi. Harumi 1.23.7 is the minimum supported backend and includes native
+The Acorde workspace, including `acorde-pdf`, requires Rust 1.89 or newer. Core Acorde crates
+do not depend on Harumi. Harumi 1.23.7 is the minimum supported backend and includes native
 SVG curve, arc, ellipse, metadata, and CSS-color handling used by Acorde's renderer.
