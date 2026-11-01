@@ -1976,6 +1976,23 @@ impl DynamicTimeline {
             ramps.push((start, end, from, to));
         }
         marks.sort_by(|a, b| a.0.total_cmp(&b.0));
+        // A written marking at the hairpin endpoint must override its synthetic
+        // terminal level for every voice, even when accumulated beat sums differ
+        // by less than the timeline's existing comparison tolerance.
+        let mut group_start = 0;
+        while group_start < marks.len() {
+            let time = marks[group_start].0;
+            let mut group_end = group_start + 1;
+            while group_end < marks.len() && marks[group_end].0 <= time + 1e-9 {
+                group_end += 1;
+            }
+            for mark in &mut marks[group_start..group_end] {
+                mark.0 = time;
+            }
+            marks[group_start..group_end]
+                .sort_by_key(|(_, mark)| matches!(mark, DynamicMark::Marking(_)));
+            group_start = group_end;
+        }
         Self {
             position_beats,
             changes: Self::resolve(&marks),
@@ -4185,6 +4202,54 @@ mod tests {
         let velocities: Vec<u8> = events.iter().map(|event| event.velocity).collect();
         assert_eq!(&velocities[..4], &[48, 60, 72, 84]);
         assert_eq!(&velocities[4..], &[84, 92, 100, 108]);
+    }
+
+    #[test]
+    fn explicit_dynamic_at_hairpin_end_overrides_terminal_level_in_all_voices() {
+        use crate::{Dynamic, HairpinKind};
+        for (hairpin, dynamic, attack, sustain) in [
+            (HairpinKind::Crescendo, Dynamic::P, 48, 48),
+            (HairpinKind::Decrescendo, Dynamic::F, 84, 84),
+            (
+                HairpinKind::Decrescendo,
+                Dynamic::Sfz,
+                Dynamic::Sfz.to_velocity(),
+                40,
+            ),
+            (
+                HairpinKind::Crescendo,
+                Dynamic::Pf,
+                Dynamic::Pf.to_velocity(),
+                84,
+            ),
+        ] {
+            let mut score = Score::new("endpoint", 120, 4, 4, 0, 2);
+            let mut first = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+            first.hairpin_start = Some(hairpin);
+            first.hairpin_end = true;
+            score.parts[0].staves[0].measures[0].voices[0] = vec![first];
+            let mut upper = Note::new(Pitch::new(Step::C, 5), Duration::Half);
+            upper.dynamic = Some(dynamic);
+            score.parts[0].staves[0].measures[1].voices[0] =
+                vec![upper, Note::new(Pitch::new(Step::D, 5), Duration::Half)];
+            score.parts[0].staves[0].measures[1].voices[1] = vec![
+                Note::new(Pitch::new(Step::E, 4), Duration::Half),
+                Note::new(Pitch::new(Step::F, 4), Duration::Half),
+            ];
+            let events = to_playback_events(&score, &opts(None));
+            let at_start: Vec<_> = events
+                .iter()
+                .filter(|e| (e.time_beats - 4.0).abs() < 1e-9)
+                .map(|e| e.velocity)
+                .collect();
+            let later: Vec<_> = events
+                .iter()
+                .filter(|e| (e.time_beats - 6.0).abs() < 1e-9)
+                .map(|e| e.velocity)
+                .collect();
+            assert_eq!(at_start, vec![attack, attack]);
+            assert_eq!(later, vec![sustain, sustain]);
+        }
     }
 
     #[test]
