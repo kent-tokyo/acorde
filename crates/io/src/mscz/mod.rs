@@ -2537,6 +2537,19 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                 {
                     *unsupported = Some(name.clone());
                 }
+                if name == "channelSwitch" && path.iter().any(|element| element == "StaffText") {
+                    let mut diagnostic = Diagnostic::warning(
+                        "mscx.unsupported-channel-switch",
+                        "MuseScore voice channel switch is not applied to playback",
+                    );
+                    diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                    diagnostic.preserved_value = Some(format!(
+                        "voice={},name={}",
+                        attr_str(&event, b"voice").unwrap_or_else(|| "0".into()),
+                        attr_str(&event, b"name").unwrap_or_default()
+                    ));
+                    diagnostics.push(diagnostic);
+                }
                 if UNSUPPORTED_MSCX_ELEMENTS.contains(&name.as_str()) {
                     let mut diagnostic = Diagnostic::warning(
                         format!("mscx.unsupported-element.{name}"),
@@ -2599,6 +2612,19 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                     diagnostics.push(diagnostic);
                 } else if let Some((_, _, _, has_unsupported_child)) = harmony_context.as_mut() {
                     *has_unsupported_child = true;
+                }
+                if name == "channelSwitch" && path.iter().any(|element| element == "StaffText") {
+                    let mut diagnostic = Diagnostic::warning(
+                        "mscx.unsupported-channel-switch",
+                        "MuseScore voice channel switch is not applied to playback",
+                    );
+                    diagnostic.source_location = Some(format!("/{}/channelSwitch", path.join("/")));
+                    diagnostic.preserved_value = Some(format!(
+                        "voice={},name={}",
+                        attr_str(&event, b"voice").unwrap_or_else(|| "0".into()),
+                        attr_str(&event, b"name").unwrap_or_default()
+                    ));
+                    diagnostics.push(diagnostic);
                 }
                 if UNSUPPORTED_MSCX_ELEMENTS.contains(&name.as_str()) {
                     let mut element_path = path.clone();

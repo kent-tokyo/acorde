@@ -1534,6 +1534,9 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
             "issue_311_musescore_trill.mscz" => {
                 include_bytes!("../../../tests/fixtures/issue_311_musescore_trill.mscz")
             }
+            "issue_280_channel_switch.mscx" => {
+                include_bytes!("../../../tests/fixtures/issue_280_channel_switch.mscx")
+            }
             "sample.abc" => include_bytes!("../../../tests/fixtures/sample.abc"),
             "program_change_piano_violin.mid" => {
                 include_bytes!("../../../tests/fixtures/program_change_piano_violin.mid")

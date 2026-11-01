@@ -121,3 +121,8 @@ in MusicXML; it wrote its output before crashing at shutdown. Its input hash is 
 `issue_311_musescore_trill.mscz` was generated from it by MuseScore Studio 4.7.5.
 MuseScore wrote the archive but crashed during shutdown. The regression covers the
 trill mark, SVG and playback metadata; it does not establish general compatibility.
+
+`issue_280_channel_switch.mscx` is a self-authored one-voice score converted
+by MuseScore Studio 4.7.5, then given explicit native pizzicato/arco channel
+switches. MuseScore exported MIDI with programs 45 and 40 respectively before
+crashing at shutdown. The fixture currently documents a diagnosed playback loss.
