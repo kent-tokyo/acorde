@@ -1103,12 +1103,16 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             if voice_backward_beats.abs() < 1e-9 {
                                 voice_backward_beats = 0.0;
                                 voice_has_backward_location = false;
-                            } else if numerator != 0 {
+                            } else if voice_backward_beats > 0.0 {
                                 return Err(Error::Xml(
                                     "MSCX location after a backward voice offset is unsupported"
                                         .into(),
                                 ));
                             }
+                            // MuseScore may visit several earlier directions before
+                            // returning to the note cursor. A partial forward step
+                            // is not a new rhythmic gap. Chord/Rest still reject a
+                            // cursor that has not returned to the note position.
                         } else {
                             let ticks = u32::try_from(numerator)
                                 .ok()
@@ -5561,6 +5565,63 @@ mod tests {
         assert!((voice[0].beats() - 1.0 / 3.0).abs() < 1e-9);
         let bad = xml.replace("1/12", "-1/12");
         assert!(parse_mscx(&bad).is_err());
+    }
+
+    #[test]
+    fn backward_direction_locations_can_advance_without_reaching_the_note_cursor() {
+        let xml = simple_mscx(
+            r#"<Measure><voice>
+            <Rest><durationType>whole</durationType></Rest>
+            <location><fractions>-7/8</fractions></location>
+            <Clef><concertClefType>F</concertClefType></Clef>
+            <location><fractions>3/8</fractions></location>
+            <Clef><concertClefType>G</concertClefType></Clef>
+            </voice></Measure>
+            <Measure><voice><Chord><durationType>quarter</durationType>
+            <Note><pitch>60</pitch><tpc>14</tpc></Note></Chord></voice></Measure>"#,
+        );
+        let score = parse_mscz(&zipped_mscx(&xml)).unwrap();
+        let voice = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(voice.len(), 1, "directions must not insert rhythmic rests");
+        assert!(voice[0].is_rest);
+        assert_eq!(voice[0].beats(), 4.0);
+        let events = acorde_core::to_playback_events(&score, &Default::default());
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].time_beats, 4.0);
+        let report = crate::parse_mscx_with_report(&xml).unwrap();
+        assert!(
+            report
+                .diagnostics
+                .iter()
+                .any(|diagnostic| { diagnostic.code == "mscx.unsupported-voice-location" }),
+            "the existing direction-position loss must remain explicit"
+        );
+    }
+
+    #[test]
+    fn backward_direction_cursor_must_return_before_notes_or_rests() {
+        for element in [
+            "<Chord><durationType>quarter</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord>",
+            "<Rest><durationType>quarter</durationType></Rest>",
+        ] {
+            let xml = simple_mscx(&format!(
+                "<Measure><voice><Rest><durationType>half</durationType></Rest>\
+                 <location><fractions>-1/2</fractions></location>\
+                 <location><fractions>1/4</fractions></location>{element}</voice></Measure>"
+            ));
+            assert!(parse_mscx(&xml).is_err());
+            let returned = xml.replace(
+                element,
+                &format!("<location><fractions>1/4</fractions></location>{element}"),
+            );
+            let score = parse_mscx(&returned).unwrap();
+            let voice = &score.parts[0].staves[0].measures[0].voices[0];
+            assert_eq!(voice.len(), 2);
+            assert_eq!(voice.iter().map(Note::beats).sum::<f64>(), 3.0);
+            let overshoot =
+                returned.replace("<fractions>1/4</fractions>", "<fractions>3/4</fractions>");
+            assert!(parse_mscx(&overshoot).is_err());
+        }
     }
 
     #[test]
