@@ -7818,6 +7818,26 @@ fn musicxml_figured_bass_groups_preserve_position_and_extend_types() {
         restored.parts[0].staves[0].measures[0].figured_bass_groups,
         *groups
     );
+    let address = acorde_core::NoteAddr {
+        part: 0,
+        staff: 0,
+        measure: 0,
+        voice: 0,
+        note: 0,
+    };
+    let fragment = acorde_core::extract_score_fragment(
+        &score,
+        &[acorde_core::ScoreFragmentSelection {
+            start: address.clone(),
+            end: address,
+        }],
+    )
+    .unwrap();
+    let mut pasted = acorde_core::Measure::empty(4, 4);
+    fragment.voices[0].measures[0]
+        .attributes
+        .apply_to_measure(&mut pasted);
+    assert_eq!(pasted.figured_bass_groups, *groups);
 }
 
 #[test]
