@@ -1,3 +1,5 @@
+#![cfg(feature = "mscz")]
+
 use acorde_io::{parse_mscx, serialize_mscx};
 
 #[test]
@@ -83,6 +85,7 @@ fn incoming_partial_tie_does_not_join_written_adjacent_notes() {
     }
 }
 
+#[cfg(all(feature = "musicxml", feature = "mei", feature = "abc"))]
 #[test]
 fn exporting_to_other_notation_formats_reports_partial_tie_loss() {
     let xml = r#"<museScore version="4.50"><Score><Part id="1"><Staff id="1"/></Part><Staff id="1"><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc><PartialTie><partialSpannerDirection>incoming</partialSpannerDirection></PartialTie></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
