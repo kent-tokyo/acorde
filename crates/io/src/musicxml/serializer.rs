@@ -1035,7 +1035,12 @@ fn serialize_note(
             HairpinKind::Crescendo => "crescendo",
             HairpinKind::Decrescendo => "diminuendo",
         };
-        xml.push_str("      <direction placement=\"below\">\n");
+        let placement = match note.hairpin_above {
+            Some(true) => " placement=\"above\"",
+            Some(false) => " placement=\"below\"",
+            None => "",
+        };
+        xml.push_str(&format!("      <direction{placement}>\n"));
         xml.push_str("        <direction-type>\n");
         xml.push_str(&format!("          <wedge type=\"{}\"/>\n", wedge_type));
         xml.push_str("        </direction-type>\n");

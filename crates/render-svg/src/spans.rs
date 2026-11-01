@@ -153,10 +153,12 @@ fn has_overlapping_lower_voice(score: &Score, start: &NoteAddr, end: &NoteAddr) 
     false
 }
 
-/// Place an unqualified hairpin below the notes of its staff. The canonical hairpin model
-/// currently does not retain an authored above/below placement.
+/// Place an authored hairpin on its chosen side; unqualified marks default below.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn hairpin_baseline(
+    score: &Score,
     points: &HashMap<NoteKey, NotePoint>,
+    beam_tips: &HashMap<NoteKey, f32>,
     staff_bottoms: &HashMap<(usize, usize, usize), f32>,
     start: &NoteAddr,
     row: usize,
@@ -164,25 +166,80 @@ pub(crate) fn hairpin_baseline(
     fallback_y: f32,
     space: f32,
 ) -> (f32, bool) {
-    let mut bottom: Option<f32> = None;
-    for (&(part, staff, _, _, _), &(x, y, _, point_row)) in points {
-        if part == start.part
-            && staff == start.staff
-            && point_row == row
-            && x >= x_range.0.min(x_range.1) - 0.5 * space
-            && x <= x_range.0.max(x_range.1) + 0.5 * space
+    let above = score
+        .parts
+        .get(start.part)
+        .and_then(|p| p.staves.get(start.staff))
+        .and_then(|s| s.measures.get(start.measure))
+        .and_then(|m| m.voices.get(start.voice))
+        .and_then(|v| v.get(start.note))
+        .and_then(|n| n.hairpin_above)
+        .unwrap_or(false);
+    let mut extreme: Option<f32> = None;
+    let mut beam_extreme: Option<f32> = None;
+    for (&key @ (part, staff, measure, voice, note_index), &(x, y, stem_up, point_row)) in points {
+        if part != start.part
+            || staff != start.staff
+            || point_row != row
+            || x < x_range.0.min(x_range.1) - 0.5 * space
+            || x > x_range.0.max(x_range.1) + 0.5 * space
         {
-            bottom = Some(bottom.map_or(y, |v| v.max(y)));
+            continue;
+        }
+        let note = &score.parts[part].staves[staff].measures[measure].voices[voice][note_index];
+        let positions: Vec<_> = note
+            .pitches
+            .iter()
+            .map(|pitch| crate::geometry::staff_position(&pitch.step, pitch.octave, 0))
+            .collect();
+        let reference = if stem_up {
+            positions.iter().min()
+        } else {
+            positions.iter().max()
+        };
+        let edge = reference.map_or(y, |reference| {
+            positions
+                .iter()
+                .map(|p| y - ((*p - *reference) as f32 * 0.5) * space)
+                .fold(y, |a, b| if above { a.min(b) } else { a.max(b) })
+        });
+        let flags: u8 = match note.duration {
+            Duration::ThirtySecond => 3,
+            Duration::SixtyFourth => 4,
+            Duration::HundredTwentyEighth => 5,
+            _ => 0,
+        };
+        let extra = if stem_up == above {
+            f32::from(flags.saturating_sub(2)) * 0.75 * space
+        } else {
+            0.0
+        };
+        let edge = edge + if above { -extra } else { extra };
+        extreme = Some(extreme.map_or(edge, |a| if above { a.min(edge) } else { a.max(edge) }));
+        if stem_up == above
+            && let Some(&tip) = beam_tips.get(&key)
+        {
+            beam_extreme =
+                Some(beam_extreme.map_or(tip, |a| if above { a.min(tip) } else { a.max(tip) }));
         }
     }
     let staff_floor = staff_bottoms
         .get(&(start.part, start.staff, row))
         .copied()
         .unwrap_or(fallback_y);
-    (
-        (bottom.unwrap_or(fallback_y) + 4.0 * space).max(staff_floor + 1.2 * space),
-        false,
-    )
+    if above {
+        let base = (extreme.unwrap_or(fallback_y) - 4.0 * space).min(staff_floor - 5.2 * space);
+        (
+            beam_extreme.map_or(base, |tip| base.min(tip - 0.8 * space)),
+            true,
+        )
+    } else {
+        let base = (extreme.unwrap_or(fallback_y) + 4.0 * space).max(staff_floor + 1.2 * space);
+        (
+            beam_extreme.map_or(base, |tip| base.max(tip + 0.8 * space)),
+            false,
+        )
+    }
 }
 
 /// Allocate deterministic escape lanes for spans sharing a system.
@@ -191,6 +248,7 @@ pub(crate) fn resolve_lane_offsets(
     score: &Score,
     layout: &LayoutResult,
     points: &HashMap<NoteKey, NotePoint>,
+    beam_tips: &HashMap<NoteKey, f32>,
     staff_bottoms: &HashMap<(usize, usize, usize), f32>,
     width: f32,
     left_margin_u: f32,
@@ -229,7 +287,9 @@ pub(crate) fn resolve_lane_offsets(
         let mut add_segment = |row: usize, left: f32, right: f32, anchor_y: f32, stem_up: bool| {
             let (baseline, above) = if matches!(span, SpanMark::Hairpin { .. }) {
                 hairpin_baseline(
+                    score,
                     points,
+                    beam_tips,
                     staff_bottoms,
                     start,
                     row,

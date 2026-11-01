@@ -11,6 +11,12 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## Unreleased: authored hairpin placement
+
+`Note.hairpin_above` records an explicit above/below hairpin position. Complete Rust `Note`
+struct literals need the new field; older score JSON defaults to `None`. MusicXML, MSCX and MEI
+retain it, while ABC and MIDI export reports identify the unsupported visual position.
+
 ## Unreleased: explicitly written accidentals
 
 `AccidentalDisplay::Explicit` distinguishes an ordinary written accidental from an automatic or

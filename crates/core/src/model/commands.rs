@@ -3143,6 +3143,7 @@ fn apply_add_hairpin(cmd: &AddHairpinCmd, score: &mut Score) -> Result<(), Error
         .skip(cmd.start_note_idx)
     {
         note.hairpin_start = None;
+        note.hairpin_above = None;
         note.hairpin_end = false;
     }
     voice[cmd.start_note_idx].hairpin_start = Some(cmd.kind);
@@ -4305,6 +4306,7 @@ fn clear_derived_chord_note_notation(note: &mut Note) {
     note.dynamic = None;
     note.stem_up = None;
     note.hairpin_start = None;
+    note.hairpin_above = None;
     note.hairpin_end = false;
     note.chord_symbol = None;
     note.ottava_start = None;

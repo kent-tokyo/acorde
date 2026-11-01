@@ -1128,7 +1128,12 @@ fn staff_span_marks(
                                 acorde_core::HairpinKind::Crescendo => 0,
                                 acorde_core::HairpinKind::Decrescendo => 1,
                             };
-                            format!("<HairPin><subtype>{subtype}</subtype></HairPin>")
+                            let placement = match note.hairpin_above {
+                                Some(true) => "<placement>above</placement>",
+                                Some(false) => "<placement>below</placement>",
+                                None => "",
+                            };
+                            format!("<HairPin><subtype>{subtype}</subtype>{placement}</HairPin>")
                         }),
                         note.hairpin_end,
                     ),

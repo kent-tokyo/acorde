@@ -91,7 +91,8 @@ pub(crate) fn print_row_metrics(
 
 pub(crate) fn print_staff_offsets(score: &Score, staff_gap: f32) -> Vec<(usize, f32, f32)> {
     let mut offset = 0.0;
-    collect_staff_refs(score)
+    let staff_refs = collect_staff_refs(score);
+    staff_refs
         .into_iter()
         .map(|(part, staff)| {
             let height = staff_height_u(score, part, staff);
@@ -5779,6 +5780,7 @@ fn render_all_spans(
         score,
         layout,
         points,
+        beam_tip_points,
         staff_bottoms,
         width,
         left_margin_u,
@@ -5848,7 +5850,9 @@ fn render_all_spans(
         let hairpin_y = |row: usize, left: f32, right: f32, fallback: f32| {
             if matches!(span, SpanMark::Hairpin { .. }) {
                 spans::hairpin_baseline(
+                    score,
                     points,
+                    beam_tip_points,
                     staff_bottoms,
                     start,
                     row,

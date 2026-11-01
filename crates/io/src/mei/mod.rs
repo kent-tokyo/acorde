@@ -2019,7 +2019,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
     let mut measure_changes: Vec<usize> = Vec::new();
     let mut dynam_anchor: Option<PendingMeiAnchor> = None;
     let mut pending_dynams: Vec<(PendingMeiAnchor, Dynamic)> = Vec::new();
-    let mut pending_hairpins: Vec<(PendingMeiAnchor, HairpinKind)> = Vec::new();
+    let mut pending_hairpins: Vec<(PendingMeiAnchor, HairpinKind, Option<bool>)> = Vec::new();
     let mut pending_marks: Vec<(PendingMeiAnchor, Articulation)> = Vec::new();
     let mut pending_arpeggios: Vec<(PendingMeiAnchor, bool)> = Vec::new();
     let mut beam_starts: Vec<usize> = Vec::new();
@@ -2538,6 +2538,11 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             pending_hairpins.push((
                                 PendingMeiAnchor::from_event(&event, current_staff, measure),
                                 kind,
+                                match attr(&event, b"place").as_deref() {
+                                    Some("above") => Some(true),
+                                    Some("below") => Some(false),
+                                    _ => None,
+                                },
                             ));
                         }
                     }
@@ -3875,7 +3880,7 @@ fn apply_mei_control_events(
     score: &mut Score,
     note_ids: &HashMap<String, (usize, usize, usize, usize)>,
     dynamics: Vec<(PendingMeiAnchor, Dynamic)>,
-    hairpins: Vec<(PendingMeiAnchor, HairpinKind)>,
+    hairpins: Vec<(PendingMeiAnchor, HairpinKind, Option<bool>)>,
 ) {
     for (anchor, dynamic) in dynamics {
         if let Some(location) = anchor.start(score, note_ids)
@@ -3884,13 +3889,14 @@ fn apply_mei_control_events(
             note.dynamic = Some(dynamic);
         }
     }
-    for (anchor, kind) in hairpins {
+    for (anchor, kind, above) in hairpins {
         let (Some(start), Some(end)) = (anchor.start(score, note_ids), anchor.end(score, note_ids))
         else {
             continue;
         };
         if let Some(note) = mei_note_mut(score, start) {
             note.hairpin_start = Some(kind);
+            note.hairpin_above = above;
         }
         if let Some(note) = mei_note_mut(score, end) {
             note.hairpin_end = true;
@@ -4499,8 +4505,13 @@ fn append_mei_control_events(
                         HairpinKind::Crescendo => "cres",
                         HairpinKind::Decrescendo => "dim",
                     };
+                    let placement = match note.hairpin_above {
+                        Some(true) => " place=\"above\"",
+                        Some(false) => " place=\"below\"",
+                        None => "",
+                    };
                     out.push_str(&format!(
-                        "<hairpin form=\"{form}\" staff=\"{n}\" startid=\"#{start_id}\" endid=\"#{}\"/>",
+                        "<hairpin form=\"{form}\" staff=\"{n}\" startid=\"#{start_id}\" endid=\"#{}\"{placement}/>",
                         id_at(end_measure, voice_index, end_note)
                     ));
                 }

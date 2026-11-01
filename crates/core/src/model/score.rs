@@ -2399,6 +2399,9 @@ pub struct Note {
     pub stem_up: Option<bool>,
     #[serde(default)]
     pub hairpin_start: Option<HairpinKind>,
+    /// Authored hairpin side: true is above, false is below, None uses the default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hairpin_above: Option<bool>,
     #[serde(default)]
     pub hairpin_end: bool,
     #[serde(default)]
@@ -2536,6 +2539,7 @@ impl Note {
             dynamic: None,
             stem_up: None,
             hairpin_start: None,
+            hairpin_above: None,
             hairpin_end: false,
             tuplet: None,
             tuplet_boundary: None,
@@ -2597,6 +2601,7 @@ impl Note {
             dynamic: None,
             stem_up: None,
             hairpin_start: None,
+            hairpin_above: None,
             hairpin_end: false,
             tuplet: None,
             tuplet_boundary: None,
@@ -2640,6 +2645,7 @@ impl Note {
         copy.slur_start = false;
         copy.slur_end = false;
         copy.hairpin_start = None;
+        copy.hairpin_above = None;
         copy.hairpin_end = false;
         copy.pedal_start = false;
         copy.pedal_end = false;
@@ -5128,6 +5134,7 @@ fn note_content_eq(a: &Note, b: &Note) -> bool {
         && a.dynamic == b.dynamic
         && a.stem_up == b.stem_up
         && a.hairpin_start == b.hairpin_start
+        && a.hairpin_above == b.hairpin_above
         && a.hairpin_end == b.hairpin_end
         && a.tuplet == b.tuplet
         && a.chord_symbol == b.chord_symbol

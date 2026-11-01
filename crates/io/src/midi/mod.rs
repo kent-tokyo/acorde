@@ -351,6 +351,12 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<Diagnostic> {
                         }
                         for (field, present, value, reason) in [
                             (
+                                "hairpin-placement",
+                                note.hairpin_above.is_some(),
+                                format!("{:?}", note.hairpin_above),
+                                "MIDI export does not retain authored hairpin placement",
+                            ),
+                            (
                                 "chord-symbol",
                                 note.chord_symbol.is_some(),
                                 note.chord_symbol.as_ref().map_or_else(
