@@ -5465,3 +5465,62 @@ fn timed_pedal_signs_show_at_distinct_positions_inside_a_sustained_note() {
     assert!(!hidden.contains(">Ped.</text>"));
     assert!(hidden.contains(">*</text>"));
 }
+
+#[test]
+fn above_hairpin_does_not_cross_low_stems_on_upper_staff() {
+    use acorde_core::{Clef, Duration, HairpinKind, Measure, Note, Pitch, Score, Staff, Step};
+    let mut score = Score::new("above lower staff wedge", 120, 4, 4, 0, 1);
+    let upper = &mut score.parts[0].staves[0].measures[0];
+    upper.voices[0] = vec![
+        Note::new(Pitch::new(Step::C, 3), Duration::Half),
+        Note::new(Pitch::new(Step::D, 3), Duration::Half),
+    ];
+    for note in &mut upper.voices[0] {
+        note.stem_up = Some(false);
+    }
+    let mut lower = Staff::new(Clef::Bass);
+    let mut bar = Measure::empty(4, 4);
+    bar.voices[0] = vec![
+        Note::new(Pitch::new(Step::G, 3), Duration::Half),
+        Note::new(Pitch::new(Step::A, 3), Duration::Half),
+    ];
+    bar.voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+    bar.voices[0][0].hairpin_above = Some(true);
+    bar.voices[0][1].hairpin_end = true;
+    lower.measures.push(bar);
+    score.parts[0].staves.push(lower);
+    let svg = render_svg(&score, &opts()).unwrap();
+    let path = hairpin_path_coordinates(&svg)[0];
+    let top = path[1].min(path[3]).min(path[5]).min(path[7]);
+    let bottom = path[1].max(path[3]).max(path[5]).max(path[7]);
+    let stems: Vec<_> = svg
+        .split("<line class=\"acorde-stem\"")
+        .skip(1)
+        .map(|fragment| {
+            let attr = |name: &str| -> f32 {
+                fragment
+                    .split(&format!("{name}=\""))
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap()
+                    .parse()
+                    .unwrap()
+            };
+            (attr("x1"), attr("y1"), attr("y2"))
+        })
+        .collect();
+    assert_eq!(stems.len(), 4);
+    let mut checked = 0;
+    for &(x, y1, y2) in &stems[..2] {
+        if x >= path[0].min(path[2]) && x <= path[0].max(path[2]) {
+            checked += 1;
+            assert!(
+                y1.max(y2) < top || y1.min(y2) > bottom,
+                "upper stem ({x}, {y1}, {y2}) intersects wedge {path:?}"
+            );
+        }
+    }
+    assert!(checked > 0);
+}

@@ -841,3 +841,74 @@ fn print_below_hairpin_clears_high_notes_and_stems_on_lower_staff() {
     }
     assert!(checked > 0);
 }
+
+#[test]
+fn print_above_hairpin_clears_low_stems_on_upper_staff() {
+    use acorde_core::{Clef, Duration, HairpinKind, Measure, Note, Pitch, Staff, Step};
+    let mut score = Score::new("above lower staff wedge", 120, 4, 4, 0, 1);
+    let upper = &mut score.parts[0].staves[0].measures[0];
+    upper.voices[0] = vec![
+        Note::new(Pitch::new(Step::C, 3), Duration::Half),
+        Note::new(Pitch::new(Step::D, 3), Duration::Half),
+    ];
+    for note in &mut upper.voices[0] {
+        note.stem_up = Some(false);
+    }
+    let mut lower = Staff::new(Clef::Bass);
+    let mut bar = Measure::empty(4, 4);
+    bar.voices[0] = vec![
+        Note::new(Pitch::new(Step::G, 3), Duration::Half),
+        Note::new(Pitch::new(Step::A, 3), Duration::Half),
+    ];
+    bar.voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+    bar.voices[0][0].hairpin_above = Some(true);
+    bar.voices[0][1].hairpin_end = true;
+    lower.measures.push(bar);
+    score.parts[0].staves.push(lower);
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = &pages[0];
+    let path = svg
+        .split(r#"class="acorde-hairpin""#)
+        .nth(1)
+        .unwrap()
+        .split_once(r#"d=""#)
+        .unwrap()
+        .1
+        .split('"')
+        .next()
+        .unwrap();
+    let p: Vec<f32> = path
+        .split(['M', 'L', ',', ' '])
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    assert_eq!(p.len(), 8);
+    let (left, right) = (p[0].min(p[2]), p[0].max(p[2]));
+    let (top, bottom) = (
+        p[1].min(p[3]).min(p[5]).min(p[7]),
+        p[1].max(p[3]).max(p[5]).max(p[7]),
+    );
+    let stems: Vec<_> = svg
+        .split(r#"class="acorde-stem""#)
+        .skip(1)
+        .map(|tag| {
+            (
+                svg_attribute_f32(tag, "x1"),
+                svg_attribute_f32(tag, "y1"),
+                svg_attribute_f32(tag, "y2"),
+            )
+        })
+        .collect();
+    assert_eq!(stems.len(), 4);
+    let mut checked = 0;
+    for &(x, y1, y2) in &stems[..2] {
+        if (left..=right).contains(&x) {
+            checked += 1;
+            assert!(
+                y1.max(y2) < top || y1.min(y2) > bottom,
+                "upper stem ({x}, {y1}, {y2}) crosses {p:?}"
+            );
+        }
+    }
+    assert!(checked > 0);
+}

@@ -71,7 +71,7 @@ pub(crate) struct PrintRowPlacement<'a> {
     pub canvas_height_px: f32,
 }
 
-/// Reserve enough inter-staff space for a below-staff hairpin and notes on the next staff.
+/// Reserve inter-staff space for a hairpin and notes on the adjacent staff.
 /// The bound is conservative over the span's measures; print and screen use the same gap.
 pub(crate) fn required_hairpin_staff_gap(score: &Score, layout: &LayoutResult, base: f32) -> f32 {
     let staff_refs = collect_staff_refs(score);
@@ -90,19 +90,28 @@ pub(crate) fn required_hairpin_staff_gap(score: &Score, layout: &LayoutResult, b
         else {
             continue;
         };
-        if note.hairpin_above == Some(true) {
-            continue;
-        }
+        let above = note.hairpin_above == Some(true);
         let Some(index) = staff_refs
             .iter()
             .position(|&address| address == (start.part, start.staff))
         else {
             continue;
         };
-        let Some(&(lower_part, lower_staff)) = staff_refs.get(index + 1) else {
+        let neighbor = if above {
+            index.checked_sub(1)
+        } else {
+            index.checked_add(1)
+        };
+        let Some(&(neighbor_part, neighbor_staff)) = neighbor.and_then(|i| staff_refs.get(i))
+        else {
             continue;
         };
-        let upper = &score.parts[start.part].staves[start.staff];
+        let (upper_part, upper_staff, lower_part, lower_staff) = if above {
+            (neighbor_part, neighbor_staff, start.part, start.staff)
+        } else {
+            (start.part, start.staff, neighbor_part, neighbor_staff)
+        };
+        let upper = &score.parts[upper_part].staves[upper_staff];
         let lower = &score.parts[lower_part].staves[lower_staff];
         let from = start.measure.min(end.measure);
         let to = start.measure.max(end.measure).min(
@@ -153,35 +162,58 @@ pub(crate) fn required_hairpin_staff_gap(score: &Score, layout: &LayoutResult, b
                         let min = *positions.iter().min().unwrap_or(&0) as f32;
                         let max = *positions.iter().max().unwrap_or(&0) as f32;
                         let (_, offset_y) = note_placement_offsets_u(note);
+                        let has_stem = !matches!(
+                            note.duration,
+                            Duration::Whole | Duration::Breve | Duration::Longa
+                        );
+                        let stem_up = note.stem_up.unwrap_or_else(|| {
+                            if active_voices > 1 {
+                                voice_index.is_multiple_of(2)
+                            } else if note.beam != acorde_core::BeamState::None {
+                                !upper_side
+                            } else {
+                                stem_up_for_chord(&positions).unwrap_or(true)
+                            }
+                        });
+                        let flags: u8 = match note.duration {
+                            Duration::ThirtySecond => 3,
+                            Duration::SixtyFourth => 4,
+                            Duration::HundredTwentyEighth => 5,
+                            _ => 0,
+                        };
+                        let stem_extent = glyphs::DEFAULT_STEM_LEN_U
+                            + 0.75 * f32::from(flags.saturating_sub(2))
+                            + 0.3;
                         if upper_side {
-                            upper_edge = upper_edge.max(4.0 - min * 0.5 + offset_y);
-                        } else {
-                            let mut extent = max * 0.5 + 0.6 - offset_y;
-                            let has_stem = !matches!(
-                                note.duration,
-                                Duration::Whole | Duration::Breve | Duration::Longa
-                            );
-                            let stem_up = note.stem_up.unwrap_or_else(|| {
-                                if active_voices > 1 {
-                                    voice_index.is_multiple_of(2)
-                                } else if note.beam != acorde_core::BeamState::None {
-                                    true
-                                } else {
-                                    stem_up_for_chord(&positions).unwrap_or(true)
+                            let mut extent = if above {
+                                -min * 0.5 + 0.6 + offset_y
+                            } else {
+                                4.0 - min * 0.5 + offset_y
+                            };
+                            if has_stem && !stem_up {
+                                if !above {
+                                    extent += 0.75 * f32::from(flags.saturating_sub(2));
                                 }
-                            });
-                            if has_stem && stem_up {
-                                let flags: u8 = match note.duration {
-                                    Duration::ThirtySecond => 3,
-                                    Duration::SixtyFourth => 4,
-                                    Duration::HundredTwentyEighth => 5,
-                                    _ => 0,
-                                };
                                 extent = extent.max(
-                                    min * 0.5
-                                        + glyphs::DEFAULT_STEM_LEN_U
-                                        + 0.75 * f32::from(flags.saturating_sub(2))
-                                        + 0.3
+                                    -max * 0.5
+                                        + stem_extent
+                                        + if above { 0.0 } else { 0.8 }
+                                        + offset_y,
+                                );
+                            }
+                            upper_edge = upper_edge.max(extent);
+                        } else {
+                            let mut extent = if above {
+                                (max * 0.5 + 4.0 - offset_y).max(5.2)
+                            } else {
+                                max * 0.5 + 0.6 - offset_y
+                            };
+                            if has_stem && stem_up {
+                                if above {
+                                    extent += 0.75 * f32::from(flags.saturating_sub(2));
+                                }
+                                extent = extent.max(
+                                    min * 0.5 + stem_extent + if above { 0.8 } else { 0.0 }
                                         - offset_y,
                                 );
                             }
@@ -9356,7 +9388,7 @@ mod tests {
     use std::collections::HashMap;
 
     #[test]
-    fn hairpin_gap_does_not_expand_a_score_without_below_hairpins() {
+    fn hairpin_gap_does_not_expand_without_an_adjacent_hairpin() {
         let mut score = Score::new("ordinary", 120, 4, 4, 0, 1);
         let mut lower = acorde_core::Staff::new(acorde_core::Clef::Bass);
         let mut bar = Measure::empty(4, 4);
