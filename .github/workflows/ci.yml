@@ -195,8 +195,9 @@ jobs:
           # MusicXML timing/slur ordering and MuseScore loss diagnostics measured
           # 6,078,920 bytes on macOS. Opt-in shared-unison playback, rest pedal
           # controls, and noncontiguous-tie diagnostics measure 6,096,487 bytes
-          # locally. Keep a small platform-dependent margin and a hard cap.
-          test "$size" -le 6110000
+          # locally. Key-signature cancellations and inline changes measured
+          # 6,111,598 bytes on Linux. Retain a small margin and a hard cap.
+          test "$size" -le 6115000
 
   renderer-benchmark:
     name: Renderer performance budget
