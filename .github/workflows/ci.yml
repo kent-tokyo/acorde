@@ -197,8 +197,9 @@ jobs:
           # controls, and noncontiguous-tie diagnostics measure 6,096,487 bytes
           # locally. Key-signature cancellations and inline changes measured
           # 6,111,598 bytes on Linux. Staff-wide MuseScore ottava conversion
-          # and hairpin rendering measured 6,120,867 bytes on Linux. Retain
-          # a narrow margin and a hard cap.
+          # and hairpin rendering measured 6,120,867 bytes; separately, hairpin
+          # and beam-clearance rendering measured 6,118,357 bytes. Keep a hard
+          # cap and measure their combination on this head.
           test "$size" -le 6123000
 
   renderer-benchmark:

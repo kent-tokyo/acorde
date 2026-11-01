@@ -265,6 +265,7 @@ pub(crate) fn build_svg_with_metadata_placement(
 
     let mut body = String::new();
     let mut note_points: HashMap<NoteKey, NotePoint> = HashMap::new();
+    let mut beam_tip_points: HashMap<NoteKey, f32> = HashMap::new();
     let mut staff_bottoms: HashMap<(usize, usize, usize), f32> = HashMap::new();
     let ottava_shifts = ottava_display_shifts(score);
     let mut resolved_annotation_obstacles = Vec::new();
@@ -719,6 +720,7 @@ pub(crate) fn build_svg_with_metadata_placement(
                     &mandatory,
                     &courtesy,
                     &mut note_points,
+                    &mut beam_tip_points,
                     &mut resolved_annotation_obstacles,
                     &ottava_shifts,
                 )?;
@@ -866,6 +868,7 @@ pub(crate) fn build_svg_with_metadata_placement(
         score,
         layout,
         &note_points,
+        &beam_tip_points,
         &row_tops,
         &staff_bottoms,
         options.width,
@@ -3274,6 +3277,7 @@ fn render_measure(
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
     note_points: &mut HashMap<NoteKey, NotePoint>,
+    beam_tip_points: &mut HashMap<NoteKey, f32>,
     resolved_annotation_obstacles: &mut Vec<acorde_layout::GlyphPlacement>,
     ottava_shifts: &HashMap<NoteKey, i32>,
 ) -> Result<(), RenderError> {
@@ -3433,6 +3437,7 @@ fn render_measure(
                 tablature_fret_mark_style,
                 &mut prior_voice_events,
                 note_points,
+                beam_tip_points,
             )?;
         }
         for (offset, change) in &mid_clefs {
@@ -3810,6 +3815,7 @@ fn render_measure_voice<'a>(
     tablature_fret_mark_style: acorde_core::TablatureFretMarkStyle,
     prior_voice_events: &mut Vec<(f32, &'a Note)>,
     note_points: &mut HashMap<NoteKey, NotePoint>,
+    beam_tip_points: &mut HashMap<NoteKey, f32>,
 ) -> Result<(), RenderError> {
     if notes.is_empty() {
         return Ok(());
@@ -3904,6 +3910,9 @@ fn render_measure_voice<'a>(
         cross_frames,
         space,
     );
+    for (&index, &tip) in &beam_tips {
+        beam_tip_points.insert((part, staff, measure_idx, voice_idx, index), tip);
+    }
     let kneed_notes: Vec<Note>;
     let notes: &[Note] = if stem_dirs.is_empty() {
         notes
@@ -5664,6 +5673,7 @@ fn render_all_spans(
     score: &Score,
     layout: &LayoutResult,
     points: &HashMap<NoteKey, NotePoint>,
+    beam_tip_points: &HashMap<NoteKey, f32>,
     row_tops: &[f32],
     staff_bottoms: &HashMap<(usize, usize, usize), f32>,
     width: f32,
@@ -5824,16 +5834,34 @@ fn render_all_spans(
             .get(&(span_index, row1))
             .copied()
             .unwrap_or_default();
+        let slur_anchors = slur_above.map(|above| {
+            let side = if above { -1.0 } else { 1.0 };
+            let anchor = |addr: &acorde_layout::NoteAddr, y: f32, stem_up: bool| {
+                let normal = y + offset + side * 0.65 * space;
+                let key = (addr.part, addr.staff, addr.measure, addr.voice, addr.note);
+                if stem_up == above
+                    && let Some(tip) = beam_tip_points.get(&key)
+                {
+                    let clearance = tip + offset + side * 0.5 * space;
+                    return if above {
+                        normal.min(clearance)
+                    } else {
+                        normal.max(clearance)
+                    };
+                }
+                normal
+            };
+            (anchor(start, y1, up1), anchor(end, y2, up2))
+        });
         let (slur_extreme, slur_clearance_control) = if let Some(above) = slur_above {
             let side = if above { -1.0 } else { 1.0 };
             let direction = if x2 >= x1 { 1.0 } else { -1.0 };
             let left = x1 + direction * 0.3 * space;
             let right = x2 - direction * 0.3 * space;
-            let start_y = y1 + offset + side * 0.65 * space;
-            let end_y = y2 + offset + side * 0.65 * space;
+            let (start_y, end_y) = slur_anchors.expect("slur anchors");
             let mut extreme: Option<f32> = None;
             let mut control: Option<f32> = None;
-            for ((part, staff, _, voice, _), (x, y, _, row)) in points {
+            for (key @ (part, staff, _, voice, _), (x, y, stem_up, row)) in points {
                 if *part != start.part
                     || *staff != start.staff
                     || *voice != start.voice
@@ -5843,18 +5871,38 @@ fn render_all_spans(
                 }
                 let select = |a: f32, b: f32| if above { a.min(b) } else { a.max(b) };
                 if *x >= x1.min(x2) && *x <= x1.max(x2) {
-                    let value = *y + offset;
+                    let note_y = *y + offset;
+                    let value = if *stem_up == above {
+                        beam_tip_points
+                            .get(key)
+                            .map_or(note_y, |tip| select(note_y, tip + offset))
+                    } else {
+                        note_y
+                    };
                     extreme = Some(extreme.map_or(value, |a| select(a, value)));
                 }
                 if (right - left).abs() < f32::EPSILON {
                     continue;
                 }
-                let t = (x - left) / (right - left);
+                // Beam tips sit at the stem, not at the notehead center.
+                let clearance_x = if *stem_up == above && beam_tip_points.contains_key(key) {
+                    x + (if *stem_up { 1.0 } else { -1.0 }) * glyphs::NOTEHEAD_RX_U * 0.92 * space
+                } else {
+                    *x
+                };
+                let t = (clearance_x - left) / (right - left);
                 if !(t > 0.0 && t < 1.0) {
                     continue;
                 }
                 let remaining = 1.0 - t;
-                let desired = y + offset + side * 0.8 * space;
+                let desired_note = y + offset + side * 0.8 * space;
+                let desired = if *stem_up == above {
+                    beam_tip_points.get(key).map_or(desired_note, |tip| {
+                        select(desired_note, tip + offset + side * 0.6 * space)
+                    })
+                } else {
+                    desired_note
+                };
                 let value = (desired - remaining * remaining * start_y - t * t * end_y)
                     / (2.0 * t * remaining);
                 control = Some(control.map_or(value, |a| select(a, value)));
@@ -5874,6 +5922,7 @@ fn render_all_spans(
             up2,
             space,
             slur_above,
+            slur_anchors,
             slur_extreme,
             slur_clearance_control,
         );
@@ -6127,6 +6176,7 @@ fn render_same_row_span(
     up2: bool,
     space: f32,
     slur_above: Option<bool>,
+    slur_anchors: Option<(f32, f32)>,
     slur_extreme: Option<f32>,
     slur_clearance_control: Option<f32>,
 ) {
@@ -6146,8 +6196,8 @@ fn render_same_row_span(
             let above = slur_above.unwrap_or(!up1);
             let direction = if x2 >= x1 { 1.0 } else { -1.0 };
             let side = if above { -1.0 } else { 1.0 };
-            let start_y = y1 + side * 0.65 * space;
-            let end_y = y2 + side * 0.65 * space;
+            let (start_y, end_y) =
+                slur_anchors.unwrap_or((y1 + side * 0.65 * space, y2 + side * 0.65 * space));
             let extreme = slur_extreme.unwrap_or(if above { y1.min(y2) } else { y1.max(y2) });
             // A quadratic passes halfway between its control and the midpoint of
             // its endpoints. Placing the control beyond an intermediate note is
