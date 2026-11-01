@@ -485,6 +485,15 @@ fn push_advanced_attribute_diagnostics(
                     "MusicXML note placement is not a finite number; the value cannot be applied",
                 )
             }
+            "print-object" if path.last().map(String::as_str) == Some("time") => {
+                if matches!(value.as_str(), "yes" | "no") {
+                    continue;
+                }
+                (
+                    "musicxml.invalid-time-visibility",
+                    "MusicXML time print-object must be yes or no; the value cannot be preserved",
+                )
+            }
             "default-x" | "default-y" | "relative-x" | "relative-y" => (
                 "musicxml.unsupported-placement-attribute",
                 "MusicXML placement attribute is outside the canonical score model",
@@ -599,6 +608,25 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<crate::Diagnos
         diagnostics.push(diagnostic);
     }
     for (part_index, part) in score.parts.iter().enumerate() {
+        let switch_count: usize = part
+            .staves
+            .iter()
+            .flat_map(|staff| &staff.measures)
+            .map(|measure| measure.channel_switches.len())
+            .sum();
+        if !part.named_channels.is_empty() || switch_count > 0 {
+            let mut diagnostic = crate::Diagnostic::warning(
+                "musicxml.export-unsupported-named-channels",
+                "MusicXML export does not preserve named instrument channels or voice switches",
+            );
+            diagnostic.source_location =
+                Some(format!("/score/part/{}/named-channels", part_index + 1));
+            diagnostic.preserved_value = Some(format!(
+                "channels={},switches={switch_count}",
+                part.named_channels.len()
+            ));
+            diagnostics.push(diagnostic);
+        }
         for (instrument_index, instrument) in part.percussion_instruments.iter().enumerate() {
             let mut preserved = Vec::new();
             if let Some(position) = instrument.staff_position {

@@ -303,6 +303,23 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<Diagnostic> {
     for (part_index, part) in score.parts.iter().enumerate() {
         for (staff_index, staff) in part.staves.iter().enumerate() {
             for (measure_index, measure) in staff.measures.iter().enumerate() {
+                if measure.time_sig_hidden {
+                    if diagnostics.len() >= MAX_DIAGNOSTICS {
+                        return diagnostics;
+                    }
+                    let mut diagnostic = Diagnostic::warning(
+                        "midi.export-unsupported-time-visibility",
+                        "MIDI export does not preserve time-signature visibility",
+                    );
+                    diagnostic.source_location = Some(format!(
+                        "/score/part/{}/staff/{}/measure/{}/time_sig_hidden",
+                        part_index + 1,
+                        staff_index + 1,
+                        measure_index + 1
+                    ));
+                    diagnostic.preserved_value = Some("true".to_string());
+                    diagnostics.push(diagnostic);
+                }
                 for (voice_index, voice) in measure.voices.iter().enumerate() {
                     for (note_index, note) in voice.iter().enumerate() {
                         let note_path = format!(
@@ -313,6 +330,25 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<Diagnostic> {
                             voice_index + 1,
                             note_index + 1
                         );
+                        for pitch_index in 0..note.pitches.len() {
+                            if note.accidental_display(pitch_index)
+                                == acorde_core::AccidentalDisplay::Explicit
+                            {
+                                if diagnostics.len() >= MAX_DIAGNOSTICS {
+                                    return diagnostics;
+                                }
+                                let mut diagnostic = Diagnostic::warning(
+                                    "midi.export-unsupported-accidental-display",
+                                    "MIDI export does not retain explicitly written accidental display",
+                                );
+                                diagnostic.source_location = Some(format!(
+                                    "{note_path}/accidental-display/{}",
+                                    pitch_index + 1
+                                ));
+                                diagnostic.preserved_value = Some("Explicit".to_string());
+                                diagnostics.push(diagnostic);
+                            }
+                        }
                         for (field, present, value, reason) in [
                             (
                                 "chord-symbol",

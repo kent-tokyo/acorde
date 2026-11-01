@@ -1601,6 +1601,22 @@ impl InstrumentDefinition {
     }
 }
 
+/// One named instrument channel, such as a MuseScore arco or pizzicato channel.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NamedInstrumentChannel {
+    pub name: String,
+    pub program: u8,
+    pub midi_channel: u8,
+}
+
+/// A named instrument-channel switch for one voice at a position within a measure.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VoiceChannelSwitch {
+    pub voice: usize,
+    pub position_beats: f64,
+    pub channel_name: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Part {
     pub id: String,
@@ -1613,6 +1629,9 @@ pub struct Part {
     /// General MIDI program number (0–127). Default 0 = Acoustic Grand Piano.
     #[serde(default)]
     pub midi_program: u8,
+    /// Named alternate channels declared by the source instrument.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub named_channels: Vec<NamedInstrumentChannel>,
     /// MIDI pitch-bend events preserved from interchange input, in canonical 480 PPQ ticks.
     #[serde(default)]
     pub midi_pitch_bends: Vec<MidiPitchBend>,
@@ -1723,6 +1742,7 @@ impl Part {
             staves: Vec::new(),
             midi_channel: 0,
             midi_program: 0,
+            named_channels: Vec::new(),
             midi_pitch_bends: Vec::new(),
             midi_control_changes: Vec::new(),
             midi_program_changes: Vec::new(),
@@ -2136,10 +2156,30 @@ pub struct MetronomeMark {
     pub parentheses: bool,
 }
 
+/// A pedal direction at a score-time position within this staff's measure.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TimedPedalDirection {
+    /// Position in quarter-note beats from the start of this measure.
+    pub position_beats: f64,
+    /// True for pedal down, false for pedal release.
+    pub down: bool,
+    /// MusicXML pedal line number.
+    pub number: u16,
+    /// The source explicitly hides the pedal sign.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hide_sign: bool,
+    /// Optional authored placement, such as "above" or "below".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placement: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Measure {
     pub number: u32,
     pub time_sig: Option<TimeSignature>,
+    /// Suppress this time signature while retaining its musical duration.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub time_sig_hidden: bool,
     /// Common or cut meter glyph selected by the source; `None` prints numerals.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub time_symbol: Option<TimeSymbol>,
@@ -2186,6 +2226,12 @@ pub struct Measure {
     /// Concert-harp pedal diagrams declared by MusicXML `<harp-pedals>` directions.
     #[serde(default)]
     pub harp_pedal_diagrams: Vec<HarpPedalDiagram>,
+    /// Voice-specific named channel changes at written score positions.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub channel_switches: Vec<VoiceChannelSwitch>,
+    /// Pedal signs whose score-time positions need not coincide with notes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub timed_pedals: Vec<TimedPedalDirection>,
     /// When ≥ 2, this measure is displayed as a multi-measure rest spanning N measures.
     #[serde(default)]
     pub multi_rest_count: Option<u8>,
@@ -2251,6 +2297,7 @@ impl Measure {
         Self {
             number: 0,
             time_sig: None,
+            time_sig_hidden: false,
             time_symbol: None,
             key_sig: None,
             clef: None,
@@ -2270,6 +2317,8 @@ impl Measure {
             texts: Vec::new(),
             figured_bass: Vec::new(),
             harp_pedal_diagrams: Vec::new(),
+            channel_switches: Vec::new(),
+            timed_pedals: Vec::new(),
             multi_rest_count: None,
             system_break: false,
             page_break: false,
@@ -2391,6 +2440,9 @@ pub struct Note {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub explicit_unbeamed: bool,
     pub articulations: Vec<Articulation>,
+    /// Two-note tremolo endpoint ("start" or "stop"); absent for a single-note tremolo.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tremolo_pair: Option<String>,
     pub dynamic: Option<Dynamic>,
     pub stem_up: Option<bool>,
     #[serde(default)]
@@ -2529,6 +2581,7 @@ impl Note {
             beam: BeamState::None,
             explicit_unbeamed: false,
             articulations: Vec::new(),
+            tremolo_pair: None,
             dynamic: None,
             stem_up: None,
             hairpin_start: None,
@@ -2590,6 +2643,7 @@ impl Note {
             beam: BeamState::None,
             explicit_unbeamed: false,
             articulations: Vec::new(),
+            tremolo_pair: None,
             dynamic: None,
             stem_up: None,
             hairpin_start: None,
@@ -2943,6 +2997,13 @@ pub enum ScoreChange {
         old: Vec<HarpPedalDiagram>,
         new: Vec<HarpPedalDiagram>,
     },
+    TimedPedalsChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old: Vec<TimedPedalDirection>,
+        new: Vec<TimedPedalDirection>,
+    },
     ChordDefinitionsChanged {
         old: Vec<ChordDefinition>,
         new: Vec<ChordDefinition>,
@@ -3090,6 +3151,13 @@ pub enum ScoreChange {
         measure: usize,
         old: Option<TimeSignature>,
         new: Option<TimeSignature>,
+    },
+    TimeVisibilityChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old: bool,
+        new: bool,
     },
     TimeSymbolChanged {
         part: usize,
@@ -3387,6 +3455,15 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                         new: bm.time_sig.clone(),
                     });
                 }
+                if am.time_sig_hidden != bm.time_sig_hidden {
+                    changes.push(ScoreChange::TimeVisibilityChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.time_sig_hidden,
+                        new: bm.time_sig_hidden,
+                    });
+                }
                 if am.time_symbol != bm.time_symbol {
                     changes.push(ScoreChange::TimeSymbolChanged {
                         part: pi,
@@ -3473,6 +3550,15 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                         new: bm.harp_pedal_diagrams.clone(),
                     });
                 }
+                if am.timed_pedals != bm.timed_pedals {
+                    changes.push(ScoreChange::TimedPedalsChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.timed_pedals.clone(),
+                        new: bm.timed_pedals.clone(),
+                    });
+                }
             }
         }
     }
@@ -3503,6 +3589,9 @@ fn first_unrepresented_field_change(a: &Score, b: &Score) -> Option<String> {
 
 fn first_unrepresented_part_change(part_index: usize, a: &Part, b: &Part) -> Option<String> {
     let prefix = format!("parts[{part_index}]");
+    if a.named_channels != b.named_channels {
+        return Some(format!("{prefix}.named_channels"));
+    }
     if a.percussion_instruments != b.percussion_instruments {
         return Some(format!("{prefix}.percussion_instruments"));
     }
@@ -3541,12 +3630,13 @@ fn first_unrepresented_staff_change(
 }
 
 fn first_unrepresented_measure_change(
-    _staff_prefix: &str,
-    _measure_index: usize,
-    _a: &Measure,
-    _b: &Measure,
+    staff_prefix: &str,
+    measure_index: usize,
+    a: &Measure,
+    b: &Measure,
 ) -> Option<String> {
-    None
+    (a.channel_switches != b.channel_switches)
+        .then(|| format!("{staff_prefix}.measures[{measure_index}].channel_switches"))
 }
 
 // ── ScorePatch ────────────────────────────────────────────────────────────────
@@ -3580,6 +3670,12 @@ pub enum ScorePatch {
         staff: usize,
         measure: usize,
         value: Vec<HarpPedalDiagram>,
+    },
+    SetTimedPedals {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        value: Vec<TimedPedalDirection>,
     },
     SetChordDefinitions {
         value: Vec<ChordDefinition>,
@@ -3666,6 +3762,12 @@ pub enum ScorePatch {
         staff: usize,
         measure: usize,
         value: Option<TimeSignature>,
+    },
+    SetTimeVisibility {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        hidden: bool,
     },
     SetTimeSymbol {
         part: usize,
@@ -3769,13 +3871,20 @@ fn patch_requires_replace(a: &Score, b: &Score) -> bool {
     }
     for (ap, bp) in a.parts.iter().zip(&b.parts) {
         if ap.percussion_instruments != bp.percussion_instruments
+            || ap.named_channels != bp.named_channels
             || ap.staff_groups != bp.staff_groups
             || ap.staves.len() != bp.staves.len()
         {
             return true;
         }
         for (as_, bs) in ap.staves.iter().zip(&bp.staves) {
-            if as_.measures.len() != bs.measures.len() {
+            if as_.measures.len() != bs.measures.len()
+                || as_
+                    .measures
+                    .iter()
+                    .zip(&bs.measures)
+                    .any(|(a, b)| a.channel_switches != b.channel_switches)
+            {
                 return true;
             }
         }
@@ -3962,6 +4071,14 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                         value: bm.time_sig.clone(),
                     });
                 }
+                if am.time_sig_hidden != bm.time_sig_hidden {
+                    patches.push(ScorePatch::SetTimeVisibility {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        hidden: bm.time_sig_hidden,
+                    });
+                }
                 if am.time_symbol != bm.time_symbol {
                     patches.push(ScorePatch::SetTimeSymbol {
                         part: pi,
@@ -4041,6 +4158,15 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                         staff: si,
                         measure: mi,
                         value: bm.harp_pedal_diagrams.clone(),
+                    });
+                }
+
+                if am.timed_pedals != bm.timed_pedals {
+                    patches.push(ScorePatch::SetTimedPedals {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: bm.timed_pedals.clone(),
                     });
                 }
 
@@ -4155,6 +4281,23 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                     .get_mut(*measure)
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
                     .harp_pedal_diagrams = value.clone();
+            }
+            ScorePatch::SetTimedPedals {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .timed_pedals = value.clone();
             }
             ScorePatch::SetChordDefinitions { value } => {
                 s.chord_definitions = value.clone();
@@ -4359,6 +4502,23 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                     .get_mut(*measure)
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
                     .time_sig = value.clone();
+            }
+            ScorePatch::SetTimeVisibility {
+                part,
+                staff,
+                measure,
+                hidden,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .time_sig_hidden = *hidden;
             }
             ScorePatch::SetTimeSymbol {
                 part,
@@ -4580,6 +4740,78 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
     Ok(s)
 }
 
+/// Sounding octave displacement for notes covered by staff-wide ottava lines.
+///
+/// Start and end flags are paired in their originating voice, but the resulting
+/// interval applies to every voice on the staff. End notes are included.
+pub fn staff_ottava_octave_shifts(
+    staff: &Staff,
+    default_time: &TimeSignature,
+) -> std::collections::HashMap<(usize, usize, usize), i8> {
+    // Most staves have no ottava; avoid allocating and sorting every note in those scores.
+    if !staff
+        .measures
+        .iter()
+        .flat_map(|m| &m.voices)
+        .flatten()
+        .any(|n| n.ottava_start.is_some())
+    {
+        return std::collections::HashMap::new();
+    }
+    // Events sort by time, then end, start, and note, respectively.
+    type OttavaEvent = (f64, u8, i8, (usize, usize, usize));
+    let mut events: Vec<OttavaEvent> = Vec::new();
+    for voice in 0..4 {
+        let mut measure_start = 0.0;
+        let mut active = None;
+        for (measure_index, measure) in staff.measures.iter().enumerate() {
+            let mut position = measure_start;
+            for (note_index, note) in measure.voices[voice].iter().enumerate() {
+                let key = (measure_index, voice, note_index);
+                if let Some(kind) = note.ottava_start {
+                    if let Some(previous) = active.take() {
+                        events.push((position, 0, previous, key));
+                    }
+                    let shift = match kind {
+                        OttavaKind::Va8 => 1,
+                        OttavaKind::Vb8 => -1,
+                        OttavaKind::Ma15 => 2,
+                        OttavaKind::Mb15 => -2,
+                    };
+                    events.push((position, 1, shift, key));
+                    active = Some(shift);
+                }
+                events.push((position, 2, 0, key));
+                let duration = note.beats();
+                if note.ottava_end
+                    && let Some(shift) = active.take()
+                {
+                    events.push((position + duration.max(1e-9), 0, shift, key));
+                }
+                position += duration;
+            }
+            measure_start += staff.measure_beats(measure_index, default_time);
+        }
+    }
+    events.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
+    // MuseScore keeps one staff pitch-offset state. A later start replaces the
+    // previous value, and an end resets it instead of reviving an older line.
+    // Equal-time starts retain the original voice order (the last wins).
+    let mut current = 0_i8;
+    let mut result = std::collections::HashMap::new();
+    for (_, kind, shift, key) in events {
+        match kind {
+            0 => current = 0,
+            1 => current = shift,
+            _ if current != 0 => {
+                result.insert(key, current);
+            }
+            _ => {}
+        }
+    }
+    result
+}
+
 /// Beats a voice occupies in a measure lasting `measure_beats`. A voice holding only one plain
 /// whole rest is a measure rest and lasts exactly the measure in any time signature (as in
 /// MusicXML and MuseScore); otherwise the voice lasts the sum of its notes.
@@ -4785,7 +5017,8 @@ pub fn respell_score_to_key(score: &mut Score) {
 /// Compute total playback duration in seconds.
 ///
 /// Uses `measure_sequence` for correct repeat handling. Lighter than generating
-/// full playback events — suitable for progress bars and UI display.
+/// full playback events — suitable for progress bars and UI display. Includes
+/// the default score-wide fermata holds.
 pub fn score_duration_secs(score: &Score) -> f64 {
     if score.settings.tempo_bpm == 0 {
         return 0.0;
@@ -4813,13 +5046,14 @@ pub fn score_duration_secs(score: &Score) -> f64 {
             }
         }
     }
-    total_secs
+    total_secs + super::playback::fermata_total_secs(score, None)
 }
 
 /// Compute playback duration in seconds for a specific measure range (inclusive).
 ///
 /// `region` is `(start_measure, end_measure)`, both 0-based. Measures outside the range
-/// are excluded. Uses `measure_sequence` for correct repeat handling.
+/// are excluded. Uses `measure_sequence` for correct repeat handling and includes
+/// the default score-wide fermata holds.
 pub fn score_duration_secs_region(score: &Score, region: (usize, usize)) -> f64 {
     if score.settings.tempo_bpm == 0 {
         return 0.0;
@@ -4850,7 +5084,7 @@ pub fn score_duration_secs_region(score: &Score, region: (usize, usize)) -> f64 
             }
         }
     }
-    total_secs
+    total_secs + super::playback::fermata_total_secs(score, Some(region))
 }
 
 fn tempo_ramp_duration_secs(start_bpm: f64, target_bpm: Option<u16>, beats: f64) -> f64 {
@@ -5034,6 +5268,29 @@ fn per_pitch_flag(flags: &[bool], pitch_count: usize, index: usize, chord: bool)
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn ottava_interval_covers_other_voices_only_at_matching_times() {
+        use super::*;
+        use crate::model::{duration::Duration, pitch::Step};
+        let mut score = Score::new("Ottava", 120, 4, 4, 0, 2);
+        let note = || Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        let staff = &mut score.parts[0].staves[0];
+        let mut start = note();
+        start.ottava_start = Some(OttavaKind::Va8);
+        staff.measures[0].voices[0] = vec![Note::rest(Duration::Half), start, note()];
+        let mut end = note();
+        end.ottava_end = true;
+        staff.measures[1].voices[0] = vec![end, note()];
+        staff.measures[0].voices[1] = vec![note(), note(), note(), note()];
+        staff.measures[1].voices[1] = vec![note(), note()];
+        let shifts = staff_ottava_octave_shifts(staff, &score.settings.time_signature);
+        assert_eq!(shifts.get(&(0, 1, 1)), None);
+        assert_eq!(shifts.get(&(0, 1, 2)), Some(&1));
+        assert_eq!(shifts.get(&(0, 1, 3)), Some(&1));
+        assert_eq!(shifts.get(&(1, 1, 0)), Some(&1));
+        assert_eq!(shifts.get(&(1, 1, 1)), None);
+    }
+
     use super::*;
     use crate::model::{
         notation::{FingeringSelectionPolicy, TextStyle},
@@ -6785,6 +7042,27 @@ mod tests {
             apply_patch(&a, &patches).unwrap().parts[0].staves[0].tablature,
             b.parts[0].staves[0].tablature
         );
+    }
+
+    #[test]
+    fn diff_and_patch_preserve_hidden_time_signature() {
+        let a = Score::new("Meter", 120, 4, 4, 0, 1);
+        let mut b = a.clone();
+        b.parts[0].staves[0].measures[0].time_sig_hidden = true;
+        assert!(diff(&a, &b).iter().any(|change| matches!(
+            change,
+            ScoreChange::TimeVisibilityChanged {
+                old: false,
+                new: true,
+                ..
+            }
+        )));
+        let patch = score_patch(&a, &b);
+        assert!(matches!(
+            patch.as_slice(),
+            [ScorePatch::SetTimeVisibility { hidden: true, .. }]
+        ));
+        assert!(apply_patch(&a, &patch).unwrap().parts[0].staves[0].measures[0].time_sig_hidden);
     }
 
     #[test]

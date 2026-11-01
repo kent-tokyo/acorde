@@ -3141,7 +3141,7 @@ fn multi_voice_two_voices_get_opposite_stem_directions() {
 }
 
 #[test]
-fn simultaneous_voice_noteheads_get_deterministic_horizontal_separation() {
+fn noncolliding_simultaneous_voice_noteheads_share_rhythmic_column() {
     let svg = render_svg(&common::satb_major(), &opts()).unwrap();
     let centers: Vec<f32> = svg
         .split(r#"class="acorde-notehead""#)
@@ -3152,8 +3152,7 @@ fn simultaneous_voice_noteheads_get_deterministic_horizontal_separation() {
         .collect();
     assert!(centers.len() >= 8);
     // The first staff's voice-0 and voice-1 notes occur at indexes 0 and 4.
-    assert!((centers[0] - centers[4]).abs() >= 0.65 * opts().staff_size - 0.01);
-    assert_ne!(centers[0], centers[4]);
+    assert!((centers[0] - centers[4]).abs() < 0.01);
 }
 
 #[test]
@@ -3193,7 +3192,8 @@ fn wide_simultaneous_voice_annotations_expand_notehead_separation() {
 
     let mut accidental_score = score;
     accidental_score.parts[0].staves[0].measures[0].voices[1][0].lyric = None;
-    accidental_score.parts[0].staves[0].measures[0].voices[1][0].pitches[0].alter = 1;
+    accidental_score.parts[0].staves[0].measures[0].voices[1][0].pitches[0] =
+        Pitch::with_alter(Step::B, 4, 1);
     let accidental = centers(&render_svg(&accidental_score, &wide_options).unwrap());
     assert_eq!(accidental.len(), 2);
     assert!(
@@ -3983,6 +3983,50 @@ fn spans_held_only_as_typed_spanners_are_drawn() {
     let svg = render_svg(&score, &opts()).unwrap();
     assert!(!plain.contains("acorde-slur") && svg.contains("acorde-slur"));
     assert!(!plain.contains("acorde-pedal") && svg.contains("acorde-pedal"));
+}
+
+#[test]
+fn ottava_displays_simultaneous_voices_at_written_pitch() {
+    use acorde_core::{Duration, Note, OttavaKind, Pitch, Score, Step};
+    let render = |ottava: bool| {
+        let mut score = Score::new("8va voices", 120, 4, 4, 0, 1);
+        let mut upper = Note::new(Pitch::new(Step::G, 6), Duration::Quarter);
+        if ottava {
+            upper.ottava_start = Some(OttavaKind::Va8);
+            upper.ottava_end = true;
+        }
+        let measure = &mut score.parts[0].staves[0].measures[0];
+        measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 5), Duration::Quarter), upper];
+        measure.voices[1] = vec![
+            Note::rest(Duration::Quarter),
+            Note::new(Pitch::new(Step::C, 6), Duration::Quarter),
+        ];
+        render_svg(&score, &opts()).unwrap()
+    };
+    let heads = |svg: &str| -> Vec<f32> {
+        svg.split(r#"class="acorde-notehead" cx=""#)
+            .skip(1)
+            .filter_map(|fragment| {
+                fragment
+                    .split(r#"cy=""#)
+                    .nth(1)?
+                    .split('"')
+                    .next()?
+                    .parse()
+                    .ok()
+            })
+            .collect()
+    };
+    let plain = heads(&render(false));
+    let shifted = heads(&render(true));
+    assert_eq!(plain.len(), 3);
+    assert_eq!(shifted.len(), 3);
+    for i in 1..3 {
+        assert!(
+            ((shifted[i] - shifted[0]) - (plain[i] - plain[0]) - 3.5 * opts().staff_size).abs()
+                < 0.01
+        );
+    }
 }
 
 #[test]
@@ -4804,6 +4848,182 @@ fn hairpin_stays_below_all_voice_noteheads_with_down_stems() {
 }
 
 #[test]
+fn explicitly_repeated_musicxml_accidentals_survive_render_and_roundtrip() {
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><alter>1</alter><octave>4</octave></pitch><duration>1</duration><type>quarter</type><accidental>sharp</accidental></note><note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>C</step><alter>1</alter><octave>4</octave></pitch><duration>1</duration><type>quarter</type><accidental>sharp</accidental></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(svg.matches("acorde-accidental acorde-sharp").count(), 2);
+    let output = acorde_io::serialize_musicxml(&score).unwrap();
+    assert_eq!(output.matches("<accidental>sharp</accidental>").count(), 2);
+    let restored = acorde_io::parse_musicxml(&output).unwrap();
+    assert_eq!(
+        render_svg(&restored, &opts())
+            .unwrap()
+            .matches("acorde-accidental acorde-sharp")
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn explicit_natural_after_barline_is_drawn_once() {
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><alter>1</alter><octave>4</octave></pitch><duration>1</duration><type>quarter</type><accidental>sharp</accidental></note></measure><measure number="2"><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><accidental>natural</accidental></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(svg.matches("acorde-accidental acorde-natural").count(), 1);
+}
+
+#[test]
+fn musicxml_upper_voice_slur_avoids_simultaneous_lower_voice() {
+    for (placement, above) in [("", true), (" placement=\"below\"", false)] {
+        let xml = format!(
+            r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>2</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>B</step><alter>-1</alter><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type><stem>up</stem><notations><slur type="start" number="1"{placement}/></notations></note><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type><stem>up</stem></note><note><pitch><step>B</step><alter>-1</alter><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type><stem>up</stem><notations><slur type="stop" number="1"/></notations></note><note><rest/><duration>3</duration><voice>1</voice><type>quarter</type><dot/></note><backup><duration>6</duration></backup><note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type><stem>down</stem></note><note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type><stem>down</stem></note><note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type><stem>down</stem></note><note><rest/><duration>3</duration><voice>2</voice><type>quarter</type><dot/></note></measure></part></score-partwise>"#
+        );
+        let score = acorde_io::parse_musicxml(&xml).unwrap();
+        let config = SvgRenderConfig::new(opts()).with_auto_beams();
+        let svg = render_svg_with_config(&score, &config).unwrap();
+        assert!(svg.contains("acorde-beam"));
+        let slurs = slur_geometries(&svg);
+        assert_eq!(slurs.len(), 1);
+        let path = slurs[0];
+        if above {
+            assert!(path[3] < path[1].min(path[5]));
+            for i in 0..=100 {
+                let t = i as f32 / 100.0;
+                let y =
+                    (1.0 - t).powi(2) * path[1] + 2.0 * t * (1.0 - t) * path[3] + t * t * path[5];
+                assert!(y > 0.0, "slur clipped above the SVG viewbox: {y}");
+            }
+            let beam = svg
+                .split(r#"class="acorde-beam" points=""#)
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap();
+            let vertices = beam
+                .split([' ', ','])
+                .filter_map(|v| v.parse::<f32>().ok())
+                .collect::<Vec<_>>();
+            let (bx1, by1, bx2, by2) = (vertices[0], vertices[1], vertices[2], vertices[3]);
+            let from = bx1.max(path[0]);
+            let to = bx2.min(path[4]);
+            assert!(to > from);
+            for i in 0..=20 {
+                let x = from + (to - from) * i as f32 / 20.0;
+                let t = (x - path[0]) / (path[4] - path[0]);
+                let curve_y =
+                    (1.0 - t).powi(2) * path[1] + 2.0 * t * (1.0 - t) * path[3] + t * t * path[5];
+                let beam_y = by1 + (by2 - by1) * (x - bx1) / (bx2 - bx1);
+                assert!(
+                    curve_y < beam_y - 0.1,
+                    "slur at {curve_y} crosses beam at {beam_y}, x={x}"
+                );
+            }
+            // Evaluate the outer quadratic at each upper-voice stem within the slur.
+            // A direction-only test misses a curve passing through the stem and beam.
+            for stem in svg.split(r#"class="acorde-stem" x1=""#).skip(1).take(3) {
+                let attr = |key: &str| -> f32 {
+                    stem.split(&format!(r#"{key}=""#))
+                        .nth(1)
+                        .unwrap()
+                        .split('"')
+                        .next()
+                        .unwrap()
+                        .parse()
+                        .unwrap()
+                };
+                let x = stem.split('"').next().unwrap().parse::<f32>().unwrap();
+                if x <= path[0] || x >= path[4] {
+                    continue;
+                }
+                let t = (x - path[0]) / (path[4] - path[0]);
+                let curve_y =
+                    (1.0 - t).powi(2) * path[1] + 2.0 * t * (1.0 - t) * path[3] + t * t * path[5];
+                assert!(
+                    curve_y < attr("y2") - 0.1,
+                    "slur at {curve_y} intersects stem ending at {}",
+                    attr("y2")
+                );
+            }
+        } else {
+            assert!(path[3] > path[1].max(path[5]));
+        }
+    }
+}
+
+#[test]
+fn simultaneous_noncolliding_voices_align_despite_key_accidentals() {
+    for fifths in [3, 0, -2] {
+        for (sign, line, octave) in [("G", 2, -1), ("F", 4, 0)] {
+            let xml = format!(
+                r#"<score-partwise><part-list><score-part id="P1"><part-name>Guitar</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><key><fifths>{fifths}</fifths></key><time><beats>2</beats><beat-type>4</beat-type></time><clef><sign>{sign}</sign><line>{line}</line><clef-octave-change>{octave}</clef-octave-change></clef></attributes><note><pitch><step>A</step><octave>3</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem></note><note><pitch><step>G</step><alter>1</alter><octave>3</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem></note><backup><duration>2</duration></backup><note><pitch><step>C</step><alter>1</alter><octave>3</octave></pitch><duration>1</duration><voice>2</voice><type>quarter</type><stem>down</stem></note><note><pitch><step>B</step><octave>2</octave></pitch><duration>1</duration><voice>2</voice><type>quarter</type><stem>down</stem></note></measure></part></score-partwise>"#
+            );
+            let score = acorde_io::parse_musicxml(&xml).unwrap();
+            let svg = render_svg(&score, &opts()).unwrap();
+            let heads = notehead_centers(&svg);
+            assert_eq!(heads.len(), 4);
+            let time_group = svg
+                .split(r#"<g class="acorde-time-sig">"#)
+                .nth(1)
+                .unwrap()
+                .split("</g>")
+                .next()
+                .unwrap();
+            let mut time_right = f32::NEG_INFINITY;
+            for path in time_group.split(" d=\"").skip(1) {
+                let data = path.split('"').next().unwrap();
+                let values: Vec<f32> = data
+                    .split(|c: char| c.is_whitespace() || c == ',' || "MLCQZ".contains(c))
+                    .filter_map(|s| s.parse().ok())
+                    .collect();
+                for &x in values.iter().step_by(2) {
+                    time_right = time_right.max(x);
+                }
+            }
+            let note_left = heads[0].0 - 0.56 * opts().staff_size;
+            assert!(
+                note_left > time_right + 0.17 * opts().staff_size,
+                "key {fifths}: note left {note_left}, time right {time_right}"
+            );
+            assert!(
+                (heads[0].0 - heads[2].0).abs() < 0.1,
+                "key {fifths}: {heads:?}"
+            );
+            assert!(
+                (heads[1].0 - heads[3].0).abs() < 0.1,
+                "key {fifths}: {heads:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn simultaneous_voice_alignment_survives_pickup_and_unequal_durations() {
+    use acorde_core::{AccidentalDisplay, Duration, MeasureLength, Note, Pitch, Score, Step};
+    let mut score = Score::new("pickup", 120, 4, 4, 0, 1);
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.actual_length = Some(MeasureLength {
+        numerator: 1,
+        denominator: 2,
+    });
+    measure.voices[0] = vec![
+        Note::new(Pitch::new(Step::A, 4), Duration::Quarter),
+        Note::new(Pitch::new(Step::B, 4), Duration::Quarter),
+    ];
+    let mut lower = Note::new(Pitch::with_alter(Step::C, 4, 1), Duration::Half);
+    lower.set_accidental_display(0, AccidentalDisplay::Cautionary);
+    measure.voices[1] = vec![lower];
+    let svg = render_svg(&score, &opts()).unwrap();
+    let heads = notehead_centers(&svg);
+    assert_eq!(heads.len(), 3);
+    assert!((heads[0].0 - heads[2].0).abs() < 0.1, "{heads:?}");
+    assert!(svg.contains("acorde-accidental acorde-sharp"));
+    let events = acorde_core::to_playback_events(&score, &Default::default());
+    assert_eq!(events.iter().filter(|e| e.time_beats == 0.0).count(), 2);
+}
+
+#[test]
 fn key_changes_cancel_removed_accidentals_within_and_between_systems() {
     use acorde_core::{Duration, KeySignature, Note, Score};
     for (old, new, expected) in [(3, 0, 3), (3, 1, 2), (-3, 0, 3), (3, -2, 3), (0, 3, 0)] {
@@ -4871,4 +5091,204 @@ fn hairpin_under_high_notes_is_below_staff_bottom() {
         .unwrap();
     let p = hairpin_path_coordinates(&svg)[0];
     assert!(p[1].min(p[3]).min(p[5]).min(p[7]) > staff_bottom + 0.5 * opts().staff_size);
+}
+
+#[test]
+fn mscz_cross_voice_slur_renders_across_system_break() {
+    let source = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/cross_voice_slur.musicxml"
+    ))
+    .unwrap();
+    let score = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&source).unwrap()).unwrap();
+    let mut options = opts();
+    options.measures_per_system = 1;
+    let svg = render_svg(&score, &options).unwrap();
+    assert_eq!(
+        svg.matches("class=\"acorde-slur\"").count(),
+        2,
+        "one slur segment per system"
+    );
+}
+
+#[test]
+fn mscz_cross_staff_and_voice_slur_renders_across_system_break() {
+    use acorde_core::{
+        Clef, Duration, NotationSpanner, NotationSpannerKind, Note, NoteAddr, Pitch, Score, Staff,
+        Step,
+    };
+    let mut score = Score::new("cross-staff slur", 120, 2, 4, 0, 2);
+    let mut lower = Staff::new(Clef::Bass);
+    lower.measures = score.parts[0].staves[0].measures.clone();
+    score.parts[0].staves.push(lower);
+    score.parts[0].staves[0].measures[0].voices[0] =
+        vec![Note::new(Pitch::new(Step::C, 5), Duration::Quarter)];
+    score.parts[0].staves[1].measures[1].voices[1] =
+        vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+    let start = NoteAddr {
+        part: 0,
+        staff: 0,
+        measure: 0,
+        voice: 0,
+        note: 0,
+    };
+    let end = NoteAddr {
+        part: 0,
+        staff: 1,
+        measure: 1,
+        voice: 1,
+        note: 0,
+    };
+    score.spanners.push(NotationSpanner {
+        id: "cross-staff-voice".into(),
+        kind: NotationSpannerKind::Slur,
+        start: start.clone(),
+        end: end.clone(),
+        number: None,
+        line_type: None,
+        text: None,
+        placement: None,
+        ottava_size: None,
+        ottava_type: None,
+    });
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let slur = restored
+        .spanners
+        .iter()
+        .find(|s| s.kind == NotationSpannerKind::Slur)
+        .unwrap();
+    assert_eq!((slur.start.clone(), slur.end.clone()), (start, end));
+    let mut options = opts();
+    options.measures_per_system = 1;
+    let svg = render_svg(&restored, &options).unwrap();
+    assert_eq!(svg.matches("class=\"acorde-slur\"").count(), 2);
+}
+
+#[test]
+fn musescore_475_native_cross_voice_slur_renders_across_systems() {
+    let source = include_bytes!("../../../tests/fixtures/issue_293_musescore475_cross_voice.mscz");
+    let score = acorde_io::parse_mscz(source).unwrap();
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let mut options = opts();
+    options.measures_per_system = 1;
+    let svg = render_svg(&restored, &options).unwrap();
+    assert_eq!(svg.matches("class=\"acorde-slur\"").count(), 2);
+}
+
+#[test]
+fn hidden_time_signatures_keep_duration_across_musicxml_and_mscz() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes><note><rest/><duration>3</duration><type>half</type><dot/></note></measure><measure number="2"><attributes><time print-object="no"><beats>2</beats><beat-type>4</beat-type></time></attributes><note><rest/><duration>2</duration><type>half</type></note></measure><measure number="3"><attributes><time><beats>2</beats><beat-type>4</beat-type></time></attributes><note><rest/><duration>2</duration><type>half</type></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let check = |score: &acorde_core::Score| {
+        let bars = &score.parts[0].staves[0].measures;
+        assert!(!bars[0].time_sig_hidden && bars[1].time_sig_hidden && !bars[2].time_sig_hidden);
+        assert_eq!(bars[1].time_sig.as_ref().unwrap().numerator, 2);
+        let svg = render_svg(score, &opts()).unwrap();
+        assert_eq!(
+            svg.matches("acorde-time-sig-change").count(),
+            1,
+            "only the later visible change should render"
+        );
+    };
+    check(&score);
+    let musicxml = acorde_io::serialize_musicxml(&score).unwrap();
+    assert!(musicxml.contains("print-object=\"no\""));
+    check(&acorde_io::parse_musicxml(&musicxml).unwrap());
+    let mscz = acorde_io::serialize_mscz(&score).unwrap();
+    check(&acorde_io::parse_mscz(&mscz).unwrap());
+    let native = r#"<museScore version="4.50"><Score><Division>480</Division><Part id="1"><Staff id="1"/><trackName>Piano</trackName></Part><Staff id="1"><Measure><voice><TimeSig><visible>0</visible><sigN>2</sigN><sigD>4</sigD></TimeSig><Rest><durationType>half</durationType></Rest></voice></Measure></Staff></Score></museScore>"#;
+    let native_score = acorde_io::parse_mscx(native).unwrap();
+    assert!(native_score.parts[0].staves[0].measures[0].time_sig_hidden);
+    assert!(
+        !render_svg(&native_score, &opts())
+            .unwrap()
+            .contains("acorde-time-sig")
+    );
+    let xml = acorde_io::serialize_musicxml(&native_score).unwrap();
+    assert!(
+        acorde_io::parse_musicxml(&xml).unwrap().parts[0].staves[0].measures[0].time_sig_hidden
+    );
+}
+
+#[test]
+fn shared_dynamic_playback_does_not_duplicate_the_printed_mark() {
+    use acorde_core::{
+        Clef, Duration, Dynamic, Measure, Note, NoteAddr, Pitch, PlaybackOptions, Score, Staff,
+        Step,
+    };
+    let mut score = Score::new("shared dynamic", 120, 4, 4, 0, 1);
+    let mut upper = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+    upper.dynamic = Some(Dynamic::P);
+    score.parts[0].staves[0].measures[0].voices[0] = vec![upper];
+    let mut lower = Staff::new(Clef::Bass);
+    let mut bar = Measure::empty(4, 4);
+    bar.voices[0] = vec![Note::new(Pitch::new(Step::C, 3), Duration::Whole)];
+    lower.measures.push(bar);
+    score.parts[0].staves.push(lower);
+    let before = render_svg(&score, &opts()).unwrap();
+    let options = PlaybackOptions {
+        shared_dynamics: vec![NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        }],
+        ..Default::default()
+    };
+    let events = acorde_core::to_playback_events(&score, &options);
+    assert!(events.iter().all(|event| event.velocity == 48));
+    let after = render_svg(&score, &opts()).unwrap();
+    assert_eq!(before, after);
+    assert_eq!(after.matches("class=\"acorde-dynamic\"").count(), 1);
+}
+
+#[test]
+fn timed_pedal_signs_show_at_distinct_positions_inside_a_sustained_note() {
+    use acorde_core::{Duration, Note, Pitch, Score, Step, TimedPedalDirection};
+    let mut score = Score::new("timed pedal", 120, 4, 4, 0, 1);
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+    measure.timed_pedals = vec![
+        TimedPedalDirection {
+            position_beats: 0.0,
+            down: true,
+            number: 1,
+            hide_sign: false,
+            placement: None,
+        },
+        TimedPedalDirection {
+            position_beats: 3.0,
+            down: false,
+            number: 1,
+            hide_sign: false,
+            placement: None,
+        },
+    ];
+    let svg = render_svg(&score, &opts()).unwrap();
+    let position = |label: &str| -> (f32, f32) {
+        let tag = svg
+            .split("<text ")
+            .skip(1)
+            .find(|tag| tag.contains(&format!(">{label}</text>")))
+            .unwrap();
+        let attr = |name: &str| -> f32 {
+            tag.split(&format!("{name}=\""))
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap()
+                .parse()
+                .unwrap()
+        };
+        (attr("x"), attr("y"))
+    };
+    let start = position("Ped.");
+    let stop = position("*");
+    assert!(stop.0 > start.0 + 20.0, "{start:?}, {stop:?}");
+    assert!((stop.1 - start.1).abs() < 1.0, "{start:?}, {stop:?}");
+    score.parts[0].staves[0].measures[0].timed_pedals[0].hide_sign = true;
+    let hidden = render_svg(&score, &opts()).unwrap();
+    assert!(!hidden.contains(">Ped.</text>"));
+    assert!(hidden.contains(">*</text>"));
 }

@@ -2781,6 +2781,9 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             match attr(&event, b"func").as_deref() {
                                 Some("caution") => AccidentalDisplay::Cautionary,
                                 Some("edit") => AccidentalDisplay::Editorial,
+                                _ if attr(&event, b"accid").is_some() => {
+                                    AccidentalDisplay::Explicit
+                                }
                                 _ => AccidentalDisplay::Auto,
                             }
                         };
@@ -4106,6 +4109,7 @@ fn append_mei_pname_oct(out: &mut String, pitch: &Pitch) {
 fn mei_requested_accid(pitch: &Pitch, display: AccidentalDisplay) -> Option<String> {
     let role = match display {
         AccidentalDisplay::Auto => return None,
+        AccidentalDisplay::Explicit => "",
         AccidentalDisplay::Cautionary => r#" func="caution""#,
         AccidentalDisplay::Parenthesized => r#" enclose="paren""#,
         AccidentalDisplay::Editorial => r#" func="edit""#,
@@ -5691,6 +5695,35 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
     }
     for (part_index, part) in score.parts.iter().enumerate() {
         let part_path = format!("/score/part/{}", part_index + 1);
+        let switch_count: usize = part
+            .staves
+            .iter()
+            .flat_map(|staff| &staff.measures)
+            .map(|measure| measure.channel_switches.len())
+            .sum();
+        if !part.named_channels.is_empty() || switch_count > 0 {
+            push(
+                &mut diagnostics,
+                format!("{part_path}/named-channels"),
+                format!(
+                    "channels={},switches={switch_count}",
+                    part.named_channels.len()
+                ),
+            );
+        }
+        let timed_pedal_count: usize = part
+            .staves
+            .iter()
+            .flat_map(|staff| &staff.measures)
+            .map(|measure| measure.timed_pedals.len())
+            .sum();
+        if timed_pedal_count > 0 {
+            push(
+                &mut diagnostics,
+                format!("{part_path}/timed-pedals"),
+                timed_pedal_count.to_string(),
+            );
+        }
         for (field, present, value) in [
             (
                 "midi_pitch_bends",
@@ -5731,6 +5764,7 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                     measure_index + 1
                 );
                 for (field, present) in [
+                    ("time_sig_hidden", measure.time_sig_hidden),
                     ("volta", measure.volta.is_some()),
                     ("rehearsal", false),
                     ("navigation", measure.navigation.is_some()),

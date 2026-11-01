@@ -943,11 +943,17 @@ fn independent_cc0_mxl_playback_shares_tempo_and_excludes_cue_attacks() {
         .find(|event| event.part_index == 1 && event.time_beats == 1.0)
         .expect("piano has a note on beat one");
     assert!((piano_beat_one.time_secs - 60.0 / 92.0).abs() < 1e-9);
+    // A notated fermata ending at beat 14 adds one beat before the vocal entry.
     let vocal_entry = events
         .iter()
-        .find(|event| event.part_index == 0 && event.time_beats == 15.0)
-        .expect("vocal entry follows the same tempo");
-    assert!((vocal_entry.time_secs - 15.0 * 60.0 / 92.0).abs() < 1e-9);
+        .find(|event| {
+            event.source.as_ref().is_some_and(|source| {
+                source.part == 0 && source.measure == 5 && source.voice == 0 && source.note == 0
+            })
+        })
+        .expect("vocal entry follows the same tempo and shared fermata");
+    assert!((vocal_entry.time_beats - 16.0).abs() < 1e-9);
+    assert!((vocal_entry.time_secs - 16.0 * 60.0 / 92.0).abs() < 1e-9);
 }
 
 #[test]
@@ -1430,6 +1436,21 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
         let path = fixture["path"].as_str().expect("fixture path");
         let expected = fixture["sha256"].as_str().expect("fixture sha256");
         let bytes: &[u8] = match path {
+            "issue_292_hidden_time.musicxml" => {
+                include_bytes!("../../../tests/fixtures/issue_292_hidden_time.musicxml")
+            }
+            "issue_297_repeated_accidentals.musicxml" => {
+                include_bytes!("../../../tests/fixtures/issue_297_repeated_accidentals.musicxml")
+            }
+            "issue_283_overlapping_ottavas.mscx" => {
+                include_bytes!("../../../tests/fixtures/issue_283_overlapping_ottavas.mscx")
+            }
+            "cross_voice_slur.musicxml" => {
+                include_bytes!("../../../tests/fixtures/cross_voice_slur.musicxml")
+            }
+            "issue_293_musescore475_cross_voice.mscz" => {
+                include_bytes!("../../../tests/fixtures/issue_293_musescore475_cross_voice.mscz")
+            }
             "simple.musicxml" => include_bytes!("../../../tests/fixtures/simple.musicxml"),
             "multipart.musicxml" => include_bytes!("../../../tests/fixtures/multipart.musicxml"),
             "fragment_rich.musicxml" => {
@@ -1506,6 +1527,15 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
             }
             "openscore_omr_score_1033.mscx" => {
                 include_bytes!("../../../tests/fixtures/openscore_omr_score_1033.mscx")
+            }
+            "issue_311_trill.musicxml" => {
+                include_bytes!("../../../tests/fixtures/issue_311_trill.musicxml")
+            }
+            "issue_311_musescore_trill.mscz" => {
+                include_bytes!("../../../tests/fixtures/issue_311_musescore_trill.mscz")
+            }
+            "issue_280_channel_switch.mscx" => {
+                include_bytes!("../../../tests/fixtures/issue_280_channel_switch.mscx")
             }
             "sample.abc" => include_bytes!("../../../tests/fixtures/sample.abc"),
             "program_change_piano_violin.mid" => {
@@ -3992,8 +4022,40 @@ fn musicxml_cross_staff_slurs_resolve_by_score_time_and_reused_number() {
     );
 }
 
+#[cfg(feature = "mscz")]
 #[test]
-fn mscz_export_reports_cross_staff_slur_loss() {
+fn mscz_export_preserves_cross_voice_slur_without_loss_warning() {
+    let score = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/cross_voice_slur.musicxml"
+    ))
+    .unwrap();
+    let slur = score
+        .spanners
+        .iter()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .expect("cross-voice slur");
+    assert_eq!(slur.start.staff, slur.end.staff);
+    assert_ne!(slur.start.voice, slur.end.voice);
+    for diagnostics in [
+        acorde_io::serialize_mscx_with_report(&score)
+            .unwrap()
+            .diagnostics,
+        acorde_io::serialize_mscz_with_report(&score)
+            .unwrap()
+            .diagnostics,
+    ] {
+        assert!(
+            !diagnostics
+                .iter()
+                .any(|d| d.code == "mscx.export-unsupported-field"
+                    && d.source_location.as_deref()
+                        == Some(format!("/score/spanners/{}", slur.id).as_str()))
+        );
+    }
+}
+
+#[test]
+fn mscz_export_preserves_cross_staff_slur_without_loss_warning() {
     let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><note><pitch><step>G</step><octave>3</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>2</staff><notations><slur type="start" number="1"/></notations></note><note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff><notations><slur type="stop" number="1"/></notations></note></measure></part></score-partwise>"#;
     let score = acorde_io::parse_musicxml(xml).unwrap();
     let slur = score
@@ -4010,10 +4072,18 @@ fn mscz_export_reports_cross_staff_slur_loss() {
             .unwrap()
             .diagnostics,
     ] {
-        assert!(report.iter().any(|d| d.source_location.as_deref()
+        assert!(!report.iter().any(|d| d.source_location.as_deref()
             == Some(format!("/score/spanners/{}", slur.id).as_str())
             && d.code == "mscx.export-unsupported-field"));
     }
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let roundtrip = restored
+        .spanners
+        .iter()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap();
+    assert_eq!(roundtrip.start, slur.start);
+    assert_eq!(roundtrip.end, slur.end);
 }
 
 #[test]
@@ -7140,4 +7210,544 @@ fn musicxml_dacapo_sound_preserves_explicit_al_fine_words() {
             notes
         );
     }
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_ottava_sounds_correct_octave_and_roundtrips_across_measures() {
+    for (subtype, sounded) in [("8va", 91), ("8vb", 67), ("15ma", 103), ("15mb", 55)] {
+        let xml = format!(
+            r#"<museScore version="4.50"><Score><Division>480</Division><Part id="1"><Staff id="1"/><trackName>Piano</trackName></Part><Staff id="1"><Measure><voice><Spanner type="Ottava"><Ottava><subtype>{subtype}</subtype></Ottava><next><location><measures>1</measures></location></next></Spanner><Chord><durationType>quarter</durationType><Note><pitch>79</pitch><tpc>15</tpc></Note></Chord><Rest><durationType>half</durationType><dots>1</dots></Rest></voice><voice><Chord><durationType>quarter</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord></voice></Measure><Measure><voice><Chord><durationType>quarter</durationType><Note><pitch>79</pitch><tpc>15</tpc></Note></Chord><Spanner type="Ottava"><prev><location><measures>-1</measures></location></prev></Spanner><Chord><durationType>quarter</durationType><Note><pitch>79</pitch><tpc>15</tpc></Note></Chord><Rest><durationType>half</durationType></Rest></voice></Measure></Staff></Score></museScore>"#
+        );
+        let score = acorde_io::parse_mscx(&xml).unwrap();
+        let pitches = |score: &acorde_core::Score| {
+            let events = acorde_core::to_playback_events(score, &Default::default());
+            events
+                .into_iter()
+                .filter(|e| e.source.as_ref().is_some_and(|s| s.voice == 0))
+                .map(|e| e.pitch_midi)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(pitches(&score), vec![sounded, sounded, 79], "{subtype}");
+        let other = acorde_core::to_playback_events(&score, &Default::default())
+            .into_iter()
+            .find(|e| e.source.as_ref().is_some_and(|s| s.voice == 1))
+            .unwrap();
+        assert_eq!(other.pitch_midi, 60 + sounded - 79);
+        let archive = acorde_io::serialize_mscz(&score).unwrap();
+        let restored = acorde_io::parse_mscz(&archive).unwrap();
+        assert_eq!(pitches(&restored), pitches(&score), "MSCZ {subtype}");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[1][0].pitches[0].to_midi(),
+            60 + i16::from(sounded) - 79
+        );
+        let musicxml = acorde_io::serialize_musicxml(&score).unwrap();
+        let restored = acorde_io::parse_musicxml(&musicxml).unwrap();
+        assert_eq!(pitches(&restored), pitches(&score), "MusicXML {subtype}");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[1][0].pitches[0].to_midi(),
+            60 + i16::from(sounded) - 79
+        );
+    }
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_ottava_rejects_out_of_range_sounding_pitch() {
+    let xml = r#"<museScore version="4.50"><Score><Part><Staff id="1"/><trackName>Piano</trackName></Part><Staff id="1"><Measure><voice><Spanner type="Ottava"><Ottava><subtype>8va</subtype></Ottava><next><location><measures>1</measures></location></next></Spanner><Chord><durationType>quarter</durationType><Note><pitch>127</pitch><tpc>15</tpc></Note></Chord><Spanner type="Ottava"><prev/></Spanner></voice></Measure></Staff></Score></museScore>"#;
+    assert!(acorde_io::parse_mscx(xml).is_err());
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_ottava_does_not_transpose_other_staves() {
+    let xml = r#"<museScore version="4.50"><Score><Division>480</Division><Part id="1"><Staff id="1"/><Staff id="2"/><trackName>Piano</trackName></Part><Staff id="1"><Measure><voice><Spanner type="Ottava"><Ottava><subtype>8va</subtype></Ottava><next><location><fractions>1/4</fractions></location></next></Spanner><Chord><durationType>quarter</durationType><Note><pitch>79</pitch><tpc>15</tpc></Note></Chord><Spanner type="Ottava"><prev><location><fractions>-1/4</fractions></location></prev></Spanner></voice></Measure></Staff><Staff id="2"><Measure><voice><Chord><durationType>quarter</durationType><Note><pitch>79</pitch><tpc>15</tpc></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let score = acorde_io::parse_mscx(xml).unwrap();
+    let notes = |score: &acorde_core::Score| {
+        let mut events = acorde_core::to_playback_events(score, &Default::default());
+        events.sort_by_key(|event| event.pitch_midi);
+        events
+            .iter()
+            .map(|event| event.pitch_midi)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(notes(&score), [79, 91]);
+    let archive = acorde_io::serialize_mscz(&score).unwrap();
+    assert_eq!(notes(&acorde_io::parse_mscz(&archive).unwrap()), [79, 91]);
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_overlapping_ottavas_follow_musescore_staff_state() {
+    // MuseScore 4.7.5 gives precedence to the last simultaneous start, and
+    // ending a later line resets the staff offset rather than reviving an older one.
+    for (first, second, expected) in [("8va", "8vb", vec![67, 60]), ("8vb", "8va", vec![91, 84])] {
+        let xml = format!(
+            r#"<museScore version="4.50"><Score><Division>480</Division><Part id="1"><Staff id="1"/><trackName>Piano</trackName></Part><Staff id="1"><Measure><voice><Spanner type="Ottava"><Ottava><subtype>{first}</subtype></Ottava><next><location><fractions>1/4</fractions></location></next></Spanner><Chord><durationType>quarter</durationType><Note><pitch>79</pitch><tpc>15</tpc></Note></Chord><Spanner type="Ottava"><prev><location><fractions>-1/4</fractions></location></prev></Spanner></voice><voice><Spanner type="Ottava"><Ottava><subtype>{second}</subtype></Ottava><next><location><fractions>1/4</fractions></location></next></Spanner><Chord><durationType>quarter</durationType><Note><pitch>72</pitch><tpc>14</tpc></Note></Chord><Spanner type="Ottava"><prev><location><fractions>-1/4</fractions></location></prev></Spanner></voice></Measure></Staff></Score></museScore>"#
+        );
+        let score = acorde_io::parse_mscx(&xml).unwrap();
+        let pitches = |s: &acorde_core::Score| {
+            acorde_core::to_playback_events(s, &Default::default())
+                .iter()
+                .map(|e| e.pitch_midi)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(pitches(&score), expected, "{first}, {second}");
+        let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+        assert_eq!(pitches(&restored), expected, "MSCZ {first}, {second}");
+    }
+    let xml = include_str!("../../../tests/fixtures/issue_283_overlapping_ottavas.mscx");
+    let score = acorde_io::parse_mscx(xml).unwrap();
+    let pitches = acorde_core::to_playback_events(&score, &Default::default())
+        .iter()
+        .map(|e| e.pitch_midi)
+        .collect::<Vec<_>>();
+    assert_eq!(pitches, [91, 67, 60, 79]);
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let actual = acorde_core::to_playback_events(&restored, &Default::default())
+        .iter()
+        .map(|e| e.pitch_midi)
+        .collect::<Vec<_>>();
+    assert_eq!(actual, pitches);
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_cross_voice_slur_resolves_relative_location_across_measures() {
+    let xml = r#"<museScore version="4.50"><Score><Division>480</Division><Part id="1"><Staff id="1"/><trackName>Piano</trackName></Part><Staff id="1"><Measure><voice><Chord><durationType>quarter</durationType><Spanner type="Slur"><Slur></Slur><next><location><voices>1</voices><measures>1</measures></location></next></Spanner><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord><Chord><durationType>quarter</durationType><Note><pitch>62</pitch><tpc>16</tpc></Note></Chord></voice></Measure><Measure><voice><Chord><durationType>half</durationType><Note><pitch>67</pitch><tpc>15</tpc></Note></Chord></voice><voice><Chord><durationType>quarter</durationType><Spanner type="Slur"><prev><location><voices>-1</voices><measures>-1</measures></location></prev></Spanner><Note><pitch>64</pitch><tpc>18</tpc></Note></Chord><Chord><durationType>quarter</durationType><Note><pitch>65</pitch><tpc>13</tpc></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let score = acorde_io::parse_mscx(xml).unwrap();
+    let slurs = score
+        .spanners
+        .iter()
+        .filter(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .collect::<Vec<_>>();
+    assert_eq!(slurs.len(), 1);
+    assert_eq!(
+        (
+            slurs[0].start.measure,
+            slurs[0].start.voice,
+            slurs[0].start.note
+        ),
+        (0, 0, 0)
+    );
+    assert_eq!(
+        (slurs[0].end.measure, slurs[0].end.voice, slurs[0].end.note),
+        (1, 1, 0)
+    );
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn musicxml_cross_voice_slur_survives_mscz_roundtrip() {
+    let source = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/cross_voice_slur.musicxml"
+    ))
+    .unwrap();
+    let span = source
+        .spanners
+        .iter()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap();
+    assert_ne!(span.start.voice, span.end.voice);
+    let archive = acorde_io::serialize_mscz(&source).unwrap();
+    let restored = acorde_io::parse_mscz(&archive).unwrap();
+    let slurs = restored
+        .spanners
+        .iter()
+        .filter(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .collect::<Vec<_>>();
+    assert_eq!(slurs.len(), 1);
+    assert_eq!(slurs[0].start, span.start);
+    assert_eq!(slurs[0].end, span.end);
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn overlapping_cross_voice_slurs_keep_their_matching_endpoints() {
+    let mut score = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/cross_voice_slur.musicxml"
+    ))
+    .unwrap();
+    let mut second = score
+        .spanners
+        .iter()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap()
+        .clone();
+    second.id = "second-overlapping-cross-voice-slur".into();
+    second.start.note = 1;
+    second.end.note = 1;
+    score.spanners.push(second);
+    let expected = score
+        .spanners
+        .iter()
+        .filter(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .map(|s| (s.start.clone(), s.end.clone()))
+        .collect::<Vec<_>>();
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let actual = restored
+        .spanners
+        .iter()
+        .filter(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .map(|s| (s.start.clone(), s.end.clone()))
+        .collect::<Vec<_>>();
+    assert_eq!(actual, expected);
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscz_cross_voice_slur_with_unsupported_placement_reports_loss() {
+    let mut score = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/cross_voice_slur.musicxml"
+    ))
+    .unwrap();
+    let span = score
+        .spanners
+        .iter_mut()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap();
+    span.placement = Some("unsupported".into());
+    let id = span.id.clone();
+    let report = acorde_io::serialize_mscz_with_report(&score).unwrap();
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "mscx.export-unsupported-field"
+                && d.source_location.as_deref() == Some(format!("/score/spanners/{id}").as_str()))
+    );
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn cross_voice_slur_roundtrip_handles_negative_relative_beat_offset() {
+    let mut score = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/cross_voice_slur.musicxml"
+    ))
+    .unwrap();
+    let span = score
+        .spanners
+        .iter_mut()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap();
+    span.start.note = 1;
+    let expected = (span.start.clone(), span.end.clone());
+    let xml = acorde_io::serialize_mscx(&score).unwrap();
+    assert!(xml.contains("<fractions>-1/4</fractions>"));
+    let restored = acorde_io::parse_mscx(&xml).unwrap();
+    let slur = restored
+        .spanners
+        .iter()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap();
+    assert_eq!((slur.start.clone(), slur.end.clone()), expected);
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn malformed_cross_voice_location_does_not_create_a_false_slur() {
+    let score = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/cross_voice_slur.musicxml"
+    ))
+    .unwrap();
+    let xml = acorde_io::serialize_mscx(&score).unwrap();
+    let malformed = xml.replacen("<measures>1</measures>", "<measures>invalid</measures>", 1);
+    assert_ne!(malformed, xml);
+    let restored = acorde_io::parse_mscx(&malformed).unwrap();
+    assert!(
+        !restored
+            .spanners
+            .iter()
+            .any(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+    );
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn cross_voice_slur_sharing_endpoint_with_same_voice_reports_loss() {
+    let mut score = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/cross_voice_slur.musicxml"
+    ))
+    .unwrap();
+    let mut same_voice = score
+        .spanners
+        .iter()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap()
+        .clone();
+    let cross_id = same_voice.id.clone();
+    same_voice.id = "same-voice-shared-start".into();
+    same_voice.end = same_voice.start.clone();
+    same_voice.end.note = 1;
+    score.spanners.push(same_voice);
+    let report = acorde_io::serialize_mscx_with_report(&score).unwrap();
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "mscx.export-unsupported-field"
+                && d.source_location.as_deref()
+                    == Some(format!("/score/spanners/{cross_id}").as_str()))
+    );
+    let restored = acorde_io::parse_mscx(&report.output).unwrap();
+    let notes = &restored.parts[0].staves[0].measures[0].voices[0];
+    assert!(notes[0].slur_start && notes[1].slur_end);
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn many_cross_voice_slurs_roundtrip_without_losing_endpoints() {
+    use acorde_core::{
+        Duration, NotationSpanner, NotationSpannerKind, Note, NoteAddr, Pitch, Score, Step,
+    };
+    let mut score = Score::new("many slurs", 120, 1, 4, 0, 512);
+    for bar in &mut score.parts[0].staves[0].measures {
+        bar.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+        bar.voices[1] = vec![Note::new(Pitch::new(Step::G, 4), Duration::Quarter)];
+    }
+    for measure in 0..511 {
+        score.spanners.push(NotationSpanner {
+            id: format!("cross-{measure}"),
+            kind: NotationSpannerKind::Slur,
+            start: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure,
+                voice: 0,
+                note: 0,
+            },
+            end: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: measure + 1,
+                voice: 1,
+                note: 0,
+            },
+            number: None,
+            line_type: None,
+            text: None,
+            placement: None,
+            ottava_size: None,
+            ottava_type: None,
+        });
+    }
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let slurs = restored
+        .spanners
+        .iter()
+        .filter(|s| s.kind == NotationSpannerKind::Slur)
+        .collect::<Vec<_>>();
+    assert_eq!(slurs.len(), 511);
+    assert_eq!(
+        (
+            slurs[510].start.measure,
+            slurs[510].end.measure,
+            slurs[510].end.voice
+        ),
+        (510, 511, 1)
+    );
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn cross_voice_slur_with_unrepresentable_offset_reports_loss() {
+    let mut score = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/cross_voice_slur.musicxml"
+    ))
+    .unwrap();
+    score.parts[0].staves[0].measures[0].voices[0][0].tuplet = Some(acorde_core::TupletInfo {
+        actual_notes: 11,
+        normal_notes: 8,
+    });
+    let span = score
+        .spanners
+        .iter_mut()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap();
+    span.start.note = 1;
+    let id = span.id.clone();
+    let report = acorde_io::serialize_mscz_with_report(&score).unwrap();
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "mscx.export-unsupported-field"
+                && d.source_location.as_deref() == Some(format!("/score/spanners/{id}").as_str()))
+    );
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscz_cross_voice_slur_preserves_explicit_placement() {
+    for (placement, tag) in [("above", "<up>up</up>"), ("below", "<up>down</up>")] {
+        let mut score = acorde_io::parse_musicxml(include_str!(
+            "../../../tests/fixtures/cross_voice_slur.musicxml"
+        ))
+        .unwrap();
+        let span = score
+            .spanners
+            .iter_mut()
+            .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+            .unwrap();
+        span.placement = Some(placement.into());
+        let output = acorde_io::serialize_mscx_with_report(&score).unwrap();
+        assert!(output.output.contains(tag));
+        assert!(
+            !output
+                .diagnostics
+                .iter()
+                .any(|d| d.code == "mscx.export-unsupported-field"
+                    && d.source_location.as_deref()
+                        == Some(format!("/score/spanners/{}", score.spanners[0].id).as_str()))
+        );
+        let restored = acorde_io::parse_mscx(&output.output).unwrap();
+        let slur = restored
+            .spanners
+            .iter()
+            .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+            .unwrap();
+        assert_eq!(slur.placement.as_deref(), Some(placement));
+    }
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn musescore_475_native_cross_voice_slur_roundtrips() {
+    let source = include_bytes!("../../../tests/fixtures/issue_293_musescore475_cross_voice.mscz");
+    let score = acorde_io::parse_mscz(source).unwrap();
+    let span = score
+        .spanners
+        .iter()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap();
+    assert_eq!(
+        (span.start.measure, span.start.voice, span.start.note),
+        (0, 0, 0)
+    );
+    assert_eq!((span.end.measure, span.end.voice, span.end.note), (1, 1, 0));
+    let expected = (span.start.clone(), span.end.clone());
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let span = restored
+        .spanners
+        .iter()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap();
+    assert_eq!((span.start.clone(), span.end.clone()), expected);
+}
+
+#[cfg(all(feature = "abc", feature = "mscz", feature = "midi"))]
+#[test]
+fn explicit_accidental_role_loss_is_reported_by_other_formats() {
+    use acorde_core::{AccidentalDisplay, Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("Explicit", 120, 4, 4, 0, 1);
+    let mut note = Note::new(Pitch::with_alter(Step::C, 4, 1), Duration::Whole);
+    note.set_accidental_display(0, AccidentalDisplay::Explicit);
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+    let path = "/score/part/1/staff/1/measure/1/voice/1/note/1/accidental-display/1";
+    for diagnostics in [
+        acorde_io::serialize_abc_with_report(&score)
+            .unwrap()
+            .diagnostics,
+        acorde_io::serialize_mscz_with_report(&score)
+            .unwrap()
+            .diagnostics,
+        acorde_io::serialize_midi_with_report(&score)
+            .unwrap()
+            .diagnostics,
+    ] {
+        assert!(
+            diagnostics
+                .iter()
+                .any(|item| item.source_location.as_deref() == Some(path)),
+            "missing accidental-role diagnostic: {diagnostics:?}"
+        );
+    }
+}
+
+#[test]
+fn musicxml_fermata_delays_following_attacks_on_shared_clock() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notations><fermata/></notations></note><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#;
+    let score = parse_musicxml(xml).unwrap();
+    let events = acorde_core::to_playback_events(&score, &Default::default());
+    assert_eq!(
+        events
+            .iter()
+            .map(|event| (event.pitch_midi, event.time_beats, event.duration_beats))
+            .collect::<Vec<_>>(),
+        [(60, 0.0, 1.5), (62, 1.5, 1.0), (64, 2.5, 1.0)]
+    );
+}
+
+#[cfg(feature = "musicxml")]
+#[test]
+fn repeated_accidental_external_fixture_survives_musicxml_roundtrip() {
+    use acorde_core::AccidentalDisplay;
+    let source = include_str!("../../../tests/fixtures/issue_297_repeated_accidentals.musicxml");
+    let score = parse_musicxml(source).unwrap();
+    let restored = parse_musicxml(&serialize_musicxml(&score).unwrap()).unwrap();
+    let voice = &restored.parts[0].staves[0].measures[0].voices[0];
+    assert_eq!(voice[0].accidental_display(0), AccidentalDisplay::Explicit);
+    assert_eq!(voice[2].accidental_display(0), AccidentalDisplay::Explicit);
+}
+
+#[cfg(all(feature = "abc", feature = "mei", feature = "midi"))]
+#[test]
+fn hidden_time_visibility_is_reported_by_unsupported_export_formats() {
+    let mut score = acorde_core::Score::new("Hidden meter", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].measures[0].time_sig_hidden = true;
+    let path = "/score/part/1/staff/1/measure/1/time_sig_hidden";
+    for diagnostics in [
+        acorde_io::serialize_abc_with_report(&score)
+            .unwrap()
+            .diagnostics,
+        acorde_io::serialize_mei_with_report(&score)
+            .unwrap()
+            .diagnostics,
+        acorde_io::serialize_midi_with_report(&score)
+            .unwrap()
+            .diagnostics,
+    ] {
+        assert!(
+            diagnostics
+                .iter()
+                .any(|item| item.source_location.as_deref() == Some(path)),
+            "missing hidden-meter diagnostic: {diagnostics:?}"
+        );
+    }
+}
+
+#[cfg(feature = "musicxml")]
+#[test]
+fn hidden_musicxml_meter_does_not_report_a_supported_attribute_as_lost() {
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time print-object="no"><beats>2</beats><beat-type>4</beat-type></time></attributes><note><rest/><duration>2</duration><type>half</type></note></measure></part></score-partwise>"#;
+    let report = acorde_io::parse_musicxml_with_report(xml).unwrap();
+    assert!(report.score.parts[0].staves[0].measures[0].time_sig_hidden);
+    assert!(
+        !report.diagnostics.iter().any(|item| item
+            .source_location
+            .as_deref()
+            .is_some_and(|path| path.ends_with("time@print-object"))),
+        "supported visibility reported as lost: {:?}",
+        report.diagnostics
+    );
+    let invalid = xml.replace("print-object=\"no\"", "print-object=\"unknown\"");
+    let report = acorde_io::parse_musicxml_with_report(&invalid).unwrap();
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|item| item.code == "musicxml.invalid-time-visibility")
+    );
+}
+
+#[cfg(all(feature = "musicxml", feature = "mscz"))]
+#[test]
+fn hidden_meter_external_fixture_survives_mscz_roundtrip() {
+    let source = include_str!("../../../tests/fixtures/issue_292_hidden_time.musicxml");
+    let score = parse_musicxml(source).unwrap();
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let measures = &restored.parts[0].staves[0].measures;
+    assert!(!measures[0].time_sig_hidden);
+    assert!(measures[1].time_sig_hidden);
+    assert_eq!(measures[1].time_sig.as_ref().unwrap().numerator, 2);
 }

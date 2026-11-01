@@ -765,3 +765,56 @@ fn web_fragment_copy_and_linked_view_use_canonical_addresses() {
     .unwrap();
     assert!(!trees.as_array().unwrap().is_empty());
 }
+
+#[test]
+fn playback_options_share_only_selected_dynamic_marks() {
+    use acorde_core::{Clef, Duration, Dynamic, Measure, Note, Pitch, Score, Staff, Step};
+    let mut score = Score::new("shared", 120, 4, 4, 0, 1);
+    let mut first = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+    first.dynamic = Some(Dynamic::P);
+    score.parts[0].staves[0].measures[0].voices[0] = vec![first];
+    let mut lower = Staff::new(Clef::Bass);
+    let mut measure = Measure::empty(4, 4);
+    measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 3), Duration::Whole)];
+    lower.measures.push(measure);
+    score.parts[0].staves.push(lower);
+    let json = serde_json::to_string(&score).unwrap();
+    let options = r#"{"shared_dynamics":[{"part":0,"staff":0,"measure":0,"voice":0,"note":0}]}"#;
+    let events: Vec<acorde_core::PlaybackEvent> =
+        serde_json::from_str(&bindings::to_playback_events_ex(&json, options).unwrap()).unwrap();
+    assert_eq!(events.len(), 2);
+    assert!(events.iter().all(|event| event.velocity == 48));
+}
+
+#[test]
+fn musicxml_measured_tremolo_is_repeated_in_default_playback_binding() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>half</type><notations><ornaments><tremolo type="single">3</tremolo></ornaments></notations></note><note><pitch><step>D</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>half</type></note></measure></part></score-partwise>"#;
+    let score = bindings::parse_musicxml(xml).unwrap();
+    let events: Vec<Value> =
+        serde_json::from_str(&bindings::to_playback_events_ex(&score, "{}").unwrap()).unwrap();
+    assert_eq!(events.len(), 17);
+    assert_eq!(events[15]["time_beats"], 1.875);
+    assert_eq!(events[16]["time_beats"], 2.0);
+}
+
+#[test]
+fn timed_musicxml_pedal_is_available_in_offline_manifest() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><direction><direction-type><pedal type="start" line="no"/></direction-type></direction><direction><direction-type><pedal type="stop" line="no"/></direction-type><offset>3</offset></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure></part></score-partwise>"#;
+    let score = bindings::parse_musicxml(xml).unwrap();
+    let manifest: Value = serde_json::from_str(
+        &bindings::build_offline_render_manifest(
+            &score,
+            r#"{"bpm_override":60}"#,
+            r#"{"sample_rate_hz":8000}"#,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let events = manifest["semantic_events"].as_array().unwrap();
+    let pedals: Vec<_> = events
+        .iter()
+        .filter(|event| event["kind"]["pedal"].is_object())
+        .map(|event| event["frame"].as_u64().unwrap())
+        .collect();
+    assert_eq!(pedals, vec![0, 24000]);
+}

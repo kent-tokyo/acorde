@@ -313,10 +313,21 @@ fn resolve_spans(score: &Score, typed_spanners: &[NotationSpanner]) -> Vec<SpanM
                             });
                         }
 
-                        if note.pedal_start {
+                        let onset: f64 = measure.voices[voice]
+                            .iter()
+                            .take(ni)
+                            .map(|note| note.beats())
+                            .sum();
+                        let timed_here = |down| {
+                            measure.timed_pedals.iter().any(|pedal| {
+                                pedal.down == down && (pedal.position_beats - onset).abs() < 1e-9
+                            })
+                        };
+                        if note.pedal_start && !timed_here(true) {
                             open_pedal = Some(addr.clone());
                         }
                         if note.pedal_end
+                            && !timed_here(false)
                             && let Some(start) = open_pedal.take()
                         {
                             spans.push(SpanMark::Pedal {
@@ -606,6 +617,7 @@ fn collect_courtesy_accidentals(score: &Score) -> Vec<CourtesyAccidental> {
                             // repeat it, or add a reminder for a key-signature sharp/flat.
                             let previous = prev_alters.remove(&key);
                             let natural_reminder = !note.tie_end
+                                && note.accidental_display(pitch_idx) == AccidentalDisplay::Auto
                                 && pitch.alter == 0
                                 && key_alter(current_fifths, &pitch.step) == 0
                                 && previous.is_some_and(|alter| alter != 0);
@@ -678,7 +690,9 @@ fn collect_accidental_marks(score: &Score) -> Vec<AccidentalMark> {
                             let parenthesized = display == AccidentalDisplay::Parenthesized;
                             if pitch.alter != baseline {
                                 // A parenthesized one is drawn with the courtesy marks.
-                                if !note.tie_end && !parenthesized {
+                                if (!note.tie_end || display == AccidentalDisplay::Explicit)
+                                    && !parenthesized
+                                {
                                     result.push(AccidentalMark {
                                         part: pi,
                                         staff: si,
@@ -692,7 +706,9 @@ fn collect_accidental_marks(score: &Score) -> Vec<AccidentalMark> {
                                 active.insert(key, pitch.alter);
                             } else if matches!(
                                 display,
-                                AccidentalDisplay::Cautionary | AccidentalDisplay::Editorial
+                                AccidentalDisplay::Explicit
+                                    | AccidentalDisplay::Cautionary
+                                    | AccidentalDisplay::Editorial
                             ) {
                                 // Cautionary and editorial accidentals are drawn even when the
                                 // key and the bar already imply them.

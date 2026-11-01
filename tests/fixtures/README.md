@@ -102,3 +102,27 @@ revisions and checksums are pinned in `manifest.json`.
 `openscore_omr_score_1003.mscx` and `openscore_omr_score_1033.mscx` are the corresponding
 extracted MSCX payloads from those archives; their source paths and checksums are pinned so the
 compressed and uncompressed representations can be tested as a pair.
+
+`issue_283_overlapping_ottavas.mscx` is a self-authored synthetic score. MuseScore 4.7.5 MIDI export gives pitches 91, 67, 60, 79 at beats 0, 1, 1, 2; it wrote valid MIDI before crashing on shutdown. The fixture isolates staff-wide octave offset precedence and is not evidence of general MuseScore interchange fidelity. Its SHA-256 is pinned in `manifest.json`.
+
+`cross_voice_slur.musicxml` is the synthetic reproduction from [Issue #293](https://github.com/kent-tokyo/acorde/issues/293). `issue_293_musescore475_cross_voice.mscz` was generated from that reproduction by MuseScore Studio 4.7.5 (revision 3654226). MuseScore produced a valid archive and then crashed during shutdown. Tests evaluate the cross-voice slur endpoints and SVG continuation; they do not claim lossless preservation of every other field. Both fixture hashes are pinned in `manifest.json`.
+
+`issue_297_repeated_accidentals.musicxml` is a self-authored three-note fixture.
+MuseScore 4.7.5 rendered two accidental glyphs from Acorde's MSCZ export; it wrote
+the SVG before crashing at shutdown. The input hash is pinned in `manifest.json`;
+this verifies the example, not general engraving quality.
+
+`issue_292_hidden_time.musicxml` is a self-authored two-measure hidden-meter fixture.
+MuseScore 4.7.5 reopened the Acorde-exported MSCZ and preserved the hidden second meter
+in MusicXML; it wrote its output before crashing at shutdown. Its input hash is pinned in
+`manifest.json`; this checks the visibility example, not general interchange quality.
+
+`issue_311_trill.musicxml` is a self-authored one-note score;
+`issue_311_musescore_trill.mscz` was generated from it by MuseScore Studio 4.7.5.
+MuseScore wrote the archive but crashed during shutdown. The regression covers the
+trill mark, SVG and playback metadata; it does not establish general compatibility.
+
+`issue_280_channel_switch.mscx` is a self-authored one-voice score converted
+by MuseScore Studio 4.7.5, then given explicit native pizzicato/arco channel
+switches. MuseScore exported MIDI with programs 45 and 40 respectively before
+crashing at shutdown. The fixture currently documents a diagnosed playback loss.

@@ -479,6 +479,11 @@ uv run --no-project --with 'mido==1.3.3' python scripts/compare_musicxml_onsets.
 
 ### Overlapping unison duration in MIDI export (2026-10-31)
 
+The measurements and hashes in this section describe the 2026-10-31 implementation.
+The subsequent shared-clock fermata change delays later attacks instead of deliberately
+overlapping them, so rerunning these commands on the newer implementation will produce
+different timings and hashes. The historical observations below are not a current benchmark.
+
 On the pinned CC0 *Just for Today* MXL (SHA-256
 `79a19736fcce71c0acf4b39feff63723d2ff75e29285ea2ab594f9b2b6a835ff`), the
 current playback JSON contains 579 attacks. Four fermata notes overlap later
