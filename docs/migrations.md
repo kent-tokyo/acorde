@@ -157,3 +157,12 @@ source-breaking change in patch releases and those versions are withdrawn from u
 4. Re-import original source files when a corrected parser interpretation changes their canonical
    score (for example hidden notation, clefs, or 8va/8vb direction).
 5. Run the focused format/browser/print checks for the surfaces your host uses.
+
+### Measured tremolo playback
+
+`Note` now includes the serde-defaulted `tremolo_pair` field, so Rust callers constructing
+`Note` with a complete struct literal must set it (usually `None`). MusicXML two-note tremolo
+start/stop endpoints are retained here. In default playback, a measured single-note tremolo is
+now expanded into attacks at its written stroke rate, including all chord pitches; hosts should
+not expand its `Tremolo` articulation again. Two-note alternating playback is not implemented.
+The MIDI serializer has its own timing path and does not yet expand these attacks.
