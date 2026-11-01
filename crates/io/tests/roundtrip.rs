@@ -1430,6 +1430,12 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
         let path = fixture["path"].as_str().expect("fixture path");
         let expected = fixture["sha256"].as_str().expect("fixture sha256");
         let bytes: &[u8] = match path {
+            "cross_voice_slur.musicxml" => {
+                include_bytes!("../../../tests/fixtures/cross_voice_slur.musicxml")
+            }
+            "issue_293_musescore475_cross_voice.mscz" => {
+                include_bytes!("../../../tests/fixtures/issue_293_musescore475_cross_voice.mscz")
+            }
             "simple.musicxml" => include_bytes!("../../../tests/fixtures/simple.musicxml"),
             "multipart.musicxml" => include_bytes!("../../../tests/fixtures/multipart.musicxml"),
             "fragment_rich.musicxml" => {
@@ -7456,4 +7462,29 @@ fn mscz_cross_voice_slur_preserves_explicit_placement() {
             .unwrap();
         assert_eq!(slur.placement.as_deref(), Some(placement));
     }
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn musescore_475_native_cross_voice_slur_roundtrips() {
+    let source = include_bytes!("../../../tests/fixtures/issue_293_musescore475_cross_voice.mscz");
+    let score = acorde_io::parse_mscz(source).unwrap();
+    let span = score
+        .spanners
+        .iter()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap();
+    assert_eq!(
+        (span.start.measure, span.start.voice, span.start.note),
+        (0, 0, 0)
+    );
+    assert_eq!((span.end.measure, span.end.voice, span.end.note), (1, 1, 0));
+    let expected = (span.start.clone(), span.end.clone());
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let span = restored
+        .spanners
+        .iter()
+        .find(|s| s.kind == acorde_core::NotationSpannerKind::Slur)
+        .unwrap();
+    assert_eq!((span.start.clone(), span.end.clone()), expected);
 }

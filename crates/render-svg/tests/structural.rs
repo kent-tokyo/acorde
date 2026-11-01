@@ -4942,3 +4942,14 @@ fn mscz_cross_staff_and_voice_slur_renders_across_system_break() {
     let svg = render_svg(&restored, &options).unwrap();
     assert_eq!(svg.matches("class=\"acorde-slur\"").count(), 2);
 }
+
+#[test]
+fn musescore_475_native_cross_voice_slur_renders_across_systems() {
+    let source = include_bytes!("../../../tests/fixtures/issue_293_musescore475_cross_voice.mscz");
+    let score = acorde_io::parse_mscz(source).unwrap();
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let mut options = opts();
+    options.measures_per_system = 1;
+    let svg = render_svg(&restored, &options).unwrap();
+    assert_eq!(svg.matches("class=\"acorde-slur\"").count(), 2);
+}
