@@ -2535,6 +2535,15 @@ fn abc_note_export_losses(
 ) -> Vec<(String, String, &'static str)> {
     let note = &notes[note_index];
     let mut losses = Vec::new();
+    for pitch_index in 0..note.pitches.len() {
+        if note.accidental_display(pitch_index) == acorde_core::AccidentalDisplay::Explicit {
+            losses.push((
+                format!("{note_path}/accidental-display/{}", pitch_index + 1),
+                "Explicit".to_string(),
+                "ABC export does not retain the explicitly written accidental role",
+            ));
+        }
+    }
     if let Some((_, last)) = tuplet_groups.iter().find(|(first, _)| *first == note_index)
         && let Some(tuplet) = note.tuplet.as_ref()
     {

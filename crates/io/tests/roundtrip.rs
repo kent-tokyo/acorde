@@ -7590,3 +7590,32 @@ fn musescore_475_native_cross_voice_slur_roundtrips() {
         .unwrap();
     assert_eq!((span.start.clone(), span.end.clone()), expected);
 }
+
+#[cfg(all(feature = "abc", feature = "mscz", feature = "midi"))]
+#[test]
+fn explicit_accidental_role_loss_is_reported_by_other_formats() {
+    use acorde_core::{AccidentalDisplay, Duration, Note, Pitch, Score, Step};
+    let mut score = Score::new("Explicit", 120, 4, 4, 0, 1);
+    let mut note = Note::new(Pitch::with_alter(Step::C, 4, 1), Duration::Whole);
+    note.set_accidental_display(0, AccidentalDisplay::Explicit);
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+    let path = "/score/part/1/staff/1/measure/1/voice/1/note/1/accidental-display/1";
+    for diagnostics in [
+        acorde_io::serialize_abc_with_report(&score)
+            .unwrap()
+            .diagnostics,
+        acorde_io::serialize_mscz_with_report(&score)
+            .unwrap()
+            .diagnostics,
+        acorde_io::serialize_midi_with_report(&score)
+            .unwrap()
+            .diagnostics,
+    ] {
+        assert!(
+            diagnostics
+                .iter()
+                .any(|item| item.source_location.as_deref() == Some(path)),
+            "missing accidental-role diagnostic: {diagnostics:?}"
+        );
+    }
+}

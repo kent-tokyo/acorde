@@ -11,6 +11,13 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## Unreleased: explicitly written accidentals
+
+`AccidentalDisplay::Explicit` distinguishes an ordinary written accidental from an automatic or
+cautionary one. Rust code that exhaustively matches this enum must handle the new variant. Older
+score JSON remains readable; older consumers may not recognize newly serialized `Explicit` values.
+ABC, MIDI, and MuseScore export reports identify the cases where this distinction cannot round-trip.
+
 ## v1.3.7
 
 Re-import MusicXML to retain common/cut time symbols, written metronome marks,
