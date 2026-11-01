@@ -4070,6 +4070,47 @@ fn render_measure_voice<'a>(
             .collect();
         &kneed_notes
     };
+    // Slurs need the true ends of ordinary stems as well as beam-attached stems.
+    // Grace and cue notes are scaled around their notehead anchor.
+    if tablature.is_none() {
+        for (index, note) in notes.iter().enumerate() {
+            if beam_tips.contains_key(&index)
+                || note.is_rest
+                || note.hidden
+                || note.pitches.is_empty()
+                || matches!(
+                    note.duration,
+                    Duration::Whole | Duration::Breve | Duration::Longa
+                )
+            {
+                continue;
+            }
+            let stem_up = note.stem_up.unwrap_or(up);
+            let (clef_bottom, staff_bottom) =
+                note_staff_frame(note, (own_bottoms[index], bottom_y), cross_frames);
+            let far_pos = note
+                .pitches
+                .iter()
+                .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, clef_bottom))
+                .reduce(|a, b| if stem_up { a.max(b) } else { a.min(b) })
+                .unwrap();
+            let flag_count = match note.duration {
+                Duration::Eighth => 1u8,
+                Duration::Sixteenth => 2,
+                Duration::ThirtySecond => 3,
+                Duration::SixtyFourth => 4,
+                Duration::HundredTwentyEighth => 5,
+                _ => 0,
+            };
+            let bottom = staff_bottom + note_placement_offsets_u(note).1 * space;
+            let mut tip = unbeamed_stem_tip(far_pos, bottom, space, stem_up, flag_count);
+            if note.is_grace || note.is_cue {
+                let anchor = note_anchor_y(note, clef_bottom, stem_up, staff_bottom, space, None);
+                tip = anchor + GRACE_SCALE * (tip - anchor);
+            }
+            beam_tip_points.insert((part, staff, measure_idx, voice_idx, index), tip);
+        }
+    }
     render_measure_voice_notes(
         body,
         &mut VoiceNotesRenderContext {
@@ -6109,6 +6150,135 @@ fn render_all_spans(
                 fallback
             }
         };
+        if row1 != row2
+            && start.part == end.part
+            && row1 < row2
+            && let Some(above) = slur_above
+        {
+            let side = if above { -1.0 } else { 1.0 };
+            let select = |a: f32, b: f32| if above { a.min(b) } else { a.max(b) };
+            for row in row1..=row2 {
+                let offset = lane_offsets
+                    .get(&(span_index, row))
+                    .copied()
+                    .unwrap_or_default();
+                let first = row == row1;
+                let last = row == row2;
+                let (source_y, source_up, address) = if last {
+                    (y2, up2, end)
+                } else {
+                    (y1 + row_tops[row] - row_tops[row1], up1, start)
+                };
+                let mut anchor = source_y + offset + side * 0.65 * space;
+                if first || last {
+                    let key = (
+                        address.part,
+                        address.staff,
+                        address.measure,
+                        address.voice,
+                        address.note,
+                    );
+                    if source_up == above
+                        && let Some(tip) = beam_tip_points.get(&key)
+                    {
+                        anchor = select(anchor, tip + offset + side * 0.5 * space);
+                    }
+                }
+                let left = if first {
+                    x1 + 0.3 * space
+                } else {
+                    left_margin_u * space
+                };
+                let right = if last {
+                    x2 - 0.3 * space
+                } else {
+                    width - right_margin_u * space
+                };
+                if right <= left {
+                    continue;
+                }
+                let baseline_control = anchor + side * 1.8 * space;
+                let mut control = baseline_control;
+                for (key @ (part, staff, measure, voice, index), (x, y, stem_up, point_row)) in
+                    points
+                {
+                    if *part != start.part
+                        || *staff < start.staff.min(end.staff)
+                        || *staff > start.staff.max(end.staff)
+                        || *point_row != row
+                    {
+                        continue;
+                    }
+                    let Some(note) = score
+                        .parts
+                        .get(*part)
+                        .and_then(|p| p.staves.get(*staff))
+                        .and_then(|s| s.measures.get(*measure))
+                        .and_then(|m| m.voices.get(*voice))
+                        .and_then(|v| v.get(*index))
+                    else {
+                        continue;
+                    };
+                    if note.is_rest || note.hidden {
+                        continue;
+                    }
+                    let stem_x = if *stem_up == above && beam_tip_points.contains_key(key) {
+                        x + (if *stem_up { 1.0 } else { -1.0 })
+                            * glyphs::NOTEHEAD_RX_U
+                            * 0.92
+                            * if note.is_grace || note.is_cue {
+                                GRACE_SCALE
+                            } else {
+                                1.0
+                            }
+                            * space
+                    } else {
+                        *x
+                    };
+                    let t = (stem_x - left) / (right - left);
+                    if !(t > 0.0 && t < 1.0) {
+                        continue;
+                    }
+                    let note_limit = y + offset + side * 0.8 * space;
+                    let desired = if *stem_up == above {
+                        beam_tip_points.get(key).map_or(note_limit, |tip| {
+                            select(note_limit, tip + offset + side * 0.6 * space)
+                        })
+                    } else {
+                        note_limit
+                    };
+                    let remaining = 1.0 - t;
+                    let required = (desired - (remaining * remaining + t * t) * anchor)
+                        / (2.0 * t * remaining);
+                    // Bound near-edge curvature in tightly packed notation as in same-row slurs.
+                    control = select(
+                        control,
+                        if above {
+                            // The control may lie above the viewport while the quadratic
+                            // itself stays inside it. Leave at least half a space at its apex.
+                            required.max((space - anchor).max(baseline_control - 12.0 * space))
+                        } else {
+                            required.min(baseline_control + 12.0 * space)
+                        },
+                    );
+                }
+                render_slur_ribbon(
+                    body,
+                    left,
+                    anchor,
+                    (left + right) / 2.0,
+                    control,
+                    right,
+                    anchor,
+                    above,
+                    space,
+                );
+            }
+            if interactive {
+                body.push_str("</g>");
+            }
+            continue;
+        }
         if row1 != row2 {
             let start_offset = lane_offsets
                 .get(&(span_index, row1))
@@ -6201,12 +6371,25 @@ fn render_all_spans(
             let (start_y, end_y) = slur_anchors.expect("slur anchors");
             let mut extreme: Option<f32> = None;
             let mut control: Option<f32> = None;
-            for (key @ (part, staff, _, voice, _), (x, y, stem_up, row)) in points {
+            for (key @ (part, staff, measure, voice, index), (x, y, stem_up, row)) in points {
                 if *part != start.part
-                    || *staff != start.staff
-                    || *voice != start.voice
+                    || *staff < start.staff.min(end.staff)
+                    || *staff > start.staff.max(end.staff)
                     || *row != row1
                 {
+                    continue;
+                }
+                let Some(note) = score
+                    .parts
+                    .get(*part)
+                    .and_then(|p| p.staves.get(*staff))
+                    .and_then(|s| s.measures.get(*measure))
+                    .and_then(|m| m.voices.get(*voice))
+                    .and_then(|v| v.get(*index))
+                else {
+                    continue;
+                };
+                if note.is_rest || note.hidden {
                     continue;
                 }
                 let select = |a: f32, b: f32| if above { a.min(b) } else { a.max(b) };
@@ -6226,7 +6409,15 @@ fn render_all_spans(
                 }
                 // Beam tips sit at the stem, not at the notehead center.
                 let clearance_x = if *stem_up == above && beam_tip_points.contains_key(key) {
-                    x + (if *stem_up { 1.0 } else { -1.0 }) * glyphs::NOTEHEAD_RX_U * 0.92 * space
+                    x + (if *stem_up { 1.0 } else { -1.0 })
+                        * glyphs::NOTEHEAD_RX_U
+                        * 0.92
+                        * if note.is_grace || note.is_cue {
+                            GRACE_SCALE
+                        } else {
+                            1.0
+                        }
+                        * space
                 } else {
                     *x
                 };
@@ -9034,6 +9225,22 @@ struct PitchedNoteStemContext<'a> {
     flag_count: u8,
 }
 
+fn unbeamed_stem_tip(
+    far_pos: i32,
+    staff_bottom: f32,
+    space: f32,
+    stem_up: bool,
+    flag_count: u8,
+) -> f32 {
+    let far_y = staff_bottom + geometry::position_y(far_pos, space);
+    let length = (3.5 + 0.75 * f32::from(flag_count.saturating_sub(2))) * space;
+    if stem_up {
+        (far_y - length).min(staff_bottom - 2.0 * space)
+    } else {
+        (far_y + length).max(staff_bottom - 2.0 * space)
+    }
+}
+
 fn render_pitched_note_stem_and_flags(context: &mut PitchedNoteStemContext<'_>) {
     if !context.has_stem {
         return;
@@ -9056,20 +9263,18 @@ fn render_pitched_note_stem_and_flags(context: &mut PitchedNoteStemContext<'_>) 
 
     // An unbeamed stem runs 3.5 spaces past the chord's stem-side note, a further 0.75 per flag
     // beyond two, and reaches the middle line from notes far outside the staff.
-    let (far_pos, dir) = if context.stem_up {
-        (context.max_pos, -1.0)
+    let far_pos = if context.stem_up {
+        context.max_pos
     } else {
-        (context.min_pos, 1.0)
+        context.min_pos
     };
-    let length_u = 3.5 + 0.75 * (context.flag_count.saturating_sub(2)) as f32;
-    let far_y = context.staff_bottom_y + geometry::position_y(far_pos, context.space);
-    let middle_y = context.staff_bottom_y - 2.0 * context.space;
-    let mut tip_y = far_y + dir * length_u * context.space;
-    tip_y = if context.stem_up {
-        tip_y.min(middle_y)
-    } else {
-        tip_y.max(middle_y)
-    };
+    let tip_y = unbeamed_stem_tip(
+        far_pos,
+        context.staff_bottom_y,
+        context.space,
+        context.stem_up,
+        context.flag_count,
+    );
     let stem_svg = glyphs::stem_to(context.x, notehead_y, tip_y, context.space, context.stem_up);
     context.body.push_str(&stem_svg);
     for i in 0..context.flag_count {
