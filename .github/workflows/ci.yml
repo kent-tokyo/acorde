@@ -200,8 +200,8 @@ jobs:
           # measured 6,118,357 bytes; independently, MuseScore cross-voice and
           # cross-staff slur import/export measured 6,145,645 bytes on Linux.
           # Their combined Linux artifact measured 6,149,693 bytes. Keep a
-          # narrow margin above that measured artifact and a hard cap.
-          test "$size" -le 6151000
+          # combined with staff-wide ottava support, Linux CI measured 6,158,651 bytes.
+          test "$size" -le 6160000
 
   renderer-benchmark:
     name: Renderer performance budget
