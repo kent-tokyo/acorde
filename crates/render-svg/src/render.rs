@@ -4867,6 +4867,41 @@ fn plan_measure_beams(
 /// Stem tips by note index, the beams' SVG, and the stem directions a kneed beam imposes.
 type BeamLayout = (HashMap<usize, f32>, String, HashMap<usize, bool>);
 
+// Pick the nearest horizontal gap in the measure, without walking through another
+// obstacle after a shift. Return None when this lane has no room.
+fn nearest_text_gap(x: f32, min: f32, max: f32, mut blocked: Vec<(f32, f32)>) -> Option<f32> {
+    if min > max {
+        return None;
+    }
+    blocked.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let mut merged: Vec<(f32, f32)> = Vec::new();
+    for (left, right) in blocked {
+        if let Some(last) = merged.last_mut()
+            && left <= last.1
+        {
+            last.1 = last.1.max(right);
+        } else {
+            merged.push((left, right));
+        }
+    }
+    let initial = x.clamp(min, max);
+    if let Some(&(left, right)) = merged
+        .iter()
+        .find(|&&(left, right)| initial > left && initial < right)
+    {
+        let before = (left >= min).then_some(left);
+        let after = (right <= max).then_some(right);
+        match (before, after) {
+            (Some(a), Some(b)) => Some(if initial - a <= b - initial { a } else { b }),
+            (Some(a), None) => Some(a),
+            (None, Some(b)) => Some(b),
+            (None, None) => None,
+        }
+    } else {
+        Some(initial)
+    }
+}
+
 /// Render measure-level publication and navigation text after note content has been placed.
 ///
 /// Text stacking is intentionally kept separate from note and beam rendering: this gives later
@@ -5084,20 +5119,32 @@ fn render_measure_text(
         {
             let text_top = y - 0.78 * space * text_scale;
             let text_bottom = y + 0.12 * space * text_scale;
-            let mut neighbors = neighbor_heads.to_vec();
-            neighbors.sort_by(|a, b| a.0.total_cmp(&b.0));
-            for (head_x, head_y) in neighbors {
-                let clearance = 0.85 * space + 2.0;
-                if head_y + clearance > text_top
-                    && head_y - clearance < text_bottom
-                    && head_x + clearance > text_x
-                    && head_x - clearance < text_x + text_width
-                {
-                    let shifted = head_x + clearance;
-                    if shifted + text_width <= x + width - 0.5 * space {
-                        text_x = shifted;
-                    }
+            let clearance = 0.85 * space + 2.0;
+            let mut blocked: Vec<_> = neighbor_heads
+                .iter()
+                .filter_map(|&(head_x, head_y)| {
+                    (head_y + clearance > text_top && head_y - clearance < text_bottom)
+                        .then_some((head_x - clearance - text_width, head_x + clearance))
+                })
+                .collect();
+            for obstacle in resolved_annotations {
+                let top = obstacle.y_mm + obstacle.metrics.top_mm;
+                let bottom = top + obstacle.metrics.height_mm;
+                if bottom > text_top && top < text_bottom {
+                    let left = obstacle.x_mm + obstacle.metrics.left_mm;
+                    blocked.push((
+                        left - text_width - 1.0,
+                        left + obstacle.metrics.width_mm + 1.0,
+                    ));
                 }
+            }
+            if let Some(candidate) = nearest_text_gap(
+                text_x,
+                x + 0.5 * space,
+                x + width - text_width - 0.5 * space,
+                blocked,
+            ) {
+                text_x = candidate;
             }
         }
         let class = match styled.style {
@@ -5137,6 +5184,41 @@ fn render_measure_text(
         crate::SVG_ANNOTATION_COLLISION_GAP_PX,
     )
     .map_err(|_| RenderError::InvalidMeasureTextOffset { field: "collision" })?;
+
+    // Lane resolution can move text vertically into a notehead. Re-evaluate the
+    // whole final lane against noteheads and other placed annotations.
+    for index in annotation_count..placements.len() {
+        let text = &placements[index];
+        let top = text.y_mm + text.metrics.top_mm;
+        let bottom = top + text.metrics.height_mm;
+        let text_width = text.metrics.width_mm;
+        let clearance = 0.85 * space + 2.0;
+        let mut blocked: Vec<_> = neighbor_heads
+            .iter()
+            .filter_map(|&(head_x, head_y)| {
+                (head_y + clearance > top && head_y - clearance < bottom)
+                    .then_some((head_x - clearance - text_width, head_x + clearance))
+            })
+            .collect();
+        for (other_index, other) in placements.iter().enumerate() {
+            if index == other_index {
+                continue;
+            }
+            let other_top = other.y_mm + other.metrics.top_mm;
+            if other_top + other.metrics.height_mm > top && other_top < bottom {
+                let left = other.x_mm + other.metrics.left_mm;
+                blocked.push((left - text_width - 1.0, left + other.metrics.width_mm + 1.0));
+            }
+        }
+        if let Some(candidate) = nearest_text_gap(
+            text.x_mm,
+            x + 0.5 * space,
+            x + width - text_width - 0.5 * space,
+            blocked,
+        ) {
+            placements[index].x_mm = candidate;
+        }
+    }
 
     for ((text_index, styled), placement) in entries
         .into_iter()
@@ -9246,6 +9328,25 @@ fn courtesy_wrapped(alter: i8, cx: f32, cy: f32, space: f32) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn text_gap_selects_nearest_available_side_and_reports_no_room() {
+        assert_eq!(
+            super::nearest_text_gap(5.0, 0.0, 12.0, vec![(3.0, 7.0)]),
+            Some(3.0)
+        );
+        assert_eq!(
+            super::nearest_text_gap(6.0, 0.0, 12.0, vec![(3.0, 7.0), (6.0, 10.0)]),
+            Some(3.0)
+        );
+        assert_eq!(
+            super::nearest_text_gap(8.0, 0.0, 12.0, vec![(3.0, 7.0), (6.0, 10.0)]),
+            Some(10.0)
+        );
+        assert_eq!(
+            super::nearest_text_gap(5.0, 0.0, 12.0, vec![(-1.0, 13.0)]),
+            None
+        );
+    }
     use super::{
         MeasureSemanticAnnotationKinds, Note, OwnedTabTechniqueSegment, accidental_footprint_u,
         build_svg, content_horizontal_margins, measure_text_beat_x, measure_text_width_u,
