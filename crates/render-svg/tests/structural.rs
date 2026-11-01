@@ -4818,6 +4818,38 @@ fn musicxml_upper_voice_slur_avoids_simultaneous_lower_voice() {
         let path = slurs[0];
         if above {
             assert!(path[3] < path[1].min(path[5]));
+            for i in 0..=100 {
+                let t = i as f32 / 100.0;
+                let y =
+                    (1.0 - t).powi(2) * path[1] + 2.0 * t * (1.0 - t) * path[3] + t * t * path[5];
+                assert!(y > 0.0, "slur clipped above the SVG viewbox: {y}");
+            }
+            let beam = svg
+                .split(r#"class="acorde-beam" points=""#)
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap();
+            let vertices = beam
+                .split([' ', ','])
+                .filter_map(|v| v.parse::<f32>().ok())
+                .collect::<Vec<_>>();
+            let (bx1, by1, bx2, by2) = (vertices[0], vertices[1], vertices[2], vertices[3]);
+            let from = bx1.max(path[0]);
+            let to = bx2.min(path[4]);
+            assert!(to > from);
+            for i in 0..=20 {
+                let x = from + (to - from) * i as f32 / 20.0;
+                let t = (x - path[0]) / (path[4] - path[0]);
+                let curve_y =
+                    (1.0 - t).powi(2) * path[1] + 2.0 * t * (1.0 - t) * path[3] + t * t * path[5];
+                let beam_y = by1 + (by2 - by1) * (x - bx1) / (bx2 - bx1);
+                assert!(
+                    curve_y < beam_y - 0.1,
+                    "slur at {curve_y} crosses beam at {beam_y}, x={x}"
+                );
+            }
             // Evaluate the outer quadratic at each upper-voice stem within the slur.
             // A direction-only test misses a curve passing through the stem and beam.
             for stem in svg.split(r#"class="acorde-stem" x1=""#).skip(1).take(3) {

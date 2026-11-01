@@ -5902,7 +5902,13 @@ fn render_all_spans(
                 if (right - left).abs() < f32::EPSILON {
                     continue;
                 }
-                let t = (x - left) / (right - left);
+                // Beam tips sit at the stem, not at the notehead center.
+                let clearance_x = if *stem_up == above && beam_tip_points.contains_key(key) {
+                    x + (if *stem_up { 1.0 } else { -1.0 }) * glyphs::NOTEHEAD_RX_U * 0.92 * space
+                } else {
+                    *x
+                };
+                let t = (clearance_x - left) / (right - left);
                 if !(t > 0.0 && t < 1.0) {
                     continue;
                 }
