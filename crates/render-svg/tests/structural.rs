@@ -4713,3 +4713,24 @@ fn navigation_labels_are_musical_and_deduplicate_source_text() {
     assert!(svg.contains("Da Capo al Fine"));
     assert!(!svg.contains("D.C. al Fine"));
 }
+
+#[test]
+fn musicxml_upper_voice_slur_avoids_simultaneous_lower_voice() {
+    for (placement, above) in [("", true), (" placement=\"below\"", false)] {
+        let xml = format!(
+            r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>2</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>B</step><alter>-1</alter><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type><stem>up</stem><notations><slur type="start" number="1"{placement}/></notations></note><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type><stem>up</stem></note><note><pitch><step>B</step><alter>-1</alter><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type><stem>up</stem><notations><slur type="stop" number="1"/></notations></note><note><rest/><duration>3</duration><voice>1</voice><type>quarter</type><dot/></note><backup><duration>6</duration></backup><note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type><stem>down</stem></note><note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type><stem>down</stem></note><note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type><stem>down</stem></note><note><rest/><duration>3</duration><voice>2</voice><type>quarter</type><dot/></note></measure></part></score-partwise>"#
+        );
+        let score = acorde_io::parse_musicxml(&xml).unwrap();
+        let config = SvgRenderConfig::new(opts()).with_auto_beams();
+        let svg = render_svg_with_config(&score, &config).unwrap();
+        assert!(svg.contains("acorde-beam"));
+        let slurs = slur_geometries(&svg);
+        assert_eq!(slurs.len(), 1);
+        let path = slurs[0];
+        if above {
+            assert!(path[3] < path[1].min(path[5]));
+        } else {
+            assert!(path[3] > path[1].max(path[5]));
+        }
+    }
+}
