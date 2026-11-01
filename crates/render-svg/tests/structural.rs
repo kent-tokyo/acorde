@@ -4951,3 +4951,84 @@ fn hairpin_under_high_notes_is_below_staff_bottom() {
     let p = hairpin_path_coordinates(&svg)[0];
     assert!(p[1].min(p[3]).min(p[5]).min(p[7]) > staff_bottom + 0.5 * opts().staff_size);
 }
+
+#[test]
+fn mscz_cross_voice_slur_renders_across_system_break() {
+    let source = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/cross_voice_slur.musicxml"
+    ))
+    .unwrap();
+    let score = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&source).unwrap()).unwrap();
+    let mut options = opts();
+    options.measures_per_system = 1;
+    let svg = render_svg(&score, &options).unwrap();
+    assert_eq!(
+        svg.matches("class=\"acorde-slur\"").count(),
+        2,
+        "one slur segment per system"
+    );
+}
+
+#[test]
+fn mscz_cross_staff_and_voice_slur_renders_across_system_break() {
+    use acorde_core::{
+        Clef, Duration, NotationSpanner, NotationSpannerKind, Note, NoteAddr, Pitch, Score, Staff,
+        Step,
+    };
+    let mut score = Score::new("cross-staff slur", 120, 2, 4, 0, 2);
+    let mut lower = Staff::new(Clef::Bass);
+    lower.measures = score.parts[0].staves[0].measures.clone();
+    score.parts[0].staves.push(lower);
+    score.parts[0].staves[0].measures[0].voices[0] =
+        vec![Note::new(Pitch::new(Step::C, 5), Duration::Quarter)];
+    score.parts[0].staves[1].measures[1].voices[1] =
+        vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
+    let start = NoteAddr {
+        part: 0,
+        staff: 0,
+        measure: 0,
+        voice: 0,
+        note: 0,
+    };
+    let end = NoteAddr {
+        part: 0,
+        staff: 1,
+        measure: 1,
+        voice: 1,
+        note: 0,
+    };
+    score.spanners.push(NotationSpanner {
+        id: "cross-staff-voice".into(),
+        kind: NotationSpannerKind::Slur,
+        start: start.clone(),
+        end: end.clone(),
+        number: None,
+        line_type: None,
+        text: None,
+        placement: None,
+        ottava_size: None,
+        ottava_type: None,
+    });
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let slur = restored
+        .spanners
+        .iter()
+        .find(|s| s.kind == NotationSpannerKind::Slur)
+        .unwrap();
+    assert_eq!((slur.start.clone(), slur.end.clone()), (start, end));
+    let mut options = opts();
+    options.measures_per_system = 1;
+    let svg = render_svg(&restored, &options).unwrap();
+    assert_eq!(svg.matches("class=\"acorde-slur\"").count(), 2);
+}
+
+#[test]
+fn musescore_475_native_cross_voice_slur_renders_across_systems() {
+    let source = include_bytes!("../../../tests/fixtures/issue_293_musescore475_cross_voice.mscz");
+    let score = acorde_io::parse_mscz(source).unwrap();
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let mut options = opts();
+    options.measures_per_system = 1;
+    let svg = render_svg(&restored, &options).unwrap();
+    assert_eq!(svg.matches("class=\"acorde-slur\"").count(), 2);
+}

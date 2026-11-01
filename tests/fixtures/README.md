@@ -102,3 +102,5 @@ revisions and checksums are pinned in `manifest.json`.
 `openscore_omr_score_1003.mscx` and `openscore_omr_score_1033.mscx` are the corresponding
 extracted MSCX payloads from those archives; their source paths and checksums are pinned so the
 compressed and uncompressed representations can be tested as a pair.
+
+`cross_voice_slur.musicxml` is the synthetic reproduction from [Issue #293](https://github.com/kent-tokyo/acorde/issues/293). `issue_293_musescore475_cross_voice.mscz` was generated from that reproduction by MuseScore Studio 4.7.5 (revision 3654226). MuseScore produced a valid archive and then crashed during shutdown. Tests evaluate the cross-voice slur endpoints and SVG continuation; they do not claim lossless preservation of every other field. Both fixture hashes are pinned in `manifest.json`.
