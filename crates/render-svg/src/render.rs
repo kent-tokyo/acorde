@@ -3382,6 +3382,21 @@ fn render_measure(
         .enumerate()
         .filter_map(|(index, voice)| (!voice.is_empty()).then_some(index))
         .collect();
+    // Measure-level text on any staff can occupy the shared inter-staff lane. Keep the
+    // established spacing there until text and note collision placement are solved jointly.
+    let allow_shared_alignment = score
+        .parts
+        .iter()
+        .flat_map(|p| &p.staves)
+        .filter_map(|s| s.measures.get(measure_idx))
+        .all(|m| {
+            m.texts.is_empty()
+                && m.tempo_text.is_none()
+                && m.rehearsal.is_none()
+                && m.navigation.is_none()
+                && m.expression_text.is_none()
+                && m.figured_bass.is_empty()
+        });
     let mut prior_voice_events = Vec::new();
 
     let mut opened = String::new();
@@ -3446,6 +3461,7 @@ fn render_measure(
                 tablature.as_ref(),
                 tablature_rhythm_display,
                 tablature_fret_mark_style,
+                allow_shared_alignment,
                 &mut prior_voice_events,
                 note_points,
                 beam_tip_points,
@@ -3824,7 +3840,8 @@ fn render_measure_voice<'a>(
     tablature: Option<&acorde_core::TablatureConfig>,
     tablature_rhythm_display: TablatureRhythmDisplay,
     tablature_fret_mark_style: acorde_core::TablatureFretMarkStyle,
-    prior_voice_events: &mut Vec<(f32, &'a Note)>,
+    allow_shared_alignment: bool,
+    prior_voice_events: &mut Vec<(f32, &'a Note, f64)>,
     note_points: &mut HashMap<NoteKey, NotePoint>,
     beam_tip_points: &mut HashMap<NoteKey, f32>,
 ) -> Result<(), RenderError> {
@@ -3842,6 +3859,7 @@ fn render_measure_voice<'a>(
         content_w,
         space,
         clef_gaps,
+        allow_shared_alignment,
     });
     // Each note is read in the clef in effect at its beat (mid-bar changes included), and
     // drawn an octave (or two) from its sounding pitch under an 8va/8vb (15ma/15mb) line:
@@ -3889,8 +3907,16 @@ fn render_measure_voice<'a>(
         content_x0,
         content_w,
         space,
+        allow_shared_alignment,
     );
-    prior_voice_events.extend(notes.iter().zip(xs.iter()).map(|(note, &x)| (x, note)));
+    let mut onset = 0.0;
+    prior_voice_events.extend(notes.iter().zip(xs.iter()).map(|(note, &x)| {
+        let event = (x, note, onset);
+        if !note.is_grace && !note.is_cue {
+            onset += note.beats();
+        }
+        event
+    }));
 
     // A lone voice's stems follow the engraving rule when the score does not fix them: the
     // note (or beamed group) farthest below the middle line stems up, farthest above (or on
@@ -4110,6 +4136,7 @@ struct VoicePositionContext<'a> {
     content_w: f32,
     space: f32,
     clef_gaps: &'a ClefGaps<'a>,
+    allow_shared_alignment: bool,
 }
 
 /// Stem up for staff positions (0 = bottom line) whose farthest note from the middle line
@@ -4293,6 +4320,7 @@ fn initial_measure_voice_positions(context: &VoicePositionContext<'_>) -> Vec<f3
         content_w,
         space,
         clef_gaps,
+        allow_shared_alignment,
     } = context;
     let mut xs = Vec::with_capacity(notes.len());
     let mut beat_pos = 0.0f64;
@@ -4302,7 +4330,8 @@ fn initial_measure_voice_positions(context: &VoicePositionContext<'_>) -> Vec<f3
                 .iter()
                 .position(|&index| index == *voice_idx)
                 .unwrap_or(0);
-            let separation = voice_separation_u(measure, voice_slots, beat_pos);
+            let separation =
+                voice_separation_u(measure, voice_slots, beat_pos, *allow_shared_alignment);
             (voice_rank as f32 - (voice_slots.len().saturating_sub(1) as f32 / 2.0))
                 * separation
                 * *space
@@ -5320,7 +5349,27 @@ fn grace_note_offset(notes: &[Note], index: usize) -> f32 {
 /// Return the minimum center-to-center separation for simultaneous voice events. The base
 /// separation preserves the established multi-voice geometry; wider accidentals or annotations
 /// expand it only when their conservative footprints would otherwise overlap.
-fn voice_separation_u(measure: &Measure, voice_slots: &[usize], target_beat: f64) -> f32 {
+fn noncolliding_voice_noteheads(left: &Note, right: &Note) -> bool {
+    !left.is_rest
+        && !right.is_rest
+        && !left.pitches.is_empty()
+        && !right.pitches.is_empty()
+        && left.pitches.iter().all(|pitch| {
+            right.pitches.iter().all(|other| {
+                (geometry::diatonic_index(&pitch.step, pitch.octave)
+                    - geometry::diatonic_index(&other.step, other.octave))
+                .abs()
+                    >= 2
+            })
+        })
+}
+
+fn voice_separation_u(
+    measure: &Measure,
+    voice_slots: &[usize],
+    target_beat: f64,
+    allow_shared_alignment: bool,
+) -> f32 {
     let mut notes = Vec::new();
     for &voice_index in voice_slots {
         let Some(voice) = measure.voices.get(voice_index) else {
@@ -5334,6 +5383,20 @@ fn voice_separation_u(measure: &Measure, voice_slots: &[usize], target_beat: f64
             }
             beat += note.beats();
         }
+    }
+    if allow_shared_alignment
+        && notes.len() >= 2
+        && notes
+            .iter()
+            .all(|note| note_annotation_width_u(note) == 0.0)
+        && notes.iter().enumerate().all(|(index, note)| {
+            notes
+                .iter()
+                .skip(index + 1)
+                .all(|other| noncolliding_voice_noteheads(note, other))
+        })
+    {
+        return 0.0;
     }
     // Keep the established geometry for ordinary noteheads. Only events with wider visible
     // content need cross-voice expansion; otherwise the conservative footprint would make every
@@ -5363,20 +5426,38 @@ fn voice_separation_u(measure: &Measure, voice_slots: &[usize], target_beat: f64
 fn resolve_cross_voice_event_spacing(
     notes: &[Note],
     xs: &mut [f32],
-    prior_events: &[(f32, &Note)],
+    prior_events: &[(f32, &Note, f64)],
     content_x0: f32,
     content_w: f32,
     space: f32,
+    allow_shared_alignment: bool,
 ) {
     if notes.is_empty() || xs.len() != notes.len() || prior_events.is_empty() {
         return;
     }
     let mut candidate = xs.to_vec();
+    let mut onset = 0.0;
     for (index, note) in notes.iter().enumerate() {
+        let note_onset = onset;
+        if !note.is_grace && !note.is_cue {
+            onset += note.beats();
+        }
         let mut x = candidate[index];
         let wide_current = note_annotation_width_u(note) > 0.0
             || note.pitches.iter().any(|pitch| pitch.alter != 0);
-        for &(prior_x, prior_note) in prior_events {
+        for &(prior_x, prior_note, prior_onset) in prior_events {
+            let simultaneous = (note_onset - prior_onset).abs() < 1e-9;
+            let heads_separate = noncolliding_voice_noteheads(note, prior_note);
+            // Simultaneous notes with no head collision share a rhythmic column. Their written
+            // pitch alterations are not evidence that either needs an extra accidental glyph.
+            if allow_shared_alignment
+                && simultaneous
+                && heads_separate
+                && note_annotation_width_u(note) == 0.0
+                && note_annotation_width_u(prior_note) == 0.0
+            {
+                continue;
+            }
             let wide_prior = note_annotation_width_u(prior_note) > 0.0
                 || prior_note.pitches.iter().any(|pitch| pitch.alter != 0);
             if !wide_current && !wide_prior || prior_x > x {
@@ -9644,7 +9725,7 @@ mod tests {
             syllabic: "single".into(),
             extend: false,
         });
-        let prior_events = [(0.0, &prior)];
+        let prior_events = [(0.0, &prior, 0.0)];
 
         let mut positions = [1.0];
         resolve_cross_voice_event_spacing(
@@ -9654,6 +9735,7 @@ mod tests {
             0.0,
             30.0,
             1.0,
+            true,
         );
         assert!(positions[0] > 1.0);
 
@@ -9665,6 +9747,7 @@ mod tests {
             0.0,
             1.1,
             1.0,
+            true,
         );
         assert_eq!(tight_positions, [1.0]);
     }
