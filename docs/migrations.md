@@ -197,5 +197,5 @@ Rust code using complete `Note` struct literals must initialize it, usually with
 An incoming partial tie is distinct from `tie_end`: it represents a continuation across a repeat
 or jump and is retained through MSCX. Re-import original MuseScore files to recover it. MusicXML,
 MEI, and ABC export reports identify this data as unsupported rather than silently claiming it
-survives conversion. Support for outgoing partial ties and other MuseScore jump-tie metadata is
-not yet complete.
+survives conversion. Nonadjacent note-spanner locations and outgoing partial ties are reported
+on import and are not retained; other MuseScore jump-tie metadata is not yet complete.

@@ -163,3 +163,22 @@ fn outgoing_partial_tie_is_reported_as_unsupported_on_import() {
             .ends_with("/PartialTie/partialSpannerDirection")
     );
 }
+
+#[test]
+fn nonadjacent_tie_source_location_is_reported() {
+    let xml = r#"<museScore version="4.50"><Score><Part id="1"><Staff id="1"/></Part><Staff id="1"><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc><PartialTie><partialSpannerDirection>incoming</partialSpannerDirection></PartialTie><Spanner type="Tie"><prev><location><measures>-3</measures><fractions>7/16</fractions></location></prev></Spanner></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let report = acorde_io::parse_mscx_with_report(xml).unwrap();
+    let diagnostic = report
+        .diagnostics
+        .iter()
+        .find(|item| item.code == "mscx.unsupported-nonadjacent-note-spanner-location")
+        .unwrap();
+    assert_eq!(diagnostic.preserved_value.as_deref(), Some("-3"));
+    assert!(
+        diagnostic
+            .source_location
+            .as_deref()
+            .unwrap()
+            .ends_with("/Spanner/prev/location/measures")
+    );
+}

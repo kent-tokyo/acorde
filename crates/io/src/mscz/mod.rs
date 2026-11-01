@@ -2924,6 +2924,26 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                     diagnostic.preserved_value = Some(value);
                     diagnostics.push(diagnostic);
                 }
+                if field == Some("measures")
+                    && path.iter().any(|element| element == "Note")
+                    && path.iter().any(|element| element == "Spanner")
+                    && path.iter().any(|element| element == "location")
+                {
+                    let value = String::from_utf8_lossy(event.as_ref());
+                    if value
+                        .trim()
+                        .parse::<i32>()
+                        .is_ok_and(|offset| !(-1..=1).contains(&offset))
+                    {
+                        let mut diagnostic = Diagnostic::warning(
+                            "mscx.unsupported-nonadjacent-note-spanner-location",
+                            "MSCX note spanner's nonadjacent measure location is not retained",
+                        );
+                        diagnostic.source_location = Some(format!("/{}", path.join("/")));
+                        diagnostic.preserved_value = Some(value.trim().to_string());
+                        diagnostics.push(diagnostic);
+                    }
+                }
                 if field == Some("partialSpannerDirection")
                     && path.iter().rev().nth(1).map(String::as_str) == Some("PartialTie")
                 {
