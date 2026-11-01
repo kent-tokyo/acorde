@@ -5310,3 +5310,22 @@ fn positioned_figured_bass_groups_follow_their_note_positions() {
     );
     assert_eq!(svg.matches("acorde-figured-bass-extender").count(), 1);
 }
+
+#[test]
+fn simultaneous_figured_bass_extender_follows_its_own_figure() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Bass</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><figured-bass><figure><figure-number>6</figure-number></figure></figured-bass><note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><voice>1</voice><type>whole</type></note><backup><duration>4</duration></backup><figured-bass><figure><figure-number>4</figure-number><extend type="start"/></figure></figured-bass><note><pitch><step>E</step><octave>3</octave></pitch><duration>4</duration><voice>2</voice><type>whole</type></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(
+        svg.matches("acorde-figured-bass-extender").count(),
+        1,
+        "{svg}"
+    );
+    let six = svg.find(">6</text>").expect("first figure");
+    let four = svg.find(">4</text>").expect("second figure");
+    let line = svg.find("acorde-figured-bass-extender").unwrap();
+    assert!(
+        six < four && four < line,
+        "extender must belong to 4: {svg}"
+    );
+}

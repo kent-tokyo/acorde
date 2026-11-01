@@ -2694,11 +2694,14 @@ fn figured_bass_modifier_display(value: &str) -> &str {
 }
 
 fn figured_bass_display_text(measure: &Measure) -> Option<String> {
-    if measure.figured_bass.is_empty() {
+    figured_bass_figures_display_text(&measure.figured_bass)
+}
+
+fn figured_bass_figures_display_text(figures: &[acorde_core::FiguredBassFigure]) -> Option<String> {
+    if figures.is_empty() {
         return None;
     }
-    let text = measure
-        .figured_bass
+    let text = figures
         .iter()
         .map(|figure| {
             let alter = match figure.alter.as_deref() {
@@ -5114,6 +5117,7 @@ fn render_measure_text(
     )
     .map_err(|_| RenderError::InvalidMeasureTextOffset { field: "collision" })?;
 
+    let mut used_figured_groups = vec![false; measure.figured_bass_groups.len()];
     for ((text_index, styled), placement) in entries
         .into_iter()
         .enumerate()
@@ -5155,9 +5159,25 @@ fn render_measure_text(
                 + 0.4 * size;
             render_metronome_mark(body, mark, mark_x, y, size);
         }
-        let matching_figured_group = measure.figured_bass_groups.iter().find(|group| {
-            (group.position_beats - styled.position_beats.unwrap_or(0.0)).abs() < 1e-7
-        });
+        let matching_figured_group = (styled.style == TextStyle::FiguredBass)
+            .then(|| {
+                measure
+                    .figured_bass_groups
+                    .iter()
+                    .enumerate()
+                    .find(|(index, group)| {
+                        !used_figured_groups[*index]
+                            && (group.position_beats - styled.position_beats.unwrap_or(0.0)).abs()
+                                < 1e-7
+                            && figured_bass_figures_display_text(&group.figures).as_deref()
+                                == Some(styled.text.as_str())
+                    })
+            })
+            .flatten()
+            .map(|(index, group)| {
+                used_figured_groups[index] = true;
+                group
+            });
         let figured_extends = matching_figured_group.map_or_else(
             || {
                 measure.figured_bass_groups.is_empty()
