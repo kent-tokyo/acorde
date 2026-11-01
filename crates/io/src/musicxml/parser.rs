@@ -506,6 +506,8 @@ pub(crate) fn parse_musicxml_collecting(
                         note_rest = true;
                         note_is_measure_rest = attr_is_yes(e, b"measure");
                     }
+                    // Paired and self-closing fermata elements have the same XML meaning.
+                    "fermata" if in_notations => pending_articulations.push(Articulation::Fermata),
                     // `<tap>T</tap>`: tapping with its displayed text.
                     "tap" if in_technical_block => pending_articulations.push(
                         if attr_str(e, b"hand").as_deref() == Some("left") {
@@ -1376,10 +1378,20 @@ pub(crate) fn parse_musicxml_collecting(
                     "segno" if in_direction_type => pending_navigation = Some("Segno".to_string()),
                     "coda" if in_direction_type => pending_navigation = Some("Coda".to_string()),
                     "sound" if in_direction => {
-                        if attr_present(e, b"dacapo") {
+                        if attr_present(e, b"dacapo")
+                            && !matches!(
+                                pending_navigation.as_deref(),
+                                Some("DaCapoAlFine" | "DaCapoAlCoda")
+                            )
+                        {
                             pending_navigation = Some("DaCapo".to_string());
                         }
-                        if attr_present(e, b"dalsegno") {
+                        if attr_present(e, b"dalsegno")
+                            && !matches!(
+                                pending_navigation.as_deref(),
+                                Some("DalSegnoAlFine" | "DalSegnoAlCoda")
+                            )
+                        {
                             pending_navigation = Some("DalSegno".to_string());
                         }
                         if attr_present(e, b"fine") {

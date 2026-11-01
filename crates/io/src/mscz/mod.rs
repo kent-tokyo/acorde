@@ -3077,7 +3077,7 @@ fn assemble_score(
         if let Some(ts) = measures.iter().find_map(|m| m.time_sig.clone()) {
             score.settings.time_signature = ts;
         }
-        if let Some(ks) = measures.iter().find_map(|m| m.key_sig.clone()) {
+        if let Some(ks) = measures.first().and_then(|m| m.key_sig.clone()) {
             score.settings.key_signature = ks;
         }
     }
@@ -3566,6 +3566,25 @@ mod tests {
         let diagnostics = loss_diagnostics(xml);
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].code, "mscx.unimported-excerpt");
+    }
+
+    #[test]
+    fn absent_initial_key_signature_does_not_promote_later_change() {
+        let xml = simple_mscx(
+            r#"<Measure><voice><Rest><durationType>whole</durationType></Rest></voice></Measure>
+            <Measure><voice><KeySig><concertKey>3</concertKey><mode>major</mode></KeySig>
+            <Rest><durationType>whole</durationType></Rest></voice></Measure>"#,
+        );
+        let score = parse_mscz(&zipped_mscx(&xml)).unwrap();
+        assert_eq!(score.settings.key_signature.fifths, 0);
+        assert_eq!(
+            score.parts[0].staves[0].measures[1]
+                .key_sig
+                .as_ref()
+                .unwrap()
+                .fifths,
+            3
+        );
     }
 
     #[test]

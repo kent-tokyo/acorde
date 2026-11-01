@@ -2501,13 +2501,46 @@ fn measure_text_width_u(text: &str) -> f32 {
 /// Return the explicit measure text plus legacy semantic text fields in one renderer-facing
 /// sequence. Explicit StyledText entries remain first; equal style/text pairs are not duplicated
 /// when an importer retained both representations.
+fn navigation_display_label(navigation: &str) -> &str {
+    match navigation {
+        "DaCapo" => "D.C.",
+        "DaCapoAlFine" => "D.C. al Fine",
+        "DaCapoAlCoda" => "D.C. al Coda",
+        "DalSegno" => "D.S.",
+        "DalSegnoAlFine" => "D.S. al Fine",
+        "DalSegnoAlCoda" => "D.S. al Coda",
+        "ToCoda" => "To Coda",
+        other => other,
+    }
+}
+
+fn navigation_text_key(text: &str) -> String {
+    let normalized: String = text
+        .chars()
+        .filter(|c| !c.is_whitespace() && *c != '.')
+        .flat_map(char::to_lowercase)
+        .collect();
+    match normalized.as_str() {
+        "dacapo" => "dc".into(),
+        "dacapoalfine" => "dcalfine".into(),
+        "dacapoalcoda" => "dcalcoda".into(),
+        "dalsegno" => "ds".into(),
+        "dalsegnoalfine" => "dsalfine".into(),
+        "dalsegnoalcoda" => "dsalcoda".into(),
+        _ => normalized,
+    }
+}
+
 pub(crate) fn measure_text_entries(measure: &Measure) -> Vec<StyledText> {
     let mut entries = measure.texts.clone();
     let legacy = [
         (TextStyle::Generic, measure.tempo_text.as_deref()),
         (TextStyle::RehearsalMark, measure.rehearsal.as_deref()),
-        (TextStyle::Generic, measure.navigation.as_deref()),
         (TextStyle::Expression, measure.expression_text.as_deref()),
+        (
+            TextStyle::Generic,
+            measure.navigation.as_deref().map(navigation_display_label),
+        ),
     ];
     for (style, text) in legacy {
         let Some(text) = text else {
@@ -2516,6 +2549,14 @@ pub(crate) fn measure_text_entries(measure: &Measure) -> Vec<StyledText> {
         if entries
             .iter()
             .any(|entry| entry.style == style && entry.text == text)
+            || (measure
+                .navigation
+                .as_deref()
+                .is_some_and(|nav| navigation_display_label(nav) == text)
+                && entries.iter().any(|entry| {
+                    matches!(entry.style, TextStyle::Generic | TextStyle::Expression)
+                        && navigation_text_key(&entry.text) == navigation_text_key(text)
+                }))
         {
             continue;
         }
