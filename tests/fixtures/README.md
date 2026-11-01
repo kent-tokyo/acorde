@@ -116,3 +116,8 @@ this verifies the example, not general engraving quality.
 MuseScore 4.7.5 reopened the Acorde-exported MSCZ and preserved the hidden second meter
 in MusicXML; it wrote its output before crashing at shutdown. Its input hash is pinned in
 `manifest.json`; this checks the visibility example, not general interchange quality.
+
+`issue_311_trill.musicxml` is a self-authored one-note score;
+`issue_311_musescore_trill.mscz` was generated from it by MuseScore Studio 4.7.5.
+MuseScore wrote the archive but crashed during shutdown. The regression covers the
+trill mark, SVG and playback metadata; it does not establish general compatibility.
