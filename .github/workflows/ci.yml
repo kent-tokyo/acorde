@@ -201,8 +201,9 @@ jobs:
           # cross-staff slur import/export measured 6,145,645 bytes on Linux.
           # Their combined Linux artifact measured 6,149,693 bytes. Hidden meter
           # support measured 6,154,758 bytes separately; with ottava support the
-          # Linux CI artifact measured 6,158,651 bytes. Measure their combination.
-          test "$size" -le 6160000
+          # Linux CI artifact measured 6,158,651 bytes; this combination measured
+          # 6,165,295 bytes on Linux CI.
+          test "$size" -le 6167000
 
   renderer-benchmark:
     name: Renderer performance budget
