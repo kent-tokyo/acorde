@@ -249,3 +249,16 @@ fn cross_voice_endpoints_are_reported_without_inventing_a_tie_location() {
     );
     assert!(!report.output.contains("<Tie/><next>"));
 }
+
+#[test]
+fn default_four_four_is_implicit_but_other_initial_meters_are_written() {
+    let four = Score::new("default", 120, 4, 4, 0, 1);
+    assert!(!serialize_mscx(&four).unwrap().contains("<TimeSig>"));
+    let nine = Score::new("compound", 120, 9, 8, 0, 1);
+    let xml = serialize_mscx(&nine).unwrap();
+    assert!(xml.contains("<sigN>9</sigN><sigD>8</sigD>"));
+    assert_eq!(
+        parse_mscx(&xml).unwrap().settings.time_signature,
+        nine.settings.time_signature
+    );
+}

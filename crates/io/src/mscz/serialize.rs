@@ -857,11 +857,10 @@ fn write_staff(
             )
             .map_err(fmt_error)?;
         }
-        if let Some(time) = measure
-            .time_sig
-            .as_ref()
-            .or_else(|| (measure_index == 0).then_some(default_time))
-        {
+        if let Some(time) = measure.time_sig.as_ref().or_else(|| {
+            (measure_index == 0 && (default_time.numerator != 4 || default_time.denominator != 4))
+                .then_some(default_time)
+        }) {
             write!(
                 xml,
                 "<TimeSig>{}{}<sigN>{}</sigN><sigD>{}</sigD></TimeSig>",
