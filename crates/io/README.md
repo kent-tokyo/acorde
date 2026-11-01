@@ -48,6 +48,19 @@ up to four canonical editing voices per staff/measure. MusicXML source voice num
 four across a score when each measure fits those slots; a fifth distinct voice in the same
 staff/measure is rejected instead of merged.
 
+## MuseScore tie interoperability test
+
+The MSCZ tie-location tests run without external applications. To additionally check a generated
+MSCZ by opening it in MuseScore and inspecting its exported MIDI, set `ACORDE_MUSESCORE` to the
+MuseScore executable and run:
+
+```sh
+ACORDE_MUSESCORE=/path/to/mscore cargo test -p acorde-io --all-features --test mscz_tie_locations musescore_external
+```
+
+The external test is skipped when the variable is unset. It validates the produced MIDI even if
+MuseScore exits abnormally after writing it; any such exit is reported in the test output.
+
 ## Resource and trust boundary
 
 Inputs have finite size and archive budgets. MXL/MSCZ reject traversal-style or duplicate entries

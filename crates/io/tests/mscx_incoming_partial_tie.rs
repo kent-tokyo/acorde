@@ -10,6 +10,7 @@ fn incoming_partial_tie_is_retained_per_pitch_through_native_roundtrip() {
     assert_eq!(note.pitch_incoming_partial_ties, vec![true, false]);
     assert!(!note.tie_end);
     let serialized = serialize_mscx(&score).unwrap();
+    assert!(serialized.contains(r#"<museScore version="4.50">"#));
     assert!(serialized.contains(
         "<PartialTie><partialSpannerDirection>incoming</partialSpannerDirection></PartialTie>"
     ));
@@ -248,4 +249,81 @@ fn explicit_source_measure_and_fraction_select_the_matching_note() {
         let attacks = midi.tracks[1].iter().filter(|event| matches!(event.kind, TrackEventKind::Midi { message: MidiMessage::NoteOn { key, vel }, .. } if key.as_int() == 60 && vel.as_int() > 0)).count();
         assert_eq!(attacks, 1);
     }
+}
+
+/// Set ACORDE_MUSESCORE to check the alternate-ending tie in MuseScore itself.
+#[cfg(feature = "midi")]
+#[test]
+fn musescore_external_partial_tie_does_not_reattack_on_second_ending() {
+    use acorde_core::{Barline, VoltaBracket};
+    use midly::{MidiMessage, Smf, TrackEventKind};
+    let Ok(executable) = std::env::var("ACORDE_MUSESCORE") else {
+        eprintln!("ACORDE_MUSESCORE is unset; external MuseScore check skipped");
+        return;
+    };
+    let xml = r#"<museScore version="4.50"><Score><Part id="1"><Staff id="1"/></Part><Staff id="1"><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc><Spanner type="Tie"><next/></Spanner></Note></Chord></voice></Measure><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc><Spanner type="Tie"><prev/></Spanner></Note></Chord></voice></Measure><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc><PartialTie><partialSpannerDirection>incoming</partialSpannerDirection></PartialTie><Spanner type="Tie"><prev><location><measures>-2</measures></location></prev></Spanner></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let mut score = parse_mscx(xml).unwrap();
+    let bars = &mut score.parts[0].staves[0].measures;
+    bars[0].barline_left = Barline::RepeatStart;
+    bars[1].barline_right = Barline::RepeatEnd;
+    for (bar, number) in [(1, 1), (2, 2)] {
+        bars[bar].volta = Some(VoltaBracket {
+            number,
+            kind: "begin_end".into(),
+            numbers: vec![],
+        });
+    }
+    let unique = format!(
+        "acorde-282-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    );
+    let dir = std::env::temp_dir().join(unique);
+    std::fs::create_dir(&dir).unwrap();
+    let input = dir.join("score.mscz");
+    let output = dir.join("rendered.mid");
+    std::fs::write(&input, acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let process = std::process::Command::new(executable)
+        .arg("-o")
+        .arg(&output)
+        .arg(&input)
+        .output()
+        .unwrap();
+    let bytes = std::fs::read(&output).unwrap_or_else(|error| {
+        panic!(
+            "MuseScore failed to write MIDI: {error}; status: {}; stderr: {}",
+            process.status,
+            String::from_utf8_lossy(&process.stderr)
+        )
+    });
+    let midi = Smf::parse(&bytes).unwrap();
+    let ticks_per_beat = match midi.header.timing {
+        midly::Timing::Metrical(t) => u64::from(t.as_int()),
+        _ => panic!("unexpected MIDI timing"),
+    };
+    let mut attacks = Vec::new();
+    for track in &midi.tracks {
+        let mut tick = 0u64;
+        for event in track {
+            tick += u64::from(event.delta.as_int());
+            if let TrackEventKind::Midi {
+                message: MidiMessage::NoteOn { key, vel },
+                ..
+            } = event.kind
+                && key.as_int() == 60
+                && vel.as_int() > 0
+            {
+                attacks.push(tick);
+            }
+        }
+    }
+    assert!(attacks.contains(&(8 * ticks_per_beat)), "{attacks:?}");
+    assert!(
+        !attacks.contains(&(12 * ticks_per_beat)),
+        "the second ending must not reattack: {attacks:?}"
+    );
+    std::fs::remove_dir_all(dir).unwrap();
 }

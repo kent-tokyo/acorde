@@ -89,6 +89,80 @@ impl SlurEmissionIndex {
     }
 }
 
+/// Explicit MuseScore tie endpoint locations, indexed by (measure, voice, note, pitch).
+type TieNoteKey = (usize, usize, usize, usize);
+#[derive(Default)]
+struct TieLocations {
+    previous: Option<(usize, f64)>,
+    next: Option<(usize, f64)>,
+}
+
+fn staff_tie_locations(
+    staff: &Staff,
+    score: &Score,
+) -> std::collections::HashMap<TieNoteKey, TieLocations> {
+    use std::collections::HashMap;
+    let mut result: HashMap<TieNoteKey, TieLocations> = HashMap::new();
+    for voice in 0..4 {
+        let mut measure_start = 0.0f64;
+        let mut pending: HashMap<i32, (TieNoteKey, (usize, f64), f64)> = HashMap::new();
+        for (measure_index, measure) in staff.measures.iter().enumerate() {
+            let mut offset = 0.0f64;
+            for (note_index, note) in measure.voices[voice].iter().enumerate() {
+                if note.is_grace {
+                    continue;
+                }
+                let onset = measure_start + offset;
+                if !note.is_rest && !note.is_cue {
+                    for (pitch_index, pitch) in note.pitches.iter().enumerate() {
+                        let key = (measure_index, voice, note_index, pitch_index);
+                        let point = (measure_index, offset);
+                        let pitch_key = pitch.to_midi_cents();
+                        if note.pitch_tie_end(pitch_index)
+                            && let Some((prior_key, prior_point, prior_end)) =
+                                pending.get(&pitch_key).copied()
+                            && (prior_end - onset).abs() < 1e-7
+                            && mscx_offset_is_exact((offset - prior_point.1).abs())
+                            && note
+                                .pitch_tie_sources
+                                .get(pitch_index)
+                                .and_then(Option::as_ref)
+                                .is_none_or(|location| {
+                                    let target = acorde_core::NoteAddr {
+                                        part: 0,
+                                        staff: 0,
+                                        measure: measure_index,
+                                        voice,
+                                        note: note_index,
+                                    };
+                                    let previous = acorde_core::NoteAddr {
+                                        part: 0,
+                                        staff: 0,
+                                        measure: prior_key.0,
+                                        voice: prior_key.1,
+                                        note: prior_key.2,
+                                    };
+                                    location.matches(&target, &previous, prior_point.1 - offset)
+                                })
+                        {
+                            result.entry(prior_key).or_default().next = Some(point);
+                            result.entry(key).or_default().previous = Some(prior_point);
+                        }
+                        if note.pitch_tie_start(pitch_index) {
+                            pending.insert(pitch_key, (key, point, onset + note.beats()));
+                        } else {
+                            pending.remove(&pitch_key);
+                        }
+                    }
+                }
+                offset += note.beats();
+            }
+            measure_start += score.playback_measure_beats(measure_index);
+        }
+    }
+    result
+}
+
 /// Cross-staff/voice MSCX links are unambiguous only for pitched, non-grace
 /// endpoints and a single slur end at the target onset.
 fn can_emit_cross_staff_or_voice_slur(
@@ -268,6 +342,34 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
         }
         for (staff_index, staff) in part.staves.iter().enumerate() {
             let staff_path = format!("{part_path}/staff/{}", staff_index + 1);
+            let ties = staff_tie_locations(staff, score);
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    for (note_index, note) in voice.iter().enumerate() {
+                        for (pitch_index, _) in note.pitches.iter().enumerate() {
+                            let location =
+                                ties.get(&(measure_index, voice_index, note_index, pitch_index));
+                            if (note.pitch_tie_start(pitch_index)
+                                && location.and_then(|tie| tie.next).is_none())
+                                || (note.pitch_tie_end(pitch_index)
+                                    && location.and_then(|tie| tie.previous).is_none())
+                            {
+                                push(
+                                    format!(
+                                        "{staff_path}/measure/{}/voice/{}/note/{}/pitch/{}/tie",
+                                        measure_index + 1,
+                                        voice_index + 1,
+                                        note_index + 1,
+                                        pitch_index + 1
+                                    ),
+                                    "unresolved endpoint".into(),
+                                    "MSCX cannot emit an exact tie location for this unpaired, cross-voice, or unsupported-rhythm endpoint; MuseScore may rearticulate it",
+                                );
+                            }
+                        }
+                    }
+                }
+            }
             // MuseScore transposes a whole instrument: the part's first staff sets it.
             if staff.transpose_semitones != part.staves[0].transpose_semitones {
                 push(
@@ -288,7 +390,7 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
                             beat += note.beats();
                             if beat + 1e-9 >= switch.position_beats {
                                 return switch.position_beats >= 0.0
-                                    && channel_switch_offset_exact(beat - switch.position_beats);
+                                    && mscx_offset_is_exact(beat - switch.position_beats);
                             }
                         }
                         false
@@ -417,7 +519,10 @@ fn note_has_unsupported_fields(note: &Note) -> bool {
         )
 }
 
-/// Serialize the bounded canonical score subset as MuseScore 3-compatible MSCX.
+/// Serialize the bounded canonical score subset as MSCX.
+///
+/// MuseScore 4 partial ties require the version 4 reader; scores without them
+/// retain the MuseScore 3-compatible version.
 ///
 /// This is intentionally a canonical subset serializer: it emits score structure, voices,
 /// durations, pitches, tablature positions, common note techniques, lyrics, and basic measure
@@ -441,11 +546,21 @@ pub fn serialize_mscx(score: &Score) -> Result<String, Error> {
     if score.parts.is_empty() {
         return Err(Error::Empty);
     }
+    let has_partial_ties = score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .flat_map(|staff| &staff.measures)
+        .flat_map(|measure| &measure.voices)
+        .flatten()
+        .any(|note| note.pitch_incoming_partial_ties.contains(&true));
+    let version = if has_partial_ties { "4.50" } else { "3.02" };
     let mut xml = String::with_capacity(4096);
-    xml.push_str(
-        r#"<?xml version="1.0" encoding="UTF-8"?>
-<museScore version="3.02"><Score>"#,
-    );
+    write!(
+        xml,
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<museScore version=\"{version}\"><Score>"
+    )
+    .expect("writing to a String cannot fail");
     // MuseScore draws multi-measure rests from a style setting rather than per bar.
     if score
         .parts
@@ -559,7 +674,7 @@ pub fn serialize_mscz(score: &Score) -> Result<Vec<u8>, Error> {
         .map_err(|error| Error::Zip(error.to_string()))
 }
 
-fn channel_switch_offset_exact(delta: f64) -> bool {
+fn mscx_offset_is_exact(delta: f64) -> bool {
     delta.abs() < 1e-9
         || acorde_core::MeasureLength::from_beats(delta)
             .and_then(|length| length.beats())
@@ -572,7 +687,7 @@ fn write_channel_switch(
     cursor: f64,
 ) -> Result<(), Error> {
     let delta = cursor - switch.position_beats;
-    if switch.position_beats < 0.0 || !channel_switch_offset_exact(delta) {
+    if switch.position_beats < 0.0 || !mscx_offset_is_exact(delta) {
         return Ok(());
     }
     if delta > 1e-9 {
@@ -602,6 +717,7 @@ fn write_staff(
 ) -> Result<(), Error> {
     let mut running_time = default_time.clone();
     let span_marks = staff_span_marks(staff, score, slur_index, part_index, staff_in_part);
+    let tie_locations = staff_tie_locations(staff, score);
     // Voltas as (first bar, last bar, number). An end marker without a matching
     // start has no opening spanner, but still needs a closing marker.
     let volta_spans = staff_volta_spans(staff);
@@ -775,7 +891,10 @@ fn write_staff(
             )
             .map_err(fmt_error)?;
         }
-        if let Some(time) = &measure.time_sig {
+        if let Some(time) = measure.time_sig.as_ref().or_else(|| {
+            (measure_index == 0 && (default_time.numerator != 4 || default_time.denominator != 4))
+                .then_some(default_time)
+        }) {
             write!(
                 xml,
                 "<TimeSig>{}{}<sigN>{}</sigN><sigD>{}</sigD></TimeSig>",
@@ -983,6 +1102,10 @@ fn write_staff(
                         marks,
                         staff_in_part,
                         staff.transpose_semitones,
+                        (
+                            (measure_index, voice_index, note_index, beats),
+                            &tie_locations,
+                        ),
                     )?;
                     if tuplets.iter().any(|&(_, end)| end == note_index) {
                         xml.push_str("<endTuplet/>");
@@ -1337,7 +1460,12 @@ fn write_note(
     marks: Option<&SpanMarks>,
     staff_in_part: usize,
     transpose: i8,
+    tie_context: (
+        (usize, usize, usize, f64),
+        &std::collections::HashMap<TieNoteKey, TieLocations>,
+    ),
 ) -> Result<(), Error> {
+    let (note_position, tie_locations) = tie_context;
     // A fermata is its own element before the chord or rest it sits over.
     if note
         .articulations
@@ -1539,35 +1667,52 @@ fn write_note(
         if note.pitch_incoming_partial_ties.get(pitch_index) == Some(&true) {
             xml.push_str("<PartialTie><partialSpannerDirection>incoming</partialSpannerDirection></PartialTie>");
         }
-        if tie_start || tie_end {
+        let (measure, voice, index, beats) = note_position;
+        let locations = tie_locations.get(&(measure, voice, index, pitch_index));
+        if tie_end {
             xml.push_str("<Spanner type=\"Tie\">");
-            if tie_end {
-                if let Some(location) = note
-                    .pitch_tie_sources
-                    .get(pitch_index)
-                    .and_then(Option::as_ref)
-                {
-                    xml.push_str("<prev><location>");
-                    if location.staves != 0 {
-                        write!(xml, "<staves>{}</staves>", location.staves).map_err(fmt_error)?;
-                    }
-                    if location.voices != 0 {
-                        write!(xml, "<voices>{}</voices>", location.voices).map_err(fmt_error)?;
-                    }
-                    if location.measures != 0 {
-                        write!(xml, "<measures>{}</measures>", location.measures)
-                            .map_err(fmt_error)?;
-                    }
-                    if let Some(fractions) = &location.fractions {
-                        write!(xml, "<fractions>{}</fractions>", escape(fractions))
-                            .map_err(fmt_error)?;
-                    }
-                    xml.push_str("</location></prev>");
-                } else {
-                    xml.push_str("<prev/>");
+            if let Some(location) = note
+                .pitch_tie_sources
+                .get(pitch_index)
+                .and_then(Option::as_ref)
+            {
+                xml.push_str("<prev><location>");
+                if location.staves != 0 {
+                    write!(xml, "<staves>{}</staves>", location.staves).map_err(fmt_error)?;
                 }
+                if location.voices != 0 {
+                    write!(xml, "<voices>{}</voices>", location.voices).map_err(fmt_error)?;
+                }
+                if location.measures != 0 {
+                    write!(xml, "<measures>{}</measures>", location.measures).map_err(fmt_error)?;
+                }
+                if let Some(fractions) = &location.fractions {
+                    write!(xml, "<fractions>{}</fractions>", escape(fractions))
+                        .map_err(fmt_error)?;
+                }
+                xml.push_str("</location></prev>");
+            } else if let Some(previous) = locations.and_then(|tie| tie.previous) {
+                write!(
+                    xml,
+                    "<prev>{}</prev>",
+                    mscx_location((measure, beats), previous)
+                )
+                .map_err(fmt_error)?;
+            } else {
+                xml.push_str("<prev/>");
             }
-            if tie_start {
+            xml.push_str("</Spanner>");
+        }
+        if tie_start {
+            xml.push_str("<Spanner type=\"Tie\">");
+            if let Some(next) = locations.and_then(|tie| tie.next) {
+                write!(
+                    xml,
+                    "<Tie/><next>{}</next>",
+                    mscx_location((measure, beats), next)
+                )
+                .map_err(fmt_error)?;
+            } else {
                 xml.push_str("<next/>");
             }
             xml.push_str("</Spanner>");
