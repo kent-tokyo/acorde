@@ -574,12 +574,14 @@ mod tests {
     }
 
     #[test]
-    fn full_sf2_isolates_overlapping_same_pitch_after_fermata() {
+    fn full_sf2_isolates_overlapping_same_pitch_in_two_voices() {
         let mut score = Score::new("Overlapping unison", 120, 4, 4, 0, 1);
-        let mut first = Note::new(Pitch::new(Step::A, 4), Duration::Quarter);
-        first.articulations.push(Articulation::Fermata);
         score.parts[0].staves[0].measures[0].voices[0] =
-            vec![first, Note::new(Pitch::new(Step::A, 4), Duration::Quarter)];
+            vec![Note::new(Pitch::new(Step::A, 4), Duration::Half)];
+        score.parts[0].staves[0].measures[0].voices[1] = vec![
+            Note::rest(Duration::Quarter),
+            Note::new(Pitch::new(Step::A, 4), Duration::Quarter),
+        ];
         let schedule = manifest(&score);
         assert!(schedule.frame_events[0].end_frame > schedule.frame_events[1].start_frame);
         let wav = render_offline_wav_full_sf2(&schedule, PIANO).expect("overlapping WAV");

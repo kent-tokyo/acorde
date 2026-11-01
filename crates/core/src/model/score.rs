@@ -2140,6 +2140,9 @@ pub struct MetronomeMark {
 pub struct Measure {
     pub number: u32,
     pub time_sig: Option<TimeSignature>,
+    /// Suppress this time signature while retaining its musical duration.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub time_sig_hidden: bool,
     /// Common or cut meter glyph selected by the source; `None` prints numerals.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub time_symbol: Option<TimeSymbol>,
@@ -2251,6 +2254,7 @@ impl Measure {
         Self {
             number: 0,
             time_sig: None,
+            time_sig_hidden: false,
             time_symbol: None,
             key_sig: None,
             clef: None,
@@ -3091,6 +3095,13 @@ pub enum ScoreChange {
         old: Option<TimeSignature>,
         new: Option<TimeSignature>,
     },
+    TimeVisibilityChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old: bool,
+        new: bool,
+    },
     TimeSymbolChanged {
         part: usize,
         staff: usize,
@@ -3387,6 +3398,15 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                         new: bm.time_sig.clone(),
                     });
                 }
+                if am.time_sig_hidden != bm.time_sig_hidden {
+                    changes.push(ScoreChange::TimeVisibilityChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.time_sig_hidden,
+                        new: bm.time_sig_hidden,
+                    });
+                }
                 if am.time_symbol != bm.time_symbol {
                     changes.push(ScoreChange::TimeSymbolChanged {
                         part: pi,
@@ -3666,6 +3686,12 @@ pub enum ScorePatch {
         staff: usize,
         measure: usize,
         value: Option<TimeSignature>,
+    },
+    SetTimeVisibility {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        hidden: bool,
     },
     SetTimeSymbol {
         part: usize,
@@ -3960,6 +3986,14 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                         staff: si,
                         measure: mi,
                         value: bm.time_sig.clone(),
+                    });
+                }
+                if am.time_sig_hidden != bm.time_sig_hidden {
+                    patches.push(ScorePatch::SetTimeVisibility {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        hidden: bm.time_sig_hidden,
                     });
                 }
                 if am.time_symbol != bm.time_symbol {
@@ -4359,6 +4393,23 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                     .get_mut(*measure)
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
                     .time_sig = value.clone();
+            }
+            ScorePatch::SetTimeVisibility {
+                part,
+                staff,
+                measure,
+                hidden,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .time_sig_hidden = *hidden;
             }
             ScorePatch::SetTimeSymbol {
                 part,
@@ -4857,7 +4908,8 @@ pub fn respell_score_to_key(score: &mut Score) {
 /// Compute total playback duration in seconds.
 ///
 /// Uses `measure_sequence` for correct repeat handling. Lighter than generating
-/// full playback events — suitable for progress bars and UI display.
+/// full playback events — suitable for progress bars and UI display. Includes
+/// the default score-wide fermata holds.
 pub fn score_duration_secs(score: &Score) -> f64 {
     if score.settings.tempo_bpm == 0 {
         return 0.0;
@@ -4885,13 +4937,14 @@ pub fn score_duration_secs(score: &Score) -> f64 {
             }
         }
     }
-    total_secs
+    total_secs + super::playback::fermata_total_secs(score, None)
 }
 
 /// Compute playback duration in seconds for a specific measure range (inclusive).
 ///
 /// `region` is `(start_measure, end_measure)`, both 0-based. Measures outside the range
-/// are excluded. Uses `measure_sequence` for correct repeat handling.
+/// are excluded. Uses `measure_sequence` for correct repeat handling and includes
+/// the default score-wide fermata holds.
 pub fn score_duration_secs_region(score: &Score, region: (usize, usize)) -> f64 {
     if score.settings.tempo_bpm == 0 {
         return 0.0;
@@ -4922,7 +4975,7 @@ pub fn score_duration_secs_region(score: &Score, region: (usize, usize)) -> f64 
             }
         }
     }
-    total_secs
+    total_secs + super::playback::fermata_total_secs(score, Some(region))
 }
 
 fn tempo_ramp_duration_secs(start_bpm: f64, target_bpm: Option<u16>, beats: f64) -> f64 {
@@ -6880,6 +6933,27 @@ mod tests {
             apply_patch(&a, &patches).unwrap().parts[0].staves[0].tablature,
             b.parts[0].staves[0].tablature
         );
+    }
+
+    #[test]
+    fn diff_and_patch_preserve_hidden_time_signature() {
+        let a = Score::new("Meter", 120, 4, 4, 0, 1);
+        let mut b = a.clone();
+        b.parts[0].staves[0].measures[0].time_sig_hidden = true;
+        assert!(diff(&a, &b).iter().any(|change| matches!(
+            change,
+            ScoreChange::TimeVisibilityChanged {
+                old: false,
+                new: true,
+                ..
+            }
+        )));
+        let patch = score_patch(&a, &b);
+        assert!(matches!(
+            patch.as_slice(),
+            [ScorePatch::SetTimeVisibility { hidden: true, .. }]
+        ));
+        assert!(apply_patch(&a, &patch).unwrap().parts[0].staves[0].measures[0].time_sig_hidden);
     }
 
     #[test]

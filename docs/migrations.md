@@ -11,6 +11,13 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## Unreleased: hidden time signatures
+
+`Measure.time_sig_hidden` preserves hidden MusicXML and MuseScore meter changes. Set it in
+complete Rust `Measure` literals; existing score JSON defaults to `false`. Exhaustive matches on
+`ScoreChange` and `ScorePatch` must also handle the new time-visibility variants. ABC, MEI and
+MIDI export reports identify the unsupported visibility separately from the musical meter.
+
 ## v1.3.7
 
 Re-import MusicXML to retain common/cut time symbols, written metronome marks,

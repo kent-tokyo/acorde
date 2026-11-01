@@ -322,6 +322,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut in_timesig = false;
     let mut timesig_n: u8 = 4;
     let mut timesig_d: u8 = 4;
+    let mut timesig_hidden = false;
 
     // Clef parsing
     let mut in_clef_elem = false;
@@ -630,6 +631,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             attr_str(e, b"len").and_then(|value| parse_mscx_measure_len(&value));
                         cur_key = None;
                         cur_time = None;
+                        timesig_hidden = false;
                         cur_clef_events.clear();
                         cur_tempo = None;
                         cur_voices = [vec![], vec![], vec![], vec![]];
@@ -657,6 +659,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         in_timesig = true;
                         timesig_n = 4;
                         timesig_d = 4;
+                        timesig_hidden = false;
                     }
                     "Clef" if in_measure => {
                         in_clef_elem = true;
@@ -1335,6 +1338,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         let meas = Measure {
                             number: cur_measure_num,
                             time_sig: cur_time.clone(),
+                            time_sig_hidden: timesig_hidden,
                             time_symbol: None,
                             key_sig: cur_key.clone(),
                             clef: cur_clef_in_measure.clone(),
@@ -1409,6 +1413,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
 
                     // TimeSig
+                    "visible" if in_timesig => {
+                        timesig_hidden = t == "0";
+                    }
                     "sigN" if in_timesig => {
                         timesig_n = t.parse().unwrap_or(4);
                     }

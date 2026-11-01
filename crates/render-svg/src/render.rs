@@ -316,7 +316,8 @@ pub(crate) fn build_svg_with_metadata_placement(
                         .measures
                         .get(row_start_measure)
                         .is_some_and(|measure| {
-                            measure.time_sig.is_some() || measure.time_symbol.is_some()
+                            !measure.time_sig_hidden
+                                && (measure.time_sig.is_some() || measure.time_symbol.is_some())
                         })
             });
         let previous_keys: Vec<i8> = staff_refs
@@ -352,6 +353,8 @@ pub(crate) fn build_svg_with_metadata_placement(
             .iter()
             .map(|state| (state.time_sig.clone(), state.time_symbol))
             .collect();
+        let mut running_hidden: Vec<bool> =
+            staff_states.iter().map(|s| s.time_sig_hidden).collect();
         let mut running_keys: Vec<i8> = staff_states.iter().map(|s| s.key_fifths).collect();
         let mut inline_keys = vec![vec![None; staff_refs.len()]; row.measure_indices.len()];
         let mut inline_key_widths_u = vec![0.0_f32; row.measure_indices.len()];
@@ -380,13 +383,17 @@ pub(crate) fn build_svg_with_metadata_placement(
                         .unwrap_or(&running_times[si_idx].0);
                     let symbol = measure.time_symbol;
                     if row_staff_visible[si_idx]
-                        && (*time != running_times[si_idx].0 || symbol != running_times[si_idx].1)
+                        && !measure.time_sig_hidden
+                        && (*time != running_times[si_idx].0
+                            || symbol != running_times[si_idx].1
+                            || running_hidden[si_idx])
                     {
                         inline_meter_widths_u[col] = inline_meter_widths_u[col]
                             .max(time_signature_width_u(time, symbol) + 0.4);
                         inline_meters[col][si_idx] = Some((time.clone(), symbol));
                     }
                     running_times[si_idx] = (time.clone(), symbol);
+                    running_hidden[si_idx] = measure.time_sig_hidden;
                 }
             }
         }
@@ -580,7 +587,7 @@ pub(crate) fn build_svg_with_metadata_placement(
                 )?;
             }
             hx += HEADER_GAP_U * space;
-            if draw_time {
+            if draw_time && !state.time_sig_hidden {
                 write_time_signature(
                     &mut body,
                     &state.time_sig,
@@ -2727,6 +2734,7 @@ struct EffectiveState {
     key_fifths: i8,
     time_sig: TimeSignature,
     time_symbol: Option<TimeSymbol>,
+    time_sig_hidden: bool,
 }
 
 fn effective_state(
@@ -2740,6 +2748,7 @@ fn effective_state(
     let mut key_fifths = score.settings.key_signature.fifths;
     let mut time_sig = score.settings.time_signature.clone();
     let mut time_symbol = None;
+    let mut time_sig_hidden = false;
     for (index, measure) in s.measures.iter().enumerate().take(up_to_measure + 1) {
         if let Some(c) = &measure.clef {
             clef = c.clone();
@@ -2755,6 +2764,7 @@ fn effective_state(
         if let Some(t) = &measure.time_sig {
             time_sig = t.clone();
             time_symbol = measure.time_symbol;
+            time_sig_hidden = measure.time_sig_hidden;
         } else if measure.time_symbol.is_some() {
             time_symbol = measure.time_symbol;
         }
@@ -2765,6 +2775,7 @@ fn effective_state(
         key_fifths,
         time_sig,
         time_symbol,
+        time_sig_hidden,
     })
 }
 

@@ -5731,6 +5731,7 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                     measure_index + 1
                 );
                 for (field, present) in [
+                    ("time_sig_hidden", measure.time_sig_hidden),
                     ("volta", measure.volta.is_some()),
                     ("rehearsal", false),
                     ("navigation", measure.navigation.is_some()),
