@@ -5664,6 +5664,7 @@ fn render_all_spans(
                 width - right_margin_u * space,
                 space,
                 true,
+                (0.0, 1.0 / (row2 - row1 + 1) as f32),
             );
             render_span_segment(
                 body,
@@ -5675,6 +5676,7 @@ fn render_all_spans(
                 x2,
                 space,
                 false,
+                ((row2 - row1) as f32 / (row2 - row1 + 1) as f32, 1.0),
             );
             for middle_row in row1.saturating_add(1)..row2 {
                 let y = y1 + row_tops[middle_row] - row_tops[row1];
@@ -5688,6 +5690,10 @@ fn render_all_spans(
                     width - right_margin_u * space,
                     space,
                     false,
+                    (
+                        (middle_row - row1) as f32 / (row2 - row1 + 1) as f32,
+                        (middle_row - row1 + 1) as f32 / (row2 - row1 + 1) as f32,
+                    ),
                 );
             }
             if interactive {
@@ -5959,6 +5965,37 @@ fn span_lane_baseline(span: &SpanMark, anchor_y: f32, stem_up: bool, space: f32)
     }
 }
 
+fn write_hairpin_wedge(
+    body: &mut String,
+    x1: f32,
+    x2: f32,
+    y: f32,
+    halves: (f32, f32),
+    space: f32,
+    continuation: bool,
+) {
+    let (left_half, right_half) = halves;
+    let continuation_attr = if continuation {
+        r#" data-continuation="true""#
+    } else {
+        ""
+    };
+    let _ = write!(
+        body,
+        r#"<path class="acorde-hairpin"{} d="M {},{} L {},{} M {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+        continuation_attr,
+        f(x1),
+        f(y - left_half),
+        f(x2),
+        f(y - right_half),
+        f(x1),
+        f(y + left_half),
+        f(x2),
+        f(y + right_half),
+        f(0.08 * space)
+    );
+}
+
 #[allow(clippy::too_many_arguments)]
 fn render_same_row_span(
     body: &mut String,
@@ -5978,25 +6015,10 @@ fn render_same_row_span(
     match span {
         SpanMark::Hairpin { kind, .. } => {
             let y = y1 + (if up1 { 2.0 } else { -4.0 }) * space;
-            let open = matches!(kind, acorde_core::HairpinKind::Crescendo);
-            let (a, b) = if open {
-                (y + 0.45 * space, y)
-            } else {
-                (y, y + 0.45 * space)
-            };
-            let _ = write!(
-                body,
-                r#"<path class="acorde-hairpin" d="M {},{} L {},{} M {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
-                f(left),
-                f(a),
-                f((left + right) / 2.0),
-                f(b),
-                f((left + right) / 2.0),
-                f(b),
-                f(right),
-                f(a),
-                f(0.08 * space)
-            );
+            let crescendo = matches!(kind, acorde_core::HairpinKind::Crescendo);
+            let left_half = if crescendo { 0.0 } else { 0.45 * space };
+            let right_half = if crescendo { 0.45 * space } else { 0.0 };
+            write_hairpin_wedge(body, left, right, y, (left_half, right_half), space, false);
         }
         SpanMark::Slur { .. } => {
             if (x2 - x1).abs() < 0.6 * space {
@@ -6367,28 +6389,21 @@ fn render_span_segment(
     x2: f32,
     space: f32,
     start: bool,
+    progress: (f32, f32),
 ) {
     match span {
         SpanMark::Hairpin { kind, .. } => {
             let y = y1 + (if up { 2.0 } else { -4.0 }) * space;
-            let open = matches!(kind, acorde_core::HairpinKind::Crescendo);
-            let (a, b) = if open {
-                (y + 0.45 * space, y)
-            } else {
-                (y, y + 0.45 * space)
-            };
-            let _ = write!(
+            let crescendo = matches!(kind, acorde_core::HairpinKind::Crescendo);
+            let half_width = |t: f32| 0.45 * space * if crescendo { t } else { 1.0 - t };
+            write_hairpin_wedge(
                 body,
-                r#"<path class="acorde-hairpin" data-continuation="true" d="M {},{} L {},{} M {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
-                f(x1),
-                f(a),
-                f(x2),
-                f(b),
-                f(x1),
-                f(b),
-                f(x2),
-                f(a),
-                f(0.08 * space)
+                x1,
+                x2,
+                y,
+                (half_width(progress.0), half_width(progress.1)),
+                space,
+                true,
             );
         }
         SpanMark::Slur { .. } => {

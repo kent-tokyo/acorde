@@ -4713,3 +4713,76 @@ fn navigation_labels_are_musical_and_deduplicate_source_text() {
     assert!(svg.contains("Da Capo al Fine"));
     assert!(!svg.contains("D.C. al Fine"));
 }
+
+fn hairpin_path_coordinates(svg: &str) -> Vec<[f32; 8]> {
+    svg.split("<path class=\"acorde-hairpin\"")
+        .skip(1)
+        .map(|fragment| {
+            let path = fragment
+                .split(" d=\"")
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap();
+            let values: Vec<f32> = path
+                .split(|c: char| c == 'M' || c == 'L' || c == ',' || c.is_whitespace())
+                .filter_map(|s| s.parse().ok())
+                .collect();
+            values.try_into().unwrap()
+        })
+        .collect()
+}
+
+#[test]
+fn musicxml_hairpins_render_full_width_wedges_in_both_directions() {
+    for (kind, crescendo) in [("crescendo", true), ("diminuendo", false)] {
+        let xml = format!(
+            r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes><direction placement="below"><direction-type><wedge type="{kind}" number="1"/></direction-type></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><direction><direction-type><wedge type="stop" number="1"/></direction-type></direction><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#
+        );
+        let score = acorde_io::parse_musicxml(&xml).unwrap();
+        let paths = hairpin_path_coordinates(&render_svg(&score, &opts()).unwrap());
+        assert_eq!(paths.len(), 1);
+        let p = paths[0];
+        assert_eq!((p[0], p[2]), (p[4], p[6]));
+        assert!(p[2] > p[0]);
+        let (left, right) = ((p[1] - p[5]).abs(), (p[3] - p[7]).abs());
+        if crescendo {
+            assert!(left < 0.01 && right > 1.0);
+        } else {
+            assert!(left > 1.0 && right < 0.01);
+        }
+    }
+}
+
+#[test]
+fn cross_system_hairpins_keep_their_opening_without_crossing() {
+    use acorde_core::{Duration, HairpinKind, Note, Pitch, Score, Step};
+    for (kind, crescendo) in [
+        (HairpinKind::Crescendo, true),
+        (HairpinKind::Decrescendo, false),
+    ] {
+        let mut score = Score::new("wedge", 120, 4, 4, 0, 2);
+        let measures = &mut score.parts[0].staves[0].measures;
+        measures[0].voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        measures[1].voices[0] = vec![Note::new(Pitch::new(Step::D, 4), Duration::Whole)];
+        measures[0].voices[0][0].hairpin_start = Some(kind);
+        measures[1].voices[0][0].hairpin_end = true;
+        let mut options = opts();
+        options.measures_per_system = 1;
+        let paths = hairpin_path_coordinates(&render_svg(&score, &options).unwrap());
+        assert_eq!(paths.len(), 2);
+        let width = |p: &[f32; 8]| ((p[1] - p[5]).abs(), (p[3] - p[7]).abs());
+        let first = width(&paths[0]);
+        let second = width(&paths[1]);
+        assert!((first.1 - second.0).abs() < 0.1);
+        if crescendo {
+            assert!(first.0 < 0.01 && second.1 > first.1);
+        } else {
+            assert!(first.0 > first.1 && second.1 < 0.01);
+        }
+        for p in paths {
+            assert!(p[1] <= p[5] && p[3] <= p[7]);
+        }
+    }
+}
