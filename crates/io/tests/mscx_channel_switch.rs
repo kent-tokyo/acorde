@@ -367,4 +367,29 @@ fn region_after_repeat_inherits_the_final_played_switch() {
         to_playback_events(&decoded, &PlaybackOptions::default())[0].program,
         40
     );
+
+    // On the second pass the first ending is skipped; the repeated first bar
+    // restores arco before entering the second ending.
+    use acorde_core::VoltaBracket;
+    let bars = &mut score.parts[0].staves[0].measures;
+    bars[0].channel_switches[0].channel_name = "arco".into();
+    bars[1].channel_switches[0].channel_name = "pizzicato".into();
+    bars[1].volta = Some(VoltaBracket {
+        number: 1,
+        kind: "begin_end".into(),
+        numbers: vec![],
+    });
+    bars[2].volta = Some(VoltaBracket {
+        number: 2,
+        kind: "begin_end".into(),
+        numbers: vec![],
+    });
+    assert_eq!(acorde_core::measure_sequence(&score), vec![0, 1, 0, 2]);
+    assert_eq!(to_playback_events(&score, &options)[0].program, 40);
+    let bytes = acorde_io::serialize_midi_region(&score, (2, 2)).unwrap();
+    let decoded = acorde_io::parse_midi(&bytes).unwrap();
+    assert_eq!(
+        to_playback_events(&decoded, &PlaybackOptions::default())[0].program,
+        40
+    );
 }
