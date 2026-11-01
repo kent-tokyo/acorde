@@ -122,7 +122,7 @@ fn staff_tie_locations(
                             && let Some((prior_key, prior_point, prior_end)) =
                                 pending.get(&pitch_key).copied()
                             && (prior_end - onset).abs() < 1e-7
-                            && channel_switch_offset_exact((offset - prior_point.1).abs())
+                            && mscx_offset_is_exact((offset - prior_point.1).abs())
                         {
                             result.entry(prior_key).or_default().next = Some(point);
                             result.entry(key).or_default().previous = Some(prior_point);
@@ -369,7 +369,7 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
                             beat += note.beats();
                             if beat + 1e-9 >= switch.position_beats {
                                 return switch.position_beats >= 0.0
-                                    && channel_switch_offset_exact(beat - switch.position_beats);
+                                    && mscx_offset_is_exact(beat - switch.position_beats);
                             }
                         }
                         false
@@ -640,7 +640,7 @@ pub fn serialize_mscz(score: &Score) -> Result<Vec<u8>, Error> {
         .map_err(|error| Error::Zip(error.to_string()))
 }
 
-fn channel_switch_offset_exact(delta: f64) -> bool {
+fn mscx_offset_is_exact(delta: f64) -> bool {
     delta.abs() < 1e-9
         || acorde_core::MeasureLength::from_beats(delta)
             .and_then(|length| length.beats())
@@ -653,7 +653,7 @@ fn write_channel_switch(
     cursor: f64,
 ) -> Result<(), Error> {
     let delta = cursor - switch.position_beats;
-    if switch.position_beats < 0.0 || !channel_switch_offset_exact(delta) {
+    if switch.position_beats < 0.0 || !mscx_offset_is_exact(delta) {
         return Ok(());
     }
     if delta > 1e-9 {
