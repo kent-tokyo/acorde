@@ -16,6 +16,9 @@ struct literals must still update for added variants and fields.
 `Note.hairpin_above` records an explicit above/below hairpin position. Complete Rust `Note`
 struct literals need the new field; older score JSON defaults to `None`. MusicXML, MSCX and MEI
 retain it, while ABC and MIDI export reports identify the unsupported visual position.
+When a below-staff hairpin would overlap notes on the next visible staff, SVG rendering can
+increase the configured `staff_gap` to reserve clearance. Print rendering uses the same gap
+when checking system height; a fixed print system that is too short returns `SystemTooShort`.
 ## Unreleased: selectable shared dynamics
 
 `PlaybackOptions.shared_dynamics` and `shared_hairpins` select individual marks to share across

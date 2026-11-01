@@ -5316,7 +5316,6 @@ fn above_hairpin_stays_above_notes_on_both_systems() {
 }
 
 #[test]
-#[ignore = "inter-staff hairpin clearance requires print-aware system reflow"]
 fn below_hairpin_does_not_cross_high_notes_on_lower_staff() {
     use acorde_core::{Clef, Duration, HairpinKind, Measure, Note, Pitch, Score, Staff, Step};
     let mut score = Score::new("grand staff wedge", 120, 4, 4, 0, 1);
