@@ -243,6 +243,72 @@ pub fn loss_diagnostics(xml: &str) -> Vec<crate::Diagnostic> {
     diagnostics
 }
 
+/// Report ties whose written stop follows a gap. Playback intentionally does not
+/// merge such ties without an explicit deferred-tie representation.
+pub(crate) fn deferred_tie_diagnostics(score: &acorde_core::Score) -> Vec<crate::Diagnostic> {
+    use std::collections::HashMap;
+    let mut diagnostics = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            for voice_index in 0..4 {
+                let mut pending: HashMap<i32, (f64, String)> = HashMap::new();
+                let mut measure_start = 0.0;
+                for (measure_index, measure) in staff.measures.iter().enumerate() {
+                    let mut onset = measure_start;
+                    for (note_index, note) in measure.voices[voice_index].iter().enumerate() {
+                        if note.is_grace || note.is_cue {
+                            continue;
+                        }
+                        for (pitch_index, pitch) in note.pitches.iter().enumerate() {
+                            let key = pitch.to_midi_cents();
+                            let previous = pending.remove(&key);
+                            if note.pitch_tie_end(pitch_index)
+                                && let Some((expected, start)) = previous
+                                && onset > expected + 1e-7
+                                && diagnostics.len() < 1024
+                            {
+                                let mut diagnostic = crate::Diagnostic::warning(
+                                    "musicxml.noncontiguous-tie",
+                                    "the tie has intervening time; playback keeps separate attacks unless a deferred tie is represented explicitly",
+                                );
+                                diagnostic.source_location = Some(start);
+                                diagnostic.preserved_value = Some(format!(
+                                    "stop=/score/part/{}/staff/{}/measure/{}/voice/{}/note/{}",
+                                    part_index + 1,
+                                    staff_index + 1,
+                                    measure_index + 1,
+                                    voice_index + 1,
+                                    note_index + 1
+                                ));
+                                diagnostics.push(diagnostic);
+                            }
+                            if note.pitch_tie_start(pitch_index) {
+                                pending.insert(
+                                    key,
+                                    (
+                                        onset + note.beats(),
+                                        format!(
+                                            "/score/part/{}/staff/{}/measure/{}/voice/{}/note/{}",
+                                            part_index + 1,
+                                            staff_index + 1,
+                                            measure_index + 1,
+                                            voice_index + 1,
+                                            note_index + 1
+                                        ),
+                                    ),
+                                );
+                            }
+                        }
+                        onset += note.beats();
+                    }
+                    measure_start += score.playback_measure_beats(measure_index);
+                }
+            }
+        }
+    }
+    diagnostics
+}
+
 /// Report notation that the parser does not model instead of dropping it silently: measure and
 /// beat repeats and slash notation (their measures would otherwise read as rests), lyric extender
 /// lines and elisions, dashed text lines and brackets, non-arpeggio brackets, and chord-diagram

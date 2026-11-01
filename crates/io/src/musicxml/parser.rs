@@ -1,4 +1,5 @@
 use crate::Error;
+use crate::gap::append_gap_rests;
 use acorde_core::{
     AccidentalDisplay, Articulation, Barline, ChordDegree, ChordSymbol, Clef, Duration, Dynamic,
     FiguredBassFigure, GuitarTechnique, HairpinKind, HarpPedalDiagram, HarpPedalPosition,
@@ -518,6 +519,8 @@ pub(crate) fn parse_musicxml_collecting(
                         note_rest = true;
                         note_is_measure_rest = attr_is_yes(e, b"measure");
                     }
+                    // Paired and self-closing fermata elements have the same XML meaning.
+                    "fermata" if in_notations => pending_articulations.push(Articulation::Fermata),
                     // `<tap>T</tap>`: tapping with its displayed text.
                     "tap" if in_technical_block => pending_articulations.push(
                         if attr_str(e, b"hand").as_deref() == Some("left") {
@@ -1395,10 +1398,20 @@ pub(crate) fn parse_musicxml_collecting(
                     "segno" if in_direction_type => pending_navigation = Some("Segno".to_string()),
                     "coda" if in_direction_type => pending_navigation = Some("Coda".to_string()),
                     "sound" if in_direction => {
-                        if attr_present(e, b"dacapo") {
+                        if attr_present(e, b"dacapo")
+                            && !matches!(
+                                pending_navigation.as_deref(),
+                                Some("DaCapoAlFine" | "DaCapoAlCoda")
+                            )
+                        {
                             pending_navigation = Some("DaCapo".to_string());
                         }
-                        if attr_present(e, b"dalsegno") {
+                        if attr_present(e, b"dalsegno")
+                            && !matches!(
+                                pending_navigation.as_deref(),
+                                Some("DalSegnoAlFine" | "DalSegnoAlCoda")
+                            )
+                        {
                             pending_navigation = Some("DalSegno".to_string());
                         }
                         if attr_present(e, b"fine") {
@@ -2743,7 +2756,7 @@ pub(crate) fn parse_musicxml_collecting(
                                             "MusicXML voice cursor moves backward".into(),
                                         ));
                                     }
-                                    append_musicxml_gap_rests(
+                                    append_gap_rests(
                                         voice,
                                         note_start - voice_cursor,
                                         current_divisions,
@@ -3361,118 +3374,6 @@ fn musicxml_voice_slot(
     Ok(slot)
 }
 
-fn append_musicxml_gap_rests(
-    voice: &mut Vec<Note>,
-    mut ticks: u32,
-    divisions: u32,
-) -> Result<(), Error> {
-    let candidates = [
-        (Duration::Longa, divisions.checked_mul(16)),
-        (Duration::Breve, divisions.checked_mul(8)),
-        (Duration::Whole, divisions.checked_mul(4)),
-        (Duration::Half, divisions.checked_mul(2)),
-        (Duration::Quarter, Some(divisions)),
-        (
-            Duration::Eighth,
-            divisions.is_multiple_of(2).then_some(divisions / 2),
-        ),
-        (
-            Duration::Sixteenth,
-            divisions.is_multiple_of(4).then_some(divisions / 4),
-        ),
-        (
-            Duration::ThirtySecond,
-            divisions.is_multiple_of(8).then_some(divisions / 8),
-        ),
-        (
-            Duration::SixtyFourth,
-            divisions.is_multiple_of(16).then_some(divisions / 16),
-        ),
-        (
-            Duration::HundredTwentyEighth,
-            divisions.is_multiple_of(32).then_some(divisions / 32),
-        ),
-    ];
-    while ticks > 0 {
-        // Prefer one hidden, exact triplet rest over several approximate ordinary rests.
-        // MusicXML <forward> is rhythmic positioning, so it must not draw a visible rest.
-        let triplet = candidates.iter().find_map(|(duration, base_ticks)| {
-            let base = (*base_ticks)?;
-            (u64::from(base) * 2 == u64::from(ticks) * 3).then(|| duration.clone())
-        });
-        if let Some(duration) = triplet {
-            if voice.len() >= MAX_NOTES_PER_VOICE {
-                return Err(Error::Xml("too many notes in voice".into()));
-            }
-            let mut rest = Note::rest(duration);
-            rest.hidden = true;
-            rest.tuplet = Some(TupletInfo {
-                actual_notes: 3,
-                normal_notes: 2,
-            });
-            voice.push(rest);
-            break;
-        }
-        // Preserve other exactly representable fractional gaps using a hidden
-        // tuplet rest. Choose the shortest usable base and never round ticks.
-        let exact_canonical = candidates.iter().any(|(_, base)| *base == Some(ticks));
-        let fractional = if exact_canonical {
-            None
-        } else {
-            candidates.iter().rev().find_map(|(duration, base)| {
-                let base = (*base)?;
-                if base <= ticks {
-                    return None;
-                }
-                let (mut a, mut b) = (base, ticks);
-                while b != 0 {
-                    (a, b) = (b, a % b);
-                }
-                let actual = u8::try_from(base / a).ok()?;
-                let normal = u8::try_from(ticks / a).ok()?;
-                Some((duration.clone(), actual, normal))
-            })
-        };
-        if let Some((duration, actual_notes, normal_notes)) = fractional {
-            if voice.len() >= MAX_NOTES_PER_VOICE {
-                return Err(Error::Xml("too many notes in voice".into()));
-            }
-            let mut rest = Note::rest(duration);
-            rest.hidden = true;
-            rest.tuplet = Some(TupletInfo {
-                actual_notes,
-                normal_notes,
-            });
-            voice.push(rest);
-            break;
-        }
-        let mut selected = None;
-        for (duration, duration_ticks) in &candidates {
-            if let Some(duration_ticks) = duration_ticks
-                && *duration_ticks > 0
-                && *duration_ticks <= ticks
-            {
-                selected = Some((duration.clone(), *duration_ticks));
-                break;
-            }
-        }
-        let Some((duration, duration_ticks)) = selected else {
-            return Err(Error::Xml(
-                "MusicXML cursor gap is not representable by canonical rests".into(),
-            ));
-        };
-        if voice.len() >= MAX_NOTES_PER_VOICE {
-            return Err(Error::Xml("too many notes in voice".into()));
-        }
-        // A `<forward>` gap draws nothing; the rest keeps its time hidden.
-        let mut rest = Note::rest(duration);
-        rest.hidden = true;
-        voice.push(rest);
-        ticks -= duration_ticks;
-    }
-    Ok(())
-}
-
 /// Merge the second `<note>` of a MusicXML chord into the note that owns the event.
 ///
 /// MusicXML stores chord pitches as separate note elements. Keeping this mutation in one
@@ -3713,7 +3614,7 @@ mod tests {
     #[test]
     fn forward_gap_never_uses_truncated_tick_durations() {
         let mut notes = Vec::new();
-        append_musicxml_gap_rests(&mut notes, 1, 10).unwrap();
+        append_gap_rests(&mut notes, 1, 10).unwrap();
         assert_eq!(notes.len(), 1);
         assert!((notes[0].beats() - 0.1).abs() < 1e-9);
     }

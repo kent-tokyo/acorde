@@ -4664,3 +4664,95 @@ fn tapping_and_vibrato_marks_render() {
         assert_eq!(svg.matches(&format!("{class}\"")).count(), 1, "{class}");
     }
 }
+
+#[test]
+fn mscx_later_key_change_does_not_draw_sharps_at_opening() {
+    let xml = r#"<museScore version="4.20"><Score><Part><Staff id="1"/><trackName>Piano</trackName></Part><Staff id="1">
+        <Measure><voice><Rest><durationType>whole</durationType></Rest></voice></Measure>
+        <Measure><voice><KeySig><concertKey>3</concertKey><mode>major</mode></KeySig><Rest><durationType>whole</durationType></Rest></voice></Measure>
+        </Staff></Score></museScore>"#;
+    let score = acorde_io::parse_mscx(xml).unwrap();
+    let mut opening = score.clone();
+    opening.parts[0].staves[0].measures.truncate(1);
+    let svg = render_svg(&opening, &opts()).unwrap();
+    assert!(!svg.contains("acorde-sharp"));
+    let mut options = opts();
+    options.measures_per_system = 1;
+    let svg = render_svg(&score, &options).unwrap();
+    assert!(svg.matches("acorde-sharp").count() >= 3);
+}
+
+#[test]
+fn navigation_labels_are_musical_and_deduplicate_source_text() {
+    let mut score = acorde_core::Score::new("Navigation", 120, 4, 4, 0, 1);
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.navigation = Some("DaCapoAlFine".into());
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert!(svg.contains("D.C. al Fine"));
+    assert!(!svg.contains("DaCapoAlFine"));
+    score.parts[0].staves[0].measures[0]
+        .texts
+        .push(acorde_core::StyledText {
+            position_beats: None,
+            style: acorde_core::TextStyle::Generic,
+            text: "Da Capo al Fine".into(),
+            placement: None,
+            offset_x: None,
+            offset_y: None,
+            relative_x: None,
+            relative_y: None,
+        });
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert!(svg.contains("Da Capo al Fine"));
+    assert!(!svg.contains("D.C. al Fine"));
+    assert!(!svg.contains("DaCapoAlFine"));
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.texts.clear();
+    measure.expression_text = Some("Da Capo al Fine".into());
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert!(svg.contains("Da Capo al Fine"));
+    assert!(!svg.contains("D.C. al Fine"));
+}
+
+#[test]
+fn key_changes_cancel_removed_accidentals_within_and_between_systems() {
+    use acorde_core::{Duration, KeySignature, Note, Score};
+    for (old, new, expected) in [(3, 0, 3), (3, 1, 2), (-3, 0, 3), (3, -2, 3), (0, 3, 0)] {
+        for systems in [1, 2] {
+            let mut score = Score::new("key change", 120, 4, 4, old, 2);
+            for m in &mut score.parts[0].staves[0].measures {
+                m.voices[0] = vec![Note::rest(Duration::Whole)];
+            }
+            score.parts[0].staves[0].measures[1].key_sig = Some(KeySignature {
+                fifths: new,
+                mode: "major".into(),
+            });
+            let mut options = opts();
+            options.measures_per_system = systems;
+            let svg = render_svg(&score, &options).unwrap();
+            assert_eq!(
+                svg.matches("acorde-accidental acorde-natural").count(),
+                expected,
+                "{old} -> {new} with {systems} measures per system"
+            );
+        }
+    }
+}
+
+#[test]
+fn key_cancellation_keeps_later_note_accidentals_independent() {
+    use acorde_core::{Duration, KeySignature, Note, Pitch, Score, Step};
+    let mut score = Score::new("independent accidentals", 120, 4, 4, 3, 2);
+    score.parts[0].staves[0].measures[0].voices[0] = vec![Note::rest(Duration::Whole)];
+    let measure = &mut score.parts[0].staves[0].measures[1];
+    measure.key_sig = Some(KeySignature {
+        fifths: 0,
+        mode: "minor".into(),
+    });
+    let mut pitch = Pitch::new(Step::C, 4);
+    pitch.alter = 1;
+    measure.voices[0] = vec![Note::new(pitch, Duration::Whole)];
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(svg.matches("acorde-accidental acorde-natural").count(), 3);
+    assert_eq!(svg.matches("acorde-accidental acorde-sharp").count(), 4);
+}

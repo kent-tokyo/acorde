@@ -971,6 +971,14 @@ pub fn build_offline_render_manifest(
             });
         }
     }
+    append_rest_pedal_events(
+        &resolved_score,
+        &effective_options,
+        request.sample_rate_hz,
+        &request.scope,
+        selection_origin_secs,
+        &mut semantic_events,
+    );
     append_measure_semantic_events(
         &resolved_score,
         &effective_options,
@@ -1026,6 +1034,105 @@ struct OfflineMeasureTime {
     bpm: f64,
     ramp_to_bpm: Option<f64>,
     beats: f64,
+}
+
+/// Notes become frame events, but rests do not. Preserve pedal controls written
+/// on rests as independent semantic events on the same repeat/tempo timeline.
+fn append_rest_pedal_events(
+    score: &Score,
+    options: &PlaybackOptions,
+    sample_rate_hz: u32,
+    scope: &OfflineRenderScope,
+    origin_secs: f64,
+    events: &mut Vec<OfflineRenderSemanticFrameEvent>,
+) {
+    let marks = score_tempo_marks(score);
+    let swing = options
+        .swing
+        .filter(|ratio| ratio.is_finite() && *ratio > 0.5 && *ratio < 1.0);
+    for (part_index, part) in score.parts.iter().enumerate() {
+        if options.muted_parts.contains(&part_index) {
+            continue;
+        }
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            let timeline = offline_measure_times(score, options, part_index, staff_index, &marks);
+            for time in timeline {
+                let measure = &staff.measures[time.measure];
+                let meter = staff
+                    .meter_at(time.measure, &score.settings.time_signature)
+                    .total_beats();
+                let grid_offset = if time.measure == 0 && time.beats < meter {
+                    (meter - time.beats).max(0.0)
+                } else {
+                    0.0
+                };
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    let mut local = 0.0;
+                    let mut written = 0.0;
+                    let mut swing_second = false;
+                    for (note_index, note) in voice.iter().enumerate() {
+                        if note.is_grace || note.is_cue {
+                            continue;
+                        }
+                        let address = NoteAddr {
+                            part: part_index,
+                            staff: staff_index,
+                            measure: time.measure,
+                            voice: voice_index,
+                            note: note_index,
+                        };
+                        let selected = match scope {
+                            OfflineRenderScope::Selection { addresses } => {
+                                addresses.contains(&address)
+                            }
+                            _ => true,
+                        };
+                        if note.is_rest && selected && (note.pedal_start || note.pedal_end) {
+                            let secs = time.start_secs
+                                + tempo_ramp_seconds(time.bpm, time.ramp_to_bpm, time.beats, local);
+                            let frame = ((secs - origin_secs).max(0.0) * f64::from(sample_rate_hz))
+                                .round() as u64;
+                            // At a pedal retake, release before pressing again.
+                            for (present, down) in
+                                [(note.pedal_end, false), (note.pedal_start, true)]
+                            {
+                                if present {
+                                    events.push(OfflineRenderSemanticFrameEvent {
+                                        kind: OfflineRenderSemanticEventKind::Pedal { down },
+                                        frame,
+                                        source: Some(address.clone()),
+                                        measure: None,
+                                    });
+                                }
+                            }
+                        }
+                        let dur = if let Some(ratio) = swing {
+                            if swing_second {
+                                swing_second = false;
+                                (1.0 - ratio) * note.beats() * 2.0
+                            } else if starts_swing_pair(
+                                voice,
+                                note_index,
+                                written,
+                                grid_offset,
+                                time.beats,
+                                &options.swing_unit,
+                            ) {
+                                swing_second = true;
+                                ratio * note.beats() * 2.0
+                            } else {
+                                note.beats()
+                            }
+                        } else {
+                            note.beats()
+                        };
+                        written += note.beats();
+                        local += dur;
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn offline_measure_times(
@@ -2832,6 +2939,75 @@ pub fn to_playback_events_bounded(
     Ok(events)
 }
 
+/// One opt-in shared-unison attack and all notated notes represented by it.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SharedUnisonPlaybackEvent {
+    pub event: PlaybackEvent,
+    pub sources: Vec<NoteAddr>,
+}
+
+/// Coalesce otherwise identical simultaneous events from different voices or staves of the
+/// same part. This is an explicit host policy: the ordinary playback schedule stays unchanged.
+/// Events with different expression, routing, duration or pedal data remain separate.
+/// At most 256 candidate groups are compared per simultaneous pitch; additional distinct
+/// groups remain separate to bound work on untrusted scores. Each group also retains
+/// at most 256 sources; excess events remain separate.
+pub fn coalesce_shared_unisons(events: Vec<PlaybackEvent>) -> Vec<SharedUnisonPlaybackEvent> {
+    use std::collections::HashMap;
+    let mut groups: Vec<SharedUnisonPlaybackEvent> = Vec::with_capacity(events.len());
+    let mut buckets: HashMap<(usize, u64, i32, u8, u8), Vec<usize>> = HashMap::new();
+    for event in events {
+        let Some(source) = event.source.clone().filter(|_| !event.is_metronome) else {
+            groups.push(SharedUnisonPlaybackEvent {
+                event,
+                sources: Vec::new(),
+            });
+            continue;
+        };
+        let key = (
+            event.part_index,
+            event.time_beats.to_bits(),
+            event.pitch_midi_cents,
+            event.channel,
+            event.program,
+        );
+        let mut normalized = event.clone();
+        normalized.address = None;
+        normalized.source = None;
+        normalized.source_voice_number = None;
+        let candidates = buckets.entry(key).or_default();
+        // Bound work for hostile scores with many simultaneous events at one pitch.
+        let matching = candidates.iter().take(256).copied().find(|&index| {
+            let group = &groups[index];
+            if group.sources.len() >= 256
+                || group
+                    .sources
+                    .iter()
+                    .any(|other| other.staff == source.staff && other.voice == source.voice)
+            {
+                return false;
+            }
+            let mut other = group.event.clone();
+            other.address = None;
+            other.source = None;
+            other.source_voice_number = None;
+            normalized == other
+        });
+        if let Some(index) = matching {
+            groups[index].sources.push(source);
+        } else {
+            if candidates.len() < 256 {
+                candidates.push(groups.len());
+            }
+            groups.push(SharedUnisonPlaybackEvent {
+                event,
+                sources: vec![source],
+            });
+        }
+    }
+    groups
+}
+
 // ── PlaybackPosition + compute_playback_position ──────────────────────────────
 
 /// Score position at a specific elapsed time.
@@ -2940,6 +3116,63 @@ mod tests {
             bpm_override: bpm,
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn shared_unison_policy_never_merges_different_routing_or_same_voice() {
+        let mut score = Score::new("unison", 120, 4, 4, 0, 1);
+        let note = Note::new(Pitch::new(Step::A, 3), Duration::Whole);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note.clone()];
+        score.parts[0].staves[0].measures[0].voices[1] = vec![note];
+        let events = to_playback_events(&score, &PlaybackOptions::default());
+        assert_eq!(coalesce_shared_unisons(events.clone()).len(), 1);
+        let mut different_program = events.clone();
+        different_program[1].program += 1;
+        assert_eq!(coalesce_shared_unisons(different_program).len(), 2);
+        let mut different_expression = events.clone();
+        different_expression[1].velocity += 1;
+        assert_eq!(coalesce_shared_unisons(different_expression).len(), 2);
+        let mut same_voice = events;
+        let voice = same_voice[0].source.as_ref().unwrap().voice;
+        same_voice[1].source.as_mut().unwrap().voice = voice;
+        assert_eq!(coalesce_shared_unisons(same_voice).len(), 2);
+    }
+
+    #[test]
+    fn rest_pedal_controls_follow_swing_and_muted_parts() {
+        let mut score = Score::new("rest pedal", 120, 2, 4, 0, 1);
+        let first = Note::rest(Duration::Eighth);
+        let mut second = Note::rest(Duration::Eighth);
+        second.pedal_start = true;
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        note.pedal_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![first, second, note];
+        let mut options = PlaybackOptions {
+            swing: Some(0.67),
+            ..Default::default()
+        };
+        let manifest =
+            build_offline_render_manifest(&score, &options, &OfflineRenderRequest::default())
+                .unwrap();
+        let controls: Vec<_> = manifest
+            .semantic_events
+            .iter()
+            .filter_map(|event| match event.kind {
+                OfflineRenderSemanticEventKind::Pedal { down } => Some((event.frame, down)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(controls, vec![(16080, true), (24000, false)]);
+        options.muted_parts.push(0);
+        let muted =
+            build_offline_render_manifest(&score, &options, &OfflineRenderRequest::default())
+                .unwrap();
+        assert!(
+            !muted
+                .semantic_events
+                .iter()
+                .any(|event| matches!(event.kind, OfflineRenderSemanticEventKind::Pedal { .. }))
+        );
     }
 
     #[test]
