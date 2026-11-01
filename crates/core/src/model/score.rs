@@ -2,9 +2,9 @@ use super::{
     duration::Duration,
     notation::{
         AccidentalDisplay, Articulation, Barline, BeamState, ChordDefinition, ChordSymbol, Clef,
-        CrossStaff, Dynamic, FiguredBassFigure, GuitarTechnique, HairpinKind, KeySignature, Lyric,
-        NoteHead, OttavaKind, StyledText, TabPosition, TablatureConfig, TimeSignature, TimeSymbol,
-        TupletBoundary, TupletInfo, VerseLyric,
+        CrossStaff, Dynamic, FiguredBassFigure, FiguredBassGroup, GuitarTechnique, HairpinKind,
+        KeySignature, Lyric, NoteHead, OttavaKind, StyledText, TabPosition, TablatureConfig,
+        TimeSignature, TimeSymbol, TupletBoundary, TupletInfo, VerseLyric,
     },
     pitch::Pitch,
 };
@@ -2223,6 +2223,9 @@ pub struct Measure {
     /// Structured MusicXML figured-bass figures in source order.
     #[serde(default)]
     pub figured_bass: Vec<FiguredBassFigure>,
+    /// Positioned source groups, preserving separate figures within the measure.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub figured_bass_groups: Vec<FiguredBassGroup>,
     /// Concert-harp pedal diagrams declared by MusicXML `<harp-pedals>` directions.
     #[serde(default)]
     pub harp_pedal_diagrams: Vec<HarpPedalDiagram>,
@@ -2316,6 +2319,7 @@ impl Measure {
             expression_text: None,
             texts: Vec::new(),
             figured_bass: Vec::new(),
+            figured_bass_groups: Vec::new(),
             harp_pedal_diagrams: Vec::new(),
             channel_switches: Vec::new(),
             timed_pedals: Vec::new(),
@@ -2990,6 +2994,13 @@ pub enum ScoreChange {
         old: Vec<FiguredBassFigure>,
         new: Vec<FiguredBassFigure>,
     },
+    FiguredBassGroupsChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old: Vec<FiguredBassGroup>,
+        new: Vec<FiguredBassGroup>,
+    },
     HarpPedalDiagramsChanged {
         part: usize,
         staff: usize,
@@ -3541,6 +3552,15 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                         new: bm.figured_bass.clone(),
                     });
                 }
+                if am.figured_bass_groups != bm.figured_bass_groups {
+                    changes.push(ScoreChange::FiguredBassGroupsChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.figured_bass_groups.clone(),
+                        new: bm.figured_bass_groups.clone(),
+                    });
+                }
                 if am.harp_pedal_diagrams != bm.harp_pedal_diagrams {
                     changes.push(ScoreChange::HarpPedalDiagramsChanged {
                         part: pi,
@@ -3664,6 +3684,12 @@ pub enum ScorePatch {
         staff: usize,
         measure: usize,
         value: Vec<FiguredBassFigure>,
+    },
+    SetFiguredBassGroups {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        value: Vec<FiguredBassGroup>,
     },
     SetHarpPedalDiagrams {
         part: usize,
@@ -4152,6 +4178,14 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                         value: bm.figured_bass.clone(),
                     });
                 }
+                if am.figured_bass_groups != bm.figured_bass_groups {
+                    patches.push(ScorePatch::SetFiguredBassGroups {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: bm.figured_bass_groups.clone(),
+                    });
+                }
                 if am.harp_pedal_diagrams != bm.harp_pedal_diagrams {
                     patches.push(ScorePatch::SetHarpPedalDiagrams {
                         part: pi,
@@ -4264,6 +4298,23 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                     .get_mut(*measure)
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
                     .figured_bass = value.clone();
+            }
+            ScorePatch::SetFiguredBassGroups {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .figured_bass_groups = value.clone();
             }
             ScorePatch::SetHarpPedalDiagrams {
                 part,

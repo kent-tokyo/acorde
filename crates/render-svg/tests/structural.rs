@@ -5292,3 +5292,21 @@ fn timed_pedal_signs_show_at_distinct_positions_inside_a_sustained_note() {
     assert!(!hidden.contains(">Ped.</text>"));
     assert!(hidden.contains(">*</text>"));
 }
+
+#[test]
+fn positioned_figured_bass_groups_follow_their_note_positions() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Bass</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>2</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><figured-bass><figure><prefix>sharp</prefix></figure></figured-bass><note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><type>half</type></note><figured-bass><figure><figure-number>6</figure-number><extend type="start"/></figure><duration>2</duration></figured-bass><note><pitch><step>D</step><octave>3</octave></pitch><duration>4</duration><type>half</type></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let svg = render_svg(&score, &opts()).unwrap();
+    let xs: Vec<f32> = svg
+        .split(r#"class="acorde-measure-text acorde-measure-text-figured-bass" x=""#)
+        .skip(1)
+        .map(|text| text.split('"').next().unwrap().parse().unwrap())
+        .collect();
+    assert_eq!(xs.len(), 2, "{svg}");
+    assert!(
+        xs[1] > xs[0],
+        "figures must follow their note positions: {xs:?}"
+    );
+    assert_eq!(svg.matches("acorde-figured-bass-extender").count(), 1);
+}

@@ -63,7 +63,7 @@ pub fn loss_diagnostics(xml: &str) -> Vec<crate::Diagnostic> {
                     if figured_bass_groups_in_measure > 1 {
                         let mut diagnostic = crate::Diagnostic::warning(
                             "musicxml.unsupported-detail.multiple-figured-bass-groups",
-                            "Multiple figured-bass groups in a measure are not retained independently",
+                            "Multiple figured-bass groups may lose positioning or extender details in unsupported exports",
                         );
                         diagnostic.source_location = Some(format!("/{}", path.join("/")));
                         diagnostics.push(diagnostic);
