@@ -3968,15 +3968,12 @@ fn render_measure_voice<'a>(
         &kneed_notes
     };
     // Slurs need the true ends of ordinary stems as well as beam-attached stems.
-    // Grace/cue stems are scaled by a later SVG transform and need separate geometry.
+    // Grace and cue notes are scaled around their notehead anchor.
     if tablature.is_none() {
         for (index, note) in notes.iter().enumerate() {
             if beam_tips.contains_key(&index)
                 || note.is_rest
                 || note.hidden
-                || note.is_grace
-                || note.is_cue
-                || note.is_unpitched
                 || note.pitches.is_empty()
                 || matches!(
                     note.duration,
@@ -4003,7 +4000,11 @@ fn render_measure_voice<'a>(
                 _ => 0,
             };
             let bottom = staff_bottom + note_placement_offsets_u(note).1 * space;
-            let tip = unbeamed_stem_tip(far_pos, bottom, space, stem_up, flag_count);
+            let mut tip = unbeamed_stem_tip(far_pos, bottom, space, stem_up, flag_count);
+            if note.is_grace || note.is_cue {
+                let anchor = note_anchor_y(note, clef_bottom, stem_up, staff_bottom, space, None);
+                tip = anchor + GRACE_SCALE * (tip - anchor);
+            }
             beam_tip_points.insert((part, staff, measure_idx, voice_idx, index), tip);
         }
     }
@@ -5903,8 +5904,6 @@ fn render_all_spans(
         };
         if row1 != row2
             && start.part == end.part
-            && start.staff == end.staff
-            && start.voice == end.voice
             && row1 < row2
             && let Some(above) = slur_above
         {
@@ -5956,8 +5955,8 @@ fn render_all_spans(
                     points
                 {
                     if *part != start.part
-                        || *staff != start.staff
-                        || *voice != start.voice
+                        || *staff < start.staff.min(end.staff)
+                        || *staff > start.staff.max(end.staff)
                         || *point_row != row
                     {
                         continue;
@@ -5979,6 +5978,11 @@ fn render_all_spans(
                         x + (if *stem_up { 1.0 } else { -1.0 })
                             * glyphs::NOTEHEAD_RX_U
                             * 0.92
+                            * if note.is_grace || note.is_cue {
+                                GRACE_SCALE
+                            } else {
+                                1.0
+                            }
                             * space
                     } else {
                         *x
@@ -6002,9 +6006,11 @@ fn render_all_spans(
                     control = select(
                         control,
                         if above {
-                            required.max(baseline_control - 8.0 * space)
+                            // The control may lie above the viewport while the quadratic
+                            // itself stays inside it. Leave at least half a space at its apex.
+                            required.max((space - anchor).max(baseline_control - 12.0 * space))
                         } else {
-                            required.min(baseline_control + 8.0 * space)
+                            required.min(baseline_control + 12.0 * space)
                         },
                     );
                 }
@@ -6117,12 +6123,25 @@ fn render_all_spans(
             let (start_y, end_y) = slur_anchors.expect("slur anchors");
             let mut extreme: Option<f32> = None;
             let mut control: Option<f32> = None;
-            for (key @ (part, staff, _, voice, _), (x, y, stem_up, row)) in points {
+            for (key @ (part, staff, measure, voice, index), (x, y, stem_up, row)) in points {
                 if *part != start.part
-                    || *staff != start.staff
-                    || *voice != start.voice
+                    || *staff < start.staff.min(end.staff)
+                    || *staff > start.staff.max(end.staff)
                     || *row != row1
                 {
+                    continue;
+                }
+                let Some(note) = score
+                    .parts
+                    .get(*part)
+                    .and_then(|p| p.staves.get(*staff))
+                    .and_then(|s| s.measures.get(*measure))
+                    .and_then(|m| m.voices.get(*voice))
+                    .and_then(|v| v.get(*index))
+                else {
+                    continue;
+                };
+                if note.is_rest || note.hidden {
                     continue;
                 }
                 let select = |a: f32, b: f32| if above { a.min(b) } else { a.max(b) };
@@ -6142,7 +6161,15 @@ fn render_all_spans(
                 }
                 // Beam tips sit at the stem, not at the notehead center.
                 let clearance_x = if *stem_up == above && beam_tip_points.contains_key(key) {
-                    x + (if *stem_up { 1.0 } else { -1.0 }) * glyphs::NOTEHEAD_RX_U * 0.92 * space
+                    x + (if *stem_up { 1.0 } else { -1.0 })
+                        * glyphs::NOTEHEAD_RX_U
+                        * 0.92
+                        * if note.is_grace || note.is_cue {
+                            GRACE_SCALE
+                        } else {
+                            1.0
+                        }
+                        * space
                 } else {
                     *x
                 };
