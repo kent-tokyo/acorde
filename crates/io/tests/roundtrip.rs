@@ -1430,6 +1430,9 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
         let path = fixture["path"].as_str().expect("fixture path");
         let expected = fixture["sha256"].as_str().expect("fixture sha256");
         let bytes: &[u8] = match path {
+            "issue_283_overlapping_ottavas.mscx" => {
+                include_bytes!("../../../tests/fixtures/issue_283_overlapping_ottavas.mscx")
+            }
             "cross_voice_slur.musicxml" => {
                 include_bytes!("../../../tests/fixtures/cross_voice_slur.musicxml")
             }
@@ -7163,6 +7166,105 @@ fn musicxml_dacapo_sound_preserves_explicit_al_fine_words() {
             notes
         );
     }
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_ottava_sounds_correct_octave_and_roundtrips_across_measures() {
+    for (subtype, sounded) in [("8va", 91), ("8vb", 67), ("15ma", 103), ("15mb", 55)] {
+        let xml = format!(
+            r#"<museScore version="4.50"><Score><Division>480</Division><Part id="1"><Staff id="1"/><trackName>Piano</trackName></Part><Staff id="1"><Measure><voice><Spanner type="Ottava"><Ottava><subtype>{subtype}</subtype></Ottava><next><location><measures>1</measures></location></next></Spanner><Chord><durationType>quarter</durationType><Note><pitch>79</pitch><tpc>15</tpc></Note></Chord><Rest><durationType>half</durationType><dots>1</dots></Rest></voice><voice><Chord><durationType>quarter</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord></voice></Measure><Measure><voice><Chord><durationType>quarter</durationType><Note><pitch>79</pitch><tpc>15</tpc></Note></Chord><Spanner type="Ottava"><prev><location><measures>-1</measures></location></prev></Spanner><Chord><durationType>quarter</durationType><Note><pitch>79</pitch><tpc>15</tpc></Note></Chord><Rest><durationType>half</durationType></Rest></voice></Measure></Staff></Score></museScore>"#
+        );
+        let score = acorde_io::parse_mscx(&xml).unwrap();
+        let pitches = |score: &acorde_core::Score| {
+            let events = acorde_core::to_playback_events(score, &Default::default());
+            events
+                .into_iter()
+                .filter(|e| e.source.as_ref().is_some_and(|s| s.voice == 0))
+                .map(|e| e.pitch_midi)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(pitches(&score), vec![sounded, sounded, 79], "{subtype}");
+        let other = acorde_core::to_playback_events(&score, &Default::default())
+            .into_iter()
+            .find(|e| e.source.as_ref().is_some_and(|s| s.voice == 1))
+            .unwrap();
+        assert_eq!(other.pitch_midi, 60 + sounded - 79);
+        let archive = acorde_io::serialize_mscz(&score).unwrap();
+        let restored = acorde_io::parse_mscz(&archive).unwrap();
+        assert_eq!(pitches(&restored), pitches(&score), "MSCZ {subtype}");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[1][0].pitches[0].to_midi(),
+            60 + i16::from(sounded) - 79
+        );
+        let musicxml = acorde_io::serialize_musicxml(&score).unwrap();
+        let restored = acorde_io::parse_musicxml(&musicxml).unwrap();
+        assert_eq!(pitches(&restored), pitches(&score), "MusicXML {subtype}");
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[1][0].pitches[0].to_midi(),
+            60 + i16::from(sounded) - 79
+        );
+    }
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_ottava_rejects_out_of_range_sounding_pitch() {
+    let xml = r#"<museScore version="4.50"><Score><Part><Staff id="1"/><trackName>Piano</trackName></Part><Staff id="1"><Measure><voice><Spanner type="Ottava"><Ottava><subtype>8va</subtype></Ottava><next><location><measures>1</measures></location></next></Spanner><Chord><durationType>quarter</durationType><Note><pitch>127</pitch><tpc>15</tpc></Note></Chord><Spanner type="Ottava"><prev/></Spanner></voice></Measure></Staff></Score></museScore>"#;
+    assert!(acorde_io::parse_mscx(xml).is_err());
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_ottava_does_not_transpose_other_staves() {
+    let xml = r#"<museScore version="4.50"><Score><Division>480</Division><Part id="1"><Staff id="1"/><Staff id="2"/><trackName>Piano</trackName></Part><Staff id="1"><Measure><voice><Spanner type="Ottava"><Ottava><subtype>8va</subtype></Ottava><next><location><fractions>1/4</fractions></location></next></Spanner><Chord><durationType>quarter</durationType><Note><pitch>79</pitch><tpc>15</tpc></Note></Chord><Spanner type="Ottava"><prev><location><fractions>-1/4</fractions></location></prev></Spanner></voice></Measure></Staff><Staff id="2"><Measure><voice><Chord><durationType>quarter</durationType><Note><pitch>79</pitch><tpc>15</tpc></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let score = acorde_io::parse_mscx(xml).unwrap();
+    let notes = |score: &acorde_core::Score| {
+        let mut events = acorde_core::to_playback_events(score, &Default::default());
+        events.sort_by_key(|event| event.pitch_midi);
+        events
+            .iter()
+            .map(|event| event.pitch_midi)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(notes(&score), [79, 91]);
+    let archive = acorde_io::serialize_mscz(&score).unwrap();
+    assert_eq!(notes(&acorde_io::parse_mscz(&archive).unwrap()), [79, 91]);
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_overlapping_ottavas_follow_musescore_staff_state() {
+    // MuseScore 4.7.5 gives precedence to the last simultaneous start, and
+    // ending a later line resets the staff offset rather than reviving an older one.
+    for (first, second, expected) in [("8va", "8vb", vec![67, 60]), ("8vb", "8va", vec![91, 84])] {
+        let xml = format!(
+            r#"<museScore version="4.50"><Score><Division>480</Division><Part id="1"><Staff id="1"/><trackName>Piano</trackName></Part><Staff id="1"><Measure><voice><Spanner type="Ottava"><Ottava><subtype>{first}</subtype></Ottava><next><location><fractions>1/4</fractions></location></next></Spanner><Chord><durationType>quarter</durationType><Note><pitch>79</pitch><tpc>15</tpc></Note></Chord><Spanner type="Ottava"><prev><location><fractions>-1/4</fractions></location></prev></Spanner></voice><voice><Spanner type="Ottava"><Ottava><subtype>{second}</subtype></Ottava><next><location><fractions>1/4</fractions></location></next></Spanner><Chord><durationType>quarter</durationType><Note><pitch>72</pitch><tpc>14</tpc></Note></Chord><Spanner type="Ottava"><prev><location><fractions>-1/4</fractions></location></prev></Spanner></voice></Measure></Staff></Score></museScore>"#
+        );
+        let score = acorde_io::parse_mscx(&xml).unwrap();
+        let pitches = |s: &acorde_core::Score| {
+            acorde_core::to_playback_events(s, &Default::default())
+                .iter()
+                .map(|e| e.pitch_midi)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(pitches(&score), expected, "{first}, {second}");
+        let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+        assert_eq!(pitches(&restored), expected, "MSCZ {first}, {second}");
+    }
+    let xml = include_str!("../../../tests/fixtures/issue_283_overlapping_ottavas.mscx");
+    let score = acorde_io::parse_mscx(xml).unwrap();
+    let pitches = acorde_core::to_playback_events(&score, &Default::default())
+        .iter()
+        .map(|e| e.pitch_midi)
+        .collect::<Vec<_>>();
+    assert_eq!(pitches, [91, 67, 60, 79]);
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    let actual = acorde_core::to_playback_events(&restored, &Default::default())
+        .iter()
+        .map(|e| e.pitch_midi)
+        .collect::<Vec<_>>();
+    assert_eq!(actual, pitches);
 }
 
 #[cfg(feature = "mscz")]
