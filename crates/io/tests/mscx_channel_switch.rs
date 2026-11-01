@@ -300,3 +300,71 @@ fn timed_pedals_reach_all_named_program_channels() {
         );
     }
 }
+
+#[cfg(feature = "midi")]
+#[test]
+fn region_inherits_the_last_channel_switch_in_played_prefix() {
+    use midly::{MidiMessage, Smf, TrackEventKind};
+    let xml = r#"<museScore version="4.70"><Score><Part id="1"><Staff id="1"/><Instrument id="violin"><Channel name="arco"><program value="40"/></Channel><Channel name="pizzicato"><program value="45"/></Channel></Instrument></Part><Staff id="1"><Measure><voice><StaffText><channelSwitch voice="0" name="pizzicato"/></StaffText><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord></voice></Measure><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>62</pitch><tpc>16</tpc></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let score = parse_mscx(xml).unwrap();
+    let options = PlaybackOptions {
+        loop_region: Some((1, 1)),
+        ..Default::default()
+    };
+    let events = to_playback_events(&score, &options);
+    assert_eq!(
+        events
+            .iter()
+            .map(|event| (event.pitch_midi, event.program))
+            .collect::<Vec<_>>(),
+        vec![(62, 45)]
+    );
+    let bytes = acorde_io::serialize_midi_region(&score, (1, 1)).unwrap();
+    let midi = Smf::parse(&bytes).unwrap();
+    let mut programs = [0u8; 16];
+    let mut played = Vec::new();
+    for event in &midi.tracks[1] {
+        if let TrackEventKind::Midi { channel, message } = event.kind {
+            match message {
+                MidiMessage::ProgramChange { program } => {
+                    programs[channel.as_int() as usize] = program.as_int()
+                }
+                MidiMessage::NoteOn { key, vel } if vel.as_int() > 0 => {
+                    played.push((key.as_int(), programs[channel.as_int() as usize]))
+                }
+                _ => {}
+            }
+        }
+    }
+    assert_eq!(played, vec![(62, 45)]);
+}
+
+#[cfg(feature = "midi")]
+#[test]
+fn region_after_repeat_inherits_the_final_played_switch() {
+    use acorde_core::Barline;
+    let xml = r#"<museScore version="4.70"><Score><Part id="1"><Staff id="1"/><Instrument id="violin"><Channel name="arco"><program value="40"/></Channel><Channel name="pizzicato"><program value="45"/></Channel></Instrument></Part><Staff id="1"><Measure><voice><StaffText><channelSwitch voice="0" name="pizzicato"/></StaffText><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord></voice></Measure><Measure><voice><StaffText><channelSwitch voice="0" name="arco"/></StaffText><Chord><durationType>whole</durationType><Note><pitch>62</pitch><tpc>16</tpc></Note></Chord></voice></Measure><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>64</pitch><tpc>18</tpc></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let mut score = parse_mscx(xml).unwrap();
+    let bars = &mut score.parts[0].staves[0].measures;
+    bars[0].barline_left = Barline::RepeatStart;
+    bars[1].barline_right = Barline::RepeatEnd;
+    assert_eq!(acorde_core::measure_sequence(&score), vec![0, 1, 0, 1, 2]);
+    let options = PlaybackOptions {
+        loop_region: Some((2, 2)),
+        ..Default::default()
+    };
+    let events = to_playback_events(&score, &options);
+    assert_eq!(
+        events
+            .iter()
+            .map(|event| (event.pitch_midi, event.program))
+            .collect::<Vec<_>>(),
+        vec![(64, 40)]
+    );
+    let midi = acorde_io::serialize_midi_region(&score, (2, 2)).unwrap();
+    let decoded = acorde_io::parse_midi(&midi).unwrap();
+    assert_eq!(
+        to_playback_events(&decoded, &PlaybackOptions::default())[0].program,
+        40
+    );
+}

@@ -120,10 +120,19 @@ fn serialize_midi_impl(score: &Score, seq: &[usize]) -> Result<Vec<u8>, Error> {
                 .map(|event| event.channel.min(15)),
         );
     }
+    let full_seq = acorde_core::measure_sequence(score);
+    let prefix: Vec<_> = seq.first().map_or_else(Vec::new, |first| {
+        full_seq
+            .iter()
+            .copied()
+            .take_while(|idx| idx != first)
+            .collect()
+    });
     for part in &score.parts {
         smf.tracks.push(build_part_track(
             part,
             seq,
+            &prefix,
             &starts,
             &pauses,
             &mut occupied_channels,
@@ -323,6 +332,7 @@ fn note_ticks(duration: &acorde_core::Duration, dot_count: u8, tuplet: Option<&T
 fn build_part_track(
     part: &acorde_core::Part,
     seq: &[usize],
+    prefix: &[usize],
     starts: &[u64],
     pauses: &[(u64, u64)],
     occupied_channels: &mut BTreeSet<u8>,
@@ -336,19 +346,44 @@ fn build_part_track(
     if part.midi_program_changes.is_empty() {
         program_channels.insert(part.midi_program, channel.as_int());
     }
-    for switch in part
+    let active_before_region = |staff: &acorde_core::Staff, voice: usize| {
+        let mut active = None;
+        for &index in prefix {
+            if let Some(measure) = staff.measures.get(index) {
+                let mut switches: Vec<_> = measure
+                    .channel_switches
+                    .iter()
+                    .filter(|switch| switch.voice == voice && switch.position_beats.is_finite())
+                    .collect();
+                switches.sort_by(|a, b| a.position_beats.total_cmp(&b.position_beats));
+                for switch in switches {
+                    if let Some(named) = part
+                        .named_channels
+                        .iter()
+                        .find(|named| named.name == switch.channel_name)
+                    {
+                        active = Some(named);
+                    }
+                }
+            }
+        }
+        active
+    };
+    let initial = part
+        .staves
+        .iter()
+        .flat_map(|staff| (0..4).filter_map(|voice| active_before_region(staff, voice)));
+    let switched = part
         .staves
         .iter()
         .flat_map(|staff| seq.iter().filter_map(|&index| staff.measures.get(index)))
         .flat_map(|measure| &measure.channel_switches)
-    {
-        let Some(named) = part
-            .named_channels
-            .iter()
-            .find(|named| named.name == switch.channel_name)
-        else {
-            continue;
-        };
+        .filter_map(|switch| {
+            part.named_channels
+                .iter()
+                .find(|named| named.name == switch.channel_name)
+        });
+    for named in initial.chain(switched) {
         if program_channels.contains_key(&named.program) {
             continue;
         }
@@ -463,7 +498,8 @@ fn build_part_track(
         let dynamics = acorde_core::DynamicTimeline::for_staff(staff, seq);
         for voice_idx in 0..4usize {
             let mut cursor: u64 = 0;
-            let mut active_program = None;
+            let mut active_program =
+                active_before_region(staff, voice_idx).map(|named| named.program);
             for (seq_position, &idx) in seq.iter().enumerate() {
                 let measure = match staff.measures.get(idx) {
                     Some(m) => m,
