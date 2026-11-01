@@ -5342,3 +5342,20 @@ fn issue_299_simultaneous_voices_align_when_measure_has_text() {
         2
     );
 }
+
+#[test]
+fn simultaneous_main_notes_align_when_one_voice_starts_with_grace() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Guitar</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><direction><direction-type><words>Allegro</words></direction-type></direction><note><grace/><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><type>eighth</type><stem>up</stem></note><note><pitch><step>A</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>half</type><stem>up</stem></note><backup><duration>2</duration></backup><note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><voice>2</voice><type>half</type><stem>down</stem></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let svg = render_svg(&score, &opts()).unwrap();
+    let heads = notehead_centers(&svg);
+    assert_eq!(heads.len(), 3, "{svg}");
+    assert!(
+        (heads[1].0 - heads[2].0).abs() < 0.1,
+        "main notes: {heads:?}"
+    );
+    assert!(
+        heads[0].0 < heads[1].0,
+        "grace must precede main note: {heads:?}"
+    );
+}

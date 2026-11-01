@@ -5623,7 +5623,9 @@ fn voice_separation_u(
         };
         let mut beat = 0.0;
         for note in voice {
-            if (beat - target_beat).abs() < 1e-6 {
+            // Grace and cue notes have zero duration and precede the sounding
+            // event at this onset; they must not stand in for its notehead.
+            if !note.is_grace && !note.is_cue && (beat - target_beat).abs() < 1e-6 {
                 notes.push(note);
                 break;
             }
