@@ -5169,3 +5169,50 @@ fn upper_voice_slur_clears_unbeamed_stems() {
         assert!(y > 0.0, "slur is clipped above SVG viewport");
     }
 }
+
+#[test]
+fn cross_system_slur_clears_unbeamed_upper_voice_stems() {
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem><notations><slur type="start"/></notations></note><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem></note><note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem></note><backup><duration>3</duration></backup><note><pitch><step>G</step><octave>4</octave></pitch><duration>3</duration><voice>2</voice><type>half</type><dot/><stem>down</stem></note></measure><measure number="2"><note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem></note><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem></note><note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem><notations><slur type="stop"/></notations></note><backup><duration>3</duration></backup><note><pitch><step>G</step><octave>4</octave></pitch><duration>3</duration><voice>2</voice><type>half</type><dot/><stem>down</stem></note></measure></part></score-partwise>"#;
+    let beamed = xml
+        .replace("<divisions>1</divisions>", "<divisions>2</divisions>")
+        .replace("<type>quarter</type>", "<type>eighth</type>")
+        .replace("<duration>3</duration>", "<duration>6</duration>");
+    for (source, auto_beam) in [(xml, false), (beamed.as_str(), true)] {
+        let score = acorde_io::parse_musicxml(source).unwrap();
+        let mut options = opts();
+        options.measures_per_system = 1;
+        let svg = if auto_beam {
+            render_svg_with_config(&score, &SvgRenderConfig::new(options).with_auto_beams())
+                .unwrap()
+        } else {
+            render_svg(&score, &options).unwrap()
+        };
+        if auto_beam {
+            assert!(svg.contains("acorde-beam"));
+        }
+        let curves = slur_geometries(&svg);
+        assert_eq!(curves.len(), 2);
+        let stems: Vec<_> = svg.split(r#"class="acorde-stem" x1=""#).skip(1).collect();
+        for (curve, stem) in [(curves[0], stems[1]), (curves[1], stems[5])] {
+            let x: f32 = stem.split('"').next().unwrap().parse().unwrap();
+            let tip: f32 = stem
+                .split("y2=\"")
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap()
+                .parse()
+                .unwrap();
+            let t = (x - curve[0]) / (curve[4] - curve[0]);
+            assert!(t > 0.0 && t < 1.0);
+            let y =
+                (1.0 - t).powi(2) * curve[1] + 2.0 * t * (1.0 - t) * curve[3] + t * t * curve[5];
+            assert!(
+                y < tip - 0.1,
+                "cross-system slur y={y} crosses stem tip y={tip}"
+            );
+            assert!(y > 0.0, "cross-system slur is clipped");
+        }
+    }
+}

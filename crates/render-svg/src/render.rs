@@ -5890,6 +5890,130 @@ fn render_all_spans(
                 fallback
             }
         };
+        if row1 != row2
+            && start.part == end.part
+            && start.staff == end.staff
+            && start.voice == end.voice
+            && row1 < row2
+            && let Some(above) = slur_above
+        {
+            let side = if above { -1.0 } else { 1.0 };
+            let select = |a: f32, b: f32| if above { a.min(b) } else { a.max(b) };
+            for row in row1..=row2 {
+                let offset = lane_offsets
+                    .get(&(span_index, row))
+                    .copied()
+                    .unwrap_or_default();
+                let first = row == row1;
+                let last = row == row2;
+                let (source_y, source_up, address) = if last {
+                    (y2, up2, end)
+                } else {
+                    (y1 + row_tops[row] - row_tops[row1], up1, start)
+                };
+                let mut anchor = source_y + offset + side * 0.65 * space;
+                if first || last {
+                    let key = (
+                        address.part,
+                        address.staff,
+                        address.measure,
+                        address.voice,
+                        address.note,
+                    );
+                    if source_up == above
+                        && let Some(tip) = beam_tip_points.get(&key)
+                    {
+                        anchor = select(anchor, tip + offset + side * 0.5 * space);
+                    }
+                }
+                let left = if first {
+                    x1 + 0.3 * space
+                } else {
+                    left_margin_u * space
+                };
+                let right = if last {
+                    x2 - 0.3 * space
+                } else {
+                    width - right_margin_u * space
+                };
+                if right <= left {
+                    continue;
+                }
+                let baseline_control = anchor + side * 1.8 * space;
+                let mut control = baseline_control;
+                for (key @ (part, staff, measure, voice, index), (x, y, stem_up, point_row)) in
+                    points
+                {
+                    if *part != start.part
+                        || *staff != start.staff
+                        || *voice != start.voice
+                        || *point_row != row
+                    {
+                        continue;
+                    }
+                    let Some(note) = score
+                        .parts
+                        .get(*part)
+                        .and_then(|p| p.staves.get(*staff))
+                        .and_then(|s| s.measures.get(*measure))
+                        .and_then(|m| m.voices.get(*voice))
+                        .and_then(|v| v.get(*index))
+                    else {
+                        continue;
+                    };
+                    if note.is_rest || note.hidden {
+                        continue;
+                    }
+                    let stem_x = if *stem_up == above && beam_tip_points.contains_key(key) {
+                        x + (if *stem_up { 1.0 } else { -1.0 })
+                            * glyphs::NOTEHEAD_RX_U
+                            * 0.92
+                            * space
+                    } else {
+                        *x
+                    };
+                    let t = (stem_x - left) / (right - left);
+                    if !(t > 0.0 && t < 1.0) {
+                        continue;
+                    }
+                    let note_limit = y + offset + side * 0.8 * space;
+                    let desired = if *stem_up == above {
+                        beam_tip_points.get(key).map_or(note_limit, |tip| {
+                            select(note_limit, tip + offset + side * 0.6 * space)
+                        })
+                    } else {
+                        note_limit
+                    };
+                    let remaining = 1.0 - t;
+                    let required = (desired - (remaining * remaining + t * t) * anchor)
+                        / (2.0 * t * remaining);
+                    // Bound near-edge curvature in tightly packed notation as in same-row slurs.
+                    control = select(
+                        control,
+                        if above {
+                            required.max(baseline_control - 8.0 * space)
+                        } else {
+                            required.min(baseline_control + 8.0 * space)
+                        },
+                    );
+                }
+                render_slur_ribbon(
+                    body,
+                    left,
+                    anchor,
+                    (left + right) / 2.0,
+                    control,
+                    right,
+                    anchor,
+                    above,
+                    space,
+                );
+            }
+            if interactive {
+                body.push_str("</g>");
+            }
+            continue;
+        }
         if row1 != row2 {
             let start_offset = lane_offsets
                 .get(&(span_index, row1))
