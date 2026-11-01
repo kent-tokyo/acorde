@@ -912,3 +912,65 @@ fn print_above_hairpin_clears_low_stems_on_upper_staff() {
     }
     assert!(checked > 0);
 }
+
+#[test]
+fn print_interstaff_hairpin_clearance_crosses_system_breaks() {
+    use acorde_core::{Clef, Duration, HairpinKind, Measure, Note, Pitch, Staff, Step};
+    let mut score = Score::new("cross-system interstaff wedge", 120, 4, 4, 0, 2);
+    for (index, measure) in score.parts[0].staves[0].measures.iter_mut().enumerate() {
+        measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        if index == 0 {
+            measure.voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+        } else {
+            measure.voices[0][0].hairpin_end = true;
+        }
+    }
+    let mut lower = Staff::new(Clef::Bass);
+    for _ in 0..2 {
+        let mut bar = Measure::empty(4, 4);
+        bar.voices[0] = vec![Note::new(Pitch::new(Step::G, 5), Duration::Whole)];
+        lower.measures.push(bar);
+    }
+    score.parts[0].staves.push(lower);
+    let layout = compute_print_layout(
+        &score,
+        &PrintConfig {
+            measures_per_system: 1,
+            ..PrintConfig::default()
+        },
+    )
+    .unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = pages.join("");
+    let paths: Vec<Vec<f32>> = svg
+        .split(r#"class="acorde-hairpin""#)
+        .skip(1)
+        .map(|tag| {
+            tag.split_once(r#"d=""#)
+                .unwrap()
+                .1
+                .split('"')
+                .next()
+                .unwrap()
+                .split(['M', 'L', ',', ' '])
+                .filter_map(|s| s.parse().ok())
+                .collect()
+        })
+        .collect();
+    let heads: Vec<f32> = svg
+        .split(r#"class="acorde-notehead""#)
+        .skip(1)
+        .map(|tag| svg_attribute_f32(tag, "cy"))
+        .collect();
+    assert_eq!(paths.len(), 2);
+    assert_eq!(heads.len(), 4);
+    for (row, path) in paths.iter().enumerate() {
+        assert_eq!(path.len(), 8);
+        let bottom = path[1].max(path[3]).max(path[5]).max(path[7]);
+        assert!(
+            heads[row * 2 + 1] > bottom,
+            "system {row}: lower head {}, wedge {path:?}",
+            heads[row * 2 + 1]
+        );
+    }
+}

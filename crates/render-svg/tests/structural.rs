@@ -5524,3 +5524,39 @@ fn above_hairpin_does_not_cross_low_stems_on_upper_staff() {
     }
     assert!(checked > 0);
 }
+
+#[test]
+fn interstaff_hairpin_clearance_is_kept_across_system_breaks() {
+    use acorde_core::{Clef, Duration, HairpinKind, Measure, Note, Pitch, Score, Staff, Step};
+    let mut score = Score::new("cross-system interstaff wedge", 120, 4, 4, 0, 2);
+    for (index, measure) in score.parts[0].staves[0].measures.iter_mut().enumerate() {
+        measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        if index == 0 {
+            measure.voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+        } else {
+            measure.voices[0][0].hairpin_end = true;
+        }
+    }
+    let mut lower = Staff::new(Clef::Bass);
+    for _ in 0..2 {
+        let mut bar = Measure::empty(4, 4);
+        bar.voices[0] = vec![Note::new(Pitch::new(Step::G, 5), Duration::Whole)];
+        lower.measures.push(bar);
+    }
+    score.parts[0].staves.push(lower);
+    let mut options = opts();
+    options.measures_per_system = 1;
+    let svg = render_svg(&score, &options).unwrap();
+    let paths = hairpin_path_coordinates(&svg);
+    let heads = notehead_centers(&svg);
+    assert_eq!(paths.len(), 2);
+    assert_eq!(heads.len(), 4);
+    for (row, path) in paths.iter().enumerate() {
+        let bottom = path[1].max(path[3]).max(path[5]).max(path[7]);
+        let (_, lower_y) = heads[row * 2 + 1];
+        assert!(
+            lower_y - options.staff_size * 0.5 > bottom,
+            "system {row}: lower head {lower_y}, wedge {path:?}"
+        );
+    }
+}
