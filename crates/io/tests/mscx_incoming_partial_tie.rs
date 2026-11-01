@@ -38,6 +38,20 @@ fn incoming_partial_tie_connects_only_when_the_performed_predecessor_ties() {
         kind: "begin_end".into(),
         numbers: vec![],
     });
+    score.parts[0]
+        .named_channels
+        .push(acorde_core::NamedInstrumentChannel {
+            name: "pizzicato".into(),
+            program: 45,
+            midi_channel: 1,
+        });
+    score.parts[0].staves[0].measures[0]
+        .channel_switches
+        .push(acorde_core::VoiceChannelSwitch {
+            voice: 0,
+            position_beats: 0.0,
+            channel_name: "pizzicato".into(),
+        });
     assert_eq!(acorde_core::measure_sequence(&score), vec![0, 1, 0, 2]);
     let events = to_playback_events(&score, &PlaybackOptions::default());
     assert_eq!(
@@ -47,6 +61,7 @@ fn incoming_partial_tie_connects_only_when_the_performed_predecessor_ties() {
             .collect::<Vec<_>>(),
         vec![(0.0, 8.0), (8.0, 8.0)]
     );
+    assert!(events.iter().all(|event| event.program == 45));
     #[cfg(feature = "midi")]
     {
         use midly::{MidiMessage, Smf, TrackEventKind};

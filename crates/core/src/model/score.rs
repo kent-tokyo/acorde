@@ -1601,6 +1601,22 @@ impl InstrumentDefinition {
     }
 }
 
+/// One named instrument channel, such as a MuseScore arco or pizzicato channel.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NamedInstrumentChannel {
+    pub name: String,
+    pub program: u8,
+    pub midi_channel: u8,
+}
+
+/// A named instrument-channel switch for one voice at a position within a measure.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VoiceChannelSwitch {
+    pub voice: usize,
+    pub position_beats: f64,
+    pub channel_name: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Part {
     pub id: String,
@@ -1613,6 +1629,9 @@ pub struct Part {
     /// General MIDI program number (0–127). Default 0 = Acoustic Grand Piano.
     #[serde(default)]
     pub midi_program: u8,
+    /// Named alternate channels declared by the source instrument.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub named_channels: Vec<NamedInstrumentChannel>,
     /// MIDI pitch-bend events preserved from interchange input, in canonical 480 PPQ ticks.
     #[serde(default)]
     pub midi_pitch_bends: Vec<MidiPitchBend>,
@@ -1723,6 +1742,7 @@ impl Part {
             staves: Vec::new(),
             midi_channel: 0,
             midi_program: 0,
+            named_channels: Vec::new(),
             midi_pitch_bends: Vec::new(),
             midi_control_changes: Vec::new(),
             midi_program_changes: Vec::new(),
@@ -2206,6 +2226,9 @@ pub struct Measure {
     /// Concert-harp pedal diagrams declared by MusicXML `<harp-pedals>` directions.
     #[serde(default)]
     pub harp_pedal_diagrams: Vec<HarpPedalDiagram>,
+    /// Voice-specific named channel changes at written score positions.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub channel_switches: Vec<VoiceChannelSwitch>,
     /// Pedal signs whose score-time positions need not coincide with notes.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub timed_pedals: Vec<TimedPedalDirection>,
@@ -2294,6 +2317,7 @@ impl Measure {
             texts: Vec::new(),
             figured_bass: Vec::new(),
             harp_pedal_diagrams: Vec::new(),
+            channel_switches: Vec::new(),
             timed_pedals: Vec::new(),
             multi_rest_count: None,
             system_break: false,
@@ -3572,6 +3596,9 @@ fn first_unrepresented_field_change(a: &Score, b: &Score) -> Option<String> {
 
 fn first_unrepresented_part_change(part_index: usize, a: &Part, b: &Part) -> Option<String> {
     let prefix = format!("parts[{part_index}]");
+    if a.named_channels != b.named_channels {
+        return Some(format!("{prefix}.named_channels"));
+    }
     if a.percussion_instruments != b.percussion_instruments {
         return Some(format!("{prefix}.percussion_instruments"));
     }
@@ -3610,12 +3637,13 @@ fn first_unrepresented_staff_change(
 }
 
 fn first_unrepresented_measure_change(
-    _staff_prefix: &str,
-    _measure_index: usize,
-    _a: &Measure,
-    _b: &Measure,
+    staff_prefix: &str,
+    measure_index: usize,
+    a: &Measure,
+    b: &Measure,
 ) -> Option<String> {
-    None
+    (a.channel_switches != b.channel_switches)
+        .then(|| format!("{staff_prefix}.measures[{measure_index}].channel_switches"))
 }
 
 // ── ScorePatch ────────────────────────────────────────────────────────────────
@@ -3850,13 +3878,20 @@ fn patch_requires_replace(a: &Score, b: &Score) -> bool {
     }
     for (ap, bp) in a.parts.iter().zip(&b.parts) {
         if ap.percussion_instruments != bp.percussion_instruments
+            || ap.named_channels != bp.named_channels
             || ap.staff_groups != bp.staff_groups
             || ap.staves.len() != bp.staves.len()
         {
             return true;
         }
         for (as_, bs) in ap.staves.iter().zip(&bp.staves) {
-            if as_.measures.len() != bs.measures.len() {
+            if as_.measures.len() != bs.measures.len()
+                || as_
+                    .measures
+                    .iter()
+                    .zip(&bs.measures)
+                    .any(|(a, b)| a.channel_switches != b.channel_switches)
+            {
                 return true;
             }
         }

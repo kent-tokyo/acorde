@@ -2754,6 +2754,22 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                 "ABC export does not preserve incoming partial ties across jumps",
             );
         }
+        let switch_count: usize = part
+            .staves
+            .iter()
+            .flat_map(|staff| &staff.measures)
+            .map(|measure| measure.channel_switches.len())
+            .sum();
+        if !part.named_channels.is_empty() || switch_count > 0 {
+            push(
+                format!("{part_path}/named-channels"),
+                format!(
+                    "channels={},switches={switch_count}",
+                    part.named_channels.len()
+                ),
+                "ABC export does not preserve named instrument channels or voice switches",
+            );
+        }
         let timed_pedal_count: usize = part
             .staves
             .iter()

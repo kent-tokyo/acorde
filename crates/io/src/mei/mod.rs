@@ -5711,6 +5711,22 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
                 partial_count.to_string(),
             );
         }
+        let switch_count: usize = part
+            .staves
+            .iter()
+            .flat_map(|staff| &staff.measures)
+            .map(|measure| measure.channel_switches.len())
+            .sum();
+        if !part.named_channels.is_empty() || switch_count > 0 {
+            push(
+                &mut diagnostics,
+                format!("{part_path}/named-channels"),
+                format!(
+                    "channels={},switches={switch_count}",
+                    part.named_channels.len()
+                ),
+            );
+        }
         let timed_pedal_count: usize = part
             .staves
             .iter()
