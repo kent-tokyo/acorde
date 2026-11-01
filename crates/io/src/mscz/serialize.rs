@@ -377,7 +377,18 @@ fn note_has_unsupported_fields(note: &Note) -> bool {
 /// be surfaced by the caller's export diagnostics.
 pub fn serialize_mscx(score: &Score) -> Result<String, Error> {
     // Export reads span endpoints from note flags; include spans held only as typed spanners.
-    let materialized = score.with_legacy_spanner_flags();
+    let mut materialized = score.with_legacy_spanner_flags();
+    if materialized
+        .parts
+        .iter()
+        .flat_map(|p| &p.staves)
+        .flat_map(|s| &s.measures)
+        .flat_map(|m| &m.voices)
+        .flatten()
+        .any(|note| note.ottava_start.is_some())
+    {
+        super::convert_ottava_pitches(materialized.to_mut(), false)?;
+    }
     let score: &Score = &materialized;
     if score.parts.is_empty() {
         return Err(Error::Empty);

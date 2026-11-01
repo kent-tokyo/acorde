@@ -127,8 +127,9 @@ pub use model::score::{
     ViewStyleOverride, ViewStyleProperty, ViewTranspositionPolicy, VoltaBracket, apply_patch,
     assign_tablature_positions, compute_beams, diff, measure_beats_remaining,
     optimize_tablature_positions, respell_score, respell_score_to_key, respell_staff_region,
-    score_duration_secs, score_duration_secs_region, score_patch, suggested_stem_up, transpose,
-    transpose_checked, transpose_staff_region_checked, tuplet_group_ranges, voice_duration_beats,
+    score_duration_secs, score_duration_secs_region, score_patch, staff_ottava_octave_shifts,
+    suggested_stem_up, transpose, transpose_checked, transpose_staff_region_checked,
+    tuplet_group_ranges, voice_duration_beats,
 };
 pub use model::structural_plan::{
     STRUCTURAL_CHANGE_PLAN_CONTRACT_VERSION, StructuralChangeDiagnostic,

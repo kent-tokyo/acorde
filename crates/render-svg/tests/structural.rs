@@ -3986,6 +3986,50 @@ fn spans_held_only_as_typed_spanners_are_drawn() {
 }
 
 #[test]
+fn ottava_displays_simultaneous_voices_at_written_pitch() {
+    use acorde_core::{Duration, Note, OttavaKind, Pitch, Score, Step};
+    let render = |ottava: bool| {
+        let mut score = Score::new("8va voices", 120, 4, 4, 0, 1);
+        let mut upper = Note::new(Pitch::new(Step::G, 6), Duration::Quarter);
+        if ottava {
+            upper.ottava_start = Some(OttavaKind::Va8);
+            upper.ottava_end = true;
+        }
+        let measure = &mut score.parts[0].staves[0].measures[0];
+        measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 5), Duration::Quarter), upper];
+        measure.voices[1] = vec![
+            Note::rest(Duration::Quarter),
+            Note::new(Pitch::new(Step::C, 6), Duration::Quarter),
+        ];
+        render_svg(&score, &opts()).unwrap()
+    };
+    let heads = |svg: &str| -> Vec<f32> {
+        svg.split(r#"class="acorde-notehead" cx=""#)
+            .skip(1)
+            .filter_map(|fragment| {
+                fragment
+                    .split(r#"cy=""#)
+                    .nth(1)?
+                    .split('"')
+                    .next()?
+                    .parse()
+                    .ok()
+            })
+            .collect()
+    };
+    let plain = heads(&render(false));
+    let shifted = heads(&render(true));
+    assert_eq!(plain.len(), 3);
+    assert_eq!(shifted.len(), 3);
+    for i in 1..3 {
+        assert!(
+            ((shifted[i] - shifted[0]) - (plain[i] - plain[0]) - 3.5 * opts().staff_size).abs()
+                < 0.01
+        );
+    }
+}
+
+#[test]
 fn notes_under_an_8va_line_are_drawn_an_octave_below_their_pitch() {
     use acorde_core::{Duration, Note, OttavaKind, Pitch, Score, Step};
     let render = |ottava: bool| {

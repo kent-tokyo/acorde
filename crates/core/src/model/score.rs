@@ -4631,6 +4631,78 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
     Ok(s)
 }
 
+/// Sounding octave displacement for notes covered by staff-wide ottava lines.
+///
+/// Start and end flags are paired in their originating voice, but the resulting
+/// interval applies to every voice on the staff. End notes are included.
+pub fn staff_ottava_octave_shifts(
+    staff: &Staff,
+    default_time: &TimeSignature,
+) -> std::collections::HashMap<(usize, usize, usize), i8> {
+    // Most staves have no ottava; avoid allocating and sorting every note in those scores.
+    if !staff
+        .measures
+        .iter()
+        .flat_map(|m| &m.voices)
+        .flatten()
+        .any(|n| n.ottava_start.is_some())
+    {
+        return std::collections::HashMap::new();
+    }
+    // Events sort by time, then end, start, and note, respectively.
+    type OttavaEvent = (f64, u8, i8, (usize, usize, usize));
+    let mut events: Vec<OttavaEvent> = Vec::new();
+    for voice in 0..4 {
+        let mut measure_start = 0.0;
+        let mut active = None;
+        for (measure_index, measure) in staff.measures.iter().enumerate() {
+            let mut position = measure_start;
+            for (note_index, note) in measure.voices[voice].iter().enumerate() {
+                let key = (measure_index, voice, note_index);
+                if let Some(kind) = note.ottava_start {
+                    if let Some(previous) = active.take() {
+                        events.push((position, 0, previous, key));
+                    }
+                    let shift = match kind {
+                        OttavaKind::Va8 => 1,
+                        OttavaKind::Vb8 => -1,
+                        OttavaKind::Ma15 => 2,
+                        OttavaKind::Mb15 => -2,
+                    };
+                    events.push((position, 1, shift, key));
+                    active = Some(shift);
+                }
+                events.push((position, 2, 0, key));
+                let duration = note.beats();
+                if note.ottava_end
+                    && let Some(shift) = active.take()
+                {
+                    events.push((position + duration.max(1e-9), 0, shift, key));
+                }
+                position += duration;
+            }
+            measure_start += staff.measure_beats(measure_index, default_time);
+        }
+    }
+    events.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
+    // MuseScore keeps one staff pitch-offset state. A later start replaces the
+    // previous value, and an end resets it instead of reviving an older line.
+    // Equal-time starts retain the original voice order (the last wins).
+    let mut current = 0_i8;
+    let mut result = std::collections::HashMap::new();
+    for (_, kind, shift, key) in events {
+        match kind {
+            0 => current = 0,
+            1 => current = shift,
+            _ if current != 0 => {
+                result.insert(key, current);
+            }
+            _ => {}
+        }
+    }
+    result
+}
+
 /// Beats a voice occupies in a measure lasting `measure_beats`. A voice holding only one plain
 /// whole rest is a measure rest and lasts exactly the measure in any time signature (as in
 /// MusicXML and MuseScore); otherwise the voice lasts the sum of its notes.
@@ -5085,6 +5157,29 @@ fn per_pitch_flag(flags: &[bool], pitch_count: usize, index: usize, chord: bool)
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn ottava_interval_covers_other_voices_only_at_matching_times() {
+        use super::*;
+        use crate::model::{duration::Duration, pitch::Step};
+        let mut score = Score::new("Ottava", 120, 4, 4, 0, 2);
+        let note = || Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        let staff = &mut score.parts[0].staves[0];
+        let mut start = note();
+        start.ottava_start = Some(OttavaKind::Va8);
+        staff.measures[0].voices[0] = vec![Note::rest(Duration::Half), start, note()];
+        let mut end = note();
+        end.ottava_end = true;
+        staff.measures[1].voices[0] = vec![end, note()];
+        staff.measures[0].voices[1] = vec![note(), note(), note(), note()];
+        staff.measures[1].voices[1] = vec![note(), note()];
+        let shifts = staff_ottava_octave_shifts(staff, &score.settings.time_signature);
+        assert_eq!(shifts.get(&(0, 1, 1)), None);
+        assert_eq!(shifts.get(&(0, 1, 2)), Some(&1));
+        assert_eq!(shifts.get(&(0, 1, 3)), Some(&1));
+        assert_eq!(shifts.get(&(1, 1, 0)), Some(&1));
+        assert_eq!(shifts.get(&(1, 1, 1)), None);
+    }
+
     use super::*;
     use crate::model::{
         notation::{FingeringSelectionPolicy, TextStyle},
