@@ -414,3 +414,57 @@ fn malformed_fractional_tie_source_is_reported_and_never_matches() {
             .contains("<fractions>1/0</fractions>")
     );
 }
+
+#[cfg(feature = "midi")]
+#[test]
+fn staccato_before_partial_tie_uses_notated_boundary_for_midi_continuity() {
+    use acorde_core::{Articulation, Barline, PlaybackOptions, VoltaBracket, to_playback_events};
+    use midly::{MidiMessage, Smf, TrackEventKind};
+
+    let xml = r#"<museScore version="4.50"><Score><Part id="1"><Staff id="1"/></Part><Staff id="1"><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc><Spanner type="Tie"><next/></Spanner></Note></Chord></voice></Measure><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc><Spanner type="Tie"><prev/></Spanner></Note></Chord></voice></Measure><Measure><voice><Chord><durationType>whole</durationType><Note><pitch>60</pitch><tpc>14</tpc><PartialTie><partialSpannerDirection>incoming</partialSpannerDirection></PartialTie></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let mut score = parse_mscx(xml).unwrap();
+    let bars = &mut score.parts[0].staves[0].measures;
+    bars[0].barline_left = Barline::RepeatStart;
+    bars[0].voices[0][0]
+        .articulations
+        .push(Articulation::Staccato);
+    bars[1].barline_right = Barline::RepeatEnd;
+    bars[1].volta = Some(VoltaBracket {
+        number: 1,
+        kind: "begin_end".into(),
+        numbers: vec![],
+    });
+    bars[2].volta = Some(VoltaBracket {
+        number: 2,
+        kind: "begin_end".into(),
+        numbers: vec![],
+    });
+    let playback = to_playback_events(&score, &PlaybackOptions::default());
+    assert_eq!(
+        playback
+            .iter()
+            .map(|event| (event.time_beats, event.duration_beats))
+            .collect::<Vec<_>>(),
+        vec![(0.0, 4.0), (8.0, 4.0)]
+    );
+    let bytes = acorde_io::serialize_midi(&score).unwrap();
+    let smf = Smf::parse(&bytes).unwrap();
+    let mut time = 0u64;
+    let mut notes = Vec::new();
+    for event in &smf.tracks[1] {
+        time += u64::from(event.delta.as_int());
+        if let TrackEventKind::Midi { message, .. } = event.kind {
+            match message {
+                MidiMessage::NoteOn { key, vel } if key.as_int() == 60 && vel.as_int() > 0 => {
+                    notes.push((time, true))
+                }
+                MidiMessage::NoteOff { key, .. } if key.as_int() == 60 => notes.push((time, false)),
+                _ => {}
+            }
+        }
+    }
+    assert_eq!(
+        notes,
+        vec![(0, true), (1920, false), (3840, true), (5760, false)]
+    );
+}

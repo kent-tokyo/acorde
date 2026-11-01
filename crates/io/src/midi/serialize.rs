@@ -298,6 +298,8 @@ struct TimedEvent {
 struct MidiNoteCandidate {
     start_tick: u64,
     sounding_ticks: u64,
+    notated_ticks: u64,
+    staccato: bool,
     pitch: u8,
     velocity: u8,
     tie_start: bool,
@@ -314,6 +316,9 @@ struct MidiNoteCandidate {
 
 struct OpenMidiTie {
     off_event: usize,
+    start_tick: u64,
+    notated_end_tick: u64,
+    staccato: bool,
     written_onset: f64,
     staff: usize,
     voice: usize,
@@ -575,6 +580,13 @@ fn build_part_track(
                             notes.push(MidiNoteCandidate {
                                 start_tick: cursor,
                                 sounding_ticks,
+                                notated_ticks: ticks,
+                                staccato: note.articulations.iter().any(|a| {
+                                    matches!(
+                                        a,
+                                        Articulation::Staccato | Articulation::Staccatissimo
+                                    )
+                                }),
                                 pitch: midi,
                                 velocity: vel,
                                 tie_start: note.pitch_tie_start(pitch_index),
@@ -618,7 +630,7 @@ fn build_part_track(
     let mut note_pairs = Vec::new();
     for note in notes {
         if let Some(candidates) = open_ties.get_mut(&note.pitch) {
-            candidates.retain(|candidate| events[candidate.off_event].abs_tick >= note.start_tick);
+            candidates.retain(|candidate| candidate.notated_end_tick >= note.start_tick);
             if note.tie_end || note.partial_end {
                 let matching = candidates
                     .iter()
@@ -653,7 +665,7 @@ fn build_part_track(
                             && candidate.voice == note.voice;
                         source_matches
                             && (note.tie_end || partial_matches)
-                            && events[candidate.off_event].abs_tick == note.start_tick
+                            && candidate.notated_end_tick == note.start_tick
                     })
                     .max_by_key(|(_, candidate)| {
                         (candidate.staff == note.staff, candidate.voice == note.voice)
@@ -661,7 +673,14 @@ fn build_part_track(
                     .map(|(position, _)| position);
                 if let Some(position) = matching {
                     let mut candidate = candidates.remove(position);
-                    events[candidate.off_event].abs_tick = note.start_tick + note.sounding_ticks;
+                    candidate.notated_end_tick = note.start_tick + note.notated_ticks;
+                    candidate.staccato |= note.staccato;
+                    events[candidate.off_event].abs_tick = if candidate.staccato {
+                        candidate.start_tick
+                            + (candidate.notated_end_tick - candidate.start_tick) / 2
+                    } else {
+                        note.start_tick + note.sounding_ticks
+                    };
                     if note.tie_start {
                         candidate.staff = note.staff;
                         candidate.voice = note.voice;
@@ -702,6 +721,9 @@ fn build_part_track(
         if note.tie_start {
             open_ties.entry(note.pitch).or_default().push(OpenMidiTie {
                 off_event: events.len() - 1,
+                start_tick: note.start_tick,
+                notated_end_tick: note.start_tick + note.notated_ticks,
+                staccato: note.staccato,
                 written_onset: note.written_onset,
                 staff: note.staff,
                 voice: note.voice,
