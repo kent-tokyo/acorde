@@ -7164,3 +7164,21 @@ fn mscx_ottava_rejects_out_of_range_sounding_pitch() {
     let xml = r#"<museScore version="4.50"><Score><Part><Staff id="1"/><trackName>Piano</trackName></Part><Staff id="1"><Measure><voice><Spanner type="Ottava"><Ottava><subtype>8va</subtype></Ottava><next><location><measures>1</measures></location></next></Spanner><Chord><durationType>quarter</durationType><Note><pitch>127</pitch><tpc>15</tpc></Note></Chord><Spanner type="Ottava"><prev/></Spanner></voice></Measure></Staff></Score></museScore>"#;
     assert!(acorde_io::parse_mscx(xml).is_err());
 }
+
+#[cfg(feature = "mscz")]
+#[test]
+fn mscx_ottava_does_not_transpose_other_staves() {
+    let xml = r#"<museScore version="4.50"><Score><Division>480</Division><Part id="1"><Staff id="1"/><Staff id="2"/><trackName>Piano</trackName></Part><Staff id="1"><Measure><voice><Spanner type="Ottava"><Ottava><subtype>8va</subtype></Ottava><next><location><fractions>1/4</fractions></location></next></Spanner><Chord><durationType>quarter</durationType><Note><pitch>79</pitch><tpc>15</tpc></Note></Chord><Spanner type="Ottava"><prev><location><fractions>-1/4</fractions></location></prev></Spanner></voice></Measure></Staff><Staff id="2"><Measure><voice><Chord><durationType>quarter</durationType><Note><pitch>79</pitch><tpc>15</tpc></Note></Chord></voice></Measure></Staff></Score></museScore>"#;
+    let score = acorde_io::parse_mscx(xml).unwrap();
+    let notes = |score: &acorde_core::Score| {
+        let mut events = acorde_core::to_playback_events(score, &Default::default());
+        events.sort_by_key(|event| event.pitch_midi);
+        events
+            .iter()
+            .map(|event| event.pitch_midi)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(notes(&score), [79, 91]);
+    let archive = acorde_io::serialize_mscz(&score).unwrap();
+    assert_eq!(notes(&acorde_io::parse_mscz(&archive).unwrap()), [79, 91]);
+}
