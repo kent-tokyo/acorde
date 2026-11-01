@@ -197,9 +197,9 @@ jobs:
           # controls, and noncontiguous-tie diagnostics measure 6,096,487 bytes
           # locally. Key-signature cancellations and inline changes measured
           # 6,111,598 bytes on Linux. The hairpin and overlapping-voice slur
-          # rendering fixes together measure 6,116,633 bytes on Linux. Keep
-          # a narrow margin above that measured artifact and a hard cap.
-          test "$size" -le 6118000
+          # rendering fixes together measured 6,118,357 bytes on Linux after
+          # adding beam clearance. Keep a narrow margin and a hard cap.
+          test "$size" -le 6120000
 
   renderer-benchmark:
     name: Renderer performance budget
