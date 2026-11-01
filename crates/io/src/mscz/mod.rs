@@ -240,6 +240,10 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut in_bar_line_span = false;
     let mut in_instrument = false;
     let mut in_channel = false;
+    let mut selected_channel_priority: u8 = 0;
+    let mut candidate_channel_priority: u8 = 0;
+    let mut candidate_channel_program: u8 = 0;
+    let mut candidate_midi_channel: u8 = 0;
 
     // Staff data: 1-based staff ID → measures
     let mut staff_measures: HashMap<usize, Vec<Measure>> = HashMap::new();
@@ -541,6 +545,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         cur_part_short_name.clear();
                         cur_part_program = 0;
                         cur_part_channel = 0;
+                        selected_channel_priority = 0;
                         cur_part_transpose = 0;
                         cur_part_staff_ids.clear();
                         cur_part_staff_count = 0;
@@ -556,6 +561,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "Channel" if in_instrument => {
                         in_channel = true;
+                        candidate_channel_priority = match attr_str(e, b"name").as_deref() {
+                            None | Some("") | Some("normal") | Some("arco") => 2,
+                            _ => 1,
+                        };
+                        candidate_channel_program = 0;
+                        candidate_midi_channel = 0;
                     }
                     "barLineSpan" if in_part => {
                         in_bar_line_span = true;
@@ -1203,10 +1214,15 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         in_instrument = false;
                     }
                     "Channel" if in_instrument => {
+                        if candidate_channel_priority > selected_channel_priority {
+                            selected_channel_priority = candidate_channel_priority;
+                            cur_part_program = candidate_channel_program;
+                            cur_part_channel = candidate_midi_channel;
+                        }
                         in_channel = false;
                     }
                     "midiChannel" if in_channel => {
-                        cur_part_channel = t.parse::<u8>().unwrap_or(0).min(15);
+                        candidate_midi_channel = t.parse::<u8>().unwrap_or(0).min(15);
                     }
                     "barLineSpan" if in_bar_line_span => {
                         if let Some(spec) = cur_part_staff_group_specs.last_mut() {
@@ -2225,7 +2241,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     }
                     "program" if in_channel => {
                         if let Some(v) = attr_str(e, b"value") {
-                            cur_part_program = v.parse().unwrap_or(0);
+                            candidate_channel_program = v.parse().unwrap_or(0);
                         }
                     }
                     "Bend" if in_note_elem => {
@@ -3853,6 +3869,31 @@ mod tests {
         let diagnostics = loss_diagnostics(xml);
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].code, "mscx.unimported-excerpt");
+    }
+
+    #[test]
+    fn instrument_channel_prefers_arco_over_alternates_regardless_of_order() {
+        let make = |channels: &str| {
+            format!(
+                r#"<museScore version="4.20"><Score>
+          <Part id="1"><Staff id="1"/><trackName>Violin</trackName><Instrument id="violin">{channels}</Instrument></Part>
+          <Staff id="1"><Measure><voice><Chord><durationType>quarter</durationType>
+          <Note><pitch>60</pitch><tpc>14</tpc></Note></Chord></voice></Measure></Staff></Score></museScore>"#
+            )
+        };
+        let arco =
+            r#"<Channel name="arco"><program value="40"/><midiChannel>2</midiChannel></Channel>"#;
+        let pizz = r#"<Channel name="pizzicato"><program value="45"/><midiChannel>3</midiChannel></Channel>"#;
+        let tremolo = r#"<Channel name="tremolo"><program value="44"/><midiChannel>4</midiChannel></Channel>"#;
+        for channels in [
+            format!("{arco}{pizz}{tremolo}"),
+            format!("{tremolo}{pizz}{arco}"),
+        ] {
+            let score = parse_mscz(&zipped_mscx(&make(&channels))).unwrap();
+            let events = acorde_core::to_playback_events(&score, &Default::default());
+            assert_eq!(events[0].program, 40);
+            assert_eq!(events[0].channel, 2);
+        }
     }
 
     #[test]
