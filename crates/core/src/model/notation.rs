@@ -883,6 +883,9 @@ pub struct FiguredBassFigure {
 /// A MusicXML figured-bass group at a score-time position in the measure.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FiguredBassGroup {
+    /// Editable voice slot containing the following note.
+    #[serde(default)]
+    pub voice: usize,
     /// Position in quarter-note beats from the start of the measure.
     pub position_beats: f64,
     /// Duration in quarter-note beats, when explicitly present in the source.

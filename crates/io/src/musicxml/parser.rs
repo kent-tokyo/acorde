@@ -16,6 +16,25 @@ use std::collections::HashMap;
 use super::attributes::{attr_is_yes, attr_present, attr_str};
 use super::{pan_to_cc, volume_to_cc};
 
+fn attach_pending_figured_bass(
+    measure: &mut Measure,
+    groups: &mut Vec<FiguredBassGroup>,
+    texts: &mut Vec<StyledText>,
+    note_position_beats: f64,
+    voice: usize,
+) {
+    for group in groups.iter_mut() {
+        group.position_beats += note_position_beats;
+        group.voice = voice;
+    }
+    for text in texts.iter_mut() {
+        let position = text.position_beats.unwrap_or(0.0) + note_position_beats;
+        text.position_beats = (position != 0.0).then_some(position);
+    }
+    measure.figured_bass_groups.append(groups);
+    measure.texts.append(texts);
+}
+
 fn figured_bass_modifier_display(value: &str) -> &str {
     match value {
         "sharp" => "♯",
@@ -459,8 +478,10 @@ pub(crate) fn parse_musicxml_collecting(
     let mut figured_extend_types: Vec<Option<String>> = Vec::new();
     let mut figured_bass_duration: Option<f64> = None;
     let mut figured_bass_offset_beats = 0.0f64;
-    let mut figured_group_position_beats = 0.0f64;
     let mut figured_bass_figures: Vec<FiguredBassFigure> = Vec::new();
+    // Figure groups belong to the next regular note, whose staff is not known yet.
+    let mut pending_figured_groups: Vec<FiguredBassGroup> = Vec::new();
+    let mut pending_figured_texts: Vec<StyledText> = Vec::new();
     let mut pending_ottava_start: Option<OttavaKind> = None;
     let mut pending_pedal_start = false;
     let mut pending_pedal_end = false;
@@ -704,9 +725,6 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "figured-bass" => {
                         in_figured_bass = true;
-                        figured_group_position_beats = f64::from(measure_cursor_ticks)
-                            / f64::from(current_divisions.max(1))
-                            + figured_bass_offset_beats;
                         figured_bass_text.clear();
                         in_figured_figure = false;
                         figured_figure_number.clear();
@@ -1892,31 +1910,26 @@ pub(crate) fn parse_musicxml_collecting(
                         figured_figure_suffix.clear();
                     }
                     "figured-bass" => {
-                        if let Some(pi) = part_index
-                            && let Some(measure) = score.parts[pi].staves[0].measures.last_mut()
-                        {
-                            if !figured_bass_figures.is_empty() {
-                                measure.figured_bass_groups.push(FiguredBassGroup {
-                                    position_beats: figured_group_position_beats,
-                                    duration_beats: figured_bass_duration,
-                                    figures: figured_bass_figures.clone(),
-                                    extend_types: figured_extend_types.clone(),
-                                });
-                                measure.figured_bass = std::mem::take(&mut figured_bass_figures);
-                            }
-                            if !figured_bass_text.trim().is_empty() {
-                                measure.texts.push(StyledText {
-                                    position_beats: (figured_group_position_beats != 0.0)
-                                        .then_some(figured_group_position_beats),
-                                    style: TextStyle::FiguredBass,
-                                    text: figured_bass_text.trim().to_string(),
-                                    placement: None,
-                                    offset_x: None,
-                                    offset_y: None,
-                                    relative_x: None,
-                                    relative_y: None,
-                                });
-                            }
+                        if !figured_bass_figures.is_empty() {
+                            pending_figured_groups.push(FiguredBassGroup {
+                                voice: 0,
+                                position_beats: figured_bass_offset_beats,
+                                duration_beats: figured_bass_duration,
+                                figures: std::mem::take(&mut figured_bass_figures),
+                                extend_types: figured_extend_types.clone(),
+                            });
+                        }
+                        if !figured_bass_text.trim().is_empty() {
+                            pending_figured_texts.push(StyledText {
+                                position_beats: Some(figured_bass_offset_beats),
+                                style: TextStyle::FiguredBass,
+                                text: figured_bass_text.trim().to_string(),
+                                placement: None,
+                                offset_x: None,
+                                offset_y: None,
+                                relative_x: None,
+                                relative_y: None,
+                            });
                         }
                         figured_bass_offset_beats += figured_bass_duration.unwrap_or(0.0);
                         figured_bass_text.clear();
@@ -2715,6 +2728,26 @@ pub(crate) fn parse_musicxml_collecting(
                         });
                     }
                     "measure" => {
+                        if !pending_figured_groups.is_empty() {
+                            if let Some(pi) = part_index
+                                && let Some(measure) = score.parts[pi].staves[0].measures.last_mut()
+                            {
+                                attach_pending_figured_bass(
+                                    measure,
+                                    &mut pending_figured_groups,
+                                    &mut pending_figured_texts,
+                                    f64::from(measure_cursor_ticks)
+                                        / f64::from(current_divisions.max(1)),
+                                    0,
+                                );
+                            }
+                            pending_figured_groups.clear();
+                            pending_figured_texts.clear();
+                            tolerated.push(crate::Diagnostic::warning(
+                                "musicxml.figured-bass-without-following-note",
+                                "Figured bass has no following regular note; staff ownership is uncertain",
+                            ));
+                        }
                         // Content shorter than the time signature is an authored pickup or
                         // irregular bar: keep its length instead of padding it with rests. Notes
                         // whose written values fill the bar exactly keep it regular even when
@@ -2863,6 +2896,19 @@ pub(crate) fn parse_musicxml_collecting(
                                     target_staff_index,
                                     note_voice,
                                 )?;
+                                if !note_is_grace
+                                    && !note_chord
+                                    && !pending_figured_groups.is_empty()
+                                {
+                                    attach_pending_figured_bass(
+                                        m,
+                                        &mut pending_figured_groups,
+                                        &mut pending_figured_texts,
+                                        f64::from(measure_cursor_ticks)
+                                            / f64::from(current_divisions.max(1)),
+                                        voice_index,
+                                    );
+                                }
                                 let mut drop_chord_member = false;
                                 // Cue notes take time in MusicXML (their <duration> moves the
                                 // cursor, and a later <backup> counts it) even though the model
@@ -3446,6 +3492,21 @@ pub(crate) fn parse_musicxml_collecting(
             staff.clef = clef.clone();
         } else if let Some(measure) = staff.measures.get_mut(target) {
             measure.clef = (clef != previous || measure.clef.is_some()).then(|| clef.clone());
+        }
+    }
+    for measure in score
+        .parts
+        .iter_mut()
+        .flat_map(|part| &mut part.staves)
+        .flat_map(|staff| &mut staff.measures)
+    {
+        measure.figured_bass_groups.sort_by(|a, b| {
+            a.voice
+                .cmp(&b.voice)
+                .then_with(|| a.position_beats.total_cmp(&b.position_beats))
+        });
+        if let Some(last) = measure.figured_bass_groups.last() {
+            measure.figured_bass = last.figures.clone();
         }
     }
     score.settings.time_signature = current_time;

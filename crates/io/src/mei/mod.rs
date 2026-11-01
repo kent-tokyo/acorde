@@ -5702,7 +5702,8 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
             .filter(|measure| {
                 measure.figured_bass_groups.len() > 1
                     || measure.figured_bass_groups.iter().any(|group| {
-                        group.position_beats != 0.0
+                        group.voice != 0
+                            || group.position_beats != 0.0
                             || group.duration_beats.is_some()
                             || group.extend_types.iter().any(|kind| {
                                 kind.as_deref()
