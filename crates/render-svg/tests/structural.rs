@@ -4802,3 +4802,46 @@ fn hairpin_stays_below_all_voice_noteheads_with_down_stems() {
             > lowest + 2.0 * opts().staff_size
     );
 }
+
+#[test]
+fn key_changes_cancel_removed_accidentals_within_and_between_systems() {
+    use acorde_core::{Duration, KeySignature, Note, Score};
+    for (old, new, expected) in [(3, 0, 3), (3, 1, 2), (-3, 0, 3), (3, -2, 3), (0, 3, 0)] {
+        for systems in [1, 2] {
+            let mut score = Score::new("key change", 120, 4, 4, old, 2);
+            for m in &mut score.parts[0].staves[0].measures {
+                m.voices[0] = vec![Note::rest(Duration::Whole)];
+            }
+            score.parts[0].staves[0].measures[1].key_sig = Some(KeySignature {
+                fifths: new,
+                mode: "major".into(),
+            });
+            let mut options = opts();
+            options.measures_per_system = systems;
+            let svg = render_svg(&score, &options).unwrap();
+            assert_eq!(
+                svg.matches("acorde-accidental acorde-natural").count(),
+                expected,
+                "{old} -> {new} with {systems} measures per system"
+            );
+        }
+    }
+}
+
+#[test]
+fn key_cancellation_keeps_later_note_accidentals_independent() {
+    use acorde_core::{Duration, KeySignature, Note, Pitch, Score, Step};
+    let mut score = Score::new("independent accidentals", 120, 4, 4, 3, 2);
+    score.parts[0].staves[0].measures[0].voices[0] = vec![Note::rest(Duration::Whole)];
+    let measure = &mut score.parts[0].staves[0].measures[1];
+    measure.key_sig = Some(KeySignature {
+        fifths: 0,
+        mode: "minor".into(),
+    });
+    let mut pitch = Pitch::new(Step::C, 4);
+    pitch.alter = 1;
+    measure.voices[0] = vec![Note::new(pitch, Duration::Whole)];
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(svg.matches("acorde-accidental acorde-natural").count(), 3);
+    assert_eq!(svg.matches("acorde-accidental acorde-sharp").count(), 4);
+}
