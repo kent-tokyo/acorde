@@ -167,6 +167,18 @@ now expanded into attacks at its written stroke rate, including all chord pitche
 not expand its `Tremolo` articulation again. Two-note alternating playback is not implemented.
 The MIDI serializer has its own timing path and does not yet expand these attacks.
 
+### MuseScore named instrument channels
+
+`Part::named_channels` and `Measure::channel_switches` retain named instrument programs and
+voice-specific switches from MuseScore. Both fields default to empty when older JSON is read;
+Rust callers using complete `Part` or `Measure` literals must initialize them. Default playback
+sets each event's program according to its voice's authored switch. MIDI output assigns separate
+available channels to simultaneous programs and reports an error if no channel is available.
+MSCX export preserves switches at representable positions within that voice's rhythmic extent;
+its export report identifies positions it cannot write exactly. MusicXML, MEI and ABC export reports
+identify the unsupported named-channel data. Channel-specific controller differences and some
+source formatting remain outside this partial implementation.
+
 ### Timed pedal directions
 
 `Measure::timed_pedals` retains MusicXML no-line pedal directions at positions that can fall

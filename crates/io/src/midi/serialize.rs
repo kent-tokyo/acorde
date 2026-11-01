@@ -120,10 +120,19 @@ fn serialize_midi_impl(score: &Score, seq: &[usize]) -> Result<Vec<u8>, Error> {
                 .map(|event| event.channel.min(15)),
         );
     }
+    let full_seq = acorde_core::measure_sequence(score);
+    let prefix: Vec<_> = seq.first().map_or_else(Vec::new, |first| {
+        full_seq
+            .iter()
+            .copied()
+            .take_while(|idx| idx != first)
+            .collect()
+    });
     for part in &score.parts {
         smf.tracks.push(build_part_track(
             part,
             seq,
+            &prefix,
             &starts,
             &pauses,
             &mut occupied_channels,
@@ -295,6 +304,7 @@ struct MidiNoteCandidate {
     tie_end: bool,
     staff: usize,
     voice: usize,
+    channel: u8,
 }
 
 struct OpenMidiTie {
@@ -322,6 +332,7 @@ fn note_ticks(duration: &acorde_core::Duration, dot_count: u8, tuplet: Option<&T
 fn build_part_track(
     part: &acorde_core::Part,
     seq: &[usize],
+    prefix: &[usize],
     starts: &[u64],
     pauses: &[(u64, u64)],
     occupied_channels: &mut BTreeSet<u8>,
@@ -329,6 +340,74 @@ fn build_part_track(
     let channel = u4::from(part.midi_channel.min(15));
     let mut events: Vec<TimedEvent> = Vec::new();
     let mut notes: Vec<MidiNoteCandidate> = Vec::new();
+    // Distinct programs need distinct MIDI channels while voices overlap. Allocate only
+    // programs actually referenced by switches, reserving all other parts' channels.
+    let mut program_channels = std::collections::BTreeMap::new();
+    if part.midi_program_changes.is_empty() {
+        program_channels.insert(part.midi_program, channel.as_int());
+    }
+    let active_before_region = |staff: &acorde_core::Staff, voice: usize| {
+        let mut active = None;
+        for &index in prefix {
+            if let Some(measure) = staff.measures.get(index) {
+                let mut switches: Vec<_> = measure
+                    .channel_switches
+                    .iter()
+                    .filter(|switch| switch.voice == voice && switch.position_beats.is_finite())
+                    .collect();
+                switches.sort_by(|a, b| a.position_beats.total_cmp(&b.position_beats));
+                for switch in switches {
+                    if let Some(named) = part
+                        .named_channels
+                        .iter()
+                        .find(|named| named.name == switch.channel_name)
+                    {
+                        active = Some(named);
+                    }
+                }
+            }
+        }
+        active
+    };
+    let initial = part
+        .staves
+        .iter()
+        .flat_map(|staff| (0..4).filter_map(|voice| active_before_region(staff, voice)));
+    let switched = part
+        .staves
+        .iter()
+        .flat_map(|staff| seq.iter().filter_map(|&index| staff.measures.get(index)))
+        .flat_map(|measure| &measure.channel_switches)
+        .filter_map(|switch| {
+            part.named_channels
+                .iter()
+                .find(|named| named.name == switch.channel_name)
+        });
+    for named in initial.chain(switched) {
+        if program_channels.contains_key(&named.program) {
+            continue;
+        }
+        let preferred = named.midi_channel;
+        let assigned = if preferred != 9 && !occupied_channels.contains(&preferred) {
+            preferred
+        } else {
+            (0..16)
+                .find(|candidate| *candidate != 9 && !occupied_channels.contains(candidate))
+                .ok_or_else(|| {
+                    Error::Midi("no free MIDI channel for a named instrument channel".into())
+                })?
+        };
+        occupied_channels.insert(assigned);
+        program_channels.insert(named.program, assigned);
+        events.push(TimedEvent {
+            abs_tick: 0,
+            sort_key: 1,
+            channel: u4::from(assigned),
+            message: MidiMessage::ProgramChange {
+                program: u7::from(named.program.min(127)),
+            },
+        });
+    }
 
     if part.midi_program_changes.is_empty() {
         // Always emit ProgramChange at tick 0 to initialize the channel's timbre.
@@ -419,6 +498,8 @@ fn build_part_track(
         let dynamics = acorde_core::DynamicTimeline::for_staff(staff, seq);
         for voice_idx in 0..4usize {
             let mut cursor: u64 = 0;
+            let mut active_program =
+                active_before_region(staff, voice_idx).map(|named| named.program);
             for (seq_position, &idx) in seq.iter().enumerate() {
                 let measure = match staff.measures.get(idx) {
                     Some(m) => m,
@@ -432,12 +513,35 @@ fn build_part_track(
                     staff.transpose_semitones
                 };
                 let mut written_beats = 0.0f64;
+                let mut switches: Vec<_> = measure
+                    .channel_switches
+                    .iter()
+                    .filter(|switch| switch.voice == voice_idx && switch.position_beats.is_finite())
+                    .collect();
+                switches.sort_by(|a, b| a.position_beats.total_cmp(&b.position_beats));
+                let mut next_switch = 0;
                 for note in &measure.voices[voice_idx] {
                     if note.is_grace || note.is_cue {
                         continue;
                     }
                     let ticks = note_ticks(&note.duration, note.dot_count, note.tuplet.as_ref());
                     let onset_beats = written_beats;
+                    while let Some(switch) = switches
+                        .get(next_switch)
+                        .filter(|switch| switch.position_beats <= onset_beats + 1e-9)
+                    {
+                        if let Some(named) = part
+                            .named_channels
+                            .iter()
+                            .find(|named| named.name == switch.channel_name)
+                        {
+                            active_program = Some(named.program);
+                        }
+                        next_switch += 1;
+                    }
+                    let note_channel = active_program
+                        .and_then(|program| program_channels.get(&program).copied())
+                        .unwrap_or(channel.as_int());
                     written_beats += note.beats();
                     if !note.is_rest {
                         let mut vel = dynamics.velocity(seq_position, onset_beats, note.dynamic);
@@ -469,10 +573,20 @@ fn build_part_track(
                                 tie_end: note.pitch_tie_end(pitch_index),
                                 staff: staff_index,
                                 voice: voice_idx,
+                                channel: note_channel,
                             });
                         }
                     }
                     cursor += ticks;
+                }
+                for switch in switches.iter().skip(next_switch) {
+                    if let Some(named) = part
+                        .named_channels
+                        .iter()
+                        .find(|named| named.name == switch.channel_name)
+                    {
+                        active_program = Some(named.program);
+                    }
                 }
             }
         }
@@ -514,7 +628,7 @@ fn build_part_track(
         events.push(TimedEvent {
             abs_tick: note.start_tick,
             sort_key: 2,
-            channel,
+            channel: u4::from(note.channel),
             message: MidiMessage::NoteOn {
                 key: u7::from(note.pitch),
                 vel: u7::from(note.velocity),
@@ -524,7 +638,7 @@ fn build_part_track(
         events.push(TimedEvent {
             abs_tick: note.start_tick + note.sounding_ticks,
             sort_key: 0,
-            channel,
+            channel: u4::from(note.channel),
             message: MidiMessage::NoteOff {
                 key: u7::from(note.pitch),
                 vel: u7::from(0u8),
@@ -549,31 +663,50 @@ fn build_part_track(
     for event in &mut events {
         event.abs_tick = warp_midi_tick(event.abs_tick, pauses);
     }
-    let base_messages = events
+    let base_messages: Vec<_> = events
         .iter()
-        .filter(|event| event.channel == channel && event.sort_key == 1)
+        .filter(|event| {
+            event.channel == channel
+                && event.sort_key == 1
+                && !matches!(event.message, MidiMessage::ProgramChange { .. })
+        })
+        .cloned()
+        .collect();
+    for &alternate in program_channels
+        .values()
+        .filter(|&&value| value != channel.as_int())
+    {
+        for message in &base_messages {
+            let mut copy = message.clone();
+            copy.channel = u4::from(alternate);
+            events.push(copy);
+        }
+    }
+    let channel_messages = events
+        .iter()
+        .filter(|event| event.sort_key == 1)
         .cloned()
         .collect::<Vec<_>>();
-
-    // An overlapping unison cannot be released independently on one MIDI
-    // channel: its note-offs carry only a key, not a voice identity. Put the
-    // later attack on a spare channel and mirror the part's channel messages.
     let mut last_off = std::collections::BTreeMap::<(u8, u8), u64>::new();
-    let mut spare_channels = Vec::<u8>::new();
+    let mut spare_channels = Vec::<(u8, u8)>::new();
     for pair in note_pairs {
         let start = events[pair.on_event].abs_tick;
         let end = events[pair.off_event].abs_tick;
+        let preferred = events[pair.on_event].channel.as_int();
         let free_for_pitch = |candidate: u8| {
             last_off
                 .get(&(candidate, pair.pitch))
                 .is_none_or(|&off| off <= start)
         };
-        let assigned = if free_for_pitch(channel.as_int()) {
-            channel.as_int()
-        } else if let Some(&spare) = spare_channels.iter().find(|&&spare| free_for_pitch(spare)) {
+        let assigned = if free_for_pitch(preferred) {
+            preferred
+        } else if let Some(&(_, spare)) = spare_channels
+            .iter()
+            .find(|&&(owner, spare)| owner == preferred && free_for_pitch(spare))
+        {
             spare
         } else {
-            if channel.as_int() == 9 {
+            if preferred == 9 {
                 return Err(Error::Midi(
                     "overlapping percussion pitch has no independent MIDI voice".into(),
                 ));
@@ -582,15 +715,18 @@ fn build_part_track(
                 .find(|candidate| *candidate != 9 && !occupied_channels.contains(candidate))
                 .ok_or_else(|| Error::Midi("no free MIDI channel for overlapping pitch".into()))?;
             occupied_channels.insert(spare);
-            spare_channels.push(spare);
+            spare_channels.push((preferred, spare));
             spare
         };
         events[pair.on_event].channel = u4::from(assigned);
         events[pair.off_event].channel = u4::from(assigned);
         last_off.insert((assigned, pair.pitch), end);
     }
-    for &spare in &spare_channels {
-        for message in &base_messages {
+    for &(owner, spare) in &spare_channels {
+        for message in channel_messages
+            .iter()
+            .filter(|message| message.channel.as_int() == owner)
+        {
             let mut copy = message.clone();
             copy.channel = u4::from(spare);
             events.push(copy);
@@ -602,11 +738,11 @@ fn build_part_track(
 
     let mut track: Vec<TrackEvent<'static>> =
         Vec::with_capacity(events.len() + spare_channels.len() + 1);
-    for spare in spare_channels {
+    for (owner, spare) in spare_channels {
         track.push(TrackEvent {
             delta: u28::from(0u32),
             kind: TrackEventKind::Meta(MetaMessage::SequencerSpecific(
-                &AUX_CHANNEL_MARKERS[channel.as_int() as usize][spare as usize],
+                &AUX_CHANNEL_MARKERS[owner as usize][spare as usize],
             )),
         });
     }
