@@ -765,3 +765,23 @@ fn web_fragment_copy_and_linked_view_use_canonical_addresses() {
     .unwrap();
     assert!(!trees.as_array().unwrap().is_empty());
 }
+
+#[test]
+fn playback_options_share_only_selected_dynamic_marks() {
+    use acorde_core::{Clef, Duration, Dynamic, Measure, Note, Pitch, Score, Staff, Step};
+    let mut score = Score::new("shared", 120, 4, 4, 0, 1);
+    let mut first = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+    first.dynamic = Some(Dynamic::P);
+    score.parts[0].staves[0].measures[0].voices[0] = vec![first];
+    let mut lower = Staff::new(Clef::Bass);
+    let mut measure = Measure::empty(4, 4);
+    measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 3), Duration::Whole)];
+    lower.measures.push(measure);
+    score.parts[0].staves.push(lower);
+    let json = serde_json::to_string(&score).unwrap();
+    let options = r#"{"shared_dynamics":[{"part":0,"staff":0,"measure":0,"voice":0,"note":0}]}"#;
+    let events: Vec<acorde_core::PlaybackEvent> =
+        serde_json::from_str(&bindings::to_playback_events_ex(&json, options).unwrap()).unwrap();
+    assert_eq!(events.len(), 2);
+    assert!(events.iter().all(|event| event.velocity == 48));
+}
