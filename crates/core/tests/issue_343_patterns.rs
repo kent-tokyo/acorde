@@ -242,6 +242,14 @@ fn short_final_bar_repeats_and_ties_keep_original_melody() {
             serde_json::to_value(&output.parts[0].staves[0].measures).unwrap(),
             serde_json::to_value(&score.parts[0].staves[0].measures).unwrap()
         );
+        let melody_events = |score: &Score| {
+            to_playback_events(score, &Default::default())
+                .into_iter()
+                .filter(|event| event.source.as_ref().is_some_and(|addr| addr.staff == 0))
+                .map(|event| (event.pitch_midi, event.time_beats, event.duration_beats))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(melody_events(&output), melody_events(&score));
         let left = &output.parts[0].staves[1].measures;
         assert_eq!(
             left[2].actual_length,
