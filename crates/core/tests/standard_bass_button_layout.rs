@@ -271,3 +271,99 @@ fn located_tied_continuations_keep_the_same_sound_and_button() {
     assert!(!result.actions[0].tied_from_previous && result.actions[1].tied_from_previous);
     assert_eq!(result.actions[0].candidate, result.actions[1].candidate);
 }
+
+#[test]
+fn explicit_melody_selection_is_combined_with_located_repeat_screening() {
+    use acorde_core::model::arrange::PositionedAccordionChord;
+    use acorde_core::model::standard_bass_arrangement::StandardBassArrangementOptions;
+    use acorde_core::model::standard_bass_pitch_selection::MelodyPitchSelection;
+    use acorde_core::model::standard_bass_transition::{
+        StandardBassTransitionPolicy, arrange_standard_bass_located_selected_screened,
+    };
+    use acorde_core::{Barline, Duration, Note, NoteAddr, Pitch, Score, Step, to_playback_events};
+    let mut score = Score::new("polyphonic melody", 120, 4, 4, 0, 1);
+    let mut chord_note = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+    chord_note.pitches.push(Pitch::new(Step::C, 5));
+    score.parts[0].staves[0].measures[0].voices[0] = vec![chord_note];
+    score.parts[0].staves[0].measures[0].barline_right = Barline::RepeatEnd;
+    let before = serde_json::to_value(&score).unwrap();
+    let profile = fixture();
+    let mut options = StandardBassArrangementOptions {
+        melody_part: 0,
+        melody_staff: 0,
+        melody_voice: 0,
+        allow_source_omissions: true,
+        chords: vec![PositionedAccordionChord {
+            measure_index: 0,
+            offset_beats: 0.0,
+            chord: chord(None),
+        }],
+        profile: profile.profile.clone(),
+        allow_chord_omissions: true,
+        allow_chord_additions: false,
+    };
+    let selected = [MelodyPitchSelection {
+        source: NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        },
+        pitch_index: 1,
+    }];
+    let policy = StandardBassTransitionPolicy {
+        max_position_delta: 0,
+        min_attack_interval_ms: 0,
+    };
+    let result = arrange_standard_bass_located_selected_screened(
+        &score, &options, &selected, &profile, &policy,
+    );
+    let arrangement = &result.arrangement.arrangement;
+    assert!(
+        arrangement.diagnostics.is_empty(),
+        "{:?}",
+        arrangement.diagnostics
+    );
+    assert_eq!(result.transitions.len(), 2);
+    assert!(result.transitions.iter().all(|t| t.chord_button_id == "G7"));
+    assert_eq!(arrangement.source_pitches.len(), 2);
+    assert!(
+        arrangement
+            .source_pitches
+            .iter()
+            .any(|p| p.source_pitch == 0 && p.target.is_none())
+    );
+    assert!(
+        arrangement
+            .source_pitches
+            .iter()
+            .any(|p| p.source_pitch == 1 && p.target.is_some())
+    );
+    let output = arrangement.score.as_ref().unwrap();
+    let events = |s: &Score| {
+        to_playback_events(s, &Default::default())
+            .into_iter()
+            .filter(|e| e.source.as_ref().is_some_and(|a| a.staff == 0) && e.pitch_midi == 72)
+            .map(|e| (e.pitch_midi, e.time_beats, e.duration_beats))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(events(&score), events(output));
+    assert_eq!(serde_json::to_value(&score).unwrap(), before);
+    let missing =
+        arrange_standard_bass_located_selected_screened(&score, &options, &[], &profile, &policy);
+    assert_eq!(
+        missing.arrangement.arrangement.diagnostics[0].code,
+        "ambiguous-melody"
+    );
+    assert!(missing.arrangement.arrangement.score.is_none() && missing.transitions.is_empty());
+    options.allow_source_omissions = false;
+    let denied = arrange_standard_bass_located_selected_screened(
+        &score, &options, &selected, &profile, &policy,
+    );
+    assert_eq!(
+        denied.arrangement.arrangement.diagnostics[0].code,
+        "source-omission-not-authorized"
+    );
+    assert!(denied.arrangement.arrangement.score.is_none() && denied.transitions.is_empty());
+}

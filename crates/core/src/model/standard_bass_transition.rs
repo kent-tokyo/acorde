@@ -102,6 +102,21 @@ pub fn arrange_standard_bass_located_screened(
     )
 }
 
+/// Select source melody pitches, use explicit button locations, and screen expanded playback.
+pub fn arrange_standard_bass_located_selected_screened(
+    score: &Score,
+    options: &StandardBassArrangementOptions,
+    selections: &[MelodyPitchSelection],
+    instrument: &super::standard_bass_button_layout::LocatedStandardBassProfile,
+    policy: &StandardBassTransitionPolicy,
+) -> ScreenedStandardBassResult {
+    let arrangement =
+        super::standard_bass_pitch_selection::arrange_standard_bass_located_with_pitch_selection(
+            score, options, selections, instrument,
+        );
+    screen_existing_standard_bass(arrangement, options, policy)
+}
+
 pub(super) fn screen_existing_standard_bass(
     arrangement: SelectedPitchArrangementResult,
     options: &StandardBassArrangementOptions,

@@ -107,3 +107,46 @@ fn located_arrangement_exports_actual_seventh_button_sound() {
         serde_json::from_str(&acorde_wasm::parse_mscz(&archive).unwrap()).unwrap();
     assert_eq!(signature(&score), signature(&restored));
 }
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn selected_melody_uses_located_buttons_and_survives_mscz() {
+    use acorde_core::{Score, to_playback_events};
+    let source = acorde_wasm::parse_abc("X:1\nM:4/4\nL:1/4\nK:C\n[CE]4|]\n").unwrap();
+    let profile = serde_json::json!({"bass_buttons":[{"id":"G","position":0,"midi":43}],"chord_buttons":[{"id":"G7","position":0,"midi":[67,71,77]}],"max_distance":0});
+    let instrument = serde_json::json!({"profile":profile,"locations":[{"id":"G","row":"fundamental","column":1},{"id":"G7","row":"seventh","column":1}]});
+    let options = serde_json::json!({"melody_part":0,"melody_staff":0,"melody_voice":0,"allow_source_omissions":true,"chords":[{"measure_index":0,"offset_beats":0,"chord":{"root":"G","kind":"dominant"}}],"profile":profile,"allow_chord_omissions":true,"allow_chord_additions":false});
+    let selection = serde_json::json!([{"source":{"part":0,"staff":0,"measure":0,"voice":0,"note":0},"pitch_index":1}]);
+    let policy = serde_json::json!({"max_position_delta":0,"min_attack_interval_ms":0});
+    let result: serde_json::Value = serde_json::from_str(
+        &acorde_wasm::arrange_standard_bass_located_selected_screened(
+            &source,
+            &options.to_string(),
+            &selection.to_string(),
+            &instrument.to_string(),
+            &policy.to_string(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(result["transitions"][0]["chord_button_id"], "G7");
+    let mappings = result["arrangement"]["arrangement"]["source_pitches"]
+        .as_array()
+        .unwrap();
+    assert!(
+        mappings
+            .iter()
+            .any(|p| p["source_pitch"] == 0 && p["target"].is_null())
+    );
+    let score: Score =
+        serde_json::from_value(result["arrangement"]["arrangement"]["score"].clone()).unwrap();
+    let archive = acorde_wasm::serialize_mscz(&serde_json::to_string(&score).unwrap()).unwrap();
+    let decoded: Score = serde_json::from_str(&acorde_wasm::parse_mscz(&archive).unwrap()).unwrap();
+    let fingerprint = |s: &Score| {
+        to_playback_events(s, &Default::default())
+            .into_iter()
+            .map(|e| (e.pitch_midi, e.time_beats, e.duration_beats))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(fingerprint(&score), fingerprint(&decoded));
+}
