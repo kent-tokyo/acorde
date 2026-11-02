@@ -6528,3 +6528,39 @@ fn simultaneous_main_notes_align_when_one_voice_starts_with_grace() {
         "grace must precede main note: {heads:?}"
     );
 }
+
+#[test]
+fn metronome_beat_units_draw_their_stems_flags_and_dots() {
+    use acorde_core::{Duration, MetronomeMark, Score};
+    for (duration, unit, stems, flags) in [
+        (Duration::Whole, "whole", 0, 0),
+        (Duration::Half, "half", 1, 0),
+        (Duration::Quarter, "quarter", 1, 0),
+        (Duration::Eighth, "eighth", 1, 1),
+        (Duration::Sixteenth, "16th", 1, 2),
+    ] {
+        let mut score = Score::new("Metronome", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].metronome_mark = Some(MetronomeMark {
+            beat_unit: duration,
+            beat_unit_dots: 1,
+            per_minute: 72,
+            parentheses: true,
+        });
+        let svg = render_svg(&score, &opts()).expect("metronome renders");
+        let group = svg
+            .split(r#"<g class="acorde-metronome""#)
+            .nth(1)
+            .expect("metronome group")
+            .split("</g>")
+            .next()
+            .unwrap();
+        assert!(
+            group.contains(&format!(r#"data-beat-unit="{unit}""#)),
+            "{group}"
+        );
+        assert_eq!(group.matches("<line ").count(), stems, "{unit}");
+        assert_eq!(group.matches("<path ").count(), flags, "{unit}");
+        assert_eq!(group.matches("<circle ").count(), 1, "{unit}");
+        assert!(group.contains("=72)"), "{group}");
+    }
+}
