@@ -246,8 +246,9 @@ jobs:
           # growth and approximately 6 KB headroom pending CI measurement.
           # Explicit chord-pitch selection adds 37,305 bytes on macOS
           # (6,579,824 -> 6,617,129). The previous Linux artifact measured
-          # 6,582,528 bytes; reserve the observed growth plus ~6 KB pending CI.
-          test "$size" -le 6626000
+          # 6,582,528 bytes; Linux CI measured 6,630,133 bytes (+47,605).
+          # Keep approximately 7 KB of headroom above the measured artifact.
+          test "$size" -le 6637000
 
   renderer-benchmark:
     name: Renderer performance budget
