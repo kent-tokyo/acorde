@@ -229,9 +229,11 @@ jobs:
           # The macOS build grew by 20,186 bytes. Two 2/4 accompaniment
           # patterns measured 6,452,656 bytes on Linux (+33,318 over the
           # preceding hairpin baseline). Driving accompaniment adds 3,212 bytes
-          # on macOS (6,405,305 -> 6,408,517). This Linux budget is provisional
-          # pending the combined CI measurement.
-          test "$size" -le 6464000
+          # on macOS (6,405,305 -> 6,408,517). The Linux driving build measured
+          # 6,421,699 bytes. Melodic insertion adds 53,057 bytes on macOS
+          # (6,408,517 -> 6,461,574); the combined Linux budget is provisional
+          # pending CI measurement.
+          test "$size" -le 6482000
 
   renderer-benchmark:
     name: Renderer performance budget

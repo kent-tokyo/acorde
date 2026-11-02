@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Add a conservative, explicitly keyed passing/neighbor-note insertion API for Rust and viewer WASM, with source mapping and diagnostics.
+
 - Add driving and lighter 4/4 bass/chord accompaniment options, with explicit
   accent, articulation and standard-bass rate policies. New enum variants require
   updates to exhaustive Rust matches; see the migration notes.

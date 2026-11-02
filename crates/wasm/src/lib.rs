@@ -1547,6 +1547,14 @@ pub fn accordion_preset_capabilities() -> Result<String, JsValue> {
 }
 
 /// Arrange a score from a chosen preset ID and explicit chord selection.
+/// Deterministically insert conservative passing or neighbor notes into a cloned score.
+#[wasm_bindgen]
+pub fn insert_melodic_notes(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::MelodicInsertionOptions = parse_json(options_json, "melodic insertion options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::insert_melodic_notes(&score, options)).map_err(|error| js_err(format!("melodic insertion result serialization failed: {error}")))
+}
+
 #[wasm_bindgen]
 pub fn arrange_accordion_preset(
     score_json: &str,
