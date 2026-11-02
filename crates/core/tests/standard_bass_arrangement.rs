@@ -169,3 +169,136 @@ fn rejects_a_voice_with_no_sounding_melody() {
     assert!(result.score.is_none());
     assert_eq!(result.diagnostics[0].code, "melody-selection");
 }
+
+fn chord_fixture() -> (
+    Score,
+    StandardBassArrangementOptions,
+    Vec<acorde_core::model::standard_bass_pitch_selection::MelodyPitchSelection>,
+) {
+    use acorde_core::model::standard_bass_pitch_selection::MelodyPitchSelection;
+    use acorde_core::{AccidentalDisplay, NoteAddr};
+    let (mut source, options) = fixture();
+    for (measure, bar) in source.parts[0].staves[0].measures.iter_mut().enumerate() {
+        let note = &mut bar.voices[1][0];
+        note.pitches = vec![Pitch::new(Step::C, 5), Pitch::new(Step::E, 5)];
+        note.set_pitch_ties(&[false, measure == 0], &[false, measure == 1]);
+        note.set_accidental_display(1, AccidentalDisplay::Cautionary);
+        note.set_parenthesized(1, true);
+        note.set_pitch_fingering(1, 3);
+    }
+    let choices = (0..2)
+        .map(|measure| MelodyPitchSelection {
+            source: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure,
+                voice: 1,
+                note: 0,
+            },
+            pitch_index: 1,
+        })
+        .collect();
+    (source, options, choices)
+}
+
+#[test]
+fn explicitly_selected_chord_pitch_preserves_partial_tie_and_reports_all_losses() {
+    use acorde_core::AccidentalDisplay;
+    use acorde_core::model::standard_bass_pitch_selection::arrange_standard_bass_with_pitch_selection;
+    let (source, options, choices) = chord_fixture();
+    let before = serde_json::to_value(&source).unwrap();
+    let output = arrange_standard_bass_with_pitch_selection(&source, &options, &choices);
+    assert!(
+        output.arrangement.diagnostics.is_empty(),
+        "{:?}",
+        output.arrangement.diagnostics
+    );
+    assert_eq!(serde_json::to_value(&source).unwrap(), before);
+    assert_eq!(output.arrangement.source_pitches.len(), 6);
+    assert_eq!(
+        output
+            .arrangement
+            .source_pitches
+            .iter()
+            .filter(|p| p.target.is_none())
+            .count(),
+        4
+    );
+    assert!(
+        output
+            .arrangement
+            .source_pitches
+            .iter()
+            .filter(|p| p.target.is_some())
+            .all(|p| p.source_pitch == 1)
+    );
+    let score = output.arrangement.score.unwrap();
+    let first = &score.parts[0].staves[0].measures[0].voices[0][0];
+    let second = &score.parts[0].staves[0].measures[1].voices[0][0];
+    assert_eq!(first.pitches, vec![Pitch::new(Step::E, 5)]);
+    assert!(first.pitch_tie_start(0) && second.pitch_tie_end(0));
+    assert_eq!(first.accidental_display(0), AccidentalDisplay::Cautionary);
+    assert!(first.is_parenthesized(0));
+    assert_eq!(first.pitch_fingering(0), Some(3));
+}
+
+#[test]
+fn ambiguous_duplicate_invalid_or_unapproved_selections_fail_closed() {
+    use acorde_core::model::standard_bass_pitch_selection::arrange_standard_bass_with_pitch_selection;
+    let (source, mut options, choices) = chord_fixture();
+    let assert_failed =
+        |choices: &[acorde_core::model::standard_bass_pitch_selection::MelodyPitchSelection],
+         code: &str| {
+            let result = arrange_standard_bass_with_pitch_selection(&source, &options, choices);
+            assert_eq!(result.arrangement.diagnostics[0].code, code);
+            assert!(
+                result.arrangement.score.is_none()
+                    && result.arrangement.source_pitches.is_empty()
+                    && result.arrangement.actions.is_empty()
+            );
+        };
+    assert_failed(&choices[..1], "ambiguous-melody");
+    let mut duplicate = choices.clone();
+    duplicate.push(choices[0].clone());
+    assert_failed(&duplicate, "melody-selection");
+    let mut out_of_range = choices.clone();
+    out_of_range[0].pitch_index = 99;
+    assert_failed(&out_of_range, "melody-selection");
+    let mut wrong_voice = choices.clone();
+    wrong_voice[0].source.voice = 0;
+    assert_failed(&wrong_voice, "melody-selection");
+    options.allow_source_omissions = false;
+    let result = arrange_standard_bass_with_pitch_selection(&source, &options, &choices);
+    assert_eq!(
+        result.arrangement.diagnostics[0].code,
+        "source-omission-not-authorized"
+    );
+}
+
+#[test]
+fn duplicate_unisons_and_shifted_arpeggios_are_not_claimed_as_preserved_melody() {
+    use acorde_core::model::standard_bass_pitch_selection::arrange_standard_bass_with_pitch_selection;
+    let (mut source, options, choices) = chord_fixture();
+    source.parts[0].staves[0].measures[0].voices[1][0].pitches[0] = Pitch::new(Step::E, 5);
+    let result = arrange_standard_bass_with_pitch_selection(&source, &options, &choices);
+    assert_eq!(result.arrangement.diagnostics[0].code, "unsupported-melody");
+    let (mut source, options, choices) = chord_fixture();
+    source.parts[0].staves[0].measures[0].voices[1][0].arpeggiate = Some(true);
+    let result = arrange_standard_bass_with_pitch_selection(&source, &options, &choices);
+    assert_eq!(result.arrangement.diagnostics[0].code, "unsupported-melody");
+}
+
+#[test]
+fn rejects_selected_pitch_if_its_tie_continues_in_an_omitted_pitch() {
+    use acorde_core::model::standard_bass_pitch_selection::arrange_standard_bass_with_pitch_selection;
+    let (mut source, options, choices) = chord_fixture();
+    let second = &mut source.parts[0].staves[0].measures[1].voices[1][0];
+    second.pitches = vec![Pitch::new(Step::E, 5), Pitch::new(Step::F, 5)];
+    second.set_pitch_ties(&[false, false], &[true, false]);
+    let result = arrange_standard_bass_with_pitch_selection(&source, &options, &choices);
+    assert_eq!(
+        result.arrangement.diagnostics[0].code,
+        "melody-playback-changed"
+    );
+    assert!(result.arrangement.score.is_none());
+}
