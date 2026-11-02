@@ -134,3 +134,8 @@ listed as public domain. The source revision and archive SHA-256 are pinned in `
 duration projection from the pinned Acorde v1.3.7 viewer WASM on that exact archive. It is a
 playback regression for this one score, not a general MSCZ fidelity claim. Exact positioning
 of backward non-note directions remains reported as unsupported.
+
+`issue_295_interstaff_hairpin.musicxml` is a self-authored piano score with a below-staff
+crescendo and high notes on the lower staff. It is a focused inter-staff clearance example, not a
+representative corpus. Verovio 6.3.0 and Acorde were rendered from this same input; both avoided
+a wedge/note collision in this example, while Acorde used more inter-staff space.

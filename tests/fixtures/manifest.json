@@ -424,6 +424,14 @@
       "sha256": "7fbc65c2a4df110076e701637220fcd446661251670600762dd6f8875490bd6e",
       "round_trip": "import-only",
       "expected_losses": []
+    },
+    {
+      "path": "issue_295_interstaff_hairpin.musicxml",
+      "format": "musicxml",
+      "license": "self-authored",
+      "sha256": "8954e4100ec92b14df3f904e1c2cec79ab9d837c91e9e5c387a3163c23aaf688",
+      "round_trip": "semantic",
+      "expected_losses": []
     }
   ]
 }
