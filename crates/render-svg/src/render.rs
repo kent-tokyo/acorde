@@ -3551,6 +3551,64 @@ fn write_repeat_dots(body: &mut String, x: f32, staff_ranges: &[(f32, f32)], spa
 
 // ── measure content ──────────────────────────────────────────────────────────────
 
+// Two simultaneous single-note voices need separate accidental columns even when their
+// noteheads share a rhythmic column. Keep this narrow until chord, grace and cross-staff
+// accidental geometry can be solved together.
+fn opening_voice_accidental_offsets(
+    measure: &Measure,
+    part: usize,
+    staff: usize,
+    measure_idx: usize,
+    mandatory: &HashMap<AccKey, i8>,
+    courtesy: &HashMap<AccKey, i8>,
+) -> [f32; 4] {
+    let mut offsets = [0.0; 4];
+    let voices: Vec<_> = measure
+        .voices
+        .iter()
+        .enumerate()
+        .filter(|(_, v)| !v.is_empty())
+        .collect();
+    if voices.len() != 2 {
+        return offsets;
+    }
+    let ((first_voice, first_notes), (second_voice, second_notes)) = (voices[0], voices[1]);
+    let (a, b) = (&first_notes[0], &second_notes[0]);
+    let simple = |n: &Note| {
+        !n.is_rest
+            && !n.is_unpitched
+            && !n.is_grace
+            && !n.is_cue
+            && !n.hidden
+            && n.pitches.len() == 1
+            && n.cross_staff.is_none()
+            && n.arpeggiate.is_none()
+            && n.offset_x.unwrap_or(0.0) == 0.0
+            && n.relative_x.unwrap_or(0.0) == 0.0
+            && n.offset_y.unwrap_or(0.0) == 0.0
+            && n.relative_y.unwrap_or(0.0) == 0.0
+            && !n.is_parenthesized(0)
+            && note_annotation_width_u(n) == 0.0
+    };
+    if !simple(a) || !simple(b) || !noncolliding_voice_noteheads(a, b) {
+        return offsets;
+    }
+    let a_key = (part, staff, measure_idx, first_voice, 0, 0);
+    let b_key = (part, staff, measure_idx, second_voice, 0, 0);
+    if !(mandatory.contains_key(&a_key) || courtesy.contains_key(&a_key))
+        || !(mandatory.contains_key(&b_key) || courtesy.contains_key(&b_key))
+    {
+        return offsets;
+    }
+    let distance = (geometry::diatonic_index(&a.pitches[0].step, a.pitches[0].octave)
+        - geometry::diatonic_index(&b.pitches[0].step, b.pitches[0].octave))
+    .abs();
+    if distance <= 7 {
+        offsets[first_voice] = 2.0;
+    }
+    offsets
+}
+
 #[allow(clippy::too_many_arguments)]
 fn render_measure(
     body: &mut String,
@@ -3587,6 +3645,22 @@ fn render_measure(
         .tablature_fret_mark_style;
     let total_beats =
         score.parts[part].staves[staff].measure_beats(measure_idx, &score.settings.time_signature);
+    // Only reserve the second column when the resulting content still fits inside this bar.
+    let enough_width =
+        width >= (2.0 + glyphs::NOTEHEAD_RX_U + 0.18 + 1.25 + 0.15 + MEASURE_PAD_U + 1.0) * space;
+    // A staff-local lead must not desynchronize a grand staff or another part.
+    let single_staff = score
+        .parts
+        .iter()
+        .map(|part| part.staves.len())
+        .sum::<usize>()
+        == 1;
+    let opening_accidental_offsets =
+        if allow_shared_alignment && tablature.is_none() && enough_width && single_staff {
+            opening_voice_accidental_offsets(measure, part, staff, measure_idx, mandatory, courtesy)
+        } else {
+            [0.0; 4]
+        };
     // Accidentals on the bar's first notes sit left of their heads: start the content far enough
     // in that they clear the barline, clef or time signature before them.
     let lead_u = measure
@@ -3604,7 +3678,11 @@ fn render_measure(
                         mandatory.get(&key).or_else(|| courtesy.get(&key)).copied()
                     })
                     .map(|alter| {
-                        glyphs::NOTEHEAD_RX_U + 0.18 + glyphs::accidental_width_u(alter) + 0.15
+                        glyphs::NOTEHEAD_RX_U
+                            + 0.18
+                            + glyphs::accidental_width_u(alter)
+                            + 0.15
+                            + opening_accidental_offsets[voice_idx]
                     })
                     .fold(0.0_f32, f32::max)
             })
@@ -3732,6 +3810,7 @@ fn render_measure(
                 tablature_rhythm_display,
                 tablature_fret_mark_style,
                 allow_shared_alignment,
+                opening_accidental_offsets[voice_idx],
                 &mut prior_voice_events,
                 note_points,
                 beam_tip_points,
@@ -4108,6 +4187,7 @@ fn render_measure_voice<'a>(
     tablature_rhythm_display: TablatureRhythmDisplay,
     tablature_fret_mark_style: acorde_core::TablatureFretMarkStyle,
     allow_shared_alignment: bool,
+    opening_accidental_offset: f32,
     prior_voice_events: &mut Vec<(f32, &'a Note, f64)>,
     note_points: &mut HashMap<NoteKey, NotePoint>,
     beam_tip_points: &mut HashMap<NoteKey, f32>,
@@ -4295,6 +4375,7 @@ fn render_measure_voice<'a>(
             interactive,
             mandatory,
             courtesy,
+            opening_accidental_offset,
             tablature,
             tablature_rhythm_display,
             tablature_fret_mark_style,
@@ -4346,6 +4427,7 @@ struct VoiceNotesRenderContext<'a> {
     interactive: bool,
     mandatory: &'a HashMap<AccKey, i8>,
     courtesy: &'a HashMap<AccKey, i8>,
+    opening_accidental_offset: f32,
     tablature: Option<&'a acorde_core::TablatureConfig>,
     tablature_rhythm_display: TablatureRhythmDisplay,
     tablature_fret_mark_style: acorde_core::TablatureFretMarkStyle,
@@ -4374,6 +4456,7 @@ fn render_measure_voice_notes(
         interactive,
         mandatory,
         courtesy,
+        opening_accidental_offset,
         tablature,
         tablature_rhythm_display,
         tablature_fret_mark_style,
@@ -4426,6 +4509,11 @@ fn render_measure_voice_notes(
             *interactive,
             mandatory,
             courtesy,
+            if note_idx == 0 {
+                *opening_accidental_offset
+            } else {
+                0.0
+            },
             *tablature,
             *tablature_rhythm_display,
             *tablature_fret_mark_style,
@@ -7493,6 +7581,7 @@ fn render_note(
     interactive: bool,
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
+    opening_accidental_offset: f32,
     tablature: Option<&acorde_core::TablatureConfig>,
     tablature_rhythm_display: TablatureRhythmDisplay,
     tablature_fret_mark_style: acorde_core::TablatureFretMarkStyle,
@@ -7588,6 +7677,7 @@ fn render_note(
         interactive,
         mandatory,
         courtesy,
+        opening_accidental_offset,
         tablature,
         tablature_rhythm_display,
         tablature_fret_mark_style,
@@ -7691,6 +7781,7 @@ fn render_note_content(
     interactive: bool,
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
+    opening_accidental_offset: f32,
     tablature: Option<&acorde_core::TablatureConfig>,
     tablature_rhythm_display: TablatureRhythmDisplay,
     tablature_fret_mark_style: acorde_core::TablatureFretMarkStyle,
@@ -7738,6 +7829,7 @@ fn render_note_content(
             beam_tip,
             mandatory,
             courtesy,
+            opening_accidental_offset,
         )?;
         render_note_annotations(body, note, x, anchor_y, stem_up, space);
         if note.grace_slash {
@@ -9297,6 +9389,7 @@ fn render_pitched_note(
     beam_tip: Option<f32>,
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
+    opening_accidental_offset: f32,
 ) -> Result<(), RenderError> {
     let filled = matches!(
         note.duration,
@@ -9354,8 +9447,11 @@ fn render_pitched_note(
                 .map_or(0.0, glyphs::accidental_width_u)
         })
         .collect();
-    let accidental_offsets =
+    let mut accidental_offsets =
         chord_accidental_offsets(&positions, &has_accidentals, &accidental_widths);
+    for offset in &mut accidental_offsets {
+        *offset += opening_accidental_offset;
+    }
 
     render_pitched_note_heads(
         body,
