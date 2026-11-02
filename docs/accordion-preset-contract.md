@@ -75,6 +75,19 @@ A first pickup occupies the end of its nominal bar without advancing that
 alternation; a short final bar starts on beat 1. Existing `bass-pulse` and
 `alternating-bass` retain their four-beat pattern.
 
+## Two 2/4 accompaniment patterns
+
+`fine-bass-chord` and `habanera` are straight 2/4 presets, also exposed as
+`fine-bass-chord` and `habanera` accompaniment values in the free-layer API.
+A complete bar plays root bass, chord, fifth bass, chord. Their respective
+quarter-beat durations are `0.5, 0.5, 0.5, 0.5` and
+`0.75, 0.25, 0.5, 0.5`. A first pickup uses the end of the nominal bar and a
+short final bar uses its beginning. Chord changes on sixteenth-note boundaries
+split the current slot and rearticulate with the new chord; identical repeated
+chords do not restart a slot. Other meters, shorter internal bars, finer
+positions, and notated-swing combinations return diagnostics. The standard
+bass chord restrictions apply as for existing presets.
+
 ## Minimal browser flow
 
 ```js

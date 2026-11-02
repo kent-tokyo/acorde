@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Add fine bass/chord and habanera 2/4 accompaniment presets. New `AccordionPattern`
+  variants require updates to exhaustive Rust matches; see the migration notes.
+
 - Preserve explicit above/below hairpin placement in MusicXML, MSCX, and MEI. SVG and print
   layout reserve additional space for tested adjacent-staff collisions; complex cases remain open.
 
