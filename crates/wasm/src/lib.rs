@@ -1491,6 +1491,25 @@ pub fn split_for_free_bass(score_json: &str, options_json: &str) -> Result<Strin
         .map_err(|error| js_err(format!("free-bass result serialization failed: {error}")))
 }
 
+/// Find simultaneous standard-bass button combinations for an explicit chord and instrument profile.
+/// Results are reviewable candidates, not a score or a physical-playability guarantee.
+#[wasm_bindgen]
+pub fn standard_bass_chord_candidates(
+    profile_json: &str,
+    chord_json: &str,
+    allow_omissions: bool,
+    allow_additions: bool,
+) -> Result<String, JsValue> {
+    use acorde_core::model::standard_bass::{standard_bass_candidates, standard_bass_request_for_chord, StandardBassProfile};
+    let profile: StandardBassProfile = parse_json(profile_json, "standard-bass profile", MAX_OPTIONS_JSON_BYTES)?;
+    let chord: acorde_core::ChordSymbol = parse_json(chord_json, "chord symbol", MAX_OPTIONS_JSON_BYTES)?;
+    let request = standard_bass_request_for_chord(&chord, allow_omissions, allow_additions)
+        .map_err(js_err)?;
+    let candidates = standard_bass_candidates(&profile, &request).map_err(js_err)?;
+    serde_json::to_string(&candidates)
+        .map_err(|error| js_err(format!("standard-bass candidate serialization failed: {error}")))
+}
+
 /// Compose typed accompaniment, explicit harmony and melodic-voice layers.
 #[wasm_bindgen]
 pub fn arrange_with_layers(score_json: &str, options_json: &str) -> Result<String, JsValue> {
@@ -3796,6 +3815,19 @@ mod tests {
         let capabilities: acorde_core::AccordionPresetCapabilities =
             serde_json::from_str(&accordion_preset_capabilities().unwrap()).unwrap();
         assert_eq!(capabilities.contract_version, web.contract_version);
+    }
+
+    #[test]
+    fn standard_bass_chord_candidates_json_matches_native() {
+        use acorde_core::model::standard_bass::{standard_bass_candidates, standard_bass_request_for_chord, StandardBassProfile, StandardBassCandidate};
+        let profile_json = r#"{"bass_buttons":[{"id":"C","position":0,"midi":36}],"chord_buttons":[{"id":"Em","position":1,"midi":[64,67,71]}],"max_distance":1}"#;
+        let chord_json = r#"{"root":"C","kind":"major-seventh","bass":null}"#;
+        let actual: Vec<StandardBassCandidate> = serde_json::from_str(&standard_bass_chord_candidates(profile_json, chord_json, false, false).unwrap()).unwrap();
+        let profile: StandardBassProfile = serde_json::from_str(profile_json).unwrap();
+        let chord: acorde_core::ChordSymbol = serde_json::from_str(chord_json).unwrap();
+        let request = standard_bass_request_for_chord(&chord, false, false).unwrap();
+        assert_eq!(actual, standard_bass_candidates(&profile, &request).unwrap());
+        assert_eq!(actual[0].chord_button_id, "Em");
     }
 
     #[test]
