@@ -226,11 +226,12 @@ jobs:
           # allow for that observed increase plus roughly 6 KB headroom.
           # Hairpin placement and adjacent-staff clearance measured 6,419,338
           # bytes on Linux CI (commit 3562eee), 7,685 above the beam baseline.
-          # The macOS build grew by 20,186 bytes. Keep about 6 KB headroom.
-          # Positioned figured-bass groups measured 6,469,200 bytes on Linux
-          # (e04863f), 49,862 above the 6,419,338-byte baseline. The macOS
-          # build grew by 18,427 bytes. Keep about 6 KB of Linux headroom.
-          test "$size" -le 6476000
+          # Two 2/4 accompaniment patterns measured 6,452,656 bytes on Linux.
+          # Positioned figured bass measured 6,469,200 on its earlier base,
+          # 49,862 above the 6,419,338-byte hairpin baseline. The integrated
+          # macOS build measures 6,420,642 versus 6,405,305 without figured bass.
+          # This combined budget is provisional pending Linux CI measurement.
+          test "$size" -le 6509000
 
   renderer-benchmark:
     name: Renderer performance budget

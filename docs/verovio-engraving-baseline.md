@@ -1,792 +1,158 @@
 # Verovio 6.3.0 engraving baseline
 
-This is a reproducible starting point for the goal of exceeding Verovio on
-layout, engraving, and print for ordinary piano and chamber scores. Page count
-alone is not an engraving-quality score.
+These records compare selected piano and chamber scores or focused notation examples with
+Verovio 6.3.0. They are dated observations at the revisions named in each record; they do not
+establish overall engraving or print parity. Page count alone is not a quality measure.
 
-Earlier Verovio Quick Look thumbnails in this log were 1400 × 1400 px, while
-the Acorde A4 PDF rasters were 990 × 1400 px. Those previews show missing
-symbols and collisions, but their apparent notation sizes are not a matched
-pixel-scale measurement. The opening-credit review below uses A4-matched
-rasters for its page-geometry observation.
+The Aloha Oe comparison used the same MusicXML input and A4 paper. Some earlier preview images
+had different aspect ratios, so apparent notation sizes cannot be compared directly. Later
+records cover lyric clearance, print spacing, slurs, stem directions, beams, and an inter-staff
+hairpin. Examples remain bounded to their stated fixtures and settings.
+
+Full inputs, hashes, commands, observations, and remaining gaps are preserved in the linked
+records below. For the current print interface see [print layout](print-layout.md),
+[page SVG](print-svg-contract.md), and [PDF export](pdf-export.md).
 
 ## Fixed input and setup
 
-- Date: 2026-10-30.
-- Input: `tests/fixtures/openscore_lieder_aloha_oe.mxl`, CC0-1.0, SHA-256
-  `b195ae477a10cbaee281d9b728cac001ae1d50fe4527078ccae14092eee4936c`
-  (see `tests/fixtures/manifest.json`).
-- A4 portrait, 210 × 297 mm; top/bottom margins 16 mm, left/right 14 mm.
-- Verovio: Homebrew CLI 6.3.0, default automatic breaks and bundled fonts.
-- Acorde: `v1.3.3` plus the staff-aware height and physical page SVG changes on
-  this development branch; default four measures per system, built-in vector notation,
-  and the public-domain Tuffy test font for PDF text. Acorde's default now keeps the
-  partial pickup with following measures.
-
-```bash
-verovio -a --page-width 2100 --page-height 2970 \
-  --page-margin-top 160 --page-margin-bottom 160 \
-  --page-margin-left 140 --page-margin-right 140 \
-  -o /tmp/verovio-aloha-a4.svg tests/fixtures/openscore_lieder_aloha_oe.mxl
-
-acorde print-report tests/fixtures/openscore_lieder_aloha_oe.mxl \
-  --preset a4-score --measures-per-system 4
-
-cargo run -p acorde-pdf --example print_mxl -- \
-  tests/fixtures/openscore_lieder_aloha_oe.mxl \
-  crates/pdf/tests/fixtures/Tuffy.ttf /tmp/acorde-aloha-print.pdf
-pdftoppm -scale-to 1400 -png /tmp/acorde-aloha-print.pdf /tmp/acorde-aloha-page
-```
-
-| Result | Verovio 6.3.0 | Acorde v1.3.3 | Acorde with staff-aware height | Acorde with page SVG and pickup fix |
-| --- | ---: | ---: | ---: | ---: |
-| A4 pages | 3 rendered SVG pages | 1 logical page | 3 logical pages | 2 SVG/PDF pages |
-| Systems | 6 | 7 | 7 | 6 |
-| Reserved system height | renderer-managed | 24 mm | 88 mm (five staves) | 88 mm (five staves) |
-| MusicXML import losses | not assessed | 73 | 73 | 73 |
-
-The Acorde import diagnostics are mostly unsupported MusicXML text styling;
-they remain unfixed. The PDF has a valid A4 media box on both pages. In the rendered
-images, the page title and four part labels are visible, and the pickup is no longer
-stretched into a standalone full-width system. Verovio uses three pages with visibly
-larger lyrics. The follow-up staff-group change on this branch adds the missing
-brace across the piano's two staves; the updated A4 PDF was rendered at 1400 pixels
-and inspected. The follow-up print-row change on this branch also leaves a
-proportionate final system without scaling glyphs. Acorde's lyrics are still very
-small at that preview size.
-The two-page Acorde result is therefore not evidence of superior print quality.
-Verovio chooses its own system breaks and fonts; this is a same-input, same-paper
-comparison rather than an identical-layout comparison.
+[Full record](archive/verovio-baseline-piano.md#fixed-input-and-setup).
 
 ### Page-SVG WASM API and lyric-size check (2026-10-31)
 
-The `render_print_page_svgs(score_json, layout_json)` WASM export now returns the
-same physical pages as Rust's `render_print_page_svgs`. A browser test checks the
-supplied A4 page dimensions, page number, distinct page bodies, and invalid layout
-rejection. The Aloha Oe PDF was rebuilt and both pages were rasterized at 1400 px.
-The voice lyric font grew from 0.72 to 1.4 staff spaces; on this fixture its first
-SVG lyric is 1.97 mm high. The wider lyric collision estimate and verse spacing
-were changed together. The lyrics are more legible, and visual inspection found
-no clipped staves or missing page numbers on either page. Verovio still has
-larger, clearer publication typography and 73 Acorde import diagnostics remain.
-
-```bash
-cargo run -q -p acorde-pdf --example print_mxl -- \
-  tests/fixtures/openscore_lieder_aloha_oe.mxl \
-  crates/pdf/tests/fixtures/Tuffy.ttf /tmp/acorde-aloha-lyric-review.pdf
-pdftoppm -f 1 -l 2 -scale-to 1400 -png \
-  /tmp/acorde-aloha-lyric-review.pdf /tmp/acorde-aloha-lyric-review
-```
+[Full record](archive/verovio-baseline-piano.md#page-svg-wasm-api-and-lyric-size-check-2026-10-31).
 
 ### Second piano score: Quilter, Prelude (2026-10-31)
 
-The pinned CC0 `tests/fixtures/openscore_lieder_quilter_prelude.mxl` was rendered
-with the same A4 paper and 16/14 mm margins using Verovio 6.3.0 and Acorde.
-Verovio produced one SVG page with three systems; Acorde produced one PDF page
-with three systems and a correct 595.276 × 841.89 pt media box. Acorde reported
-103 MusicXML import diagnostics; Verovio separately warned of two open hairpins.
-These diagnostics are not engraving measurements.
-
-The Acorde PDF and Verovio SVG were rasterized at 1400 px and inspected. Acorde
-uses fixed groups of four, four, and two measures, leaving the lower half of the
-page mostly empty. Verovio uses groups of three, four, and three, with larger
-notation and readable directions. Acorde's first system has cramped note and
-direction text, though its staves and page number are inside the page box. A
-trial that enlarged staff space without changing measure breaks created severe
-overlaps and was discarded. This score does not meet a publication-quality
-comparison against Verovio yet.
-
-The subsequent opt-in density change reserves 15% of its budget on the first
-system for clef, key, and meter. Quilter now breaks 3+4+3, matching
-Verovio's measure groups, and the first row is less cramped. The A4 PDF was
-rasterized again at 1400 px. Its staff and direction text remain much smaller
-than Verovio's and the lower page remains mostly unused; this break change is
-not a publication-quality result by itself. A trial with a 70 mm system height
-and larger direction text also left floating text and collisions, so neither
-change was adopted.
-
-```bash
-verovio -a --page-width 2100 --page-height 2970 \
-  --page-margin-top 160 --page-margin-bottom 160 \
-  --page-margin-left 140 --page-margin-right 140 \
-  -o /tmp/verovio-quilter.svg tests/fixtures/openscore_lieder_quilter_prelude.mxl
-cargo run -q -p acorde-pdf --example print_mxl -- \
-  tests/fixtures/openscore_lieder_quilter_prelude.mxl \
-  crates/pdf/tests/fixtures/Tuffy.ttf /tmp/acorde-quilter.pdf
-pdftoppm -f 1 -l 1 -scale-to 1400 -png \
-  /tmp/acorde-quilter.pdf /tmp/acorde-quilter
-qlmanage -t -s 1400 -o /tmp /tmp/verovio-quilter.svg
-
-# Inspect the opt-in first-system density adjustment with the same paper size.
-cargo run -q -p acorde-pdf --example print_mxl -- \
-  tests/fixtures/openscore_lieder_quilter_prelude.mxl \
-  crates/pdf/tests/fixtures/Tuffy.ttf /tmp/acorde-quilter-density.pdf 4 density
-```
+[Full record](archive/verovio-baseline-piano.md#second-piano-score-quilter-prelude-2026-10-31).
 
 ### Density-aware print break experiment (2026-10-31)
 
-The opt-in `PrintSystemBreakStrategy::NotationDensity` uses the shared SVG/layout
-notation-demand estimate. Its budget is the 90th percentile of this score's
-four-measure rows, scaled by available page width. `measures_per_system` is a
-maximum rather than a fixed row length. Authored page and system breaks remain
-in effect. The metric estimates noteheads, accidentals, lyrics, chord symbols,
-articulations, and measure text; it does not measure final glyph collisions.
-
-```bash
-cargo run -p acorde-pdf --example print_mxl -- \
-  tests/fixtures/openscore_lieder_aloha_oe.mxl \
-  crates/pdf/tests/fixtures/Tuffy.ttf /tmp/acorde-aloha-density.pdf 7 density
-```
-
-Before the two-verse clearance change below, this produced **2 A4 pages and 5
-systems**, compared with 2 pages and 6 systems for fixed four-measure breaks
-and Verovio's 3 pages and 6 systems.
-The second page was rasterized at 1400 pixels and inspected. Lyrics remain
-too small at this size, so the more compact result is not evidence of better
-engraving.
+[Full record](archive/verovio-baseline-piano.md#density-aware-print-break-experiment-2026-10-31).
 
 ## Chamber-score check: Mozart K.464
 
-The second CC0 input is the OpenScore String Quartets MSCX pinned with its source
-commit, Git blob, and SHA-256 in [#185](https://github.com/kent-tokyo/acorde/issues/185).
-On 2026-10-31, Acorde imported its four main parts and exported MusicXML; the
-export report found no additional loss. The MSCX import separately reported four
-omitted linked excerpts and three hidden hairpins whose visibility is not preserved.
-Both renderers then consumed that **same Acorde-exported MusicXML**. This comparison
-tests engraving after a common interchange step, not either product's native MSCX
-import. Both used A4 with 16 mm top/bottom and 14 mm left/right margins.
-
-```bash
-acorde convert /path/to/sq7070781.mscx /tmp/k464.musicxml
-verovio -a --page-width 2100 --page-height 2970 \
-  --page-margin-top 160 --page-margin-bottom 160 \
-  --page-margin-left 140 --page-margin-right 140 \
-  -o /tmp/verovio-k464.svg /tmp/k464.musicxml
-cargo run -p acorde-pdf --example print_mxl -- \
-  /tmp/k464.musicxml crates/pdf/tests/fixtures/Tuffy.ttf /tmp/acorde-k464.pdf
-```
-
-| Result | Acorde with page SVG/PDF | Verovio 6.3.0 |
-| --- | ---: | ---: |
-| A4 pages | 11 PDF pages | 7 SVG pages |
-| Systems | 29 | 20 |
-| Main parts | 4 | 4 |
-
-The first and last pages were rasterized at the same 990 × 1400-pixel page size
-and inspected. Acorde's fixed four-measure rows leave substantially more white
-space, especially on the final page; Verovio fits more measures without making
-the notes illegible in those previews. Verovio reported one highly compressed
-system, so page count alone is not an endorsement of every Verovio break. Acorde
-now leaves a ragged final system. The fixed-break result still needs a broader
-visual collision review before this quartet can support a quality claim.
-
-The opt-in density mode with a seven-measure maximum produces **9 pages and 25
-systems** from the same MusicXML, improving on the fixed four-measure result's
-11 pages and 29 systems. A fixed six-measure setting produces 8 pages but visibly
-cramps the final dense measures. Density mode leaves measures 98–100 together
-on a full-width system and the final three measures on page 9. Pages 1 and 8
-were rasterized at 1400 pixels and inspected; they do not establish a
-corpus-wide collision or legibility result. Verovio remains more compact at
-7 pages and 20 systems on this input.
-
-K.464 was also rerun after the first-system density change from the same
-exported MusicXML with a seven-measure maximum; it remains at 9 A4 pages and
-25 systems, with zero reimport diagnostics.
-
-```bash
-cargo run -p acorde-pdf --example print_mxl -- \
-  /tmp/k464.musicxml crates/pdf/tests/fixtures/Tuffy.ttf \
-  /tmp/acorde-k464-density.pdf 7 density
-```
+[Full record](archive/verovio-baseline-chamber-and-print.md#chamber-score-check-mozart-k464).
 
 ### Print measure-width check (2026-10-31)
 
-Physical page SVGs now allocate each row's width using both rhythmic duration
-(40%) and the shared notation-demand estimate (60%). The screen SVG renderer's
-rhythmic widths are unchanged. On Quilter's pinned first system, the second and
-third measures previously each received about 213 SVG units; they now receive
-about 176 and 219 units. The denser third measure gets 24% more width than the
-second. A fixture regression asserts this relationship rather than exact
-coordinates. The A4 page still has three systems and the same 3+4+3 breaks.
-
-The new Quilter PDF was rasterized at 1400 px. Its opening has more room for
-the busy bars, but text remains small and the page's lower area is largely
-unused. At this stage the CC0 Aloha Oe density PDF was still two A4 pages /
-five systems with 73 import diagnostics. The same-input K.464 quartet remains
-nine pages / 25 systems with zero reimport diagnostics. No broad collision-free
-or visual quality claim follows from these unchanged page counts. Increasing the
-staff-aware system height in a separate trial enlarged the notation but left
-visible lyric/staff collisions in Aloha Oe, so that trial was reverted.
+[Full record](archive/verovio-baseline-chamber-and-print.md#print-measure-width-check-2026-10-31).
 
 ### Quilter publication credits (2026-10-31)
 
-The pinned Quilter MusicXML contains a work title, a separate movement title,
-composer, and CC0 rights. Acorde previously imported only the work title. The
-MusicXML importer now retains the other fields, and export preserves them on
-roundtrip. The physical first-page SVG prints `Prelude` and `Roger Quilter`
-above the first system; the rights remain in score metadata. The A4 PDF was
-rasterized at 1400 px to check that the new text stays inside the page and does
-not overlap the first system. The system grouping and one-page count are
-unchanged. Verovio's publication type is still visibly larger and clearer, and
-the 103 Acorde import diagnostics remain; restoring these credits is a semantic
-and completeness fix, not a claim of print-quality parity.
+[Full record](archive/verovio-baseline-chamber-and-print.md#quilter-publication-credits-2026-10-31).
 
 ### Two-verse vocal staff clearance (2026-10-31)
 
-For scores with an additional lyric verse, the staff-aware print layout now
-reserves 16 mm more per system and the physical SVG uses a nine-space gap
-between staves instead of six. On the CC0 Aloha Oe fixture, the fixed mode is
-three A4 pages / six systems and density mode is three pages / five systems.
-Verovio 6.3.0 is three pages / six systems on the same source and paper. The
-first page's staff space stays about 1.4 mm, while the gap from the first vocal
-staff to the next rises from about 8.4 to 12.5 mm. A regression asserts at least
-4 mm from a second-verse baseline to the following staff's top line.
-
-All three density-mode PDF pages were rasterized at 1400 px and inspected. The
-two lyric lines no longer run into the following staff in those previews, and
-the page number and staves remain inside A4. The third page has a large unused
-lower area; some dense syllables and notation are still small. The 73 Acorde
-import diagnostics remain separate from this layout change. This is a
-fixture-level clearance improvement, not a broad visual-quality result.
+[Full record](archive/verovio-baseline-chamber-and-print.md#two-verse-vocal-staff-clearance-2026-10-31).
 
 ### Two-staff piano print size and density breaks (2026-10-31)
 
-Staff-aware layouts for two staves now reserve at least 50 mm per system,
-up from 40 mm. The notation-density row budget scales inversely with this
-physical height, so larger notes are not packed into the old row lengths.
-The pinned CC0 Quilter Prelude is still one A4 page, but its ten measures
-now form four systems (2+3+3+2) rather than three (3+4+3). The first
-staff's line spacing in the generated SVG rises from about 1.20 to
-1.50 mm. The denser final measure on the second system receives over 10%
-more width than its preceding measure.
-
-The resulting PDF was rasterized at 1400 px and visually inspected beside
-Verovio 6.3.0 on the same source. The larger staff and shorter rows improve
-the Quilter preview, while the direction text is still tiny and the lower
-part of the A4 page is largely empty. Individual chord and accidental
-collisions have not been ruled out, and the import still reports 103
-diagnostics. This change does not establish print-quality parity.
+[Full record](archive/verovio-baseline-chamber-and-print.md#two-staff-piano-print-size-and-density-breaks-2026-10-31).
 
 ### Print text and grand-staff brace (2026-10-31)
 
-The physical-page SVG now prints measure directions at 1.7 times the screen
-SVG size, with a minimum above-staff lane for directions whose imported
-placement hint would otherwise pull enlarged text into the notation. The
-screen renderer keeps its established text size. On Quilter, the first tempo
-direction is about 2.0 mm high and its baseline is about 6.0 mm above the
-top staff line; the staff space remains about 1.5 mm. Publication title,
-movement title, and composer sizes increase to 5.0, 3.8, and 3.0 mm. The
-inferred piano brace uses a wider, more visible vector curve.
-
-The Quilter density PDF remains one A4 page / four systems. All three Aloha
-Oe density PDF pages were also rasterized at 1400 px and inspected; the page
-count remains three pages / five systems. These fixture previews show clearer
-directions and credits without a new visible overlap from the change. The
-Quilter page still has unused lower space, dense chords need a measured
-collision review, and neither score proves Verovio-level typography or
-publication quality. Import diagnostics remain 103 and 73 respectively.
+[Full record](archive/verovio-baseline-chamber-and-print.md#print-text-and-grand-staff-brace-2026-10-31).
 
 ### Print direction legibility check after v1.3.5 (2026-10-31)
 
-The physical-page renderer now uses a 3.0 measure-text scale in place of 1.7;
-the regular screen renderer is unchanged. On the pinned Quilter Prelude, the
-first tempo direction grows from about 2.0 to 3.5 mm. A page-SVG regression
-requires at least 3.4 mm font size and 4 mm clearance from its baseline and
-descender allowance to the top staff line. The five-staff Aloha Oe fixture has
-a corresponding 3.1 mm and 4 mm regression. Its two-verse staff clearance
-remains covered separately.
-
-The Quilter (one A4 page, four systems), Aloha Oe (three pages, five density
-systems), and Webern *So ich traurig bin* (two pages, five systems) PDFs were
-rasterized at 1400 px and inspected. The larger directions are readable in
-these previews without a new visible overlap, clipping, or changed system
-break. Their MusicXML import diagnostics remain 103, 73, and 20 respectively.
-The same-input Verovio 6.3.0 Quilter preview still has larger notation and
-better page use. This focused text improvement does not establish superior
-layout, engraving, or print quality.
+[Full record](archive/verovio-baseline-chamber-and-print.md#print-direction-legibility-check-after-v135-2026-10-31).
 
 ### Verovio-guided title placement (2026-10-31)
 
-The pinned Quilter MXL was rendered again with Verovio 6.3.0 and Acorde on
-the same A4 paper and margins. Verovio uses three systems; Acorde's density
-mode uses four. At 1400 px, Acorde's title and composer were close to the top
-edge and visibly smaller. The print SVG now places the title 2 mm lower,
-the movement title and composer 2.5 mm lower, and slightly enlarges those
-three credits. A fixture regression checks that the title stays on the page,
-the title and movement title have a gap, and the credits stay above the first
-system. The updated one-page PDF was rasterized and inspected; its four
-system breaks, staff size, and 103 MusicXML import diagnostics are unchanged.
-The three-page Aloha Oe density PDF was regenerated; its first page was also
-rasterized and inspected for title/composer overlap. Its 73 import diagnostics
-and page/system counts are unchanged.
-
-Two other trials were rejected after raster review. Filling the page's unused
-vertical space only produced exaggerated gaps between small systems. Loosening
-the density budget to get three systems made the first and last rows crowded.
-Verovio remains more readable on this input: its notes and directions are
-larger, and its layout uses three balanced systems. The new title placement
-addresses only one print typography difference.
+[Full record](archive/verovio-baseline-chamber-and-print.md#verovio-guided-title-placement-2026-10-31).
 
 ### Verovio-guided direction completeness and clearance (2026-10-31)
 
-The same pinned Quilter MXL has two `L.H.` directions and `poco cresc.` in its
-fourth measure. Verovio 6.3.0 prints all three. Acorde's importer previously
-kept only the first words direction per measure; the later marks were absent
-from its PDF and from a MusicXML roundtrip. The importer and exporter now retain
-all three. The page SVG reserves a nine-space grand-staff gap and 60 mm system
-height for a piano score with below-staff words. It also moves the words below
-nearby noteheads when the source engraving's vertical hint would pull them into
-the notation. A fixture regression checks both `L.H.` marks and clearance for
-`poco cresc.` between the two staves.
-
-The Acorde density PDF remains one A4 page, now with four systems grouped
-2+2+3+3; Verovio uses one page with three systems. The Acorde PDF and the
-same-input Verovio SVG were inspected at 1400 px. Acorde's directions are
-present, but the two `L.H.` marks stack at one horizontal position because
-measure text does not yet retain its beat position. Its notation and publication
-type remain smaller than Verovio's. A follow-up PDF review found `rall.` too
-close to the lower staff at the previous eight-space/56 mm setting; the
-nine-space/60 mm setting leaves about 10 px below its baseline at 1400 px.
-The MusicXML import still reports 103
-diagnostics, so this is a focused completeness and clearance improvement.
+[Full record](archive/verovio-baseline-chamber-and-print.md#verovio-guided-direction-completeness-and-clearance-2026-10-31).
 
 ### Repeated piano directions on one print line (2026-10-31)
 
-The same pinned Quilter MXL places two `L.H.` words at the beginning of measure 4
-and one quarter-note beat later. Verovio 6.3.0 prints them side by side. Acorde
-kept both words but previously stacked them vertically at the measure start.
-Its physical-page SVG now spreads repeated expression words without explicit
-horizontal offsets across one print lane. The generated SVG moves the second
-`L.H.` from the first one's x coordinate to 15.36 mm farther right; both
-baselines remain equal. The A4 PDF was rasterized at 1400 px and the two marks
-were inspected beside Verovio's A4 SVG. The screen SVG's existing placement
-is unchanged. This is a deterministic engraving heuristic: the canonical
-`StyledText` still does not retain the source direction's beat position, so
-the x coordinate is not asserted to match Verovio's exact placement.
-
-The `poco cresc.` direction remains close to a down-stem chord. Moving it
-farther down made it collide with the lower staff, so that trial was reverted.
-Quilter still uses four smaller systems where Verovio uses three. This change
-addresses one legibility defect and does not establish layout or print parity.
+[Full record](archive/verovio-baseline-chamber-and-print.md#repeated-piano-directions-on-one-print-line-2026-10-31).
 
 ### Verovio-guided direction beat placement (2026-10-31)
 
-The same pinned CC0 Quilter MXL places its two `L.H.` directions at beat 0 and
-beat 1 of measure 4. Acorde now retains the later beat in the score text model,
-round-trips it through MusicXML `<offset>`, and places above-staff words against
-the final note spacing on the physical print page. The first direction remains
-at the measure start; the second is 46.91 SVG units (11.73 mm) to its right.
-The earlier repeated-word heuristic placed it about 15.36 mm right. A regression
-checks the source beats and roundtrip, and another checks interpolation on a
-reflowed note row. Below-staff words retain their previous clearance position:
-anchoring `poco cresc.` to its beat caused a grand-staff clearance regression.
-
-The Acorde one-page A4 PDF and Verovio 6.3.0 SVG were regenerated from the
-same MXL at the same paper size and viewed at 1400 pixels. Both `L.H.` marks are
-separate and the existing `poco cresc.` clearance check passes. Acorde still
-uses four smaller systems against Verovio's three, and its notation and type
-are visibly smaller. The Acorde PDF media box is 595.276 × 841.89 pt. Acorde
-reports 103 MusicXML import diagnostics; Verovio reports two open hairpins.
-Those diagnostics are separate from the print observations. This change does
-not establish Verovio-level print quality.
+[Full record](archive/verovio-baseline-chamber-and-print.md#verovio-guided-direction-beat-placement-2026-10-31).
 
 ### Verovio-guided opening credit space (2026-10-31)
 
-The same pinned Quilter MXL was rendered again at A4 with Verovio 6.3.0 and
-Acorde's density print mode. For this review, both pages were rasterized at
-990 × 1400 px with a white background: Verovio's SVG through CairoSVG and
-Acorde's PDF through Poppler. The older Quick Look thumbnail was square
-(1400 × 1400 px) and is not a common-scale image for judging notation size.
-CairoSVG lacks the Verovio tempo-note font in this environment, so the one
-square tempo glyph in that raster is a rasterizer limit, not an input or
-engraving result. Verovio places the opening credits farther from the paper
-top. Acorde's title baseline was 38 SVG units (9.5 mm) from the paper top,
-and its first staff line was at 158.34 SVG
-units. The print layout now reserves 16 mm before the first system when a
-work title and movement or composer are present. Its title baseline becomes
-102 units (25.5 mm) and first staff line 222.34 units. The first page PDF
-remains A4 with one page and four systems, grouped 2+2+3+3. The publication
-block is visibly less cramped at the top; Acorde's fourth system still differs
-from Verovio's three systems. The 103 MusicXML import diagnostics remain unchanged.
-
-The separate pinned *Aloha Oe* MXL still produces three A4 pages in density
-mode, with six systems and 73 import diagnostics in this run. Its first and
-last pages were rasterized at 1400 px and inspected for clipping, title overlap,
-and page-number placement. The new first-page reserve keeps the title above
-the notation; the final page still has substantial unused space. A synthetic
-eight-system regression checks that the first page's smaller capacity moves
-later systems to page two without crossing the bottom margin. This is a
-page-geometry improvement, not a general engraving-quality result.
-
-```bash
-pdftoppm -f 1 -l 1 -scale-to 1400 -singlefile -png \
-  /tmp/acorde-quilter-20261031-after.pdf /tmp/acorde-quilter-20261031-after
-DYLD_LIBRARY_PATH=/opt/homebrew/lib python3 -c \
-  'import cairosvg; cairosvg.svg2png(url="/tmp/verovio-quilter-20261031.svg", write_to="/tmp/verovio-quilter-20261031-a4.png", output_width=990, output_height=1400, background_color="white")'
-```
+[Full record](archive/verovio-baseline-chamber-and-print.md#verovio-guided-opening-credit-space-2026-10-31).
 
 ### Verovio-guided below-staff direction clearance (2026-10-31)
 
-The same Quilter MXL puts `rall.` between the two piano staves in measure 9.
-Verovio separates the word from nearby noteheads. In Acorde's page SVG,
-the word started at x=324.85 and its conservative text box touched three
-noteheads. The print renderer now checks its own low chord heads after vertical
-placement and may shift a below-staff word right by at most three staff spaces.
-On this score, `rall.` moves to x=342.89 (4.51 mm), with the same y=991.94;
-the three box overlaps fall to zero. A fixture regression checks all page
-noteheads against the word box. The longer `poco cresc.` and `poco rall.`
-stay at their prior x positions rather than moving to the far end of a bar.
-
-The one-page A4 Quilter PDF was rasterized at 1400 px and inspected after the
-change. The three-page A4 *Aloha Oe* density PDF was regenerated; its first
-page was inspected, with no new visible text/staff collision. The import
-diagnostics remain 103 and 73 respectively. This narrow clearance result
-does not establish complete collision freedom or Verovio-level engraving.
+[Full record](archive/verovio-baseline-notation.md#verovio-guided-below-staff-direction-clearance-2026-10-31).
 
 ### Verovio-guided written metronome mark (2026-10-31)
 
-The pinned CC0 Quilter Prelude writes `Moderato tranquillo e con tenerezza`
-followed by a parenthesized quarter-note `=69`. Verovio 6.3.0 prints both on
-the same opening line. Acorde already read the `<sound tempo="69"/>` playback
-value, but discarded the separate MusicXML `<metronome>` notation. The typed
-model now keeps its beat unit, dots, numeric rate, and parentheses. MusicXML
-roundtrip and score patch preserve those fields; a mark with no `<sound>` stays
-visual notation without an invented playback value.
-
-The density A4 PDF still has one page with four systems (2+2+3+3), compared
-with Verovio's three systems on the same source and paper. At 1400 px, the
-new quarter-note equation is visible beside the opening words without touching
-the first staff. The importer still reports 103 diagnostics. This closes one
-missing printed symbol; note size, direction typography, spacing, and broad
-print quality remain below the Verovio reference on this score.
+[Full record](archive/verovio-baseline-notation.md#verovio-guided-written-metronome-mark-2026-10-31).
 
 ### Verovio-guided common and cut meter glyphs (2026-10-31)
 
-The pinned Quilter MXL has `<time symbol="common"><beats>4</beats><beat-type>4</beat-type>`.
-Verovio 6.3.0 prints C on both piano staves; Acorde previously printed 4/4.
-The [MusicXML time-symbol contract](https://www.w3.org/2021/06/musicxml40/tutorial/notation-basics/)
-distinguishes the written common or cut sign from its 4/4 or 2/2 rhythmic
-value. Acorde now keeps that distinction in the score, MusicXML roundtrip,
-diff/patch, and SVG/PDF renderer. A change to cut time inside one system also
-gets a dedicated aligned meter column. Unsupported or mismatched symbols are
-reported on import and rendered as numerals rather than guessed.
-
-The revised Quilter A4 PDF was rasterized at 1400 px and inspected. C appears
-on both opening staves without touching the first notes. The page is still one
-page with four systems (2+2+3+3), while the same-input Verovio page has three;
-the 103 import diagnostics are unchanged. This fixes one notation mismatch,
-not the remaining differences in note size, line filling, and typography.
+[Full record](archive/verovio-baseline-notation.md#verovio-guided-common-and-cut-meter-glyphs-2026-10-31).
 
 ### Verovio-guided slur side and taper after v1.3.7 (2026-10-31)
 
-The same Quilter A4 input starts a long upper-staff slur with positive MusicXML
-`bezier-y` but no explicit `placement`. Verovio 6.3.0 bows it above the notes;
-Acorde v1.3.7 used the up-stem fallback and drew it below, through the phrase.
-The importer now uses the starting Bezier control's sign only when `placement`
-is absent; an explicit side still wins. The first lower-staff slur has a
-negative control and remains below. MusicXML export/re-import retains both
-resolved sides. The exact authored curve controls are not preserved.
-
-The page SVG now draws a closed, tapered quadratic bow for both same-system
-slurs and continuations. The updated A4 PDF was rasterized at 1400 px and
-inspected against the same Verovio page. Quilter remains one page with four
-systems (2+2+3+3), compared with Verovio's three. The import still reports
-103 diagnostics. This fixes the direction and visibility of one prominent
-slur; it does not prove clearance for every slur or print-quality parity.
+[Full record](archive/verovio-baseline-notation.md#verovio-guided-slur-side-and-taper-after-v137-2026-10-31).
 
 ### Verovio-guided partial beam stems and slurs after v1.3.7 (2026-10-31)
 
-The self-authored MusicXML probe at
-`crates/render-svg/tests/fixtures/verovio_partial_stem_slur.musicxml` has two
-high eighth notes under one beam and slur. Only the first note explicitly says
-`<stem>up</stem>`. Verovio 6.3.0 draws **both** stems up and the slur below.
-The mirrored low-note probe with one `<stem>down</stem>` draws both stems down
-and the slur above. Moving the sole up-stem instruction to the last note also
-keeps both stems up in Verovio. Before this change Acorde drew the first probe
-with one up stem and one down stem under the same beam.
-
-The renderer now propagates a consistent authored direction to the other
-unmarked notes in that beam. Explicit conflicting directions remain untouched.
-The four up/down and first/last variants have screen-SVG assertions; the pinned
-upper probe also has a physical print-page SVG assertion. The comparison SVGs
-were rasterized and inspected. This corrects the beam/stem relation and keeps
-the slur on the same side as Verovio. Acorde stretches this isolated one-bar
-system much wider, making its slur longer; this probe does not establish equal
-horizontal spacing or general slur geometry.
-
-```sh
-verovio -o /tmp/verovio-partial-stem.svg \
-  crates/render-svg/tests/fixtures/verovio_partial_stem_slur.musicxml
-cargo run -q -p acorde-cli --locked -- render \
-  crates/render-svg/tests/fixtures/verovio_partial_stem_slur.musicxml \
-  /tmp/acorde-partial-stem.svg --width 900 --staff-size 24
-```
+[Full record](archive/verovio-baseline-notation.md#verovio-guided-partial-beam-stems-and-slurs-after-v137-2026-10-31).
 
 ### Verovio-guided short final print system after v1.3.7 (2026-10-31)
 
-The same self-authored MusicXML probe has only one short bar. On A4 with
-16/14 mm margins, Verovio 6.3.0 gives its staff a 21.96 mm width. Before this
-change, Acorde's one-system print SVG stretched it to 176.60 mm. The print
-renderer now sizes a short final row from its notation demand and, when there
-are preceding rows, their density. It still justifies earlier rows and a
-final row with the same number of columns as the fullest preceding row. The
-probe's Acorde staff is now 24.51 mm, with both notes and the slur inside it.
-The print SVG and vector PDF were generated from the same input, and the PDF
-was rasterized at 1400 px for inspection. The import has zero diagnostics.
-
-The pinned *Aloha Oe* density example remains three A4 pages and five systems,
-with 73 import diagnostics. Its last page was rasterized at 1400 px; the
-changed rule did not visibly crowd that page. A dense single-measure ending
-has a regression that leaves its final line full width. These checks concern
-horizontal extent only: the probe's Acorde staff and publication type are
-still smaller than Verovio's, and the two renderers do not yet have matching
-overall print quality.
-
-```sh
-verovio -a --page-width 2100 --page-height 2970 \
-  --page-margin-top 160 --page-margin-bottom 160 \
-  --page-margin-left 140 --page-margin-right 140 \
-  -o /tmp/verovio-partial-a4.svg \
-  crates/render-svg/tests/fixtures/verovio_partial_stem_slur.musicxml
-cargo run -q -p acorde-pdf --example print_mxl -- \
-  crates/render-svg/tests/fixtures/verovio_partial_stem_slur.musicxml \
-  crates/pdf/tests/fixtures/Tuffy.ttf /tmp/acorde-partial-a4.pdf
-```
+[Full record](archive/verovio-baseline-notation.md#verovio-guided-short-final-print-system-after-v137-2026-10-31).
 
 ### Slur clearance at the middle of a phrase (2026-10-31)
 
-For the self-authored ABC phrase `X:1`, `M:3/4`, `L:1/4`, `K:C`,
-`(c a c) |]`, Acorde exported MusicXML and Verovio 6.3.0 rendered the
-same file. Verovio stems the three notes down and bows the slur above the
-central high note. Acorde previously put the quadratic control above that
-note, but the actual curve crossed it. The control calculation now accounts
-for the curve's midpoint. Regression tests evaluate the curve at the central
-note for both a high peak and a low valley. This is a midpoint clearance
-improvement; it does not guarantee collision-free slurs for off-center notes,
-stems, chords, or system continuations.
+[Full record](archive/verovio-baseline-notation.md#slur-clearance-at-the-middle-of-a-phrase-2026-10-31).
 
 ### Slur clearance away from the middle (2026-10-31)
 
-The self-authored 5/4 ABC phrase `(c a c c c) |]` was converted to MusicXML
-and rendered by both Acorde and Verovio 6.3.0. Verovio's slur bows above the
-second note; Acorde's prior midpoint-only calculation passed within 0.1 staff
-space of that notehead in screen SVG. Acorde now evaluates each intermediate
-same-voice note at its horizontal position on the quadratic bow, and adjusts
-the control point to seek 0.8 staff spaces of clearance. Additional curvature
-is capped at eight staff spaces, so very crowded phrases remain best-effort.
-Screen tests cover peaks and valleys on either side of the midpoint; a physical
-page SVG test covers the high second note. The matching A4 PDF was rasterized
-at 1400 px and inspected. This does not solve collisions with stems, chord
-extremes, other voices, or cross-system continuation segments.
-
-The pinned Quilter Prelude was also regenerated in density mode: it remains
-one A4 page with four systems and 103 import diagnostics. The PDF was
-rasterized and inspected; the comparison does not establish general
-collision-free or Verovio-equivalent typography and spacing.
+[Full record](archive/verovio-baseline-notation.md#slur-clearance-away-from-the-middle-2026-10-31).
 
 ### Slurs with mixed endpoint stems (2026-10-31)
 
-Self-authored single-voice quarter-note MusicXML phrases `C4 C4 C5` and
-`C5 C4 C4` were rendered by Verovio 6.3.0. Their endpoint stems point in
-opposite directions, and both Verovio slurs bow above the notes. Acorde used
-to select the side from the first stem alone, so it placed the ascending
-example below. It now places mixed-endpoint single-voice slurs above, while
-preserving explicit slur placement and the separate lower-voice rule. Screen
-tests cover both directions and explicit placement; a page SVG test covers
-the ascending case.
+[Full record](archive/verovio-baseline-notation.md#slurs-with-mixed-endpoint-stems-2026-10-31).
 
 ### Mixed stems inside a slur (2026-11-01)
 
-Verovio 6.3.0 puts the slur above `C4 C5 C4`, whose endpoints stem up but
-whose interior stem points down. The slur goes below in `C4 G4 C4` and in
-`C4 rest C4`. Acorde now inspects intervening same-voice, same-staff notes and
-uses the upper side when they include a down stem. Rests, stemless durations,
-other voices, and cross-staff notes do not count as interior stems; explicit
-slur placement still takes precedence. Screen regressions cover these cases
-and a system break, and a page SVG regression covers `C4 C5 C4`.
-
-These comparisons concern side selection for a few simple phrases; matching
-Verovio's curve shape, stem clearance, chords, cross-staff notation, and
-system-break geometry needs further comparisons.
+[Full record](archive/verovio-baseline-notation.md#mixed-stems-inside-a-slur-2026-11-01).
 
 ### Chord stems with symmetric outer notes (2026-11-01)
 
-In self-authored treble-clef quarter-note MusicXML, Verovio 6.3.0 stems the
-chord `E4 F5 A4` up, but `E4 F5 C5` down. Its `E4 F5 A4 C5` stems down,
-and `E4 F5 G4 C5` stems up. The outer E4 and F5 are equally distant from the
-middle line in each case; the next outer pair determines the direction, with
-an exact tie going down. Acorde previously always chose down when the outer
-pair tied. Its isolated chord rule now examines successive pairs, and the
-four examples are covered by screen SVG tests; the first also has a print
-page regression.
-
-The corresponding three eighth notes `E4 F5 G4`, explicitly beamed as one
-group, all stem down in Verovio. Acorde retains its existing separate beam
-group rule, with a regression for this example. These probes do not establish
-the behavior of all chord and beam configurations or cross-staff notation.
+[Full record](archive/verovio-baseline-notation.md#chord-stems-with-symmetric-outer-notes-2026-11-01).
 
 ### Beam clearance at large pitch leaps (2026-11-01)
 
-Self-authored MusicXML eighth-note beams `C4 C6 C4` with explicitly upward
-stems, and `C6 C4 C6` with explicitly downward stems, were rendered in
-Verovio 6.3.0. Both beams stay on the requested side of every notehead. In
-Acorde, the old clearance calculation used the absolute stem length, so an
-interior head far beyond the beam could be mistaken for a sufficiently long
-stem. Clearance now uses signed distance and shifts the beam to the correct
-side. Unit and screen tests cover both directions; screen tests also exercise
-the slur, and a page SVG test verifies stem direction in print. This checks
-clearance, not equality of beam angle, stem length, or slur shape with Verovio.
+[Full record](archive/verovio-baseline-notation.md#beam-clearance-at-large-pitch-leaps-2026-11-01).
 
 ### Horizontal beams for interior extrema (2026-11-01)
 
-Verovio 6.3.0 renders the explicitly up-stemmed eighth-note group `C4 E4 D4`
-with a horizontal beam; it slopes the monotonic `C4 D4 E4` group. Mirrored
-down-stem groups `C5 A4 B4` and `C5 B4 A4` show the corresponding flat and
-sloped behavior. Verovio also flattens `C4 D4 D4` with up-stems and
-`C5 B4 B4` with down-stems. These are self-authored MusicXML probes.
-
-Acorde previously calculated slope solely from the endpoints. It now flattens
-when an interior stem-side head reaches or passes the outer endpoint on the
-beam side. Tests cover both directions, equal-height plateaus, monotonic
-groups, a slur, and physical page SVG. This is a limited contour rule: the
-reference probes do not establish matching beam angles, exact stem lengths,
-or behavior for all chords, cross-staff beams, and secondary levels.
+[Full record](archive/verovio-baseline-notation.md#horizontal-beams-for-interior-extrema-2026-11-01).
 
 ### Two-note beam rise and remaining reference differences (2026-11-01)
 
-In self-authored treble-clef MusicXML eighth-note pairs, Verovio 6.3.0 changed
-the beam height by 0.25 staff space for C4–D4, D4–C4, C4–F4, F4–C4,
-C5–D5, and C6–C3, with the sign following the pitch contour; equal notes
-produced a horizontal beam. The probes included explicitly up and down stems.
-This is a height difference, not a fixed angle: the angle also depends on the
-horizontal distance. Acorde now clamps the rise of two-note groups to 0.25
-staff space for eighth and sixteenth-note groups with short spacing. For C4–G4, Verovio uses
-one staff space of rise with 32nd and 64th notes, so Acorde retains its prior
-one-space cap for three or more beam levels. The
-`verovio_partial_stem_slur.musicxml` reference is tested at two screen widths
-and on a print page. Further inspection of the pinned Verovio source and a
-justified C4–G4 probe show that the quarter-space step is limited to pairs
-whose horizontal distance is at most three staff spaces: with a wider pair,
-Verovio used one staff-space rise. Acorde now uses that spacing threshold
-instead of applying the short step to all pairs. The broader sample has not
-established that the rule matches all beam levels, pitches, or spacings.
-Reference: [Verovio 6.3.0 beam geometry](https://github.com/rism-digital/verovio/blob/version-6.3.0/src/beam.cpp).
-
-The same reference comparison exposes a remaining stem-length difference:
-for down-stemmed E4–F5, Verovio's stems measured approximately 2.49 and 6.24
-staff spaces, while the Acorde visual-regression case reaches approximately
-3.5 and 7.25. The latter is still bounded, but is not a Verovio match. Stem
-length changes with pitch and direction, so the available measurements do not
-justify replacing the general length rule with a constant.
-
-For a two-staff piano group with upper-staff C5, D5 and lower-staff G3, A3,
-Verovio 6.3.0 produced a sloping cross-staff beam with a 0.75-space rise
-between the first and last stem tips. This four-note case is still horizontal
-in Acorde. Another alternating-staff probe produced a flat Verovio beam,
-so a universal cross-staff slope would be unsupported. In addition,
-`collect_beam_groups` currently collects within each measure, so a group
-continuing across a barline or system is not represented as one cross-measure
-beam. These cases remain open.
+[Full record](archive/verovio-baseline-notation.md#two-note-beam-rise-and-remaining-reference-differences-2026-11-01).
 
 ### Chord heads and beam clearance (2026-11-01)
 
-Self-authored MusicXML pairs with two-octave chords `C4+C6` and `D4+D6`,
-with explicitly up and down stems, were rendered by Verovio 6.3.0. In both
-directions its beam lies beyond the chord head closest to the beam; the stem
-also connects to the opposite outer head. A two-staff probe with a down-stem
-`C5+E5` chord and an up-stem `G3+B3` chord likewise keeps both chords between
-their staff and the shared beam.
-
-Acorde had used the stem's starting head for both drawing and beam clearance.
-That could let a beam cross another chord head. It now uses the beam-side head
-for beam planning and vertical extent calculation, while retaining the other
-head as the stem's starting point. Screen regressions cover both stem
-directions and cross-staff chords; a print-page SVG regression covers the
-cross-staff example. Very tight staff gaps may still be infeasible because
-staff separation is not yet automatically expanded for kneed beams. This
-comparison does not establish equal cross-staff slope or exact stem lengths.
+[Full record](archive/verovio-baseline-beams-and-wedges.md#chord-heads-and-beam-clearance-2026-11-01).
 
 ### Two-note cross-staff beam slope (2026-11-01)
 
-The pinned `verovio_cross_staff_pair.musicxml` has a down-stem C5 on the
-upper staff followed by an up-stem G3 on the lower staff. Verovio 6.3.0's
-beam polygon rises by one staff space from left to right in SVG coordinates;
-the tips end on opposite sides of the beam, 0.75 space apart. Reversing the
-staff order reverses the direction in additional self-authored probes.
-Different pitches gave the same result for these single-level two-note beams.
-
-Acorde now inclines the beam center by one staff space for these pairs when
-there is enough room for two-space clearance on both sides. If that slope
-would violate clearance it retains the horizontal placement. In the pinned
-Verovio probe and its reversed-staff variant, the down stem ends at the beam's
-lower edge and the up stem at its center. Acorde now does the same for
-single-level two-note cross-staff beams; the endpoint difference in the sloped pair is
-0.75 staff space. Screen and print tests cover the shape, chords, both orders,
-edge attachment, and the fallback.
-This does not establish the correct slope for longer or system-spanning beams,
-nor automatically increase a too-small staff gap.
+[Full record](archive/verovio-baseline-beams-and-wedges.md#two-note-cross-staff-beam-slope-2026-11-01).
 
 ### Two-note cross-staff secondary beams (2026-11-01)
 
-The pinned `verovio_cross_staff_sixteenths.musicxml` uses the same notes
-as the eighth-note cross-staff probe, with both notes changed to sixteenths.
-Verovio 6.3.0 draws two parallel sloped beams, with their corresponding edges
-0.75 staff space apart vertically at the same x. The down-stem on the first
-note reaches the lower edge of the primary beam, while the up-stem on the
-second reaches the top edge of the secondary beam. Reversing the note order
-places the secondary beam on the other side. Additional self-authored 32nd
-note probes have three parallel beams with the same separation.
-
-Acorde now follows these relationships for cross-staff pairs using eighth-,
-sixteenth-, or 32nd-note beam levels. It considers the
-secondary beams when checking the required staff gap, and retains a horizontal
-primary beam when the sloped placement would not fit. Screen and print SVG
-tests cover the pinned sixteenth-note input; beam-planner tests cover both
-orders, the 32nd-note case, edge positions and parallel spacing. Absolute stem
-lengths, longer groups, and system-spanning beams
-remain unverified against the reference.
+[Full record](archive/verovio-baseline-beams-and-wedges.md#two-note-cross-staff-secondary-beams-2026-11-01).
 
 ### Cross-staff partial beams with unequal durations (2026-11-01)
 
-In `verovio_cross_staff_mixed_durations.musicxml`, an upper-staff eighth
-note joins a lower-staff sixteenth note. Verovio 6.3.0 slopes the primary
-beam by one staff space and draws a backward hook toward the shorter note's
-head. The hook is about 1.25 staff spaces long and its corresponding edge is
-0.75 staff space from the primary beam at the same x. Mirrored staff order,
-short note first, and a single 32nd note were also checked with self-authored
-MusicXML probes. Their hooks point toward the other note and lie on the short
-note's head side. Explicitly authored hook orientations other than these
-examples have not been compared.
-
-Acorde now applies this geometry to two-note cross-staff groups with these
-beam levels and accounts for the hooks in the staff-gap clearance check.
-Screen and print regressions exercise the pinned MusicXML input, and planner
-tests cover both staff orders, either short-note position, and 32nd notes.
-Absolute stem lengths and groups spanning measures or systems remain open.
+[Full record](archive/verovio-baseline-beams-and-wedges.md#cross-staff-partial-beams-with-unequal-durations-2026-11-01).
 
 ## Gates before a quality claim
 
-1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.
-2. Improve lyric size and publication
-   typography against the visual baseline.
-3. Pin a larger licensed piano/chamber corpus and compare missing symbols,
-   clipped content, collisions, page geometry, and legibility at print size.
-4. Run blind human review of the resulting PDFs and record the rubric and
-   individual scores. Do not infer superiority from page count or preflight.
+[Full record](archive/verovio-baseline-beams-and-wedges.md#gates-before-a-quality-claim).
 
 ### Inter-staff wedge and high lower-staff notes
 
-The self-authored `tests/fixtures/issue_295_interstaff_hairpin.musicxml` places a crescendo
-between piano staves and high notes on the lower staff. On this single deliberately extreme
-example, Acorde and Verovio 6.3.0 both place the wedge clear of the noteheads and stems. Acorde's
-inter-staff space is visibly larger; this comparison does not establish engraving parity or
-performance on ordinary scores. A default Acorde page SVG, produced by `compute_print_layout`
-and `render_print_page_svgs`, was also visually checked on the same input and did not show the
-wedge crossing a notehead or stem. This is not a size-matched print-quality comparison. The
-screen outputs can be reproduced with:
-
-```sh
-cargo run -p acorde-cli --locked -- render --width 1000 \
-  tests/fixtures/issue_295_interstaff_hairpin.musicxml /tmp/acorde-interstaff.svg
-verovio -o /tmp/verovio-interstaff.svg tests/fixtures/issue_295_interstaff_hairpin.musicxml
-```
+[Full record](archive/verovio-baseline-beams-and-wedges.md#inter-staff-wedge-and-high-lower-staff-notes).
