@@ -1491,6 +1491,16 @@ pub fn split_for_free_bass(score_json: &str, options_json: &str) -> Result<Strin
         .map_err(|error| js_err(format!("free-bass result serialization failed: {error}")))
 }
 
+/// Create a reviewable simplified arrangement from an explicitly selected melody voice.
+#[wasm_bindgen]
+pub fn arrange_standard_bass(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    use acorde_core::model::standard_bass_arrangement::{arrange_standard_bass, StandardBassArrangementOptions};
+    let score = score_from_json(score_json)?;
+    let options: StandardBassArrangementOptions = parse_json(options_json, "standard-bass arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&arrange_standard_bass(&score, &options))
+        .map_err(|error| js_err(format!("standard-bass arrangement serialization failed: {error}")))
+}
+
 /// Find simultaneous standard-bass button combinations for an explicit chord and instrument profile.
 /// Results are reviewable candidates, not a score or a physical-playability guarantee.
 #[wasm_bindgen]

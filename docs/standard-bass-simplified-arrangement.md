@@ -1,0 +1,9 @@
+# Standard-bass simplified arrangement
+
+`model::standard_bass_arrangement::arrange_standard_bass` and the full/viewer WASM export `arrange_standard_bass(scoreJson, optionsJson)` create a reviewable simplified edition. The caller selects a part, staff and voice; supplies a positioned chord progression and actual instrument button profile; and explicitly authorizes omission of other source pitches. Harmony is caller supplied, not inferred from the source.
+
+For each source pitch, the result records its source address and either its melody target or an explicit omission. It also returns the resolved options, standard-bass requirement and generated note addresses with the selected bass/chord button IDs and their actual sounding MIDI pitches. The accompaniment uses sustained simultaneous bass and chord buttons. Omitted and added chord tones are allowed only when explicitly requested. This does not model an alternating accompaniment.
+
+The original score is not changed. The implementation compares the selected melody's playback pitch, onset and duration in beats and seconds before returning success. It fails with diagnostics and no partial score or mappings if this comparison fails, the button profile cannot realize the harmony, or the selected source cannot be safely represented.
+
+The initial scope is a single monophonic, pitched melody voice with aligned measures, explicit harmony and a conservative MIDI range. Tablature, transposing melody staves, linked views, typed spanners, unpitched notes, cross-staff melody, measure repeats and inconsistent measure structures are rejected. Different melodies within one source chord, automatic melody detection, phrase-level selection, standard-bass transitions and automated fingering are not implemented. A successful candidate still requires musical and performer review. The bounded search cannot establish that a rejected piece is unplayable.
