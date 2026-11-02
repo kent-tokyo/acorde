@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Correct standard-bass preset and chord-plan capabilities: the documented 12-root default model accepts dominant sevenths and rejects augmented/diminished triads; callers using the latter must choose another arrangement. Add a profiled bass-pulse preset with actual button pitches, per-attack actions and explicit omission reports.
+
 - Whole-score transposition updates chord roots/slash bass and key-aware pitch spelling; checked transposition rejects out-of-range pitches and unsupported fret/pedal rewriting instead of silently clipping.
 
 - Add a lossless single-staff polyphony splitter for free-bass accordion in Rust and WASM, with declared hand limits, pitch provenance and explicit review requirements.

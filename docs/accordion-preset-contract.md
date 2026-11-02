@@ -75,6 +75,51 @@ A first pickup occupies the end of its nominal bar without advancing that
 alternation; a short final bar starts on beat 1. Existing `bass-pulse` and
 `alternating-bass` retain their four-beat pattern.
 
+## Standard-bass buttons and dominant sevenths
+
+The existing standard-bass preset selection uses a default model with all twelve
+bass roots and major, minor and dominant-seventh chord buttons. Its seventh
+button sounds an ideal root, third, fifth and minor seventh. This is an explicit
+model, not a description of every accordion. Augmented and diminished triads,
+major/minor sevenths and unsupported melodic bass patterns return a diagnostic;
+a diminished triad is distinct from a diminished-seventh button. Free-bass
+selection retains its separate behavior. See [migration notes](migrations.md)
+for the changed acceptance of previously saved selections.
+
+For a specific instrument, `model::standard_bass_preset::arrange_profiled_bass_pulse`
+and the full/viewer WASM export `arrange_profiled_bass_pulse(scoreJson, optionsJson)`
+take a standard-bass preset selection and an explicit button profile. It uses
+the `bass-pulse` rhythm, returns the actual button IDs and MIDI pitches per
+attack, and reports permitted omitted or added pitch classes. Missing rows or
+root columns produce diagnostics with no partial score. Omission and additions
+must be explicitly permitted. Bass and chord attacks are separate: the candidate
+contains both button identities for context, while each action's
+`sounding_midi` identifies the notes actually sounding at that attack.
+The default profile's four-note voicing is not substituted for the real profile.
+Movement, fingering and performer review remain separate requirements.
+
+For example, a three-note G7 chord button that omits D can be declared as:
+
+```js
+const options = {
+  selection: {
+    chords: [{ measure_index: 0, offset_beats: 0,
+      chord: { root: 'G', kind: 'dominant' } }],
+    alternative_chords: null, inversion: null, bass_mode: 'standard-bass',
+  },
+  profile: {
+    bass_buttons: [{ id: 'G bass', position: 0, midi: 43 }],
+    chord_buttons: [{ id: 'G7 chord', position: 0, midi: [67, 71, 77] }],
+    max_distance: 0,
+  },
+  allow_chord_omissions: true, allow_chord_additions: false,
+};
+const result = JSON.parse(arrange_profiled_bass_pulse(scoreJson, JSON.stringify(options)));
+```
+
+The returned action's `candidate.omitted_pitch_classes` includes D (pitch class
+2). Bass and chord actions have distinct `sounding_midi` lists.
+
 ## Two 2/4 accompaniment patterns
 
 `fine-bass-chord` and `habanera` are straight 2/4 presets, also exposed as
@@ -102,7 +147,7 @@ occupies the end of the nominal bar; a short final bar begins at its start.
 A changed chord rearticulates the current slot without resetting the two-beat
 phase; identical repeated chord symbols do not restart it.
 
-Standard bass uses the existing three-note chord and range restrictions. As a
+Standard bass uses the default chord-kind model and range restrictions described above. As a
 conservative configurable-by-pattern rate policy, it rejects score tempos or
 ramps exceeding 200 BPM for either pattern: a half-beat chord change can split
 a light-pattern quarter note, so the minimum possible attack spacing is 150 ms. This is a

@@ -149,7 +149,7 @@ jobs:
             --out-dir ../../target/wasm-profiles/viewer \
             --no-default-features --features viewer
           declarations=target/wasm-profiles/viewer/acorde_wasm.d.ts
-          for binding in parse_abc parse_mscz compute_beams detect_chord extract_chord_plan suggest_chord_plans assess_chord_presets arrange_from_chord_proposal arrange_with_drone standard_bass_chord_candidates arrange_standard_bass arrange_standard_bass_with_pitch_selection arrange_standard_bass_screened arrange_standard_bass_find_buttons arrange_standard_bass_find_voicings render_score_svg render_print_page_svgs to_playback_events_ex serialize_mscz; do
+          for binding in parse_abc parse_mscz compute_beams detect_chord extract_chord_plan suggest_chord_plans assess_chord_presets arrange_from_chord_proposal arrange_with_drone standard_bass_chord_candidates arrange_standard_bass arrange_standard_bass_with_pitch_selection arrange_standard_bass_screened arrange_standard_bass_find_buttons arrange_standard_bass_find_voicings arrange_profiled_bass_pulse render_score_svg render_print_page_svgs to_playback_events_ex serialize_mscz; do
             grep -q "^export function $binding(" "$declarations"
           done
           if grep -q '^export function parse_musicxml(' "$declarations"; then
@@ -257,7 +257,10 @@ jobs:
           # Alternate voicing search measured 6,664,984 bytes on macOS,
           # 7,882 below the preceding build. Linux CI measured 6,708,307
           # bytes (+2,471 from 6,705,836); retain about 7.7 KB headroom.
-          test "$size" -le 6716000
+          # Profiled bass-pulse adds 30,482 bytes on macOS
+          # (6,664,984 -> 6,695,466). Linux CI measured 6,711,897 bytes
+          # (+3,590 from 6,708,307); retain approximately 7 KB headroom.
+          test "$size" -le 6719000
 
   renderer-benchmark:
     name: Renderer performance budget

@@ -25,6 +25,7 @@ pub mod standard_bass;
 pub mod standard_bass_arrangement;
 pub mod standard_bass_button_search;
 pub mod standard_bass_pitch_selection;
+pub mod standard_bass_preset;
 pub mod standard_bass_transition;
 pub mod structural_plan;
 pub mod validate;

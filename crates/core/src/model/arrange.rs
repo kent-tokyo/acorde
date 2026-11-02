@@ -192,9 +192,9 @@ fn realize_accordion_chord(symbol: &ChordSymbol) -> Option<RealizedAccordionChor
 }
 
 pub(crate) fn preset_chord_supported(symbol: &ChordSymbol, bass_mode: AccordionBassMode) -> bool {
-    realize_accordion_chord(symbol).is_some_and(|realized| {
-        bass_mode == AccordionBassMode::FreeBass || realized.chord_midi.len() <= 3
-    })
+    realize_accordion_chord(symbol).is_some()
+        && (bass_mode == AccordionBassMode::FreeBass
+            || matches!(symbol.kind.as_str(), "major" | "minor" | "dominant"))
 }
 
 fn guided_note(pitches: &[u8], duration: Duration) -> Note {
@@ -1442,20 +1442,21 @@ pub fn arrange_with_layers(
             .unwrap_or(AccordionPattern::HeldBassChord)
     };
     if options.bass_mode == AccordionBassMode::StandardBass
-        && (resolved_chords.iter().any(|placed| {
-            realize_accordion_chord(&placed.chord).is_some_and(|chord| chord.chord_midi.len() > 3)
-        }) || matches!(
-            pattern,
-            AccordionPattern::Arpeggio
-                | AccordionPattern::RisingArpeggio
-                | AccordionPattern::AlbertiBass
-                | AccordionPattern::WalkingBass
-        ))
+        && (resolved_chords
+            .iter()
+            .any(|placed| !preset_chord_supported(&placed.chord, AccordionBassMode::StandardBass))
+            || matches!(
+                pattern,
+                AccordionPattern::Arpeggio
+                    | AccordionPattern::RisingArpeggio
+                    | AccordionPattern::AlbertiBass
+                    | AccordionPattern::WalkingBass
+            ))
     {
         return layered_error(
             options,
             "unsupported-standard-bass",
-            "the selected seventh harmony or melodic bass pattern requires free bass",
+            "the default standard-bass model does not provide this chord or melodic bass pattern; use an explicit instrument profile or a different arrangement",
             None,
         );
     }
