@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Whole-score transposition updates chord roots/slash bass and key-aware pitch spelling; checked transposition rejects out-of-range pitches and unsupported fret/pedal rewriting instead of silently clipping.
+
 - Add a lossless single-staff polyphony splitter for free-bass accordion in Rust and WASM, with declared hand limits, pitch provenance and explicit review requirements.
 
 - Add a conservative, explicitly keyed passing/neighbor-note insertion API for Rust and viewer WASM, with source mapping and diagnostics.
