@@ -5,7 +5,7 @@
 [![docs.rs](https://docs.rs/acorde/badge.svg)](https://docs.rs/acorde)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](README.md#license)
 [![crates.io](https://img.shields.io/crates/v/acorde.svg)](https://crates.io/crates/acorde)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/kent-tokyo/acorde)
+[![Ask DeepWiki](https://img.shields.io/badge/Ask-DeepWiki-blue.svg)](https://deepwiki.com/kent-tokyo/acorde)
 
 プラットフォーム非依存の Rust / WebAssembly 楽譜基盤ライブラリです。
 
