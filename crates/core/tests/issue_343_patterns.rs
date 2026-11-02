@@ -185,33 +185,35 @@ fn presets_and_layers_can_be_replayed_and_shuffled() {
             events(&replay.score.unwrap())
         );
     }
-    let a = shuffle_accordion_preset(
-        &score,
-        AccordionShuffleOptions {
-            selection: selection.clone(),
-            alternative_selections: vec![],
-            allowed_preset_ids: vec!["fine-bass-chord".into(), "habanera".into()],
-            seed: "42".into(),
-            previous_config: None,
-        },
-    );
+    let preset_shuffle = AccordionShuffleOptions {
+        selection: selection.clone(),
+        alternative_selections: vec![],
+        allowed_preset_ids: vec!["fine-bass-chord".into(), "habanera".into()],
+        seed: "42".into(),
+        previous_config: None,
+    };
+    let a = shuffle_accordion_preset(&score, preset_shuffle.clone());
+    let a_again = shuffle_accordion_preset(&score, preset_shuffle);
     assert!(a.score.is_some(), "{:?}", a.diagnostics);
-    let b = shuffle_accordion_layers(
-        &score,
-        AccordionLayerShuffleOptions {
-            selection,
-            alternative_selections: vec![],
-            allowed_accompaniments: vec![
-                Some(AccordionPattern::FineBassChord),
-                Some(AccordionPattern::Habanera),
-            ],
-            allowed_melodic_voices: vec![AccordionMelodicVoice::Unchanged],
-            allowed_swing_policies: vec![AccordionSwingPolicy::Straight],
-            seed: "42".into(),
-            previous_config: None,
-        },
-    );
+    assert_eq!(a.resolved_config, a_again.resolved_config);
+    assert_eq!(events(&a.score.unwrap()), events(&a_again.score.unwrap()));
+    let layer_shuffle = AccordionLayerShuffleOptions {
+        selection,
+        alternative_selections: vec![],
+        allowed_accompaniments: vec![
+            Some(AccordionPattern::FineBassChord),
+            Some(AccordionPattern::Habanera),
+        ],
+        allowed_melodic_voices: vec![AccordionMelodicVoice::Unchanged],
+        allowed_swing_policies: vec![AccordionSwingPolicy::Straight],
+        seed: "42".into(),
+        previous_config: None,
+    };
+    let b = shuffle_accordion_layers(&score, layer_shuffle.clone());
+    let b_again = shuffle_accordion_layers(&score, layer_shuffle);
     assert!(b.score.is_some(), "{:?}", b.diagnostics);
+    assert_eq!(b.resolved_config, b_again.resolved_config);
+    assert_eq!(events(&b.score.unwrap()), events(&b_again.score.unwrap()));
 }
 
 #[test]
