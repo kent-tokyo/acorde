@@ -327,3 +327,92 @@ fn profiled_pulse_rejects_free_bass_or_unapproved_omissions() {
     assert!(wrong_mode.score.is_none());
     assert_eq!(wrong_mode.diagnostics[0].code, "invalid-bass-mode");
 }
+
+#[test]
+fn profiled_chord_plan_uses_actual_buttons_and_rejects_missing_ones() {
+    use acorde_core::model::profiled_chord_plan::profile_chord_plan;
+    use acorde_core::model::standard_bass_preset::arrange_profiled_bass_pulse;
+    let score = source();
+    for (root, kind, bass, tones) in [
+        ("C", "major-seventh", 36, vec![64, 67, 71]),
+        ("D", "minor-seventh", 38, vec![65, 69, 72]),
+        ("A", "minor-seventh", 45, vec![60, 64, 67]),
+    ] {
+        let profile = StandardBassProfile {
+            bass_buttons: vec![StandardBassNoteButton {
+                id: "bass".into(),
+                position: 0,
+                midi: bass,
+            }],
+            chord_buttons: vec![StandardBassChordButton {
+                id: "chord".into(),
+                position: 0,
+                midi: tones.clone(),
+            }],
+            max_distance: 0,
+        };
+        let plan = plan(chord(root, kind));
+        let result = profile_chord_plan(&plan, &profile, false, false);
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert!(result.requires_performer_review);
+        let arranged = arrange_profiled_bass_pulse(&score, &result.options.unwrap());
+        assert!(
+            arranged.diagnostics.is_empty(),
+            "{:?}",
+            arranged.diagnostics
+        );
+        assert_eq!(arranged.actions[0].sounding_midi, [bass]);
+        assert_eq!(arranged.actions[1].sounding_midi, tones);
+        assert_eq!(
+            arranged.actions[0].candidate.omitted_pitch_classes,
+            Vec::<u8>::new()
+        );
+        let mut missing = profile.clone();
+        missing.chord_buttons.clear();
+        let result = profile_chord_plan(&plan, &missing, false, false);
+        assert!(result.options.is_none());
+        assert_eq!(result.diagnostics[0].code, "no-standard-bass-candidate");
+    }
+}
+
+#[test]
+fn profiled_chord_plan_validates_policy_positions_and_bounds() {
+    use acorde_core::model::profiled_chord_plan::profile_chord_plan;
+    let profile = StandardBassProfile {
+        bass_buttons: vec![StandardBassNoteButton {
+            id: "G".into(),
+            position: 0,
+            midi: 43,
+        }],
+        chord_buttons: vec![StandardBassChordButton {
+            id: "G7".into(),
+            position: 0,
+            midi: vec![67, 71, 77],
+        }],
+        max_distance: 0,
+    };
+    let mut plan = plan(chord("G", "dominant"));
+    assert!(
+        profile_chord_plan(&plan, &profile, false, false)
+            .options
+            .is_none()
+    );
+    assert!(
+        profile_chord_plan(&plan, &profile, true, false)
+            .options
+            .is_some()
+    );
+    plan.entries[0].position.offset.denominator = 0;
+    let invalid = profile_chord_plan(&plan, &profile, true, false);
+    assert!(invalid.options.is_none());
+    assert!(
+        invalid
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "invalid-position")
+    );
+    plan.entries = vec![plan.entries[0].clone(); 513];
+    let excessive = profile_chord_plan(&plan, &profile, true, false);
+    assert!(excessive.options.is_none());
+    assert_eq!(excessive.diagnostics[0].code, "plan-entry-limit");
+}

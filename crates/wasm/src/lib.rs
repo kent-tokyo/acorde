@@ -1557,6 +1557,17 @@ pub fn arrange_standard_bass_find_voicings(score_json: &str, options_json: &str,
         .map_err(|error| js_err(format!("voicing search serialization failed: {error}")))
 }
 
+/// Validate positioned harmony against an explicit standard-bass profile.
+#[wasm_bindgen]
+pub fn profile_chord_plan(plan_json: &str, profile_json: &str, allow_omissions: bool, allow_additions: bool) -> Result<String, JsValue> {
+    use acorde_core::model::profiled_chord_plan::profile_chord_plan;
+    use acorde_core::model::standard_bass::StandardBassProfile;
+    let plan: acorde_core::ChordPlan = parse_json(plan_json, "chord plan", MAX_CHORD_PLAN_JSON_BYTES)?;
+    let profile: StandardBassProfile = parse_json(profile_json, "standard-bass profile", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&profile_chord_plan(&plan, &profile, allow_omissions, allow_additions))
+        .map_err(|error| js_err(format!("profiled chord plan serialization failed: {error}")))
+}
+
 /// Generate a bass-pulse preset using an explicit standard-bass button profile.
 #[wasm_bindgen]
 pub fn arrange_profiled_bass_pulse(score_json: &str, options_json: &str) -> Result<String, JsValue> {
