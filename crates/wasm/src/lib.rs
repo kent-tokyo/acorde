@@ -1578,6 +1578,17 @@ pub fn arrange_profiled_bass_pulse(score_json: &str, options_json: &str) -> Resu
         .map_err(|error| js_err(format!("profiled bass-pulse serialization failed: {error}")))
 }
 
+/// Find simultaneous candidates with caller-supplied button rows and columns.
+#[wasm_bindgen]
+pub fn located_standard_bass_candidates(profile_json: &str, chord_json: &str, previous_json: &str, allow_omissions: bool, allow_additions: bool) -> Result<String, JsValue> {
+    use acorde_core::model::standard_bass_button_layout::{LocatedStandardBassProfile, PreviousStandardBassButtons, located_standard_bass_candidates};
+    let profile: LocatedStandardBassProfile = parse_json(profile_json, "located standard-bass profile", MAX_OPTIONS_JSON_BYTES)?;
+    let chord: acorde_core::ChordSymbol = parse_json(chord_json, "chord symbol", MAX_OPTIONS_JSON_BYTES)?;
+    let previous: Option<PreviousStandardBassButtons> = parse_json(previous_json, "previous buttons", MAX_OPTIONS_JSON_BYTES)?;
+    let result = located_standard_bass_candidates(&profile, &chord, allow_omissions, allow_additions, previous.as_ref()).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(|error| js_err(format!("located candidate serialization failed: {error}")))
+}
+
 /// Find simultaneous standard-bass button combinations for an explicit chord and instrument profile.
 /// Results are reviewable candidates, not a score or a physical-playability guarantee.
 #[wasm_bindgen]
