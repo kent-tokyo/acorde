@@ -5093,6 +5093,61 @@ mod tests {
         score
     }
 
+    #[test]
+    fn deleting_staff_remaps_spanners_and_undo_restores_them() {
+        let mut score = score_with_typed_spanner();
+        let staff = score.parts[0].staves[0].clone();
+        score.parts[0].staves.extend([staff.clone(), staff]);
+        score.parts.push(score.parts[0].clone());
+
+        let mut shifted = score.spanners[0].clone();
+        shifted.id = "shifted".into();
+        shifted.start.staff = 2;
+        shifted.end.staff = 2;
+        let mut removed = score.spanners[0].clone();
+        removed.id = "removed".into();
+        removed.start.staff = 1;
+        removed.end.staff = 1;
+        let mut other_part = score.spanners[0].clone();
+        other_part.id = "other-part".into();
+        other_part.start.part = 1;
+        other_part.end.part = 1;
+        score.spanners.extend([shifted, removed, other_part]);
+        let original = score.spanners.clone();
+
+        let mut stack = CommandStack::new(8);
+        stack
+            .execute(
+                Command::DeleteStaff(DeleteStaffCmd {
+                    part_index: 0,
+                    staff_index: 1,
+                }),
+                &mut score,
+            )
+            .unwrap();
+        assert_eq!(score.parts[0].staves.len(), 2);
+        assert!(!score.spanners.iter().any(|span| span.id == "removed"));
+        let shifted = score
+            .spanners
+            .iter()
+            .find(|span| span.id == "shifted")
+            .unwrap();
+        assert_eq!((shifted.start.staff, shifted.end.staff), (1, 1));
+        let other = score
+            .spanners
+            .iter()
+            .find(|span| span.id == "other-part")
+            .unwrap();
+        assert_eq!((other.start.part, other.end.part), (1, 1));
+
+        stack.undo(&mut score).unwrap();
+        assert_eq!(score.parts[0].staves.len(), 3);
+        assert_eq!(score.spanners, original);
+        stack.redo(&mut score).unwrap();
+        assert_eq!(score.parts[0].staves.len(), 2);
+        assert!(!score.spanners.iter().any(|span| span.id == "removed"));
+    }
+
     fn insert_note_at(position: usize) -> Command {
         Command::AddNote(AddNoteCmd {
             part_index: 0,
