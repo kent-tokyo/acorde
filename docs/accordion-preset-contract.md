@@ -98,6 +98,28 @@ contains both button identities for context, while each action's
 The default profile's four-note voicing is not substituted for the real profile.
 Movement, fingering and performer review remain separate requirements.
 
+For example, a three-note G7 chord button that omits D can be declared as:
+
+```js
+const options = {
+  selection: {
+    chords: [{ measure_index: 0, offset_beats: 0,
+      chord: { root: 'G', kind: 'dominant' } }],
+    alternative_chords: null, inversion: null, bass_mode: 'standard-bass',
+  },
+  profile: {
+    bass_buttons: [{ id: 'G bass', position: 0, midi: 43 }],
+    chord_buttons: [{ id: 'G7 chord', position: 0, midi: [67, 71, 77] }],
+    max_distance: 0,
+  },
+  allow_chord_omissions: true, allow_chord_additions: false,
+};
+const result = JSON.parse(arrange_profiled_bass_pulse(scoreJson, JSON.stringify(options)));
+```
+
+The returned action's `candidate.omitted_pitch_classes` includes D (pitch class
+2). Bass and chord actions have distinct `sounding_midi` lists.
+
 ## Two 2/4 accompaniment patterns
 
 `fine-bass-chord` and `habanera` are straight 2/4 presets, also exposed as

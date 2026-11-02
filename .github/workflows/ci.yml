@@ -258,9 +258,9 @@ jobs:
           # 7,882 below the preceding build. Linux CI measured 6,708,307
           # bytes (+2,471 from 6,705,836); retain about 7.7 KB headroom.
           # Profiled bass-pulse adds 30,482 bytes on macOS
-          # (6,664,984 -> 6,695,466). Previous Linux measured 6,708,307;
-          # reserve twice the macOS increase plus ~8 KB pending Linux CI.
-          test "$size" -le 6778000
+          # (6,664,984 -> 6,695,466). Linux CI measured 6,711,897 bytes
+          # (+3,590 from 6,708,307); retain approximately 7 KB headroom.
+          test "$size" -le 6719000
 
   renderer-benchmark:
     name: Renderer performance budget
