@@ -254,3 +254,162 @@ fn dense_passage_keeps_the_existing_spacing_when_the_shared_lead_would_crowd_not
         "crowded input should use the old fallback: {marks:?}"
     );
 }
+
+fn two_measure_score() -> Score {
+    use acorde_core::Measure;
+    let mut score = score();
+    let mut upper = Measure::empty(2, 4);
+    upper.number = 2;
+    upper.voices[0] = vec![
+        Note::new(Pitch::new(Step::A, 4), Duration::Quarter),
+        Note::new(Pitch::new(Step::B, 4), Duration::Quarter),
+    ];
+    upper.voices[1] = vec![
+        Note::new(Pitch::new(Step::F, 4), Duration::Quarter),
+        Note::new(Pitch::new(Step::G, 4), Duration::Quarter),
+    ];
+    let mut lower = Measure::empty(2, 4);
+    lower.number = 2;
+    lower.voices[0] = vec![
+        Note::new(Pitch::new(Step::C, 3), Duration::Quarter),
+        Note::new(Pitch::new(Step::D, 3), Duration::Quarter),
+    ];
+    score.parts[0].staves[0].measures.push(upper);
+    score.parts[0].staves[1].measures.push(lower);
+    score
+}
+
+#[test]
+fn opening_columns_align_in_a_two_measure_grand_staff() {
+    let score = two_measure_score();
+    for measures_per_system in [1, 2] {
+        let svg = render_svg(
+            &score,
+            &SvgRenderOptions {
+                width: 1200.0,
+                measures_per_system,
+                interactive: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        for measure in 0..2 {
+            for note in 0..2 {
+                let xs = [
+                    x(&svg, &format!("0:0:{measure}:0:{note}")),
+                    x(&svg, &format!("0:0:{measure}:1:{note}")),
+                    x(&svg, &format!("0:1:{measure}:0:{note}")),
+                ];
+                assert!(
+                    (xs[0] - xs[1]).abs() < 0.1 && (xs[0] - xs[2]).abs() < 0.1,
+                    "system {measures_per_system}, measure {measure} note {note}: {xs:?}"
+                );
+            }
+        }
+        let marks: Vec<f32> = svg
+            .split("class=\"acorde-accidental acorde-sharp\" data-x=\"")
+            .skip(1)
+            .map(|s| s.split('"').next().unwrap().parse().unwrap())
+            .collect();
+        assert_eq!(marks.len(), 2);
+        assert!((marks[0] - marks[1]).abs() > 24.0, "accidentals {marks:?}");
+    }
+    let events = acorde_core::to_playback_events(&score, &Default::default());
+    assert_eq!(events.len(), 12);
+    assert_eq!(events.iter().filter(|e| e.time_beats == 0.0).count(), 3);
+}
+
+#[test]
+fn print_with_a_system_break_preserves_grand_staff_columns() {
+    let mut score = two_measure_score();
+    for staff in &mut score.parts[0].staves {
+        staff.measures[0].system_break = true;
+    }
+    let layout = acorde_layout::compute_print_layout(&score, &Default::default()).unwrap();
+    assert_eq!(
+        layout
+            .pages
+            .iter()
+            .map(|page| page.systems.len())
+            .sum::<usize>(),
+        2
+    );
+    let pages = acorde_render_svg::render_print_page_svgs(&score, &layout).unwrap();
+    let heads: Vec<f32> = pages
+        .iter()
+        .flat_map(|svg| {
+            svg.split("class=\"acorde-notehead\" cx=\"")
+                .skip(1)
+                .map(|s| s.split('"').next().unwrap().parse().unwrap())
+        })
+        .collect();
+    assert_eq!(heads.len(), 12);
+    for start in [0, 6] {
+        assert!(
+            (heads[start] - heads[start + 2]).abs() < 0.1
+                && (heads[start] - heads[start + 4]).abs() < 0.1,
+            "heads {heads:?}"
+        );
+        assert!(
+            (heads[start + 1] - heads[start + 3]).abs() < 0.1
+                && (heads[start + 1] - heads[start + 5]).abs() < 0.1,
+            "heads {heads:?}"
+        );
+    }
+}
+
+#[test]
+fn inline_header_changes_keep_the_existing_spacing_path() {
+    use acorde_core::{KeySignature, TimeSignature};
+    for variant in 0..3 {
+        let mut score = two_measure_score();
+        let measure = &mut score.parts[0].staves[0].measures[1];
+        measure.voices[0][0].pitches[0] = Pitch::with_alter(Step::A, 4, 1);
+        measure.voices[1][0].pitches[0] = Pitch::with_alter(Step::F, 4, 1);
+        measure.voices[0][0].set_accidental_display(0, AccidentalDisplay::Explicit);
+        measure.voices[1][0].set_accidental_display(0, AccidentalDisplay::Explicit);
+        match variant {
+            0 => {
+                measure.key_sig = Some(KeySignature {
+                    fifths: -1,
+                    mode: "major".into(),
+                })
+            }
+            1 => {
+                measure.time_sig = Some(TimeSignature {
+                    numerator: 2,
+                    denominator: 4,
+                })
+            }
+            _ => measure.clef = Some(Clef::Bass),
+        }
+        let svg = render_svg(
+            &score,
+            &SvgRenderOptions {
+                width: 1200.0,
+                measures_per_system: 2,
+                interactive: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let mark = |address: &str| -> f32 {
+            svg.split(&format!("data-note-addr=\"{address}\""))
+                .nth(1)
+                .unwrap()
+                .split("class=\"acorde-accidental acorde-sharp\" data-x=\"")
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap()
+                .parse()
+                .unwrap()
+        };
+        let marks = [mark("0:0:1:0:0"), mark("0:0:1:1:0")];
+        assert!(
+            (marks[0] - marks[1]).abs() < 0.1,
+            "variant {variant}: {marks:?}"
+        );
+    }
+}
