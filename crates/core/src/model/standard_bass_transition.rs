@@ -47,7 +47,7 @@ pub struct ScreenedStandardBassResult {
     pub transitions: Vec<StandardBassTransition>,
 }
 
-fn fail(
+pub(super) fn fail(
     mut result: ScreenedStandardBassResult,
     code: &str,
     message: impl Into<String>,
@@ -79,6 +79,14 @@ pub fn arrange_standard_bass_screened(
     policy: &StandardBassTransitionPolicy,
 ) -> ScreenedStandardBassResult {
     let arrangement = arrange_standard_bass_with_pitch_selection(score, options, selections);
+    screen_existing_standard_bass(arrangement, options, policy)
+}
+
+pub(super) fn screen_existing_standard_bass(
+    arrangement: SelectedPitchArrangementResult,
+    options: &StandardBassArrangementOptions,
+    policy: &StandardBassTransitionPolicy,
+) -> ScreenedStandardBassResult {
     let mut result = ScreenedStandardBassResult {
         arrangement,
         policy: policy.clone(),

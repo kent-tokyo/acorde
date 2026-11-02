@@ -183,3 +183,205 @@ fn tied_notation_fragments_are_one_button_attack() {
     assert_eq!(result.transitions.len(), 1);
     assert!(result.arrangement.arrangement.actions.len() > 1);
 }
+
+fn with_nearby_g_buttons(options: &mut StandardBassArrangementOptions) {
+    options.profile.bass_buttons.push(StandardBassNoteButton {
+        id: "Z near G bass".into(),
+        position: 1,
+        midi: 43,
+    });
+    options.profile.chord_buttons.push(StandardBassChordButton {
+        id: "Z near G major".into(),
+        position: 1,
+        midi: vec![67, 71, 74],
+    });
+}
+
+#[test]
+fn searches_same_sounding_alternatives_across_repeat_back_edges() {
+    use acorde_core::model::standard_bass_button_search::arrange_standard_bass_find_buttons;
+    use acorde_core::to_playback_events;
+    let (score, mut options) = fixture();
+    with_nearby_g_buttons(&mut options);
+    let policy = StandardBassTransitionPolicy {
+        max_position_delta: 1,
+        min_attack_interval_ms: 2000,
+    };
+    let initial = arrange_standard_bass_screened(&score, &options, &[], &policy);
+    assert_eq!(
+        initial.arrangement.arrangement.diagnostics[0].code,
+        "transition-too-far"
+    );
+    let original = acorde_core::model::standard_bass_pitch_selection::arrange_standard_bass_with_pitch_selection(&score,&options,&[]).arrangement.score.unwrap();
+    let result = arrange_standard_bass_find_buttons(&score, &options, &[], &policy);
+    assert!(
+        result.arrangement.arrangement.diagnostics.is_empty(),
+        "{:?}",
+        result.arrangement.arrangement.diagnostics
+    );
+    assert_eq!(
+        result
+            .transitions
+            .iter()
+            .map(|t| t.bass_button_id.as_str())
+            .collect::<Vec<_>>(),
+        ["C bass", "Z near G bass", "C bass", "Z near G bass"]
+    );
+    assert_eq!(
+        result
+            .transitions
+            .iter()
+            .map(|t| t.position_delta)
+            .collect::<Vec<_>>(),
+        [None, Some(1), Some(1), Some(1)]
+    );
+    let signature = |score: &Score| {
+        to_playback_events(score, &Default::default())
+            .into_iter()
+            .map(|e| (e.pitch_midi, e.time_beats, e.duration_beats))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        signature(&original),
+        signature(result.arrangement.arrangement.score.as_ref().unwrap())
+    );
+}
+
+#[test]
+fn no_path_or_timing_failure_returns_no_partial_arrangement() {
+    use acorde_core::model::standard_bass_button_search::arrange_standard_bass_find_buttons;
+    let (score, mut options) = fixture();
+    let policy = StandardBassTransitionPolicy {
+        max_position_delta: 1,
+        min_attack_interval_ms: 0,
+    };
+    let unavailable = arrange_standard_bass_find_buttons(&score, &options, &[], &policy);
+    assert_eq!(
+        unavailable.arrangement.arrangement.diagnostics[0].code,
+        "no-same-sounding-button-path"
+    );
+    assert!(unavailable.arrangement.arrangement.score.is_none());
+    assert!(
+        unavailable
+            .arrangement
+            .arrangement
+            .source_pitches
+            .is_empty()
+            && unavailable.transitions.is_empty()
+    );
+    with_nearby_g_buttons(&mut options);
+    let too_fast = arrange_standard_bass_find_buttons(
+        &score,
+        &options,
+        &[],
+        &StandardBassTransitionPolicy {
+            max_position_delta: 1,
+            min_attack_interval_ms: 2001,
+        },
+    );
+    assert_eq!(
+        too_fast.arrangement.arrangement.diagnostics[0].code,
+        "transition-too-fast"
+    );
+    assert!(too_fast.arrangement.arrangement.score.is_none());
+}
+
+#[test]
+fn excessive_alternatives_report_incomplete_search_not_impossibility() {
+    use acorde_core::model::standard_bass_button_search::arrange_standard_bass_find_buttons;
+    let (score, mut options) = fixture();
+    options.profile.chord_buttons.push(StandardBassChordButton {
+        id: "Z near chord".into(),
+        position: 1,
+        midi: vec![67, 71, 74],
+    });
+    for i in 0..33 {
+        options.profile.bass_buttons.push(StandardBassNoteButton {
+            id: format!("Z near {i:02}"),
+            position: 1,
+            midi: 43,
+        });
+    }
+    let result = arrange_standard_bass_find_buttons(
+        &score,
+        &options,
+        &[],
+        &StandardBassTransitionPolicy {
+            max_position_delta: 1,
+            min_attack_interval_ms: 0,
+        },
+    );
+    assert_eq!(
+        result.arrangement.arrangement.diagnostics[0].code,
+        "transition-search-limit"
+    );
+    assert!(result.arrangement.arrangement.score.is_none());
+}
+
+#[test]
+fn candidate_search_accounts_for_repeat_return_that_written_order_misses() {
+    use acorde_core::model::standard_bass_button_search::arrange_standard_bass_find_buttons;
+    let (mut score, mut options) = fixture();
+    score.parts[0].staves[0].measures[1].barline_right = Barline::Normal;
+    let mut last = acorde_core::Measure::empty(4, 4);
+    last.number = 3;
+    last.barline_right = Barline::RepeatEnd;
+    last.voices[0] = vec![Note::new(Pitch::new(Step::E, 5), Duration::Whole)];
+    score.parts[0].staves[0].measures.push(last);
+    options.profile.bass_buttons[1].position = 1;
+    options.profile.chord_buttons[1].position = 1;
+    options.chords.push(PositionedAccordionChord {
+        measure_index: 2,
+        offset_beats: 0.0,
+        chord: chord("D"),
+    });
+    options.profile.bass_buttons.extend([
+        StandardBassNoteButton {
+            id: "A far D".into(),
+            position: 2,
+            midi: 38,
+        },
+        StandardBassNoteButton {
+            id: "Z near D".into(),
+            position: 1,
+            midi: 38,
+        },
+    ]);
+    options.profile.chord_buttons.extend([
+        StandardBassChordButton {
+            id: "A far D major".into(),
+            position: 2,
+            midi: vec![62, 66, 69],
+        },
+        StandardBassChordButton {
+            id: "Z near D major".into(),
+            position: 1,
+            midi: vec![62, 66, 69],
+        },
+    ]);
+    let policy = StandardBassTransitionPolicy {
+        max_position_delta: 1,
+        min_attack_interval_ms: 0,
+    };
+    let first = arrange_standard_bass_screened(&score, &options, &[], &policy);
+    assert_eq!(
+        first.arrangement.arrangement.diagnostics[0].code,
+        "transition-too-far"
+    );
+    let found = arrange_standard_bass_find_buttons(&score, &options, &[], &policy);
+    assert!(
+        found.arrangement.arrangement.diagnostics.is_empty(),
+        "{:?}",
+        found.arrangement.arrangement.diagnostics
+    );
+    assert_eq!(
+        found
+            .transitions
+            .iter()
+            .map(|t| t.bass_button_id.as_str())
+            .collect::<Vec<_>>(),
+        [
+            "C bass", "G bass", "Z near D", "C bass", "G bass", "Z near D"
+        ]
+    );
+}
