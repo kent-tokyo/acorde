@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 1.3.9 - 2026-11-02
+
+- Add explicit standard-bass button profiles, located candidate search, melody-pitch selection and bounded repeat-aware transition/alternative search in Rust and WASM. Source-pitch omissions are reported and results require performer review. A fixed 16-measure Eventide fixture checks selected-melody playback and MSCZ roundtrip with synthetic harmony and a mock profile; it does not establish physical reach or a publishable edition.
+- Preserve same-onset voice alignment at supported system openings, and improve diagnostics for unsupported accompaniment rate and range.
+- **Compatibility:** `Note::hairpin_above` is a new serde-defaulted public field and new `AccordionPattern` variants affect exhaustive Rust matches. Preset and layer engine markers change with the release; reselect saved inputs. Standard-bass default chord capabilities also change. See the migration notes.
+
 - Correct standard-bass preset and chord-plan capabilities: the documented 12-root default model accepts dominant sevenths and rejects augmented/diminished triads; callers using the latter must choose another arrangement. Add a profiled bass-pulse preset with actual button pitches, per-attack actions and explicit omission reports.
 
 - Whole-score transposition updates chord roots/slash bass and key-aware pitch spelling; checked transposition rejects out-of-range pitches and unsupported fret/pedal rewriting instead of silently clipping.
