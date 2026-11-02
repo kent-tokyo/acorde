@@ -70,6 +70,44 @@ fn playback_screen_matches_native_and_survives_mscz() {
     );
     assert!(rejected.arrangement.arrangement.score.is_none() && rejected.transitions.is_empty());
 
+    // Same sounding G buttons at a nearer position can satisfy both repeat edges.
+    let mut search_options: serde_json::Value = serde_json::from_str(options).unwrap();
+    search_options["profile"]["bass_buttons"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({"id":"Z near G","position":1,"midi":43}));
+    search_options["profile"]["chord_buttons"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({"id":"Z near Gmaj","position":1,"midi":[67,71,74]}));
+    let found: ScreenedStandardBassResult = serde_json::from_str(
+        &acorde_wasm::arrange_standard_bass_find_buttons(
+            &source_json,
+            &search_options.to_string(),
+            "[]",
+            r#"{"max_position_delta":1,"min_attack_interval_ms":2000}"#,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(
+        found.arrangement.arrangement.diagnostics.is_empty(),
+        "{:?}",
+        found.arrangement.arrangement.diagnostics
+    );
+    assert_eq!(
+        found
+            .transitions
+            .iter()
+            .map(|t| t.bass_button_id.as_str())
+            .collect::<Vec<_>>(),
+        ["C", "Z near G", "C", "Z near G"]
+    );
+    assert_eq!(
+        signature(&score),
+        signature(found.arrangement.arrangement.score.as_ref().unwrap())
+    );
+
     // The screened path also supports explicit pitch selection within chords.
     for (i, measure) in source.parts[0].staves[0].measures.iter_mut().enumerate() {
         measure.voices[0][0]
