@@ -405,6 +405,25 @@
       "expected_losses": [
         "Voice-specific channel switches are diagnosed but not yet applied"
       ]
+    },
+    {
+      "path": "issue_339_handel_allemande.mscz",
+      "format": "mscz",
+      "license": "Public Domain source (Mutopia 166); published fisarmonica.org playable edition",
+      "source_url": "https://fisarmonica.org/scores/handel-allemande.mscz",
+      "source_revision": "76147b6d46886ed46f5bb4403da6c07b50b3fd2d",
+      "sha256": "5ad5296b952bc2d6b2c3db9e942825eefbddda60b09d280ddf615e7737601a57",
+      "round_trip": "import-only",
+      "expected_losses": ["Exact backward direction timing is reported as unsupported"]
+    },
+    {
+      "path": "issue_339_handel_playback_v137.json",
+      "format": "playback-json",
+      "license": "generated from the published Public Domain source",
+      "source": "Acorde v1.3.7 viewer WASM, sha256 a4750590b1e08c1da4284c71d305b2793b29e93b91b9b4c7c4d0e5c0422ec4b0",
+      "sha256": "7fbc65c2a4df110076e701637220fcd446661251670600762dd6f8875490bd6e",
+      "round_trip": "import-only",
+      "expected_losses": []
     }
   ]
 }

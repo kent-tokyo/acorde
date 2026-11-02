@@ -126,3 +126,11 @@ trill mark, SVG and playback metadata; it does not establish general compatibili
 by MuseScore Studio 4.7.5, then given explicit native pizzicato/arco channel
 switches. MuseScore exported MIDI with programs 45 and 40 respectively before
 crashing at shutdown. The fixture currently documents a diagnosed playback loss.
+
+`issue_339_handel_allemande.mscz` is the published fisarmonica.org playable edition of
+[Mutopia 166](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=166), whose source is
+listed as public domain. The source revision and archive SHA-256 are pinned in `manifest.json`.
+`issue_339_handel_playback_v137.json` contains the ordered part, beat, pitch in cents, and
+duration projection from the pinned Acorde v1.3.7 viewer WASM on that exact archive. It is a
+playback regression for this one score, not a general MSCZ fidelity claim. Exact positioning
+of backward non-note directions remains reported as unsupported.

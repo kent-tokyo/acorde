@@ -1436,6 +1436,12 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
         let path = fixture["path"].as_str().expect("fixture path");
         let expected = fixture["sha256"].as_str().expect("fixture sha256");
         let bytes: &[u8] = match path {
+            "issue_339_handel_allemande.mscz" => {
+                include_bytes!("../../../tests/fixtures/issue_339_handel_allemande.mscz")
+            }
+            "issue_339_handel_playback_v137.json" => {
+                include_bytes!("../../../tests/fixtures/issue_339_handel_playback_v137.json")
+            }
             "issue_292_hidden_time.musicxml" => {
                 include_bytes!("../../../tests/fixtures/issue_292_hidden_time.musicxml")
             }
@@ -7727,4 +7733,43 @@ fn hidden_meter_external_fixture_survives_mscz_roundtrip() {
     assert!(!measures[0].time_sig_hidden);
     assert!(measures[1].time_sig_hidden);
     assert_eq!(measures[1].time_sig.as_ref().unwrap().numerator, 2);
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn issue_339_handel_backward_clef_locations_keep_v137_playback() {
+    let bytes = include_bytes!("../../../tests/fixtures/issue_339_handel_allemande.mscz");
+    let expected: Vec<(usize, f64, i32, f64)> = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/issue_339_handel_playback_v137.json"
+    ))
+    .unwrap();
+    let report = acorde_io::parse_mscz_with_report(bytes).expect("published MSCZ imports");
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "mscx.unsupported-voice-location"),
+        "backward direction placement loss must be reported"
+    );
+    let events = acorde_core::to_playback_events(&report.score, &Default::default());
+    assert_eq!(expected.len(), 393);
+    assert_eq!(events.len(), expected.len());
+    for (index, (event, &(part, beat, pitch_cents, duration))) in
+        events.iter().zip(&expected).enumerate()
+    {
+        assert_eq!(
+            event.source.as_ref().unwrap().part,
+            part,
+            "event {index} part"
+        );
+        assert!(
+            (event.time_beats - beat).abs() < 1e-9,
+            "event {index} onset"
+        );
+        assert_eq!(event.pitch_midi_cents, pitch_cents, "event {index} pitch");
+        assert!(
+            (event.duration_beats - duration).abs() < 1e-9,
+            "event {index} duration"
+        );
+    }
 }
