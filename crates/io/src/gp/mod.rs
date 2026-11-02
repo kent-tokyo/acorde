@@ -1640,6 +1640,39 @@ mod tests {
     }
 
     #[test]
+    fn gp7_slide_articulations_survive_and_unknown_details_are_diagnosed() {
+        let input = GPIF.replace(
+            "<Note id=\"3\"><Properties>",
+            "<Note id=\"3\"><RightFingering>p</RightFingering><LeftFingering>Z</LeftFingering><Vibrato>Wide</Vibrato><Properties><Property name=\"Slide\"><Flags>127</Flags></Property><Property name=\"Tapped\"><Enable/></Property><Property name=\"LeftHandTapped\"><Enable/></Property>",
+        );
+        assert_ne!(input, GPIF);
+        let report = parse_gp_with_report(&archive(&input)).expect("GP7 imports");
+        let note = &report.score.parts[0].staves[0].measures[0].voices[0][2];
+        for mark in [
+            Articulation::Falloff,
+            Articulation::Doit,
+            Articulation::Scoop,
+            Articulation::Plop,
+            Articulation::Tap,
+            Articulation::LeftHandTap,
+            Articulation::Vibrato,
+        ] {
+            assert!(note.articulations.contains(&mark), "missing {mark:?}");
+        }
+        for code in [
+            "gp.unsupported-slide-type",
+            "gp.unsupported-right-hand-fingering",
+            "gp.unsupported-fingering",
+        ] {
+            assert!(
+                report.diagnostics.iter().any(|d| d.code == code),
+                "missing {code}: {:?}",
+                report.diagnostics
+            );
+        }
+    }
+
+    #[test]
     fn gp7_archive_imports_tracks_tab_and_techniques() {
         let report = parse_gp_with_report(&archive(GPIF)).expect("GP7 archive parses");
         let score = &report.score;

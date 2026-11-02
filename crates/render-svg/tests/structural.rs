@@ -6564,3 +6564,21 @@ fn metronome_beat_units_draw_their_stems_flags_and_dots() {
         assert!(group.contains("=72)"), "{group}");
     }
 }
+
+#[test]
+fn repeat_both_draws_dots_on_both_sides_of_barline() {
+    use acorde_core::{Barline, Score};
+    let mut score = Score::new("Repeat both", 120, 4, 4, 0, 1);
+    score.parts[0].staves[0].measures[0].barline_right = Barline::RepeatEnd;
+    let end = render_svg(&score, &opts()).expect("repeat end renders");
+    score.parts[0].staves[0].measures[0].barline_right = Barline::RepeatBoth;
+    let both = render_svg(&score, &opts()).expect("repeat both renders");
+    assert_eq!(end.matches(r#"class="acorde-repeat-dots""#).count(), 1);
+    assert_eq!(both.matches(r#"class="acorde-repeat-dots""#).count(), 2);
+    let both_dots: Vec<_> = both
+        .match_indices(r#"class="acorde-repeat-dots""#)
+        .map(|(index, _)| index)
+        .collect();
+    let between = &both[both_dots[0]..both_dots[1]];
+    assert!(between.contains(r#"class="acorde-barline""#), "{between}");
+}
