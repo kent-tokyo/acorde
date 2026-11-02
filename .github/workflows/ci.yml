@@ -226,12 +226,12 @@ jobs:
           # allow for that observed increase plus roughly 6 KB headroom.
           # Hairpin placement and adjacent-staff clearance measured 6,419,338
           # bytes on Linux CI (commit 3562eee), 7,685 above the beam baseline.
-          # The macOS build grew by 20,186 bytes. Keep about 6 KB headroom.
-          # The integrated incoming partial ties add 37,951 bytes on macOS
-          # (6,426,486 -> 6,464,437). Applying that delta to the 6,419,338-byte
-          # Linux baseline projects 6,457,289 bytes; use provisional headroom
-          # until the current Linux CI run measures the integrated artifact.
-          test "$size" -le 6465000
+          # Two 2/4 accompaniment patterns measured 6,452,656 bytes on Linux.
+          # Incoming partial ties measured 6,462,118 on their earlier base,
+          # 42,780 above the 6,419,338-byte hairpin baseline. The integrated
+          # macOS build measures 6,466,437 versus 6,405,305 without partial ties.
+          # This combined budget is provisional pending Linux CI measurement.
+          test "$size" -le 6521000
 
   renderer-benchmark:
     name: Renderer performance budget

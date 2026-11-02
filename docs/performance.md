@@ -6,7 +6,7 @@ and ten measured iterations per case, then reports the lower median together wit
 architecture, and an optional CPU label:
 
 ```bash
-ACORDE_BENCH_CPU="Apple_M4" \\
+ACORDE_BENCH_CPU="Apple_M4" \
   cargo run --release --locked -p acorde-render-svg --example benchmark
 ```
 
@@ -22,8 +22,8 @@ The analysis corpus is deterministic but its latency is host-measured. Record re
 its pinned manifest, fingerprint, and an explicit CPU label:
 
 ```bash
-cargo run --release --locked -p acorde-cli -- benchmark benchmarks/analysis.json \\
-  --fail-on-mismatch --expected-fingerprint fnv1a64-b3b4b222fa7349e8 \\
+cargo run --release --locked -p acorde-cli -- benchmark benchmarks/analysis.json \
+  --fail-on-mismatch --expected-fingerprint fnv1a64-b3b4b222fa7349e8 \
   --timing-repetitions 10 --cpu-label "Apple M4"
 ```
 

@@ -1,41 +1,35 @@
 # Documentation guide
 
-This directory records public contracts and their evidence. It describes current `main`; a release
-claim also needs its tag, CI, registry, and release artifact. The latest published release is
-[`v1.3.8`](https://github.com/kent-tokyo/acorde/releases/tag/v1.3.8); follow the migration notes
-before selecting a version.
+The latest published release is [v1.3.8](https://github.com/kent-tokyo/acorde/releases/tag/v1.3.8).
+These documents generally describe the repository's current `main`; features listed under
+[Unreleased](../CHANGELOG.md#unreleased) require a build from that revision or a later release.
+For a release claim, check its tag, CI, registry, and artifacts separately.
 
-## Start here
+## Choose a task
 
-| Need | Document |
+| Task | Start here |
 |---|---|
-| Supported notation and known loss | [Notation coverage](notation-coverage.md) |
-| Upgrade impact and release history | [Migration notes](migrations.md), [`CHANGELOG.md`](../CHANGELOG.md) |
-| Format checks and reports | [Interchange evidence](interchange-evidence.md) |
-| Browser/WASM host | [Browser contract](browser-rendering.md), [browser checks](browser-support.md) |
-| Written accompaniment chord symbols | [Authored chord annotation](authored-chords.md) |
-| Extract or propose positioned harmony | [Chord plans and proposals](chord-plans.md) |
-| Compare arrangements by musical position | [Musical position comparison](musical-position-diff.md) |
-| Print/PDF host | [Print layout](print-layout.md), [page SVG](print-svg-contract.md), [PDF export](pdf-export.md) |
+| Check supported notation and format loss | [Notation coverage](notation-coverage.md), [interchange evidence](interchange-evidence.md) |
+| Upgrade an existing integration | [Migration notes](migrations.md), [changelog](../CHANGELOG.md) |
+| Embed in a browser or reduce WASM size | [Browser contract](browser-rendering.md), [browser checks](browser-support.md), [viewer](wasm-viewer-profile.md) and [playback-only](wasm-playback-profile.md) profiles |
+| Generate print pages or PDFs | [Print layout](print-layout.md), [page SVG](print-svg-contract.md), [PDF export](pdf-export.md) |
+| Schedule playback or render audio | [Playback evidence](playback-evidence.md), [soundfont crate](../crates/soundfont/README.md) |
+| Work with written or proposed chords | [Authored chords](authored-chords.md), [chord plans](chord-plans.md), [musical position comparison](musical-position-diff.md) |
+| Arrange for accordion | [Reduction](accordion-reduction.md), [guided arrangement](accordion-guided-arrangement.md), [layers](accordion-layered-arrangement.md), [preset contract](accordion-preset-contract.md) |
+| Review an OMR proposal | [Proposal contract](omr-proposal-contract.md), [provider matrix](omr-license-matrix.md), [validation boundary](omr-validation.md) |
 
-## Verification and evidence
+## Evidence and maintenance
 
-- [Scorecard](scorecard.md) is the conservative implementation inventory.
-- [External interoperability](external-interoperability-evidence.md) and
-  [analysis evidence](external-analysis-evidence.md) are version-pinned observations, not parity
-  or quality scores.
-- [Performance](performance.md), [visual regression](visual-regression.md),
-  [fixture policy](../tests/fixtures/README.md), and [security](security/README.md) document
-  reproducible local and safety checks.
+[Scorecard](scorecard.md) is a conservative implementation inventory. The
+[Verovio engraving baseline](verovio-engraving-baseline.md),
+[playback comparisons](playback-evidence.md),
+[external interoperability](external-interoperability-evidence.md), and
+[analysis evidence](external-analysis-evidence.md) record bounded, versioned observations;
+they are not general parity or quality scores. Older measurements and release notes are split
+into [archive files](archive/) and linked from their original headings.
 
-## Optional OMR boundary
-
-[OMR proposal contract](omr-proposal-contract.md), [provider matrix](omr-license-matrix.md), and
-[validation boundary](omr-validation.md) describe the review-first PNG-to-proposal adapter. It is
-not a general score-recognition or accuracy claim.
-
-## Maintenance
-
-Keep one canonical page per contract: release history in `CHANGELOG.md`, consumer actions in
-`migrations.md`, and measurements in their evidence file. Local checks do not establish external
-support, audio quality, or publication quality.
+[Performance](performance.md), [visual regression](visual-regression.md),
+[fixture policy](../tests/fixtures/README.md), and [security](security/README.md) describe
+reproducible checks and their boundaries. Keep the changelog for releases, migration notes for
+consumer actions, and evidence files for measurements. A local check does not establish browser,
+audio, publication, or external-format compatibility on its own.
