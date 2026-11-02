@@ -1640,6 +1640,102 @@ mod tests {
     }
 
     #[test]
+    fn gp7_slide_articulations_survive_and_unknown_details_are_diagnosed() {
+        let input = GPIF.replace(
+            "<Note id=\"3\"><Properties>",
+            "<Note id=\"3\"><RightFingering>p</RightFingering><LeftFingering>Z</LeftFingering><Vibrato>Wide</Vibrato><Properties><Property name=\"Slide\"><Flags>127</Flags></Property><Property name=\"Tapped\"><Enable/></Property><Property name=\"LeftHandTapped\"><Enable/></Property>",
+        );
+        assert_ne!(input, GPIF);
+        let report = parse_gp_with_report(&archive(&input)).expect("GP7 imports");
+        let note = &report.score.parts[0].staves[0].measures[0].voices[0][2];
+        for mark in [
+            Articulation::Falloff,
+            Articulation::Doit,
+            Articulation::Scoop,
+            Articulation::Plop,
+            Articulation::Tap,
+            Articulation::LeftHandTap,
+            Articulation::Vibrato,
+        ] {
+            assert!(note.articulations.contains(&mark), "missing {mark:?}");
+        }
+        for code in [
+            "gp.unsupported-slide-type",
+            "gp.unsupported-right-hand-fingering",
+            "gp.unsupported-fingering",
+        ] {
+            assert!(
+                report.diagnostics.iter().any(|d| d.code == code),
+                "missing {code}: {:?}",
+                report.diagnostics
+            );
+        }
+    }
+
+    #[test]
+    fn gp7_drum_kit_articulation_uses_declared_midi_key_and_reports_map_loss() {
+        let input = GPIF.replace(
+            "<ShortName>Gt</ShortName>",
+            "<ShortName>Gt</ShortName><InstrumentSet><Type>drumKit</Type><Elements><Element><Articulations><Articulation><OutputMidiNumber>42</OutputMidiNumber></Articulation></Articulations></Element></Elements></InstrumentSet>",
+        ).replace("<Note id=\"2\">", "<Note id=\"2\"><InstrumentArticulation>0</InstrumentArticulation>");
+        let report = parse_gp_with_report(&archive(&input)).expect("GP7 drum kit imports");
+        assert!(
+            report
+                .diagnostics
+                .iter()
+                .any(|d| d.code == "gp.drum-kit" && d.is_loss())
+        );
+        let staff = &report.score.parts[0].staves[0];
+        assert_eq!(staff.presentation.kind, StaffKind::Percussion);
+        assert!(staff.tablature.is_none());
+        assert!(
+            staff
+                .measures
+                .iter()
+                .flat_map(|m| &m.voices)
+                .flatten()
+                .any(|note| {
+                    note.is_unpitched && note.pitches.iter().any(|pitch| pitch.to_midi() == 42)
+                })
+        );
+    }
+
+    #[test]
+    fn gp7_adjacent_alternate_endings_keep_numbers_and_boundaries() {
+        let input = GPIF
+            .replace(
+                "<Bars>0</Bars>",
+                "<AlternateEndings>1 2</AlternateEndings><Bars>0</Bars>",
+            )
+            .replace(
+                "<Bars>1</Bars>",
+                "<AlternateEndings>1 2</AlternateEndings><Bars>1</Bars>",
+            )
+            .replace(
+                "<Bars>2</Bars>",
+                "<AlternateEndings>3</AlternateEndings><Bars>2</Bars>",
+            );
+        let score = parse_gp(&archive(&input)).expect("GP7 alternate endings import");
+        let measures = &score.parts[0].staves[0].measures;
+        let first = measures[0].volta.as_ref().expect("first ending begins");
+        let second = measures[1].volta.as_ref().expect("first ending ends");
+        let third = measures[2].volta.as_ref().expect("second ending");
+        assert_eq!(
+            (first.number, first.kind.as_str(), first.numbers.as_slice()),
+            (1, "begin", &[1, 2][..])
+        );
+        assert_eq!(
+            (
+                second.number,
+                second.kind.as_str(),
+                second.numbers.as_slice()
+            ),
+            (1, "end", &[1, 2][..])
+        );
+        assert_eq!((third.number, third.kind.as_str()), (3, "begin_end"));
+    }
+
+    #[test]
     fn gp7_archive_imports_tracks_tab_and_techniques() {
         let report = parse_gp_with_report(&archive(GPIF)).expect("GP7 archive parses");
         let score = &report.score;

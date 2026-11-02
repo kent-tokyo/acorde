@@ -85,6 +85,166 @@ pub(crate) struct PrintRowPlacement<'a> {
     pub canvas_height_px: f32,
 }
 
+/// Reserve inter-staff space for a hairpin and notes on the adjacent staff.
+/// The bound is conservative over the span's measures; print and screen use the same gap.
+pub(crate) fn required_hairpin_staff_gap(score: &Score, layout: &LayoutResult, base: f32) -> f32 {
+    let staff_refs = collect_staff_refs(score);
+    let mut required = base;
+    for span in &layout.spans {
+        let acorde_layout::SpanMark::Hairpin { start, end, .. } = span else {
+            continue;
+        };
+        let Some(note) = score
+            .parts
+            .get(start.part)
+            .and_then(|p| p.staves.get(start.staff))
+            .and_then(|s| s.measures.get(start.measure))
+            .and_then(|m| m.voices.get(start.voice))
+            .and_then(|v| v.get(start.note))
+        else {
+            continue;
+        };
+        let above = note.hairpin_above == Some(true);
+        let Some(index) = staff_refs
+            .iter()
+            .position(|&address| address == (start.part, start.staff))
+        else {
+            continue;
+        };
+        let neighbor = if above {
+            index.checked_sub(1)
+        } else {
+            index.checked_add(1)
+        };
+        let Some(&(neighbor_part, neighbor_staff)) = neighbor.and_then(|i| staff_refs.get(i))
+        else {
+            continue;
+        };
+        let (upper_part, upper_staff, lower_part, lower_staff) = if above {
+            (neighbor_part, neighbor_staff, start.part, start.staff)
+        } else {
+            (start.part, start.staff, neighbor_part, neighbor_staff)
+        };
+        let upper = &score.parts[upper_part].staves[upper_staff];
+        let lower = &score.parts[lower_part].staves[lower_staff];
+        let from = start.measure.min(end.measure);
+        let to = start.measure.max(end.measure).min(
+            upper
+                .measures
+                .len()
+                .max(lower.measures.len())
+                .saturating_sub(1),
+        );
+        if from > to {
+            continue;
+        }
+        let mut upper_edge = 1.2_f32;
+        let mut lower_extent: Option<f32> = None;
+        for measure_index in from..=to {
+            for (staff, upper_side) in [(upper, true), (lower, false)] {
+                let Some(measure) = staff.measures.get(measure_index) else {
+                    continue;
+                };
+                let clef = staff.measures[..=measure_index]
+                    .iter()
+                    .rev()
+                    .find_map(|measure| measure.clef.as_ref())
+                    .unwrap_or(&staff.clef);
+                let active_voices = measure
+                    .voices
+                    .iter()
+                    .filter(|voice| voice.iter().any(|note| !note.is_rest))
+                    .count();
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    let mut beat = 0.0;
+                    for note in voice {
+                        let note_clef = measure.clef_at(clef, beat);
+                        beat += note.beats();
+                        if note.is_rest || note.pitches.is_empty() {
+                            continue;
+                        }
+                        let Ok(clef_bottom) = geometry::clef_bottom_line(&note_clef) else {
+                            continue;
+                        };
+                        let positions: Vec<i32> = note
+                            .pitches
+                            .iter()
+                            .map(|pitch| {
+                                geometry::staff_position(&pitch.step, pitch.octave, clef_bottom)
+                            })
+                            .collect();
+                        let min = *positions.iter().min().unwrap_or(&0) as f32;
+                        let max = *positions.iter().max().unwrap_or(&0) as f32;
+                        let (_, offset_y) = note_placement_offsets_u(note);
+                        let has_stem = !matches!(
+                            note.duration,
+                            Duration::Whole | Duration::Breve | Duration::Longa
+                        );
+                        let stem_up = note.stem_up.unwrap_or_else(|| {
+                            if active_voices > 1 {
+                                voice_index.is_multiple_of(2)
+                            } else if note.beam != acorde_core::BeamState::None {
+                                !upper_side
+                            } else {
+                                stem_up_for_chord(&positions).unwrap_or(true)
+                            }
+                        });
+                        let flags: u8 = match note.duration {
+                            Duration::ThirtySecond => 3,
+                            Duration::SixtyFourth => 4,
+                            Duration::HundredTwentyEighth => 5,
+                            _ => 0,
+                        };
+                        let stem_extent = glyphs::DEFAULT_STEM_LEN_U
+                            + 0.75 * f32::from(flags.saturating_sub(2))
+                            + 0.3;
+                        if upper_side {
+                            let mut extent = if above {
+                                -min * 0.5 + 0.6 + offset_y
+                            } else {
+                                4.0 - min * 0.5 + offset_y
+                            };
+                            if has_stem && !stem_up {
+                                if !above {
+                                    extent += 0.75 * f32::from(flags.saturating_sub(2));
+                                }
+                                extent = extent.max(
+                                    -max * 0.5
+                                        + stem_extent
+                                        + if above { 0.0 } else { 0.8 }
+                                        + offset_y,
+                                );
+                            }
+                            upper_edge = upper_edge.max(extent);
+                        } else {
+                            let mut extent = if above {
+                                (max * 0.5 + 4.0 - offset_y).max(5.2)
+                            } else {
+                                max * 0.5 + 0.6 - offset_y
+                            };
+                            if has_stem && stem_up {
+                                if above {
+                                    extent += 0.75 * f32::from(flags.saturating_sub(2));
+                                }
+                                extent = extent.max(
+                                    min * 0.5 + stem_extent + if above { 0.8 } else { 0.0 }
+                                        - offset_y,
+                                );
+                            }
+                            lower_extent = Some(lower_extent.map_or(extent, |v| v.max(extent)));
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(extent) = lower_extent {
+            required = required
+                .max(upper_edge + 0.9 + extent - staff_height_u(score, lower_part, lower_staff));
+        }
+    }
+    required
+}
+
 pub(crate) fn print_row_metrics(
     score: &Score,
     layout: &LayoutResult,
@@ -105,7 +265,8 @@ pub(crate) fn print_row_metrics(
 
 pub(crate) fn print_staff_offsets(score: &Score, staff_gap: f32) -> Vec<(usize, f32, f32)> {
     let mut offset = 0.0;
-    collect_staff_refs(score)
+    let staff_refs = collect_staff_refs(score);
+    staff_refs
         .into_iter()
         .map(|(part, staff)| {
             let height = staff_height_u(score, part, staff);
@@ -237,12 +398,13 @@ pub(crate) fn build_svg_with_metadata_placement(
         Some(&RowEdges::from_layout(layout)),
     );
 
+    let staff_gap = required_hairpin_staff_gap(score, layout, config.staff_gap());
     let staff_heights_u: Vec<f32> = staff_refs
         .iter()
         .map(|&(part, staff)| staff_height_u(score, part, staff))
         .collect();
     let system_height_u: f32 = staff_heights_u.iter().sum::<f32>()
-        + (staff_refs.len().saturating_sub(1)) as f32 * config.staff_gap();
+        + (staff_refs.len().saturating_sub(1)) as f32 * staff_gap;
 
     let content_width = options.width - (left_margin_u + right_margin_u) * space;
     if !content_width.is_finite() || content_width <= 0.0 {
@@ -517,7 +679,7 @@ pub(crate) fn build_svg_with_metadata_placement(
             let mut y = row_top_y;
             for &staff_height in &staff_heights_u {
                 staff_y.push(y);
-                y += (staff_height + config.staff_gap()) * space;
+                y += (staff_height + staff_gap) * space;
             }
         }
         for (i, &(part, staff)) in staff_refs.iter().enumerate() {
@@ -2222,10 +2384,12 @@ fn content_margins(
                     .pitches
                     .iter()
                     .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, clef_bottom));
+                // The beam must clear the chord head nearest the beam, while the
+                // visible stem starts at the opposite outer head.
                 let outer = if stem_up {
-                    positions.min().unwrap_or(0)
-                } else {
                     positions.max().unwrap_or(0)
+                } else {
+                    positions.min().unwrap_or(0)
                 };
                 geometry::position_y(outer, 1.0) + note_placement_offsets_u(note).1
             })
@@ -4912,7 +5076,7 @@ fn plan_measure_beams(
             .map(|&i| {
                 let (clef_bottom, bottom_y) =
                     note_staff_frame(&notes[i], (own_bottoms[i], bottom_y), cross_frames);
-                note_attach_y(&notes[i], clef_bottom, group_stem_up, bottom_y, space)
+                note_beam_head_y(&notes[i], clef_bottom, group_stem_up, bottom_y, space)
                     + note_placement_offsets_u(&notes[i]).1 * space
             })
             .collect();
@@ -4943,14 +5107,21 @@ fn plan_measure_beams(
                 .map(|(&i, &stem_up)| {
                     let (clef_bottom, bottom_y) =
                         note_staff_frame(&notes[i], (own_bottoms[i], bottom_y), cross_frames);
-                    note_attach_y(&notes[i], clef_bottom, stem_up, bottom_y, space)
+                    note_beam_head_y(&notes[i], clef_bottom, stem_up, bottom_y, space)
                         + note_placement_offsets_u(&notes[i]).1 * space
                 })
                 .collect();
             for (&i, &stem_up) in valid_indices.iter().zip(&stem_ups) {
                 stem_dirs.insert(i, stem_up);
             }
-            beams::plan_kneed_beam_group(&durations, &group_xs, &attach_ys, &stem_ups, space)
+            beams::plan_kneed_beam_group(
+                &durations,
+                &group_xs,
+                &attach_ys,
+                &stem_ups,
+                space,
+                spans_staves,
+            )
         } else {
             beams::plan_beam_group(&durations, &group_xs, &attach_ys, group_stem_up, space)
         };
@@ -6087,6 +6258,7 @@ fn render_all_spans(
         score,
         layout,
         points,
+        beam_tip_points,
         staff_bottoms,
         width,
         left_margin_u,
@@ -6157,7 +6329,9 @@ fn render_all_spans(
         let hairpin_y = |row: usize, left: f32, right: f32, fallback: f32| {
             if matches!(span, SpanMark::Hairpin { .. }) {
                 spans::hairpin_baseline(
+                    score,
                     points,
+                    beam_tip_points,
                     staff_bottoms,
                     start,
                     row,
@@ -7341,6 +7515,17 @@ fn note_attach_y(
         positions.iter().copied().max().unwrap_or(0)
     };
     staff_bottom_y + geometry::position_y(outer, space)
+}
+
+/// The outer head closest to the beam, as opposed to the visible stem's starting head.
+fn note_beam_head_y(
+    note: &Note,
+    clef_bottom: i32,
+    stem_up: bool,
+    staff_bottom_y: f32,
+    space: f32,
+) -> f32 {
+    note_attach_y(note, clef_bottom, !stem_up, staff_bottom_y, space)
 }
 
 /// Return the rendered anchor point for a note, including authored placement offsets.
@@ -9763,6 +9948,34 @@ mod tests {
     };
     use acorde_layout::{LayoutConfig, SpanMark, compute_layout};
     use std::collections::HashMap;
+
+    #[test]
+    fn hairpin_gap_does_not_expand_without_an_adjacent_hairpin() {
+        let mut score = Score::new("ordinary", 120, 4, 4, 0, 1);
+        let mut lower = acorde_core::Staff::new(acorde_core::Clef::Bass);
+        let mut bar = Measure::empty(4, 4);
+        bar.voices[0] = vec![Note::new(Pitch::new(Step::A, 5), Duration::Half)];
+        lower.measures.push(bar);
+        score.parts[0].staves.push(lower);
+        let layout = compute_layout(&score, &LayoutConfig::default());
+        assert_eq!(
+            super::required_hairpin_staff_gap(&score, &layout, 10.0),
+            10.0
+        );
+        let notes = &mut score.parts[0].staves[0].measures[0].voices[0];
+        *notes = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Half),
+            Note::new(Pitch::new(Step::D, 4), Duration::Half),
+        ];
+        notes[0].hairpin_start = Some(HairpinKind::Crescendo);
+        notes[0].hairpin_above = Some(true);
+        notes[1].hairpin_end = true;
+        let layout = compute_layout(&score, &LayoutConfig::default());
+        assert_eq!(
+            super::required_hairpin_staff_gap(&score, &layout, 10.0),
+            10.0
+        );
+    }
 
     #[test]
     fn direction_beat_tracks_reflowed_note_spacing() {

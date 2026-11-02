@@ -346,7 +346,10 @@ fn decode_png(data: &[u8]) -> Result<GrayImage, Error> {
     if pixels > MAX_SOURCE_IMAGE_PIXELS {
         return Err(Error::TooManyPixels(pixels));
     }
-    let mut buffer = vec![0; reader.output_buffer_size()];
+    let output_size = reader
+        .output_buffer_size()
+        .ok_or(png::DecodingError::LimitsExceeded)?;
+    let mut buffer = vec![0; output_size];
     let output = reader.next_frame(&mut buffer)?;
     if output.bit_depth != BitDepth::Eight {
         return Err(Error::UnsupportedColor);

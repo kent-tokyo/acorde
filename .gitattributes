@@ -3,3 +3,4 @@ tests/fixtures/*.abc text eol=lf
 tests/fixtures/*.mei text eol=lf
 tests/fixtures/*.musicxml text eol=lf
 tests/fixtures/*.mscx text eol=lf
+tests/fixtures/*.json text eol=lf

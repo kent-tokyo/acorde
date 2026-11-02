@@ -414,7 +414,7 @@ pub(crate) fn parse_musicxml_collecting(
     // stops one. Settled at the direction's end, when its `<staff>` is known.
     let mut pending_direction_wedge: Option<Option<HairpinKind>> = None;
     // Hairpins waiting for the next note of their staff, and the voice each one began in.
-    let mut staff_hairpin_starts: HashMap<usize, HairpinKind> = HashMap::new();
+    let mut staff_hairpin_starts: HashMap<usize, (HairpinKind, Option<bool>)> = HashMap::new();
     let mut open_hairpin_voices: HashMap<usize, usize> = HashMap::new();
     // The latest note of each (staff, voice), where a wedge stop lands.
     let mut last_voice_notes: HashMap<(usize, usize), NoteAddr> = HashMap::new();
@@ -2062,6 +2062,11 @@ pub(crate) fn parse_musicxml_collecting(
                         }
                         pending_sound_tempo = None;
                         pending_metronome = None;
+                        let hairpin_above = match pending_direction_placement.as_deref() {
+                            Some("above") => Some(true),
+                            Some("below") => Some(false),
+                            _ => None,
+                        };
                         pending_direction_placement = None;
                         pending_direction_position_beats = None;
                         pending_direction_offset_x = None;
@@ -2075,7 +2080,8 @@ pub(crate) fn parse_musicxml_collecting(
                         pending_section_break = false;
                         match pending_direction_wedge.take() {
                             Some(Some(kind)) => {
-                                staff_hairpin_starts.insert(pending_direction_staff, kind);
+                                staff_hairpin_starts
+                                    .insert(pending_direction_staff, (kind, hairpin_above));
                             }
                             // A stop ends the hairpin on the latest note of the voice it began
                             // in (or of the staff), where layout pairs the two.
@@ -3027,10 +3033,11 @@ pub(crate) fn parse_musicxml_collecting(
                                         note.tuplet_boundary = note_tuplet_boundary;
                                     }
                                     if !note.is_grace
-                                        && let Some(kind) =
+                                        && let Some((kind, above)) =
                                             staff_hairpin_starts.remove(&target_staff_index)
                                     {
                                         note.hairpin_start = Some(kind);
+                                        note.hairpin_above = above;
                                         open_hairpin_voices.insert(target_staff_index, voice_index);
                                     }
                                     if let Some(cs) = pending_chord.take() {
