@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+- Improve beam clearance for chords and refine two-note beam slopes using
+  Verovio comparisons. Two-staff pairs account for secondary beams, mixed
+  durations, stem attachment, and available clearance in SVG and print.
+
+- MSCX/MSCZ import accepts partial forward moves between directions after a
+  backward voice location, without inserting rests or moving later notes.
+  Notes and rests at an unresolved backward position still fail explicitly;
+  the existing direction-position loss diagnostic remains.
+
+## 1.3.8 - 2026-11-02
+
+- **Compatibility.** Rust 1.89 is now the workspace minimum. Explicit accidentals,
+  hidden time signatures, and shared dynamics add public model fields or variants;
+  see the migration notes before updating exhaustive Rust matches or struct literals.
+- SVG engraving improves slur clearance around stems and beams, simultaneous-voice
+  alignment, and grace-note placement. Some dense or multi-part collisions remain open.
+- MusicXML import and playback preserve timed pedal changes and dynamics; measured
+  single-note tremolo and shared fermata timing are supported. MuseScore instrument
+  channels and supported tie locations are retained.
+- Update png to 0.18.1, zip to 9.1.3, harumi to 1.23.8, uuid to 1.29.0, and
+  rustysynth to 1.3.8.
+
+- **MSRV.** The workspace minimum supported Rust version is now 1.89. The lockfile
+  updates `uuid` to 1.29.0.
+
 - Offline render manifests preserve pedal controls attached to rests, including
   swing timing. Hosts can explicitly coalesce identical shared unisons while
   retaining each source address; ordinary playback remains independent.

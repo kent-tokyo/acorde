@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "acorde"
-version = "1.3.7"
+version = "1.3.8"
 dependencies = [
  "acorde-core",
  "acorde-io",
@@ -15,7 +15,7 @@ dependencies = [
 
 [[package]]
 name = "acorde-analysis"
-version = "1.3.7"
+version = "1.3.8"
 dependencies = [
  "acorde-core",
  "serde",
@@ -25,7 +25,7 @@ dependencies = [
 
 [[package]]
 name = "acorde-cli"
-version = "1.3.7"
+version = "1.3.8"
 dependencies = [
  "acorde-analysis",
  "acorde-core",
@@ -42,7 +42,7 @@ dependencies = [
 
 [[package]]
 name = "acorde-core"
-version = "1.3.7"
+version = "1.3.8"
 dependencies = [
  "serde",
  "serde_json",
@@ -52,7 +52,7 @@ dependencies = [
 
 [[package]]
 name = "acorde-io"
-version = "1.3.7"
+version = "1.3.8"
 dependencies = [
  "acorde-core",
  "flate2",
@@ -67,7 +67,7 @@ dependencies = [
 
 [[package]]
 name = "acorde-layout"
-version = "1.3.7"
+version = "1.3.8"
 dependencies = [
  "acorde-core",
  "serde",
@@ -77,7 +77,7 @@ dependencies = [
 
 [[package]]
 name = "acorde-omr"
-version = "1.3.7"
+version = "1.3.8"
 dependencies = [
  "acorde-core",
  "acorde-io",
@@ -88,7 +88,7 @@ dependencies = [
 
 [[package]]
 name = "acorde-pdf"
-version = "1.3.7"
+version = "1.3.8"
 dependencies = [
  "acorde-core",
  "acorde-io",
@@ -101,7 +101,7 @@ dependencies = [
 
 [[package]]
 name = "acorde-render-svg"
-version = "1.3.7"
+version = "1.3.8"
 dependencies = [
  "acorde-core",
  "acorde-io",
@@ -113,7 +113,7 @@ dependencies = [
 
 [[package]]
 name = "acorde-soundfont"
-version = "1.3.7"
+version = "1.3.8"
 dependencies = [
  "acorde-core",
  "lewton",
@@ -124,7 +124,7 @@ dependencies = [
 
 [[package]]
 name = "acorde-wasm"
-version = "1.3.7"
+version = "1.3.8"
 dependencies = [
  "acorde-analysis",
  "acorde-core",
@@ -248,12 +248,6 @@ name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
-
-[[package]]
-name = "bitflags"
-version = "1.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
 name = "bitflags"
@@ -639,9 +633,9 @@ dependencies = [
 
 [[package]]
 name = "harumi"
-version = "1.23.7"
+version = "1.23.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "759253088ca33e8456d4af32fd8e00638ab6ae8bb2ce725d76ed4cebd58dfa4d"
+checksum = "68b52b00ac88327edc154bbc576ca0aee290463c16329010089485ce526e2cef"
 dependencies = [
  "aes",
  "getrandom",
@@ -774,7 +768,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d43f64cb8c0d673ff84245a6de9e0172c0cc05dc5dd9d263660b5b4a02b6c4ae"
 dependencies = [
  "aes",
- "bitflags 2.13.2",
+ "bitflags",
  "brotli-decompressor",
  "cbc",
  "chrono",
@@ -863,7 +857,7 @@ version = "0.31.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf20d2fde8ff38632c426f1165ed7436270b44f199fc55284c38276f9db47c3d"
 dependencies = [
- "bitflags 2.13.2",
+ "bitflags",
  "cfg-if",
  "cfg_aliases",
  "libc",
@@ -932,11 +926,11 @@ checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 
 [[package]]
 name = "png"
-version = "0.17.16"
+version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82151a2fc869e011c153adc57cf2789ccb8d9906ce52c0b39a6b5697749d7526"
+checksum = "60769b8b31b2a9f263dae2776c37b1b28ae246943cf719eb6946a1db05128a61"
 dependencies = [
- "bitflags 1.3.2",
+ "bitflags",
  "crc32fast",
  "fdeflate",
  "flate2",
@@ -1056,9 +1050,9 @@ checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 
 [[package]]
 name = "rustysynth"
-version = "1.3.7"
+version = "1.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2fafc9b46be0b8ad0a15bb17406e34b4602987c90d12509ca71710ab545b40f"
+checksum = "fa4bcfea87b1b7f7a4c3eecc18934a88943b0cd3c16b69965aed94ffa4868954"
 
 [[package]]
 name = "same-file"
@@ -1301,9 +1295,9 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "uuid"
-version = "1.26.1"
+version = "1.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ef6dac1e96601b4fb3acccccff2139741fcb757cb9a36089bf5be91cfb285ce"
+checksum = "4a0e2d11620c50695fe12bbbfde96b3477fe606e7284c22d505c12ce51214514"
 dependencies = [
  "getrandom",
  "js-sys",
@@ -1543,9 +1537,9 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "9.1.0"
+version = "9.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2886b00003a72c4ccee3f42cfc34908d33b2508a74d827dc2a4244706475c704"
+checksum = "1156b39d142a34b999c2310a50455e0cb3760bf7efad0122f796d813bee26ccb"
 dependencies = [
  "crc32fast",
  "flate2",

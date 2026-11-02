@@ -59,13 +59,13 @@ jobs:
           python3 -B scripts/validate_print_corpus.py --check-only
 
   msrv:
-    name: MSRV (Rust 1.88)
+    name: MSRV (Rust 1.89)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # pinned toolchain action
         with:
-          toolchain: 1.88.0
+          toolchain: 1.89.0
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       - name: Check workspace at the declared MSRV
         run: cargo check --workspace --all-features --locked
@@ -217,12 +217,18 @@ jobs:
           # increases the measured integrated artifact to 6,365,662 bytes
           # (+6,625 bytes). An initial tie-location build measured
           # 6,375,508 bytes on Linux CI, 9,846 bytes above that build.
-          # Authored hairpin placement and inter-staff collision clearance
-          # measured 6,398,198 bytes in Linux CI, 22,690 bytes above the
-          # tie-location build. Keep approximately 6 KB headroom.
-          # Integration with voice alignment measured 6,416,401 bytes on
-          # Linux CI for commit 4f184b6. Retain about 6 KB of headroom.
-          test "$size" -le 6423000
+          # Simultaneous voice alignment with deferred measure text measured
+          # 6,389,699 bytes in Linux CI, 14,191 bytes above the tie-location
+          # build. Keep approximately 6 KB headroom for the integrated artifact.
+          # Linux CI measured 6,394,235 bytes on eff6367 and 6,408,264
+          # bytes with only zip 9.1.3 changed (b4c0b7a): +14,029 bytes.
+          # The current uuid-updated baseline measured 6,395,262 bytes;
+          # allow for that observed increase plus roughly 6 KB headroom.
+          # Hairpin placement and adjacent-staff clearance add 20,186 bytes
+          # locally (6,406,300 -> 6,426,486 bytes on macOS). Applied to the
+          # current Linux beam baseline (6,411,653 bytes), this projects
+          # 6,431,839 bytes; keep provisional headroom until Linux CI measures it.
+          test "$size" -le 6440000
 
   renderer-benchmark:
     name: Renderer performance budget
