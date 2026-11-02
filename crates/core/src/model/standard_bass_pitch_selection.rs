@@ -84,6 +84,25 @@ pub fn arrange_standard_bass_with_pitch_selection(
     options: &StandardBassArrangementOptions,
     selections: &[MelodyPitchSelection],
 ) -> SelectedPitchArrangementResult {
+    arrange_selected_inner(score, options, selections, None)
+}
+
+/// Select authored melody pitches and arrange with explicit physical button locations.
+pub fn arrange_standard_bass_located_with_pitch_selection(
+    score: &Score,
+    options: &StandardBassArrangementOptions,
+    selections: &[MelodyPitchSelection],
+    instrument: &super::standard_bass_button_layout::LocatedStandardBassProfile,
+) -> SelectedPitchArrangementResult {
+    arrange_selected_inner(score, options, selections, Some(instrument))
+}
+
+fn arrange_selected_inner(
+    score: &Score,
+    options: &StandardBassArrangementOptions,
+    selections: &[MelodyPitchSelection],
+    instrument: Option<&super::standard_bass_button_layout::LocatedStandardBassProfile>,
+) -> SelectedPitchArrangementResult {
     if !super::validate::validate(score).is_valid() {
         return failure(
             options,
@@ -297,7 +316,12 @@ pub fn arrange_standard_bass_with_pitch_selection(
             *count -= 1;
         }
     }
-    let mut arrangement = arrange_standard_bass(&projected, options);
+    let mut arrangement = match instrument {
+        Some(instrument) => super::standard_bass_arrangement::arrange_standard_bass_located(
+            &projected, options, instrument,
+        ),
+        None => arrange_standard_bass(&projected, options),
+    };
     if arrangement.score.is_some() {
         for mapping in &mut arrangement.source_pitches {
             let addr = &mapping.source;
