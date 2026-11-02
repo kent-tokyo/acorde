@@ -91,7 +91,7 @@ pub fn arrange_standard_bass_find_buttons(
     selections: &[MelodyPitchSelection],
     policy: &StandardBassTransitionPolicy,
 ) -> ScreenedStandardBassResult {
-    find_buttons(score, options, selections, policy, false)
+    find_buttons(score, options, selections, policy, false, None)
 }
 
 /// Find a button path that retains the same bass MIDI pitch and chord pitch
@@ -104,7 +104,29 @@ pub fn arrange_standard_bass_find_voicings(
     selections: &[MelodyPitchSelection],
     policy: &StandardBassTransitionPolicy,
 ) -> ScreenedStandardBassResult {
-    find_buttons(score, options, selections, policy, true)
+    find_buttons(score, options, selections, policy, true, None)
+}
+
+/// Search located button alternatives after explicit melody selection. With
+/// `allow_voicing_changes`, alternatives must retain the same bass MIDI and
+/// chord pitch classes; otherwise every sounding MIDI note must match. Search
+/// limits, approximate positions and performer review still apply.
+pub fn find_located_standard_bass_path(
+    score: &Score,
+    options: &StandardBassArrangementOptions,
+    selections: &[MelodyPitchSelection],
+    instrument: &super::standard_bass_button_layout::LocatedStandardBassProfile,
+    policy: &StandardBassTransitionPolicy,
+    allow_voicing_changes: bool,
+) -> ScreenedStandardBassResult {
+    find_buttons(
+        score,
+        options,
+        selections,
+        policy,
+        allow_voicing_changes,
+        Some(instrument),
+    )
 }
 
 fn find_buttons(
@@ -113,8 +135,16 @@ fn find_buttons(
     selections: &[MelodyPitchSelection],
     policy: &StandardBassTransitionPolicy,
     allow_voicing_changes: bool,
+    instrument: Option<&super::standard_bass_button_layout::LocatedStandardBassProfile>,
 ) -> ScreenedStandardBassResult {
-    let base = arrange_standard_bass_with_pitch_selection(score, options, selections);
+    let base = match instrument {
+        Some(instrument) => {
+            super::standard_bass_pitch_selection::arrange_standard_bass_located_with_pitch_selection(
+                score, options, selections, instrument,
+            )
+        }
+        None => arrange_standard_bass_with_pitch_selection(score, options, selections),
+    };
     let initial = screen_existing_standard_bass(base.clone(), options, policy);
     if initial.arrangement.arrangement.score.is_some()
         || initial
@@ -164,8 +194,22 @@ fn find_buttons(
             ) else {
                 return initial;
             };
-            let Ok(all) = standard_bass_candidates(&options.profile, &request) else {
-                return initial;
+            let all = if let Some(instrument) = instrument {
+                match super::standard_bass_button_layout::located_standard_bass_candidates(
+                    instrument,
+                    chord,
+                    options.allow_chord_omissions,
+                    options.allow_chord_additions,
+                    None,
+                ) {
+                    Ok(found) => found.into_iter().map(|item| item.candidate).collect(),
+                    Err(_) => return initial,
+                }
+            } else {
+                match standard_bass_candidates(&options.profile, &request) {
+                    Ok(found) => found,
+                    Err(_) => return initial,
+                }
             };
             let mut sounding = action.candidate.chord_midi.clone();
             sounding.sort_unstable();

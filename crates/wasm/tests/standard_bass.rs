@@ -150,3 +150,47 @@ fn selected_melody_uses_located_buttons_and_survives_mscz() {
     };
     assert_eq!(fingerprint(&score), fingerprint(&decoded));
 }
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn located_path_search_preserves_selected_melody_through_repeat_and_mscz() {
+    use acorde_core::{Score, to_playback_events};
+    let source =
+        acorde_wasm::parse_abc("X:1\nM:4/4\nL:1/4\nQ:1/4=120\nK:C\n|:[Cc]4|d4:|\n").unwrap();
+    let profile = serde_json::json!({"bass_buttons":[{"id":"C","position":0,"midi":36},{"id":"G far","position":5,"midi":43},{"id":"G near","position":1,"midi":43}],"chord_buttons":[{"id":"C major","position":0,"midi":[60,64,67]},{"id":"G far major","position":5,"midi":[67,71,74]},{"id":"G near major","position":1,"midi":[67,71,74]}],"max_distance":0});
+    let instrument = serde_json::json!({"profile":profile,"locations":[{"id":"C","row":"fundamental","column":0},{"id":"G far","row":"fundamental","column":1},{"id":"G near","row":"fundamental","column":8},{"id":"C major","row":"major","column":0},{"id":"G far major","row":"major","column":1},{"id":"G near major","row":"major","column":8}]});
+    let options = serde_json::json!({"melody_part":0,"melody_staff":0,"melody_voice":0,"allow_source_omissions":true,"chords":[{"measure_index":0,"offset_beats":0,"chord":{"root":"C","kind":"major"}},{"measure_index":1,"offset_beats":0,"chord":{"root":"G","kind":"major"}}],"profile":profile,"allow_chord_omissions":false,"allow_chord_additions":false});
+    let selection = serde_json::json!([{"source":{"part":0,"staff":0,"measure":0,"voice":0,"note":0},"pitch_index":1}]);
+    let policy = serde_json::json!({"max_position_delta":1,"min_attack_interval_ms":2000});
+    let result: serde_json::Value = serde_json::from_str(
+        &acorde_wasm::find_located_standard_bass_path(
+            &source,
+            &options.to_string(),
+            &selection.to_string(),
+            &instrument.to_string(),
+            &policy.to_string(),
+            false,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let actions = result["transitions"].as_array().unwrap();
+    assert_eq!(
+        actions
+            .iter()
+            .map(|t| t["bass_button_id"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        ["C", "G near", "C", "G near"]
+    );
+    let score: Score =
+        serde_json::from_value(result["arrangement"]["arrangement"]["score"].clone()).unwrap();
+    let archive = acorde_wasm::serialize_mscz(&serde_json::to_string(&score).unwrap()).unwrap();
+    let decoded: Score = serde_json::from_str(&acorde_wasm::parse_mscz(&archive).unwrap()).unwrap();
+    let fingerprint = |s: &Score| {
+        to_playback_events(s, &Default::default())
+            .into_iter()
+            .map(|e| (e.pitch_midi, e.time_beats, e.duration_beats))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(fingerprint(&score), fingerprint(&decoded));
+}
