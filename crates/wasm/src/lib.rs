@@ -1784,6 +1784,16 @@ pub fn suggest_chord_plans(score_json: &str, request_json: &str) -> Result<Strin
         .map_err(|error| js_err(format!("chord proposals serialization failed: {error}")))
 }
 
+/// Assess each proposed harmony against the strict built-in preset engine.
+#[wasm_bindgen]
+pub fn assess_chord_presets(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::ChordProposalRequest =
+        parse_json(request_json, "chord proposal", MAX_CHORD_PLAN_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::assess_chord_presets(&score, &request))
+        .map_err(|error| js_err(format!("chord preset assessment serialization failed: {error}")))
+}
+
 /// Replay a persisted chord proposal through an independently selected preset.
 #[wasm_bindgen]
 pub fn arrange_from_chord_proposal(
@@ -2437,6 +2447,9 @@ mod tests {
         let native_proposals = serde_json::to_value(acorde_core::suggest_chord_plans(&score, &native_request)).unwrap();
         assert_eq!(wasm_proposals, native_proposals);
         assert_eq!(wasm_proposals["candidates"][0]["id"], "provided-v1");
+        let wasm_assessment: serde_json::Value = serde_json::from_str(&assess_chord_presets(&input, &serde_json::to_string(&native_request).unwrap()).unwrap()).unwrap();
+        let native_assessment = serde_json::to_value(acorde_core::assess_chord_presets(&score, &native_request)).unwrap();
+        assert_eq!(wasm_assessment, native_assessment);
         let resolved = wasm_proposals["candidates"][0]["resolved"].to_string();
         let replay: serde_json::Value = serde_json::from_str(&arrange_from_chord_proposal(&input, &resolved, "held-chord").unwrap()).unwrap();
         assert!(replay["diagnostics"].as_array().unwrap().is_empty());

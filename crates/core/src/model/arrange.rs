@@ -23,7 +23,7 @@ use crate::Error;
 const ACCORDION_PROGRAM: u8 = 21;
 // Conservative default for the first guided chromatic-accordion preset. A later
 // instrument-specific contract can narrow or widen either hand explicitly.
-const GUIDED_RIGHT_HAND_RANGE: (i16, i16) = (48, 96);
+pub(super) const GUIDED_RIGHT_HAND_RANGE: (i16, i16) = (48, 96);
 const GUIDED_LEFT_HAND_RANGE: (i16, i16) = (36, 84);
 /// Onset/duration quantization grid — 64th-note resolution, the finest
 /// [`Duration`] unit the model supports.
