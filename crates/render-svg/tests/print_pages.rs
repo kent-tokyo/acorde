@@ -133,6 +133,172 @@ fn print_slur_considers_an_interior_down_stem() {
 }
 
 #[test]
+fn print_cross_staff_mixed_duration_keeps_backward_hook() {
+    let score = acorde_io::parse_musicxml(include_str!(
+        "fixtures/verovio_cross_staff_mixed_durations.musicxml"
+    ))
+    .unwrap();
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = &pages[0];
+    let beams: Vec<Vec<(f32, f32)>> = svg
+        .split(r#"class="acorde-beam" points=""#)
+        .skip(1)
+        .map(|fragment| {
+            fragment
+                .split('"')
+                .next()
+                .unwrap()
+                .split_whitespace()
+                .map(|point| {
+                    let (x, y) = point.split_once(',').unwrap();
+                    (x.parse().unwrap(), y.parse().unwrap())
+                })
+                .collect()
+        })
+        .collect();
+    let lines: Vec<_> = svg
+        .split(r#"class="acorde-staff-line""#)
+        .skip(1)
+        .take(2)
+        .map(|line| svg_attribute_f32(line, "y1"))
+        .collect();
+    assert_eq!(beams.len(), 2);
+    let space = (lines[0] - lines[1]).abs();
+    assert!((beams[1][1].0 - beams[1][0].0 + 1.25 * space).abs() < 0.02);
+}
+
+#[test]
+fn print_verovio_cross_staff_sixteenths_keep_parallel_beams() {
+    let score = acorde_io::parse_musicxml(include_str!(
+        "fixtures/verovio_cross_staff_sixteenths.musicxml"
+    ))
+    .unwrap();
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = &pages[0];
+    let tips: Vec<_> = svg
+        .split(r#"class="acorde-stem" x1=""#)
+        .skip(1)
+        .map(|stem| svg_attribute_f32(stem, "y2"))
+        .collect();
+    let lines: Vec<_> = svg
+        .split(r#"class="acorde-staff-line""#)
+        .skip(1)
+        .take(2)
+        .map(|line| svg_attribute_f32(line, "y1"))
+        .collect();
+    assert_eq!(svg.matches(r#"class="acorde-beam""#).count(), 2);
+    assert_eq!(tips.len(), 2);
+    let space = (lines[0] - lines[1]).abs();
+    assert!((tips[1] - tips[0] + 0.25 * space).abs() < 0.02, "{tips:?}");
+}
+
+#[test]
+fn print_verovio_cross_staff_musicxml_pair_has_a_sloped_beam() {
+    let score =
+        acorde_io::parse_musicxml(include_str!("fixtures/verovio_cross_staff_pair.musicxml"))
+            .unwrap();
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = &pages[0];
+    let tips: Vec<_> = svg
+        .split(r#"class="acorde-stem" x1=""#)
+        .skip(1)
+        .map(|stem| svg_attribute_f32(stem, "y2"))
+        .collect();
+    let lines: Vec<_> = svg
+        .split(r#"class="acorde-staff-line""#)
+        .skip(1)
+        .take(2)
+        .map(|line| svg_attribute_f32(line, "y1"))
+        .collect();
+    assert_eq!(tips.len(), 2);
+    let space = (lines[0] - lines[1]).abs();
+    assert!((tips[1] - tips[0] - 0.75 * space).abs() < 0.02, "{tips:?}");
+}
+
+#[test]
+fn print_cross_staff_chords_clear_the_beam() {
+    use acorde_core::{
+        BeamState, Clef, CrossStaff, Duration, Measure, Note, Part, Pitch, Staff, Step,
+    };
+    let mut score = Score::new("cross staff chords", 120, 2, 8, 0, 1);
+    let mut upper = Staff::new(Clef::Treble);
+    let mut lower = Staff::new(Clef::Bass);
+    upper.measures.push(Measure::empty(2, 8));
+    lower.measures.push(Measure::empty(2, 8));
+    let mut first = Note::new(Pitch::new(Step::C, 5), Duration::Eighth);
+    first.pitches.push(Pitch::new(Step::E, 5));
+    first.beam = BeamState::Begin;
+    let mut second = Note::new(Pitch::new(Step::G, 3), Duration::Eighth);
+    second.pitches.push(Pitch::new(Step::B, 3));
+    second.beam = BeamState::End;
+    second.cross_staff = Some(CrossStaff {
+        target_staff: 1,
+        target_voice: None,
+    });
+    upper.measures[0].voices[0] = vec![first, second];
+    lower.measures[0].voices[0] = vec![Note::rest(Duration::Quarter)];
+    let mut part = Part::new("P", "");
+    part.staves = vec![upper, lower];
+    score.parts = vec![part];
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = &pages[0];
+    let heads: Vec<_> = svg
+        .split(r#"class="acorde-notehead""#)
+        .skip(1)
+        .map(|head| svg_attribute_f32(head, "cy"))
+        .collect();
+    let tips: Vec<_> = svg
+        .split(r#"class="acorde-stem" x1=""#)
+        .skip(1)
+        .map(|stem| svg_attribute_f32(stem, "y2"))
+        .collect();
+    assert_eq!(heads.len(), 4);
+    assert_eq!(tips.len(), 2);
+    assert!(tips[0] > heads[0].max(heads[1]) && tips[1] < heads[2].min(heads[3]));
+    let staff_lines: Vec<_> = svg
+        .split(r#"class="acorde-staff-line""#)
+        .skip(1)
+        .take(2)
+        .map(|line| svg_attribute_f32(line, "y1"))
+        .collect();
+    let space = (staff_lines[0] - staff_lines[1]).abs();
+    assert!((tips[1] - tips[0] - 0.75 * space).abs() < 0.02, "{tips:?}");
+}
+
+#[test]
+fn print_two_note_beam_rise_respects_spacing() {
+    let score =
+        acorde_io::parse_musicxml(include_str!("fixtures/verovio_partial_stem_slur.musicxml"))
+            .unwrap();
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = &pages[0];
+    let stems: Vec<_> = svg.split(r#"class="acorde-stem" x1=""#).skip(1).collect();
+    let lines: Vec<_> = svg
+        .split(r#"class="acorde-staff-line""#)
+        .skip(1)
+        .take(2)
+        .map(|line| svg_attribute_f32(line, "y1"))
+        .collect();
+    assert_eq!(stems.len(), 2);
+    let space = (lines[0] - lines[1]).abs();
+    let tips = [
+        svg_attribute_f32(stems[0], "y2"),
+        svg_attribute_f32(stems[1], "y2"),
+    ];
+    let distance = (svg_attribute_f32(stems[1], "x2") - svg_attribute_f32(stems[0], "x2")).abs();
+    let expected = if distance <= 3.0 * space { 0.25 } else { 0.5 };
+    assert!(
+        (tips[1] - tips[0] + expected * space).abs() < 0.02,
+        "{tips:?}"
+    );
+}
+
+#[test]
 fn print_beam_with_an_interior_peak_is_horizontal() {
     use acorde_core::{BeamState, Duration, Note, Pitch, Step};
     let mut score = Score::new("beam contour", 120, 3, 8, 0, 1);
@@ -763,4 +929,214 @@ fn print_page_retains_quilter_publication_credits() {
     assert!(title_y - svg_attribute_f32(title, "font-size") > 0.0);
     assert!(movement_y - svg_attribute_f32(movement, "font-size") - title_y >= 4.0);
     assert!(movement_y < layout.pages[0].systems[0].top_mm * 4.0);
+}
+
+#[test]
+fn print_below_hairpin_clears_high_notes_and_stems_on_lower_staff() {
+    use acorde_core::{Clef, Duration, HairpinKind, Measure, Note, Pitch, Staff, Step};
+    let mut score = Score::new("grand staff wedge", 120, 4, 4, 0, 1);
+    let upper = &mut score.parts[0].staves[0].measures[0];
+    upper.voices[0] = vec![
+        Note::new(Pitch::new(Step::C, 4), Duration::Half),
+        Note::new(Pitch::new(Step::D, 4), Duration::Half),
+    ];
+    upper.voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+    upper.voices[0][0].hairpin_above = Some(false);
+    upper.voices[0][1].hairpin_end = true;
+    let mut lower = Staff::new(Clef::Bass);
+    let mut bar = Measure::empty(4, 4);
+    bar.voices[0] = vec![
+        Note::new(Pitch::new(Step::G, 5), Duration::Half),
+        Note::new(Pitch::new(Step::A, 5), Duration::Half),
+    ];
+    lower.measures.push(bar);
+    score.parts[0].staves.push(lower);
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = &pages[0];
+    let path = svg
+        .split(r#"class="acorde-hairpin""#)
+        .nth(1)
+        .unwrap()
+        .split_once(r#"d=""#)
+        .unwrap()
+        .1
+        .split('"')
+        .next()
+        .unwrap();
+    let coordinates: Vec<f32> = path
+        .split(['M', 'L', ',', ' '])
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    assert_eq!(coordinates.len(), 8);
+    let (left, right) = (
+        coordinates[0].min(coordinates[2]),
+        coordinates[0].max(coordinates[2]),
+    );
+    let (top, bottom) = (
+        coordinates[1]
+            .min(coordinates[3])
+            .min(coordinates[5])
+            .min(coordinates[7]),
+        coordinates[1]
+            .max(coordinates[3])
+            .max(coordinates[5])
+            .max(coordinates[7]),
+    );
+    let stems: Vec<_> = svg
+        .split(r#"class="acorde-stem""#)
+        .skip(1)
+        .map(|tag| {
+            (
+                svg_attribute_f32(tag, "x1"),
+                svg_attribute_f32(tag, "y1"),
+                svg_attribute_f32(tag, "y2"),
+            )
+        })
+        .collect();
+    assert_eq!(stems.len(), 4);
+    let mut checked = 0;
+    for &(x, y1, y2) in &stems[2..] {
+        if (left..=right).contains(&x) {
+            checked += 1;
+            assert!(
+                y1.max(y2) < top || y1.min(y2) > bottom,
+                "lower stem ({x}, {y1}, {y2}) crosses {coordinates:?}"
+            );
+        }
+    }
+    assert!(checked > 0);
+}
+
+#[test]
+fn print_above_hairpin_clears_low_stems_on_upper_staff() {
+    use acorde_core::{Clef, Duration, HairpinKind, Measure, Note, Pitch, Staff, Step};
+    let mut score = Score::new("above lower staff wedge", 120, 4, 4, 0, 1);
+    let upper = &mut score.parts[0].staves[0].measures[0];
+    upper.voices[0] = vec![
+        Note::new(Pitch::new(Step::C, 3), Duration::Half),
+        Note::new(Pitch::new(Step::D, 3), Duration::Half),
+    ];
+    for note in &mut upper.voices[0] {
+        note.stem_up = Some(false);
+    }
+    let mut lower = Staff::new(Clef::Bass);
+    let mut bar = Measure::empty(4, 4);
+    bar.voices[0] = vec![
+        Note::new(Pitch::new(Step::G, 3), Duration::Half),
+        Note::new(Pitch::new(Step::A, 3), Duration::Half),
+    ];
+    bar.voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+    bar.voices[0][0].hairpin_above = Some(true);
+    bar.voices[0][1].hairpin_end = true;
+    lower.measures.push(bar);
+    score.parts[0].staves.push(lower);
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = &pages[0];
+    let path = svg
+        .split(r#"class="acorde-hairpin""#)
+        .nth(1)
+        .unwrap()
+        .split_once(r#"d=""#)
+        .unwrap()
+        .1
+        .split('"')
+        .next()
+        .unwrap();
+    let p: Vec<f32> = path
+        .split(['M', 'L', ',', ' '])
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    assert_eq!(p.len(), 8);
+    let (left, right) = (p[0].min(p[2]), p[0].max(p[2]));
+    let (top, bottom) = (
+        p[1].min(p[3]).min(p[5]).min(p[7]),
+        p[1].max(p[3]).max(p[5]).max(p[7]),
+    );
+    let stems: Vec<_> = svg
+        .split(r#"class="acorde-stem""#)
+        .skip(1)
+        .map(|tag| {
+            (
+                svg_attribute_f32(tag, "x1"),
+                svg_attribute_f32(tag, "y1"),
+                svg_attribute_f32(tag, "y2"),
+            )
+        })
+        .collect();
+    assert_eq!(stems.len(), 4);
+    let mut checked = 0;
+    for &(x, y1, y2) in &stems[..2] {
+        if (left..=right).contains(&x) {
+            checked += 1;
+            assert!(
+                y1.max(y2) < top || y1.min(y2) > bottom,
+                "upper stem ({x}, {y1}, {y2}) crosses {p:?}"
+            );
+        }
+    }
+    assert!(checked > 0);
+}
+
+#[test]
+fn print_interstaff_hairpin_clearance_crosses_system_breaks() {
+    use acorde_core::{Clef, Duration, HairpinKind, Measure, Note, Pitch, Staff, Step};
+    let mut score = Score::new("cross-system interstaff wedge", 120, 4, 4, 0, 2);
+    for (index, measure) in score.parts[0].staves[0].measures.iter_mut().enumerate() {
+        measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        if index == 0 {
+            measure.voices[0][0].hairpin_start = Some(HairpinKind::Crescendo);
+        } else {
+            measure.voices[0][0].hairpin_end = true;
+        }
+    }
+    let mut lower = Staff::new(Clef::Bass);
+    for _ in 0..2 {
+        let mut bar = Measure::empty(4, 4);
+        bar.voices[0] = vec![Note::new(Pitch::new(Step::G, 5), Duration::Whole)];
+        lower.measures.push(bar);
+    }
+    score.parts[0].staves.push(lower);
+    let layout = compute_print_layout(
+        &score,
+        &PrintConfig {
+            measures_per_system: 1,
+            ..PrintConfig::default()
+        },
+    )
+    .unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = pages.join("");
+    let paths: Vec<Vec<f32>> = svg
+        .split(r#"class="acorde-hairpin""#)
+        .skip(1)
+        .map(|tag| {
+            tag.split_once(r#"d=""#)
+                .unwrap()
+                .1
+                .split('"')
+                .next()
+                .unwrap()
+                .split(['M', 'L', ',', ' '])
+                .filter_map(|s| s.parse().ok())
+                .collect()
+        })
+        .collect();
+    let heads: Vec<f32> = svg
+        .split(r#"class="acorde-notehead""#)
+        .skip(1)
+        .map(|tag| svg_attribute_f32(tag, "cy"))
+        .collect();
+    assert_eq!(paths.len(), 2);
+    assert_eq!(heads.len(), 4);
+    for (row, path) in paths.iter().enumerate() {
+        assert_eq!(path.len(), 8);
+        let bottom = path[1].max(path[3]).max(path[5]).max(path[7]);
+        assert!(
+            heads[row * 2 + 1] > bottom,
+            "system {row}: lower head {}, wedge {path:?}",
+            heads[row * 2 + 1]
+        );
+    }
 }

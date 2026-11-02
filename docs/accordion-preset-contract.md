@@ -43,8 +43,8 @@ New v1.3.6 preset configs use engine `1.3.6+arrangement-presets.2`. The engine
 marker changes with the workspace release; select the saved chords and preset
 again to create a v1.3.6 config before replaying a v1.3.5 result.
 
-New v1.3.7 preset configs use engine `1.3.7+arrangement-presets.2`. Reselect
-the saved chords and preset before replaying a v1.3.6 configuration.
+New v1.3.8 preset configs use engine `1.3.8+arrangement-presets.2`. Reselect
+the saved chords and preset before replaying an earlier configuration.
 Generated score and note IDs can differ between runs; note addresses, pitches,
 durations and musical timing are reproducible.
 
@@ -137,8 +137,8 @@ Save that config as JSON and pass it with the same source after re-parsing to
 `arrange_from_resolved_layers`. Its `v2:` fingerprint, contract version, and
 `arrangement-layers.1` engine version are validated before generation.
 For v1.3.6 the full marker is `1.3.6+arrangement-layers.1`. Reselect the saved
-free-layer options to create a v1.3.7 config with marker
-`1.3.7+arrangement-layers.1`.
+free-layer options to create a v1.3.8 config with marker
+`1.3.8+arrangement-layers.1`.
 Built-in preset configs continue to use `arrange_from_resolved_preset`; changing
 their options still returns `invalid-configuration`.
 

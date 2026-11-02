@@ -462,9 +462,10 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut in_line_body = false;
     let mut in_line_segment = false;
     let mut line_subtype: Option<String> = None;
+    let mut line_hairpin_above: Option<bool> = None;
     let mut line_has_next = false;
     let mut line_has_prev = false;
-    let mut pending_hairpin: [Option<HairpinKind>; 4] = [None; 4];
+    let mut pending_hairpin: [Option<(HairpinKind, Option<bool>)>; 4] = [None; 4];
     let mut pending_pedal: [bool; 4] = [false; 4];
     // A MuseScore trill line: the "tr" sign and its wavy line.
     let mut pending_trill: [bool; 4] = [false; 4];
@@ -942,6 +943,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 in_line_body = false;
                                 in_line_segment = false;
                                 line_subtype = None;
+                                line_hairpin_above = None;
                                 line_has_next = false;
                                 line_has_prev = false;
                             }
@@ -1103,12 +1105,16 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             if voice_backward_beats.abs() < 1e-9 {
                                 voice_backward_beats = 0.0;
                                 voice_has_backward_location = false;
-                            } else if numerator != 0 {
+                            } else if voice_backward_beats > 0.0 {
                                 return Err(Error::Xml(
                                     "MSCX location after a backward voice offset is unsupported"
                                         .into(),
                                 ));
                             }
+                            // MuseScore may visit several earlier directions before
+                            // returning to the note cursor. A partial forward step
+                            // is not a new rhythmic gap. Chord/Rest still reject a
+                            // cursor that has not returned to the note position.
                         } else {
                             let ticks = u32::try_from(numerator)
                                 .ok()
@@ -1128,6 +1134,17 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "subtype" if in_line_body && !in_line_segment => {
                         line_subtype = Some(t.to_string());
                     }
+                    "placement"
+                        if in_line_body
+                            && !in_line_segment
+                            && matches!(line_spanner, Some(MscxLineKind::HairPin)) =>
+                    {
+                        line_hairpin_above = match t {
+                            "above" => Some(true),
+                            "below" => Some(false),
+                            _ => None,
+                        };
+                    }
                     "Segment" if in_line_segment => {
                         in_line_segment = false;
                     }
@@ -1145,11 +1162,13 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             match kind {
                                 MscxLineKind::HairPin => {
                                     // MuseScore subtypes 1 and 3 are decrescendo hairpins/lines.
-                                    pending_hairpin[voice] =
-                                        Some(match line_subtype.as_deref().map(str::trim) {
+                                    pending_hairpin[voice] = Some((
+                                        match line_subtype.as_deref().map(str::trim) {
                                             Some("1" | "3") => HairpinKind::Decrescendo,
                                             _ => HairpinKind::Crescendo,
-                                        });
+                                        },
+                                        line_hairpin_above,
+                                    ));
                                 }
                                 MscxLineKind::Pedal => pending_pedal[voice] = true,
                                 MscxLineKind::Trill => pending_trill[voice] = true,
@@ -2224,8 +2243,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             crate::assign_note_verses(&mut note, std::mem::take(&mut chord_lyrics));
                             let v = chord_voice.min(3);
                             if !note.is_grace {
-                                if let Some(kind) = pending_hairpin[v].take() {
+                                if let Some((kind, above)) = pending_hairpin[v].take() {
                                     note.hairpin_start = Some(kind);
+                                    note.hairpin_above = above;
                                 }
                                 note.pedal_start |= std::mem::take(&mut pending_pedal[v]);
                                 if let Some(kind) = pending_ottava[v].take() {
@@ -2267,7 +2287,10 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         rest.hidden = rest_hidden;
                         let v = chord_voice.min(3);
                         // Lines may start on a rest (a hairpin under a rest before the entry).
-                        rest.hairpin_start = pending_hairpin[v].take();
+                        if let Some((kind, above)) = pending_hairpin[v].take() {
+                            rest.hairpin_start = Some(kind);
+                            rest.hairpin_above = above;
+                        }
                         rest.pedal_start = std::mem::take(&mut pending_pedal[v]);
                         rest.ottava_start = pending_ottava[v].take();
                         cur_voices[v].push(rest);
@@ -5562,6 +5585,63 @@ mod tests {
         assert!((voice[0].beats() - 1.0 / 3.0).abs() < 1e-9);
         let bad = xml.replace("1/12", "-1/12");
         assert!(parse_mscx(&bad).is_err());
+    }
+
+    #[test]
+    fn backward_direction_locations_can_advance_without_reaching_the_note_cursor() {
+        let xml = simple_mscx(
+            r#"<Measure><voice>
+            <Rest><durationType>whole</durationType></Rest>
+            <location><fractions>-7/8</fractions></location>
+            <Clef><concertClefType>F</concertClefType></Clef>
+            <location><fractions>3/8</fractions></location>
+            <Clef><concertClefType>G</concertClefType></Clef>
+            </voice></Measure>
+            <Measure><voice><Chord><durationType>quarter</durationType>
+            <Note><pitch>60</pitch><tpc>14</tpc></Note></Chord></voice></Measure>"#,
+        );
+        let score = parse_mscz(&zipped_mscx(&xml)).unwrap();
+        let voice = &score.parts[0].staves[0].measures[0].voices[0];
+        assert_eq!(voice.len(), 1, "directions must not insert rhythmic rests");
+        assert!(voice[0].is_rest);
+        assert_eq!(voice[0].beats(), 4.0);
+        let events = acorde_core::to_playback_events(&score, &Default::default());
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].time_beats, 4.0);
+        let report = crate::parse_mscx_with_report(&xml).unwrap();
+        assert!(
+            report
+                .diagnostics
+                .iter()
+                .any(|diagnostic| { diagnostic.code == "mscx.unsupported-voice-location" }),
+            "the existing direction-position loss must remain explicit"
+        );
+    }
+
+    #[test]
+    fn backward_direction_cursor_must_return_before_notes_or_rests() {
+        for element in [
+            "<Chord><durationType>quarter</durationType><Note><pitch>60</pitch><tpc>14</tpc></Note></Chord>",
+            "<Rest><durationType>quarter</durationType></Rest>",
+        ] {
+            let xml = simple_mscx(&format!(
+                "<Measure><voice><Rest><durationType>half</durationType></Rest>\
+                 <location><fractions>-1/2</fractions></location>\
+                 <location><fractions>1/4</fractions></location>{element}</voice></Measure>"
+            ));
+            assert!(parse_mscx(&xml).is_err());
+            let returned = xml.replace(
+                element,
+                &format!("<location><fractions>1/4</fractions></location>{element}"),
+            );
+            let score = parse_mscx(&returned).unwrap();
+            let voice = &score.parts[0].staves[0].measures[0].voices[0];
+            assert_eq!(voice.len(), 2);
+            assert_eq!(voice.iter().map(Note::beats).sum::<f64>(), 3.0);
+            let overshoot =
+                returned.replace("<fractions>1/4</fractions>", "<fractions>3/4</fractions>");
+            assert!(parse_mscx(&overshoot).is_err());
+        }
     }
 
     #[test]
