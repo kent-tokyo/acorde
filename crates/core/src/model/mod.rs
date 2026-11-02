@@ -22,5 +22,6 @@ pub mod repeat;
 pub mod scale;
 pub mod score;
 pub mod standard_bass;
+pub mod standard_bass_arrangement;
 pub mod structural_plan;
 pub mod validate;
