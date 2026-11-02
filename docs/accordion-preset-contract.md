@@ -268,3 +268,7 @@ selected again. The host still owns source IDs, sharing URLs, labels and UI.
 ### Positioned plans and instrument profiles
 
 `model::profiled_chord_plan::profile_chord_plan` (also exposed to WASM) checks each positioned chord against the supplied button inventory and returns options for `arrange_profiled_bass_pulse` only when every entry has a supported candidate. It checks harmony and timing-grid positions, not complete score coverage or physical playability; performer review is required. Candidate matching uses the combined pitch classes of a bass and chord button. The resulting bass pulse attacks them separately, so it does not claim the simultaneous harmony sounds throughout.
+
+### Simultaneous button annotations
+
+`model::standard_bass_annotations::arrange_standard_bass_with_annotations` and its WASM binding generate the existing simultaneous-button arrangement with a technique label formed from the two profile button IDs. Supply readable, instrument-specific IDs such as `C bass` and `Em chord`; IDs are not inferred fingering or physical reach. The original chord symbol remains in the score, and tied continuations do not add a new attack label. MusicXML exports the label as other technical text.

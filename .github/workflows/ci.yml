@@ -149,7 +149,7 @@ jobs:
             --out-dir ../../target/wasm-profiles/viewer \
             --no-default-features --features viewer
           declarations=target/wasm-profiles/viewer/acorde_wasm.d.ts
-          for binding in parse_abc parse_mscz compute_beams detect_chord extract_chord_plan suggest_chord_plans assess_chord_presets arrange_from_chord_proposal arrange_with_drone standard_bass_chord_candidates profile_chord_plan arrange_standard_bass arrange_standard_bass_with_pitch_selection arrange_standard_bass_screened arrange_standard_bass_find_buttons arrange_standard_bass_find_voicings arrange_profiled_bass_pulse render_score_svg render_print_page_svgs to_playback_events_ex serialize_mscz; do
+          for binding in parse_abc parse_mscz compute_beams detect_chord extract_chord_plan suggest_chord_plans assess_chord_presets arrange_from_chord_proposal arrange_with_drone standard_bass_chord_candidates profile_chord_plan arrange_standard_bass_with_annotations arrange_standard_bass arrange_standard_bass_with_pitch_selection arrange_standard_bass_screened arrange_standard_bass_find_buttons arrange_standard_bass_find_voicings arrange_profiled_bass_pulse render_score_svg render_print_page_svgs to_playback_events_ex serialize_mscz; do
             grep -q "^export function $binding(" "$declarations"
           done
           if grep -q '^export function parse_musicxml(' "$declarations"; then
