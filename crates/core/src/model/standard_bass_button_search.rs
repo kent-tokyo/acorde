@@ -2,6 +2,7 @@
 use std::collections::{BTreeSet, HashMap};
 
 use super::{
+    pitch::Pitch,
     playback::to_playback_events_bounded,
     score::{NoteAddr, Score},
     standard_bass::{
@@ -90,6 +91,29 @@ pub fn arrange_standard_bass_find_buttons(
     selections: &[MelodyPitchSelection],
     policy: &StandardBassTransitionPolicy,
 ) -> ScreenedStandardBassResult {
+    find_buttons(score, options, selections, policy, false)
+}
+
+/// Find a button path that retains the same bass MIDI pitch and chord pitch
+/// classes, while allowing different octave voicings. The returned score and
+/// button actions contain the actual selected MIDI pitches. Melody playback is
+/// checked again after the voicing change; all results need performer review.
+pub fn arrange_standard_bass_find_voicings(
+    score: &Score,
+    options: &StandardBassArrangementOptions,
+    selections: &[MelodyPitchSelection],
+    policy: &StandardBassTransitionPolicy,
+) -> ScreenedStandardBassResult {
+    find_buttons(score, options, selections, policy, true)
+}
+
+fn find_buttons(
+    score: &Score,
+    options: &StandardBassArrangementOptions,
+    selections: &[MelodyPitchSelection],
+    policy: &StandardBassTransitionPolicy,
+    allow_voicing_changes: bool,
+) -> ScreenedStandardBassResult {
     let base = arrange_standard_bass_with_pitch_selection(score, options, selections);
     let initial = screen_existing_standard_bass(base.clone(), options, policy);
     if initial.arrangement.arrangement.score.is_some()
@@ -145,11 +169,22 @@ pub fn arrange_standard_bass_find_buttons(
             };
             let mut sounding = action.candidate.chord_midi.clone();
             sounding.sort_unstable();
+            let sounding_classes: BTreeSet<_> = sounding.iter().map(|pitch| pitch % 12).collect();
             let mut choices = Vec::new();
             for candidate in all {
                 let mut pitches = candidate.chord_midi.clone();
                 pitches.sort_unstable();
-                if candidate.bass_midi != action.candidate.bass_midi || pitches != sounding {
+                let pitch_classes: BTreeSet<_> = pitches.iter().map(|pitch| pitch % 12).collect();
+                let mut unique = pitches.clone();
+                unique.push(candidate.bass_midi);
+                unique.sort_unstable();
+                unique.dedup();
+                if candidate.bass_midi != action.candidate.bass_midi
+                    || (!allow_voicing_changes && pitches != sounding)
+                    || (allow_voicing_changes && pitch_classes != sounding_classes)
+                    || unique.len() != pitches.len() + 1
+                    || unique.iter().any(|pitch| !(36..=84).contains(pitch))
+                {
                     continue;
                 }
                 let Some(bass) = options
@@ -178,7 +213,7 @@ pub fn arrange_standard_bass_find_buttons(
                 return fail(
                     initial,
                     "transition-search-limit",
-                    "too many same-sounding button combinations; narrow the instrument profile",
+                    "too many eligible button combinations; narrow the instrument profile",
                     Some(address.measure),
                 );
             }
@@ -274,8 +309,16 @@ pub fn arrange_standard_bass_find_buttons(
         Ok(false) => {
             return fail(
                 initial,
-                "no-same-sounding-button-path",
-                "no same-sounding button path met the specified movement limit",
+                if allow_voicing_changes {
+                    "no-equivalent-voicing-path"
+                } else {
+                    "no-same-sounding-button-path"
+                },
+                if allow_voicing_changes {
+                    "no permitted voicing path met the specified movement limit"
+                } else {
+                    "no same-sounding button path met the specified movement limit"
+                },
                 None,
             );
         }
@@ -283,17 +326,104 @@ pub fn arrange_standard_bass_find_buttons(
             return fail(
                 initial,
                 "transition-search-limit",
-                "bounded same-sounding button search reached its attempt limit",
+                "bounded button search reached its attempt limit",
                 None,
             );
         }
     }
+    // Compare the generated melody schedule before and after replacing bass
+    // voicings, including repeat expansion and tempo-dependent seconds.
+    let melody_signature = |score: &Score| {
+        to_playback_events_bounded(score, &Default::default()).map(|events| {
+            events
+                .into_iter()
+                .filter(|event| {
+                    event
+                        .source
+                        .as_ref()
+                        .is_some_and(|a| a.part == 0 && a.staff == 0 && a.voice == 0)
+                })
+                .map(|event| {
+                    (
+                        event.pitch_midi_cents,
+                        event.time_beats,
+                        event.duration_beats,
+                        event.time_secs,
+                        event.duration_secs,
+                    )
+                })
+                .collect::<Vec<_>>()
+        })
+    };
+    let before = if allow_voicing_changes {
+        Some(melody_signature(output))
+    } else {
+        None
+    };
     let mut updated = base;
-    for action in &mut updated.arrangement.actions {
+    let arrangement = &mut updated.arrangement;
+    let Some(updated_score) = arrangement.score.as_mut() else {
+        return initial;
+    };
+    for action in &mut arrangement.actions {
         let group = action_groups[&key(&action.target)];
         action.candidate = groups[group][selected[group].unwrap()].candidate.clone();
-        // Equivalent button candidates sound the identical MIDI pitches; do not
-        // alter score pitches, tied note identity, playback, or source mappings.
+        if allow_voicing_changes {
+            let address = &action.target;
+            let Some(note) = updated_score
+                .parts
+                .get_mut(address.part)
+                .and_then(|p| p.staves.get_mut(address.staff))
+                .and_then(|s| s.measures.get_mut(address.measure))
+                .and_then(|m| m.voices.get_mut(address.voice))
+                .and_then(|v| v.get_mut(address.note))
+            else {
+                return fail(
+                    initial,
+                    "transition-search-invalid",
+                    "generated action does not address a note",
+                    Some(address.measure),
+                );
+            };
+            // The generated accompaniment uses uniform note-level ties. A
+            // per-pitch representation would require explicit tie remapping.
+            if !note.pitch_tie_starts.is_empty()
+                || !note.pitch_tie_ends.is_empty()
+                || !note.pitch_accidentals.is_empty()
+                || !note.pitch_parentheses.is_empty()
+                || !note.pitch_fingerings.is_empty()
+            {
+                return fail(
+                    initial,
+                    "unsupported-voicing",
+                    "per-pitch accompaniment notation cannot be rewritten safely",
+                    Some(address.measure),
+                );
+            }
+            note.pitches = std::iter::once(action.candidate.bass_midi)
+                .chain(action.candidate.chord_midi.iter().copied())
+                .map(|midi| Pitch::from_midi(midi, false))
+                .collect();
+        }
+    }
+    if let Some(before) = before {
+        let after = melody_signature(updated_score);
+        if before.is_err() || after.is_err() || before.ok() != after.ok() {
+            return fail(
+                initial,
+                "melody-playback-changed",
+                "selected melody playback changed during voicing search",
+                None,
+            );
+        }
+        if !super::validate::validate(updated_score).is_valid() {
+            return fail(
+                initial,
+                "invalid-output",
+                "generated score failed validation after voicing search",
+                None,
+            );
+        }
     }
     screen_existing_standard_bass(updated, options, policy)
 }

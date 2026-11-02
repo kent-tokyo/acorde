@@ -108,6 +108,54 @@ fn playback_screen_matches_native_and_survives_mscz() {
         signature(found.arrangement.arrangement.score.as_ref().unwrap())
     );
 
+    // Different octave voicings must change accompaniment playback, not melody.
+    let mut voicing_options = search_options.clone();
+    voicing_options["profile"]["chord_buttons"][2]["midi"] = serde_json::json!([55, 59, 62]);
+    let exact: ScreenedStandardBassResult = serde_json::from_str(
+        &acorde_wasm::arrange_standard_bass_find_buttons(
+            &source_json,
+            &voicing_options.to_string(),
+            "[]",
+            r#"{"max_position_delta":1,"min_attack_interval_ms":2000}"#,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        exact.arrangement.arrangement.diagnostics[0].code,
+        "no-same-sounding-button-path"
+    );
+    let voiced: ScreenedStandardBassResult = serde_json::from_str(
+        &acorde_wasm::arrange_standard_bass_find_voicings(
+            &source_json,
+            &voicing_options.to_string(),
+            "[]",
+            r#"{"max_position_delta":1,"min_attack_interval_ms":2000}"#,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(
+        voiced.arrangement.arrangement.diagnostics.is_empty(),
+        "{:?}",
+        voiced.arrangement.arrangement.diagnostics
+    );
+    let voiced_score = voiced.arrangement.arrangement.score.unwrap();
+    let voiced_archive =
+        acorde_wasm::serialize_mscz(&serde_json::to_string(&voiced_score).unwrap()).unwrap();
+    let voiced_decoded: Score =
+        serde_json::from_str(&acorde_wasm::parse_mscz(&voiced_archive).unwrap()).unwrap();
+    assert_eq!(signature(&voiced_score), signature(&voiced_decoded));
+    let melody = |s: &Score| {
+        to_playback_events(s, &Default::default())
+            .into_iter()
+            .filter(|e| e.source.as_ref().is_some_and(|a| a.staff == 0))
+            .map(|e| (e.pitch_midi, e.time_beats, e.duration_beats))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(melody(&score), melody(&voiced_score));
+    assert_ne!(signature(&score), signature(&voiced_score));
+
     // The screened path also supports explicit pitch selection within chords.
     for (i, measure) in source.parts[0].staves[0].measures.iter_mut().enumerate() {
         measure.voices[0][0]
