@@ -975,6 +975,31 @@ pub(crate) fn build_svg_with_metadata_placement(
                             .strip_suffix("</g>")
                             .expect("measure group closes"),
                     );
+                    let measure = &score.parts[text.part].staves[text.staff].measures[text.measure];
+                    let above_escape = if shared_alignment
+                        && print_placement.is_none()
+                        && layout.rows.len() == 1
+                        && row.measure_indices.len() == 1
+                        && score.parts.len() == 1
+                        && score.parts[0].staves.len() == 1
+                        && score.parts[text.part].staves[text.staff]
+                            .tablature_at(text.measure)
+                            .is_none()
+                        && simple_above_text_escape(score, measure)
+                        && text.semantic_placements.is_empty()
+                    {
+                        let top = neighbor_heads
+                            .iter()
+                            .map(|&(_, y)| y)
+                            .chain(beam_tip_points.iter().filter_map(|(&(p, s, m, _, _), &y)| {
+                                (p == text.part && s == text.staff && m == text.measure)
+                                    .then_some(y)
+                            }))
+                            .fold(text.bottom_y - 4.0 * space, f32::min);
+                        Some((top - 2.0 * space, options.width))
+                    } else {
+                        None
+                    };
                     text_clear &= render_measure_text(
                         &mut body,
                         &score.parts[text.part].staves[text.staff].measures[text.measure],
@@ -992,6 +1017,7 @@ pub(crate) fn build_svg_with_metadata_placement(
                         &note_points,
                         &text.semantic_placements,
                         &neighbor_heads,
+                        above_escape,
                     )?;
                     body.push_str("</g>");
                 }
@@ -5241,11 +5267,91 @@ fn nearest_text_gap(x: f32, min: f32, max: f32, mut blocked: Vec<(f32, f32)>) ->
     }
 }
 
+/// Restrict vertical recovery to a score whose complete visible obstacles are known here.
+/// More complex notation and print layouts keep the established conservative fallback.
+fn simple_above_text_escape(score: &Score, measure: &Measure) -> bool {
+    if !score.spanners.is_empty()
+        || !score.texts.is_empty()
+        || !measure.harp_pedal_diagrams.is_empty()
+        || !measure.timed_pedals.is_empty()
+        || !measure.mid_clefs.is_empty()
+        || measure.measure_repeat.is_some()
+        || measure.tempo_ramp_to.is_some()
+        || measure.metronome_mark.is_some()
+        || measure.volta.is_some()
+    {
+        return false;
+    }
+    let entries = measure_text_entries(measure);
+    if entries.len() != 1
+        || entries[0].style != TextStyle::Expression
+        || entries[0]
+            .placement
+            .as_deref()
+            .is_some_and(|v| !v.eq_ignore_ascii_case("above"))
+    {
+        return false;
+    }
+    measure.voices.iter().flatten().all(|n| {
+        !n.is_rest
+            && !n.is_unpitched
+            && !n.hidden
+            && !n.is_grace
+            && !n.is_cue
+            && !n.grace_slash
+            && n.duration == Duration::Quarter
+            && n.dot_count == 0
+            && n.pitches.len() == 1
+            && n.pitches[0].alter == 0
+            && n.pitches[0].microtone_cents == 0
+            && n.pitch_accidentals.is_empty()
+            && n.pitch_parentheses.is_empty()
+            && n.beam == acorde_core::BeamState::None
+            && n.cross_staff.is_none()
+            && n.offset_x.unwrap_or(0.0) == 0.0
+            && n.relative_x.unwrap_or(0.0) == 0.0
+            && n.offset_y.unwrap_or(0.0) == 0.0
+            && n.relative_y.unwrap_or(0.0) == 0.0
+            && n.articulations.is_empty()
+            && n.dynamic.is_none()
+            && n.chord_symbol.is_none()
+            && n.lyric.is_none()
+            && n.additional_lyrics.is_empty()
+            && n.tuplet.is_none()
+            && n.tuplet_boundary.is_none()
+            && !n.tie_start
+            && !n.tie_end
+            && n.pitch_tie_starts.is_empty()
+            && n.pitch_tie_ends.is_empty()
+            && !n.slur_start
+            && !n.slur_end
+            && n.hairpin_start.is_none()
+            && !n.hairpin_end
+            && !n.pedal_start
+            && !n.pedal_end
+            && n.ottava_start.is_none()
+            && !n.ottava_end
+            && !n.glissando_start
+            && !n.glissando_end
+            && !n.trill_line_start
+            && !n.trill_line_end
+            && n.arpeggiate.is_none()
+            && n.tremolo_pair.is_none()
+            && n.technique_text.is_none()
+            && n.fingering.is_none()
+            && n.fingerings.is_empty()
+            && n.pitch_fingerings.is_empty()
+            && n.string_number.is_none()
+            && n.guitar_technique.is_none()
+            && n.guitar_bend_alter_cents.is_none()
+            && n.guitar_bend_curve.is_empty()
+    })
+}
+
 /// Render measure-level publication and navigation text after note content has been placed.
 ///
-/// Text stacking is intentionally kept separate from note and beam rendering: this gives later
-/// print-quality work one place to add font-independent collision policies without changing the
-/// event-coordinate pipeline.
+/// Text stacking is separate from note and beam rendering so collision policies can evolve
+/// without changing the event-coordinate pipeline.
 #[allow(clippy::too_many_arguments)]
 fn render_measure_text(
     body: &mut String,
@@ -5264,6 +5370,7 @@ fn render_measure_text(
     note_points: &HashMap<NoteKey, NotePoint>,
     resolved_annotations: &[acorde_layout::GlyphPlacement],
     neighbor_heads: &[(f32, f32)],
+    above_escape: Option<(f32, f32)>,
 ) -> Result<bool, RenderError> {
     let mut text_clear = true;
     let mut above_texts = 0usize;
@@ -5590,6 +5697,18 @@ fn render_measure_text(
                 blocked,
             ) {
                 placements[index].x_mm = candidate;
+            } else if let Some((safe_bottom, canvas_width)) = above_escape {
+                let candidate_y = safe_bottom - text.metrics.top_mm - text.metrics.height_mm;
+                let top = candidate_y + text.metrics.top_mm;
+                if top >= 0.0
+                    && candidate_y <= text.y_mm
+                    && text.x_mm >= x
+                    && text.x_mm + text.metrics.width_mm <= canvas_width
+                {
+                    placements[index].y_mm = candidate_y;
+                } else {
+                    text_clear = false;
+                }
             } else {
                 text_clear = false;
             }
@@ -9927,6 +10046,7 @@ mod tests {
             &std::collections::HashMap::new(),
             &[],
             &[(10.0, 138.0)],
+            None,
         )
         .unwrap();
         assert!(!clear);
@@ -10057,6 +10177,7 @@ mod tests {
             &note_points,
             &[],
             &[],
+            None,
         )
         .expect("positioned print direction renders");
         let text_x = body
@@ -10346,6 +10467,7 @@ mod tests {
             &HashMap::new(),
             &[obstacle],
             &[],
+            None,
         )
         .expect("measure text renders");
         let text_y = body
