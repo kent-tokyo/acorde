@@ -11,7 +11,12 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
-## Unreleased: standard-bass chord capability
+## v1.3.9: saved arrangement markers
+
+Preset and free-layer engine markers include the workspace version. Reselect saved chords, presets
+and layer options to produce 1.3.9 resolved configurations before replaying them.
+
+## v1.3.9: standard-bass chord capability
 
 Standard-bass preset and chord-plan capability checks now accept `dominant` (G7,
 D7, etc.) and reject `augmented` and `diminished` triads under the default model.
@@ -26,7 +31,7 @@ use the new profiled `bass-pulse` API or profile-based simplified arrangement
 and inspect the resulting button/action report. New profile API types are
 additive; no fields or variants were added to the existing public types.
 
-## Unreleased: driving accompaniment patterns
+## v1.3.9: driving accompaniment patterns
 
 `AccordionPattern::DrivingBassChord` and `AccordionPattern::DrivingBassChordLight`
 are new enum variants. Exhaustive Rust matches need updating, and older readers
@@ -34,7 +39,7 @@ cannot deserialize these new values. Existing configuration structures and
 preset IDs are unchanged. See the [preset contract](accordion-preset-contract.md)
 for timing, expression and standard-bass rate constraints.
 
-## Unreleased: 2/4 accompaniment patterns
+## v1.3.9: 2/4 accompaniment patterns
 
 `AccordionPattern::FineBassChord` and `AccordionPattern::Habanera` add enum
 variants. Rust callers matching `AccordionPattern` exhaustively must handle
@@ -42,7 +47,7 @@ both; old consumers cannot deserialize these new values. Existing preset IDs
 and their output are unchanged. See the [preset contract](accordion-preset-contract.md)
 for meter, pickup and chord-change constraints.
 
-## Unreleased: authored hairpin placement
+## v1.3.9: authored hairpin placement
 
 `Note.hairpin_above` records an explicit above/below hairpin position. Complete Rust `Note`
 struct literals need the new field; older score JSON defaults to `None`. MusicXML, MSCX and MEI
