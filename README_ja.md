@@ -3,15 +3,18 @@
 [![CI](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml)
 [![Codecov](https://codecov.io/gh/kent-tokyo/acorde/graph/badge.svg?branch=main)](https://app.codecov.io/gh/kent-tokyo/acorde)
 [![docs.rs](https://docs.rs/acorde/badge.svg)](https://docs.rs/acorde)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](README.md#license)
+[![crates.io](https://img.shields.io/crates/v/acorde.svg)](https://crates.io/crates/acorde)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/kent-tokyo/acorde)
 
 プラットフォーム非依存の Rust / WebAssembly 楽譜基盤ライブラリです。
 
 > **リリース注意:** v1.2.19 と v1.2.20 は `SvgRenderOptions` の公開フィールド追加により、
-> 完全な構造体リテラルを使う Rust 利用側をコンパイル不能にする場合があります。レンダラー設定APIを
+> 完全な構造体リテラルを使う Rust 利用側をコンパイル不能にする場合があります。レンダラー設定 API を
 > 導入する前に、互換性を回復した v1.3.0 へ更新してください。詳細は[移行メモ](docs/migrations.md)です。
 
-シリアライズ可能なスコアモデル、Undo/Redo可能な編集、範囲を明示した記譜入出力、論理レイアウト、
-決定的SVG、再生イベント、分析、WASMバインディングを提供します。
+シリアライズ可能なスコアモデル、Undo/Redo が可能な編集、範囲を明示した記譜入出力、論理レイアウト、
+決定的な SVG、再生イベント、分析、WASM バインディングを提供します。
 ライブラリ本体は同期・UI非依存で、ファイルを読み書きしません。
 
 ワークスペースの最小サポート Rust バージョン（MSRV）は **Rust 1.89** です。
@@ -38,7 +41,7 @@
 | `acorde-cli` | ファイル変換・検査CLI |
 | `acorde` | core、I/O、layoutのアンブレラクレート |
 
-SVGが必要な場合は `acorde-render-svg` を直接依存に追加します。アンブレラクレートは再エクスポートしません。
+SVG が必要な場合は `acorde-render-svg` を直接依存に追加します。アンブレラクレートは再エクスポートしません。
 
 ## 利用開始
 
@@ -48,26 +51,28 @@ acorde = "=1.3.8"
 acorde-render-svg = "=1.3.8"
 ```
 
-標準ではMusicXMLとMIDIが有効です。ABC、MEI、MSCZ/MSCX、Guitar Pro 3〜8入力は明示的に有効化します。
+標準では MusicXML と MIDI が有効です。ABC、MEI、MSCZ/MSCX、Guitar Pro 3〜8入力は明示的に有効化します。
 
 ```toml
 acorde = { version = "=1.3.8", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust
-use acorde_core::{Command, Score, ScoreEngine, SetTempoCmd};
+use acorde::core::{Command, ScoreEngine, SetTempoCmd};
 
-let mut engine = ScoreEngine::new();
-engine.apply(Command::SetTempo(SetTempoCmd { bpm: 120 }))?;
-engine.undo()?;
-let score: &Score = engine.score();
-# let _ = score;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut engine = ScoreEngine::new();
+    engine.apply(Command::SetTempo(SetTempoCmd { bpm: 144 }))?;
+    engine.undo()?;
+    println!("{} BPM", engine.score.settings.tempo_bpm);
+    Ok(())
+}
 ```
 
 ## 対応範囲と責務
 
 MusicXML/MXLが最も広い交換経路です。MIDI、ABC、MEI、MSCZ/MSCX、Guitar Pro 3〜8（`.gp3`/`.gp4`/`.gp5`/`.gpx`/`.gp`、入力のみ）は文書化した部分集合であり、
-完全ロスレス互換を主張しません。変換時の省略・正規化・意味差分は `ImportReport`、`ExportReport`、
+完全なロスレス互換は保証していません。変換時の省略・正規化・意味差分は `ImportReport`、`ExportReport`、
 `compatibility-report` で確認できます。
 
 acordeはスコア意味論、論理ジオメトリ、決定的SVG、ブラウザ/WASM契約を担当します。`acorde-pdf` は

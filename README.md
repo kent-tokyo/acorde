@@ -3,6 +3,9 @@
 [![CI](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kent-tokyo/acorde/actions/workflows/ci.yml)
 [![Codecov](https://codecov.io/gh/kent-tokyo/acorde/graph/badge.svg?branch=main)](https://app.codecov.io/gh/kent-tokyo/acorde)
 [![docs.rs](https://docs.rs/acorde/badge.svg)](https://docs.rs/acorde)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](README.md#license)
+[![crates.io](https://img.shields.io/crates/v/acorde.svg)](https://crates.io/crates/acorde)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/kent-tokyo/acorde)
 
 Platform-neutral Rust and WebAssembly score infrastructure.
 
@@ -56,13 +59,15 @@ acorde = { version = "=1.3.8", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust
-use acorde_core::{Command, Score, ScoreEngine, SetTempoCmd};
+use acorde::core::{Command, ScoreEngine, SetTempoCmd};
 
-let mut engine = ScoreEngine::new();
-engine.apply(Command::SetTempo(SetTempoCmd { bpm: 120 }))?;
-engine.undo()?;
-let score: &Score = engine.score();
-# let _ = score;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut engine = ScoreEngine::new();
+    engine.apply(Command::SetTempo(SetTempoCmd { bpm: 144 }))?;
+    engine.undo()?;
+    println!("{} BPM", engine.score.settings.tempo_bpm);
+    Ok(())
+}
 ```
 
 ## Format and host boundaries

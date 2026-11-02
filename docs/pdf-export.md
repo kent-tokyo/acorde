@@ -28,9 +28,10 @@ not change the score model, access the filesystem, or access printer APIs.
 
 This is not a claim of publication-ready engraving or parity with Verovio. The page SVG path
 rejects host glyphs, images, frames, color preservation, and crop marks. It relies on the caller's
-text font for PDF and has no OS print dialog. The OpenScore *Aloha Oe* A4 comparison in
-[`verovio-engraving-baseline.md`](verovio-engraving-baseline.md) still shows small lyrics and
-missing grand-staff braces in Acorde's output. `acorde-layout::compute_print_layout` remains the
+text font for PDF and has no OS print dialog. The historical OpenScore *Aloha Oe* A4 comparison in
+[the Verovio baseline](verovio-engraving-baseline.md) recorded small lyrics and an initially
+missing grand-staff brace; later fixture-specific changes improved both. Broader publication
+quality remains unverified. `acorde-layout::compute_print_layout` remains the
 source of truth for system and page planning.
 
 ## Compatibility
