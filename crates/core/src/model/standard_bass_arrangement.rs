@@ -92,7 +92,29 @@ pub fn arrange_standard_bass(
     score: &Score,
     options: &StandardBassArrangementOptions,
 ) -> StandardBassArrangementResult {
-    let mut result = arrange_standard_bass_inner(score, options);
+    let mut result = arrange_standard_bass_inner(score, options, None);
+    result.resolved_options = Some(options.clone());
+    result
+}
+
+/// Generate a simultaneous arrangement using caller-supplied button rows and columns.
+/// Candidate ordering accounts for previous written actions, but does not screen
+/// repeats, timing, or physical reach; performer review is still required.
+pub fn arrange_standard_bass_located(
+    score: &Score,
+    options: &StandardBassArrangementOptions,
+    instrument: &super::standard_bass_button_layout::LocatedStandardBassProfile,
+) -> StandardBassArrangementResult {
+    if instrument.profile != options.profile {
+        let mut result = reject(
+            "profile-mismatch",
+            "located and arrangement profiles must match",
+            None,
+        );
+        result.resolved_options = Some(options.clone());
+        return result;
+    }
+    let mut result = arrange_standard_bass_inner(score, options, Some(instrument));
     result.resolved_options = Some(options.clone());
     result
 }
@@ -100,6 +122,7 @@ pub fn arrange_standard_bass(
 fn arrange_standard_bass_inner(
     score: &Score,
     options: &StandardBassArrangementOptions,
+    instrument: Option<&super::standard_bass_button_layout::LocatedStandardBassProfile>,
 ) -> StandardBassArrangementResult {
     let Some(part) = score.parts.get(options.melody_part) else {
         return reject("melody-selection", "selected part does not exist", None);
@@ -277,18 +300,51 @@ fn arrange_standard_bass_inner(
                     Ok(request) => request,
                     Err(error) => return reject("unsupported-chord", error, Some(mi)),
                 };
-                let candidates = match standard_bass_candidates(&options.profile, &request) {
-                    Ok(candidates) => candidates,
-                    Err(error) => return reject("invalid-profile", error, Some(mi)),
+                let candidates = if let Some(instrument) = instrument {
+                    use super::standard_bass_button_layout::{
+                        PreviousStandardBassButtons, located_standard_bass_candidates,
+                    };
+                    let previous = current
+                        .as_ref()
+                        .map(|candidate| PreviousStandardBassButtons {
+                            bass_button_id: candidate.bass_button_id.clone(),
+                            chord_button_id: candidate.chord_button_id.clone(),
+                        });
+                    match located_standard_bass_candidates(
+                        instrument,
+                        chord,
+                        options.allow_chord_omissions,
+                        options.allow_chord_additions,
+                        previous.as_ref(),
+                    ) {
+                        Ok(found) => found.into_iter().map(|entry| entry.candidate).collect(),
+                        Err(error) => {
+                            return reject("invalid-located-profile-or-chord", error, Some(mi));
+                        }
+                    }
+                } else {
+                    match standard_bass_candidates(&options.profile, &request) {
+                        Ok(candidates) => candidates,
+                        Err(error) => return reject("invalid-profile", error, Some(mi)),
+                    }
                 };
-                current = candidates.into_iter().find(|candidate| {
-                    let mut pitches = candidate.chord_midi.clone();
-                    pitches.push(candidate.bass_midi);
-                    pitches.sort_unstable();
-                    pitches.dedup();
-                    pitches.len() == candidate.chord_midi.len() + 1
-                        && pitches.iter().all(|p| (36..=84).contains(p))
-                });
+                let selected = candidates
+                    .into_iter()
+                    .find(super::standard_bass_preset::candidate_fits_generated_range);
+                if let (Some(_), true, Some(old)) = (instrument, note.tie_end, current.as_ref()) {
+                    if selected.as_ref().is_none_or(|new| {
+                        new.bass_midi != old.bass_midi || new.chord_midi != old.chord_midi
+                    }) {
+                        return reject(
+                            "tied-button-change",
+                            "a tied accompaniment cannot change sounding buttons",
+                            Some(mi),
+                        );
+                    }
+                    // A tie is a continuation, not a new choice of physical buttons.
+                } else {
+                    current = selected;
+                }
                 if current.is_none() {
                     return reject(
                         "no-standard-bass-candidate",

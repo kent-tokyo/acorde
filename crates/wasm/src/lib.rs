@@ -1578,6 +1578,32 @@ pub fn arrange_profiled_bass_pulse(score_json: &str, options_json: &str) -> Resu
         .map_err(|error| js_err(format!("profiled bass-pulse serialization failed: {error}")))
 }
 
+/// Generate a simultaneous arrangement using explicit button rows and columns.
+#[wasm_bindgen]
+pub fn arrange_standard_bass_located(score_json: &str, options_json: &str, instrument_json: &str) -> Result<String, JsValue> {
+    use acorde_core::model::standard_bass_arrangement::{StandardBassArrangementOptions, arrange_standard_bass_located};
+    use acorde_core::model::standard_bass_button_layout::LocatedStandardBassProfile;
+    let score = score_from_json(score_json)?;
+    let options: StandardBassArrangementOptions = parse_json(options_json, "standard-bass options", MAX_OPTIONS_JSON_BYTES)?;
+    let instrument: LocatedStandardBassProfile = parse_json(instrument_json, "located standard-bass profile", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&arrange_standard_bass_located(&score, &options, &instrument))
+        .map_err(|error| js_err(format!("located standard-bass arrangement serialization failed: {error}")))
+}
+
+/// Generate a located arrangement and screen expanded playback transitions.
+#[wasm_bindgen]
+pub fn arrange_standard_bass_located_screened(score_json: &str, options_json: &str, instrument_json: &str, policy_json: &str) -> Result<String, JsValue> {
+    use acorde_core::model::standard_bass_arrangement::StandardBassArrangementOptions;
+    use acorde_core::model::standard_bass_button_layout::LocatedStandardBassProfile;
+    use acorde_core::model::standard_bass_transition::{StandardBassTransitionPolicy, arrange_standard_bass_located_screened};
+    let score = score_from_json(score_json)?;
+    let options: StandardBassArrangementOptions = parse_json(options_json, "standard-bass options", MAX_OPTIONS_JSON_BYTES)?;
+    let instrument: LocatedStandardBassProfile = parse_json(instrument_json, "located standard-bass profile", MAX_OPTIONS_JSON_BYTES)?;
+    let policy: StandardBassTransitionPolicy = parse_json(policy_json, "transition policy", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&arrange_standard_bass_located_screened(&score, &options, &instrument, &policy))
+        .map_err(|error| js_err(format!("screened located arrangement serialization failed: {error}")))
+}
+
 /// Find simultaneous candidates with caller-supplied button rows and columns.
 #[wasm_bindgen]
 pub fn located_standard_bass_candidates(profile_json: &str, chord_json: &str, previous_json: &str, allow_omissions: bool, allow_additions: bool) -> Result<String, JsValue> {

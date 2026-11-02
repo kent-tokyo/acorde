@@ -61,3 +61,49 @@ fn located_candidates_return_real_rows_and_seventh_omission() {
         serde_json::json!([2])
     );
 }
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn located_arrangement_exports_actual_seventh_button_sound() {
+    use acorde_core::model::standard_bass_arrangement::StandardBassArrangementResult;
+    use acorde_core::{Score, to_playback_events};
+    let source = acorde_wasm::parse_abc("X:1\nM:4/4\nL:1/4\nK:C\nC D E F|]\n").unwrap();
+    let profile = serde_json::json!({"bass_buttons":[{"id":"G","position":0,"midi":43}],"chord_buttons":[{"id":"G7","position":0,"midi":[67,71,77]},{"id":"Bdim","position":0,"midi":[71,74,77]}],"max_distance":0});
+    let instrument = serde_json::json!({"profile":profile,"locations":[{"id":"G","row":"fundamental","column":1},{"id":"G7","row":"seventh","column":1},{"id":"Bdim","row":"diminished","column":2}]});
+    let options = serde_json::json!({"melody_part":0,"melody_staff":0,"melody_voice":0,"allow_source_omissions":false,"chords":[{"measure_index":0,"offset_beats":0,"chord":{"root":"G","kind":"dominant"}}],"profile":profile,"allow_chord_omissions":true,"allow_chord_additions":false});
+    let result: StandardBassArrangementResult = serde_json::from_str(
+        &acorde_wasm::arrange_standard_bass_located(
+            &source,
+            &options.to_string(),
+            &instrument.to_string(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.actions[0].candidate.chord_button_id, "G7");
+    assert_eq!(result.actions[0].candidate.omitted_pitch_classes, [2]);
+    let policy = serde_json::json!({"max_position_delta":0,"min_attack_interval_ms":0});
+    let screened: serde_json::Value = serde_json::from_str(
+        &acorde_wasm::arrange_standard_bass_located_screened(
+            &source,
+            &options.to_string(),
+            &instrument.to_string(),
+            &policy.to_string(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(screened["transitions"][0]["chord_button_id"], "G7");
+    let score = result.score.unwrap();
+    let signature = |s: &Score| {
+        to_playback_events(s, &Default::default())
+            .into_iter()
+            .map(|e| (e.pitch_midi, e.time_beats, e.duration_beats))
+            .collect::<Vec<_>>()
+    };
+    let archive = acorde_wasm::serialize_mscz(&serde_json::to_string(&score).unwrap()).unwrap();
+    let restored: Score =
+        serde_json::from_str(&acorde_wasm::parse_mscz(&archive).unwrap()).unwrap();
+    assert_eq!(signature(&score), signature(&restored));
+}
