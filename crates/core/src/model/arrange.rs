@@ -68,6 +68,10 @@ pub enum AccordionPattern {
     WalkingBass,
     WaltzBassChord,
     WaltzAlternatingBassChord,
+    /// Four eighth-note slots in 2/4: root, chord, fifth, chord.
+    FineBassChord,
+    /// Dotted eighth, sixteenth, eighth, eighth in 2/4.
+    Habanera,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -343,6 +347,40 @@ fn guided_region(
                 }
             }
         }
+        AccordionPattern::FineBassChord | AccordionPattern::Habanera => {
+            let start = region_phase.pickup_tick.checked_add(start_tick)?;
+            let end = start.checked_add(ticks)?;
+            if !start.is_multiple_of(16) || !ticks.is_multiple_of(16) || end > 128 {
+                return None;
+            }
+            let boundaries: [u32; 5] = if pattern == AccordionPattern::Habanera {
+                [0, 48, 64, 96, 128]
+            } else {
+                [0, 32, 64, 96, 128]
+            };
+            let mut phase = start;
+            while phase < end {
+                let slot = boundaries
+                    .windows(2)
+                    .position(|w| phase >= w[0] && phase < w[1])?;
+                let run = end.min(boundaries[slot + 1]) - phase;
+                let (duration, dotted) = match run {
+                    16 => (Duration::Sixteenth, false),
+                    32 => (Duration::Eighth, false),
+                    48 => (Duration::Eighth, true),
+                    _ => return None,
+                };
+                let pitches = match slot {
+                    0 => vec![chord.bass_midi],
+                    2 => vec![chord.bass_midi + 7],
+                    _ => chord.chord_midi.clone(),
+                };
+                let mut note = guided_note(&pitches, duration);
+                note.dot_count = u8::from(dotted);
+                notes.push(note);
+                phase += run;
+            }
+        }
         AccordionPattern::WaltzBassChord | AccordionPattern::WaltzAlternatingBassChord => {
             let phase_start = region_phase.pickup_tick.checked_add(start_tick)?;
             if !phase_start.is_multiple_of(32) || !ticks.is_multiple_of(32) {
@@ -594,10 +632,34 @@ pub fn arrange_with_explicit_chords(
         AccordionPattern::WaltzBassChord | AccordionPattern::WaltzAlternatingBassChord
     );
     let has_waltz_pickup = is_waltz && length_ticks.first().is_some_and(|length| *length < 3 * 64);
+    let is_two_four_pattern = matches!(
+        options.pattern,
+        AccordionPattern::FineBassChord | AccordionPattern::Habanera
+    );
     let mut running_meter = score.settings.time_signature.clone();
     for (index, source_measure) in source_staff.measures.iter().enumerate() {
         if let Some(meter) = source_measure.time_sig.as_ref() {
             running_meter = meter.clone();
+        }
+        if is_two_four_pattern && (running_meter.numerator != 2 || running_meter.denominator != 4) {
+            return guided_error(
+                options,
+                "unsupported-meter",
+                "fine bass and habanera accompaniment require 2/4",
+                Some(index),
+            );
+        }
+        if is_two_four_pattern
+            && (length_ticks[index] > 128
+                || !length_ticks[index].is_multiple_of(16)
+                || (index > 0 && index + 1 < length_ticks.len() && length_ticks[index] < 128))
+        {
+            return guided_error(
+                options,
+                "unsupported-rhythm",
+                "2/4 accompaniment supports a short first pickup and short final bar on sixteenth-note boundaries",
+                Some(index),
+            );
         }
         if is_waltz && (running_meter.numerator != 3 || running_meter.denominator != 4) {
             return guided_error(
@@ -622,7 +684,9 @@ pub fn arrange_with_explicit_chords(
         // A fractional first pickup occupies the end of its nominal meter. Whole-beat
         // pickups retain the established measure-start phase for preset compatibility.
         let nine_eight = running_meter.numerator == 9 && running_meter.denominator == 8;
-        let pickup_phase_tick = if nine_eight && index == 0 && length_ticks[index] < 9 * 32 {
+        let pickup_phase_tick = if is_two_four_pattern && index == 0 && length_ticks[index] < 128 {
+            128 - length_ticks[index]
+        } else if nine_eight && index == 0 && length_ticks[index] < 9 * 32 {
             9 * 32 - length_ticks[index]
         } else if is_waltz && index == 0 && has_waltz_pickup {
             3 * 64 - length_ticks[index]
@@ -1285,6 +1349,19 @@ pub fn arrange_with_layers(
             options,
             "unsupported-swing",
             "notated swing needs an accompaniment layer",
+            None,
+        );
+    }
+    if notated_swing
+        && matches!(
+            options.accompaniment,
+            Some(AccordionPattern::FineBassChord | AccordionPattern::Habanera)
+        )
+    {
+        return layered_error(
+            options,
+            "unsupported-swing",
+            "fine bass and habanera require straight notation",
             None,
         );
     }
