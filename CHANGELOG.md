@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Add driving and lighter 4/4 bass/chord accompaniment options, with explicit
+  accent, articulation and standard-bass rate policies. New enum variants require
+  updates to exhaustive Rust matches; see the migration notes.
+
 - Add fine bass/chord and habanera 2/4 accompaniment presets. New `AccordionPattern`
   variants require updates to exhaustive Rust matches; see the migration notes.
 

@@ -239,6 +239,20 @@ const PRESETS: &[(
         true,
     ),
     (
+        "driving-bass-chord",
+        Some(AccordionPattern::DrivingBassChord),
+        AccordionMelodicVoice::Unchanged,
+        AccordionSwingPolicy::Straight,
+        false,
+    ),
+    (
+        "driving-bass-chord-light",
+        Some(AccordionPattern::DrivingBassChordLight),
+        AccordionMelodicVoice::Unchanged,
+        AccordionSwingPolicy::Straight,
+        false,
+    ),
+    (
         "fine-bass-chord",
         Some(AccordionPattern::FineBassChord),
         AccordionMelodicVoice::Unchanged,
@@ -1169,7 +1183,7 @@ mod tests {
     fn capability_ids_are_stable_and_unique() {
         let capabilities = accordion_preset_capabilities();
         assert_eq!(capabilities.contract_version, 1);
-        assert_eq!(capabilities.presets.len(), 17);
+        assert_eq!(capabilities.presets.len(), 19);
         let ids: std::collections::BTreeSet<_> = capabilities
             .presets
             .iter()

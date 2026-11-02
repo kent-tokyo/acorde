@@ -11,6 +11,14 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## Unreleased: driving accompaniment patterns
+
+`AccordionPattern::DrivingBassChord` and `AccordionPattern::DrivingBassChordLight`
+are new enum variants. Exhaustive Rust matches need updating, and older readers
+cannot deserialize these new values. Existing configuration structures and
+preset IDs are unchanged. See the [preset contract](accordion-preset-contract.md)
+for timing, expression and standard-bass rate constraints.
+
 ## Unreleased: 2/4 accompaniment patterns
 
 `AccordionPattern::FineBassChord` and `AccordionPattern::Habanera` add enum

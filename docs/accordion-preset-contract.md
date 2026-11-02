@@ -88,6 +88,29 @@ chords do not restart a slot. Other meters, shorter internal bars, finer
 positions, and notated-swing combinations return diagnostics. The standard
 bass chord restrictions apply as for existing presets.
 
+## Driving 4/4 accompaniment
+
+`driving-bass-chord` alternates a bass on each beat with a staccato chord on
+its eighth-note offbeat. Bass notes alternate the selected bass and its fifth
+within each two-beat cycle. The first beat of a complete bar has an accent;
+chord staccato shortens playback without changing written onset positions.
+`driving-bass-chord-light` is an unaccented quarter-note bass/chord pattern for
+lower-density comparison. Both names are also available as free-layer
+`accompaniment` values. They require 4/4 and straight notation; chord changes,
+pickups and short final bars must lie on eighth-note boundaries. A first pickup
+occupies the end of the nominal bar; a short final bar begins at its start.
+A changed chord rearticulates the current slot without resetting the two-beat
+phase; identical repeated chord symbols do not restart it.
+
+Standard bass uses the existing three-note chord and range restrictions. As a
+conservative configurable-by-pattern rate policy, it rejects score tempos or
+ramps exceeding 200 BPM for either pattern: a half-beat chord change can split
+a light-pattern quarter note, so the minimum possible attack spacing is 150 ms. This is a
+product constraint, not a universal assessment of a player's technique.
+Free bass is not subject to that rate policy. The check uses the written score tempo;
+a host-applied playback tempo override or multiplier must be checked by the host.
+Neither pattern changes tempo.
+
 ## Minimal browser flow
 
 ```js
@@ -155,6 +178,7 @@ free-layer options to create a v1.3.8 config with marker
 Built-in preset configs continue to use `arrange_from_resolved_preset`; changing
 their options still returns `invalid-configuration`.
 
+The free-layer shuffle accepts at most 12 accompaniment choices (including `null`).
 The free-layer shuffle takes an explicit chord `selection`, up to three
 `alternative_selections`, and allowed sets of accompaniment patterns, melodic
 voices, and swing policies. Put `null` in `allowed_accompaniments` to allow no

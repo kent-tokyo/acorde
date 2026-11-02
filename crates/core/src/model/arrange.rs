@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 
 use super::duration::Duration;
 use super::gm::instrument_range;
-use super::notation::{Barline, ChordSymbol, Clef, TupletBoundary, TupletInfo};
+use super::notation::{Articulation, Barline, ChordSymbol, Clef, TupletBoundary, TupletInfo};
 use super::pitch::Pitch;
 use super::score::{Measure, Note, NoteAddr, Part, Score, Staff};
 use crate::Error;
@@ -72,6 +72,10 @@ pub enum AccordionPattern {
     FineBassChord,
     /// Dotted eighth, sixteenth, eighth, eighth in 2/4.
     Habanera,
+    /// 4/4 eighth-note bass/chord movement with a downbeat accent and short chords.
+    DrivingBassChord,
+    /// Less dense, unaccented quarter-note comparison pattern in 4/4.
+    DrivingBassChordLight,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -381,6 +385,40 @@ fn guided_region(
                 phase += run;
             }
         }
+        AccordionPattern::DrivingBassChord | AccordionPattern::DrivingBassChordLight => {
+            let start = region_phase.pickup_tick.checked_add(start_tick)?;
+            let end = start.checked_add(ticks)?;
+            if !start.is_multiple_of(32) || !ticks.is_multiple_of(32) || end > 256 {
+                return None;
+            }
+            let driving = pattern == AccordionPattern::DrivingBassChord;
+            let slot_ticks = if driving { 32 } else { 64 };
+            let mut phase = start;
+            while phase < end {
+                let slot = phase / slot_ticks;
+                let run = (end - phase).min(slot_ticks - phase % slot_ticks);
+                let duration = match run {
+                    32 => Duration::Eighth,
+                    64 => Duration::Quarter,
+                    _ => return None,
+                };
+                let bass = slot.is_multiple_of(2);
+                let pitches = if bass {
+                    vec![chord.bass_midi + if driving && (slot / 2) % 2 == 1 { 7 } else { 0 }]
+                } else {
+                    chord.chord_midi.clone()
+                };
+                let mut note = guided_note(&pitches, duration);
+                if driving && phase == 0 {
+                    note.articulations.push(Articulation::Accent);
+                }
+                if driving && !bass {
+                    note.articulations.push(Articulation::Staccato);
+                }
+                notes.push(note);
+                phase += run;
+            }
+        }
         AccordionPattern::WaltzBassChord | AccordionPattern::WaltzAlternatingBassChord => {
             let phase_start = region_phase.pickup_tick.checked_add(start_tick)?;
             if !phase_start.is_multiple_of(32) || !ticks.is_multiple_of(32) {
@@ -636,10 +674,34 @@ pub fn arrange_with_explicit_chords(
         options.pattern,
         AccordionPattern::FineBassChord | AccordionPattern::Habanera
     );
+    let is_driving = matches!(
+        options.pattern,
+        AccordionPattern::DrivingBassChord | AccordionPattern::DrivingBassChordLight
+    );
     let mut running_meter = score.settings.time_signature.clone();
     for (index, source_measure) in source_staff.measures.iter().enumerate() {
         if let Some(meter) = source_measure.time_sig.as_ref() {
             running_meter = meter.clone();
+        }
+        if is_driving && (running_meter.numerator != 4 || running_meter.denominator != 4) {
+            return guided_error(
+                options,
+                "unsupported-meter",
+                "driving accompaniment requires 4/4",
+                Some(index),
+            );
+        }
+        if is_driving
+            && (length_ticks[index] > 256
+                || !length_ticks[index].is_multiple_of(32)
+                || (index > 0 && index + 1 < length_ticks.len() && length_ticks[index] < 256))
+        {
+            return guided_error(
+                options,
+                "unsupported-rhythm",
+                "driving accompaniment requires eighth-note-aligned first pickups, final bars and chord changes",
+                Some(index),
+            );
         }
         if is_two_four_pattern && (running_meter.numerator != 2 || running_meter.denominator != 4) {
             return guided_error(
@@ -684,7 +746,9 @@ pub fn arrange_with_explicit_chords(
         // A fractional first pickup occupies the end of its nominal meter. Whole-beat
         // pickups retain the established measure-start phase for preset compatibility.
         let nine_eight = running_meter.numerator == 9 && running_meter.denominator == 8;
-        let pickup_phase_tick = if is_two_four_pattern && index == 0 && length_ticks[index] < 128 {
+        let pickup_phase_tick = if is_driving && index == 0 && length_ticks[index] < 256 {
+            256 - length_ticks[index]
+        } else if is_two_four_pattern && index == 0 && length_ticks[index] < 128 {
             128 - length_ticks[index]
         } else if nine_eight && index == 0 && length_ticks[index] < 9 * 32 {
             9 * 32 - length_ticks[index]
@@ -1355,13 +1419,18 @@ pub fn arrange_with_layers(
     if notated_swing
         && matches!(
             options.accompaniment,
-            Some(AccordionPattern::FineBassChord | AccordionPattern::Habanera)
+            Some(
+                AccordionPattern::FineBassChord
+                    | AccordionPattern::Habanera
+                    | AccordionPattern::DrivingBassChord
+                    | AccordionPattern::DrivingBassChordLight
+            )
         )
     {
         return layered_error(
             options,
             "unsupported-swing",
-            "fine bass and habanera require straight notation",
+            "selected accompaniment requires straight notation",
             None,
         );
     }
@@ -1389,6 +1458,40 @@ pub fn arrange_with_layers(
             "the selected seventh harmony or melodic bass pattern requires free bass",
             None,
         );
+    }
+    if options.bass_mode == AccordionBassMode::StandardBass {
+        let max_tempo = match pattern {
+            AccordionPattern::DrivingBassChord | AccordionPattern::DrivingBassChordLight => {
+                Some(200)
+            }
+            _ => None,
+        };
+        if let Some(max_tempo) = max_tempo {
+            let mut tempo = score.settings.tempo_bpm;
+            for (index, measure) in score
+                .parts
+                .first()
+                .and_then(|p| p.staves.first())
+                .into_iter()
+                .flat_map(|s| &s.measures)
+                .enumerate()
+            {
+                tempo = measure.tempo.unwrap_or(tempo);
+                if tempo > max_tempo
+                    || measure
+                        .tempo_ramp_to
+                        .is_some_and(|target| target > max_tempo)
+                {
+                    return layered_error(
+                        options,
+                        "unsupported-standard-bass-rate",
+                        "standard bass requires at least 150 ms between pattern attacks at the score tempo",
+                        Some(index),
+                    );
+                }
+                tempo = measure.tempo_ramp_to.unwrap_or(tempo);
+            }
+        }
     }
     let base = arrange_with_explicit_chords(
         score,
