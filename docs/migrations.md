@@ -11,6 +11,21 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## Unreleased: standard-bass chord capability
+
+Standard-bass preset and chord-plan capability checks now accept `dominant` (G7,
+D7, etc.) and reject `augmented` and `diminished` triads under the default model.
+This is a behavioral compatibility change: saved selections using those triads
+may no longer generate a standard-bass preset. Select a supported harmony, an
+explicit instrument-profile arrangement, or free bass after reviewing the part.
+Major/minor-seventh chords remain unsupported by this default preset model.
+The default assumes all twelve bass roots and major, minor and dominant-seventh
+chord buttons, with an ideal four-note dominant seventh. It is a model, not a
+claim about a particular instrument. For actual rows, roots and omitted fifths,
+use the new profiled `bass-pulse` API or profile-based simplified arrangement
+and inspect the resulting button/action report. New profile API types are
+additive; no fields or variants were added to the existing public types.
+
 ## Unreleased: driving accompaniment patterns
 
 `AccordionPattern::DrivingBassChord` and `AccordionPattern::DrivingBassChordLight`

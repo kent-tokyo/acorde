@@ -290,7 +290,7 @@ fn repeats_ties_short_final_and_rate_ramps_are_preserved_or_diagnosed() {
 }
 
 #[test]
-fn standard_bass_rejects_seventh_chords_while_free_bass_accepts_them() {
+fn standard_bass_rejects_major_sevenths_while_free_bass_accepts_them() {
     let (score, mut selection) = input();
     selection.chords.truncate(1);
     selection.chords[0].chord =

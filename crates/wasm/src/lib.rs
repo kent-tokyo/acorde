@@ -1557,6 +1557,16 @@ pub fn arrange_standard_bass_find_voicings(score_json: &str, options_json: &str,
         .map_err(|error| js_err(format!("voicing search serialization failed: {error}")))
 }
 
+/// Generate a bass-pulse preset using an explicit standard-bass button profile.
+#[wasm_bindgen]
+pub fn arrange_profiled_bass_pulse(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    use acorde_core::model::standard_bass_preset::{arrange_profiled_bass_pulse, ProfiledBassPulseOptions};
+    let score = score_from_json(score_json)?;
+    let options: ProfiledBassPulseOptions = parse_json(options_json, "profiled bass-pulse options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&arrange_profiled_bass_pulse(&score, &options))
+        .map_err(|error| js_err(format!("profiled bass-pulse serialization failed: {error}")))
+}
+
 /// Find simultaneous standard-bass button combinations for an explicit chord and instrument profile.
 /// Results are reviewable candidates, not a score or a physical-playability guarantee.
 #[wasm_bindgen]
