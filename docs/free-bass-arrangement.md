@@ -41,3 +41,14 @@ must not interpret an unavailable candidate as proof of instrumental impossibili
 
 Inputs are limited to 4096 measures and 512 pitch/rest entries per measure to
 bound the overlap screening work. Larger inputs return `input-limit`.
+
+## WASM size evidence
+
+Linux CI's full web artifact measured 6,467,136 bytes at baseline
+`fa05ace027cb1a5f5369121e17b2b44eac446fbd` (run 41390407443,
+job 125100318558) and 6,514,678 bytes for the implementation at
+`4ea0fd439e162f52ad423aea0e0fc17f6d5a20a5` (run 41392194497,
+job 125105806769). The observed increase is 47,542 bytes (0.74%).
+The full-WASM regression cap is 6,521,000 bytes, preserving approximately
+6 KB of headroom. This is an explicit budget change for the new exported API;
+it is not evidence of reduced transfer size or faster startup.
