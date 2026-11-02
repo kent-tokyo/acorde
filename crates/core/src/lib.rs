@@ -74,6 +74,10 @@ pub use model::fragment::{
     ScoreFragmentMeasureAttributes, ScoreFragmentSelection, ScoreFragmentVoice,
     extract_score_fragment,
 };
+pub use model::free_bass::{
+    AccordionHandLimits, FreeBassDiagnostic, FreeBassOptions, FreeBassPitchMapping, FreeBassResult,
+    split_for_free_bass,
+};
 pub use model::gm::{drum_name, program_name};
 pub use model::harmony::{detect_chord, roman_numeral};
 pub use model::interval::{Interval, IntervalQuality};

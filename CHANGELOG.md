@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Add a lossless single-staff polyphony splitter for free-bass accordion in Rust and WASM, with declared hand limits, pitch provenance and explicit review requirements.
+
 - Add a conservative, explicitly keyed passing/neighbor-note insertion API for Rust and viewer WASM, with source mapping and diagnostics.
 
 - Add driving and lighter 4/4 bass/chord accompaniment options, with explicit
