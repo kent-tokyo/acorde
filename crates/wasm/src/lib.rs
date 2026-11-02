@@ -1620,6 +1620,23 @@ pub fn arrange_standard_bass_located_selected_screened(score_json: &str, options
         .map_err(|error| js_err(format!("selected located arrangement serialization failed: {error}")))
 }
 
+/// Search located button paths after selecting authored melody pitches.
+#[wasm_bindgen]
+pub fn find_located_standard_bass_path(score_json: &str, options_json: &str, selections_json: &str, instrument_json: &str, policy_json: &str, allow_voicing_changes: bool) -> Result<String, JsValue> {
+    use acorde_core::model::standard_bass_arrangement::StandardBassArrangementOptions;
+    use acorde_core::model::standard_bass_button_layout::LocatedStandardBassProfile;
+    use acorde_core::model::standard_bass_button_search::find_located_standard_bass_path;
+    use acorde_core::model::standard_bass_pitch_selection::MelodyPitchSelection;
+    use acorde_core::model::standard_bass_transition::StandardBassTransitionPolicy;
+    let score = score_from_json(score_json)?;
+    let options: StandardBassArrangementOptions = parse_json(options_json, "standard-bass options", MAX_OPTIONS_JSON_BYTES)?;
+    let selections: Vec<MelodyPitchSelection> = parse_json(selections_json, "melody pitch selections", MAX_SMALL_JSON_BYTES)?;
+    let instrument: LocatedStandardBassProfile = parse_json(instrument_json, "located standard-bass profile", MAX_OPTIONS_JSON_BYTES)?;
+    let policy: StandardBassTransitionPolicy = parse_json(policy_json, "transition policy", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&find_located_standard_bass_path(&score, &options, &selections, &instrument, &policy, allow_voicing_changes))
+        .map_err(|error| js_err(format!("located button search serialization failed: {error}")))
+}
+
 /// Find simultaneous candidates with caller-supplied button rows and columns.
 #[wasm_bindgen]
 pub fn located_standard_bass_candidates(profile_json: &str, chord_json: &str, previous_json: &str, allow_omissions: bool, allow_additions: bool) -> Result<String, JsValue> {

@@ -570,3 +570,161 @@ fn alternate_voicing_can_change_octave_doublings_without_changing_pitch_classes(
         [43, 55, 59, 62, 67]
     );
 }
+
+fn located_for_alternative_search(
+    options: &StandardBassArrangementOptions,
+) -> acorde_core::model::standard_bass_button_layout::LocatedStandardBassProfile {
+    use acorde_core::model::standard_bass_button_layout::{
+        LocatedStandardBassProfile, StandardBassButtonLocation, StandardBassButtonRow as Row,
+    };
+    LocatedStandardBassProfile {
+        profile: options.profile.clone(),
+        locations: vec![
+            StandardBassButtonLocation {
+                id: "C bass".into(),
+                row: Row::Fundamental,
+                column: 0,
+            },
+            StandardBassButtonLocation {
+                id: "G bass".into(),
+                row: Row::Fundamental,
+                column: 1,
+            },
+            StandardBassButtonLocation {
+                id: "Z near G bass".into(),
+                row: Row::Fundamental,
+                column: 8,
+            },
+            StandardBassButtonLocation {
+                id: "C major".into(),
+                row: Row::Major,
+                column: 0,
+            },
+            StandardBassButtonLocation {
+                id: "G major".into(),
+                row: Row::Major,
+                column: 1,
+            },
+            StandardBassButtonLocation {
+                id: "Z near G major".into(),
+                row: Row::Major,
+                column: 8,
+            },
+        ],
+    }
+}
+
+#[test]
+fn located_selected_search_finds_alternative_across_repeats_without_losing_melody() {
+    use acorde_core::model::standard_bass_button_search::find_located_standard_bass_path;
+    use acorde_core::model::standard_bass_pitch_selection::MelodyPitchSelection;
+    use acorde_core::model::standard_bass_transition::arrange_standard_bass_located_selected_screened;
+    use acorde_core::{NoteAddr, to_playback_events};
+    let (mut score, mut options) = fixture();
+    with_nearby_g_buttons(&mut options);
+    let original = serde_json::to_value(&score).unwrap();
+    score.parts[0].staves[0].measures[0].voices[0][0]
+        .pitches
+        .insert(0, Pitch::new(Step::C, 4));
+    options.allow_source_omissions = true;
+    let profile = located_for_alternative_search(&options);
+    let selections = [MelodyPitchSelection {
+        source: NoteAddr {
+            part: 0,
+            staff: 0,
+            measure: 0,
+            voice: 0,
+            note: 0,
+        },
+        pitch_index: 1,
+    }];
+    let policy = StandardBassTransitionPolicy {
+        max_position_delta: 1,
+        min_attack_interval_ms: 2000,
+    };
+    let initial = arrange_standard_bass_located_selected_screened(
+        &score,
+        &options,
+        &selections,
+        &profile,
+        &policy,
+    );
+    assert_eq!(
+        initial.arrangement.arrangement.diagnostics[0].code,
+        "transition-too-far"
+    );
+    let source = serde_json::to_value(&score).unwrap();
+    let found =
+        find_located_standard_bass_path(&score, &options, &selections, &profile, &policy, false);
+    assert!(
+        found.arrangement.arrangement.diagnostics.is_empty(),
+        "{:?}",
+        found.arrangement.arrangement.diagnostics
+    );
+    assert_eq!(
+        found
+            .transitions
+            .iter()
+            .map(|t| t.bass_button_id.as_str())
+            .collect::<Vec<_>>(),
+        ["C bass", "Z near G bass", "C bass", "Z near G bass"]
+    );
+    assert!(
+        found
+            .arrangement
+            .arrangement
+            .source_pitches
+            .iter()
+            .any(|p| p.source_pitch == 0 && p.source.measure == 0 && p.target.is_none())
+    );
+    let output = found.arrangement.arrangement.score.as_ref().unwrap();
+    let signature = |s: &Score| {
+        to_playback_events(s, &Default::default())
+            .into_iter()
+            .filter(|e| e.source.as_ref().is_some_and(|a| a.staff == 0) && e.pitch_midi >= 72)
+            .map(|e| (e.pitch_midi, e.time_beats, e.duration_beats))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(signature(&score), signature(output));
+    assert_eq!(serde_json::to_value(&score).unwrap(), source);
+    assert_ne!(source, original);
+    let missing = find_located_standard_bass_path(&score, &options, &[], &profile, &policy, false);
+    assert_eq!(
+        missing.arrangement.arrangement.diagnostics[0].code,
+        "ambiguous-melody"
+    );
+    assert!(missing.arrangement.arrangement.score.is_none() && missing.transitions.is_empty());
+}
+
+#[test]
+fn located_search_changes_voicing_only_when_explicitly_allowed() {
+    use acorde_core::model::standard_bass_button_search::find_located_standard_bass_path;
+    let (score, mut options) = fixture();
+    with_nearby_g_buttons(&mut options);
+    options.profile.chord_buttons.last_mut().unwrap().midi = vec![55, 59, 62];
+    let profile = located_for_alternative_search(&options);
+    let policy = StandardBassTransitionPolicy {
+        max_position_delta: 1,
+        min_attack_interval_ms: 0,
+    };
+    let exact = find_located_standard_bass_path(&score, &options, &[], &profile, &policy, false);
+    assert_eq!(
+        exact.arrangement.arrangement.diagnostics[0].code,
+        "no-same-sounding-button-path"
+    );
+    assert!(exact.arrangement.arrangement.score.is_none());
+    let voiced = find_located_standard_bass_path(&score, &options, &[], &profile, &policy, true);
+    assert!(
+        voiced.arrangement.arrangement.diagnostics.is_empty(),
+        "{:?}",
+        voiced.arrangement.arrangement.diagnostics
+    );
+    assert_eq!(voiced.transitions[1].chord_button_id, "Z near G major");
+    let score = voiced.arrangement.arrangement.score.unwrap();
+    let actual: Vec<_> = score.parts[0].staves[1].measures[1].voices[0][0]
+        .pitches
+        .iter()
+        .map(|p| p.to_midi())
+        .collect();
+    assert_eq!(actual, [43, 55, 59, 62]);
+}
