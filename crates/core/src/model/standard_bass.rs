@@ -7,6 +7,8 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
+use super::notation::ChordSymbol;
+
 /// One fundamental or counter-bass button and its actual sounding MIDI pitch.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StandardBassNoteButton {
@@ -55,6 +57,69 @@ pub struct StandardBassCandidate {
     pub requires_performer_review: bool,
 }
 
+/// Translate a supported chord symbol into a pitch-class request. Slash basses
+/// are part of the requested sounding set; altered degrees are rejected.
+pub fn standard_bass_request_for_chord(
+    chord: &ChordSymbol,
+    allow_omissions: bool,
+    allow_additions: bool,
+) -> Result<StandardBassRequest, String> {
+    fn pitch_class(name: &str) -> Option<u8> {
+        let mut chars = name.chars();
+        let base: i16 = match chars.next()? {
+            'C' => 0,
+            'D' => 2,
+            'E' => 4,
+            'F' => 5,
+            'G' => 7,
+            'A' => 9,
+            'B' => 11,
+            _ => return None,
+        };
+        let offset = match chars.next() {
+            None => 0,
+            Some('#') => 1,
+            Some('b') => -1,
+            _ => return None,
+        };
+        if chars.next().is_some() {
+            return None;
+        }
+        Some((base + offset).rem_euclid(12) as u8)
+    }
+    if !chord.degrees.is_empty() {
+        return Err("chord degrees are not supported by this candidate search".into());
+    }
+    let root = pitch_class(&chord.root).ok_or("unsupported chord root spelling")?;
+    let bass = match &chord.bass {
+        Some(name) => pitch_class(name).ok_or("unsupported chord bass spelling")?,
+        None => root,
+    };
+    let intervals: &[u8] = match chord.kind.as_str() {
+        "major" => &[0, 4, 7],
+        "minor" => &[0, 3, 7],
+        "diminished" => &[0, 3, 6],
+        "augmented" => &[0, 4, 8],
+        "dominant" => &[0, 4, 7, 10],
+        "major-seventh" => &[0, 4, 7, 11],
+        "minor-seventh" => &[0, 3, 7, 10],
+        _ => return Err("unsupported chord kind for this candidate search".into()),
+    };
+    let pitch_classes = intervals
+        .iter()
+        .map(|interval| (root + interval) % 12)
+        .chain(std::iter::once(bass))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    Ok(StandardBassRequest {
+        pitch_classes,
+        bass_pitch_class: bass,
+        allow_omissions,
+        allow_additions,
+    })
+}
+
 /// Find combinations from the supplied inventory, without changing a score.
 ///
 /// This models simultaneous sound only. It does not imply that an alternating
@@ -68,6 +133,7 @@ pub fn standard_bass_candidates(
         return Err("a profile may contain at most 128 buttons per row".into());
     }
     if request.pitch_classes.is_empty()
+        || request.pitch_classes.len() > 12
         || request.pitch_classes.iter().any(|&pitch| pitch >= 12)
         || request.bass_pitch_class >= 12
     {
@@ -78,7 +144,11 @@ pub fn standard_bass_candidates(
     let target: BTreeSet<u8> = request.pitch_classes.iter().copied().collect();
     let mut ids = BTreeSet::new();
     for button in &profile.bass_buttons {
-        if button.id.is_empty() || !ids.insert(&button.id) || button.midi >= 128 {
+        if button.id.is_empty()
+            || button.id.len() > 128
+            || !ids.insert(&button.id)
+            || button.midi >= 128
+        {
             return Err(
                 "bass button IDs must be unique and pitches must be valid MIDI notes".into(),
             );
@@ -86,6 +156,7 @@ pub fn standard_bass_candidates(
     }
     for button in &profile.chord_buttons {
         if button.id.is_empty()
+            || button.id.len() > 128
             || !ids.insert(&button.id)
             || button.midi.is_empty()
             || button.midi.len() > 16

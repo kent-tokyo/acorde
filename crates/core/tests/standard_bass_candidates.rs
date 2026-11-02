@@ -1,6 +1,6 @@
 use acorde_core::model::standard_bass::{
     StandardBassChordButton, StandardBassNoteButton, StandardBassProfile, StandardBassRequest,
-    standard_bass_candidates,
+    standard_bass_candidates, standard_bass_request_for_chord,
 };
 
 fn profile() -> StandardBassProfile {
@@ -180,4 +180,29 @@ fn results_are_stably_sorted_independent_of_inventory_order() {
         standard_bass_candidates(&p, &request(&[0, 4, 7, 11], 0)).unwrap(),
         expected
     );
+}
+
+#[test]
+fn chord_symbols_resolve_slash_bass_and_reject_unsupported_input() {
+    let symbol: acorde_core::ChordSymbol =
+        serde_json::from_str(r#"{"root":"G","kind":"dominant","bass":"F"}"#).unwrap();
+    let req = standard_bass_request_for_chord(&symbol, false, false).unwrap();
+    assert_eq!(req.bass_pitch_class, 5);
+    assert_eq!(req.pitch_classes, [2, 5, 7, 11]);
+    assert!(
+        standard_bass_candidates(&profile(), &req)
+            .unwrap()
+            .iter()
+            .any(|c| c.chord_button_id == "G major")
+    );
+    let mut unsupported = symbol.clone();
+    unsupported.root = "G##".into();
+    assert!(standard_bass_request_for_chord(&unsupported, false, false).is_err());
+    unsupported = symbol;
+    unsupported.degrees.push(acorde_core::ChordDegree {
+        value: 9,
+        alter: 0,
+        kind: "add".into(),
+    });
+    assert!(standard_bass_request_for_chord(&unsupported, false, false).is_err());
 }
