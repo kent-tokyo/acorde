@@ -313,6 +313,20 @@ fn opening_columns_align_in_a_two_measure_grand_staff() {
             .collect();
         assert_eq!(marks.len(), 2);
         assert!((marks[0] - marks[1]).abs() > 24.0, "accidentals {marks:?}");
+        let naturals: Vec<f32> = svg
+            .split("class=\"acorde-accidental acorde-natural\" data-x=\"")
+            .skip(1)
+            .map(|s| s.split('"').next().unwrap().parse().unwrap())
+            .collect();
+        assert_eq!(
+            naturals.len(),
+            2,
+            "system {measures_per_system}: {naturals:?}"
+        );
+        assert!(
+            (naturals[0] - naturals[1]).abs() > 24.0,
+            "system {measures_per_system}: {naturals:?}"
+        );
     }
     let events = acorde_core::to_playback_events(&score, &Default::default());
     assert_eq!(events.len(), 12);
