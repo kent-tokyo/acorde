@@ -76,6 +76,10 @@ pub use model::fragment::{
 pub use model::gm::{drum_name, program_name};
 pub use model::harmony::{detect_chord, roman_numeral};
 pub use model::interval::{Interval, IntervalQuality};
+pub use model::melodic_insert::{
+    MelodicInsertion, MelodicInsertionDiagnostic, MelodicInsertionKind, MelodicInsertionOptions,
+    MelodicInsertionResult, MelodicInsertionSource, MelodicSourceMapping, insert_melodic_notes,
+};
 pub use model::musical_diff::{
     MusicalChange, MusicalChangeKind, MusicalComparisonDiagnostic, MusicalComparisonOptions,
     MusicalComparisonResult, NoteCorrespondence, StructurePolicy, VoiceAddr, VoiceCorrespondence,
