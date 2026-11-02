@@ -82,6 +82,26 @@ pub fn arrange_standard_bass_screened(
     screen_existing_standard_bass(arrangement, options, policy)
 }
 
+/// Generate a located arrangement and screen its expanded playback attacks.
+/// Limits are caller supplied approximations, not a fingering certificate.
+pub fn arrange_standard_bass_located_screened(
+    score: &Score,
+    options: &StandardBassArrangementOptions,
+    instrument: &super::standard_bass_button_layout::LocatedStandardBassProfile,
+    policy: &StandardBassTransitionPolicy,
+) -> ScreenedStandardBassResult {
+    let arrangement =
+        super::standard_bass_arrangement::arrange_standard_bass_located(score, options, instrument);
+    screen_existing_standard_bass(
+        SelectedPitchArrangementResult {
+            selections: vec![],
+            arrangement,
+        },
+        options,
+        policy,
+    )
+}
+
 pub(super) fn screen_existing_standard_bass(
     arrangement: SelectedPitchArrangementResult,
     options: &StandardBassArrangementOptions,
