@@ -67,6 +67,14 @@ fn fail(
     }
 }
 
+pub(super) fn candidate_fits_generated_range(candidate: &StandardBassCandidate) -> bool {
+    let mut midi = candidate.chord_midi.clone();
+    midi.push(candidate.bass_midi);
+    midi.sort_unstable();
+    midi.dedup();
+    midi.len() == candidate.chord_midi.len() + 1 && midi.iter().all(|p| (36..=84).contains(p))
+}
+
 /// Build the `bass-pulse` preset using actual supplied button pitches. The
 /// melody remains unchanged; no unsupported row silently falls back to free bass.
 pub fn arrange_profiled_bass_pulse(
@@ -119,14 +127,7 @@ pub fn arrange_profiled_bass_pulse(
                         return fail(options, "invalid-profile", error, Some(measure_index));
                     }
                 };
-                current = candidates.into_iter().find(|candidate| {
-                    let mut midi = candidate.chord_midi.clone();
-                    midi.push(candidate.bass_midi);
-                    midi.sort_unstable();
-                    midi.dedup();
-                    midi.len() == candidate.chord_midi.len() + 1
-                        && midi.iter().all(|p| (36..=84).contains(p))
-                });
+                current = candidates.into_iter().find(candidate_fits_generated_range);
                 if current.is_none() {
                     return fail(
                         options,

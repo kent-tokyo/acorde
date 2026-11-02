@@ -18,6 +18,7 @@ pub mod notation;
 pub mod omr;
 pub mod pitch;
 pub mod playback;
+pub mod profiled_chord_plan;
 pub mod repeat;
 pub mod scale;
 pub mod score;

@@ -101,3 +101,29 @@ fn dominant_preset_and_explicit_profile_survive_mscz_playback() {
     assert!(rejected.score.is_none());
     assert_eq!(rejected.diagnostics[0].code, "no-standard-bass-candidate");
 }
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn profiled_plan_passes_actual_buttons_to_pulse() {
+    use acorde_core::model::profiled_chord_plan::ProfiledChordPlanResult;
+    use acorde_core::model::standard_bass_preset::ProfiledBassPulseResult;
+    let source = acorde_wasm::parse_abc("X:1\nM:4/4\nL:1/4\nK:C\nC D E F|]\n").unwrap();
+    let plan = serde_json::json!({"contract_version":1,"entries":[{"position":{"measure_index":0,"offset":{"numerator":0,"denominator":1}},"offset_beats":0.0,"chord":{"root":"C","kind":"major-seventh"},"origin":"host-authored","sources":[]}]});
+    let profile = serde_json::json!({"bass_buttons":[{"id":"C","position":0,"midi":36}],"chord_buttons":[{"id":"Em","position":0,"midi":[64,67,71]}],"max_distance":0});
+    let result: ProfiledChordPlanResult = serde_json::from_str(
+        &acorde_wasm::profile_chord_plan(&plan.to_string(), &profile.to_string(), false, false)
+            .unwrap(),
+    )
+    .unwrap();
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let pulse: ProfiledBassPulseResult = serde_json::from_str(
+        &acorde_wasm::arrange_profiled_bass_pulse(
+            &source,
+            &serde_json::to_string(&result.options.unwrap()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(pulse.actions[0].sounding_midi, [36]);
+    assert_eq!(pulse.actions[1].sounding_midi, [64, 67, 71]);
+}

@@ -264,3 +264,7 @@ For a previous fixed preset, use
 `{ kind: 'preset', config: selected.resolved_config }`. Acorde compares the
 playback events, so the same result under a different technique ID is not
 selected again. The host still owns source IDs, sharing URLs, labels and UI.
+
+### Positioned plans and instrument profiles
+
+`model::profiled_chord_plan::profile_chord_plan` (also exposed to WASM) checks each positioned chord against the supplied button inventory and returns options for `arrange_profiled_bass_pulse` only when every entry has a supported candidate. It checks harmony and timing-grid positions, not complete score coverage or physical playability; performer review is required. Candidate matching uses the combined pitch classes of a bass and chord button. The resulting bass pulse attacks them separately, so it does not claim the simultaneous harmony sounds throughout.
