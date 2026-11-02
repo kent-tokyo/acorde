@@ -149,7 +149,7 @@ jobs:
             --out-dir ../../target/wasm-profiles/viewer \
             --no-default-features --features viewer
           declarations=target/wasm-profiles/viewer/acorde_wasm.d.ts
-          for binding in parse_abc parse_mscz compute_beams detect_chord extract_chord_plan suggest_chord_plans assess_chord_presets arrange_from_chord_proposal arrange_with_drone standard_bass_chord_candidates arrange_standard_bass render_score_svg render_print_page_svgs to_playback_events_ex serialize_mscz; do
+          for binding in parse_abc parse_mscz compute_beams detect_chord extract_chord_plan suggest_chord_plans assess_chord_presets arrange_from_chord_proposal arrange_with_drone standard_bass_chord_candidates arrange_standard_bass arrange_standard_bass_with_pitch_selection render_score_svg render_print_page_svgs to_playback_events_ex serialize_mscz; do
             grep -q "^export function $binding(" "$declarations"
           done
           if grep -q '^export function parse_musicxml(' "$declarations"; then
@@ -244,7 +244,10 @@ jobs:
           # macOS (6,549,688 -> 6,579,824). Linux before this change measured
           # 6,558,001 bytes; this provisional limit includes the observed
           # growth and approximately 6 KB headroom pending CI measurement.
-          test "$size" -le 6595000
+          # Explicit chord-pitch selection adds 37,305 bytes on macOS
+          # (6,579,824 -> 6,617,129). The previous Linux artifact measured
+          # 6,582,528 bytes; reserve the observed growth plus ~6 KB pending CI.
+          test "$size" -le 6626000
 
   renderer-benchmark:
     name: Renderer performance budget
