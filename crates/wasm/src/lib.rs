@@ -1482,6 +1482,15 @@ pub fn arrange_for_accordion_with_options(
         .map_err(|error| js_err(format!("reduction result serialization failed: {error}")))
 }
 
+/// Split one polyphonic staff into a lossless free-bass candidate with explicit hand limits.
+#[wasm_bindgen]
+pub fn split_for_free_bass(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::FreeBassOptions = parse_json(options_json, "free-bass options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::split_for_free_bass(&score, options))
+        .map_err(|error| js_err(format!("free-bass result serialization failed: {error}")))
+}
+
 /// Compose typed accompaniment, explicit harmony and melodic-voice layers.
 #[wasm_bindgen]
 pub fn arrange_with_layers(score_json: &str, options_json: &str) -> Result<String, JsValue> {
@@ -3787,6 +3796,19 @@ mod tests {
         let capabilities: acorde_core::AccordionPresetCapabilities =
             serde_json::from_str(&accordion_preset_capabilities().unwrap()).unwrap();
         assert_eq!(capabilities.contract_version, web.contract_version);
+    }
+
+    #[test]
+    fn free_bass_json_preserves_events_and_required_instrument() {
+        let mut score = acorde_core::Score::new("split", 90, 4, 4, 0, 1);
+        let mut note = acorde_core::Note::new(acorde_core::Pitch::from_midi(48, false), acorde_core::Duration::Whole);
+        note.pitches.push(acorde_core::Pitch::from_midi(67, false));
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let result: acorde_core::FreeBassResult = serde_json::from_str(&split_for_free_bass(&serde_json::to_string(&score).unwrap(), "{}").unwrap()).unwrap();
+        assert!(result.score.is_some());
+        assert_eq!(result.source_map.len(), 2);
+        assert_eq!(result.required_bass_mode, acorde_core::AccordionBassMode::FreeBass);
+        assert!(result.requires_performer_review);
     }
 
     #[test]

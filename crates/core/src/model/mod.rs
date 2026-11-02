@@ -8,6 +8,7 @@ pub mod commands;
 pub mod duration;
 pub mod engine;
 pub mod fragment;
+pub mod free_bass;
 pub mod gm;
 pub mod harmony;
 pub mod interval;
