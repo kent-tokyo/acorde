@@ -3639,6 +3639,161 @@ fn opening_voice_accidental_offsets(
     offsets
 }
 
+/// Opening accidental lead for one staff, in staff spaces.
+fn opening_accidental_lead(
+    measure: &Measure,
+    part: usize,
+    staff: usize,
+    measure_idx: usize,
+    mandatory: &HashMap<AccKey, i8>,
+    courtesy: &HashMap<AccKey, i8>,
+    offsets: &[f32; 4],
+) -> f32 {
+    measure
+        .voices
+        .iter()
+        .enumerate()
+        .filter_map(|(voice_idx, voice)| {
+            let note_idx = voice.iter().position(|note| !note.is_grace)?;
+            let note = &voice[note_idx];
+            (!note.is_rest).then(|| {
+                (0..note.pitches.len())
+                    .filter_map(|pitch_idx| {
+                        let key = (part, staff, measure_idx, voice_idx, note_idx, pitch_idx);
+                        mandatory.get(&key).or_else(|| courtesy.get(&key)).copied()
+                    })
+                    .map(|alter| {
+                        glyphs::NOTEHEAD_RX_U
+                            + 0.18
+                            + glyphs::accidental_width_u(alter)
+                            + 0.15
+                            + offsets[voice_idx]
+                    })
+                    .fold(0.0_f32, f32::max)
+            })
+        })
+        .fold(MEASURE_PAD_U, f32::max)
+}
+
+/// Coordinate a simple one-measure grand staff when either staff needs a second accidental
+/// column. Other arrangements keep their existing staff-local spacing until the general
+/// inter-staff spacing solver accounts for headers, annotations and cross-staff notation.
+fn grand_staff_opening_lead(
+    score: &Score,
+    measure_idx: usize,
+    width: f32,
+    space: f32,
+    mandatory: &HashMap<AccKey, i8>,
+    courtesy: &HashMap<AccKey, i8>,
+) -> Option<f32> {
+    if width < (2.0 + glyphs::NOTEHEAD_RX_U + 0.18 + 1.25 + 0.15 + MEASURE_PAD_U + 1.0) * space
+        || measure_idx != 0
+        || score.parts.len() != 1
+        || score.parts[0].staves.len() != 2
+        || !score.spanners.is_empty()
+        || !score.views.is_empty()
+    {
+        return None;
+    }
+    let staves = &score.parts[0].staves;
+    if staves.iter().any(|staff| {
+        staff.measures.len() != 1
+            || staff.tablature.is_some()
+            || !staff.presentation.visible
+            || staff.presentation.cutaway
+            || staff.presentation.kind != acorde_core::StaffKind::Standard
+    }) {
+        return None;
+    }
+    let beats = staves[0].measure_beats(0, &score.settings.time_signature);
+    let other_beats = staves[1].measure_beats(0, &score.settings.time_signature);
+    if !beats.is_finite()
+        || beats <= 0.0
+        || !other_beats.is_finite()
+        || (beats - other_beats).abs() > 1e-9
+    {
+        return None;
+    }
+    let mut lead = MEASURE_PAD_U;
+    let mut needs_column = false;
+    for (staff_idx, staff) in staves.iter().enumerate() {
+        let m = &staff.measures[0];
+        if m.barline_left != Barline::Normal
+            || !m.mid_clefs.is_empty()
+            || m.measure_repeat.is_some()
+            || !measure_text_entries(m).is_empty()
+            || m.volta.is_some()
+            || m.voices.iter().filter(|voice| !voice.is_empty()).count() == 0
+            || m.voices
+                .iter()
+                .filter_map(|voice| voice.first())
+                .any(|n| n.is_rest || n.is_grace || n.is_cue || n.hidden)
+            || m.voices.iter().any(|voice| voice.len() > 4)
+            || m.voices.iter().flatten().any(|n| {
+                n.is_rest
+                    || n.is_unpitched
+                    || n.is_grace
+                    || n.is_cue
+                    || n.hidden
+                    || n.pitches.len() != 1
+                    || n.is_parenthesized(0)
+                    || n.tuplet.is_some()
+                    || n.tuplet_boundary.is_some()
+                    || n.cross_staff.is_some()
+                    || n.arpeggiate.is_some()
+                    || n.offset_x.unwrap_or(0.0) != 0.0
+                    || n.relative_x.unwrap_or(0.0) != 0.0
+                    || n.offset_y.unwrap_or(0.0) != 0.0
+                    || n.relative_y.unwrap_or(0.0) != 0.0
+                    || note_annotation_width_u(n) != 0.0
+            })
+        {
+            return None;
+        }
+        let offsets = opening_voice_accidental_offsets(m, 0, staff_idx, 0, mandatory, courtesy);
+        needs_column |= offsets.iter().any(|&offset| offset > 0.0);
+        lead = lead.max(opening_accidental_lead(
+            m, 0, staff_idx, 0, mandatory, courtesy, &offsets,
+        ));
+    }
+    if !needs_column || width < (lead + MEASURE_PAD_U + 1.0) * space {
+        return None;
+    }
+    // Do not reduce the rhythmic span when doing so would require later noteheads or
+    // accidentals to be shifted independently by the per-voice spacing pass.
+    let content_u = width / space - lead - MEASURE_PAD_U;
+    for staff in staves {
+        let mut events = Vec::new();
+        for (voice_idx, voice) in staff.measures[0].voices.iter().enumerate() {
+            let mut beat = 0.0;
+            for note in voice {
+                let duration = note.beats();
+                if !duration.is_finite() || duration <= 0.0 || beat + duration > beats + 1e-9 {
+                    return None;
+                }
+                events.push((beat, voice_idx, note));
+                beat += duration;
+            }
+        }
+        for (i, &(a_beat, a_voice, a)) in events.iter().enumerate() {
+            for &(b_beat, b_voice, b) in &events[i + 1..] {
+                if (a_beat - b_beat).abs() < 1e-9 {
+                    if a_voice != b_voice && !noncolliding_voice_noteheads(a, b) {
+                        return None;
+                    }
+                } else {
+                    let (earlier, later) = if a_beat < b_beat { (a, b) } else { (b, a) };
+                    let available = ((a_beat - b_beat).abs() / beats) as f32 * content_u;
+                    if available < event_pair_clearance_u(earlier, later) {
+                        return None;
+                    }
+                }
+            }
+        }
+    }
+    Some(lead)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn render_measure(
     body: &mut String,
@@ -3678,6 +3833,11 @@ fn render_measure(
     // Only reserve the second column when the resulting content still fits inside this bar.
     let enough_width =
         width >= (2.0 + glyphs::NOTEHEAD_RX_U + 0.18 + 1.25 + 0.15 + MEASURE_PAD_U + 1.0) * space;
+    let grand_staff_lead = if allow_shared_alignment {
+        grand_staff_opening_lead(score, measure_idx, width, space, mandatory, courtesy)
+    } else {
+        None
+    };
     // A staff-local lead must not desynchronize a grand staff or another part.
     let single_staff = score
         .parts
@@ -3685,39 +3845,28 @@ fn render_measure(
         .map(|part| part.staves.len())
         .sum::<usize>()
         == 1;
-    let opening_accidental_offsets =
-        if allow_shared_alignment && tablature.is_none() && enough_width && single_staff {
-            opening_voice_accidental_offsets(measure, part, staff, measure_idx, mandatory, courtesy)
-        } else {
-            [0.0; 4]
-        };
+    let opening_accidental_offsets = if allow_shared_alignment
+        && tablature.is_none()
+        && enough_width
+        && (single_staff || grand_staff_lead.is_some())
+    {
+        opening_voice_accidental_offsets(measure, part, staff, measure_idx, mandatory, courtesy)
+    } else {
+        [0.0; 4]
+    };
     // Accidentals on the bar's first notes sit left of their heads: start the content far enough
     // in that they clear the barline, clef or time signature before them.
-    let lead_u = measure
-        .voices
-        .iter()
-        .enumerate()
-        .filter_map(|(voice_idx, voice)| {
-            let note_idx = voice.iter().position(|note| !note.is_grace)?;
-            let note = &voice[note_idx];
-            (!note.is_rest).then(|| {
-                (0..note.pitches.len())
-                    .filter_map(|pitch_idx| {
-                        let key: AccKey =
-                            (part, staff, measure_idx, voice_idx, note_idx, pitch_idx);
-                        mandatory.get(&key).or_else(|| courtesy.get(&key)).copied()
-                    })
-                    .map(|alter| {
-                        glyphs::NOTEHEAD_RX_U
-                            + 0.18
-                            + glyphs::accidental_width_u(alter)
-                            + 0.15
-                            + opening_accidental_offsets[voice_idx]
-                    })
-                    .fold(0.0_f32, f32::max)
-            })
-        })
-        .fold(MEASURE_PAD_U, f32::max);
+    let lead_u = grand_staff_lead.unwrap_or_else(|| {
+        opening_accidental_lead(
+            measure,
+            part,
+            staff,
+            measure_idx,
+            mandatory,
+            courtesy,
+            &opening_accidental_offsets,
+        )
+    });
     // A clef change drawn at the bar's start also pushes its content along, as do the dots of
     // a forward repeat.
     let repeat_lead_u = if matches!(
