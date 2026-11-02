@@ -24,5 +24,6 @@ pub mod score;
 pub mod standard_bass;
 pub mod standard_bass_arrangement;
 pub mod standard_bass_pitch_selection;
+pub mod standard_bass_transition;
 pub mod structural_plan;
 pub mod validate;
