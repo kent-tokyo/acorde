@@ -385,3 +385,188 @@ fn candidate_search_accounts_for_repeat_return_that_written_order_misses() {
         ]
     );
 }
+
+#[test]
+fn explicit_voicing_search_changes_only_accompaniment_to_actual_button_notes() {
+    use acorde_core::model::standard_bass_button_search::{
+        arrange_standard_bass_find_buttons, arrange_standard_bass_find_voicings,
+    };
+    use acorde_core::to_playback_events;
+    let (score, mut options) = fixture();
+    let before = serde_json::to_value(&score).unwrap();
+    options.profile.bass_buttons.push(StandardBassNoteButton {
+        id: "Z near G bass".into(),
+        position: 1,
+        midi: 43,
+    });
+    options.profile.chord_buttons.push(StandardBassChordButton {
+        id: "Z low G chord".into(),
+        position: 1,
+        midi: vec![55, 59, 62],
+    });
+    let policy = StandardBassTransitionPolicy {
+        max_position_delta: 1,
+        min_attack_interval_ms: 2000,
+    };
+    let exact = arrange_standard_bass_find_buttons(&score, &options, &[], &policy);
+    assert_eq!(
+        exact.arrangement.arrangement.diagnostics[0].code,
+        "no-same-sounding-button-path"
+    );
+    let initial = acorde_core::model::standard_bass_pitch_selection::arrange_standard_bass_with_pitch_selection(&score,&options,&[]).arrangement.score.unwrap();
+    let result = arrange_standard_bass_find_voicings(&score, &options, &[], &policy);
+    assert!(
+        result.arrangement.arrangement.diagnostics.is_empty(),
+        "{:?}",
+        result.arrangement.arrangement.diagnostics
+    );
+    assert_eq!(
+        result
+            .transitions
+            .iter()
+            .map(|t| t.chord_button_id.as_str())
+            .collect::<Vec<_>>(),
+        ["C major", "Z low G chord", "C major", "Z low G chord"]
+    );
+    assert_eq!(serde_json::to_value(&score).unwrap(), before);
+    let output = result.arrangement.arrangement.score.unwrap();
+    let note = &output.parts[0].staves[1].measures[1].voices[0][0];
+    assert_eq!(
+        note.pitches.iter().map(|p| p.to_midi()).collect::<Vec<_>>(),
+        [43, 55, 59, 62]
+    );
+    let signature = |s: &Score, staff: usize| {
+        to_playback_events(s, &Default::default())
+            .into_iter()
+            .filter(|e| e.source.as_ref().is_some_and(|a| a.staff == staff))
+            .map(|e| (e.pitch_midi, e.time_beats, e.duration_beats))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(signature(&initial, 0), signature(&output, 0));
+    assert_ne!(signature(&initial, 1), signature(&output, 1));
+    let bass = signature(&output, 1);
+    assert!(bass.iter().any(|e| e.0 == 55));
+    assert!(!bass.iter().any(|e| e.0 == 74));
+}
+
+#[test]
+fn different_pitch_classes_are_not_silently_accepted_as_new_voicings() {
+    use acorde_core::model::standard_bass_button_search::arrange_standard_bass_find_voicings;
+    let (score, mut options) = fixture();
+    options.allow_chord_omissions = true;
+    options.profile.bass_buttons.push(StandardBassNoteButton {
+        id: "Z near G bass".into(),
+        position: 1,
+        midi: 43,
+    });
+    options.profile.chord_buttons.push(StandardBassChordButton {
+        id: "Z incomplete G".into(),
+        position: 1,
+        midi: vec![55, 59],
+    });
+    let result = arrange_standard_bass_find_voicings(
+        &score,
+        &options,
+        &[],
+        &StandardBassTransitionPolicy {
+            max_position_delta: 1,
+            min_attack_interval_ms: 0,
+        },
+    );
+    assert_eq!(
+        result.arrangement.arrangement.diagnostics[0].code,
+        "no-equivalent-voicing-path"
+    );
+    assert!(result.arrangement.arrangement.score.is_none() && result.transitions.is_empty());
+}
+
+#[test]
+fn alternate_voicing_updates_every_fragment_of_tied_accompaniment() {
+    use acorde_core::model::standard_bass_button_search::arrange_standard_bass_find_voicings;
+    let (mut score, mut options) = fixture();
+    score.settings.time_signature.numerator = 3;
+    for measure in &mut score.parts[0].staves[0].measures {
+        let mut melody = Note::new(Pitch::new(Step::C, 5), Duration::Half);
+        melody.dot_count = 1;
+        measure.voices[0] = vec![melody];
+    }
+    options.profile.bass_buttons.push(StandardBassNoteButton {
+        id: "Z near G bass".into(),
+        position: 1,
+        midi: 43,
+    });
+    options.profile.chord_buttons.push(StandardBassChordButton {
+        id: "Z low G chord".into(),
+        position: 1,
+        midi: vec![55, 59, 62],
+    });
+    let result = arrange_standard_bass_find_voicings(
+        &score,
+        &options,
+        &[],
+        &StandardBassTransitionPolicy {
+            max_position_delta: 1,
+            min_attack_interval_ms: 0,
+        },
+    );
+    assert!(
+        result.arrangement.arrangement.diagnostics.is_empty(),
+        "{:?}",
+        result.arrangement.arrangement.diagnostics
+    );
+    let output = result.arrangement.arrangement.score.unwrap();
+    let notes = &output.parts[0].staves[1].measures[1].voices[0];
+    assert_eq!(notes.len(), 2);
+    assert!(notes[0].tie_start && notes[1].tie_end);
+    for note in notes {
+        assert_eq!(
+            note.pitches.iter().map(|p| p.to_midi()).collect::<Vec<_>>(),
+            [43, 55, 59, 62]
+        );
+    }
+    let attacks = acorde_core::to_playback_events(&output, &Default::default());
+    assert!(
+        attacks
+            .iter()
+            .any(|e| e.pitch_midi == 55 && e.duration_beats == 3.0)
+    );
+}
+
+#[test]
+fn alternate_voicing_can_change_octave_doublings_without_changing_pitch_classes() {
+    use acorde_core::model::standard_bass_button_search::arrange_standard_bass_find_voicings;
+    let (score, mut options) = fixture();
+    options.profile.bass_buttons.push(StandardBassNoteButton {
+        id: "Z near G bass".into(),
+        position: 1,
+        midi: 43,
+    });
+    options.profile.chord_buttons.push(StandardBassChordButton {
+        id: "Z doubled G chord".into(),
+        position: 1,
+        midi: vec![55, 59, 62, 67],
+    });
+    let result = arrange_standard_bass_find_voicings(
+        &score,
+        &options,
+        &[],
+        &StandardBassTransitionPolicy {
+            max_position_delta: 1,
+            min_attack_interval_ms: 0,
+        },
+    );
+    assert!(
+        result.arrangement.arrangement.diagnostics.is_empty(),
+        "{:?}",
+        result.arrangement.arrangement.diagnostics
+    );
+    let output = result.arrangement.arrangement.score.unwrap();
+    assert_eq!(
+        output.parts[0].staves[1].measures[1].voices[0][0]
+            .pitches
+            .iter()
+            .map(|p| p.to_midi())
+            .collect::<Vec<_>>(),
+        [43, 55, 59, 62, 67]
+    );
+}

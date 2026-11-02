@@ -1542,6 +1542,21 @@ pub fn arrange_standard_bass_find_buttons(score_json: &str, options_json: &str, 
         .map_err(|error| js_err(format!("button search serialization failed: {error}")))
 }
 
+/// Search alternate button voicings with the same bass and chord pitch classes.
+#[wasm_bindgen]
+pub fn arrange_standard_bass_find_voicings(score_json: &str, options_json: &str, selections_json: &str, policy_json: &str) -> Result<String, JsValue> {
+    use acorde_core::model::standard_bass_arrangement::StandardBassArrangementOptions;
+    use acorde_core::model::standard_bass_pitch_selection::MelodyPitchSelection;
+    use acorde_core::model::standard_bass_transition::StandardBassTransitionPolicy;
+    use acorde_core::model::standard_bass_button_search::arrange_standard_bass_find_voicings;
+    let score = score_from_json(score_json)?;
+    let options: StandardBassArrangementOptions = parse_json(options_json, "standard-bass arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    let selections: Vec<MelodyPitchSelection> = parse_json(selections_json, "melody pitch selections", MAX_SMALL_JSON_BYTES)?;
+    let policy: StandardBassTransitionPolicy = parse_json(policy_json, "standard-bass transition policy", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&arrange_standard_bass_find_voicings(&score, &options, &selections, &policy))
+        .map_err(|error| js_err(format!("voicing search serialization failed: {error}")))
+}
+
 /// Find simultaneous standard-bass button combinations for an explicit chord and instrument profile.
 /// Results are reviewable candidates, not a score or a physical-playability guarantee.
 #[wasm_bindgen]
