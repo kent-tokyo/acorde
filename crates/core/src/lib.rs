@@ -35,8 +35,9 @@ pub use model::chord_plan::{
 };
 pub use model::chord_proposals::{
     CHORD_PROPOSAL_CONTRACT_VERSION, CHORD_PROPOSAL_MAX_MEASURES, ChordChangedSpan,
-    ChordProposalArrangementResult, ChordProposalCandidate, ChordProposalDiagnostic,
-    ChordProposalRequest, ChordProposalResult, ResolvedChordProposal, arrange_from_chord_proposal,
+    ChordPresetAssessment, ChordPresetAssessmentResult, ChordProposalArrangementResult,
+    ChordProposalCandidate, ChordProposalDiagnostic, ChordProposalRequest, ChordProposalResult,
+    ResolvedChordProposal, SourceRangeViolation, arrange_from_chord_proposal, assess_chord_presets,
     suggest_chord_plans,
 };
 pub use model::commands::{

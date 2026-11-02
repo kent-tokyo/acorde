@@ -5,9 +5,10 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::arrange::AccordionBassMode;
+use super::arrange::{AccordionBassMode, GUIDED_RIGHT_HAND_RANGE, GuidedArrangeDiagnostic};
 use super::arrange_presets::{
-    AccordionPresetResult, AccordionPresetSelection, arrange_accordion_preset,
+    AccordionPresetResult, AccordionPresetSelection, accordion_preset_capabilities,
+    arrange_accordion_preset,
 };
 use super::chord_plan::{
     BeatFraction, CHORD_PLAN_CONTRACT_VERSION, ChordPlan, ChordPlanDiagnostic, ChordPlanEntry,
@@ -91,6 +92,114 @@ pub struct ChordProposalArrangementResult {
     pub plan: ChordPlan,
     pub arrangement: Option<AccordionPresetResult>,
     pub diagnostics: Vec<ChordProposalDiagnostic>,
+}
+
+/// Availability of a single preset for one proposed harmony. A successful assessment
+/// means the arrangement engine accepted it; it does not certify a physical instrument.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChordPresetAssessment {
+    pub candidate_id: String,
+    pub preset_id: String,
+    pub available: bool,
+    pub diagnostics: Vec<GuidedArrangeDiagnostic>,
+}
+
+/// A source note outside the strict default right-hand range. Indices are zero-based.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SourceRangeViolation {
+    pub measure_index: usize,
+    pub voice_index: usize,
+    pub note_index: usize,
+    pub midi: i16,
+    pub minimum_midi: i16,
+    pub maximum_midi: i16,
+}
+
+/// Bounded, opt-in assessment of each proposed harmony against each built-in preset.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChordPresetAssessmentResult {
+    pub proposals: ChordProposalResult,
+    pub assessments: Vec<ChordPresetAssessment>,
+    pub source_range_violations: Vec<SourceRangeViolation>,
+    pub diagnostics: Vec<ChordProposalDiagnostic>,
+}
+
+/// Assess the actual strict arrangement results rather than inferring playability from
+/// chord proposals. This may render up to four candidates against every preset, so it
+/// shares the preset shuffle's 128-measure and 8192-note limits.
+pub fn assess_chord_presets(
+    score: &Score,
+    request: &ChordProposalRequest,
+) -> ChordPresetAssessmentResult {
+    let measures = score
+        .parts
+        .iter()
+        .flat_map(|p| &p.staves)
+        .flat_map(|s| &s.measures);
+    let measure_count = measures.clone().count();
+    let note_count: usize = measures.flat_map(|m| &m.voices).map(Vec::len).sum();
+    if measure_count > 128 || note_count > MAX_NOTES {
+        let issue = diagnostic("assessment-limit-exceeded", None);
+        return ChordPresetAssessmentResult {
+            proposals: ChordProposalResult {
+                contract_version: CHORD_PROPOSAL_CONTRACT_VERSION,
+                input_fingerprint: fingerprint(score).unwrap_or_default(),
+                candidates: Vec::new(),
+                diagnostics: vec![issue.clone()],
+            },
+            assessments: Vec::new(),
+            source_range_violations: Vec::new(),
+            diagnostics: vec![issue],
+        };
+    }
+    let proposals = suggest_chord_plans(score, request);
+    let mut source_range_violations = Vec::new();
+    if score.parts.len() == 1 && score.parts[0].staves.len() == 1 {
+        let (minimum_midi, maximum_midi) = GUIDED_RIGHT_HAND_RANGE;
+        for (measure_index, measure) in score.parts[0].staves[0].measures.iter().enumerate() {
+            for (voice_index, voice) in measure.voices.iter().enumerate() {
+                for (note_index, note) in voice.iter().enumerate() {
+                    for pitch in &note.pitches {
+                        let midi = pitch.to_midi();
+                        if !(minimum_midi..=maximum_midi).contains(&midi) {
+                            source_range_violations.push(SourceRangeViolation {
+                                measure_index,
+                                voice_index,
+                                note_index,
+                                midi,
+                                minimum_midi,
+                                maximum_midi,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let mut assessments = Vec::new();
+    for candidate in &proposals.candidates {
+        for preset in accordion_preset_capabilities().presets {
+            let result =
+                arrange_accordion_preset(score, candidate.preset_selection.clone(), &preset.id);
+            assessments.push(ChordPresetAssessment {
+                candidate_id: candidate.id.clone(),
+                preset_id: preset.id,
+                available: result.score.is_some(),
+                diagnostics: result.diagnostics,
+            });
+        }
+    }
+    let diagnostics = if !assessments.is_empty() && !assessments.iter().any(|a| a.available) {
+        vec![diagnostic("no-compatible-preset", None)]
+    } else {
+        Vec::new()
+    };
+    ChordPresetAssessmentResult {
+        proposals,
+        assessments,
+        source_range_violations,
+        diagnostics,
+    }
 }
 
 fn diagnostic(code: &str, measure_index: Option<usize>) -> ChordProposalDiagnostic {
@@ -1116,5 +1225,116 @@ mod tests {
                 .iter()
                 .all(|candidate| candidate.id != "provided-v1")
         );
+    }
+    #[test]
+    fn preset_assessment_reports_failures_and_successes_without_changing_source() {
+        let mut score = Score::new("assessment", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note(43, Duration::Whole)];
+        let before = serde_json::to_value(&score).unwrap();
+        let failed = assess_chord_presets(&score, &ChordProposalRequest::default());
+        assert!(!failed.proposals.candidates.is_empty());
+        assert!(
+            failed
+                .diagnostics
+                .iter()
+                .any(|d| d.code == "no-compatible-preset")
+        );
+        assert!(failed.assessments.iter().all(|a| !a.available));
+        let held = failed
+            .assessments
+            .iter()
+            .find(|a| a.preset_id == "held-chord")
+            .unwrap();
+        assert!(held.diagnostics.iter().any(|d| d.code == "out-of-range"
+            && d.measure_index == Some(0)
+            && d.message.contains("48..=96")));
+        assert_eq!(failed.source_range_violations.len(), 1);
+        let violation = &failed.source_range_violations[0];
+        assert_eq!(
+            (
+                violation.measure_index,
+                violation.note_index,
+                violation.midi
+            ),
+            (0, 0, 43)
+        );
+        assert_eq!((violation.minimum_midi, violation.maximum_midi), (48, 96));
+        let no_proposals = assess_chord_presets(
+            &score,
+            &ChordProposalRequest {
+                max_candidates: 0,
+                ..Default::default()
+            },
+        );
+        assert!(no_proposals.proposals.candidates.is_empty());
+        assert_eq!(
+            no_proposals.proposals.diagnostics[0].code,
+            "invalid-candidate-limit"
+        );
+        assert_eq!(no_proposals.source_range_violations[0].midi, 43);
+        assert_eq!(before, serde_json::to_value(&score).unwrap());
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note(60, Duration::Whole)];
+        let good = assess_chord_presets(&score, &ChordProposalRequest::default());
+        assert!(
+            good.assessments
+                .iter()
+                .any(|a| a.available && a.preset_id == "held-chord")
+        );
+        assert!(good.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn preset_assessment_keeps_rhythm_and_source_range_reasons() {
+        let mut score = source_score();
+        let mut plan = extract_chord_plan(&score, &ChordPlanExtractionOptions::default())
+            .plan
+            .unwrap();
+        plan.entries[1].position.measure_index = 0;
+        plan.entries[1].position.offset = BeatFraction {
+            numerator: 1,
+            denominator: 2,
+        };
+        plan.entries[1].offset_beats = 0.5;
+        score.parts[0].staves[0].measures[0].voices[0][0].pitches[0] = Pitch::from_midi(43, false);
+        let result = assess_chord_presets(
+            &score,
+            &ChordProposalRequest {
+                source_plan: Some(plan),
+                ..Default::default()
+            },
+        );
+        let pulse = result
+            .assessments
+            .iter()
+            .find(|a| a.candidate_id == "provided-v1" && a.preset_id == "bass-pulse")
+            .unwrap();
+        assert!(
+            pulse
+                .diagnostics
+                .iter()
+                .any(|d| d.code == "unsupported-rhythm"
+                    && d.measure_index == Some(0)
+                    && !d.message.is_empty())
+        );
+        assert!(
+            result
+                .source_range_violations
+                .iter()
+                .any(|v| v.measure_index == 0 && v.midi == 43)
+        );
+    }
+
+    #[test]
+    fn preset_assessment_bounds_and_invalid_source_are_explicit() {
+        let large = Score::new("limit", 120, 4, 4, 0, 129);
+        let limited = assess_chord_presets(&large, &ChordProposalRequest::default());
+        assert_eq!(limited.diagnostics[0].code, "assessment-limit-exceeded");
+        assert!(limited.assessments.is_empty());
+        let mut invalid = Score::new("invalid", 120, 4, 4, 0, 1);
+        let second_staff = invalid.parts[0].staves[0].clone();
+        invalid.parts[0].staves.push(second_staff);
+        let rejected = assess_chord_presets(&invalid, &ChordProposalRequest::default());
+        assert!(rejected.assessments.is_empty());
+        assert!(!rejected.proposals.diagnostics.is_empty());
     }
 }
