@@ -302,3 +302,44 @@ fn rejects_selected_pitch_if_its_tie_continues_in_an_omitted_pitch() {
     );
     assert!(result.arrangement.score.is_none());
 }
+
+#[test]
+fn button_annotations_preserve_harmony_source_and_playback() {
+    use acorde_core::model::standard_bass_annotations::arrange_standard_bass_with_annotations;
+    use acorde_core::to_playback_events;
+    let (source, mut options) = fixture();
+    options.profile.bass_buttons[0].id = "C bass".into();
+    options.profile.chord_buttons[0].id = "Em chord".into();
+    let before = serde_json::to_value(&source).unwrap();
+    let normal = arrange_standard_bass(&source, &options).score.unwrap();
+    let result = arrange_standard_bass_with_annotations(&source, &options);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let annotated = result.score.unwrap();
+    assert_eq!(serde_json::to_value(&source).unwrap(), before);
+    for action in &result.actions {
+        let a = &action.target;
+        let n =
+            &annotated.parts[a.part].staves[a.staff].measures[a.measure].voices[a.voice][a.note];
+        if !action.tied_from_previous {
+            assert_eq!(n.technique_text.as_deref(), Some("C bass + Em chord"));
+        }
+    }
+    assert_eq!(
+        annotated.parts[0].staves[1].measures[0].voices[0][0]
+            .chord_symbol
+            .as_ref()
+            .unwrap()
+            .kind,
+        "major-seventh"
+    );
+    let playback = |s: &Score| {
+        to_playback_events(s, &Default::default())
+            .into_iter()
+            .map(|e| (e.pitch_midi, e.time_beats, e.duration_beats))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(playback(&normal), playback(&annotated));
+    options.profile.chord_buttons.clear();
+    let missing = arrange_standard_bass_with_annotations(&source, &options);
+    assert!(missing.score.is_none() && missing.actions.is_empty());
+}
