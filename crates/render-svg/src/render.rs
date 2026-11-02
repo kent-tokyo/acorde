@@ -995,7 +995,11 @@ pub(crate) fn build_svg_with_metadata_placement(
                                 (p == text.part && s == text.staff && m == text.measure)
                                     .then_some(y)
                             }))
-                            .fold(text.bottom_y - 4.0 * space, f32::min);
+                            .fold(
+                                text.bottom_y
+                                    - staff_height_u(score, text.part, text.staff) * space,
+                                f32::min,
+                            );
                         Some((top - 2.0 * space, options.width))
                     } else {
                         None

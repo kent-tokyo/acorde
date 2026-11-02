@@ -93,3 +93,44 @@ fn unsafe_or_unavailable_vertical_lanes_keep_the_existing_fallback() {
         Err(acorde_render_svg::RenderError::InvalidOptions { .. })
     ));
 }
+
+#[test]
+fn recovered_text_clears_the_top_of_a_tall_staff() {
+    let mut score = example_score();
+    score.parts[0].staves[0].presentation.lines = 12;
+    let options = options();
+    let svg = render_svg(&score, &options).unwrap();
+    let heads = numbers(&svg, "class=\"acorde-notehead\" cx=\"");
+    assert!((heads[0] - heads[2]).abs() < 0.1, "heads: {heads:?}");
+    let text = svg
+        .split("class=\"acorde-measure-text acorde-measure-text-expression\"")
+        .nth(1)
+        .unwrap();
+    let y: f32 = text
+        .split(" y=\"")
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap()
+        .parse()
+        .unwrap();
+    let staff_top = svg
+        .split("class=\"acorde-staff-line\"")
+        .skip(1)
+        .map(|line| {
+            line.split(" y1=\"")
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap()
+                .parse::<f32>()
+                .unwrap()
+        })
+        .fold(f32::INFINITY, f32::min);
+    assert!(
+        y + 0.12 * options.staff_size < staff_top,
+        "text baseline {y}, staff top {staff_top}"
+    );
+}
