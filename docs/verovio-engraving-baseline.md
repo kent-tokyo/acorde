@@ -652,6 +652,118 @@ groups, a slur, and physical page SVG. This is a limited contour rule: the
 reference probes do not establish matching beam angles, exact stem lengths,
 or behavior for all chords, cross-staff beams, and secondary levels.
 
+### Two-note beam rise and remaining reference differences (2026-11-01)
+
+In self-authored treble-clef MusicXML eighth-note pairs, Verovio 6.3.0 changed
+the beam height by 0.25 staff space for C4–D4, D4–C4, C4–F4, F4–C4,
+C5–D5, and C6–C3, with the sign following the pitch contour; equal notes
+produced a horizontal beam. The probes included explicitly up and down stems.
+This is a height difference, not a fixed angle: the angle also depends on the
+horizontal distance. Acorde now clamps the rise of two-note groups to 0.25
+staff space for eighth and sixteenth-note groups with short spacing. For C4–G4, Verovio uses
+one staff space of rise with 32nd and 64th notes, so Acorde retains its prior
+one-space cap for three or more beam levels. The
+`verovio_partial_stem_slur.musicxml` reference is tested at two screen widths
+and on a print page. Further inspection of the pinned Verovio source and a
+justified C4–G4 probe show that the quarter-space step is limited to pairs
+whose horizontal distance is at most three staff spaces: with a wider pair,
+Verovio used one staff-space rise. Acorde now uses that spacing threshold
+instead of applying the short step to all pairs. The broader sample has not
+established that the rule matches all beam levels, pitches, or spacings.
+Reference: [Verovio 6.3.0 beam geometry](https://github.com/rism-digital/verovio/blob/version-6.3.0/src/beam.cpp).
+
+The same reference comparison exposes a remaining stem-length difference:
+for down-stemmed E4–F5, Verovio's stems measured approximately 2.49 and 6.24
+staff spaces, while the Acorde visual-regression case reaches approximately
+3.5 and 7.25. The latter is still bounded, but is not a Verovio match. Stem
+length changes with pitch and direction, so the available measurements do not
+justify replacing the general length rule with a constant.
+
+For a two-staff piano group with upper-staff C5, D5 and lower-staff G3, A3,
+Verovio 6.3.0 produced a sloping cross-staff beam with a 0.75-space rise
+between the first and last stem tips. This four-note case is still horizontal
+in Acorde. Another alternating-staff probe produced a flat Verovio beam,
+so a universal cross-staff slope would be unsupported. In addition,
+`collect_beam_groups` currently collects within each measure, so a group
+continuing across a barline or system is not represented as one cross-measure
+beam. These cases remain open.
+
+### Chord heads and beam clearance (2026-11-01)
+
+Self-authored MusicXML pairs with two-octave chords `C4+C6` and `D4+D6`,
+with explicitly up and down stems, were rendered by Verovio 6.3.0. In both
+directions its beam lies beyond the chord head closest to the beam; the stem
+also connects to the opposite outer head. A two-staff probe with a down-stem
+`C5+E5` chord and an up-stem `G3+B3` chord likewise keeps both chords between
+their staff and the shared beam.
+
+Acorde had used the stem's starting head for both drawing and beam clearance.
+That could let a beam cross another chord head. It now uses the beam-side head
+for beam planning and vertical extent calculation, while retaining the other
+head as the stem's starting point. Screen regressions cover both stem
+directions and cross-staff chords; a print-page SVG regression covers the
+cross-staff example. Very tight staff gaps may still be infeasible because
+staff separation is not yet automatically expanded for kneed beams. This
+comparison does not establish equal cross-staff slope or exact stem lengths.
+
+### Two-note cross-staff beam slope (2026-11-01)
+
+The pinned `verovio_cross_staff_pair.musicxml` has a down-stem C5 on the
+upper staff followed by an up-stem G3 on the lower staff. Verovio 6.3.0's
+beam polygon rises by one staff space from left to right in SVG coordinates;
+the tips end on opposite sides of the beam, 0.75 space apart. Reversing the
+staff order reverses the direction in additional self-authored probes.
+Different pitches gave the same result for these single-level two-note beams.
+
+Acorde now inclines the beam center by one staff space for these pairs when
+there is enough room for two-space clearance on both sides. If that slope
+would violate clearance it retains the horizontal placement. In the pinned
+Verovio probe and its reversed-staff variant, the down stem ends at the beam's
+lower edge and the up stem at its center. Acorde now does the same for
+single-level two-note cross-staff beams; the endpoint difference in the sloped pair is
+0.75 staff space. Screen and print tests cover the shape, chords, both orders,
+edge attachment, and the fallback.
+This does not establish the correct slope for longer or system-spanning beams,
+nor automatically increase a too-small staff gap.
+
+### Two-note cross-staff secondary beams (2026-11-01)
+
+The pinned `verovio_cross_staff_sixteenths.musicxml` uses the same notes
+as the eighth-note cross-staff probe, with both notes changed to sixteenths.
+Verovio 6.3.0 draws two parallel sloped beams, with their corresponding edges
+0.75 staff space apart vertically at the same x. The down-stem on the first
+note reaches the lower edge of the primary beam, while the up-stem on the
+second reaches the top edge of the secondary beam. Reversing the note order
+places the secondary beam on the other side. Additional self-authored 32nd
+note probes have three parallel beams with the same separation.
+
+Acorde now follows these relationships for cross-staff pairs using eighth-,
+sixteenth-, or 32nd-note beam levels. It considers the
+secondary beams when checking the required staff gap, and retains a horizontal
+primary beam when the sloped placement would not fit. Screen and print SVG
+tests cover the pinned sixteenth-note input; beam-planner tests cover both
+orders, the 32nd-note case, edge positions and parallel spacing. Absolute stem
+lengths, longer groups, and system-spanning beams
+remain unverified against the reference.
+
+### Cross-staff partial beams with unequal durations (2026-11-01)
+
+In `verovio_cross_staff_mixed_durations.musicxml`, an upper-staff eighth
+note joins a lower-staff sixteenth note. Verovio 6.3.0 slopes the primary
+beam by one staff space and draws a backward hook toward the shorter note's
+head. The hook is about 1.25 staff spaces long and its corresponding edge is
+0.75 staff space from the primary beam at the same x. Mirrored staff order,
+short note first, and a single 32nd note were also checked with self-authored
+MusicXML probes. Their hooks point toward the other note and lie on the short
+note's head side. Explicitly authored hook orientations other than these
+examples have not been compared.
+
+Acorde now applies this geometry to two-note cross-staff groups with these
+beam levels and accounts for the hooks in the staff-gap clearance check.
+Screen and print regressions exercise the pinned MusicXML input, and planner
+tests cover both staff orders, either short-note position, and 32nd notes.
+Absolute stem lengths and groups spanning measures or systems remain open.
+
 ## Gates before a quality claim
 
 1. Keep page SVG/PDF generation and cross-page span continuation covered by tests.

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Improve beam clearance for chords and refine two-note beam slopes using
+  Verovio comparisons. Two-staff pairs account for secondary beams, mixed
+  durations, stem attachment, and available clearance in SVG and print.
+
 - MSCX/MSCZ import accepts partial forward moves between directions after a
   backward voice location, without inserting rests or moving later notes.
   Notes and rests at an unresolved backward position still fail explicitly;
