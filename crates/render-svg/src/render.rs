@@ -5288,6 +5288,10 @@ fn simple_above_text_escape(score: &Score, measure: &Measure) -> bool {
     }
     let entries = measure_text_entries(measure);
     if entries.len() != 1
+        || !entries[0]
+            .text
+            .bytes()
+            .all(|b| b == b' ' || b.is_ascii_graphic())
         || entries[0].style != TextStyle::Expression
         || entries[0]
             .placement
@@ -5704,10 +5708,15 @@ fn render_measure_text(
             } else if let Some((safe_bottom, canvas_width)) = above_escape {
                 let candidate_y = safe_bottom - text.metrics.top_mm - text.metrics.height_mm;
                 let top = candidate_y + text.metrics.top_mm;
+                // The ordinary collision estimate is an average glyph width. At the canvas edge,
+                // budget a full staff space per ASCII character to allow for wider serif glyphs.
+                let conservative_width =
+                    (entries[index - annotation_count].text.len() as f32 * space * text_scale)
+                        .max(text.metrics.width_mm);
                 if top >= 0.0
                     && candidate_y <= text.y_mm
-                    && text.x_mm >= x
-                    && text.x_mm + text.metrics.width_mm <= canvas_width
+                    && text.x_mm >= x + 0.3 * space
+                    && text.x_mm + conservative_width <= canvas_width
                 {
                     placements[index].y_mm = candidate_y;
                 } else {

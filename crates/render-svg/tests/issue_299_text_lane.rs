@@ -86,6 +86,15 @@ fn unsafe_or_unavailable_vertical_lanes_keep_the_existing_fallback() {
         "fallback was skipped: {heads:?}"
     );
 
+    let mut non_ascii = example_score();
+    non_ascii.parts[0].staves[0].measures[0].texts[0].text = "あ".repeat(8);
+    let svg = render_svg(&non_ascii, &options()).unwrap();
+    let heads = numbers(&svg, "class=\"acorde-notehead\" cx=\"");
+    assert!(
+        (heads[0] - heads[2]).abs() > 0.1,
+        "non-ASCII text requires measured bounds: {heads:?}"
+    );
+
     let mut too_wide = example_score();
     too_wide.parts[0].staves[0].measures[0].texts[0].text = "a".repeat(100);
     assert!(matches!(
@@ -132,5 +141,18 @@ fn recovered_text_clears_the_top_of_a_tall_staff() {
     assert!(
         y + 0.12 * options.staff_size < staff_top,
         "text baseline {y}, staff top {staff_top}"
+    );
+}
+
+#[test]
+fn wide_text_near_canvas_edge_keeps_the_safe_fallback() {
+    let mut score = example_score();
+    score.parts[0].staves[0].measures[0].texts[0].text = "W".repeat(15);
+    let svg = render_svg(&score, &options()).unwrap();
+    let heads = numbers(&svg, "class=\"acorde-notehead\" cx=\"");
+    assert_eq!(heads.len(), 4);
+    assert!(
+        (heads[0] - heads[2]).abs() > 0.1,
+        "estimated text width must not trigger an unsafe move: {heads:?}"
     );
 }
