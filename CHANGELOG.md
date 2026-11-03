@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+- Add `acorde mcp --root <dir> [--allow-write]`, a local MCP server over stdio (rmcp 3.8). It
+  exposes `score_info`, `validate_score`, `import_report`, `compatibility_report` and
+  `render_svg_preview` with the same results and diagnostics as the corresponding CLI paths, plus
+  reviewed editing: `open_session`, `preview_edit` (semantic diff and validation, no change),
+  `apply_edit` (only the current, valid, previewed proposal), `undo_edit`/`redo_edit`,
+  `session_diff`, `write_score` and `close_session`. Ten `Command` types are exposed. Writing
+  requires `--allow-write` and an explicit destination inside a root, never replaces the source,
+  replaces another existing file only with `overwrite: true`, refuses scores with validation
+  errors, and returns the export loss report. Paths must resolve, after symlinks, inside a
+  configured root; inputs over 64 MiB and results over 8 MiB are refused. No HTTP transport.
+  Tests drive the server both with raw JSON-RPC and with the rmcp client SDK.
+- MusicXML export now reports `musicxml.export-shadowed-default-tempo` when a non-default score
+  tempo is dropped because the first measure has its own tempo mark (it re-imports as 120 BPM).
 - MSCX/MSCZ export writes the score tempo in the first bar when that bar has no tempo of its own, so `settings.tempo_bpm` and playback timing survive a roundtrip (#379).
 
 ## 1.3.9 - 2026-11-02
