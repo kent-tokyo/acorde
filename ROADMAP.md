@@ -44,12 +44,14 @@ Expose existing Acorde capabilities to MCP clients through a separate host adapt
 adapter should depend on the public Rust crates or CLI rather than add protocol or file-access
 responsibilities to the score model or WASM library.
 
-1. **Local, read-only server.** Offer stdio tools for score inspection, structural validation,
+1. **Local, read-only server.** Implemented as `acorde mcp --root <dir>`; unreleased.
+   Offer stdio tools for score inspection, structural validation,
    import/compatibility diagnostics, and an SVG preview. Define bounded inputs and structured
    outputs, preserve source addresses and diagnostics, and constrain file access to explicitly
    configured roots. Verify the chosen MCP SDK against Rust 1.89 and test tool discovery and
    calls with an MCP client.
-2. **Reviewed editing.** Expose selected existing `Command` operations only after the server
+2. **Reviewed editing.** Implemented as MCP sessions with `preview_edit`/`apply_edit`,
+   undo/redo and `--allow-write` exports for ten `Command` types; unreleased. Expose selected existing `Command` operations only after the server
    can show a proposed diff, validate the result, and retain undo/redo semantics. An output
    write needs an explicit destination and must not silently overwrite the source. Reuse the
    existing import/export loss reports when converting edited scores.
