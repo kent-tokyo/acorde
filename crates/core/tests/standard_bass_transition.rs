@@ -22,6 +22,7 @@ fn fixture() -> (Score, StandardBassArrangementOptions) {
     score.parts[0].staves[0].measures[0].barline_left = Barline::RepeatStart;
     score.parts[0].staves[0].measures[1].barline_right = Barline::RepeatEnd;
     let options = StandardBassArrangementOptions {
+        harmony_source: Default::default(),
         melody_part: 0,
         melody_staff: 0,
         melody_voice: 0,

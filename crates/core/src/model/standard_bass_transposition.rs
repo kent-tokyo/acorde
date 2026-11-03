@@ -100,6 +100,10 @@ fn rejected(
             requires_performer_review: true,
             required_bass_mode: AccordionBassMode::StandardBass,
             resolved_options: None,
+            edition_kinds: vec![
+                super::standard_bass_arrangement::StandardBassEditionKind::NoCandidate,
+            ],
+            harmony_source: options.arrangement.harmony_source,
         },
         transitions: vec![],
         source_options: options.arrangement.clone(),

@@ -55,6 +55,44 @@ pub struct StandardBassCandidate {
     pub omitted_pitch_classes: Vec<u8>,
     pub added_pitch_classes: Vec<u8>,
     pub requires_performer_review: bool,
+    /// Readable action, e.g. `C bass + Em chord`; the musical chord label is separate.
+    #[serde(default)]
+    pub label: String,
+    #[serde(default)]
+    pub realization: StandardBassRealization,
+}
+
+/// `Combined` means the chord button does not itself contain the bass pitch class, so the
+/// requested harmony needs the two buttons together (e.g. C bass + E minor for Cmaj7).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum StandardBassRealization {
+    #[default]
+    Direct,
+    Combined,
+}
+
+const NAMES: [&str; 12] = [
+    "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+];
+
+/// Name a button by its sounding pitch classes (sharps), independent of its ID.
+fn chord_button_name(tones: &BTreeSet<u8>) -> String {
+    for &root in tones {
+        let has = |i: u8| tones.contains(&((root + i) % 12));
+        let suffix = match (tones.len(), has(4), has(3), has(7), has(6), has(8), has(10)) {
+            (3, true, _, true, ..) => "",
+            (3, _, true, true, ..) => "m",
+            (3, _, true, _, true, ..) => "dim",
+            (3, true, _, _, _, true, _) => "aug",
+            (3, true, _, _, _, _, true) => "7",
+            (4, true, _, true, _, _, true) => "7",
+            _ => continue,
+        };
+        return format!("{}{suffix}", NAMES[usize::from(root)]);
+    }
+    let names: Vec<_> = tones.iter().map(|&p| NAMES[usize::from(p)]).collect();
+    format!("({})", names.join(" "))
 }
 
 /// Translate a supported chord symbol into a pitch-class request. Slash basses
@@ -167,7 +205,18 @@ pub fn standard_bass_candidates(
             {
                 continue;
             }
+            let chord_tones: BTreeSet<u8> = chord.midi.iter().map(|pitch| pitch % 12).collect();
             candidates.push(StandardBassCandidate {
+                label: format!(
+                    "{} bass + {} chord",
+                    NAMES[usize::from(bass.midi % 12)],
+                    chord_button_name(&chord_tones)
+                ),
+                realization: if chord_tones.contains(&(bass.midi % 12)) {
+                    StandardBassRealization::Direct
+                } else {
+                    StandardBassRealization::Combined
+                },
                 bass_button_id: bass.id.clone(),
                 chord_button_id: chord.id.clone(),
                 bass_midi: bass.midi,

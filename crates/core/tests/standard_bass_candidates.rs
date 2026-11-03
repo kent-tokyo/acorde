@@ -1,6 +1,6 @@
 use acorde_core::model::standard_bass::{
-    StandardBassChordButton, StandardBassNoteButton, StandardBassProfile, StandardBassRequest,
-    standard_bass_candidates, standard_bass_request_for_chord,
+    StandardBassChordButton, StandardBassNoteButton, StandardBassProfile, StandardBassRealization,
+    StandardBassRequest, standard_bass_candidates, standard_bass_request_for_chord,
 };
 
 fn profile() -> StandardBassProfile {
@@ -205,4 +205,23 @@ fn chord_symbols_resolve_slash_bass_and_reject_unsupported_input() {
         kind: "add".into(),
     });
     assert!(standard_bass_request_for_chord(&unsupported, false, false).is_err());
+}
+
+#[test]
+fn candidates_are_labelled_and_separate_direct_from_combined_buttons() {
+    let p = profile();
+    let maj7 = &standard_bass_candidates(&p, &request(&[0, 4, 7, 11], 0)).unwrap()[0];
+    assert_eq!(maj7.label, "C bass + Em chord");
+    assert_eq!(maj7.realization, StandardBassRealization::Combined);
+    // G7/F is a G-major chord over an F bass, not a root-position G7.
+    let mut slash = request(&[2, 5, 7, 11], 5);
+    slash.allow_additions = true;
+    slash.allow_omissions = true;
+    let found = standard_bass_candidates(&p, &slash).unwrap();
+    let g_over_f = found.iter().find(|c| c.bass_button_id == "F bass").unwrap();
+    assert_eq!(g_over_f.label, "F bass + G chord");
+    assert_eq!(g_over_f.realization, StandardBassRealization::Combined);
+    let g = standard_bass_candidates(&p, &request(&[7, 11, 2], 7)).unwrap();
+    assert_eq!(g[0].label, "G bass + G chord");
+    assert_eq!(g[0].realization, StandardBassRealization::Direct);
 }

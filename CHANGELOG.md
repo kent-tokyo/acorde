@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Standard-bass candidates carry a readable `label` (e.g. `C bass + Em chord`) and a `realization` (`direct` or `combined`), and arrangement results report `edition_kinds` (`direct-buttons`, `combined-buttons`, `simplified`, `no-candidate`) and the `harmony_source` (`supplied` or `editorial-proposal`, an option echoed from the input). All new fields default for existing JSON (#358, #359).
+
 - Add `acorde mcp --root <dir> [--allow-write]`, a local MCP server over stdio (rmcp 3.8). It
   exposes `score_info`, `validate_score`, `import_report`, `compatibility_report` and
   `render_svg_preview` with the same results and diagnostics as the corresponding CLI paths, plus

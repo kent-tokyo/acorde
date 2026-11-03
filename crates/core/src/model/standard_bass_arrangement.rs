@@ -27,6 +27,9 @@ pub struct StandardBassArrangementOptions {
     pub profile: StandardBassProfile,
     pub allow_chord_omissions: bool,
     pub allow_chord_additions: bool,
+    /// Provenance of `chords`; echoed in the result. Defaults to caller-supplied.
+    #[serde(default)]
+    pub harmony_source: StandardBassHarmonySource,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -52,6 +55,28 @@ pub struct StandardBassArrangementDiagnostic {
     pub measure_index: Option<usize>,
 }
 
+/// Where the accompanying harmony came from; hosts must label editorial proposals as such.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum StandardBassHarmonySource {
+    #[default]
+    Supplied,
+    /// Chords proposed by an editor or tool, not original source harmony.
+    EditorialProposal,
+}
+
+/// What kind of standard-bass edition a result is. A lossy edition carries `Simplified`
+/// together with the button kinds it uses; a failed search carries only `NoCandidate`,
+/// which does not prove the piece is unplayable on standard bass.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum StandardBassEditionKind {
+    DirectButtons,
+    CombinedButtons,
+    Simplified,
+    NoCandidate,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StandardBassArrangementResult {
     /// None on failure: no partial score, mappings, or actions are returned.
@@ -62,6 +87,34 @@ pub struct StandardBassArrangementResult {
     pub requires_performer_review: bool,
     pub required_bass_mode: AccordionBassMode,
     pub resolved_options: Option<StandardBassArrangementOptions>,
+    #[serde(default)]
+    pub edition_kinds: Vec<StandardBassEditionKind>,
+    #[serde(default)]
+    pub harmony_source: StandardBassHarmonySource,
+}
+
+/// Sorted, de-duplicated kinds for a successful edition: omissions make it simplified.
+pub(super) fn edition_kinds(
+    actions: &[StandardBassAction],
+    source_pitches: &[StandardBassSourcePitch],
+) -> Vec<StandardBassEditionKind> {
+    use super::standard_bass::StandardBassRealization::{Combined, Direct};
+    let mut kinds: Vec<_> = actions
+        .iter()
+        .map(|a| match a.candidate.realization {
+            Direct => StandardBassEditionKind::DirectButtons,
+            Combined => StandardBassEditionKind::CombinedButtons,
+        })
+        .chain(
+            source_pitches
+                .iter()
+                .any(|p| p.target.is_none())
+                .then_some(StandardBassEditionKind::Simplified),
+        )
+        .collect();
+    kinds.sort();
+    kinds.dedup();
+    kinds
 }
 
 fn reject(
@@ -81,6 +134,8 @@ fn reject(
         requires_performer_review: true,
         required_bass_mode: AccordionBassMode::StandardBass,
         resolved_options: None,
+        edition_kinds: vec![StandardBassEditionKind::NoCandidate],
+        harmony_source: Default::default(),
     }
 }
 
@@ -94,6 +149,7 @@ pub fn arrange_standard_bass(
 ) -> StandardBassArrangementResult {
     let mut result = arrange_standard_bass_inner(score, options, None);
     result.resolved_options = Some(options.clone());
+    result.harmony_source = options.harmony_source;
     result
 }
 
@@ -116,6 +172,7 @@ pub fn arrange_standard_bass_located(
     }
     let mut result = arrange_standard_bass_inner(score, options, Some(instrument));
     result.resolved_options = Some(options.clone());
+    result.harmony_source = options.harmony_source;
     result
 }
 
@@ -416,6 +473,7 @@ fn arrange_standard_bass_inner(
         );
     }
     StandardBassArrangementResult {
+        edition_kinds: edition_kinds(&actions, &mappings),
         score: Some(output),
         source_pitches: mappings,
         actions,
@@ -423,5 +481,6 @@ fn arrange_standard_bass_inner(
         requires_performer_review: true,
         required_bass_mode: AccordionBassMode::StandardBass,
         resolved_options: None,
+        harmony_source: Default::default(),
     }
 }

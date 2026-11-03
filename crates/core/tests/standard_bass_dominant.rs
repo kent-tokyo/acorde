@@ -143,6 +143,7 @@ fn explicit_profile_distinguishes_fifth_omission_and_missing_seventh_button() {
             max_distance: 0,
         };
         let mut options = StandardBassArrangementOptions {
+            harmony_source: Default::default(),
             melody_part: 0,
             melody_staff: 0,
             melody_voice: 0,

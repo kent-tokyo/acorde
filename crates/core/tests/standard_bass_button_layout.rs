@@ -133,6 +133,7 @@ fn located_arrangement_sounds_the_chosen_buttons_and_keeps_melody() {
     let original = serde_json::to_value(&score).unwrap();
     let profile = fixture();
     let options = StandardBassArrangementOptions {
+        harmony_source: Default::default(),
         melody_part: 0,
         melody_staff: 0,
         melody_voice: 0,
@@ -194,6 +195,7 @@ fn located_screening_uses_the_selected_buttons_and_expands_repeats() {
     score.parts[0].staves[0].measures[0].barline_right = Barline::RepeatEnd;
     let profile = fixture();
     let options = StandardBassArrangementOptions {
+        harmony_source: Default::default(),
         melody_part: 0,
         melody_staff: 0,
         melody_voice: 0,
@@ -248,6 +250,7 @@ fn located_tied_continuations_keep_the_same_sound_and_button() {
     score.parts[0].staves[0].measures[0].voices[0] = vec![melody];
     let profile = fixture();
     let options = StandardBassArrangementOptions {
+        harmony_source: Default::default(),
         melody_part: 0,
         melody_staff: 0,
         melody_voice: 0,
@@ -289,6 +292,7 @@ fn explicit_melody_selection_is_combined_with_located_repeat_screening() {
     let before = serde_json::to_value(&score).unwrap();
     let profile = fixture();
     let mut options = StandardBassArrangementOptions {
+        harmony_source: Default::default(),
         melody_part: 0,
         melody_staff: 0,
         melody_voice: 0,
