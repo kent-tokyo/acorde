@@ -51,7 +51,7 @@ responsibilities to the score model or WASM library.
    configured roots. Verify the chosen MCP SDK against Rust 1.89 and test tool discovery and
    calls with an MCP client.
 2. **Reviewed editing.** Implemented as MCP sessions with `preview_edit`/`apply_edit`,
-   undo/redo and `--allow-write` exports for nine `Command` types; unreleased. Expose selected existing `Command` operations only after the server
+   undo/redo and `--allow-write` exports for ten `Command` types; unreleased. Expose selected existing `Command` operations only after the server
    can show a proposed diff, validate the result, and retain undo/redo semantics. An output
    write needs an explicit destination and must not silently overwrite the source. Reuse the
    existing import/export loss reports when converting edited scores.

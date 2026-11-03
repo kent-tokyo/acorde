@@ -449,3 +449,78 @@ fn reviewed_editing_with_undo_redo_and_bounded_writes() {
     );
     let _ = std::fs::remove_dir_all(&scratch);
 }
+
+#[test]
+fn documented_edit_command_shapes_are_accepted() {
+    let mut client = Client::start(&fixtures());
+    let opened = client.call("open_session", json!({ "path": FIXTURE }));
+    let session = ok(&opened)["session_id"].clone();
+    let measures = ok(&opened)["statistics"]["measure_count"].clone();
+    let note = json!({ "part_index": 0, "staff_index": 0, "measure_index": 2, "voice": 0, "note_index": 0 });
+    let with_note = |extra: Value| {
+        let mut command = note.clone();
+        command
+            .as_object_mut()
+            .expect("object")
+            .extend(extra.as_object().expect("object").clone());
+        command
+    };
+    let commands = [
+        json!({ "type": "set_metadata", "title": "Edited" }),
+        json!({ "type": "set_tempo", "bpm": 90 }),
+        json!({ "type": "set_tempo_at_measure", "measure_index": 0, "bpm": 72 }),
+        json!({ "type": "set_tempo_at_measure", "measure_index": 0, "bpm": null }),
+        json!({ "type": "set_key_signature", "fifths": 2 }),
+        json!({ "type": "set_time_signature", "numerator": 3, "denominator": 4 }),
+        json!({ "type": "set_part_name", "part_index": 0, "name": "Solo", "short_name": "S." }),
+        with_note(json!({ "type": "set_dynamic", "dynamic": "Mf" })),
+        with_note(json!({ "type": "set_dynamic", "dynamic": null })),
+        json!({ "type": "transpose_staff_region", "part_index": 0, "staff_index": 0,
+                "start_measure": 0, "end_measure": 2, "semitones": 2, "target": "written" }),
+        json!({ "type": "transpose_staff_region", "part_index": 0, "staff_index": 0,
+                "start_measure": 0, "end_measure": measures, "semitones": -1, "target": "concert" }),
+        json!({ "type": "add_measure", "after_index": 0 }),
+        json!({ "type": "delete_measure", "measure_index": 1 }),
+    ];
+    let mut covered: Vec<_> = commands
+        .iter()
+        .map(|command| command["type"].as_str().expect("type").to_string())
+        .collect();
+    covered.sort();
+    covered.dedup();
+    let open_list = ok(&opened)["edit_commands"]
+        .as_array()
+        .expect("list")
+        .clone();
+    let mut exposed: Vec<_> = open_list
+        .iter()
+        .map(|kind| kind.as_str().expect("kind").to_string())
+        .collect();
+    exposed.sort();
+    assert_eq!(
+        covered, exposed,
+        "every exposed command has a documented example"
+    );
+    let commands_len = commands.len();
+    let mut accepted = 0;
+    for command in commands {
+        let preview = client.call(
+            "preview_edit",
+            json!({ "session_id": session, "command": command }),
+        );
+        // The engine may still reject a well-formed command for this score: here only the 3/4
+        // meter, which breaks the existing bars. A shape or allowlist error is always a failure.
+        let text = preview["content"][0]["text"].as_str().unwrap_or_default();
+        assert!(
+            !text.contains("invalid ") && !text.contains("not exposed"),
+            "{command}: {text}"
+        );
+        if preview["isError"] == json!(false) {
+            accepted += 1;
+        }
+    }
+    assert!(
+        accepted == commands_len - 1,
+        "{accepted}/{commands_len} previews succeeded"
+    );
+}

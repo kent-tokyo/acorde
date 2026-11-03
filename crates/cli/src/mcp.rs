@@ -34,6 +34,7 @@ pub(crate) const MAX_SESSIONS: usize = 8;
 pub(crate) const EDIT_COMMANDS: &[&str] = &[
     "set_metadata",
     "set_tempo",
+    "set_tempo_at_measure",
     "set_key_signature",
     "set_time_signature",
     "set_part_name",
@@ -81,12 +82,13 @@ pub(crate) struct EditRequest {
     pub session_id: String,
     /// An Acorde `Command` as JSON, tagged by `type`. Allowed types and fields (indices are
     /// 0-based): set_metadata {title?, composer?, lyricist?, copyright?, work_number?,
-    /// movement_title?}; set_tempo {bpm}; set_key_signature {fifths}; set_time_signature
+    /// movement_title?}; set_tempo {bpm} (default tempo; a measure tempo mark takes precedence);
+    /// set_tempo_at_measure {measure_index, bpm or null}; set_key_signature {fifths}; set_time_signature
     /// {numerator, denominator}; set_part_name {part_index, name, short_name}; set_dynamic
     /// {part_index, staff_index, measure_index, voice, note_index, dynamic: "P"|"F"|… or null};
     /// transpose_staff_region {part_index, staff_index, start_measure (inclusive), end_measure
-    /// (exclusive), semitones, target: "written"|"concert"}; add_measure {after_index};
-    /// delete_measure {measure_index}.
+    /// (exclusive), semitones, target: "written"|"concert" (concert needs the whole staff)};
+    /// add_measure {after_index}; delete_measure {measure_index}.
     pub command: Value,
 }
 
@@ -377,7 +379,9 @@ impl AcordeMcp {
                 .engine
                 .apply(proposal.command)
                 .map_err(|e| format!("command rejected: {e}"))?;
-            Ok(edit_outcome(session_id, &before, session))
+            let mut outcome = edit_outcome(session_id, &before, session);
+            outcome["applied"] = json!(true);
+            Ok(outcome)
         })
     }
 
@@ -480,7 +484,6 @@ fn edit_outcome(session_id: &str, before: &Score, session: &Session) -> Value {
     let engine = &session.engine;
     json!({
         "session_id": session_id,
-        "applied": true,
         "version": engine.version,
         "changes": acorde_core::diff(before, &engine.score),
         "validation": acorde_core::validate(&engine.score),

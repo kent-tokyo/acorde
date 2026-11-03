@@ -7,7 +7,7 @@
   `render_svg_preview` with the same results and diagnostics as the corresponding CLI paths, plus
   reviewed editing: `open_session`, `preview_edit` (semantic diff and validation, no change),
   `apply_edit` (only the current, valid, previewed proposal), `undo_edit`/`redo_edit`,
-  `session_diff`, `write_score` and `close_session`. Nine `Command` types are exposed. Writing
+  `session_diff`, `write_score` and `close_session`. Ten `Command` types are exposed. Writing
   requires `--allow-write` and an explicit destination inside a root, never replaces the source,
   replaces another existing file only with `overwrite: true`, refuses scores with validation
   errors, and returns the export loss report. Paths must resolve, after symlinks, inside a

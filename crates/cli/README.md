@@ -53,14 +53,15 @@ Editing is reviewed and in memory. `open_session` imports a file into an undoabl
 `preview_edit` returns the semantic diff and validation of one command and a `proposal_id`
 without changing the session; `apply_edit` commits only that latest, still-current, valid
 proposal; `undo_edit`, `redo_edit`, and `session_diff` (cumulative diff from the opened file)
-follow the engine history. Exposed commands are `set_metadata`, `set_tempo`, `set_key_signature`,
+follow the engine history. Exposed commands are `set_metadata`, `set_tempo`, `set_tempo_at_measure`, `set_key_signature`,
 `set_time_signature`, `set_part_name`, `set_dynamic`, `transpose_staff_region`, `add_measure`, and
 `delete_measure`, in the serde shape of `acorde_core::Command`. `write_score` exports to an
 explicit destination and returns the same loss report as `export-report`; it is disabled unless
 the server is started with `--allow-write`, never writes over the session's source, replaces
 another existing file only with `overwrite: true`, and refuses scores with validation errors.
-Format losses still apply: for example, a global `set_tempo` is not visible after MusicXML export
-when the score has its own measure-level tempo marks. A client configuration looks like:
+`set_tempo` changes the default tempo, which a first-measure tempo mark overrides; MusicXML export
+then writes only that mark, so use `set_tempo_at_measure` to change a marked tempo. Check the
+returned loss report for other format limits. A client configuration looks like:
 
 ~~~json
 { "mcpServers": { "acorde": { "command": "acorde", "args": ["mcp", "--root", "/path/to/scores", "--allow-write"] } } }
