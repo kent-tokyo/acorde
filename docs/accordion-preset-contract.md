@@ -120,6 +120,22 @@ const result = JSON.parse(arrange_profiled_bass_pulse(scoreJson, JSON.stringify(
 The returned action's `candidate.omitted_pitch_classes` includes D (pitch class
 2). Bass and chord actions have distinct `sounding_midi` lists.
 
+`model::standard_bass_patterns::arrange_profiled_accompaniment` (WASM:
+`arrange_profiled_accompaniment(scoreJson, optionsJson)`) extends this to the
+patterns listed by `profiled_accompaniment_capabilities()`: `bass-pulse`,
+`alternating-bass`, `offbeat-chords`, `waltz-bass` and `waltz-alternating-bass`,
+with their supported meters and melody layers (currently `unchanged` only).
+Options add `pattern` and an optional `transition_policy` to the bass-pulse
+options. Each action names the one button pressed (`button_id`,
+`button_position`), its `sounding_midi`, and the chord pitch classes omitted or
+added by that attack alone; a bass attack never implies the chord, nor a chord
+attack the bass. An alternating fifth must be a supplied bass button, otherwise
+`missing-alternate-bass-button`. `attacks` lists the expanded playback attacks
+(repeats included) with time, duration, elapsed time and same-side movement;
+each is checked against its action, and a supplied policy is enforced. Any
+failure returns no score, actions or attacks. With the G7 profile above,
+`waltz-bass` in 3/4 plays `[43] → [67,71,77] → [67,71,77]`.
+
 ## Two 2/4 accompaniment patterns
 
 `fine-bass-chord` and `habanera` are straight 2/4 presets, also exposed as

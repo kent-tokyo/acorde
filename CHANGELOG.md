@@ -16,6 +16,7 @@
 - MusicXML export now reports `musicxml.export-shadowed-default-tempo` when a non-default score
   tempo is dropped because the first measure has its own tempo mark (it re-imports as 120 BPM).
 - MSCX/MSCZ export writes the score tempo in the first bar when that bar has no tempo of its own, so `settings.tempo_bpm` and playback timing survive a roundtrip (#379).
+- Add `arrange_profiled_accompaniment` and `profiled_accompaniment_capabilities` (Rust and full/viewer WASM): `bass-pulse`, `alternating-bass`, `offbeat-chords`, `waltz-bass` and `waltz-alternating-bass` with an explicit standard-bass button profile. Each attack reports the one button actually pressed, its sounding MIDI and per-attack omissions; alternate basses come only from supplied buttons; expanded playback attacks are checked against actions and can be screened with a caller transition policy. `arrange_profiled_bass_pulse` is unchanged (#378).
 - Add `arrange_standard_bass_transposed` and `evaluate_standard_bass_transpositions` (Rust and full/viewer WASM): transpose the selected melody and explicit harmony (respelled for the key at each chord, including slash basses and local key changes), then choose buttons again from the unchanged profile, with optional transition screening on the expanded playback order. The bounded search (at most 25 semitone values) classifies each value as arranged, out of range, no button combination, transition rejected or unsupported (#377).
 
 ## 1.3.9 - 2026-11-02
