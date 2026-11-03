@@ -21,7 +21,8 @@ For a release claim, check its tag, CI, registry, and artifacts separately.
 
 ## Evidence and maintenance
 
-[Scorecard](scorecard.md) is a conservative implementation inventory. The
+[Roadmap](../ROADMAP.md) tracks priorities and planned MCP integration; it does not describe
+released features. The [scorecard](scorecard.md) is a conservative implementation inventory. The
 [Verovio engraving baseline](verovio-engraving-baseline.md),
 [playback comparisons](playback-evidence.md),
 [external interoperability](external-interoperability-evidence.md), and
