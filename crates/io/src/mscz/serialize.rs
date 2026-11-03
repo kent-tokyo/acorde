@@ -895,6 +895,16 @@ fn write_staff(
             )
             .map_err(fmt_error)?;
         }
+        // Without a first-bar tempo, the score tempo opens the first staff hidden, as
+        // MusicXML's bare `<sound tempo>`; the parser restores it to the settings only.
+        if id == 1 && measure_index == 0 && measure.tempo.is_none() {
+            write!(
+                xml,
+                "<Tempo><tempo>{:.6}</tempo><visible>0</visible></Tempo>",
+                score.settings.tempo_bpm as f64 / 60.0
+            )
+            .map_err(fmt_error)?;
+        }
         if let Some(label) = &measure.rehearsal {
             write!(
                 xml,

@@ -15,6 +15,7 @@
   Tests drive the server both with raw JSON-RPC and with the rmcp client SDK.
 - MusicXML export now reports `musicxml.export-shadowed-default-tempo` when a non-default score
   tempo is dropped because the first measure has its own tempo mark (it re-imports as 120 BPM).
+- MSCX/MSCZ export writes the score tempo in the first bar when that bar has no tempo of its own, so `settings.tempo_bpm` and playback timing survive a roundtrip (#379).
 
 ## 1.3.9 - 2026-11-02
 
