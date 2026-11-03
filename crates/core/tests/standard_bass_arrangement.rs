@@ -1,9 +1,11 @@
 use acorde_core::model::arrange::{AccordionBassMode, PositionedAccordionChord};
+use acorde_core::model::standard_bass::StandardBassRealization;
 use acorde_core::model::standard_bass::{
     StandardBassChordButton, StandardBassNoteButton, StandardBassProfile,
 };
 use acorde_core::model::standard_bass_arrangement::{
-    StandardBassArrangementOptions, arrange_standard_bass,
+    StandardBassArrangementOptions, StandardBassEditionKind, StandardBassHarmonySource,
+    arrange_standard_bass,
 };
 use acorde_core::{Barline, ChordSymbol, Duration, MeasureLength, Note, Pitch, Score, Step};
 
@@ -20,6 +22,7 @@ fn fixture() -> (Score, StandardBassArrangementOptions) {
     let chord: ChordSymbol =
         serde_json::from_str(r#"{"root":"C","kind":"major-seventh"}"#).unwrap();
     let options = StandardBassArrangementOptions {
+        harmony_source: Default::default(),
         melody_part: 0,
         melody_staff: 0,
         melody_voice: 1,
@@ -301,4 +304,30 @@ fn rejects_selected_pitch_if_its_tie_continues_in_an_omitted_pitch() {
         "melody-playback-changed"
     );
     assert!(result.arrangement.score.is_none());
+}
+
+#[test]
+fn edition_is_labelled_combined_simplified_and_keeps_the_chord_label_separate() {
+    let (source, mut options) = fixture();
+    options.harmony_source = StandardBassHarmonySource::EditorialProposal;
+    let result = arrange_standard_bass(&source, &options);
+    assert_eq!(
+        result.edition_kinds,
+        [
+            StandardBassEditionKind::CombinedButtons,
+            StandardBassEditionKind::Simplified
+        ]
+    );
+    assert_eq!(
+        result.harmony_source,
+        StandardBassHarmonySource::EditorialProposal
+    );
+    let candidate = &result.actions[0].candidate;
+    assert_eq!(candidate.label, "C bass + Em chord");
+    assert_eq!(candidate.realization, StandardBassRealization::Combined);
+    // Without caller-authorized omissions nothing is returned, and the kind says why.
+    options.allow_source_omissions = false;
+    let failed = arrange_standard_bass(&source, &options);
+    assert!(failed.score.is_none());
+    assert_eq!(failed.edition_kinds, [StandardBassEditionKind::NoCandidate]);
 }

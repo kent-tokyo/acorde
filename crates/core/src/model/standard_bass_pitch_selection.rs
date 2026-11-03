@@ -48,6 +48,10 @@ fn failure(
             requires_performer_review: true,
             required_bass_mode: AccordionBassMode::StandardBass,
             resolved_options: Some(options.clone()),
+            edition_kinds: vec![
+                super::standard_bass_arrangement::StandardBassEditionKind::NoCandidate,
+            ],
+            harmony_source: options.harmony_source,
         },
     }
 }
