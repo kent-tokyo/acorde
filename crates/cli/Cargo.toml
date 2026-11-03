@@ -32,6 +32,8 @@ tokio = { version = "1", features = ["rt", "io-std"] }
 schemars = "1.2.3"
 
 [dev-dependencies]
+rmcp = { version = "3.8", features = ["client", "transport-child-process"] }
+tokio = { version = "1", features = ["rt", "macros", "process", "io-util"] }
 png = "0.18"
 
 [lints]

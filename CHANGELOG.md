@@ -12,6 +12,9 @@
   replaces another existing file only with `overwrite: true`, refuses scores with validation
   errors, and returns the export loss report. Paths must resolve, after symlinks, inside a
   configured root; inputs over 64 MiB and results over 8 MiB are refused. No HTTP transport.
+  Tests drive the server both with raw JSON-RPC and with the rmcp client SDK.
+- MusicXML export now reports `musicxml.export-shadowed-default-tempo` when a non-default score
+  tempo is dropped because the first measure has its own tempo mark (it re-imports as 120 BPM).
 
 ## 1.3.9 - 2026-11-02
 

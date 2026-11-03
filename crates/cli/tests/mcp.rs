@@ -415,6 +415,16 @@ fn reviewed_editing_with_undo_redo_and_bounded_writes() {
     );
     let reference = acorde_io::serialize_musicxml_with_report(&expected.score).expect("serialize");
     assert_eq!(ok(&written)["format"], json!(reference.format));
+    // The fixture opens with a tempo mark, so the edited default tempo is a reported loss.
+    assert!(
+        ok(&written)["diagnostics"]
+            .as_array()
+            .expect("diagnostics")
+            .iter()
+            .any(|d| d["code"] == "musicxml.export-shadowed-default-tempo"
+                && d["preserved_value"] == "97"),
+        "{written}"
+    );
     assert_eq!(
         ok(&written)["diagnostics"],
         serde_json::to_value(&reference.diagnostics).expect("diagnostics")

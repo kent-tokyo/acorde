@@ -60,8 +60,8 @@ explicit destination and returns the same loss report as `export-report`; it is 
 the server is started with `--allow-write`, never writes over the session's source, replaces
 another existing file only with `overwrite: true`, and refuses scores with validation errors.
 `set_tempo` changes the default tempo, which a first-measure tempo mark overrides; MusicXML export
-then writes only that mark, so use `set_tempo_at_measure` to change a marked tempo. Check the
-returned loss report for other format limits. A client configuration looks like:
+then writes only that mark and reports `musicxml.export-shadowed-default-tempo`, so use
+`set_tempo_at_measure` to change a marked tempo. Check the returned loss report for other limits. A client configuration looks like:
 
 ~~~json
 { "mcpServers": { "acorde": { "command": "acorde", "args": ["mcp", "--root", "/path/to/scores", "--allow-write"] } } }

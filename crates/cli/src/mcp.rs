@@ -712,7 +712,7 @@ impl ServerHandler for AcordeMcp {
 pub(crate) fn serve(roots: &[PathBuf], allow_write: bool) -> Result<(), String> {
     let server = AcordeMcp::new(roots, allow_write)?;
     let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_io()
+        .enable_all()
         .build()
         .map_err(|e| format!("cannot start MCP runtime: {e}"))?;
     runtime.block_on(async move {
