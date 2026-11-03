@@ -1593,6 +1593,8 @@ pub fn arrange_profiled_accompaniment(score_json: &str, options_json: &str) -> R
 pub fn profiled_accompaniment_capabilities() -> Result<String, JsValue> {
     serde_json::to_string(&acorde_core::model::standard_bass_patterns::profiled_accompaniment_capabilities())
         .map_err(|error| js_err(format!("profiled accompaniment capabilities serialization failed: {error}")))
+}
+
 /// Re-arrange a standard-bass edition after transposing its melody and harmony; the profile is unchanged.
 #[wasm_bindgen]
 pub fn arrange_standard_bass_transposed(score_json: &str, options_json: &str) -> Result<String, JsValue> {
