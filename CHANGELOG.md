@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Add `arrange_standard_bass_transposed` and `evaluate_standard_bass_transpositions` (Rust and full/viewer WASM): transpose the selected melody and explicit harmony (respelled for the key at each chord, including slash basses and local key changes), then choose buttons again from the unchanged profile, with optional transition screening on the expanded playback order. The bounded search (at most 25 semitone values) classifies each value as arranged, out of range, no button combination, transition rejected or unsupported (#377).
+
 ## 1.3.9 - 2026-11-02
 
 - Add explicit standard-bass button profiles, located candidate search, melody-pitch selection and bounded repeat-aware transition/alternative search in Rust and WASM. Source-pitch omissions are reported and results require performer review. A fixed 16-measure Eventide fixture checks selected-melody playback and MSCZ roundtrip with synthetic harmony and a mock profile; it does not establish physical reach or a publishable edition.
