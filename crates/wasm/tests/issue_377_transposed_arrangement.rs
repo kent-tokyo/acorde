@@ -144,6 +144,22 @@ fn c_only_profile_needs_explicit_d_buttons_after_transposition() {
     assert_eq!(shifted.source_options.chords[0].chord.root, "C");
     assert!(shifted.arrangement.requires_performer_review);
 
+    // Key-aware respelling may produce a double flat: Db in C down a major third is Bbb.
+    let (_, double) = transposed(
+        "X:1\nM:4/4\nL:1/4\nK:C\nc d e f|]",
+        &arrangement(vec![chord(0, 0.0, "Db", None)], profile(&[1, 9])),
+        -4,
+        None,
+    );
+    assert!(
+        double.arrangement.diagnostics.is_empty(),
+        "{:?}",
+        double.arrangement.diagnostics
+    );
+    let resolved = double.arrangement.resolved_options.as_ref().unwrap();
+    assert_eq!(resolved.chords[0].chord.root, "Bbb");
+    assert_eq!(pressed(&double)[0].0, "A bass");
+
     // c'''' is MIDI 120; +8 leaves the MIDI range before any arrangement is attempted.
     let (_, high) = transposed("X:1\nM:4/4\nL:1/4\nK:C\nc'''' D E F|]", &with_d, 8, None);
     assert!(high.arrangement.score.is_none());

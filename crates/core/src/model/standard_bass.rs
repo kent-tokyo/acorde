@@ -64,29 +64,7 @@ pub fn standard_bass_request_for_chord(
     allow_omissions: bool,
     allow_additions: bool,
 ) -> Result<StandardBassRequest, String> {
-    fn pitch_class(name: &str) -> Option<u8> {
-        let mut chars = name.chars();
-        let base: i16 = match chars.next()? {
-            'C' => 0,
-            'D' => 2,
-            'E' => 4,
-            'F' => 5,
-            'G' => 7,
-            'A' => 9,
-            'B' => 11,
-            _ => return None,
-        };
-        let offset = match chars.next() {
-            None => 0,
-            Some('#') => 1,
-            Some('b') => -1,
-            _ => return None,
-        };
-        if chars.next().is_some() {
-            return None;
-        }
-        Some((base + offset).rem_euclid(12) as u8)
-    }
+    use super::arrange::accordion_pitch_class as pitch_class;
     if !chord.degrees.is_empty() {
         return Err("chord degrees are not supported by this candidate search".into());
     }
