@@ -1571,6 +1571,37 @@ fn chord_name_pitch(name: &str) -> Option<Pitch> {
         .then(|| Pitch::with_alter(step, 4, alter))
 }
 
+/// Spell a chord written outside the score at `measure_index` of `staff` as [`transpose`]
+/// spells chord symbols there: from the key in force at that measure to its transposed key.
+/// Returns None for an unsupported root or slash-bass spelling.
+pub(crate) fn transpose_chord_symbol_at(
+    score: &Score,
+    staff: &Staff,
+    measure_index: usize,
+    chord: &ChordSymbol,
+    semitones: i8,
+) -> Option<ChordSymbol> {
+    let key = &score.settings.key_signature;
+    let (mut source_key, mut target_key) = (
+        key.fifths,
+        transpose_fifths(key.fifths, &key.mode, semitones),
+    );
+    for measure in staff.measures.iter().take(measure_index.saturating_add(1)) {
+        if let Some(ks) = &measure.key_sig {
+            source_key = ks.fifths;
+            target_key = transpose_fifths(ks.fifths, &ks.mode, semitones);
+        }
+    }
+    let mut out = chord.clone();
+    out.root = transpose_chord_name(&chord.root, semitones, source_key, target_key)?;
+    if let Some(bass) = &chord.bass {
+        out.bass = Some(transpose_chord_name(
+            bass, semitones, source_key, target_key,
+        )?);
+    }
+    Some(out)
+}
+
 fn transpose_chord_name(
     name: &str,
     semitones: i8,

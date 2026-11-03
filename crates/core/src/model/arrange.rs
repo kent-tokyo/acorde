@@ -130,7 +130,7 @@ fn guided_error(
     }
 }
 
-fn accordion_pitch_class(name: &str) -> Option<u8> {
+pub(super) fn accordion_pitch_class(name: &str) -> Option<u8> {
     let mut characters = name.chars();
     let base: i16 = match characters.next()? {
         'C' => 0,
@@ -142,15 +142,15 @@ fn accordion_pitch_class(name: &str) -> Option<u8> {
         'B' => 11,
         _ => return None,
     };
-    let alter = match characters.next() {
-        None => 0,
-        Some('#') => 1,
-        Some('b') => -1,
+    // Up to a double sharp or flat, as key-aware transposition can spell them.
+    let alter = match characters.as_str() {
+        "" => 0,
+        "#" => 1,
+        "##" => 2,
+        "b" => -1,
+        "bb" => -2,
         _ => return None,
     };
-    if characters.next().is_some() {
-        return None;
-    }
     Some((base + alter).rem_euclid(12) as u8)
 }
 

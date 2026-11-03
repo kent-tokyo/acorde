@@ -1595,6 +1595,26 @@ pub fn profiled_accompaniment_capabilities() -> Result<String, JsValue> {
         .map_err(|error| js_err(format!("profiled accompaniment capabilities serialization failed: {error}")))
 }
 
+/// Re-arrange a standard-bass edition after transposing its melody and harmony; the profile is unchanged.
+#[wasm_bindgen]
+pub fn arrange_standard_bass_transposed(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    use acorde_core::model::standard_bass_transposition::{arrange_standard_bass_transposed, TransposedStandardBassOptions};
+    let score = score_from_json(score_json)?;
+    let options: TransposedStandardBassOptions = parse_json(options_json, "transposed standard-bass options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&arrange_standard_bass_transposed(&score, &options))
+        .map_err(|error| js_err(format!("transposed standard-bass serialization failed: {error}")))
+}
+
+/// Classify a bounded range of transpositions against an unchanged standard-bass profile.
+#[wasm_bindgen]
+pub fn evaluate_standard_bass_transpositions(score_json: &str, search_json: &str) -> Result<String, JsValue> {
+    use acorde_core::model::standard_bass_transposition::{evaluate_standard_bass_transpositions, StandardBassTranspositionSearch};
+    let score = score_from_json(score_json)?;
+    let search: StandardBassTranspositionSearch = parse_json(search_json, "standard-bass transposition search", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&evaluate_standard_bass_transpositions(&score, &search))
+        .map_err(|error| js_err(format!("transposition search serialization failed: {error}")))
+}
+
 /// Generate a simultaneous arrangement using explicit button rows and columns.
 #[wasm_bindgen]
 pub fn arrange_standard_bass_located(score_json: &str, options_json: &str, instrument_json: &str) -> Result<String, JsValue> {

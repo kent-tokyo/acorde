@@ -285,6 +285,27 @@ selected again. The host still owns source IDs, sharing URLs, labels and UI.
 
 `model::profiled_chord_plan::profile_chord_plan` (also exposed to WASM) checks each positioned chord against the supplied button inventory and returns options for `arrange_profiled_bass_pulse` only when every entry has a supported candidate. It checks harmony and timing-grid positions, not complete score coverage or physical playability; performer review is required. Candidate matching uses the combined pitch classes of a bass and chord button. The resulting bass pulse attacks them separately, so it does not claim the simultaneous harmony sounds throughout.
 
+### Re-arranging in another key
+
+`model::standard_bass_transposition::arrange_standard_bass_transposed` (WASM:
+`arrange_standard_bass_transposed(scoreJson, optionsJson)`) takes the source
+score, the source edition's `StandardBassArrangementOptions`, an explicit
+`semitones` value and an optional `transition_policy`. It transposes the score
+through `transpose_checked`, respells every positioned chord for the key in
+force at its measure (slash basses included), and runs `arrange_standard_bass`
+again with the **unchanged** profile: profile MIDI and button names are never
+transposed. `arrangement.resolved_options` holds only the respelled harmony;
+`source_options` echoes the input. No left-hand octave, harmony or free-bass
+change is made implicitly. Failures (`transposition-out-of-range`,
+`transposition-unsupported`, `unsupported-chord-spelling`,
+`no-standard-bass-candidate`, `transition-*`) return no score or actions.
+
+`evaluate_standard_bass_transpositions` (WASM: same name) classifies an
+ascending range of at most 25 semitone values as `arranged`, `out-of-range`,
+`no-button-combination`, `transition-rejected` or `unsupported`; a wider range
+returns `transposition-search-limit`. A missing combination describes the
+supplied profile only, not the playability of the piece.
+
 ### Explicit button rows and columns
 
 `model::standard_bass_button_layout::located_standard_bass_candidates` and its WASM binding add caller-supplied row and column labels to simultaneous-button candidates. Every button must have one unique location; the API does not infer a physical layout from an instrument size. For root-position dominant seventh chords, a supplied seventh-row button containing the root, third and minor seventh is preferred when it meets the requested omission/addition policy. A missing fifth is never allowed implicitly. Slash bass remains explicit. Optional transition distance is the sum of column changes, not a physical reach or fingering guarantee; performer review is still required. This candidate search does not yet select actions for positioned chord plans or generated scores.
