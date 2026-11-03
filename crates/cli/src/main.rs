@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+mod mcp;
+
 const MAX_PLAYBACK_JSON_BYTES: usize = 64 * 1024 * 1024;
 const MAX_OMR_REPORT_BYTES: usize = 64 * 1024 * 1024;
 const RENDER_REPORT_SCHEMA_VERSION: u32 = 1;
@@ -491,6 +493,15 @@ enum Commands {
         #[arg(long)]
         fail_on_loss: bool,
     },
+    /// Serve score inspection and reviewed-editing tools to an MCP client over stdio
+    Mcp {
+        /// Directory the tools may read from (and write to with --allow-write); repeatable
+        #[arg(long = "root", required = true)]
+        roots: Vec<PathBuf>,
+        /// Enable the write_score tool; without it the server never writes files
+        #[arg(long)]
+        allow_write: bool,
+    },
 }
 
 fn main() {
@@ -736,6 +747,7 @@ fn run(cli: &Cli) -> Result<(), String> {
             fail_on_differences,
             fail_on_loss,
         } => cmd_compatibility_report(source, candidate, *fail_on_differences, *fail_on_loss),
+        Commands::Mcp { roots, allow_write } => mcp::serve(roots, *allow_write),
     }
 }
 
@@ -2509,6 +2521,18 @@ struct ExportReportSummary {
 
 fn cmd_export_report(input: &Path, output: &Path) -> Result<(), String> {
     let score = parse_score(input)?;
+    let summary = export_report(&score, output)?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&summary)
+            .map_err(|e| format!("report serialization failed: {e}"))?
+    );
+    Ok(())
+}
+
+/// Serializes `score` in the format named by `output`'s extension, writes it, and reports the
+/// conversion diagnostics.
+fn export_report(score: &Score, output: &Path) -> Result<ExportReportSummary, String> {
     let ext = output
         .extension()
         .and_then(|e| e.to_str())
@@ -2517,7 +2541,7 @@ fn cmd_export_report(input: &Path, output: &Path) -> Result<(), String> {
     let (format, bytes, diagnostics, schema_version) = match ext.as_str() {
         "xml" | "musicxml" => {
             let report =
-                acorde_io::serialize_musicxml_with_report(&score).map_err(|e| e.to_string())?;
+                acorde_io::serialize_musicxml_with_report(score).map_err(|e| e.to_string())?;
             (
                 report.format,
                 report.output.into_bytes(),
@@ -2526,8 +2550,7 @@ fn cmd_export_report(input: &Path, output: &Path) -> Result<(), String> {
             )
         }
         "mid" | "midi" => {
-            let report =
-                acorde_io::serialize_midi_with_report(&score).map_err(|e| e.to_string())?;
+            let report = acorde_io::serialize_midi_with_report(score).map_err(|e| e.to_string())?;
             (
                 report.format,
                 report.output,
@@ -2536,7 +2559,7 @@ fn cmd_export_report(input: &Path, output: &Path) -> Result<(), String> {
             )
         }
         "abc" => {
-            let report = acorde_io::serialize_abc_with_report(&score).map_err(|e| e.to_string())?;
+            let report = acorde_io::serialize_abc_with_report(score).map_err(|e| e.to_string())?;
             (
                 report.format,
                 report.output.into_bytes(),
@@ -2545,7 +2568,7 @@ fn cmd_export_report(input: &Path, output: &Path) -> Result<(), String> {
             )
         }
         "mei" => {
-            let report = acorde_io::serialize_mei_with_report(&score).map_err(|e| e.to_string())?;
+            let report = acorde_io::serialize_mei_with_report(score).map_err(|e| e.to_string())?;
             (
                 report.format,
                 report.output.into_bytes(),
@@ -2554,8 +2577,7 @@ fn cmd_export_report(input: &Path, output: &Path) -> Result<(), String> {
             )
         }
         "mscx" => {
-            let report =
-                acorde_io::serialize_mscx_with_report(&score).map_err(|e| e.to_string())?;
+            let report = acorde_io::serialize_mscx_with_report(score).map_err(|e| e.to_string())?;
             (
                 report.format,
                 report.output.into_bytes(),
@@ -2564,8 +2586,7 @@ fn cmd_export_report(input: &Path, output: &Path) -> Result<(), String> {
             )
         }
         "mscz" => {
-            let report =
-                acorde_io::serialize_mscz_with_report(&score).map_err(|e| e.to_string())?;
+            let report = acorde_io::serialize_mscz_with_report(score).map_err(|e| e.to_string())?;
             (
                 report.format,
                 report.output,
@@ -2594,12 +2615,7 @@ fn cmd_export_report(input: &Path, output: &Path) -> Result<(), String> {
         diagnostics,
         byte_count,
     };
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&summary)
-            .map_err(|e| format!("report serialization failed: {e}"))?
-    );
-    Ok(())
+    Ok(summary)
 }
 
 /// Version of the machine-readable compatibility-report envelope.

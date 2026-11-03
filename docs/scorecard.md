@@ -15,5 +15,9 @@ regression tests must change together.
   Text-font supply, broader publication resources, and printer APIs remain host work.
 - The browser adapter transactionally loads MusicXML, MXL, MEI, ABC, MIDI, MSCX, and MSCZ; it
   exports MusicXML, MEI, ABC, MIDI, and bounded MSCX/MSCZ. This is not a losslessness or parity claim.
+- `acorde mcp` is a local stdio MCP adapter over the CLI paths: inspection tools, reviewed
+  in-memory editing of nine `Command` types with undo/redo, and opt-in (`--allow-write`)
+  export to a destination other than the source. It has no network transport and is not a
+  hosted service.
 - `evidence.security_checks` mirrors local release gates. Browser E2E, raster fidelity, latency,
   publication, and downstream adoption need their own evidence.
