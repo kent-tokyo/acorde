@@ -117,7 +117,7 @@ pub(super) fn edition_kinds(
     kinds
 }
 
-fn reject(
+pub(super) fn reject(
     code: &str,
     message: impl Into<String>,
     measure_index: Option<usize>,

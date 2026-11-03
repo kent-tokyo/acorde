@@ -1501,6 +1501,29 @@ pub fn arrange_standard_bass(score_json: &str, options_json: &str) -> Result<Str
         .map_err(|error| js_err(format!("standard-bass arrangement serialization failed: {error}")))
 }
 
+/// Propose editorial harmony for the selected melody, then arrange; the result is marked as proposed.
+#[wasm_bindgen]
+pub fn arrange_standard_bass_proposed_harmony(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    use acorde_core::model::standard_bass_arrangement::StandardBassArrangementOptions;
+    use acorde_core::model::standard_bass_proposed::arrange_standard_bass_proposed_harmony;
+    let score = score_from_json(score_json)?;
+    let options: StandardBassArrangementOptions = parse_json(options_json, "standard-bass arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&arrange_standard_bass_proposed_harmony(&score, &options))
+        .map_err(|error| js_err(format!("proposed-harmony arrangement serialization failed: {error}")))
+}
+
+/// Arrange with the melody following explicit measure-range voice choices (phrases).
+#[wasm_bindgen]
+pub fn arrange_standard_bass_with_phrases(score_json: &str, options_json: &str, phrases_json: &str) -> Result<String, JsValue> {
+    use acorde_core::model::standard_bass_arrangement::StandardBassArrangementOptions;
+    use acorde_core::model::standard_bass_phrases::{arrange_standard_bass_with_phrases, MelodyPhrase};
+    let score = score_from_json(score_json)?;
+    let options: StandardBassArrangementOptions = parse_json(options_json, "standard-bass arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    let phrases: Vec<MelodyPhrase> = parse_json(phrases_json, "melody phrases", MAX_SMALL_JSON_BYTES)?;
+    serde_json::to_string(&arrange_standard_bass_with_phrases(&score, &options, &phrases))
+        .map_err(|error| js_err(format!("phrase arrangement serialization failed: {error}")))
+}
+
 /// Create a simplified arrangement with explicit melody pitch choices for chords.
 #[wasm_bindgen]
 pub fn arrange_standard_bass_with_pitch_selection(score_json: &str, options_json: &str, selections_json: &str) -> Result<String, JsValue> {
@@ -1702,6 +1725,24 @@ pub fn standard_bass_chord_candidates(
     let candidates = standard_bass_candidates(&profile, &request).map_err(js_err)?;
     serde_json::to_string(&candidates)
         .map_err(|error| js_err(format!("standard-bass candidate serialization failed: {error}")))
+}
+
+/// Find one bass plus two chord buttons for a chord. Opt-in, capped, and reviewable only.
+#[wasm_bindgen]
+pub fn standard_bass_double_chord_candidates(
+    profile_json: &str,
+    chord_json: &str,
+    allow_omissions: bool,
+    allow_additions: bool,
+) -> Result<String, JsValue> {
+    use acorde_core::model::standard_bass::{standard_bass_double_chord_candidates, standard_bass_request_for_chord, StandardBassProfile};
+    let profile: StandardBassProfile = parse_json(profile_json, "standard-bass profile", MAX_OPTIONS_JSON_BYTES)?;
+    let chord: acorde_core::ChordSymbol = parse_json(chord_json, "chord symbol", MAX_OPTIONS_JSON_BYTES)?;
+    let request = standard_bass_request_for_chord(&chord, allow_omissions, allow_additions)
+        .map_err(js_err)?;
+    let candidates = standard_bass_double_chord_candidates(&profile, &request).map_err(js_err)?;
+    serde_json::to_string(&candidates)
+        .map_err(|error| js_err(format!("two-chord-button candidate serialization failed: {error}")))
 }
 
 /// Compose typed accompaniment, explicit harmony and melodic-voice layers.

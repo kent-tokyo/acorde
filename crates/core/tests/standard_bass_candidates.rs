@@ -1,6 +1,7 @@
 use acorde_core::model::standard_bass::{
     StandardBassChordButton, StandardBassNoteButton, StandardBassProfile, StandardBassRealization,
-    StandardBassRequest, standard_bass_candidates, standard_bass_request_for_chord,
+    StandardBassRequest, standard_bass_candidates, standard_bass_double_chord_candidates,
+    standard_bass_request_for_chord,
 };
 
 fn profile() -> StandardBassProfile {
@@ -224,4 +225,30 @@ fn candidates_are_labelled_and_separate_direct_from_combined_buttons() {
     let g = standard_bass_candidates(&p, &request(&[7, 11, 2], 7)).unwrap();
     assert_eq!(g[0].label, "G bass + G chord");
     assert_eq!(g[0].realization, StandardBassRealization::Direct);
+}
+
+#[test]
+fn two_chord_buttons_reach_a_ninth_chord_no_single_button_gives() {
+    let mut p = profile();
+    p.chord_buttons.push(StandardBassChordButton {
+        id: "D major".into(),
+        position: 1,
+        midi: vec![62, 66, 69],
+    });
+    // Cmaj9 without the fifth-heavy duplication: C E G B D needs Em + D.
+    let nine = request(&[0, 2, 4, 7, 11], 0);
+    assert!(standard_bass_candidates(&p, &nine).unwrap().is_empty());
+    let mut loose = nine.clone();
+    loose.allow_additions = true;
+    let found = standard_bass_double_chord_candidates(&p, &loose).unwrap();
+    assert!(found.iter().any(|c| {
+        c.label == "C bass + Em chord + D chord" || c.label == "C bass + D chord + Em chord"
+    }));
+    assert!(found.iter().all(|c| c.requires_performer_review));
+    // Deterministic and bounded.
+    assert_eq!(
+        found,
+        standard_bass_double_chord_candidates(&p, &loose).unwrap()
+    );
+    assert!(found.len() <= 256);
 }
