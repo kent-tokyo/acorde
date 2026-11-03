@@ -179,30 +179,8 @@ pub fn arrange_profiled_bass_pulse(
             None,
         );
     }
-    let signature = |score: &Score| {
-        to_playback_events_bounded(score, &Default::default()).map(|events| {
-            events
-                .into_iter()
-                .filter(|event| {
-                    event
-                        .source
-                        .as_ref()
-                        .is_some_and(|a| a.part == 0 && a.staff == 0 && a.voice == 0)
-                })
-                .map(|event| {
-                    (
-                        event.pitch_midi_cents,
-                        event.time_beats,
-                        event.duration_beats,
-                        event.time_secs,
-                        event.duration_secs,
-                    )
-                })
-                .collect::<Vec<_>>()
-        })
-    };
-    let before = signature(score);
-    let after = signature(&output);
+    let before = melody_signature(score);
+    let after = melody_signature(&output);
     if before.is_err() || after.is_err() || before.ok() != after.ok() {
         return fail(
             options,
@@ -218,4 +196,30 @@ pub fn arrange_profiled_bass_pulse(
         resolved_options: options.clone(),
         requires_performer_review: true,
     }
+}
+
+type MelodySignature = Vec<(i32, f64, f64, f64, f64)>;
+
+/// Playback of the selected melody voice, used to prove a generated pattern left it unchanged.
+pub(super) fn melody_signature(score: &Score) -> Result<MelodySignature, crate::Error> {
+    to_playback_events_bounded(score, &Default::default()).map(|events| {
+        events
+            .into_iter()
+            .filter(|event| {
+                event
+                    .source
+                    .as_ref()
+                    .is_some_and(|a| a.part == 0 && a.staff == 0 && a.voice == 0)
+            })
+            .map(|event| {
+                (
+                    event.pitch_midi_cents,
+                    event.time_beats,
+                    event.duration_beats,
+                    event.time_secs,
+                    event.duration_secs,
+                )
+            })
+            .collect()
+    })
 }
