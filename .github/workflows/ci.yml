@@ -262,8 +262,8 @@ jobs:
           # (+3,590 from 6,708,307); retain approximately 7 KB headroom.
           # Transposed standard-bass re-arrangement adds 21,414 bytes over main on Linux
           # (6,767,544 -> 6,788,958) and profiled accompaniment patterns 27,759
-          # (-> 6,795,303); their sum is about 6,816,700. Provisional budget with about
-          # 8 KB headroom pending the combined Linux measurement.
+          # (-> 6,795,303). Linux CI measured the combination at 6,818,427 bytes;
+          # retain approximately 6.5 KB headroom.
           test "$size" -le 6825000
 
   renderer-benchmark:
