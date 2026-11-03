@@ -109,8 +109,9 @@ review-first, high-contrast PNG subset; its limits and no-silent-write rule are 
 
 ## Documentation
 
-Start with the [documentation guide](docs/README.md). It groups contracts, migration notes, and
-bounded evidence by task. The most common references are the [notation coverage matrix](docs/notation-coverage.md),
+Start with the [documentation guide](docs/README.md) for current contracts and
+[roadmap](ROADMAP.md) for planned work. The most common references are the
+[notation coverage matrix](docs/notation-coverage.md),
 [migration notes](docs/migrations.md), [browser contract](docs/browser-rendering.md), and
 [PDF export boundary](docs/pdf-export.md).
 
