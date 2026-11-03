@@ -279,7 +279,9 @@ jobs:
   wasm-browser:
     name: WASM browser contract
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Each integration-test file costs about 16 s of browser start-up. The full run took
+    # 4 m 40 s, close to its step limit, before the transposition tests were added.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
@@ -290,9 +292,9 @@ jobs:
       - name: Install wasm-pack
         run: cargo install wasm-pack --version 0.15.0 --locked
       - name: wasm browser tests
-        run: timeout 5m wasm-pack test --headless --chrome crates/wasm
+        run: timeout 8m wasm-pack test --headless --chrome crates/wasm
       - name: Viewer browser tests
-        run: timeout 5m wasm-pack test --headless --chrome crates/wasm --no-default-features --features viewer
+        run: timeout 6m wasm-pack test --headless --chrome crates/wasm --no-default-features --features viewer
       - name: Playback-only browser tests
         run: timeout 5m wasm-pack test --headless --chrome crates/wasm --no-default-features --features playback-only
 
