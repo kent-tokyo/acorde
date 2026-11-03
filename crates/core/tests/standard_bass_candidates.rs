@@ -196,7 +196,7 @@ fn chord_symbols_resolve_slash_bass_and_reject_unsupported_input() {
             .any(|c| c.chord_button_id == "G major")
     );
     let mut unsupported = symbol.clone();
-    unsupported.root = "G##".into();
+    unsupported.root = "G###".into();
     assert!(standard_bass_request_for_chord(&unsupported, false, false).is_err());
     unsupported = symbol;
     unsupported.degrees.push(acorde_core::ChordDegree {
