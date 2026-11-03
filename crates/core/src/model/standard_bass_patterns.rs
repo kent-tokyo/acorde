@@ -81,6 +81,10 @@ pub struct ProfiledAccompanimentResult {
     pub score: Option<Score>,
     pub actions: Vec<ProfiledAccompanimentAction>,
     pub attacks: Vec<ProfiledAccompanimentAttack>,
+    /// Selected melody notes, copied unchanged to the same addresses in the output.
+    pub source_notes: Vec<NoteAddr>,
+    /// Accompaniment notes; they have no source note and are realized by `actions`.
+    pub generated_notes: Vec<NoteAddr>,
     pub diagnostics: Vec<GuidedArrangeDiagnostic>,
     pub resolved_options: ProfiledAccompanimentOptions,
     pub requires_performer_review: bool,
@@ -147,6 +151,8 @@ fn fail(
         score: None,
         actions: vec![],
         attacks: vec![],
+        source_notes: vec![],
+        generated_notes: vec![],
         diagnostics: vec![GuidedArrangeDiagnostic {
             code: code.into(),
             message: message.into(),
@@ -276,8 +282,17 @@ pub fn arrange_profiled_accompaniment(
                     request.bass_pitch_class,
                 ));
             }
-            if note.is_rest || note.tie_end {
+            if note.is_rest {
                 continue;
+            }
+            // No supported pattern ties attacks; a tie would keep template pitches.
+            if note.tie_start || note.tie_end {
+                return fail(
+                    options,
+                    "unsupported-template-tie",
+                    "tied accompaniment notes are not mapped to buttons",
+                    Some(measure_index),
+                );
             }
             let Some((candidate, requested, bass_class)) = current.as_ref() else {
                 return fail(
@@ -414,6 +429,8 @@ pub fn arrange_profiled_accompaniment(
         score: Some(output),
         actions,
         attacks,
+        source_notes: template.source_notes,
+        generated_notes: template.generated_notes,
         diagnostics: vec![],
         resolved_options: options.clone(),
         requires_performer_review: true,

@@ -324,3 +324,34 @@ fn every_listed_pattern_and_meter_generates() {
         }
     }
 }
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn c_bass_with_e_minor_is_cmaj7_only_when_sounding_together() {
+    let abc = "X:1\nM:4/4\nL:1/4\nK:C\nc d e f|]";
+    let profile = json!({
+        "bass_buttons": [{ "id": "C bass", "position": 0, "midi": 36 }],
+        "chord_buttons": [{ "id": "E minor", "position": 0, "midi": [64, 67, 71] }],
+        "max_distance": 0
+    });
+    let chords = vec![chord(0, 0.0, "C", "major-seventh")];
+    let (source, result) = arrange(abc, &options("bass-pulse", chords, profile, false));
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    // The pair together is a complete Cmaj7 ...
+    assert!(result.actions[0].candidate.omitted_pitch_classes.is_empty());
+    // ... but each separate attack sounds only part of it.
+    assert_eq!(result.actions[0].button_id, "C bass");
+    assert_eq!(result.actions[0].omitted_pitch_classes, vec![4, 7, 11]);
+    assert_eq!(result.actions[1].button_id, "E minor");
+    assert_eq!(result.actions[1].omitted_pitch_classes, vec![0]);
+    // Melody notes map to the same addresses; every action targets a generated note.
+    assert_eq!(result.source_notes.len(), 4);
+    assert!(result.source_notes.iter().all(|addr| addr.staff == 0));
+    assert!(
+        result
+            .actions
+            .iter()
+            .all(|action| result.generated_notes.contains(&action.target))
+    );
+    assert_consistent(&source, &result);
+}
