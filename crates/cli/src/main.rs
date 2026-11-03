@@ -504,9 +504,25 @@ enum Commands {
     },
 }
 
+/// Stack for the CLI thread. Windows gives the main thread 1 MiB, which unoptimized builds of
+/// the subcommand parser and dispatch overflow; this matches the usual Linux main-thread stack.
+const CLI_STACK_BYTES: usize = 8 * 1024 * 1024;
+
 fn main() {
-    let cli = Cli::parse();
-    if let Err(e) = run(&cli) {
+    let worker = std::thread::Builder::new()
+        .name("acorde".into())
+        .stack_size(CLI_STACK_BYTES)
+        .spawn(|| {
+            let cli = Cli::parse();
+            run(&cli)
+        });
+    let outcome = match worker {
+        Ok(handle) => handle
+            .join()
+            .unwrap_or_else(|_| Err("internal error: the CLI thread panicked".into())),
+        Err(e) => Err(format!("cannot start the CLI thread: {e}")),
+    };
+    if let Err(e) = outcome {
         eprintln!("error: {e}");
         std::process::exit(1);
     }
