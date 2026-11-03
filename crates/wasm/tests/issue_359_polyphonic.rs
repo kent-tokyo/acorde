@@ -5,10 +5,11 @@
 #[cfg(target_arch = "wasm32")]
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
+use acorde_core::model::standard_bass_arrangement::StandardBassArrangementOptions;
 use acorde_core::model::standard_bass_pitch_selection::{
     MelodyPitchSelection, arrange_standard_bass_with_pitch_selection,
 };
-use acorde_core::{Score, model::standard_bass_arrangement::StandardBassArrangementOptions};
+use acorde_core::{Duration, Note, Pitch, Score, Step};
 use serde_json::json;
 use std::collections::BTreeSet;
 
@@ -25,12 +26,24 @@ const TRIADS: [(&str, &str, u8, u8, [u8; 3]); 7] = [
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
 #[cfg_attr(not(target_arch = "wasm32"), test)]
-fn sarabande_reduction_reports_every_omitted_voice() {
-    let source_json = acorde_wasm::parse_mscz(include_bytes!(
-        "fixtures/sarabande-bwv1012-site-36997ef8.mscz"
-    ))
-    .unwrap();
-    let source: Score = serde_json::from_str(&source_json).unwrap();
+fn polyphonic_reduction_reports_every_omitted_voice() {
+    // Synthetic keyboard-style bars: a three-note chord line over a lower voice.
+    let mut source = Score::new("polyphonic", 90, 4, 4, 0, 8);
+    let chord = |steps: [(Step, i8); 3], duration| {
+        let mut note = Note::new(Pitch::new(steps[0].0.clone(), steps[0].1), duration);
+        for (step, octave) in &steps[1..] {
+            note.pitches.push(Pitch::new(step.clone(), *octave));
+        }
+        note
+    };
+    for (i, bar) in source.parts[0].staves[0].measures.iter_mut().enumerate() {
+        let low = if i % 2 == 0 { Step::D } else { Step::B };
+        bar.voices[0] = vec![
+            chord([(Step::F, 4), (Step::A, 4), (Step::D, 5)], Duration::Half),
+            chord([(Step::E, 4), (Step::G, 4), (Step::B, 4)], Duration::Half),
+        ];
+        bar.voices[1] = vec![Note::new(Pitch::new(low, 3), Duration::Whole)];
+    }
     // The host, not the library, chooses the melody: the top pitch of each chord in the
     // right-hand first voice. The library requires every chord choice to be explicit.
     let mut selections = Vec::new();

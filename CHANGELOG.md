@@ -7,7 +7,7 @@
 - `standard_bass_double_chord_candidates` (Rust and WASM) searches one bass plus two chord buttons, opt-in, capped at 256 results, each button required to contribute a requested pitch class (#358).
 - `arrange_standard_bass_proposed_harmony` proposes editorial harmony for the selected melody with `suggest_chord_plans` and marks the result `editorial-proposal` (#359).
 - `arrange_standard_bass_with_phrases` lets the melody follow explicit measure-range voice choices; source addresses refer to the unmodified score and playback is re-checked against it (#359).
-- Sarabande BWV 1012 regression fixture (CC BY-SA 3.0, see `crates/wasm/tests/fixtures/README.md`) checks the loss report and fail-closed diagnostics (#359).
+- A synthetic polyphonic regression test checks the loss report (every source pitch kept or omitted exactly once) and fail-closed ambiguity and omission diagnostics (#359). A Bach Sarabande fixture was not added: the site file is CC BY-SA 3.0.
 
 - Add `acorde mcp --root <dir> [--allow-write]`, a local MCP server over stdio (rmcp 3.8). It
   exposes `score_info`, `validate_score`, `import_report`, `compatibility_report` and
