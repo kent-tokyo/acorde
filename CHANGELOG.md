@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- MSCX/MSCZ export writes the score tempo in the first bar when that bar has no tempo of its own, so `settings.tempo_bpm` and playback timing survive a roundtrip (#379).
+
 ## 1.3.9 - 2026-11-02
 
 - Add explicit standard-bass button profiles, located candidate search, melody-pitch selection and bounded repeat-aware transition/alternative search in Rust and WASM. Source-pitch omissions are reported and results require performer review. A fixed 16-measure Eventide fixture checks selected-melody playback and MSCZ roundtrip with synthetic harmony and a mock profile; it does not establish physical reach or a publishable edition.
