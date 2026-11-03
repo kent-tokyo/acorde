@@ -1578,6 +1578,23 @@ pub fn arrange_profiled_bass_pulse(score_json: &str, options_json: &str) -> Resu
         .map_err(|error| js_err(format!("profiled bass-pulse serialization failed: {error}")))
 }
 
+/// Generate a supported accompaniment pattern using an explicit standard-bass button profile.
+#[wasm_bindgen]
+pub fn arrange_profiled_accompaniment(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    use acorde_core::model::standard_bass_patterns::{arrange_profiled_accompaniment, ProfiledAccompanimentOptions};
+    let score = score_from_json(score_json)?;
+    let options: ProfiledAccompanimentOptions = parse_json(options_json, "profiled accompaniment options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&arrange_profiled_accompaniment(&score, &options))
+        .map_err(|error| js_err(format!("profiled accompaniment serialization failed: {error}")))
+}
+
+/// Patterns, meters and melody layers supported with explicit standard-bass buttons.
+#[wasm_bindgen]
+pub fn profiled_accompaniment_capabilities() -> Result<String, JsValue> {
+    serde_json::to_string(&acorde_core::model::standard_bass_patterns::profiled_accompaniment_capabilities())
+        .map_err(|error| js_err(format!("profiled accompaniment capabilities serialization failed: {error}")))
+}
+
 /// Generate a simultaneous arrangement using explicit button rows and columns.
 #[wasm_bindgen]
 pub fn arrange_standard_bass_located(score_json: &str, options_json: &str, instrument_json: &str) -> Result<String, JsValue> {
